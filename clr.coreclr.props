@@ -1,5 +1,6 @@
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
+    <FeatureCollectibleALC>true</FeatureCollectibleALC>
     <FeatureEventTrace>true</FeatureEventTrace>
     <FeatureHardwareIntrinsics>true</FeatureHardwareIntrinsics>
     <FeatureICastable>true</FeatureICastable>
@@ -32,5 +33,6 @@
     <FeatureCominteropApartmentSupport>true</FeatureCominteropApartmentSupport>
     <FeatureAppX>true</FeatureAppX>
     <FeatureWin32Registry>true</FeatureWin32Registry>
+    <FeatureProfAttach>true</FeatureProfAttach>
   </PropertyGroup>
 </Project>

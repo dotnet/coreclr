@@ -1,32 +1,64 @@
 ﻿[
     {
-        "name": "System.Console.Tests",
+        "name": "System.Globalization.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
             "methods": [
                 {
-                    "name": "WindowAndCursorProps.SetWindowPosition_GetWindowPosition_ReturnsExpected",
-                    "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\r\\n          ↓ (pos 0)\\r\\nExpected: top\\r\\nActual:   left\\r\\n          ↑ (pos 0)"
-                },
-                {
-                    "name": "WindowAndCursorProps.GetCursorPosition",
-                    "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\r\\nExpected: 12\\r\\nActual:   13"
+                    "name": "System.Globalization.Tests.CharUnicodeInfoGetUnicodeCategoryTests.GetUnicodeCategory",
+                    "reason": "We updated the Unicode data and didn't pick yet the updated tests from corefx. we should remove this entry after updating the tests in coreclr."
                 }
             ]
         }
     },
     {
-        "name": "System.Diagnostics.DiagnosticSource.Tests",
+        "name": "System.Data.SqlClient.ManualTesting.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
+        }
+    },
+    {
+        "name": "System.Data.SqlClient.Stress.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
+        }
+    },
+    {
+        "name": "System.Data.SqlClient.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
+        }
+    },
+    {
+        "name": "System.ComponentModel.Composition.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
+        }
+    },
+    {
+        "name": "System.Runtime.Serialization.Formatters.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
             "methods": [
                 {
-                    "name": "System.Diagnostics.Tests.DiagnosticSourceEventSourceBridgeTests.TestShortcutKeywords",
-                    "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\n          ↓ (pos 0)\\nExpected: Activity1Start\\nActual:   Event\\n          ↑ (pos 0)"
+                    "name": "System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.ValidateAgainstBlobs",
+                    "reason": "The stored blob for type System.CodeDom.MemberAttributes is outdated and needs to be updated."
                 }
             ]
         }
@@ -40,7 +72,249 @@
             "methods": [
                 {
                     "name": "BasicEventSourceTests.TestsUserErrors.Test_BadEventSource_MismatchedIds",
-                    "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\nExpected: 2\\nActual:   1"
+                    "reason": "Assert.Equal() Failure Expected: 1 Actual: 2"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Diagnostics.DiagnosticSource.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Diagnostics.Tests.DiagnosticSourceEventSourceBridgeTests.TestShortcutKeywords",
+                    "reason": "Assert.Equal() Failure ↓ (pos 0) Expected: Activity1Start Actual:   Event ↑ (pos 0)"
+                },
+                {
+                    "name": "System.Diagnostics.Tests.ActivityTests.IdGenerationInternalParent",
+                    "reason": "Assert.Equal() Failure Expected: úúúda-4ecabd4ccb066678.child1-1. Actual:   úúúda-4ecabd4ccb066678.1."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Net.HttpListener.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Net.Tests.HttpRequestStreamTests.Read_NullBuffer_ThrowsArgumentNullException",
+                    "reason": "Assert.Throws() Failure Expected: typeof(System.ArgumentNullException) Actual:   typeof(System.NullReferenceException): Object reference not set to an instance of an object."
+                },
+                {
+                    "name": "System.Net.Tests.HttpResponseStreamTests.Write_NullBuffer_ThrowsArgumentNullException",
+                    "reason": "Assert.Throws() Failure Expected: typeof(System.ArgumentNullException) Actual:   typeof(System.NullReferenceException): Object reference not set to an instance of an object."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.ComponentModel.TypeConverter.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertFrom_ULongFlagsEnum_String",
+                    "reason": "System.OverflowException : Value was either too large or too small for an Int64"
+                },
+                {
+                    "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertFrom_ULongFlagsEnum_EnumArray",
+                    "reason": "System.OverflowException : Value was either too large or too small for an Int64."
+                },
+                {
+                    "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertTo_ULongFlagsEnum_EnumArray",
+                    "reason": "System.OverflowException : Value was either too large or too small for an Int64."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Collections.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Net.Http.Functional.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Net.Http.Functional.Tests.PlatformHandler_DiagnosticsTest.SendAsync_ExpectedDiagnosticSourceActivityLogging",
+                    "reason": "System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException : Remote process failed with an unhandled exception."
+                },
+                {
+                    "name": "System.Net.Http.Functional.Tests.SocketsHttpHandler_DiagnosticsTest.SendAsync_ExpectedDiagnosticSourceActivityLogging",
+                    "reason": "System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException : Remote process failed with an unhandled exception."
+                },
+                {
+                    "name": "System.Net.Http.Functional.Tests.SocketsHttpHandler_HttpClientHandlerTest.GetAsync_AllowAutoRedirectTrue_RetainsOriginalFragmentIfAppropriate",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.IO.FileSystem.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.IO.Tests.DirectoryInfo_GetSetTimes.SettingUpdatesProperties",
+                    "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
+                },
+                {
+                    "name": "System.IO.Tests.Directory_GetSetTimes.SettingUpdatesProperties",
+                    "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
+                },
+                {
+                    "name": "System.IO.Tests.File_GetSetTimes.SettingUpdatesProperties",
+                    "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
+                },
+                {
+                    "name": "System.IO.Tests.FileInfo_GetSetTimes.SettingUpdatesProperties",
+                    "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
+                },
+                {
+                    "name": "System.IO.Tests.EncryptDecrypt.EncryptDecrypt_NotSupported",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.IO.Tests.EncryptDecrypt.NullArg_ThrowsException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.IO.Tests.File_Delete.Unix_NonExistentPath_Nop",
+                    "reason": "outdated (deleted from corefx)"
+                },
+                {
+                    "name": "System.IO.Tests.FileInfo_Delete.Unix_NonExistentPath_Nop",
+                    "reason": "outdated (deleted from corefx)"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.IO.Pipelines.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.IO.Pipelines.Tests.FlushAsyncCancellationTests.ReadAsyncCompletesIfFlushAsyncCanceledMidFlush",
+                    "reason": "Unstable"
                 }
             ]
         }
@@ -91,334 +365,116 @@
                 {
                     "name": "System.Drawing.Tests.FontTests.ToLogFont_NullLogFont_ThrowsArgumentNullException",
                     "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\r\\nExpected: typeof(System.ArgumentNullException)\\r\\nActual:   typeof(System.AccessViolationException): Attempted to read or write protected memory. This is often an indication that other memory is corrupt."
+                },
+                {
+                    "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_Point",
+                    "reason": "https://github.com/dotnet/corefx/issues/30180"
+                },
+                {
+                    "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_Point",
+                    "reason": "https://github.com/dotnet/corefx/issues/30180"
                 }
             ]
         }
     },
     {
-        "name": "System.Data.SqlClient.ManualTesting.Tests",
-        "enabled": false,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Data.SqlClient.Stress.Tests",
-        "enabled": false,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Data.SqlClient.Tests",
-        "enabled": false,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Pipes.Tests",
+        "name": "System.Text.RegularExpressions.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
             "methods": [
                 {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutRead_ClientInOutWrite.Server_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutWrite_ClientInOutRead.Server_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientIn.Server_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientOut.Server_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerOut_ClientIn.Server_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerIn_ClientOut.Server_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutRead_ClientInOutWrite.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutWrite_ClientInOutRead.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientIn.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientOut.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerOut_ClientIn.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerIn_ClientOut.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                    "name": "System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix",
+                    "reason": "https://github.com/dotnet/coreclr/issues/18912"
                 }
             ]
         }
     },
     {
-        "name": "System.Net.Http.Functional.Tests",
+        "name": "System.Threading.Thread.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
             "methods": [
                 {
-                    "name": "System.Net.Http.Functional.Tests.PlatformHandler_DiagnosticsTest.SendAsync_ExpectedDiagnosticSourceActivityLogging",
-                    "reason": "System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException : Remote process failed with an unhandled exception."
-                },
-                {
-                    "name": "System.Net.Http.Functional.Tests.SocketsHttpHandler_DiagnosticsTest.SendAsync_ExpectedDiagnosticSourceActivityLogging",
-                    "reason": "System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException : Remote process failed with an unhandled exception."
+                    "name": "System.Threading.Threads.Tests.ThreadTests.ApartmentState_NoAttributePresent_STA_Windows_Core",
+                    "reason": "https://github.com/dotnet/coreclr/issues/19478"
                 }
             ]
         }
     },
     {
-        "name": "System.Net.HttpListener.Tests",
+        "name": "System.Memory.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
             "methods": [
                 {
-                    "name": "System.Net.Tests.HttpRequestStreamTests.Read_NullBuffer_ThrowsArgumentNullException",
-                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.ArgumentNullException)\\nActual:   typeof(System.NullReferenceException): Object reference not set to an instance of an object."
-                },
-                {
-                    "name": "System.Net.Tests.HttpResponseStreamTests.Write_NullBuffer_ThrowsArgumentNullException",
-                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.ArgumentNullException)\\nActual:   typeof(System.NullReferenceException): Object reference not set to an instance of an object."
+                    "name": "System.Buffers.Text.Tests.FormatterTests.TestFormatterDecimal",
+                    "reason": "https://github.com/dotnet/coreclr/pull/19775"
                 }
             ]
         }
     },
     {
-        "name": "System.Security.Cryptography.X509Certificates.Tests",
+        "name": "System.Runtime.Extensions.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
             "methods": [
                 {
-                    "name": "System.Security.Cryptography.X509Certificates.Tests.X509StoreTests.Constructor_DefaultStoreName",
-                    "reason": "Assert.Equal() Failure ↓ (pos 1) Expected: My Actual:   MY ↑ (pos 1)"
+                    "name": "System.Tests.ConvertToStringTests.FromBoxedObject",
+                    "reason": "https://github.com/dotnet/coreclr/pull/19775"
                 }
             ]
         }
     },
     {
-        "name": "System.Threading.Tests",
+        "name": "System.Runtime.InteropServices.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
             "methods": [
                 {
-                    "name": "System.Threading.Tests.EventWaitHandleTests.Ctor_InvalidMode",
-                    "reason": "Assert.Equal() Failure Expected: (null) Actual:   mode"
+                    "name": "System.Runtime.InteropServices.Tests.GetHINSTANCETests.GetHINSTANCE_NonRuntimeModule_ThrowsArgumentNullException",
+                    "reason": "https://github.com/dotnet/coreclr/pull/30925"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.SafeBufferTests.Initialize_NumBytesTimesSizeOfEachElement_ThrowsOverflowException",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20132"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.GetFunctionPointerForDelegateTests.GetFunctionPointerForDelegate_DelegateCollectible_ThrowsNotSupportedException",
+                    "reason" : "outdated"
                 }
             ]
         }
     },
     {
-        "name": "System.Xml.Xsl.XslTransformApi.Tests",
+        "name": "System.Runtime.Loader.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
             "methods": [
                 {
-                    "name": "System.Xml.Tests.CXmlResolverTest.TC_AbsolutePath_Transform",
-                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\nExpected: True\\nActual:   False"
+                    "name" : "System.Runtime.Loader.Tests.AssemblyLoadContextTest.Unsupported_DelegateMarshalling",
+                    "reason" : "outdated"
                 },
                 {
-                    "name": "System.Xml.Tests.CTransformResolverTest.TC_AbsolutePath_Transform",
-                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\nExpected: True\\nActual:   False"
+                    "name" : "System.Runtime.Loader.Tests.AssemblyLoadContextTest.Unsupported_ThreadStaticAndFixedAddressValueType",
+                    "reason" : "outdated"
                 }
             ]
         }
     },
     {
-        "name": "System.Collections.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": [
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                },
-                {
-                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
-                    "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
-                }
-            ]
-        }
-    },
-    {
-        "name": "System.Linq.Parallel.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": [
-                {
-                    "name": "System.Linq.Parallel.Tests.GetEnumeratorTests.GetEnumerator",
-                    "reason": "outdated"
-                },
-                {
-                    "name": "System.Linq.Parallel.Tests.GetEnumeratorTests.GetEnumerator_Unordered",
-                    "reason": "outdated"
-                }
-            ]
-        }
-    },
-    {
-        "name": "System.Linq.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": [
-                {
-                    "name": "System.Linq.Tests.EmptyEnumerableTest.CastToIListGeneric",
-                    "reason": "outdated"
-                },
-                {
-                    "name": "System.Linq.Tests.EmptyEnumerableTest.EmptyEnumerableIsIndeedEmpty",
-                    "reason": "outdated"
-                },
-                {
-                    "name": "System.Linq.Tests.EmptyEnumerableTest.CastToArray",
-                    "reason": "outdated"
-                },
-                {
-                    "name": "System.Linq.Tests.EmptyEnumerableTest.CastToIList",
-                    "reason": "outdated"
-                },
-                {
-                    "name": "System.Linq.Tests.EmptyPartitionTests.CantResetEnumerator",
-                    "reason": "outdated"
-                }
-            ]
-        }
-    },
-    {
-        "name": "System.ComponentModel.Composition.Tests",
+        "name": "System.Security.Cryptography.Pkcs.Tests",
         "enabled": false,
         "exclusions": {
             "namespaces": null,
@@ -434,12 +490,106 @@
             "classes": null,
             "methods": [
                 {
-                    "name": "Microsoft.VisualBasic.Tests.StringsTests.ChrW_CharCodeOutOfRange_ThrowsArgumentException",
-                    "reason": "outdated"
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToChar_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
                 },
                 {
-                    "name": "Microsoft.VisualBasic.Tests.StringsTests.AscW_NullOrEmpty_ThrowsArgumentException",
-                    "reason": "outdated"
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToSingle_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToBoolean_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToSByte_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToDouble_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToDecimal_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToByte_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToLong_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToUShort_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToUInteger_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToInteger_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToShort_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToULong_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Numerics.Vectors.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name" : "System.Numerics.Tests.Vector2Tests.Vector2ClampTest",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Vector3Tests.Vector3ClampTest",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Vector4Tests.Vector4ClampTest",
+                    "reason" : "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Diagnostics.Debug.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": [
+                {
+                    "name" : "System.Diagnostics.Tests.DebugTests",
+                    "reason" : "refactoring Debug"
+                }
+            ],
+            "methods": null
+        }
+    },
+    {
+        "name": "System.Runtime.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Equals",
+                    "reason": "Because of a change in StringBuilder, this test is outdated."
                 }
             ]
         }

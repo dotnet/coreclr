@@ -12,6 +12,7 @@
 
   <ItemGroup Condition="'$(TargetsWindows)'=='true'">
     <Project Include="Microsoft.TargetingPack.Private.CoreCLR\Microsoft.TargetingPack.Private.CoreCLR.pkgproj" />
+    <Project Include="Microsoft.NET.Sdk.IL\Microsoft.NET.Sdk.IL.pkgproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(__SkipNativeBuild)'==''">

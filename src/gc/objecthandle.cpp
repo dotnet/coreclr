@@ -21,12 +21,6 @@
 
 #include "gchandletableimpl.h"
 
-#ifndef BUILD_AS_STANDALONE
-#ifdef FEATURE_COMINTEROP
-#include "comcallablewrapper.h"
-#endif // FEATURE_COMINTEROP
-#endif // BUILD_AS_STANDALONE
-
 HandleTableMap g_HandleTableMap;
 
 // Array of contexts used while scanning dependent handles for promotion. There are as many contexts as GC
@@ -474,8 +468,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, uintpt
         rootFlags |= kEtwGCRootFlagsRefCounted;
         if (*pRef != NULL)
         {
-            ComCallWrapper* pWrap = ComCallWrapper::GetWrapperForObject((OBJECTREF)*pRef);
-            if (pWrap == NULL || !pWrap->IsWrapperActive())
+            if (!GCToEEInterface::RefCountedHandleCallbacks(*pRef))
                 rootFlags |= kEtwGCRootFlagsWeakRef;
         }
         break;
@@ -541,12 +534,7 @@ int getNumberOfSlots()
     if (!IsServerHeap())
         return 1;
 
-#ifdef FEATURE_REDHAWK
     return GCToOSInterface::GetCurrentProcessCpuCount();
-#else
-    return (CPUGroupInfo::CanEnableGCCPUGroups() ? CPUGroupInfo::GetNumActiveProcessors() :
-                                                   GCToOSInterface::GetCurrentProcessCpuCount());
-#endif
 }
 
 class HandleTableBucketHolder
@@ -701,21 +689,6 @@ void Ref_Shutdown()
 }
 
 #ifndef FEATURE_REDHAWK
-HandleTableBucket* Ref_CreateHandleTableBucket(void* context)
-{
-    HandleTableBucket* result = new (nothrow) HandleTableBucket();
-    if (result == nullptr)
-        return nullptr;
-
-    if (!Ref_InitializeHandleTableBucket(result, context))
-    {
-        delete result;
-        return nullptr;
-    }
-
-    return result;
-}
-
 bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context)
 {
     CONTRACTL
@@ -776,8 +749,7 @@ bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context)
 
         // No free slot.
         // Let's create a new node
-        NewHolder<HandleTableMap> newMap;
-        newMap = new (nothrow) HandleTableMap;
+        HandleTableMap *newMap = new (nothrow) HandleTableMap;
         if (!newMap)
         {
             return false;
@@ -786,17 +758,16 @@ bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context)
         newMap->pBuckets = new (nothrow) HandleTableBucket * [ INITIAL_HANDLE_TABLE_ARRAY_SIZE ];
         if (!newMap->pBuckets)
         {
+            delete newMap;
             return false;
         }
-
-        newMap.SuppressRelease();
 
         newMap->dwMaxIndex = last->dwMaxIndex + INITIAL_HANDLE_TABLE_ARRAY_SIZE;
         newMap->pNext = NULL;
         ZeroMemory(newMap->pBuckets,
                 INITIAL_HANDLE_TABLE_ARRAY_SIZE * sizeof (HandleTableBucket *));
 
-        if (Interlocked::CompareExchangePointer(&last->pNext, newMap.GetValue(), NULL) != NULL) 
+        if (Interlocked::CompareExchangePointer(&last->pNext, newMap, NULL) != NULL) 
         {
             // This thread loses.
             delete [] newMap->pBuckets;
@@ -850,7 +821,6 @@ void Ref_DestroyHandleTableBucket(HandleTableBucket *pBucket)
         HndDestroyHandleTable(pBucket->pTable[uCPUindex]);
     }
     delete [] pBucket->pTable;
-    delete pBucket;
 }
 
 int getSlotNumber(ScanContext* sc)

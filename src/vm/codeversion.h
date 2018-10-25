@@ -64,16 +64,13 @@ public:
 #ifndef DACCESS_COMPILE
     BOOL SetNativeCodeInterlocked(PCODE pCode, PCODE pExpected = NULL);
 #endif
-#ifdef FEATURE_TIERED_COMPILATION
     enum OptimizationTier
     {
         OptimizationTier0,
         OptimizationTier1
     };
+#ifdef FEATURE_TIERED_COMPILATION
     OptimizationTier GetOptimizationTier() const;
-#ifndef DACCESS_COMPILE
-    void SetOptimizationTier(OptimizationTier tier);
-#endif
 #endif // FEATURE_TIERED_COMPILATION
     bool operator==(const NativeCodeVersion & rhs) const;
     bool operator!=(const NativeCodeVersion & rhs) const;
@@ -135,6 +132,7 @@ public:
 
     bool operator==(const ILCodeVersion & rhs) const;
     bool operator!=(const ILCodeVersion & rhs) const;
+    BOOL HasDefaultIL() const;
     BOOL IsNull() const;
     BOOL IsDefaultVersion() const;
     PTR_Module GetModule() const;
@@ -151,7 +149,7 @@ public:
     void SetIL(COR_ILMETHOD* pIL);
     void SetJitFlags(DWORD flags);
     void SetInstrumentedILMap(SIZE_T cMap, COR_IL_MAP * rgMap);
-    HRESULT AddNativeCodeVersion(MethodDesc* pClosedMethodDesc, NativeCodeVersion* pNativeCodeVersion);
+    HRESULT AddNativeCodeVersion(MethodDesc* pClosedMethodDesc, NativeCodeVersion::OptimizationTier optimizationTier, NativeCodeVersion* pNativeCodeVersion);
     HRESULT GetOrCreateActiveNativeCodeVersion(MethodDesc* pClosedMethodDesc, NativeCodeVersion* pNativeCodeVersion);
     HRESULT SetActiveNativeCodeVersion(NativeCodeVersion activeNativeCodeVersion, BOOL fEESuspended);
 #endif //DACCESS_COMPILE
@@ -222,7 +220,7 @@ class NativeCodeVersionNode
     friend ILCodeVersionNode;
 public:
 #ifndef DACCESS_COMPILE
-    NativeCodeVersionNode(NativeCodeVersionId id, MethodDesc* pMethod, ReJITID parentId);
+    NativeCodeVersionNode(NativeCodeVersionId id, MethodDesc* pMethod, ReJITID parentId, NativeCodeVersion::OptimizationTier optimizationTier);
 #endif
 #ifdef DEBUG
     BOOL LockOwnedByCurrentThread() const;
@@ -239,9 +237,6 @@ public:
 #endif
 #ifdef FEATURE_TIERED_COMPILATION
     NativeCodeVersion::OptimizationTier GetOptimizationTier() const;
-#ifndef DACCESS_COMPILE
-    void SetOptimizationTier(NativeCodeVersion::OptimizationTier tier);
-#endif
 #endif
 
 private:
@@ -255,7 +250,7 @@ private:
     PTR_NativeCodeVersionNode m_pNextMethodDescSibling;
     NativeCodeVersionId m_id;
 #ifdef FEATURE_TIERED_COMPILATION
-    Volatile<NativeCodeVersion::OptimizationTier> m_optTier;
+    NativeCodeVersion::OptimizationTier m_optTier;
 #endif
 
     enum NativeCodeVersionNodeFlags
@@ -608,7 +603,7 @@ public:
     };
 
     HRESULT AddILCodeVersion(Module* pModule, mdMethodDef methodDef, ReJITID rejitId, ILCodeVersion* pILCodeVersion);
-    HRESULT AddNativeCodeVersion(ILCodeVersion ilCodeVersion, MethodDesc* pClosedMethodDesc, NativeCodeVersion* pNativeCodeVersion);
+    HRESULT AddNativeCodeVersion(ILCodeVersion ilCodeVersion, MethodDesc* pClosedMethodDesc, NativeCodeVersion::OptimizationTier optimizationTier, NativeCodeVersion* pNativeCodeVersion);
     HRESULT DoJumpStampIfNecessary(MethodDesc* pMD, PCODE pCode);
     PCODE PublishVersionableCodeIfNecessary(MethodDesc* pMethodDesc, BOOL fCanBackpatchPrestub);
     HRESULT PublishNativeCodeVersion(MethodDesc* pMethodDesc, NativeCodeVersion nativeCodeVersion, BOOL fEESuspended);

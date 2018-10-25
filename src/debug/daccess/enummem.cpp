@@ -18,7 +18,6 @@
 
 #include "typestring.h"
 #include "daccess.h"
-#include "ipcmanagerinterface.h"
 #include "binder.h"
 #include "win32threadpool.h"
 
@@ -172,26 +171,6 @@ HRESULT ClrDataAccess::EnumMemCLRHeapCrticalStatic(IN CLRDataEnumMemoryFlags fla
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( EnumSvrGlobalMemoryRegions(flags); );
 #endif
 
-#ifdef FEATURE_IPCMAN
-    //
-    // Write Out IPC Blocks
-    //
-    EX_TRY
-    {
-        g_pIPCManagerInterface.EnumMem();
-        if (g_pIPCManagerInterface.IsValid())
-        {
-            // write out the instance
-            DacEnumHostDPtrMem(g_pIPCManagerInterface);
-
-            // Then write out the public and private block
-            ReportMem(PTR_TO_TADDR(g_pIPCManagerInterface->GetBlockStart()), g_pIPCManagerInterface->GetBlockSize());
-            ReportMem(PTR_TO_TADDR(g_pIPCManagerInterface->GetBlockTableStart()), g_pIPCManagerInterface->GetBlockTableSize());
-        }
-    }
-    EX_CATCH_RETHROW_ONLY_COR_E_OPERATIONCANCELLED
-#endif // FEATURE_IPCMAN
-
     m_dumpStats.m_cbClrHeapStatics = m_cbMemoryReported - cbMemoryReported;
 
     return S_OK;
@@ -239,7 +218,6 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
     }
     EX_END_CATCH(RethrowCancelExceptions)
 
-    // StressLog is not defined on Rotor build for DAC
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED ( ReportMem(m_globalBase + g_dacGlobals.dac__g_pStressLog, sizeof(StressLog *)); )
 
     EX_TRY

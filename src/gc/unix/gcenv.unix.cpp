@@ -56,7 +56,7 @@ static uint8_t* g_helperPage = 0;
 static pthread_mutex_t g_flushProcessWriteBuffersMutex;
 
 size_t GetRestrictedPhysicalMemoryLimit();
-bool GetWorkingSetSize(size_t* val);
+bool GetPhysicalMemoryUsed(size_t* val);
 bool GetCpuLimit(uint32_t* val);
 
 static size_t g_RestrictedPhysicalMemoryLimit = 0;
@@ -319,8 +319,9 @@ bool GCToOSInterface::VirtualRelease(void* address, size_t size)
 //  size    - size of the virtual memory range
 // Return:
 //  true if it has succeeded, false if it has failed
-bool GCToOSInterface::VirtualCommit(void* address, size_t size)
+bool GCToOSInterface::VirtualCommit(void* address, size_t size, uint32_t node)
 {
+    assert(node == NUMA_NODE_UNDEFINED && "Numa allocation is not ported to local GC on unix yet");
     return mprotect(address, size, PROT_WRITE | PROT_READ) == 0;
 }
 
@@ -623,7 +624,7 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
 
         // Get the physical memory in use - from it, we can get the physical memory available.
         // We do this only when we have the total physical memory available.
-        if (total > 0 && GetWorkingSetSize(&used))
+        if (total > 0 && GetPhysicalMemoryUsed(&used))
         {
             available = total > used ? total-used : 0; 
             load = (uint32_t)(((float)used * 100) / (float)total);
@@ -697,6 +698,26 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
     return g_logicalCpuCount;
 }
 
+bool GCToOSInterface::CanEnableGCNumaAware()
+{
+    return false;
+}
+
+bool GCToOSInterface::GetNumaProcessorNode(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
+{
+    assert(!"Numa has not been ported to local GC for unix");
+    return false;
+}
+
+bool GCToOSInterface::CanEnableGCCPUGroups()
+{
+    return false;
+}
+
+void GCToOSInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)
+{
+    assert(!"CpuGroup has not been ported to local GC for unix");
+}
 
 // Initialize the critical section
 void CLRCriticalSection::Initialize()

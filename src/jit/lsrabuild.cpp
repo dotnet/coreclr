@@ -315,7 +315,7 @@ void LinearScan::resolveConflictingDefAndUse(Interval* interval, RefPosition* de
             if (!useRegConflict)
             {
                 // This is case #2.  Use the useRegAssignment
-                INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE2));
+                INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE2, interval));
                 defRefPosition->registerAssignment = useRegAssignment;
                 return;
             }
@@ -328,21 +328,21 @@ void LinearScan::resolveConflictingDefAndUse(Interval* interval, RefPosition* de
     if (defRegRecord != nullptr && !useRegConflict)
     {
         // This is case #3.
-        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE3));
+        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE3, interval));
         defRefPosition->registerAssignment = useRegAssignment;
         return;
     }
     if (useRegRecord != nullptr && !defRegConflict && canChangeUseAssignment)
     {
         // This is case #4.
-        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE4));
+        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE4, interval));
         useRefPosition->registerAssignment = defRegAssignment;
         return;
     }
     if (defRegRecord != nullptr && useRegRecord != nullptr)
     {
         // This is case #5.
-        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE5));
+        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE5, interval));
         RegisterType regType = interval->registerType;
         assert((getRegisterType(interval, defRefPosition) == regType) &&
                (getRegisterType(interval, useRefPosition) == regType));
@@ -350,7 +350,7 @@ void LinearScan::resolveConflictingDefAndUse(Interval* interval, RefPosition* de
         defRefPosition->registerAssignment = candidates;
         return;
     }
-    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE6));
+    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE6, interval));
     return;
 }
 
@@ -1862,7 +1862,7 @@ void LinearScan::buildIntervals()
         printf("-----------------\n");
         foreach_block(compiler, block)
         {
-            printf("BB%02u use def in out\n", block->bbNum);
+            printf(FMT_BB " use def in out\n", block->bbNum);
             dumpConvertedVarSet(compiler, block->bbVarUse);
             printf("\n");
             dumpConvertedVarSet(compiler, block->bbVarDef);
@@ -2019,13 +2019,14 @@ void LinearScan::buildIntervals()
 
     for (block = startBlockSequence(); block != nullptr; block = moveToNextBlock())
     {
-        JITDUMP("\nNEW BLOCK BB%02u\n", block->bbNum);
+        JITDUMP("\nNEW BLOCK " FMT_BB "\n", block->bbNum);
 
         bool predBlockIsAllocated = false;
         predBlock                 = findPredBlockForLiveIn(block, prevBlock DEBUGARG(&predBlockIsAllocated));
         if (predBlock)
         {
-            JITDUMP("\n\nSetting BB%02u as the predecessor for determining incoming variable registers of BB%02u\n",
+            JITDUMP("\n\nSetting " FMT_BB " as the predecessor for determining incoming variable registers of " FMT_BB
+                    "\n",
                     block->bbNum, predBlock->bbNum);
             assert(predBlock->bbNum <= bbNumMaxBeforeResolution);
             blockInfo[block->bbNum].predBBNum = predBlock->bbNum;
@@ -2367,16 +2368,10 @@ RefPosition* LinearScan::BuildDef(GenTree* tree, regMaskTP dstCandidates, int mu
         assert((tree->gtRegNum == REG_NA) || (dstCandidates == genRegMask(tree->GetRegByIndex(multiRegIdx))));
     }
 
-#ifdef FEATURE_MULTIREG_ARGS_OR_RET
-    if (tree->TypeGet() == TYP_STRUCT)
+    if (tree->IsMultiRegNode())
     {
-        // We require a fixed set of candidates for this case.
-        assert(isSingleRegister(dstCandidates));
-        type = (dstCandidates & allRegs(TYP_FLOAT)) != RBM_NONE ? TYP_FLOAT : TYP_INT;
+        type = tree->GetRegTypeByIndex(multiRegIdx);
     }
-#else
-    assert(!tree->TypeGet() == TYP_STRUCT);
-#endif
 
     Interval* interval = newInterval(type);
     if (tree->gtRegNum != REG_NA)
@@ -2825,18 +2820,9 @@ int LinearScan::BuildStoreLoc(GenTreeLclVarCommon* storeLoc)
     {
         if (op1->OperIs(GT_MUL_LONG))
         {
-#ifdef _TARGET_X86_
-            // This is actually a bug. A GT_MUL_LONG produces two registers, but is modeled as only producing
-            // eax (and killing edx). This only works because it always occurs as var = GT_MUL_LONG (ensured by
-            // DecomposeMul), and therefore edx won't be reused before the store.
-            // TODO-X86-Cleanup: GT_MUL_LONG should be a multireg node on x86, just as on ARM.
-            srcCount     = 1;
-            singleUseRef = BuildUse(op1);
-#else
             srcCount = 2;
             BuildUse(op1, allRegs(TYP_INT), 0);
             BuildUse(op1, allRegs(TYP_INT), 1);
-#endif
         }
         else
         {
@@ -2958,12 +2944,11 @@ int LinearScan::BuildSimple(GenTree* tree)
 //    tree - The node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildReturn(GenTree* tree)
 {
-    int      srcCount = 0;
-    GenTree* op1      = tree->gtGetOp1();
+    GenTree* op1 = tree->gtGetOp1();
 
 #if !defined(_TARGET_64BIT_)
     if (tree->TypeGet() == TYP_LONG)
@@ -2971,17 +2956,15 @@ int LinearScan::BuildReturn(GenTree* tree)
         assert((op1->OperGet() == GT_LONG) && op1->isContained());
         GenTree* loVal = op1->gtGetOp1();
         GenTree* hiVal = op1->gtGetOp2();
-        srcCount       = 2;
         BuildUse(loVal, RBM_LNGRET_LO);
         BuildUse(hiVal, RBM_LNGRET_HI);
+        return 2;
     }
     else
 #endif // !defined(_TARGET_64BIT_)
         if ((tree->TypeGet() != TYP_VOID) && !op1->isContained())
     {
         regMaskTP useCandidates = RBM_NONE;
-
-        srcCount = 1;
 
 #if FEATURE_MULTIREG_RET
         if (varTypeIsStruct(tree))
@@ -2996,12 +2979,13 @@ int LinearScan::BuildReturn(GenTree* tree)
                 noway_assert(op1->IsMultiRegCall());
 
                 ReturnTypeDesc* retTypeDesc = op1->AsCall()->GetReturnTypeDesc();
-                srcCount                    = retTypeDesc->GetReturnRegCount();
+                int             srcCount    = retTypeDesc->GetReturnRegCount();
                 useCandidates               = retTypeDesc->GetABIReturnRegs();
                 for (int i = 0; i < srcCount; i++)
                 {
                     BuildUse(op1, useCandidates, i);
                 }
+                return srcCount;
             }
         }
         else
@@ -3028,11 +3012,12 @@ int LinearScan::BuildReturn(GenTree* tree)
                     break;
             }
             BuildUse(op1, useCandidates);
+            return 1;
         }
     }
-    // No kills or defs
 
-    return srcCount;
+    // No kills or defs.
+    return 0;
 }
 
 //------------------------------------------------------------------------

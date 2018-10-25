@@ -193,9 +193,6 @@ void GCToEEInterface::GcStartWork (int condemned, int max_gen)
     }
     CONTRACTL_END;
 
-    // Update AppDomain stage here.
-    SystemDomain::System()->ProcessClearingDomains();
-
 #ifdef VERIFY_HEAP
     // Validate byrefs pinned by IL stubs since the last GC.
     StubHelpers::ProcessByrefValidationList();
@@ -256,9 +253,8 @@ bool GCToEEInterface::RefCountedHandleCallbacks(Object * pObject)
 #ifdef FEATURE_COMINTEROP
     //<REVISIT_TODO>@todo optimize the access to the ref-count
     ComCallWrapper* pWrap = ComCallWrapper::GetWrapperForObject((OBJECTREF)pObject);
-    _ASSERTE(pWrap != NULL);
 
-    return !!pWrap->IsWrapperActive();
+    return pWrap != NULL && pWrap->IsWrapperActive();
 #else
     return false;
 #endif
@@ -357,7 +353,7 @@ uint8_t* GCToEEInterface::GetLoaderAllocatorObjectForGC(Object* pObject)
     }
     CONTRACTL_END;
 
-    return pObject->GetMethodTable()->GetLoaderAllocatorObjectForGC();
+    return pObject->GetGCSafeMethodTable()->GetLoaderAllocatorObjectForGC();
 }
 
 bool GCToEEInterface::IsPreemptiveGCDisabled()
@@ -994,7 +990,7 @@ void GCToEEInterface::HandleFatalError(unsigned int exitCode)
     EEPOLICY_HANDLE_FATAL_ERROR(exitCode);
 }
 
-bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(void* pDomain, Object* obj)
 {
     // CoreCLR does not have appdomains, so this code path is dead. Other runtimes may
     // choose to inspect the object being finalized here.
@@ -1428,4 +1424,84 @@ IGCToCLREventSink* GCToEEInterface::EventSink()
     LIMITED_METHOD_CONTRACT;
 
     return &g_gcToClrEventSink;
+}
+
+uint32_t GCToEEInterface::GetDefaultDomainIndex()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return SystemDomain::System()->DefaultDomain()->GetIndex().m_dwIndex;
+}
+
+void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    ADIndex index(appDomainIndex);
+    return static_cast<void *>(SystemDomain::GetAppDomainAtIndex(index));
+}
+
+bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    ADIndex index(appDomainID);
+    AppDomain *pDomain = SystemDomain::GetAppDomainAtIndex(index);
+    return (pDomain != NULL);
+}
+
+uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return 0xFFFFFFFF;
+}
+
+uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return SystemDomain::System()->GetTotalNumSizedRefHandles();
+}
+
+
+bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return false;
+}
+
+bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // Is the list active?
+    GcNotifications gn(g_pGcNotificationTable);
+    if (gn.IsActive())
+    {
+        GcEvtArgs gea = { GC_MARK_END, { (1<<condemnedGeneration) } };
+        if (gn.GetNotification(gea) != 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void GCToEEInterface::AnalyzeSurvivorsFinished(int condemnedGeneration)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // Is the list active?
+    GcNotifications gn(g_pGcNotificationTable);
+    if (gn.IsActive())
+    {
+        GcEvtArgs gea = { GC_MARK_END, { (1<<condemnedGeneration) } };
+        if (gn.GetNotification(gea) != 0)
+        {
+            DACNotify::DoGCNotification(gea);
+        }
+    }
 }

@@ -26,7 +26,7 @@ Compiler::fgWalkResult Compiler::optAddCopiesCallback(GenTree** pTree, fgWalkDat
 {
     GenTree* tree = *pTree;
 
-    if (tree->OperIsAssignment())
+    if (tree->OperIs(GT_ASG))
     {
         GenTree*  op1  = tree->gtOp.gtOp1;
         Compiler* comp = data->compiler;
@@ -215,7 +215,8 @@ void Compiler::optAddCopies()
 #ifdef DEBUG
             if (verbose)
             {
-                printf("        Referenced in BB%02u, bbWeight is %s", bbNum, refCntWtd2str(block->getBBWeight(this)));
+                printf("        Referenced in " FMT_BB ", bbWeight is %s", bbNum,
+                       refCntWtd2str(block->getBBWeight(this)));
 
                 if (isDominatedByFirstBB)
                 {
@@ -313,7 +314,7 @@ void Compiler::optAddCopies()
 #ifdef DEBUG
             if (verbose)
             {
-                printf("        Starting at BB%02u, bbWeight is %s", block->bbNum,
+                printf("        Starting at " FMT_BB ", bbWeight is %s", block->bbNum,
                        refCntWtd2str(block->getBBWeight(this)));
 
                 printf(", bestWeight is %s\n", refCntWtd2str(bestWeight));
@@ -336,7 +337,7 @@ void Compiler::optAddCopies()
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("        Considering BB%02u, bbWeight is %s", block->bbNum,
+                    printf("        Considering " FMT_BB ", bbWeight is %s", block->bbNum,
                            refCntWtd2str(block->getBBWeight(this)));
 
                     printf(", bestWeight is %s\n", refCntWtd2str(bestWeight));
@@ -412,7 +413,7 @@ void Compiler::optAddCopies()
 #ifdef DEBUG
             if (verbose)
             {
-                printf("        Insert copy at the %s of BB%02u\n",
+                printf("        Insert copy at the %s of " FMT_BB "\n",
                        (BlockSetOps::IsEmpty(this, paramImportantUseDom) ||
                         BlockSetOps::IsMember(this, varDsc->lvRefBlks, bestBlock->bbNum))
                            ? "start"
@@ -430,12 +431,6 @@ void Compiler::optAddCopies()
             {
                 stmt = fgInsertStmtNearEnd(bestBlock, copyAsgn);
             }
-
-            /* Increment its lvRefCnt and lvRefCntWtd */
-            lvaTable[lclNum].incRefCnts(fgFirstBB->getBBWeight(this), this);
-
-            /* Increment its lvRefCnt and lvRefCntWtd */
-            lvaTable[copyLclNum].incRefCnts(fgFirstBB->getBBWeight(this), this);
         }
         else
         {
@@ -455,15 +450,11 @@ void Compiler::optAddCopies()
             GenTree* tree = optAddCopyAsgnNode;
             GenTree* op1  = tree->gtOp.gtOp1;
 
-            noway_assert(tree && op1 && tree->OperIsAssignment() && (op1->gtOper == GT_LCL_VAR) &&
+            noway_assert(tree && op1 && tree->OperIs(GT_ASG) && (op1->gtOper == GT_LCL_VAR) &&
                          (op1->gtLclVarCommon.gtLclNum == lclNum));
 
             /*  TODO-Review: BB_UNITY_WEIGHT is not the correct block weight */
             unsigned blockWeight = BB_UNITY_WEIGHT;
-
-            /* Increment its lvRefCnt and lvRefCntWtd twice */
-            lvaTable[copyLclNum].incRefCnts(blockWeight, this);
-            lvaTable[copyLclNum].incRefCnts(blockWeight, this);
 
             /* Assign the old expression into the new temp */
 
@@ -608,7 +599,7 @@ void Compiler::optPrintAssertion(AssertionDsc* curAssertion, AssertionIndex asse
 
     if (!optLocalAssertionProp)
     {
-        printf("(" STR_VN "%x," STR_VN "%x) ", curAssertion->op1.vn, curAssertion->op2.vn);
+        printf("(" FMT_VN "," FMT_VN ") ", curAssertion->op1.vn, curAssertion->op2.vn);
     }
 
     if ((curAssertion->op1.kind == O1K_LCLVAR) || (curAssertion->op1.kind == O1K_EXACT_TYPE) ||
@@ -865,8 +856,8 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
             GenTreeBoundsChk* arrBndsChk = op1->AsBoundsChk();
             assertion->assertionKind     = assertionKind;
             assertion->op1.kind          = O1K_ARR_BND;
-            assertion->op1.bnd.vnIdx     = arrBndsChk->gtIndex->gtVNPair.GetConservative();
-            assertion->op1.bnd.vnLen     = arrBndsChk->gtArrLen->gtVNPair.GetConservative();
+            assertion->op1.bnd.vnIdx     = vnStore->VNConservativeNormalValue(arrBndsChk->gtIndex->gtVNPair);
+            assertion->op1.bnd.vnLen     = vnStore->VNConservativeNormalValue(arrBndsChk->gtArrLen->gtVNPair);
             goto DONE_ASSERTION;
         }
     }
@@ -941,7 +932,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
                 goto DONE_ASSERTION; // Don't make an assertion
             }
 
-            vn = op1->gtVNPair.GetConservative();
+            vn = vnStore->VNConservativeNormalValue(op1->gtVNPair);
             VNFuncApp funcAttr;
 
             // Try to get value number corresponding to the GC ref of the indirection
@@ -984,7 +975,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
             assertion->op1.kind       = O1K_LCLVAR;
             assertion->op1.lcl.lclNum = lclNum;
             assertion->op1.lcl.ssaNum = op1->AsLclVarCommon()->GetSsaNum();
-            vn                        = op1->gtVNPair.GetConservative();
+            vn                        = vnStore->VNConservativeNormalValue(op1->gtVNPair);
         }
 
         assertion->op1.vn           = vn;
@@ -1045,10 +1036,10 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
             //
             assertion->op1.kind         = O1K_SUBTYPE;
             assertion->op1.lcl.lclNum   = lclNum;
-            assertion->op1.vn           = op1->gtVNPair.GetConservative();
+            assertion->op1.vn           = vnStore->VNConservativeNormalValue(op1->gtVNPair);
             assertion->op1.lcl.ssaNum   = op1->AsLclVarCommon()->GetSsaNum();
             assertion->op2.u1.iconVal   = op2->gtIntCon.gtIconVal;
-            assertion->op2.vn           = op2->gtVNPair.GetConservative();
+            assertion->op2.vn           = vnStore->VNConservativeNormalValue(op2->gtVNPair);
             assertion->op2.u1.iconFlags = op2->GetIconHandleFlag();
 
             //
@@ -1066,7 +1057,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
 
             assertion->op1.kind       = O1K_LCLVAR;
             assertion->op1.lcl.lclNum = lclNum;
-            assertion->op1.vn         = op1->gtVNPair.GetConservative();
+            assertion->op1.vn         = vnStore->VNConservativeNormalValue(op1->gtVNPair);
             assertion->op1.lcl.ssaNum = op1->AsLclVarCommon()->GetSsaNum();
 
             switch (op2->gtOper)
@@ -1113,13 +1104,20 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
 
                     assertion->op2.kind    = op2Kind;
                     assertion->op2.lconVal = 0;
-                    assertion->op2.vn      = op2->gtVNPair.GetConservative();
+                    assertion->op2.vn      = vnStore->VNConservativeNormalValue(op2->gtVNPair);
 
                     if (op2->gtOper == GT_CNS_INT)
                     {
 #ifdef _TARGET_ARM_
+                        // Do not Constant-Prop immediate values that require relocation
+                        if (op2->gtIntCon.ImmedValNeedsReloc(this))
+                        {
+                            goto DONE_ASSERTION;
+                        }
                         // Do not Constant-Prop large constants for ARM
-                        if (!codeGen->validImmForMov(op2->gtIntCon.gtIconVal))
+                        // TODO-CrossBitness: we wouldn't need the cast below if GenTreeIntCon::gtIconVal had
+                        // target_ssize_t type.
+                        if (!codeGen->validImmForMov((target_ssize_t)op2->gtIntCon.gtIconVal))
                         {
                             goto DONE_ASSERTION; // Don't make an assertion
                         }
@@ -1192,7 +1190,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
 
                     assertion->op2.kind       = O2K_LCLVAR_COPY;
                     assertion->op2.lcl.lclNum = lclNum2;
-                    assertion->op2.vn         = op2->gtVNPair.GetConservative();
+                    assertion->op2.vn         = vnStore->VNConservativeNormalValue(op2->gtVNPair);
                     assertion->op2.lcl.ssaNum = op2->AsLclVarCommon()->GetSsaNum();
 
                     //
@@ -1305,8 +1303,8 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
             noway_assert(lclNum < lvaCount);
             LclVarDsc* lclVar = &lvaTable[lclNum];
 
-            //  If the local variable has its address exposed then bail
-            if (fgExcludeFromSsa(lclNum))
+            //  If the local variable is not in SSA then bail
+            if (!lvaInSsa(lclNum))
             {
                 goto DONE_ASSERTION;
             }
@@ -1321,11 +1319,13 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
 
             assertion->op1.kind       = O1K_EXACT_TYPE;
             assertion->op1.lcl.lclNum = lclNum;
-            assertion->op1.vn         = op1->gtVNPair.GetConservative();
+            assertion->op1.vn         = vnStore->VNConservativeNormalValue(op1->gtVNPair);
             assertion->op1.lcl.ssaNum = op1->AsLclVarCommon()->GetSsaNum();
+
             assert(assertion->op1.lcl.ssaNum == SsaConfig::RESERVED_SSA_NUM ||
                    assertion->op1.vn ==
-                       lvaTable[lclNum].GetPerSsaData(assertion->op1.lcl.ssaNum)->m_vnPair.GetConservative());
+                       vnStore->VNConservativeNormalValue(
+                           lvaTable[lclNum].GetPerSsaData(assertion->op1.lcl.ssaNum)->m_vnPair));
 
             ssize_t  cnsValue  = 0;
             unsigned iconFlags = 0;
@@ -1340,7 +1340,8 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
                 assertion->assertionKind  = assertionKind;
                 assertion->op2.kind       = O2K_IND_CNS_INT;
                 assertion->op2.u1.iconVal = cnsValue;
-                assertion->op2.vn         = op2->gtOp.gtOp1->gtVNPair.GetConservative();
+                assertion->op2.vn         = vnStore->VNConservativeNormalValue(op2->gtOp.gtOp1->gtVNPair);
+
                 /* iconFlags should only contain bits in GTF_ICON_HDL_MASK */
                 assert((iconFlags & ~GTF_ICON_HDL_MASK) == 0);
                 assertion->op2.u1.iconFlags = iconFlags;
@@ -1357,7 +1358,8 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
                 assertion->assertionKind  = assertionKind;
                 assertion->op2.kind       = O2K_IND_CNS_INT;
                 assertion->op2.u1.iconVal = cnsValue;
-                assertion->op2.vn         = op2->gtVNPair.GetConservative();
+                assertion->op2.vn         = vnStore->VNConservativeNormalValue(op2->gtVNPair);
+
                 /* iconFlags should only contain bits in GTF_ICON_HDL_MASK */
                 assert((iconFlags & ~GTF_ICON_HDL_MASK) == 0);
                 assertion->op2.u1.iconFlags = iconFlags;
@@ -1434,12 +1436,14 @@ bool Compiler::optIsTreeKnownIntValue(bool vnBased, GenTree* tree, ssize_t* pCon
     }
 
     // Global assertion prop
-    if (!vnStore->IsVNConstant(tree->gtVNPair.GetConservative()))
+    ValueNum vn = vnStore->VNConservativeNormalValue(tree->gtVNPair);
+    if (!vnStore->IsVNConstant(vn))
     {
         return false;
     }
 
-    ValueNum  vn     = tree->gtVNPair.GetConservative();
+    // ValueNumber 'vn' indicates that this node evaluates to a constant
+
     var_types vnType = vnStore->TypeOfVN(vn);
     if (vnType == TYP_INT)
     {
@@ -1570,7 +1574,7 @@ AssertionIndex Compiler::optAddAssertion(AssertionDsc* newAssertion)
     {
         printf("GenTreeNode creates assertion:\n");
         gtDispTree(optAssertionPropCurrentTree, nullptr, nullptr, true);
-        printf(optLocalAssertionProp ? "In BB%02u New Local " : "In BB%02u New Global ", compCurBB->bbNum);
+        printf(optLocalAssertionProp ? "In " FMT_BB " New Local " : "In " FMT_BB " New Global ", compCurBB->bbNum);
         optPrintAssertion(newAssertion, optAssertionCount);
     }
 #endif // DEBUG
@@ -1619,8 +1623,8 @@ void Compiler::optDebugCheckAssertion(AssertionDsc* assertion)
         case O1K_EXACT_TYPE:
         case O1K_SUBTYPE:
             assert(assertion->op1.lcl.lclNum < lvaCount);
-            assert(optLocalAssertionProp || ((assertion->op1.lcl.ssaNum - SsaConfig::UNINIT_SSA_NUM) <
-                                             lvaTable[assertion->op1.lcl.lclNum].lvNumSsaNames));
+            assert(optLocalAssertionProp ||
+                   lvaTable[assertion->op1.lcl.lclNum].lvPerSsaData.IsValidSsaNum(assertion->op1.lcl.ssaNum));
             break;
         case O1K_ARR_BND:
             // It would be good to check that bnd.vnIdx and bnd.vnLen are valid value numbers.
@@ -1764,20 +1768,23 @@ AssertionInfo Compiler::optCreateJTrueBoundsAssertion(GenTree* tree)
     GenTree* op1 = relop->gtGetOp1();
     GenTree* op2 = relop->gtGetOp2();
 
-    ValueNum vn = op1->gtVNPair.GetConservative();
+    ValueNum op1VN   = vnStore->VNConservativeNormalValue(op1->gtVNPair);
+    ValueNum op2VN   = vnStore->VNConservativeNormalValue(op2->gtVNPair);
+    ValueNum relopVN = vnStore->VNConservativeNormalValue(relop->gtVNPair);
+
+    bool hasTestAgainstZero =
+        (relop->gtOper == GT_EQ || relop->gtOper == GT_NE) && (op2VN == vnStore->VNZeroForType(op2->TypeGet()));
 
     ValueNumStore::UnsignedCompareCheckedBoundInfo unsignedCompareBnd;
     // Cases where op1 holds the upper bound arithmetic and op2 is 0.
     // Loop condition like: "i < bnd +/-k == 0"
     // Assertion: "i < bnd +/- k == 0"
-    if (vnStore->IsVNCompareCheckedBoundArith(vn) &&
-        op2->gtVNPair.GetConservative() == vnStore->VNZeroForType(op2->TypeGet()) &&
-        (relop->gtOper == GT_EQ || relop->gtOper == GT_NE))
+    if (hasTestAgainstZero && vnStore->IsVNCompareCheckedBoundArith(op1VN))
     {
         AssertionDsc dsc;
         dsc.assertionKind    = relop->gtOper == GT_EQ ? OAK_EQUAL : OAK_NOT_EQUAL;
         dsc.op1.kind         = O1K_BOUND_OPER_BND;
-        dsc.op1.vn           = vn;
+        dsc.op1.vn           = op1VN;
         dsc.op2.kind         = O2K_CONST_INT;
         dsc.op2.vn           = vnStore->VNZeroForType(op2->TypeGet());
         dsc.op2.u1.iconVal   = 0;
@@ -1789,14 +1796,12 @@ AssertionInfo Compiler::optCreateJTrueBoundsAssertion(GenTree* tree)
     // Cases where op1 holds the upper bound and op2 is 0.
     // Loop condition like: "i < bnd == 0"
     // Assertion: "i < bnd == false"
-    else if (vnStore->IsVNCompareCheckedBound(vn) &&
-             (op2->gtVNPair.GetConservative() == vnStore->VNZeroForType(op2->TypeGet())) &&
-             (relop->gtOper == GT_EQ || relop->gtOper == GT_NE))
+    else if (hasTestAgainstZero && vnStore->IsVNCompareCheckedBound(op1VN))
     {
         AssertionDsc dsc;
         dsc.assertionKind    = relop->gtOper == GT_EQ ? OAK_EQUAL : OAK_NOT_EQUAL;
         dsc.op1.kind         = O1K_BOUND_LOOP_BND;
-        dsc.op1.vn           = vn;
+        dsc.op1.vn           = op1VN;
         dsc.op2.kind         = O2K_CONST_INT;
         dsc.op2.vn           = vnStore->VNZeroForType(op2->TypeGet());
         dsc.op2.u1.iconVal   = 0;
@@ -1808,12 +1813,12 @@ AssertionInfo Compiler::optCreateJTrueBoundsAssertion(GenTree* tree)
     // Cases where op1 holds the lhs of the condition op2 holds the bound.
     // Loop condition like "i < bnd"
     // Assertion: "i < bnd != 0"
-    else if (vnStore->IsVNCompareCheckedBound(relop->gtVNPair.GetConservative()))
+    else if (vnStore->IsVNCompareCheckedBound(relopVN))
     {
         AssertionDsc dsc;
         dsc.assertionKind    = OAK_NOT_EQUAL;
         dsc.op1.kind         = O1K_BOUND_LOOP_BND;
-        dsc.op1.vn           = relop->gtVNPair.GetConservative();
+        dsc.op1.vn           = relopVN;
         dsc.op2.kind         = O2K_CONST_INT;
         dsc.op2.vn           = vnStore->VNZeroForType(TYP_INT);
         dsc.op2.u1.iconVal   = 0;
@@ -1824,7 +1829,7 @@ AssertionInfo Compiler::optCreateJTrueBoundsAssertion(GenTree* tree)
     }
     // Loop condition like "(uint)i < (uint)bnd" or equivalent
     // Assertion: "no throw" since this condition guarantees that i is both >= 0 and < bnd (on the appropiate edge)
-    else if (vnStore->IsVNUnsignedCompareCheckedBound(relop->gtVNPair.GetConservative(), &unsignedCompareBnd))
+    else if (vnStore->IsVNUnsignedCompareCheckedBound(relopVN, &unsignedCompareBnd))
     {
         assert(unsignedCompareBnd.vnIdx != ValueNumStore::NoVN);
         assert((unsignedCompareBnd.cmpOper == VNF_LT_UN) || (unsignedCompareBnd.cmpOper == VNF_GE_UN));
@@ -1833,9 +1838,9 @@ AssertionInfo Compiler::optCreateJTrueBoundsAssertion(GenTree* tree)
         AssertionDsc dsc;
         dsc.assertionKind = OAK_NO_THROW;
         dsc.op1.kind      = O1K_ARR_BND;
-        dsc.op1.vn        = relop->gtVNPair.GetConservative();
+        dsc.op1.vn        = relopVN;
         dsc.op1.bnd.vnIdx = unsignedCompareBnd.vnIdx;
-        dsc.op1.bnd.vnLen = unsignedCompareBnd.vnBound;
+        dsc.op1.bnd.vnLen = vnStore->VNNormalValue(unsignedCompareBnd.vnBound);
         dsc.op2.kind      = O2K_INVALID;
         dsc.op2.vn        = ValueNumStore::NoVN;
 
@@ -1851,14 +1856,12 @@ AssertionInfo Compiler::optCreateJTrueBoundsAssertion(GenTree* tree)
     // Cases where op1 holds the condition bound check and op2 is 0.
     // Loop condition like: "i < 100 == 0"
     // Assertion: "i < 100 == false"
-    else if (vnStore->IsVNConstantBound(vn) &&
-             (op2->gtVNPair.GetConservative() == vnStore->VNZeroForType(op2->TypeGet())) &&
-             (relop->gtOper == GT_EQ || relop->gtOper == GT_NE))
+    else if (hasTestAgainstZero && vnStore->IsVNConstantBound(op1VN))
     {
         AssertionDsc dsc;
         dsc.assertionKind    = relop->gtOper == GT_EQ ? OAK_EQUAL : OAK_NOT_EQUAL;
         dsc.op1.kind         = O1K_CONSTANT_LOOP_BND;
-        dsc.op1.vn           = vn;
+        dsc.op1.vn           = op1VN;
         dsc.op2.kind         = O2K_CONST_INT;
         dsc.op2.vn           = vnStore->VNZeroForType(op2->TypeGet());
         dsc.op2.u1.iconVal   = 0;
@@ -1870,12 +1873,12 @@ AssertionInfo Compiler::optCreateJTrueBoundsAssertion(GenTree* tree)
     // Cases where op1 holds the lhs of the condition op2 holds rhs.
     // Loop condition like "i < 100"
     // Assertion: "i < 100 != 0"
-    else if (vnStore->IsVNConstantBound(relop->gtVNPair.GetConservative()))
+    else if (vnStore->IsVNConstantBound(relopVN))
     {
         AssertionDsc dsc;
         dsc.assertionKind    = OAK_NOT_EQUAL;
         dsc.op1.kind         = O1K_CONSTANT_LOOP_BND;
-        dsc.op1.vn           = relop->gtVNPair.GetConservative();
+        dsc.op1.vn           = relopVN;
         dsc.op2.kind         = O2K_CONST_INT;
         dsc.op2.vn           = vnStore->VNZeroForType(TYP_INT);
         dsc.op2.u1.iconVal   = 0;
@@ -2219,8 +2222,9 @@ AssertionIndex Compiler::optAssertionIsSubrange(GenTree* tree, var_types toType,
             (curAssertion->op1.kind == O1K_LCLVAR))
         {
             // For local assertion prop use comparison on locals, and use comparison on vns for global prop.
-            bool isEqual = optLocalAssertionProp ? (curAssertion->op1.lcl.lclNum == tree->AsLclVarCommon()->GetLclNum())
-                                                 : (curAssertion->op1.vn == tree->gtVNPair.GetConservative());
+            bool isEqual = optLocalAssertionProp
+                               ? (curAssertion->op1.lcl.lclNum == tree->AsLclVarCommon()->GetLclNum())
+                               : (curAssertion->op1.vn == vnStore->VNConservativeNormalValue(tree->gtVNPair));
             if (!isEqual)
             {
                 continue;
@@ -2290,7 +2294,7 @@ AssertionIndex Compiler::optAssertionIsSubtype(GenTree* tree, GenTree* methodTab
 
         // If local assertion prop use "lcl" based comparison, if global assertion prop use vn based comparison.
         if ((optLocalAssertionProp) ? (curAssertion->op1.lcl.lclNum != tree->AsLclVarCommon()->GetLclNum())
-                                    : (curAssertion->op1.vn != tree->gtVNPair.GetConservative()))
+                                    : (curAssertion->op1.vn != vnStore->VNConservativeNormalValue(tree->gtVNPair)))
         {
             continue;
         }
@@ -2370,8 +2374,9 @@ GenTree* Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTree* stmt, Gen
         return nullptr;
     }
 
-    ValueNum vnCns = tree->gtVNPair.GetConservative();
-    ValueNum vnLib = tree->gtVNPair.GetLiberal();
+    // We want to use the Normal ValueNumber when checking for constants.
+    ValueNum vnCns = vnStore->VNConservativeNormalValue(tree->gtVNPair);
+    ValueNum vnLib = vnStore->VNLiberalNormalValue(tree->gtVNPair);
 
     // Check if node evaluates to a constant.
     if (!vnStore->IsVNConstant(vnCns))
@@ -2693,15 +2698,11 @@ GenTree* Compiler::optConstantAssertionProp(AssertionDsc* curAssertion,
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nAssertion prop in BB%02u:\n", compCurBB->bbNum);
+        printf("\nAssertion prop in " FMT_BB ":\n", compCurBB->bbNum);
         optPrintAssertion(curAssertion, index);
         gtDispTree(newTree, nullptr, nullptr, true);
     }
 #endif
-    if (lvaLocalVarRefCounted)
-    {
-        lvaTable[lclNum].decRefCnts(compCurBB->getBBWeight(this), this);
-    }
 
     return optAssertionProp_Update(newTree, tree, stmt);
 }
@@ -2811,19 +2812,13 @@ GenTree* Compiler::optCopyAssertionProp(AssertionDsc* curAssertion,
         return nullptr;
     }
 
-    // If global assertion prop, by now we should have ref counts, fix them.
-    if (lvaLocalVarRefCounted)
-    {
-        lvaTable[lclNum].decRefCnts(compCurBB->getBBWeight(this), this);
-        lvaTable[copyLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
-        tree->gtLclVarCommon.SetSsaNum(copySsaNum);
-    }
+    tree->gtLclVarCommon.SetSsaNum(copySsaNum);
     tree->gtLclVarCommon.SetLclNum(copyLclNum);
 
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nAssertion prop in BB%02u:\n", compCurBB->bbNum);
+        printf("\nAssertion prop in " FMT_BB ":\n", compCurBB->bbNum);
         optPrintAssertion(curAssertion, index);
         gtDispTree(tree, nullptr, nullptr, true);
     }
@@ -2901,7 +2896,7 @@ GenTree* Compiler::optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, GenTree*
                 return optConstantAssertionProp(curAssertion, tree, stmt DEBUGARG(assertionIndex));
             }
             // If global assertion, perform constant propagation only if the VN's match and the lcl is non-CSE.
-            else if (curAssertion->op1.vn == tree->gtVNPair.GetConservative())
+            else if (curAssertion->op1.vn == vnStore->VNConservativeNormalValue(tree->gtVNPair))
             {
 #if FEATURE_ANYCSE
                 // Don't perform constant prop for CSE LclVars
@@ -2985,8 +2980,8 @@ AssertionIndex Compiler::optGlobalAssertionIsEqualOrNotEqual(ASSERT_VALARG_TP as
             continue;
         }
 
-        if (curAssertion->op1.vn == op1->gtVNPair.GetConservative() &&
-            curAssertion->op2.vn == op2->gtVNPair.GetConservative())
+        if ((curAssertion->op1.vn == vnStore->VNConservativeNormalValue(op1->gtVNPair)) &&
+            (curAssertion->op2.vn == vnStore->VNConservativeNormalValue(op2->gtVNPair)))
         {
             return assertionIndex;
         }
@@ -3058,13 +3053,13 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
     bool allowReverse = true;
 
     // If the assertion involves "op2" and it is a constant, then check if "op1" also has a constant value.
-    if (vnStore->IsVNConstant(op2->gtVNPair.GetConservative()))
+    ValueNum vnCns = vnStore->VNConservativeNormalValue(op2->gtVNPair);
+    if (vnStore->IsVNConstant(vnCns))
     {
-        ValueNum vnCns = op2->gtVNPair.GetConservative();
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\nVN relop based constant assertion prop in BB%02u:\n", compCurBB->bbNum);
+            printf("\nVN relop based constant assertion prop in " FMT_BB ":\n", compCurBB->bbNum);
             printf("Assertion index=#%02u: ", index);
             printTreeID(op1);
             printf(" %s ", (curAssertion->assertionKind == OAK_EQUAL) ? "==" : "!=");
@@ -3097,9 +3092,6 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
             gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif
-        // Decrement the ref counts, before we change the oper.
-        lvaTable[op1->gtLclVar.gtLclNum].decRefCnts(compCurBB->getBBWeight(this), this);
-
         // Change the oper to const.
         if (genActualType(op1->TypeGet()) == TYP_INT)
         {
@@ -3151,15 +3143,13 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\nVN relop based copy assertion prop in BB%02u:\n", compCurBB->bbNum);
+            printf("\nVN relop based copy assertion prop in " FMT_BB ":\n", compCurBB->bbNum);
             printf("Assertion index=#%02u: V%02d.%02d %s V%02d.%02d\n", index, op1->gtLclVar.gtLclNum,
                    op1->gtLclVar.gtSsaNum, (curAssertion->assertionKind == OAK_EQUAL) ? "==" : "!=",
                    op2->gtLclVar.gtLclNum, op2->gtLclVar.gtSsaNum);
             gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif
-        lvaTable[op1->gtLclVar.gtLclNum].decRefCnts(compCurBB->getBBWeight(this), this);
-
         // If floating point, don't just substitute op1 with op2, this won't work if
         // op2 is NaN. Just turn it into a "true" or "false" yielding expression.
         if (op1->TypeGet() == TYP_DOUBLE || op1->TypeGet() == TYP_FLOAT)
@@ -3169,7 +3159,6 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
             // point only on JTrue nodes, so if the condition held earlier, it will hold
             // now. We don't create OAK_EQUAL assertion on floating point from GT_ASG
             // because we depend on value num which would constant prop the NaN.
-            lvaTable[op2->gtLclVar.gtLclNum].decRefCnts(compCurBB->getBBWeight(this), this);
             op1->ChangeOperConst(GT_CNS_DBL);
             op1->gtDblCon.gtDconVal = 0;
             op2->ChangeOperConst(GT_CNS_DBL);
@@ -3179,7 +3168,6 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
         else
         {
             noway_assert(varTypeIsIntegralOrI(op1->TypeGet()));
-            lvaTable[op2->gtLclVar.gtLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
             op1->AsLclVarCommon()->SetLclNum(op2->AsLclVarCommon()->GetLclNum());
             op1->AsLclVarCommon()->SetSsaNum(op2->AsLclVarCommon()->GetSsaNum());
         }
@@ -3280,7 +3268,7 @@ GenTree* Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenT
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nAssertion prop for index #%02u in BB%02u:\n", index, compCurBB->bbNum);
+        printf("\nAssertion prop for index #%02u in " FMT_BB ":\n", index, compCurBB->bbNum);
         gtDispTree(tree, nullptr, nullptr, true);
     }
 #endif
@@ -3353,7 +3341,7 @@ GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* t
 #ifdef DEBUG
                     if (verbose)
                     {
-                        printf("\nSubrange prop for index #%02u in BB%02u:\n", index, compCurBB->bbNum);
+                        printf("\nSubrange prop for index #%02u in " FMT_BB ":\n", index, compCurBB->bbNum);
                         gtDispTree(tree, nullptr, nullptr, true);
                     }
 #endif
@@ -3390,7 +3378,7 @@ GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* t
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\nSubrange prop for index #%02u in BB%02u:\n", index, compCurBB->bbNum);
+            printf("\nSubrange prop for index #%02u in " FMT_BB ":\n", index, compCurBB->bbNum);
             gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif
@@ -3459,8 +3447,8 @@ GenTree* Compiler::optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tr
 #ifdef DEBUG
         if (verbose)
         {
-            (vnBased) ? printf("\nVN based non-null prop in BB%02u:\n", compCurBB->bbNum)
-                      : printf("\nNon-null prop for index #%02u in BB%02u:\n", index, compCurBB->bbNum);
+            (vnBased) ? printf("\nVN based non-null prop in " FMT_BB ":\n", compCurBB->bbNum)
+                      : printf("\nNon-null prop for index #%02u in " FMT_BB ":\n", index, compCurBB->bbNum);
             gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif
@@ -3596,8 +3584,8 @@ GenTree* Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, Gen
 #ifdef DEBUG
         if (verbose)
         {
-            (vnBased) ? printf("\nVN based non-null prop in BB%02u:\n", compCurBB->bbNum)
-                      : printf("\nNon-null prop for index #%02u in BB%02u:\n", index, compCurBB->bbNum);
+            (vnBased) ? printf("\nVN based non-null prop in " FMT_BB ":\n", compCurBB->bbNum)
+                      : printf("\nNon-null prop for index #%02u in " FMT_BB ":\n", index, compCurBB->bbNum);
             gtDispTree(call, nullptr, nullptr, true);
         }
 #endif
@@ -3653,7 +3641,7 @@ GenTree* Compiler::optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCal
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("\nDid VN based subtype prop for index #%02u in BB%02u:\n", index, compCurBB->bbNum);
+                    printf("\nDid VN based subtype prop for index #%02u in " FMT_BB ":\n", index, compCurBB->bbNum);
                     gtDispTree(call, nullptr, nullptr, true);
                 }
 #endif
@@ -3693,7 +3681,7 @@ GenTree* Compiler::optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, GenTree
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\nFlagging check redundant due to JitNoRangeChks in BB%02u:\n", compCurBB->bbNum);
+            printf("\nFlagging check redundant due to JitNoRangeChks in " FMT_BB ":\n", compCurBB->bbNum);
             gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif // DEBUG
@@ -3728,9 +3716,9 @@ GenTree* Compiler::optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, GenTree
 #endif
 
         // Do we have a previous range check involving the same 'vnLen' upper bound?
-        if (curAssertion->op1.bnd.vnLen == arrBndsChk->gtArrLen->gtVNPair.GetConservative())
+        if (curAssertion->op1.bnd.vnLen == vnStore->VNConservativeNormalValue(arrBndsChk->gtArrLen->gtVNPair))
         {
-            ValueNum vnCurIdx = arrBndsChk->gtIndex->gtVNPair.GetConservative();
+            ValueNum vnCurIdx = vnStore->VNConservativeNormalValue(arrBndsChk->gtIndex->gtVNPair);
 
             // Do we have the exact same lower bound 'vnIdx'?
             //       a[i] followed by a[i]
@@ -3791,7 +3779,7 @@ GenTree* Compiler::optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, GenTree
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\nVN based redundant (%s) bounds check assertion prop for index #%02u in BB%02u:\n", dbgMsg,
+            printf("\nVN based redundant (%s) bounds check assertion prop for index #%02u in " FMT_BB ":\n", dbgMsg,
                    assertionIndex, compCurBB->bbNum);
             gtDispTree(tree, nullptr, nullptr, true);
         }
@@ -4362,7 +4350,7 @@ public:
     // At the start of the merge function of the dataflow equations, initialize premerge state (to detect change.)
     void StartMerge(BasicBlock* block)
     {
-        JITDUMP("AssertionPropCallback::StartMerge: BB%02d in -> %s\n", block->bbNum,
+        JITDUMP("AssertionPropCallback::StartMerge: " FMT_BB " in -> %s\n", block->bbNum,
                 BitVecOps::ToString(apTraits, block->bbAssertionIn));
         BitVecOps::Assign(apTraits, preMergeOut, block->bbAssertionOut);
         BitVecOps::Assign(apTraits, preMergeJumpDestOut, mJumpDestOut[block->bbNum]);
@@ -4374,8 +4362,8 @@ public:
         ASSERT_TP pAssertionOut = ((predBlock->bbJumpKind == BBJ_COND) && (predBlock->bbJumpDest == block))
                                       ? mJumpDestOut[predBlock->bbNum]
                                       : predBlock->bbAssertionOut;
-        JITDUMP("AssertionPropCallback::Merge     : BB%02d in -> %s, predBlock BB%02d out -> %s\n", block->bbNum,
-                BitVecOps::ToString(apTraits, block->bbAssertionIn), predBlock->bbNum,
+        JITDUMP("AssertionPropCallback::Merge     : " FMT_BB " in -> %s, predBlock " FMT_BB " out -> %s\n",
+                block->bbNum, BitVecOps::ToString(apTraits, block->bbAssertionIn), predBlock->bbNum,
                 BitVecOps::ToString(apTraits, predBlock->bbAssertionOut));
         BitVecOps::IntersectionD(apTraits, block->bbAssertionIn, pAssertionOut);
     }
@@ -4383,7 +4371,7 @@ public:
     // At the end of the merge store results of the dataflow equations, in a postmerge state.
     bool EndMerge(BasicBlock* block)
     {
-        JITDUMP("AssertionPropCallback::EndMerge  : BB%02d in -> %s\n\n", block->bbNum,
+        JITDUMP("AssertionPropCallback::EndMerge  : " FMT_BB " in -> %s\n\n", block->bbNum,
                 BitVecOps::ToString(apTraits, block->bbAssertionIn));
 
         BitVecOps::DataFlowD(apTraits, block->bbAssertionOut, block->bbAssertionGen, block->bbAssertionIn);
@@ -4394,7 +4382,7 @@ public:
 
         if (changed)
         {
-            JITDUMP("AssertionPropCallback::Changed   : BB%02d before out -> %s; after out -> %s;\n"
+            JITDUMP("AssertionPropCallback::Changed   : " FMT_BB " before out -> %s; after out -> %s;\n"
                     "\t\tjumpDest before out -> %s; jumpDest after out -> %s;\n\n",
                     block->bbNum, BitVecOps::ToString(apTraits, preMergeOut),
                     BitVecOps::ToString(apTraits, block->bbAssertionOut),
@@ -4403,8 +4391,8 @@ public:
         }
         else
         {
-            JITDUMP("AssertionPropCallback::Unchanged  : BB%02d out -> %s; \t\tjumpDest out -> %s\n\n", block->bbNum,
-                    BitVecOps::ToString(apTraits, block->bbAssertionOut),
+            JITDUMP("AssertionPropCallback::Unchanged  : " FMT_BB " out -> %s; \t\tjumpDest out -> %s\n\n",
+                    block->bbNum, BitVecOps::ToString(apTraits, block->bbAssertionOut),
                     BitVecOps::ToString(apTraits, mJumpDestOut[block->bbNum]));
         }
 
@@ -4498,10 +4486,10 @@ ASSERT_TP* Compiler::optComputeAssertionGen()
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\nBB%02u valueGen = %s", block->bbNum, BitVecOps::ToString(apTraits, block->bbAssertionGen));
+            printf("\n" FMT_BB " valueGen = %s", block->bbNum, BitVecOps::ToString(apTraits, block->bbAssertionGen));
             if (block->bbJumpKind == BBJ_COND)
             {
-                printf(" => BB%02u valueGen = %s,", block->bbJumpDest->bbNum,
+                printf(" => " FMT_BB " valueGen = %s,", block->bbJumpDest->bbNum,
                        BitVecOps::ToString(apTraits, jumpDestGen[block->bbNum]));
             }
         }
@@ -4605,18 +4593,38 @@ GenTree* Compiler::optPrepareTreeForReplacement(GenTree* oldTree, GenTree* newTr
 {
     // If we have side effects, extract them and append newTree to the list.
     GenTree* sideEffList = nullptr;
-    if (oldTree->gtFlags & GTF_PERSISTENT_SIDE_EFFECTS)
+    if ((oldTree->gtFlags & GTF_SIDE_EFFECT) != 0)
     {
-        gtExtractSideEffList(oldTree, &sideEffList, GTF_PERSISTENT_SIDE_EFFECTS_IN_CSE);
+        bool ignoreRoot = false;
+
+        if (oldTree == newTree)
+        {
+            // If the caller passed the same tree as both old and new then it means
+            // that it expects that the root of the tree has no side effects and it
+            // won't be extracted. Otherwise the resulting comma tree would be invalid,
+            // having both op1 and op2 point to the same tree.
+            //
+            // Do a sanity check to ensure persistent side effects aren't discarded and
+            // tell gtExtractSideEffList to ignore the root of the tree.
+            assert(!gtNodeHasSideEffects(oldTree, GTF_PERSISTENT_SIDE_EFFECTS));
+            //
+            // Exception side effects may be ignored if the root is known to be a constant
+            // (e.g. VN may evaluate a DIV/MOD node to a constant and the node may still
+            // have GTF_EXCEPT set, even if it does not actually throw any exceptions).
+            assert(!gtNodeHasSideEffects(oldTree, GTF_EXCEPT) ||
+                   vnStore->IsVNConstant(vnStore->VNConservativeNormalValue(oldTree->gtVNPair)));
+
+            ignoreRoot = true;
+        }
+
+        gtExtractSideEffList(oldTree, &sideEffList, GTF_SIDE_EFFECT, ignoreRoot);
     }
-    if (sideEffList)
+
+    if (sideEffList != nullptr)
     {
-        noway_assert(sideEffList->gtFlags & GTF_SIDE_EFFECT);
+        noway_assert((sideEffList->gtFlags & GTF_SIDE_EFFECT) != 0);
 
-        // Increment the ref counts as we want to keep the side effects.
-        lvaRecursiveIncRefCounts(sideEffList);
-
-        if (newTree)
+        if (newTree != nullptr)
         {
             newTree = gtNewOperNode(GT_COMMA, newTree->TypeGet(), sideEffList, newTree);
         }
@@ -4626,8 +4634,6 @@ GenTree* Compiler::optPrepareTreeForReplacement(GenTree* oldTree, GenTree* newTr
         }
     }
 
-    // Decrement the ref counts as the oldTree is going to be dropped.
-    lvaRecursiveDecRefCounts(oldTree);
     return newTree;
 }
 
@@ -4679,7 +4685,9 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
     //
     assert((relop->gtFlags & GTF_RELOP_JMP_USED) != 0);
 
-    if (!vnStore->IsVNConstant(relop->gtVNPair.GetConservative()))
+    ValueNum vnCns = relop->gtVNPair.GetConservative();
+    ValueNum vnLib = relop->gtVNPair.GetLiberal();
+    if (!vnStore->IsVNConstant(vnCns))
     {
         return nullptr;
     }
@@ -4695,9 +4703,7 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
     relop->gtOp.gtOp2->gtVNPair = ValueNumPair(vnZero, vnZero);
 
     // Update the oper and restore the value numbers.
-    ValueNum vnCns       = relop->gtVNPair.GetConservative();
-    ValueNum vnLib       = relop->gtVNPair.GetLiberal();
-    bool     evalsToTrue = (vnStore->CoercedConstantValue<INT64>(vnCns) != 0);
+    bool evalsToTrue = (vnStore->CoercedConstantValue<INT64>(vnCns) != 0);
     relop->SetOper(evalsToTrue ? GT_EQ : GT_NE);
     relop->gtVNPair = ValueNumPair(vnLib, vnCns);
 
@@ -5041,12 +5047,12 @@ void Compiler::optAssertionPropMain()
         printf("\n");
         for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
         {
-            printf("\nBB%02u", block->bbNum);
+            printf("\n" FMT_BB, block->bbNum);
             printf(" valueIn  = %s", BitVecOps::ToString(apTraits, block->bbAssertionIn));
             printf(" valueOut = %s", BitVecOps::ToString(apTraits, block->bbAssertionOut));
             if (block->bbJumpKind == BBJ_COND)
             {
-                printf(" => BB%02u", block->bbJumpDest->bbNum);
+                printf(" => " FMT_BB, block->bbJumpDest->bbNum);
                 printf(" valueOut= %s", BitVecOps::ToString(apTraits, bbJtrueAssertionOut[block->bbNum]));
             }
         }
@@ -5101,7 +5107,7 @@ void Compiler::optAssertionPropMain()
                     break;
                 }
 
-                JITDUMP("Propagating %s assertions for BB%02d, stmt [%06d], tree [%06d], tree -> %d\n",
+                JITDUMP("Propagating %s assertions for " FMT_BB ", stmt [%06d], tree [%06d], tree -> %d\n",
                         BitVecOps::ToString(apTraits, assertions), block->bbNum, dspTreeID(stmt), dspTreeID(tree),
                         tree->GetAssertionInfo().GetAssertionIndex());
 
@@ -5147,12 +5153,4 @@ void Compiler::optAssertionPropMain()
     fgDebugCheckBBlist();
     fgDebugCheckLinks();
 #endif
-
-    // Assertion propagation may have changed the reference counts
-    // We need to resort the variable table
-
-    if (optAssertionPropagated)
-    {
-        lvaSortAgain = true;
-    }
 }

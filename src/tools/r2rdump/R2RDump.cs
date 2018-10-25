@@ -6,25 +6,69 @@ using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.IO;
+using System.Linq;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
 
 namespace R2RDump
 {
+    public class DumpOptions
+    {
+        public bool Raw;
+        public bool Normalize;
+        public bool Header;
+        public bool Disasm;
+        public bool Unwind;
+        public bool GC;
+        public bool SectionContents;
+    }
+
     public abstract class Dumper
     {
-        internal R2RReader _r2r;
-        internal bool _raw;
-        internal bool _header;
-        internal bool _disasm;
-        internal IntPtr _disassembler;
-        internal bool _unwind;
-        internal bool _gc;
-        internal bool _sectionContents;
-        internal TextWriter _writer;
+        protected readonly R2RReader _r2r;
+        protected readonly TextWriter _writer;
+        protected readonly Disassembler _disassembler;
+        protected readonly DumpOptions _options;
 
+        public Dumper(R2RReader r2r, TextWriter writer, Disassembler disassembler, DumpOptions options)
+        {
+            _r2r = r2r;
+            _writer = writer;
+            _disassembler = disassembler;
+            _options = options;
+        }
+
+        public IEnumerable<R2RSection> NormalizedSections()
+        {
+            IEnumerable<R2RSection> sections = _r2r.R2RHeader.Sections.Values;
+            if (_options.Normalize)
+            {
+                sections = sections.OrderBy((s) => s.Type);
+            }
+            return sections;
+        }
+
+        public IEnumerable<R2RMethod> NormalizedMethods()
+        {
+            IEnumerable<R2RMethod> methods = _r2r.R2RMethods;
+            if (_options.Normalize)
+            {
+                methods = methods.OrderBy((m) => m.SignatureString);
+            }
+            return methods;
+        }
+
+        /// <summary>
+        /// Run right before printing output
+        /// </summary>
         abstract internal void Begin();
+
+        /// <summary>
+        /// Run right after printing output
+        /// </summary>
         abstract internal void End();
         abstract internal void WriteDivider(string title);
         abstract internal void WriteSubDivider();
@@ -34,7 +78,7 @@ namespace R2RDump
         abstract internal void DumpAllMethods();
         abstract internal void DumpMethod(R2RMethod method, XmlNode parentNode = null);
         abstract internal void DumpRuntimeFunction(RuntimeFunction rtf, XmlNode parentNode = null);
-        abstract internal unsafe void DumpDisasm(IntPtr Disasm, RuntimeFunction rtf, int imageOffset, byte[] image, XmlNode parentNode = null);
+        abstract internal void DumpDisasm(RuntimeFunction rtf, int imageOffset, XmlNode parentNode = null);
         abstract internal void DumpBytes(int rva, uint size, XmlNode parentNode = null, string name = "Raw", bool convertToOffset = true);
         abstract internal void DumpSectionContents(R2RSection section, XmlNode parentNode = null);
         abstract internal XmlNode DumpQueryCount(string q, string title, int count);
@@ -42,30 +86,29 @@ namespace R2RDump
 
     class R2RDump
     {
+        // Options set by user specifying what to dump
         private bool _help;
         private IReadOnlyList<string> _inputFilenames = Array.Empty<string>();
         private string _outputFilename = null;
-        private bool _xml;
-        private bool _raw;
-        private bool _header;
-        private bool _disasm;
+        private DumpOptions _options = new DumpOptions();
         private IReadOnlyList<string> _queries = Array.Empty<string>();
         private IReadOnlyList<string> _keywords = Array.Empty<string>();
         private IReadOnlyList<int> _runtimeFunctions = Array.Empty<int>();
         private IReadOnlyList<string> _sections = Array.Empty<string>();
         private bool _diff;
-        private IntPtr _disassembler;
-        private bool _unwind;
-        private bool _gc;
-        private bool _sectionContents;
+        private bool _xml;
         private TextWriter _writer;
         private Dictionary<R2RSection.SectionType, bool> _selectedSections = new Dictionary<R2RSection.SectionType, bool>();
         private Dumper _dumper;
+        private bool _ignoreSensitive;
 
         private R2RDump()
         {
         }
 
+        /// <summary>
+        /// Parse commandline options
+        /// </summary>
         private ArgumentSyntax ParseCommandLine(string[] args)
         {
             bool verbose = false;
@@ -79,29 +122,29 @@ namespace R2RDump
                 syntax.DefineOptionList("i|in", ref _inputFilenames, "Input file(s) to dump. Expects them to by ReadyToRun images");
                 syntax.DefineOption("o|out", ref _outputFilename, "Output file path. Dumps everything to the specified file except help message and exception messages");
                 syntax.DefineOption("x|xml", ref _xml, "Output in XML format");
-                syntax.DefineOption("raw", ref _raw, "Dump the raw bytes of each section or runtime function");
-                syntax.DefineOption("header", ref _header, "Dump R2R header");
-                syntax.DefineOption("d|disasm", ref _disasm, "Show disassembly of methods or runtime functions");
+                syntax.DefineOption("raw", ref _options.Raw, "Dump the raw bytes of each section or runtime function");
+                syntax.DefineOption("header", ref _options.Header, "Dump R2R header");
+                syntax.DefineOption("d|disasm", ref _options.Disasm, "Show disassembly of methods or runtime functions");
                 syntax.DefineOptionList("q|query", ref _queries, "Query method by exact name, signature, row id or token");
                 syntax.DefineOptionList("k|keyword", ref _keywords, "Search method by keyword");
                 syntax.DefineOptionList("r|runtimefunction", ref _runtimeFunctions, ArgStringToInt, "Get one runtime function by id or relative virtual address");
                 syntax.DefineOptionList("s|section", ref _sections, "Get section by keyword");
-                syntax.DefineOption("unwind", ref _unwind, "Dump unwindInfo");
-                syntax.DefineOption("gc", ref _gc, "Dump gcInfo and slot table");
-                syntax.DefineOption("sc", ref _sectionContents, "Dump section contents");
-                syntax.DefineOption("v|verbose", ref verbose, "Dump raw bytes, disassembly, unwindInfo, gcInfo and section contents");
-                syntax.DefineOption("diff", ref _diff, "Compare two R2R images (not yet implemented)");
+                syntax.DefineOption("unwind", ref _options.Unwind, "Dump unwindInfo");
+                syntax.DefineOption("gc", ref _options.GC, "Dump gcInfo and slot table");
+                syntax.DefineOption("sc", ref _options.SectionContents, "Dump section contents");
+                syntax.DefineOption("n|normalize", ref _options.Normalize, "Normalize dump by sorting the various tables and methods (default = unsorted i.e. file order)");
+                syntax.DefineOption("v|verbose", ref verbose, "Dump disassembly, unwindInfo, gcInfo and section contents");
+                syntax.DefineOption("diff", ref _diff, "Compare two R2R images");
+                syntax.DefineOption("ignoreSensitive", ref _ignoreSensitive, "Ignores sensitive properties in xml dump to avoid failing tests");
             });
 
             if (verbose)
             {
-                _disasm = true;
-                _unwind = true;
-                _gc = true;
-                _sectionContents = true;
+                _options.Disasm = true;
+                _options.Unwind = true;
+                _options.GC = true;
+                _options.SectionContents = true;
             }
-
-            _disasm = false; // TODO: this requires the coredistools nuget package with the most recent changes
 
             return argSyntax;
         }
@@ -131,13 +174,17 @@ namespace R2RDump
             return int.TryParse(arg, out n);
         }
 
+        /// <summary>
+        /// Outputs a warning message
+        /// </summary>
+        /// <param name="warning">The warning message to output</param>
         public static void WriteWarning(string warning)
         {
             Console.WriteLine($"Warning: {warning}");
         }
 
         // <summary>
-        /// For each query in the list of queries, search for all methods matching the query by name, signature or id
+        /// For each query in the list of queries, dump all methods matching the query by name, signature or id
         /// </summary>
         /// <param name="r2r">Contains all the extracted info about the ReadyToRun image</param>
         /// <param name="title">The title to print, "R2R Methods by Query" or "R2R Methods by Keyword"</param>
@@ -161,7 +208,7 @@ namespace R2RDump
         }
 
         // <summary>
-        /// For each query in the list of queries, search for all sections by the name or value of the ReadyToRunSectionType enum
+        /// For each query in the list of queries, dump all sections by the name or value of the ReadyToRunSectionType enum
         /// </summary>
         /// <param name="r2r">Contains all the extracted info about the ReadyToRun image</param>
         /// <param name="queries">The names/values to search for</param>
@@ -183,7 +230,7 @@ namespace R2RDump
         }
 
         // <summary>
-        /// For each query in the list of queries, search for a runtime function by id. 
+        /// For each query in the list of queries, dump a runtime function by id. 
         /// The method containing the runtime function gets outputted, along with the single runtime function that was searched
         /// </summary>
         /// <param name="r2r">Contains all the extracted info about the ReadyToRun image</param>
@@ -217,19 +264,19 @@ namespace R2RDump
 
             _dumper.Begin();
 
-            if (_queries.Count == 0 && _keywords.Count == 0 && _runtimeFunctions.Count == 0 && _sections.Count == 0) //dump all sections and methods
+            if (_queries.Count == 0 && _keywords.Count == 0 && _runtimeFunctions.Count == 0 && _sections.Count == 0) //dump all sections and methods if no queries specified
             {
                 _dumper.WriteDivider("R2R Header");
                 _dumper.DumpHeader(true);
                 
-                if (!_header)
+                if (!_options.Header)
                 {
                     _dumper.DumpAllMethods();
                 }
             }
-            else //dump queried sections/methods/runtimeFunctions
+            else //dump queried sections, methods and runtimeFunctions
             {
-                if (_header)
+                if (_options.Header)
                 {
                     _dumper.DumpHeader(false);
                 }
@@ -244,7 +291,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Returns true if the name/signature/id of <param>method</param> matches <param>query</param>
+        /// Returns true if the name, signature or id of <param>method</param> matches <param>query</param>
         /// </summary>
         /// <param name="exact">Specifies exact or partial match</param>
         /// <remarks>Case-insensitive and ignores whitespace</remarks>
@@ -252,7 +299,7 @@ namespace R2RDump
         {
             int id;
             bool isNum = ArgStringToInt(query, out id);
-            bool idMatch = isNum && (method.Rid == id || method.Token == id);
+            bool idMatch = isNum && (method.Rid == id || MetadataTokens.GetRowNumber(method.R2RReader.MetadataReader, method.MethodHandle) == id);
 
             bool sigMatch = false;
             if (exact)
@@ -369,35 +416,55 @@ namespace R2RDump
                 return 0;
             }
 
+            Disassembler disassembler = null;
+
             try
             {
                 if (_inputFilenames.Count == 0)
                     throw new ArgumentException("Input filename must be specified (--in <file>)");
 
+                if (_diff && _inputFilenames.Count < 2)
+                    throw new ArgumentException("Need at least 2 input files in diff mode");
+
+                R2RReader previousReader = null;
+
                 foreach (string filename in _inputFilenames)
                 {
+                    // parse the ReadyToRun image
                     R2RReader r2r = new R2RReader(filename);
 
-                    if (_disasm)
+                    if (_options.Disasm)
                     {
-                        _disassembler = CoreDisTools.GetDisasm(r2r.Machine);
+                        if (r2r.InputArchitectureSupported() && r2r.DisassemblerArchitectureSupported())
+                        {
+                            disassembler = new Disassembler(r2r);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"The architecture of input file {filename} ({r2r.Machine.ToString()}) or the architecture of the disassembler tools ({System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString()}) is not supported.");
+                        }
                     }
 
                     if (_xml)
                     {
-                        _dumper = new XmlDumper(r2r, _writer, _raw, _header, _disasm, _disassembler, _unwind, _gc, _sectionContents);
+                        _dumper = new XmlDumper(_ignoreSensitive, r2r, _writer, disassembler, _options);
                     }
                     else
                     {
-                        _dumper = new TextDumper(r2r, _writer, _raw, _header, _disasm, _disassembler, _unwind, _gc, _sectionContents);
+                        _dumper = new TextDumper(r2r, _writer, disassembler, _options);
                     }
 
-                    Dump(r2r);
-
-                    if (_disasm)
+                    if (!_diff)
                     {
-                        CoreDisTools.FinishDisasm(_disassembler);
+                        // output the ReadyToRun info
+                        Dump(r2r);
                     }
+                    else if (previousReader != null)
+                    {
+                        new R2RDiff(previousReader, r2r, _writer).Run();
+                    }
+
+                    previousReader = r2r;
                 }
             }
             catch (Exception e)
@@ -423,6 +490,10 @@ namespace R2RDump
             }
             finally
             {
+                if (disassembler != null)
+                {
+                    disassembler.Dispose();
+                }
                 // close output stream
                 _writer.Close();
             }

@@ -50,7 +50,6 @@ DomainAssembly * LoadDomainAssembly(
     Assembly * pRequestingAssembly, 
     ICLRPrivBinder * pPrivHostBinder,
     BOOL       bThrowIfNotFound, 
-    BOOL       bIntrospectionOnly, 
     SString *  pssOuterTypeName);
 
 class TypeNameFactory : public ITypeNameFactory
@@ -122,7 +121,7 @@ private:
 private:
     class TypeNameParser
     {
-        TypeNameParser(LPCWSTR szTypeName, TypeName* pTypeName, DWORD* pError) 
+        TypeNameParser(LPCWSTR szTypeName, TypeName* pTypeName)
         {
             CONTRACTL
             {
@@ -140,13 +139,9 @@ private:
             m_currentToken = TypeNameEmpty;
             m_nextToken = TypeNameEmpty;
 
-            *pError = (DWORD)-1;
             m_pTypeName = pTypeName;
             m_sszTypeName = szTypeName;
-            m_currentItr = m_itr = m_sszTypeName; 
-
-            if (!START())
-                *pError = (DWORD)(m_currentItr - m_sszTypeName) - 1;
+            m_currentItr = m_itr = m_sszTypeName;
         }
 
     private:
@@ -265,7 +260,20 @@ private:
         // id '+' NESTNAME
   
     public:
-        void MakeRotorHappy() { WRAPPER_NO_CONTRACT; }
+        void Parse(DWORD* pError)
+        {
+            CONTRACTL
+            {
+                THROWS;
+                GC_NOTRIGGER;
+                MODE_ANY;
+            }
+            CONTRACTL_END;
+
+            *pError = (DWORD)-1;
+            if (!START())
+                *pError = (DWORD)(m_currentItr - m_sszTypeName) - 1;
+        }
     
     private:
         TypeName* m_pTypeName;
@@ -301,8 +309,8 @@ public:
             MODE_ANY;
         }
         CONTRACTL_END;
-        TypeNameParser parser(szTypeName, this, pError); 
-        parser.MakeRotorHappy(); 
+        TypeNameParser parser(szTypeName, this);
+        parser.Parse(pError);
     }
 
     virtual ~TypeName();
@@ -323,12 +331,12 @@ public:
     //-------------------------------------------------------------------------------------------
     static TypeHandle GetTypeFromAssembly(LPCWSTR szTypeName, Assembly *pAssembly, BOOL bThrowIfNotFound = TRUE);
 
-    TypeHandle GetTypeFromAsm(BOOL bForIntrospection);
+    TypeHandle GetTypeFromAsm();
 
     //-------------------------------------------------------------------------------------------
     // Retrieves a type. Will assert if the name is not fully qualified.
     //-------------------------------------------------------------------------------------------
-    static TypeHandle GetTypeFromAsmQualifiedName(LPCWSTR szFullyQualifiedName, BOOL bForIntrospection);
+    static TypeHandle GetTypeFromAsmQualifiedName(LPCWSTR szFullyQualifiedName);
 
 
     //-------------------------------------------------------------------------------------------
@@ -366,7 +374,6 @@ public:
         DomainAssembly* pAssemblyGetType,
         BOOL bThrowIfNotFound,
         BOOL bIgnoreCase,
-        BOOL bIntrospectionOnly,
         BOOL bProhibitAssemblyQualifiedName,
         StackCrawlMark* pStackMark,
         BOOL bLoadTypeFromPartialNameHack,
@@ -427,7 +434,6 @@ private:
     TypeHandle GetTypeWorker(
         BOOL bThrowIfNotFound, 
         BOOL bIgnoreCase, 
-        BOOL bIntrospectionOnly, 
         Assembly* pAssemblyGetType,
 
         BOOL fEnableCASearchRules,  

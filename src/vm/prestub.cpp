@@ -315,10 +315,11 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     {
         LOG((LF_CLASSLOADER, LL_INFO1000000,
             "    In PrepareILBasedCode, calling JitCompileCode\n"));
-        // Mark the code as hot in case the method ends up in the native image
-        g_IBCLogger.LogMethodCodeAccess(this);
         pCode = JitCompileCode(pConfig);
     }
+
+    // Mark the code as hot in case the method ends up in the native image
+    g_IBCLogger.LogMethodCodeAccess(this);
 
     return pCode;
 }
@@ -1649,16 +1650,6 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     // Running a prestub on a method causes us to access its MethodTable
     g_IBCLogger.LogMethodDescAccess(this);
 
-    // A secondary layer of defense against executing code in inspection-only assembly.
-    // This should already have been taken care of by not allowing inspection assemblies
-    // to be activated. However, this is a very inexpensive piece of insurance in the name
-    // of security.
-    if (IsIntrospectionOnly())
-    {
-        _ASSERTE(!"A ReflectionOnly assembly reached the prestub. This should not have happened.");
-        COMPlusThrow(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY);
-    }
-
     if (ContainsGenericVariables())
     {
         COMPlusThrow(kInvalidOperationException, IDS_EE_CODEEXECUTION_CONTAINSGENERICVAR);
@@ -1754,20 +1745,16 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     // When the TieredCompilationManager has received enough call notifications
     // for this method only then do we back-patch it.
     BOOL fCanBackpatchPrestub = TRUE;
-    BOOL fEligibleForCallCounting = FALSE;
 #ifdef FEATURE_TIERED_COMPILATION
+    BOOL fNeedsCallCounting = FALSE;
     TieredCompilationManager* pTieredCompilationManager = nullptr;
-    BOOL fEligibleForTieredCompilation = IsEligibleForTieredCompilation();
-    BOOL fWasPromotedToTier1 = FALSE;
-    if (fEligibleForTieredCompilation)
+    if (IsEligibleForTieredCompilation() && TieredCompilationManager::RequiresCallCounting(this))
     {
-        fEligibleForCallCounting = g_pConfig->TieredCompilation_CallCounting();
-        if (fEligibleForCallCounting)
-        {
-            pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
-            CallCounter * pCallCounter = GetCallCounter();
-            pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);
-        }
+        pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
+        CallCounter * pCallCounter = GetCallCounter();
+        BOOL fWasPromotedToTier1 = FALSE;
+        pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);
+        fNeedsCallCounting = !fWasPromotedToTier1;
     }
 #endif
 
@@ -1780,10 +1767,12 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     {
         pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, fCanBackpatchPrestub);
 
-        if (pTieredCompilationManager != nullptr && fEligibleForCallCounting && fCanBackpatchPrestub && pCode != NULL && !fWasPromotedToTier1)
+#ifdef FEATURE_TIERED_COMPILATION
+        if (pTieredCompilationManager != nullptr && fNeedsCallCounting && fCanBackpatchPrestub && pCode != NULL)
         {
             pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTier1Promotion(this);
         }
+#endif
 
         fIsPointingToPrestub = IsPointingToPrestub();
     }
@@ -2003,11 +1992,7 @@ static PCODE PatchNonVirtualExternalMethod(MethodDesc * pMD, PCODE pCode, PTR_CO
     //
 #ifdef HAS_FIXUP_PRECODE
     if (pMD->HasPrecode() && pMD->GetPrecode()->GetType() == PRECODE_FIXUP
-        && pMD->IsNativeCodeStableAfterInit()
-#ifndef HAS_REMOTING_PRECODE
-        && !pMD->IsRemotingInterceptedViaPrestub()
-#endif
-        )
+        && pMD->IsNativeCodeStableAfterInit())
     {
         PCODE pDirectTarget = pMD->IsFCall() ? ECall::GetFCallImpl(pMD) : pMD->GetNativeCode();
         if (pDirectTarget != NULL)
@@ -2896,7 +2881,7 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
                     {
                         if (pFD != NULL)
                         {
-                            if (pFD->IsRVA() || pFD->IsContextStatic())
+                            if (pFD->IsRVA())
                             {
                                 _ASSERTE(!"Fast getter for rare kinds of static fields");
                             }

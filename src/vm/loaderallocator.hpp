@@ -29,6 +29,40 @@ enum LoaderAllocatorType
     LAT_Assembly
 };
 
+class CLRPrivBinderAssemblyLoadContext;
+
+// Iterator over a DomainAssembly in the same ALC
+class DomainAssemblyIterator
+{
+    DomainAssembly* pCurrentAssembly;
+    DomainAssembly* pNextAssembly;
+
+public:
+    DomainAssemblyIterator(DomainAssembly* pFirstAssembly);
+
+    bool end() const
+    {
+        return pCurrentAssembly == NULL;
+    }
+
+    operator DomainAssembly*() const
+    {
+        return pCurrentAssembly;
+    }
+
+    DomainAssembly* operator ->() const
+    {
+        return pCurrentAssembly;
+    }
+
+    void operator++();
+
+    void operator++(int dummy)
+    {
+        this->operator++();
+    }
+};
+
 class LoaderAllocatorID
 {
 
@@ -52,12 +86,43 @@ public:
     VOID Init();
     VOID Init(AppDomain* pAppDomain);
     LoaderAllocatorType GetType();
-    VOID SetDomainAssembly(DomainAssembly* pDomainAssembly);
-    DomainAssembly* GetDomainAssembly();
+    VOID AddDomainAssembly(DomainAssembly* pDomainAssembly);
+    DomainAssemblyIterator GetDomainAssemblyIterator();
     AppDomain* GetAppDomain();
     BOOL Equals(LoaderAllocatorID* pId);
     COUNT_T Hash();
-    BOOL IsCollectible();
+};
+
+// Segmented stack to store freed handle indices
+class SegmentedHandleIndexStack
+{
+    // Segment of the stack
+    struct Segment
+    {
+        static const int Size = 64;
+
+        Segment* m_prev;
+        DWORD    m_data[Size];
+    };
+
+    // Segment containing the TOS
+    Segment * m_TOSSegment = NULL;
+    // One free segment to prevent rapid delete / new if pop / push happens rapidly
+    // at the boundary of two segments.
+    Segment * m_freeSegment = NULL;
+    // Index of the top of stack in the TOS segment
+    int       m_TOSIndex = Segment::Size;
+
+public:
+
+    // Push the value to the stack. If the push cannot be done due to OOM, return false;
+    inline bool Push(DWORD value);
+
+    // Pop the value from the stack
+    inline DWORD Pop();
+
+    // Check if the stack is empty.
+    inline bool IsEmpty();
 };
 
 class StringLiteralMap;
@@ -65,6 +130,7 @@ class VirtualCallStubManager;
 template <typename ELEMENT>
 class ListLockEntryBase;
 typedef ListLockEntryBase<void*> ListLockEntry;
+class UMEntryThunkCache;
 
 class LoaderAllocator
 {
@@ -101,11 +167,16 @@ protected:
     bool                m_fTerminated;
     bool                m_fMarked;
     int                 m_nGCCount;
+    bool                m_IsCollectible;
 
     // Pre-allocated blocks of heap for collectible assemblies. Will be set to NULL as soon as it is 
     // used. See code in GetVSDHeapInitialBlock and GetCodeHeapInitialBlock
     BYTE *              m_pVSDHeapInitialAlloc;
     BYTE *              m_pCodeHeapInitialAlloc;
+
+    // U->M thunks that are not associated with a delegate.
+    // The cache is keyed by MethodDesc pointers.
+    UMEntryThunkCache * m_pUMEntryThunkCache;
 
 public:
     BYTE *GetVSDHeapInitialBlock(DWORD *pSize);
@@ -156,7 +227,7 @@ private:
     Volatile<UINT32>   m_cReferences;
     // This will be set by code:LoaderAllocator::Destroy (from managed scout finalizer) and signalizes that 
     // the assembly was collected
-    DomainAssembly * m_pDomainAssemblyToDelete;
+    DomainAssembly * m_pFirstDomainAssemblyFromSameALCToDelete;
     
     BOOL CheckAddReference_Unlocked(LoaderAllocator *pOtherLA);
     
@@ -176,8 +247,9 @@ private:
 
     SList<FailedTypeInitCleanupListItem> m_failedTypeInitCleanupList;
 
+    SegmentedHandleIndexStack m_freeHandleIndexesStack;
+
 #ifndef DACCESS_COMPILE
-    LOADERHANDLE AllocateHandle_Unlocked(OBJECTREF value);
 
 public:
     // CleanupFailedTypeInit is called from AppDomain
@@ -271,11 +343,11 @@ public:
     // Checks if managed scout is alive - see code:#AssemblyPhases.
     BOOL IsManagedScoutAlive()
     {
-        return (m_pDomainAssemblyToDelete == NULL);
+        return (m_pFirstDomainAssemblyFromSameALCToDelete == NULL);
     }
     
     // Collect unreferenced assemblies, delete all their remaining resources.
-    static void GCLoaderAllocators(AppDomain *pAppDomain);
+    static void GCLoaderAllocators(LoaderAllocator* firstLoaderAllocator);
     
     UINT64 GetCreationNumber() { LIMITED_METHOD_DAC_CONTRACT; return m_nLoaderAllocator; }
 
@@ -298,7 +370,7 @@ public:
     DispatchToken TryLookupDispatchToken(UINT32 typeId, UINT32 slotNumber);
 
     virtual LoaderAllocatorID* Id() =0;
-    BOOL IsCollectible() { WRAPPER_NO_CONTRACT; return Id()->IsCollectible(); }
+    BOOL IsCollectible() { WRAPPER_NO_CONTRACT; return m_IsCollectible; }
 
 #ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
@@ -359,7 +431,7 @@ public:
 
     void SetHandleValue(LOADERHANDLE handle, OBJECTREF value);
     OBJECTREF CompareExchangeValueInHandle(LOADERHANDLE handle, OBJECTREF value, OBJECTREF compare);
-    void ClearHandle(LOADERHANDLE handle);
+    void FreeHandle(LOADERHANDLE handle);
 
     // The default implementation is a no-op. Only collectible loader allocators implement this method.
     virtual void RegisterHandleForCleanup(OBJECTHANDLE /* objHandle */) { }
@@ -400,6 +472,8 @@ public:
     BOOL IsDomainNeutral();
     void Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory = NULL);
     void Terminate();
+    virtual void ReleaseManagedAssemblyLoadContext() {}
+
     SIZE_T EstimateSize();
 
     void SetupManagedTracking(LOADERALLOCATORREF *pLoaderAllocatorKeepAlive);
@@ -433,7 +507,7 @@ public:
     STRINGREF *GetOrInternString(STRINGREF *pString);
     void CleanupStringLiteralMap();
 
-    void InitVirtualCallStubManager(BaseDomain *pDomain, BOOL fCollectible = FALSE);
+    void InitVirtualCallStubManager(BaseDomain *pDomain);
     void UninitVirtualCallStubManager();
 #ifndef CROSSGEN_COMPILE
     inline VirtualCallStubManager *GetVirtualCallStubManager()
@@ -441,6 +515,9 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_pVirtualCallStubManager;
     }
+
+    UMEntryThunkCache *GetUMEntryThunkCache();
+
 #endif
 };  // class LoaderAllocator
 
@@ -449,7 +526,7 @@ typedef VPTR(LoaderAllocator) PTR_LoaderAllocator;
 class GlobalLoaderAllocator : public LoaderAllocator
 {
     VPTR_VTABLE_CLASS(GlobalLoaderAllocator, LoaderAllocator)
-    VPTR_UNIQUE(VPTRU_LoaderAllocator+1);
+    VPTR_UNIQUE(VPTRU_LoaderAllocator+1)
 
     BYTE                m_ExecutableHeapInstance[sizeof(LoaderHeap)];
 
@@ -469,7 +546,7 @@ typedef VPTR(GlobalLoaderAllocator) PTR_GlobalLoaderAllocator;
 class AppDomainLoaderAllocator : public LoaderAllocator
 {
     VPTR_VTABLE_CLASS(AppDomainLoaderAllocator, LoaderAllocator)
-    VPTR_UNIQUE(VPTRU_LoaderAllocator+2);
+    VPTR_UNIQUE(VPTRU_LoaderAllocator+2)
 
 protected:
     LoaderAllocatorID m_Id;
@@ -482,23 +559,49 @@ public:
 
 typedef VPTR(AppDomainLoaderAllocator) PTR_AppDomainLoaderAllocator;
 
+class ShuffleThunkCache;
+
 class AssemblyLoaderAllocator : public LoaderAllocator
 {
     VPTR_VTABLE_CLASS(AssemblyLoaderAllocator, LoaderAllocator)
-    VPTR_UNIQUE(VPTRU_LoaderAllocator+3);
+    VPTR_UNIQUE(VPTRU_LoaderAllocator+3)
 
 protected:
-    LoaderAllocatorID m_Id;
+    LoaderAllocatorID  m_Id;
+    ShuffleThunkCache* m_pShuffleThunkCache;
 public:    
     virtual LoaderAllocatorID* Id();
-    AssemblyLoaderAllocator() : m_Id(LAT_Assembly) { LIMITED_METHOD_CONTRACT; }
+    AssemblyLoaderAllocator() : m_Id(LAT_Assembly), m_pShuffleThunkCache(NULL)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+        , m_binderToRelease(NULL)
+#endif
+    { LIMITED_METHOD_CONTRACT; }
     void Init(AppDomain *pAppDomain);
     virtual BOOL CanUnload();
-    void SetDomainAssembly(DomainAssembly *pDomainAssembly) { WRAPPER_NO_CONTRACT; m_Id.SetDomainAssembly(pDomainAssembly); }
+
+    void SetCollectible();
+
+    void AddDomainAssembly(DomainAssembly *pDomainAssembly)
+    {
+        WRAPPER_NO_CONTRACT; 
+        m_Id.AddDomainAssembly(pDomainAssembly); 
+    }
+
+    ShuffleThunkCache* GetShuffleThunkCache()
+    {
+        return m_pShuffleThunkCache;
+    }
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     virtual void RegisterHandleForCleanup(OBJECTHANDLE objHandle);
     virtual void CleanupHandles();
+    CLRPrivBinderAssemblyLoadContext* GetBinder()
+    {
+        return m_binderToRelease;
+    }
+    virtual ~AssemblyLoaderAllocator();
+    void RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease);
+    virtual void ReleaseManagedAssemblyLoadContext();
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 private:
@@ -514,6 +617,9 @@ private:
     };
     
     SList<HandleCleanupListItem> m_handleCleanupList;
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    CLRPrivBinderAssemblyLoadContext* m_binderToRelease;
+#endif
 };
 
 typedef VPTR(AssemblyLoaderAllocator) PTR_AssemblyLoaderAllocator;

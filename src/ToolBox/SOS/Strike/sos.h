@@ -475,6 +475,11 @@ namespace sos
         {
             return (void*)!mDone;
         }
+
+        bool IsLoaderAllocator() const
+        {
+            return mLoaderAllocatorObjectHandle == mCurr;
+        }
         
     private:
         void Init();
@@ -501,6 +506,8 @@ namespace sos
         TADDR *mBuffer;
         CGCDescSeries *mCurrSeries;
         
+        TADDR mLoaderAllocatorObjectHandle;
+
         int i, mCount;
         
         TADDR mCurr, mStop, mObject;

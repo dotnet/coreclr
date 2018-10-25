@@ -26,6 +26,9 @@ if(FEATURE_GDBJIT)
     set(VM_SOURCES_GDBJIT
         gdbjit.cpp
     )
+    set(VM_HEADERS_GDBJIT
+        gdbjit.h
+    )
 endif(FEATURE_GDBJIT)
 
 if(FEATURE_JIT_PITCHING)
@@ -108,6 +111,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     threadpoolrequest.cpp
     threads.cpp
     threadstatics.cpp
+    tieredcompilation.cpp
     typectxt.cpp
     typedesc.cpp
     typehandle.cpp
@@ -122,15 +126,132 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     zapsig.cpp
 )
 
+set(VM_HEADERS_DAC_AND_WKS_COMMON
+    ../inc/corjit.h
+    ../inc/corjitflags.h
+    ../inc/corjithost.h
+    appdomain.hpp
+    appdomain.inl
+    array.h
+    assembly.hpp
+    baseassemblyspec.h
+    baseassemblyspec.inl
+    binder.h
+    ceeload.h
+    ceeload.inl
+    class.h
+    class.inl
+    classhash.h
+    clsload.hpp
+    clsload.inl
+    codeman.h
+    codeman.inl
+    codeversion.h
+    comdelegate.h
+    contractimpl.h
+    crst.h
+    debugdebugger.h
+    debuginfostore.h
+    decodemd.h
+    disassembler.h
+    dllimport.h
+    domainfile.h
+    domainfile.inl
+    dynamicmethod.h
+    ecall.h
+    eedbginterfaceimpl.h
+    eedbginterfaceimpl.inl
+    eehash.h
+    eehash.inl
+    encee.h
+    excep.h
+    exstate.h
+    field.h
+    fptrstubs.h
+    frames.h
+    gctoclreventsink.h
+    gcheaputilities.h
+    generics.h
+    generics.inl
+    hash.h
+    hillclimbing.h
+    ilinstrumentation.h
+    ilstubcache.h
+    ilstubresolver.h
+    inlinetracking.h
+    instmethhash.h
+    jithost.h
+    jitinterface.h
+    loaderallocator.hpp
+    loaderallocator.inl
+    memberload.h
+    method.hpp
+    method.inl
+    methodimpl.h
+    methoditer.h
+    methodtable.h
+    methodtable.inl
+    object.h
+    object.inl
+    pefile.h
+    pefile.inl
+    peimage.h
+    peimage.inl
+    peimagelayout.h
+    peimagelayout.inl
+    perfmap.h
+    perfinfo.h
+    precode.h
+    rejit.h
+    rejit.inl
+    sigformat.h
+    siginfo.hpp
+    spinlock.h
+    stackwalk.h
+    stublink.h
+    stublink.inl
+    stubmgr.h
+    syncblk.h
+    syncblk.inl
+    threadpoolrequest.h
+    threads.h
+    threads.inl
+    threadstatics.h
+    typectxt.h
+    typedesc.h
+    typedesc.inl
+    typehandle.h
+    typehandle.inl
+    typehash.h
+    typehashingalgorithms.h
+    typestring.h
+    util.hpp
+    vars.hpp
+    versionresilienthashcode.h
+    virtualcallstub.h
+    win32threadpool.h
+    yieldprocessornormalized.h
+    zapsig.h
+)
+
 set( GC_SOURCES_DAC_AND_WKS_COMMON
   ../gc/handletable.cpp
   ../gc/handletablecore.cpp
   ../gc/handletablescan.cpp
   ../gc/objecthandle.cpp)
 
+set( GC_HEADERS_DAC_AND_WKS_COMMON
+    ../gc/handletable.h
+    ../gc/handletable.inl
+    ../gc/handletablepriv.h
+    ../gc/objecthandle.h)
+
 if(FEATURE_READYTORUN)
     list(APPEND VM_SOURCES_DAC_AND_WKS_COMMON
         readytoruninfo.cpp
+    )
+    list(APPEND VM_HEADERS_DAC_AND_WKS_COMMON
+        readytoruninfo.h
     )
 endif(FEATURE_READYTORUN)
 
@@ -146,8 +267,16 @@ set(VM_SOURCES_DAC
     threaddebugblockinginfo.cpp
 )
 
+set(VM_HEADERS_DAC
+    ${VM_HEADERS_DAC_AND_WKS_COMMON}
+    threaddebugblockinginfo.h
+)
+
 set(GC_SOURCES_DAC
     ${GC_SOURCES_DAC_AND_WKS_COMMON})
+
+set(GC_HEADERS_DAC
+    ${GC_HEADERS_DAC_AND_WKS_COMMON})
 
 set(VM_SOURCES_WKS
     ${VM_SOURCES_DAC_AND_WKS_COMMON}
@@ -158,6 +287,7 @@ set(VM_SOURCES_WKS
     cachelinealloc.cpp
     callcounter.cpp
     callhelpers.cpp
+    callsiteinspect.cpp
     ceemain.cpp
     clrconfignative.cpp
     clrex.cpp
@@ -253,12 +383,132 @@ set(VM_SOURCES_WKS
     synch.cpp
     synchronizationcontextnative.cpp
     testhookmgr.cpp
-    tieredcompilation.cpp
     threaddebugblockinginfo.cpp
     threadsuspend.cpp
     typeparse.cpp
     weakreferencenative.cpp
     ${VM_SOURCES_GDBJIT}
+)
+
+set(VM_HEADERS_WKS
+    ${VM_HEADERS_DAC_AND_WKS_COMMON}
+    ../inc/jithelpers.h
+    coreclr/corebindresult.h
+    coreclr/corebindresult.inl
+    appdomainnative.hpp
+    assemblyname.hpp
+    assemblynative.hpp
+    assemblyspec.hpp
+    assemblyspecbase.h
+    cachelinealloc.h
+    callcounter.h
+    callhelpers.h
+    callsiteinspect.h
+    ceemain.h
+    clrconfignative.h
+    clrex.h
+    clrprivbinderloadfile.h
+    clrvarargs.h
+    comdatetime.h
+    comdependenthandle.h
+    comdynamic.h
+    commemoryfailpoint.h
+    commodule.h
+    compatibilityswitch.h
+    comsynchronizable.h
+    comthreadpool.h
+    comutilnative.h
+    comwaithandle.h
+    customattribute.h
+    custommarshalerinfo.h
+    dllimportcallback.h
+    eeconfig.h
+    eecontract.h
+    eemessagebox.h
+    eepolicy.h
+    eeprofinterfaces.h
+    eeprofinterfaces.inl
+    eetoprofinterfaceimpl.h
+    eetoprofinterfaceimpl.inl
+    eventpipe.h
+    eventpipeblock.h
+    eventpipebuffer.h
+    eventpipebuffermanager.h
+    eventpipeconfiguration.h
+    eventpipeevent.h
+    eventpipeeventinstance.h
+    eventpipeeventsource.h
+    eventpipefile.h
+    eventpipejsonfile.h
+    eventpipemetadatagenerator.h
+    eventpipeprovider.h
+    eventpipesession.h
+    eventstore.hpp
+    fastserializer.h
+    fcall.h
+    fieldmarshaler.h
+    finalizerthread.h
+    frameworkexceptionloader.h
+    gccover.h
+    gcenv.h
+    gcenv.ee.h
+    gcenv.os.h
+    gchelpers.h
+    hosting.h
+    ibclogger.h
+    ilmarshalers.h
+    interopconverter.h
+    interoputil.h
+    interoputil.inl
+    interpreter.h
+    interpreter.hpp
+    invokeutil.h
+    managedmdimport.hpp
+    marshalnative.h
+    mdaassistants.h
+    methodtablebuilder.h
+    mlinfo.h
+    mscorlib.h
+    multicorejit.h
+    multicorejitimpl.h
+    nativeeventsource.h
+    nativeoverlapped.h
+    objectlist.h
+    olevariant.h
+    pendingload.h
+    profattach.h
+    profattachclient.h
+    profattachserver.h
+    profdetach.h
+    profilermetadataemitvalidator.h
+    profilingenumerators.h
+    profilinghelper.h
+    profilinghelper.h
+    proftoeeinterfaceimpl.h
+    proftoeeinterfaceimpl.inl
+    qcall.h
+    reflectclasswriter.h
+    reflectioninvocation.h
+    runtimehandles.h
+    sampleprofiler.h
+    sha1.h
+    simplerwlock.hpp
+    sourceline.h
+    stackingallocator.h
+    stringliteralmap.h
+    stubcache.h
+    stubgen.h
+    stubhelpers.h
+    syncclean.hpp
+    synch.h
+    synchronizationcontextnative.h
+    testhookmgr.h
+    tieredcompilation.h
+    threaddebugblockinginfo.h
+    threadsuspend.h
+    typeparse.h
+    weakreferencenative.h
+    ${VM_HEADERS_GDBJIT}
 )
 
 set(GC_SOURCES_WKS
@@ -276,9 +526,20 @@ set(GC_SOURCES_WKS
     ../gc/softwarewritewatch.cpp
     ../gc/handletablecache.cpp)
 
+set(GC_HEADERS_WKS
+    ${GC_HEADERS_DAC_AND_WKS_COMMON}
+    ../gc/gceventstatus.h
+    ../gc/gcconfig.h
+    ../gc/gcscan.h
+    ../gc/gchandletableimpl.h
+    ../gc/softwarewritewatch.h)
+
 if(FEATURE_EVENT_TRACE)
     list(APPEND VM_SOURCES_WKS
         eventtrace.cpp
+        )
+    list(APPEND VM_HEADERS_WKS
+        eventtracepriv.h
         )
 endif(FEATURE_EVENT_TRACE)
 
@@ -296,11 +557,15 @@ set(VM_SOURCES_DAC_AND_WKS_WIN32
     winrttypenameconverter.cpp
 )
 
+set(VM_HEADERS_DAC_AND_WKS_WIN32
+    clrtocomcall.h
+    rcwwalker.h
+    winrttypenameconverter.h
+)
+
 list(APPEND VM_SOURCES_WKS
     ${VM_SOURCES_DAC_AND_WKS_WIN32}
     # These should not be included for Linux
-    appxutil.cpp
-    assemblynativeresource.cpp
     classcompat.cpp
     classfactory.cpp
     clrprivbinderwinrt.cpp
@@ -328,11 +593,47 @@ list(APPEND VM_SOURCES_WKS
     winrthelpers.cpp
 )
 
+list(APPEND VM_HEADERS_WKS
+    ${VM_HEADERS_DAC_AND_WKS_WIN32}
+    # These should not be included for Linux
+    classcompat.h
+    clrprivbinderwinrt.h
+    clrprivtypecachewinrt.h
+    comcache.h
+    comcallablewrapper.h
+    comconnectionpoints.h
+    cominterfacemarshaler.h
+    commtmemberinfomap.h
+    comtoclrcall.h
+    dispatchinfo.h
+    dispparammarshaler.h
+    dwreport.h
+    eventreporter.h
+    extensibleclassfactory.h
+    mngstdinterfaces.h
+    notifyexternals.h
+    olecontexthelpers.h
+    rcwrefcache.h
+    rtlfunctions.h
+    runtimecallablewrapper.h
+    stacksampler.h
+    stdinterfaces.h
+    stdinterfaces_internal.h
+    winrthelpers.h
+)
+
 list(APPEND VM_SOURCES_DAC
     ${VM_SOURCES_DAC_AND_WKS_WIN32}
     # These should not be included for Linux
     clrprivbinderwinrt.cpp
     clrprivtypecachewinrt.cpp
+)
+
+list(APPEND VM_HEADERS_DAC
+    ${VM_HEADERS_DAC_AND_WKS_WIN32}
+    # These should not be included for Linux
+    clrprivbinderwinrt.h
+    clrprivtypecachewinrt.h
 )
 
 if(CLR_CMAKE_TARGET_ARCH_AMD64)
@@ -357,13 +658,20 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
         ${ARCH_SOURCES_DIR}/UMThunkStub.asm
         ${ARCH_SOURCES_DIR}/VirtualCallStubAMD64.asm
     )
+
+    set(VM_HEADERS_WKS_ARCH_ASM
+        ${ARCH_SOURCES_DIR}/asmconstants.h
+    )
 elseif(CLR_CMAKE_TARGET_ARCH_I386)
     set(VM_SOURCES_WKS_ARCH_ASM
         ${ARCH_SOURCES_DIR}/RedirectedHandledJITCase.asm
         ${ARCH_SOURCES_DIR}/asmhelpers.asm
-        ${ARCH_SOURCES_DIR}/fptext.asm
         ${ARCH_SOURCES_DIR}/gmsasm.asm
         ${ARCH_SOURCES_DIR}/jithelp.asm
+    )
+
+    set(VM_HEADERS_WKS_ARCH_ASM
+        ${ARCH_SOURCES_DIR}/asmconstants.h
     )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM)
     set(VM_SOURCES_WKS_ARCH_ASM
@@ -374,6 +682,10 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM)
         ${ARCH_SOURCES_DIR}/patchedcode.asm
         ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
     )
+
+    set(VM_HEADERS_WKS_ARCH_ASM
+        ${ARCH_SOURCES_DIR}/asmconstants.h
+    )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
     set(VM_SOURCES_WKS_ARCH_ASM
         ${ARCH_SOURCES_DIR}/AsmHelpers.asm
@@ -382,6 +694,9 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
         ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
     )
 
+    set(VM_HEADERS_WKS_ARCH_ASM
+        ${ARCH_SOURCES_DIR}/asmconstants.h
+    )
 endif()
 
 else(WIN32)
@@ -440,6 +755,14 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
         ${ARCH_SOURCES_DIR}/stublinkeramd64.cpp
     )
 
+    set(VM_HEADERS_DAC_AND_WKS_ARCH
+        ${ARCH_SOURCES_DIR}/asmconstants.h
+        ${ARCH_SOURCES_DIR}/cgencpu.h
+        ${ARCH_SOURCES_DIR}/excepcpu.h
+        ${ARCH_SOURCES_DIR}/gmscpu.h
+        ${ARCH_SOURCES_DIR}/stublinkeramd64.h
+    )
+
     set(VM_SOURCES_WKS_ARCH
         ${ARCH_SOURCES_DIR}/jithelpersamd64.cpp
         ${ARCH_SOURCES_DIR}/jitinterfaceamd64.cpp
@@ -447,6 +770,10 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
         exceptionhandling.cpp
         gcinfodecoder.cpp
         jitinterfacegen.cpp
+    )
+
+    set(VM_HEADERS_WKS_ARCH
+        exceptionhandling.h
     )
 elseif(CLR_CMAKE_TARGET_ARCH_I386)
     set(VM_SOURCES_DAC_AND_WKS_ARCH
@@ -458,11 +785,23 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
         ${ARCH_SOURCES_DIR}/stublinkerx86.cpp
     )
 
+    set(VM_HEADERS_DAC_AND_WKS_ARCH
+        exinfo.h
+        ${ARCH_SOURCES_DIR}/cgencpu.h
+        ${ARCH_SOURCES_DIR}/excepcpu.h
+        ${ARCH_SOURCES_DIR}/gmscpu.h
+        ${ARCH_SOURCES_DIR}/stublinkerx86.h
+    )
+
     set(VM_SOURCES_WKS_ARCH
         ${ARCH_SOURCES_DIR}/jitinterfacex86.cpp
         ${ARCH_SOURCES_DIR}/profiler.cpp
         exceptionhandling.cpp
         gcinfodecoder.cpp
+    )
+
+    set(VM_HEADERS_WKS_ARCH
+        exceptionhandling.h
     )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM)
     set(VM_SOURCES_DAC_AND_WKS_ARCH
@@ -471,17 +810,32 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM)
         ${ARCH_SOURCES_DIR}/armsinglestepper.cpp
     )
 
+    set(VM_HEADERS_DAC_AND_WKS_ARCH
+        ${ARCH_SOURCES_DIR}/asmconstants.h
+        ${ARCH_SOURCES_DIR}/excepcpu.h
+        ${ARCH_SOURCES_DIR}/virtualcallstubcpu.hpp
+    )
+
     set(VM_SOURCES_WKS_ARCH
         ${ARCH_SOURCES_DIR}/jithelpersarm.cpp
         ${ARCH_SOURCES_DIR}/profiler.cpp
         exceptionhandling.cpp
         gcinfodecoder.cpp
     )
+
+    set(VM_HEADERS_WKS_ARCH
+        exceptionhandling.h
+    )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
     set(VM_SOURCES_DAC_AND_WKS_ARCH
         ${ARCH_SOURCES_DIR}/stubs.cpp
         exceptionhandling.cpp
         gcinfodecoder.cpp
+    )
+
+    set(VM_HEADERS_DAC_AND_WKS_ARCH
+        ${ARCH_SOURCES_DIR}/virtualcallstubcpu.hpp
+        exceptionhandling.h
     )
 endif()
 
@@ -496,9 +850,18 @@ set(VM_SOURCES_DAC_ARCH
     exceptionhandling.cpp
 )
 
+set(VM_HEADERS_DAC_ARCH
+    exceptionhandling.h
+)
+
 list(APPEND VM_SOURCES_WKS
     ${VM_SOURCES_WKS_ARCH}
     ${VM_SOURCES_DAC_AND_WKS_ARCH}
+)
+
+list(APPEND VM_HEADERS_WKS
+    ${VM_HEADERS_WKS_ARCH}
+    ${VM_HEADERS_DAC_AND_WKS_ARCH}
 )
 
 list(APPEND VM_SOURCES_DAC
@@ -506,8 +869,17 @@ list(APPEND VM_SOURCES_DAC
     ${VM_SOURCES_DAC_AND_WKS_ARCH}
 )
 
+list(APPEND VM_HEADERS_DAC
+    ${VM_HEADERS_DAC_ARCH}
+    ${VM_HEADERS_DAC_AND_WKS_ARCH}
+)
+
 list(APPEND VM_SOURCES_WKS
      ${GC_SOURCES_WKS}
+)
+
+list(APPEND VM_HEADERS_WKS
+     ${GC_HEADERS_WKS}
 )
 
 # The DAC does need GC sources in order to link correctly, even if
@@ -515,6 +887,16 @@ list(APPEND VM_SOURCES_WKS
 list(APPEND VM_SOURCES_DAC
     ${GC_SOURCES_DAC}
 )
+
+list(APPEND VM_HEADERS_DAC
+    ${GC_HEADERS_DAC}
+)
+
+if (WIN32)
+    list(APPEND VM_SOURCES_WKS ${VM_HEADERS_WKS})
+    list(APPEND VM_SOURCES_WKS_ARCH_ASM ${VM_HEADERS_WKS_ARCH_ASM})
+    list(APPEND VM_SOURCES_DAC ${VM_HEADERS_DAC})
+endif(WIN32)
 
 convert_to_absolute_path(VM_SOURCES_WKS ${VM_SOURCES_WKS})
 convert_to_absolute_path(VM_SOURCES_WKS_ARCH_ASM ${VM_SOURCES_WKS_ARCH_ASM})

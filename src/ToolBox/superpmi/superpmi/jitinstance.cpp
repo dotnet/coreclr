@@ -30,6 +30,9 @@ JitInstance* JitInstance::InitJit(char*          nameOfJit,
 
     jit->options = options;
 
+    jit->environment.getIntConfigValue   = nullptr;
+    jit->environment.getStingConfigValue = nullptr;
+
     if (st1 != nullptr)
         st1->Start();
     HRESULT hr = jit->StartUp(nameOfJit, false, breakOnAssert, firstContext);
@@ -46,17 +49,14 @@ JitInstance* JitInstance::InitJit(char*          nameOfJit,
     return jit;
 }
 
-HRESULT JitInstance::StartUp(char*          PathToJit,
-                             bool           copyJit,
-                             bool           parambreakOnDebugBreakorAV,
-                             MethodContext* firstContext)
+HRESULT JitInstance::StartUp(char* PathToJit, bool copyJit, bool breakOnDebugBreakorAV, MethodContext* firstContext)
 {
     // startup jit
     DWORD dwRetVal = 0;
     UINT  uRetVal  = 0;
     BOOL  bRetVal  = FALSE;
 
-    breakOnDebugBreakorAV = parambreakOnDebugBreakorAV;
+    SetBreakOnDebugBreakOrAV(breakOnDebugBreakorAV);
 
     char pFullPathName[MAX_PATH];
     char lpTempPathBuffer[MAX_PATH];
@@ -503,6 +503,9 @@ bool JitInstance::callJitStartup(ICorJitHost* jithost)
     }
     PAL_ENDTRY
 
+    Assert(environment.getIntConfigValue == nullptr && environment.getStingConfigValue == nullptr);
+    environment = mc->cloneEnvironment();
+
     return param.result;
 }
 
@@ -512,6 +515,18 @@ bool JitInstance::resetConfig(MethodContext* firstContext)
     if (pnjitStartup == nullptr)
     {
         return false;
+    }
+
+    if (environment.getIntConfigValue != nullptr)
+    {
+        delete environment.getIntConfigValue;
+        environment.getIntConfigValue = nullptr;
+    }
+
+    if (environment.getStingConfigValue != nullptr)
+    {
+        delete environment.getStingConfigValue;
+        environment.getStingConfigValue = nullptr;
     }
 
     mc                   = firstContext;
@@ -525,4 +540,9 @@ bool JitInstance::resetConfig(MethodContext* firstContext)
     delete static_cast<JitHost*>(jitHost);
     jitHost = newHost;
     return true;
+}
+
+const MethodContext::Environment& JitInstance::getEnvironment()
+{
+    return environment;
 }

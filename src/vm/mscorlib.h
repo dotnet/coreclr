@@ -138,18 +138,17 @@ DEFINE_CLASS(PORTABLE_EXECUTABLE_KINDS, Reflection,         PortableExecutableKi
 DEFINE_CLASS(IMAGE_FILE_MACHINE,        Reflection,         ImageFileMachine)
 
 DEFINE_CLASS_U(Reflection,             AssemblyName,           AssemblyNameBaseObject)
-DEFINE_FIELD_U(_Name,                      AssemblyNameBaseObject, m_pSimpleName)
-DEFINE_FIELD_U(_PublicKey,                 AssemblyNameBaseObject, m_pPublicKey)
-DEFINE_FIELD_U(_PublicKeyToken,            AssemblyNameBaseObject, m_pPublicKeyToken)
-DEFINE_FIELD_U(_CultureInfo,               AssemblyNameBaseObject, m_pCultureInfo)
-DEFINE_FIELD_U(_CodeBase,                  AssemblyNameBaseObject, m_pCodeBase)
-DEFINE_FIELD_U(_Version,                   AssemblyNameBaseObject, m_pVersion)
-DEFINE_FIELD_U(m_siInfo,                   AssemblyNameBaseObject, m_siInfo)
-DEFINE_FIELD_U(_HashForControl,            AssemblyNameBaseObject, m_HashForControl)
-DEFINE_FIELD_U(_HashAlgorithm,             AssemblyNameBaseObject, m_HashAlgorithm)
-DEFINE_FIELD_U(_HashAlgorithmForControl, AssemblyNameBaseObject, m_HashAlgorithmForControl)
-DEFINE_FIELD_U(_VersionCompatibility,      AssemblyNameBaseObject, m_VersionCompatibility)
-DEFINE_FIELD_U(_Flags,                     AssemblyNameBaseObject, m_Flags)
+DEFINE_FIELD_U(_name,                      AssemblyNameBaseObject, _name)
+DEFINE_FIELD_U(_publicKey,                 AssemblyNameBaseObject, _publicKey)
+DEFINE_FIELD_U(_publicKeyToken,            AssemblyNameBaseObject, _publicKeyToken)
+DEFINE_FIELD_U(_cultureInfo,               AssemblyNameBaseObject, _cultureInfo)
+DEFINE_FIELD_U(_codeBase,                  AssemblyNameBaseObject, _codeBase)
+DEFINE_FIELD_U(_version,                   AssemblyNameBaseObject, _version)
+DEFINE_FIELD_U(_hashForControl,            AssemblyNameBaseObject, _hashForControl)
+DEFINE_FIELD_U(_hashAlgorithm,             AssemblyNameBaseObject, _hashAlgorithm)
+DEFINE_FIELD_U(_hashAlgorithmForControl, AssemblyNameBaseObject, _hashAlgorithmForControl)
+DEFINE_FIELD_U(_versionCompatibility,      AssemblyNameBaseObject, _versionCompatibility)
+DEFINE_FIELD_U(_flags,                     AssemblyNameBaseObject, _flags)
 DEFINE_CLASS(ASSEMBLY_NAME,         Reflection,             AssemblyName)
 DEFINE_METHOD(ASSEMBLY_NAME,        INIT,                   Init,                      IM_Str_ArrB_ArrB_Ver_CI_AHA_AVC_Str_ANF_SNKP_RetV)
 DEFINE_METHOD(ASSEMBLY_NAME,        SET_PROC_ARCH_INDEX,    SetProcArchIndex,          IM_PEK_IFM_RetV)
@@ -192,10 +191,6 @@ DEFINE_METHOD(BINDER,               CHANGE_TYPE,            ChangeType,         
 
 DEFINE_CLASS(BINDING_FLAGS,         Reflection,             BindingFlags)
 
-#ifdef FEATURE_COMINTEROP
-DEFINE_CLASS(BSTR_WRAPPER,          Interop,                BStrWrapper)
-#endif // FEATURE_COMINTEROP
-
 DEFINE_CLASS_U(System,                 RuntimeType,            ReflectClassBaseObject)
 DEFINE_FIELD_U(m_cache,                ReflectClassBaseObject,        m_cache)
 DEFINE_FIELD_U(m_handle,               ReflectClassBaseObject,        m_typeHandle)
@@ -210,7 +205,18 @@ DEFINE_METHOD(CLASS,                GET_METHOD_BASE,        GetMethodBase,      
 DEFINE_METHOD(CLASS,                GET_FIELD_INFO,         GetFieldInfo,               SM_RuntimeType_IRuntimeFieldInfo_RetFieldInfo)
 DEFINE_METHOD(CLASS,                GET_PROPERTY_INFO,      GetPropertyInfo,            SM_RuntimeType_Int_RetPropertyInfo)
 
-DEFINE_CLASS(CLASS_INTROSPECTION_ONLY, System,              ReflectionOnlyType)
+#ifdef FEATURE_COMINTEROP
+DEFINE_METHOD(CLASS,                FORWARD_CALL_TO_INVOKE, ForwardCallToInvokeMember,  IM_Str_BindingFlags_Obj_ArrObj_ArrBool_ArrInt_ArrType_Type_RetObj)
+#endif // FEATURE_COMINTEROP
+
+#ifdef FEATURE_COMINTEROP
+DEFINE_CLASS(BSTR_WRAPPER,          Interop,                BStrWrapper)
+DEFINE_CLASS(CURRENCY_WRAPPER,      Interop,                CurrencyWrapper)
+DEFINE_CLASS(DISPATCH_WRAPPER,      Interop,                DispatchWrapper)
+DEFINE_CLASS(ERROR_WRAPPER,         Interop,                ErrorWrapper)
+DEFINE_CLASS(UNKNOWN_WRAPPER,       Interop,                UnknownWrapper)
+DEFINE_CLASS(VARIANT_WRAPPER,       Interop,                VariantWrapper)
+#endif // FEATURE_COMINTEROP
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_CLASS_U(System,                 __ComObject,            ComObject)
@@ -299,10 +305,6 @@ DEFINE_PROPERTY(CULTURE_INFO,       PARENT,                 Parent,             
 DEFINE_CLASS(CURRENCY,              System,                 Currency)
 DEFINE_METHOD(CURRENCY,             DECIMAL_CTOR,           .ctor,                      IM_Dec_RetVoid)
 
-#ifdef FEATURE_COMINTEROP
-DEFINE_CLASS(CURRENCY_WRAPPER,      Interop,                CurrencyWrapper)
-#endif
-
 DEFINE_CLASS(DATE_TIME,             System,                 DateTime)
 DEFINE_METHOD(DATE_TIME,            LONG_CTOR,              .ctor,                      IM_Long_RetVoid)
 
@@ -325,10 +327,6 @@ DEFINE_FIELD(DELEGATE,            METHOD_PTR_AUX,         _methodPtrAux)
 DEFINE_METHOD(DELEGATE,             CONSTRUCT_DELEGATE,     DelegateConstruct,          IM_Obj_IntPtr_RetVoid)
 DEFINE_METHOD(DELEGATE,             GET_INVOKE_METHOD,      GetInvokeMethod,            IM_RetIntPtr)
 
-#ifdef FEATURE_COMINTEROP
-DEFINE_CLASS(DISPATCH_WRAPPER,      Interop,                DispatchWrapper)
-#endif // FEATURE_COMINTEROP
-
 DEFINE_CLASS(DYNAMICMETHOD,         ReflectionEmit,         DynamicMethod)
 
 DEFINE_CLASS(DYNAMICRESOLVER,       ReflectionEmit,         DynamicResolver)
@@ -346,10 +344,6 @@ DEFINE_CLASS(ENUM,                  System,                 Enum)
 DEFINE_CLASS(ENVIRONMENT,           System,                 Environment)
 DEFINE_METHOD(ENVIRONMENT,       GET_RESOURCE_STRING_LOCAL, GetResourceStringLocal,     SM_Str_RetStr)
 DEFINE_METHOD(ENVIRONMENT,       SET_COMMAND_LINE_ARGS,     SetCommandLineArgs,         SM_ArrStr_RetVoid)
-
-#ifdef FEATURE_COMINTEROP
-DEFINE_CLASS(ERROR_WRAPPER,         Interop,                ErrorWrapper)
-#endif
 
 DEFINE_CLASS(EVENT,                 Reflection,             RuntimeEventInfo)
 
@@ -541,32 +535,32 @@ DEFINE_METHOD(METHOD,               GET_PARAMETERS,         GetParameters,      
 DEFINE_CLASS(METHOD_BASE,           Reflection,             MethodBase)
 DEFINE_METHOD(METHOD_BASE,          GET_METHODDESC,         GetMethodDesc,              IM_RetIntPtr)
 
-DEFINE_CLASS_U(Reflection,             ExceptionHandlingClause,    ExceptionHandlingClause)
-DEFINE_FIELD_U(m_methodBody,               ExceptionHandlingClause,        m_methodBody)
-DEFINE_FIELD_U(m_flags,                    ExceptionHandlingClause,        m_flags)
-DEFINE_FIELD_U(m_tryOffset,                ExceptionHandlingClause,        m_tryOffset)
-DEFINE_FIELD_U(m_tryLength,                ExceptionHandlingClause,        m_tryLength)
-DEFINE_FIELD_U(m_handlerOffset,            ExceptionHandlingClause,        m_handlerOffset)
-DEFINE_FIELD_U(m_handlerLength,            ExceptionHandlingClause,        m_handlerLength)
-DEFINE_FIELD_U(m_catchMetadataToken,       ExceptionHandlingClause,        m_catchToken)
-DEFINE_FIELD_U(m_filterOffset,             ExceptionHandlingClause,        m_filterOffset)
-DEFINE_CLASS(EH_CLAUSE,             Reflection,             ExceptionHandlingClause)
+DEFINE_CLASS_U(Reflection,             RuntimeExceptionHandlingClause,    RuntimeExceptionHandlingClause)
+DEFINE_FIELD_U(_methodBody,            RuntimeExceptionHandlingClause,        _methodBody)
+DEFINE_FIELD_U(_flags,                 RuntimeExceptionHandlingClause,        _flags)
+DEFINE_FIELD_U(_tryOffset,             RuntimeExceptionHandlingClause,        _tryOffset)
+DEFINE_FIELD_U(_tryLength,             RuntimeExceptionHandlingClause,        _tryLength)
+DEFINE_FIELD_U(_handlerOffset,         RuntimeExceptionHandlingClause,        _handlerOffset)
+DEFINE_FIELD_U(_handlerLength,         RuntimeExceptionHandlingClause,        _handlerLength)
+DEFINE_FIELD_U(_catchMetadataToken,    RuntimeExceptionHandlingClause,        _catchToken)
+DEFINE_FIELD_U(_filterOffset,          RuntimeExceptionHandlingClause,        _filterOffset)
+DEFINE_CLASS(RUNTIME_EH_CLAUSE,             Reflection,             RuntimeExceptionHandlingClause)
 
-DEFINE_CLASS_U(Reflection,             LocalVariableInfo,          LocalVariableInfo)
-DEFINE_FIELD_U(m_type,                     LocalVariableInfo,        m_type)
-DEFINE_FIELD_U(m_isPinned,                 LocalVariableInfo,        m_bIsPinned)
-DEFINE_FIELD_U(m_localIndex,               LocalVariableInfo,        m_localIndex)
-DEFINE_CLASS(LOCAL_VARIABLE_INFO,   Reflection,             LocalVariableInfo)
+DEFINE_CLASS_U(Reflection,             RuntimeLocalVariableInfo,        RuntimeLocalVariableInfo)
+DEFINE_FIELD_U(_type,                  RuntimeLocalVariableInfo,        _type)
+DEFINE_FIELD_U(_localIndex,            RuntimeLocalVariableInfo,        _localIndex)
+DEFINE_FIELD_U(_isPinned,              RuntimeLocalVariableInfo,        _isPinned)
+DEFINE_CLASS(RUNTIME_LOCAL_VARIABLE_INFO,   Reflection,             RuntimeLocalVariableInfo)
 
-DEFINE_CLASS_U(Reflection,             MethodBody,                 MethodBody)
-DEFINE_FIELD_U(m_IL,                       MethodBody,         m_IL)
-DEFINE_FIELD_U(m_exceptionHandlingClauses, MethodBody,         m_exceptionClauses)
-DEFINE_FIELD_U(m_localVariables,           MethodBody,         m_localVariables)
-DEFINE_FIELD_U(m_methodBase,               MethodBody,         m_methodBase)
-DEFINE_FIELD_U(m_localSignatureMetadataToken, MethodBody,      m_localVarSigToken)
-DEFINE_FIELD_U(m_maxStackSize,             MethodBody,         m_maxStackSize)
-DEFINE_FIELD_U(m_initLocals,               MethodBody,         m_initLocals)
-DEFINE_CLASS(METHOD_BODY,           Reflection,             MethodBody)
+DEFINE_CLASS_U(Reflection,             RuntimeMethodBody,           RuntimeMethodBody)
+DEFINE_FIELD_U(_IL,                    RuntimeMethodBody,         _IL)
+DEFINE_FIELD_U(_exceptionHandlingClauses, RuntimeMethodBody,         _exceptionClauses)
+DEFINE_FIELD_U(_localVariables,           RuntimeMethodBody,         _localVariables)
+DEFINE_FIELD_U(_methodBase,               RuntimeMethodBody,         _methodBase)
+DEFINE_FIELD_U(_localSignatureMetadataToken, RuntimeMethodBody,      _localVarSigToken)
+DEFINE_FIELD_U(_maxStackSize,             RuntimeMethodBody,         _maxStackSize)
+DEFINE_FIELD_U(_initLocals,               RuntimeMethodBody,         _initLocals)
+DEFINE_CLASS(RUNTIME_METHOD_BODY,           Reflection,             RuntimeMethodBody)
 
 DEFINE_CLASS(METHOD_INFO,           Reflection,             MethodInfo)
 
@@ -849,6 +843,9 @@ DEFINE_FIELD_U(rgiColumnNumber,            StackFrameHelper,   rgiColumnNumber)
 DEFINE_FIELD_U(rgiLastFrameFromForeignExceptionStackTrace,            StackFrameHelper,   rgiLastFrameFromForeignExceptionStackTrace)
 DEFINE_FIELD_U(iFrameCount,                StackFrameHelper,   iFrameCount)
 
+DEFINE_CLASS(STARTUP_HOOK_PROVIDER,  System,                StartupHookProvider)
+DEFINE_METHOD(STARTUP_HOOK_PROVIDER, PROCESS_STARTUP_HOOKS, ProcessStartupHooks, SM_RetVoid)
+
 DEFINE_CLASS(STREAM,                IO,                     Stream)
 DEFINE_METHOD(STREAM,               BEGIN_READ,             BeginRead,  IM_ArrByte_Int_Int_AsyncCallback_Object_RetIAsyncResult)
 DEFINE_METHOD(STREAM,               END_READ,               EndRead,    IM_IAsyncResult_RetInt)
@@ -960,17 +957,9 @@ DEFINE_CLASS(LAZY,              System,     Lazy`1)
 
 DEFINE_CLASS(LAZY_INITIALIZER,  Threading,  LazyInitializer)
 
-#ifdef FEATURE_COMINTEROP
-DEFINE_CLASS(UNKNOWN_WRAPPER,       Interop,                UnknownWrapper)
-#endif
-
 DEFINE_CLASS(VALUE_TYPE,            System,                 ValueType)
 DEFINE_METHOD(VALUE_TYPE,           GET_HASH_CODE,          GetHashCode,            IM_RetInt)
 DEFINE_METHOD(VALUE_TYPE,           EQUALS,                 Equals,                 IM_Obj_RetBool)
-
-#ifdef FEATURE_COMINTEROP
-DEFINE_CLASS(VARIANT_WRAPPER,       Interop,                VariantWrapper)
-#endif // FEATURE_COMINTEROP
 
 DEFINE_CLASS(GC,                    System,                 GC)
 DEFINE_METHOD(GC,                   KEEP_ALIVE,             KeepAlive,                  SM_Obj_RetVoid)
@@ -1091,12 +1080,12 @@ DEFINE_METHOD(WSTRBUFFERMARSHALER,  CONVERT_TO_NATIVE,      ConvertToNative,    
 DEFINE_METHOD(WSTRBUFFERMARSHALER,  CONVERT_TO_MANAGED,     ConvertToManaged,           SM_IntPtr_RetStr)
 DEFINE_METHOD(WSTRBUFFERMARSHALER,  CLEAR_NATIVE,           ClearNative,                SM_IntPtr_RetVoid)
 
-#ifdef FEATURE_COMINTEROP
 DEFINE_CLASS(BSTRMARSHALER,         StubHelpers,            BSTRMarshaler)
 DEFINE_METHOD(BSTRMARSHALER,        CONVERT_TO_NATIVE,      ConvertToNative,            SM_Str_IntPtr_RetIntPtr)
 DEFINE_METHOD(BSTRMARSHALER,        CONVERT_TO_MANAGED,     ConvertToManaged,           SM_IntPtr_RetStr)
 DEFINE_METHOD(BSTRMARSHALER,        CLEAR_NATIVE,           ClearNative,                SM_IntPtr_RetVoid)
 
+#ifdef FEATURE_COMINTEROP
 DEFINE_CLASS(ANSIBSTRMARSHALER,     StubHelpers,            AnsiBSTRMarshaler)
 DEFINE_METHOD(ANSIBSTRMARSHALER,    CONVERT_TO_NATIVE,      ConvertToNative,            SM_Int_Str_RetIntPtr)
 DEFINE_METHOD(ANSIBSTRMARSHALER,    CONVERT_TO_MANAGED,     ConvertToManaged,           SM_IntPtr_RetStr)

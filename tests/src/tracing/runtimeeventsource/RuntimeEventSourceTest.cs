@@ -1,3 +1,7 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 using System;
 using System.IO;
 using System.Diagnostics.Tracing;
@@ -11,22 +15,15 @@ namespace Tracing.Tests
     {
         static int Main(string[] args)
         {
-            // Get the RuntimeEventSource.
-            EventSource eventSource = RuntimeEventSource.Log;
-
+            SimpleEventListener.EnableKeywords = (EventKeywords)0;
             using (SimpleEventListener noEventsListener = new SimpleEventListener("NoEvents"))
             {
-                // Enable the provider, but not any keywords, so we should get no events as long as no rundown occurs.
-                noEventsListener.EnableEvents(eventSource, EventLevel.Critical, (EventKeywords)(0));
-
                 // Create an EventListener.
+                SimpleEventListener.EnableKeywords = (EventKeywords)0x4c14fccbd;
                 using (SimpleEventListener listener = new SimpleEventListener("Simple"))
                 {
                     // Trigger the allocator task.
                     System.Threading.Tasks.Task.Run(new Action(Allocator));
-
-                    // Enable events.
-                    listener.EnableEvents(eventSource, EventLevel.Verbose, (EventKeywords)(0x4c14fccbd));
 
                     // Wait for events.
                     Thread.Sleep(1000);
@@ -67,6 +64,13 @@ namespace Tracing.Tests
     {
         private string m_name;
 
+        // Keep track of the set of keywords to be enabled.
+        public static EventKeywords EnableKeywords
+        {
+            get;
+            set;
+        }
+
         public SimpleEventListener(string name)
         {
             m_name = name;
@@ -74,16 +78,36 @@ namespace Tracing.Tests
 
         public int EventCount { get; private set; } = 0;
 
+        protected override void OnEventSourceCreated(EventSource eventSource)
+        {
+            if (eventSource.Name.Equals("Microsoft-Windows-DotNETRuntime"))
+            {
+                if (EnableKeywords != 0)
+                {
+                    // Enable events.
+                    EnableEvents(eventSource, EventLevel.Verbose, EnableKeywords);
+                }
+                else
+                {
+                    // Enable the provider, but not any keywords, so we should get no events as long as no rundown occurs.
+                    EnableEvents(eventSource, EventLevel.Critical, EnableKeywords);
+                }
+            }
+        }
+
         protected override void OnEventWritten(EventWrittenEventArgs eventData)
         {
-            Console.WriteLine($"[{m_name}] ID = {eventData.EventId} Name = {eventData.EventName}");
+            Console.WriteLine($"[{m_name}] ThreadID = {eventData.OSThreadId} ID = {eventData.EventId} Name = {eventData.EventName}");
+            Console.WriteLine($"TimeStamp: {eventData.TimeStamp.ToLocalTime()}");
+            Console.WriteLine($"LocalTime: {DateTime.Now}");
+            Console.WriteLine($"Difference: {DateTime.UtcNow - eventData.TimeStamp}");
+            Assert.True("eventData.TimeStamp <= DateTime.UtcNow", eventData.TimeStamp <= DateTime.UtcNow);
             for (int i = 0; i < eventData.Payload.Count; i++)
             {
                 string payloadString = eventData.Payload[i] != null ? eventData.Payload[i].ToString() : string.Empty;
                 Console.WriteLine($"\tName = \"{eventData.PayloadNames[i]}\" Value = \"{payloadString}\"");
             }
             Console.WriteLine("\n");
-
 
             EventCount++;
         }

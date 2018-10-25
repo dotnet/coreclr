@@ -22,9 +22,6 @@
 #include "hosting.h"
 #include "eepolicy.h"
 #include "clrex.h"
-#ifdef FEATURE_IPCMAN
-#include "ipcmanagerinterface.h"
-#endif // FEATURE_IPCMAN
 #include "comcallablewrapper.h"
 #include "invokeutil.h"
 #include "appdomain.inl"
@@ -91,10 +88,6 @@ ULONG CorRuntimeHostBase::m_Version = 0;
 #if defined(FEATURE_WINDOWSPHONE)
 CCLRErrorReportingManager g_CLRErrorReportingManager;
 #endif // defined(FEATURE_WINDOWSPHONE)
-
-#ifdef FEATURE_IPCMAN
-static CCLRSecurityAttributeManager s_CLRSecurityAttributeManager;
-#endif // FEATURE_IPCMAN
 
 #endif // !DAC
 
@@ -527,9 +520,85 @@ HRESULT CorHost2::ExecuteInDefaultAppDomain(LPCWSTR pwzAssemblyPath,
         return HOST_E_CLRNOTAVAILABLE;
     }   
    
-    
-    // Ensure that code is not loaded in the Default AppDomain
-    return HOST_E_INVALIDOPERATION;
+    if(! (pwzAssemblyPath && pwzTypeName && pwzMethodName) )
+        return E_POINTER;
+
+    HRESULT hr = S_OK;
+
+    BEGIN_ENTRYPOINT_NOTHROW;
+
+    Thread *pThread = GetThread();
+    if (pThread == NULL)
+    {
+        pThread = SetupThreadNoThrow(&hr);
+        if (pThread == NULL)
+        {
+            goto ErrExit;
+        }
+    }
+
+    _ASSERTE (!pThread->PreemptiveGCDisabled());
+
+    _ASSERTE (SystemDomain::GetCurrentDomain()->GetId().m_dwId == DefaultADID);
+
+    INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
+    INSTALL_UNWIND_AND_CONTINUE_HANDLER;
+
+    EX_TRY
+    {
+        Assembly *pAssembly = AssemblySpec::LoadAssembly(pwzAssemblyPath);
+
+        SString szTypeName(pwzTypeName);
+        StackScratchBuffer buff1;
+        const char* szTypeNameUTF8 = szTypeName.GetUTF8(buff1);
+        MethodTable *pMT = ClassLoader::LoadTypeByNameThrowing(pAssembly,
+                                                            NULL,
+                                                            szTypeNameUTF8).AsMethodTable();
+
+        SString szMethodName(pwzMethodName);
+        StackScratchBuffer buff;
+        const char* szMethodNameUTF8 = szMethodName.GetUTF8(buff);
+        MethodDesc *pMethodMD = MemberLoader::FindMethod(pMT, szMethodNameUTF8, &gsig_SM_Str_RetInt);
+
+        if (!pMethodMD)
+        {
+            hr = COR_E_MISSINGMETHOD;
+        }
+        else
+        {
+            GCX_COOP();
+
+            MethodDescCallSite method(pMethodMD);
+
+            STRINGREF sref = NULL;
+            GCPROTECT_BEGIN(sref);
+
+            if (pwzArgument)
+                sref = StringObject::NewString(pwzArgument);
+
+            ARG_SLOT MethodArgs[] =
+            {
+                ObjToArgSlot(sref)
+            };
+            DWORD retval = method.Call_RetI4(MethodArgs);
+            if (pReturnValue)
+            {
+                *pReturnValue = retval;
+            }
+
+            GCPROTECT_END();
+        }
+    }
+    EX_CATCH_HRESULT(hr);
+
+    UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
+
+ErrExit:
+
+    END_ENTRYPOINT_NOTHROW;
+
+    return hr;
 }
 
 HRESULT ExecuteInAppDomainHelper(FExecuteInAppDomainCallback pCallback,
@@ -805,7 +874,7 @@ HRESULT CorHost2::_CreateDelegate(
     if (pMD==NULL || !pMD->IsStatic() || pMD->ContainsGenericVariables()) 
         ThrowHR(COR_E_MISSINGMETHOD);
 
-    UMEntryThunk *pUMEntryThunk = GetAppDomain()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
+    UMEntryThunk *pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
     *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
 
     END_DOMAIN_TRANSITION;
@@ -1187,48 +1256,7 @@ HRESULT CorRuntimeHostBase::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDo
     }
     CONTRACTL_END;
 
-    HRESULT hr = S_OK;
-
-    // No point going further if the runtime is not running...
-    {
-        // In IsRuntimeActive, we will call CanRunManagedCode that will
-        // check if the current thread has taken the loader lock or not,
-        // if MDA is supported. To do the check, MdaLoaderLock::ReportViolation
-        // will be invoked that will internally end up invoking
-        // MdaFactory<MdaXmlElement>::GetNext that will use the "new" operator
-        // that has the "FAULT" contract set, resulting in FAULT_VIOLATION since
-        // this method has the FORBID_FAULT contract set above.
-        //
-        // However, for a thread that holds the loader lock, unloading the appDomain is
-        // not a supported scenario. Thus, we should not be ending up in this code
-        // path for the FAULT violation.
-        //
-        // Hence, the CONTRACT_VIOLATION below for overriding the FORBID_FAULT
-        // for this scope only.
-        CONTRACT_VIOLATION(FaultViolation);
-        if (!IsRuntimeActive()
-            || !m_fStarted
-        )
-        {
-            return HOST_E_CLRNOTAVAILABLE;
-        }
-    }
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    // We do not use BEGIN_EXTERNAL_ENTRYPOINT here because
-    // we do not want to setup Thread.  Process may be OOM, and we want Unload
-    // to work.
-    hr =  AppDomain::UnloadById(ADID(dwDomainId), fWaitUntilDone);
-
-    END_ENTRYPOINT_NOTHROW;
-
-    if (pLatchedExitCode)
-    {
-        *pLatchedExitCode = GetLatchedExitCode();
-    }
-
-    return hr;
+    return COR_E_CANNOTUNLOADAPPDOMAIN;
 }
 
 //*****************************************************************************
@@ -1319,7 +1347,13 @@ HRESULT CorHost2::QueryInterface(REFIID riid, void **ppUnk)
     // Deliberately do NOT hand out ICorConfiguration.  They must explicitly call
     // GetConfiguration to obtain that interface.
     if (riid == IID_IUnknown)
+    {
         *ppUnk = static_cast<IUnknown *>(static_cast<ICLRRuntimeHost *>(this));
+    }
+    else if (riid == IID_ICLRRuntimeHost)
+    {
+        *ppUnk = static_cast<ICLRRuntimeHost *>(this);
+    }
     else if (riid == IID_ICLRRuntimeHost2)
     {
         ULONG version = 2;
@@ -1931,18 +1965,11 @@ public:
         BEGIN_ENTRYPOINT_NOTHROW;
 
         SystemDomain::LockHolder lh;
-        AppDomainFromIDHolder pAppDomain((ADID)dwAppDomainId, TRUE, AppDomainFromIDHolder::SyncType_ADLock);
 
-        if (!pAppDomain.IsUnloaded())
+        AppDomain* pAppDomain = SystemDomain::GetAppDomainFromId((ADID)dwAppDomainId, ADV_CURRENTAD);        
+        if (pBytesAllocated)
         {
-            if (pBytesAllocated)
-            {
-                *pBytesAllocated = pAppDomain->GetAllocBytes();
-            }
-        }
-        else
-        {
-            hr = COR_E_APPDOMAINUNLOADED;
+            *pBytesAllocated = pAppDomain->GetAllocBytes();
         }
 
         END_ENTRYPOINT_NOTHROW;
@@ -1966,22 +1993,15 @@ public:
         BEGIN_ENTRYPOINT_NOTHROW;
 
         SystemDomain::LockHolder lh;
-        AppDomainFromIDHolder pAppDomain((ADID)dwAppDomainId, TRUE, AppDomainFromIDHolder::SyncType_ADLock);
 
-        if (pAppDomain.IsUnloaded())
+        AppDomain* pAppDomain = SystemDomain::GetAppDomainFromId((ADID)dwAppDomainId, ADV_CURRENTAD);
+        if (pAppDomainBytesSurvived)
         {
-            hr = COR_E_APPDOMAINUNLOADED;
+            *pAppDomainBytesSurvived = pAppDomain->GetSurvivedBytes();
         }
-        else
+        if (pTotalBytesSurvived)
         {
-            if (pAppDomainBytesSurvived)
-            {
-                *pAppDomainBytesSurvived = pAppDomain->GetSurvivedBytes();
-            }
-            if (pTotalBytesSurvived)
-            {
-                *pTotalBytesSurvived = SystemDomain::GetTotalSurvivedBytes();
-            }
+            *pTotalBytesSurvived = SystemDomain::GetTotalSurvivedBytes();
         }
 
         END_ENTRYPOINT_NOTHROW;
@@ -2007,20 +2027,10 @@ public:
         {
             SystemDomain::LockHolder lh;
     
+            AppDomain* pAppDomain = SystemDomain::GetAppDomainFromId((ADID)dwAppDomainId, ADV_CURRENTAD);
+            if (pMilliseconds)
             {
-                AppDomainFromIDHolder pAppDomain((ADID)dwAppDomainId, TRUE, AppDomainFromIDHolder::SyncType_ADLock);
-
-                if (!pAppDomain.IsUnloaded())
-                {
-                    if (pMilliseconds)
-                    {
-                        *pMilliseconds = pAppDomain->QueryProcessorUsage() / 10000;
-                    }
-                }
-                else
-                {
-                    hr = COR_E_APPDOMAINUNLOADED;
-                }
+                *pMilliseconds = pAppDomain->QueryProcessorUsage() / 10000;
             }
         }
 
@@ -2616,329 +2626,6 @@ CCLRErrorReportingManager::~CCLRErrorReportingManager()
 }
 
 #endif // defined(FEATURE_WINDOWSPHONE)
-
-#ifdef FEATURE_IPCMAN
-
-CrstStatic          CCLRSecurityAttributeManager::m_hostSAMutex;
-PACL                CCLRSecurityAttributeManager::m_pACL;
-
-SECURITY_ATTRIBUTES CCLRSecurityAttributeManager::m_hostSA;
-SECURITY_DESCRIPTOR CCLRSecurityAttributeManager::m_hostSD;
-
-/*
-* constructor
-*
-*/
-void CCLRSecurityAttributeManager::ProcessInit()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    m_hostSAMutex.Init(CrstReDacl, CRST_UNSAFE_ANYMODE);
-    m_pACL = NULL;
-}
-
-/*
-* destructor
-*
-*/
-void CCLRSecurityAttributeManager::ProcessCleanUp()
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    m_hostSAMutex.Destroy();
-    if (m_pACL)
-        CoTaskMemFree(m_pACL);
-}
-
-// Set private block and events to the new ACL.
-HRESULT CCLRSecurityAttributeManager::SetDACL(PACL pacl)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT     hr = S_OK;
-    DWORD       dwError;
-    PACL        pNewACL = NULL;
-    HANDLE      hProc = NULL;
-    DWORD       pid = 0;
-
-    // @todo: How can we make sure that debugger attach will not attempt to happen during this time???
-    //
-    CrstHolder ch(&m_hostSAMutex);
-
-    // make sure our host pass our a valid ACL
-    if (!IsValidAcl(pacl))
-    {
-        dwError = GetLastError();
-        hr = HRESULT_FROM_WIN32(dwError);
-        goto ErrExit;
-    }
-
-    // Cannnot set DACL while debugger is attached. Because the events are already all hooked up
-    // between LS and RS.
-    if (CORDebuggerAttached())
-        return CORDBG_E_DEBUGGER_ALREADY_ATTACHED;
-
-    // make a copy of the new ACL
-    pNewACL = (PACL) CoTaskMemAlloc(pacl->AclSize);
-    if (FAILED( CopyACL(pacl, pNewACL)))
-        goto ErrExit;
-
-    _ASSERTE (SECURITY_DESCRIPTOR_MIN_LENGTH == sizeof(SECURITY_DESCRIPTOR));
-
-    if (!InitializeSecurityDescriptor(&m_hostSD, SECURITY_DESCRIPTOR_REVISION))
-    {
-        hr = HRESULT_FROM_GetLastError();
-        goto ErrExit;
-    }
-
-    if (!SetSecurityDescriptorDacl(&m_hostSD, TRUE, pNewACL, FALSE))
-    {
-        hr = HRESULT_FROM_GetLastError();
-        goto ErrExit;
-    }
-
-    // Now cache the pNewACL to m_pACL and delete m_pACL.
-    if (m_pACL)
-        CoTaskMemFree(m_pACL);
-
-    m_pACL = pNewACL;
-    pNewACL = NULL;
-
-    m_hostSA.nLength = sizeof(SECURITY_ATTRIBUTES);
-    m_hostSA.lpSecurityDescriptor = &m_hostSD;
-    m_hostSA.bInheritHandle = FALSE;
-
-    // first of all, try to reDacl on the process token
-    pid = GetCurrentProcessId();
-    hProc = OpenProcess(WRITE_DAC, FALSE, pid);
-    if (hProc == NULL)
-    {
-        hr = HRESULT_FROM_GetLastError();
-        goto ErrExit;
-    }
-    if (SetKernelObjectSecurity(hProc, DACL_SECURITY_INFORMATION, &m_hostSD) == 0)
-    {
-        // failed!
-        hr = HRESULT_FROM_GetLastError();
-        goto ErrExit;
-    }
-
-
-    // now reset all of the kernel object token's DACL.
-    // This will reDACL the global shared section
-    if (FAILED(g_pIPCManagerInterface->ReDaclLegacyPrivateBlock(&m_hostSD)))
-        goto ErrExit;
-
-    // This will reDacl on debugger events.
-    if (g_pDebugInterface)
-    {
-        g_pDebugInterface->ReDaclEvents(&m_hostSD);
-    }
-
-ErrExit:
-    if (pNewACL)
-        CoTaskMemFree(pNewACL);
-    if (hProc != NULL)
-        CloseHandle(hProc);
-
-    return hr;
-}
-
-// cLen - specify the size of input buffer ppacl. If cLen is zero or ppacl is null,
-// pcLenTotal will return the total size of required pacl buffer.
-// pacl - caller allocated space. We will fill acl in this buffer.
-// pcLenTotal - the total size of ACL.
-//
-HRESULT CCLRSecurityAttributeManager::GetDACL(PACL *ppacl)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT     hr = S_OK;
-    PACL        pNewACL = NULL;
-    PACL        pDefaultACL = NULL;
-    SECURITY_ATTRIBUTES *pSA = NULL;
-
-    // output parameter cannot be NULL
-    if (ppacl == NULL)
-        return E_INVALIDARG;
-
-    *ppacl = NULL;
-
-    CrstHolder ch(&m_hostSAMutex);
-
-    // we want to return the ACL of our default policy
-    if (m_pACL == NULL)
-    {
-        hr = g_pIPCManagerInterface->CreateWinNTDescriptor(GetCurrentProcessId(), &pSA, eDescriptor_Private);
-        if (FAILED(hr))
-        {
-            goto ErrExit;
-        }
-        EX_TRY
-        {
-            BOOL bDaclPresent;
-            BOOL bDaclDefault;
-
-            ::GetSecurityDescriptorDacl(pSA->lpSecurityDescriptor, &bDaclPresent, &pDefaultACL, &bDaclDefault);
-        }
-        EX_CATCH
-        {
-            hr = GET_EXCEPTION()->GetHR();
-        }
-        EX_END_CATCH(SwallowAllExceptions);
-        if (FAILED(hr) || pDefaultACL == NULL || pDefaultACL->AclSize == 0)
-        {
-            goto ErrExit;
-        }
-    }
-    else
-    {
-        pDefaultACL = m_pACL;
-    }
-
-    pNewACL = (PACL) CoTaskMemAlloc(pDefaultACL->AclSize);
-    if (pNewACL == NULL)
-    {
-        hr = E_OUTOFMEMORY;
-        goto ErrExit;
-    }
-
-    // make a copy of ACL
-    hr = CCLRSecurityAttributeManager::CopyACL(pDefaultACL, pNewACL);
-    if (SUCCEEDED(hr))
-        *ppacl = pNewACL;
-
-ErrExit:
-    if (FAILED(hr))
-    {
-        if (pNewACL)
-        {
-            CoTaskMemFree(pNewACL);
-        }
-    }
-    if (pSA != NULL)
-    {
-        g_pIPCManagerInterface->DestroySecurityAttributes(pSA);
-    }
-    return hr;
-}
-
-
-// This API will duplicate a copy of pAclOrigingal and pass it out on ppAclNew
-HRESULT CCLRSecurityAttributeManager::CopyACL(PACL pAclOriginal, PACL pNewACL)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT     hr = NO_ERROR;
-    DWORD       dwError = GetLastError();
-    int         i;
-    ACE_HEADER  *pDACLAce;
-
-    _ASSERTE(pNewACL && pAclOriginal);
-
-    // initialize the target ACL buffer
-    if (!InitializeAcl(pNewACL, pAclOriginal->AclSize, ACL_REVISION))
-    {
-        dwError = GetLastError();
-        hr = HRESULT_FROM_WIN32(dwError);
-        goto ErrExit;
-    }
-
-    // loop through each existing ace and copy it over
-    for (i = 0; i < pAclOriginal->AceCount; i++)
-    {
-        if (!GetAce(pAclOriginal, i, (LPVOID *) &pDACLAce))
-        {
-            dwError = GetLastError();
-            hr = HRESULT_FROM_WIN32(dwError);
-            goto ErrExit;
-        }
-
-        if (!AddAce(pNewACL, ACL_REVISION, i, pDACLAce, pDACLAce->AceSize))
-        {
-            dwError = GetLastError();
-            hr = HRESULT_FROM_WIN32(dwError);
-            goto ErrExit;
-        }
-    }
-
-    // make sure everything went well with the new ACL
-    if (!IsValidAcl(pNewACL))
-    {
-        dwError = GetLastError();
-        hr = HRESULT_FROM_WIN32(dwError);
-        goto ErrExit;
-    }
-
-ErrExit:
-    return hr;
-}
-
-
-HRESULT CCLRSecurityAttributeManager::GetHostSecurityAttributes(SECURITY_ATTRIBUTES **ppSA)
-{
-    WRAPPER_NO_CONTRACT;
-
-    if(!ppSA)
-        return E_POINTER;
-
-    HRESULT hr = S_OK;
-
-    *ppSA = NULL;
-
-    // host has specified ACL
-    if (m_pACL != NULL)
-        *ppSA = &(m_hostSA);
-
-    else
-        hr = g_pIPCManagerInterface->CreateWinNTDescriptor(GetCurrentProcessId(), ppSA, eDescriptor_Private);
-
-    return hr;
-}
-
-void CCLRSecurityAttributeManager::DestroyHostSecurityAttributes(SECURITY_ATTRIBUTES *pSA)
-{
-    WRAPPER_NO_CONTRACT;
-
-    // no pSA to cleanup
-    if (pSA == NULL)
-        return;
-
-    // it is our current host SA.
-    if (&(m_hostSA) == pSA)
-        return;
-
-    g_pIPCManagerInterface->DestroySecurityAttributes(pSA);
-}
-#endif // FEATURE_IPCMAN
 
 void GetProcessMemoryLoad(LPMEMORYSTATUSEX pMSEX)
 {

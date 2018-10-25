@@ -1889,10 +1889,6 @@ public: name(TADDR addr, TADDR vtAddr);
 
 #define GFN_TADDR(name) (DacGlobalBase() + g_dacGlobals.fn__ ## name)
 
-// ROTORTODO - g++ 3 doesn't like the use of the operator& in __GlobalVal
-// here. Putting GVAL_ADDR in to get things to compile while I discuss
-// this matter with the g++ authors.
-
 #define GVAL_ADDR(g) \
     ((g).operator&())
 
@@ -2399,16 +2395,16 @@ typedef DPTR(IMAGE_TLS_DIRECTORY)   PTR_IMAGE_TLS_DIRECTORY;
 typedef DPTR(struct _UNWIND_INFO)      PTR_UNWIND_INFO;
 #endif
 
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
 typedef DPTR(T_RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 typedef DPTR(struct _UNWIND_INFO)      PTR_UNWIND_INFO;
 #if defined(_TARGET_AMD64_)
 typedef DPTR(union _UNWIND_CODE)       PTR_UNWIND_CODE;
 #endif // _TARGET_AMD64_
-#endif // _WIN64
+#endif // _TARGET_64BIT_
 
 #ifdef _TARGET_ARM_
-typedef DPTR(RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
+typedef DPTR(T_RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 #endif
 
 //----------------------------------------------------------------------------

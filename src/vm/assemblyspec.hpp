@@ -50,7 +50,6 @@ class AssemblySpec  : public BaseAssemblySpec
     HRESULT InitializeSpecInternal(mdToken kAssemblyRefOrDef, 
                                    IMDInternalImport *pImport, 
                                    DomainAssembly *pStaticParent,
-                                   BOOL fIntrospectionOnly,
                                    BOOL fAllowAllocation);
 
     // InitializeSpecInternal should be used very carefully so it's made private.
@@ -97,8 +96,7 @@ class AssemblySpec  : public BaseAssemblySpec
 
     void InitializeSpec(mdToken kAssemblyRefOrDef, 
                         IMDInternalImport *pImport, 
-                        DomainAssembly *pStaticParent = NULL,
-                        BOOL fIntrospectionOnly = FALSE)
+                        DomainAssembly *pStaticParent = NULL)
     {
         CONTRACTL
         {
@@ -108,7 +106,7 @@ class AssemblySpec  : public BaseAssemblySpec
             MODE_ANY;
         }
         CONTRACTL_END;
-        HRESULT hr=InitializeSpecInternal(kAssemblyRefOrDef, pImport,pStaticParent,fIntrospectionOnly,TRUE);
+        HRESULT hr=InitializeSpecInternal(kAssemblyRefOrDef, pImport,pStaticParent,TRUE);
         if(FAILED(hr))
             EEFileLoadException::Throw(this,hr);
     };
@@ -117,8 +115,7 @@ class AssemblySpec  : public BaseAssemblySpec
     void InitializeSpec(PEAssembly *pFile);
     HRESULT InitializeSpec(StackingAllocator* alloc,
                         ASSEMBLYNAMEREF* pName,
-                        BOOL fParse = TRUE,
-                        BOOL fIntrospectionOnly = FALSE);
+                        BOOL fParse = TRUE);
 
     void AssemblyNameInit(ASSEMBLYNAMEREF* pName, PEImage* pImageInfo); //[in,out], [in]
 
@@ -185,7 +182,6 @@ class AssemblySpec  : public BaseAssemblySpec
 
         BaseAssemblySpec::CopyFrom(pSource);
 
-        SetIntrospectionOnly(pSource->IsIntrospectionOnly());
         SetParentAssembly(pSource->GetParentAssembly());
 
         // Copy the details of the fallback load context binder
@@ -225,11 +221,9 @@ class AssemblySpec  : public BaseAssemblySpec
 
     Assembly *LoadAssembly(FileLoadLevel targetLevel, 
                            BOOL fThrowOnFileNotFound = TRUE,
-                           BOOL fRaisePrebindEvents = TRUE,
                            StackCrawlMark *pCallerStackMark = NULL);
     DomainAssembly *LoadDomainAssembly(FileLoadLevel targetLevel,
                                        BOOL fThrowOnFileNotFound = TRUE,
-                                       BOOL fRaisePrebindEvents = TRUE,
                                        StackCrawlMark *pCallerStackMark = NULL);
 
     //****************************************************************************************
@@ -579,7 +573,7 @@ class AssemblySpecBindingCache
     PtrHashMap m_map;
     LoaderHeap *m_pHeap;
 
-    AssemblySpecBindingCache::AssemblyBinding* GetAssemblyBindingEntryForAssemblySpec(AssemblySpec* pSpec, BOOL fThrow);
+    AssemblySpecBindingCache::AssemblyBinding* LookupInternal(AssemblySpec* pSpec, BOOL fThrow = FALSE);
     
   public:
 
@@ -601,12 +595,14 @@ class AssemblySpecBindingCache
     
     BOOL StoreException(AssemblySpec *pSpec, Exception* pEx);
 
+    BOOL RemoveAssembly(DomainAssembly* pAssembly);
+
     DWORD Hash(AssemblySpec *pSpec)
     {
         WRAPPER_NO_CONTRACT;
         return pSpec->Hash();
     }
-    
+
 #if !defined(DACCESS_COMPILE)
     void GetAllAssemblies(SetSHash<PTR_DomainAssembly>& assemblyList)
     {

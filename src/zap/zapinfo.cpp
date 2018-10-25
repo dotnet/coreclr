@@ -435,6 +435,15 @@ void ZapInfo::CompileMethod()
     // this they can add the hint and reduce the perf cost at runtime.
     m_pImage->m_pPreloader->PrePrepareMethodIfNecessary(m_currentMethodHandle);
 
+    DWORD methodAttribs = getMethodAttribs(m_currentMethodHandle);
+    if (methodAttribs & CORINFO_FLG_AGGRESSIVE_OPT)
+    {
+        // Skip methods marked with MethodImplOptions.AggressiveOptimization, they will be jitted instead. In the future,
+        // consider letting the JIT determine whether aggressively optimized code can/should be pregenerated for the method
+        // instead of this check.
+        return;
+    }
+
     m_jitFlags = ComputeJitFlags(m_currentMethodHandle);
 
 #ifdef FEATURE_READYTORUN_COMPILER
@@ -443,7 +452,6 @@ void ZapInfo::CompileMethod()
         // READYTORUN: FUTURE: Producedure spliting
         m_jitFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_PROCSPLIT);
 
-        DWORD methodAttribs = getMethodAttribs(m_currentMethodHandle);
         if (!(methodAttribs & CORINFO_FLG_NOSECURITYWRAP) || (methodAttribs & CORINFO_FLG_SECURITYCHECK))
         {
             m_zapper->Warning(W("ReadyToRun: Methods with security checks not supported\n"));
@@ -2203,7 +2211,8 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
         break;
 
     case CORINFO_VIRTUALCALL_VTABLE:
-        _ASSERTE(!IsReadyToRunCompilation());
+        // READYTORUN: FUTURE: support for vtable-based calls (currently, only calls within the CoreLib version bubble is supported, and the codegen we generate
+        // is the same as the fragile NI (because CoreLib and the runtime will always be updated together anyways - this is a special case)
         break;
 
     case CORINFO_VIRTUALCALL_LDVIRTFTN:
@@ -3304,6 +3313,16 @@ unsigned ZapInfo::getClassSize(CORINFO_CLASS_HANDLE cls)
 #endif
 
     return size;
+}
+
+unsigned ZapInfo::getHeapClassSize(CORINFO_CLASS_HANDLE cls)
+{
+    return m_pEEJitInfo->getHeapClassSize(cls);
+}
+
+BOOL ZapInfo::canAllocateOnStack(CORINFO_CLASS_HANDLE cls)
+{
+    return m_pEEJitInfo->canAllocateOnStack(cls);
 }
 
 unsigned ZapInfo::getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint)

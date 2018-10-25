@@ -3874,7 +3874,7 @@ class CObjectHeader : public Object
 {
 public:
 
-#ifdef FEATURE_REDHAWK
+#if defined(FEATURE_REDHAWK) || defined(BUILD_AS_STANDALONE)
     // The GC expects the following methods that are provided by the Object class in the CLR but not provided
     // by Redhawk's version of Object.
     uint32_t GetNumComponents()
@@ -5051,19 +5051,13 @@ public:
         if (!GCToOSInterface::CanGetCurrentProcessorNumber())
         {
             n_sniff_buffers = n_heaps*2+1;
-            size_t sniff_buf_size = 0;
-#ifdef FEATURE_REDHAWK
-            size_t n_cache_lines = 1 + n_heaps*n_sniff_buffers + 1;
-            sniff_buf_size = n_cache_lines * HS_CACHE_LINE_SIZE;
-#else
-            S_SIZE_T safe_sniff_buf_size = S_SIZE_T(1 + n_heaps*n_sniff_buffers + 1);
-            safe_sniff_buf_size *= HS_CACHE_LINE_SIZE;
-            if (safe_sniff_buf_size.IsOverflow())
+            size_t n_cache_lines = 1 + n_heaps * n_sniff_buffers + 1;
+            size_t sniff_buf_size = n_cache_lines * HS_CACHE_LINE_SIZE;
+            if (sniff_buf_size / HS_CACHE_LINE_SIZE != n_cache_lines) // check for overlow
             {
                 return FALSE;
             }
-            sniff_buf_size = safe_sniff_buf_size.Value();
-#endif //FEATURE_REDHAWK
+
             sniff_buffer = new (nothrow) uint8_t[sniff_buf_size];
             if (sniff_buffer == 0)
                 return FALSE;
@@ -5072,7 +5066,7 @@ public:
 
         //can not enable gc numa aware, force all heaps to be in
         //one numa node by filling the array with all 0s
-        if (!NumaNodeInfo::CanEnableGCNumaAware())
+        if (!GCToOSInterface::CanEnableGCNumaAware())
             memset(heap_no_to_numa_node, 0, sizeof (heap_no_to_numa_node)); 
 
         return TRUE;
@@ -5268,7 +5262,7 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
     affinity->Processor = GCThreadAffinity::None;
 
     uint16_t gn, gpn;
-    CPUGroupInfo::GetGroupForProcessor((uint16_t)heap_number, &gn, &gpn);
+    GCToOSInterface::GetGroupForProcessor((uint16_t)heap_number, &gn, &gpn);
 
     int bit_number = 0;
     for (uintptr_t mask = 1; mask !=0; mask <<=1) 
@@ -5280,7 +5274,7 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
             affinity->Group = gn;
             heap_select::set_cpu_group_for_heap(heap_number, gn);
             heap_select::set_group_proc_for_heap(heap_number, gpn);
-            if (NumaNodeInfo::CanEnableGCNumaAware())
+            if (GCToOSInterface::CanEnableGCNumaAware())
             {  
                 PROCESSOR_NUMBER proc_no;
                 proc_no.Group    = gn;
@@ -5288,7 +5282,7 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
                 proc_no.Reserved = 0;
 
                 uint16_t node_no = 0;
-                if (NumaNodeInfo::GetNumaProcessorNodeEx(&proc_no, &node_no))
+                if (GCToOSInterface::GetNumaProcessorNode(&proc_no, &node_no))
                     heap_select::set_numa_node_for_heap(heap_number, node_no);
             }
             else
@@ -5321,14 +5315,14 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
                     dprintf (3, ("Using processor %d for heap %d", proc_number, heap_number));
                     affinity->Processor = proc_number;
                     heap_select::set_proc_no_for_heap(heap_number, proc_number);
-                    if (NumaNodeInfo::CanEnableGCNumaAware())
+                    if (GCToOSInterface::CanEnableGCNumaAware())
                     {
                         uint16_t node_no = 0;
                         PROCESSOR_NUMBER proc_no;
                         proc_no.Group = 0;
                         proc_no.Number = (uint8_t)proc_number;
                         proc_no.Reserved = 0;
-                        if (NumaNodeInfo::GetNumaProcessorNodeEx(&proc_no, &node_no))
+                        if (GCToOSInterface::GetNumaProcessorNode(&proc_no, &node_no))
                         {
                             heap_select::set_numa_node_for_heap(heap_number, node_no);
                         }
@@ -5463,19 +5457,17 @@ void gc_heap::gc_thread_function ()
 
 bool virtual_alloc_commit_for_heap(void* addr, size_t size, int h_number)
 {
-#if defined(MULTIPLE_HEAPS) && !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if defined(MULTIPLE_HEAPS) && !defined(FEATURE_REDHAWK)
     // Currently there is no way for us to specific the numa node to allocate on via hosting interfaces to
     // a host. This will need to be added later.
 #if !defined(FEATURE_CORECLR)
     if (!CLRMemoryHosted())
 #endif
     {
-        if (NumaNodeInfo::CanEnableGCNumaAware())
+        if (GCToOSInterface::CanEnableGCNumaAware())
         {
             uint32_t numa_node = heap_select::find_numa_node_from_heap_no(h_number);
-            void * ret = NumaNodeInfo::VirtualAllocExNuma(GetCurrentProcess(), addr, size, 
-                                                          MEM_COMMIT, PAGE_READWRITE, numa_node);
-            if (ret != NULL)
+            if (GCToOSInterface::VirtualCommit(addr, size, numa_node))
                 return true;
         }
     }
@@ -9011,7 +9003,7 @@ inline size_t my_get_size (Object* ob)
 #ifdef COLLECTIBLE_CLASS
 #define contain_pointers_or_collectible(i) header(i)->ContainsPointersOrCollectible()
 
-#define get_class_object(i) method_table(i)->GetLoaderAllocatorObjectForGC()
+#define get_class_object(i) GCToEEInterface::GetLoaderAllocatorObjectForGC((Object *)i)
 #define is_collectible(i) method_table(i)->Collectible()
 #else //COLLECTIBLE_CLASS
 #define contain_pointers_or_collectible(i) header(i)->ContainsPointers()
@@ -13349,7 +13341,7 @@ try_again:
                     org_hp->alloc_context_count--;
                     max_hp->alloc_context_count++;
                     acontext->set_alloc_heap(GCHeap::GetHeap(max_hp->heap_number));
-                    if (CPUGroupInfo::CanEnableGCCPUGroups())
+                    if (GCToOSInterface::CanEnableGCCPUGroups())
                     {   //only set ideal processor when max_hp and org_hp are in the same cpu
                         //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
                         uint16_t org_gn = heap_select::find_cpu_group_from_heap_no(org_hp->heap_number);
@@ -16301,38 +16293,6 @@ void gc_heap::update_collection_counts ()
     }
 }
 
-#ifdef HEAP_ANALYZE
-inline
-BOOL AnalyzeSurvivorsRequested(int condemnedGeneration)
-{
-    // Is the list active?
-    GcNotifications gn(g_pGcNotificationTable);
-    if (gn.IsActive())
-    {
-        GcEvtArgs gea = { GC_MARK_END, { (1<<condemnedGeneration) } };
-        if (gn.GetNotification(gea) != 0)
-        {
-            return TRUE;
-        }
-    }
-    return FALSE;
-}
-
-void DACNotifyGcMarkEnd(int condemnedGeneration)
-{
-    // Is the list active?
-    GcNotifications gn(g_pGcNotificationTable);
-    if (gn.IsActive())
-    {
-        GcEvtArgs gea = { GC_MARK_END, { (1<<condemnedGeneration) } };
-        if (gn.GetNotification(gea) != 0)
-        {
-            DACNotify::DoGCNotification(gea);
-        }
-    }
-}
-#endif // HEAP_ANALYZE
-
 BOOL gc_heap::expand_soh_with_minimal_gc()
 {
     if ((size_t)(heap_segment_reserved (ephemeral_heap_segment) - heap_segment_allocated (ephemeral_heap_segment)) >= soh_allocation_no_gc)
@@ -16713,7 +16673,7 @@ int gc_heap::garbage_collect (int n)
 #ifdef HEAP_ANALYZE
         // At this point we've decided what generation is condemned
         // See if we've been requested to analyze survivors after the mark phase
-        if (AnalyzeSurvivorsRequested(settings.condemned_generation))
+        if (GCToEEInterface::AnalyzeSurvivorsRequested(settings.condemned_generation))
         {
             heap_analyze_enabled = TRUE;
         }
@@ -17811,6 +17771,11 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                             size_t obj_size = size (class_obj);
                             promoted_bytes (thread) += obj_size;
                             *(mark_stack_tos++) = class_obj;
+                            // The code below expects that the oo is still stored in the stack slot that was
+                            // just popped and it "pushes" it back just by incrementing the mark_stack_tos. 
+                            // But the class_obj has just overwritten that stack slot and so the oo needs to
+                            // be stored to the new slot that's pointed to by the mark_stack_tos.
+                            *mark_stack_tos = oo;
                         }
                     }
                 }
@@ -19550,7 +19515,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     {
 #endif //MULTIPLE_HEAPS
 
-        num_sizedrefs = SystemDomain::System()->GetTotalNumSizedRefHandles();
+        num_sizedrefs = GCToEEInterface::GetTotalNumSizedRefHandles();
 
 #ifdef MULTIPLE_HEAPS
 
@@ -19733,7 +19698,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     {
 #ifdef HEAP_ANALYZE
         heap_analyze_enabled = FALSE;
-        DACNotifyGcMarkEnd(condemned_gen_number);
+        GCToEEInterface::AnalyzeSurvivorsFinished(condemned_gen_number);
 #endif // HEAP_ANALYZE
         GCToEEInterface::AfterGcScanRoots (condemned_gen_number, max_generation, &sc);
 
@@ -24916,7 +24881,7 @@ void gc_heap::gc_thread_stub (void* arg)
         // We are about to set affinity for GC threads. It is a good place to set up NUMA and
         // CPU groups because the process mask, processor number, and group number are all
         // readily available.
-        if (CPUGroupInfo::CanEnableGCCPUGroups())
+        if (GCToOSInterface::CanEnableGCCPUGroups())
             set_thread_group_affinity_for_heap(heap->heap_number, &affinity);
         else
             set_thread_affinity_mask_for_heap(heap->heap_number, &affinity);
@@ -25709,7 +25674,7 @@ void gc_heap::background_mark_phase ()
 #endif //WRITE_WATCH
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
-            num_sizedrefs = SystemDomain::System()->GetTotalNumSizedRefHandles();
+            num_sizedrefs = GCToEEInterface::GetTotalNumSizedRefHandles();
 
             // this c_write is not really necessary because restart_vm
             // has an instruction that will flush the cpu cache (interlocked
@@ -30703,7 +30668,15 @@ void reset_memory (uint8_t* o, size_t sizeo)
         // on write watched memory.
         if (reset_mm_p)
         {
-            reset_mm_p = GCToOSInterface::VirtualReset((void*)page_start, size, true /* unlock */);
+#ifdef MULTIPLE_HEAPS
+            bool unlock_p = true;
+#else
+            // We don't do unlock because there could be many processes using workstation GC and it's
+            // bad perf to have many threads doing unlock at the same time.
+            bool unlock_p = false;
+#endif // MULTIPLE_HEAPS
+
+            reset_mm_p = GCToOSInterface::VirtualReset((void*)page_start, size, unlock_p);
         }
     }
 }
@@ -33500,10 +33473,8 @@ HRESULT GCHeap::Initialize ()
         gc_heap::gc_thread_no_affinitize_p = true;
 
     uint32_t nhp_from_config = static_cast<uint32_t>(GCConfig::GetHeapCount());
-    // GetGCProcessCpuCount only returns up to 64 procs.
-    uint32_t nhp_from_process = CPUGroupInfo::CanEnableGCCPUGroups() ?
-                                CPUGroupInfo::GetNumActiveProcessors():
-                                GCToOSInterface::GetCurrentProcessCpuCount();
+    
+    uint32_t nhp_from_process = GCToOSInterface::GetCurrentProcessCpuCount();
 
     uint32_t nhp = ((nhp_from_config == 0) ? nhp_from_process :
                                              (min (nhp_from_config, nhp_from_process)));
@@ -34215,10 +34186,6 @@ GCHeap::AllocAlign8Common(void* _hp, alloc_context* acontext, size_t size, uint3
 #endif //COUNT_CYCLES
 #endif //TRACE_GC
 
-#ifndef FEATURE_REDHAWK
-    GCStress<gc_on_alloc>::MaybeTrigger(acontext);
-#endif // FEATURE_REDHAWK
-
     if (size < LARGE_OBJECT_SIZE)
     {
 #ifdef TRACE_GC
@@ -34394,10 +34361,6 @@ GCHeap::Alloc(gc_alloc_context* context, size_t size, uint32_t flags REQD_ALIGN_
         assert (acontext->get_alloc_heap());
     }
 #endif //MULTIPLE_HEAPS
-
-#ifndef FEATURE_REDHAWK
-    GCStress<gc_on_alloc>::MaybeTrigger(acontext);
-#endif // FEATURE_REDHAWK
 
 #ifdef MULTIPLE_HEAPS
     gc_heap* hp = acontext->get_alloc_heap()->pGenGCHeap;
@@ -35625,7 +35588,7 @@ size_t GCHeap::GetFinalizablePromotedCount()
 #endif //MULTIPLE_HEAPS
 }
 
-bool GCHeap::FinalizeAppDomain(AppDomain *pDomain, bool fRunFinalizers)
+bool GCHeap::FinalizeAppDomain(void *pDomain, bool fRunFinalizers)
 {
 #ifdef MULTIPLE_HEAPS
     bool foundp = false;
@@ -35947,7 +35910,7 @@ CFinalize::GetNumberFinalizableObjects()
 }
 
 BOOL
-CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain, 
+CFinalize::FinalizeSegForAppDomain (void *pDomain, 
                                     BOOL fRunFinalizers, 
                                     unsigned int Seg)
 {
@@ -35990,7 +35953,7 @@ CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain,
             }
             else
             {
-                if (pDomain->IsRudeUnload())
+                if (GCToEEInterface::AppDomainIsRudeUnload(pDomain))
                 {
                     MoveItem (i, Seg, FreeList);
                 }
@@ -36007,7 +35970,7 @@ CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain,
 }
 
 bool
-CFinalize::FinalizeAppDomain (AppDomain *pDomain, bool fRunFinalizers)
+CFinalize::FinalizeAppDomain (void *pDomain, bool fRunFinalizers)
 {
     bool finalizedFound = false;
 

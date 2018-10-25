@@ -30,6 +30,13 @@ enum StompWriteBarrierCompletionAction
     SWB_EE_RESTART = 0x2
 };
 
+enum SignatureKind
+{
+    SK_NOT_CALLSITE,
+    SK_CALLSITE,
+    SK_VIRTUAL_CALLSITE,
+};
+
 class Stub;
 class MethodDesc;
 class FieldDesc;
@@ -423,7 +430,7 @@ extern "C"
     void STDCALL JIT_MemSet(void *dest, int c, SIZE_T count);
     void STDCALL JIT_MemCpy(void *dest, const void *src, SIZE_T count);
 
-    void STDCALL JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle);
+    void STDMETHODCALLTYPE JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle);
 };
 
 
@@ -484,6 +491,8 @@ public:
     BOOL isStructRequiringStackAllocRetBuf(CORINFO_CLASS_HANDLE cls);
 
     unsigned getClassSize (CORINFO_CLASS_HANDLE cls);
+    unsigned getHeapClassSize(CORINFO_CLASS_HANDLE cls);
+    BOOL canAllocateOnStack(CORINFO_CLASS_HANDLE cls);
     unsigned getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint);
     static unsigned getClassAlignmentRequirementStatic(TypeHandle clsHnd);
 
@@ -745,7 +754,7 @@ public:
             CORINFO_METHOD_HANDLE ftnHnd,
             CORINFO_SIG_INFO* sigInfo,
             CORINFO_CLASS_HANDLE owner = NULL,
-            BOOL isCallSite = FALSE
+            SignatureKind signatureKind = SK_NOT_CALLSITE
             );
 
     void getEHinfo(
@@ -834,9 +843,9 @@ public:
     CORINFO_CLASS_HANDLE getFieldClass (CORINFO_FIELD_HANDLE field);
 
     //@GENERICSVER: added owner parameter
-    CorInfoType getFieldType (CORINFO_FIELD_HANDLE field, CORINFO_CLASS_HANDLE* structType,CORINFO_CLASS_HANDLE owner = NULL);
+    CorInfoType getFieldType (CORINFO_FIELD_HANDLE field, CORINFO_CLASS_HANDLE* structType = NULL,CORINFO_CLASS_HANDLE owner = NULL);
     // Internal version without JIT-EE transition
-    CorInfoType getFieldTypeInternal (CORINFO_FIELD_HANDLE field, CORINFO_CLASS_HANDLE* structType,CORINFO_CLASS_HANDLE owner = NULL);
+    CorInfoType getFieldTypeInternal (CORINFO_FIELD_HANDLE field, CORINFO_CLASS_HANDLE* structType = NULL,CORINFO_CLASS_HANDLE owner = NULL);
 
     unsigned getFieldOffset (CORINFO_FIELD_HANDLE field);
 

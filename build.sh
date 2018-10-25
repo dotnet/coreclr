@@ -22,9 +22,11 @@ then
    exit 1
 fi
 
+export PYTHON
+
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
+    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipmanaged] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
     echo "BuildArch can be: -x64, -x86, -arm, -armel, -arm64"
     echo "BuildType can be: -debug, -checked, -release"
     echo "-coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
@@ -40,11 +42,14 @@ usage()
     echo "-configureonly - do not perform any builds; just configure the build."
     echo "-skipconfigure - skip build configuration."
     echo "-skipnative - do not build native components."
+    echo "-skipmanaged - do not build managed components."
     echo "-skipmscorlib - do not build mscorlib.dll."
     echo "-skiptests - skip the tests in the 'tests' subdirectory."
     echo "-skipnuget - skip building nuget packages."
     echo "-skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
     echo "-skipcrossgen - skip native image generation"
+    echo "-crossgenonly - only run native image generation"
+    echo "-partialngen - build CoreLib as PartialNGen"
     echo "-verbose - optional argument to enable verbose build output."
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
     echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
@@ -138,7 +143,6 @@ setup_dirs()
 
     if [ $__CrossBuild == 1 ]; then
         mkdir -p "$__CrossComponentBinDir"
-        mkdir -p "$__CrossCompIntermediatesDir"
     fi
 }
 
@@ -160,7 +164,11 @@ check_prereqs()
     fi
 
     # Check for clang
-    hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang-$__ClangMajorVersion.$__ClangMinorVersion before running this script"; exit 1; }
+    __ClangCombinedDottedVersion=$__ClangMajorVersion;
+    if [[ "$__ClangMinorVersion" != "" ]]; then
+        __ClangCombinedDottedVersion=$__ClangCombinedDottedVersion.$__ClangMinorVersion
+    fi
+    hash clang-$__ClangCombinedDottedVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null || hash clang 2>/dev/null || { echo >&2 "Please install clang-$__ClangMajorVersion.$__ClangMinorVersion before running this script"; exit 1; }
 
 }
 
@@ -190,7 +198,7 @@ restore_optdata()
         fi
         local OptDataProjectFilePath="$__ProjectRoot/src/.nuget/optdata/optdata.csproj"
         __PgoOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpPgoDataPackageVersion /nologo | sed 's/^\s*//')
-        __IbcOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpIbcDataPackageVersion /nologo | sed 's/^\s*//')
+        __IbcOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpIbcDataPackageVersion /nologo | sed 's/^[[:blank:]]*//')
     fi
 }
 
@@ -247,11 +255,7 @@ generate_event_logging()
     if [[ $__SkipCoreCLR == 0 || $__SkipMSCorLib == 0 || $__ConfigureOnly == 1 ]]; then
         generate_event_logging_sources "$__IntermediatesDir" "the native build system"
     fi
-
-    if [[ $__CrossBuild == 1 && $__DoCrossArchBuild == 1 ]]; then
-        generate_event_logging_sources "$__CrossCompIntermediatesDir" "the crossarch build system"
-    fi
- }
+}
 
 build_native()
 {
@@ -303,8 +307,8 @@ build_native()
 
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
-        echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $__IncludeTests $generator $extraCmakeArguments $__cmakeargs"
-        "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $__IncludeTests $generator "$extraCmakeArguments" "$__cmakeargs"
+        echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion \"$__ClangMinorVersion\" $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
+        "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion "$__ClangMinorVersion" $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
         popd
     fi
 
@@ -333,12 +337,22 @@ build_native()
     popd
 }
 
-build_cross_arch_component()
+build_cross_architecture_components()
 {
+    local crossArch="$1"
+
+    local intermediatesForBuild="$__IntermediatesDir/Host$crossArch/crossgen"
+    local crossArchBinDir="$__BinDir/$crossArch"
+
+    mkdir -p "$intermediatesForBuild"
+    mkdir -p "$crossArchBinDir"
+
+    generate_event_logging_sources "$intermediatesForBuild" "the crossarch build system"
+
     __SkipCrossArchBuild=1
     TARGET_ROOTFS=""
     # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
-    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$__CrossArch" == "x86" ]]; then
+    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$crossArch" == "x86" ]]; then
         export CROSSCOMPILE=0
         __SkipCrossArchBuild=0
 
@@ -346,7 +360,10 @@ build_cross_arch_component()
         if [ "$__HostArch" == "x64" ]; then
             export CROSSCOMPILE=1
         fi
-    elif [[ ("$__BuildArch" == "arm64") && "$__CrossArch" == "x64" ]]; then
+    elif [[ ("$__BuildArch" == "arm64") && "$crossArch" == "x64" ]]; then
+        export CROSSCOMPILE=0
+        __SkipCrossArchBuild=0
+    elif [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$crossArch" == "x64" ]]; then
         export CROSSCOMPILE=0
         __SkipCrossArchBuild=0
     else
@@ -354,9 +371,8 @@ build_cross_arch_component()
         return
     fi
 
-    export __CMakeBinDir="$__CrossComponentBinDir"
+    export __CMakeBinDir="$crossArchBinDir"
     export CROSSCOMPONENT=1
-    __IncludeTests=
 
     if [ $CROSSCOMPILE == 1 ]; then
         TARGET_ROOTFS="$ROOTFS_DIR"
@@ -368,7 +384,7 @@ build_cross_arch_component()
     fi
 
     __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
-    build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
+    build_native $__SkipCrossArchBuild "$crossArch" "$intermediatesForBuild" "$__ExtraCmakeArgs" "cross-architecture components"
 
     # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE
     if [ -n "$TARGET_ROOTFS" ]; then
@@ -383,6 +399,11 @@ isMSBuildOnNETCoreSupported()
     __isMSBuildOnNETCoreSupported=$__msbuildonunsupportedplatform
 
     if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
+        return
+    fi
+
+    if [ $__SkipManaged == 1 ]; then
+        __isMSBuildOnNETCoreSupported=0
         return
     fi
 
@@ -409,20 +430,27 @@ build_CoreLib_ni()
 {
     local __CrossGenExec=$1
 
-    echo "Generating native image for System.Private.CoreLib.dll"
+    if [ $__PartialNgen == 1 ]; then
+        export COMPlus_PartialNGen=1
+    fi
+
+    if [ -e $__CrossGenCoreLibLog ]; then
+        rm $__CrossGenCoreLibLog
+    fi
+    echo "Generating native image of System.Private.CoreLib.dll for $__BuildOS.$__BuildArch.$__BuildType. Logging to \"$__CrossGenCoreLibLog\"."
     echo "$__CrossGenExec /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll"
-    $__CrossGenExec /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll
+    $__CrossGenExec /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll >> $__CrossGenCoreLibLog 2>&1
     if [ $? -ne 0 ]; then
-        echo "Failed to generate native image for System.Private.CoreLib."
+        echo "Failed to generate native image for System.Private.CoreLib. Refer to $__CrossGenCoreLibLog"
         exit 1
     fi
 
     if [ "$__BuildOS" == "Linux" ]; then
         echo "Generating symbol file for System.Private.CoreLib.dll"
         echo "$__CrossGenExec /Platform_Assemblies_Paths $__BinDir /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll"
-        $__CrossGenExec /Platform_Assemblies_Paths $__BinDir /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll
+        $__CrossGenExec /Platform_Assemblies_Paths $__BinDir /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll >> $__CrossGenCoreLibLog 2>&1
         if [ $? -ne 0 ]; then
-            echo "Failed to generate symbol file for System.Private.CoreLib."
+            echo "Failed to generate symbol file for System.Private.CoreLib. Refer to $__CrossGenCoreLibLog"
             exit 1
         fi
     fi
@@ -444,7 +472,7 @@ build_CoreLib()
 
     # Invoke MSBuild
     __ExtraBuildArgs=""
-    if [[ "$__IbcTuning" -eq "" ]]; then
+    if [[ "$__IbcTuning" == "" ]]; then
         __ExtraBuildArgs="$__ExtraBuildArgs -OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data/\""
         __ExtraBuildArgs="$__ExtraBuildArgs -EnableProfileGuidedOptimization=true"
     fi
@@ -482,7 +510,9 @@ build_CoreLib()
            exit 1
        fi
     elif [ $__DoCrossArchBuild == 1 ]; then
-       if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" ) ]]; then
+       if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ) ]]; then
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
+       elif [[ ( "$__CrossArch" == "x64" ) && ( "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "arm64" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
@@ -499,7 +529,7 @@ generate_NugetPackages()
     fi
 
     # Since we can build mscorlib for this OS, did we build the native components as well?
-    if [ $__SkipCoreCLR == 1 ]; then
+    if [[ $__SkipCoreCLR == 1 && $__CrossgenOnly == 0 ]]; then
         echo "Unable to generate nuget packages since native components were not built."
         return
     fi
@@ -611,7 +641,6 @@ esac
 
 __BuildType=Debug
 __CodeCoverage=
-__IncludeTests=Include_Tests
 __IgnoreWarnings=0
 
 # Set the various build properties here so that CMake and MSBuild can pick them up
@@ -629,12 +658,16 @@ __PgoOptimize=1
 __IbcTuning=""
 __ConfigureOnly=0
 __SkipConfigure=0
+__SkipManaged=0
 __SkipRestore=""
 __SkipNuget=0
 __SkipCoreCLR=0
 __SkipMSCorLib=0
 __SkipRestoreOptData=0
 __SkipCrossgen=0
+__CrossgenOnly=0
+__PartialNgen=0
+__SkipTests=0
 __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
@@ -767,6 +800,11 @@ while :; do
             __ClangMinorVersion=0
             ;;
 
+        clang7|-clang7)
+            __ClangMajorVersion=7
+            __ClangMinorVersion=
+            ;;
+
         ninja|-ninja)
             __UseNinja=1
             ;;
@@ -808,6 +846,10 @@ while :; do
             __DoCrossArchBuild=1
             ;;
 
+        skipmanaged|-skipmanaged)
+            __SkipManaged=1
+            ;;
+
         skipmscorlib|-skipmscorlib)
             __SkipMSCorLib=1
             ;;
@@ -824,14 +866,20 @@ while :; do
             __SkipCrossgen=1
             ;;
 
-        includetests|-includetests)
+        crossgenonly|-crossgenonly)
+            __SkipMSCorLib=1
+            __SkipCoreCLR=1
+            __CrossgenOnly=1
+            ;;
+        partialngen|-partialngen)
+            __PartialNgen=1
             ;;
 
         skiptests|-skiptests)
-            __IncludeTests=
+            __SkipTests=1
             ;;
 
-        skipnuget|-skipnuget)
+        skipnuget|-skipnuget|skipbuildpackages|-skipbuildpackages)
             __SkipNuget=1
             ;;
 
@@ -942,17 +990,12 @@ export __IntermediatesDir="$__RootBinDir/obj/$__BuildOS.$__BuildArch.$__BuildTyp
 __TestIntermediatesDir="$__RootBinDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __isMSBuildOnNETCoreSupported=0
 __CrossComponentBinDir="$__BinDir"
-__CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"
 
 __CrossArch="$__HostArch"
-if [[ "$__HostArch" == "x64" && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
-    __CrossArch="x86"
-fi
 if [ $__CrossBuild == 1 ]; then
     __CrossComponentBinDir="$__CrossComponentBinDir/$__CrossArch"
 fi
-__CrossgenCoreLibLog="$__LogsDir/CrossgenCoreLib_$__BuildOS.$BuildArch.$__BuildType.log"
-__CrossgenExe="$__CrossComponentBinDir/crossgen"
+__CrossGenCoreLibLog="$__LogsDir/CrossgenCoreLib_$__BuildOS.$__BuildArch.$__BuildType.log"
 
 # Init if MSBuild for .NET Core is supported for this platform
 isMSBuildOnNETCoreSupported
@@ -996,16 +1039,32 @@ generate_event_logging
 
 # Build the coreclr (native) components.
 __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
+
+# [TODO] Remove this when the `build-test.sh` script properly builds and deploys test assets.
+if [ $__SkipTests != 1 ]; then
+    echo "Adding CMake flags to build native tests for $__BuildOS.$__BuildArch.$__BuildType"
+    __ExtraCmakeArgs="$__ExtraCmakeArgs -DCLR_CMAKE_BUILD_TESTS=ON"
+fi
+
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 
 # Build cross-architecture components
 if [[ $__CrossBuild == 1 && $__DoCrossArchBuild == 1 ]]; then
-    build_cross_arch_component
+    build_cross_architecture_components "$__CrossArch"
+
+    # For now, continue building Hostx86/arm crossgen
+    if [[ "$__HostArch" == "x64" && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
+        build_cross_architecture_components "x86"
+    fi
 fi
 
 # Build System.Private.CoreLib.
 
 build_CoreLib
+
+if [ $__CrossgenOnly ==1 ]; then
+    build_CoreLib_ni "$__BinDir/crossgen"
+fi
 
 # Generate nuget packages
 if [ $__SkipNuget != 1 ]; then

@@ -433,7 +433,7 @@ static bool AcquireImage(Module * pModule, PEImageLayout * pLayout, READYTORUN_H
 
         // Found an eager fixup section. Check the signature of each fixup in this section.
         PVOID *pFixups = (PVOID *)((PBYTE)pLayout->GetBase() + pCurSection->Section.VirtualAddress);
-        DWORD nFixups = pCurSection->Section.Size / sizeof(PVOID);
+        DWORD nFixups = pCurSection->Section.Size / TARGET_POINTER_SIZE;
         DWORD *pSignatures = (DWORD *)((PBYTE)pLayout->GetBase() + pCurSection->Signatures);
         for (DWORD i = 0; i < nFixups; i++)
         {
@@ -460,13 +460,6 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
     {
         // Log message is ignored in this case.
         DoLog(NULL);
-        return NULL;
-    }
-
-    // Ignore ReadyToRun for introspection-only loads
-    if (pFile->IsIntrospectionOnly())
-    {
-        DoLog("Ready to Run disabled - module loaded for reflection");
         return NULL;
     }
 

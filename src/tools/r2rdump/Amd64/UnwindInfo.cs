@@ -2,11 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using System.Text;
 using System.Xml.Serialization;
 
 namespace R2RDump.Amd64
 {
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_OP_CODES
+    /// </summary>
     public enum UnwindOpCodes
     {
         UWOP_PUSH_NONVOL = 0,
@@ -23,6 +27,9 @@ namespace R2RDump.Amd64
         UWOP_SET_FPREG_LARGE,
     }
 
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_OP_CODES
+    /// </summary>
     public enum UnwindFlags
     {
         UNW_FLAG_NHANDLER = 0x0,
@@ -31,19 +38,29 @@ namespace R2RDump.Amd64
         UNW_FLAG_CHAININFO = 0x4,
     }
 
-    public struct UnwindCode
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_CODE
+    /// </summary>
+    public class UnwindCode
     {
         [XmlAttribute("Index")]
         public int Index { get; set; }
 
         public byte CodeOffset { get; set; }
         public UnwindOpCodes UnwindOp { get; set; } //4 bits
+
         public byte OpInfo { get; set; } //4 bits
+        public string OpInfoStr { get; set; } //4 bits
 
         public byte OffsetLow { get; set; }
         public byte OffsetHigh { get; set; } //4 bits
 
         public uint FrameOffset { get; set; }
+        public int NextFrameOffset { get; set; }
+
+        public bool IsOpInfo { get; set; }
+
+        public UnwindCode() { }
 
         public UnwindCode(byte[] image, int index, ref int offset)
         {
@@ -59,10 +76,16 @@ namespace R2RDump.Amd64
             OffsetHigh = OpInfo;
 
             FrameOffset = NativeReader.ReadUInt16(image, ref offset);
+            NextFrameOffset = -1;
+
+            IsOpInfo = false;
         }
     }
 
-    public struct UnwindInfo : BaseUnwindInfo
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_INFO
+    /// </summary>
+    public class UnwindInfo : BaseUnwindInfo
     {
         private const int _sizeofUnwindCode = 2;
         private const int _offsetofUnwindCode = 4;
@@ -71,12 +94,18 @@ namespace R2RDump.Amd64
         public byte Flags { get; set; } //5 bits
         public byte SizeOfProlog { get; set; }
         public byte CountOfUnwindCodes { get; set; }
-        public Amd64Registers FrameRegister { get; set; } //4 bits
+        public Registers FrameRegister { get; set; } //4 bits
         public byte FrameOffset { get; set; } //4 bits
-        public UnwindCode[] UnwindCode { get; set; }
+        public UnwindCode[] UnwindCodeArray { get; set; }
+        [XmlIgnore]
+        public Dictionary<int, List<UnwindCode>> UnwindCodes { get; set; }
         public uint PersonalityRoutineRVA { get; set; }
-        public int Size { get; set; }
 
+        public UnwindInfo() { }
+
+        /// <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/zap/zapcode.cpp">ZapUnwindData::Save</a>
+        /// </summary>
         public UnwindInfo(byte[] image, int offset)
         {
             byte versionAndFlags = NativeReader.ReadByte(image, ref offset);
@@ -85,20 +114,32 @@ namespace R2RDump.Amd64
             SizeOfProlog = NativeReader.ReadByte(image, ref offset);
             CountOfUnwindCodes = NativeReader.ReadByte(image, ref offset);
             byte frameRegisterAndOffset = NativeReader.ReadByte(image, ref offset);
-            FrameRegister = (Amd64Registers)(frameRegisterAndOffset & 15);
+            FrameRegister = (Registers)(frameRegisterAndOffset & 15);
             FrameOffset = (byte)(frameRegisterAndOffset >> 4);
 
-            UnwindCode = new UnwindCode[CountOfUnwindCodes];
+            UnwindCodeArray = new UnwindCode[CountOfUnwindCodes];
+            UnwindCodes = new Dictionary<int, List<UnwindCode>>();
             for (int i = 0; i < CountOfUnwindCodes; i++)
             {
-                UnwindCode[i] = new UnwindCode(image, i, ref offset);
+                UnwindCodeArray[i] = new UnwindCode(image, i, ref offset);
+            }
+            for (int i = 0; i < CountOfUnwindCodes; i++)
+            {
+                ParseUnwindCode(ref i);
+                if (!UnwindCodes.ContainsKey(UnwindCodeArray[i].CodeOffset))
+                {
+                    UnwindCodes[UnwindCodeArray[i].CodeOffset] = new List<UnwindCode>();
+                }
+                UnwindCodes[UnwindCodeArray[i].CodeOffset].Add(UnwindCodeArray[i]);
             }
 
-            PersonalityRoutineRVA = NativeReader.ReadUInt32(image, ref offset);
-
             Size = _offsetofUnwindCode + CountOfUnwindCodes * _sizeofUnwindCode;
-            int alignmentPad = ((Size + sizeof(int) - 1) & ~(sizeof(int) - 1)) - Size;
-            Size += (alignmentPad + sizeof(uint));
+            int alignmentPad = -Size & 3;
+            Size += alignmentPad + sizeof(uint);
+
+            // Personality routine RVA must be at 4-aligned address
+            offset += alignmentPad;
+            PersonalityRoutineRVA = NativeReader.ReadUInt32(image, ref offset);
         }
 
         public override string ToString()
@@ -130,7 +171,15 @@ namespace R2RDump.Amd64
             sb.AppendLine($"\t\t------------------");
             for (int i = 0; i < CountOfUnwindCodes; i++)
             {
-                sb.Append(GetUnwindCode(ref i));
+                if (!UnwindCodeArray[i].IsOpInfo)
+                    continue;
+                sb.AppendLine($"\t\tCodeOffset: 0x{UnwindCodeArray[i].CodeOffset:X2}");
+                sb.AppendLine($"\t\tUnwindOp: {UnwindCodeArray[i].UnwindOp}({(byte)UnwindCodeArray[i].UnwindOp})");
+                sb.AppendLine($"\t\tOpInfo: {UnwindCodeArray[i].OpInfoStr}");
+                if (UnwindCodeArray[i].NextFrameOffset != -1)
+                {
+                    sb.AppendLine($"\t\tFrameOffset: {UnwindCodeArray[i].NextFrameOffset}");
+                }
                 sb.AppendLine($"\t\t------------------");
             }
             sb.AppendLine($"\tPersonalityRoutineRVA: 0x{PersonalityRoutineRVA:X8}");
@@ -139,57 +188,56 @@ namespace R2RDump.Amd64
             return sb.ToString();
         }
 
-        private string GetUnwindCode(ref int i)
+        /// <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/jit/unwindamd64.cpp">src\jit\unwindamd64.cpp</a> DumpUnwindInfo
+        /// </summary>
+        private void ParseUnwindCode(ref int i)
         {
-            StringBuilder sb = new StringBuilder();
-
-            sb.AppendLine($"\t\tCodeOffset: 0x{UnwindCode[i].CodeOffset:X2}");
-            sb.AppendLine($"\t\tUnwindOp: {UnwindCode[i].UnwindOp}({(byte)UnwindCode[i].UnwindOp})");
-
-            switch (UnwindCode[i].UnwindOp)
+            UnwindCode code = UnwindCodeArray[i];
+            code.IsOpInfo = true;
+            switch (code.UnwindOp)
             {
                 case UnwindOpCodes.UWOP_PUSH_NONVOL:
-                    sb.AppendLine($"\t\tOpInfo: {(Amd64Registers)UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
+                    code.OpInfoStr = $"{(Registers)code.OpInfo}({code.OpInfo})";
                     break;
                 case UnwindOpCodes.UWOP_ALLOC_LARGE:
-                    sb.Append($"\t\tOpInfo: {UnwindCode[i].OpInfo} - ");
-                    if (UnwindCode[i].OpInfo == 0)
+                    code.OpInfoStr = $"{code.OpInfo} - ";
+                    if (code.OpInfo == 0)
                     {
                         i++;
-                        sb.AppendLine("Scaled small");
-                        uint frameOffset = UnwindCode[i].FrameOffset * 8;
-                        sb.AppendLine($"\t\tFrameOffset: {UnwindCode[i].FrameOffset} * 8 = {frameOffset} = 0x{frameOffset:X5})");
+                        UnwindCodeArray[i].OpInfoStr += "Scaled small";
+                        code.NextFrameOffset = (int)UnwindCodeArray[i].FrameOffset * 8;
                     }
-                    else if (UnwindCode[i].OpInfo == 1)
+                    else if (code.OpInfo == 1)
                     {
                         i++;
-                        sb.AppendLine("Unscaled large");
-                        uint offset = UnwindCode[i].FrameOffset;
+                        UnwindCodeArray[i].OpInfoStr += "Unscaled large";
+                        uint offset = UnwindCodeArray[i].FrameOffset;
                         i++;
-                        offset = ((UnwindCode[i].FrameOffset << 16) | offset);
-                        sb.AppendLine($"\t\tFrameOffset: 0x{offset:X8})");
+                        offset = ((UnwindCodeArray[i].FrameOffset << 16) | offset);
+                        code.NextFrameOffset = (int)offset;
                     }
                     else
                     {
-                        sb.AppendLine("Unknown");
+                        code.OpInfoStr += "Unknown";
                     }
                     break;
                 case UnwindOpCodes.UWOP_ALLOC_SMALL:
-                    int opInfo = UnwindCode[i].OpInfo * 8 + 8;
-                    sb.AppendLine($"\t\tOpInfo: {UnwindCode[i].OpInfo} * 8 + 8 = {opInfo} = 0x{opInfo:X2}");
+                    int opInfo = code.OpInfo * 8 + 8;
+                    code.OpInfoStr = $"{opInfo}";
                     break;
                 case UnwindOpCodes.UWOP_SET_FPREG:
-                    sb.AppendLine($"\t\tOpInfo: Unused({UnwindCode[i].OpInfo})");
+                    code.OpInfoStr = $"Unused({code.OpInfo})";
                     break;
                 case UnwindOpCodes.UWOP_SET_FPREG_LARGE:
                     {
-                        sb.AppendLine($"\t\tOpInfo: Unused({UnwindCode[i].OpInfo})");
+                        code.OpInfoStr = $"Unused({code.OpInfo})";
                         i++;
-                        uint offset = UnwindCode[i].FrameOffset;
+                        uint offset = UnwindCodeArray[i].FrameOffset;
                         i++;
-                        offset = ((UnwindCode[i].FrameOffset << 16) | offset);
-                        sb.AppendLine($"\t\tScaled Offset: {offset} * 16 = {offset * 16} = 0x{(offset * 16):X8}");
-                        if ((UnwindCode[i].FrameOffset & 0xF0000000) != 0)
+                        offset = ((UnwindCodeArray[i].FrameOffset << 16) | offset);
+                        code.NextFrameOffset = (int)offset * 16;
+                        if ((UnwindCodeArray[i].FrameOffset & 0xF0000000) != 0)
                         {
                             R2RDump.WriteWarning("Illegal unwindInfo unscaled offset: too large");
                         }
@@ -197,54 +245,41 @@ namespace R2RDump.Amd64
                     break;
                 case UnwindOpCodes.UWOP_SAVE_NONVOL:
                     {
-                        sb.AppendLine($"\t\tOpInfo: {(Amd64Registers)UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
+                        code.OpInfoStr = $"{(Registers)code.OpInfo}({code.OpInfo})";
                         i++;
-                        uint offset = UnwindCode[i].FrameOffset * 8;
-                        sb.AppendLine($"\t\tScaled Offset: {UnwindCode[i].FrameOffset} * 8 = {offset} = 0x{offset:X5}");
+                        uint offset = UnwindCodeArray[i].FrameOffset * 8;
+                        code.NextFrameOffset = (int)offset;
                     }
                     break;
                 case UnwindOpCodes.UWOP_SAVE_NONVOL_FAR:
                     {
-                        sb.AppendLine($"\t\tOpInfo: {(Amd64Registers)UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
+                        code.OpInfoStr = $"{(Registers)code.OpInfo}({code.OpInfo})";
                         i++;
-                        uint offset = UnwindCode[i].FrameOffset;
+                        uint offset = UnwindCodeArray[i].FrameOffset;
                         i++;
-                        offset = ((UnwindCode[i].FrameOffset << 16) | offset);
-                        sb.AppendLine($"\t\tUnscaled Large Offset: 0x{offset:X8}");
+                        offset = ((UnwindCodeArray[i].FrameOffset << 16) | offset);
+                        code.NextFrameOffset = (int)offset;
                     }
                     break;
                 case UnwindOpCodes.UWOP_SAVE_XMM128:
                     {
-                        sb.AppendLine($"\t\tOpInfo: XMM{UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
+                        code.OpInfoStr = $"XMM{code.OpInfo}({code.OpInfo})";
                         i++;
-                        uint offset = UnwindCode[i].FrameOffset * 16;
-                        sb.AppendLine($"\t\tScaled Offset: {UnwindCode[i].FrameOffset} * 16 = {offset} = 0x{offset:X5}");
+                        uint offset = UnwindCodeArray[i].FrameOffset * 16;
+                        code.NextFrameOffset = (int)offset;
                     }
                     break;
-
                 case UnwindOpCodes.UWOP_SAVE_XMM128_FAR:
                     {
-                        sb.AppendLine($"\t\tOpInfo: XMM{UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
+                        code.OpInfoStr = $"XMM{code.OpInfo}({code.OpInfo})";
                         i++;
-                        uint offset = UnwindCode[i].FrameOffset;
+                        uint offset = UnwindCodeArray[i].FrameOffset;
                         i++;
-                        offset = ((UnwindCode[i].FrameOffset << 16) | offset);
-                        sb.AppendLine($"\t\tUnscaled Large Offset: 0x{offset:X8}");
+                        offset = ((UnwindCodeArray[i].FrameOffset << 16) | offset);
+                        code.NextFrameOffset = (int)offset;
                     }
                     break;
-                case UnwindOpCodes.UWOP_EPILOG:
-                case UnwindOpCodes.UWOP_SPARE_CODE:
-                case UnwindOpCodes.UWOP_PUSH_MACHFRAME:
-                default:
-                    sb.AppendLine($"\t\tOpInfo: {UnwindCode[i].OpInfo}");
-                    sb.AppendLine();
-                    sb.AppendLine($"\t\tOffsetLow: {UnwindCode[i].OffsetLow}");
-                    sb.AppendLine($"\t\tOffsetHigh: {UnwindCode[i].OffsetHigh}");
-                    sb.AppendLine();
-                    sb.AppendLine($"\t\tFrameOffset: {FrameOffset}");
-                    break;
             }
-            return sb.ToString();
         }
     }
 }

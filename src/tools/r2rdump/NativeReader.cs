@@ -11,6 +11,7 @@ namespace R2RDump
     class NativeReader
     {
         private const int BITS_PER_BYTE = 8;
+        private const int BITS_PER_SIZE_T = 32;
 
         /// <summary>
         /// Extracts a 64bit value from the image byte array
@@ -127,6 +128,7 @@ namespace R2RDump
 
         // <summary>
         /// Decode variable length numbers
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfodecoder.h">src\inc\gcinfodecoder.h</a> DecodeVarLengthUnsigned
         /// </summary>
         /// <param name="image">PE image</param>
         /// <param name="len">Number of bits to read</param>
@@ -150,6 +152,9 @@ namespace R2RDump
             }
         }
 
+        // <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfodecoder.h">src\inc\gcinfodecoder.h</a> DecodeVarLengthSigned
+        /// </summary>
         public static int DecodeVarLengthSigned(byte[] image, int len, ref int bitOffset)
         {
             int numEncodings = (1 << len);
@@ -161,7 +166,7 @@ namespace R2RDump
                 if ((currentChunk & numEncodings) == 0)
                 {
                     // Extension bit is not set, sign-extend and we're done.
-                    int sbits = BITS_PER_BYTE - (shift + len);
+                    int sbits = BITS_PER_SIZE_T - (shift + len);
                     result <<= sbits;
                     result >>= sbits;   // This provides the sign extension
                     return result;
@@ -169,6 +174,9 @@ namespace R2RDump
             }
         }
 
+        // <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/nativeformatreader.h">src\vm\nativeformatreader.h</a> DecodeUnsigned
+        /// </summary>
         public static uint DecodeUnsigned(byte[] image, uint offset, ref uint pValue)
         {
             if (offset >= image.Length)
@@ -225,6 +233,9 @@ namespace R2RDump
             return offset;
         }
 
+        // <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/nativeformatreader.h">src\vm\nativeformatreader.h</a> DecodeSigned
+        /// </summary>
         public static uint DecodeSigned(byte[] image, uint offset, ref int pValue)
         {
             if (offset >= image.Length)
@@ -281,6 +292,9 @@ namespace R2RDump
             return offset;
         }
 
+        // <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/debug/daccess/nidump.cpp">src\debug\daccess\nidump.cpp</a> DacSigUncompressData and DacSigUncompressBigData
+        /// </summary>
         public static uint ReadCompressedData(byte[] image, ref int start)
         {
             int off = start;
@@ -303,6 +317,55 @@ namespace R2RDump
                 data |= ReadByte(image, ref start);
             }
             return data;
+        }
+
+        /// <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> decodeUnsigned
+        /// </summary>
+        public static uint DecodeUnsignedGc(byte[] image, ref int start)
+        {
+            int size = 1;
+            byte data = image[start++];
+            uint value = (uint)data & 0x7f;
+            while ((data & 0x80) != 0)
+            {
+                size++;
+                data = image[start++];
+                value <<= 7;
+                value += (uint)data & 0x7f;
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> decodeSigned
+        /// </summary>
+        public static int DecodeSignedGc(byte[] image, ref int start)
+        {
+            int size = 1;
+            byte data  = image[start++];
+            byte first = data;
+            int value = data & 0x3f;
+            while ((data & 0x80) != 0)
+            {
+                size++;
+                data = image[start++];
+                value <<= 7;
+                value += data & 0x7f;
+            }
+            if ((first & 0x40) != 0)
+                value = -value;
+
+            return value;
+        }
+
+        /// <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> decodeUDelta
+        /// </summary>
+        public static uint DecodeUDelta(byte[] image, ref int start, uint lastValue)
+        {
+            uint delta = DecodeUnsignedGc(image, ref start);
+            return lastValue + delta;
         }
     }
 }

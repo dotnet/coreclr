@@ -69,9 +69,7 @@ WARNING:   When setting properties based on their current state (for example:
     <Message Text="Project depends on $(_CLRTestToRunFileFullPath)." Condition="'$(_CLRTestNeedsProjectToRun)' == 'True'" />
 
     <PropertyGroup>
-      <!-- An exit code of 2 indicates "Skipped" for regular non-windows runs, but "Failed" in Helix -->
-      <GCBashScriptExitCode Condition="'$(BuildTestsAgainstPackages)' != 'true'">2</GCBashScriptExitCode>
-      <GCBashScriptExitCode Condition="'$(BuildTestsAgainstPackages)' == 'true'">0</GCBashScriptExitCode>
+      <GCBashScriptExitCode>0</GCBashScriptExitCode>
 
       <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(GCStressIncompatible)' == 'true'"><![CDATA[
 $(BashCLRTestEnvironmentCompatibilityCheck)
@@ -81,11 +79,17 @@ then
   exit $(GCBashScriptExitCode)
 fi
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
-      <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'"><![CDATA[
+      <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'">
+    <![CDATA[
 $(BashCLRTestEnvironmentCompatibilityCheck)
-if [[ ( ! -z "$COMPlus_JitStress" ) || ( ! -z "$COMPlus_JitStressRegs" ) || ( ! -z "$COMPlus_JITMinOpts" ) || ( ! -z "$COMPlus_TailcallStress" ) || ( ! -z "$COMPlus_EXPERIMENTAL_TieredCompilation" ) || ( ! -z "$COMPlus_TieredCompilation" ) ]]
+if [[ ( ! -z "$COMPlus_JitStress" ) || ( ! -z "$COMPlus_JitStressRegs" ) || ( ! -z "$COMPlus_JITMinOpts" ) || ( ! -z "$COMPlus_TailcallStress" ) ]]
 then
-  echo "SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress, COMPlus_EXPERIMENTAL_TieredCompilation, COMPlus_TieredCompilation) IS SET"
+  echo "SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress) IS SET"
+  exit $(GCBashScriptExitCode)
+fi
+if [[ "$COMPlus_TieredCompilation" != "0" ]]
+then
+  echo "SKIPPING EXECUTION BECAUSE COMPlus_TieredCompilation has not been disabled and this test is marked JitOptimizationSensitive"
   exit $(GCBashScriptExitCode)
 fi
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
@@ -96,6 +100,11 @@ then
   echo SKIPPING EXECUTION BECAUSE COMPlus_HeapVerify IS SET
   exit $(GCBashScriptExitCode)
 fi
+      ]]></BashCLRTestEnvironmentCompatibilityCheck>
+      <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(TestUnsupportedOutsideWindows)' == 'true'"><![CDATA[
+$(BashCLRTestEnvironmentCompatibilityCheck)
+echo SKIPPING EXECUTION BECAUSE test is unsupported outside Windows.
+exit $(GCBashScriptExitCode)
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
 
       <BashCLRTestExitCodePrep Condition="$(_CLRTestNeedsToRun)">
@@ -269,8 +278,8 @@ $(BashLinkerTestCleanupCmds)
 $(BashCLRTestLaunchCmds)
 echo export CDPATH="$%28dirname "$0")"
 export CDPATH="$%28dirname "$0")"
-echo /bin/sh -c  $(InputAssemblyName) 
-/bin/sh -c $(InputAssemblyName)
+echo /bin/sh $(InputAssemblyName) 
+/bin/sh $(InputAssemblyName)
 CLRTestExitCode=$?
 CLRTestExpectedExitCode=0
       ]]></BashCLRTestLaunchCmds>

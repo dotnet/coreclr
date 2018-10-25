@@ -91,7 +91,6 @@ public:
     void gcMarkRegSetByref(regMaskTP regMask DEBUGARG(bool forceOutput = false));
     void gcMarkRegSetNpt(regMaskTP regMask DEBUGARG(bool forceOutput = false));
     void gcMarkRegPtrVal(regNumber reg, var_types type);
-    void gcMarkRegPtrVal(GenTree* tree);
 
 #ifdef DEBUG
     void gcDspGCrefSetChanges(regMaskTP gcRegGCrefSetNew DEBUGARG(bool forceOutput = false));
@@ -321,7 +320,7 @@ public:
     };
 
     WriteBarrierForm gcIsWriteBarrierCandidate(GenTree* tgt, GenTree* assignVal);
-    bool gcIsWriteBarrierAsgNode(GenTree* op);
+    bool gcIsWriteBarrierStoreIndNode(GenTree* op);
 
     // Returns a WriteBarrierForm decision based on the form of "tgtAddr", which is assumed to be the
     // argument of a GT_IND LHS.

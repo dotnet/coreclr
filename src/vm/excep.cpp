@@ -4172,7 +4172,7 @@ LONG WatsonLastChance(                  // EXCEPTION_CONTINUE_SEARCH, _CONTINUE_
                     pThread->GetFrame()->Pop(pThread);
                 }
 
-                LOG((LF_EH, LL_INFO10, "D::WLC: Call RaiseFailFastExceptionOnWin7\n"));
+                LOG((LF_EH, LL_INFO10, "D::WLC: Call RaiseFailFastException\n"));
 
                 // enable preemptive mode before call into OS to allow runtime suspend to finish
                 GCX_PREEMP();
@@ -6357,7 +6357,8 @@ static STRINGREF MissingMemberException_FormatSignature_Internal(I1ARRAYREF* ppP
         psl->EmitUtf8(")");
     }
     psl->Emit8('\0');
-    pstub = psl->Link();
+
+    pstub = psl->Link(NULL);
     }
 
     pString = StringObject::NewString( (LPCUTF8)(pstub->GetEntryPoint()) );
@@ -6376,49 +6377,8 @@ FCIMPL1(Object*, MissingMemberException_FormatSignature, I1Array* pPersistedSigU
 
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(pString);
-    }
-FCIMPLEND
-
-// Check if the Win32 Error code is an IO error.
-BOOL IsWin32IOError(SCODE scode)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    switch (scode)
-    {
-    case ERROR_FILE_NOT_FOUND:
-    case ERROR_PATH_NOT_FOUND:
-    case ERROR_TOO_MANY_OPEN_FILES:
-    case ERROR_ACCESS_DENIED:
-    case ERROR_INVALID_HANDLE:
-    case ERROR_INVALID_DRIVE:
-    case ERROR_WRITE_PROTECT:
-    case ERROR_NOT_READY:
-    case ERROR_WRITE_FAULT:
-    case ERROR_SHARING_VIOLATION:
-    case ERROR_LOCK_VIOLATION:
-    case ERROR_SHARING_BUFFER_EXCEEDED:
-    case ERROR_HANDLE_DISK_FULL:
-    case ERROR_BAD_NETPATH:
-    case ERROR_DEV_NOT_EXIST:
-    case ERROR_FILE_EXISTS:
-    case ERROR_CANNOT_MAKE:
-    case ERROR_NET_WRITE_FAULT:
-    case ERROR_DRIVE_LOCKED:
-    case ERROR_OPEN_FAILED:
-    case ERROR_BUFFER_OVERFLOW:
-    case ERROR_DISK_FULL:
-    case ERROR_INVALID_NAME:
-    case ERROR_FILENAME_EXCED_RANGE:
-    case ERROR_IO_DEVICE:
-    case ERROR_DISK_OPERATION_FAILED:
-        return TRUE;
-
-    default:
-        return FALSE;
-    }
 }
-
+FCIMPLEND
 
 // Check if there is a pending exception or the thread is already aborting. Returns 0 if yes.
 // Otherwise, sets the thread up for generating an abort and returns address of ThrowControlForThread
@@ -6951,6 +6911,7 @@ EXTERN_C void JIT_MemCpy_End();
 
 EXTERN_C void JIT_WriteBarrier_End();
 EXTERN_C void JIT_CheckedWriteBarrier_End();
+EXTERN_C void JIT_ByRefWriteBarrier_End();
 #endif // _TARGET_X86_
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
@@ -6977,6 +6938,7 @@ bool IsIPInMarkedJitHelper(UINT_PTR uControlPc)
 
     CHECK_RANGE(JIT_WriteBarrier)
     CHECK_RANGE(JIT_CheckedWriteBarrier)
+    CHECK_RANGE(JIT_ByRefWriteBarrier)
 #else
 #ifdef FEATURE_PAL
     CHECK_RANGE(JIT_WriteBarrierGroup)
@@ -7474,7 +7436,6 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
     }
 #endif // defined(WIN64EXCEPTIONS) && defined(FEATURE_HIJACK)
 
-#ifndef FEATURE_PAL
     if (IsSOExceptionCode(pExceptionInfo->ExceptionRecord->ExceptionCode))
     {
         //
@@ -7513,9 +7474,6 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
         //END_ENTRYPOINT_VOIDRET;
     //
     return retVal;
-#else // !FEATURE_PAL
-    return CLRVectoredExceptionHandlerPhase2(pExceptionInfo);
-#endif // !FEATURE_PAL
 }
 
 LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo)
@@ -7641,8 +7599,7 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
             return EXCEPTION_CONTINUE_SEARCH;
         }
 
-        // The breakpoint was from managed or the runtime.  Handle it.  Or,
-        //  this may be a Rotor build.
+        // The breakpoint was from managed or the runtime.  Handle it.
         return UserBreakpointFilter(pExceptionInfo);
     }
 
@@ -7875,7 +7832,7 @@ BOOL IsIPInEE(void *ip)
     }
 }
 
-#if defined(_TARGET_AMD64_) && defined(FEATURE_HIJACK)
+#if defined(FEATURE_HIJACK) && (!defined(_TARGET_X86_) || defined(FEATURE_PAL))
 
 // This function is used to check if the specified IP is in the prolog or not.
 bool IsIPInProlog(EECodeInfo *pCodeInfo)
@@ -7892,6 +7849,9 @@ bool IsIPInProlog(EECodeInfo *pCodeInfo)
 
     _ASSERTE(pCodeInfo->IsValid());
 
+#ifdef _TARGET_AMD64_
+
+    // Optimized version for AMD64 that doesn't need to go through the GC info decoding
     PTR_RUNTIME_FUNCTION funcEntry = pCodeInfo->GetFunctionEntry();
 
     // We should always get a function entry for a managed method
@@ -7901,8 +7861,31 @@ bool IsIPInProlog(EECodeInfo *pCodeInfo)
     PUNWIND_INFO pUnwindInfo = (PUNWIND_INFO)(pCodeInfo->GetModuleBase() + funcEntry->UnwindData);
 
     // Check if the specified IP is beyond the prolog or not.
-    DWORD dwPrologLen = pUnwindInfo->SizeOfProlog;
-    if (pCodeInfo->GetRelOffset() >= dwPrologLen)
+    DWORD prologLen = pUnwindInfo->SizeOfProlog;
+
+#else // _TARGET_AMD64_
+
+    GCInfoToken    gcInfoToken = pCodeInfo->GetGCInfoToken();
+
+#ifdef USE_GC_INFO_DECODER
+
+    GcInfoDecoder gcInfoDecoder(
+        gcInfoToken,
+        DECODE_PROLOG_LENGTH
+    );
+
+    DWORD prologLen = gcInfoDecoder.GetPrologSize();
+
+#else // USE_GC_INFO_DECODER
+
+    size_t prologLen;
+    pCodeInfo->GetCodeManager()->IsInPrologOrEpilog(0, gcInfoToken, &prologLen);
+
+#endif // USE_GC_INFO_DECODER
+
+#endif // _TARGET_AMD64_
+
+    if (pCodeInfo->GetRelOffset() >= prologLen)
     {
         fInsideProlog = false;
     }
@@ -7925,11 +7908,11 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
     CONTRACTL_END;
 
     TADDR ipToCheck = GetIP(pContextToCheck);
-    
+
     _ASSERTE(pCodeInfo->IsValid());
-    
+
     // The Codeinfo should correspond to the IP we are interested in.
-    _ASSERTE(ipToCheck == pCodeInfo->GetCodeAddress());
+    _ASSERTE(PCODEToPINSTR(ipToCheck) == pCodeInfo->GetCodeAddress());
 
     // By default, assume its safe to inject the abort.
     *pSafeToInjectThreadAbort = TRUE;
@@ -7956,11 +7939,10 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
     // RtlVirtualUnwind against "ipToCheck" results in a NULL personality routine, it implies that we are inside
     // the epilog.
 
-    DWORD64 imageBase = 0;
-    PUNWIND_INFO pUnwindInfo = NULL;
+    DWORD_PTR imageBase = 0;
     CONTEXT tempContext;
     PVOID HandlerData;
-    DWORD64 establisherFrame = 0;
+    DWORD_PTR establisherFrame = 0;
     PEXCEPTION_ROUTINE personalityRoutine = NULL;
 
     // Lookup the function entry for the IP
@@ -7970,7 +7952,6 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
     _ASSERTE(funcEntry != NULL);
 
     imageBase = pCodeInfo->GetModuleBase();
-    pUnwindInfo = (PUNWIND_INFO)(imageBase+ funcEntry->UnwindData);
 
     ZeroMemory(&tempContext, sizeof(CONTEXT));
     CopyOSContext(&tempContext, pContextToCheck);
@@ -7993,13 +7974,15 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
         // We are in epilog. 
         fIsInEpilog = true;
 
+#ifdef _TARGET_AMD64_
         // Check if context pointers has returned the address of the stack location in the hijacked function
         // from where RBP was restored. If the address is NULL, then it implies that RBP has been popped off.
         // Since JIT64 ensures that pop of RBP is the last instruction before ret/jmp, it implies its not safe
         // to inject an abort @ this point as EstablisherFrame (which will be based
         // of RBP for managed code since that is the FramePointer register, as indicated in the UnwindInfo)
         // will be off and can result in bad managed exception dispatch.
-        if (ctxPtrs.Rbp == NULL) 
+        if (ctxPtrs.Rbp == NULL)
+#endif
         {
             *pSafeToInjectThreadAbort = FALSE;
         }
@@ -8008,7 +7991,7 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
     return fIsInEpilog;
 }
 
-#endif // defined(_TARGET_AMD64_) && defined(FEATURE_HIJACK)
+#endif // FEATURE_HIJACK && (!_TARGET_X86_ || FEATURE_PAL)
 
 #define EXCEPTION_VISUALCPP_DEBUGGER        ((DWORD) (1<<30 | 0x6D<<16 | 5000))
 
@@ -12920,7 +12903,6 @@ UINT GetResourceIDForFileLoadExceptionHR(HRESULT hr)
     case (HRESULT)IDS_INET_E_SECURITY_PROBLEM:
     case (HRESULT)IDS_EE_BAD_USER_PROFILE:
     case (HRESULT)IDS_EE_ALREADY_EXISTS:
-    case IDS_EE_REFLECTIONONLY_LOADFAILURE:
     case IDS_CLASSLOAD_32BITCLRLOADING64BITASSEMBLY:
        break;
 

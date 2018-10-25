@@ -12,7 +12,6 @@
 
 #include "stdafx.h"
 #include "debugdebugger.h"
-#include "ipcmanagerinterface.h"
 #include "../inc/common.h"
 #include "perflog.h"
 #include "eeconfig.h" // This is here even for retail & free builds...
@@ -44,9 +43,6 @@
 #include "../../vm/rejit.h"
 
 #include "threadsuspend.h"
-
-class CCLRSecurityAttributeManager;
-extern CCLRSecurityAttributeManager s_CLRSecurityAttributeManager;
 
 
 #ifdef DEBUGGING_SUPPORTED
@@ -2038,11 +2034,7 @@ HRESULT Debugger::Startup(void)
         InitializeHijackFunctionAddress();
 
         // Also initialize the AppDomainEnumerationIPCBlock
-    #if !defined(FEATURE_IPCMAN) || defined(FEATURE_DBGIPC_TRANSPORT_VM)
         m_pAppDomainCB = new (nothrow) AppDomainEnumerationIPCBlock();
-    #else
-        m_pAppDomainCB = g_pIPCManagerInterface->GetAppDomainBlock();
-    #endif 
 
         if (m_pAppDomainCB == NULL)
         {
@@ -3616,9 +3608,14 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
 
     LOG((LF_CORDB, LL_INFO1000, "D::SIP: In SetIP ==> fCanSetIPOnly:0x%x <==!\n", fCanSetIPOnly));
 
-    if (ReJitManager::IsReJITEnabled())
+    CodeVersionManager *pCodeVersionManager = module->GetCodeVersionManager();    
     {
-        return CORDBG_E_SET_IP_IMPOSSIBLE;
+        CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+        ILCodeVersion ilCodeVersion = pCodeVersionManager->GetActiveILCodeVersion(module, mdMeth);
+        if (!ilCodeVersion.IsDefaultVersion())
+        {
+            return CORDBG_E_SET_IP_IMPOSSIBLE;
+        }
     }
 
     pCtx = GetManagedStoppedCtx(thread);
@@ -10137,8 +10134,7 @@ BOOL Debugger::SendSystemClassLoadUnloadEvent(mdTypeDef classMetadataToken,
         // triggers too early in the loading process. FindDomainFile will not become
         // non-NULL until the module is fully loaded into the domain which is what we
         // want.
-        if ((classModule->FindDomainFile(pAppDomain) != NULL ) &&
-            !(fIsLoadEvent && pAppDomain->IsUnloading()) )
+        if (classModule->FindDomainFile(pAppDomain) != NULL )
         {
             // Find the Left Side module that this class belongs in.
             DebuggerModule* pModule = LookupOrCreateModule(classModule, pAppDomain);

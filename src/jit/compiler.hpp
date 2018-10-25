@@ -1204,8 +1204,7 @@ inline GenTree* Compiler::gtNewCodeRef(BasicBlock* block)
  *  A little helper to create a data member reference node.
  */
 
-inline GenTree* Compiler::gtNewFieldRef(
-    var_types typ, CORINFO_FIELD_HANDLE fldHnd, GenTree* obj, DWORD offset, bool nullcheck)
+inline GenTree* Compiler::gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldHnd, GenTree* obj, DWORD offset)
 {
 #if SMALL_TREE_NODES
     /* 'GT_FIELD' nodes may later get transformed into 'GT_IND' */
@@ -1222,11 +1221,6 @@ inline GenTree* Compiler::gtNewFieldRef(
 #ifdef FEATURE_READYTORUN_COMPILER
     tree->gtField.gtFieldLookup.addr = nullptr;
 #endif
-
-    if (nullcheck)
-    {
-        tree->gtFlags |= GTF_FLD_NULLCHECK;
-    }
 
     // If "obj" is the address of a local, note that a field of that struct local has been accessed.
     if (obj != nullptr && obj->OperGet() == GT_ADDR && varTypeIsStruct(obj->gtOp.gtOp1) &&
@@ -1670,7 +1664,7 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
 
         for (unsigned i = lvaCount; i < newLvaTableCnt; i++)
         {
-            new (&newLvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
+            new (&newLvaTable[i], jitstd::placement_t()) LclVarDsc(); // call the constructor.
         }
 
 #ifdef DEBUG
@@ -1682,13 +1676,29 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
         lvaTable    = newLvaTable;
     }
 
-    lvaTable[lvaCount].lvType    = TYP_UNDEF; // Initialize lvType, lvIsTemp and lvOnFrame
-    lvaTable[lvaCount].lvIsTemp  = shortLifetime;
-    lvaTable[lvaCount].lvOnFrame = true;
-
-    unsigned tempNum = lvaCount;
-
+    const unsigned tempNum = lvaCount;
     lvaCount++;
+
+    // Initialize lvType, lvIsTemp and lvOnFrame
+    lvaTable[tempNum].lvType    = TYP_UNDEF;
+    lvaTable[tempNum].lvIsTemp  = shortLifetime;
+    lvaTable[tempNum].lvOnFrame = true;
+
+    // If we've started normal ref counting, bump the ref count of this
+    // local, as we no longer do any incremental counting, and we presume
+    // this new local will be referenced.
+    if (lvaLocalVarRefCounted())
+    {
+        if (opts.MinOpts() || opts.compDbgCode)
+        {
+            lvaTable[tempNum].lvImplicitlyReferenced = 1;
+        }
+        else
+        {
+            lvaTable[tempNum].setLvRefCnt(1);
+            lvaTable[tempNum].setLvRefCntWtd(BB_UNITY_WEIGHT);
+        }
+    }
 
 #ifdef DEBUG
     if (verbose)
@@ -1723,6 +1733,9 @@ inline unsigned Compiler::lvaGrabTemps(unsigned cnt DEBUGARG(const char* reason)
     }
 #endif
 
+    // Could handle this...
+    assert(!lvaLocalVarRefCounted());
+
     // You cannot allocate more space after frame layout!
     noway_assert(lvaDoneFrameLayout < Compiler::TENTATIVE_FRAME_LAYOUT);
 
@@ -1743,7 +1756,7 @@ inline unsigned Compiler::lvaGrabTemps(unsigned cnt DEBUGARG(const char* reason)
         memset(newLvaTable + lvaCount, 0, (newLvaTableCnt - lvaCount) * sizeof(*lvaTable));
         for (unsigned i = lvaCount; i < newLvaTableCnt; i++)
         {
-            new (&newLvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
+            new (&newLvaTable[i], jitstd::placement_t()) LclVarDsc(); // call the constructor.
         }
 
 #ifdef DEBUG
@@ -1797,123 +1810,10 @@ inline unsigned Compiler::lvaGrabTempWithImplicitUse(bool shortLifetime DEBUGARG
     // address-exposed -- DoNotEnregister should suffice?
     lvaSetVarAddrExposed(lclNum);
 
-    // We need lvRefCnt to be non-zero to prevent various asserts from firing.
-    varDsc->setLvRefCnt(1);
-    varDsc->setLvRefCntWtd(BB_UNITY_WEIGHT);
+    // Note the implicit use
+    varDsc->lvImplicitlyReferenced = 1;
 
     return lclNum;
-}
-
-/*****************************************************************************
- *
- *  If lvaTrackedFixed is false then set the lvaSortAgain flag
- *   (this allows us to grow the number of tracked variables)
- *   and zero lvRefCntWtd when lvRefCnt is zero
- */
-
-inline void LclVarDsc::lvaResetSortAgainFlag(Compiler* comp)
-{
-    if (!comp->lvaTrackedFixed)
-    {
-        /* Flag this change, set lvaSortAgain to true */
-        comp->lvaSortAgain = true;
-    }
-    /* Set weighted ref count to zero if  ref count is zero */
-    if (lvRefCnt() == 0)
-    {
-        setLvRefCntWtd(0);
-    }
-}
-
-/*****************************************************************************
- *
- *  Decrement the ref counts for a local variable
- */
-
-inline void LclVarDsc::decRefCnts(BasicBlock::weight_t weight, Compiler* comp, bool propagate)
-{
-    /* Decrement lvRefCnt and lvRefCntWtd */
-    Compiler::lvaPromotionType promotionType = DUMMY_INIT(Compiler::PROMOTION_TYPE_NONE);
-    if (varTypeIsStruct(lvType))
-    {
-        promotionType = comp->lvaGetPromotionType(this);
-    }
-
-    //
-    // Decrement counts on the local itself.
-    //
-    if (lvType != TYP_STRUCT || promotionType != Compiler::PROMOTION_TYPE_INDEPENDENT)
-    {
-        assert(lvRefCnt()); // Can't decrement below zero
-
-        // TODO: Well, the assert above could be bogus.
-        // If lvRefCnt has overflowed before, then might drop to 0.
-        // Therefore we do need the following check to keep lvRefCnt from underflow:
-        if (lvRefCnt() > 0)
-        {
-            //
-            // Decrement lvRefCnt
-            //
-            decLvRefCnt(1);
-
-            //
-            // Decrement lvRefCntWtd
-            //
-            if (weight != 0)
-            {
-                if (lvIsTemp && (weight * 2 > weight))
-                {
-                    weight *= 2;
-                }
-
-                if (lvRefCntWtd() <= weight)
-                { // Can't go below zero
-                    setLvRefCntWtd(0);
-                }
-                else
-                {
-                    decLvRefCntWtd(weight);
-                }
-            }
-        }
-    }
-
-    if (varTypeIsStruct(lvType) && propagate)
-    {
-        // For promoted struct locals, decrement lvRefCnt on its field locals as well.
-        if (promotionType == Compiler::PROMOTION_TYPE_INDEPENDENT ||
-            promotionType == Compiler::PROMOTION_TYPE_DEPENDENT)
-        {
-            for (unsigned i = lvFieldLclStart; i < lvFieldLclStart + lvFieldCnt; ++i)
-            {
-                comp->lvaTable[i].decRefCnts(comp->lvaMarkRefsWeight, comp, false); // Don't propagate
-            }
-        }
-    }
-
-    if (lvIsStructField && propagate)
-    {
-        // Depending on the promotion type, decrement the ref count for the parent struct as well.
-        promotionType           = comp->lvaGetParentPromotionType(this);
-        LclVarDsc* parentvarDsc = &comp->lvaTable[lvParentLcl];
-        assert(!parentvarDsc->lvRegStruct);
-        if (promotionType == Compiler::PROMOTION_TYPE_DEPENDENT)
-        {
-            parentvarDsc->decRefCnts(comp->lvaMarkRefsWeight, comp, false); // Don't propagate
-        }
-    }
-
-    lvaResetSortAgainFlag(comp);
-
-#ifdef DEBUG
-    if (comp->verbose)
-    {
-        unsigned varNum = (unsigned)(this - comp->lvaTable);
-        assert(&comp->lvaTable[varNum] == this);
-        printf("New refCnts for V%02u: refCnt = %2u, refCntWtd = %s\n", varNum, lvRefCnt(),
-               refCntWtd2str(lvRefCntWtd()));
-    }
-#endif
 }
 
 /*****************************************************************************
@@ -1921,8 +1821,16 @@ inline void LclVarDsc::decRefCnts(BasicBlock::weight_t weight, Compiler* comp, b
  *  Increment the ref counts for a local variable
  */
 
-inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, bool propagate)
+inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, RefCountState state, bool propagate)
 {
+    // In minopts and debug codegen, we don't maintain normal ref counts.
+    if ((state == RCS_NORMAL) && (comp->opts.MinOpts() || comp->opts.compDbgCode))
+    {
+        // Note, at least, that there is at least one reference.
+        lvImplicitlyReferenced = 1;
+        return;
+    }
+
     Compiler::lvaPromotionType promotionType = DUMMY_INIT(Compiler::PROMOTION_TYPE_NONE);
     if (varTypeIsStruct(lvType))
     {
@@ -1937,14 +1845,12 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, b
         //
         // Increment lvRefCnt
         //
-        int newRefCnt = lvRefCnt() + 1;
+        int newRefCnt = lvRefCnt(state) + 1;
         if (newRefCnt == (unsigned short)newRefCnt) // lvRefCnt is an "unsigned short". Don't overflow it.
         {
-            setLvRefCnt((unsigned short)newRefCnt);
+            setLvRefCnt((unsigned short)newRefCnt, state);
         }
 
-        // This fires when an uninitialize value for 'weight' is used (see lvaMarkRefsWeight)
-        assert(weight != 0xdddddddd);
         //
         // Increment lvRefCntWtd
         //
@@ -1957,14 +1863,14 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, b
                 weight *= 2;
             }
 
-            unsigned newWeight = lvRefCntWtd() + weight;
-            if (newWeight >= lvRefCntWtd())
+            unsigned newWeight = lvRefCntWtd(state) + weight;
+            if (newWeight >= lvRefCntWtd(state))
             { // lvRefCntWtd is an "unsigned".  Don't overflow it
-                setLvRefCntWtd(newWeight);
+                setLvRefCntWtd(newWeight, state);
             }
             else
             { // On overflow we assign ULONG_MAX
-                setLvRefCntWtd(ULONG_MAX);
+                setLvRefCntWtd(ULONG_MAX, state);
             }
         }
     }
@@ -1977,7 +1883,7 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, b
         {
             for (unsigned i = lvFieldLclStart; i < lvFieldLclStart + lvFieldCnt; ++i)
             {
-                comp->lvaTable[i].incRefCnts(comp->lvaMarkRefsWeight, comp, false); // Don't propagate
+                comp->lvaTable[i].incRefCnts(weight, comp, state, false); // Don't propagate
             }
         }
     }
@@ -1990,123 +1896,19 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, b
         assert(!parentvarDsc->lvRegStruct);
         if (promotionType == Compiler::PROMOTION_TYPE_DEPENDENT)
         {
-            parentvarDsc->incRefCnts(comp->lvaMarkRefsWeight, comp, false); // Don't propagate
+            parentvarDsc->incRefCnts(weight, comp, state, false); // Don't propagate
         }
     }
-
-    lvaResetSortAgainFlag(comp);
 
 #ifdef DEBUG
     if (comp->verbose)
     {
         unsigned varNum = (unsigned)(this - comp->lvaTable);
         assert(&comp->lvaTable[varNum] == this);
-        printf("New refCnts for V%02u: refCnt = %2u, refCntWtd = %s\n", varNum, lvRefCnt(),
-               refCntWtd2str(lvRefCntWtd()));
+        printf("New refCnts for V%02u: refCnt = %2u, refCntWtd = %s\n", varNum, lvRefCnt(state),
+               refCntWtd2str(lvRefCntWtd(state)));
     }
 #endif
-}
-
-/*****************************************************************************
- *
- *  Set the lvPrefReg field to reg
- */
-
-inline void LclVarDsc::setPrefReg(regNumber regNum, Compiler* comp)
-{
-    regMaskTP regMask;
-    if (isFloatRegType(TypeGet()))
-    {
-        // Check for FP struct-promoted field being passed in integer register
-        //
-        if (!genIsValidFloatReg(regNum))
-        {
-            return;
-        }
-        regMask = genRegMaskFloat(regNum, TypeGet());
-    }
-    else
-    {
-        regMask = genRegMask(regNum);
-    }
-
-#ifdef _TARGET_ARM_
-    // Don't set a preferred register for a TYP_STRUCT that takes more than one register slot
-    if ((TypeGet() == TYP_STRUCT) && (lvSize() > REGSIZE_BYTES))
-        return;
-#endif
-
-    /* Only interested if we have a new register bit set */
-    if (lvPrefReg & regMask)
-    {
-        return;
-    }
-
-#ifdef DEBUG
-    if (comp->verbose)
-    {
-        if (lvPrefReg)
-        {
-            printf("Change preferred register for V%02u from ", this - comp->lvaTable);
-            dspRegMask(lvPrefReg);
-        }
-        else
-        {
-            printf("Set preferred register for V%02u", this - comp->lvaTable);
-        }
-        printf(" to ");
-        dspRegMask(regMask);
-        printf("\n");
-    }
-#endif
-
-    /* Overwrite the lvPrefReg field */
-
-    lvPrefReg = (regMaskSmall)regMask;
-}
-
-/*****************************************************************************
- *
- *  Add regMask to the lvPrefReg field
- */
-
-inline void LclVarDsc::addPrefReg(regMaskTP regMask, Compiler* comp)
-{
-    assert(regMask != RBM_NONE);
-
-#ifdef _TARGET_ARM_
-    // Don't set a preferred register for a TYP_STRUCT that takes more than one register slot
-    if ((lvType == TYP_STRUCT) && (lvSize() > REGSIZE_BYTES))
-        return;
-#endif
-
-    /* Only interested if we have a new register bit set */
-    if (lvPrefReg & regMask)
-    {
-        return;
-    }
-
-#ifdef DEBUG
-    if (comp->verbose)
-    {
-        if (lvPrefReg)
-        {
-            printf("Additional preferred register for V%02u from ", this - comp->lvaTable);
-            dspRegMask(lvPrefReg);
-        }
-        else
-        {
-            printf("Set preferred register for V%02u", this - comp->lvaTable);
-        }
-        printf(" to ");
-        dspRegMask(lvPrefReg | regMask);
-        printf("\n");
-    }
-#endif
-
-    /* Update the lvPrefReg field */
-
-    lvPrefReg |= regMask;
 }
 
 /*****************************************************************************
@@ -3598,38 +3400,28 @@ inline void Compiler::LoopDsc::VERIFY_lpIterTree()
 #ifdef DEBUG
     assert(lpFlags & LPFLG_ITER);
 
-    // iterTree should be "lcl <op>= const"
+    // iterTree should be "lcl ASG lcl <op> const"
 
-    assert(lpIterTree);
+    assert(lpIterTree->OperIs(GT_ASG));
 
-    assert(lpIterTree->OperIsAssignment());
+    GenTree* lhs = lpIterTree->gtOp.gtOp1;
+    GenTree* rhs = lpIterTree->gtOp.gtOp2;
+    assert(lhs->OperGet() == GT_LCL_VAR);
 
-    if (lpIterTree->OperGet() == GT_ASG)
+    switch (rhs->gtOper)
     {
-        GenTree* lhs = lpIterTree->gtOp.gtOp1;
-        GenTree* rhs = lpIterTree->gtOp.gtOp2;
-        assert(lhs->OperGet() == GT_LCL_VAR);
-
-        switch (rhs->gtOper)
-        {
-            case GT_ADD:
-            case GT_SUB:
-            case GT_MUL:
-            case GT_RSH:
-            case GT_LSH:
-                break;
-            default:
-                assert(!"Unknown operator for loop increment");
-        }
-        assert(rhs->gtOp.gtOp1->OperGet() == GT_LCL_VAR);
-        assert(rhs->gtOp.gtOp1->AsLclVarCommon()->GetLclNum() == lhs->AsLclVarCommon()->GetLclNum());
-        assert(rhs->gtOp.gtOp2->OperGet() == GT_CNS_INT);
+        case GT_ADD:
+        case GT_SUB:
+        case GT_MUL:
+        case GT_RSH:
+        case GT_LSH:
+            break;
+        default:
+            assert(!"Unknown operator for loop increment");
     }
-    else
-    {
-        assert(lpIterTree->gtOp.gtOp1->OperGet() == GT_LCL_VAR);
-        assert(lpIterTree->gtOp.gtOp2->OperGet() == GT_CNS_INT);
-    }
+    assert(rhs->gtOp.gtOp1->OperGet() == GT_LCL_VAR);
+    assert(rhs->gtOp.gtOp1->AsLclVarCommon()->GetLclNum() == lhs->AsLclVarCommon()->GetLclNum());
+    assert(rhs->gtOp.gtOp2->OperGet() == GT_CNS_INT);
 #endif
 }
 
@@ -3646,15 +3438,8 @@ inline unsigned Compiler::LoopDsc::lpIterVar()
 inline int Compiler::LoopDsc::lpIterConst()
 {
     VERIFY_lpIterTree();
-    if (lpIterTree->OperGet() == GT_ASG)
-    {
-        GenTree* rhs = lpIterTree->gtOp.gtOp2;
-        return (int)rhs->gtOp.gtOp2->gtIntCon.gtIconVal;
-    }
-    else
-    {
-        return (int)lpIterTree->gtOp.gtOp2->gtIntCon.gtIconVal;
-    }
+    GenTree* rhs = lpIterTree->gtOp.gtOp2;
+    return (int)rhs->gtOp.gtOp2->gtIntCon.gtIconVal;
 }
 
 //-----------------------------------------------------------------------------
@@ -3662,15 +3447,8 @@ inline int Compiler::LoopDsc::lpIterConst()
 inline genTreeOps Compiler::LoopDsc::lpIterOper()
 {
     VERIFY_lpIterTree();
-    if (lpIterTree->OperGet() == GT_ASG)
-    {
-        GenTree* rhs = lpIterTree->gtOp.gtOp2;
-        return rhs->OperGet();
-    }
-    else
-    {
-        return lpIterTree->OperGet();
-    }
+    GenTree* rhs = lpIterTree->gtOp.gtOp2;
+    return rhs->OperGet();
 }
 
 inline var_types Compiler::LoopDsc::lpIterOperType()
@@ -3832,34 +3610,6 @@ inline bool Compiler::optIsVarAssgLoop(unsigned lnum, unsigned var)
     {
         return optIsVarAssigned(optLoopTable[lnum].lpHead->bbNext, optLoopTable[lnum].lpBottom, nullptr, var);
     }
-}
-
-/*****************************************************************************
- * If the tree is a tracked local variable, return its LclVarDsc ptr.
- */
-
-inline LclVarDsc* Compiler::optIsTrackedLocal(GenTree* tree)
-{
-    LclVarDsc* varDsc;
-    unsigned   lclNum;
-
-    if (tree->gtOper != GT_LCL_VAR)
-    {
-        return nullptr;
-    }
-
-    lclNum = tree->gtLclVarCommon.gtLclNum;
-
-    assert(lclNum < lvaCount);
-    varDsc = lvaTable + lclNum;
-
-    /* if variable not tracked, return NULL */
-    if (!varDsc->lvTracked)
-    {
-        return nullptr;
-    }
-
-    return varDsc;
 }
 
 /*
@@ -4468,48 +4218,6 @@ bool Compiler::fgStructTempNeedsExplicitZeroInit(LclVarDsc* varDsc, BasicBlock* 
 }
 
 /*****************************************************************************/
-bool Compiler::fgExcludeFromSsa(unsigned lclNum)
-{
-    if (opts.MinOpts())
-    {
-        return true; // If we're doing MinOpts, no SSA vars.
-    }
-
-    LclVarDsc* varDsc = &lvaTable[lclNum];
-
-    if (varDsc->lvAddrExposed)
-    {
-        return true; // We exclude address-exposed variables.
-    }
-    if (!varDsc->lvTracked)
-    {
-        return true; // SSA is only done for tracked variables
-    }
-    // lvPromoted structs are never tracked...
-    assert(!varDsc->lvPromoted);
-
-    if (varDsc->lvOverlappingFields)
-    {
-        return true; // Don't use SSA on structs that have overlapping fields
-    }
-
-    if (varDsc->lvIsStructField && (lvaGetParentPromotionType(lclNum) != PROMOTION_TYPE_INDEPENDENT))
-    {
-        // SSA must exclude struct fields that are not independent
-        // - because we don't model the struct assignment properly when multiple fields can be assigned by one struct
-        //   assignment.
-        // - SSA doesn't allow a single node to contain multiple SSA definitions.
-        // - and PROMOTION_TYPE_DEPENDEDNT fields  are never candidates for a register.
-        //
-        // Example mscorlib method: CompatibilitySwitches:IsCompatibilitySwitchSet
-        //
-        return true;
-    }
-    // otherwise this variable is *not* excluded for SSA
-    return false;
-}
-
-/*****************************************************************************/
 ValueNum Compiler::GetUseAsgDefVNOrTreeVN(GenTree* op)
 {
     if (op->gtFlags & GTF_VAR_USEASG)
@@ -4528,14 +4236,14 @@ ValueNum Compiler::GetUseAsgDefVNOrTreeVN(GenTree* op)
 unsigned Compiler::GetSsaNumForLocalVarDef(GenTree* lcl)
 {
     // Address-taken variables don't have SSA numbers.
-    if (fgExcludeFromSsa(lcl->AsLclVarCommon()->gtLclNum))
+    if (!lvaInSsa(lcl->AsLclVarCommon()->gtLclNum))
     {
         return SsaConfig::RESERVED_SSA_NUM;
     }
 
     if (lcl->gtFlags & GTF_VAR_USEASG)
     {
-        // It's an "lcl op= rhs" assignment.  "lcl" is both used and defined here;
+        // It's partial definition of a struct. "lcl" is both used and defined here;
         // we've chosen in this case to annotate "lcl" with the SSA number (and VN) of the use,
         // and to store the SSA number of the def in a side table.
         unsigned ssaNum;
@@ -4945,6 +4653,154 @@ inline void DEBUG_DESTROY_NODE(GenTree* tree)
     // Don't call SetOper, because GT_COUNT is not a valid value
     tree->gtOper = GT_COUNT;
 #endif
+}
+
+//------------------------------------------------------------------------------
+// lvRefCnt: access reference count for this local var
+//
+// Arguments:
+//    state: the requestor's expected ref count state; defaults to RCS_NORMAL
+//
+// Return Value:
+//    Ref count for the local.
+
+inline unsigned short LclVarDsc::lvRefCnt(RefCountState state) const
+{
+
+#if defined(DEBUG)
+    assert(state != RCS_INVALID);
+    Compiler* compiler = JitTls::GetCompiler();
+    assert(compiler->lvaRefCountState == state);
+#endif
+
+    if (lvImplicitlyReferenced && (m_lvRefCnt == 0))
+    {
+        return 1;
+    }
+
+    return m_lvRefCnt;
+}
+
+//------------------------------------------------------------------------------
+// incLvRefCnt: increment reference count for this local var
+//
+// Arguments:
+//    delta: the amount of the increment
+//    state: the requestor's expected ref count state; defaults to RCS_NORMAL
+//
+// Notes:
+//    It is currently the caller's responsibilty to ensure this increment
+//    will not cause overflow.
+
+inline void LclVarDsc::incLvRefCnt(unsigned short delta, RefCountState state)
+{
+
+#if defined(DEBUG)
+    assert(state != RCS_INVALID);
+    Compiler* compiler = JitTls::GetCompiler();
+    assert(compiler->lvaRefCountState == state);
+#endif
+
+    unsigned short oldRefCnt = m_lvRefCnt;
+    m_lvRefCnt += delta;
+    assert(m_lvRefCnt >= oldRefCnt);
+}
+
+//------------------------------------------------------------------------------
+// setLvRefCnt: set the reference count for this local var
+//
+// Arguments:
+//    newValue: the desired new reference count
+//    state: the requestor's expected ref count state; defaults to RCS_NORMAL
+//
+// Notes:
+//    Generally after calling v->setLvRefCnt(Y), v->lvRefCnt() == Y.
+//    However this may not be true when v->lvImplicitlyReferenced == 1.
+
+inline void LclVarDsc::setLvRefCnt(unsigned short newValue, RefCountState state)
+{
+
+#if defined(DEBUG)
+    assert(state != RCS_INVALID);
+    Compiler* compiler = JitTls::GetCompiler();
+    assert(compiler->lvaRefCountState == state);
+#endif
+
+    m_lvRefCnt = newValue;
+}
+
+//------------------------------------------------------------------------------
+// lvRefCntWtd: access wighted reference count for this local var
+//
+// Arguments:
+//    state: the requestor's expected ref count state; defaults to RCS_NORMAL
+//
+// Return Value:
+//    Weighted ref count for the local.
+
+inline BasicBlock::weight_t LclVarDsc::lvRefCntWtd(RefCountState state) const
+{
+
+#if defined(DEBUG)
+    assert(state != RCS_INVALID);
+    Compiler* compiler = JitTls::GetCompiler();
+    assert(compiler->lvaRefCountState == state);
+#endif
+
+    if (lvImplicitlyReferenced && (m_lvRefCntWtd == 0))
+    {
+        return BB_UNITY_WEIGHT;
+    }
+
+    return m_lvRefCntWtd;
+}
+
+//------------------------------------------------------------------------------
+// incLvRefCntWtd: increment weighted reference count for this local var
+//
+// Arguments:
+//    delta: the amount of the increment
+//    state: the requestor's expected ref count state; defaults to RCS_NORMAL
+//
+// Notes:
+//    It is currently the caller's responsibilty to ensure this increment
+//    will not cause overflow.
+
+inline void LclVarDsc::incLvRefCntWtd(BasicBlock::weight_t delta, RefCountState state)
+{
+
+#if defined(DEBUG)
+    assert(state != RCS_INVALID);
+    Compiler* compiler = JitTls::GetCompiler();
+    assert(compiler->lvaRefCountState == state);
+#endif
+
+    BasicBlock::weight_t oldRefCntWtd = m_lvRefCntWtd;
+    m_lvRefCntWtd += delta;
+    assert(m_lvRefCntWtd >= oldRefCntWtd);
+}
+
+//------------------------------------------------------------------------------
+// setLvRefCntWtd: set the weighted reference count for this local var
+//
+// Arguments:
+//    newValue: the desired new weighted reference count
+//    state: the requestor's expected ref count state; defaults to RCS_NORMAL
+//
+// Notes:
+//    Generally after calling v->setLvRefCntWtd(Y), v->lvRefCntWtd() == Y.
+//    However this may not be true when v->lvImplicitlyReferenced == 1.
+
+inline void LclVarDsc::setLvRefCntWtd(BasicBlock::weight_t newValue, RefCountState state)
+{
+
+#if defined(DEBUG)
+    assert(state != RCS_INVALID);
+    Compiler* compiler = JitTls::GetCompiler();
+    assert(compiler->lvaRefCountState == state);
+#endif
+
+    m_lvRefCntWtd = newValue;
 }
 
 /*****************************************************************************/

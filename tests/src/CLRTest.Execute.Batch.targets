@@ -76,13 +76,19 @@ IF NOT "%COMPlus_GCStress%"=="" (
   Exit /b 0
 )
       ]]></BatchCLRTestEnvironmentCompatibilityCheck>
-      <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'"><![CDATA[
+      <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'">
+    <![CDATA[
 $(BatchCLRTestEnvironmentCompatibilityCheck)
-IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMinOpts%"=="" IF "%COMPlus_TailcallStress%"=="" IF "%COMPlus_EXPERIMENTAL_TieredCompilation%"=="" IF "%COMPlus_TieredCompilation%"=="" goto :Compatible1
-  ECHO SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress, COMPlus_EXPERIMENTAL_TieredCompilation, COMPlus_TieredCompilation) IS SET
+IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMinOpts%"=="" IF "%COMPlus_TailcallStress%"=="" IF "%COMPlus_TieredCompilation%"=="" goto :Compatible1
+  ECHO SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress, COMPlus_TieredCompilation) IS SET
   popd
   Exit /b 0
 :Compatible1
+IF "%COMPlus_TieredCompilation%"=="0" goto :Compatible2
+  ECHO SKIPPING EXECUTION BECAUSE COMPlus_TieredCompilation has not been disabled and this test is marked JitOptimizationSensitive
+  popd
+  Exit /b 0
+:Compatible2
       ]]></BatchCLRTestEnvironmentCompatibilityCheck>
       <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(HeapVerifyIncompatible)' == 'true'"><![CDATA[
 $(BatchCLRTestEnvironmentCompatibilityCheck)
@@ -247,6 +253,11 @@ if defined DoLink (
       </PropertyGroup>
       <PropertyGroup>      
       <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"%CORE_ROOT%\corerun.exe"</_CLRTestRunFile>
+      <BatchCopyCoreShimLocalCmds Condition="'$(CLRTestScriptLocalCoreShim)' == 'true'"><![CDATA[
+REM Local CoreShim requested - see MSBuild property 'CLRTestScriptLocalCoreShim'
+ECHO Copying '%CORE_ROOT%\CoreShim.dll'...
+COPY /y %CORE_ROOT%\CoreShim.dll .
+      ]]></BatchCopyCoreShimLocalCmds>
       <BatchCLRTestLaunchCmds><![CDATA[
 IF NOT "%CLRCustomTestLauncher%"=="" (
   set LAUNCHER=call %CLRCustomTestLauncher% %~dp0
@@ -254,6 +265,7 @@ IF NOT "%CLRCustomTestLauncher%"=="" (
   set LAUNCHER=%_DebuggerFullPath% $(_CLRTestRunFile)
 )
 $(BatchIlrtTestLaunchCmds)
+$(BatchCopyCoreShimLocalCmds)
       ]]></BatchCLRTestLaunchCmds>
       <BatchCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'">
     <![CDATA[
@@ -299,11 +311,6 @@ set CLRTestExitCode=!ERRORLEVEL!
     <!-- Raise an error if any value in _RequiredProperties is missing  -->
     <Error Condition=" '%(_RequiredProperties.Value)'=='' "
       Text="Missing required test property [%(_RequiredProperties.Identity)]. Something isn't plumbed through correctly.  Contact $(_CLRTestBuildSystemOwner)." />
-      <!-- TODO: this is weird.  Consider eliminating it. -->
-    <GenerateParamList ArgumentItems="@(BatchCLRTestExecutionScriptArgument)">
-      <Output TaskParameter="ParamList" PropertyName="_CLRTestParamList"/>
-    </GenerateParamList>
-    
     <PropertyGroup>
       <!--
       This generates the script portion to parse all of the command line arguments.
@@ -339,7 +346,7 @@ goto ArgsDone
 
 :USAGE
 ECHO.Usage
-ECHO %0 $(_CLRTestParamList)
+ECHO %0 @(BatchCLRTestExecutionScriptArgument -> '[-%(Identity) %(ParamName)]', ' ')
 ECHO.
 ECHO                         - OPTIONS -
 @(BatchCLRTestExecutionScriptArgument -> 'ECHO -%(Identity) %(ParamName)

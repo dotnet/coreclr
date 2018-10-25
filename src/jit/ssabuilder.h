@@ -24,6 +24,8 @@ private:
         m_pCompiler->EndPhase(phase);
     }
 
+    bool IncludeInSsa(unsigned lclNum);
+
 public:
     // Constructor
     SsaBuilder(Compiler* pCompiler);
@@ -131,10 +133,6 @@ private:
     // Requires "block" to be non-NULL.  Requires "pRenameState" to be non-NULL and be currently used
     // for variables renaming. Assigns the rhs arguments to the phi, i.e., block's phi node arguments.
     void AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pRenameState);
-
-    // Requires "tree" to be a local variable node. Maintains a map of <lclNum, ssaNum> -> tree
-    // information in m_defs.
-    void AddDefPoint(GenTree* tree, BasicBlock* blk);
 
 #ifdef DEBUG
     void Print(BasicBlock** postOrder, int count);

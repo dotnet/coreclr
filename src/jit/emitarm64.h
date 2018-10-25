@@ -16,12 +16,6 @@ static bool strictArmAsm;
 /*         Routines that compute the size of / encode instructions      */
 /************************************************************************/
 
-struct CnsVal
-{
-    ssize_t cnsVal;
-    bool    cnsReloc;
-};
-
 #ifdef DEBUG
 
 /************************************************************************/
@@ -32,7 +26,6 @@ const char* emitFPregName(unsigned reg, bool varName = true);
 const char* emitVectorRegName(regNumber reg);
 
 void emitDispInst(instruction ins);
-void emitDispReloc(int value, bool addComma);
 void emitDispImm(ssize_t imm, bool addComma, bool alwaysHex = false);
 void emitDispFloatZero();
 void emitDispFloatImm(ssize_t imm8);
@@ -823,14 +816,12 @@ void emitIns_Call(EmitCallType          callType,
                   VARSET_VALARG_TP ptrVars,
                   regMaskTP        gcrefRegs,
                   regMaskTP        byrefRegs,
-                  IL_OFFSETX       ilOffset      = BAD_IL_OFFSET,
-                  regNumber        ireg          = REG_NA,
-                  regNumber        xreg          = REG_NA,
-                  unsigned         xmul          = 0,
-                  ssize_t          disp          = 0,
-                  bool             isJump        = false,
-                  bool             isNoGC        = false,
-                  bool             isProfLeaveCB = false);
+                  IL_OFFSETX       ilOffset = BAD_IL_OFFSET,
+                  regNumber        ireg     = REG_NA,
+                  regNumber        xreg     = REG_NA,
+                  unsigned         xmul     = 0,
+                  ssize_t          disp     = 0,
+                  bool             isJump   = false);
 
 BYTE* emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i);
 unsigned emitOutputCall(insGroup* ig, BYTE* dst, instrDesc* i, code_t code);

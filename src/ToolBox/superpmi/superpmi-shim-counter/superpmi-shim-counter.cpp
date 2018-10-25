@@ -17,12 +17,13 @@
 #include "spmiutil.h"
 #include "jithost.h"
 
-HMODULE g_hRealJit           = 0;       // We leak this currently (could do the proper shutdown in process_detach)
-WCHAR*  g_realJitPath        = nullptr; // We leak this (could do the proper shutdown in process_detach)
-WCHAR*  g_logPath            = nullptr; // Again, we leak this one too...
-char*   g_logFilePath        = nullptr; // We *don't* leak this, hooray!
-WCHAR*  g_HomeDirectory      = nullptr;
-WCHAR*  g_DefaultRealJitPath = nullptr;
+HMODULE               g_hRealJit      = 0; // We leak this currently (could do the proper shutdown in process_detach)
+WCHAR*                g_realJitPath   = nullptr; // We leak this (could do the proper shutdown in process_detach)
+WCHAR*                g_logPath       = nullptr; // Again, we leak this one too...
+char*                 g_logFilePath   = nullptr; // We *don't* leak this, hooray!
+WCHAR*                g_HomeDirectory = nullptr;
+WCHAR*                g_DefaultRealJitPath = nullptr;
+MethodCallSummarizer* g_globalContext      = nullptr;
 
 void SetDefaultPaths()
 {
@@ -95,6 +96,11 @@ extern "C" BOOL
             delete[] g_logFilePath;
             g_logFilePath = nullptr;
 
+            if (g_globalContext != nullptr)
+            {
+                g_globalContext->SaveTextFile();
+            }
+
             break;
 
         case DLL_THREAD_ATTACH:
@@ -110,15 +116,9 @@ extern "C" void __stdcall jitStartup(ICorJitHost* host)
     SetDefaultPaths();
     SetLibName();
 
-    // Load Library
-    if (g_hRealJit == 0)
+    if (!LoadRealJitLib(g_hRealJit, g_realJitPath))
     {
-        g_hRealJit = ::LoadLibraryW(g_realJitPath);
-        if (g_hRealJit == 0)
-        {
-            LogError("jitStartup - LoadLibrary failed to load '%ws' (0x%08x)", g_realJitPath, ::GetLastError());
-            return;
-        }
+        return;
     }
 
     // Get the required entrypoint
@@ -131,6 +131,15 @@ extern "C" void __stdcall jitStartup(ICorJitHost* host)
     }
 
     g_ourJitHost = new JitHost(host);
+
+    if (g_globalContext == nullptr)
+    {
+        SetLogPath();
+        g_globalContext = new MethodCallSummarizer(g_logPath);
+    }
+
+    g_ourJitHost->setMethodCallSummarizer(g_globalContext);
+
     pnjitStartup(g_ourJitHost);
 }
 
@@ -144,17 +153,10 @@ extern "C" ICorJitCompiler* __stdcall getJit()
 
     SetDefaultPaths();
     SetLibName();
-    SetLogPath();
 
-    // Load Library
-    if (g_hRealJit == 0)
+    if (!LoadRealJitLib(g_hRealJit, g_realJitPath))
     {
-        g_hRealJit = ::LoadLibraryW(g_realJitPath);
-        if (g_hRealJit == 0)
-        {
-            LogError("getJit() - LoadLibrary failed to load '%ws' (0x%08x)", g_realJitPath, ::GetLastError());
-            return nullptr;
-        }
+        return nullptr;
     }
 
     // get the required entrypoints
@@ -174,11 +176,13 @@ extern "C" ICorJitCompiler* __stdcall getJit()
 
     pJitInstance                           = new interceptor_ICJC();
     pJitInstance->original_ICorJitCompiler = tICJI;
-    pJitInstance->mcs                      = new MethodCallSummarizer(g_logPath);
-    if (g_ourJitHost != nullptr)
+
+    if (g_globalContext == nullptr)
     {
-        g_ourJitHost->setMethodCallSummarizer(pJitInstance->mcs);
+        SetLogPath();
+        g_globalContext = new MethodCallSummarizer(g_logPath);
     }
+    pJitInstance->mcs = g_globalContext;
     return pJitInstance;
 }
 
@@ -190,15 +194,9 @@ extern "C" void __stdcall sxsJitStartup(CoreClrCallbacks const& original_cccallb
     SetDefaultPaths();
     SetLibName();
 
-    // Load Library
-    if (g_hRealJit == 0)
+    if (!LoadRealJitLib(g_hRealJit, g_realJitPath))
     {
-        g_hRealJit = ::LoadLibraryW(g_realJitPath);
-        if (g_hRealJit == 0)
-        {
-            LogError("sxsJitStartup() - LoadLibrary failed to load '%ws' (0x%08x)", g_realJitPath, ::GetLastError());
-            return;
-        }
+        return;
     }
 
     // get entry point

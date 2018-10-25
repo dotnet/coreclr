@@ -346,7 +346,7 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
 #endif // !_TARGET_64BIT_
         
         AssemblySpec spec;
-        spec.InitializeSpec(TokenFromRid(1, mdtAssembly), pImage->GetMDImport(), NULL, FALSE);
+        spec.InitializeSpec(TokenFromRid(1, mdtAssembly), pImage->GetMDImport(), NULL);
 
         if (spec.IsMscorlib())
         {
@@ -403,7 +403,7 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                     // that IL assemblies will be available.
                     fExplicitBindToNativeImage
                     );
-                pAssemblyHolder = PEAssembly::Open(&bindResult,FALSE,FALSE);
+                pAssemblyHolder = PEAssembly::Open(&bindResult,FALSE);
             }
 
             // Now load assembly into domain.
@@ -477,7 +477,7 @@ HRESULT CEECompileInfo::LoadTypeRefWinRT(
                 LPCSTR pszname;
                 pAssemblyImport->GetNameOfTypeRef(ref, &psznamespace, &pszname);
                 AssemblySpec spec;
-                spec.InitializeSpec(tkResolutionScope, pAssemblyImport, NULL, FALSE);
+                spec.InitializeSpec(tkResolutionScope, pAssemblyImport, NULL);
                 spec.SetWindowsRuntimeType(psznamespace, pszname);
                 
                 _ASSERTE(spec.HasBindableIdentity());
@@ -1314,27 +1314,6 @@ BOOL CEEPreloader::CanEmbedFunctionEntryPoint(
     STANDARD_VM_CONTRACT;
 
     MethodDesc * pMethod = GetMethod(methodHandle);
-    MethodDesc * pContext = GetMethod(contextHandle);
-
-    // IsRemotingInterceptedViaVirtualDispatch is a rather special case.
-    //
-    // Other remoting intercepts are implemented by one of:
-    //  (1) in DoPrestub (for non-virtual calls)
-    //  (2) by transparent proxy vtables, where all the entries in the vtable
-    //      go to the same code.
-    //
-    // However when calling virtual functions non-virtually the JIT interface
-    // pointer to the code for the function in a stub 
-    // (see GetNonVirtualEntryPointForVirtualMethod).  
-    // Thus we cannot embed non-virtual calls to these functions because we 
-    // don't save these stubs.  Unlike most other remoting stubs these ones 
-    // are NOT inserted by DoPrestub.
-    //
-    if (((accessFlags & CORINFO_ACCESS_THIS) == 0) &&
-        (pMethod->IsRemotingInterceptedViaVirtualDispatch()))
-    {
-        return FALSE;
-    }
 
     // Methods with native callable attribute are special , since 
     // they are used as LDFTN targets.Native Callable methods
@@ -4499,7 +4478,7 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
     {
         pModule = moduleIterator.GetModule();
 
-        if (pModule->HasNativeImage() || pModule->IsReadyToRun())
+        if (pModule->HasNativeOrReadyToRunImage())
         {
 #if !defined(NO_NGENPDB)
             IfFailThrow(pdbWriter.WritePDBDataForModule(pModule));
@@ -6980,11 +6959,6 @@ void CompilationDomain::Init()
 #endif
 
     SetCompilationDomain();
-
-
-#ifdef _DEBUG 
-    g_pConfig->DisableGenerateStubForHost();
-#endif
 }
 
 HRESULT CompilationDomain::AddDependencyEntry(PEAssembly *pFile,
@@ -7297,7 +7271,6 @@ void ReportMissingDependency(Exception * e)
 PEAssembly *CompilationDomain::BindAssemblySpec(
     AssemblySpec *pSpec,
     BOOL fThrowOnFileNotFound,
-    BOOL fRaisePrebindEvents,
     StackCrawlMark *pCallerStackMark,
     BOOL fUseHostBinderIfAvailable)
 {
@@ -7315,7 +7288,6 @@ PEAssembly *CompilationDomain::BindAssemblySpec(
         pFile = AppDomain::BindAssemblySpec(
             pSpec,
             fThrowOnFileNotFound,
-            fRaisePrebindEvents,
             pCallerStackMark,
             fUseHostBinderIfAvailable);
     }

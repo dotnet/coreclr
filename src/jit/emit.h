@@ -1241,18 +1241,18 @@ protected:
 
     struct instrDescCns : instrDesc // large const
     {
-        ssize_t idcCnsVal;
+        target_ssize_t idcCnsVal;
     };
 
     struct instrDescDsp : instrDesc // large displacement
     {
-        ssize_t iddDspVal;
+        target_ssize_t iddDspVal;
     };
 
     struct instrDescCnsDsp : instrDesc // large cons + disp
     {
-        ssize_t iddcCnsVal;
-        int     iddcDspVal;
+        target_ssize_t iddcCnsVal;
+        int            iddcDspVal;
     };
 
 #ifdef _TARGET_XARCH_
@@ -1301,6 +1301,17 @@ protected:
 #endif                                     // MULTIREG_HAS_SECOND_GC_RET
     };
 
+#ifdef _TARGET_ARM_
+
+    struct instrDescReloc : instrDesc
+    {
+        BYTE* idrRelocVal;
+    };
+
+    BYTE* emitGetInsRelocValue(instrDesc* id);
+
+#endif // _TARGET_ARM_
+
     insUpdateModes emitInsUpdateMode(instruction ins);
     insFormat emitInsModeFormat(instruction ins, insFormat base);
 
@@ -1326,7 +1337,7 @@ protected:
 
 #endif // _TARGET_XARCH_
 
-    ssize_t emitGetInsSC(instrDesc* id);
+    target_ssize_t emitGetInsSC(instrDesc* id);
     unsigned emitInsCount;
 
 /************************************************************************/
@@ -1431,7 +1442,6 @@ public:
 
 #ifdef TRANSLATE_PDB
 
-    inline void SetIDSource(instrDesc* pID);
     void MapCode(int ilOffset, BYTE* imgDest);
     void MapFunc(int                imgOff,
                  int                procLen,
@@ -1813,10 +1823,13 @@ private:
 
     instrDesc* emitNewInstrSmall(emitAttr attr);
     instrDesc* emitNewInstr(emitAttr attr = EA_4BYTE);
-    instrDesc* emitNewInstrSC(emitAttr attr, ssize_t cns);
-    instrDesc* emitNewInstrCns(emitAttr attr, ssize_t cns);
-    instrDesc* emitNewInstrDsp(emitAttr attr, ssize_t dsp);
-    instrDesc* emitNewInstrCnsDsp(emitAttr attr, ssize_t cns, int dsp);
+    instrDesc* emitNewInstrSC(emitAttr attr, target_ssize_t cns);
+    instrDesc* emitNewInstrCns(emitAttr attr, target_ssize_t cns);
+    instrDesc* emitNewInstrDsp(emitAttr attr, target_ssize_t dsp);
+    instrDesc* emitNewInstrCnsDsp(emitAttr attr, target_ssize_t cns, int dsp);
+#ifdef _TARGET_ARM_
+    instrDesc* emitNewInstrReloc(emitAttr attr, BYTE* addr);
+#endif // _TARGET_ARM_
     instrDescJmp* emitNewInstrJmp();
 
 #if !defined(_TARGET_ARM64_)
@@ -1863,10 +1876,6 @@ public:
     static emitJumpKind emitInsToJumpKind(instruction ins);
     static emitJumpKind emitReverseJumpKind(emitJumpKind jumpKind);
 
-#ifdef _TARGET_ARM_
-    static unsigned emitJumpKindCondCode(emitJumpKind jumpKind);
-#endif
-
 #ifdef DEBUG
     void emitInsSanityCheck(instrDesc* id);
 #endif
@@ -1895,7 +1904,8 @@ public:
     /*    The following is used to distinguish helper vs non-helper calls   */
     /************************************************************************/
 
-    static bool emitNoGChelper(unsigned IHX);
+    static bool emitNoGChelper(CorInfoHelpFunc helpFunc);
+    static bool emitNoGChelper(CORINFO_METHOD_HANDLE methHnd);
 
     /************************************************************************/
     /*         The following logic keeps track of live GC ref values        */
@@ -1904,6 +1914,8 @@ public:
     bool emitFullArgInfo; // full arg info (including non-ptr arg)?
     bool emitFullGCinfo;  // full GC pointer maps?
     bool emitFullyInt;    // fully interruptible code?
+
+    regMaskTP emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd);
 
 #if EMIT_TRACK_STACK_DEPTH
     unsigned emitCntStackDepth; // 0 in prolog/epilog, One DWORD elsewhere
@@ -1957,7 +1969,6 @@ public:
 
     /* Liveness of stack variables, and registers */
 
-    void emitUpdateLiveGCvars(int offs, BYTE* addr, bool birth);
     void emitUpdateLiveGCvars(VARSET_VALARG_TP vars, BYTE* addr);
     void emitUpdateLiveGCregs(GCtype gcType, regMaskTP regs, BYTE* addr);
 
@@ -2287,7 +2298,7 @@ inline emitter::instrDescLbl* emitter::emitNewInstrLbl()
 }
 #endif // !_TARGET_ARM64_
 
-inline emitter::instrDesc* emitter::emitNewInstrDsp(emitAttr attr, ssize_t dsp)
+inline emitter::instrDesc* emitter::emitNewInstrDsp(emitAttr attr, target_ssize_t dsp)
 {
     if (dsp == 0)
     {
@@ -2322,7 +2333,7 @@ inline emitter::instrDesc* emitter::emitNewInstrDsp(emitAttr attr, ssize_t dsp)
  *  Note that this very similar to emitter::emitNewInstrSC(), except it never
  *  allocates a small descriptor.
  */
-inline emitter::instrDesc* emitter::emitNewInstrCns(emitAttr attr, ssize_t cns)
+inline emitter::instrDesc* emitter::emitNewInstrCns(emitAttr attr, target_ssize_t cns)
 {
     if (instrDesc::fitsInSmallCns(cns))
     {
@@ -2385,7 +2396,7 @@ inline size_t emitter::emitGetInstrDescSize(const instrDesc* id)
  *  emitNewInstrCns() always allocates at least sizeof(instrDesc).
  */
 
-inline emitter::instrDesc* emitter::emitNewInstrSC(emitAttr attr, ssize_t cns)
+inline emitter::instrDesc* emitter::emitNewInstrSC(emitAttr attr, target_ssize_t cns)
 {
     instrDesc* id;
 
@@ -2427,6 +2438,22 @@ inline size_t emitter::emitGetInstrDescSizeSC(const instrDesc* id)
         return sizeof(instrDesc);
     }
 }
+
+#ifdef _TARGET_ARM_
+
+inline emitter::instrDesc* emitter::emitNewInstrReloc(emitAttr attr, BYTE* addr)
+{
+    assert(EA_IS_RELOC(attr));
+
+    instrDescReloc* id = (instrDescReloc*)emitAllocInstr(sizeof(instrDescReloc), attr);
+    assert(id->idIsReloc());
+
+    id->idrRelocVal = addr;
+
+    return id;
+}
+
+#endif // _TARGET_ARM_
 
 #ifdef _TARGET_XARCH_
 

@@ -124,7 +124,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
         case GT_SUB:
         case GT_MUL:
             genConsumeOperands(treeNode->AsOp());
-            genCodeForBinary(treeNode);
+            genCodeForBinary(treeNode->AsOp());
             break;
 
         case GT_LSH:
@@ -1573,7 +1573,7 @@ void CodeGen::genCodeForShift(GenTree* tree)
     else
     {
         unsigned immWidth   = emitter::getBitWidth(size); // For ARM64, immWidth will be set to 32 or 64
-        ssize_t  shiftByImm = shiftBy->gtIntCon.gtIconVal & (immWidth - 1);
+        unsigned shiftByImm = (unsigned)shiftBy->gtIntCon.gtIconVal & (immWidth - 1);
 
         getEmitter()->emitIns_R_R_I(ins, size, tree->gtRegNum, operand->gtRegNum, shiftByImm);
     }
@@ -2059,55 +2059,86 @@ void CodeGen::genCodeForStoreOffset(instruction ins, emitAttr size, regNumber sr
 }
 
 //------------------------------------------------------------------------
-// genRegCopy: Generate a register copy.
+// genRegCopy: Produce code for a GT_COPY node.
+//
+// Arguments:
+//    tree - the GT_COPY node
+//
+// Notes:
+//    This will copy the register(s) produced by this node's source, to
+//    the register(s) allocated to this GT_COPY node.
+//    It has some special handling for these cases:
+//    - when the source and target registers are in different register files
+//      (note that this is *not* a conversion).
+//    - when the source is a lclVar whose home location is being moved to a new
+//      register (rather than just being copied for temporary use).
 //
 void CodeGen::genRegCopy(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_COPY);
-
-    var_types targetType = treeNode->TypeGet();
-    regNumber targetReg  = treeNode->gtRegNum;
-    assert(targetReg != REG_NA);
-
     GenTree* op1 = treeNode->gtOp.gtOp1;
 
-    // Check whether this node and the node from which we're copying the value have the same
-    // register type.
-    // This can happen if (currently iff) we have a SIMD vector type that fits in an integer
-    // register, in which case it is passed as an argument, or returned from a call,
-    // in an integer register and must be copied if it's in an xmm register.
+    regNumber sourceReg = genConsumeReg(op1);
 
-    if (varTypeIsFloating(treeNode) != varTypeIsFloating(op1))
+    if (op1->IsMultiRegNode())
     {
-#ifdef _TARGET_ARM64_
-        inst_RV_RV(INS_fmov, targetReg, genConsumeReg(op1), targetType);
-#else  // !_TARGET_ARM64_
-        if (varTypeIsFloating(treeNode))
+        noway_assert(!op1->IsCopyOrReload());
+        unsigned regCount = op1->GetMultiRegCount();
+        for (unsigned i = 0; i < regCount; i++)
         {
-            // GT_COPY from 'int' to 'float' currently can't happen. Maybe if ARM SIMD is implemented
-            // it will happen, according to the comment above?
-            NYI_ARM("genRegCopy from 'int' to 'float'");
+            regNumber srcReg  = op1->GetRegByIndex(i);
+            regNumber tgtReg  = treeNode->AsCopyOrReload()->GetRegNumByIdx(i);
+            var_types regType = op1->GetRegTypeByIndex(i);
+            inst_RV_RV(ins_Copy(regType), tgtReg, srcReg, regType);
         }
-        else
-        {
-            assert(varTypeIsFloating(op1));
-
-            if (op1->TypeGet() == TYP_FLOAT)
-            {
-                inst_RV_RV(INS_vmov_f2i, targetReg, genConsumeReg(op1), targetType);
-            }
-            else
-            {
-                regNumber otherReg = (regNumber)treeNode->AsCopyOrReload()->gtOtherRegs[0];
-                assert(otherReg != REG_NA);
-                inst_RV_RV_RV(INS_vmov_d2i, targetReg, otherReg, genConsumeReg(op1), EA_8BYTE);
-            }
-        }
-#endif // !_TARGET_ARM64_
     }
     else
     {
-        inst_RV_RV(ins_Copy(targetType), targetReg, genConsumeReg(op1), targetType);
+        var_types targetType = treeNode->TypeGet();
+        regNumber targetReg  = treeNode->gtRegNum;
+        assert(targetReg != REG_NA);
+        assert(targetType != TYP_STRUCT);
+
+        // Check whether this node and the node from which we're copying the value have the same
+        // register type.
+        // This can happen if (currently iff) we have a SIMD vector type that fits in an integer
+        // register, in which case it is passed as an argument, or returned from a call,
+        // in an integer register and must be copied if it's in a floating point register.
+
+        bool srcFltReg = (varTypeIsFloating(op1) || varTypeIsSIMD(op1));
+        bool tgtFltReg = (varTypeIsFloating(treeNode) || varTypeIsSIMD(treeNode));
+        if (srcFltReg != tgtFltReg)
+        {
+#ifdef _TARGET_ARM64_
+            inst_RV_RV(INS_fmov, targetReg, sourceReg, targetType);
+#else  // !_TARGET_ARM64_
+            if (varTypeIsFloating(treeNode))
+            {
+                // GT_COPY from 'int' to 'float' currently can't happen. Maybe if ARM SIMD is implemented
+                // it will happen, according to the comment above?
+                NYI_ARM("genRegCopy from 'int' to 'float'");
+            }
+            else
+            {
+                assert(varTypeIsFloating(op1));
+
+                if (op1->TypeGet() == TYP_FLOAT)
+                {
+                    inst_RV_RV(INS_vmov_f2i, targetReg, genConsumeReg(op1), targetType);
+                }
+                else
+                {
+                    regNumber otherReg = (regNumber)treeNode->AsCopyOrReload()->gtOtherRegs[0];
+                    assert(otherReg != REG_NA);
+                    inst_RV_RV_RV(INS_vmov_d2i, targetReg, otherReg, genConsumeReg(op1), EA_8BYTE);
+                }
+            }
+#endif // !_TARGET_ARM64_
+        }
+        else
+        {
+            inst_RV_RV(ins_Copy(targetType), targetReg, sourceReg, targetType);
+        }
     }
 
     if (op1->IsLocal())
@@ -2245,7 +2276,8 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #endif // _TARGET_*
     }
 
-    // Either gtControlExpr != null or gtCallAddr != null or it is a direct non-virtual call to a user or helper method.
+    // Either gtControlExpr != null or gtCallAddr != null or it is a direct non-virtual call to a user or helper
+    // method.
     CORINFO_METHOD_HANDLE methHnd;
     GenTree*              target = call->gtControlExpr;
     if (callType == CT_INDIRECT)
@@ -2398,6 +2430,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #if 0 && defined(_TARGET_ARM64_)
         // Use this path if you want to load an absolute call target using 
         //  a sequence of movs followed by an indirect call (blr instruction)
+        // If this path is enabled, we need to ensure that REG_IP0 is assigned during Lowering.
 
         // Load the call target address in x16
         instGen_Set_Reg_To_Imm(EA_8BYTE, REG_IP0, (ssize_t) addr);
@@ -2836,202 +2869,150 @@ void CodeGen::genJmpMethod(GenTree* jmp)
 }
 
 //------------------------------------------------------------------------
-// genIntToIntCast: Generate code for an integer cast
+// genIntCastOverflowCheck: Generate overflow checking code for an integer cast.
 //
 // Arguments:
-//    treeNode - The GT_CAST node
+//    cast - The GT_CAST node
+//    desc - The cast description
+//    reg  - The register containing the value to check
 //
-// Return Value:
-//    None.
+void CodeGen::genIntCastOverflowCheck(GenTreeCast* cast, const GenIntCastDesc& desc, regNumber reg)
+{
+    switch (desc.CheckKind())
+    {
+        case GenIntCastDesc::CHECK_POSITIVE:
+            getEmitter()->emitIns_R_I(INS_cmp, EA_ATTR(desc.CheckSrcSize()), reg, 0);
+            genJumpToThrowHlpBlk(EJ_lt, SCK_OVERFLOW);
+            break;
+
+#ifdef _TARGET_64BIT_
+        case GenIntCastDesc::CHECK_UINT_RANGE:
+            // We need to check if the value is not greater than 0xFFFFFFFF but this value
+            // cannot be encoded in the immediate operand of CMP. Use TST instead to check
+            // if the upper 32 bits are zero.
+            getEmitter()->emitIns_R_I(INS_tst, EA_8BYTE, reg, 0xFFFFFFFF00000000LL);
+            genJumpToThrowHlpBlk(EJ_ne, SCK_OVERFLOW);
+            break;
+
+        case GenIntCastDesc::CHECK_POSITIVE_INT_RANGE:
+            // We need to check if the value is not greater than 0x7FFFFFFF but this value
+            // cannot be encoded in the immediate operand of CMP. Use TST instead to check
+            // if the upper 33 bits are zero.
+            getEmitter()->emitIns_R_I(INS_tst, EA_8BYTE, reg, 0xFFFFFFFF80000000LL);
+            genJumpToThrowHlpBlk(EJ_ne, SCK_OVERFLOW);
+            break;
+
+        case GenIntCastDesc::CHECK_INT_RANGE:
+        {
+            const regNumber tempReg = cast->GetSingleTempReg();
+            assert(tempReg != reg);
+            instGen_Set_Reg_To_Imm(EA_8BYTE, tempReg, INT32_MAX);
+            getEmitter()->emitIns_R_R(INS_cmp, EA_8BYTE, reg, tempReg);
+            genJumpToThrowHlpBlk(EJ_gt, SCK_OVERFLOW);
+            instGen_Set_Reg_To_Imm(EA_8BYTE, tempReg, INT32_MIN);
+            getEmitter()->emitIns_R_R(INS_cmp, EA_8BYTE, reg, tempReg);
+            genJumpToThrowHlpBlk(EJ_lt, SCK_OVERFLOW);
+        }
+        break;
+#endif
+
+        default:
+        {
+            assert(desc.CheckKind() == GenIntCastDesc::CHECK_SMALL_INT_RANGE);
+            const int castMaxValue = desc.CheckSmallIntMax();
+            const int castMinValue = desc.CheckSmallIntMin();
+
+            // Values greater than 255 cannot be encoded in the immediate operand of CMP.
+            // Replace (x > max) with (x >= max + 1) where max + 1 (a power of 2) can be
+            // encoded. We could do this for all max values but on ARM32 "cmp r0, 255"
+            // is better than "cmp r0, 256" because it has a shorter encoding.
+            if (castMaxValue > 255)
+            {
+                assert((castMaxValue == 32767) || (castMaxValue == 65535));
+                getEmitter()->emitIns_R_I(INS_cmp, EA_SIZE(desc.CheckSrcSize()), reg, castMaxValue + 1);
+                genJumpToThrowHlpBlk((castMinValue == 0) ? EJ_hs : EJ_ge, SCK_OVERFLOW);
+            }
+            else
+            {
+                getEmitter()->emitIns_R_I(INS_cmp, EA_SIZE(desc.CheckSrcSize()), reg, castMaxValue);
+                genJumpToThrowHlpBlk((castMinValue == 0) ? EJ_hi : EJ_gt, SCK_OVERFLOW);
+            }
+
+            if (castMinValue != 0)
+            {
+                getEmitter()->emitIns_R_I(INS_cmp, EA_SIZE(desc.CheckSrcSize()), reg, castMinValue);
+                genJumpToThrowHlpBlk(EJ_lt, SCK_OVERFLOW);
+            }
+        }
+        break;
+    }
+}
+
+//------------------------------------------------------------------------
+// genIntToIntCast: Generate code for an integer cast, with or without overflow check.
+//
+// Arguments:
+//    cast - The GT_CAST node
 //
 // Assumptions:
-//    The treeNode must have an assigned register.
-//    For a signed convert from byte, the source must be in a byte-addressable register.
+//    The cast node is not a contained node and must have an assigned register.
 //    Neither the source nor target type can be a floating point type.
 //
 // TODO-ARM64-CQ: Allow castOp to be a contained node without an assigned register.
 //
-void CodeGen::genIntToIntCast(GenTree* treeNode)
+void CodeGen::genIntToIntCast(GenTreeCast* cast)
 {
-    assert(treeNode->OperGet() == GT_CAST);
+    genConsumeRegs(cast->gtGetOp1());
 
-    GenTree* castOp = treeNode->gtCast.CastOp();
-    emitter* emit   = getEmitter();
+    const regNumber srcReg = cast->gtGetOp1()->gtRegNum;
+    const regNumber dstReg = cast->gtRegNum;
 
-    var_types dstType = treeNode->CastToType();
-    var_types srcType = genActualType(castOp->TypeGet());
+    assert(genIsValidIntReg(srcReg));
+    assert(genIsValidIntReg(dstReg));
 
-    assert(genTypeSize(srcType) <= genTypeSize(TYP_I_IMPL));
+    GenIntCastDesc desc(cast);
 
-    regNumber targetReg = treeNode->gtRegNum;
-    regNumber sourceReg = castOp->gtRegNum;
-
-    // For Long to Int conversion we will have a reserved integer register to hold the immediate mask
-    regNumber tmpReg = (treeNode->AvailableTempRegCount() == 0) ? REG_NA : treeNode->GetSingleTempReg();
-
-    assert(genIsValidIntReg(targetReg));
-    assert(genIsValidIntReg(sourceReg));
-
-    genConsumeReg(castOp);
-    Lowering::CastInfo castInfo;
-
-    // Get information about the cast.
-    Lowering::getCastDescription(treeNode, &castInfo);
-
-    if (castInfo.requiresOverflowCheck)
+    if (desc.CheckKind() != GenIntCastDesc::CHECK_NONE)
     {
-        bool     movRequired = (sourceReg != targetReg);
-        emitAttr movSize     = emitActualTypeSize(dstType);
-        emitAttr cmpSize     = EA_ATTR(genTypeSize(srcType));
-
-        if (castInfo.signCheckOnly)
-        {
-            // We only need to check for a negative value in sourceReg
-            emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, 0);
-            emitJumpKind jmpLT = genJumpKindForOper(GT_LT, CK_SIGNED);
-            genJumpToThrowHlpBlk(jmpLT, SCK_OVERFLOW);
-            noway_assert(genTypeSize(srcType) == 4 || genTypeSize(srcType) == 8);
-            // This is only interesting case to ensure zero-upper bits.
-            if ((srcType == TYP_INT) && (dstType == TYP_ULONG))
-            {
-                // cast to TYP_ULONG:
-                // We use a mov with size=EA_4BYTE
-                // which will zero out the upper bits
-                movSize     = EA_4BYTE;
-                movRequired = true;
-            }
-        }
-        else if (castInfo.unsignedSource || castInfo.unsignedDest)
-        {
-            // When we are converting from/to unsigned,
-            // we only have to check for any bits set in 'typeMask'
-
-            noway_assert(castInfo.typeMask != 0);
-#if defined(_TARGET_ARM_)
-            if (arm_Valid_Imm_For_Instr(INS_tst, castInfo.typeMask, INS_FLAGS_DONT_CARE))
-            {
-                emit->emitIns_R_I(INS_tst, cmpSize, sourceReg, castInfo.typeMask);
-            }
-            else
-            {
-                noway_assert(tmpReg != REG_NA);
-                instGen_Set_Reg_To_Imm(cmpSize, tmpReg, castInfo.typeMask);
-                emit->emitIns_R_R(INS_tst, cmpSize, sourceReg, tmpReg);
-            }
-#elif defined(_TARGET_ARM64_)
-            emit->emitIns_R_I(INS_tst, cmpSize, sourceReg, castInfo.typeMask);
-#endif // _TARGET_ARM*
-            emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
-            genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
-        }
-        else
-        {
-            // For a narrowing signed cast
-            //
-            // We must check the value is in a signed range.
-
-            // Compare with the MAX
-
-            noway_assert((castInfo.typeMin != 0) && (castInfo.typeMax != 0));
-
-#if defined(_TARGET_ARM_)
-            if (emitter::emitIns_valid_imm_for_cmp(castInfo.typeMax, INS_FLAGS_DONT_CARE))
-#elif defined(_TARGET_ARM64_)
-            if (emitter::emitIns_valid_imm_for_cmp(castInfo.typeMax, cmpSize))
-#endif // _TARGET_*
-            {
-                emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, castInfo.typeMax);
-            }
-            else
-            {
-                noway_assert(tmpReg != REG_NA);
-                instGen_Set_Reg_To_Imm(cmpSize, tmpReg, castInfo.typeMax);
-                emit->emitIns_R_R(INS_cmp, cmpSize, sourceReg, tmpReg);
-            }
-
-            emitJumpKind jmpGT = genJumpKindForOper(GT_GT, CK_SIGNED);
-            genJumpToThrowHlpBlk(jmpGT, SCK_OVERFLOW);
-
-// Compare with the MIN
-
-#if defined(_TARGET_ARM_)
-            if (emitter::emitIns_valid_imm_for_cmp(castInfo.typeMin, INS_FLAGS_DONT_CARE))
-#elif defined(_TARGET_ARM64_)
-            if (emitter::emitIns_valid_imm_for_cmp(castInfo.typeMin, cmpSize))
-#endif // _TARGET_*
-            {
-                emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, castInfo.typeMin);
-            }
-            else
-            {
-                noway_assert(tmpReg != REG_NA);
-                instGen_Set_Reg_To_Imm(cmpSize, tmpReg, castInfo.typeMin);
-                emit->emitIns_R_R(INS_cmp, cmpSize, sourceReg, tmpReg);
-            }
-
-            emitJumpKind jmpLT = genJumpKindForOper(GT_LT, CK_SIGNED);
-            genJumpToThrowHlpBlk(jmpLT, SCK_OVERFLOW);
-        }
-
-        if (movRequired)
-        {
-            emit->emitIns_R_R(INS_mov, movSize, targetReg, sourceReg);
-        }
+        genIntCastOverflowCheck(cast, desc, srcReg);
     }
-    else // Non-overflow checking cast.
-    {
-        const unsigned srcSize = genTypeSize(srcType);
-        const unsigned dstSize = genTypeSize(dstType);
-        instruction    ins;
-        emitAttr       insSize;
 
-        if (dstSize < 4)
+    if ((desc.ExtendKind() != GenIntCastDesc::COPY) || (srcReg != dstReg))
+    {
+        instruction ins;
+        unsigned    insSize;
+
+        switch (desc.ExtendKind())
         {
-            // Casting to a small type really means widening from that small type to INT/LONG.
-            ins     = ins_Move_Extend(dstType, true);
-            insSize = emitActualTypeSize(treeNode->TypeGet());
-        }
+            case GenIntCastDesc::ZERO_EXTEND_SMALL_INT:
+                ins     = (desc.ExtendSrcSize() == 1) ? INS_uxtb : INS_uxth;
+                insSize = 4;
+                break;
+            case GenIntCastDesc::SIGN_EXTEND_SMALL_INT:
+                ins     = (desc.ExtendSrcSize() == 1) ? INS_sxtb : INS_sxth;
+                insSize = 4;
+                break;
 #ifdef _TARGET_64BIT_
-        // dstType cannot be a long type on 32 bit targets, such casts should have been decomposed.
-        // srcType cannot be a small type since it's the "actual type" of the cast operand.
-        // This means that widening casts do not occur on 32 bit targets.
-        else if (dstSize > srcSize)
-        {
-            // (U)INT to (U)LONG widening cast
-            assert((srcSize == 4) && (dstSize == 8));
-            // Make sure the node type has the same size as the destination type.
-            assert(genTypeSize(treeNode->TypeGet()) == dstSize);
-
-            ins = treeNode->IsUnsigned() ? INS_mov : INS_sxtw;
-            // SXTW requires EA_8BYTE but MOV requires EA_4BYTE in order to zero out the upper 32 bits.
-            insSize = (ins == INS_sxtw) ? EA_8BYTE : EA_4BYTE;
-        }
+            case GenIntCastDesc::ZERO_EXTEND_INT:
+                ins     = INS_mov;
+                insSize = 4;
+                break;
+            case GenIntCastDesc::SIGN_EXTEND_INT:
+                ins     = INS_sxtw;
+                insSize = 8;
+                break;
 #endif
-        else
-        {
-            // Sign changing cast or narrowing cast
-            assert(dstSize <= srcSize);
-            // Note that narrowing casts are possible only on 64 bit targets.
-            assert(srcSize <= genTypeSize(TYP_I_IMPL));
-            // Make sure the node type has the same size as the destination type.
-            assert(genTypeSize(treeNode->TypeGet()) == dstSize);
-
-            // This cast basically does nothing, even when narrowing it is the job of the
-            // consumer of this node to use the appropiate register size (32 or 64 bit)
-            // and not rely on the cast to set the upper 32 bits in a certain manner.
-            // Still, we will need to generate a MOV instruction if the source and target
-            // registers are different.
-            ins     = (sourceReg != targetReg) ? INS_mov : INS_none;
-            insSize = EA_SIZE(dstSize);
+            default:
+                assert(desc.ExtendKind() == GenIntCastDesc::COPY);
+                ins     = INS_mov;
+                insSize = desc.ExtendSrcSize();
+                break;
         }
 
-        if (ins != INS_none)
-        {
-            emit->emitIns_R_R(ins, insSize, targetReg, sourceReg);
-        }
+        getEmitter()->emitIns_R_R(ins, EA_ATTR(insSize), dstReg, srcReg);
     }
 
-    genProduceReg(treeNode);
+    genProduceReg(cast);
 }
 
 //------------------------------------------------------------------------
@@ -3158,6 +3139,14 @@ void CodeGen::genCreateAndStoreGCInfo(unsigned codeSize,
     }
 
 #endif // _TARGET_ARM64_
+
+    if (compiler->opts.IsReversePInvoke())
+    {
+        unsigned reversePInvokeFrameVarNumber = compiler->lvaReversePInvokeFrameVar;
+        assert(reversePInvokeFrameVarNumber != BAD_VAR_NUM && reversePInvokeFrameVarNumber < compiler->lvaRefCount);
+        LclVarDsc& reversePInvokeFrameVar = compiler->lvaTable[reversePInvokeFrameVarNumber];
+        gcInfoEncoder->SetReversePInvokeFrameSlot(reversePInvokeFrameVar.lvStkOffs);
+    }
 
     gcInfoEncoder->Build();
 

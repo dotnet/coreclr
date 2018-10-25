@@ -365,20 +365,6 @@ void ProfilingAPIUtility::LogProfEventVA(
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_PROFAPI_EVENT_LOGGING
-
-
-    // Rotor messages go to message boxes
-
-    EEMessageBoxCatastrophic(
-        iStringResourceID,              // Text message to display
-        IDS_EE_PROFILING_FAILURE,       // Titlebar of message box
-        insertionArgs);                 // Insertion strings for text message
-
-#else // FEATURE_PROFAPI_EVENT_LOGGING
-    
-    // Non-rotor messages go to the event log
-
     StackSString messageFromResource;
     StackSString messageToLog;
 
@@ -395,10 +381,8 @@ void ProfilingAPIUtility::LogProfEventVA(
 
     AppendSupplementaryInformation(iStringResourceID, &messageToLog);
 
-    // CoreCLR on Windows ouputs debug strings for diagnostic messages.
+    // Ouput debug strings for diagnostic messages.
     WszOutputDebugString(messageToLog);
-
-#endif // FEATURE_PROFAPI_EVENT_LOGGING
 }
 
 // See code:ProfilingAPIUtility.LogProfEventVA for description of arguments.
@@ -440,10 +424,6 @@ void ProfilingAPIUtility::LogProfInfo(int iStringResourceID, ...)
     }
     CONTRACTL_END;
 
-// Rotor uses message boxes instead of event log, and it would be disruptive to
-// pop a messagebox in the user's face every time an app runs with a profiler
-// configured to load.  So only log this only when we don't do a pop-up.
-#ifdef FEATURE_PROFAPI_EVENT_LOGGING
     va_list insertionArgs;
     va_start(insertionArgs, iStringResourceID);
     LogProfEventVA(
@@ -451,7 +431,6 @@ void ProfilingAPIUtility::LogProfInfo(int iStringResourceID, ...)
         EVENTLOG_INFORMATION_TYPE, 
         insertionArgs);
     va_end(insertionArgs);
-#endif //FEATURE_PROFAPI_EVENT_LOGGING
 }
 
 #ifdef PROF_TEST_ONLY_FORCE_ELT
@@ -460,9 +439,9 @@ void ProfilingAPIUtility::LogProfInfo(int iStringResourceID, ...)
 // InitializeProfiling() below solely for the debug-only, test-only code to allow
 // enter/leave/tailcall to be turned on at startup without a profiler. See
 // code:ProfControlBlock#TestOnlyELT
-EXTERN_C void __stdcall ProfileEnterNaked(UINT_PTR clientData);
-EXTERN_C void __stdcall ProfileLeaveNaked(UINT_PTR clientData);
-EXTERN_C void __stdcall ProfileTailcallNaked(UINT_PTR clientData);
+EXTERN_C void STDMETHODCALLTYPE ProfileEnterNaked(UINT_PTR clientData);
+EXTERN_C void STDMETHODCALLTYPE ProfileLeaveNaked(UINT_PTR clientData);
+EXTERN_C void STDMETHODCALLTYPE ProfileTailcallNaked(UINT_PTR clientData);
 #endif //PROF_TEST_ONLY_FORCE_ELT
 
 // ----------------------------------------------------------------------------
@@ -1048,14 +1027,6 @@ HRESULT ProfilingAPIUtility::LoadProfiler(
         }
 
         _ASSERTE(profilerCompatibilityFlag == kEnableV2Profiler);
-
-        // To prevent V2 profilers from AV, once a V2 profiler is already loaded by a V2 rutnime in the process, 
-        // V4 runtime will not try to load the V2 profiler again.
-        if (IsV2RuntimeLoaded())
-        {
-            LogProfInfo(IDS_PROF_V2PROFILER_ALREADY_LOADED, wszClsid);
-            return S_OK;
-        }
 
         LOG((LF_CORPROF, LL_INFO10, "**PROF: COMPlus_ProfAPI_ProfilerCompatibilitySetting is set to EnableV2Profiler. "
              "The configured V2 profiler is going to be initialized.\n"));

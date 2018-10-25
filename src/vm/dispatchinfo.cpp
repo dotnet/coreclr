@@ -3315,8 +3315,7 @@ DispatchMemberInfo* DispatchExInfo::CreateDispatchMemberInfoInstance(DISPID Disp
 
     DispatchMemberInfo* pInfo = new DispatchMemberInfo(this, DispID, strMemberName, MemberInfoObj);
 
-    AppDomainFromIDHolder pDomain(m_pSimpleWrapperOwner->GetDomainID(), FALSE);
-    pDomain.ThrowIfUnloaded();
+    AppDomain* pDomain = SystemDomain::GetAppDomainFromId(m_pSimpleWrapperOwner->GetDomainID(), ADV_CURRENTAD);
     
     pInfo->SetHandle(pDomain->CreateHandle(MemberInfoObj));
     
@@ -3709,8 +3708,7 @@ OBJECTREF DispatchExInfo::GetReflectionObject()
     // we get the exposed class object and not the actual objectred contained in the
     // wrapper.
 
-    if (m_pMT == g_pRuntimeTypeClass ||
-        MscorlibBinder::IsClass(m_pMT, CLASS__CLASS_INTROSPECTION_ONLY))
+    if (m_pMT == g_pRuntimeTypeClass)
         return m_pMT->GetManagedClassObject();
     else
         return m_pSimpleWrapperOwner->GetObjectRef();

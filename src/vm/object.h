@@ -54,8 +54,6 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref);
  *  +-- code:AppDomainBaseObject - The base object for the class AppDomain
  *  |              
  *  +-- code:AssemblyBaseObject - The base object for the class Assembly
- *  |
- *  +-- code:ContextBaseObject   - base object for class Context
  *
  *
  * PLEASE NOTE THE FOLLOWING WHEN ADDING A NEW OBJECT TYPE:
@@ -87,7 +85,6 @@ class Thread;
 class BaseDomain;
 class Assembly;
 class Context;
-class CtxStaticData;
 class DomainAssembly;
 class AssemblyNative;
 class WaitHandleNative;
@@ -1576,80 +1573,6 @@ class MarshalByRefObjectBaseObject : public Object
 {
 };
 
-
-// ContextBaseObject 
-// This class is the base class for Contexts
-//  
-class ContextBaseObject : public Object
-{
-    friend class Context;
-    friend class MscorlibBinder;
-
-  private:
-    // READ ME:
-    // Modifying the order or fields of this object may require other changes to the
-    //  classlib class definition of this object.
-
-    OBJECTREF m_ctxProps;   // array of name-value pairs of properties
-    OBJECTREF m_dphCtx;     // dynamic property holder
-    OBJECTREF m_localDataStore; // context local store
-    OBJECTREF m_serverContextChain; // server context sink chain
-    OBJECTREF m_clientContextChain; // client context sink chain
-    OBJECTREF m_exposedAppDomain;       //appDomain ??
-    PTRARRAYREF m_ctxStatics; // holder for context relative statics
-    
-    Context*  m_internalContext;            // Pointer to the VM context
-
-    INT32 _ctxID;
-    INT32 _ctxFlags;
-    INT32 _numCtxProps;     // current count of properties
-
-    INT32 _ctxStaticsCurrentBucket;
-    INT32 _ctxStaticsFreeIndex;
-
-  protected:
-    ContextBaseObject() { LIMITED_METHOD_CONTRACT; }
-   ~ContextBaseObject() { LIMITED_METHOD_CONTRACT; }
-   
-  public:
-
-    void SetInternalContext(Context* pCtx) 
-    {
-        LIMITED_METHOD_CONTRACT;
-        // either transitioning from NULL to non-NULL or vice versa.  
-        // But not setting NULL to NULL or non-NULL to non-NULL.
-        _ASSERTE((m_internalContext == NULL) != (pCtx == NULL));
-        m_internalContext = pCtx;
-    }
-    
-    Context* GetInternalContext() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_internalContext;
-    }
-
-    OBJECTREF GetExposedDomain() { return m_exposedAppDomain; }
-    OBJECTREF SetExposedDomain(OBJECTREF newDomain) 
-    {
-        LIMITED_METHOD_CONTRACT;
-        OBJECTREF oldDomain = m_exposedAppDomain;
-        SetObjectReference( (OBJECTREF *)&m_exposedAppDomain, newDomain, GetAppDomain() );
-        return oldDomain;
-    }
-
-    PTRARRAYREF GetContextStaticsHolder() 
-    { 
-        LIMITED_METHOD_CONTRACT;
-        SUPPORTS_DAC;
-        // The code that needs this should have faulted it in by now!
-        _ASSERTE(m_ctxStatics != NULL); 
-
-        return m_ctxStatics; 
-    }
-};
-
-typedef DPTR(ContextBaseObject) PTR_ContextBaseObject;
-
 // AppDomainBaseObject 
 // This class is the base class for application domains
 //  
@@ -1794,36 +1717,35 @@ class AssemblyNameBaseObject : public Object
     // Modifying the order or fields of this object may require other changes to the
     //  classlib class definition of this object.
 
-    OBJECTREF     m_pSimpleName; 
-    U1ARRAYREF    m_pPublicKey;
-    U1ARRAYREF    m_pPublicKeyToken;
-    OBJECTREF     m_pCultureInfo;
-    OBJECTREF     m_pCodeBase;
-    OBJECTREF     m_pVersion;
-    OBJECTREF     m_StrongNameKeyPair;
-    OBJECTREF     m_siInfo;
-    U1ARRAYREF    m_HashForControl;
-    DWORD         m_HashAlgorithm;
-    DWORD         m_HashAlgorithmForControl;
-    DWORD         m_VersionCompatibility;
-    DWORD         m_Flags;
+    OBJECTREF     _name; 
+    U1ARRAYREF    _publicKey;
+    U1ARRAYREF    _publicKeyToken;
+    OBJECTREF     _cultureInfo;
+    OBJECTREF     _codeBase;
+    OBJECTREF     _version;
+    OBJECTREF     _strongNameKeyPair;
+    U1ARRAYREF    _hashForControl;
+    DWORD         _hashAlgorithm;
+    DWORD         _hashAlgorithmForControl;
+    DWORD         _versionCompatibility;
+    DWORD         _flags;
 
   protected:
     AssemblyNameBaseObject() { LIMITED_METHOD_CONTRACT; }
    ~AssemblyNameBaseObject() { LIMITED_METHOD_CONTRACT; }
    
   public:
-    OBJECTREF GetSimpleName() { LIMITED_METHOD_CONTRACT; return m_pSimpleName; }
-    U1ARRAYREF GetPublicKey() { LIMITED_METHOD_CONTRACT; return m_pPublicKey; }
-    U1ARRAYREF GetPublicKeyToken() { LIMITED_METHOD_CONTRACT; return m_pPublicKeyToken; }
-    OBJECTREF GetStrongNameKeyPair() { LIMITED_METHOD_CONTRACT; return m_StrongNameKeyPair; }
-    OBJECTREF GetCultureInfo() { LIMITED_METHOD_CONTRACT; return m_pCultureInfo; }
-    OBJECTREF GetAssemblyCodeBase() { LIMITED_METHOD_CONTRACT; return m_pCodeBase; }
-    OBJECTREF GetVersion() { LIMITED_METHOD_CONTRACT; return m_pVersion; }
-    DWORD GetAssemblyHashAlgorithm() { LIMITED_METHOD_CONTRACT; return m_HashAlgorithm; }
-    DWORD GetFlags() { LIMITED_METHOD_CONTRACT; return m_Flags; }
-    U1ARRAYREF GetHashForControl() { LIMITED_METHOD_CONTRACT; return m_HashForControl;}
-    DWORD GetHashAlgorithmForControl() { LIMITED_METHOD_CONTRACT; return m_HashAlgorithmForControl; }
+    OBJECTREF GetSimpleName() { LIMITED_METHOD_CONTRACT; return _name; }
+    U1ARRAYREF GetPublicKey() { LIMITED_METHOD_CONTRACT; return _publicKey; }
+    U1ARRAYREF GetPublicKeyToken() { LIMITED_METHOD_CONTRACT; return _publicKeyToken; }
+    OBJECTREF GetStrongNameKeyPair() { LIMITED_METHOD_CONTRACT; return _strongNameKeyPair; }
+    OBJECTREF GetCultureInfo() { LIMITED_METHOD_CONTRACT; return _cultureInfo; }
+    OBJECTREF GetAssemblyCodeBase() { LIMITED_METHOD_CONTRACT; return _codeBase; }
+    OBJECTREF GetVersion() { LIMITED_METHOD_CONTRACT; return _version; }
+    DWORD GetAssemblyHashAlgorithm() { LIMITED_METHOD_CONTRACT; return _hashAlgorithm; }
+    DWORD GetFlags() { LIMITED_METHOD_CONTRACT; return _flags; }
+    U1ARRAYREF GetHashForControl() { LIMITED_METHOD_CONTRACT; return _hashForControl;}
+    DWORD GetHashAlgorithmForControl() { LIMITED_METHOD_CONTRACT; return _hashAlgorithmForControl; }
 };
 
 // VersionBaseObject
@@ -2030,8 +1952,6 @@ typedef REF<AppDomainBaseObject> APPDOMAINREF;
 
 typedef REF<MarshalByRefObjectBaseObject> MARSHALBYREFOBJECTBASEREF;
 
-typedef REF<ContextBaseObject> CONTEXTBASEREF;
-
 typedef REF<AssemblyBaseObject> ASSEMBLYREF;
 
 typedef REF<AssemblyNameBaseObject> ASSEMBLYNAMEREF;
@@ -2085,7 +2005,6 @@ typedef PTR_ThreadBaseObject THREADBASEREF;
 typedef PTR_AppDomainBaseObject APPDOMAINREF;
 typedef PTR_AssemblyBaseObject ASSEMBLYREF;
 typedef PTR_AssemblyNameBaseObject ASSEMBLYNAMEREF;
-typedef PTR_ContextBaseObject CONTEXTBASEREF;
 
 #ifndef DACCESS_COMPILE
 typedef MarshalByRefObjectBaseObject* MARSHALBYREFOBJECTBASEREF;

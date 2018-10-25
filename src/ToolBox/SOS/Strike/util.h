@@ -1660,9 +1660,11 @@ struct MethodTableInfo
     DWORD BaseSize;           // Caching BaseSize and ComponentSize for a MethodTable
     DWORD ComponentSize;      // here has HUGE perf benefits in heap traversals.
     BOOL  bContainsPointers;
+    BOOL  bCollectible;
     DWORD_PTR* GCInfoBuffer;  // Start of memory of GC info
     CGCDesc* GCInfo;    // Just past GC info (which is how it is stored)
     bool  ArrayOfVC;
+    TADDR LoaderAllocatorObjectHandle;
 };
 
 class MethodTableCache
@@ -1680,9 +1682,11 @@ protected:
             info.BaseSize = 0;
             info.ComponentSize = 0;
             info.bContainsPointers = false;
+            info.bCollectible = false;
             info.GCInfo = NULL;
             info.ArrayOfVC = false;
             info.GCInfoBuffer = NULL;
+            info.LoaderAllocatorObjectHandle = NULL;
         }
     };
     Node *head;
@@ -1842,6 +1846,8 @@ BOOL IsMethodTable (DWORD_PTR value);
 BOOL IsStringObject (size_t obj);
 BOOL IsObjectArray (DWORD_PTR objPointer);
 BOOL IsObjectArray (DacpObjectData *pData);
+BOOL IsDerivedFrom(CLRDATA_ADDRESS mtObj, __in_z LPCWSTR baseString);
+BOOL TryGetMethodDescriptorForDelegate(CLRDATA_ADDRESS delegateAddr, CLRDATA_ADDRESS* pMD);
 
 /* Returns a list of all modules in the process.
  * Params:
@@ -1947,6 +1953,8 @@ size_t NextOSPageAddress (size_t addr);
 // It uses g_special_mtCache for it's work.
 BOOL GetSizeEfficient(DWORD_PTR dwAddrCurrObj, 
     DWORD_PTR dwAddrMethTable, BOOL bLarge, size_t& s, BOOL& bContainsPointers);
+
+BOOL GetCollectibleDataEfficient(DWORD_PTR dwAddrMethTable, BOOL& bCollectible, TADDR& loaderAllocatorObjectHandle);
 
 // ObjSize now uses the methodtable cache for its work too.
 size_t ObjectSize (DWORD_PTR obj, BOOL fIsLargeObject=FALSE);
@@ -2825,6 +2833,7 @@ private:
 
     void PrintObjectHead(size_t objAddr,size_t typeID,size_t Size);
     void PrintObjectMember(size_t memberValue, bool dependentHandle);
+    void PrintLoaderAllocator(size_t memberValue);
     void PrintObjectTail();
 
     void PrintRootHead();
@@ -2856,8 +2865,10 @@ private:
         TADDR *Buffer;
         CGCDesc *GCDesc;
 
+        TADDR LoaderAllocatorObjectHandle;
         bool ArrayOfVC;
         bool ContainsPointers;
+        bool Collectible;
         size_t BaseSize;
         size_t ComponentSize;
         
@@ -2874,7 +2885,7 @@ private:
 
         MTInfo()
             : MethodTable(0), TypeName(0), Buffer(0), GCDesc(0),
-              ArrayOfVC(false), ContainsPointers(false), BaseSize(0), ComponentSize(0)
+              ArrayOfVC(false), ContainsPointers(false), Collectible(false), BaseSize(0), ComponentSize(0)
         {
         }
 

@@ -188,12 +188,15 @@ IF_DEF(RRW_ARD_CNS, IS_AM_RD|IS_R1_RW,          AMD_CNS)  // r/w    reg , read [
 
 IF_DEF(RWR_RRD_ARD, IS_AM_RD|IS_R1_WR|IS_R2_RD, AMD )     // write  reg , read  reg2, read [adr]
 IF_DEF(RWR_ARD_CNS, IS_AM_RD|IS_R1_WR,          AMD_CNS)  // write  reg , read [adr], const
+IF_DEF(RWR_ARD_RRD, IS_AM_RD|IS_R1_WR|IS_R2_RD, AMD)      // write  reg , read [adr], read reg2
 IF_DEF(RWR_RRD_ARD_CNS, IS_AM_RD|IS_R1_WR|IS_R2_RD, AMD_CNS) // write  reg , read  reg2, read [adr], const
 IF_DEF(RWR_RRD_ARD_RRD, IS_AM_RD|IS_R1_WR|IS_R2_RD|IS_R3_RD, AMD_CNS) // write  reg , read  reg2, read [adr], read reg3
 
 IF_DEF(ARD_RRD,     IS_AM_RD|IS_R1_RD,          AMD )     // read  [adr], read  reg
 IF_DEF(AWR_RRD,     IS_AM_WR|IS_R1_RD,          AMD )     // write [adr], read  reg
 IF_DEF(ARW_RRD,     IS_AM_RW|IS_R1_RD,          AMD )     // r/w   [adr], read  reg
+
+IF_DEF(AWR_RRD_RRD, IS_AM_WR|IS_R1_RD|IS_R2_RD, AMD )     // write  [adr], read  reg, read  reg
 
 IF_DEF(ARD_CNS,     IS_AM_RD,                   AMD_CNS)  // read  [adr], const
 IF_DEF(AWR_CNS,     IS_AM_WR,                   AMD_CNS)  // write [adr], const

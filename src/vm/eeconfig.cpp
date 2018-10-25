@@ -343,10 +343,8 @@ HRESULT EEConfig::Init()
     iGCPollType = GCPOLL_TYPE_DEFAULT;
 
 #ifdef _DEBUG
-    fGenerateStubForHost = FALSE;
     fShouldInjectFault = 0;
     testThreadAbort = 0;
-    testADUnload = 0;
 #endif
 
 #ifdef FEATURE_COMINTEROP
@@ -1171,14 +1169,11 @@ HRESULT EEConfig::sync()
     IfFailRet(ParseTypeList(wszPerfTypes, &pPerfTypesToLog));
 
     iPerfNumAllocsThreshold = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerfNumAllocsThreshold);
-    iPerfAllocsSizeThreshold    = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerfAllocsSizeThreshold);
-
-    fGenerateStubForHost = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_GenerateStubForHost);
+    iPerfAllocsSizeThreshold = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerfAllocsSizeThreshold);
 
     fShouldInjectFault = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_InjectFault);
 
     testThreadAbort = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_HostTestThreadAbort);
-    testADUnload = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_HostTestADUnload);
 
 #endif //_DEBUG
 
@@ -1240,9 +1235,7 @@ HRESULT EEConfig::sync()
     dwSleepOnExit = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_SleepOnExit);
 
 #if defined(FEATURE_TIERED_COMPILATION)
-    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) ||
-        //this older name is deprecated, but still accepted for a time. Preserving it is a very small overhead not to needlessly break things.
-        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_LEGACY_TieredCompilation) != 0;
+    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) != 0;
 
     fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_CallCounting) != 0;
     fTieredCompilation_OptimizeTier0 = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_OptimizeTier0) != 0;

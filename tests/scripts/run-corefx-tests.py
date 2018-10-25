@@ -70,7 +70,6 @@ parser.add_argument('-fx_branch', dest='fx_branch', default='master')
 parser.add_argument('-fx_commit', dest='fx_commit', default=None)
 parser.add_argument('-env_script', dest='env_script', default=None)
 parser.add_argument('-no_run_tests', dest='no_run_tests', action="store_true", default=False)
-parser.add_argument('-toolset_dir', dest='toolset_dir', default='c:\\ats2')
 
 
 ##########################################################################
@@ -82,7 +81,7 @@ def validate_args(args):
     Args:
         args (argparser.ArgumentParser): Args parsed by the argument parser.
     Returns:
-        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests, toolset_dir)
+        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
             (str, str, str, str, str, str, str, str, str)
     Notes:
     If the arguments are valid then return them all in a tuple. If not, raise
@@ -98,7 +97,6 @@ def validate_args(args):
     fx_commit = args.fx_commit
     env_script = args.env_script
     no_run_tests = args.no_run_tests
-    toolset_dir = args.toolset_dir
 
     def validate_arg(arg, check):
         """ Validate an individual arg
@@ -144,7 +142,7 @@ def validate_args(args):
         validate_arg(env_script, lambda item: os.path.isfile(env_script))
         env_script = os.path.abspath(env_script)
 
-    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests, toolset_dir)
+    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
 
     log('Configuration:')
     log(' arch: %s' % arch)
@@ -156,7 +154,6 @@ def validate_args(args):
     log(' fx_commit: %s' % fx_commit)
     log(' env_script: %s' % env_script)
     log(' no_run_tests: %s' % no_run_tests)
-    log(' toolset_dir: %s' % toolset_dir)
 
     return args
 
@@ -218,7 +215,7 @@ def main(args):
     global Unix_name_map
     global testing
 
-    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests, toolset_dir = validate_args(
+    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests = validate_args(
         args)
 
     clr_os = 'Windows_NT' if Is_windows else Unix_name_map[os.uname()[0]]
@@ -238,7 +235,7 @@ def main(args):
             while True:
                 res = subprocess.check_output(['tasklist'])
                 if not 'VBCSCompiler.exe' in res:
-                   break                
+                   break
         os.chdir(fx_root)
         os.system('git clean -fxd')
         os.chdir(clr_root)
@@ -270,6 +267,15 @@ def main(args):
     if returncode != 0:
         sys.exit(1)
 
+    # Print the currently checked out commit hash. Mostly useful if you just checked
+    # out HEAD, which is the default.
+
+    command = "git rev-parse HEAD"
+    log(command)
+    returncode = 0 if testing else os.system(command)
+    if returncode != 0:
+        sys.exit(1)
+
     # On Unix, coreFx build.sh requires HOME to be set, and it isn't by default
     # under our CI system, so set it now.
 
@@ -279,55 +285,12 @@ def main(args):
             os.makedirs(fx_home)
         os.putenv('HOME', fx_home)
         log('HOME=' + fx_home)
- 
-    # Gather up some arguments to pass to build-managed, build-native, and build-tests scripts.
 
-    config_args = '-Release -os:%s -buildArch:%s' % (clr_os, arch)
+    # Gather up some arguments to pass to the different build scripts.
 
-    # Run the primary (non-test) corefx build. We previously passed the argument:
-    #
-    #    /p:CoreCLROverridePath=<path-to-core_root>
-    #
-    # which causes the corefx build to overwrite its built runtime with the binaries from
-    # the coreclr build. However, this often causes build failures when breaking changes are
-    # in progress (e.g., a breaking change is made in coreclr that has not yet had compensating
-    # changes made in the corefx repo). Instead, build corefx normally. This should always work
-    # since corefx is protected by a CI testing system. Then, overwrite the built corefx
-    # runtime with the runtime built in the coreclr build. The result will be that perhaps
-    # some, hopefully few, corefx tests will fail, but the builds will never fail.
+    config_args = '-Release /p:OSGroup=%s /p:ArchGroup=%s' % (clr_os, arch)
 
-    # Cross build corefx for arm64 on x64.
-    # Cross build corefx for arm32 on x86.
-
-    build_native_args = ''
-
-    if not Is_windows and arch == 'arm' :
-        # We need to force clang5.0; we are building in a docker container that doesn't have
-        # clang3.9, which is currently the default used by build-native.sh. We need to pass
-        # "-cross", but we also pass "-portable", which build-native.sh normally passes
-        # (there doesn't appear to be a way to pass these individually).
-        build_native_args += ' -AdditionalArgs:"-portable -cross" -Clang:clang5.0'
-
-    if not Is_windows and arch == 'arm64' :
-        # We need to pass "-cross", but we also pass "-portable", which build-native.sh normally
-        # passes (there doesn't appear to be a way to pass these individually).
-        build_native_args += ' -AdditionalArgs:"-portable -cross"'
-
-    if Is_windows and arch == 'arm64' :
-        # We need to pass toolsetDir to specify the arm64 private toolset.
-        # This is temporary, until private toolset is no longer used. So hard-code the CI toolset dir.
-        build_native_args += ' -ToolSetDir:"toolsetDir=%s"' % toolset_dir
-
-    command = ' '.join(('build-native.cmd' if Is_windows else './build-native.sh',
-                        config_args,
-                        build_native_args))
-    log(command)
-    returncode = 0 if testing else os.system(command)
-    if returncode != 0:
-        log('Error: exit code %s' % returncode)
-        sys.exit(1)
-
-    command = ' '.join(('build-managed.cmd' if Is_windows else './build-managed.sh', config_args))
+    command = ' '.join(('build.cmd' if Is_windows else './build.sh', config_args))
     log(command)
     returncode = 0 if testing else os.system(command)
     if returncode != 0:
@@ -352,12 +315,12 @@ def main(args):
     log('Updating CoreCLR: %s => %s' % (core_root, fx_runtime))
     copy_files(core_root, fx_runtime)
 
-    # Build the build-tests command line.
+    # Build the test command line.
 
     if Is_windows:
-        command = 'build-tests.cmd'
+        command = 'build.cmd -test'
     else:
-        command = './build-tests.sh'
+        command = './build.sh -test'
 
     # If we're doing altjit testing, then don't run any tests that don't work with altjit.
     if ci_arch is not None and (ci_arch == 'x86_arm_altjit' or ci_arch == 'x64_arm64_altjit'):
@@ -379,13 +342,13 @@ def main(args):
         without_categories_string = '/p:WithoutCategories="IgnoreForCI;XsltcExeRequired"'
         with open(without_categories_filename, "w") as without_categories_file:
             without_categories_file.write(without_categories_string)
-        without_categories = "-- @%s" % without_categories_filename
+        without_categories = " @%s" % without_categories_filename
 
         log('Response file %s contents:' % without_categories_filename)
         log('%s' % without_categories_string)
         log('[end response file contents]')
     else:
-        without_categories = '-- /p:WithoutCategories=IgnoreForCI'
+        without_categories = ' /p:WithoutCategories=IgnoreForCI'
 
     command = ' '.join((
         command,

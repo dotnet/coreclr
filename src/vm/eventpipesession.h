@@ -34,6 +34,15 @@ private:
     // This determines behavior within the system (e.g. policies around which events to drop, etc.)
     EventPipeSessionType m_sessionType;
 
+    // Start date and time in UTC.
+    FILETIME m_sessionStartTime;
+
+    // Start timestamp.
+    LARGE_INTEGER m_sessionStartTimeStamp;
+
+    // The maximum trace length in seconds.  Used to determine when to flush the current file and start a new one.
+    UINT64 m_multiFileTraceLengthInSeconds;
+
 public:
 
     // TODO: This needs to be exposed via EventPipe::CreateSession() and EventPipe::DeleteSession() to avoid memory ownership issues.
@@ -41,7 +50,8 @@ public:
         EventPipeSessionType sessionType,
         unsigned int circularBufferSizeInMB,
         EventPipeProviderConfiguration *pProviders,
-        unsigned int numProviders);
+        unsigned int numProviders,
+        UINT64 multiFileTraceLengthInSeconds);
 
     ~EventPipeSession();
 
@@ -76,9 +86,25 @@ public:
         m_rundownEnabled = value;
     }
 
-    // Enable all events.
-    // This is used for testing and is controlled via COMPLUS_EnableEventPipe.
-    void EnableAllEvents();
+    // Get the session start time in UTC.
+    FILETIME GetStartTime() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_sessionStartTime;
+    }
+
+    // Get the session start timestamp.
+    LARGE_INTEGER GetStartTimeStamp() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_sessionStartTimeStamp;
+    }
+
+    UINT64 GetMultiFileTraceLengthInSeconds() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_multiFileTraceLengthInSeconds;
+    }
 
     // Add a new provider to the session.
     void AddSessionProvider(EventPipeSessionProvider *pProvider);
@@ -95,8 +121,7 @@ private:
     // The list of providers.
     SList<SListElem<EventPipeSessionProvider*>> *m_pProviders;
 
-    // A catch-all provider used when tracing is enabled at start-up
-    // under (COMPlus_PerformanceTracing & 1) == 1.
+    // A catch-all provider used when tracing is enabled for all events.
     EventPipeSessionProvider *m_pCatchAllProvider;
 
 public:
@@ -104,10 +129,6 @@ public:
     // Create a new list based on the input.
     EventPipeSessionProviderList(EventPipeProviderConfiguration *pConfigs, unsigned int numConfigs);
     ~EventPipeSessionProviderList();
-
-    // Enable all events.
-    // This is used for testing and is controlled via COMPLUS_EnableEventPipe.
-    void EnableAllEvents();
 
     // Add a new session provider to the list.
     void AddSessionProvider(EventPipeSessionProvider *pProvider);

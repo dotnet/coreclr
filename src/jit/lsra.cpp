@@ -130,21 +130,23 @@ void lsraAssignRegToTree(GenTree* tree, regNumber reg, unsigned regIdx)
     {
         tree->gtRegNum = reg;
     }
-#if FEATURE_ARG_SPLIT
-#ifdef _TARGET_ARM_
+#if !defined(_TARGET_64BIT_)
     else if (tree->OperIsMultiRegOp())
     {
         assert(regIdx == 1);
         GenTreeMultiRegOp* mul = tree->AsMultiRegOp();
         mul->gtOtherReg        = reg;
     }
-#endif // _TARGET_ARM_
+#endif // _TARGET_64BIT_
+#if FEATURE_MULTIREG_RET
     else if (tree->OperGet() == GT_COPY)
     {
         assert(regIdx == 1);
         GenTreeCopyOrReload* copy = tree->AsCopyOrReload();
         copy->gtOtherRegs[0]      = (regNumberSmall)reg;
     }
+#endif // FEATURE_MULTIREG_RET
+#if FEATURE_ARG_SPLIT
     else if (tree->OperIsPutArgSplit())
     {
         GenTreePutArgSplit* putArg = tree->AsPutArgSplit();
@@ -224,14 +226,14 @@ regMaskTP LinearScan::allRegs(RegisterType rt)
     else if (rt == TYP_DOUBLE)
     {
         return availableDoubleRegs;
-#ifdef FEATURE_SIMD
-        // TODO-Cleanup: Add an RBM_ALLSIMD
     }
+#ifdef FEATURE_SIMD
+    // TODO-Cleanup: Add an RBM_ALLSIMD
     else if (varTypeIsSIMD(rt))
     {
         return availableDoubleRegs;
-#endif // FEATURE_SIMD
     }
+#endif // FEATURE_SIMD
     else
     {
         return availableIntRegs;
@@ -573,14 +575,14 @@ void LinearScan::dumpVarToRegMap(VarToRegMap map)
 
 void LinearScan::dumpInVarToRegMap(BasicBlock* block)
 {
-    printf("Var=Reg beg of BB%02u: ", block->bbNum);
+    printf("Var=Reg beg of " FMT_BB ": ", block->bbNum);
     VarToRegMap map = getInVarToRegMap(block->bbNum);
     dumpVarToRegMap(map);
 }
 
 void LinearScan::dumpOutVarToRegMap(BasicBlock* block)
 {
-    printf("Var=Reg end of BB%02u: ", block->bbNum);
+    printf("Var=Reg end of " FMT_BB ": ", block->bbNum);
     VarToRegMap map = getOutVarToRegMap(block->bbNum);
     dumpVarToRegMap(map);
 }
@@ -913,7 +915,7 @@ void LinearScan::setBlockSequence()
     int i = 1;
     for (BasicBlock *block = startBlockSequence(); block != nullptr; ++i, block = moveToNextBlock())
     {
-        JITDUMP("BB%02u", block->bbNum);
+        JITDUMP(FMT_BB, block->bbNum);
 
         if (block->isMaxBBWeight())
         {
@@ -1231,7 +1233,7 @@ void LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
     {
         return;
     }
-    JITDUMP("Recording Var Locations at start of BB%02u\n", bb->bbNum);
+    JITDUMP("Recording Var Locations at start of " FMT_BB "\n", bb->bbNum);
     VarToRegMap map   = getInVarToRegMap(bb->bbNum);
     unsigned    count = 0;
 
@@ -1809,7 +1811,7 @@ void LinearScan::initVarRegMaps()
     // The compiler memory allocator requires that the allocation be an
     // even multiple of int-sized objects
     unsigned int varCount = compiler->lvaTrackedCount;
-    regMapCount           = (unsigned int)roundUp(varCount, sizeof(int));
+    regMapCount           = roundUp(varCount, (unsigned)sizeof(int));
 
     // Not sure why blocks aren't numbered from zero, but they don't appear to be.
     // So, if we want to index by bbNum we have to know the maximum value.
@@ -1992,7 +1994,7 @@ void LinearScan::checkLastUses(BasicBlock* block)
 {
     if (VERBOSE)
     {
-        JITDUMP("\n\nCHECKING LAST USES for block %u, liveout=", block->bbNum);
+        JITDUMP("\n\nCHECKING LAST USES for " FMT_BB ", liveout=", block->bbNum);
         dumpConvertedVarSet(compiler, block->bbLiveOut);
         JITDUMP("\n==============================\n");
     }
@@ -2087,7 +2089,7 @@ void LinearScan::checkLastUses(BasicBlock* block)
         unsigned varNum = compiler->lvaTrackedToVarNum[liveInNotComputedLiveIndex];
         if (compiler->lvaTable[varNum].lvLRACandidate)
         {
-            JITDUMP("BB%02u: V%02u is in LiveIn set, but not computed live.\n", block->bbNum, varNum);
+            JITDUMP(FMT_BB ": V%02u is in LiveIn set, but not computed live.\n", block->bbNum, varNum);
             foundDiff = true;
         }
     }
@@ -2101,7 +2103,7 @@ void LinearScan::checkLastUses(BasicBlock* block)
         unsigned varNum = compiler->lvaTrackedToVarNum[computedLiveNotLiveInIndex];
         if (compiler->lvaTable[varNum].lvLRACandidate)
         {
-            JITDUMP("BB%02u: V%02u is computed live, but not in LiveIn set.\n", block->bbNum, varNum);
+            JITDUMP(FMT_BB ": V%02u is computed live, but not in LiveIn set.\n", block->bbNum, varNum);
             foundDiff = true;
         }
     }
@@ -3366,15 +3368,8 @@ bool LinearScan::isSpillCandidate(Interval*     current,
 #endif
     {
         RefPosition* nextPhysRegPosition = physRegRecord->getNextRefPosition();
-#ifdef _TARGET_ARM64_
-        // On ARM64, we may need to actually allocate IP0 and IP1 in some cases, but we don't include it in
-        // the allocation order for tryAllocateFreeReg.
-        if ((physRegRecord->regNum != REG_IP0) && (physRegRecord->regNum != REG_IP1))
-#endif // _TARGET_ARM64_
-        {
-            assert((nextPhysRegPosition != nullptr) && (nextPhysRegPosition->nodeLocation == refLocation) &&
-                   (candidateBit != refPosition->registerAssignment));
-        }
+        assert((nextPhysRegPosition != nullptr) && (nextPhysRegPosition->nodeLocation == refLocation) &&
+               (candidateBit != refPosition->registerAssignment));
         return false;
     }
 
@@ -6183,11 +6178,10 @@ void LinearScan::insertCopyOrReload(BasicBlock* block, GenTree* tree, unsigned m
 #endif
     }
 
-    // If the parent is a reload/copy node, then tree must be a multi-reg call node
-    // that has already had one of its registers spilled. This is because multi-reg
-    // call node is the only node whose RefTypeDef positions get independently
-    // spilled or reloaded.  It is possible that one of its RefTypeDef position got
-    // spilled and the next use of it requires it to be in a different register.
+    // If the parent is a reload/copy node, then tree must be a multi-reg node
+    // that has already had one of its registers spilled.
+    // It is possible that one of its RefTypeDef positions got spilled and the next
+    // use of it requires it to be in a different register.
     //
     // In this case set the i'th position reg of reload/copy node to the reg allocated
     // for copy/reload refPosition.  Essentially a copy/reload node will have a reg
@@ -6197,8 +6191,7 @@ void LinearScan::insertCopyOrReload(BasicBlock* block, GenTree* tree, unsigned m
     if (parent->IsCopyOrReload())
     {
         noway_assert(parent->OperGet() == oper);
-        noway_assert(tree->IsMultiRegCall());
-        GenTreeCall*         call         = tree->AsCall();
+        noway_assert(tree->IsMultiRegNode());
         GenTreeCopyOrReload* copyOrReload = parent->AsCopyOrReload();
         noway_assert(copyOrReload->GetRegNumByIdx(multiRegIdx) == REG_NA);
         copyOrReload->SetRegNumByIdx(refPosition->assignedReg(), multiRegIdx);
@@ -6837,7 +6830,7 @@ void LinearScan::resolveRegisters()
             printf("Prior to Resolution\n");
             foreach_block(compiler, block)
             {
-                printf("\nBB%02u use def in out\n", block->bbNum);
+                printf("\n" FMT_BB " use def in out\n", block->bbNum);
                 dumpConvertedVarSet(compiler, block->bbVarUse);
                 printf("\n");
                 dumpConvertedVarSet(compiler, block->bbVarDef);
@@ -7123,7 +7116,7 @@ void LinearScan::insertSwap(
         {
             insertionPointString = "bottom";
         }
-        printf("   BB%02u %s: swap V%02u in %s with V%02u in %s\n", block->bbNum, insertionPointString, lclNum1,
+        printf("   " FMT_BB " %s: swap V%02u in %s with V%02u in %s\n", block->bbNum, insertionPointString, lclNum1,
                getRegName(reg1), lclNum2, getRegName(reg2));
     }
 #endif // DEBUG
@@ -7364,7 +7357,7 @@ void LinearScan::addResolution(
 #endif // DEBUG
     }
 
-    JITDUMP("   BB%02u %s: move V%02u from ", block->bbNum, insertionPointString, interval->varNum);
+    JITDUMP("   " FMT_BB " %s: move V%02u from ", block->bbNum, insertionPointString, interval->varNum);
     JITDUMP("%s to %s", getRegName(fromReg), getRegName(toReg));
 
     insertMove(block, insertionPoint, interval->varNum, fromReg, toReg);
@@ -7835,7 +7828,7 @@ void LinearScan::resolveEdges()
                         printf("Found mismatched var locations after resolution!\n");
                     }
                     unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-                    printf(" V%02u: BB%02u to BB%02u: %s to %s\n", varNum, predBlock->bbNum, block->bbNum,
+                    printf(" V%02u: " FMT_BB " to " FMT_BB ": %s to %s\n", varNum, predBlock->bbNum, block->bbNum,
                            getRegName(fromReg), getRegName(toReg));
                 }
             }
@@ -8379,7 +8372,7 @@ void LinearScan::dumpLsraStats(FILE* file)
 
         if (spillCount != 0 || copyRegCount != 0 || resolutionMovCount != 0 || splitEdgeCount != 0)
         {
-            fprintf(file, "BB%02u [%8d]: ", block->bbNum, block->bbWeight);
+            fprintf(file, FMT_BB " [%8d]: ", block->bbNum, block->bbWeight);
             fprintf(file, "SpillCount = %d, ResolutionMovs = %d, SplitEdges = %d, CopyReg = %d\n", spillCount,
                     resolutionMovCount, splitEdgeCount, copyRegCount);
         }
@@ -8485,7 +8478,7 @@ void RefPosition::dump()
     {
         printf("%s ", treeNode->OpName(treeNode->OperGet()));
     }
-    printf("BB%02u ", this->bbNum);
+    printf(FMT_BB " ", this->bbNum);
 
     printf("regmask=");
     dumpRegMask(registerAssignment);
@@ -8769,8 +8762,24 @@ void LinearScan::lsraGetOperandString(GenTree*          tree,
             }
             else
             {
-                _snprintf_s(operandString, operandStringLength, operandStringLength, "%s%s",
-                            getRegName(tree->gtRegNum, useFloatReg(tree->TypeGet())), lastUseChar);
+                regNumber reg       = tree->gtRegNum;
+                int       charCount = _snprintf_s(operandString, operandStringLength, operandStringLength, "%s%s",
+                                            getRegName(reg, genIsValidFloatReg(reg)), lastUseChar);
+                operandString += charCount;
+                operandStringLength -= charCount;
+
+                if (tree->IsMultiRegNode())
+                {
+                    unsigned regCount = tree->GetMultiRegCount();
+                    for (unsigned regIndex = 1; regIndex < regCount; regIndex++)
+                    {
+                        regNumber reg = tree->GetRegByIndex(regIndex);
+                        charCount     = _snprintf_s(operandString, operandStringLength, operandStringLength, ",%s%s",
+                                                getRegName(reg, genIsValidFloatReg(reg)), lastUseChar);
+                        operandString += charCount;
+                        operandStringLength -= charCount;
+                    }
+                }
             }
         }
         break;
@@ -8861,7 +8870,7 @@ void LinearScan::lsraDispNode(GenTree* tree, LsraTupleDumpMode mode, bool hasDes
             printf("  V%02u MEM", varNum);
         }
     }
-    else if (tree->OperIsAssignment())
+    else if (tree->OperIs(GT_ASG))
     {
         assert(!tree->gtHasReg());
         printf("  asg%s  ", GenTree::OpName(tree->OperGet()));
@@ -8900,18 +8909,13 @@ void LinearScan::DumpOperandDefs(
     if (dstCount != 0)
     {
         // This operand directly produces registers; print it.
-        for (int i = 0; i < dstCount; i++)
+        if (!first)
         {
-            if (!first)
-            {
-                printf(",");
-            }
-
-            lsraGetOperandString(operand, mode, operandString, operandStringLength);
-            printf("%s", operandString);
-
-            first = false;
+            printf(",");
         }
+        lsraGetOperandString(operand, mode, operandString, operandStringLength);
+        printf("%s", operandString);
+        first = false;
     }
     else if (operand->isContained())
     {
@@ -9038,7 +9042,7 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
         if (enregisterLocalVars && mode == LSRA_DUMP_POST && block != compiler->fgFirstBB &&
             block->bbNum <= bbNumMaxBeforeResolution)
         {
-            printf("Predecessor for variable locations: BB%02u\n", blockInfo[block->bbNum].predBBNum);
+            printf("Predecessor for variable locations: " FMT_BB "\n", blockInfo[block->bbNum].predBBNum);
             dumpInVarToRegMap(block);
         }
         if (block->bbNum > bbNumMaxBeforeResolution)
@@ -9047,7 +9051,7 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
             splitBBNumToTargetBBNumMap->Lookup(block->bbNum, &splitEdgeInfo);
             assert(splitEdgeInfo.toBBNum <= bbNumMaxBeforeResolution);
             assert(splitEdgeInfo.fromBBNum <= bbNumMaxBeforeResolution);
-            printf("New block introduced for resolution from BB%02u to BB%02u\n", splitEdgeInfo.fromBBNum,
+            printf("New block introduced for resolution from " FMT_BB " to " FMT_BB "\n", splitEdgeInfo.fromBBNum,
                    splitEdgeInfo.toBBNum);
         }
 
@@ -9233,6 +9237,16 @@ void LinearScan::dumpLsraAllocationEvent(LsraDumpEvent event,
         case LSRA_EVENT_DEFUSE_CASE6:
             printf(indentFormat, "  Case #6 need a copy");
             dumpRegRecords();
+            if (interval == nullptr)
+            {
+                printf(indentFormat, "    NULL interval");
+                dumpRegRecords();
+            }
+            else if (interval->firstRefPosition->multiRegIdx != 0)
+            {
+                printf(indentFormat, "    (multiReg)");
+                dumpRegRecords();
+            }
             break;
 
         case LSRA_EVENT_SPILL:

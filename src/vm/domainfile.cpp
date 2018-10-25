@@ -37,24 +37,6 @@
 #include "perfmap.h"
 #endif // FEATURE_PERFMAP
 
-BOOL DomainAssembly::IsUnloading()
-{
-    WRAPPER_NO_CONTRACT;
-    SUPPORTS_DAC;
-
-    BOOL fIsUnloading = FALSE;
-
-    fIsUnloading = this->GetAppDomain()->IsUnloading();
-
-    if (!fIsUnloading)
-    {
-        fIsUnloading = m_fDebuggerUnloadStarted;
-    }
-
-    return fIsUnloading;
-}
-
-
 #ifndef DACCESS_COMPILE
 DomainFile::DomainFile(AppDomain *pDomain, PEFile *pFile)
   : m_pDomain(pDomain),
@@ -409,12 +391,6 @@ DomainAssembly *DomainFile::GetDomainAssembly()
     return (DomainAssembly *) this;
 }
 
-BOOL DomainFile::IsIntrospectionOnly()
-{
-    WRAPPER_NO_CONTRACT;
-    return GetFile()->IsIntrospectionOnly();
-}
-
 // Return true iff the debugger should get notifications about this assembly.
 //
 // Notes:
@@ -431,7 +407,6 @@ BOOL DomainAssembly::IsVisibleToDebugger()
     SUPPORTS_DAC;
 
     // If you can't run an assembly, then don't send notifications to the debugger.
-    // This check includeds IsIntrospectionOnly().
     return ((GetAssembly() != NULL) ? GetAssembly()->HasRunAccess() : FALSE);
 }
 
@@ -755,8 +730,7 @@ void DomainFile::VerifyNativeImageDependencies(bool verifyOnly)
         CORCOMPILE_VERSION_INFO * pDependencyNativeVersion =
                 pDependencyNativeLayout->GetNativeVersionInfo();
 
-        LoggablePEAssembly logAsm(pDependencyFile);
-        if (!RuntimeVerifyNativeImageDependency(pDependency, pDependencyNativeVersion, &logAsm))
+        if (!RuntimeVerifyNativeImageDependency(pDependency, pDependencyNativeVersion, pDependencyFile))
             goto NativeImageRejected;
     }
     LOG((LF_ZAP, LL_INFO100, "ZAP: Native image dependencies for %S OK.\n",
@@ -1052,9 +1026,6 @@ void DomainFile::EagerFixups()
     WRAPPER_NO_CONTRACT;
 
 #ifdef FEATURE_PREJIT
-    if (IsIntrospectionOnly())
-        return; 
-    
     if (GetCurrentModule()->HasNativeImage())
     {
         GetCurrentModule()->RunEagerFixups();
@@ -1085,6 +1056,10 @@ void DomainFile::VtableFixups()
 {
     WRAPPER_NO_CONTRACT;
 
+#if !defined(CROSSGEN_COMPILE)
+    if (!GetCurrentModule()->IsResource())
+        GetCurrentModule()->FixupVTables();
+#endif // !CROSSGEN_COMPILE
 }
 
 void DomainFile::FinishLoad()
@@ -1190,12 +1165,6 @@ void DomainFile::VerifyExecution()
         STANDARD_VM_CHECK;
     }
     CONTRACT_END;
-
-    if (GetModule()->IsIntrospectionOnly())
-    {
-        // Throw an exception
-        COMPlusThrow(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY);
-    }
 
     if(GetFile()->PassiveDomainOnly())
     {
@@ -1392,11 +1361,7 @@ BOOL DomainFile::PropagateNewActivation(Module *pModuleFrom, Module *pModuleTo)
         while (ai.Next())
         {
             STRESS_LOG3(LF_LOADER, LL_INFO100,"Attempting to propagate domain-neutral conditional module dependency %p -> %p to AppDomain %i\n",pModuleFrom,pModuleTo,ai.GetDomain()->GetId().m_dwId);
-            // This is to minimize the chances of trying to run code in an appdomain that's shutting down.
-            if (ai.GetDomain()->CanThreadEnter(pThread))
-            {
-                completed &= PropagateActivationInAppDomain(pModuleFrom,pModuleTo,ai.GetDomain());
-            }
+            completed &= PropagateActivationInAppDomain(pModuleFrom,pModuleTo,ai.GetDomain());
         }
     }
     else
@@ -1489,7 +1454,9 @@ DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, LoaderAllocato
     m_fCollectible(pLoaderAllocator->IsCollectible()),
     m_fHostAssemblyPublished(false),
     m_fCalculatedShouldLoadDomainNeutral(false),
-    m_fShouldLoadDomainNeutral(false)
+    m_fShouldLoadDomainNeutral(false),
+    m_pLoaderAllocator(pLoaderAllocator),
+    m_NextDomainAssemblyInSameALC(NULL)
 {
     CONTRACTL
     {
@@ -1500,13 +1467,6 @@ DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, LoaderAllocato
     CONTRACTL_END;
 
     pFile->ValidateForExecution();
-
-#ifndef CROSSGEN_COMPILE
-    if (m_fCollectible)
-    {
-        ((AssemblyLoaderAllocator *)pLoaderAllocator)->SetDomainAssembly(this);
-    }
-#endif
 
     // !!! backout
 
@@ -2021,7 +1981,7 @@ void DomainAssembly::Allocate()
 
                 // Go ahead and create new shared version of the assembly if possible
                 // <TODO> We will need to pass a valid OBJECREF* here in the future when we implement SCU </TODO>
-                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), this->IsCollectible(), pamTracker, this->IsCollectible() ? this->GetLoaderAllocator() : NULL);
 
                 if (MissingDependenciesCheckDone())
                     pAssembly->SetMissingDependenciesCheckDone();
@@ -2056,7 +2016,7 @@ void DomainAssembly::Allocate()
 
                 // <TODO> We will need to pass a valid OBJECTREF* here in the future when we implement SCU </TODO>
                 SharedDomain * pSharedDomain = SharedDomain::GetDomain();
-                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), this->IsCollectible(), pamTracker, this->IsCollectible() ? this->GetLoaderAllocator() : NULL);
                 pAssembly->SetIsTenured();
             }
 #endif  // FEATURE_LOADER_OPTIMIZATION
@@ -2067,7 +2027,7 @@ void DomainAssembly::Allocate()
             GetFile()->MakeMDImportPersistent();
             
             // <TODO> We will need to pass a valid OBJECTREF* here in the future when we implement SCU </TODO>
-            assemblyHolder = pAssembly = Assembly::Create(m_pDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+            assemblyHolder = pAssembly = Assembly::Create(m_pDomain, GetFile(), GetDebuggerInfoBits(), this->IsCollectible(), pamTracker, this->IsCollectible() ? this->GetLoaderAllocator() : NULL);
             assemblyHolder->SetIsTenured();
         }
 

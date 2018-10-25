@@ -670,11 +670,6 @@ void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
 {
     assert(treeNode->OperIs(GT_DIV, GT_UDIV, GT_MOD, GT_UMOD));
 
-    // We shouldn't be seeing GT_MOD on float/double args as it should get morphed into a
-    // helper call by front-end.  Similarly we shouldn't be seeing GT_UDIV and GT_UMOD
-    // on float/double args.
-    assert(treeNode->OperIs(GT_DIV) || !varTypeIsFloating(treeNode));
-
     GenTree* dividend = treeNode->gtOp1;
 
 #ifdef _TARGET_X86_
@@ -692,80 +687,56 @@ void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
     var_types  targetType = treeNode->TypeGet();
     emitter*   emit       = getEmitter();
 
+    // Node's type must be int/native int, small integer types are not
+    // supported and floating point types are handled by genCodeForBinary.
+    assert(varTypeIsIntOrI(targetType));
     // dividend is in a register.
     assert(dividend->isUsedFromReg());
 
     genConsumeOperands(treeNode->AsOp());
-    if (varTypeIsFloating(targetType))
-    {
-        // Floating point div/rem operation
-        assert(oper == GT_DIV || oper == GT_MOD);
+    // dividend must be in RAX
+    genCopyRegIfNeeded(dividend, REG_RAX);
 
-        if (dividend->gtRegNum == targetReg)
+    // zero or sign extend rax to rdx
+    if (oper == GT_UMOD || oper == GT_UDIV)
+    {
+        instGen_Set_Reg_To_Zero(EA_PTRSIZE, REG_EDX);
+    }
+    else
+    {
+        emit->emitIns(INS_cdq, size);
+        // the cdq instruction writes RDX, So clear the gcInfo for RDX
+        gcInfo.gcMarkRegSetNpt(RBM_RDX);
+    }
+
+    // Perform the 'targetType' (64-bit or 32-bit) divide instruction
+    instruction ins;
+    if (oper == GT_UMOD || oper == GT_UDIV)
+    {
+        ins = INS_div;
+    }
+    else
+    {
+        ins = INS_idiv;
+    }
+
+    emit->emitInsBinary(ins, size, treeNode, divisor);
+
+    // DIV/IDIV instructions always store the quotient in RAX and the remainder in RDX.
+    // Move the result to the desired register, if necessary
+    if (oper == GT_DIV || oper == GT_UDIV)
+    {
+        if (targetReg != REG_RAX)
         {
-            emit->emitInsBinary(genGetInsForOper(treeNode->gtOper, targetType), size, treeNode, divisor);
-        }
-        else if (divisor->isUsedFromReg() && divisor->gtRegNum == targetReg)
-        {
-            // It is not possible to generate 2-operand divss or divsd where reg2 = reg1 / reg2
-            // because divss/divsd reg1, reg2 will over-write reg1.  Therefore, in case of AMD64
-            // LSRA has to make sure that such a register assignment is not generated for floating
-            // point div/rem operations.
-            noway_assert(
-                !"GT_DIV/GT_MOD (float): case of reg2 = reg1 / reg2, LSRA should never generate such a reg assignment");
-        }
-        else
-        {
-            inst_RV_RV(ins_Copy(targetType), targetReg, dividend->gtRegNum, targetType);
-            emit->emitInsBinary(genGetInsForOper(treeNode->gtOper, targetType), size, treeNode, divisor);
+            inst_RV_RV(INS_mov, targetReg, REG_RAX, targetType);
         }
     }
     else
     {
-        // dividend must be in RAX
-        genCopyRegIfNeeded(dividend, REG_RAX);
-
-        // zero or sign extend rax to rdx
-        if (oper == GT_UMOD || oper == GT_UDIV)
+        assert((oper == GT_MOD) || (oper == GT_UMOD));
+        if (targetReg != REG_RDX)
         {
-            instGen_Set_Reg_To_Zero(EA_PTRSIZE, REG_EDX);
-        }
-        else
-        {
-            emit->emitIns(INS_cdq, size);
-            // the cdq instruction writes RDX, So clear the gcInfo for RDX
-            gcInfo.gcMarkRegSetNpt(RBM_RDX);
-        }
-
-        // Perform the 'targetType' (64-bit or 32-bit) divide instruction
-        instruction ins;
-        if (oper == GT_UMOD || oper == GT_UDIV)
-        {
-            ins = INS_div;
-        }
-        else
-        {
-            ins = INS_idiv;
-        }
-
-        emit->emitInsBinary(ins, size, treeNode, divisor);
-
-        // DIV/IDIV instructions always store the quotient in RAX and the remainder in RDX.
-        // Move the result to the desired register, if necessary
-        if (oper == GT_DIV || oper == GT_UDIV)
-        {
-            if (targetReg != REG_RAX)
-            {
-                inst_RV_RV(INS_mov, targetReg, REG_RAX, targetType);
-            }
-        }
-        else
-        {
-            assert((oper == GT_MOD) || (oper == GT_UMOD));
-            if (targetReg != REG_RDX)
-            {
-                inst_RV_RV(INS_mov, targetReg, REG_RDX, targetType);
-            }
+            inst_RV_RV(INS_mov, targetReg, REG_RDX, targetType);
         }
     }
     genProduceReg(treeNode);
@@ -773,7 +744,6 @@ void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
 
 //------------------------------------------------------------------------
 // genCodeForBinary: Generate code for many binary arithmetic operators
-// This method is expected to have called genConsumeOperands() before calling it.
 //
 // Arguments:
 //    treeNode - The binary operation for which we are generating code.
@@ -782,22 +752,33 @@ void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
 //    None.
 //
 // Notes:
-//    Mul and div variants have special constraints on x64 so are not handled here.
-//    See teh assert below for the operators that are handled.
+//    Integer MUL and DIV variants have special constraints on x64 so are not handled here.
+//    See the assert below for the operators that are handled.
 
-void CodeGen::genCodeForBinary(GenTree* treeNode)
+void CodeGen::genCodeForBinary(GenTreeOp* treeNode)
 {
+#ifdef DEBUG
+    bool isValidOper = treeNode->OperIs(GT_ADD, GT_SUB);
+    if (varTypeIsFloating(treeNode->TypeGet()))
+    {
+        isValidOper |= treeNode->OperIs(GT_MUL, GT_DIV);
+    }
+    else
+    {
+        isValidOper |= treeNode->OperIs(GT_AND, GT_OR, GT_XOR);
+#ifndef _TARGET_64BIT_
+        isValidOper |= treeNode->OperIs(GT_ADD_LO, GT_ADD_HI, GT_SUB_LO, GT_SUB_HI);
+#endif
+    }
+    assert(isValidOper);
+#endif
+
+    genConsumeOperands(treeNode);
+
     const genTreeOps oper       = treeNode->OperGet();
     regNumber        targetReg  = treeNode->gtRegNum;
     var_types        targetType = treeNode->TypeGet();
     emitter*         emit       = getEmitter();
-
-#if defined(_TARGET_64BIT_)
-    assert(oper == GT_OR || oper == GT_XOR || oper == GT_AND || oper == GT_ADD || oper == GT_SUB);
-#else  // !defined(_TARGET_64BIT_)
-    assert(oper == GT_OR || oper == GT_XOR || oper == GT_AND || oper == GT_ADD_LO || oper == GT_ADD_HI ||
-           oper == GT_SUB_LO || oper == GT_SUB_HI || oper == GT_ADD || oper == GT_SUB);
-#endif // !defined(_TARGET_64BIT_)
 
     GenTree* op1 = treeNode->gtGetOp1();
     GenTree* op2 = treeNode->gtGetOp2();
@@ -918,6 +899,10 @@ void CodeGen::genCodeForMul(GenTreeOp* treeNode)
     var_types targetType = treeNode->TypeGet();
     emitter*  emit       = getEmitter();
 
+    // Node's type must be int or long (only on x64), small integer types are not
+    // supported and floating point types are handled by genCodeForBinary.
+    assert(varTypeIsIntOrI(targetType));
+
     instruction ins;
     emitAttr    size                  = emitTypeSize(treeNode);
     bool        isUnsignedMultiply    = ((treeNode->gtFlags & GTF_UNSIGNED) != 0);
@@ -931,7 +916,7 @@ void CodeGen::genCodeForMul(GenTreeOp* treeNode)
     // 2-op form: reg *= rm
     // 3-op form: reg = rm * imm
 
-    genConsumeOperands(treeNode->AsOp());
+    genConsumeOperands(treeNode);
 
     // This matches the 'mul' lowering in Lowering::SetMulOpCounts()
     //
@@ -956,9 +941,6 @@ void CodeGen::genCodeForMul(GenTreeOp* treeNode)
 
     if (immOp != nullptr)
     {
-        // This must be a non-floating point operation.
-        assert(!varTypeIsFloating(treeNode));
-
         // CQ: When possible use LEA for mul by imm 3, 5 or 9
         ssize_t imm = immOp->AsIntConCommon()->IconValue();
 
@@ -978,7 +960,7 @@ void CodeGen::genCodeForMul(GenTreeOp* treeNode)
             if (targetReg != rmOp->gtRegNum)
             {
                 // Copy reg src to dest register
-                inst_RV_RV(ins_Copy(targetType), targetReg, rmOp->gtRegNum, targetType);
+                inst_RV_RV(INS_mov, targetReg, rmOp->gtRegNum, targetType);
             }
             inst_RV_SH(INS_shl, size, targetReg, shiftAmount);
         }
@@ -1002,7 +984,7 @@ void CodeGen::genCodeForMul(GenTreeOp* treeNode)
         }
         else
         {
-            ins = genGetInsForOper(GT_MUL, targetType);
+            ins = INS_imul;
         }
 
         // Set rmOp to the memory operand (if any)
@@ -1018,7 +1000,7 @@ void CodeGen::genCodeForMul(GenTreeOp* treeNode)
         // Setup targetReg when neither of the source operands was a matching register
         if (regOp->gtRegNum != mulTargetReg)
         {
-            inst_RV_RV(ins_Copy(targetType), mulTargetReg, regOp->gtRegNum, targetType);
+            inst_RV_RV(INS_mov, mulTargetReg, regOp->gtRegNum, targetType);
         }
 
         emit->emitInsBinary(ins, size, treeNode, rmOp);
@@ -1580,9 +1562,15 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             genCodeForNegNot(treeNode);
             break;
 
+        case GT_DIV:
+            if (varTypeIsFloating(treeNode->TypeGet()))
+            {
+                genCodeForBinary(treeNode->AsOp());
+                break;
+            }
+            __fallthrough;
         case GT_MOD:
         case GT_UMOD:
-        case GT_DIV:
         case GT_UDIV:
             genCodeForDivMod(treeNode->AsOp());
             break;
@@ -1603,11 +1591,15 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
 
         case GT_ADD:
         case GT_SUB:
-            genConsumeOperands(treeNode->AsOp());
-            genCodeForBinary(treeNode);
+            genCodeForBinary(treeNode->AsOp());
             break;
 
         case GT_MUL:
+            if (varTypeIsFloating(treeNode->TypeGet()))
+            {
+                genCodeForBinary(treeNode->AsOp());
+                break;
+            }
             genCodeForMul(treeNode->AsOp());
             break;
 
@@ -2138,7 +2130,9 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
 //      The ESP tracking is used to report stack pointer-relative GC info, which is not
 //      interesting while doing the localloc construction. Also, for functions with localloc,
 //      we have EBP frames, and EBP-relative locals, and ESP-relative accesses only for function
-//      call arguments. We store the ESP after the localloc is complete in the LocAllocSP
+//      call arguments.
+//
+//      For x86, we store the ESP after the localloc is complete in the LocAllocSP
 //      variable. This variable is implicitly reported to the VM in the GC info (its position
 //      is defined by convention relative to other items), and is used by the GC to find the
 //      "base" stack pointer in functions with localloc.
@@ -2241,13 +2235,15 @@ void CodeGen::genLclHeap(GenTree* tree)
         if (compiler->info.compInitMem)
         {
             // Convert the count from a count of bytes to a loop count. We will loop once per
-            // stack alignment size, so each loop will zero 4 bytes on x86 and 16 bytes on x64.
+            // stack alignment size, so each loop will zero 4 bytes on Windows/x86, and 16 bytes
+            // on x64 and Linux/x86.
+            //
             // Note that we zero a single reg-size word per iteration on x86, and 2 reg-size
             // words per iteration on x64. We will shift off all the stack alignment bits
             // added above, so there is no need for an 'and' instruction.
 
             // --- shr regCnt, 2 (or 4) ---
-            inst_RV_SH(INS_SHIFT_RIGHT_LOGICAL, EA_PTRSIZE, regCnt, STACK_ALIGN_SHIFT_ALL);
+            inst_RV_SH(INS_SHIFT_RIGHT_LOGICAL, EA_PTRSIZE, regCnt, STACK_ALIGN_SHIFT);
         }
         else
         {
@@ -2462,11 +2458,12 @@ ALLOC_DONE:
 
 BAILOUT:
 
-    // Write the lvaLocAllocSPvar stack frame slot
+#ifdef JIT32_GCENCODER
     if (compiler->lvaLocAllocSPvar != BAD_VAR_NUM)
     {
         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaLocAllocSPvar, 0);
     }
+#endif // JIT32_GCENCODER
 
 #if STACK_PROBES
     if (compiler->opts.compNeedStackProbes)
@@ -3501,7 +3498,7 @@ void CodeGen::genJumpTable(GenTree* treeNode)
         BasicBlock* target = *jumpTable++;
         noway_assert(target->bbFlags & BBF_JMP_TARGET);
 
-        JITDUMP("            DD      L_M%03u_BB%02u\n", Compiler::s_compMethodsCount, target->bbNum);
+        JITDUMP("            DD      L_M%03u_" FMT_BB "\n", Compiler::s_compMethodsCount, target->bbNum);
 
         getEmitter()->emitDataGenData(i, target);
     };
@@ -4131,7 +4128,7 @@ void CodeGen::genCodeForShiftRMW(GenTreeStoreInd* storeInd)
     GenTree* data = storeInd->Data();
     GenTree* addr = storeInd->Addr();
 
-    assert(data->OperIsShiftOrRotate());
+    assert(data->OperIsShift() || data->OperIsRotate());
 
     // This function only handles the RMW case.
     assert(data->gtOp.gtOp1->isUsedFromMemory());
@@ -4528,29 +4525,41 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
     genProduceReg(tree);
 }
 
+//------------------------------------------------------------------------
+// genRegCopy: Produce code for a GT_COPY node.
+//
+// Arguments:
+//    tree - the GT_COPY node
+//
+// Notes:
+//    This will copy the register(s) produced by this nodes source, to
+//    the register(s) allocated to this GT_COPY node.
+//    It has some special handling for these casess:
+//    - when the source and target registers are in different register files
+//      (note that this is *not* a conversion).
+//    - when the source is a lclVar whose home location is being moved to a new
+//      register (rather than just being copied for temporary use).
+//
 void CodeGen::genRegCopy(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_COPY);
     GenTree* op1 = treeNode->gtOp.gtOp1;
 
-    if (op1->IsMultiRegCall())
+    if (op1->IsMultiRegNode())
     {
         genConsumeReg(op1);
 
-        GenTreeCopyOrReload* copyTree    = treeNode->AsCopyOrReload();
-        GenTreeCall*         call        = op1->AsCall();
-        ReturnTypeDesc*      retTypeDesc = call->GetReturnTypeDesc();
-        unsigned             regCount    = retTypeDesc->GetReturnRegCount();
+        GenTreeCopyOrReload* copyTree = treeNode->AsCopyOrReload();
+        unsigned             regCount = treeNode->GetMultiRegCount();
 
         for (unsigned i = 0; i < regCount; ++i)
         {
-            var_types type    = retTypeDesc->GetReturnRegType(i);
-            regNumber fromReg = call->GetRegNumByIdx(i);
+            var_types type    = op1->GetRegTypeByIndex(i);
+            regNumber fromReg = op1->GetRegByIndex(i);
             regNumber toReg   = copyTree->GetRegNumByIdx(i);
 
-            // A Multi-reg GT_COPY node will have valid reg only for those
-            // positions that corresponding result reg of call node needs
-            // to be copied.
+            // A Multi-reg GT_COPY node will have a valid reg only for those positions for which a corresponding
+            // result reg of the multi-reg node needs to be copied.
             if (toReg != REG_NA)
             {
                 assert(toReg != fromReg);
@@ -5067,7 +5076,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 if (source->TypeGet() == TYP_STRUCT)
                 {
                     GenTreeObj* obj      = source->AsObj();
-                    unsigned    argBytes = (unsigned)roundUp(obj->gtBlkSize, TARGET_POINTER_SIZE);
+                    unsigned    argBytes = roundUp(obj->gtBlkSize, TARGET_POINTER_SIZE);
                     assert((curArgTabEntry->numSlots * TARGET_POINTER_SIZE) == argBytes);
                 }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
@@ -6331,269 +6340,134 @@ void CodeGen::genLongToIntCast(GenTree* cast)
 #endif
 
 //------------------------------------------------------------------------
-// genIntToIntCast: Generate code for an integer cast
-//    This method handles integer overflow checking casts
-//    as well as ordinary integer casts.
+// genIntCastOverflowCheck: Generate overflow checking code for an integer cast.
 //
 // Arguments:
-//    treeNode - The GT_CAST node
+//    cast - The GT_CAST node
+//    desc - The cast description
+//    reg  - The register containing the value to check
 //
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    The treeNode is not a contained node and must have an assigned register.
-//    For a signed convert from byte, the source must be in a byte-addressable register.
-//    Neither the source nor target type can be a floating point type.
-//
-// TODO-XArch-CQ: Allow castOp to be a contained node without an assigned register.
-// TODO: refactor to use getCastDescription
-//
-void CodeGen::genIntToIntCast(GenTree* treeNode)
+void CodeGen::genIntCastOverflowCheck(GenTreeCast* cast, const GenIntCastDesc& desc, regNumber reg)
 {
-    assert(treeNode->OperGet() == GT_CAST);
-
-    GenTree*  castOp  = treeNode->gtCast.CastOp();
-    var_types srcType = genActualType(castOp->TypeGet());
-    noway_assert(genTypeSize(srcType) >= 4);
-    assert(genTypeSize(srcType) <= genTypeSize(TYP_I_IMPL));
-
-    regNumber targetReg     = treeNode->gtRegNum;
-    regNumber sourceReg     = castOp->gtRegNum;
-    var_types dstType       = treeNode->CastToType();
-    bool      isUnsignedDst = varTypeIsUnsigned(dstType);
-    bool      isUnsignedSrc = varTypeIsUnsigned(srcType);
-
-    // if necessary, force the srcType to unsigned when the GT_UNSIGNED flag is set
-    if (!isUnsignedSrc && treeNode->IsUnsigned())
+    switch (desc.CheckKind())
     {
-        srcType       = genUnsignedType(srcType);
-        isUnsignedSrc = true;
-    }
-
-    bool requiresOverflowCheck = false;
-
-    assert(genIsValidIntReg(targetReg));
-    assert(genIsValidIntReg(sourceReg));
-
-    instruction ins     = INS_invalid;
-    emitAttr    srcSize = EA_ATTR(genTypeSize(srcType));
-    emitAttr    dstSize = EA_ATTR(genTypeSize(dstType));
-
-    if (srcSize < dstSize)
-    {
-#ifdef _TARGET_X86_
-        // dstType cannot be a long type on x86, such casts should have been decomposed.
-        // srcType cannot be a small type since it's the "actual type" of the cast operand.
-        // This means that widening casts do not actually occur on x86.
-        unreached();
-#else
-        // This is a widening cast from TYP_(U)INT to TYP_(U)LONG.
-        assert(dstSize == EA_8BYTE);
-        assert(srcSize == EA_4BYTE);
-
-        // When widening, overflows can only happen if the source type is signed and the
-        // destination type is unsigned. Since the overflow check ensures that the value
-        // is positive a cheaper mov instruction can be used instead of movsxd.
-        if (treeNode->gtOverflow() && !isUnsignedSrc && isUnsignedDst)
-        {
-            requiresOverflowCheck = true;
-            ins                   = INS_mov;
-        }
-        else
-        {
-            ins = isUnsignedSrc ? INS_mov : INS_movsxd;
-        }
-#endif
-    }
-    else
-    {
-        // Narrowing cast, or sign-changing cast
-        noway_assert(srcSize >= dstSize);
-
-        // Is this an Overflow checking cast?
-        if (treeNode->gtOverflow())
-        {
-            requiresOverflowCheck = true;
-            ins                   = INS_mov;
-        }
-        else
-        {
-            ins = ins_Move_Extend(dstType, false);
-        }
-    }
-
-    noway_assert(ins != INS_invalid);
-
-    genConsumeReg(castOp);
-
-    if (requiresOverflowCheck)
-    {
-        ssize_t typeMin        = 0;
-        ssize_t typeMax        = 0;
-        ssize_t typeMask       = 0;
-        bool    needScratchReg = false;
-        bool    signCheckOnly  = false;
-
-        /* Do we need to compare the value, or just check masks */
-
-        switch (dstType)
-        {
-            case TYP_BYTE:
-                typeMask = ssize_t((int)0xFFFFFF80);
-                typeMin  = SCHAR_MIN;
-                typeMax  = SCHAR_MAX;
-                break;
-
-            case TYP_UBYTE:
-                typeMask = ssize_t((int)0xFFFFFF00L);
-                break;
-
-            case TYP_SHORT:
-                typeMask = ssize_t((int)0xFFFF8000);
-                typeMin  = SHRT_MIN;
-                typeMax  = SHRT_MAX;
-                break;
-
-            case TYP_USHORT:
-                typeMask = ssize_t((int)0xFFFF0000L);
-                break;
-
-            case TYP_INT:
-                if (srcType == TYP_UINT)
-                {
-                    signCheckOnly = true;
-                }
-                else
-                {
-                    typeMask = ssize_t((int)0x80000000);
-                    typeMin  = INT_MIN;
-                    typeMax  = INT_MAX;
-                }
-                break;
-
-            case TYP_UINT:
-                if (srcType == TYP_INT)
-                {
-                    signCheckOnly = true;
-                }
-                else
-                {
-                    needScratchReg = true;
-                }
-                break;
-
-            case TYP_LONG:
-                noway_assert(srcType == TYP_ULONG);
-                signCheckOnly = true;
-                break;
-
-            case TYP_ULONG:
-                noway_assert((srcType == TYP_LONG) || (srcType == TYP_INT));
-                signCheckOnly = true;
-                break;
-
-            default:
-                NO_WAY("Unknown type");
-                return;
-        }
-
-        if (signCheckOnly)
-        {
-            // We only need to check for a negative value in sourceReg
-            inst_RV_RV(INS_test, sourceReg, sourceReg, srcType, srcSize);
+        case GenIntCastDesc::CHECK_POSITIVE:
+            getEmitter()->emitIns_R_R(INS_test, EA_SIZE(desc.CheckSrcSize()), reg, reg);
             genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
-        }
-        else
+            break;
+
+#ifdef _TARGET_64BIT_
+        case GenIntCastDesc::CHECK_UINT_RANGE:
         {
-            // When we are converting from unsigned or to unsigned, we
-            // will only have to check for any bits set using 'typeMask'
-            if (isUnsignedSrc || isUnsignedDst)
+            // We need to check if the value is not greater than 0xFFFFFFFF but this value
+            // cannot be encoded in an immediate operand. Use a right shift to test if the
+            // upper 32 bits are zero. This requires a temporary register.
+            const regNumber tempReg = cast->GetSingleTempReg();
+            assert(tempReg != reg);
+            getEmitter()->emitIns_R_R(INS_mov, EA_8BYTE, tempReg, reg);
+            getEmitter()->emitIns_R_I(INS_shr_N, EA_8BYTE, tempReg, 32);
+            genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
+        }
+        break;
+
+        case GenIntCastDesc::CHECK_POSITIVE_INT_RANGE:
+            getEmitter()->emitIns_R_I(INS_cmp, EA_8BYTE, reg, INT32_MAX);
+            genJumpToThrowHlpBlk(EJ_ja, SCK_OVERFLOW);
+            break;
+
+        case GenIntCastDesc::CHECK_INT_RANGE:
+            getEmitter()->emitIns_R_I(INS_cmp, EA_8BYTE, reg, INT32_MAX);
+            genJumpToThrowHlpBlk(EJ_jg, SCK_OVERFLOW);
+            getEmitter()->emitIns_R_I(INS_cmp, EA_8BYTE, reg, INT32_MIN);
+            genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
+            break;
+#endif
+
+        default:
+        {
+            assert(desc.CheckKind() == GenIntCastDesc::CHECK_SMALL_INT_RANGE);
+            const int castMaxValue = desc.CheckSmallIntMax();
+            const int castMinValue = desc.CheckSmallIntMin();
+
+            getEmitter()->emitIns_R_I(INS_cmp, EA_SIZE(desc.CheckSrcSize()), reg, castMaxValue);
+            genJumpToThrowHlpBlk((castMinValue == 0) ? EJ_ja : EJ_jg, SCK_OVERFLOW);
+
+            if (castMinValue != 0)
             {
-                if (needScratchReg)
-                {
-                    regNumber tmpReg = treeNode->GetSingleTempReg();
-                    inst_RV_RV(INS_mov, tmpReg, sourceReg, TYP_LONG); // Move the 64-bit value to a writable temp reg
-                    inst_RV_SH(INS_SHIFT_RIGHT_LOGICAL, srcSize, tmpReg, 32); // Shift right by 32 bits
-                    genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);               // Throw if result shift is non-zero
-                }
-                else
-                {
-                    noway_assert(typeMask != 0);
-                    inst_RV_IV(INS_TEST, sourceReg, typeMask, srcSize);
-                    genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
-                }
-            }
-            else
-            {
-                // For a narrowing signed cast
-                //
-                // We must check the value is in a signed range.
-
-                // Compare with the MAX
-
-                noway_assert((typeMin != 0) && (typeMax != 0));
-
-                inst_RV_IV(INS_cmp, sourceReg, typeMax, srcSize);
-                genJumpToThrowHlpBlk(EJ_jg, SCK_OVERFLOW);
-
-                // Compare with the MIN
-
-                inst_RV_IV(INS_cmp, sourceReg, typeMin, srcSize);
+                getEmitter()->emitIns_R_I(INS_cmp, EA_SIZE(desc.CheckSrcSize()), reg, castMinValue);
                 genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
             }
         }
-
-        if (targetReg != sourceReg
-#ifdef _TARGET_AMD64_
-            // On amd64, we can hit this path for a same-register
-            // 4-byte to 8-byte widening conversion, and need to
-            // emit the instruction to set the high bits correctly.
-            || (dstSize == EA_8BYTE && srcSize == EA_4BYTE)
-#endif // _TARGET_AMD64_
-                )
-            inst_RV_RV(ins, targetReg, sourceReg, srcType, srcSize);
+        break;
     }
-    else // non-overflow checking cast
+}
+
+//------------------------------------------------------------------------
+// genIntToIntCast: Generate code for an integer cast, with or without overflow check.
+//
+// Arguments:
+//    cast - The GT_CAST node
+//
+// Assumptions:
+//    The cast node is not a contained node and must have an assigned register.
+//    Neither the source nor target type can be a floating point type.
+//    On x86 casts to (U)BYTE require that the source be in a byte register.
+//
+// TODO-XArch-CQ: Allow castOp to be a contained node without an assigned register.
+//
+void CodeGen::genIntToIntCast(GenTreeCast* cast)
+{
+    genConsumeRegs(cast->gtGetOp1());
+
+    const regNumber srcReg = cast->gtGetOp1()->gtRegNum;
+    const regNumber dstReg = cast->gtRegNum;
+
+    assert(genIsValidIntReg(srcReg));
+    assert(genIsValidIntReg(dstReg));
+
+    GenIntCastDesc desc(cast);
+
+    if (desc.CheckKind() != GenIntCastDesc::CHECK_NONE)
     {
-        // We may have code transformations that result in casts where srcType is the same as dstType.
-        // e.g. Bug 824281, in which a comma is split by the rationalizer, leaving an assignment of a
-        // long constant to a long lclVar.
-        if (srcType == dstType)
-        {
-            ins = INS_mov;
-        }
-
-        if (ins == INS_mov)
-        {
-            if (targetReg != sourceReg
-#ifdef _TARGET_AMD64_
-                // On amd64, 'mov' is the opcode used to zero-extend from
-                // 4 bytes to 8 bytes.
-                || (dstSize == EA_8BYTE && srcSize == EA_4BYTE)
-#endif // _TARGET_AMD64_
-                    )
-            {
-                inst_RV_RV(ins, targetReg, sourceReg, srcType, srcSize);
-            }
-        }
-#ifdef _TARGET_AMD64_
-        else if (ins == INS_movsxd)
-        {
-            inst_RV_RV(ins, targetReg, sourceReg, srcType, srcSize);
-        }
-#endif // _TARGET_AMD64_
-        else
-        {
-            noway_assert(ins == INS_movsx || ins == INS_movzx);
-            noway_assert(srcSize >= dstSize);
-
-            /* Generate "mov targetReg, castOp->gtReg */
-            inst_RV_RV(ins, targetReg, sourceReg, srcType, dstSize);
-        }
+        genIntCastOverflowCheck(cast, desc, srcReg);
     }
 
-    genProduceReg(treeNode);
+    if ((desc.ExtendKind() != GenIntCastDesc::COPY) || (srcReg != dstReg))
+    {
+        instruction ins;
+        unsigned    insSize;
+
+        switch (desc.ExtendKind())
+        {
+            case GenIntCastDesc::ZERO_EXTEND_SMALL_INT:
+                ins     = INS_movzx;
+                insSize = desc.ExtendSrcSize();
+                break;
+            case GenIntCastDesc::SIGN_EXTEND_SMALL_INT:
+                ins     = INS_movsx;
+                insSize = desc.ExtendSrcSize();
+                break;
+#ifdef _TARGET_64BIT_
+            case GenIntCastDesc::ZERO_EXTEND_INT:
+                ins     = INS_mov;
+                insSize = 4;
+                break;
+            case GenIntCastDesc::SIGN_EXTEND_INT:
+                ins     = INS_movsxd;
+                insSize = 4;
+                break;
+#endif
+            default:
+                assert(desc.ExtendKind() == GenIntCastDesc::COPY);
+                ins     = INS_mov;
+                insSize = desc.ExtendSrcSize();
+                break;
+        }
+
+        getEmitter()->emitIns_R_R(ins, EA_ATTR(insSize), dstReg, srcReg);
+    }
+
+    genProduceReg(cast);
 }
 
 //------------------------------------------------------------------------
@@ -8611,67 +8485,12 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
                                BAD_IL_OFFSET, // IL offset
                                callTarget,    // ireg
                                REG_NA, 0, 0,  // xreg, xmul, disp
-                               false,         // isJump
-                               emitter::emitNoGChelper(helper));
+                               false         // isJump
+                               );
     // clang-format on
 
     regSet.verifyRegistersUsed(killMask);
 }
-
-#if !defined(_TARGET_64BIT_)
-//-----------------------------------------------------------------------------
-//
-// Code Generation for Long integers
-//
-//-----------------------------------------------------------------------------
-
-//------------------------------------------------------------------------
-// genStoreLongLclVar: Generate code to store a non-enregistered long lclVar
-//
-// Arguments:
-//    treeNode - A TYP_LONG lclVar node.
-//
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    'treeNode' must be a TYP_LONG lclVar node for a lclVar that has NOT been promoted.
-//    Its operand must be a GT_LONG node.
-//
-void CodeGen::genStoreLongLclVar(GenTree* treeNode)
-{
-    emitter* emit = getEmitter();
-
-    GenTreeLclVarCommon* lclNode = treeNode->AsLclVarCommon();
-    unsigned             lclNum  = lclNode->gtLclNum;
-    LclVarDsc*           varDsc  = &(compiler->lvaTable[lclNum]);
-    assert(varDsc->TypeGet() == TYP_LONG);
-    assert(!varDsc->lvPromoted);
-    GenTree* op1 = treeNode->gtOp.gtOp1;
-    noway_assert(op1->OperGet() == GT_LONG || op1->OperGet() == GT_MUL_LONG);
-    genConsumeRegs(op1);
-
-    if (op1->OperGet() == GT_LONG)
-    {
-        GenTree* loVal = op1->gtGetOp1();
-        GenTree* hiVal = op1->gtGetOp2();
-
-        noway_assert((loVal->gtRegNum != REG_NA) && (hiVal->gtRegNum != REG_NA));
-
-        emit->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, loVal->gtRegNum, lclNum, 0);
-        emit->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, hiVal->gtRegNum, lclNum, genTypeSize(TYP_INT));
-    }
-    else if (op1->OperGet() == GT_MUL_LONG)
-    {
-        assert((op1->gtFlags & GTF_MUL_64RSLT) != 0);
-
-        // Stack store
-        getEmitter()->emitIns_S_R(ins_Store(TYP_INT), emitTypeSize(TYP_INT), REG_LNGRET_LO, lclNum, 0);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_INT), emitTypeSize(TYP_INT), REG_LNGRET_HI, lclNum,
-                                  genTypeSize(TYP_INT));
-    }
-}
-#endif // !defined(_TARGET_64BIT_)
 
 /*****************************************************************************
 * Unit testing of the XArch emitter: generate a bunch of instructions into the prolog

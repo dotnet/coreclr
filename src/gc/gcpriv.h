@@ -275,7 +275,7 @@ void GCLog (const char *fmt, ... );
 #define dprintf(l,x)
 #endif //TRACE_GC
 
-#ifndef FEATURE_REDHAWK
+#if !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
 #undef  assert
 #define assert _ASSERTE
 #undef  ASSERT
@@ -3750,7 +3750,7 @@ private:
 
     }
 
-    BOOL FinalizeSegForAppDomain (AppDomain *pDomain, 
+    BOOL FinalizeSegForAppDomain (void *pDomain, 
                                   BOOL fRunFinalizers, 
                                   unsigned int Seg);
 
@@ -3774,7 +3774,7 @@ public:
     void DiscardNonCriticalObjects();
 
     //Methods used by the app domain unloading call to finalize objects in an app domain
-    bool FinalizeAppDomain (AppDomain *pDomain, bool fRunFinalizers);
+    bool FinalizeAppDomain (void *pDomain, bool fRunFinalizers);
 
     void CheckFinalizerObjects();
 

@@ -41,7 +41,7 @@
 #include "sigbuilder.h"
 #include "metadataexports.h"
 #include "inlinetracking.h"
-
+#include "threads.h"
 
 #ifdef FEATURE_PREJIT
 #include "exceptionhandling.h"
@@ -2067,7 +2067,7 @@ void Module::BuildStaticsOffsets(AllocMemTracker *pamTracker)
                     continue;
 
                 // We account for "regular statics" and "thread statics" separately. 
-                // Currently we are lumping RVA and context statics into "regular statics",
+                // Currently we are lumping RVA into "regular statics",
                 // but we probably shouldn't.
                 switch (ElementType)
                 {
@@ -2904,6 +2904,18 @@ void Module::FreeModuleIndex()
             _ASSERTE(!Module::IsEncodedModuleIndex((SIZE_T)m_ModuleID));
             _ASSERTE(m_ModuleIndex == m_ModuleID->GetModuleIndex());
 
+#ifndef CROSSGEN_COMPILE
+            if (IsCollectible())
+            {
+                ThreadStoreLockHolder tsLock;
+                Thread *pThread = NULL;
+                while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
+                {
+                    pThread->DeleteThreadStaticData(m_ModuleIndex);
+                }
+            }
+#endif // CROSSGEN_COMPILE
+
             // Get the ModuleIndex from the DLM and free it
             Module::FreeModuleIndex(m_ModuleIndex);
         }
@@ -3195,7 +3207,10 @@ void Module::SetDomainFile(DomainFile *pDomainFile)
 
     // Allocate static handles now.
     // NOTE: Bootstrapping issue with mscorlib - we will manually allocate later
-    if (g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT] != NULL)
+    // If the assembly is collectible, we don't initialize static handles for them
+    // as it is currently initialized through the DomainLocalModule::PopulateClass in MethodTable::CheckRunClassInitThrowing
+    // (If we don't do this, it would allocate here unused regular static handles that will be overridden later)
+    if (g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT] != NULL && !GetAssembly()->IsCollectible())
         AllocateRegularStaticHandles(pDomainFile->GetAppDomain());
 }
 
@@ -3513,7 +3528,7 @@ void Module::StartUnload()
 
         // Acquire the Crst lock before creating the IBCLoggingDisabler object.
         // Only one thread at a time can be processing an IBC logging event.
-        CrstHolder lock(g_IBCLogger.GetSync());
+        CrstHolder lock(IBCLogger::GetSync());
         {
             IBCLoggingDisabler disableLogging( pInfo );  // runs IBCLoggingDisabler::DisableLogging
 
@@ -4232,12 +4247,6 @@ BOOL Module::IsVisibleToDebugger()
         return FALSE;
     }
 
-    if (IsIntrospectionOnly())
-    {
-        return FALSE;
-    }
-
-
     // If for whatever other reason, we can't run it, then don't notify the debugger about it.
     Assembly * pAssembly = GetAssembly();
     if (!pAssembly->HasRunAccess())
@@ -4400,21 +4409,6 @@ UINT32 Module::GetTlsIndex()
     return m_file->GetTlsIndex();
 }
 
-PCCOR_SIGNATURE Module::GetSignature(RVA signature)
-{
-    WRAPPER_NO_CONTRACT;
-
-    return m_file->GetSignature(signature);
-}
-
-RVA Module::GetSignatureRva(PCCOR_SIGNATURE signature)
-{
-    WRAPPER_NO_CONTRACT;
-
-    return m_file->GetSignatureRva(signature);
-}
-
-
 
 // In DAC builds this function was being called on host addresses which may or may not
 // have been marshalled from the target. Such addresses can't be reliably mapped back to
@@ -4465,20 +4459,6 @@ StubMethodHashTable *Module::GetStubMethodHashTable()
     return m_pStubMethodHashTable;
 }
 #endif // FEATURE_PREJIT
-
-CHECK Module::CheckSignatureRva(RVA signature)
-{
-    WRAPPER_NO_CONTRACT;
-    CHECK(m_file->CheckSignatureRva(signature));
-    CHECK_OK;
-}
-
-CHECK Module::CheckSignature(PCCOR_SIGNATURE signature)
-{
-    WRAPPER_NO_CONTRACT;
-    CHECK(m_file->CheckSignature(signature));
-    CHECK_OK;
-}
 
 void Module::InitializeStringData(DWORD token, EEStringData *pstrData, CQuickBytes *pqb)
 {
@@ -5262,12 +5242,6 @@ Module::GetAssemblyIfLoaded(
 #ifdef FEATURE_COMINTEROP
             if (szWinRtNamespace != NULL)
             {
-                if (IsIntrospectionOnly())
-                {   // We do not have to implement this method for ReflectionOnly WinRT type requests
-                    // ReflectionOnly WinRT types will never have instances on GC heap to be inspected by stackwalking or by debugger
-                    break;
-                }
-                
                 _ASSERTE(szWinRtClassName != NULL);
                 
                 CLRPrivBinderWinRT * pWinRtBinder = pAppDomainExamine->GetWinRtBinder();
@@ -5331,7 +5305,6 @@ Module::GetAssemblyIfLoaded(
                 if (FAILED(spec.InitializeSpecInternal(kAssemblyRef, 
                                                        pMDImport, 
                                                        pCurAssemblyInExamineDomain,
-                                                       IsIntrospectionOnly(), 
                                                        FALSE /*fAllowAllocation*/)))
                 {
                     continue;
@@ -5392,8 +5365,6 @@ Module::GetAssemblyIfLoaded(
             // as the shared assembly context may have different binding rules as compared to the root context. At this time, we prefer to not fix this scenario until
             // there is customer need for a fix.
         }
-        else if (IsIntrospectionOnly())
-            eligibleForAdditionalChecks = FALSE;
 
         AssemblySpec specSearchAssemblyRef;
 
@@ -5405,7 +5376,6 @@ Module::GetAssemblyIfLoaded(
             if (FAILED(specSearchAssemblyRef.InitializeSpecInternal(kAssemblyRef, 
                                                     pMDImport, 
                                                     NULL,
-                                                    FALSE, 
                                                     FALSE /*fAllowAllocation*/)))
             {
                 eligibleForAdditionalChecks = FALSE; // If an assemblySpec can't be constructed then we're not going to succeed
@@ -5482,7 +5452,6 @@ Module::GetAssemblyIfLoaded(
                                 if (FAILED(specFoundAssemblyRef.InitializeSpecInternal(assemblyRef, 
                                                                         pImportFoundNativeImage, 
                                                                         NULL,
-                                                                        FALSE, 
                                                                         FALSE /*fAllowAllocation*/)))
                                 {
                                     continue; // If the spec cannot be loaded, it isn't the one we're looking for
@@ -5614,7 +5583,7 @@ DomainAssembly * Module::LoadAssembly(
                 szWinRtTypeNamespace, 
                 szWinRtTypeClassName);
         AssemblySpec spec;
-        spec.InitializeSpec(kAssemblyRef, GetMDImport(), GetDomainFile(GetAppDomain())->GetDomainAssembly(), IsIntrospectionOnly());
+        spec.InitializeSpec(kAssemblyRef, GetMDImport(), GetDomainFile(GetAppDomain())->GetDomainAssembly());
         // Set the binding context in the AssemblySpec if one is available. This can happen if the LoadAssembly ended up
         // invoking the custom AssemblyLoadContext implementation that returned a reference to an assembly bound to a different
         // AssemblyLoadContext implementation.
@@ -5633,7 +5602,6 @@ DomainAssembly * Module::LoadAssembly(
     if (pDomainAssembly != NULL)
     {
         _ASSERTE(
-            IsIntrospectionOnly() ||                        // GetAssemblyIfLoaded will not find introspection-only assemblies
             !fHasBindableIdentity ||                        // GetAssemblyIfLoaded will not find non-bindable assemblies
             pDomainAssembly->IsSystem() ||                  // GetAssemblyIfLoaded will not find mscorlib (see AppDomain::FindCachedFile)
             !pDomainAssembly->IsLoaded() ||                 // GetAssemblyIfLoaded will not find not-yet-loaded assemblies
@@ -6434,8 +6402,7 @@ MethodDesc *Module::FindMethod(mdToken pMethod)
         CONTRACT_VIOLATION(ThrowsViolation);
         char szMethodName [MAX_CLASSNAME_LENGTH];
         CEEInfo::findNameOfToken(this, pMethod, szMethodName, COUNTOF (szMethodName));
-        // This used to be LF_IJW, but changed to LW_INTEROP to reclaim a bit in our log facilities
-        // IJW itself is not supported in coreclr so this code should never be run.
+        // This used to be IJW, but changed to LW_INTEROP to reclaim a bit in our log facilities
         LOG((LF_INTEROP, LL_INFO10, "Failed to find Method: %s for Vtable Fixup\n", szMethodName));
 #endif // _DEBUG
     }
@@ -6881,7 +6848,379 @@ void Module::NotifyDebuggerUnload(AppDomain *pDomain)
     g_pDebugInterface->UnloadModule(this, pDomain);
 }
 
+#if !defined(CROSSGEN_COMPILE)
+//=================================================================================
+mdToken GetTokenForVTableEntry(HINSTANCE hInst, BYTE **ppVTEntry)
+{
+    CONTRACTL{
+        NOTHROW;
+    } CONTRACTL_END;
 
+    mdToken tok =(mdToken)(UINT_PTR)*ppVTEntry;
+    _ASSERTE(TypeFromToken(tok) == mdtMethodDef || TypeFromToken(tok) == mdtMemberRef);
+    return tok;
+}
+
+//=================================================================================
+void SetTargetForVTableEntry(HINSTANCE hInst, BYTE **ppVTEntry, BYTE *pTarget)
+{
+    CONTRACTL{
+        THROWS;
+    } CONTRACTL_END;
+
+    DWORD oldProtect;
+    if (!ClrVirtualProtect(ppVTEntry, sizeof(BYTE*), PAGE_READWRITE, &oldProtect))
+    {
+        
+        // This is very bad.  We are not going to be able to update header.
+        _ASSERTE(!"SetTargetForVTableEntry(): VirtualProtect() changing IJW thunk vtable to R/W failed.\n");
+        ThrowLastError();
+    }
+
+    *ppVTEntry = pTarget;
+
+    DWORD ignore;
+    if (!ClrVirtualProtect(ppVTEntry, sizeof(BYTE*), oldProtect, &ignore))
+    {
+        // This is not so bad, we're already done the update, we just didn't return the thunk table to read only
+        _ASSERTE(!"SetTargetForVTableEntry(): VirtualProtect() changing IJW thunk vtable back to RO failed.\n");
+    }
+}
+
+//=================================================================================
+BYTE * GetTargetForVTableEntry(HINSTANCE hInst, BYTE **ppVTEntry)
+{
+    CONTRACTL{
+        NOTHROW;
+    } CONTRACTL_END;
+
+    return *ppVTEntry;
+}
+
+//======================================================================================
+// Fixup vtables stored in the header to contain pointers to method desc
+// prestubs rather than metadata method tokens.
+void Module::FixupVTables()
+{
+    CONTRACTL{
+        INSTANCE_CHECK;
+        STANDARD_VM_CHECK;
+    } CONTRACTL_END;
+
+
+    // If we've already fixed up, or this is not an IJW module, just return.
+    // NOTE: This relies on ILOnly files not having fixups. If this changes,
+    //       we need to change this conditional.
+    if (IsIJWFixedUp() || m_file->IsILOnly()) {
+        return;
+    }
+
+    HINSTANCE hInstThis = GetFile()->GetIJWBase();
+
+    // <REVISIT_TODO>@todo: workaround!</REVISIT_TODO>
+    // If we are compiling in-process, we don't want to fixup the vtables - as it
+    // will have side effects on the other copy of the module!
+    if (SystemDomain::GetCurrentDomain()->IsPassiveDomain()) {
+        return;
+    }
+
+#ifdef FEATURE_PREJIT
+    // We delayed filling in this value until the LoadLibrary occurred
+    if (HasTls() && HasNativeImage()) {
+        CORCOMPILE_EE_INFO_TABLE *pEEInfo = GetNativeImage()->GetNativeEEInfoTable();
+        pEEInfo->rvaStaticTlsIndex = GetTlsIndex();
+    }
+#endif
+    // Get vtable fixup data
+    COUNT_T cFixupRecords;
+    IMAGE_COR_VTABLEFIXUP *pFixupTable = m_file->GetVTableFixups(&cFixupRecords);
+
+    // No records then return
+    if (cFixupRecords == 0) {
+        return;
+    }
+
+    // Now, we need to take a lock to serialize fixup.
+    PEImage::IJWFixupData *pData = PEImage::GetIJWData(m_file->GetIJWBase());
+
+    // If it's already been fixed (in some other appdomain), record the fact and return
+    if (pData->IsFixedUp()) {
+        SetIsIJWFixedUp();
+        return;
+    }
+
+    //////////////////////////////////////////////////////
+    //
+    // This is done in three stages:
+    //  1. We enumerate the types we'll need to load
+    //  2. We load the types
+    //  3. We create and install the thunks
+    //
+
+    COUNT_T cVtableThunks = 0;
+    struct MethodLoadData
+    {
+        mdToken     token;
+        MethodDesc *pMD;
+    };
+    MethodLoadData *rgMethodsToLoad = NULL;
+    COUNT_T cMethodsToLoad = 0;
+
+    //
+    // Stage 1
+    //
+
+    // Each fixup entry describes a vtable, so iterate the vtables and sum their counts
+    {
+        DWORD iFixup;
+        for (iFixup = 0; iFixup < cFixupRecords; iFixup++)
+            cVtableThunks += pFixupTable[iFixup].Count;
+    }
+
+    Thread *pThread = GetThread();
+    StackingAllocator *pAlloc = &pThread->m_MarshalAlloc;
+    CheckPointHolder cph(pAlloc->GetCheckpoint());
+
+    // Allocate the working array of tokens.
+    cMethodsToLoad = cVtableThunks;
+
+    rgMethodsToLoad = new (pAlloc) MethodLoadData[cMethodsToLoad];
+    memset(rgMethodsToLoad, 0, cMethodsToLoad * sizeof(MethodLoadData));
+
+    // Now take the IJW module lock and get all the tokens
+    {
+        // Take the lock
+        CrstHolder lockHolder(pData->GetLock());
+
+        // If someone has beaten us, just return
+        if (pData->IsFixedUp())
+        {
+            SetIsIJWFixedUp();
+            return;
+        }
+
+        COUNT_T iCurMethod = 0;
+
+        if (cFixupRecords != 0)
+        {
+            for (COUNT_T iFixup = 0; iFixup < cFixupRecords; iFixup++)
+            {
+                // Vtables can be 32 or 64 bit.
+                if ((pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED)) ||
+                    (pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED | COR_VTABLE_FROM_UNMANAGED)) ||
+                    (pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED | COR_VTABLE_FROM_UNMANAGED_RETAIN_APPDOMAIN)))
+                {
+                    const BYTE** pPointers = (const BYTE **)m_file->GetVTable(pFixupTable[iFixup].RVA);
+                    for (int iMethod = 0; iMethod < pFixupTable[iFixup].Count; iMethod++)
+                    {
+                        if (pData->IsMethodFixedUp(iFixup, iMethod))
+                            continue;
+                        mdToken mdTok = GetTokenForVTableEntry(hInstThis, (BYTE **)(pPointers + iMethod));
+                        CONSISTENCY_CHECK(mdTok != mdTokenNil);
+                        rgMethodsToLoad[iCurMethod++].token = mdTok;
+                    }
+                }
+            }
+        }
+
+    }
+
+    //
+    // Stage 2 - Load the types
+    //
+
+    {
+        for (COUNT_T iCurMethod = 0; iCurMethod < cMethodsToLoad; iCurMethod++)
+        {
+            mdToken curTok = rgMethodsToLoad[iCurMethod].token;
+            if (!GetMDImport()->IsValidToken(curTok))
+            {
+                _ASSERTE(!"Invalid token in v-table fix-up table");
+                ThrowHR(COR_E_BADIMAGEFORMAT);
+            }
+
+
+            // Find the method desc
+            MethodDesc *pMD;
+
+            {
+                CONTRACT_VIOLATION(LoadsTypeViolation);
+                pMD = FindMethodThrowing(curTok);
+            }
+
+            CONSISTENCY_CHECK(CheckPointer(pMD));
+
+            rgMethodsToLoad[iCurMethod].pMD = pMD;
+        }
+    }
+
+    //
+    // Stage 3 - Create the thunk data
+    //
+    {
+        // Take the lock
+        CrstHolder lockHolder(pData->GetLock());
+
+        // If someone has beaten us, just return
+        if (pData->IsFixedUp())
+        {
+            SetIsIJWFixedUp();
+            return;
+        }
+
+        // This phase assumes there is only one AppDomain and that thunks
+        // can all safely point directly to the method in the current AppDomain
+
+        AppDomain *pAppDomain = GetAppDomain();
+
+        // Used to index into rgMethodsToLoad
+        COUNT_T iCurMethod = 0;
+
+
+        // Each fixup entry describes a vtable (each slot contains a metadata token
+        // at this stage).
+        DWORD iFixup;
+        for (iFixup = 0; iFixup < cFixupRecords; iFixup++)
+            cVtableThunks += pFixupTable[iFixup].Count;
+
+        DWORD dwIndex = 0;
+        DWORD dwThunkIndex = 0;
+
+        // Now to fill in the thunk table.
+        for (iFixup = 0; iFixup < cFixupRecords; iFixup++)
+        {
+            // Tables may contain zero fixups, in which case the RVA is null, which triggers an assert
+            if (pFixupTable[iFixup].Count == 0)
+                continue;
+
+            const BYTE** pPointers = (const BYTE **)
+                m_file->GetVTable(pFixupTable[iFixup].RVA);
+
+            // Vtables can be 32 or 64 bit.
+            if (pFixupTable[iFixup].Type == COR_VTABLE_PTRSIZED)
+            {
+                for (int iMethod = 0; iMethod < pFixupTable[iFixup].Count; iMethod++)
+                {
+                    if (pData->IsMethodFixedUp(iFixup, iMethod))
+                        continue;
+
+                    mdToken mdTok = rgMethodsToLoad[iCurMethod].token;
+                    MethodDesc *pMD = rgMethodsToLoad[iCurMethod].pMD;
+                    iCurMethod++;
+
+#ifdef _DEBUG 
+                    if (pMD->IsNDirect())
+                    {
+                        LOG((LF_INTEROP, LL_INFO10, "[0x%lx] <-- PINV thunk for \"%s\" (target = 0x%lx)\n",
+                            (size_t)&(pPointers[iMethod]), pMD->m_pszDebugMethodName,
+                            (size_t)(((NDirectMethodDesc*)pMD)->GetNDirectTarget())));
+                    }
+#endif // _DEBUG
+
+                    CONSISTENCY_CHECK(dwThunkIndex < cVtableThunks);
+
+                    // Point the local vtable slot to the thunk we created
+                    SetTargetForVTableEntry(hInstThis, (BYTE **)&pPointers[iMethod], (BYTE *)pMD->GetMultiCallableAddrOfCode());
+
+                    pData->MarkMethodFixedUp(iFixup, iMethod);
+
+                    dwThunkIndex++;
+                }
+
+            }
+            else if (pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED | COR_VTABLE_FROM_UNMANAGED) || 
+                    (pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED | COR_VTABLE_FROM_UNMANAGED_RETAIN_APPDOMAIN)))
+            {
+                for (int iMethod = 0; iMethod < pFixupTable[iFixup].Count; iMethod++)
+                {
+                    if (pData->IsMethodFixedUp(iFixup, iMethod))
+                        continue;
+
+                    mdToken mdTok = rgMethodsToLoad[iCurMethod].token;
+                    MethodDesc *pMD = rgMethodsToLoad[iCurMethod].pMD;
+                    iCurMethod++;
+                    LOG((LF_INTEROP, LL_INFO10, "[0x%p] <-- VTable  thunk for \"%s\" (pMD = 0x%p)\n",
+                        (UINT_PTR)&(pPointers[iMethod]), pMD->m_pszDebugMethodName, pMD));
+
+                    UMEntryThunk *pUMEntryThunk = (UMEntryThunk*)(void*)(GetDllThunkHeap()->AllocAlignedMem(sizeof(UMEntryThunk), CODE_SIZE_ALIGN)); // UMEntryThunk contains code
+                    FillMemory(pUMEntryThunk, sizeof(*pUMEntryThunk), 0);
+
+                    UMThunkMarshInfo *pUMThunkMarshInfo = (UMThunkMarshInfo*)(void*)(GetThunkHeap()->AllocAlignedMem(sizeof(UMThunkMarshInfo), CODE_SIZE_ALIGN));
+                    FillMemory(pUMThunkMarshInfo, sizeof(*pUMThunkMarshInfo), 0);
+
+                    pUMThunkMarshInfo->LoadTimeInit(pMD);
+                    pUMEntryThunk->LoadTimeInit(NULL, NULL, pUMThunkMarshInfo, pMD, pAppDomain->GetId());
+                    SetTargetForVTableEntry(hInstThis, (BYTE **)&pPointers[iMethod], (BYTE *)pUMEntryThunk->GetCode());
+
+                    pData->MarkMethodFixedUp(iFixup, iMethod);
+                }
+            }
+            else if ((pFixupTable[iFixup].Type & COR_VTABLE_NOT_PTRSIZED) == COR_VTABLE_NOT_PTRSIZED)
+            {
+                // fixup type doesn't match the platform
+                THROW_BAD_FORMAT(BFA_FIXUP_WRONG_PLATFORM, this);
+            }
+            else
+            {
+                _ASSERTE(!"Unknown vtable fixup type");
+            }
+        }
+
+        // Indicate that this module has been fixed before releasing the lock
+        pData->SetIsFixedUp();  // On the data
+        SetIsIJWFixedUp();      // On the module
+    } // End of Stage 3
+}
+
+// Self-initializing accessor for m_pThunkHeap
+LoaderHeap *Module::GetDllThunkHeap()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+    return PEImage::GetDllThunkHeap(GetFile()->GetIJWBase());
+
+}
+
+LoaderHeap *Module::GetThunkHeap()
+{
+    CONTRACT(LoaderHeap *)
+    {
+        INSTANCE_CHECK;
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
+        POSTCONDITION(CheckPointer(RETVAL));
+    }
+    CONTRACT_END
+
+        if (!m_pThunkHeap)
+        {
+            size_t * pPrivatePCLBytes = NULL;
+            size_t * pGlobalPCLBytes = NULL;
+
+            COUNTER_ONLY(pPrivatePCLBytes = &(GetPerfCounters().m_Loading.cbLoaderHeapSize));
+
+            LoaderHeap *pNewHeap = new LoaderHeap(VIRTUAL_ALLOC_RESERVE_GRANULARITY, // DWORD dwReserveBlockSize
+                0,                                 // DWORD dwCommitBlockSize
+                pPrivatePCLBytes,
+                ThunkHeapStubManager::g_pManager->GetRangeList(),
+                TRUE);                             // BOOL fMakeExecutable
+
+            if (FastInterlockCompareExchangePointer(&m_pThunkHeap, pNewHeap, 0) != 0)
+            {
+                delete pNewHeap;
+            }
+        }
+
+    RETURN m_pThunkHeap;
+}
+#endif // !CROSSGEN_COMPILE
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
 
@@ -11009,14 +11348,14 @@ HANDLE Module::OpenMethodProfileDataLogFile(GUID mvid)
         path.Set(assemblyPath);                         // no, then put it beside the IL dll
     }
     else {
-        LPCWSTR assemblyFileName = wcsrchr(assemblyPath, '\\'); 
+        LPCWSTR assemblyFileName = wcsrchr(assemblyPath, DIRECTORY_SEPARATOR_CHAR_W);
         if (assemblyFileName)
             assemblyFileName++;                         // skip past the \ char
         else 
             assemblyFileName = assemblyPath;
 
         path.Set(ibcDir);                               // yes, put it in the directory, named with the assembly name.
-        path.Append('\\');
+        path.Append(DIRECTORY_SEPARATOR_CHAR_W);
         path.Append(assemblyFileName);
     }
 
@@ -12536,7 +12875,11 @@ void Module::DeleteProfilingData()
 }
 #endif //FEATURE_PREJIT
 
-
+void Module::SetIsIJWFixedUp()
+{
+    LIMITED_METHOD_CONTRACT;
+    FastInterlockOr(&m_dwTransientFlags, IS_IJW_FIXED_UP);
+}
 
 #ifdef FEATURE_PREJIT
 /* static */
@@ -13815,14 +14158,8 @@ LookupMapBase::ListEnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 #endif // DACCESS_COMPILE
 
 
-// Optimization intended for Module::IsIntrospectionOnly and Module::EnsureActive only
+// Optimization intended for Module::EnsureActive only
 #include <optsmallperfcritical.h>
-
-BOOL Module::IsIntrospectionOnly()
-{
-    WRAPPER_NO_CONTRACT;
-    return GetAssembly()->IsIntrospectionOnly();
-}
 
 #ifndef DACCESS_COMPILE
 VOID Module::EnsureActive()
@@ -14270,8 +14607,10 @@ void Module::ExpandAll()
 #include "clrvarargs.h" /* for VARARG C_ASSERTs in asmconstants.h */
 class CheckAsmOffsets
 {
+#ifndef CROSSBITNESS_COMPILE
 #define ASMCONSTANTS_C_ASSERT(cond) static_assert(cond, #cond);
 #include "asmconstants.h"
+#endif // CROSSBITNESS_COMPILE
 };
 
 //-------------------------------------------------------------------------------

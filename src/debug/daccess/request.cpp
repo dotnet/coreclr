@@ -1955,6 +1955,33 @@ ClrDataAccess::GetMethodTableFieldData(CLRDATA_ADDRESS mt, struct DacpMethodTabl
 }
 
 HRESULT
+ClrDataAccess::GetMethodTableCollectibleData(CLRDATA_ADDRESS mt, struct DacpMethodTableCollectibleData *data)
+{
+    if (mt == 0 || data == NULL)
+        return E_INVALIDARG;
+
+    SOSDacEnter();
+
+    MethodTable* pMT = PTR_MethodTable(TO_TADDR(mt));
+    BOOL bIsFree = FALSE;
+    if (!pMT || !DacValidateMethodTable(pMT, bIsFree))
+    {
+        hr = E_INVALIDARG;
+    }
+    else
+    {
+        data->bCollectible = pMT->Collectible();
+        if (data->bCollectible)
+        {
+            data->LoaderAllocatorObjectHandle = pMT->GetLoaderAllocatorObjectHandle();
+        }
+    }
+
+    SOSDacLeave();
+    return hr;
+}
+
+HRESULT
 ClrDataAccess::GetMethodTableTransparencyData(CLRDATA_ADDRESS mt, struct DacpMethodTableTransparencyData *pTransparencyData)
 {
     if (mt == 0 || pTransparencyData == NULL)
@@ -3811,7 +3838,7 @@ ClrDataAccess::EnumWksGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
     Dereference(g_gcDacGlobals->finalize_queue).EnumMem();
 
     // Enumerate the entire generation table, which has variable size
-    size_t gen_table_size = g_gcDacGlobals->generation_size * (*g_gcDacGlobals->max_gen + 1);
+    size_t gen_table_size = g_gcDacGlobals->generation_size * (*g_gcDacGlobals->max_gen + 2);
     DacEnumMemoryRegion(dac_cast<TADDR>(g_gcDacGlobals->generation_table), gen_table_size);
 
     if (g_gcDacGlobals->generation_table.IsValid())

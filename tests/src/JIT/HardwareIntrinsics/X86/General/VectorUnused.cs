@@ -33,10 +33,10 @@ internal partial class IntelHardwareIntrinsicTest
     {
         public static int VectorUnused(T t1, T t2)
         {
-            if (Avx.IsSupported)
+            if (Avx2.IsSupported)
             {
                 Vector256<T> v1 = Avx.SetAllVector256<T>(t1);
-                v1 = Avx.Permute2x128(v1, Avx.SetAllVector256<T>(t2), 1);
+                v1 = Vector256Add<T>(v1, Avx.SetAllVector256<T>(t2));
             }
             return Pass;
         }

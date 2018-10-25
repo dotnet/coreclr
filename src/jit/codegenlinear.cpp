@@ -270,7 +270,7 @@ void CodeGen::genCodeForBBlist()
 #ifdef DEBUG
         if (compiler->opts.dspCode)
         {
-            printf("\n      L_M%03u_BB%02u:\n", Compiler::s_compMethodsCount, block->bbNum);
+            printf("\n      L_M%03u_" FMT_BB ":\n", Compiler::s_compMethodsCount, block->bbNum);
         }
 #endif
 
@@ -426,7 +426,7 @@ void CodeGen::genCodeForBBlist()
 
         if (nonVarPtrRegs)
         {
-            printf("Regset after BB%02u gcr=", block->bbNum);
+            printf("Regset after " FMT_BB " gcr=", block->bbNum);
             printRegMaskInt(gcInfo.gcRegGCrefSetCur & ~regSet.rsMaskVars);
             compiler->getEmitter()->emitDispRegSet(gcInfo.gcRegGCrefSetCur & ~regSet.rsMaskVars);
             printf(", byr=");
@@ -1382,7 +1382,7 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode,
     assert((src->gtOper == GT_OBJ) || ((src->gtOper == GT_IND && varTypeIsSIMD(src))));
     GenTree* srcAddr = src->gtGetOp1();
 
-    size_t size = putArgNode->getArgSize();
+    unsigned int size = putArgNode->getArgSize();
 
     assert(dstReg != REG_NA);
     assert(srcReg != REG_NA);
@@ -1844,16 +1844,15 @@ void CodeGen::genEmitCall(int                   callType,
                           CORINFO_METHOD_HANDLE methHnd,
                           INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
                           void*                 addr
-                          X86_ARG(ssize_t argSize),
+                          X86_ARG(int argSize),
                           emitAttr              retSize
                           MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
                           IL_OFFSETX            ilOffset,
                           regNumber             base,
-                          bool                  isJump,
-                          bool                  isNoGC)
+                          bool                  isJump)
 {
 #if !defined(_TARGET_X86_)
-    ssize_t argSize = 0;
+    int argSize = 0;
 #endif // !defined(_TARGET_X86_)
     getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
                                methHnd,
@@ -1865,8 +1864,7 @@ void CodeGen::genEmitCall(int                   callType,
                                gcInfo.gcVarPtrSetCur,
                                gcInfo.gcRegGCrefSetCur,
                                gcInfo.gcRegByrefSetCur,
-                               ilOffset, base, REG_NA, 0, 0, isJump,
-                               emitter::emitNoGChelper(compiler->eeGetHelperNum(methHnd)));
+                               ilOffset, base, REG_NA, 0, 0, isJump);
 }
 // clang-format on
 
@@ -1879,13 +1877,13 @@ void CodeGen::genEmitCall(int                   callType,
                           CORINFO_METHOD_HANDLE methHnd,
                           INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
                           GenTreeIndir*         indir
-                          X86_ARG(ssize_t argSize),
+                          X86_ARG(int argSize),
                           emitAttr              retSize
                           MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
                           IL_OFFSETX            ilOffset)
 {
 #if !defined(_TARGET_X86_)
-    ssize_t argSize = 0;
+    int argSize = 0;
 #endif // !defined(_TARGET_X86_)
     genConsumeAddress(indir->Addr());
 
@@ -1943,7 +1941,179 @@ void CodeGen::genCodeForCast(GenTreeOp* tree)
     else
     {
         // Casts int <--> int
-        genIntToIntCast(tree);
+        genIntToIntCast(tree->AsCast());
     }
     // The per-case functions call genProduceReg()
 }
+
+CodeGen::GenIntCastDesc::GenIntCastDesc(GenTreeCast* cast)
+{
+    const var_types srcType      = genActualType(cast->gtGetOp1()->TypeGet());
+    const bool      srcUnsigned  = cast->IsUnsigned();
+    const unsigned  srcSize      = genTypeSize(srcType);
+    const var_types castType     = cast->gtCastType;
+    const bool      castUnsigned = varTypeIsUnsigned(castType);
+    const unsigned  castSize     = genTypeSize(castType);
+    const var_types dstType      = genActualType(cast->TypeGet());
+    const unsigned  dstSize      = genTypeSize(dstType);
+    const bool      overflow     = cast->gtOverflow();
+
+    assert((srcSize == 4) || (srcSize == genTypeSize(TYP_I_IMPL)));
+    assert((dstSize == 4) || (dstSize == genTypeSize(TYP_I_IMPL)));
+
+    assert(dstSize == genTypeSize(genActualType(castType)));
+
+    if (castSize < 4) // Cast to small int type
+    {
+        if (overflow)
+        {
+            m_checkKind    = CHECK_SMALL_INT_RANGE;
+            m_checkSrcSize = srcSize;
+            // Since these are small int types we can compute the min and max
+            // values of the castType without risk of integer overflow.
+            const int castNumBits = (castSize * 8) - (castUnsigned ? 0 : 1);
+            m_checkSmallIntMax    = (1 << castNumBits) - 1;
+            m_checkSmallIntMin    = (castUnsigned | srcUnsigned) ? 0 : (-m_checkSmallIntMax - 1);
+
+            m_extendKind    = COPY;
+            m_extendSrcSize = dstSize;
+        }
+        else
+        {
+            m_checkKind = CHECK_NONE;
+
+            // Casting to a small type really means widening from that small type to INT/LONG.
+            m_extendKind    = castUnsigned ? ZERO_EXTEND_SMALL_INT : SIGN_EXTEND_SMALL_INT;
+            m_extendSrcSize = castSize;
+        }
+    }
+#ifdef _TARGET_64BIT_
+    // castType cannot be (U)LONG on 32 bit targets, such casts should have been decomposed.
+    // srcType cannot be a small int type since it's the "actual type" of the cast operand.
+    // This means that widening casts do not occur on 32 bit targets.
+    else if (castSize > srcSize) // (U)INT to (U)LONG widening cast
+    {
+        assert((srcSize == 4) && (castSize == 8));
+
+        if (overflow && !srcUnsigned && castUnsigned)
+        {
+            // Widening from INT to ULONG, check if the value is positive
+            m_checkKind    = CHECK_POSITIVE;
+            m_checkSrcSize = 4;
+
+            // This is the only overflow checking cast that requires changing the
+            // source value (by zero extending), all others copy the value as is.
+            assert((srcType == TYP_INT) && (castType == TYP_ULONG));
+            m_extendKind    = ZERO_EXTEND_INT;
+            m_extendSrcSize = 4;
+        }
+        else
+        {
+            m_checkKind = CHECK_NONE;
+
+            m_extendKind    = srcUnsigned ? ZERO_EXTEND_INT : SIGN_EXTEND_INT;
+            m_extendSrcSize = 4;
+        }
+    }
+    else if (castSize < srcSize) // (U)LONG to (U)INT narrowing cast
+    {
+        assert((srcSize == 8) && (castSize == 4));
+
+        if (overflow)
+        {
+            if (castUnsigned) // (U)LONG to UINT cast
+            {
+                m_checkKind = CHECK_UINT_RANGE;
+            }
+            else if (srcUnsigned) // ULONG to INT cast
+            {
+                m_checkKind = CHECK_POSITIVE_INT_RANGE;
+            }
+            else // LONG to INT cast
+            {
+                m_checkKind = CHECK_INT_RANGE;
+            }
+
+            m_checkSrcSize = 8;
+        }
+        else
+        {
+            m_checkKind = CHECK_NONE;
+        }
+
+        m_extendKind    = COPY;
+        m_extendSrcSize = 4;
+    }
+#endif
+    else // if (castSize == srcSize) // Sign changing or same type cast
+    {
+        assert(castSize == srcSize);
+
+        if (overflow && (srcUnsigned != castUnsigned))
+        {
+            m_checkKind    = CHECK_POSITIVE;
+            m_checkSrcSize = srcSize;
+        }
+        else
+        {
+            m_checkKind = CHECK_NONE;
+        }
+
+        m_extendKind    = COPY;
+        m_extendSrcSize = srcSize;
+    }
+}
+
+#if !defined(_TARGET_64BIT_)
+//------------------------------------------------------------------------
+// genStoreLongLclVar: Generate code to store a non-enregistered long lclVar
+//
+// Arguments:
+//    treeNode - A TYP_LONG lclVar node.
+//
+// Return Value:
+//    None.
+//
+// Assumptions:
+//    'treeNode' must be a TYP_LONG lclVar node for a lclVar that has NOT been promoted.
+//    Its operand must be a GT_LONG node.
+//
+void CodeGen::genStoreLongLclVar(GenTree* treeNode)
+{
+    emitter* emit = getEmitter();
+
+    GenTreeLclVarCommon* lclNode = treeNode->AsLclVarCommon();
+    unsigned             lclNum  = lclNode->gtLclNum;
+    LclVarDsc*           varDsc  = &(compiler->lvaTable[lclNum]);
+    assert(varDsc->TypeGet() == TYP_LONG);
+    assert(!varDsc->lvPromoted);
+    GenTree* op1 = treeNode->gtOp.gtOp1;
+
+    // A GT_LONG is always contained, so it cannot have RELOAD or COPY inserted between it and its consumer,
+    // but a MUL_LONG may.
+    noway_assert(op1->OperIs(GT_LONG) || op1->gtSkipReloadOrCopy()->OperIs(GT_MUL_LONG));
+    genConsumeRegs(op1);
+
+    if (op1->OperGet() == GT_LONG)
+    {
+        GenTree* loVal = op1->gtGetOp1();
+        GenTree* hiVal = op1->gtGetOp2();
+
+        noway_assert((loVal->gtRegNum != REG_NA) && (hiVal->gtRegNum != REG_NA));
+
+        emit->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, loVal->gtRegNum, lclNum, 0);
+        emit->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, hiVal->gtRegNum, lclNum, genTypeSize(TYP_INT));
+    }
+    else
+    {
+        assert((op1->gtSkipReloadOrCopy()->gtFlags & GTF_MUL_64RSLT) != 0);
+        // This is either a multi-reg MUL_LONG, or a multi-reg reload or copy.
+        assert(op1->IsMultiRegNode() && (op1->GetMultiRegCount() == 2));
+
+        // Stack store
+        emit->emitIns_S_R(ins_Store(TYP_INT), emitTypeSize(TYP_INT), op1->GetRegByIndex(0), lclNum, 0);
+        emit->emitIns_S_R(ins_Store(TYP_INT), emitTypeSize(TYP_INT), op1->GetRegByIndex(1), lclNum,
+                          genTypeSize(TYP_INT));
+    }
+}
+#endif // !defined(_TARGET_64BIT_)

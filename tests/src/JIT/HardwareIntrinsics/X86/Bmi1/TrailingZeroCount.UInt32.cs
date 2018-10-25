@@ -71,9 +71,8 @@ namespace JIT.HardwareIntrinsics.X86
             public static TestStruct Create()
             {
                 var testStruct = new TestStruct();
-                var random = new Random();
 
-                testStruct._fld = (uint)(random.Next(0, int.MaxValue));
+                testStruct._fld = TestLibrary.Generator.GetUInt32();
                 return testStruct;
             }
 
@@ -92,18 +91,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         static ScalarUnaryOpTest__TrailingZeroCountUInt32()
         {
-            var random = new Random();
-            _clsVar = (uint)(random.Next(0, int.MaxValue));
+            _clsVar = TestLibrary.Generator.GetUInt32();
         }
 
         public ScalarUnaryOpTest__TrailingZeroCountUInt32()
         {
             Succeeded = true;
 
-            var random = new Random();
             
-            _fld = (uint)(random.Next(0, int.MaxValue));
-            _data = (uint)(random.Next(0, int.MaxValue));
+            _fld = TestLibrary.Generator.GetUInt32();
+            _data = TestLibrary.Generator.GetUInt32();
         }
 
         public bool IsSupported => Bmi1.IsSupported && (Environment.Is64BitProcess || ((typeof(UInt32) != typeof(long)) && (typeof(UInt32) != typeof(ulong))));
@@ -112,6 +109,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Bmi1.TrailingZeroCount(
                 Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data))
             );
@@ -121,6 +120,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Bmi1).GetMethod(nameof(Bmi1.TrailingZeroCount), new Type[] { typeof(UInt32) })
                                      .Invoke(null, new object[] {
                                         Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data))
@@ -131,6 +132,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Bmi1.TrailingZeroCount(
                 _clsVar
             );
@@ -140,6 +143,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var data = Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data));
             var result = Bmi1.TrailingZeroCount(data);
 
@@ -148,6 +153,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
             var test = new ScalarUnaryOpTest__TrailingZeroCountUInt32();
             var result = Bmi1.TrailingZeroCount(test._fld);
 
@@ -156,12 +163,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Bmi1.TrailingZeroCount(_fld);
             ValidateResult(_fld, result);
         }
 
         public void RunStructLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
             var test = TestStruct.Create();
             var result = Bmi1.TrailingZeroCount(test._fld);
 
@@ -170,12 +181,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
             var test = TestStruct.Create();
             test.RunStructFldScenario(this);
         }
 
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -196,10 +211,10 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (isUnexpectedResult)
             {
-                Console.WriteLine($"{nameof(Bmi1)}.{nameof(Bmi1.TrailingZeroCount)}<UInt32>(UInt32): TrailingZeroCount failed:");
-                Console.WriteLine($"    data: {data}");
-                Console.WriteLine($"  result: {result}");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Bmi1)}.{nameof(Bmi1.TrailingZeroCount)}<UInt32>(UInt32): TrailingZeroCount failed:");
+                TestLibrary.TestFramework.LogInformation($"    data: {data}");
+                TestLibrary.TestFramework.LogInformation($"  result: {result}");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

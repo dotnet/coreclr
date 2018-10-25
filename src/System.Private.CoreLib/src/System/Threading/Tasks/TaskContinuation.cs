@@ -588,7 +588,7 @@ namespace System.Threading.Tasks
                 }
 
                 // We couldn't inline, so now we need to schedule it
-                ThreadPool.UnsafeQueueCustomWorkItem(this, forceGlobal: false);
+                ThreadPool.UnsafeQueueUserWorkItemInternal(this, preferLocal: true);
             }
         }
 
@@ -624,10 +624,17 @@ namespace System.Threading.Tasks
             }
         }
 
-        /// <summary>IThreadPoolWorkItem override, which is the entry function for this when the ThreadPool scheduler decides to run it.</summary>
-        private void ExecuteWorkItemHelper()
+        void IThreadPoolWorkItem.Execute()
         {
             var etwLog = TplEtwProvider.Log;
+            ExecutionContext context = m_capturedContext;
+
+            if (!etwLog.IsEnabled() && context == null)
+            {
+                m_action();
+                return;
+            }
+
             Guid savedActivityId = Guid.Empty;
             if (etwLog.TasksSetActivityIds && m_continuationId != 0)
             {
@@ -640,7 +647,6 @@ namespace System.Threading.Tasks
                 // We're on a thread pool thread with no higher-level callers, so exceptions can just propagate.
 
                 // If there's no execution context, just invoke the delegate.
-                ExecutionContext context = m_capturedContext;
                 if (context == null)
                 {
                     m_action();
@@ -659,24 +665,6 @@ namespace System.Threading.Tasks
                 }
             }
         }
-
-        void IThreadPoolWorkItem.ExecuteWorkItem()
-        {
-            // inline the fast path
-            if (m_capturedContext == null && !TplEtwProvider.Log.IsEnabled())
-            {
-                m_action();
-            }
-            else
-            {
-                ExecuteWorkItemHelper();
-            }
-        }
-
-        /// <summary>
-        /// The ThreadPool calls this if a ThreadAbortException is thrown while trying to execute this workitem.
-        /// </summary>
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ }
 
         /// <summary>Cached delegate that invokes an Action passed as an object parameter.</summary>
         private static ContextCallback s_invokeActionCallback;
@@ -787,7 +775,23 @@ namespace System.Threading.Tasks
             // If we're not allowed to run here, schedule the action
             if (!allowInlining || !IsValidLocationForInlining)
             {
-                UnsafeScheduleAction(box.MoveNextAction, prevCurrentTask);
+                // If logging is disabled, we can simply queue the box itself as a custom work
+                // item, and its work item execution will just invoke its MoveNext.  However, if
+                // logging is enabled, there is pre/post-work we need to do around logging to
+                // match what's done for other continuations, and that requires flowing additional
+                // information into the continuation, which we don't want to burden other cases of the
+                // box with... so, in that case we just delegate to the AwaitTaskContinuation-based
+                // path that already handles this, albeit at the expense of allocating the ATC
+                // object, and potentially forcing the box's delegate into existence, when logging
+                // is enabled.
+                if (TplEtwProvider.Log.IsEnabled())
+                {
+                    UnsafeScheduleAction(box.MoveNextAction, prevCurrentTask);
+                }
+                else
+                {
+                    ThreadPool.UnsafeQueueUserWorkItemInternal(box, preferLocal: true);
+                }
                 return;
             }
 
@@ -820,7 +824,7 @@ namespace System.Threading.Tasks
                 etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, atc.m_continuationId);
             }
 
-            ThreadPool.UnsafeQueueCustomWorkItem(atc, forceGlobal: false);
+            ThreadPool.UnsafeQueueUserWorkItemInternal(atc, preferLocal: true);
         }
 
         /// <summary>Throws the exception asynchronously on the ThreadPool.</summary>

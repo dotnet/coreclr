@@ -239,12 +239,7 @@ Unknown_QueryInterface_Internal(ComCallWrapper* pWrap, IUnknown* pUnk, REFIID ri
         // If we haven't found the IP or if we haven't looked yet (because we aren't
         // being aggregated), now look on the managed object to see if it supports the interface.
         if (pDestItf == NULL)
-        {
             pDestItf = ComCallWrapper::GetComIPFromCCW(pWrap, riid, NULL, GetComIPFromCCW::CheckVisibility);
-            if (pDestItf == NULL)
-            {
-            }
-        }
 
 ErrExit:
         // If we succeeded in obtaining the requested IP then return S_OK.
@@ -588,25 +583,6 @@ ClassInfo_GetClassInfo(IUnknown* pUnk, ITypeInfo** ppTI)
     return hr;
 }
 
-//-------------------------------------------------------------------------------------
-// Helper to get the ITypeLib* for a Assembly.
-HRESULT GetITypeLibForAssembly(Assembly *pAssembly, ITypeLib **ppTLB, int bAutoCreate, int flags)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        PRECONDITION(CheckPointer(pAssembly));
-        PRECONDITION(CheckPointer(ppTLB));
-    }
-    CONTRACTL_END;
-    
-    //@CORESYSTODO: what to do?
-    return E_FAIL;
-} // HRESULT GetITypeLibForAssembly()
-
-
 //------------------------------------------------------------------------------------------
 // Helper to get the ITypeInfo* for a type.
 HRESULT GetITypeLibForEEClass(MethodTable *pClass, ITypeLib **ppTLB, int bAutoCreate, int flags)
@@ -619,7 +595,7 @@ HRESULT GetITypeLibForEEClass(MethodTable *pClass, ITypeLib **ppTLB, int bAutoCr
     }
     CONTRACTL_END;
 
-    return GetITypeLibForAssembly(pClass->GetAssembly(), ppTLB, bAutoCreate, flags);
+    return COR_E_NOTSUPPORTED;
 } // HRESULT GetITypeLibForEEClass()
 
 

@@ -594,11 +594,6 @@ const bool dspGCtbls = true;
 #else
 #define DOUBLE_ALIGN 0 // no special handling for double alignment
 #endif
-/*****************************************************************************/
-#ifdef DEBUG
-extern void _cdecl debugStop(const char* why, ...);
-#endif
-/*****************************************************************************/
 
 #ifdef DEBUG
 
@@ -687,6 +682,18 @@ inline size_t roundDn(size_t size, size_t mult = sizeof(size_t))
     return (size) & ~(mult - 1);
 }
 
+#ifdef _HOST_64BIT_
+inline unsigned int roundUp(unsigned size, unsigned mult)
+{
+    return (unsigned int)roundUp((size_t)size, (size_t)mult);
+}
+
+inline unsigned int roundDn(unsigned size, unsigned mult)
+{
+    return (unsigned int)roundDn((size_t)size, (size_t)mult);
+}
+#endif // _HOST_64BIT_
+
 inline unsigned int unsigned_abs(int x)
 {
     return ((unsigned int)abs(x));
@@ -714,8 +721,6 @@ public:
     void record(unsigned size);
 
 private:
-    void ensureAllocated();
-
     unsigned              m_sizeCount;
     const unsigned* const m_sizeTable;
     unsigned              m_counts[HISTOGRAM_MAX_SIZE_COUNT];

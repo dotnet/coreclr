@@ -2150,7 +2150,7 @@ const emitAttr emitter::emitSizeDecode[emitter::OPSZ_COUNT] = {EA_1BYTE, EA_2BYT
  *  a displacement and a constant.
  */
 
-emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, ssize_t cns, int dsp)
+emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, target_ssize_t cns, int dsp)
 {
     if (dsp == 0)
     {
@@ -2222,17 +2222,22 @@ emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, ssize_t cns, int 
     }
 }
 
-/*****************************************************************************
- *
- *  Returns true if garbage-collection won't happen within the helper call.
- *  Don't need to record live pointers for such call sites.
- */
-
-bool emitter::emitNoGChelper(unsigned IHX)
+//------------------------------------------------------------------------
+// emitNoGChelper: Returns true if garbage collection won't happen within the helper call.
+//
+// Notes:
+//  There is no need to record live pointers for such call sites.
+//
+// Arguments:
+//   helpFunc - a helper signature for the call, can be CORINFO_HELP_UNDEF, that means that the call is not a helper.
+//
+// Return value:
+//   true if GC can't happen within this call, false otherwise.
+bool emitter::emitNoGChelper(CorInfoHelpFunc helpFunc)
 {
     // TODO-Throughput: Make this faster (maybe via a simple table of bools?)
 
-    switch (IHX)
+    switch (helpFunc)
     {
         case CORINFO_HELP_UNDEF:
             return false;
@@ -2276,11 +2281,32 @@ bool emitter::emitNoGChelper(unsigned IHX)
         case CORINFO_HELP_GETSHARED_NONGCSTATIC_BASE_NOCTOR:
 
         case CORINFO_HELP_INIT_PINVOKE_FRAME:
-
             return true;
-    }
 
-    return false;
+        default:
+            return false;
+    }
+}
+
+//------------------------------------------------------------------------
+// emitNoGChelper: Returns true if garbage collection won't happen within the helper call.
+//
+// Notes:
+//  There is no need to record live pointers for such call sites.
+//
+// Arguments:
+//   methHnd - a method handle for the call.
+//
+// Return value:
+//   true if GC can't happen within this call, false otherwise.
+bool emitter::emitNoGChelper(CORINFO_METHOD_HANDLE methHnd)
+{
+    CorInfoHelpFunc helpFunc = Compiler::eeGetHelperNum(methHnd);
+    if (helpFunc == CORINFO_HELP_UNDEF)
+    {
+        return false;
+    }
+    return emitNoGChelper(helpFunc);
 }
 
 /*****************************************************************************
@@ -3638,7 +3664,7 @@ AGAIN:
 #ifdef DEBUG
                     if (EMITVERBOSE)
                     {
-                        printf("Adjusted offset of block %02u from %04X to %04X\n", lstIG->igNum, lstIG->igOffs,
+                        printf("Adjusted offset of " FMT_BB " from %04X to %04X\n", lstIG->igNum, lstIG->igOffs,
                                lstIG->igOffs - adjIG);
                     }
 #endif // DEBUG
@@ -3723,7 +3749,7 @@ AGAIN:
             {
                 printf("Binding: ");
                 emitDispIns(jmp, false, false, false);
-                printf("Binding L_M%03u_BB%02u ", Compiler::s_compMethodsCount, jmp->idAddr()->iiaBBlabel->bbNum);
+                printf("Binding L_M%03u_" FMT_BB, Compiler::s_compMethodsCount, jmp->idAddr()->iiaBBlabel->bbNum);
             }
 #endif // DEBUG
 
@@ -3738,7 +3764,7 @@ AGAIN:
                 }
                 else
                 {
-                    printf("-- ERROR, no emitter cookie for BB%02u; it is probably missing BBF_JMP_TARGET or "
+                    printf("-- ERROR, no emitter cookie for " FMT_BB "; it is probably missing BBF_JMP_TARGET or "
                            "BBF_HAS_LABEL.\n",
                            jmp->idAddr()->iiaBBlabel->bbNum);
                 }
@@ -4111,7 +4137,7 @@ AGAIN:
 #ifdef DEBUG
             if (EMITVERBOSE)
             {
-                printf("Adjusted offset of block %02u from %04X to %04X\n", lstIG->igNum, lstIG->igOffs,
+                printf("Adjusted offset of " FMT_BB " from %04X to %04X\n", lstIG->igNum, lstIG->igOffs,
                        lstIG->igOffs - adjIG);
             }
 #endif // DEBUG
@@ -5453,7 +5479,7 @@ void emitter::emitOutputDataSec(dataSecDsc* sec, BYTE* dst)
                     emitRecordRelocation(&(bDst[i]), target, IMAGE_REL_BASED_HIGHLOW);
                 }
 
-                JITDUMP("  BB%02u: 0x%p\n", block->bbNum, bDst[i]);
+                JITDUMP("  " FMT_BB ": 0x%p\n", block->bbNum, bDst[i]);
             }
         }
         // relative label table
@@ -5476,7 +5502,7 @@ void emitter::emitOutputDataSec(dataSecDsc* sec, BYTE* dst)
                 assert(FitsIn<uint32_t>(lab->igOffs - labFirst->igOffs));
                 uDst[i] = lab->igOffs - labFirst->igOffs;
 
-                JITDUMP("  BB%02u: 0x%x\n", block->bbNum, uDst[i]);
+                JITDUMP("  " FMT_BB ": 0x%x\n", block->bbNum, uDst[i]);
             }
         }
         else
@@ -6697,7 +6723,7 @@ void emitter::emitNxtIG(bool emitAdd)
  *  emitGetInsSC: Get the instruction's constant value.
  */
 
-ssize_t emitter::emitGetInsSC(instrDesc* id)
+target_ssize_t emitter::emitGetInsSC(instrDesc* id)
 {
 #ifdef _TARGET_ARM_ // should it be _TARGET_ARMARCH_? Why do we need this? Note that on ARM64 we store scaled immediates
                     // for some formats
@@ -6733,6 +6759,15 @@ ssize_t emitter::emitGetInsSC(instrDesc* id)
         return id->idSmallCns();
     }
 }
+
+#ifdef _TARGET_ARM_
+
+BYTE* emitter::emitGetInsRelocValue(instrDesc* id)
+{
+    return ((instrDescReloc*)id)->idrRelocVal;
+}
+
+#endif // _TARGET_ARM_
 
 /*****************************************************************************/
 #if EMIT_TRACK_STACK_DEPTH
@@ -7134,6 +7169,8 @@ void emitter::emitRecordRelocation(void* location,            /* IN */
                                    WORD  slotNum /* = 0 */,   /* IN */
                                    INT32 addlDelta /* = 0 */) /* IN */
 {
+    assert(slotNum == 0); // It is unused on all supported platforms.
+
     // If we're an unmatched altjit, don't tell the VM anything. We still record the relocation for
     // late disassembly; maybe we'll need it?
     if (emitComp->info.compMatchedVM)
@@ -7268,3 +7305,46 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 }
 
 #endif // DEBUG
+
+//------------------------------------------------------------------------
+// emitGetGCRegsSavedOrModified: Returns the set of registers that keeps gcrefs and byrefs across the call.
+//
+// Notes: it returns union of two sets:
+//        1) registers that could contain GC/byRefs before the call and call doesn't touch them;
+//        2) registers that contain GC/byRefs before the call and call modifies them, but they still
+//           contain GC/byRefs.
+//
+// Arguments:
+//   methHnd - the method handler of the call.
+//
+// Return value:
+//   the saved set of registers.
+//
+regMaskTP emitter::emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd)
+{
+    // Is it a helper with a special saved set?
+    bool isNoGCHelper = emitNoGChelper(methHnd);
+    if (isNoGCHelper)
+    {
+        CorInfoHelpFunc helpFunc = Compiler::eeGetHelperNum(methHnd);
+
+        // Get the set of registers that this call kills and remove it from the saved set.
+        regMaskTP savedSet = RBM_ALLINT & ~emitComp->compNoGCHelperCallKillSet(helpFunc);
+
+#ifdef DEBUG
+        if (emitComp->verbose)
+        {
+            printf("NoGC Call: savedSet=");
+            printRegMaskInt(savedSet);
+            emitDispRegSet(savedSet);
+            printf("\n");
+        }
+#endif
+        return savedSet;
+    }
+    else
+    {
+        // This is the saved set of registers after a normal call.
+        return RBM_CALLEE_SAVED;
+    }
+}

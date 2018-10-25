@@ -69,7 +69,7 @@ namespace System
         FullName,
     }
 
-    internal class RuntimeType :
+    internal sealed class RuntimeType :
         System.Reflection.TypeInfo, ICloneable
     {
         #region Definitions
@@ -186,11 +186,11 @@ namespace System
                 NestedType
             }
 
-            private struct Filter
+            private readonly struct Filter
             {
-                private MdUtf8String m_name;
-                private MemberListType m_listType;
-                private uint m_nameHash;
+                private readonly MdUtf8String m_name;
+                private readonly MemberListType m_listType;
+                private readonly uint m_nameHash;
 
                 public unsafe Filter(byte* pUtf8Name, int cUtf8Name, MemberListType listType)
                 {
@@ -1754,14 +1754,14 @@ namespace System
         #region Static Members
 
         #region Internal
-        internal static RuntimeType GetType(string typeName, bool throwOnError, bool ignoreCase, bool reflectionOnly,
+        internal static RuntimeType GetType(string typeName, bool throwOnError, bool ignoreCase,
             ref StackCrawlMark stackMark)
         {
             if (typeName == null)
                 throw new ArgumentNullException(nameof(typeName));
 
             return RuntimeTypeHandle.GetTypeByName(
-                typeName, throwOnError, ignoreCase, reflectionOnly, ref stackMark, false);
+                typeName, throwOnError, ignoreCase, ref stackMark, false);
         }
 
         internal static MethodBase GetMethodBase(RuntimeModule scope, int typeMetadataToken)
@@ -3966,8 +3966,6 @@ namespace System
             return members;
         }
 
-#if FEATURE_COMINTEROP
-#endif
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         public override object InvokeMember(
@@ -4009,7 +4007,6 @@ namespace System
             }
             #endregion
 
-            #region COM Interop
 #if FEATURE_COMINTEROP && FEATURE_USE_LCID
             if (target != null && target.GetType().IsCOMObject)
             {
@@ -4048,7 +4045,6 @@ namespace System
                 }
             }
 #endif // FEATURE_COMINTEROP && FEATURE_USE_LCID
-            #endregion
 
             #region Check that any named parameters are not null
             if (namedParams != null && Array.IndexOf(namedParams, null) != -1)
@@ -4532,6 +4528,10 @@ namespace System
             }
         }
 
+        // This method looks like an attractive inline but expands to two calls,
+        // neither of which can be inlined or optimized further. So block it
+        // from inlining.
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private string GetCachedName(TypeNameKind kind)
         {
             return Cache.GetName(kind);
@@ -4576,9 +4576,6 @@ namespace System
         #region Legacy Internal
         private void CreateInstanceCheckThis()
         {
-            if (this is ReflectionOnlyType)
-                throw new ArgumentException(SR.Arg_ReflectionOnlyInvoke);
-
             if (ContainsGenericParameters)
                 throw new ArgumentException(
                     SR.Format(SR.Acc_CreateGenericEx, this));
@@ -4801,9 +4798,6 @@ namespace System
         [Diagnostics.DebuggerHidden]
         internal object CreateInstanceDefaultCtor(bool publicOnly, bool skipCheckThis, bool fillCache, bool wrapExceptions)
         {
-            if (GetType() == typeof(ReflectionOnlyType))
-                throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInReflectionOnly);
-
             ActivatorCache activatorCache = s_ActivatorCache;
             if (activatorCache != null)
             {
@@ -4889,35 +4883,203 @@ namespace System
 
         #endregion
 
-        #region COM
-        #endregion
-    }
-
-    // this is the introspection only type. This type overrides all the functions with runtime semantics
-    // and throws an exception.
-    // The idea behind this type is that it relieves RuntimeType from doing honerous checks about ReflectionOnly
-    // context.
-    // This type should not derive from RuntimeType but it's doing so for convinience.
-    // That should not present a security threat though it is risky as a direct call to one of the base method
-    // method (RuntimeType) and an instance of this type will work around the reason to have this type in the 
-    // first place. However given RuntimeType is not public all its methods are protected and require full trust
-    // to be accessed
-    internal class ReflectionOnlyType : RuntimeType
-    {
-        private ReflectionOnlyType() { }
-
-        // always throw
-        public override RuntimeTypeHandle TypeHandle
+#if FEATURE_COMINTEROP
+        private Object ForwardCallToInvokeMember(
+            String memberName,
+            BindingFlags flags,
+            Object target,
+            Object[] aArgs, // in/out - only byref values are in a valid state upon return
+            bool[] aArgsIsByRef,
+            int[] aArgsWrapperTypes, // _maybe_null_
+            Type[] aArgsTypes,
+            Type retType)
         {
-            get
+            Debug.Assert(
+                aArgs.Length == aArgsIsByRef.Length
+                && aArgs.Length == aArgsTypes.Length
+                && (aArgsWrapperTypes == null || aArgs.Length == aArgsWrapperTypes.Length), "Input arrays should all be of the same length");
+
+            int cArgs = aArgs.Length;
+
+            // Handle arguments that are passed as ByRef and those
+            // arguments that need to be wrapped.
+            ParameterModifier[] aParamMod = null;
+            if (cArgs > 0)
             {
-                throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInReflectionOnly);
+                ParameterModifier paramMod = new ParameterModifier(cArgs);
+                for (int i = 0; i < cArgs; i++)
+                {
+                    paramMod[i] = aArgsIsByRef[i];
+                }
+
+                aParamMod = new ParameterModifier[] { paramMod };
+                if (aArgsWrapperTypes != null)
+                {
+                    WrapArgsForInvokeCall(aArgs, aArgsWrapperTypes);
+                }
+            }
+
+            // For target invocation exceptions, the exception is wrapped.
+            flags |= BindingFlags.DoNotWrapExceptions;
+            Object ret = InvokeMember(memberName, flags, null, target, aArgs, aParamMod, null, null);
+
+            // Convert each ByRef argument that is _not_ of the proper type to
+            // the parameter type.
+            for (int i = 0; i < cArgs; i++)
+            {
+                // Determine if the parameter is ByRef.
+                if (aParamMod[0][i] && aArgs[i] != null)
+                {
+                    Type argType = aArgsTypes[i];
+                    if (!Object.ReferenceEquals(argType, aArgs[i].GetType()))
+                    {
+                        aArgs[i] = ForwardCallBinder.ChangeType(aArgs[i], argType, null);
+                    }
+                }
+            }
+
+            // If the return type is _not_ of the proper type, then convert it.
+            if (ret != null)
+            {
+                if (!Object.ReferenceEquals(retType, ret.GetType()))
+                {
+                    ret = ForwardCallBinder.ChangeType(ret, retType, null);
+                }
+            }
+
+            return ret;
+        }
+
+        private void WrapArgsForInvokeCall(Object[] aArgs, int[] aArgsWrapperTypes)
+        {
+            int cArgs = aArgs.Length;
+            for (int i = 0; i < cArgs; i++)
+            {
+                if (aArgsWrapperTypes[i] == 0)
+                {
+                    continue;
+                }
+
+                if (((DispatchWrapperType)aArgsWrapperTypes[i]).HasFlag(DispatchWrapperType.SafeArray))
+                {
+                    Type wrapperType = null;
+                    bool isString = false;
+
+                    // Determine the type of wrapper to use.
+                    switch ((DispatchWrapperType)aArgsWrapperTypes[i] & ~DispatchWrapperType.SafeArray)
+                    {
+                        case DispatchWrapperType.Unknown:
+                            wrapperType = typeof(UnknownWrapper);
+                            break;
+                        case DispatchWrapperType.Dispatch:
+                            wrapperType = typeof(DispatchWrapper);
+                            break;
+                        case DispatchWrapperType.Error:   
+                            wrapperType = typeof(ErrorWrapper);
+                            break;
+                        case DispatchWrapperType.Currency:
+                            wrapperType = typeof(CurrencyWrapper);
+                            break;
+                        case DispatchWrapperType.BStr:
+                            wrapperType = typeof(BStrWrapper);
+                            isString = true;
+                            break;
+                        default:
+                            Debug.Assert(false, "[RuntimeType.WrapArgsForInvokeCall]Invalid safe array wrapper type specified.");
+                            break;
+                    }
+
+                    // Allocate the new array of wrappers.
+                    Array oldArray = (Array)aArgs[i];
+                    int numElems = oldArray.Length;
+                    Object[] newArray = (Object[])Array.UnsafeCreateInstance(wrapperType, numElems);
+
+                    // Retrieve the ConstructorInfo for the wrapper type.
+                    ConstructorInfo wrapperCons;
+                    if (isString)
+                    {
+                         wrapperCons = wrapperType.GetConstructor(new Type[] {typeof(String)});
+                    }
+                    else
+                    {
+                         wrapperCons = wrapperType.GetConstructor(new Type[] {typeof(Object)});
+                    }
+                
+                    // Wrap each of the elements of the array.
+                    for (int currElem = 0; currElem < numElems; currElem++)
+                    {
+                        if(isString)
+                        {
+                            newArray[currElem] = wrapperCons.Invoke(new Object[] {(String)oldArray.GetValue(currElem)});
+                        }
+                        else
+                        {
+                            newArray[currElem] = wrapperCons.Invoke(new Object[] {oldArray.GetValue(currElem)});
+                        }
+                    }
+
+                    // Update the argument.
+                    aArgs[i] = newArray;
+                }
+                else
+                {
+                    // Determine the wrapper to use and then wrap the argument.
+                    switch ((DispatchWrapperType)aArgsWrapperTypes[i])
+                    {
+                        case DispatchWrapperType.Unknown:
+                            aArgs[i] = new UnknownWrapper(aArgs[i]);
+                            break;
+                        case DispatchWrapperType.Dispatch:
+                            aArgs[i] = new DispatchWrapper(aArgs[i]);
+                            break;
+                        case DispatchWrapperType.Error:
+                            aArgs[i] = new ErrorWrapper(aArgs[i]);
+                            break;
+                        case DispatchWrapperType.Currency:
+                            aArgs[i] = new CurrencyWrapper(aArgs[i]);
+                            break;
+                        case DispatchWrapperType.BStr:
+                            aArgs[i] = new BStrWrapper((String)aArgs[i]);
+                            break;
+                        default:
+                            Debug.Assert(false, "[RuntimeType.WrapArgsForInvokeCall]Invalid wrapper type specified.");
+                            break;
+                    }
+                }
             }
         }
+
+        private static OleAutBinder s_ForwardCallBinder;
+        private OleAutBinder ForwardCallBinder 
+        {
+            get 
+            {
+                // Synchronization is not required.
+                if (s_ForwardCallBinder == null)
+                    s_ForwardCallBinder = new OleAutBinder();
+
+                return s_ForwardCallBinder;
+            }
+        }
+
+        [Flags]
+        private enum DispatchWrapperType : int
+        {
+            // This enum must stay in sync with the DispatchWrapperType enum defined in MLInfo.h
+            Unknown         = 0x00000001,
+            Dispatch        = 0x00000002,
+            // Record          = 0x00000004,
+            Error           = 0x00000008,
+            Currency        = 0x00000010,
+            BStr            = 0x00000020,
+            SafeArray       = 0x00010000
+        }
+
+#endif // FEATURE_COMINTEROP
     }
 
     #region Library
-    internal unsafe struct MdUtf8String
+    internal readonly unsafe struct MdUtf8String
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe bool EqualsCaseSensitive(void* szLhs, void* szRhs, int cSz);
@@ -4946,8 +5108,8 @@ namespace System
             return len;
         }
 
-        private void* m_pStringHeap;        // This is the raw UTF8 string.
-        private int m_StringHeapByteLength;
+        private readonly void* m_pStringHeap;        // This is the raw UTF8 string.
+        private readonly int m_StringHeapByteLength;
 
         internal MdUtf8String(void* pStringHeap)
         {
@@ -5100,7 +5262,7 @@ namespace System.Reflection
             }
             else
             {
-                return sKey.GetLegacyNonRandomizedHashCode();
+                return sKey.GetNonRandomizedHashCode();
             }
         }
 

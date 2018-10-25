@@ -440,6 +440,7 @@ EEToProfInterfaceImpl::EEToProfInterfaceImpl() :
     m_pLeave3WithInfo(NULL),
     m_pTailcall3WithInfo(NULL),
     m_fUnrevertiblyModifiedIL(FALSE),
+    m_fModifiedRejitState(FALSE),
     m_pFunctionIDHashTable(NULL),
     m_pFunctionIDHashTableRWLock(NULL),
     m_dwConcurrentGCWaitTimeoutInMs(INFINITE),
@@ -960,6 +961,13 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
             REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback8->Release();
             m_pCallback8 = NULL;
+        }
+
+        if (m_pCallback9 != NULL)
+        {
+            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
+            m_pCallback9->Release();
+            m_pCallback9 = NULL;
         }
 
         // Only unload the V4 profiler if this is not part of shutdown.  This protects
@@ -2049,13 +2057,23 @@ HRESULT EEToProfInterfaceImpl::EnsureProfilerDetachable()
         return CORPROF_E_IRREVERSIBLE_INSTRUMENTATION_PRESENT;
     }
 
+    if (m_fModifiedRejitState)
+    {
+        LOG((
+            LF_CORPROF, 
+            LL_ERROR, 
+            "**PROF: Profiler may not detach because it enabled Rejit.\n"));
+
+        return CORPROF_E_IRREVERSIBLE_INSTRUMENTATION_PRESENT;   
+    }
+
     return S_OK;
 }
 
 // Declarations for asm wrappers of profiler callbacks
-EXTERN_C void __stdcall ProfileEnterNaked(FunctionIDOrClientID functionIDOrClientID);
-EXTERN_C void __stdcall ProfileLeaveNaked(FunctionIDOrClientID functionIDOrClientID);
-EXTERN_C void __stdcall ProfileTailcallNaked(FunctionIDOrClientID functionIDOrClientID);
+EXTERN_C void STDMETHODCALLTYPE ProfileEnterNaked(FunctionIDOrClientID functionIDOrClientID);
+EXTERN_C void STDMETHODCALLTYPE ProfileLeaveNaked(FunctionIDOrClientID functionIDOrClientID);
+EXTERN_C void STDMETHODCALLTYPE ProfileTailcallNaked(FunctionIDOrClientID functionIDOrClientID);
 #define PROFILECALLBACK(name) name##Naked
 
 //---------------------------------------------------------------------------------------
@@ -2114,16 +2132,15 @@ HRESULT EEToProfInterfaceImpl::DetermineAndSetEnterLeaveFunctionHooksForJit()
             // intermediary FCALL which then calls the profiler's hook) with extra information
             // about the current function.
 
-            // The casts below are to appease rotor.  cl.exe doesn't need them.
             hr = SetEnterLeaveFunctionHooksForJit(
                 (m_pEnter3WithInfo != NULL) ?
-                    reinterpret_cast<FunctionEnter3 *>(PROFILECALLBACK(ProfileEnter)) :
+                    PROFILECALLBACK(ProfileEnter) :
                     m_pEnter3,
                 (m_pLeave3WithInfo != NULL) ?
-                    reinterpret_cast<FunctionLeave3 *>(PROFILECALLBACK(ProfileLeave)) :
+                    PROFILECALLBACK(ProfileLeave) :
                     m_pLeave3,
                 (m_pTailcall3WithInfo != NULL) ?
-                    reinterpret_cast<FunctionTailcall3 *>(PROFILECALLBACK(ProfileTailcall)) :
+                    PROFILECALLBACK(ProfileTailcall) :
                     m_pTailcall3);
         }
         else
@@ -2157,16 +2174,15 @@ HRESULT EEToProfInterfaceImpl::DetermineAndSetEnterLeaveFunctionHooksForJit()
             BOOL fLeave = (m_pLeave != NULL) || (m_pLeave2 != NULL);
             BOOL fTailcall = (m_pTailcall != NULL) || (m_pTailcall2 != NULL);
 
-            // The casts below are to appease rotor.  cl.exe doesn't need them.
             hr = SetEnterLeaveFunctionHooksForJit(
                 fEnter ?
-                    reinterpret_cast<FunctionEnter3 *>(PROFILECALLBACK(ProfileEnter)) :
+                    PROFILECALLBACK(ProfileEnter) :
                     NULL,
                 fLeave ?
-                    reinterpret_cast<FunctionLeave3 *>(PROFILECALLBACK(ProfileLeave)) :
+                    PROFILECALLBACK(ProfileLeave) :
                     NULL,
                 fTailcall ?
-                    reinterpret_cast<FunctionTailcall3 *>(PROFILECALLBACK(ProfileTailcall)) :
+                    PROFILECALLBACK(ProfileTailcall) :
                     NULL);
         }
     }
@@ -2415,6 +2431,16 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
                 }        
             }
         }        
+    }
+
+    if ((dwEventMask & COR_PRF_ENABLE_REJIT) != 0)
+    {
+        if ((g_profControlBlock.curProfStatus.Get() != kProfStatusInitializingForStartupLoad) && !ReJitManager::IsReJITEnabled())
+        {
+            return CORPROF_E_REJIT_NOT_ENABLED;
+        }
+
+        g_profControlBlock.pProfInterface->SetModifiedRejitState();
     }
 
     // High event bits

@@ -774,8 +774,7 @@ void MethodTableBuilder::SetBMTData(
     bmtGCSeriesInfo *bmtGCSeries,
     bmtMethodImplInfo *bmtMethodImpl,
     const bmtGenericsInfo *bmtGenerics,
-    bmtEnumFieldInfo *bmtEnumFields,
-    bmtContextStaticInfo *bmtCSInfo)
+    bmtEnumFieldInfo *bmtEnumFields)
 {
     LIMITED_METHOD_CONTRACT;
     this->bmtAllocator = bmtAllocator;
@@ -793,7 +792,6 @@ void MethodTableBuilder::SetBMTData(
     this->bmtMethodImpl = bmtMethodImpl;
     this->bmtGenerics = bmtGenerics;
     this->bmtEnumFields = bmtEnumFields;
-    this->bmtCSInfo = bmtCSInfo;
 }
 
 //*******************************************************************************
@@ -1297,8 +1295,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
         new (GetStackingAllocator()) bmtGCSeriesInfo(),
         new (GetStackingAllocator()) bmtMethodImplInfo(),
         bmtGenericsInfo,
-        new (GetStackingAllocator()) bmtEnumFieldInfo(pModule->GetMDImport()),
-        new (GetStackingAllocator()) bmtContextStaticInfo());
+        new (GetStackingAllocator()) bmtEnumFieldInfo(pModule->GetMDImport()));
 
     //Initialize structs
 
@@ -1723,7 +1720,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
     // the offsets of our fields will depend on this. For the dynamic case (which requires
     // an extra indirection (indirect depending of methodtable) we'll allocate the slot
     // in setupmethodtable
-    if (((pModule->IsReflection() || bmtGenerics->HasInstantiation() || !pModule->IsStaticStoragePrepared(cl)) &&
+    if (((pAllocator->IsCollectible() ||  pModule->IsReflection() || bmtGenerics->HasInstantiation() || !pModule->IsStaticStoragePrepared(cl)) &&
         (bmtVT->GetClassCtorSlotIndex() != INVALID_SLOT_INDEX || bmtEnumFields->dwNumStaticFields !=0))
 #ifdef EnC_SUPPORTED 
         // Classes in modules that have been edited (would do on class level if there were a
@@ -1751,7 +1748,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
     // Go thru all fields and initialize their FieldDescs.
     InitializeFieldDescs(GetApproxFieldDescListRaw(), pLayoutRawFieldInfos, bmtInternal, bmtGenerics,
         bmtMetaData, bmtEnumFields, bmtError,
-        &pByValueClassCache, bmtMFDescs, bmtFP, bmtCSInfo,
+        &pByValueClassCache, bmtMFDescs, bmtFP,
         &totalDeclaredFieldSize);
 
     // Place regular static fields
@@ -3187,12 +3184,6 @@ MethodTableBuilder::EnumerateClassMethods()
             type = METHOD_TYPE_NORMAL;
         }
 
-        // PInvoke methods are not permitted on collectible types
-        if ((type == METHOD_TYPE_NDIRECT) && GetAssembly()->IsCollectible())
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_COLLECTIBLEPINVOKE);
-        }
-
         // Generic methods should always be METHOD_TYPE_INSTANTIATED
         if ((numGenericMethodArgs != 0) && (type != METHOD_TYPE_INSTANTIATED))
         {
@@ -3693,7 +3684,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                                                  MethodTable *** pByValueClassCache,
                                                  bmtMethAndFieldDescs* bmtMFDescs,
                                                  bmtFieldPlacement* bmtFP,
-                                                 bmtContextStaticInfo* pbmtCSInfo,
                                                  unsigned* totalDeclaredSize)
 {
     CONTRACTL
@@ -3770,7 +3760,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
         MethodTable * pByValueClass = NULL;
         BOOL        fIsByValue = FALSE;
         BOOL        fIsThreadStatic = FALSE;
-        static const BOOL fIsContextStatic = FALSE;
         BOOL        fHasRVA = FALSE;
 
         MetaSig fsig(pMemberSignature,
@@ -3823,18 +3812,14 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
 
             // Do some sanity checks that we are not mixing context and thread
             // relative statics.
-            if (fHasRVA && (fIsThreadStatic || fIsContextStatic))
+            if (fHasRVA && fIsThreadStatic)
             {
                 IfFailThrow(COR_E_TYPELOAD);
             }
 
-            if ((fIsThreadStatic || fIsContextStatic || bmtFP->fHasFixedAddressValueTypes) && GetAssembly()->IsCollectible())
+            if (bmtFP->fHasFixedAddressValueTypes && GetAssembly()->IsCollectible())
             {
-                if (bmtFP->fHasFixedAddressValueTypes)
-                {
-                    BuildMethodTableThrowException(IDS_CLASSLOAD_COLLECTIBLEFIXEDVTATTR);
-                }
-                BuildMethodTableThrowException(IDS_CLASSLOAD_COLLECTIBLESPECIALSTATICS);
+                BuildMethodTableThrowException(IDS_CLASSLOAD_COLLECTIBLEFIXEDVTATTR);
             }
         }
 
@@ -4218,7 +4203,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                   fIsStatic,
                   fHasRVA,
                   fIsThreadStatic,
-                  fIsContextStatic,
                   pszFieldName
                   );
 
@@ -5222,8 +5206,7 @@ MethodTableBuilder::PlaceNonVirtualMethods()
 #endif // _DEBUG
 
         if (!fCanHaveNonVtableSlots ||
-            it->GetMethodType() == METHOD_TYPE_INSTANTIATED ||
-            MayBeRemotingIntercepted(*it))
+            it->GetMethodType() == METHOD_TYPE_INSTANTIATED)
         {
             // We use slot during remoting and to map methods between generic instantiations
             // (see MethodTable::GetParallelMethodDesc). The current implementation
@@ -5961,6 +5944,13 @@ MethodTableBuilder::InitMethodDesc(
             pNewNMD->ndirect.m_cbStackArgumentSize = 0xFFFF;
 #endif // defined(_TARGET_X86_)
 
+            // If the RVA of a native method is set, this is an early-bound IJW call
+            if (RVA != 0 && IsMiUnmanaged(dwImplFlags) && IsMiNative(dwImplFlags))
+            {
+                // Note that we cannot initialize the stub directly now in the general case,
+                // as LoadLibrary may not have been performed yet.
+                pNewNMD->SetIsEarlyBound();
+            }
 
             pNewNMD->GetWriteableData()->m_pNDirectTarget = pNewNMD->GetNDirectImportThunkGlue()->GetEntrypoint();
         }
@@ -6515,6 +6505,7 @@ VOID MethodTableBuilder::PlaceInterfaceDeclarationOnClass(
         pDecl->GetSlotIndex(), 
         pImpl);
 
+#ifdef FEATURE_PREJIT
     if (IsCompilationProcess())
     {
         //
@@ -6526,7 +6517,8 @@ VOID MethodTableBuilder::PlaceInterfaceDeclarationOnClass(
             pDeclMT->GetWriteableDataForWrite()->SetIsOverridingInterface();
         }
     }
-    
+#endif
+
 #ifdef _DEBUG
     if (bmtInterface->dbg_fShouldInjectInterfaceDuplicates)
     {   // We injected interface duplicates
@@ -6793,8 +6785,10 @@ VOID MethodTableBuilder::AllocAndInitMethodDescs()
             }
         }
 
+#ifndef CROSSGEN_COMPILE
         if (tokenRange != currentTokenRange ||
             sizeOfMethodDescs + size > MethodDescChunk::MaxSizeOfMethodDescs)
+#endif // CROSSGEN_COMPILE
         {
             if (sizeOfMethodDescs != 0)
             {
@@ -6966,15 +6960,6 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
 #endif
 
     return GetModule()->IsEditAndContinueEnabled();
-}
-
-//*******************************************************************************
-BOOL
-MethodTableBuilder::MayBeRemotingIntercepted(bmtMDMethod * pMDMethod)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return FALSE;
 }
 
 //*******************************************************************************
@@ -9794,10 +9779,7 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
                                          BOOL isInterface,
                                          BOOL fDynamicStatics,
                                          BOOL fHasGenericsStaticsInfo,
-                                         BOOL fNeedsRCWPerTypeData,
-                                         BOOL fNeedsRemotableMethodInfo,
-                                         BOOL fNeedsRemotingVtsInfo,
-                                         BOOL fHasContextStatics
+                                         BOOL fNeedsRCWPerTypeData
 #ifdef FEATURE_COMINTEROP
         , BOOL fHasDynamicInterfaceMap
 #endif
@@ -9842,13 +9824,10 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
 
     // Add space for optional members here. Same as GetOptionalMembersSize()
     cbTotalSize += MethodTable::GetOptionalMembersAllocationSize(dwMultipurposeSlotsMask,
-                                                      fNeedsRemotableMethodInfo,
                                                       fHasGenericsStaticsInfo,
                                                       FALSE, // no GuidInfo needed for canonical instantiations
                                                       FALSE, // no CCW template needed for canonical instantiations
                                                       fNeedsRCWPerTypeData,
-                                                      fNeedsRemotingVtsInfo,
-                                                      fHasContextStatics,
                                                       RidFromToken(GetCl()) >= METHODTABLE_TOKEN_OVERFLOW);
 
     // Interface map starts here
@@ -10096,11 +10075,6 @@ MethodTableBuilder::SetupMethodTable2(
                           bmtGenerics->GetNumGenericArgs(), pClass->GetDictionaryLayout())
                    : 0;
 
-
-    BOOL fHasContextStatics = FALSE;
-    BOOL fNeedsRemotableMethodInfo=FALSE;
-    BOOL fNeedsRemotingVtsInfo = FALSE;
-
 #ifdef FEATURE_COLLECTIBLE_TYPES
     BOOL fCollectible = pLoaderModule->IsCollectible();
 #endif // FEATURE_COLLECTIBLE_TYPES
@@ -10140,9 +10114,6 @@ MethodTableBuilder::SetupMethodTable2(
                                    bmtProp->fDynamicStatics,
                                    bmtProp->fGenericsStatics,
                                    fNeedsRCWPerTypeData,
-                                   fNeedsRemotableMethodInfo,
-                                   fNeedsRemotingVtsInfo,
-                                   fHasContextStatics,
 #ifdef FEATURE_COMINTEROP 
                                    fHasDynamicInterfaceMap,
 #endif

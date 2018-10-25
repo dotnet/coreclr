@@ -111,7 +111,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_STOREIND:
             TryCreateAddrMode(LIR::Use(BlockRange(), &node->gtOp.gtOp1, node), true);
-            if (!comp->codeGen->gcInfo.gcIsWriteBarrierAsgNode(node))
+            if (!comp->codeGen->gcInfo.gcIsWriteBarrierStoreIndNode(node))
             {
                 LowerStoreIndir(node->AsIndir());
             }
@@ -388,8 +388,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
  *    the default case of the switch in case the conditional is evaluated to true).
  *
  *     ----- original block, transformed
- *     GT_ASG
- *        |_____ tempLocal (a new temporary local variable used to store the switch index)
+ *     GT_STORE_LCL_VAR tempLocal (a new temporary local variable used to store the switch index)
  *        |_____ expr      (the index expression)
  *
  *     GT_JTRUE
@@ -450,14 +449,14 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     }
 #endif
 
-    JITDUMP("Lowering switch BB%02u, %d cases\n", originalSwitchBB->bbNum, jumpCnt);
+    JITDUMP("Lowering switch " FMT_BB ", %d cases\n", originalSwitchBB->bbNum, jumpCnt);
 
     // Handle a degenerate case: if the switch has only a default case, just convert it
     // to an unconditional branch. This should only happen in minopts or with debuggable
     // code.
     if (targetCnt == 1)
     {
-        JITDUMP("Lowering switch BB%02u: single target; converting to BBJ_ALWAYS\n", originalSwitchBB->bbNum);
+        JITDUMP("Lowering switch " FMT_BB ": single target; converting to BBJ_ALWAYS\n", originalSwitchBB->bbNum);
         noway_assert(comp->opts.MinOpts() || comp->opts.compDbgCode);
         if (originalSwitchBB->bbNext == jumpTab[0])
         {
@@ -480,9 +479,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
         GenTree* rhs = node->gtOp.gtOp1;
 
         unsigned lclNum               = comp->lvaGrabTemp(true DEBUGARG("Lowering is creating a new local variable"));
-        comp->lvaSortAgain            = true;
         comp->lvaTable[lclNum].lvType = rhs->TypeGet();
-        comp->lvaTable[lclNum].setLvRefCnt(1);
 
         GenTreeLclVar* store =
             new (comp, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, rhs->TypeGet(), lclNum, BAD_IL_OFFSET);
@@ -548,9 +545,6 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     // Make sure we perform an unsigned comparison, just in case the switch index in 'temp'
     // is now less than zero 0 (that would also hit the default case).
     gtDefaultCaseCond->gtFlags |= GTF_UNSIGNED;
-
-    /* Increment the lvRefCnt and lvRefCntWtd for temp */
-    tempVarDsc->incRefCnts(blockWeight, comp);
 
     GenTree* gtDefaultCaseJump = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, gtDefaultCaseCond);
     gtDefaultCaseJump->gtFlags = node->gtFlags;
@@ -650,7 +644,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
         //    a statement that is responsible for performing a comparison of the table index and conditional
         //    branch if equal.
 
-        JITDUMP("Lowering switch BB%02u: using compare/branch expansion\n", originalSwitchBB->bbNum);
+        JITDUMP("Lowering switch " FMT_BB ": using compare/branch expansion\n", originalSwitchBB->bbNum);
 
         // We'll use 'afterDefaultCondBlock' for the first conditional. After that, we'll add new
         // blocks. If we end up not needing it at all (say, if all the non-default cases just fall through),
@@ -724,9 +718,6 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
                 //                 |____ (ICon)        (The actual case constant)
                 GenTree* gtCaseCond = comp->gtNewOperNode(GT_EQ, TYP_INT, comp->gtNewLclvNode(tempLclNum, tempLclType),
                                                           comp->gtNewIconNode(i, tempLclType));
-                /* Increment the lvRefCnt and lvRefCntWtd for temp */
-                tempVarDsc->incRefCnts(blockWeight, comp);
-
                 GenTree*   gtCaseBranch = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, gtCaseCond);
                 LIR::Range caseRange    = LIR::SeqTree(comp, gtCaseBranch);
                 currentBBRange->InsertAtEnd(std::move(caseRange));
@@ -746,7 +737,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
             // All the cases were fall-through! We don't need this block.
             // Convert it from BBJ_SWITCH to BBJ_NONE and unset the BBF_DONT_REMOVE flag
             // so fgRemoveBlock() doesn't complain.
-            JITDUMP("Lowering switch BB%02u: all switch cases were fall-through\n", originalSwitchBB->bbNum);
+            JITDUMP("Lowering switch " FMT_BB ": all switch cases were fall-through\n", originalSwitchBB->bbNum);
             assert(currentBlock == afterDefaultCondBlock);
             assert(currentBlock->bbJumpKind == BBJ_SWITCH);
             currentBlock->bbJumpKind = BBJ_NONE;
@@ -761,14 +752,13 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
         // switch variants need the switch value so create the necessary LclVar node here.
         GenTree*    switchValue      = comp->gtNewLclvNode(tempLclNum, tempLclType);
         LIR::Range& switchBlockRange = LIR::AsRange(afterDefaultCondBlock);
-        tempVarDsc->incRefCnts(blockWeight, comp);
         switchBlockRange.InsertAtEnd(switchValue);
 
         // Try generating a bit test based switch first,
         // if that's not possible a jump table based switch will be generated.
         if (!TryLowerSwitchToBitTest(jumpTab, jumpCnt, targetCnt, afterDefaultCondBlock, switchValue))
         {
-            JITDUMP("Lowering switch BB%02u: using jump table expansion\n", originalSwitchBB->bbNum);
+            JITDUMP("Lowering switch " FMT_BB ": using jump table expansion\n", originalSwitchBB->bbNum);
 
 #ifdef _TARGET_64BIT_
             if (tempLclType != TYP_I_IMPL)
@@ -1088,7 +1078,12 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
             // Set type of registers
             for (unsigned index = 0; index < info->numRegs; index++)
             {
-                var_types regType          = comp->getJitGCType(gcLayout[index]);
+                var_types regType = comp->getJitGCType(gcLayout[index]);
+                // Account for the possibility that float fields may be passed in integer registers.
+                if (varTypeIsFloating(regType) && !genIsValidFloatReg(argSplit->GetRegNumByIdx(index)))
+                {
+                    regType = (regType == TYP_FLOAT) ? TYP_INT : TYP_LONG;
+                }
                 argSplit->m_regType[index] = regType;
             }
         }
@@ -1097,7 +1092,12 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
             GenTreeFieldList* fieldListPtr = arg->AsFieldList();
             for (unsigned index = 0; index < info->numRegs; fieldListPtr = fieldListPtr->Rest(), index++)
             {
-                var_types regType          = fieldListPtr->gtGetOp1()->TypeGet();
+                var_types regType = fieldListPtr->gtGetOp1()->TypeGet();
+                // Account for the possibility that float fields may be passed in integer registers.
+                if (varTypeIsFloating(regType) && !genIsValidFloatReg(argSplit->GetRegNumByIdx(index)))
+                {
+                    regType = (regType == TYP_FLOAT) ? TYP_INT : TYP_LONG;
+                }
                 argSplit->m_regType[index] = regType;
 
                 // Clear the register assignments on the fieldList nodes, as these are contained.
@@ -1282,14 +1282,17 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
     DISPNODE(arg);
 
     // No assignments should remain by Lowering.
-    assert(!arg->OperIsAssignment());
+    assert(!arg->OperIs(GT_ASG));
     assert(!arg->OperIsPutArgStk());
 
     // Assignments/stores at this level are not really placing an argument.
     // They are setting up temporary locals that will later be placed into
     // outgoing regs or stack.
-    if (arg->OperIsStore() || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() || arg->OperIsCopyBlkOp())
+    // Note that atomic ops may be stores and still produce a value.
+    if (!arg->IsValue())
     {
+        assert((arg->OperIsStore() && !arg->IsValue()) || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() ||
+               arg->OperIsCopyBlkOp());
         return;
     }
 
@@ -2052,9 +2055,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                         tmpLclNum = comp->lvaGrabTemp(
                             true DEBUGARG("Fast tail call lowering is creating a new local variable"));
 
-                        comp->lvaSortAgain               = true;
-                        comp->lvaTable[tmpLclNum].lvType = tmpType;
-                        comp->lvaTable[tmpLclNum].setLvRefCnt(1);
+                        comp->lvaTable[tmpLclNum].lvType            = tmpType;
                         comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->gtLclNum].lvDoNotEnregister;
                     }
 
@@ -2469,11 +2470,6 @@ GenTree* Lowering::DecomposeLongCompare(GenTree* cmp)
             if (loSrc1->OperIs(GT_CNS_INT, GT_LCL_VAR, GT_LCL_FLD))
             {
                 BlockRange().Remove(loSrc1);
-
-                if (loSrc1->OperIs(GT_LCL_VAR, GT_LCL_FLD))
-                {
-                    comp->lvaDecRefCnts(m_block, loSrc1);
-                }
             }
             else
             {
@@ -3950,9 +3946,6 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
         lclNum = vtableCallTemp;
     }
 
-    // We'll introduce another use of this local so increase its ref count.
-    comp->lvaTable[lclNum].incRefCnts(comp->compCurBB->getBBWeight(comp), comp);
-
     // Get hold of the vtable offset (note: this might be expensive)
     unsigned vtabOffsOfIndirection;
     unsigned vtabOffsAfterIndirection;
@@ -3998,11 +3991,8 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
             // tmp2 = tmp1 + vtabOffsOfIndirection + vtabOffsAfterIndirection + [tmp1 + vtabOffsOfIndirection]
             // result = tmp2 + [tmp2]
             //
-            unsigned lclNumTmp = comp->lvaGrabTemp(true DEBUGARG("lclNumTmp"));
-            comp->lvaTable[lclNumTmp].incRefCnts(comp->compCurBB->getBBWeight(comp), comp);
-
+            unsigned lclNumTmp  = comp->lvaGrabTemp(true DEBUGARG("lclNumTmp"));
             unsigned lclNumTmp2 = comp->lvaGrabTemp(true DEBUGARG("lclNumTmp2"));
-            comp->lvaTable[lclNumTmp2].incRefCnts(comp->compCurBB->getBBWeight(comp), comp);
 
             GenTree* lclvNodeStore = comp->gtNewTempAssign(lclNumTmp, result);
 
@@ -4378,7 +4368,6 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
     {
         index->ClearContained();
     }
-    addrMode->gtRsvdRegs = addr->gtRsvdRegs;
     addrMode->gtFlags |= (addr->gtFlags & GTF_IND_FLAGS);
     addrMode->gtFlags &= ~GTF_ALL_EFFECT; // LEAs are side-effect-free.
 
@@ -4595,7 +4584,6 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
             GenTree* dividend = comp->gtNewLclvNode(dividendLclNum, type);
             GenTree* sub      = comp->gtNewOperNode(GT_SUB, type, dividend, mulhi);
             BlockRange().InsertBefore(divMod, dividend, sub);
-            comp->lvaTable[dividendLclNum].incRefCnts(curBBWeight, comp);
 
             GenTree* one = comp->gtNewIconNode(1, TYP_INT);
             GenTree* rsz = comp->gtNewOperNode(GT_RSZ, type, sub, one);
@@ -4607,7 +4595,6 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
             GenTree* mulhiCopy = comp->gtNewLclvNode(mulhiLclNum, type);
             GenTree* add       = comp->gtNewOperNode(GT_ADD, type, rsz, mulhiCopy);
             BlockRange().InsertBefore(divMod, mulhiCopy, add);
-            comp->lvaTable[mulhiLclNum].incRefCnts(curBBWeight, comp);
 
             mulhi = add;
             shift -= 1;
@@ -4636,7 +4623,6 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
             divMod->gtOp2 = mul;
 
             BlockRange().InsertBefore(divMod, div, divisor, mul, dividend);
-            comp->lvaTable[dividendLclNum].incRefCnts(curBBWeight, comp);
         }
         ContainCheckRange(firstNode, divMod);
 
@@ -4780,8 +4766,6 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         if (requiresAddSubAdjust)
         {
             dividend = comp->gtNewLclvNode(dividendLclNum, type);
-            comp->lvaTable[dividendLclNum].incRefCnts(curBBWeight, comp);
-
             adjusted = comp->gtNewOperNode(divisorValue > 0 ? GT_ADD : GT_SUB, type, mulhi, dividend);
             BlockRange().InsertBefore(divMod, dividend, adjusted);
         }
@@ -4797,7 +4781,6 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         LIR::Use adjustedUse(BlockRange(), &signBit->gtOp.gtOp1, signBit);
         unsigned adjustedLclNum = ReplaceWithLclVar(adjustedUse);
         adjusted                = comp->gtNewLclvNode(adjustedLclNum, type);
-        comp->lvaTable[adjustedLclNum].incRefCnts(curBBWeight, comp);
         BlockRange().InsertBefore(divMod, adjusted);
 
         if (requiresShiftAdjust)
@@ -4818,7 +4801,6 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
             GenTree* div = comp->gtNewOperNode(GT_ADD, type, adjusted, signBit);
 
             dividend = comp->gtNewLclvNode(dividendLclNum, type);
-            comp->lvaTable[dividendLclNum].incRefCnts(curBBWeight, comp);
 
             // divisor % dividend = dividend - divisor x div
             GenTree* divisor = comp->gtNewIconNode(divisorValue, type);
@@ -4875,8 +4857,6 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     GenTree* adjustedDividend =
         comp->gtNewOperNode(GT_ADD, type, adjustment, comp->gtNewLclvNode(dividendLclNum, type));
 
-    comp->lvaTable[dividendLclNum].incRefCnts(curBBWeight, comp);
-
     GenTree* newDivMod;
 
     if (isDiv)
@@ -4903,9 +4883,6 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
 
         newDivMod = comp->gtNewOperNode(GT_SUB, type, comp->gtNewLclvNode(dividendLclNum, type),
                                         comp->gtNewOperNode(GT_AND, type, adjustedDividend, divisor));
-        ContainCheckBinary(newDivMod->AsOp());
-
-        comp->lvaTable[dividendLclNum].incRefCnts(curBBWeight, comp);
     }
 
     // Remove the divisor and dividend nodes from the linear order,
@@ -5138,7 +5115,6 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
         else
         {
             idxArrObjNode = comp->gtClone(arrObjNode);
-            varDsc->incRefCnts(blockWeight, comp);
             BlockRange().InsertBefore(insertionPoint, idxArrObjNode);
         }
 
@@ -5149,7 +5125,6 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
         BlockRange().InsertBefore(insertionPoint, arrMDIdx);
 
         GenTree* offsArrObjNode = comp->gtClone(arrObjNode);
-        varDsc->incRefCnts(blockWeight, comp);
         BlockRange().InsertBefore(insertionPoint, offsArrObjNode);
 
         GenTreeArrOffs* arrOffs =
@@ -5179,7 +5154,6 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
     }
 
     GenTree* leaBase = comp->gtClone(arrObjNode);
-    varDsc->incRefCnts(blockWeight, comp);
     BlockRange().InsertBefore(insertionPoint, leaBase);
 
     GenTree* leaNode = new (comp, GT_LEA) GenTreeAddrMode(arrElem->TypeGet(), leaBase, leaIndexNode, scale, offset);
@@ -5246,17 +5220,11 @@ void Lowering::DoPhase()
     }
 #endif
 
-    // TODO-Throughput: We re-sort local variables to get the goodness of enregistering recently
-    // introduced local variables both by Rationalize and Lower; downside is we need to
-    // recompute standard local variable liveness in order to get Linear CodeGen working.
-    // For now we'll take the throughput hit of recomputing local liveness but in the long term
-    // we're striving to use the unified liveness computation (fgLocalVarLiveness) and stop
-    // computing it separately in LSRA.
-    if ((comp->lvaCount != 0) && comp->backendRequiresLocalVarLifetimes())
-    {
-        comp->lvaSortAgain = true;
-    }
-    comp->EndPhase(PHASE_LOWERING_DECOMP);
+    // Recompute local var ref counts before potentially sorting for liveness.
+    // Note this does minimal work in cases where we are not going to sort.
+    const bool isRecompute    = true;
+    const bool setSlotNumbers = false;
+    comp->lvaComputeRefCounts(isRecompute, setSlotNumbers);
 
     comp->fgLocalVarLiveness();
     // local var liveness can delete code, which may create empty blocks
@@ -5264,16 +5232,20 @@ void Lowering::DoPhase()
     {
         comp->optLoopsMarked = false;
         bool modified        = comp->fgUpdateFlowGraph();
-        if (modified || comp->lvaSortAgain)
+        if (modified)
         {
             JITDUMP("had to run another liveness pass:\n");
             comp->fgLocalVarLiveness();
         }
     }
 
+    // Recompute local var ref counts again after liveness to reflect
+    // impact of any dead code removal. Note this may leave us with
+    // tracked vars that have zero refs.
+    comp->lvaComputeRefCounts(isRecompute, setSlotNumbers);
+
 #ifdef DEBUG
     JITDUMP("Liveness pass finished after lowering, IR:\n");
-    JITDUMP("lvasortagain = %d\n", comp->lvaSortAgain);
     if (VERBOSE)
     {
         comp->fgDispBasicBlocks(true);
@@ -5297,8 +5269,10 @@ void Lowering::DoPhase()
 //
 void Lowering::CheckCallArg(GenTree* arg)
 {
-    if (arg->OperIsStore() || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() || arg->OperIsCopyBlkOp())
+    if (!arg->IsValue() && !arg->OperIsPutArgStk())
     {
+        assert((arg->OperIsStore() && !arg->IsValue()) || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() ||
+               arg->OperIsCopyBlkOp());
         return;
     }
 
@@ -5553,121 +5527,6 @@ bool Lowering::NodesAreEquivalentLeaves(GenTree* tree1, GenTree* tree2)
     }
 }
 
-/**
- * Get common information required to handle a cast instruction
- */
-void Lowering::getCastDescription(GenTree* treeNode, CastInfo* castInfo)
-{
-    // Intialize castInfo
-    memset(castInfo, 0, sizeof(*castInfo));
-
-    GenTree* castOp = treeNode->gtCast.CastOp();
-
-    var_types dstType = treeNode->CastToType();
-    var_types srcType = genActualType(castOp->TypeGet());
-
-    castInfo->unsignedDest   = varTypeIsUnsigned(dstType);
-    castInfo->unsignedSource = varTypeIsUnsigned(srcType);
-
-    // If necessary, force the srcType to unsigned when the GT_UNSIGNED flag is set.
-    if (!castInfo->unsignedSource && (treeNode->gtFlags & GTF_UNSIGNED) != 0)
-    {
-        srcType                  = genUnsignedType(srcType);
-        castInfo->unsignedSource = true;
-    }
-
-    if (treeNode->gtOverflow() &&
-        (genTypeSize(srcType) >= genTypeSize(dstType) || (srcType == TYP_INT && dstType == TYP_ULONG)))
-    {
-        castInfo->requiresOverflowCheck = true;
-    }
-
-    if (castInfo->requiresOverflowCheck)
-    {
-        ssize_t typeMin       = 0;
-        ssize_t typeMax       = 0;
-        ssize_t typeMask      = 0;
-        bool    signCheckOnly = false;
-
-        // Do we need to compare the value, or just check masks
-        switch (dstType)
-        {
-            default:
-                assert(!"unreachable: getCastDescription");
-                break;
-
-            case TYP_BYTE:
-                typeMask = ssize_t((int)0xFFFFFF80);
-                typeMin  = SCHAR_MIN;
-                typeMax  = SCHAR_MAX;
-                break;
-
-            case TYP_UBYTE:
-                typeMask = ssize_t((int)0xFFFFFF00L);
-                break;
-
-            case TYP_SHORT:
-                typeMask = ssize_t((int)0xFFFF8000);
-                typeMin  = SHRT_MIN;
-                typeMax  = SHRT_MAX;
-                break;
-
-            case TYP_USHORT:
-                typeMask = ssize_t((int)0xFFFF0000L);
-                break;
-
-            case TYP_INT:
-                if (srcType == TYP_UINT)
-                {
-                    signCheckOnly = true;
-                }
-                else
-                {
-#ifdef _TARGET_64BIT_
-                    typeMask = 0xFFFFFFFF80000000LL;
-#else
-                    typeMask = 0x80000000;
-#endif
-                    typeMin = INT_MIN;
-                    typeMax = INT_MAX;
-                }
-                break;
-
-            case TYP_UINT:
-                if (srcType == TYP_INT)
-                {
-                    signCheckOnly = true;
-                }
-                else
-                {
-#ifdef _TARGET_64BIT_
-                    typeMask = 0xFFFFFFFF00000000LL;
-#else
-                    typeMask = 0x00000000;
-#endif
-                }
-                break;
-
-            case TYP_LONG:
-                signCheckOnly = true;
-                break;
-
-            case TYP_ULONG:
-                signCheckOnly = true;
-                break;
-        }
-
-        if (signCheckOnly)
-        {
-            castInfo->signCheckOnly = true;
-        }
-
-        castInfo->typeMax  = typeMax;
-        castInfo->typeMin  = typeMin;
-        castInfo->typeMask = typeMask;
-    }
-}
-
 //------------------------------------------------------------------------
 // Containment Analysis
 //------------------------------------------------------------------------
@@ -5778,61 +5637,6 @@ void Lowering::ContainCheckNode(GenTree* node)
         default:
             break;
     }
-}
-
-//------------------------------------------------------------------------
-// ContainCheckDivOrMod: determine which operands of a div/mod should be contained.
-//
-// Arguments:
-//    node - pointer to the GT_UDIV/GT_UMOD node
-//
-void Lowering::ContainCheckDivOrMod(GenTreeOp* node)
-{
-    assert(node->OperIs(GT_DIV, GT_MOD, GT_UDIV, GT_UMOD));
-
-#ifdef _TARGET_XARCH_
-    GenTree* dividend = node->gtGetOp1();
-    GenTree* divisor  = node->gtGetOp2();
-
-    if (varTypeIsFloating(node->TypeGet()))
-    {
-        // No implicit conversions at this stage as the expectation is that
-        // everything is made explicit by adding casts.
-        assert(dividend->TypeGet() == divisor->TypeGet());
-
-        if (IsContainableMemoryOp(divisor) || divisor->IsCnsNonZeroFltOrDbl())
-        {
-            MakeSrcContained(node, divisor);
-        }
-        else
-        {
-            // If there are no containable operands, we can make an operand reg optional.
-            // SSE2 allows only divisor to be a memory-op.
-            divisor->SetRegOptional();
-        }
-        return;
-    }
-    bool divisorCanBeRegOptional = true;
-#ifdef _TARGET_X86_
-    if (dividend->OperGet() == GT_LONG)
-    {
-        divisorCanBeRegOptional = false;
-        MakeSrcContained(node, dividend);
-    }
-#endif
-
-    // divisor can be an r/m, but the memory indirection must be of the same size as the divide
-    if (IsContainableMemoryOp(divisor) && (divisor->TypeGet() == node->TypeGet()))
-    {
-        MakeSrcContained(node, divisor);
-    }
-    else if (divisorCanBeRegOptional)
-    {
-        // If there are no containable operands, we can make an operand reg optional.
-        // Div instruction allows only divisor to be a memory op.
-        divisor->SetRegOptional();
-    }
-#endif // _TARGET_XARCH_
 }
 
 //------------------------------------------------------------------------

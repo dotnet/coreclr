@@ -682,47 +682,17 @@
   <data name="Arg_RanksAndBounds" xml:space="preserve">
     <value>Number of lengths and lowerBounds must match.</value>
   </data>
-  <data name="Arg_ReflectionOnlyCA" xml:space="preserve">
-    <value>It is illegal to reflect on the custom attributes of a Type loaded via ReflectionOnlyGetType (see Assembly.ReflectionOnly) -- use CustomAttributeData instead.</value>
-  </data>
-  <data name="Arg_ReflectionOnlyField" xml:space="preserve">
-    <value>It is illegal to get or set the value on a field on a Type loaded via ReflectionOnlyGetType.</value>
-  </data>
-  <data name="Arg_ReflectionOnlyInvoke" xml:space="preserve">
-    <value>It is illegal to invoke a method on a Type loaded via ReflectionOnlyGetType.</value>
-  </data>
-  <data name="Arg_RegBadKeyKind" xml:space="preserve">
-    <value>The specified RegistryValueKind is an invalid value.</value>
-  </data>
   <data name="Arg_RegGetOverflowBug" xml:space="preserve">
     <value>RegistryKey.GetValue does not allow a String that has a length greater than Int32.MaxValue.</value>
   </data>
-  <data name="Arg_RegInvalidKeyName" xml:space="preserve">
-    <value>Registry key name must start with a valid base key name.</value>
-  </data>
   <data name="Arg_RegKeyNotFound" xml:space="preserve">
     <value>The specified registry key does not exist.</value>
-  </data>
-  <data name="Arg_RegKeyStrLenBug" xml:space="preserve">
-    <value>Registry key names should not be greater than 255 characters.</value>
-  </data>
-  <data name="Arg_RegSetBadArrType" xml:space="preserve">
-    <value>RegistryKey.SetValue does not support arrays of type '{0}'. Only Byte[] and String[] are supported.</value>
-  </data>
-  <data name="Arg_RegSetMismatchedKind" xml:space="preserve">
-    <value>The type of the value object did not match the specified RegistryValueKind or the object could not be properly converted.</value>
-  </data>
-  <data name="Arg_RegSetStrArrNull" xml:space="preserve">
-    <value>RegistryKey.SetValue does not allow a String[] that contains a null String reference.</value>
   </data>
   <data name="Arg_RegSubKeyValueAbsent" xml:space="preserve">
     <value>No value exists with that name.</value>
   </data>
   <data name="Arg_RegValStrLenBug" xml:space="preserve">
     <value>Registry value names should not be greater than 16,383 characters.</value>
-  </data>
-  <data name="Arg_RemoveArgNotFound" xml:space="preserve">
-    <value>Cannot remove the specified item because it was not found in the specified Collection.</value>
   </data>
   <data name="Arg_ResMgrNotResSet" xml:space="preserve">
     <value>Type parameter must refer to a subclass of ResourceSet.</value>
@@ -1258,6 +1228,12 @@
   <data name="Argument_InvalidSerializedString" xml:space="preserve">
     <value>The specified serialized string '{0}' is not supported.</value>
   </data>
+  <data name="Argument_InvalidStartupHookSyntax" xml:space="preserve">
+    <value>The syntax of the startup hook variable was invalid.</value>
+  </data>
+  <data name="Argument_InvalidStartupHookSignature" xml:space="preserve">
+    <value>The signature of the startup hook '{0}' in assembly '{1}' was invalid. It must be 'public static void Initialize()'.</value>
+  </data>
   <data name="Argument_InvalidTimeSpanStyles" xml:space="preserve">
     <value>An undefined TimeSpanStyles value is being used.</value>
   </data>
@@ -1317,9 +1293,6 @@
   </data>
   <data name="Argument_MustBeRuntimeMethodInfo" xml:space="preserve">
     <value>MethodInfo must be a runtime MethodInfo object.</value>
-  </data>
-  <data name="Argument_MustBeRuntimeModule" xml:space="preserve">
-    <value>Module must be a runtime Module object.</value>
   </data>
   <data name="Argument_MustBeRuntimeReflectionObject" xml:space="preserve">
     <value>The object must be a runtime Reflection object.</value>
@@ -1921,11 +1894,17 @@
   <data name="ArrayTypeMismatch_ConstrainedCopy" xml:space="preserve">
     <value>Array.ConstrainedCopy will only work on array types that are provably compatible, without any form of boxing, unboxing, widening, or casting of each array element.  Change the array types (i.e., copy a Derived[] to a Base[]), or use a mitigation strategy in the CER for Array.Copy's less powerful reliability contract, such as cloning the array or throwing away the potentially corrupt destination array.</value>
   </data>
-  <data name="Arugment_EmitMixedContext1" xml:space="preserve">
-    <value>Type '{0}' was loaded in the ReflectionOnly context but the AssemblyBuilder was not created as AssemblyBuilderAccess.ReflectionOnly.</value>
+  <data name="AssemblyLoadContext_Constructor_CannotInstantiateWhileUnloading" xml:space="preserve">
+    <value>Cannot instantiate AssemblyLoadContext while the current process is exiting.</value>
   </data>
-  <data name="Arugment_EmitMixedContext2" xml:space="preserve">
-    <value>Type '{0}' was not loaded in the ReflectionOnly context but the AssemblyBuilder was created as AssemblyBuilderAccess.ReflectionOnly.</value>
+  <data name="AssemblyLoadContext_Unload_CannotUnloadIfNotCollectible" xml:space="preserve">
+    <value>Cannot unload non-collectible AssemblyLoadContext.</value>
+  </data>
+  <data name="AssemblyLoadContext_Unload_AlreadyUnloaded" xml:space="preserve">
+    <value>Unload called on AssemblyLoadContext that is unloading or that was already unloaded.</value>
+  </data>
+  <data name="AssemblyLoadContext_Verify_NotUnloading" xml:space="preserve">
+    <value>AssemblyLoadContext is unloading or was already unloaded.</value>
   </data>
   <data name="AssertionFailed" xml:space="preserve">
     <value>Assertion failed.</value>
@@ -2575,9 +2554,6 @@
   <data name="InvalidOperation_NotAllowedInDynamicMethod" xml:space="preserve">
     <value>The requested operation is invalid for DynamicMethod.</value>
   </data>
-  <data name="InvalidOperation_NotAllowedInReflectionOnly" xml:space="preserve">
-    <value>The requested operation is invalid in the ReflectionOnly context.</value>
-  </data>
   <data name="InvalidOperation_NotAVarArgCallingConvention" xml:space="preserve">
     <value>Calling convention must be VarArgs.</value>
   </data>
@@ -2908,9 +2884,6 @@
   <data name="NotSupported_CollectibleCOM" xml:space="preserve">
     <value>COM Interop is not supported for collectible types.</value>
   </data>
-  <data name="NotSupported_CollectibleDelegateMarshal" xml:space="preserve">
-    <value>Delegate marshaling for types within collectible assemblies is not supported.</value>
-  </data>
   <data name="NotSupported_CreateInstanceWithTypeBuilder" xml:space="preserve">
     <value>CreateInstance cannot be used with an object of type TypeBuilder.</value>
   </data>
@@ -3049,6 +3022,9 @@
   <data name="NotSupported_UnknownTypeCode" xml:space="preserve">
     <value>TypeCode '{0}' was not valid.</value>
   </data>
+  <data name="NotSupported_WaitAllSTAThread" xml:space="preserve">
+    <value>WaitAll for multiple handles on a STA thread is not supported.</value>
+  </data>
   <data name="NotSupported_UnreadableStream" xml:space="preserve">
     <value>Stream does not support reading.</value>
   </data>
@@ -3093,9 +3069,6 @@
   </data>
   <data name="ObjectDisposed_ReaderClosed" xml:space="preserve">
     <value>Cannot read from a closed TextReader.</value>
-  </data>
-  <data name="ObjectDisposed_RegKeyClosed" xml:space="preserve">
-    <value>Cannot access a closed registry key.</value>
   </data>
   <data name="ObjectDisposed_ResourceSet" xml:space="preserve">
     <value>Cannot access a closed resource set.</value>
@@ -3558,9 +3531,6 @@
   </data>
   <data name="UnauthorizedAccess_RegistryKeyGeneric_Key" xml:space="preserve">
     <value>Access to the registry key '{0}' is denied.</value>
-  </data>
-  <data name="UnauthorizedAccess_RegistryNoWrite" xml:space="preserve">
-    <value>Cannot write to the registry key.</value>
   </data>
   <data name="UnauthorizedAccess_SystemDomain" xml:space="preserve">
     <value>Cannot execute an assembly in the system domain.</value>

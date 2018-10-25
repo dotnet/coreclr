@@ -38,7 +38,7 @@ void Compiler::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrSt
                 continue;
             }
             unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
-            if (fgExcludeFromSsa(lclNum))
+            if (!lvaInSsa(lclNum))
             {
                 continue;
             }
@@ -153,8 +153,8 @@ void Compiler::optCopyProp(BasicBlock* block, GenTree* stmt, GenTree* tree, LclN
     }
     unsigned lclNum = tree->AsLclVarCommon()->GetLclNum();
 
-    // Skip address exposed variables.
-    if (fgExcludeFromSsa(lclNum))
+    // Skip non-SSA variables.
+    if (!lvaInSsa(lclNum))
     {
         return;
     }
@@ -266,8 +266,6 @@ void Compiler::optCopyProp(BasicBlock* block, GenTree* stmt, GenTree* tree, LclN
         }
 #endif
 
-        lvaTable[lclNum].decRefCnts(block->getBBWeight(this), this);
-        lvaTable[newLclNum].incRefCnts(block->getBBWeight(this), this);
         tree->gtLclVarCommon.SetLclNum(newLclNum);
         tree->AsLclVarCommon()->SetSsaNum(newSsaNum);
         gtUpdateSideEffects(stmt, tree);
@@ -289,7 +287,7 @@ void Compiler::optCopyProp(BasicBlock* block, GenTree* stmt, GenTree* tree, LclN
  */
 bool Compiler::optIsSsaLocal(GenTree* tree)
 {
-    return tree->IsLocal() && !fgExcludeFromSsa(tree->AsLclVarCommon()->GetLclNum());
+    return tree->IsLocal() && lvaInSsa(tree->AsLclVarCommon()->GetLclNum());
 }
 
 //------------------------------------------------------------------------------
@@ -304,7 +302,7 @@ bool Compiler::optIsSsaLocal(GenTree* tree)
 void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
 {
 #ifdef DEBUG
-    JITDUMP("Copy Assertion for BB%02u\n", block->bbNum);
+    JITDUMP("Copy Assertion for " FMT_BB "\n", block->bbNum);
     if (verbose)
     {
         printf("  curSsaName stack: ");

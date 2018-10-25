@@ -99,9 +99,8 @@ namespace JIT.HardwareIntrinsics.X86
             public static TestStruct Create()
             {
                 var testStruct = new TestStruct();
-                var random = new Random();
 
-                for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)(random.Next(0, int.MaxValue)); }
+                for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetUInt64(); }
                 Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<UInt64>, byte>(ref testStruct._fld), ref Unsafe.As<UInt64, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector256<UInt64>>());
 
                 return testStruct;
@@ -129,9 +128,7 @@ namespace JIT.HardwareIntrinsics.X86
 
         static ExtractStoreTest__ExtractVector128UInt641()
         {
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)(random.Next(0, int.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetUInt64(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<UInt64>, byte>(ref _clsVar), ref Unsafe.As<UInt64, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector256<UInt64>>());
         }
 
@@ -139,12 +136,10 @@ namespace JIT.HardwareIntrinsics.X86
         {
             Succeeded = true;
 
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)(random.Next(0, int.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetUInt64(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<UInt64>, byte>(ref _fld), ref Unsafe.As<UInt64, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector256<UInt64>>());
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)(random.Next(0, int.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetUInt64(); }
             _dataTable = new SimpleUnaryOpTest__DataTable<UInt64, UInt64>(_data, new UInt64[RetElementCount], LargestVectorSize);
         }
 
@@ -154,6 +149,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             Avx.ExtractVector128(
                 (UInt64*)_dataTable.outArrayPtr,
                 Unsafe.Read<Vector256<UInt64>>(_dataTable.inArrayPtr),
@@ -165,6 +162,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_Load));
+
             Avx.ExtractVector128(
                 (UInt64*)_dataTable.outArrayPtr,
                 Avx.LoadVector256((UInt64*)(_dataTable.inArrayPtr)),
@@ -176,6 +175,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_LoadAligned));
+
             Avx.ExtractVector128(
                 (UInt64*)_dataTable.outArrayPtr,
                 Avx.LoadAlignedVector256((UInt64*)(_dataTable.inArrayPtr)),
@@ -187,6 +188,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             typeof(Avx).GetMethod(nameof(Avx.ExtractVector128), new Type[] { typeof(UInt64*), typeof(Vector256<UInt64>), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Pointer.Box(_dataTable.outArrayPtr, typeof(UInt64*)),
@@ -199,6 +202,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_Load));
+
             typeof(Avx).GetMethod(nameof(Avx.ExtractVector128), new Type[] { typeof(UInt64*), typeof(Vector256<UInt64>), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Pointer.Box(_dataTable.outArrayPtr, typeof(UInt64*)),
@@ -211,6 +216,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_LoadAligned));
+
             typeof(Avx).GetMethod(nameof(Avx.ExtractVector128), new Type[] {  typeof(UInt64*), typeof(Vector256<UInt64>), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Pointer.Box(_dataTable.outArrayPtr, typeof(UInt64*)),
@@ -223,6 +230,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             Avx.ExtractVector128(
                 (UInt64*)_dataTable.outArrayPtr,
                 _clsVar,
@@ -234,6 +243,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var firstOp = Unsafe.Read<Vector256<UInt64>>(_dataTable.inArrayPtr);
             Avx.ExtractVector128((UInt64*)_dataTable.outArrayPtr, firstOp, 1);
             ValidateResult(firstOp, _dataTable.outArrayPtr);
@@ -241,6 +252,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_Load));
+
             var firstOp = Avx.LoadVector256((UInt64*)(_dataTable.inArrayPtr));
             Avx.ExtractVector128((UInt64*)_dataTable.outArrayPtr, firstOp, 1);
             ValidateResult(firstOp, _dataTable.outArrayPtr);
@@ -248,6 +261,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_LoadAligned));
+
             var firstOp = Avx.LoadAlignedVector256((UInt64*)(_dataTable.inArrayPtr));
             Avx.ExtractVector128((UInt64*)_dataTable.outArrayPtr, firstOp, 1);
             ValidateResult(firstOp, _dataTable.outArrayPtr);
@@ -255,6 +270,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
             var test = new ExtractStoreTest__ExtractVector128UInt641();
             Avx.ExtractVector128((UInt64*)_dataTable.outArrayPtr, test._fld, 1);
             ValidateResult(test._fld, _dataTable.outArrayPtr);
@@ -262,12 +279,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             Avx.ExtractVector128((UInt64*)_dataTable.outArrayPtr, _fld, 1);
             ValidateResult(_fld, _dataTable.outArrayPtr);
         }
 
         public void RunStructLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
             var test = TestStruct.Create();
             Avx.ExtractVector128((UInt64*)_dataTable.outArrayPtr, test._fld, 1);
             ValidateResult(test._fld, _dataTable.outArrayPtr);
@@ -275,12 +296,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
             var test = TestStruct.Create();
             test.RunStructFldScenario(this);
         }
 
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -335,10 +360,10 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Avx)}.{nameof(Avx.ExtractVector128)}<UInt64>(Vector256<UInt64><9>): {method} failed:");
-                Console.WriteLine($"  firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"   result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Avx)}.{nameof(Avx.ExtractVector128)}<UInt64>(Vector256<UInt64><9>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
+                TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

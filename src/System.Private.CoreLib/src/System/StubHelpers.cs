@@ -200,15 +200,13 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertToManaged(StringBuilder sb, IntPtr pNative)
         {
-            if (pNative == null)
+            if (pNative == IntPtr.Zero)
                 return;
 
             int nbBytes = StubHelpers.strlen((sbyte*)pNative);
             sb.ReplaceBufferUtf8Internal(new Span<byte>((byte*)pNative, nbBytes));
         }
     }
-
-#if FEATURE_COMINTEROP
 
     internal static class BSTRMarshaler
     {
@@ -333,9 +331,6 @@ namespace System.StubHelpers
             }
         }
     }  // class BSTRMarshaler
-
-#endif // FEATURE_COMINTEROP
-
 
     internal static class VBByValStrMarshaler
     {

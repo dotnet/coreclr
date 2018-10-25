@@ -10,9 +10,9 @@ Module Name:
 
 Abstract:
 
-    Rotor Platform Adaptation Layer (PAL) header file.  This file
-    defines all types and API calls required by the Rotor port of
-    the Microsoft Common Language Runtime.
+    CoreCLR Platform Adaptation Layer (PAL) header file.  This file
+    defines all types and API calls required by the CoreCLR when
+    compiled for Unix-like systems.
 
     Defines which control the behavior of this include file:
       UNICODE - define it to set the Ansi/Unicode neutral names to
@@ -321,15 +321,22 @@ typedef long time_t;
 #define PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER     0x08
 #define PAL_INITIALIZE_DEBUGGER_EXCEPTIONS          0x10
 #define PAL_INITIALIZE_ENSURE_STACK_SIZE            0x20
+#define PAL_INITIALIZE_REGISTER_SIGNALS             0x40
 
 // PAL_Initialize() flags
-#define PAL_INITIALIZE                 (PAL_INITIALIZE_SYNC_THREAD | PAL_INITIALIZE_STD_HANDLES)
+#define PAL_INITIALIZE                 (PAL_INITIALIZE_SYNC_THREAD | \
+                                        PAL_INITIALIZE_STD_HANDLES)
 
-// PAL_InitializeDLL() flags - don't start any of the helper threads
-#define PAL_INITIALIZE_DLL             PAL_INITIALIZE_NONE       
+// PAL_InitializeDLL() flags - don't start any of the helper threads or register any exceptions
+#define PAL_INITIALIZE_DLL              PAL_INITIALIZE_NONE       
 
 // PAL_InitializeCoreCLR() flags
-#define PAL_INITIALIZE_CORECLR         (PAL_INITIALIZE | PAL_INITIALIZE_EXEC_ALLOCATOR | PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER | PAL_INITIALIZE_DEBUGGER_EXCEPTIONS | PAL_INITIALIZE_ENSURE_STACK_SIZE)
+#define PAL_INITIALIZE_CORECLR         (PAL_INITIALIZE | \
+                                        PAL_INITIALIZE_EXEC_ALLOCATOR | \
+                                        PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER | \
+                                        PAL_INITIALIZE_DEBUGGER_EXCEPTIONS | \
+                                        PAL_INITIALIZE_ENSURE_STACK_SIZE | \
+                                        PAL_INITIALIZE_REGISTER_SIGNALS)
 
 typedef DWORD (PALAPI *PTHREAD_START_ROUTINE)(LPVOID lpThreadParameter);
 typedef PTHREAD_START_ROUTINE LPTHREAD_START_ROUTINE;
@@ -344,9 +351,22 @@ PAL_Initialize(
     const char * const argv[]);
 
 PALIMPORT
+void
+PALAPI
+PAL_InitializeWithFlags(
+    DWORD flags);
+
+PALIMPORT
 int
 PALAPI
-PAL_InitializeDLL(VOID);
+PAL_InitializeDLL(
+    VOID);
+
+PALIMPORT
+void
+PALAPI
+PAL_SetInitializeDLLFlags(
+    DWORD flags);
 
 PALIMPORT
 DWORD
@@ -1265,6 +1285,12 @@ PALIMPORT
 DWORD
 PALAPI
 GetCurrentThreadId(
+           VOID);
+
+PALIMPORT
+size_t
+PALAPI
+PAL_GetCurrentOSThreadId(
            VOID);
 
 // To work around multiply-defined symbols in the Carbon framework.
@@ -2370,7 +2396,7 @@ PAL_GetRestrictedPhysicalMemoryLimit(VOID);
 PALIMPORT
 BOOL
 PALAPI
-PAL_GetWorkingSetSize(size_t* val);
+PAL_GetPhysicalMemoryUsed(size_t* val);
 
 PALIMPORT
 BOOL
@@ -3161,14 +3187,13 @@ RaiseException(
            IN DWORD nNumberOfArguments,
            IN CONST ULONG_PTR *lpArguments);
 
-#ifdef FEATURE_PAL_SXS
 PALIMPORT
-PAL_NORETURN
 VOID
 PALAPI
-PAL_RaiseException(
-           IN PEXCEPTION_POINTERS ExceptionPointers);
-#endif // FEATURE_PAL_SXS
+RaiseFailFastException(
+    IN PEXCEPTION_RECORD pExceptionRecord,
+    IN PCONTEXT pContextRecord,
+    IN DWORD dwFlags);
 
 PALIMPORT
 DWORD
@@ -3272,52 +3297,6 @@ BitScanForward64(
     {
         // Set the Index after deducting unity
         *Index = (DWORD)(iIndex - 1);
-        bRet = TRUE;
-    }
-
-    return bRet;
-}
-
-// Define BitScanReverse64 and BitScanReverse
-// Per MSDN, BitScanReverse64 or BitScanReverse will search the mask data from most significant bit (MSB) 
-// to least significant bit (LSB) for a set bit (1).
-// If one is found, its bit position is returned in the out PDWORD argument and 1 is returned.
-// Otherwise, 0 is returned.
-//
-// On GCC, the equivalent function is __builtin_clzll or __builtin_clz. It returns 1+index of the most
-// significant set bit, or undefined result if mask is zero.
-EXTERN_C
-PALIMPORT
-inline
-unsigned char
-PALAPI
-BitScanReverse(
-    IN OUT PDWORD Index,
-    IN UINT qwMask)
-{
-    unsigned char bRet = FALSE;
-    if (qwMask != 0)
-    {
-        *Index = (UINT) (8 * sizeof (UINT) - __builtin_clz(qwMask) - 1);
-        bRet = TRUE;
-    }
-
-    return bRet;
-}
-
-EXTERN_C
-PALIMPORT
-inline
-unsigned char
-PALAPI
-BitScanReverse64(
-    IN OUT PDWORD Index,
-    IN UINT64 qwMask)
-{
-    unsigned char bRet = FALSE;
-    if (qwMask != 0)
-    {
-        *Index = (UINT) (8 * sizeof (UINT64) - __builtin_clzll(qwMask) - 1);
         bRet = TRUE;
     }
 
@@ -4434,6 +4413,7 @@ PALIMPORT LONG __cdecl labs(LONG);
 // clang complains if this is declared with __int64
 PALIMPORT long long __cdecl llabs(long long);
 
+PALIMPORT int __cdecl _signbit(double);
 PALIMPORT int __cdecl _finite(double);
 PALIMPORT int __cdecl _isnan(double);
 PALIMPORT double __cdecl _copysign(double, double);
@@ -4462,6 +4442,7 @@ PALIMPORT double __cdecl sqrt(double);
 PALIMPORT double __cdecl tan(double);
 PALIMPORT double __cdecl tanh(double);
 
+PALIMPORT int __cdecl _signbitf(float);
 PALIMPORT int __cdecl _finitef(float);
 PALIMPORT int __cdecl _isnanf(float);
 PALIMPORT float __cdecl _copysignf(float, float);
@@ -5062,9 +5043,7 @@ public:
 };
 
 //
-// NOTE: Catching hardware exceptions are only enabled in the DAC and SOS 
-// builds. A hardware exception in coreclr code will fail fast/terminate
-// the process.
+// NOTE: This is only defined in one PAL test.
 //
 #ifdef FEATURE_ENABLE_HARDWARE_EXCEPTIONS
 #define HardwareExceptionHolder CatchHardwareExceptionHolder __catchHardwareException;

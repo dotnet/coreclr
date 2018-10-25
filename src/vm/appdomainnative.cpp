@@ -203,9 +203,6 @@ enum
     APPX_FLAGS_INITIALIZED =        0x01,
 
     APPX_FLAGS_APPX_MODEL =         0x02,
-    APPX_FLAGS_APPX_DESIGN_MODE =   0x04,
-    APPX_FLAGS_APPX_MASK =          APPX_FLAGS_APPX_MODEL |
-                                    APPX_FLAGS_APPX_DESIGN_MODE,
 };
 
 // static
@@ -220,9 +217,6 @@ INT32 QCALLTYPE AppDomainNative::GetAppXFlags()
     if (AppX::IsAppXProcess())
     {
         flags |= APPX_FLAGS_APPX_MODEL;
-
-        if (AppX::IsAppXDesignMode())
-            flags |= APPX_FLAGS_APPX_DESIGN_MODE;
     }
 
     END_QCALL;
@@ -267,8 +261,7 @@ FCIMPL2(Object*, AppDomainNative::GetAssemblies, AppDomainBaseObject* refThisUNS
         //  to the array.  Quit when the array is full, in case assemblies have been
         //  loaded into this appdomain, on another thread.
         AppDomain::AssemblyIterator i = pApp->IterateAssembliesEx((AssemblyIterationFlags)(
-            kIncludeLoaded | 
-            (forIntrospection ? kIncludeIntrospection : kIncludeExecution)));
+            kIncludeLoaded | kIncludeExecution));
         CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
         
         while (i.Next(pDomainAssembly.This()) && (numAssemblies < nArrayElems))
@@ -308,34 +301,6 @@ FCIMPL2(Object*, AppDomainNative::GetAssemblies, AppDomainBaseObject* refThisUNS
     return OBJECTREFToObject(gc.AsmArray);
 } // AppDomainNative::GetAssemblies
 FCIMPLEND
-
-
-FCIMPL1(void, AppDomainNative::Unload, INT32 dwId)
-{
-    FCALL_CONTRACT;
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-
-    IfFailThrow(AppDomain::UnloadById(ADID(dwId),TRUE));
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-FCIMPL1(FC_BOOL_RET, AppDomainNative::IsDomainIdValid, INT32 dwId)
-{
-    FCALL_CONTRACT;
-
-    BOOL retVal = FALSE;
-    HELPER_METHOD_FRAME_BEGIN_RET_0()
-
-    AppDomainFromIDHolder ad((ADID)dwId, TRUE);
-    retVal=!ad.IsUnloaded();
-    HELPER_METHOD_FRAME_END();
-    FC_RETURN_BOOL(retVal);
-}
-FCIMPLEND
-
 
 FCIMPL1(INT32, AppDomainNative::GetId, AppDomainBaseObject* refThisUNSAFE)
 {
@@ -454,8 +419,7 @@ FCIMPL2(StringObject*, AppDomainNative::nApplyPolicy, AppDomainBaseObject* refTh
     AssemblySpec spec;
     spec.InitializeSpec(&(pThread->m_MarshalAlloc), 
                         &gc.assemblyName,
-                        FALSE, /*fIsStringized*/ 
-                        FALSE /*fForIntrospection*/
+                        FALSE /*fIsStringized*/
                        );
 
     StackSString sDisplayName;

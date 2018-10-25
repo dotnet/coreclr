@@ -9,24 +9,14 @@
 #define INT_MIN	   (-2147483647 - 1)
 
 typedef char16_t WCHAR;
-typedef unsigned long DWORD;
 typedef int BOOL;
 typedef WCHAR *LPWSTR, *PWSTR;
 typedef const WCHAR *LPCWSTR, *PCWSTR;
 
-#ifdef UNICODE
-typedef WCHAR TCHAR;
-#else // ANSI
-typedef char TCHAR;
-#endif // UNICODE
-
 typedef char* LPSTR;
 typedef const char* LPCSTR;
-typedef TCHAR* LPTSTR;
-typedef const TCHAR* LPCTSTR;
 typedef void* FARPROC;
 typedef void* HMODULE;
-typedef void* ULONG_PTR;
 typedef unsigned error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
@@ -44,8 +34,6 @@ typedef char CHAR, *PCHAR;
 typedef unsigned short USHORT;
 typedef signed short SHORT;
 typedef unsigned short WORD, *PWORD, *LPWORD;
-
-typedef int*  DWORD_PTR;
 
 #ifndef TRUE
 #define TRUE 1

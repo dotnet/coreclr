@@ -147,7 +147,7 @@ inline TADDR GetRegdisplayStackMark(REGDISPLAY *display) {
 #endif
 }
 
-#elif defined(_WIN64)
+#elif defined(_TARGET_64BIT_)
 
 #if defined(_TARGET_ARM64_)
 typedef struct _Arm64VolatileContextPointer
@@ -250,7 +250,7 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
     ArmVolatileContextPointer     volatileCurrContextPointers;
 
     DWORD *  pPC;                // processor neutral name
-
+#ifndef CROSSGEN_COMPILE
     REGDISPLAY()
     {
         // Initialize regdisplay
@@ -259,6 +259,10 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
         // Setup the pointer to ControlPC field
         pPC = &ControlPC;
     }
+#else
+private:
+    REGDISPLAY();
+#endif
 };
 
 // This function tells us if the given stack pointer is in one of the frames of the functions called by the given frame
@@ -278,7 +282,7 @@ inline TADDR GetRegdisplayStackMark(REGDISPLAY *display) {
 #error "RegDisplay functions are not implemented on this platform."
 #endif
 
-#if defined(_WIN64) || defined(_TARGET_ARM_) || (defined(_TARGET_X86_) && defined(WIN64EXCEPTIONS))
+#if defined(_TARGET_64BIT_) || defined(_TARGET_ARM_) || (defined(_TARGET_X86_) && defined(WIN64EXCEPTIONS))
 // This needs to be implemented for platforms that have funclets.
 inline LPVOID GetRegdisplayReturnValue(REGDISPLAY *display)
 {
@@ -289,7 +293,7 @@ inline LPVOID GetRegdisplayReturnValue(REGDISPLAY *display)
 #elif defined(_TARGET_ARM64_)
     return (LPVOID)display->pCurrentContext->X0;
 #elif defined(_TARGET_ARM_)
-    return (LPVOID)display->pCurrentContext->R0;
+    return (LPVOID)((TADDR)display->pCurrentContext->R0);
 #elif defined(_TARGET_X86_)
     return (LPVOID)display->pCurrentContext->Eax;
 #else
@@ -302,24 +306,24 @@ inline void SyncRegDisplayToCurrentContext(REGDISPLAY* pRD)
 {
     LIMITED_METHOD_CONTRACT;
 
-#if defined(_WIN64)
+#if defined(_TARGET_64BIT_)
     pRD->SP         = (INT_PTR)GetSP(pRD->pCurrentContext);
     pRD->ControlPC  = INT_PTR(GetIP(pRD->pCurrentContext));
-#elif defined(_TARGET_ARM_) // _WIN64
+#elif defined(_TARGET_ARM_)
     pRD->SP         = (DWORD)GetSP(pRD->pCurrentContext);
     pRD->ControlPC  = (DWORD)GetIP(pRD->pCurrentContext);
-#elif defined(_TARGET_X86_) // _TARGET_ARM_
+#elif defined(_TARGET_X86_)
     pRD->SP         = (DWORD)GetSP(pRD->pCurrentContext);
     pRD->ControlPC  = (DWORD)GetIP(pRD->pCurrentContext);
 #else // _TARGET_X86_
     PORTABILITY_ASSERT("SyncRegDisplayToCurrentContext");
-#endif // _TARGET_ARM_ || _TARGET_X86_
+#endif
 
 #ifdef DEBUG_REGDISPLAY
     CheckRegDisplaySP(pRD);
 #endif // DEBUG_REGDISPLAY
 }
-#endif // _WIN64 || _TARGET_ARM_ || (_TARGET_X86_ && WIN64EXCEPTIONS)
+#endif // _TARGET_64BIT_ || _TARGET_ARM_ || (_TARGET_X86_ && WIN64EXCEPTIONS)
 
 typedef REGDISPLAY *PREGDISPLAY;
 
@@ -406,9 +410,20 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
     FillContextPointers(&pRD->ctxPtrsOne, pctx);
 
 #if defined(_TARGET_ARM_)
+    // Fill volatile context pointers. They can be used by GC in the case of the leaf frame
+    pRD->volatileCurrContextPointers.R0 = &pctx->R0;
+    pRD->volatileCurrContextPointers.R1 = &pctx->R1;
+    pRD->volatileCurrContextPointers.R2 = &pctx->R2;
+    pRD->volatileCurrContextPointers.R3 = &pctx->R3;
+    pRD->volatileCurrContextPointers.R12 = &pctx->R12;
+
     pRD->ctxPtrsOne.Lr = &pctx->Lr;
     pRD->pPC = &pRD->pCurrentContext->Pc;
-#endif // _TARGET_ARM_
+#elif defined(_TARGET_ARM64_) // _TARGET_ARM_
+    // Fill volatile context pointers. They can be used by GC in the case of the leaf frame
+    for (int i=0; i < 18; i++)
+        pRD->volatileCurrContextPointers.X[i] = &pctx->X[i];
+#endif // _TARGET_ARM64_
 
 #ifdef DEBUG_REGDISPLAY
     pRD->_pThread = NULL;

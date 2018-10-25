@@ -2,6 +2,8 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Condition="Exists('..\dir.props')" Project="..\dir.props" />
 
+  <Import Project="dir.common.props" />
+
   <!--
     $(OS) is set to Unix/Windows_NT. This comes from an environment variable on Windows and MSBuild on Unix.
   -->
@@ -42,18 +44,6 @@
 
   <!-- Common properties -->
   <PropertyGroup>
-    <!-- Set basic properties and normalize -->
-    <BuildArch>$(__BuildArch)</BuildArch>
-    <BuildArch Condition="'$(__BuildArch)'==''">x64</BuildArch>
-    <BuildArch Condition="'$(__BuildArch)' == 'amd64'">x64</BuildArch>
-
-    <BuildType Condition="'$(__BuildType)'==''">Debug</BuildType>
-    <BuildType Condition="'$(__BuildType)' == 'debug'">Debug</BuildType>
-    <BuildType Condition="'$(__BuildType)' == 'release'">Release</BuildType>
-    <BuildType Condition="'$(__BuildType)' == 'checked'">Checked</BuildType>
-
-    <BuildOS>$(__BuildOS)</BuildOS>
-    <BuildOS Condition="'$(__BuildOS)' == ''">Windows_NT</BuildOS>
 
     <ProjectDir>$(__ProjectDir)\</ProjectDir>
     <ProjectDir Condition="'$(__ProjectDir)'==''">$(MSBuildThisFileDirectory)</ProjectDir>
@@ -96,6 +86,8 @@
 
     <!-- Default to portable build if not explicitly set -->
     <PortableBuild Condition="'$(PortableBuild)' == ''">true</PortableBuild>
+
+    <OverrideRestoreOutputPath>true</OverrideRestoreOutputPath>
   </PropertyGroup>
 
   <!-- Output paths -->
@@ -170,7 +162,10 @@
     <HasCrossTargetComponents Condition="'$(TargetsWindows)' == 'true' and ('$(PackagePlatform)' =='arm64' or '$(PackagePlatform)' =='arm')">true</HasCrossTargetComponents>
     <HasCrossTargetComponents Condition="'$(TargetsLinux)' == 'true' and ('$(PackagePlatform)' =='arm64' or '$(PackagePlatform)' =='arm') and '$(__DoCrossArchBuild)' == '1'">true</HasCrossTargetComponents>
     <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm64'">x64</CrossTargetComponentFolder>
-    <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm'">x86</CrossTargetComponentFolder>
+    <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm' and '$(TargetsWindows)' == 'true'">x86</CrossTargetComponentFolder>
+    <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm' and '$(TargetsLinux)' == 'true'">x64</CrossTargetComponentFolder>
+    <_HasObsoleteCrossTargetComponents Condition="'$(TargetsLinux)' == 'true' and '$(PackagePlatform)' =='arm' and '$(__DoCrossArchBuild)' == '1'">true</_HasObsoleteCrossTargetComponents>
+    <_ObsoleteCrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm'">x86</_ObsoleteCrossTargetComponentFolder>
 
     <PackageOutputPath Condition="'$(PackageOutputPath)' == ''">$(PackagesBinDir)/pkg/</PackageOutputPath>
     <SymbolPackageOutputPath Condition="'$(SymbolPackageOutputPath)' == ''">$(PackagesBinDir)/symbolpkg/</SymbolPackageOutputPath>

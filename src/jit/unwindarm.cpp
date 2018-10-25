@@ -194,6 +194,9 @@ void Compiler::unwindBegProlog()
     if (generateCFIUnwindCodes())
     {
         unwindBegPrologCFI();
+#if defined(_TARGET_ARM_)
+        unwindCfiEpilogFormed = false;
+#endif
         return;
     }
 #endif // _TARGET_UNIX_
@@ -235,6 +238,11 @@ void Compiler::unwindBegEpilog()
 void Compiler::unwindEndEpilog()
 {
     assert(compGeneratingEpilog);
+#if defined(_TARGET_UNIX_)
+#if defined(_TARGET_ARM_)
+    unwindCfiEpilogFormed = true;
+#endif
+#endif // _TARGET_UNIX_
 }
 
 #if defined(_TARGET_ARM_)
@@ -2164,7 +2172,7 @@ DWORD DumpRegSetRange(const char* const rtype, DWORD start, DWORD end, DWORD lr)
 {
     assert(start <= end);
     DWORD printed  = 0;
-    DWORD rtypeLen = strlen(rtype);
+    DWORD rtypeLen = (DWORD)strlen(rtype);
 
     printf("{");
     ++printed;

@@ -20,20 +20,23 @@ fi
 # Set up the environment to be used for building with clang.
 if command -v "clang-$2.$3" > /dev/null
     then
-        export CC="$(command -v clang-$2.$3)"
-        export CXX="$(command -v clang++-$2.$3)"
+        desired_llvm_version="-$2.$3"
 elif command -v "clang$2$3" > /dev/null
     then
-        export CC="$(command -v clang$2$3)"
-        export CXX="$(command -v clang++$2$3)"
+        desired_llvm_version="$2$3"
+elif command -v "clang-$2$3" > /dev/null
+    then
+        desired_llvm_version="-$2$3"
 elif command -v clang > /dev/null
     then
-        export CC="$(command -v clang)"
-        export CXX="$(command -v clang++)"
+        desired_llvm_version=
 else
     echo "Unable to find Clang Compiler"
     exit 1
 fi
+
+export CC="$(command -v clang$desired_llvm_version)"
+export CXX="$(command -v clang++$desired_llvm_version)"
 
 build_arch="$4"
 buildtype=DEBUG
@@ -52,10 +55,6 @@ for i in "${@:5}"; do
       COVERAGE)
       echo "Code coverage is turned on for this build."
       code_coverage=ON
-      ;;
-      INCLUDE_TESTS)
-      echo "Including tests directory in build."
-      build_tests=ON
       ;;
       NINJA)
       generator=Ninja
@@ -83,19 +82,6 @@ else
   exit 1
 fi
 
-desired_llvm_major_version=$2
-desired_llvm_minor_version=$3
-if [ $OS = "FreeBSD" ]; then
-    desired_llvm_version="$desired_llvm_major_version$desired_llvm_minor_version"
-elif [ $OS = "OpenBSD" ]; then
-    desired_llvm_version=""
-elif [ $OS = "NetBSD" ]; then
-    desired_llvm_version=""
-elif [ $OS = "SunOS" ]; then
-    desired_llvm_version=""
-else
-  desired_llvm_version="-$desired_llvm_major_version.$desired_llvm_minor_version"
-fi
 locate_llvm_exec() {
   if command -v "$llvm_prefix$1$desired_llvm_version" > /dev/null 2>&1
   then
@@ -166,9 +152,12 @@ else
     overridefile=clang-compiler-override.txt
 fi
 
+# Determine the current script directory
+__currentScriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 cmake \
   -G "$generator" \
-  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=$1/src/pal/tools/$overridefile" \
+  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=${__currentScriptDir}/$overridefile" \
   "-DCMAKE_AR=$llvm_ar" \
   "-DCMAKE_LINKER=$llvm_link" \
   "-DCMAKE_NM=$llvm_nm" \
@@ -176,7 +165,6 @@ cmake \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=1 " \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
-  "-DCLR_CMAKE_BUILD_TESTS=$build_tests" \
   $cmake_extra_defines \
   $__UnprocessedCMakeArgs \
   "$1"

@@ -16,6 +16,7 @@
 #include "eventpipejsonfile.h"
 #include "eventtracebase.h"
 #include "sampleprofiler.h"
+#include "win32threadpool.h"
 
 #ifdef FEATURE_PAL
 #include "pal.h"
@@ -28,13 +29,13 @@ bool EventPipe::s_tracingInitialized = false;
 EventPipeConfiguration* EventPipe::s_pConfig = NULL;
 EventPipeSession* EventPipe::s_pSession = NULL;
 EventPipeBufferManager* EventPipe::s_pBufferManager = NULL;
+LPCWSTR EventPipe::s_pOutputPath = NULL;
 EventPipeFile* EventPipe::s_pFile = NULL;
 EventPipeEventSource* EventPipe::s_pEventSource = NULL;
 LPCWSTR EventPipe::s_pCommandLine = NULL;
-#ifdef _DEBUG
-EventPipeFile* EventPipe::s_pSyncFile = NULL;
-EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
-#endif // _DEBUG
+unsigned long EventPipe::s_nextFileIndex;
+HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
+ULONGLONG EventPipe::s_lastFileSwitchTime = 0;
 
 #ifdef FEATURE_PAL
 // This function is auto-generated from /src/scripts/genEventPipe.py
@@ -203,37 +204,6 @@ void EventPipe::Initialize()
     InitProvidersAndEvents();
 }
 
-void EventPipe::EnableOnStartup()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // Test COMPLUS variable to enable tracing at start-up.
-    if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EnableEventPipe) & 1) == 1)
-    {
-        SString outputPath;
-        outputPath.Printf("Process-%d.netperf", GetCurrentProcessId());
-
-        // Create a new session.
-        EventPipeSession *pSession = new EventPipeSession(
-            EventPipeSessionType::File,
-            1024 /* 1 GB circular buffer */,
-            NULL, /* pProviders */
-            0 /* numProviders */);
-
-        // Get the configuration from the environment.
-        GetConfigurationFromEnvironment(outputPath, pSession);
-
-        // Enable the session.
-        Enable(outputPath, pSession);
-    }
-}
-
 void EventPipe::Shutdown()
 {
     CONTRACTL
@@ -250,7 +220,7 @@ void EventPipe::Shutdown()
     // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
-        Disable();
+        Disable((EventPipeSessionID)s_pSession);
     }
     EX_CATCH { }
     EX_END_CATCH(SwallowAllExceptions);
@@ -270,6 +240,8 @@ void EventPipe::Shutdown()
     delete(pBufferManager);
     delete(s_pEventSource);
     s_pEventSource = NULL;
+    delete(s_pOutputPath);
+    s_pOutputPath = NULL;
 
     // On Windows, this is just a pointer to the return value from
     // GetCommandLineW(), so don't attempt to free it.
@@ -279,11 +251,12 @@ void EventPipe::Shutdown()
 #endif
 }
 
-void EventPipe::Enable(
+EventPipeSessionID EventPipe::Enable(
     LPCWSTR strOutputPath,
     unsigned int circularBufferSizeInMB,
     EventPipeProviderConfiguration *pProviders,
-    int numProviders)
+    int numProviders,
+    UINT64 multiFileTraceLengthInSeconds)
 {
     CONTRACTL
     {
@@ -298,13 +271,14 @@ void EventPipe::Enable(
         (strOutputPath != NULL) ? EventPipeSessionType::File : EventPipeSessionType::Streaming,
         circularBufferSizeInMB,
         pProviders,
-        static_cast<unsigned int>(numProviders));
+        static_cast<unsigned int>(numProviders),
+        multiFileTraceLengthInSeconds);
 
     // Enable the session.
-    Enable(strOutputPath, pSession);
+    return Enable(strOutputPath, pSession);
 }
 
-void EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
+EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
 {
     CONTRACTL
     {
@@ -318,13 +292,13 @@ void EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
     // If tracing is not initialized or is already enabled, bail here.
     if(!s_tracingInitialized || s_pConfig == NULL || s_pConfig->Enabled())
     {
-        return;
+        return 0;
     }
 
     // If the state or arguments are invalid, bail here.
     if(pSession == NULL || !pSession->IsValid())
     {
-        return;
+        return 0;
     }
 
     // Enable the EventPipe EventSource.
@@ -333,29 +307,30 @@ void EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
 
+    // Initialize the next file index.
+    s_nextFileIndex = 1;
+
+    // Initialize the last file switch time.
+    s_lastFileSwitchTime = CLRGetTickCount64();
+
     // Create the event pipe file.
     // A NULL output path means that we should not write the results to a file.
     // This is used in the EventListener streaming case.
     if (strOutputPath != NULL)
     {
-        SString eventPipeFileOutputPath(strOutputPath);
-        s_pFile = new EventPipeFile(eventPipeFileOutputPath);
-    }
+        // Save the output file path.
+        SString outputPath(strOutputPath);
+        SIZE_T outputPathLen = outputPath.GetCount();
+        WCHAR *pOutputPath = new WCHAR[outputPathLen + 1];
+        wcsncpy(pOutputPath, outputPath.GetUnicode(), outputPathLen);
+        pOutputPath[outputPathLen] = '\0';
+        s_pOutputPath = pOutputPath;
 
-#ifdef _DEBUG
-    if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EnableEventPipe) & 2) == 2)
-    {
-        // Create a synchronous file.
-        SString eventPipeSyncFileOutputPath;
-        eventPipeSyncFileOutputPath.Printf("Process-%d.sync.netperf", GetCurrentProcessId());
-        s_pSyncFile = new EventPipeFile(eventPipeSyncFileOutputPath);
+        SString nextTraceFilePath;
+        GetNextFilePath(pSession, nextTraceFilePath);
 
-        // Create a JSON file.
-        SString outputFilePath;
-        outputFilePath.Printf("Process-%d.PerfView.json", GetCurrentProcessId());
-        s_pJsonFile = new EventPipeJsonFile(outputFilePath);
+        s_pFile = new EventPipeFile(nextTraceFilePath);
     }
-#endif // _DEBUG
 
     // Save the session.
     s_pSession = pSession;
@@ -365,9 +340,18 @@ void EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
 
     // Enable the sample profiler
     SampleProfiler::Enable();
+
+    // Enable the file switch timer if needed.
+    if(s_pSession->GetMultiFileTraceLengthInSeconds() > 0)
+    {
+        CreateFileSwitchTimer();
+    }
+
+    // Return the session ID.
+    return (EventPipeSessionID)s_pSession;
 }
 
-void EventPipe::Disable()
+void EventPipe::Disable(EventPipeSessionID id)
 {
     CONTRACTL
     {
@@ -376,6 +360,13 @@ void EventPipe::Disable()
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    // Only perform the disable operation if the session ID
+    // matches the current active session.
+    if(id != (EventPipeSessionID)s_pSession)
+    {
+        return;
+    }
 
     // Don't block GC during clean-up.
     GCX_PREEMP();
@@ -400,6 +391,9 @@ void EventPipe::Disable()
         // Delete the session.
         s_pConfig->DeleteSession(s_pSession);
         s_pSession = NULL;
+
+        // Delete the file switch timer.
+        DeleteFileSwitchTimer();
 
         // Flush all write buffers to make sure that all threads see the change.
         FlushProcessWriteBuffers();
@@ -441,18 +435,6 @@ void EventPipe::Disable()
             delete(s_pFile);
             s_pFile = NULL;
         }
-#ifdef _DEBUG
-        if(s_pSyncFile != NULL)
-        {
-            delete(s_pSyncFile);
-            s_pSyncFile = NULL;
-        }
-        if(s_pJsonFile != NULL)
-        {
-            delete(s_pJsonFile);
-            s_pJsonFile = NULL;
-        }
-#endif // _DEBUG
 
         // De-allocate buffers.
         s_pBufferManager->DeAllocateBuffers();
@@ -461,6 +443,181 @@ void EventPipe::Disable()
         // Providers can't be deleted during tracing because they may be needed when serializing the file.
         s_pConfig->DeleteDeferredProviders();
     }
+}
+
+void EventPipe::CreateFileSwitchTimer()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END
+
+    NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder = new(nothrow) ThreadpoolMgr::TimerInfoContext();
+    if (timerContextHolder == NULL)
+    {
+        return;
+    }
+    timerContextHolder->TimerId = 0;
+
+    bool success = false;
+    _ASSERTE(s_fileSwitchTimerHandle == NULL);
+    EX_TRY
+    {
+        if (ThreadpoolMgr::CreateTimerQueueTimer(
+                &s_fileSwitchTimerHandle,
+                SwitchToNextFileTimerCallback,
+                timerContextHolder,
+                FileSwitchTimerPeriodMS,
+                FileSwitchTimerPeriodMS,
+                0 /* flags */))
+        {
+            _ASSERTE(s_fileSwitchTimerHandle != NULL);
+            success = true;
+        }
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(RethrowTerminalExceptions);
+    if (!success)
+    {
+        _ASSERTE(s_fileSwitchTimerHandle == NULL);
+        return;
+    }
+
+    timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
+}
+
+void EventPipe::DeleteFileSwitchTimer()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END
+
+    if((s_fileSwitchTimerHandle != NULL) && (ThreadpoolMgr::DeleteTimerQueueTimer(s_fileSwitchTimerHandle, NULL)))
+    {
+        s_fileSwitchTimerHandle = NULL;
+    }
+}
+
+void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(timerFired);
+    }
+    CONTRACTL_END;
+
+    
+    // Take the lock control lock to make sure that tracing isn't disabled during this operation.
+    CrstHolder _crst(GetLock());
+
+    // Make sure that we should actually switch files.
+    UINT64 multiFileTraceLengthInSeconds = s_pSession->GetMultiFileTraceLengthInSeconds();
+    if(!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::File || multiFileTraceLengthInSeconds == 0)
+    {
+        return;
+    }
+
+    GCX_PREEMP();
+
+    if(CLRGetTickCount64() > (s_lastFileSwitchTime + (multiFileTraceLengthInSeconds * 1000)))
+    {
+        SwitchToNextFile();
+        s_lastFileSwitchTime = CLRGetTickCount64();
+    }
+
+}
+
+void EventPipe::SwitchToNextFile()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(s_pSession != NULL);
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END
+
+    // Get the current time stamp.
+    // WriteAllBuffersToFile will use this to ensure that no events after the current timestamp are written into the file.
+    LARGE_INTEGER stopTimeStamp;
+    QueryPerformanceCounter(&stopTimeStamp);
+    s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
+
+    // Open the new file.
+    SString nextTraceFilePath;
+    GetNextFilePath(s_pSession, nextTraceFilePath);
+    EventPipeFile* pFile = new (nothrow) EventPipeFile(nextTraceFilePath);
+    if(pFile == NULL)
+    {
+        return;
+    }
+
+    // Close the previous file.
+    delete(s_pFile);
+
+    // Swap in the new file.
+    s_pFile = pFile;
+}
+
+void EventPipe::GetNextFilePath(EventPipeSession *pSession, SString &nextTraceFilePath)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(pSession != NULL);
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    // Set the full path to the requested trace file as the next file path.
+    nextTraceFilePath.Set(s_pOutputPath);
+
+    // If multiple files have been requested, then add a sequence number to the trace file name.
+    UINT64 multiFileTraceLengthInSeconds = pSession->GetMultiFileTraceLengthInSeconds();
+    if(multiFileTraceLengthInSeconds > 0)
+    {
+        // Remove the ".netperf" file extension if it exists.
+        SString::Iterator netPerfExtension = nextTraceFilePath.End();
+        if(nextTraceFilePath.FindBack(netPerfExtension, W(".netperf")))
+        {
+            nextTraceFilePath.Truncate(netPerfExtension);
+        }
+
+        // Add the sequence number and the ".netperf" file extension.
+        WCHAR strNextIndex[21];
+        swprintf_s(strNextIndex, 21, W(".%u.netperf"), s_nextFileIndex++);
+        nextTraceFilePath.Append(strNextIndex);
+    }
+}
+
+EventPipeSession* EventPipe::GetSession(EventPipeSessionID id)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    EventPipeSession *pSession = NULL;
+    if((EventPipeSessionID)s_pSession == id)
+    {
+        pSession = s_pSession;
+    }
+    return pSession;
 }
 
 bool EventPipe::Enabled()
@@ -615,11 +772,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
 
     if(!s_pConfig->RundownEnabled() && s_pBufferManager != NULL)
     {
-        if(!s_pBufferManager->WriteEvent(pThread, *s_pSession, event, payload, pActivityId, pRelatedActivityId))
-        {
-            // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
-            return;
-        }
+        s_pBufferManager->WriteEvent(pThread, *s_pSession, event, payload, pActivityId, pRelatedActivityId);
     }
     else if(s_pConfig->RundownEnabled())
     {
@@ -664,39 +817,6 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
             }
         }
     }
-
-// This section requires a call to GCX_PREEMP which violates the GC_NOTRIGGER contract
-// It should only be enabled when debugging this specific component and contracts are off
-#ifdef DEBUG_JSON_EVENT_FILE
-    {
-        GCX_PREEMP();
-
-        BYTE *pData = payload.GetFlatData();
-        if (pData != NULL)
-        {
-            // Create an instance of the event for the synchronous path.
-            EventPipeEventInstance instance(
-                event,
-                pThread->GetOSThreadId(),
-                pData,
-                payload.GetSize(),
-                pActivityId,
-                pRelatedActivityId);
-
-            // Write to the EventPipeFile if it exists.
-            if(s_pSyncFile != NULL)
-            {
-                s_pSyncFile->WriteEvent(instance);
-            }
-
-            // Write to the EventPipeJsonFile if it exists.
-            if(s_pJsonFile != NULL)
-            {
-                s_pJsonFile->WriteEvent(instance);
-            }
-        }
-    }
-#endif // DEBUG_JSON_EVENT_FILE
 }
 
 void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData, unsigned int length)
@@ -716,34 +836,8 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
     {
         // Specify the sampling thread as the "current thread", so that we select the right buffer.
         // Specify the target thread so that the event gets properly attributed.
-        if(!s_pBufferManager->WriteEvent(pSamplingThread, *s_pSession, *pEvent, payload, NULL /* pActivityId */, NULL /* pRelatedActivityId */, pTargetThread, &stackContents))
-        {
-            // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
-            return;
-        }
+        s_pBufferManager->WriteEvent(pSamplingThread, *s_pSession, *pEvent, payload, NULL /* pActivityId */, NULL /* pRelatedActivityId */, pTargetThread, &stackContents);
     }
-
-#ifdef _DEBUG
-    {
-        GCX_PREEMP();
-
-        // Create an instance for the synchronous path.
-        SampleProfilerEventInstance instance(*s_pSession, *pEvent, pTargetThread, pData, length);
-        stackContents.CopyTo(instance.GetStack());
-
-        // Write to the EventPipeFile.
-        if(s_pSyncFile != NULL)
-        {
-            s_pSyncFile->WriteEvent(instance);
-        }
-
-        // Write to the EventPipeJsonFile if it exists.
-        if(s_pJsonFile != NULL)
-        {
-            s_pJsonFile->WriteEvent(instance);
-        }
-    }
-#endif // _DEBUG
 }
 
 bool EventPipe::WalkManagedStackForCurrentThread(StackContents &stackContents)
@@ -839,130 +933,6 @@ CrstStatic* EventPipe::GetLock()
     return &s_configCrst;
 }
 
-void EventPipe::GetConfigurationFromEnvironment(SString &outputPath, EventPipeSession *pSession)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // Set the output path if specified.
-    CLRConfigStringHolder wszOutputPath(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeOutputFile));
-    if(wszOutputPath != NULL)
-    {
-        outputPath.Set(wszOutputPath);
-    }
-
-    // Read the the provider configuration from the environment if specified.
-    CLRConfigStringHolder wszConfig(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeConfig));
-    if(wszConfig == NULL)
-    {
-        pSession->EnableAllEvents();
-        return;
-    }
-
-    size_t len = wcslen(wszConfig);
-    if(len <= 0)
-    {
-        pSession->EnableAllEvents();
-        return;
-    }
-
-    // Parses a string with the following format:
-    //
-    //      ProviderName:Keywords:Level[,]*
-    //
-    // For example:
-    //
-    //      Microsoft-Windows-DotNETRuntime:0xCAFEBABE:2,Microsoft-Windows-DotNETRuntimePrivate:0xDEADBEEF:1
-    //
-    // Each provider configuration is separated by a ',' and each component within the configuration is
-    // separated by a ':'.
-
-    const WCHAR ProviderSeparatorChar = ',';
-    const WCHAR ComponentSeparatorChar = ':';
-    size_t index = 0;
-    WCHAR *pProviderName = NULL;
-    UINT64 keywords = 0;
-    EventPipeEventLevel level = EventPipeEventLevel::Critical;
-
-    while(index < len)
-    {
-        WCHAR * pCurrentChunk = &wszConfig[index];
-        size_t currentChunkStartIndex = index;
-        size_t currentChunkEndIndex = 0;
-
-        // Find the next chunk.
-        while(index < len && wszConfig[index] != ProviderSeparatorChar)
-        {
-            index++;
-        }
-        currentChunkEndIndex = index++;
-
-        // Split the chunk into components.
-        size_t chunkIndex = currentChunkStartIndex;
-
-        // Get the provider name.
-        size_t provNameStartIndex = chunkIndex;
-        size_t provNameEndIndex = currentChunkEndIndex;
-
-        while(chunkIndex < currentChunkEndIndex && wszConfig[chunkIndex] != ComponentSeparatorChar)
-        {
-            chunkIndex++;
-        }
-        provNameEndIndex = chunkIndex++;
-
-        size_t provNameLen = provNameEndIndex - provNameStartIndex;
-        pProviderName = new WCHAR[provNameLen+1];
-        memcpy(pProviderName, &wszConfig[provNameStartIndex], provNameLen*sizeof(WCHAR));
-        pProviderName[provNameLen] = '\0';
-
-        // Get the keywords.
-        size_t keywordsStartIndex = chunkIndex;
-        size_t keywordsEndIndex = currentChunkEndIndex;
-
-        while(chunkIndex < currentChunkEndIndex && wszConfig[chunkIndex] != ComponentSeparatorChar)
-        {
-            chunkIndex++;
-        }
-        keywordsEndIndex = chunkIndex++;
-
-        size_t keywordsLen = keywordsEndIndex - keywordsStartIndex;
-        WCHAR *wszKeywords = new WCHAR[keywordsLen+1];
-        memcpy(wszKeywords, &wszConfig[keywordsStartIndex], keywordsLen*sizeof(WCHAR));
-        wszKeywords[keywordsLen] = '\0';
-        keywords = _wcstoui64(wszKeywords, NULL, 16);
-        delete[] wszKeywords;
-        wszKeywords = NULL;
-
-        // Get the level.
-        size_t levelStartIndex = chunkIndex;
-        size_t levelEndIndex = currentChunkEndIndex;
-
-        while(chunkIndex < currentChunkEndIndex && wszConfig[chunkIndex] != ComponentSeparatorChar)
-        {
-            chunkIndex++;
-        }
-        levelEndIndex = chunkIndex++;
-
-        size_t levelLen = levelEndIndex - levelStartIndex;
-        WCHAR *wszLevel = new WCHAR[levelLen+1];
-        memcpy(wszLevel, &wszConfig[levelStartIndex], levelLen*sizeof(WCHAR));
-        wszLevel[levelLen] = '\0';
-        level = (EventPipeEventLevel) wcstoul(wszLevel, NULL, 16);
-        delete[] wszLevel;
-        wszLevel = NULL;
-
-        // Add a new EventPipeSessionProvider.
-        EventPipeSessionProvider *pSessionProvider = new EventPipeSessionProvider(pProviderName, keywords, level);
-        pSession->AddSessionProvider(pSessionProvider);
-
-        // Free the provider name string.
-        if(pProviderName != NULL)
-        {
-            delete[] pProviderName;
-            pProviderName = NULL;
-        }
-    }
-}
-
 void EventPipe::SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv)
 {
     CONTRACTL
@@ -1026,28 +996,56 @@ EventPipeEventInstance* EventPipe::GetNextEvent()
     return pInstance;
 }
 
-void QCALLTYPE EventPipeInternal::Enable(
+UINT64 QCALLTYPE EventPipeInternal::Enable(
         __in_z LPCWSTR outputFile,
         UINT32 circularBufferSizeInMB,
         INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
-        INT32 numProviders)
+        INT32 numProviders,
+        UINT64 multiFileTraceLengthInSeconds)
 {
     QCALL_CONTRACT;
+
+    UINT64 sessionID = 0;
 
     BEGIN_QCALL;
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
-    EventPipe::Enable(outputFile, circularBufferSizeInMB, pProviders, numProviders);
+    sessionID = EventPipe::Enable(outputFile, circularBufferSizeInMB, pProviders, numProviders, multiFileTraceLengthInSeconds);
     END_QCALL;
+
+    return sessionID;
 }
 
-void QCALLTYPE EventPipeInternal::Disable()
+void QCALLTYPE EventPipeInternal::Disable(UINT64 sessionID)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
-    EventPipe::Disable();
+    EventPipe::Disable(sessionID);
     END_QCALL;
+}
+
+bool QCALLTYPE EventPipeInternal::GetSessionInfo(UINT64 sessionID, EventPipeSessionInfo *pSessionInfo)
+{
+    QCALL_CONTRACT;
+
+    bool retVal = false;
+    BEGIN_QCALL;
+
+    if(pSessionInfo != NULL)
+    {
+        EventPipeSession *pSession = EventPipe::GetSession(sessionID);
+        if(pSession != NULL)
+        {
+            pSessionInfo->StartTimeAsUTCFileTime = pSession->GetStartTime();
+            pSessionInfo->StartTimeStamp.QuadPart = pSession->GetStartTimeStamp().QuadPart;
+            QueryPerformanceFrequency(&pSessionInfo->TimeStampFrequency);
+            retVal = true;
+        }
+    }
+
+    END_QCALL;
+    return retVal;
 }
 
 INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
@@ -1235,6 +1233,10 @@ bool QCALLTYPE EventPipeInternal::GetNextEvent(
     {
         pInstance->ProviderID = pNextInstance->GetEvent()->GetProvider();
         pInstance->EventID = pNextInstance->GetEvent()->GetEventID();
+        pInstance->ThreadID = pNextInstance->GetThreadId();
+        pInstance->TimeStamp.QuadPart = pNextInstance->GetTimeStamp()->QuadPart;
+        pInstance->ActivityId = *pNextInstance->GetActivityId();
+        pInstance->RelatedActivityId = *pNextInstance->GetRelatedActivityId();
         pInstance->Payload = pNextInstance->GetData();
         pInstance->PayloadLength = pNextInstance->GetDataLength();
     }

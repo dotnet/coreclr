@@ -32,7 +32,7 @@ namespace System
         private const int UInt64Precision = 20;
 
         /// <summary>256-element map from an ASCII char to its hex value, e.g. arr['b'] == 11. 0xFF means it's not a hex digit.</summary>
-        private static readonly int[] s_charToHexLookup =
+        internal static readonly int[] s_charToHexLookup =
         {
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 15
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 31
@@ -59,7 +59,7 @@ namespace System
             {
                 return false;
             }
-            char* p = number.digits;
+            char* p = number.GetDigitsPointer();
             Debug.Assert(p != null);
             int n = 0;
             while (--i >= 0)
@@ -100,7 +100,7 @@ namespace System
             {
                 return false;
             }
-            char* p = number.digits;
+            char* p = number.GetDigitsPointer();
             Debug.Assert(p != null);
             long n = 0;
             while (--i >= 0)
@@ -141,7 +141,7 @@ namespace System
             {
                 return false;
             }
-            char* p = number.digits;
+            char* p = number.GetDigitsPointer();
             Debug.Assert(p != null);
             uint n = 0;
             while (--i >= 0)
@@ -173,7 +173,7 @@ namespace System
             {
                 return false;
             }
-            char* p = number.digits;
+            char* p = number.GetDigitsPointer();
             Debug.Assert(p != null);
             ulong n = 0;
             while (--i >= 0)
@@ -214,7 +214,7 @@ namespace System
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
                 bool overflow = false;
-                if (!TryParseUInt32HexNumberStyle(value, styles, info, out uint hexResult, ref overflow))
+                if (!TryParseUInt32HexNumberStyle(value, styles, out uint hexResult, ref overflow))
                 {
                     ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_Int32));
                 }
@@ -247,7 +247,7 @@ namespace System
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
                 bool overflow = false;
-                if (!TryParseUInt64HexNumberStyle(value, styles, info, out ulong hexResult, ref overflow))
+                if (!TryParseUInt64HexNumberStyle(value, styles, out ulong hexResult, ref overflow))
                 {
                     ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_Int64));
                 }
@@ -282,7 +282,7 @@ namespace System
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
                 bool overflow = false;
-                if (!TryParseUInt32HexNumberStyle(value, styles, info, out result, ref overflow))
+                if (!TryParseUInt32HexNumberStyle(value, styles, out result, ref overflow))
                 {
                     ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_UInt32));
                 }
@@ -316,7 +316,7 @@ namespace System
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
                 bool overflow = false;
-                if (!TryParseUInt64HexNumberStyle(value, styles, info, out result, ref overflow))
+                if (!TryParseUInt64HexNumberStyle(value, styles, out result, ref overflow))
                 {
                     ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_UInt64));
                 }
@@ -556,7 +556,7 @@ namespace System
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
                 bool overflow = false;
-                return TryParseUInt32HexNumberStyle(value, styles, info, out Unsafe.As<int, uint>(ref result), ref overflow);
+                return TryParseUInt32HexNumberStyle(value, styles, out Unsafe.As<int, uint>(ref result), ref overflow);
             }
 
             NumberBuffer number = default;
@@ -887,7 +887,7 @@ namespace System
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
                 bool overflow = false;
-                return TryParseUInt64HexNumberStyle(value, styles, info, out Unsafe.As<long, ulong>(ref result), ref overflow);
+                return TryParseUInt64HexNumberStyle(value, styles, out Unsafe.As<long, ulong>(ref result), ref overflow);
             }
 
             NumberBuffer number = default;
@@ -908,7 +908,7 @@ namespace System
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
                 bool overflow = false;
-                return TryParseUInt32HexNumberStyle(value, styles, info, out result, ref overflow);
+                return TryParseUInt32HexNumberStyle(value, styles, out result, ref overflow);
             }
 
             NumberBuffer number = default;
@@ -1070,7 +1070,7 @@ namespace System
 
         /// <summary>Parses uint limited to styles that make up NumberStyles.HexNumber.</summary>
         private static bool TryParseUInt32HexNumberStyle(
-            ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out uint result, ref bool failureIsOverflow)
+            ReadOnlySpan<char> value, NumberStyles styles, out uint result, ref bool failureIsOverflow)
         {
             Debug.Assert((styles & ~NumberStyles.HexNumber) == 0, "Only handles subsets of HexNumber format");
             Debug.Assert(!failureIsOverflow, $"failureIsOverflow should have been initialized to false");
@@ -1186,7 +1186,7 @@ namespace System
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
                 bool overflow = false;
-                return TryParseUInt64HexNumberStyle(value, styles, info, out result, ref overflow);
+                return TryParseUInt64HexNumberStyle(value, styles, out result, ref overflow);
             }
 
             NumberBuffer number = default;
@@ -1348,7 +1348,7 @@ namespace System
 
         /// <summary>Parses ulong limited to styles that make up NumberStyles.HexNumber.</summary>
         private static bool TryParseUInt64HexNumberStyle(
-            ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out ulong result, ref bool failureIsOverflow)
+            ReadOnlySpan<char> value, NumberStyles styles, out ulong result, ref bool failureIsOverflow)
         {
             Debug.Assert((styles & ~NumberStyles.HexNumber) == 0, "Only handles subsets of HexNumber format");
             Debug.Assert(!failureIsOverflow, $"failureIsOverflow should have been initialized to false");
@@ -1468,64 +1468,88 @@ namespace System
 
         private static unsafe bool NumberBufferToDecimal(ref NumberBuffer number, ref decimal value)
         {
-            decimal d = new decimal();
-
-            char* p = number.digits;
+            char* p = number.GetDigitsPointer();
             int e = number.scale;
-            if (*p == 0)
+            bool sign = number.sign;
+            uint c = *p;
+            if (c == 0)
             {
                 // To avoid risking an app-compat issue with pre 4.5 (where some app was illegally using Reflection to examine the internal scale bits), we'll only force
                 // the scale to 0 if the scale was previously positive (previously, such cases were unparsable to a bug.)
-                if (e > 0)
-                {
-                    e = 0;
-                }
+                value = new decimal(0, 0, 0, sign, (byte)Math.Clamp(-e, 0, 28));
+                return true;
             }
-            else
+
+            if (e > DecimalPrecision)
+                return false;
+
+            ulong low64 = 0;
+            while (e > -28)
             {
-                if (e > DecimalPrecision)
-                    return false;
-
-                while (((e > 0) || ((*p != 0) && (e > -28))) &&
-                       ((d.High < 0x19999999) || ((d.High == 0x19999999) &&
-                                                  ((d.Mid < 0x99999999) || ((d.Mid == 0x99999999) &&
-                                                                            ((d.Low < 0x99999999) || ((d.Low == 0x99999999) &&
-                                                                                                      (*p <= '5'))))))))
+                e--;
+                low64 *= 10;
+                low64 += c - '0';
+                c = *++p;
+                if (low64 >= ulong.MaxValue / 10)
+                    break;
+                if (c == 0)
                 {
-                    decimal.DecMul10(ref d);
-                    if (*p != 0)
-                        decimal.DecAddInt32(ref d, (uint)(*p++ - '0'));
-                    e--;
-                }
-
-                if (*p++ >= '5')
-                {
-                    bool round = true;
-                    if ((*(p - 1) == '5') && ((*(p - 2) % 2) == 0))
+                    while (e > 0)
                     {
-                        // Check if previous digit is even, only if the when we are unsure whether hows to do
-                        // Banker's rounding. For digits > 5 we will be roundinp up anyway.
-                        int count = 20; // Look at the next 20 digits to check to round
-                        while ((*p == '0') && (count != 0))
-                        {
-                            p++;
-                            count--;
-                        }
-                        if ((*p == '\0') || (count == 0))
-                            round = false;// Do nothing
+                        e--;
+                        low64 *= 10;
+                        if (low64 >= ulong.MaxValue / 10)
+                            break;
                     }
-
-                    if (round)
-                    {
-                        decimal.DecAddInt32(ref d, 1);
-                        if ((d.High | d.Mid | d.Low) == 0)
-                        {
-                            d = new decimal(unchecked((int)0x9999999A), unchecked((int)0x99999999), 0x19999999, false, 0);
-                            e++;
-                        }
-                    }
+                    break;
                 }
             }
+
+            uint high = 0;
+            while ((e > 0 || (c != 0 && e > -28)) &&
+              (high < uint.MaxValue / 10 || (high == uint.MaxValue / 10 && (low64 < 0x99999999_99999999 || (low64 == 0x99999999_99999999 && c <= '5')))))
+            {
+                // multiply by 10
+                ulong tmpLow = (uint)low64 * 10UL;
+                ulong tmp64 = (uint)(low64 >> 32) * 10UL + (tmpLow >> 32);
+                low64 = (uint)tmpLow + (tmp64 << 32);
+                high = (uint)(tmp64 >> 32) + high * 10;
+
+                if (c != 0)
+                {
+                    c -= '0';
+                    low64 += c;
+                    if (low64 < c)
+                        high++;
+                    c = *++p;
+                }
+                e--;
+            }
+
+            if (c >= '5')
+            {
+                // If the next digit is 5, round up if the number is odd or any following digit is non-zero
+                if (c == '5' && (low64 & 1) == 0)
+                {
+                    c = *++p;
+                    int count = 20; // Look at the next 20 digits to check to round
+                    while (c == '0' && count != 0)
+                    {
+                        c = *++p;
+                        count--;
+                    }
+                    if (c == 0 || count == 0)
+                        goto NoRounding;// Do nothing
+                }
+
+                if (++low64 == 0 && ++high == 0)
+                {
+                    low64 = 0x99999999_9999999A;
+                    high = uint.MaxValue / 10;
+                    e++;
+                }
+            }
+        NoRounding:
 
             if (e > 0)
                 return false;
@@ -1534,11 +1558,11 @@ namespace System
             {
                 // Parsing a large scale zero can give you more precision than fits in the decimal.
                 // This should only happen for actual zeros or very small numbers that round to zero.
-                value = new decimal(0, 0, 0, number.sign, DecimalPrecision - 1);
+                value = new decimal(0, 0, 0, sign, DecimalPrecision - 1);
             }
             else
             {
-                value = new decimal((int)d.Low, (int)d.Mid, (int)d.High, number.sign, (byte)-e);
+                value = new decimal((int)low64, (int)(low64 >> 32), (int)high, sign, (byte)-e);
             }
             return true;
         }

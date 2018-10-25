@@ -52,10 +52,9 @@ struct SharedState
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
-        AppDomainFromIDHolder ad(internal->GetKickOffDomainId(), TRUE);
-        if (ad.IsUnloaded())
-            COMPlusThrow(kAppDomainUnloadedException);
 
+        AppDomain *ad = SystemDomain::GetAppDomainFromId(internal->GetKickOffDomainId(), ADV_CURRENTAD);
+    
         m_Threadable = ad->CreateHandle(threadable);
         m_ThreadStartArg = ad->CreateHandle(threadStartArg);
 
@@ -72,17 +71,8 @@ struct SharedState
         }
         CONTRACTL_END;
 
-        // It's important to have no GC rendez-vous point between the checking and the clean-up below.
-        // The three handles below could be in an appdomain which is just starting to be unloaded, or an appdomain
-        // which has been unloaded already.  Thus, we need to check whether the appdomain is still valid before
-        // we do the clean-up.  Since we suspend all runtime threads when we try to do the unload, there will be no
-        // race condition between the checking and the clean-up as long as this thread cannot be suspended in between.
-        AppDomainFromIDHolder ad(m_Internal->GetKickOffDomainId(), TRUE);
-        if (!ad.IsUnloaded())
-        {
-            DestroyHandle(m_Threadable);
-            DestroyHandle(m_ThreadStartArg);
-        }
+        DestroyHandle(m_Threadable);
+        DestroyHandle(m_ThreadStartArg);
     }
 };
 
@@ -804,6 +794,27 @@ FCIMPL0(Object*, ThreadNative::GetCurrentThread)
 }
 FCIMPLEND
 
+UINT64 QCALLTYPE ThreadNative::GetCurrentOSThreadId()
+{
+    QCALL_CONTRACT;
+
+    // The Windows API GetCurrentThreadId returns a 32-bit integer thread ID.
+    // On some non-Windows platforms (e.g. OSX), the thread ID is a 64-bit value.
+    // We special case the API for non-Windows to get the 64-bit value and zero-extend
+    // the Windows value to return a single data type on all platforms.
+
+    UINT64 threadId;
+
+    BEGIN_QCALL;
+#ifndef FEATURE_PAL
+    threadId = (UINT64) GetCurrentThreadId();
+#else
+    threadId = (UINT64) PAL_GetCurrentOSThreadId();
+#endif
+    END_QCALL;
+
+    return threadId;
+}
 
 FCIMPL3(void, ThreadNative::SetStart, ThreadBaseObject* pThisUNSAFE, Object* pDelegateUNSAFE, INT32 iRequestedStackSize)
 {

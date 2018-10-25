@@ -326,6 +326,11 @@ size_t getClassModuleIdForStatics(CORINFO_CLASS_HANDLE cls, CORINFO_MODULE_HANDL
 // return the number of bytes needed by an instance of the class
 unsigned getClassSize(CORINFO_CLASS_HANDLE cls);
 
+// return the number of bytes needed by an instance of the class allocated on the heap
+unsigned getHeapClassSize(CORINFO_CLASS_HANDLE cls);
+
+BOOL canAllocateOnStack(CORINFO_CLASS_HANDLE cls);
+
 unsigned getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint = FALSE);
 
 // This is only called for Value classes.  It returns a boolean array
@@ -508,7 +513,7 @@ CORINFO_CLASS_HANDLE getFieldClass(CORINFO_FIELD_HANDLE field);
 // 'memberParent' is typically only set when verifying.  It should be the
 // result of calling getMemberParent.
 CorInfoType getFieldType(CORINFO_FIELD_HANDLE  field,
-                         CORINFO_CLASS_HANDLE* structType,
+                         CORINFO_CLASS_HANDLE* structType = NULL,
                          CORINFO_CLASS_HANDLE  memberParent = NULL /* IN */
                          );
 

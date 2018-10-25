@@ -75,10 +75,10 @@ bool RangeCheck::BetweenBounds(Range& range, int lower, GenTree* upper)
     ValueNumStore* vnStore = m_pCompiler->vnStore;
 
     // Get the VN for the upper limit.
-    ValueNum uLimitVN = upper->gtVNPair.GetConservative();
+    ValueNum uLimitVN = vnStore->VNConservativeNormalValue(upper->gtVNPair);
 
 #ifdef DEBUG
-    JITDUMP("VN%04X upper bound is: ", uLimitVN);
+    JITDUMP(FMT_VN " upper bound is: ", uLimitVN);
     if (m_pCompiler->verbose)
     {
         vnStore->vnDump(m_pCompiler, uLimitVN);
@@ -208,8 +208,8 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
     GenTree* treeIndex        = bndsChk->gtIndex;
 
     // Take care of constant index first, like a[2], for example.
-    ValueNum idxVn    = treeIndex->gtVNPair.GetConservative();
-    ValueNum arrLenVn = bndsChk->gtArrLen->gtVNPair.GetConservative();
+    ValueNum idxVn    = m_pCompiler->vnStore->VNConservativeNormalValue(treeIndex->gtVNPair);
+    ValueNum arrLenVn = m_pCompiler->vnStore->VNConservativeNormalValue(bndsChk->gtArrLen->gtVNPair);
     int      arrSize  = 0;
 
     if (m_pCompiler->vnStore->IsVNConstant(arrLenVn))
@@ -244,7 +244,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
             return;
         }
 
-        JITDUMP("[RangeCheck::OptimizeRangeCheck] Is index %d in <0, arrLenVn VN%X sz:%d>.\n", idxVal, arrLenVn,
+        JITDUMP("[RangeCheck::OptimizeRangeCheck] Is index %d in <0, arrLenVn " FMT_VN " sz:%d>.\n", idxVal, arrLenVn,
                 arrSize);
         if ((idxVal < arrSize) && (idxVal >= 0))
         {
@@ -300,7 +300,7 @@ void RangeCheck::Widen(BasicBlock* block, GenTree* tree, Range* pRange)
 #ifdef DEBUG
     if (m_pCompiler->verbose)
     {
-        printf("[RangeCheck::Widen] BB%02d, \n", block->bbNum);
+        printf("[RangeCheck::Widen] " FMT_BB ", \n", block->bbNum);
         Compiler::printTreeID(tree);
         printf("\n");
     }
@@ -397,23 +397,7 @@ bool RangeCheck::IsMonotonicallyIncreasing(GenTree* expr, bool rejectNegativeCon
     {
         BasicBlock* asgBlock;
         GenTreeOp*  asg = GetSsaDefAsg(expr->AsLclVarCommon(), &asgBlock);
-        if (asg == nullptr)
-        {
-            return false;
-        }
-
-        switch (asg->OperGet())
-        {
-            case GT_ASG:
-                return IsMonotonicallyIncreasing(asg->gtGetOp2(), rejectNegativeConst);
-
-            default:
-                noway_assert(false);
-                // All other 'asg->OperGet()' kinds, return false
-                break;
-        }
-        JITDUMP("Unknown local definition type\n");
-        return false;
+        return (asg != nullptr) && IsMonotonicallyIncreasing(asg->gtGetOp2(), rejectNegativeConst);
     }
     else if (expr->OperGet() == GT_ADD)
     {
@@ -464,7 +448,7 @@ GenTreeOp* RangeCheck::GetSsaDefAsg(GenTreeLclVarCommon* lclUse, BasicBlock** as
     // the assignment node and its destination node.
     GenTree* asg = lclDef->gtNext;
 
-    if (!asg->OperIsAssignment() || (asg->gtGetOp1() != lclDef))
+    if (!asg->OperIs(GT_ASG) || (asg->gtGetOp1() != lclDef))
     {
         return nullptr;
     }
@@ -523,7 +507,7 @@ void RangeCheck::SetDef(UINT64 hash, Location* loc)
     Location* loc2;
     if (m_pDefTable->Lookup(hash, &loc2))
     {
-        JITDUMP("Already have BB%02d, [%06d], [%06d] for hash => %0I64X", loc2->block->bbNum,
+        JITDUMP("Already have " FMT_BB ", [%06d], [%06d] for hash => %0I64X", loc2->block->bbNum,
                 Compiler::dspTreeID(loc2->stmt), Compiler::dspTreeID(loc2->tree), hash);
         assert(false);
     }
@@ -556,6 +540,9 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
         Limit      limit(Limit::keUndef);
         genTreeOps cmpOper = GT_NONE;
 
+        LclSsaVarDsc* ssaData     = m_pCompiler->lvaTable[lcl->gtLclNum].GetPerSsaData(lcl->gtSsaNum);
+        ValueNum      normalLclVN = m_pCompiler->vnStore->VNConservativeNormalValue(ssaData->m_vnPair);
+
         // Current assertion is of the form (i < len - cns) != 0
         if (curAssertion->IsCheckedBoundArithBound())
         {
@@ -564,8 +551,8 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
             // Get i, len, cns and < as "info."
             m_pCompiler->vnStore->GetCompareCheckedBoundArithInfo(curAssertion->op1.vn, &info);
 
-            if (m_pCompiler->lvaTable[lcl->gtLclNum].GetPerSsaData(lcl->gtSsaNum)->m_vnPair.GetConservative() !=
-                info.cmpOp)
+            // If we don't have the same variable we are comparing against, bail.
+            if (normalLclVN != info.cmpOp)
             {
                 continue;
             }
@@ -593,13 +580,12 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
             // Get the info as "i", "<" and "len"
             m_pCompiler->vnStore->GetCompareCheckedBound(curAssertion->op1.vn, &info);
 
-            ValueNum lclVn =
-                m_pCompiler->lvaTable[lcl->gtLclNum].GetPerSsaData(lcl->gtSsaNum)->m_vnPair.GetConservative();
             // If we don't have the same variable we are comparing against, bail.
-            if (lclVn != info.cmpOp)
+            if (normalLclVN != info.cmpOp)
             {
                 continue;
             }
+
             limit   = Limit(Limit::keBinOpArray, info.vnBound, 0);
             cmpOper = (genTreeOps)info.cmpOper;
         }
@@ -611,11 +597,8 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
             // Get the info as "i", "<" and "100"
             m_pCompiler->vnStore->GetConstantBoundInfo(curAssertion->op1.vn, &info);
 
-            ValueNum lclVn =
-                m_pCompiler->lvaTable[lcl->gtLclNum].GetPerSsaData(lcl->gtSsaNum)->m_vnPair.GetConservative();
-
             // If we don't have the same variable we are comparing against, bail.
-            if (lclVn != info.cmpOpVN)
+            if (normalLclVN != info.cmpOpVN)
             {
                 continue;
             }
@@ -643,7 +626,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
         }
 #endif
 
-        ValueNum arrLenVN = m_pCurBndsChk->gtArrLen->gtVNPair.GetConservative();
+        ValueNum arrLenVN = m_pCompiler->vnStore->VNConservativeNormalValue(m_pCurBndsChk->gtArrLen->gtVNPair);
 
         if (m_pCompiler->vnStore->IsVNConstant(arrLenVN))
         {
@@ -704,7 +687,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
 
             if (limit.vn != arrLenVN)
             {
-                JITDUMP("Array length VN did not match cur=$%x, assert=$%x\n", arrLenVN, limit.vn);
+                JITDUMP("Array length VN did not match arrLen=" FMT_VN ", limit=" FMT_VN "\n", arrLenVN, limit.vn);
                 continue;
             }
 
@@ -760,8 +743,8 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
 // arguments. If not a phi argument, check if we assertions about local variables.
 void RangeCheck::MergeAssertion(BasicBlock* block, GenTree* op, Range* pRange DEBUGARG(int indent))
 {
-    JITDUMP("Merging assertions from pred edges of BB%02d for op [%06d] $%03x\n", block->bbNum, Compiler::dspTreeID(op),
-            op->gtVNPair.GetConservative());
+    JITDUMP("Merging assertions from pred edges of " FMT_BB " for op [%06d] " FMT_VN "\n", block->bbNum,
+            Compiler::dspTreeID(op), m_pCompiler->vnStore->VNConservativeNormalValue(op->gtVNPair));
     ASSERT_TP assertions = BitVecOps::UninitVal();
 
     // If we have a phi arg, we can get to the block from it and use its assertion out.
@@ -772,7 +755,7 @@ void RangeCheck::MergeAssertion(BasicBlock* block, GenTree* op, Range* pRange DE
         if (pred->bbFallsThrough() && pred->bbNext == block)
         {
             assertions = pred->bbAssertionOut;
-            JITDUMP("Merge assertions from pred BB%02d edge: %s\n", pred->bbNum,
+            JITDUMP("Merge assertions from pred " FMT_BB " edge: %s\n", pred->bbNum,
                     BitVecOps::ToString(m_pCompiler->apTraits, assertions));
         }
         else if ((pred->bbJumpKind == BBJ_COND || pred->bbJumpKind == BBJ_ALWAYS) && pred->bbJumpDest == block)
@@ -780,7 +763,7 @@ void RangeCheck::MergeAssertion(BasicBlock* block, GenTree* op, Range* pRange DE
             if (m_pCompiler->bbJtrueAssertionOut != nullptr)
             {
                 assertions = m_pCompiler->bbJtrueAssertionOut[pred->bbNum];
-                JITDUMP("Merge assertions from pred BB%02d JTrue edge: %s\n", pred->bbNum,
+                JITDUMP("Merge assertions from pred " FMT_BB " JTrue edge: %s\n", pred->bbNum,
                         BitVecOps::ToString(m_pCompiler->apTraits, assertions));
             }
         }
@@ -875,29 +858,16 @@ Range RangeCheck::ComputeRangeForLocalDef(BasicBlock*          block,
         JITDUMP("----------------------------------------------------\n");
     }
 #endif
-    switch (asg->OperGet())
+    assert(asg->OperIs(GT_ASG));
+    Range range = GetRange(asgBlock, asg->gtGetOp2(), monotonic DEBUGARG(indent));
+    if (!BitVecOps::MayBeUninit(block->bbAssertionIn))
     {
-        // If the operator of the definition is assignment, then compute the range of the rhs.
-        case GT_ASG:
-        {
-            Range range = GetRange(asgBlock, asg->gtGetOp2(), monotonic DEBUGARG(indent));
-            if (!BitVecOps::MayBeUninit(block->bbAssertionIn))
-            {
-                JITDUMP("Merge assertions from BB%02d:%s for assignment about [%06d]\n", block->bbNum,
-                        BitVecOps::ToString(m_pCompiler->apTraits, block->bbAssertionIn),
-                        Compiler::dspTreeID(asg->gtGetOp1()));
-                MergeEdgeAssertions(asg->gtGetOp1()->AsLclVarCommon(), block->bbAssertionIn, &range);
-                JITDUMP("done merging\n");
-            }
-            return range;
-        }
-
-        default:
-            noway_assert(false);
-            // All other 'asg->OperGet()' kinds, return Limit::keUnknown
-            break;
+        JITDUMP("Merge assertions from " FMT_BB ":%s for assignment about [%06d]\n", block->bbNum,
+                BitVecOps::ToString(m_pCompiler->apTraits, block->bbAssertionIn), Compiler::dspTreeID(asg->gtGetOp1()));
+        MergeEdgeAssertions(asg->gtGetOp1()->AsLclVarCommon(), block->bbAssertionIn, &range);
+        JITDUMP("done merging\n");
     }
-    return Range(Limit(Limit::keUnknown));
+    return range;
 }
 
 // https://msdn.microsoft.com/en-us/windows/apps/hh285054.aspx
@@ -1011,22 +981,7 @@ bool RangeCheck::DoesVarDefOverflow(GenTreeLclVarCommon* lcl)
 {
     BasicBlock* asgBlock;
     GenTreeOp*  asg = GetSsaDefAsg(lcl, &asgBlock);
-    if (asg == nullptr)
-    {
-        return true;
-    }
-
-    switch (asg->OperGet())
-    {
-        case GT_ASG:
-            return DoesOverflow(asgBlock, asg->gtGetOp2());
-
-        default:
-            noway_assert(false);
-            // All other 'asg->OperGet()' kinds, conservatively return true
-            break;
-    }
-    return true;
+    return (asg == nullptr) || DoesOverflow(asgBlock, asg->gtGetOp2());
 }
 
 bool RangeCheck::DoesPhiOverflow(BasicBlock* block, GenTree* expr)
@@ -1104,7 +1059,7 @@ Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic 
     bool  newlyAdded = !m_pSearchPath->Set(expr, block);
     Range range      = Limit(Limit::keUndef);
 
-    ValueNum vn = expr->gtVNPair.GetConservative();
+    ValueNum vn = m_pCompiler->vnStore->VNConservativeNormalValue(expr->gtVNPair);
     // If newly added in the current search path, then reduce the budget.
     if (newlyAdded)
     {
@@ -1208,7 +1163,7 @@ Range RangeCheck::GetRange(BasicBlock* block, GenTree* expr, bool monotonic DEBU
     if (m_pCompiler->verbose)
     {
         Indent(indent);
-        JITDUMP("[RangeCheck::GetRange] BB%02d", block->bbNum);
+        JITDUMP("[RangeCheck::GetRange] " FMT_BB, block->bbNum);
         m_pCompiler->gtDispTree(expr);
         Indent(indent);
         JITDUMP("{\n", expr);
@@ -1252,7 +1207,7 @@ void RangeCheck::MapStmtDefs(const Location& loc)
         if (ssaNum != SsaConfig::RESERVED_SSA_NUM)
         {
             // To avoid ind(addr) use asgs
-            if (loc.parent->OperIsAssignment())
+            if (loc.parent->OperIs(GT_ASG))
             {
                 SetDef(HashCode(lclNum, ssaNum), new (m_alloc) Location(loc));
             }

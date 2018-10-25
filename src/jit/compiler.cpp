@@ -765,16 +765,12 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
                                         structPassingKind*   wbPassStruct,
                                         bool                 isVarArg,
-                                        unsigned             structSize /* = 0 */)
+                                        unsigned             structSize)
 {
     var_types         useType         = TYP_UNKNOWN;
     structPassingKind howToPassStruct = SPK_Unknown; // We must change this before we return
 
-    if (structSize == 0)
-    {
-        structSize = info.compCompHnd->getClassSize(clsHnd);
-    }
-    assert(structSize > 0);
+    assert(structSize != 0);
 
 // Determine if we can pass the struct as a primitive type.
 // Note that on x86 we never pass structs as primitive types (unless the VM unwraps them for us).
@@ -913,7 +909,7 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             // and can't be passed in multiple registers
             CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(UNIX_AMD64_ABI)
 
             // Otherwise we pass this struct by value on the stack
             // setup wbPassType and useType indicate that this is passed by value according to the X86/ARM32 ABI
@@ -1964,9 +1960,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
         impSpillCliquePredMembers = JitExpandArray<BYTE>(getAllocator());
         impSpillCliqueSuccMembers = JitExpandArray<BYTE>(getAllocator());
 
-        memset(&lvMemoryPerSsaData, 0, sizeof(PerSsaArray));
-        lvMemoryPerSsaData.Init(getAllocator());
-        lvMemoryNumSsaNames = 0;
+        lvMemoryPerSsaData = SsaDefArray<SsaMemDef>();
 
         //
         // Initialize all the per-method statistics gathering data structures.
@@ -2327,58 +2321,72 @@ const char* Compiler::compLocalVarName(unsigned varNum, unsigned offs)
 #ifdef _TARGET_XARCH_
 static bool configEnableISA(InstructionSet isa)
 {
-#ifdef DEBUG
     switch (isa)
     {
+        case InstructionSet_AVX2:
+            if (JitConfig.EnableAVX2() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_AVX:
+            if (JitConfig.EnableAVX() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE42:
+            if (JitConfig.EnableSSE42() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE41:
+            if (JitConfig.EnableSSE41() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSSE3:
+            if (JitConfig.EnableSSSE3() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE3:
+            if (JitConfig.EnableSSE3() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE2:
+            if (JitConfig.EnableSSE2() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
         case InstructionSet_SSE:
             return JitConfig.EnableSSE() != 0;
-        case InstructionSet_SSE2:
-            return JitConfig.EnableSSE2() != 0;
-        case InstructionSet_SSE3:
-            return JitConfig.EnableSSE3() != 0;
-        case InstructionSet_SSSE3:
-            return JitConfig.EnableSSSE3() != 0;
-        case InstructionSet_SSE41:
-            return JitConfig.EnableSSE41() != 0;
-        case InstructionSet_SSE42:
-            return JitConfig.EnableSSE42() != 0;
-        case InstructionSet_AVX:
-            return JitConfig.EnableAVX() != 0;
-        case InstructionSet_FMA:
-            return JitConfig.EnableFMA() != 0;
-        case InstructionSet_AVX2:
-            return JitConfig.EnableAVX2() != 0;
 
-        case InstructionSet_AES:
-            return JitConfig.EnableAES() != 0;
+        // TODO:  BMI1/BMI2 actually don't depend on AVX, they depend on the VEX encoding; which is currently controlled
+        // by InstructionSet_AVX
         case InstructionSet_BMI1:
-            return JitConfig.EnableBMI1() != 0;
+            return JitConfig.EnableBMI1() != 0 && configEnableISA(InstructionSet_AVX);
         case InstructionSet_BMI2:
-            return JitConfig.EnableBMI2() != 0;
+            return JitConfig.EnableBMI2() != 0 && configEnableISA(InstructionSet_AVX);
+        case InstructionSet_FMA:
+            return JitConfig.EnableFMA() != 0 && configEnableISA(InstructionSet_AVX);
+        case InstructionSet_AES:
+            return JitConfig.EnableAES() != 0 && configEnableISA(InstructionSet_SSE2);
         case InstructionSet_LZCNT:
             return JitConfig.EnableLZCNT() != 0;
         case InstructionSet_PCLMULQDQ:
-            return JitConfig.EnablePCLMULQDQ() != 0;
+            return JitConfig.EnablePCLMULQDQ() != 0 && configEnableISA(InstructionSet_SSE2);
         case InstructionSet_POPCNT:
-            return JitConfig.EnablePOPCNT() != 0;
+            return JitConfig.EnablePOPCNT() != 0 && configEnableISA(InstructionSet_SSE42);
         default:
             return false;
     }
-#else
-    // We have a retail config switch that can disable instruction sets reliant on the VEX encoding
-    switch (isa)
-    {
-        case InstructionSet_AVX:
-        case InstructionSet_FMA:
-        case InstructionSet_AVX2:
-        case InstructionSet_BMI1:
-        case InstructionSet_BMI2:
-            return JitConfig.EnableAVX() != 0;
-
-        default:
-            return true;
-    }
-#endif
 }
 #endif // _TARGET_XARCH_
 
@@ -2388,8 +2396,10 @@ void Compiler::compSetProcessor()
 
 #if defined(_TARGET_ARM_)
     info.genCPU = CPU_ARM;
+#elif defined(_TARGET_ARM64_)
+    info.genCPU       = CPU_ARM64;
 #elif defined(_TARGET_AMD64_)
-    info.genCPU       = CPU_X64;
+    info.genCPU                   = CPU_X64;
 #elif defined(_TARGET_X86_)
     if (jitFlags.IsSet(JitFlags::JIT_FLAG_TARGET_P4))
         info.genCPU = CPU_X86_PENTIUM_4;
@@ -2432,25 +2442,11 @@ void Compiler::compSetProcessor()
         {
             opts.setSupportedISA(InstructionSet_SSE2);
         }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
-        {
-            if (configEnableISA(InstructionSet_AES))
-            {
-                opts.setSupportedISA(InstructionSet_AES);
-            }
-        }
         if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT))
         {
             if (configEnableISA(InstructionSet_LZCNT))
             {
                 opts.setSupportedISA(InstructionSet_LZCNT);
-            }
-        }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
-        {
-            if (configEnableISA(InstructionSet_PCLMULQDQ))
-            {
-                opts.setSupportedISA(InstructionSet_PCLMULQDQ);
             }
         }
         if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT))
@@ -2492,6 +2488,22 @@ void Compiler::compSetProcessor()
                 if (configEnableISA(InstructionSet_SSSE3))
                 {
                     opts.setSupportedISA(InstructionSet_SSSE3);
+                }
+            }
+            // AES and PCLMULQDQ requires 0x660F38/A encoding that is
+            // only used by SSSE3 and above ISAs
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
+            {
+                if (configEnableISA(InstructionSet_AES))
+                {
+                    opts.setSupportedISA(InstructionSet_AES);
+                }
+            }
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
+            {
+                if (configEnableISA(InstructionSet_PCLMULQDQ))
+                {
+                    opts.setSupportedISA(InstructionSet_PCLMULQDQ);
                 }
             }
         }
@@ -2549,7 +2561,8 @@ void Compiler::compSetProcessor()
             codeGen->getEmitter()->SetContains256bitAVX(false);
         }
         else if (compSupports(InstructionSet_SSSE3) || compSupports(InstructionSet_SSE41) ||
-                 compSupports(InstructionSet_SSE42))
+                 compSupports(InstructionSet_SSE42) || compSupports(InstructionSet_AES) ||
+                 compSupports(InstructionSet_PCLMULQDQ))
         {
             // Emitter::UseSSE4 controls whether we support the 4-byte encoding for certain
             // instructions. We need to check if either is supported independently, since
@@ -3266,6 +3279,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
     opts.disDiffable     = false;
     opts.dspCode         = false;
     opts.dspEHTable      = false;
+    opts.dspDebugInfo    = false;
     opts.dspGCtbls       = false;
     opts.disAsm2         = false;
     opts.dspUnwind       = false;
@@ -3313,6 +3327,11 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
             if (JitConfig.NgenEHDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
             {
                 opts.dspEHTable = true;
+            }
+
+            if (JitConfig.NgenDebugDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+            {
+                opts.dspDebugInfo = true;
             }
         }
         else
@@ -3374,6 +3393,12 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
                 if (JitConfig.JitEHDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
                 {
                     opts.dspEHTable = true;
+                }
+
+                if (JitConfig.JitDebugDump().contains(info.compMethodName, info.compClassName,
+                                                      &info.compMethodInfo->args))
+                {
+                    opts.dspDebugInfo = true;
                 }
             }
         }
@@ -3653,6 +3678,18 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 
     if (verbose)
     {
+        // If we are compiling for a specific tier, make that very obvious in the output.
+        // Note that we don't expect multiple TIER flags to be set at one time, but there
+        // is nothing preventing that.
+        if (jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0))
+        {
+            printf("OPTIONS: Tier-0 compilation (set COMPlus_TieredCompilation=0 to disable)\n");
+        }
+        if (jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
+        {
+            printf("OPTIONS: Tier-1 compilation\n");
+        }
+
         printf("OPTIONS: compCodeOpt = %s\n",
                (opts.compCodeOpt == BLENDED_CODE)
                    ? "BLENDED_CODE"
@@ -4632,8 +4669,8 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     /* From this point on the flowgraph information such as bbNum,
      * bbRefs or bbPreds has to be kept updated */
 
-    // Compute the edge weights (if we have profile data)
-    fgComputeEdgeWeights();
+    // Compute the block and edge weights
+    fgComputeBlockAndEdgeWeights();
     EndPhase(PHASE_COMPUTE_EDGE_WEIGHTS);
 
 #if FEATURE_EH_FUNCLETS
@@ -4654,11 +4691,6 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         fgComputeReachability();
         EndPhase(PHASE_COMPUTE_REACHABILITY);
     }
-
-    // Transform each GT_ALLOCOBJ node into either an allocation helper call or
-    // local variable allocation on the stack.
-    ObjectAllocator objectAllocator(this);
-    objectAllocator.Run();
 
     if (!opts.MinOpts() && !opts.compDbgCode)
     {
@@ -4695,7 +4727,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     // You can test the value of the following variable to see if
     // the local variable ref counts must be updated
     //
-    assert(lvaLocalVarRefCounted == true);
+    assert(lvaLocalVarRefCounted());
 
     if (!opts.MinOpts() && !opts.compDbgCode)
     {
@@ -4912,8 +4944,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     StackLevelSetter stackLevelSetter(this); // PHASE_STACK_LEVEL_SETTER
     stackLevelSetter.Run();
 
-    assert(lvaSortAgain == false); // We should have re-run fgLocalVarLiveness() in lower.Run()
-    lvaTrackedFixed = true;        // We can not add any new tracked variables after this point.
+    lvaTrackedFixed = true; // We can not add any new tracked variables after this point.
 
     /* Now that lowering is completed we can proceed to perform register allocation */
     m_pLinearScan->doLinearScan();
@@ -6995,7 +7026,7 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
                         if (arg->gtFlags & GTF_LATE_ARG)
                         {
                             // Find the corresponding late arg.
-                            GenTree* lateArg = call->fgArgInfo->GetLateArg(i);
+                            GenTree* lateArg = call->fgArgInfo->GetArgNode(i);
                             if (GetNodeTestData()->Lookup(lateArg, &tlAndN))
                             {
                                 reachable->Set(lateArg, 0);
@@ -8590,7 +8621,7 @@ void dBlockList(BasicBlockList* list)
     printf("WorkList: ");
     while (list != nullptr)
     {
-        printf("BB%02u ", list->block->bbNum);
+        printf(FMT_BB " ", list->block->bbNum);
         list = list->next;
     }
     printf("\n");
@@ -8767,19 +8798,19 @@ void cLoopIR(Compiler* comp, Compiler::LoopDsc* loop)
 
     printf("LOOP\n");
     printf("\n");
-    printf("HEAD   BB%02u\n", blockHead->bbNum);
-    printf("FIRST  BB%02u\n", blockFirst->bbNum);
-    printf("TOP    BB%02u\n", blockTop->bbNum);
-    printf("ENTRY  BB%02u\n", blockEntry->bbNum);
+    printf("HEAD   " FMT_BB "\n", blockHead->bbNum);
+    printf("FIRST  " FMT_BB "\n", blockFirst->bbNum);
+    printf("TOP    " FMT_BB "\n", blockTop->bbNum);
+    printf("ENTRY  " FMT_BB "\n", blockEntry->bbNum);
     if (loop->lpExitCnt == 1)
     {
-        printf("EXIT   BB%02u\n", blockExit->bbNum);
+        printf("EXIT   " FMT_BB "\n", blockExit->bbNum);
     }
     else
     {
         printf("EXITS  %u", loop->lpExitCnt);
     }
-    printf("BOTTOM BB%02u\n", blockBottom->bbNum);
+    printf("BOTTOM " FMT_BB "\n", blockBottom->bbNum);
     printf("\n");
 
     cBlockIR(comp, blockHead);
@@ -8858,7 +8889,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
     }
     else
     {
-        printf("BB%02u:\n", block->bbNum);
+        printf(FMT_BB ":\n", block->bbNum);
     }
 
     printf("\n");
@@ -8922,7 +8953,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
         case BBJ_EHCATCHRET:
             chars += printf("BRANCH(EHCATCHRETURN)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             break;
 
         case BBJ_THROW:
@@ -8941,7 +8972,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
         case BBJ_ALWAYS:
             chars += printf("BRANCH(ALWAYS)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             if (block->bbFlags & BBF_KEEP_BBJ_ALWAYS)
             {
                 chars += dTabStopIR(chars, COLUMN_KINDS);
@@ -8952,19 +8983,19 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
         case BBJ_LEAVE:
             chars += printf("BRANCH(LEAVE)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             break;
 
         case BBJ_CALLFINALLY:
             chars += printf("BRANCH(CALLFINALLY)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             break;
 
         case BBJ_COND:
             chars += printf("BRANCH(COND)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             break;
 
         case BBJ_SWITCH:
@@ -8977,7 +9008,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
             jumpTab = block->bbJumpSwt->bbsDstTab;
             do
             {
-                chars += printf("%c BB%02u", (jumpTab == block->bbJumpSwt->bbsDstTab) ? ' ' : ',', (*jumpTab)->bbNum);
+                chars += printf("%c " FMT_BB, (jumpTab == block->bbJumpSwt->bbsDstTab) ? ' ' : ',', (*jumpTab)->bbNum);
             } while (++jumpTab, --jumpCnt);
             break;
 
@@ -9210,11 +9241,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 break;
 
             case GT_FIELD:
-
-                if (tree->gtFlags & GTF_FLD_NULLCHECK)
-                {
-                    chars += printf("[FLD_NULLCHECK]");
-                }
                 if (tree->gtFlags & GTF_FLD_VOLATILE)
                 {
                     chars += printf("[FLD_VOLATILE]");
@@ -9265,10 +9291,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 if (tree->gtFlags & GTF_IND_INVARIANT)
                 {
                     chars += printf("[IND_INVARIANT]");
-                }
-                if (tree->gtFlags & GTF_IND_ARR_LEN)
-                {
-                    chars += printf("[IND_ARR_INDEX]");
                 }
                 break;
 
@@ -9776,7 +9798,7 @@ int cValNumIR(Compiler* comp, GenTree* tree)
         {
             chars += printf("<v:");
             vn = vnp.GetLiberal();
-            chars += printf(STR_VN "%x", vn);
+            chars += printf(FMT_VN, vn);
             if (ValueNumStore::isReservedVN(vn))
             {
                 chars += printf("R");
@@ -9787,14 +9809,14 @@ int cValNumIR(Compiler* comp, GenTree* tree)
         {
             vn = vnp.GetLiberal();
             chars += printf("<v:");
-            chars += printf(STR_VN "%x", vn);
+            chars += printf(FMT_VN, vn);
             if (ValueNumStore::isReservedVN(vn))
             {
                 chars += printf("R");
             }
             chars += printf(",");
             vn = vnp.GetConservative();
-            chars += printf(STR_VN "%x", vn);
+            chars += printf(FMT_VN, vn);
             if (ValueNumStore::isReservedVN(vn))
             {
                 chars += printf("R");
@@ -10171,7 +10193,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
             if (tree->gtLabel.gtLabBB)
             {
-                chars += printf("BB%02u", tree->gtLabel.gtLabBB->bbNum);
+                chars += printf(FMT_BB, tree->gtLabel.gtLabBB->bbNum);
             }
             else
             {
@@ -10298,7 +10320,7 @@ int cOperandIR(Compiler* comp, GenTree* operand)
         }
         chars += cLeafIR(comp, operand);
     }
-    else if (dumpDataflow && (operand->OperIsAssignment() || (op == GT_STORE_LCL_VAR) || (op == GT_STORE_LCL_FLD)))
+    else if (dumpDataflow && (operand->OperIs(GT_ASG) || (op == GT_STORE_LCL_VAR) || (op == GT_STORE_LCL_FLD)))
     {
         operand = operand->GetChild(0);
         chars += cOperandIR(comp, operand);
@@ -10570,7 +10592,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     // }
 
     chars += printf("    ");
-    if (dataflowView && tree->OperIsAssignment())
+    if (dataflowView && tree->OperIs(GT_ASG))
     {
         child = tree->GetChild(0);
         chars += cOperandIR(comp, child);
@@ -10623,7 +10645,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
     if (dataflowView)
     {
-        if (tree->OperIsAssignment() || (op == GT_STORE_LCL_VAR) || (op == GT_STORE_LCL_FLD) || (op == GT_STOREIND))
+        if (tree->OperIs(GT_ASG) || (op == GT_STORE_LCL_VAR) || (op == GT_STORE_LCL_FLD) || (op == GT_STOREIND))
         {
             chars += printf("(t%d)", tree->gtTreeID);
         }

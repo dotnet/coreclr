@@ -96,7 +96,6 @@
 #define g_MarshalByRefObjectClassName "System.MarshalByRefObject"
 
 #define g_ThreadStaticAttributeClassName "System.ThreadStaticAttribute"
-#define g_ContextStaticAttributeClassName "System.ContextStaticAttribute"
 #define g_StringFreezingAttributeClassName "System.Runtime.CompilerServices.StringFreezingAttribute"
 #define g_TypeIdentifierAttributeClassName "System.Runtime.InteropServices.TypeIdentifierAttribute"
 
@@ -157,6 +156,7 @@
 #define g_UnmanagedFunctionPointerAttribute "System.Runtime.InteropServices.UnmanagedFunctionPointerAttribute"
 #define g_DefaultDllImportSearchPathsAttribute "System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute"
 #define g_NativeCallableAttribute "System.Runtime.InteropServices.NativeCallableAttribute"
+#define g_FixedBufferAttribute "System.Runtime.CompilerServices.FixedBufferAttribute"
 
 #define g_CompilerServicesTypeDependencyAttribute "System.Runtime.CompilerServices.TypeDependencyAttribute"
 

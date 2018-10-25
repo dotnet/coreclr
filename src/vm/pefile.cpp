@@ -66,11 +66,9 @@ PEFile::PEFile(PEImage *identity, BOOL fCheckAuthenticodeSignature/*=TRUE*/) :
     m_pEmitter(NULL),
     m_pMetadataLock(::new SimpleRWLock(PREEMPTIVE, LOCK_TYPE_DEFAULT)),
     m_refCount(1),
-    m_hash(NULL),
     m_flags(0),
-    m_fStrongNameVerified(FALSE)
-    ,m_pHostAssembly(nullptr)
-    ,m_pFallbackLoadContextBinder(nullptr)
+    m_pHostAssembly(nullptr),
+    m_pFallbackLoadContextBinder(nullptr)
 {
     CONTRACTL
     {
@@ -112,9 +110,6 @@ PEFile::~PEFile()
     
     ReleaseMetadataInterfaces(TRUE);
     
-    if (m_hash != NULL)
-        delete m_hash;
-
 #ifdef FEATURE_PREJIT
     if (m_nativeImage != NULL)
     {
@@ -212,9 +207,6 @@ static void ValidatePEFileMachineType(PEFile *peFile)
 {
     STANDARD_VM_CONTRACT;
 
-    if (peFile->IsIntrospectionOnly())
-        return;    // ReflectionOnly assemblies permitted to violate CPU restrictions
-
     if (peFile->IsDynamic())
         return;    // PEFiles for ReflectionEmit assemblies don't cache the machine type.
 
@@ -280,12 +272,12 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
     // Resource images are always flat.
     if (IsResource())
     {
-        GetILimage()->LoadNoMetaData(IsIntrospectionOnly());
+        GetILimage()->LoadNoMetaData();
         RETURN;
     }
 
 #if !defined(_TARGET_64BIT_)
-    if (!HasNativeImage() && (!GetILimage()->Has32BitNTHeaders()) && !IsIntrospectionOnly())
+    if (!HasNativeImage() && !GetILimage()->Has32BitNTHeaders())
     {
         // Tried to load 64-bit assembly on 32-bit platform.
         EEFileLoadException::Throw(this, COR_E_BADIMAGEFORMAT, NULL);
@@ -297,16 +289,6 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
     {
         EnsureImageOpened();
     }
-
-    if (IsIntrospectionOnly())
-    {
-        GetILimage()->LoadForIntrospection();
-        RETURN;
-    }
-
-
-    //---- Below this point, only do the things necessary for execution ----
-    _ASSERTE(!IsIntrospectionOnly());
 
 #ifdef FEATURE_PREJIT
     // For on-disk Dlls, we can call LoadLibrary
@@ -462,13 +444,6 @@ BOOL PEFile::Equals(PEFile *pFile)
     // Same object is equal
     if (pFile == this)
         return TRUE;
-
-
-    // Execution and introspection files are NOT equal
-    if ( (!IsIntrospectionOnly()) != !(pFile->IsIntrospectionOnly()) )
-    {
-        return FALSE;
-    }
 
     // Different host assemblies cannot be equal unless they are associated with the same host binder
     // It's ok if only one has a host binder because multiple threads can race to load the same assembly
@@ -1059,7 +1034,7 @@ extern DWORD g_dwLogLevel;
 //===========================================================================================================
 // Encapsulates CLR and Fusion logging for runtime verification of native images.
 //===========================================================================================================
-static void RuntimeVerifyVLog(DWORD level, LoggableAssembly *pLogAsm, const WCHAR *fmt, va_list args)
+static void RuntimeVerifyVLog(DWORD level, PEAssembly *pLogAsm, const WCHAR *fmt, va_list args)
 {
     STANDARD_VM_CONTRACT;
 
@@ -1071,7 +1046,7 @@ static void RuntimeVerifyVLog(DWORD level, LoggableAssembly *pLogAsm, const WCHA
 
     if (fOutputToLogging)
     {
-        SString displayString = pLogAsm->DisplayString();
+        SString displayString = pLogAsm->GetPath();
         LOG((LF_ZAP, level, "%s: \"%S\"\n", "ZAP", displayString.GetUnicode()));
         LOG((LF_ZAP, level, "%S", message.GetUnicode()));
         LOG((LF_ZAP, level, "\n"));
@@ -1079,7 +1054,7 @@ static void RuntimeVerifyVLog(DWORD level, LoggableAssembly *pLogAsm, const WCHA
 
     if (fOutputToDebugger)
     {
-        SString displayString = pLogAsm->DisplayString();
+        SString displayString = pLogAsm->GetPath();
         WszOutputDebugString(W("CLR:("));
         WszOutputDebugString(displayString.GetUnicode());
         WszOutputDebugString(W(") "));
@@ -1093,7 +1068,7 @@ static void RuntimeVerifyVLog(DWORD level, LoggableAssembly *pLogAsm, const WCHA
 //===========================================================================================================
 // Encapsulates CLR and Fusion logging for runtime verification of native images.
 //===========================================================================================================
-static void RuntimeVerifyLog(DWORD level, LoggableAssembly *pLogAsm, const WCHAR *fmt, ...)
+static void RuntimeVerifyLog(DWORD level, PEAssembly *pLogAsm, const WCHAR *fmt, ...)
 {
     STANDARD_VM_CONTRACT;
 
@@ -1181,67 +1156,6 @@ extern HMODULE CorCompileGetRuntimeDll(CorCompileRuntimeDlls id)
 #endif // CROSSGEN_COMPILE
 
 //===========================================================================================================
-// Helper for RuntimeVerifyNativeImageVersion(). Compares the loaded clr.dll and clrjit.dll's against
-// the ones the native image was compiled against.
-//===========================================================================================================
-static BOOL RuntimeVerifyNativeImageTimestamps(const CORCOMPILE_VERSION_INFO *info, LoggableAssembly *pLogAsm)
-{
-    STANDARD_VM_CONTRACT;
-
-
-    return TRUE;
-}
-
-//===========================================================================================================
-// Validates that an NI matches the running CLR, OS, CPU, etc. This is the entrypoint used by the CLR loader.
-//
-//===========================================================================================================
-BOOL PEAssembly::CheckNativeImageVersion(PEImage *peimage)
-{
-    STANDARD_VM_CONTRACT;
-
-    //
-    // Get the zap version header. Note that modules will not have version
-    // headers - they add no additional versioning constraints from their
-    // assemblies.
-    //
-    PEImageLayoutHolder image=peimage->GetLayout(PEImageLayout::LAYOUT_ANY,PEImage::LAYOUT_CREATEIFNEEDED);
-
-    if (!image->HasNativeHeader())
-        return FALSE;
-
-    if (!image->CheckNativeHeaderVersion())
-    {
-        // Wrong native image version is fatal error on CoreCLR
-        ThrowHR(COR_E_NI_AND_RUNTIME_VERSION_MISMATCH);
-    }
-
-    CORCOMPILE_VERSION_INFO *info = image->GetNativeVersionInfo();
-    if (info == NULL)
-        return FALSE;
-
-    LoggablePEAssembly logAsm(this);
-    if (!RuntimeVerifyNativeImageVersion(info, &logAsm))
-    {
-        // Wrong native image version is fatal error on CoreCLR
-        ThrowHR(COR_E_NI_AND_RUNTIME_VERSION_MISMATCH);
-    }
-
-    CorCompileConfigFlags configFlags = PEFile::GetNativeImageConfigFlagsWithOverrides();
-
-    // Otherwise, match regardless of the instrumentation flags
-    configFlags = (CorCompileConfigFlags) (configFlags & ~(CORCOMPILE_CONFIG_INSTRUMENTATION_NONE | CORCOMPILE_CONFIG_INSTRUMENTATION));
-
-    if ((info->wConfigFlags & configFlags) != configFlags)
-    {
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-
-//===========================================================================================================
 // Validates that an NI matches the running CLR, OS, CPU, etc.
 //
 // For historial reasons, some versions of the runtime perform this check at native bind time (preferrred),
@@ -1250,12 +1164,9 @@ BOOL PEAssembly::CheckNativeImageVersion(PEImage *peimage)
 // This is the common funnel for both versions and is agnostic to whether the "assembly" is represented
 // by a CLR object or Fusion object.
 //===========================================================================================================
-BOOL RuntimeVerifyNativeImageVersion(const CORCOMPILE_VERSION_INFO *info, LoggableAssembly *pLogAsm)
+BOOL RuntimeVerifyNativeImageVersion(const CORCOMPILE_VERSION_INFO *info, PEAssembly *pLogAsm)
 {
     STANDARD_VM_CONTRACT;
-
-    if (!RuntimeVerifyNativeImageTimestamps(info, pLogAsm))
-        return FALSE;
 
     //
     // Check that the EE version numbers are the same.
@@ -1317,6 +1228,53 @@ BOOL RuntimeVerifyNativeImageVersion(const CORCOMPILE_VERSION_INFO *info, Loggab
     //
 
     RuntimeVerifyLog(LL_INFO100, pLogAsm, W("Native image has correct version information."));
+    return TRUE;
+}
+
+//===========================================================================================================
+// Validates that an NI matches the running CLR, OS, CPU, etc. This is the entrypoint used by the CLR loader.
+//
+//===========================================================================================================
+BOOL PEAssembly::CheckNativeImageVersion(PEImage *peimage)
+{
+    STANDARD_VM_CONTRACT;
+
+    //
+    // Get the zap version header. Note that modules will not have version
+    // headers - they add no additional versioning constraints from their
+    // assemblies.
+    //
+    PEImageLayoutHolder image = peimage->GetLayout(PEImageLayout::LAYOUT_ANY, PEImage::LAYOUT_CREATEIFNEEDED);
+
+    if (!image->HasNativeHeader())
+        return FALSE;
+
+    if (!image->CheckNativeHeaderVersion())
+    {
+        // Wrong native image version is fatal error on CoreCLR
+        ThrowHR(COR_E_NI_AND_RUNTIME_VERSION_MISMATCH);
+    }
+
+    CORCOMPILE_VERSION_INFO *info = image->GetNativeVersionInfo();
+    if (info == NULL)
+        return FALSE;
+
+    if (!RuntimeVerifyNativeImageVersion(info, this))
+    {
+        // Wrong native image version is fatal error on CoreCLR
+        ThrowHR(COR_E_NI_AND_RUNTIME_VERSION_MISMATCH);
+    }
+
+    CorCompileConfigFlags configFlags = PEFile::GetNativeImageConfigFlagsWithOverrides();
+
+    // Otherwise, match regardless of the instrumentation flags
+    configFlags = (CorCompileConfigFlags)(configFlags & ~(CORCOMPILE_CONFIG_INSTRUMENTATION_NONE | CORCOMPILE_CONFIG_INSTRUMENTATION));
+
+    if ((info->wConfigFlags & configFlags) != configFlags)
+    {
+        return FALSE;
+    }
+
     return TRUE;
 }
 
@@ -1426,14 +1384,14 @@ CorCompileConfigFlags PEFile::GetNativeImageConfigFlagsWithOverrides()
 //===========================================================================================================
 BOOL RuntimeVerifyNativeImageDependency(const CORCOMPILE_NGEN_SIGNATURE &ngenSigExpected,
                                         const CORCOMPILE_VERSION_INFO *pActual,
-                                        LoggableAssembly              *pLogAsm)
+                                        PEAssembly                    *pLogAsm)
 {
     STANDARD_VM_CONTRACT;
 
     if (ngenSigExpected != pActual->signature)
     {
         // Signature did not match
-        SString displayString = pLogAsm->DisplayString();
+        SString displayString = pLogAsm->GetPath();
         RuntimeVerifyLog(LL_ERROR,
                          pLogAsm,
                          W("Rejecting native image because native image dependency %s ")
@@ -1447,7 +1405,7 @@ BOOL RuntimeVerifyNativeImageDependency(const CORCOMPILE_NGEN_SIGNATURE &ngenSig
 // Wrapper function for use by parts of the runtime that actually have a CORCOMPILE_DEPENDENCY to work with.
 BOOL RuntimeVerifyNativeImageDependency(const CORCOMPILE_DEPENDENCY   *pExpected,
                                         const CORCOMPILE_VERSION_INFO *pActual,
-                                        LoggableAssembly              *pLogAsm)
+                                        PEAssembly                    *pLogAsm)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1633,11 +1591,11 @@ PEFile::LoadAssembly(
     
     AssemblySpec spec;
     
-    spec.InitializeSpec(kAssemblyRef, pImport, GetAppDomain()->FindAssembly(GetAssembly()), IsIntrospectionOnly());
+    spec.InitializeSpec(kAssemblyRef, pImport, GetAppDomain()->FindAssembly(GetAssembly()));
     if (szWinRtTypeClassName != NULL)
         spec.SetWindowsRuntimeType(szWinRtTypeNamespace, szWinRtTypeClassName);
     
-    RETURN GetAppDomain()->BindAssemblySpec(&spec, TRUE, IsIntrospectionOnly());
+    RETURN GetAppDomain()->BindAssemblySpec(&spec, TRUE);
 }
 
 // ------------------------------------------------------------
@@ -1805,7 +1763,7 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
                 return FALSE;
 
             AssemblySpec spec;
-            spec.InitializeSpec(mdLinkRef, GetPersistentMDImport(), pDomainAssembly, pDomainAssembly->GetFile()->IsIntrospectionOnly());
+            spec.InitializeSpec(mdLinkRef, GetPersistentMDImport(), pDomainAssembly);
             pDomainAssembly = spec.LoadDomainAssembly(FILE_LOADED);
 
             if (dwLocation) {
@@ -1962,7 +1920,6 @@ PEAssembly::PEAssembly(
                 IMetaDataEmit* pEmit, 
                 PEFile *creator, 
                 BOOL system,
-                BOOL introspectionOnly/*=FALSE*/,
                 PEImage * pPEImageIL /*= NULL*/,
                 PEImage * pPEImageNI /*= NULL*/,
                 ICLRPrivAssembly * pHostAssembly /*= NULL*/)
@@ -1984,14 +1941,6 @@ PEAssembly::PEAssembly(
         STANDARD_VM_CHECK;
     }
     CONTRACTL_END;
-
-    if (introspectionOnly)
-    {
-        if (!system)  // Implementation restriction: mscorlib.dll cannot be loaded as introspection. The architecture depends on there being exactly one mscorlib.
-        {
-            m_flags |= PEFILE_INTROSPECTIONONLY;
-        }
-    }
 
     m_flags |= PEFILE_ASSEMBLY;
     if (system)
@@ -2020,9 +1969,6 @@ PEAssembly::PEAssembly(
         m_bIsFromGAC = pBindResultInfo->IsFromGAC();
         m_bIsOnTpaList = pBindResultInfo->IsOnTpaList();
     }
-
-    // Check security related stuff
-    VerifyStrongName();
 
     // Open metadata eagerly to minimize failure windows
     if (pEmit == NULL)
@@ -2085,8 +2031,7 @@ PEAssembly *PEAssembly::Open(
     PEAssembly *       pParent,
     PEImage *          pPEImageIL, 
     PEImage *          pPEImageNI, 
-    ICLRPrivAssembly * pHostAssembly, 
-    BOOL               fIsIntrospectionOnly)
+    ICLRPrivAssembly * pHostAssembly)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2095,7 +2040,6 @@ PEAssembly *PEAssembly::Open(
         nullptr,        // IMetaDataEmit
         pParent,        // PEFile creator
         FALSE,          // isSystem
-        fIsIntrospectionOnly,
         pPEImageIL,
         pPEImageNI,
         pHostAssembly);
@@ -2197,7 +2141,6 @@ PEAssembly *PEAssembly::DoOpenSystem(IUnknown * pAppCtx)
 /* static */
 PEAssembly *PEAssembly::OpenMemory(PEAssembly *pParentAssembly,
                                    const void *flat, COUNT_T size,
-                                   BOOL isIntrospectionOnly/*=FALSE*/,
                                    CLRPrivBinderLoadFile* pBinderToUse)
 {
     STANDARD_VM_CONTRACT;
@@ -2206,7 +2149,7 @@ PEAssembly *PEAssembly::OpenMemory(PEAssembly *pParentAssembly,
 
     EX_TRY
     {
-        result = DoOpenMemory(pParentAssembly, flat, size, isIntrospectionOnly, pBinderToUse);
+        result = DoOpenMemory(pParentAssembly, flat, size, pBinderToUse);
     }
     EX_HOOK
     {
@@ -2246,7 +2189,6 @@ PEAssembly *PEAssembly::DoOpenMemory(
     PEAssembly *pParentAssembly,
     const void *flat,
     COUNT_T size,
-    BOOL isIntrospectionOnly,
     CLRPrivBinderLoadFile* pBinderToUse)
 {
     CONTRACT(PEAssembly *)
@@ -2279,24 +2221,23 @@ PEAssembly *PEAssembly::DoOpenMemory(
     IfFailThrow(CCoreCLRBinderHelper::GetAssemblyFromImage(image, NULL, &assembly));
     bindResult.Init(assembly,FALSE,FALSE);
 
-    RETURN new PEAssembly(&bindResult, NULL, pParentAssembly, FALSE, isIntrospectionOnly);
+    RETURN new PEAssembly(&bindResult, NULL, pParentAssembly, FALSE);
 }
 #endif // !CROSSGEN_COMPILE
 
 
 
 PEAssembly* PEAssembly::Open(CoreBindResult* pBindResult,
-                                   BOOL isSystem, BOOL isIntrospectionOnly)
+                                   BOOL isSystem)
 {
 
-    return new PEAssembly(pBindResult,NULL,NULL,isSystem,isIntrospectionOnly);
+    return new PEAssembly(pBindResult,NULL,NULL,isSystem);
 
 };
 
 /* static */
 PEAssembly *PEAssembly::Create(PEAssembly *pParentAssembly,
-                               IMetaDataAssemblyEmit *pAssemblyEmit,
-                               BOOL bIsIntrospectionOnly)
+                               IMetaDataAssemblyEmit *pAssemblyEmit)
 {
     CONTRACT(PEAssembly *)
     {
@@ -2311,7 +2252,7 @@ PEAssembly *PEAssembly::Create(PEAssembly *pParentAssembly,
     // we have.)
     SafeComHolder<IMetaDataEmit> pEmit;
     pAssemblyEmit->QueryInterface(IID_IMetaDataEmit, (void **)&pEmit);
-    PEAssemblyHolder pFile(new PEAssembly(NULL, pEmit, pParentAssembly, FALSE, bIsIntrospectionOnly));
+    PEAssemblyHolder pFile(new PEAssembly(NULL, pEmit, pParentAssembly, FALSE));
     RETURN pFile.Extract();
 }
 
@@ -2345,9 +2286,6 @@ void PEAssembly::SetNativeImage(PEImage * image)
             //cache a bunch of PE metadata in the PEDecoder
             m_ILimage->CheckILFormat();
 
-            //we also need some of metadata (for the public key), so cache this too
-            DWORD verifyOutputFlags;
-            m_ILimage->VerifyStrongName(&verifyOutputFlags);
             //fudge this by a few pages to make sure we can still mess with the PE headers
             const size_t fudgeSize = 4096 * 4;
             ClrVirtualProtect((void*)(((char *)layout->GetBase()) + fudgeSize),
@@ -2377,68 +2315,6 @@ BOOL PEAssembly::IsSourceGAC()
 
 
 #ifndef DACCESS_COMPILE
-
-
-// ------------------------------------------------------------
-// Hash support
-// ------------------------------------------------------------
-
-void PEAssembly::VerifyStrongName()
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-
-    // If we've already done the signature checks, we don't need to do them again.
-    if (m_fStrongNameVerified)
-    {
-        return;
-    }
-
-    // Without FUSION/GAC, we need to verify SN on all assemblies, except dynamic assemblies.
-    if (IsDynamic())
-    {
-
-        m_flags |= PEFILE_SKIP_MODULE_HASH_CHECKS;
-        m_fStrongNameVerified = TRUE;
-        return;
-    }
-
-    // Next, verify the strong name, if necessary
-
-    // Check format of image. Note we must delay this until after the GAC status has been
-    // checked, to handle the case where we are not loading m_image.
-    EnsureImageOpened();
-
-
-    if (m_nativeImage == NULL && !GetILimage()->IsTrustedNativeImage())
-    {
-        if (!GetILimage()->CheckILFormat())
-            ThrowHR(COR_E_BADIMAGEFORMAT);
-    }
-
-    // Check the strong name if present.
-    if (IsIntrospectionOnly())
-    {
-        // For introspection assemblies, we don't need to check strong names and we don't
-        // need to do module hash checks.
-        m_flags |= PEFILE_SKIP_MODULE_HASH_CHECKS;
-    }
-    else
-    {
-        // Runtime policy on CoreCLR is to skip verification of ALL assemblies
-        m_flags |= PEFILE_SKIP_MODULE_HASH_CHECKS;
-        m_fStrongNameVerified = TRUE;
-    }
-
-    m_fStrongNameVerified = TRUE;
-}
 
 BOOL PEAssembly::IsProfileAssembly()
 {

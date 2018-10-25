@@ -34,7 +34,10 @@
 // forward declaration
 BOOL CheckForPrimitiveType(CorElementType elemType, CQuickArray<WCHAR> *pStrPrimitiveType);
 TypeHandle ArraySubTypeLoadWorker(const SString &strUserDefTypeName, Assembly* pAssembly);
-TypeHandle GetFieldTypeHandleWorker(MetaSig *pFieldSig);  
+TypeHandle GetFieldTypeHandleWorker(MetaSig *pFieldSig);
+#ifdef _DEBUG
+BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport);
+#endif
 
 
 //=======================================================================
@@ -659,7 +662,11 @@ do                                                      \
                 {
                     if (IsStructMarshalable(thNestedType))
                     {
+#ifdef _DEBUG
+                        INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable(), IsFixedBuffer(pfwalk->m_MD, pInternalImport)));
+#else
                         INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable()));
+#endif
                     }
                     else
                     {
@@ -787,11 +794,12 @@ do                                                      \
                             // We no longer support Win9x so LPTSTR always maps to a Unicode string.
                             INITFIELDMARSHALER(NFT_STRINGUNI, FieldMarshaler_StringUni, ());
                             break;
-#ifdef FEATURE_COMINTEROP
+
                         case NATIVE_TYPE_BSTR:
                             INITFIELDMARSHALER(NFT_BSTR, FieldMarshaler_BSTR, ());
                             break;
 
+#ifdef FEATURE_COMINTEROP
                         case NATIVE_TYPE_HSTRING:
                             INITFIELDMARSHALER(NFT_HSTRING, FieldMarshaler_HSTRING, ());
                             break;
@@ -1227,6 +1235,15 @@ BOOL IsStructMarshalable(TypeHandle th)
 
     return TRUE;
 }
+
+#ifdef _DEBUG
+BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport)
+{
+    HRESULT hr = pInternalImport->GetCustomAttributeByName(field, g_FixedBufferAttribute, NULL, NULL);
+
+    return hr == S_OK ? TRUE : FALSE;
+}
+#endif
 
 
 //=======================================================================
@@ -2036,7 +2053,6 @@ VOID LayoutUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
     GCPROTECT_END();
 }
 
-
 VOID FmtClassUpdateNative(OBJECTREF *ppProtectedManagedData, BYTE *pNativeData, OBJECTREF *ppCleanupWorkListOnStack)
 {        
     CONTRACTL
@@ -2115,7 +2131,7 @@ VOID FmtClassUpdateCLR(OBJECTREF *ppProtectedManagedData, BYTE *pNativeData)
 // all of the native fields even if one or more of the conversions fail.
 //=======================================================================
 VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE *pNativeData)
-{        
+{
     CONTRACTL
     {
         THROWS;
@@ -2128,8 +2144,8 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
     // Don't try to destroy/free native the structure on exception, we may not own it. If we do own it and
     // are supposed to destroy/free it, we do it upstack (e.g. in a helper called from the marshaling stub).
 
-    FieldMarshaler* pFM                   = pMT->GetLayoutInfo()->GetFieldMarshalers();
-    UINT  numReferenceFields              = pMT->GetLayoutInfo()->GetNumCTMFields(); 
+    FieldMarshaler* pFM = pMT->GetLayoutInfo()->GetFieldMarshalers();
+    UINT  numReferenceFields = pMT->GetLayoutInfo()->GetNumCTMFields();
 
     struct _gc
     {
@@ -2137,10 +2153,10 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
         OBJECTREF pOldCLRValue;
     } gc;
 
-    gc.pCLRValue    = NULL;
+    gc.pCLRValue = NULL;
     gc.pOldCLRValue = NULL;
-    LPVOID scalar    = NULL;
-    
+    LPVOID scalar = NULL;
+
     GCPROTECT_BEGIN(gc)
     GCPROTECT_BEGININTERIOR(scalar)
     {
@@ -2283,9 +2299,6 @@ VOID FmtValueTypeUpdateCLR(LPVOID pProtectedManagedData, MethodTable *pMT, BYTE 
     }
 }
 
-
-#ifdef FEATURE_COMINTEROP
-
 //=======================================================================
 // BSTR <--> System.String
 // See FieldMarshaler for details.
@@ -2384,14 +2397,13 @@ VOID FieldMarshaler_BSTR::DestroyNativeImpl(LPVOID pNativeValue) const
     
     if (pBSTR)
     {
-        _ASSERTE (GetModuleHandleA("oleaut32.dll") != NULL);
-        // BSTR has been created, which means oleaut32 should have been loaded.
-        // Delay load will not fail.
+        // BSTR has been created, Delay load will not fail.
         CONTRACT_VIOLATION(ThrowsViolation);
         SysFreeString(pBSTR);
     }
 }
 
+#ifdef FEATURE_COMINTEROP
 //===========================================================================================
 // Windows.Foundation.IReference'1<-- System.Nullable'1
 //
@@ -2873,12 +2885,24 @@ VOID FieldMarshaler_NestedValueClass::NestedValueClassUpdateNativeImpl(const VOI
     }
     CONTRACTL_END;
 
+    MethodTable* pMT = GetMethodTable();
+
     // would be better to detect this at class load time (that have a nested value
     // class with no layout) but don't have a way to know
-    if (! GetMethodTable()->GetLayoutInfo())
+    if (!pMT->GetLayoutInfo())
         COMPlusThrow(kArgumentException, IDS_NOLAYOUT_IN_EMBEDDED_VALUECLASS);
 
-    LayoutUpdateNative((LPVOID*)ppProtectedCLR, startoffset, GetMethodTable(), (BYTE*)pNative, ppCleanupWorkListOnStack);
+    if (pMT->IsBlittable())
+    {
+        memcpyNoGCRefs(pNative, (BYTE*)(*ppProtectedCLR) + startoffset, pMT->GetNativeSize());
+    }
+    else
+    {
+#ifdef _DEBUG
+        _ASSERTE_MSG(!IsFixedBuffer(), "Cannot correctly marshal fixed buffers of non-blittable types");
+#endif
+        LayoutUpdateNative((LPVOID*)ppProtectedCLR, startoffset, pMT, (BYTE*)pNative, ppCleanupWorkListOnStack);
+    }
 }
 
 
@@ -2898,17 +2922,27 @@ VOID FieldMarshaler_NestedValueClass::NestedValueClassUpdateCLRImpl(const VOID *
     }
     CONTRACTL_END;
 
+    MethodTable* pMT = GetMethodTable();
+
     // would be better to detect this at class load time (that have a nested value
     // class with no layout) but don't have a way to know
-    if (! GetMethodTable()->GetLayoutInfo())
+    if (!pMT->GetLayoutInfo())
         COMPlusThrow(kArgumentException, IDS_NOLAYOUT_IN_EMBEDDED_VALUECLASS);
 
-    LayoutUpdateCLR( (LPVOID*)ppProtectedCLR,
-                         startoffset,
-                         GetMethodTable(),
-                         (BYTE *)pNative);
-    
-
+    if (pMT->IsBlittable())
+    {
+        memcpyNoGCRefs((BYTE*)(*ppProtectedCLR) + startoffset, pNative, pMT->GetNativeSize());
+    }
+    else
+    {
+#ifdef _DEBUG
+        _ASSERTE_MSG(!IsFixedBuffer(), "Cannot correctly marshal fixed buffers of non-blittable types");
+#endif
+        LayoutUpdateCLR((LPVOID*)ppProtectedCLR,
+            startoffset,
+            pMT,
+            (BYTE *)pNative);
+    }
 }
 
 
@@ -2927,7 +2961,12 @@ VOID FieldMarshaler_NestedValueClass::DestroyNativeImpl(LPVOID pNativeValue) con
     }
     CONTRACTL_END;
 
-    LayoutDestroyNative(pNativeValue, GetMethodTable());
+    MethodTable* pMT = GetMethodTable();
+
+    if (!pMT->IsBlittable())
+    {
+        LayoutDestroyNative(pNativeValue, pMT);
+    }
 }
 
 #endif // CROSSGEN_COMPILE
@@ -4648,10 +4687,10 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
         // All other NStruct Field Types which do not require special handling.
         switch (cls)
         {
-#ifdef FEATURE_COMINTEROP
             case NFT_BSTR:
                 strRetVal = W("BSTR");
                 break;
+#ifdef FEATURE_COMINTEROP                
             case NFT_HSTRING:
                 strRetVal = W("HSTRING");
                 break;
@@ -4802,6 +4841,7 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
         case NFT_DECIMAL: rettype ((FieldMarshaler_Decimal*)this)->name##Impl args; break; \
         case NFT_SAFEHANDLE: rettype ((FieldMarshaler_SafeHandle*)this)->name##Impl args; break; \
         case NFT_CRITICALHANDLE: rettype ((FieldMarshaler_CriticalHandle*)this)->name##Impl args; break; \
+        case NFT_BSTR: rettype ((FieldMarshaler_BSTR*)this)->name##Impl args; break; \
         case NFT_ILLEGAL: rettype ((FieldMarshaler_Illegal*)this)->name##Impl args; break; \
         default: UNREACHABLE_MSG("unexpected type of FieldMarshaler"); break; \
         } \

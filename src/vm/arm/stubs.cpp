@@ -1678,6 +1678,8 @@ VOID StubLinkerCPU::EmitShuffleThunk(ShuffleEntry *pShuffleEntryArray)
     ThumbEmitEpilog();
 }
 
+#ifndef CROSSGEN_COMPILE
+
 void StubLinkerCPU::ThumbEmitCallManagedMethod(MethodDesc *pMD, bool fTailcall)
 {
     bool isRelative = MethodTable::VTableIndir2_t::isRelative
@@ -1747,7 +1749,6 @@ void StubLinkerCPU::ThumbEmitCallManagedMethod(MethodDesc *pMD, bool fTailcall)
     }
 }
 
-#ifndef CROSSGEN_COMPILE
 // Common code used to generate either an instantiating method stub or an unboxing stub (in the case where the
 // unboxing stub also needs to provide a generic instantiation parameter). The stub needs to add the
 // instantiation parameter provided in pHiddenArg and re-arrange the rest of the incoming arguments as a
@@ -2368,7 +2369,6 @@ void TailCallFrame::InitFromContext(T_CONTEXT * pContext)
 }
 
 #endif // !DACCESS_COMPILE
-#endif // !CROSSGEN_COMPILE
 
 void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD) 
 { 
@@ -2527,7 +2527,8 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
      SyncRegDisplayToCurrentContext(pRD);
 }
-#endif
+#endif // FEATURE_HIJACK
+#endif // !CROSSGEN_COMPILE
 
 class UMEntryThunk * UMEntryThunk::Decode(void *pCallback)
 {
@@ -2984,7 +2985,7 @@ void StubLinkerCPU::ThumbEmitCondRegJump(CodeLabel *target, BOOL nonzero, ThumbR
     EmitLabelRef(target, reinterpret_cast<ThumbCondJump&>(gThumbCondJump), variation);
 }
 
-unsigned int StubLinkerCPU::HashMulticastInvoke(MetaSig *pSig)
+UINT_PTR StubLinkerCPU::HashMulticastInvoke(MetaSig *pSig)
 {
     // Generate a hash key as follows:
     // Bit0-2   : num of general purpose registers used 
@@ -3161,6 +3162,7 @@ void StubLinkerCPU::ThumbCopyOneTailCallArg(UINT * pnSrcAlign, const ArgLocDesc 
 
 
 Stub * StubLinkerCPU::CreateTailCallCopyArgsThunk(CORINFO_SIG_INFO * pSig,
+                                                  MethodDesc* pMD,
                                                   CorInfoHelperTailCallSpecialHandling flags)
 {
     STANDARD_VM_CONTRACT;
@@ -3407,8 +3409,8 @@ Stub * StubLinkerCPU::CreateTailCallCopyArgsThunk(CORINFO_SIG_INFO * pSig,
         pSl->ThumbEmitJumpRegister(thumbRegLr);
     }
 
-
-    return pSl->Link();
+    LoaderHeap* pHeap = pMD->GetLoaderAllocatorForCode()->GetStubHeap();
+    return pSl->Link(pHeap);
 }
 
 

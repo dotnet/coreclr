@@ -28,8 +28,6 @@ CONFIG_INTEGER(DisplayLsraStats, W("JitLsraStats"), 0)       // Display JIT Line
 CONFIG_INTEGER(DumpJittedMethods, W("DumpJittedMethods"), 0) // Prints all jitted methods to the console
 CONFIG_INTEGER(EnablePCRelAddr, W("JitEnablePCRelAddr"), 1)  // Whether absolute addr be encoded as PC-rel offset by
                                                              // RyuJIT where possible
-CONFIG_INTEGER(InterpreterFallback, W("InterpreterFallback"), 0) // Fallback to the interpreter when the JIT compiler
-                                                                 // fails
 CONFIG_INTEGER(JitAssertOnMaxRAPasses, W("JitAssertOnMaxRAPasses"), 0)
 CONFIG_INTEGER(JitBreakEmitOutputInstr, W("JitBreakEmitOutputInstr"), -1)
 CONFIG_INTEGER(JitBreakMorphTree, W("JitBreakMorphTree"), 0xffffffff)
@@ -113,6 +111,7 @@ CONFIG_INTEGER(JitSplitFunctionSize, W("JitSplitFunctionSize"), 0) // On ARM, us
 CONFIG_INTEGER(JitSsaStress, W("JitSsaStress"), 0) // Perturb order of processing of blocks in SSA; 0 = no stress; 1 =
                                                    // use method hash; * = supplied value as random hash
 CONFIG_INTEGER(JitStackChecks, W("JitStackChecks"), 0)
+CONFIG_STRING(JitStdOutFile, W("JitStdOutFile")) // If set, sends JIT's stdout output to this file.
 CONFIG_INTEGER(JitStress, W("JitStress"), 0) // Internal Jit stress mode: 0 = no stress, 2 = all stress, other = vary
                                              // stress based on a hash of the method and this value
 CONFIG_INTEGER(JitStressBBProf, W("JitStressBBProf"), 0)               // Internal Jit stress mode
@@ -150,6 +149,7 @@ CONFIG_METHODSET(JitEHDump, W("JitEHDump"))                  // Dump the EH tabl
 CONFIG_METHODSET(JitExclude, W("JitExclude"))
 CONFIG_METHODSET(JitForceProcedureSplitting, W("JitForceProcedureSplitting"))
 CONFIG_METHODSET(JitGCDump, W("JitGCDump"))
+CONFIG_METHODSET(JitDebugDump, W("JitDebugDump"))
 CONFIG_METHODSET(JitHalt, W("JitHalt")) // Emits break instruction into jitted code
 CONFIG_METHODSET(JitImportBreak, W("JitImportBreak"))
 CONFIG_METHODSET(JitInclude, W("JitInclude"))
@@ -170,6 +170,7 @@ CONFIG_METHODSET(NgenDump, W("NgenDump"))     // Same as JitDump, but for ngen
 CONFIG_METHODSET(NgenDumpIR, W("NgenDumpIR")) // Same as JitDumpIR, but for ngen
 CONFIG_METHODSET(NgenEHDump, W("NgenEHDump")) // Dump the EH table for the method, as reported to the VM
 CONFIG_METHODSET(NgenGCDump, W("NgenGCDump"))
+CONFIG_METHODSET(NgenDebugDump, W("NgenDebugDump"))
 CONFIG_METHODSET(NgenUnwindDump, W("NgenUnwindDump")) // Dump the unwind codes for the method
 ///
 /// JIT
@@ -204,24 +205,6 @@ CONFIG_STRING(NgenDumpIRPhase, W("NgenDumpIRPhase"))   // Same as JitDumpIRPhase
 ///
 /// JIT Hardware Intrinsics
 ///
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-CONFIG_INTEGER(EnableSSE, W("EnableSSE"), 1)     // Enable SSE
-CONFIG_INTEGER(EnableSSE2, W("EnableSSE2"), 1)   // Enable SSE2
-CONFIG_INTEGER(EnableSSE3, W("EnableSSE3"), 1)   // Enable SSE3
-CONFIG_INTEGER(EnableSSSE3, W("EnableSSSE3"), 1) // Enable SSSE3
-CONFIG_INTEGER(EnableSSE41, W("EnableSSE41"), 1) // Enable SSE41
-CONFIG_INTEGER(EnableSSE42, W("EnableSSE42"), 1) // Enable SSE42
-// EnableAVX is already defined for DEBUG and non-DEBUG mode both
-CONFIG_INTEGER(EnableAVX2, W("EnableAVX2"), 1) // Enable AVX2
-
-CONFIG_INTEGER(EnableAES, W("EnableAES"), 1)             // Enable AES
-CONFIG_INTEGER(EnableBMI1, W("EnableBMI1"), 1)           // Enable BMI1
-CONFIG_INTEGER(EnableBMI2, W("EnableBMI2"), 1)           // Enable BMI2
-CONFIG_INTEGER(EnableFMA, W("EnableFMA"), 1)             // Enable FMA
-CONFIG_INTEGER(EnableLZCNT, W("EnableLZCNT"), 1)         // Enable AES
-CONFIG_INTEGER(EnablePCLMULQDQ, W("EnablePCLMULQDQ"), 1) // Enable PCLMULQDQ
-CONFIG_INTEGER(EnablePOPCNT, W("EnablePOPCNT"), 1)       // Enable POPCNT
-#endif                                                   // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 CONFIG_INTEGER(EnableIncompleteISAClass, W("EnableIncompleteISAClass"), 0) // Enable testing not-yet-implemented
                                                                            // intrinsic classes
 #endif                                                                     // defined(DEBUG)
@@ -250,11 +233,25 @@ CONFIG_INTEGER(EnableSSE3_4, W("EnableSSE3_4"), 1) // Enable SSE3, SSSE3, SSE 4.
 #if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
 // Enable AVX instruction set for wide operations as default. When both AVX and SSE3_4 are set, we will use the most
 // capable instruction set available which will prefer AVX over SSE3/4.
-CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 1)
-#else  // !defined(_TARGET_AMD64_) && !defined(_TARGET_X86_)
+CONFIG_INTEGER(EnableSSE, W("EnableSSE"), 1)             // Enable SSE
+CONFIG_INTEGER(EnableSSE2, W("EnableSSE2"), 1)           // Enable SSE2
+CONFIG_INTEGER(EnableSSE3, W("EnableSSE3"), 1)           // Enable SSE3
+CONFIG_INTEGER(EnableSSSE3, W("EnableSSSE3"), 1)         // Enable SSSE3
+CONFIG_INTEGER(EnableSSE41, W("EnableSSE41"), 1)         // Enable SSE41
+CONFIG_INTEGER(EnableSSE42, W("EnableSSE42"), 1)         // Enable SSE42
+CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 1)             // Enable AVX
+CONFIG_INTEGER(EnableAVX2, W("EnableAVX2"), 1)           // Enable AVX2
+CONFIG_INTEGER(EnableFMA, W("EnableFMA"), 1)             // Enable FMA
+CONFIG_INTEGER(EnableAES, W("EnableAES"), 1)             // Enable AES
+CONFIG_INTEGER(EnableBMI1, W("EnableBMI1"), 1)           // Enable BMI1
+CONFIG_INTEGER(EnableBMI2, W("EnableBMI2"), 1)           // Enable BMI2
+CONFIG_INTEGER(EnableLZCNT, W("EnableLZCNT"), 1)         // Enable AES
+CONFIG_INTEGER(EnablePCLMULQDQ, W("EnablePCLMULQDQ"), 1) // Enable PCLMULQDQ
+CONFIG_INTEGER(EnablePOPCNT, W("EnablePOPCNT"), 1)       // Enable POPCNT
+#else                                                    // !defined(_TARGET_AMD64_) && !defined(_TARGET_X86_)
 // Enable AVX instruction set for wide operations as default
 CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 0)
-#endif // !defined(_TARGET_AMD64_) && !defined(_TARGET_X86_)
+#endif                                                   // !defined(_TARGET_AMD64_) && !defined(_TARGET_X86_)
 ///
 /// JIT
 ///

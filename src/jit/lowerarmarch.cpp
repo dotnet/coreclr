@@ -39,20 +39,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //
 bool Lowering::IsCallTargetInRange(void* addr)
 {
-#ifdef _TARGET_ARM64_
-    // TODO-ARM64-CQ:  This is a workaround to unblock the JIT from getting calls working.
-    // Currently, we'll be generating calls using blr and manually loading an absolute
-    // call target in a register using a sequence of load immediate instructions.
-    //
-    // As you can expect, this is inefficient and it's not the recommended way as per the
-    // ARM64 ABI Manual but will get us getting things done for now.
-    // The work to get this right would be to implement PC-relative calls, the bl instruction
-    // can only address things -128 + 128MB away, so this will require getting some additional
-    // code to get jump thunks working.
-    return true;
-#elif defined(_TARGET_ARM_)
     return comp->codeGen->validImmForBL((ssize_t)addr);
-#endif
 }
 
 //------------------------------------------------------------------------
@@ -72,12 +59,13 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
         // Make sure we have an actual immediate
         if (!childNode->IsCnsIntOrI())
             return false;
-        if (childNode->IsIconHandle() && comp->opts.compReloc)
+        if (childNode->gtIntCon.ImmedValNeedsReloc(comp))
             return false;
 
-        ssize_t  immVal = childNode->gtIntCon.gtIconVal;
-        emitAttr attr   = emitActualTypeSize(childNode->TypeGet());
-        emitAttr size   = EA_SIZE(attr);
+        // TODO-CrossBitness: we wouldn't need the cast below if GenTreeIntCon::gtIconVal had target_ssize_t type.
+        target_ssize_t immVal = (target_ssize_t)childNode->gtIntCon.gtIconVal;
+        emitAttr       attr   = emitActualTypeSize(childNode->TypeGet());
+        emitAttr       size   = EA_SIZE(attr);
 #ifdef _TARGET_ARM_
         insFlags flags = parentNode->gtSetFlags() ? INS_FLAGS_SET : INS_FLAGS_DONT_CARE;
 #endif
@@ -686,6 +674,19 @@ void Lowering::ContainCheckMul(GenTreeOp* node)
 }
 
 //------------------------------------------------------------------------
+// ContainCheckDivOrMod: determine which operands of a div/mod should be contained.
+//
+// Arguments:
+//    node - the node we care about
+//
+void Lowering::ContainCheckDivOrMod(GenTreeOp* node)
+{
+    assert(node->OperIs(GT_DIV, GT_UDIV));
+
+    // ARM doesn't have a div instruction with an immediate operand
+}
+
+//------------------------------------------------------------------------
 // ContainCheckShiftRotate: Determine whether a mul op's operands should be contained.
 //
 // Arguments:
@@ -694,6 +695,7 @@ void Lowering::ContainCheckMul(GenTreeOp* node)
 void Lowering::ContainCheckShiftRotate(GenTreeOp* node)
 {
     GenTree* shiftBy = node->gtOp2;
+    assert(node->OperIsShiftOrRotate());
 
 #ifdef _TARGET_ARM_
     GenTree* source = node->gtOp1;
@@ -702,9 +704,7 @@ void Lowering::ContainCheckShiftRotate(GenTreeOp* node)
         assert(source->OperGet() == GT_LONG);
         MakeSrcContained(node, source);
     }
-#else  // !_TARGET_ARM_
-    assert(node->OperIsShiftOrRotate());
-#endif // !_TARGET_ARM_
+#endif // _TARGET_ARM_
 
     if (shiftBy->IsCnsIntOrI())
     {

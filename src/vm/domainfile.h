@@ -81,7 +81,7 @@ class DomainFile
     DomainFile() {LIMITED_METHOD_CONTRACT;};
 #endif
 
-    LoaderAllocator *GetLoaderAllocator();
+    virtual LoaderAllocator *GetLoaderAllocator();
 
     PTR_AppDomain GetAppDomain()
     {
@@ -259,8 +259,6 @@ class DomainFile
     // ------------------------------------------------------------
     // Other public APIs
     // ------------------------------------------------------------
-
-    BOOL IsIntrospectionOnly();
 
 #ifndef DACCESS_COMPILE
     BOOL Equals(DomainFile *pFile) { WRAPPER_NO_CONTRACT; return GetFile()->Equals(pFile->GetFile()); }
@@ -515,6 +513,12 @@ public:
         return PTR_PEAssembly(m_pFile);
     }
 
+    LoaderAllocator *GetLoaderAllocator()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pLoaderAllocator;
+    }
+
 #ifdef FEATURE_LOADER_OPTIMIZATION
     
 public:
@@ -705,7 +709,6 @@ public:
     BOOL IsVisibleToDebugger();
     BOOL NotifyDebuggerLoad(int flags, BOOL attaching);
     void NotifyDebuggerUnload();
-    BOOL IsUnloading();
 
     inline BOOL IsCollectible();
     // 
@@ -778,8 +781,21 @@ private:
     Volatile<bool>                          m_fHostAssemblyPublished;
     Volatile<bool>                          m_fCalculatedShouldLoadDomainNeutral;
     Volatile<bool>                          m_fShouldLoadDomainNeutral;
+    PTR_LoaderAllocator                     m_pLoaderAllocator;
+    DomainAssembly*                         m_NextDomainAssemblyInSameALC;
 
   public:
+      DomainAssembly* GetNextDomainAssemblyInSameALC()
+      {
+          return m_NextDomainAssemblyInSameALC;
+      }
+
+      void SetNextDomainAssemblyInSameALC(DomainAssembly* domainAssembly)
+      {
+          _ASSERTE(m_NextDomainAssemblyInSameALC == NULL);
+          m_NextDomainAssemblyInSameALC = domainAssembly;
+      }
+
     // Indicates if the assembly can be cached in a binding cache such as AssemblySpecBindingCache.
     inline bool CanUseWithBindingCache()
     { STATIC_CONTRACT_WRAPPER; return GetFile()->CanUseWithBindingCache(); }

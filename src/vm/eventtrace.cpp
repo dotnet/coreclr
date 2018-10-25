@@ -1552,7 +1552,7 @@ void BulkStaticsLogger::LogAllStatics()
                     ApproxFieldDescIterator fieldIter(mt, ApproxFieldDescIterator::STATIC_FIELDS);
                     for (FieldDesc *field = fieldIter.Next(); field != NULL; field = fieldIter.Next())
                     {
-                        // Don't want thread local or context local
+                        // Don't want thread local
                         _ASSERTE(field->IsStatic());
                         if (field->IsSpecialStatic() || field->IsEnCNew())
                             continue;
@@ -1642,81 +1642,6 @@ void BulkTypeEventLogger::FireBulkTypeEvent()
     }
     UINT16 nClrInstanceID = GetClrInstanceId();
 
-#if !defined(FEATURE_PAL)
-    // Normally, we'd use the MC-generated FireEtwBulkType for all this gunk, but
-    // it's insufficient as the bulk type event is too complex (arrays of structs of
-    // varying size). So we directly log the event via EventDataDescCreate and
-    // EventWrite
-
-    // We use one descriptor for the count + one for the ClrInstanceID + 4
-    // per batched type (to include fixed-size data + name + param count + param
-    // array).  But the system limit of 128 descriptors per event kicks in way
-    // before the 64K event size limit, and we already limit our batch size
-    // (m_nBulkTypeValueCount) to stay within the 128 descriptor limit.
-    EVENT_DATA_DESCRIPTOR EventData[128];
-
-    UINT iDesc = 0;
-
-    _ASSERTE(iDesc < _countof(EventData));
-    EventDataDescCreate(&EventData[iDesc++], &m_nBulkTypeValueCount, sizeof(m_nBulkTypeValueCount));
-
-    _ASSERTE(iDesc < _countof(EventData));
-    EventDataDescCreate(&EventData[iDesc++], &nClrInstanceID, sizeof(nClrInstanceID));
-
-    for (int iTypeData = 0; iTypeData < m_nBulkTypeValueCount; iTypeData++)
-    {
-        // Do fixed-size data as one bulk copy
-        _ASSERTE(iDesc < _countof(EventData));
-        EventDataDescCreate(
-            &EventData[iDesc++], 
-            &(m_rgBulkTypeValues[iTypeData].fixedSizedData), 
-            sizeof(m_rgBulkTypeValues[iTypeData].fixedSizedData));
-
-        // Do var-sized data individually per field
-
-        // Type name (nonexistent and thus empty on FEATURE_REDHAWK)
-        _ASSERTE(iDesc < _countof(EventData));
-#ifdef FEATURE_REDHAWK
-        EventDataDescCreate(&EventData[iDesc++], W(""), sizeof(WCHAR));
-#else   // FEATURE_REDHAWK
-        LPCWSTR wszName = m_rgBulkTypeValues[iTypeData].sName.GetUnicode();
-        EventDataDescCreate(
-            &EventData[iDesc++], 
-            (wszName == NULL) ? W("") : wszName,
-            (wszName == NULL) ? sizeof(WCHAR) : (m_rgBulkTypeValues[iTypeData].sName.GetCount() + 1) * sizeof(WCHAR));
-#endif // FEATURE_REDHAWK
-
-        // Type parameter count
-#ifndef FEATURE_REDHAWK
-        m_rgBulkTypeValues[iTypeData].cTypeParameters = m_rgBulkTypeValues[iTypeData].rgTypeParameters.GetCount();
-#endif // FEATURE_REDHAWK
-        _ASSERTE(iDesc < _countof(EventData));
-        EventDataDescCreate(
-            &EventData[iDesc++], 
-            &(m_rgBulkTypeValues[iTypeData].cTypeParameters),
-            sizeof(m_rgBulkTypeValues[iTypeData].cTypeParameters));
-
-        // Type parameter array
-        if (m_rgBulkTypeValues[iTypeData].cTypeParameters > 0)
-        {
-            _ASSERTE(iDesc < _countof(EventData));
-            EventDataDescCreate(
-                &EventData[iDesc++], 
-#ifdef FEATURE_REDHAWK
-                ((m_rgBulkTypeValues[iTypeData].cTypeParameters == 1) ?
-                    &(m_rgBulkTypeValues[iTypeData].ullSingleTypeParameter) :
-                    (ULONGLONG *) (m_rgBulkTypeValues[iTypeData].rgTypeParameters)),
-#else
-                m_rgBulkTypeValues[iTypeData].rgTypeParameters.GetElements(),
-#endif
-                sizeof(ULONGLONG) * m_rgBulkTypeValues[iTypeData].cTypeParameters);
-        }
-    }
-
-    Win32EventWrite(Microsoft_Windows_DotNETRuntimeHandle, &BulkType, iDesc, EventData);
-    
-#else // FEATURE_PAL
-
     if(m_pBulkTypeEventBuffer == NULL)
     {
         // The buffer could not be allocated when this object was created, so bail.
@@ -1770,7 +1695,6 @@ void BulkTypeEventLogger::FireBulkTypeEvent()
 
     FireEtwBulkType(m_nBulkTypeValueCount, GetClrInstanceId(), iSize, m_pBulkTypeEventBuffer);
 
-#endif // FEATURE_PAL
     // Reset state
     m_nBulkTypeValueCount = 0;
     m_nBulkTypeValueByteCount = 0;
@@ -4249,6 +4173,13 @@ void InitializeEventTracing()
 // a suitable token, this implementation has a different callback for every EventPipe provider
 // that ultimately funnels them all into a common handler.
 
+#if defined(FEATURE_PAL)
+// CLR_GCHEAPCOLLECT_KEYWORD is defined by the generated ETW manifest on Windows.
+// On non-Windows, we need to make sure that this is defined.  Given that we can't change
+// the value due to compatibility, we specify it here rather than generating defines based on the manifest.
+#define CLR_GCHEAPCOLLECT_KEYWORD 0x800000
+#endif // defined(FEATURE_PAL)
+
 // CallbackProviderIndex provides a quick identification of which provider triggered the
 // ETW callback.
 enum CallbackProviderIndex
@@ -4266,7 +4197,8 @@ VOID EtwCallbackCommon(
     CallbackProviderIndex ProviderIndex,
     ULONG ControlCode,
     UCHAR Level,
-    ULONGLONG MatchAnyKeyword)
+    ULONGLONG MatchAnyKeyword,
+    PVOID pFilterData)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -4282,6 +4214,26 @@ VOID EtwCallbackCommon(
     GCEventKeyword keywords = static_cast<GCEventKeyword>(MatchAnyKeyword);
     GCEventLevel level = static_cast<GCEventLevel>(Level);
     GCHeapUtilities::RecordEventStateChange(bIsPublicTraceHandle, keywords, level);
+
+    // Special check for the runtime provider's GCHeapCollectKeyword.  Profilers
+    // flick this to force a full GC.
+    if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle &&
+        ((MatchAnyKeyword & CLR_GCHEAPCOLLECT_KEYWORD) != 0))
+    {
+        // Profilers may (optionally) specify extra data in the filter parameter
+        // to log with the GCStart event.
+        LONGLONG l64ClientSequenceNumber = 0;
+#if !defined(FEATURE_PAL)
+        PEVENT_FILTER_DESCRIPTOR FilterData = (PEVENT_FILTER_DESCRIPTOR)pFilterData;
+        if ((FilterData != NULL) &&
+           (FilterData->Type == 1) &&
+           (FilterData->Size == sizeof(l64ClientSequenceNumber)))
+        {
+            l64ClientSequenceNumber = *(LONGLONG *) (FilterData->Ptr);
+        }
+#endif // !defined(FEATURE_PAL)
+        ETW::GCLog::ForceGC(l64ClientSequenceNumber);
+    }
 }
 
 // Individual callbacks for each EventPipe provider.
@@ -4297,7 +4249,7 @@ VOID EventPipeEtwCallbackDotNETRuntimeStress(
 {
     LIMITED_METHOD_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntimeStress, ControlCode, Level, MatchAnyKeyword);
+    EtwCallbackCommon(DotNETRuntimeStress, ControlCode, Level, MatchAnyKeyword, FilterData);
 }
 
 VOID EventPipeEtwCallbackDotNETRuntime(
@@ -4311,7 +4263,7 @@ VOID EventPipeEtwCallbackDotNETRuntime(
 {
     LIMITED_METHOD_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntime, ControlCode, Level, MatchAnyKeyword);
+    EtwCallbackCommon(DotNETRuntime, ControlCode, Level, MatchAnyKeyword, FilterData);
 }
 
 VOID EventPipeEtwCallbackDotNETRuntimeRundown(
@@ -4325,7 +4277,7 @@ VOID EventPipeEtwCallbackDotNETRuntimeRundown(
 {
     LIMITED_METHOD_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntimeRundown, ControlCode, Level, MatchAnyKeyword);
+    EtwCallbackCommon(DotNETRuntimeRundown, ControlCode, Level, MatchAnyKeyword, FilterData);
 }
 
 VOID EventPipeEtwCallbackDotNETRuntimePrivate(
@@ -4339,7 +4291,7 @@ VOID EventPipeEtwCallbackDotNETRuntimePrivate(
 {
     WRAPPER_NO_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntimePrivate, ControlCode, Level, MatchAnyKeyword);
+    EtwCallbackCommon(DotNETRuntimePrivate, ControlCode, Level, MatchAnyKeyword, FilterData);
 }
 
 
@@ -4491,7 +4443,7 @@ extern "C"
             return;
         }
 
-        EtwCallbackCommon(providerIndex, ControlCode, Level, MatchAnyKeyword);
+        EtwCallbackCommon(providerIndex, ControlCode, Level, MatchAnyKeyword, FilterData);
 
         // TypeSystemLog needs a notification when certain keywords are modified, so
         // give it a hook here.
@@ -4550,23 +4502,6 @@ extern "C"
             if (g_fEEStarted && !g_fEEShutDown && (ControlCode == EVENT_CONTROL_CODE_CAPTURE_STATE))
             {
                 ETW::EnumerationLog::EnumerateForCaptureState();
-            }
-
-            // Special check for the runtime provider's GCHeapCollectKeyword.  Profilers
-            // flick this to force a full GC.
-            if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle &&
-                ((MatchAnyKeyword & CLR_GCHEAPCOLLECT_KEYWORD) != 0))
-            {
-                // Profilers may (optionally) specify extra data in the filter parameter
-                // to log with the GCStart event.
-                LONGLONG l64ClientSequenceNumber = 0;
-                if ((FilterData != NULL) &&
-                    (FilterData->Type == 1) &&
-                    (FilterData->Size == sizeof(l64ClientSequenceNumber)))
-                {
-                    l64ClientSequenceNumber = *(LONGLONG *) (FilterData->Ptr);
-                }
-                ETW::GCLog::ForceGC(l64ClientSequenceNumber);
             }
         }
 #ifdef FEATURE_COMINTEROP
@@ -4869,20 +4804,17 @@ VOID ETW::LoaderLog::DomainUnload(AppDomain *pDomain)
                                         TRACE_LEVEL_INFORMATION, 
                                         KEYWORDZERO))
         {
-            if(!pDomain->NoAccessToHandleTable())
+            DWORD enumerationOptions = ETW::EnumerationLog::GetEnumerationOptionsFromRuntimeKeywords();
+
+            // Domain unload also causes type unload events
+            if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+                                            TRACE_LEVEL_INFORMATION, 
+                                            CLR_TYPE_KEYWORD))
             {
-                DWORD enumerationOptions = ETW::EnumerationLog::GetEnumerationOptionsFromRuntimeKeywords();
-
-                // Domain unload also causes type unload events
-                if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-                                                TRACE_LEVEL_INFORMATION, 
-                                                CLR_TYPE_KEYWORD))
-                {
-                    enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::TypeUnload;
-                }
-
-                ETW::EnumerationLog::EnumerationHelper(NULL, pDomain, enumerationOptions);
+                enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::TypeUnload;
             }
+
+            ETW::EnumerationLog::EnumerationHelper(NULL, pDomain, enumerationOptions);
         }
     } EX_CATCH { } EX_END_CATCH(SwallowAllExceptions);
 }
@@ -7071,21 +7003,8 @@ VOID ETW::EnumerationLog::IterateAppDomain(AppDomain * pAppDomain, DWORD enumera
     // ensure the App Domain does not get finalized until we're all done
     SystemDomain::LockHolder lh;
 
-    if (pAppDomain->IsFinalized())
-    {
-        return; 
-    }
-
-    // Since we're not FINALIZED yet, the handle table should remain intact,
-    // as should all type information in this AppDomain
-    _ASSERTE(!pAppDomain->NoAccessToHandleTable());
-
     // Now it's safe to do the iteration
     IterateDomain(pAppDomain, enumerationOptions);
-
-    // Since we're holding the system domain lock, the AD type info should be
-    // there throughout the entire iteration we just did
-    _ASSERTE(!pAppDomain->NoAccessToHandleTable());
 }
 
 /********************************************************************************/
@@ -7228,19 +7147,26 @@ VOID ETW::EnumerationLog::IterateCollectibleLoaderAllocator(AssemblyLoaderAlloca
             ETW::MethodLog::SendEventsForJitMethods(NULL, pLoaderAllocator, enumerationOptions);
         }
     
-        Assembly *pAssembly = pLoaderAllocator->Id()->GetDomainAssembly()->GetAssembly();
-        _ASSERTE(!pAssembly->IsDomainNeutral()); // Collectible Assemblies are not domain neutral.
-
-        DomainModuleIterator domainModuleIterator = pLoaderAllocator->Id()->GetDomainAssembly()->IterateModules(kModIterIncludeLoaded);
-        while (domainModuleIterator.Next()) 
+        // Iterate on all DomainAssembly loaded from the same AssemblyLoaderAllocator
+        DomainAssemblyIterator domainAssemblyIt = pLoaderAllocator->Id()->GetDomainAssemblyIterator();
+        while (!domainAssemblyIt.end())
         {
-            Module *pModule = domainModuleIterator.GetModule();
-            ETW::EnumerationLog::IterateModule(pModule, enumerationOptions);
-        }
+            Assembly *pAssembly = domainAssemblyIt->GetAssembly(); // TODO: handle iterator
+            _ASSERTE(!pAssembly->IsDomainNeutral()); // Collectible Assemblies are not domain neutral.
 
-        if (enumerationOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleUnload)
-        {
-            ETW::EnumerationLog::IterateAssembly(pAssembly, enumerationOptions);
+            DomainModuleIterator domainModuleIterator = domainAssemblyIt->IterateModules(kModIterIncludeLoaded);
+            while (domainModuleIterator.Next())
+            {
+                Module *pModule = domainModuleIterator.GetModule();
+                ETW::EnumerationLog::IterateModule(pModule, enumerationOptions);
+            }
+
+            if (enumerationOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleUnload)
+            {
+                ETW::EnumerationLog::IterateAssembly(pAssembly, enumerationOptions);
+            }
+
+            domainAssemblyIt++;
         }
 
         // Load Jit Method events

@@ -402,52 +402,7 @@ void Assembly::Terminate( BOOL signalProfiler )
         m_pClassLoader = NULL;
     }
 
-    if (m_pLoaderAllocator != NULL)
-    {
-        if (IsCollectible())
-        {
-            // This cleanup code starts resembling parts of AppDomain::Terminate too much.
-            // It would be useful to reduce duplication and also establish clear responsibilites
-            // for LoaderAllocator::Destroy, Assembly::Terminate, LoaderAllocator::Terminate
-            // and LoaderAllocator::~LoaderAllocator. We need to establish how these
-            // cleanup paths interact with app-domain unload and process tear-down, too.
-
-            if (!IsAtProcessExit())
-            {
-                // Suspend the EE to do some clean up that can only occur
-                // while no threads are running.
-                GCX_COOP (); // SuspendEE may require current thread to be in Coop mode
-                // SuspendEE cares about the reason flag only when invoked for a GC
-                // Other values are typically ignored. If using SUSPEND_FOR_APPDOMAIN_SHUTDOWN
-                // is inappropriate, we can introduce a new flag or hijack an unused one.
-                ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_APPDOMAIN_SHUTDOWN);
-            }
-
-            ExecutionManager::Unload(m_pLoaderAllocator);
-
-            m_pLoaderAllocator->UninitVirtualCallStubManager();
-            MethodTable::ClearMethodDataCache();
-            _ASSERTE(m_pDomain->IsAppDomain());
-            AppDomain *pAppDomain = m_pDomain->AsAppDomain();
-            ClearJitGenericHandleCache(pAppDomain);
-
-            if (!IsAtProcessExit())
-            {
-                // Resume the EE.
-                ThreadSuspend::RestartEE(FALSE, TRUE);
-            }
-            
-            // Once the manifest file is tenured, the managed LoaderAllocatorScout is responsible for cleanup.
-            if (m_pManifest != NULL && m_pManifest->IsTenured())
-            {
-                pAppDomain->RegisterLoaderAllocatorForDeletion(m_pLoaderAllocator);
-            }
-        }
-        m_pLoaderAllocator = NULL;
-    }
-
     COUNTER_ONLY(GetPerfCounters().m_Loading.cAssemblies--);
-
 
 #ifdef PROFILING_SUPPORTED
     if (CORProfilerTrackAssemblyLoads())
@@ -651,7 +606,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         IfFailThrow(pAssemblyEmit->DefineAssembly(publicKey, publicKey.GetSize(), ulHashAlgId,
                                                    name, &assemData, dwFlags,
                                                    &ma));
-        pFile = PEAssembly::Create(pCallerAssembly->GetManifestFile(), pAssemblyEmit, args->access & ASSEMBLY_ACCESS_REFLECTION_ONLY);
+        pFile = PEAssembly::Create(pCallerAssembly->GetManifestFile(), pAssemblyEmit);
 
         // Dynamically created modules (aka RefEmit assemblies) do not have a LoadContext associated with them since they are not bound
         // using an actual binder. As a result, we will assume the same binding/loadcontext information for the dynamic assembly as its
@@ -709,6 +664,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         if ((args->access & ASSEMBLY_ACCESS_COLLECT) != 0)
         {
             AssemblyLoaderAllocator *pAssemblyLoaderAllocator = new AssemblyLoaderAllocator();
+            pAssemblyLoaderAllocator->SetCollectible();
             pLoaderAllocator = pAssemblyLoaderAllocator;
 
             // Some of the initialization functions are not virtual. Call through the derived class
@@ -728,6 +684,12 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
 
         // Create a domain assembly
         pDomainAssembly = new DomainAssembly(pDomain, pFile, pLoaderAllocator);
+        if (pDomainAssembly->IsCollectible())
+        {
+            // We add the assembly to the LoaderAllocator only when we are sure that it can be added
+            // and won't be deleted in case of a concurrent load from the same ALC
+            ((AssemblyLoaderAllocator *)(LoaderAllocator *)pLoaderAllocator)->AddDomainAssembly(pDomainAssembly);
+        }
     }
 
     // Start loading process
@@ -749,7 +711,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
             {
                 // Initializing the virtual call stub manager is delayed to remove the need for the LoaderAllocator destructor to properly handle
                 // uninitializing the VSD system. (There is a need to suspend the runtime, and that's tricky)
-                pLoaderAllocator->InitVirtualCallStubManager(pDomain, TRUE);
+                pLoaderAllocator->InitVirtualCallStubManager(pDomain);
             }
         }
 
@@ -876,12 +838,6 @@ DomainAssembly *Assembly::FindDomainAssembly(AppDomain *pDomain)
 
     PREFIX_ASSUME (GetManifestModule() !=NULL); 
     RETURN GetManifestModule()->FindDomainAssembly(pDomain);
-}
-
-BOOL Assembly::IsIntrospectionOnly()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_pManifestFile->IsIntrospectionOnly();
 }
 
 PTR_LoaderHeap Assembly::GetLowFrequencyHeap()
@@ -1219,7 +1175,6 @@ Module * Assembly::FindModuleByTypeRef(
             if (pModule->HasBindableIdentity(tkType))
 #endif// FEATURE_COMINTEROP
             {
-                _ASSERTE(!IsAfContentType_WindowsRuntime(pModule->GetAssemblyRefFlags(tkType)));
                 if (loadFlag == Loader::SafeLookup)
                 {
                     pAssembly = pModule->LookupAssemblyRef(tkType);
@@ -1760,6 +1715,21 @@ static void RunMainPost()
     }
 }
 
+static void RunStartupHooks()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    MethodDescCallSite processStartupHooks(METHOD__STARTUP_HOOK_PROVIDER__PROCESS_STARTUP_HOOKS);
+    processStartupHooks.Call(NULL);
+}
+
 INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThreads)
 {
     CONTRACTL
@@ -1798,22 +1768,20 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
 
                 Thread::ApartmentState state = Thread::AS_Unknown;
                 state = SystemDomain::GetEntryPointThreadAptState(pMeth->GetMDImport(), pMeth->GetMemberDef());
-
-                // If the entry point has an explicit thread apartment state, set it
-                // before running the AppDomainManager initialization code.
-                if (state == Thread::AS_InSTA || state == Thread::AS_InMTA)
-                    SystemDomain::SetThreadAptState(state);
+                SystemDomain::SetThreadAptState(state);
 #endif // FEATURE_COMINTEROP
             }
 
             RunMainPre();
 
-            
             // Set the root assembly as the assembly that is containing the main method
             // The root assembly is used in the GetEntryAssembly method that on CoreCLR is used
             // to get the TargetFrameworkMoniker for the app
             AppDomain * pDomain = pThread->GetDomain();
             pDomain->SetRootAssembly(pMeth->GetAssembly());
+
+            RunStartupHooks();
+
             hr = RunMain(pMeth, 1, &iRetVal, stringArgs);
         }
     }

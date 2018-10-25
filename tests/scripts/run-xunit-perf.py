@@ -455,10 +455,11 @@ def main(args):
     build_perfharness(coreclrRepo, sandboxDir, extension, myEnv)
 
     # Set up environment for running tests
-    if optLevel == 'min_opts':
+    if optLevel == 'min_opt':
         myEnv['COMPlus_JITMinOpts'] = '1'
-    elif optLevel == 'tiered':
-        myEnv['COMPLUS_TieredCompilation'] = '1'
+        myEnv['COMPlus_TieredCompilation'] = '0'
+    elif optLevel == 'full_opt':
+        myEnv['COMPlus_TieredCompilation'] = '0'
 
     if not 'XUNIT_PERFORMANCE_MAX_ITERATION' in myEnv:
         myEnv['XUNIT_PERFORMANCE_MAX_ITERATION'] = '21'

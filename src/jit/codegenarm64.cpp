@@ -1148,10 +1148,10 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
         // so that they are contiguous with the incoming stack arguments.
         saveRegsPlusPSPSize += MAX_REG_ARG * REGSIZE_BYTES;
     }
-    unsigned saveRegsPlusPSPSizeAligned = (unsigned)roundUp(saveRegsPlusPSPSize, STACK_ALIGN);
+    unsigned saveRegsPlusPSPSizeAligned = roundUp(saveRegsPlusPSPSize, STACK_ALIGN);
 
     assert(compiler->lvaOutgoingArgSpaceSize % REGSIZE_BYTES == 0);
-    unsigned outgoingArgSpaceAligned = (unsigned)roundUp(compiler->lvaOutgoingArgSpaceSize, STACK_ALIGN);
+    unsigned outgoingArgSpaceAligned = roundUp(compiler->lvaOutgoingArgSpaceSize, STACK_ALIGN);
 
     unsigned maxFuncletFrameSizeAligned = saveRegsPlusPSPSizeAligned + outgoingArgSpaceAligned;
     assert((maxFuncletFrameSizeAligned % STACK_ALIGN) == 0);
@@ -1163,7 +1163,7 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
     if (maxFuncletFrameSizeAligned <= 512)
     {
         unsigned funcletFrameSize        = saveRegsPlusPSPSize + compiler->lvaOutgoingArgSpaceSize;
-        unsigned funcletFrameSizeAligned = (unsigned)roundUp(funcletFrameSize, STACK_ALIGN);
+        unsigned funcletFrameSizeAligned = roundUp(funcletFrameSize, STACK_ALIGN);
         assert(funcletFrameSizeAligned <= maxFuncletFrameSizeAligned);
 
         unsigned funcletFrameAlignmentPad = funcletFrameSizeAligned - funcletFrameSize;
@@ -1540,7 +1540,7 @@ void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
 
 // Generate code for ADD, SUB, MUL, DIV, UDIV, AND, OR and XOR
 // This method is expected to have called genConsumeOperands() before calling it.
-void CodeGen::genCodeForBinary(GenTree* treeNode)
+void CodeGen::genCodeForBinary(GenTreeOp* treeNode)
 {
     const genTreeOps oper       = treeNode->OperGet();
     regNumber        targetReg  = treeNode->gtRegNum;
@@ -1887,7 +1887,7 @@ void CodeGen::genLclHeap(GenTree* tree)
             goto BAILOUT;
         }
 
-        // 'amount' is the total numbe of bytes to localloc to properly STACK_ALIGN
+        // 'amount' is the total number of bytes to localloc to properly STACK_ALIGN
         amount = AlignUp(amount, STACK_ALIGN);
     }
     else
@@ -1965,16 +1965,18 @@ void CodeGen::genLclHeap(GenTree* tree)
         // We should reach here only for non-zero, constant size allocations.
         assert(amount > 0);
 
-        // For small allocations we will generate up to four stp instructions
-        size_t cntStackAlignedWidthItems = (amount >> STACK_ALIGN_SHIFT);
-        if (cntStackAlignedWidthItems <= 4)
+        // For small allocations we will generate up to four stp instructions, to zero 16 to 64 bytes.
+        static_assert_no_msg(STACK_ALIGN == (REGSIZE_BYTES * 2));
+        assert(amount % (REGSIZE_BYTES * 2) == 0); // stp stores two registers at a time
+        size_t stpCount = amount / (REGSIZE_BYTES * 2);
+        if (stpCount <= 4)
         {
-            while (cntStackAlignedWidthItems != 0)
+            while (stpCount != 0)
             {
                 // We can use pre-indexed addressing.
-                // stp ZR, ZR, [SP, #-16]!
+                // stp ZR, ZR, [SP, #-16]!   // STACK_ALIGN is 16
                 getEmitter()->emitIns_R_R_R_I(INS_stp, EA_PTRSIZE, REG_ZR, REG_ZR, REG_SPBASE, -16, INS_OPTS_PRE_INDEX);
-                cntStackAlignedWidthItems -= 1;
+                stpCount -= 1;
             }
 
             goto ALLOC_DONE;
@@ -2136,12 +2138,6 @@ ALLOC_DONE:
 BAILOUT:
     if (endLabel != nullptr)
         genDefineTempLabel(endLabel);
-
-    // Write the lvaLocAllocSPvar stack frame slot
-    if (compiler->lvaLocAllocSPvar != BAD_VAR_NUM)
-    {
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, targetReg, compiler->lvaLocAllocSPvar, 0);
-    }
 
 #if STACK_PROBES
     if (compiler->opts.compNeedStackProbes)
@@ -2467,7 +2463,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
         sourceIsLocal = true;
     }
 
-    bool dstOnStack = dstAddr->OperIsLocalAddr();
+    bool dstOnStack = dstAddr->gtSkipReloadOrCopy()->OperIsLocalAddr();
 
 #ifdef DEBUG
     assert(!dstAddr->isContained());
@@ -2635,7 +2631,7 @@ void CodeGen::genJumpTable(GenTree* treeNode)
         BasicBlock* target = *jumpTable++;
         noway_assert(target->bbFlags & BBF_JMP_TARGET);
 
-        JITDUMP("            DD      L_M%03u_BB%02u\n", Compiler::s_compMethodsCount, target->bbNum);
+        JITDUMP("            DD      L_M%03u_" FMT_BB "\n", Compiler::s_compMethodsCount, target->bbNum);
 
         getEmitter()->emitDataGenData(i, target);
     };
@@ -3710,8 +3706,8 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
                                gcInfo.gcRegByrefSetCur, BAD_IL_OFFSET, /* IL offset */
                                callTarget,                             /* ireg */
                                REG_NA, 0, 0,                           /* xreg, xmul, disp */
-                               false,                                  /* isJump */
-                               emitter::emitNoGChelper(helper));
+                               false                                   /* isJump */
+                               );
 
     regMaskTP killMask = compiler->compHelperCallKillSet((CorInfoHelpFunc)helper);
     regSet.verifyRegistersUsed(killMask);
@@ -4599,8 +4595,28 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
                 assert(op1->isUsedFromReg());
                 regNumber srcReg = op1->gtRegNum;
 
-                // mov targetReg, srcReg[#index]
-                getEmitter()->emitIns_R_R_I(INS_mov, baseTypeSize, targetReg, srcReg, index);
+                instruction ins;
+                if (varTypeIsFloating(baseType))
+                {
+                    assert(genIsValidFloatReg(targetReg));
+                    // dup targetReg, srcReg[#index]
+                    ins = INS_dup;
+                }
+                else
+                {
+                    assert(genIsValidIntReg(targetReg));
+                    if (varTypeIsUnsigned(baseType) || (baseTypeSize == EA_8BYTE))
+                    {
+                        // umov targetReg, srcReg[#index]
+                        ins = INS_umov;
+                    }
+                    else
+                    {
+                        // smov targetReg, srcReg[#index]
+                        ins = INS_smov;
+                    }
+                }
+                getEmitter()->emitIns_R_R_I(ins, baseTypeSize, targetReg, srcReg, index);
             }
         }
     }
@@ -5031,7 +5047,7 @@ void CodeGen::genHWIntrinsicUnaryOp(GenTreeHWIntrinsic* node)
 {
     GenTree*  op1       = node->gtGetOp1();
     regNumber targetReg = node->gtRegNum;
-    emitAttr  attr      = emitActualTypeSize(node);
+    emitAttr  attr      = emitActualTypeSize(op1->TypeGet());
 
     assert(targetReg != REG_NA);
     var_types targetType = node->TypeGet();

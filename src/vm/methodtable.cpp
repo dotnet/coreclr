@@ -2901,7 +2901,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             switch (cls)
             {
 #ifdef FEATURE_COMINTEROP
-            case NFT_BSTR:
             case NFT_HSTRING:
             case NFT_VARIANT:
             case NFT_VARIANTBOOL:
@@ -2919,6 +2918,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case NFT_DELEGATE:
             case NFT_SAFEHANDLE:
             case NFT_CRITICALHANDLE:
+            case NFT_BSTR:
                 fieldClassificationType = SystemVClassificationTypeInteger;
                 break;
 
@@ -3489,7 +3489,7 @@ void MethodTable::DoRunClassInitThrowing()
                 if (hNewInitException != NULL && 
                     InterlockedCompareExchangeT((&pEntry->m_hInitException), hNewInitException, hOrigInitException) != hOrigInitException)
                 {
-                    pEntry->m_pLoaderAllocator->ClearHandle(hNewInitException);
+                    pEntry->m_pLoaderAllocator->FreeHandle(hNewInitException);
                 }
             }
         }
@@ -4029,10 +4029,7 @@ OBJECTREF MethodTable::GetManagedClassObject()
 
         REFLECTCLASSBASEREF  refClass = NULL;
         GCPROTECT_BEGIN(refClass);
-        if (GetAssembly()->IsIntrospectionOnly())
-            refClass = (REFLECTCLASSBASEREF) AllocateObject(MscorlibBinder::GetClass(CLASS__CLASS_INTROSPECTION_ONLY));
-        else
-            refClass = (REFLECTCLASSBASEREF) AllocateObject(g_pRuntimeTypeClass);
+        refClass = (REFLECTCLASSBASEREF) AllocateObject(g_pRuntimeTypeClass);
 
         LoaderAllocator *pLoaderAllocator = GetLoaderAllocator();
 
@@ -4045,7 +4042,7 @@ OBJECTREF MethodTable::GetManagedClassObject()
 
         if (FastInterlockCompareExchangePointer(&(EnsureWritablePages(GetWriteableDataForWrite())->m_hExposedClassObject), exposedClassObjectHandle, static_cast<LOADERHANDLE>(NULL)))
         {
-            pLoaderAllocator->ClearHandle(exposedClassObjectHandle);
+            pLoaderAllocator->FreeHandle(exposedClassObjectHandle);
         }
 
         GCPROTECT_END();
@@ -5966,7 +5963,7 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
             SetIsDependenciesLoaded();
 
 #if defined(FEATURE_COMINTEROP) && !defined(DACCESS_COMPILE)
-            if (WinRTSupported() && g_fEEStarted && !ContainsIntrospectionOnlyTypes())
+            if (WinRTSupported() && g_fEEStarted)
             {
                 _ASSERTE(GetAppDomain() != NULL);
 
@@ -9367,7 +9364,7 @@ CHECK MethodTable::CheckActivated()
 }
 
 #ifdef _MSC_VER
-// Optimization intended for EnsureInstanceActive, IsIntrospectionOnly, EnsureActive only
+// Optimization intended for EnsureInstanceActive, EnsureActive only
 #pragma optimize("t", on)
 #endif // _MSC_VER
 //==========================================================================================
@@ -9421,40 +9418,6 @@ VOID MethodTable::EnsureInstanceActive()
 
 }
 #endif //!DACCESS_COMPILE
-
-//==========================================================================================
-BOOL MethodTable::IsIntrospectionOnly()
-{
-    WRAPPER_NO_CONTRACT;
-    return GetAssembly()->IsIntrospectionOnly();
-}
-
-//==========================================================================================
-BOOL MethodTable::ContainsIntrospectionOnlyTypes()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-
-    // check this type
-    if (IsIntrospectionOnly())
-        return TRUE;
-
-    // check the instantiation
-    Instantiation inst = GetInstantiation();
-    for (DWORD i = 0; i < inst.GetNumArgs(); i++)
-    {
-        CONSISTENCY_CHECK(!inst[i].IsEncodedFixup());
-        if (inst[i].ContainsIntrospectionOnlyTypes())
-            return TRUE;
-    }
-
-    return FALSE;
-}
 
 //==========================================================================================
 #ifndef DACCESS_COMPILE
@@ -10112,7 +10075,7 @@ BOOL MethodTable::Validate()
 NOINLINE BYTE *MethodTable::GetLoaderAllocatorObjectForGC()
 {
     WRAPPER_NO_CONTRACT;
-    if (!Collectible() || ((PTR_AppDomain)GetLoaderModule()->GetDomain())->NoAccessToHandleTable())
+    if (!Collectible())
     {
         return NULL;
     }

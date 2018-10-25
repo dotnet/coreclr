@@ -85,8 +85,6 @@ public:
 #endif // SCALED_ADDR_MODES
                                    ssize_t* cnsPtr) = 0;
 
-    void genCalcFrameSize();
-
     GCInfo gcInfo;
 
     RegSet   regSet;
@@ -98,7 +96,13 @@ protected:
     bool      m_genAlignLoops;
 
 private:
+#if defined(_TARGET_XARCH_)
+    static const insFlags instInfo[INS_count];
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     static const BYTE instInfo[INS_count];
+#else
+#error Unsupported target architecture
+#endif
 
 #define INST_FP 0x01 // is it a FP instruction?
 public:
@@ -276,11 +280,11 @@ public:
 
     // Methods to abstract target information
 
-    bool validImmForInstr(instruction ins, ssize_t val, insFlags flags = INS_FLAGS_DONT_CARE);
-    bool validDispForLdSt(ssize_t disp, var_types type);
-    bool validImmForAdd(ssize_t imm, insFlags flags);
-    bool validImmForAlu(ssize_t imm);
-    bool validImmForMov(ssize_t imm);
+    bool validImmForInstr(instruction ins, target_ssize_t val, insFlags flags = INS_FLAGS_DONT_CARE);
+    bool validDispForLdSt(target_ssize_t disp, var_types type);
+    bool validImmForAdd(target_ssize_t imm, insFlags flags);
+    bool validImmForAlu(target_ssize_t imm);
+    bool validImmForMov(target_ssize_t imm);
     bool validImmForBL(ssize_t addr);
 
     instruction ins_Load(var_types srcType, bool aligned = false);
@@ -290,7 +294,6 @@ public:
     // Methods for spilling - used by RegSet
     void spillReg(var_types type, TempDsc* tmp, regNumber reg);
     void reloadReg(var_types type, TempDsc* tmp, regNumber reg);
-    void reloadFloatReg(var_types type, TempDsc* tmp, regNumber reg);
 
     // The following method is used by xarch emitter for handling contained tree temps.
     TempDsc* getSpillTempDsc(GenTree* tree);
