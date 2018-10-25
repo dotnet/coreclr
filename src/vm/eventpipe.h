@@ -310,10 +310,6 @@ class EventPipe
         static EventPipeFile *s_pFile;
         static EventPipeEventSource *s_pEventSource;
         static LPCWSTR s_pCommandLine;
-#ifdef _DEBUG
-        static EventPipeFile *s_pSyncFile;
-        static EventPipeJsonFile *s_pJsonFile;
-#endif // _DEBUG
 };
 
 struct EventPipeProviderConfiguration
