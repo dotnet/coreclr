@@ -46,9 +46,6 @@ namespace System
     //
     // For a description of various calendar issues, look at
     //
-    // Calendar Studies web site, at
-    // http://serendipity.nofadz.com/hermetic/cal_stud.htm.
-    //
     //
     [StructLayout(LayoutKind.Auto)]
     [Serializable]
