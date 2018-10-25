@@ -1,13 +1,15 @@
 <Project ToolsVersion="12.0" DefaultTargets="ArchiveAll" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <UsingTask TaskName="ZipFileCreateFromDirectory" AssemblyFile="$(ToolsDir)\net46\Microsoft.DotNet.Build.Tasks.dll"/>
-  
+  <UsingTask TaskName="ZipFileCreateFromDirectory" AssemblyFile="$(ToolsDir)\net46\Microsoft.DotNet.Build.Tasks.dll"
+             Condition=" '$(MSBuildRuntimeType)' != 'Core' " />
+  <UsingTask TaskName="ZipFileCreateFromDirectory" AssemblyFile="$(ToolsDir)\Microsoft.DotNet.Build.Tasks.dll"
+             Condition=" '$(MSBuildRuntimeType)' == 'Core' " />
+
   <Import Project="dir.props" />
   <Import Project="..\dir.props" />
 
   <PropertyGroup>
     <DiscoveryDirectory>$(TestWorkingDir)</DiscoveryDirectory>
-    <CoreRootDir>$(CORE_ROOT)</CoreRootDir>
     <CoreRootName>Core_Root_$(RuntimeID)</CoreRootName>
   </PropertyGroup>
 
@@ -51,10 +53,10 @@
   <!-- Zip Core_Root & Packages payload to send to Helix -->
 
   <Target Name="ArchiveCoreRoot"
-    Inputs="$(CoreRootDir)"
+    Inputs="$(CORE_ROOT)"
     Outputs="$(TestWorkingDir)archive\Core_Root" >
     <MSBuild Projects="helixprep.proj"
-             Properties="BuildPath=$(CoreRootDir);ProjectName=$(CoreRootName);BuildArchiveDir=$(TestWorkingDir)archive\Core_Root\"
+             Properties="BuildPath=$(CORE_ROOT);ProjectName=$(CoreRootName);BuildArchiveDir=$(TestWorkingDir)archive\Core_Root\"
              Targets="ArchiveBuild" />
 
     <!-- Make dummy packages.zip to upload to Helix -->
