@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//*************************************************************************************************************
+//
 // For each dynamic assembly there will be two AssemblyBuilder objects: the "internal" 
 // AssemblyBuilder object and the "external" AssemblyBuilder object.
 //  1.  The "internal" object is the real assembly object that the VM creates and knows about. However, 
@@ -19,7 +19,7 @@
 //      "internal" object.
 //
 // "internal" and "external" ModuleBuilders are similar
-//*************************************************************************************************************
+//
 
 namespace System.Reflection.Emit
 {
