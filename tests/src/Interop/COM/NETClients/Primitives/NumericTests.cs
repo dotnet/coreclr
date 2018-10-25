@@ -37,6 +37,7 @@ namespace NetClient
 
             this.Marshal_Float(a / 100f, b / 100f);
             this.Marshal_Double(a / 100.0, b / 100.0);
+            this.Marshal_ManyInts();
         }
 
         static private bool EqualByBound(float expected, float actual)
@@ -188,6 +189,13 @@ namespace NetClient
             c = 0;
             this.server.Add_Double_Out(a, b, out c);
             Assert.IsTrue(EqualByBound(expected, c));
+        }
+
+        private void Marshal_ManyInts()
+        {
+            var expected = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11;
+            Console.WriteLine($"{expected.GetType().Name} test invariant: 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 = {expected}");
+            Assert.IsTrue(expected == this.server.Add_ManyInts(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11));
         }
     }
 }

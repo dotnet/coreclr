@@ -44,6 +44,8 @@ namespace Server.Contract
         void Add_ULong_Out(ulong a, ulong b, out ulong c);
         void Add_Float_Out(float a, float b, out float c);
         void Add_Double_Out(double a, double b, out double c);
+
+        int Add_ManyInts(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8, int i9, int i10, int i11);
     }
 
     [ComVisible(true)]
