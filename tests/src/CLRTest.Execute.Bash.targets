@@ -89,9 +89,9 @@ then
   echo "SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress) IS SET"
   exit $(GCBashScriptExitCode)
 fi
-if [[ "$COMPlus_TieredCompilation" != "0" ]]
+if [[ "$COMPlus_TieredCompilation" != "" && "$COMPlus_TieredCompilation" != "0" ]]
 then
-  echo "SKIPPING EXECUTION BECAUSE COMPlus_TieredCompilation has not been disabled and this test is marked JitOptimizationSensitive"
+  echo "SKIPPING EXECUTION BECAUSE COMPlus_TieredCompilation has been enabled and this test is marked JitOptimizationSensitive"
   exit $(GCBashScriptExitCode)
 fi
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
