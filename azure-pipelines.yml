@@ -29,7 +29,6 @@ resources:
   containers:
   - container: alpine
     image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-3148f11-20171119021156
-  containers:
   - container: myubuntu
     image: ubuntu
     
