@@ -16,13 +16,12 @@ namespace System.Buffers
         internal static int SelectBucketIndex(int bufferSize)
         {
             Debug.Assert(bufferSize >= 0);
-#if HAS_INTRINSICS
             if (Lzcnt.IsSupported)
             {
                 uint bits = ((uint)bufferSize - 1) >> 4;
                 return 32 - (int)Lzcnt.LeadingZeroCount(bits);
             }
-#endif
+
             // bufferSize of 0 will underflow here, causing a huge
             // index which the caller will discard because it is not
             // within the bounds of the bucket array.

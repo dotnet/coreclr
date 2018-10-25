@@ -4,9 +4,7 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-#if HAS_INTRINSICS
 using System.Runtime.Intrinsics.X86;
-#endif
 
 namespace System.Buffers.Text
 {
@@ -106,13 +104,11 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountHexDigits(ulong value)
         {
-#if HAS_INTRINSICS
             if (Lzcnt.IsSupported && IntPtr.Size == 8)
             {
                 int right = 64 - (int)Lzcnt.LeadingZeroCount(value | 1);
                 return (right + 3) >> 2;
             }
-#endif
 
             int digits = 1;
 
