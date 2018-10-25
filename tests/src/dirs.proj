@@ -41,6 +41,9 @@
       <Project Include="reflection\**\*.csproj" Exclude="@(DisabledProjects)">
         <AdditionalProperties>OSGroup=$(OSGroup)</AdditionalProperties>
       </Project>
+      <Project Include="ilasm\**\*.csproj" Exclude="@(DisabledProjects)">
+        <AdditionalProperties>OSGroup=$(OSGroup)</AdditionalProperties>
+      </Project>
     </ItemGroup>
 
     <ItemGroup Condition="$(__TestGroupToBuild) == '1' And $(TestBuildSlice) == '2'">
