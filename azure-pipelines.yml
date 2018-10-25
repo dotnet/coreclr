@@ -39,14 +39,14 @@ jobs:
     name: Hosted Ubuntu 1604
   container: alpine
   steps:
-    - script: printenv
+    - bash: "printenv"
 - job: testubuntucontainerjob
   displayName: ubuntu container job
   pool:
     name: Hosted Ubuntu 1604
   container: myubuntu
   steps:
-    - script: printenv
+    - bash: "printenv"
 
 #- job: testvariablejob
 #  displayName: testvariableDisplayName
