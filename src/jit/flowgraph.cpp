@@ -10977,6 +10977,14 @@ void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
         /* First update the loop table and bbWeights */
         optUpdateLoopsBeforeRemoveBlock(block, skipUnmarkLoop);
 
+        // Update successor block start IL offset, if empty predecessor
+        // covers the immediately preceding range.
+        if ((block->bbCodeOffsEnd == succBlock->bbCodeOffs) && (block->bbCodeOffs != BAD_IL_OFFSET))
+        {
+            assert(block->bbCodeOffs <= succBlock->bbCodeOffs);
+            succBlock->bbCodeOffs = block->bbCodeOffs;
+        }
+
         /* Remove the block */
 
         if (bPrev == nullptr)
@@ -21878,8 +21886,9 @@ void Compiler::fgInline()
 
     if (verbose || fgPrintInlinedMethods)
     {
-        printf("**************** Inline Tree\n");
-        m_inlineStrategy->Dump();
+        JITDUMP("**************** Inline Tree");
+        printf("\n");
+        m_inlineStrategy->Dump(verbose);
     }
 
 #endif // DEBUG
@@ -22573,7 +22582,7 @@ void Compiler::fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* inlineRe
 
 #ifdef DEBUG
 
-    if (verbose || fgPrintInlinedMethods)
+    if (verbose)
     {
         printf("Successfully inlined %s (%d IL bytes) (depth %d) [%s]\n", eeGetMethodFullName(fncHandle),
                inlineCandidateInfo->methInfo.ILCodeSize, inlineDepth, inlineResult->ReasonString());
