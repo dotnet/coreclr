@@ -88,7 +88,7 @@ namespace System.Diagnostics
 
         private static bool s_needIndent = true;
 
-        private static string s_indentString;
+        private string s_indentString;
 
         internal string GetIndentString()
         {
