@@ -2468,7 +2468,7 @@ BOOL IsStringObject (size_t obj)
     return FALSE;
 }
 
-BOOL IsDerivedFrom(CLRDATA_ADDRESS mtObj, __in_z LPWSTR baseString)
+BOOL IsDerivedFrom(CLRDATA_ADDRESS mtObj, __in_z LPCWSTR baseString)
 {
     DacpMethodTableData dmtd;
     CLRDATA_ADDRESS walkMT = mtObj;
@@ -2498,21 +2498,16 @@ BOOL TryGetMethodDescriptorForDelegate(CLRDATA_ADDRESS delegateAddr, CLRDATA_ADD
         return FALSE;
     }
 
-    sos::Object delegateObj = delegateAddr;
+    sos::Object delegateObj = TO_TADDR(delegateAddr);
     int offset;
 
     if ((offset = GetObjFieldOffset(delegateObj.GetAddress(), delegateObj.GetMT(), W("_methodPtrAux"))) != 0)
     {
         CLRDATA_ADDRESS methodPtrAux;
         MOVE(methodPtrAux, delegateObj.GetAddress() + offset);
-        if (methodPtrAux != NULL)
+        if (methodPtrAux != NULL && g_sos->GetMethodDescPtrFromIP(methodPtrAux, pMD) == S_OK)
         {
-            DacpCodeHeaderData codeHeaderData;
-            if (codeHeaderData.Request(g_sos, methodPtrAux) == S_OK)
-            {
-                *pMD = codeHeaderData.MethodDescPtr;
-                return TRUE;
-            }
+            return TRUE;
         }
     }
 
@@ -2520,19 +2515,9 @@ BOOL TryGetMethodDescriptorForDelegate(CLRDATA_ADDRESS delegateAddr, CLRDATA_ADD
     {
         CLRDATA_ADDRESS methodPtr;
         MOVE(methodPtr, delegateObj.GetAddress() + offset);
-        if (methodPtr != NULL)
+        if (methodPtr != NULL && g_sos->GetMethodDescPtrFromIP(methodPtr, pMD) == S_OK)
         {
-            if (g_sos->GetMethodDescPtrFromIP(methodPtr, pMD) == S_OK)
-            {
-                return TRUE;
-            }
-
-            DacpCodeHeaderData codeHeaderData;
-            if (codeHeaderData.Request(g_sos, methodPtr) == S_OK)
-            {
-                *pMD = codeHeaderData.MethodDescPtr;
-                return TRUE;
-            }
+            return TRUE;
         }
     }
 

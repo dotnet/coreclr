@@ -124,7 +124,6 @@
 
 #include <set>
 #include <algorithm>
-#include <vector>
 
 #include "tls.h"
 
@@ -146,6 +145,8 @@ typedef VM_COUNTERS *PVM_COUNTERS;
 const PROCESSINFOCLASS ProcessVmCounters = static_cast<PROCESSINFOCLASS>(3);
 
 #endif // !FEATURE_PAL
+
+#include <vector>
 
 BOOL CallStatus;
 BOOL ControlC = FALSE;
@@ -2067,122 +2068,122 @@ DECLARE_API(DumpObj)
 
 DECLARE_API(DumpDelegate)
 {
-	INIT_API();
-	MINIDUMP_NOT_SUPPORTED();
+    INIT_API();
+    MINIDUMP_NOT_SUPPORTED();
 
-	try
-	{
-		BOOL dml = FALSE;
-		DWORD_PTR dwAddr = 0;
+    try
+    {
+        BOOL dml = FALSE;
+        DWORD_PTR dwAddr = 0;
 
-		CMDOption option[] =
-		{   // name, vptr, type, hasValue
-			{"/d", &dml, COBOOL, FALSE}
-		};
-		CMDValue arg[] =
-		{   // vptr, type
-			{&dwAddr, COHEX}
-		};
-		size_t nArg;
-		if (!GetCMDOption(args, option, _countof(option), arg, _countof(arg), &nArg))
-		{
-			return Status;
-		}
-		if (nArg != 1)
-		{
-			ExtOut("Usage: !DumpDelegate <delegate object address>\n");
-			return Status;
-		}
+        CMDOption option[] =
+        {   // name, vptr, type, hasValue
+            {"/d", &dml, COBOOL, FALSE}
+        };
+        CMDValue arg[] =
+        {   // vptr, type
+            {&dwAddr, COHEX}
+        };
+        size_t nArg;
+        if (!GetCMDOption(args, option, _countof(option), arg, _countof(arg), &nArg))
+        {
+            return Status;
+        }
+        if (nArg != 1)
+        {
+            ExtOut("Usage: !DumpDelegate <delegate object address>\n");
+            return Status;
+        }
 
-		EnableDMLHolder dmlHolder(dml);
-		CLRDATA_ADDRESS delegateAddr = TO_CDADDR(dwAddr);
+        EnableDMLHolder dmlHolder(dml);
+        CLRDATA_ADDRESS delegateAddr = TO_CDADDR(dwAddr);
 
-		if (!sos::IsObject(delegateAddr))
-		{
-			ExtOut("Invalid object.\n");
-		}
-		else
-		{
-			sos::Object delegateObj = delegateAddr;
-			if (!IsDerivedFrom(delegateObj.GetMT(), W("System.Delegate")))
-			{
-				ExtOut("Object of type '%S' is not a delegate.", delegateObj.GetTypeName());
-			}
-			else
-			{
-				ExtOut("Target           Method           Name\n");
+        if (!sos::IsObject(delegateAddr))
+        {
+            ExtOut("Invalid object.\n");
+        }
+        else
+        {
+            sos::Object delegateObj = TO_TADDR(delegateAddr);
+            if (!IsDerivedFrom(TO_CDADDR(delegateObj.GetMT()), W("System.Delegate")))
+            {
+                ExtOut("Object of type '%S' is not a delegate.", delegateObj.GetTypeName());
+            }
+            else
+            {
+                ExtOut("Target           Method           Name\n");
 
-				std::vector<CLRDATA_ADDRESS> delegatesRemaining;
-				delegatesRemaining.push_back(delegateAddr);
-				while (delegatesRemaining.size() > 0)
-				{
-					delegateAddr = delegatesRemaining.back();
-					delegatesRemaining.pop_back();
-					delegateObj = delegateAddr;
+                std::vector<CLRDATA_ADDRESS> delegatesRemaining;
+                delegatesRemaining.push_back(delegateAddr);
+                while (delegatesRemaining.size() > 0)
+                {
+                    delegateAddr = delegatesRemaining.back();
+                    delegatesRemaining.pop_back();
+                    delegateObj = TO_TADDR(delegateAddr);
 
-					int offset;
-					if ((offset = GetObjFieldOffset(delegateObj.GetAddress(), delegateObj.GetMT(), W("_target"))) != 0)
-					{
-						CLRDATA_ADDRESS target;
-						MOVE(target, delegateObj.GetAddress() + offset);
+                    int offset;
+                    if ((offset = GetObjFieldOffset(delegateObj.GetAddress(), delegateObj.GetMT(), W("_target"))) != 0)
+                    {
+                        CLRDATA_ADDRESS target;
+                        MOVE(target, delegateObj.GetAddress() + offset);
 
-						if ((offset = GetObjFieldOffset(delegateObj.GetAddress(), delegateObj.GetMT(), W("_invocationList"))) != 0)
-						{
-							CLRDATA_ADDRESS invocationList;
-							MOVE(invocationList, delegateObj.GetAddress() + offset);
+                        if ((offset = GetObjFieldOffset(delegateObj.GetAddress(), delegateObj.GetMT(), W("_invocationList"))) != 0)
+                        {
+                            CLRDATA_ADDRESS invocationList;
+                            MOVE(invocationList, delegateObj.GetAddress() + offset);
 
-							if ((offset = GetObjFieldOffset(delegateObj.GetAddress(), delegateObj.GetMT(), W("_invocationCount"))) != 0)
-							{
-								int invocationCount;
-								MOVE(invocationCount, delegateObj.GetAddress() + offset);
+                            if ((offset = GetObjFieldOffset(delegateObj.GetAddress(), delegateObj.GetMT(), W("_invocationCount"))) != 0)
+                            {
+                                int invocationCount;
+                                MOVE(invocationCount, delegateObj.GetAddress() + offset);
 
-								if (invocationList == NULL)
-								{
-									CLRDATA_ADDRESS md;
-									DMLOut("%s ", DMLObject(target));
-									if (TryGetMethodDescriptorForDelegate(delegateAddr, &md))
-									{
-										DMLOut("%s ", DMLMethodDesc(md));
-										NameForMD_s(md, g_mdName, mdNameLen);
-										ExtOut("%S\n", g_mdName);
-									}
-									else
-									{
-										ExtOut("(unknown)\n");
-									}
-								}
-								else if (sos::IsObject(invocationList, false))
-								{
-									DacpObjectData objData;
-									if (objData.Request(g_sos, invocationList) == S_OK &&
-										objData.ObjectType == OBJ_ARRAY &&
-										invocationCount <= objData.dwNumComponents)
-									{
-										for (int i = 0; i < invocationCount; i++)
-										{
-											CLRDATA_ADDRESS elementPtr;
-											MOVE(elementPtr, TO_CDADDR(objData.ArrayDataPtr + (i * objData.dwComponentSize)));
-											if (elementPtr != NULL && sos::IsObject(elementPtr, false))
-											{
-												delegatesRemaining.push_back(elementPtr);
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+                                if (invocationList == NULL)
+                                {
+                                    CLRDATA_ADDRESS md;
+                                    DMLOut("%s ", DMLObject(target));
+                                    if (TryGetMethodDescriptorForDelegate(delegateAddr, &md))
+                                    {
+                                        DMLOut("%s ", DMLMethodDesc(md));
+                                        NameForMD_s((DWORD_PTR)md, g_mdName, mdNameLen);
+                                        ExtOut("%S\n", g_mdName);
+                                    }
+                                    else
+                                    {
+                                        ExtOut("(unknown)\n");
+                                    }
+                                }
+                                else if (sos::IsObject(invocationList, false))
+                                {
+                                    DacpObjectData objData;
+                                    if (objData.Request(g_sos, invocationList) == S_OK &&
+                                        objData.ObjectType == OBJ_ARRAY &&
+                                        invocationCount <= objData.dwNumComponents)
+                                    {
+                                        for (int i = 0; i < invocationCount; i++)
+                                        {
+                                            CLRDATA_ADDRESS elementPtr;
+                                            MOVE(elementPtr, TO_CDADDR(objData.ArrayDataPtr + (i * objData.dwComponentSize)));
+                                            if (elementPtr != NULL && sos::IsObject(elementPtr, false))
+                                            {
+                                                delegatesRemaining.push_back(elementPtr);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-		return S_OK;
-	}
-	catch (const sos::Exception &e)
-	{
-		ExtOut("%s\n", e.what());
-		return E_FAIL;
-	}
+        return S_OK;
+    }
+    catch (const sos::Exception &e)
+    {
+        ExtOut("%s\n", e.what());
+        return E_FAIL;
+    }
 }
 
 CLRDATA_ADDRESS isExceptionObj(CLRDATA_ADDRESS mtObj)
