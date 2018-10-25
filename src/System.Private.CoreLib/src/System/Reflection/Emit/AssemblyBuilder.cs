@@ -339,8 +339,8 @@ namespace System.Reflection.Emit
         #region DefineDynamicModule
         /// <summary>
         /// Defines a named dynamic module. It is an error to define multiple 
-        /// modules within an Assembly with the same name.This dynamic module is
-        /// transient module.
+        /// modules within an Assembly with the same name. This dynamic module is
+        /// a transient module.
         /// </summary>
         /// <remarks>
         /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
@@ -356,10 +356,12 @@ namespace System.Reflection.Emit
         /// <remarks>
         /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         /// </remarks>
+        /// <param name = "name" ></ param >
+        /// <param name = "emitSymbolInfo" >Specify if emit symbol info or not.</ param >
         [System.Security.DynamicSecurityMethod]
         public ModuleBuilder DefineDynamicModule(
             string name,
-            bool emitSymbolInfo)         // specify if emit symbol info or not
+            bool emitSymbolInfo)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return DefineDynamicModuleInternal(name, emitSymbolInfo, ref stackMark);
@@ -489,9 +491,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Assembly overrides
-        /// <summary>
-        /// Returns the names of all the resources.
-        /// </summary>
+        /// <returns>The names of all the resources.</returns>
         public override string[] GetManifestResourceNames()
         {
             return InternalAssembly.GetManifestResourceNames();
@@ -546,8 +546,10 @@ namespace System.Reflection.Emit
             }
         }
 
-        // Override the EntryPoint method on Assembly.
-        // This doesn't need to be synchronized because it is simple enough
+        /// <sumary>
+        /// Override the EntryPoint method on Assembly.
+        /// This doesn't need to be synchronized because it is simple enough.
+        /// </sumary>
         public override MethodInfo EntryPoint
         {
             get
@@ -556,7 +558,9 @@ namespace System.Reflection.Emit
             }
         }
 
-        // Get an array of all the public types defined in this assembly
+        /// <sumary>
+        /// Get an array of all the public types defined in this assembly.
+        /// </sumary>
         public override Type[] GetExportedTypes()
         {
             return InternalAssembly.GetExportedTypes();
@@ -632,15 +636,23 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetLoadedModules(getResourceModules);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
+        /// <remarks>
+        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
+        /// </remarks>
+        [System.Security.DynamicSecurityMethod]
         public override Assembly GetSatelliteAssembly(CultureInfo culture)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalAssembly.InternalGetSatelliteAssembly(culture, null, ref stackMark);
         }
 
-        // Useful for binding to a very specific version of a satellite assembly
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
+        /// <sumary> 
+        /// Useful for binding to a very specific version of a satellite assembly
+        /// </sumary>
+        /// <remarks>
+        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
+        /// </remarks>
+        [System.Security.DynamicSecurityMethod]
         public override Assembly GetSatelliteAssembly(CultureInfo culture, Version version)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -657,12 +669,9 @@ namespace System.Reflection.Emit
 
         public override bool IsCollectible => InternalAssembly.IsCollectible;
         #endregion
-
-        /// <summary>
-        /// Return a dynamic module with the specified name.
-        /// </summary>
+        
         /// <param name="name">The name of module for the look up.</param>
-        /// <returns>Dynamic module with the specified name</returns>
+        /// <returns>Dynamic module with the specified name.</returns>
         public ModuleBuilder GetDynamicModule(
             string name)
         {
