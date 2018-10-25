@@ -21,15 +21,15 @@ namespace System.Diagnostics
                     s_WriteCore(string.Empty);
                     return;
                 }
-                if (s_needIndent)
+                if (_needIndent)
                 {
                     message = GetIndentString() + message;
-                    s_needIndent = false;
+                    _needIndent = false;
                 }
                 s_WriteCore(message);
                 if (message.EndsWith(Environment.NewLine))
                 {
-                    s_needIndent = true;
+                    _needIndent = true;
                 }
             }
         }
@@ -86,18 +86,18 @@ namespace System.Diagnostics
             }
         }
 
-        private static bool s_needIndent = true;
+        private bool _needIndent = true;
 
-        private string s_indentString;
+        private string _indentString;
 
         internal string GetIndentString()
         {
             int indentCount = IndentSize * IndentLevel;
-            if (s_indentString?.Length == indentCount)
+            if (_indentString?.Length == indentCount)
             {
-                return s_indentString;
+                return _indentString;
             }
-            return s_indentString = new string(' ', indentCount);
+            return _indentString = new string(' ', indentCount);
         }
 
         // internal and not readonly so that the tests can swap this out.
