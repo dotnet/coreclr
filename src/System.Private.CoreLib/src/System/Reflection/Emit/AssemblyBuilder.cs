@@ -2,25 +2,24 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
-//*************************************************************************************************************
-// For each dynamic assembly there will be two AssemblyBuilder objects: the "internal" 
-// AssemblyBuilder object and the "external" AssemblyBuilder object.
-//  1.  The "internal" object is the real assembly object that the VM creates and knows about. However, 
-//      you can perform RefEmit operations on it only if you have its granted permission. From the AppDomain 
-//      and other "internal" objects like the "internal" ModuleBuilders and runtime types, you can only
-//      get the "internal" objects. This is to prevent low-trust code from getting a hold of the dynamic
-//      AssemblyBuilder/ModuleBuilder/TypeBuilder/MethodBuilder/etc other people have created by simply 
-//      enumerating the AppDomain and inject code in it.
-//  2.  The "external" object is merely an wrapper of the "internal" object and all operations on it
-//      are directed to the internal object. This is the one you get by calling DefineDynamicAssembly
-//      on AppDomain and the one you can always perform RefEmit operations on. You can get other "external"
-//      objects from the "external" AssemblyBuilder, ModuleBuilder, TypeBuilder, MethodBuilder, etc. Note
-//      that VM doesn't know about this object. So every time we call into the VM we need to pass in the
-//      "internal" object.
-//
-// "internal" and "external" ModuleBuilders are similar
-//*************************************************************************************************************
+/// <summary>
+/// For each dynamic assembly there will be two AssemblyBuilder objects: the "internal" 
+/// AssemblyBuilder object and the "external" AssemblyBuilder object.
+///  1.  The "internal" object is the real assembly object that the VM creates and knows about. However, 
+///      you can perform RefEmit operations on it only if you have its granted permission. From the AppDomain 
+///      and other "internal" objects like the "internal" ModuleBuilders and runtime types, you can only
+///      get the "internal" objects. This is to prevent low-trust code from getting a hold of the dynamic
+///      AssemblyBuilder/ModuleBuilder/TypeBuilder/MethodBuilder/etc other people have created by simply 
+///      enumerating the AppDomain and inject code in it.
+///  2.  The "external" object is merely an wrapper of the "internal" object and all operations on it
+///      are directed to the internal object. This is the one you get by calling DefineDynamicAssembly
+///      on AppDomain and the one you can always perform RefEmit operations on. You can get other "external"
+///      objects from the "external" AssemblyBuilder, ModuleBuilder, TypeBuilder, MethodBuilder, etc. Note
+///      that VM doesn't know about this object. So every time we call into the VM we need to pass in the
+///      "internal" object.
+///
+/// "internal" and "external" ModuleBuilders are similar
+/// </summary>
 
 namespace System.Reflection.Emit
 {
@@ -136,9 +135,13 @@ namespace System.Reflection.Emit
         }
         #endregion
     }
-
-    // AssemblyBuilder class.
-    // deliberately not [serializable]
+    
+    /// <summary>
+    /// AssemblyBuilder class.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not [serializable]
+    /// </remarks>
     public sealed class AssemblyBuilder : Assembly
     {
         #region FCALL
@@ -272,12 +275,15 @@ namespace System.Reflection.Emit
 
         #region DefineDynamicAssembly
 
-        /**********************************************
-        * If an AssemblyName has a public key specified, the assembly is assumed
-        * to have a strong name and a hash will be computed when the assembly
-        * is saved.
-        **********************************************/
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
+        /// <summary>
+        /// If an AssemblyName has a public key specified, the assembly is assumed
+        /// to have a strong name and a hash will be computed when the assembly
+        /// is saved.
+        /// </summary>
+        /// <remarks>
+        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
+        /// </remarks>
+        [System.Security.DynamicSecurityMethod]
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access)
@@ -287,7 +293,10 @@ namespace System.Reflection.Emit
                                                  ref stackMark, null);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
+        /// <remarks>
+        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
+        /// </remarks>
+        [System.Security.DynamicSecurityMethod]
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access,
@@ -328,14 +337,15 @@ namespace System.Reflection.Emit
         #endregion
 
         #region DefineDynamicModule
-        /**********************************************
-        *
-        * Defines a named dynamic module. It is an error to define multiple 
-        * modules within an Assembly with the same name. This dynamic module is
-        * a transient module.
-        * 
-        **********************************************/
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
+        /// <summary>
+        /// Defines a named dynamic module. It is an error to define multiple 
+        /// modules within an Assembly with the same name.This dynamic module is
+        /// transient module
+        /// </summary>
+        /// <remarks>
+        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
+        /// </remarks>
+        [System.Security.DynamicSecurityMethod]
         public ModuleBuilder DefineDynamicModule(
             string name)
         {
@@ -343,7 +353,10 @@ namespace System.Reflection.Emit
             return DefineDynamicModuleInternal(name, false, ref stackMark);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
+        /// <remarks>
+        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
+        /// </remarks>
+        [System.Security.DynamicSecurityMethod]
         public ModuleBuilder DefineDynamicModule(
             string name,
             bool emitSymbolInfo)         // specify if emit symbol info or not
@@ -476,7 +489,9 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Assembly overrides
-        // Returns the names of all the resources
+        /// <summary>
+        /// Returns the names of all the resources.
+        /// </summary>
         public override string[] GetManifestResourceNames()
         {
             return InternalAssembly.GetManifestResourceNames();
@@ -641,14 +656,11 @@ namespace System.Reflection.Emit
         }
         #endregion
 
-
-        /**********************************************
-        *
-        * return a dynamic module with the specified name.
-        *
-        **********************************************/
+        
+        /// <param name="name">The name of module for the look up.</param>
+        /// <returns>Dynamic module with the specified name</returns>
         public ModuleBuilder GetDynamicModule(
-            string name)                   // the name of module for the look up
+            string name)
         {
             lock (SyncRoot)
             {
@@ -656,8 +668,9 @@ namespace System.Reflection.Emit
             }
         }
 
+        /// <param name="name">The name of module for the look up.</param>
         private ModuleBuilder GetDynamicModuleNoLock(
-            string name)                   // the name of module for the look up
+            string name)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -676,10 +689,10 @@ namespace System.Reflection.Emit
             return null;
         }
 
-
-        /**********************************************
-        * Use this function if client decides to form the custom attribute blob themselves
-        **********************************************/
+        
+        /// <summary>
+        /// Use this function if client decides to form the custom attribute blob themselves.
+        /// </summary>
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
             if (con == null)
@@ -710,10 +723,10 @@ namespace System.Reflection.Emit
                 m_assemblyData.AddCustomAttribute(con, binaryAttribute);
             }
         }
-
-        /**********************************************
-        * Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
-        **********************************************/
+        
+        /// <summary>
+        /// Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder.
+        /// </summary>
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
             if (customBuilder == null)
