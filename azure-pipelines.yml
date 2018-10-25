@@ -47,6 +47,18 @@ jobs:
   container: myubuntu
   steps:
     - bash: "printenv"
+- job: test_publishbuildartifact
+  displayName: publish build artifact test job
+  pool:
+    name: Hosted Ubuntu 1604
+  steps:
+    - script: echo hi > file.txt
+    - task: PublishBuildArtifacts@1
+      displayName: Publish build artifact
+      inputs:
+        PathtoPublish: $(Build.SourcesDirectory)/file.txt
+        PublishLocation: Container
+        ArtifactName: svenartifact
 
 #- job: testvariablejob
 #  displayName: testvariableDisplayName
