@@ -22,7 +22,7 @@ phases:
     queue:
       name: dotnet-external-temp
       timeoutInMinutes: 180
-      parallel: 3
+      parallel: 4
       matrix:
         x64 release innerLoop:
           buildConfig: release
@@ -95,10 +95,12 @@ phases:
           buildConfig: release
           buildConfigUpper: Release
           archType: x64
+          buildOS: Linux
         x86 release innerloop:
           buildConfig: release
           buildConfigUpper: Release
           archType: x86
+          buildOS: Linux
     agentOs: Ubuntu
     name: Ubuntu
     steps:
@@ -121,7 +123,7 @@ phases:
       displayName: Publish build to some location (empty for now)
     - script: ./build-test.sh $(buildConfig) $(archType)
       displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/OSX.$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(buildOS).$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
@@ -156,6 +158,7 @@ phases:
           buildConfig: release
           buildConfigUpper: Release
           archType: x64
+          buildOS: OSX
     agentOs: MacOS
     name: MacOS
     steps:
@@ -186,7 +189,7 @@ phases:
       displayName: Publish build to some location (empty for now)
     - script: ./build-test.sh $(buildConfig) $(archType)
       displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/OSX.$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(buildOS).$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
