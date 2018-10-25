@@ -96,11 +96,6 @@ phases:
           buildConfigUpper: Release
           archType: x64
           buildOS: Linux
-        x86 release innerloop:
-          buildConfig: release
-          buildConfigUpper: Release
-          archType: x86
-          buildOS: Linux
     agentOs: Ubuntu
     name: Ubuntu
     steps:
