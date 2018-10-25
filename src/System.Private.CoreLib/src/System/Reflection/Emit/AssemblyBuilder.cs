@@ -136,12 +136,6 @@ namespace System.Reflection.Emit
         #endregion
     }
     
-    /// <summary>
-    /// AssemblyBuilder class.
-    /// </summary>
-    /// <remarks>
-    /// Deliberately not [serializable]
-    /// </remarks>
     public sealed class AssemblyBuilder : Assembly
     {
         #region FCALL
@@ -280,10 +274,7 @@ namespace System.Reflection.Emit
         /// to have a strong name and a hash will be computed when the assembly
         /// is saved.
         /// </summary>
-        /// <remarks>
-        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
-        /// </remarks>
-        [System.Security.DynamicSecurityMethod]
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access)
@@ -292,11 +283,8 @@ namespace System.Reflection.Emit
             return InternalDefineDynamicAssembly(name, access,
                                                  ref stackMark, null);
         }
-
-        /// <remarks>
-        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
-        /// </remarks>
-        [System.Security.DynamicSecurityMethod]
+        
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access,
@@ -342,23 +330,17 @@ namespace System.Reflection.Emit
         /// modules within an Assembly with the same name. This dynamic module is
         /// a transient module.
         /// </summary>
-        /// <remarks>
-        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
-        /// </remarks>
-        [System.Security.DynamicSecurityMethod]
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public ModuleBuilder DefineDynamicModule(
             string name)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return DefineDynamicModuleInternal(name, false, ref stackMark);
         }
-
-        /// <remarks>
-        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
-        /// </remarks>
+        
         /// <param name = "name" ></ param >
         /// <param name = "emitSymbolInfo" >Specify if emit symbol info or not.</ param >
-        [System.Security.DynamicSecurityMethod]
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public ModuleBuilder DefineDynamicModule(
             string name,
             bool emitSymbolInfo)
@@ -635,11 +617,8 @@ namespace System.Reflection.Emit
         {
             return InternalAssembly.GetLoadedModules(getResourceModules);
         }
-
-        /// <remarks>
-        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        /// </remarks>
-        [System.Security.DynamicSecurityMethod]
+        
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public override Assembly GetSatelliteAssembly(CultureInfo culture)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -649,10 +628,7 @@ namespace System.Reflection.Emit
         /// <sumary> 
         /// Useful for binding to a very specific version of a satellite assembly
         /// </sumary>
-        /// <remarks>
-        /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        /// </remarks>
-        [System.Security.DynamicSecurityMethod]
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public override Assembly GetSatelliteAssembly(CultureInfo culture, Version version)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
