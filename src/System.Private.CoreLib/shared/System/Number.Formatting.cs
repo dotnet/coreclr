@@ -243,7 +243,7 @@ namespace System
     internal static partial class Number
     {
         internal const int DecimalPrecision = 29; // Decimal.DecCalc also uses this value
-        private const int FloatPrecision = 7;
+        private const int SinglePrecision = 7;
         private const int DoublePrecision = 15;
         private const int ScaleNAN = unchecked((int)0x80000000);
         private const int ScaleINF = 0x7FFFFFFF;
@@ -488,7 +488,7 @@ namespace System
         private static string FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
-            int precision = FloatPrecision;
+            int precision = SinglePrecision;
             NumberBuffer number = default;
             number.kind = NumberBufferKind.Double;
 
@@ -500,7 +500,7 @@ namespace System
                     // In order to give numbers that are both friendly to display and round-trippable, we parse the
                     // number using 7 digits and then determine if it round trips to the same value. If it does, we
                     // convert that NUMBER to a string, otherwise we reparse using 9 digits and display that.
-                    DoubleToNumber(value, FloatPrecision, ref number);
+                    DoubleToNumber(value, SinglePrecision, ref number);
                     if (number.scale == ScaleNAN)
                     {
                         return info.NaNSymbol;
@@ -512,7 +512,7 @@ namespace System
 
                     if ((float)NumberToDouble(ref number) == value)
                     {
-                        NumberToString(ref sb, ref number, 'G', FloatPrecision, info);
+                        NumberToString(ref sb, ref number, 'G', SinglePrecision, info);
                     }
                     else
                     {
