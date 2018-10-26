@@ -473,7 +473,7 @@ jobs:
   steps:
     - script: echo $(matrixVar)
 
-- job: dependentMatrixJob
-  dependsOn: matrixJob config1
-  steps:
-    - script: echo dependent job!
+#- job: dependentMatrixJob
+#  dependsOn: matrixJob config1
+#  steps:
+#    - script: echo dependent job!
