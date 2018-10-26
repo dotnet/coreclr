@@ -52,7 +52,7 @@ namespace System
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 255
         };
 
-        private static unsafe bool NumberToInt32(ref NumberBuffer number, ref int value)
+        private static unsafe bool TryNumberToInt32(ref NumberBuffer number, ref int value)
         {
             int i = number.scale;
             if (i > Int32Precision || i < number.precision)
@@ -93,7 +93,7 @@ namespace System
             return true;
         }
 
-        private static unsafe bool NumberToInt64(ref NumberBuffer number, ref long value)
+        private static unsafe bool TryNumberToInt64(ref NumberBuffer number, ref long value)
         {
             int i = number.scale;
             if (i > Int64Precision || i < number.precision)
@@ -134,7 +134,7 @@ namespace System
             return true;
         }
 
-        private static unsafe bool NumberToUInt32(ref NumberBuffer number, ref uint value)
+        private static unsafe bool TryNumberToUInt32(ref NumberBuffer number, ref uint value)
         {
             int i = number.scale;
             if (i > UInt32Precision || i < number.precision || number.sign)
@@ -166,7 +166,7 @@ namespace System
             return true;
         }
 
-        private static unsafe bool NumberToUInt64(ref NumberBuffer number, ref ulong value)
+        private static unsafe bool TryNumberToUInt64(ref NumberBuffer number, ref ulong value)
         {
             int i = number.scale;
             if (i > UInt64Precision || i < number.precision || number.sign)
@@ -200,139 +200,45 @@ namespace System
 
         internal static int ParseInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
-            if ((styles & ~NumberStyles.Integer) == 0)
+            if (!TryParseInt32(value, styles, info, out int result, out bool failureIsOverflow))
             {
-                // Optimized path for the common case of anything that's allowed for integer style.
-                bool overflow = false;
-                if (!TryParseInt32IntegerStyle(value, styles, info, out int intResult, ref overflow))
-                {
-                    ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_Int32));
-                }
-                return intResult;
+                ThrowOverflowOrFormatException(failureIsOverflow, nameof(SR.Overflow_Int32));
             }
 
-            if ((styles & NumberStyles.AllowHexSpecifier) != 0)
-            {
-                bool overflow = false;
-                if (!TryParseUInt32HexNumberStyle(value, styles, out uint hexResult, ref overflow))
-                {
-                    ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_Int32));
-                }
-                return (int)hexResult;
-            }
-
-            NumberBuffer number = default;
-            int result = 0;
-            StringToNumber(value, styles, ref number, info, false);
-            if (!NumberToInt32(ref number, ref result))
-            {
-                ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_Int32));
-            }
             return result;
         }
 
         internal static long ParseInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
-            if ((styles & ~NumberStyles.Integer) == 0)
+            if (!TryParseInt64(value, styles, info, out long result, out bool failureIsOverflow))
             {
-                // Optimized path for the common case of anything that's allowed for integer style.
-                bool overflow = false;
-                if (!TryParseInt64IntegerStyle(value, styles, info, out long intResult, ref overflow))
-                {
-                    ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_Int64));
-                }
-                return intResult;
+                ThrowOverflowOrFormatException(failureIsOverflow, nameof(SR.Overflow_Int64));
             }
 
-            if ((styles & NumberStyles.AllowHexSpecifier) != 0)
-            {
-                bool overflow = false;
-                if (!TryParseUInt64HexNumberStyle(value, styles, out ulong hexResult, ref overflow))
-                {
-                    ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_Int64));
-                }
-                return (long)hexResult;
-            }
-
-            NumberBuffer number = default;
-            long result = 0;
-            StringToNumber(value, styles, ref number, info, false);
-            if (!NumberToInt64(ref number, ref result))
-            {
-                ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_Int64));
-            }
             return result;
         }
 
         internal static uint ParseUInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
-            uint result = 0;
-
-            if ((styles & ~NumberStyles.Integer) == 0)
+            if (!TryParseUInt32(value, styles, info, out uint result, out bool failureIsOverflow))
             {
-                // Optimized path for the common case of anything that's allowed for integer style.
-                bool overflow = false;
-                if (!TryParseUInt32IntegerStyle(value, styles, info, out result, ref overflow))
-                {
-                    ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_UInt32));
-                }
-                return result;
+                ThrowOverflowOrFormatException(failureIsOverflow, nameof(SR.Overflow_UInt32));
             }
 
-            if ((styles & NumberStyles.AllowHexSpecifier) != 0)
-            {
-                bool overflow = false;
-                if (!TryParseUInt32HexNumberStyle(value, styles, out result, ref overflow))
-                {
-                    ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_UInt32));
-                }
-                return result;
-            }
-
-            NumberBuffer number = default;
-            StringToNumber(value, styles, ref number, info, false);
-            if (!NumberToUInt32(ref number, ref result))
-            {
-                ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_UInt32));
-            }
             return result;
         }
 
         internal static ulong ParseUInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
-            ulong result = 0;
-
-            if ((styles & ~NumberStyles.Integer) == 0)
+            if (!TryParseUInt64(value, styles, info, out ulong result, out bool failureIsOverflow))
             {
-                // Optimized path for the common case of anything that's allowed for integer style.
-                bool overflow = false;
-                if (!TryParseUInt64IntegerStyle(value, styles, info, out result, ref overflow))
-                {
-                    ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_UInt64));
-                }
-                return result;
+                ThrowOverflowOrFormatException(failureIsOverflow, nameof(SR.Overflow_UInt64));
             }
 
-            if ((styles & NumberStyles.AllowHexSpecifier) != 0)
-            {
-                bool overflow = false;
-                if (!TryParseUInt64HexNumberStyle(value, styles, out result, ref overflow))
-                {
-                    ThrowOverflowOrFormatException(overflow, nameof(SR.Overflow_UInt64));
-                }
-                return result;
-            }
-
-            NumberBuffer number = default;
-            StringToNumber(value, styles, ref number, info, false);
-            if (!NumberToUInt64(ref number, ref result))
-            {
-                ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_UInt64));
-            }
             return result;
         }
 
-        private static unsafe bool ParseNumber(ref char* str, char* strEnd, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info, bool parseDecimal)
+        private static unsafe bool TryParseNumber(ref char* str, char* strEnd, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info)
         {
             Debug.Assert(str != null);
             Debug.Assert(strEnd != null);
@@ -418,7 +324,7 @@ namespace System
                         if (digCount < NumberMaxDigits)
                         {
                             number.digits[digCount++] = ch;
-                            if (ch != '0' || parseDecimal)
+                            if (ch != '0' || number.kind == NumberBufferKind.Decimal)
                             {
                                 digEnd = digCount;
                             }
@@ -525,7 +431,7 @@ namespace System
                 {
                     if ((state & StateNonZero) == 0)
                     {
-                        if (!parseDecimal)
+                        if (number.kind != NumberBufferKind.Decimal)
                         {
                             number.scale = 0;
                         }
@@ -542,27 +448,37 @@ namespace System
             return false;
         }
 
-        internal static bool TryParseInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out int result)
+        internal static bool TryParseInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out int result, out bool failureIsOverflow)
         {
+            result = 0;
+            failureIsOverflow = false;
+
             if ((styles & ~NumberStyles.Integer) == 0)
             {
                 // Optimized path for the common case of anything that's allowed for integer style.
-                bool overflow = false;
-                return TryParseInt32IntegerStyle(value, styles, info, out result, ref overflow);
+                return TryParseInt32IntegerStyle(value, styles, info, out result, ref failureIsOverflow);
             }
-
-            result = 0;
 
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
-                bool overflow = false;
-                return TryParseUInt32HexNumberStyle(value, styles, out Unsafe.As<int, uint>(ref result), ref overflow);
+                return TryParseUInt32HexNumberStyle(value, styles, out Unsafe.As<int, uint>(ref result), ref failureIsOverflow);
             }
 
             NumberBuffer number = default;
-            return
-                TryStringToNumber(value, styles, ref number, info, false) &&
-                NumberToInt32(ref number, ref result);
+            number.kind = NumberBufferKind.Integer;
+
+            if (!TryStringToNumber(value, styles, ref number, info))
+            {
+                return false;
+            }
+
+            if (!TryNumberToInt32(ref number, ref result))
+            {
+                failureIsOverflow = true;
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>Parses int limited to styles that make up NumberStyles.Integer.</summary>
@@ -908,49 +824,71 @@ namespace System
             goto DoneAtEndButPotentialOverflow;
         }
 
-        internal static bool TryParseInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out long result)
+        internal static bool TryParseInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out long result, out bool failureIsOverflow)
         {
+            result = 0;
+            failureIsOverflow = false;
+
             if ((styles & ~NumberStyles.Integer) == 0)
             {
                 // Optimized path for the common case of anything that's allowed for integer style.
-                bool overflow = false;
-                return TryParseInt64IntegerStyle(value, styles, info, out result, ref overflow);
+                return TryParseInt64IntegerStyle(value, styles, info, out result, ref failureIsOverflow);
             }
-
-            result = 0;
 
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
-                bool overflow = false;
-                return TryParseUInt64HexNumberStyle(value, styles, out Unsafe.As<long, ulong>(ref result), ref overflow);
+                return TryParseUInt64HexNumberStyle(value, styles, out Unsafe.As<long, ulong>(ref result), ref failureIsOverflow);
             }
 
             NumberBuffer number = default;
-            return
-                TryStringToNumber(value, styles, ref number, info, false) &&
-                NumberToInt64(ref number, ref result);
+            number.kind = NumberBufferKind.Integer;
+
+            if (!TryStringToNumber(value, styles, ref number, info))
+            {
+                return false;
+            }
+
+            if (!TryNumberToInt64(ref number, ref result))
+            {
+                failureIsOverflow = true;
+                return false;
+            }
+
+            return true;
         }
 
-        internal static bool TryParseUInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out uint result)
+        internal static bool TryParseUInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out uint result, out bool failureIsOverflow)
         {
+            result = 0;
+            failureIsOverflow = false;
+
             if ((styles & ~NumberStyles.Integer) == 0)
             {
                 // Optimized path for the common case of anything that's allowed for integer style.
-                bool overflow = false;
-                return TryParseUInt32IntegerStyle(value, styles, info, out result, ref overflow);
+                return TryParseUInt32IntegerStyle(value, styles, info, out result, ref failureIsOverflow);
             }
 
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
-                bool overflow = false;
-                return TryParseUInt32HexNumberStyle(value, styles, out result, ref overflow);
+                return TryParseUInt32HexNumberStyle(value, styles, out result, ref failureIsOverflow);
             }
 
             NumberBuffer number = default;
-            result = 0;
-            return
-                TryStringToNumber(value, styles, ref number, info, false) &&
-                NumberToUInt32(ref number, ref result);
+            number.kind = NumberBufferKind.Integer;
+
+            if (!TryStringToNumber(value, styles, ref number, info))
+            {
+                return false;
+            }
+
+
+            if (!TryNumberToUInt32(ref number, ref result))
+            {
+                failureIsOverflow = true;
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>Parses uint limited to styles that make up NumberStyles.Integer.</summary>
@@ -1241,26 +1179,39 @@ namespace System
             goto DoneAtEndButPotentialOverflow;
         }
 
-        internal static bool TryParseUInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out ulong result)
+        internal static bool TryParseUInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out ulong result, out bool failureIsOverflow)
         {
+            result = 0;
+            failureIsOverflow = false;
+
             if ((styles & ~NumberStyles.Integer) == 0)
             {
                 // Optimized path for the common case of anything that's allowed for integer style.
-                bool overflow = false;
-                return TryParseUInt64IntegerStyle(value, styles, info, out result, ref overflow);
+                return TryParseUInt64IntegerStyle(value, styles, info, out result, ref failureIsOverflow);
             }
 
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
-                bool overflow = false;
-                return TryParseUInt64HexNumberStyle(value, styles, out result, ref overflow);
+                return TryParseUInt64HexNumberStyle(value, styles, out result, ref failureIsOverflow);
             }
 
             NumberBuffer number = default;
-            result = 0;
-            return
-                TryStringToNumber(value, styles, ref number, info, false) &&
-                NumberToUInt64(ref number, ref result);
+            number.kind = NumberBufferKind.Integer;
+
+            
+            if (!TryStringToNumber(value, styles, ref number, info))
+            {
+                return false;
+            }
+
+
+            if (!TryNumberToUInt64(ref number, ref result))
+            {
+                failureIsOverflow = true;
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>Parses ulong limited to styles that make up NumberStyles.Integer.</summary>
@@ -1553,19 +1504,15 @@ namespace System
 
         internal static decimal ParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
-            NumberBuffer number = default;
-            decimal result = 0;
-
-            StringToNumber(value, styles, ref number, info, true);
-
-            if (!NumberBufferToDecimal(ref number, ref result))
+            if (!TryParseDecimal(value, styles, info, out decimal result, out bool failureIsOverflow))
             {
-                ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_Decimal));
+                ThrowOverflowOrFormatException(failureIsOverflow, nameof(SR.Overflow_Decimal));
             }
+
             return result;
         }
 
-        private static unsafe bool NumberBufferToDecimal(ref NumberBuffer number, ref decimal value)
+        private static unsafe bool TryNumberToDecimal(ref NumberBuffer number, ref decimal value)
         {
             char* p = number.GetDigitsPointer();
             int e = number.scale;
@@ -1668,154 +1615,122 @@ namespace System
 
         internal static double ParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
-            NumberBuffer number = default;
-            double d = 0;
-
-            if (!TryStringToNumber(value, styles, ref number, info, false))
+            if (!TryParseDouble(value, styles, info, out double result, out bool failureIsOverflow))
             {
-                //If we failed TryStringToNumber, it may be from one of our special strings.
-                //Check the three with which we're concerned and rethrow if it's not one of
-                //those strings.
-                ReadOnlySpan<char> sTrim = value.Trim();
-                if (sTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
-                {
-                    return double.PositiveInfinity;
-                }
-                if (sTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
-                {
-                    return double.NegativeInfinity;
-                }
-                if (sTrim.EqualsOrdinal(info.NaNSymbol))
-                {
-                    return double.NaN;
-                }
-                ThrowOverflowOrFormatException(overflow: false, null);
+                ThrowOverflowOrFormatException(failureIsOverflow, nameof(SR.Overflow_Double));
             }
 
-            if (!NumberBufferToDouble(ref number, ref d))
-            {
-                ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_Double));
-            }
-
-            return d;
+            return result;
         }
 
         internal static float ParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
-            NumberBuffer number = default;
-            double d = 0;
-
-            if (!TryStringToNumber(value, styles, ref number, info, false))
+            if (!TryParseSingle(value, styles, info, out float result, out bool failureIsOverflow))
             {
-                //If we failed TryStringToNumber, it may be from one of our special strings.
-                //Check the three with which we're concerned and rethrow if it's not one of
-                //those strings.
-                ReadOnlySpan<char> sTrim = value.Trim();
-                if (sTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
+                ThrowOverflowOrFormatException(failureIsOverflow, nameof(SR.Overflow_Single));
+            }
+
+            return result;
+        }
+
+        internal static bool TryParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out decimal result, out bool failureIsOverflow)
+        {
+            NumberBuffer number = default;
+            number.kind = NumberBufferKind.Decimal;
+
+            result = 0;
+            failureIsOverflow = false;
+
+            if (!TryStringToNumber(value, styles, ref number, info))
+            {
+                return false;
+            }
+
+            if (!TryNumberToDecimal(ref number, ref result))
+            {
+                failureIsOverflow = true;
+                return false;
+            }
+
+            return true;
+        }
+
+        internal static bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result, out bool failureIsOverflow)
+        {
+            NumberBuffer number = default;
+            number.kind = NumberBufferKind.Double;
+
+            result = 0;
+            failureIsOverflow = false;
+
+            if (!TryStringToNumber(value, styles, ref number, info))
+            {
+                ReadOnlySpan<char> valueTrim = value.Trim();
+
+                if (valueTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
                 {
-                    return float.PositiveInfinity;
+                    result = double.PositiveInfinity;
                 }
-                if (sTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
+                else if (valueTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
                 {
-                    return float.NegativeInfinity;
+                    result = double.NegativeInfinity;
                 }
-                if (sTrim.EqualsOrdinal(info.NaNSymbol))
+                else if (valueTrim.EqualsOrdinal(info.NaNSymbol))
                 {
-                    return float.NaN;
+                    result = double.NaN;
                 }
+                else
+                {
+                    return false; // We really failed
+                }
+
+                return true;
+            }
+
+            if (!TryNumberToDouble(ref number, ref result))
+            {
+                failureIsOverflow = true;
+                return false;
+            }
+
+            return true;
+        }
+
+        internal static bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result, out bool failureIsOverflow)
+        {
+            result = 0;
+
+            if (!TryParseDouble(value, styles, info, out double doubleResult, out failureIsOverflow))
+            {
+                return false;
+            }
+
+            float singleResult = (float)(doubleResult);
+
+            if (float.IsInfinity(singleResult) && double.IsFinite(doubleResult))
+            {
+                failureIsOverflow = true;
+                return false;
+            }
+
+            return true;
+        }
+
+        private static unsafe void StringToNumber(ReadOnlySpan<char> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info)
+        {
+            if (!TryStringToNumber(value, styles, ref number, info))
+            {
                 ThrowOverflowOrFormatException(overflow: false, null);
             }
-
-            if (!NumberBufferToDouble(ref number, ref d))
-            {
-                ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_Single));
-            }
-            float castSingle = (float)d;
-            if (float.IsInfinity(castSingle))
-            {
-                ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_Single));
-            }
-            return castSingle;
         }
 
-        internal static bool TryParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out decimal result)
-        {
-            NumberBuffer number = default;
-            result = 0;
-
-            if (!TryStringToNumber(value, styles, ref number, info, true))
-            {
-                return false;
-            }
-
-            if (!NumberBufferToDecimal(ref number, ref result))
-            {
-                return false;
-            }
-            return true;
-        }
-
-        internal static bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result)
-        {
-            NumberBuffer number = default;
-            result = 0;
-
-            if (!TryStringToNumber(value, styles, ref number, info, false))
-            {
-                return false;
-            }
-            if (!NumberBufferToDouble(ref number, ref result))
-            {
-                return false;
-            }
-            return true;
-        }
-
-        internal static bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result)
-        {
-            NumberBuffer number = default;
-            result = 0;
-            double d = 0;
-
-            if (!TryStringToNumber(value, styles, ref number, info, false))
-            {
-                return false;
-            }
-            if (!NumberBufferToDouble(ref number, ref d))
-            {
-                return false;
-            }
-            float castSingle = (float)d;
-            if (float.IsInfinity(castSingle))
-            {
-                return false;
-            }
-
-            result = castSingle;
-            return true;
-        }
-
-        private static unsafe void StringToNumber(ReadOnlySpan<char> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info, bool parseDecimal)
+        internal static unsafe bool TryStringToNumber(ReadOnlySpan<char> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info)
         {
             Debug.Assert(info != null);
             fixed (char* stringPointer = &MemoryMarshal.GetReference(value))
             {
                 char* p = stringPointer;
-                if (!ParseNumber(ref p, p + value.Length, styles, ref number, info, parseDecimal)
-                    || (p - stringPointer < value.Length && !TrailingZeros(value, (int)(p - stringPointer))))
-                {
-                    ThrowOverflowOrFormatException(overflow: false, null);
-                }
-            }
-        }
-
-        internal static unsafe bool TryStringToNumber(ReadOnlySpan<char> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info, bool parseDecimal)
-        {
-            Debug.Assert(info != null);
-            fixed (char* stringPointer = &MemoryMarshal.GetReference(value))
-            {
-                char* p = stringPointer;
-                if (!ParseNumber(ref p, p + value.Length, styles, ref number, info, parseDecimal)
+                if (!TryParseNumber(ref p, p + value.Length, styles, ref number, info)
                     || (p - stringPointer < value.Length && !TrailingZeros(value, (int)(p - stringPointer))))
                 {
                     return false;
@@ -1879,7 +1794,7 @@ namespace System
                (Exception)new FormatException(SR.Format_InvalidString);
         }
 
-        private static bool NumberBufferToDouble(ref NumberBuffer number, ref double value)
+        private static bool TryNumberToDouble(ref NumberBuffer number, ref double value)
         {
             double d = NumberToDouble(ref number);
             if (!double.IsFinite(d))
