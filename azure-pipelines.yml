@@ -462,3 +462,18 @@ jobs:
   - bash: cat filedir/file.txt
 
 
+# test dependson one matrx cell
+- job: matrixJob
+  strategy:
+    matrix:
+      config1:
+        matrixVar: value1
+      config2:
+        matrixVar: value2
+  steps:
+    - script: echo $(matrixVar)
+
+- job: dependentMatrixJob
+  dependsOn: matrixJob config1
+  steps:
+    - script: echo dependent job!
