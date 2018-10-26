@@ -395,32 +395,32 @@ namespace System
             {
                 case 'R':
                 case 'r':
+                {
+                    // In order to give numbers that are both friendly to display and round-trippable, we parse the
+                    // number using 15 digits and then determine if it round trips to the same value. If it does, we
+                    // convert that NUMBER to a string, otherwise we reparse using 17 digits and display that.
+                    DoubleToNumber(value, DoublePrecision, ref number);
+                    if (number.scale == ScaleNAN)
                     {
-                        // In order to give numbers that are both friendly to display and round-trippable, we parse the
-                        // number using 15 digits and then determine if it round trips to the same value. If it does, we
-                        // convert that NUMBER to a string, otherwise we reparse using 17 digits and display that.
-                        DoubleToNumber(value, DoublePrecision, ref number);
-                        if (number.scale == ScaleNAN)
-                        {
-                            return info.NaNSymbol;
-                        }
-                        else if (number.scale == ScaleINF)
-                        {
-                            return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
-                        }
-
-                        if (NumberToDouble(ref number) == value)
-                        {
-                            NumberToString(ref sb, ref number, 'G', DoublePrecision, info);
-                        }
-                        else
-                        {
-                            DoubleToNumber(value, 17, ref number);
-                            NumberToString(ref sb, ref number, 'G', 17, info);
-                        }
-
-                        return null;
+                        return info.NaNSymbol;
                     }
+                    else if (number.scale == ScaleINF)
+                    {
+                        return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                    }
+
+                    if (NumberToDouble(ref number) == value)
+                    {
+                        NumberToString(ref sb, ref number, 'G', DoublePrecision, info);
+                    }
+                    else
+                    {
+                        DoubleToNumber(value, 17, ref number);
+                        NumberToString(ref sb, ref number, 'G', 17, info);
+                    }
+
+                    return null;
+                }
 
                 case 'E':
                 case 'e':
@@ -496,31 +496,31 @@ namespace System
             {
                 case 'R':
                 case 'r':
+                {
+                    // In order to give numbers that are both friendly to display and round-trippable, we parse the
+                    // number using 7 digits and then determine if it round trips to the same value. If it does, we
+                    // convert that NUMBER to a string, otherwise we reparse using 9 digits and display that.
+                    DoubleToNumber(value, FloatPrecision, ref number);
+                    if (number.scale == ScaleNAN)
                     {
-                        // In order to give numbers that are both friendly to display and round-trippable, we parse the
-                        // number using 7 digits and then determine if it round trips to the same value. If it does, we
-                        // convert that NUMBER to a string, otherwise we reparse using 9 digits and display that.
-                        DoubleToNumber(value, FloatPrecision, ref number);
-                        if (number.scale == ScaleNAN)
-                        {
-                            return info.NaNSymbol;
-                        }
-                        else if (number.scale == ScaleINF)
-                        {
-                            return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
-                        }
-
-                        if ((float)NumberToDouble(ref number) == value)
-                        {
-                            NumberToString(ref sb, ref number, 'G', FloatPrecision, info);
-                        }
-                        else
-                        {
-                            DoubleToNumber(value, 9, ref number);
-                            NumberToString(ref sb, ref number, 'G', 9, info);
-                        }
-                        return null;
+                        return info.NaNSymbol;
                     }
+                    else if (number.scale == ScaleINF)
+                    {
+                        return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                    }
+
+                    if ((float)NumberToDouble(ref number) == value)
+                    {
+                        NumberToString(ref sb, ref number, 'G', FloatPrecision, info);
+                    }
+                    else
+                    {
+                        DoubleToNumber(value, 9, ref number);
+                        NumberToString(ref sb, ref number, 'G', 9, info);
+                    }
+                    return null;
+                }
 
                 case 'E':
                 case 'e':
@@ -1456,7 +1456,7 @@ namespace System
             // Default empty format to be "G"; custom format is signified with '\0'.
             digits = -1;
             return format.Length == 0 || c == '\0' ? // For compat, treat '\0' as the end of the specifier, even if the specifier extends beyond it.
-                'G' : 
+                'G' :
                 '\0';
         }
 
@@ -1468,105 +1468,105 @@ namespace System
             {
                 case 'C':
                 case 'c':
-                    {
-                        if (nMaxDigits < 0)
-                            nMaxDigits = info.CurrencyDecimalDigits;
+                {
+                    if (nMaxDigits < 0)
+                        nMaxDigits = info.CurrencyDecimalDigits;
 
-                        RoundNumber(ref number, number.scale + nMaxDigits); // Don't change this line to use digPos since digCount could have its sign changed.
+                    RoundNumber(ref number, number.scale + nMaxDigits); // Don't change this line to use digPos since digCount could have its sign changed.
 
-                        FormatCurrency(ref sb, ref number, nMaxDigits, info);
+                    FormatCurrency(ref sb, ref number, nMaxDigits, info);
 
-                        break;
-                    }
+                    break;
+                }
 
                 case 'F':
                 case 'f':
-                    {
-                        if (nMaxDigits < 0)
-                            nMaxDigits = info.NumberDecimalDigits;
+                {
+                    if (nMaxDigits < 0)
+                        nMaxDigits = info.NumberDecimalDigits;
 
-                        RoundNumber(ref number, number.scale + nMaxDigits);
+                    RoundNumber(ref number, number.scale + nMaxDigits);
 
-                        if (number.sign)
-                            sb.Append(info.NegativeSign);
+                    if (number.sign)
+                        sb.Append(info.NegativeSign);
 
-                        FormatFixed(ref sb, ref number, nMaxDigits, info, null, info.NumberDecimalSeparator, null);
+                    FormatFixed(ref sb, ref number, nMaxDigits, info, null, info.NumberDecimalSeparator, null);
 
-                        break;
-                    }
+                    break;
+                }
 
                 case 'N':
                 case 'n':
-                    {
-                        if (nMaxDigits < 0)
-                            nMaxDigits = info.NumberDecimalDigits; // Since we are using digits in our calculation
+                {
+                    if (nMaxDigits < 0)
+                        nMaxDigits = info.NumberDecimalDigits; // Since we are using digits in our calculation
 
-                        RoundNumber(ref number, number.scale + nMaxDigits);
+                    RoundNumber(ref number, number.scale + nMaxDigits);
 
-                        FormatNumber(ref sb, ref number, nMaxDigits, info);
+                    FormatNumber(ref sb, ref number, nMaxDigits, info);
 
-                        break;
-                    }
+                    break;
+                }
 
                 case 'E':
                 case 'e':
-                    {
-                        if (nMaxDigits < 0)
-                            nMaxDigits = 6;
-                        nMaxDigits++;
+                {
+                    if (nMaxDigits < 0)
+                        nMaxDigits = 6;
+                    nMaxDigits++;
 
-                        RoundNumber(ref number, nMaxDigits);
+                    RoundNumber(ref number, nMaxDigits);
 
-                        if (number.sign)
-                            sb.Append(info.NegativeSign);
+                    if (number.sign)
+                        sb.Append(info.NegativeSign);
 
-                        FormatScientific(ref sb, ref number, nMaxDigits, info, format);
+                    FormatScientific(ref sb, ref number, nMaxDigits, info, format);
 
-                        break;
-                    }
+                    break;
+                }
 
                 case 'G':
                 case 'g':
+                {
+                    bool noRounding = false;
+                    if (nMaxDigits < 1)
                     {
-                        bool noRounding = false;
-                        if (nMaxDigits < 1)
+                        if ((number.kind == NumberBufferKind.Decimal) && (nMaxDigits == -1))
                         {
-                            if ((number.kind == NumberBufferKind.Decimal) && (nMaxDigits == -1))
-                            {
-                                noRounding = true;  // Turn off rounding for ECMA compliance to output trailing 0's after decimal as significant
-                                goto SkipRounding;
-                            }
-                            else
-                            {
-                                // This ensures that the PAL code pads out to the correct place even when we use the default precision
-                                nMaxDigits = number.precision;
-                            }
+                            noRounding = true;  // Turn off rounding for ECMA compliance to output trailing 0's after decimal as significant
+                            goto SkipRounding;
                         }
-
-                        RoundNumber(ref number, nMaxDigits);
-
-SkipRounding:
-                        if (number.sign)
-                            sb.Append(info.NegativeSign);
-
-                        FormatGeneral(ref sb, ref number, nMaxDigits, info, (char)(format - ('G' - 'E')), noRounding);
-
-                        break;
+                        else
+                        {
+                            // This ensures that the PAL code pads out to the correct place even when we use the default precision
+                            nMaxDigits = number.precision;
+                        }
                     }
+
+                    RoundNumber(ref number, nMaxDigits);
+
+                SkipRounding:
+                    if (number.sign)
+                        sb.Append(info.NegativeSign);
+
+                    FormatGeneral(ref sb, ref number, nMaxDigits, info, (char)(format - ('G' - 'E')), noRounding);
+
+                    break;
+                }
 
                 case 'P':
                 case 'p':
-                    {
-                        if (nMaxDigits < 0)
-                            nMaxDigits = info.PercentDecimalDigits;
-                        number.scale += 2;
+                {
+                    if (nMaxDigits < 0)
+                        nMaxDigits = info.PercentDecimalDigits;
+                    number.scale += 2;
 
-                        RoundNumber(ref number, number.scale + nMaxDigits);
+                    RoundNumber(ref number, number.scale + nMaxDigits);
 
-                        FormatPercent(ref sb, ref number, nMaxDigits, info);
+                    FormatPercent(ref sb, ref number, nMaxDigits, info);
 
-                        break;
-                    }
+                    break;
+                }
 
                 default:
                     throw new FormatException(SR.Argument_BadFormatSpecifier);
@@ -1663,7 +1663,8 @@ SkipRounding:
                                 if ((src < format.Length && pFormat[src] == '0') ||
                                     (src + 1 < format.Length && (pFormat[src] == '+' || pFormat[src] == '-') && pFormat[src + 1] == '0'))
                                 {
-                                    while (++src < format.Length && pFormat[src] == '0');
+                                    while (++src < format.Length && pFormat[src] == '0')
+                                        ;
                                     scientific = true;
                                 }
                                 break;
@@ -1813,47 +1814,47 @@ SkipRounding:
                     {
                         case '#':
                         case '0':
+                        {
+                            if (adjust < 0)
                             {
-                                if (adjust < 0)
+                                adjust++;
+                                ch = digPos <= firstDigit ? '0' : '\0';
+                            }
+                            else
+                            {
+                                ch = *cur != 0 ? *cur++ : digPos > lastDigit ? '0' : '\0';
+                            }
+                            if (ch != 0)
+                            {
+                                sb.Append(ch);
+                                if (thousandSeps && digPos > 1 && thousandsSepCtr >= 0)
                                 {
-                                    adjust++;
-                                    ch = digPos <= firstDigit ? '0' : '\0';
-                                }
-                                else
-                                {
-                                    ch = *cur != 0 ? *cur++ : digPos > lastDigit ? '0' : '\0';
-                                }
-                                if (ch != 0)
-                                {
-                                    sb.Append(ch);
-                                    if (thousandSeps && digPos > 1 && thousandsSepCtr >= 0)
+                                    if (digPos == thousandsSepPos[thousandsSepCtr] + 1)
                                     {
-                                        if (digPos == thousandsSepPos[thousandsSepCtr] + 1)
-                                        {
-                                            sb.Append(info.NumberGroupSeparator);
-                                            thousandsSepCtr--;
-                                        }
+                                        sb.Append(info.NumberGroupSeparator);
+                                        thousandsSepCtr--;
                                     }
                                 }
+                            }
 
-                                digPos--;
-                                break;
-                            }
+                            digPos--;
+                            break;
+                        }
                         case '.':
+                        {
+                            if (digPos != 0 || decimalWritten)
                             {
-                                if (digPos != 0 || decimalWritten)
-                                {
-                                    // For compatibility, don't echo repeated decimals
-                                    break;
-                                }
-                                // If the format has trailing zeros or the format has a decimal and digits remain
-                                if (lastDigit < 0 || (decimalPos < digitCount && *cur != 0))
-                                {
-                                    sb.Append(info.NumberDecimalSeparator);
-                                    decimalWritten = true;
-                                }
+                                // For compatibility, don't echo repeated decimals
                                 break;
                             }
+                            // If the format has trailing zeros or the format has a decimal and digits remain
+                            if (lastDigit < 0 || (decimalPos < digitCount && *cur != 0))
+                            {
+                                sb.Append(info.NumberDecimalSeparator);
+                                decimalWritten = true;
+                            }
+                            break;
+                        }
                         case '\x2030':
                             sb.Append(info.PerMilleSymbol);
                             break;
@@ -1875,54 +1876,54 @@ SkipRounding:
                             break;
                         case 'E':
                         case 'e':
+                        {
+                            bool positiveSign = false;
+                            int i = 0;
+                            if (scientific)
                             {
-                                bool positiveSign = false;
-                                int i = 0;
-                                if (scientific)
+                                if (src < format.Length && pFormat[src] == '0')
                                 {
-                                    if (src < format.Length && pFormat[src] == '0')
-                                    {
-                                        // Handles E0, which should format the same as E-0
-                                        i++;
-                                    }
-                                    else if (src+1 < format.Length && pFormat[src] == '+' && pFormat[src + 1] == '0')
-                                    {
-                                        // Handles E+0
-                                        positiveSign = true;
-                                    }
-                                    else if (src+1 < format.Length && pFormat[src] == '-' && pFormat[src + 1] == '0')
-                                    {
-                                        // Handles E-0
-                                        // Do nothing, this is just a place holder s.t. we don't break out of the loop.
-                                    }
-                                    else
-                                    {
-                                        sb.Append(ch);
-                                        break;
-                                    }
-
-                                    while (++src < format.Length && pFormat[src] == '0')
-                                        i++;
-                                    if (i > 10)
-                                        i = 10;
-
-                                    int exp = dig[0] == 0 ? 0 : number.scale - decimalPos;
-                                    FormatExponent(ref sb, info, exp, ch, i, positiveSign);
-                                    scientific = false;
+                                    // Handles E0, which should format the same as E-0
+                                    i++;
+                                }
+                                else if (src + 1 < format.Length && pFormat[src] == '+' && pFormat[src + 1] == '0')
+                                {
+                                    // Handles E+0
+                                    positiveSign = true;
+                                }
+                                else if (src + 1 < format.Length && pFormat[src] == '-' && pFormat[src + 1] == '0')
+                                {
+                                    // Handles E-0
+                                    // Do nothing, this is just a place holder s.t. we don't break out of the loop.
                                 }
                                 else
                                 {
-                                    sb.Append(ch); // Copy E or e to output
-                                    if (src < format.Length)
-                                    {
-                                        if (pFormat[src] == '+' || pFormat[src] == '-')
-                                            sb.Append(pFormat[src++]);
-                                        while (src < format.Length && pFormat[src] == '0')
-                                            sb.Append(pFormat[src++]);
-                                    }
+                                    sb.Append(ch);
+                                    break;
                                 }
-                                break;
+
+                                while (++src < format.Length && pFormat[src] == '0')
+                                    i++;
+                                if (i > 10)
+                                    i = 10;
+
+                                int exp = dig[0] == 0 ? 0 : number.scale - decimalPos;
+                                FormatExponent(ref sb, info, exp, ch, i, positiveSign);
+                                scientific = false;
                             }
+                            else
+                            {
+                                sb.Append(ch); // Copy E or e to output
+                                if (src < format.Length)
+                                {
+                                    if (pFormat[src] == '+' || pFormat[src] == '-')
+                                        sb.Append(pFormat[src++]);
+                                    while (src < format.Length && pFormat[src] == '0')
+                                        sb.Append(pFormat[src++]);
+                                }
+                            }
+                            break;
+                        }
                         default:
                             sb.Append(ch);
                             break;
@@ -2247,7 +2248,7 @@ SkipRounding:
             fixed (char* pFormat = &MemoryMarshal.GetReference(format))
             {
                 src = 0;
-                for (;;)
+                for (; ; )
                 {
                     if (src >= format.Length)
                     {
