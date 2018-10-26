@@ -52,6 +52,7 @@ import tempfile
 import time
 import re
 import string
+import zipfile
 
 import xml.etree.ElementTree
 
@@ -763,6 +764,24 @@ def run_tests(host_os,
     # Set test env if exists
     if test_env is not None:
         os.environ["__TestEnv"] = test_env
+
+    print("Download and overwrite xunit.console.dll in Core_Root")
+
+    try:
+        import urllib.request
+        urlretrieve = urllib.request.urlretrieve
+    except ImportError:
+        import urllib
+        urlretrieve = urllib.urlretrieve
+
+    zipfilename = os.path.join(tempfile.gettempdir(), "xunit.console.dll.zip")
+    url = r"https://clrjit.blob.core.windows.net/xunit-console/xunit.console.dll.zip"
+    urlretrieve(url, zipfilename)
+
+    with zipfile.ZipFile(zipfilename,"r") as ziparch:
+        ziparch.extractall(core_root)
+
+    os.remove(zipfilename)
 
     # Call msbuild.
     return call_msbuild(coreclr_repo_location,

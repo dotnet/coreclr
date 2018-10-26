@@ -90,7 +90,7 @@
     <ItemGroup>
       <ReferenceCopyLocalPaths
         Include="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\$(XUnitRunnerTargetFramework)\*.*"
-        Exclude="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\$(XUnitRunnerTargetFramework)\xunit.console.dll.config"
+        Exclude="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\$(XUnitRunnerTargetFramework)\xunit.console.dll*"
       >
         <Private>false</Private>
         <NuGetPackageId>$(XUnitRunnerPackageId)</NuGetPackageId>
