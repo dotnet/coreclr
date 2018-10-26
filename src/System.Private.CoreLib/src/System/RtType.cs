@@ -4776,7 +4776,7 @@ namespace System
             object instance = RuntimeTypeHandle.CreateInstance(this, publicOnly, wrapExceptions, ref bCanBeCached, ref runtime_ctor, ref bHasNoDefaultCtor);
             if (bHasNoDefaultCtor)
             {
-                throw new MissingMethodException("No parameterless constructor defined for " + this);
+                throw new MissingMethodException(string.Format(SR.Arg_NoDefCTor, this));
             }
 
             if (bCanBeCached && fillCache)
@@ -4814,7 +4814,7 @@ namespace System
                         if (ace.m_ctor != null &&
                             (ace.m_ctorAttributes & MethodAttributes.MemberAccessMask) != MethodAttributes.Public)
                         {
-                            throw new MissingMethodException(SR.Arg_NoDefCTor);
+                            throw new MissingMethodException(string.Format(SR.Arg_NoDefCTor, this));
                         }
                     }
 
