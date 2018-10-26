@@ -150,7 +150,7 @@ namespace System
                 r.Multiply10();
             }
 
-            number.scale = (k - 1);
+            number.Scale = (k - 1);
 
             // This the prerequisite of calling BigInteger.HeuristicDivide().
             BigInteger.PrepareHeuristicDivide(ref r, ref s);
@@ -172,7 +172,7 @@ namespace System
                     break;
                 }
 
-                number.digits[digitsNum] = (char)('0' + currentDigit);
+                number.Digits[digitsNum] = (char)('0' + currentDigit);
                 digitsNum++;
 
                 r.Multiply10();
@@ -200,7 +200,7 @@ namespace System
 
             if (isRoundDown)
             {
-                number.digits[digitsNum] = (char)('0' + currentDigit);
+                number.Digits[digitsNum] = (char)('0' + currentDigit);
                 digitsNum++;
             }
             else
@@ -219,7 +219,7 @@ namespace System
                             // Output 1 at the next highest exponent
                             *pCurrentDigit = '1';
                             digitsNum++;
-                            number.scale += 1;
+                            number.Scale += 1;
                             break;
                         }
 
@@ -245,14 +245,14 @@ namespace System
 
             while (digitsNum < precision)
             {
-                number.digits[digitsNum] = '0';
+                number.Digits[digitsNum] = '0';
                 digitsNum++;
             }
 
-            number.digits[precision] = '\0';
+            number.Digits[precision] = '\0';
 
-            number.scale++;
-            number.sign = double.IsNegative(value);
+            number.Scale++;
+            number.Sign = double.IsNegative(value);
         }
     }
 }

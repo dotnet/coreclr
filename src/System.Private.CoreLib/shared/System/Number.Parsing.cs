@@ -54,8 +54,8 @@ namespace System
 
         private static unsafe bool TryNumberToInt32(ref NumberBuffer number, ref int value)
         {
-            int i = number.scale;
-            if (i > Int32Precision || i < number.precision)
+            int i = number.Scale;
+            if (i > Int32Precision || i < number.Precision)
             {
                 return false;
             }
@@ -74,7 +74,7 @@ namespace System
                     n += (*p++ - '0');
                 }
             }
-            if (number.sign)
+            if (number.Sign)
             {
                 n = -n;
                 if (n > 0)
@@ -95,8 +95,8 @@ namespace System
 
         private static unsafe bool TryNumberToInt64(ref NumberBuffer number, ref long value)
         {
-            int i = number.scale;
-            if (i > Int64Precision || i < number.precision)
+            int i = number.Scale;
+            if (i > Int64Precision || i < number.Precision)
             {
                 return false;
             }
@@ -115,7 +115,7 @@ namespace System
                     n += (*p++ - '0');
                 }
             }
-            if (number.sign)
+            if (number.Sign)
             {
                 n = -n;
                 if (n > 0)
@@ -136,8 +136,8 @@ namespace System
 
         private static unsafe bool TryNumberToUInt32(ref NumberBuffer number, ref uint value)
         {
-            int i = number.scale;
-            if (i > UInt32Precision || i < number.precision || number.sign)
+            int i = number.Scale;
+            if (i > UInt32Precision || i < number.Precision || number.Sign)
             {
                 return false;
             }
@@ -168,8 +168,8 @@ namespace System
 
         private static unsafe bool TryNumberToUInt64(ref NumberBuffer number, ref ulong value)
         {
-            int i = number.scale;
-            if (i > UInt64Precision || i < number.precision || number.sign)
+            int i = number.Scale;
+            if (i > UInt64Precision || i < number.Precision || number.Sign)
             {
                 return false;
             }
@@ -252,8 +252,8 @@ namespace System
             const int StateDecimal = 0x0010;
             const int StateCurrency = 0x0020;
 
-            number.scale = 0;
-            number.sign = false;
+            number.Scale = 0;
+            number.Sign = false;
             string decSep;                  // decimal separator from NumberFormatInfo.
             string groupSep;                // group separator from NumberFormatInfo.
             string currSymbol = null;       // currency symbol from NumberFormatInfo.
@@ -286,7 +286,7 @@ namespace System
                 // "-Kr 1231.47" is legal but "- 1231.47" is not.
                 if (!IsWhite(ch) || (styles & NumberStyles.AllowLeadingWhite) == 0 || ((state & StateSign) != 0 && ((state & StateCurrency) == 0 && info.NumberNegativePattern != 2)))
                 {
-                    if ((((styles & NumberStyles.AllowLeadingSign) != 0) && (state & StateSign) == 0) && ((next = MatchChars(p, strEnd, info.PositiveSign)) != null || ((next = MatchChars(p, strEnd, info.NegativeSign)) != null && (number.sign = true))))
+                    if ((((styles & NumberStyles.AllowLeadingSign) != 0) && (state & StateSign) == 0) && ((next = MatchChars(p, strEnd, info.PositiveSign)) != null || ((next = MatchChars(p, strEnd, info.NegativeSign)) != null && (number.Sign = true))))
                     {
                         state |= StateSign;
                         p = next - 1;
@@ -294,7 +294,7 @@ namespace System
                     else if (ch == '(' && ((styles & NumberStyles.AllowParentheses) != 0) && ((state & StateSign) == 0))
                     {
                         state |= StateSign | StateParens;
-                        number.sign = true;
+                        number.Sign = true;
                     }
                     else if (currSymbol != null && (next = MatchChars(p, strEnd, currSymbol)) != null)
                     {
@@ -323,21 +323,21 @@ namespace System
                     {
                         if (digCount < NumberMaxDigits)
                         {
-                            number.digits[digCount++] = ch;
-                            if (ch != '0' || number.kind == NumberBufferKind.Decimal)
+                            number.Digits[digCount++] = ch;
+                            if (ch != '0' || number.Kind == NumberBufferKind.Decimal)
                             {
                                 digEnd = digCount;
                             }
                         }
                         if ((state & StateDecimal) == 0)
                         {
-                            number.scale++;
+                            number.Scale++;
                         }
                         state |= StateNonZero;
                     }
                     else if ((state & StateDecimal) != 0)
                     {
-                        number.scale--;
+                        number.Scale--;
                     }
                 }
                 else if (((styles & NumberStyles.AllowDecimalPoint) != 0) && ((state & StateDecimal) == 0) && ((next = MatchChars(p, strEnd, decSep)) != null || ((parsingCurrency) && (state & StateCurrency) == 0) && (next = MatchChars(p, strEnd, info.NumberDecimalSeparator)) != null))
@@ -357,8 +357,8 @@ namespace System
             }
 
             bool negExp = false;
-            number.precision = digEnd;
-            number.digits[digEnd] = '\0';
+            number.Precision = digEnd;
+            number.Digits[digEnd] = '\0';
             if ((state & StateDigits) != 0)
             {
                 if ((ch == 'E' || ch == 'e') && ((styles & NumberStyles.AllowExponent) != 0))
@@ -394,7 +394,7 @@ namespace System
                         {
                             exp = -exp;
                         }
-                        number.scale += exp;
+                        number.Scale += exp;
                     }
                     else
                     {
@@ -406,7 +406,7 @@ namespace System
                 {
                     if (!IsWhite(ch) || (styles & NumberStyles.AllowTrailingWhite) == 0)
                     {
-                        if (((styles & NumberStyles.AllowTrailingSign) != 0 && ((state & StateSign) == 0)) && ((next = MatchChars(p, strEnd, info.PositiveSign)) != null || (((next = MatchChars(p, strEnd, info.NegativeSign)) != null) && (number.sign = true))))
+                        if (((styles & NumberStyles.AllowTrailingSign) != 0 && ((state & StateSign) == 0)) && ((next = MatchChars(p, strEnd, info.PositiveSign)) != null || (((next = MatchChars(p, strEnd, info.NegativeSign)) != null) && (number.Sign = true))))
                         {
                             state |= StateSign;
                             p = next - 1;
@@ -431,13 +431,13 @@ namespace System
                 {
                     if ((state & StateNonZero) == 0)
                     {
-                        if (number.kind != NumberBufferKind.Decimal)
+                        if (number.Kind != NumberBufferKind.Decimal)
                         {
-                            number.scale = 0;
+                            number.Scale = 0;
                         }
                         if ((state & StateDecimal) == 0)
                         {
-                            number.sign = false;
+                            number.Sign = false;
                         }
                     }
                     str = p;
@@ -465,7 +465,7 @@ namespace System
             }
 
             NumberBuffer number = default;
-            number.kind = NumberBufferKind.Integer;
+            number.Kind = NumberBufferKind.Integer;
 
             if (!TryStringToNumber(value, styles, ref number, info))
             {
@@ -841,7 +841,7 @@ namespace System
             }
 
             NumberBuffer number = default;
-            number.kind = NumberBufferKind.Integer;
+            number.Kind = NumberBufferKind.Integer;
 
             if (!TryStringToNumber(value, styles, ref number, info))
             {
@@ -874,7 +874,7 @@ namespace System
             }
 
             NumberBuffer number = default;
-            number.kind = NumberBufferKind.Integer;
+            number.Kind = NumberBufferKind.Integer;
 
             if (!TryStringToNumber(value, styles, ref number, info))
             {
@@ -1196,7 +1196,7 @@ namespace System
             }
 
             NumberBuffer number = default;
-            number.kind = NumberBufferKind.Integer;
+            number.Kind = NumberBufferKind.Integer;
 
             
             if (!TryStringToNumber(value, styles, ref number, info))
@@ -1515,8 +1515,8 @@ namespace System
         private static unsafe bool TryNumberToDecimal(ref NumberBuffer number, ref decimal value)
         {
             char* p = number.GetDigitsPointer();
-            int e = number.scale;
-            bool sign = number.sign;
+            int e = number.Scale;
+            bool sign = number.Sign;
             uint c = *p;
             if (c == 0)
             {
@@ -1636,7 +1636,7 @@ namespace System
         internal static bool TryParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out decimal result, out bool failureIsOverflow)
         {
             NumberBuffer number = default;
-            number.kind = NumberBufferKind.Decimal;
+            number.Kind = NumberBufferKind.Decimal;
 
             result = 0;
             failureIsOverflow = false;
@@ -1658,7 +1658,7 @@ namespace System
         internal static bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result, out bool failureIsOverflow)
         {
             NumberBuffer number = default;
-            number.kind = NumberBufferKind.Double;
+            number.Kind = NumberBufferKind.Double;
 
             result = 0;
             failureIsOverflow = false;

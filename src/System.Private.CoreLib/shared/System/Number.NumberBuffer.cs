@@ -14,16 +14,16 @@ namespace System
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal unsafe ref struct NumberBuffer
         {
-            public int precision;
-            public int scale;
-            public bool sign;
-            public NumberBufferKind kind;
-            public fixed char digits[NumberMaxDigits + 1];
+            public int Precision;
+            public int Scale;
+            public bool Sign;
+            public NumberBufferKind Kind;
+            public fixed char Digits[NumberMaxDigits + 1];
 
             public char* GetDigitsPointer()
             {
                 // This is safe to do since we are a ref struct
-                return (char*)(Unsafe.AsPointer(ref digits[0]));
+                return (char*)(Unsafe.AsPointer(ref Digits[0]));
             }
         }
 
