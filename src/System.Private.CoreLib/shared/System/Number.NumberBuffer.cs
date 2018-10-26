@@ -9,7 +9,14 @@ namespace System
 {
     internal static partial class Number
     {
-        private const int NumberMaxDigits = 50;
+        //  We need 1 additional byte, per length, for the terminating null
+        private const int DecimalNumberBufferLength = 50 + 1;
+        private const int DoubleNumberBufferLength = 50 + 1;
+        private const int Int32NumberBufferLength = 50 + 1;
+        private const int Int64NumberBufferLength = 50 + 1;
+        private const int SingleNumberBufferLength = 50 + 1;
+        private const int UInt32NumberBufferLength = 50 + 1;
+        private const int UInt64NumberBufferLength = 50 + 1;
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal unsafe ref struct NumberBuffer
@@ -18,7 +25,16 @@ namespace System
             public int Scale;
             public bool Sign;
             public NumberBufferKind Kind;
-            public fixed char Digits[NumberMaxDigits + 1];
+            public Span<char> Digits;
+
+            public NumberBuffer(NumberBufferKind kind, char* pDigits, int digitsLength)
+            {
+                Precision = 0;
+                Scale = 0;
+                Sign = false;
+                Kind = kind;
+                Digits = new Span<char>(pDigits, digitsLength);
+            }
 
             public char* GetDigitsPointer()
             {
@@ -32,7 +48,7 @@ namespace System
             Unknown = 0,
             Integer = 1,
             Decimal = 2,
-            Double = 3
+            Double = 3,
         }
     }
 }

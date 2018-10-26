@@ -285,11 +285,13 @@ namespace System
             "(#)", "-#", "- #", "#-", "# -",
         };
 
-        public static string FormatDecimal(decimal value, ReadOnlySpan<char> format, NumberFormatInfo info)
+        public static unsafe string FormatDecimal(decimal value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
 
-            NumberBuffer number = default;
+            char* pDigits = stackalloc char[DecimalNumberBufferLength];
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.Decimal, pDigits, DecimalNumberBufferLength);
+
             DecimalToNumber(ref value, ref number);
 
             ValueStringBuilder sb;
@@ -311,11 +313,13 @@ namespace System
             return sb.ToString();
         }
 
-        public static bool TryFormatDecimal(decimal value, ReadOnlySpan<char> format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
+        public static unsafe bool TryFormatDecimal(decimal value, ReadOnlySpan<char> format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
 
-            NumberBuffer number = default;
+            char* pDigits = stackalloc char[DecimalNumberBufferLength];
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.Decimal, pDigits, DecimalNumberBufferLength);
+
             DecimalToNumber(ref value, ref number);
 
             ValueStringBuilder sb;
@@ -342,7 +346,6 @@ namespace System
             char* buffer = number.GetDigitsPointer();
             number.Precision = DecimalPrecision;
             number.Sign = d.IsNegative;
-            number.Kind = NumberBufferKind.Decimal;
 
             char* p = buffer + DecimalPrecision;
             while ((d.Mid | d.High) != 0)
@@ -384,12 +387,13 @@ namespace System
         /// Non-null if an existing string can be returned, in which case the builder will be unmodified.
         /// Null if no existing string was returned, in which case the formatted output is in the builder.
         /// </returns>
-        private static string FormatDouble(ref ValueStringBuilder sb, double value, ReadOnlySpan<char> format, NumberFormatInfo info)
+        private static unsafe string FormatDouble(ref ValueStringBuilder sb, double value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
             int precision = DoublePrecision;
-            NumberBuffer number = default;
-            number.Kind = NumberBufferKind.Double;
+
+            char* pDigits = stackalloc char[DoubleNumberBufferLength];
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.Double, pDigits, DoubleNumberBufferLength);
 
             switch (fmt)
             {
@@ -485,12 +489,13 @@ namespace System
         /// Non-null if an existing string can be returned, in which case the builder will be unmodified.
         /// Null if no existing string was returned, in which case the formatted output is in the builder.
         /// </returns>
-        private static string FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
+        private static unsafe string FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
             int precision = SinglePrecision;
-            NumberBuffer number = default;
-            number.Kind = NumberBufferKind.Double;
+
+            char* pDigits = stackalloc char[SingleNumberBufferLength];
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.Double, pDigits, SingleNumberBufferLength);
 
             switch (fmt)
             {
@@ -576,7 +581,7 @@ namespace System
             return false;
         }
 
-        public static string FormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider provider)
+        public static unsafe string FormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider provider)
         {
             // Fast path for default format with a non-negative value
             if (value >= 0 && format.Length == 0)
@@ -601,7 +606,10 @@ namespace System
             else
             {
                 NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
-                NumberBuffer number = default;
+
+                char* pDigits = stackalloc char[Int32NumberBufferLength];
+                NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int32NumberBufferLength);
+
                 Int32ToNumber(value, ref number);
                 ValueStringBuilder sb;
                 unsafe
@@ -621,7 +629,7 @@ namespace System
             }
         }
 
-        public static bool TryFormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
+        public static unsafe bool TryFormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
         {
             // Fast path for default format with a non-negative value
             if (value >= 0 && format.Length == 0)
@@ -646,7 +654,10 @@ namespace System
             else
             {
                 NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
-                NumberBuffer number = default;
+
+                char* pDigits = stackalloc char[Int32NumberBufferLength];
+                NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int32NumberBufferLength);
+
                 Int32ToNumber(value, ref number);
                 ValueStringBuilder sb;
                 unsafe
@@ -666,7 +677,7 @@ namespace System
             }
         }
 
-        public static string FormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider provider)
+        public static unsafe string FormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider provider)
         {
             // Fast path for default format
             if (format.Length == 0)
@@ -689,7 +700,10 @@ namespace System
             else
             {
                 NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
-                NumberBuffer number = default;
+
+                char* pDigits = stackalloc char[UInt32NumberBufferLength];
+                NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt32NumberBufferLength);
+
                 UInt32ToNumber(value, ref number);
                 ValueStringBuilder sb;
                 unsafe
@@ -709,7 +723,7 @@ namespace System
             }
         }
 
-        public static bool TryFormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
+        public static unsafe bool TryFormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
         {
             // Fast path for default format
             if (format.Length == 0)
@@ -732,7 +746,10 @@ namespace System
             else
             {
                 NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
-                NumberBuffer number = default;
+
+                char* pDigits = stackalloc char[UInt32NumberBufferLength];
+                NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt32NumberBufferLength);
+
                 UInt32ToNumber(value, ref number);
                 ValueStringBuilder sb;
                 unsafe
@@ -752,7 +769,7 @@ namespace System
             }
         }
 
-        public static string FormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider provider)
+        public static unsafe string FormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider provider)
         {
             // Fast path for default format with a non-negative value
             if (value >= 0 && format.Length == 0)
@@ -778,7 +795,10 @@ namespace System
             else
             {
                 NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
-                NumberBuffer number = default;
+
+                char* pDigits = stackalloc char[Int64NumberBufferLength];
+                NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int64NumberBufferLength);
+
                 Int64ToNumber(value, ref number);
                 ValueStringBuilder sb;
                 unsafe
@@ -798,7 +818,7 @@ namespace System
             }
         }
 
-        public static bool TryFormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
+        public static unsafe bool TryFormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
         {
             // Fast path for default format with a non-negative value
             if (value >= 0 && format.Length == 0)
@@ -824,7 +844,10 @@ namespace System
             else
             {
                 NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
-                NumberBuffer number = default;
+
+                char* pDigits = stackalloc char[Int64NumberBufferLength];
+                NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int64NumberBufferLength);
+
                 Int64ToNumber(value, ref number);
                 ValueStringBuilder sb;
                 unsafe
@@ -844,7 +867,7 @@ namespace System
             }
         }
 
-        public static string FormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider provider)
+        public static unsafe string FormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider provider)
         {
             // Fast path for default format
             if (format.Length == 0)
@@ -868,7 +891,10 @@ namespace System
             else
             {
                 NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
-                NumberBuffer number = default;
+
+                char* pDigits = stackalloc char[UInt64NumberBufferLength];
+                NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt64NumberBufferLength);
+
                 UInt64ToNumber(value, ref number);
                 ValueStringBuilder sb;
                 unsafe
@@ -888,7 +914,7 @@ namespace System
             }
         }
 
-        public static bool TryFormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
+        public static unsafe bool TryFormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
         {
             // Fast path for default format
             if (format.Length == 0)
@@ -912,7 +938,10 @@ namespace System
             else
             {
                 NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
-                NumberBuffer number = default;
+
+                char* pDigits = stackalloc char[UInt64NumberBufferLength];
+                NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt64NumberBufferLength);
+
                 UInt64ToNumber(value, ref number);
                 ValueStringBuilder sb;
                 unsafe
@@ -952,7 +981,6 @@ namespace System
             int i = (int)(buffer + Int32Precision - p);
 
             number.Scale = i;
-            number.Kind = NumberBufferKind.Integer;
 
             char* dst = number.GetDigitsPointer();
             while (--i >= 0)
@@ -1069,7 +1097,6 @@ namespace System
             char* p = UInt32ToDecChars(buffer + UInt32Precision, value, 0);
             int i = (int)(buffer + UInt32Precision - p);
             number.Scale = i;
-            number.Kind = NumberBufferKind.Integer;
 
             char* dst = number.GetDigitsPointer();
             while (--i >= 0)
@@ -1189,7 +1216,6 @@ namespace System
             int i = (int)(buffer + Int64Precision - p);
 
             number.Scale = i;
-            number.Kind = NumberBufferKind.Integer;
 
             char* dst = number.GetDigitsPointer();
             while (--i >= 0)
@@ -1331,7 +1357,6 @@ namespace System
             int i = (int)(buffer + UInt64Precision - p);
 
             number.Scale = i;
-            number.Kind = NumberBufferKind.Integer;
 
             char* dst = number.GetDigitsPointer();
             while (--i >= 0)
