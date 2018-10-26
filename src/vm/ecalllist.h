@@ -550,6 +550,7 @@ FCFuncStart(gAssemblyFuncs)
     QCFuncElement("GetImageRuntimeVersion", AssemblyNative::GetImageRuntimeVersion)
     FCFuncElement("GetManifestModule", AssemblyHandle::GetManifestModule)
     FCFuncElement("GetToken", AssemblyHandle::GetToken)
+    QCFuncElement("GetIsCollectible", AssemblyNative::GetIsCollectible)
 FCFuncEnd()
 
 FCFuncStart(gAssemblyExtensionsFuncs)

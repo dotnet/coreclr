@@ -10177,7 +10177,10 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     unsigned tmp = lvaGrabTemp(true DEBUGARG("spilling QMark2"));
     impAssignTempGen(tmp, qmarkNull, (unsigned)CHECK_SPILL_NONE);
 
-    // TODO: Is it possible op1 has a better type?
+    // TODO-CQ: Is it possible op1 has a better type?
+    //
+    // See also gtGetHelperCallClassHandle where we make the same
+    // determination for the helper call variants.
     lvaSetClass(tmp, pResolvedToken->hClass);
     return gtNewLclvNode(tmp, TYP_REF);
 #endif
@@ -19537,13 +19540,8 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     // See if we have special knowlege that can get us a type or a better type.
     if ((objClass == nullptr) || !isExact)
     {
-        actualThisObj = thisObj;
-
         // Walk back through any return expression placeholders
-        while (actualThisObj->OperGet() == GT_RET_EXPR)
-        {
-            actualThisObj = actualThisObj->gtRetExpr.gtInlineCandidate;
-        }
+        actualThisObj = thisObj->gtRetExprVal();
 
         // See if we landed on a call to a special intrinsic method
         if (actualThisObj->IsCall())
