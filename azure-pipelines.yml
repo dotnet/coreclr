@@ -477,3 +477,8 @@ jobs:
 #  dependsOn: matrixJob config1
 #  steps:
 #    - script: echo dependent job!
+
+# test template job with variables
+- template: test-build-template.yml
+  parameters:
+    config: configValue1
