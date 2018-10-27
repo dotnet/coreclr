@@ -311,8 +311,11 @@ namespace System
                 }
                 ch = ++p < strEnd ? *p : '\0';
             }
+
             int digCount = 0;
             int digEnd = 0;
+            int maxDigCount = number.Digits.Length - 1;
+
             while (true)
             {
                 if (IsDigit(ch))
@@ -321,7 +324,7 @@ namespace System
 
                     if (ch != '0' || (state & StateNonZero) != 0)
                     {
-                        if (digCount < number.Digits.Length)
+                        if (digCount < maxDigCount)
                         {
                             number.Digits[digCount++] = ch;
                             if (ch != '0' || number.Kind == NumberBufferKind.Decimal)
