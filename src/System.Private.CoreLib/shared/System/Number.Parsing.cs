@@ -1715,6 +1715,7 @@ namespace System
                 return false;
             }
 
+            result = singleResult;
             return true;
         }
 
