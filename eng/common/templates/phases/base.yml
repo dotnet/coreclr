@@ -7,6 +7,8 @@ parameters:
 
   # Optional: name of the phase (not specifying phase name may cause name collisions)
   name: ''
+  # Optional: display name of the phase
+  displayName: ''
 
   # Required: A defined YAML queue
   queue: {}
@@ -37,6 +39,7 @@ parameters:
 
 phases:
 - phase: ${{ parameters.name }}
+  displayName: ${{ parameters.displayName }}
 
   queue: ${{ parameters.queue }}
 
