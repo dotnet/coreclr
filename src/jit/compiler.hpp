@@ -1210,16 +1210,9 @@ inline GenTree* Compiler::gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldH
     /* 'GT_FIELD' nodes may later get transformed into 'GT_IND' */
 
     assert(GenTree::s_gtNodeSizes[GT_IND] <= GenTree::s_gtNodeSizes[GT_FIELD]);
-    GenTree* tree = new (this, GT_FIELD) GenTreeField(typ);
+    GenTree* tree = new (this, GT_FIELD) GenTreeField(typ, obj, fldHnd, offset);
 #else
-    GenTree* tree = new (this, GT_FIELD) GenTreeField(typ);
-#endif
-    tree->gtField.gtFldObj    = obj;
-    tree->gtField.gtFldHnd    = fldHnd;
-    tree->gtField.gtFldOffset = offset;
-
-#ifdef FEATURE_READYTORUN_COMPILER
-    tree->gtField.gtFieldLookup.addr = nullptr;
+    GenTree* tree = new (this, GT_FIELD) GenTreeField(typ, obj, fldHnd, offset);
 #endif
 
     // If "obj" is the address of a local, note that a field of that struct local has been accessed.
