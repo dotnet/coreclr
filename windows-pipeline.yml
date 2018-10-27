@@ -6,7 +6,8 @@ parameters:
 jobs:
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
-    name: ${{ format('Windows_NT {0} {1} Build', parameters.archType, parameters.buildConfig) }}
+    name: ${{ format('win_{0}_{1}_build', parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('Windows_NT {0} {1} Build', parameters.archType, parameters.buildConfigUpper) }}
     queue:
       name: dotnet-external-temp
       timeoutInMinutes: 180
