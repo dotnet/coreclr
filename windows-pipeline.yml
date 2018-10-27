@@ -11,7 +11,6 @@ jobs:
     queue:
       name: dotnet-external-temp
       timeoutInMinutes: 180
-      parallel: 4
     agentOs: Windows_NT
     variables:
       buildConfig: ${{ parameters.buildConfig }}
