@@ -17,6 +17,32 @@ phases:
 ###  Windows: x64, x86, arm64, arm
 ###
 
+### Product build
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x64
+
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x86
+
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: arm
+
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: arm64
+
+### Test build
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
     queue:
@@ -80,10 +106,12 @@ phases:
 
 
 
+
 ###
 ### Linux x64
 ###
 
+### Product build
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
     queue:
