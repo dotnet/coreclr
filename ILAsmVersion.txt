@@ -1,1 +1,2 @@
 3.0.0-preview1-27027-01
+Edit dotnet preview to be done under authorisation
