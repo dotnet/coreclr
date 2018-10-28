@@ -1,12 +1,12 @@
 ﻿Microsoft Patent Promise for .NET Libraries and Runtime Components 
 
-Microsoft Corporation and its affiliates ("Microsoft") promise not to assert 
+Microsoft Corporation and its affiliates ("Microsoft") promises not to assert 
 any .NET Patents against you for making, using, selling, offering for sale, 
 importing, or distributing Covered Code, as part of either a .NET Runtime or 
 as part of any application designed to run on a .NET Runtime. 
 
 If you file, maintain, or voluntarily participate in any claim in a lawsuit 
-alleging direct or contributory patent infringement by any Covered Code, or 
+alleging direct or contributory patent infringement by any covered code, or 
 inducement of patent infringement by any Covered Code, then your rights under 
 this promise will automatically terminate. 
 
