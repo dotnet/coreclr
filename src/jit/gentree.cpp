@@ -12120,14 +12120,57 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
 
     val = cons->gtIntConCommon.IconValue();
 
-    /* Here op is the non-constant operand, val is the constant,
-       first is true if the constant is op1 */
+    // Transforms that would drop op cannot be performed if op has side effects
+    bool opHasSideEffects = (op->gtFlags & GTF_SIDE_EFFECT) != 0;
+
+    // Helper function that creates a new IntCon node and morphs it, if required
+    auto NewMorphedIntConNode = [&](int value) -> GenTreeIntCon* {
+        GenTreeIntCon* icon = gtNewIconNode(value);
+        if (fgGlobalMorph)
+        {
+            fgMorphTreeDone(icon);
+        }
+        return icon;
+    };
+
+    // Here `op` is the non-constant operand, `cons` is the constant operand
+    // and `val` is the constant value.
 
     switch (oper)
     {
+        case GT_LE:
+            if (tree->IsUnsigned() && (val == 0) && (op1 == cons) && !opHasSideEffects)
+            {
+                // unsigned (0 <= x) is always true
+                return NewMorphedIntConNode(1);
+            }
+            break;
+
+        case GT_GE:
+            if (tree->IsUnsigned() && (val == 0) && (op2 == cons) && !opHasSideEffects)
+            {
+                // unsigned (x >= 0) is always true
+                return NewMorphedIntConNode(1);
+            }
+            break;
+
+        case GT_LT:
+            if (tree->IsUnsigned() && (val == 0) && (op2 == cons) && !opHasSideEffects)
+            {
+                // unsigned (x < 0) is always false
+                return NewMorphedIntConNode(0);
+            }
+            break;
+
+        case GT_GT:
+            if (tree->IsUnsigned() && (val == 0) && (op1 == cons) && !opHasSideEffects)
+            {
+                // unsigned (0 > x) is always false
+                return NewMorphedIntConNode(0);
+            }
+            __fallthrough;
         case GT_EQ:
         case GT_NE:
-        case GT_GT:
 
             // Optimize boxed value classes; these are always false.  This IL is
             // generated when a generic value is tested against null:
@@ -12182,19 +12225,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
                         JITDUMP("\nSuccess: replacing BOX(valueType) %s null with %d\n", GenTree::OpName(oper),
                                 compareResult);
 
-                        op = gtNewIconNode(compareResult);
-
-                        if (fgGlobalMorph)
-                        {
-                            fgMorphTreeDone(op);
-                        }
-                        else
-                        {
-                            op->gtNext = tree->gtNext;
-                            op->gtPrev = tree->gtPrev;
-                        }
-
-                        return op;
+                        return NewMorphedIntConNode(compareResult);
                     }
                 }
             }
@@ -12216,7 +12247,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
             else if (val == 0)
             {
                 /* Multiply by zero - return the 'zero' node, but not if side effects */
-                if (!(op->gtFlags & GTF_SIDE_EFFECT))
+                if (!opHasSideEffects)
                 {
                     op = cons;
                     goto DONE_FOLD;
@@ -12244,7 +12275,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
             {
                 /* AND with zero - return the 'zero' node, but not if side effects */
 
-                if (!(op->gtFlags & GTF_SIDE_EFFECT))
+                if (!opHasSideEffects)
                 {
                     op = cons;
                     goto DONE_FOLD;
@@ -12280,7 +12311,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
 
                 /* OR with one - return the 'one' node, but not if side effects */
 
-                if (!(op->gtFlags & GTF_SIDE_EFFECT))
+                if (!opHasSideEffects)
                 {
                     op = cons;
                     goto DONE_FOLD;
@@ -12299,7 +12330,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
                 {
                     goto DONE_FOLD;
                 }
-                else if (!(op->gtFlags & GTF_SIDE_EFFECT))
+                else if (!opHasSideEffects)
                 {
                     op = cons;
                     goto DONE_FOLD;
@@ -12355,9 +12386,6 @@ DONE_FOLD:
 
         op->gtFlags &= ~(GTF_VAR_USEASG | GTF_VAR_DEF);
     }
-
-    op->gtNext = tree->gtNext;
-    op->gtPrev = tree->gtPrev;
 
     return op;
 }
