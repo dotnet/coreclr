@@ -11,17 +11,17 @@ namespace GCPerfTestFramework
 {
     public static class ProcessFactory
     {
-        const string ProbePathEnvironmentVariable = "GC_PERF_TEST_PROBE_PATH";
-        const string CoreRunProbePathEnvironmentVariable = "GC_PERF_TEST_CORE_RUN_PROBE_PATH";
-        const string UseCoreCLREnvironmentVariable = "GC_PERF_TEST_CORECLR";
-        const string ConcurrentGCVariable = "COMPLUS_gcConcurrent";
-        const string ServerGCVariable = "COMPLUS_gcServer";
-        const string CoreRunName = "CoreRun.exe";
-        const string UnixCoreRunName = "corerun";
+        private const string ProbePathEnvironmentVariable = "GC_PERF_TEST_PROBE_PATH";
+        private const string CoreRunProbePathEnvironmentVariable = "GC_PERF_TEST_CORE_RUN_PROBE_PATH";
+        private const string UseCoreCLREnvironmentVariable = "GC_PERF_TEST_CORECLR";
+        private const string ConcurrentGCVariable = "COMPLUS_gcConcurrent";
+        private const string ServerGCVariable = "COMPLUS_gcServer";
+        private const string CoreRunName = "CoreRun.exe";
+        private const string UnixCoreRunName = "corerun";
 
         // The default timeout for a test is half an hour. If a test takes that long, it is
         // definitely not responding.
-        const int DefaultTimeout = 1800000 /* ms */;
+        private const int DefaultTimeout = 1800000 /* ms */;
 
         /// <summary>
         /// Location of the CoreRun hosting process, for use in CoreCLR performance runs
@@ -29,7 +29,7 @@ namespace GCPerfTestFramework
         /// as part of the static constructor and so all tests will fail if CoreRun cannot
         /// be found.
         /// </summary>
-        private static string s_coreRun = LocateCoreRun();
+        private static readonly string s_coreRun = LocateCoreRun();
 
         /// <summary>
         /// Launches a process that is part of a test scenario, waits for it complete, and returns.
@@ -59,7 +59,7 @@ namespace GCPerfTestFramework
         /// <param name="environmentVariables">Any environment variables to pass to the child process</param>
         /// <param name="timeout">How long to wait, in milliseconds, on the child process. If less than or equal to zero,
         /// no timeout is used.</param>
-        /// <exception cref="TimeoutException">Thrown if the process takes longer than timout to terminate.</exception>
+        /// <exception cref="TimeoutException">Thrown if the process takes longer than timeout to terminate.</exception>
         public static void LaunchProcess(
             string fileName,
             string arguments = "",

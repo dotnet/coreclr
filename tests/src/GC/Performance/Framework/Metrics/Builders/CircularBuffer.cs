@@ -10,8 +10,9 @@ namespace GCPerfTestFramework.Metrics.Builders
     internal class CircularBuffer<T> : IEnumerable<T>
         where T : class
     {
-        private int StartIndex, AfterEndIndex, Size;
-        private T[] Items;
+        private int StartIndex, AfterEndIndex;
+        private readonly int Size;
+        private readonly T[] Items;
         public CircularBuffer(int size)
         {
             if (size < 1)

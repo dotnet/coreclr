@@ -10,8 +10,7 @@ namespace GCPerfTestFramework.Metrics.Builders
     {
         public static V GetOrCreate<K, V>(this IDictionary<K, V> dict, K key) where V : new()
         {
-            V value;
-            if (dict.TryGetValue(key, out value))
+            if (dict.TryGetValue(key, out V value))
             {
                 return value;
             }

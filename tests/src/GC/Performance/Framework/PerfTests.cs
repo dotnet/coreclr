@@ -12,8 +12,8 @@ namespace GCPerfTestFramework
 {
     public class PerfTests
     {
-        const string ConcurrentGC = "COMPLUS_gcConcurrent";
-        const string ServerGC = "COMPLUS_gcServer";
+        private const string ConcurrentGC = "COMPLUS_gcConcurrent";
+        private const string ServerGC = "COMPLUS_gcServer";
 
         [Benchmark]
         public void ClientSimulator_Concurrent()
