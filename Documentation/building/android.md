@@ -1,7 +1,7 @@
 Cross Compilation for Android on Linux
 ======================================
 
-Through cross compilation, on Linux it is possible to build CoreCLR for arm64 Android.
+Through cross compilation, on Linux, it is possible to build CoreCLR for arm64 Android.
 
 Requirements
 ------------

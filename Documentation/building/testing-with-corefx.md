@@ -22,7 +22,7 @@ Use the following instructions to test a change to the dotnet/coreclr repo using
   -or-  
   `cp <coreclr_root>/bin/Product/<os>.<arch>.<build_type>/* <corefx_root>/bin/runtime/<flavor>`  
   
-4. Run the CoreFx `build-tests.[cmd|sh]` script as described in the Developer Guide.
+4. Run the CoreFx `build-tests.[cmd|sh]` the script as described in the Developer Guide.
 
 **CI Script**
 
@@ -34,7 +34,7 @@ Instead of copying CoreCLR binaries you can also test your changes with an exist
 
 ### Locally-built CoreFX 
 
-Once you have finished steps 1, 2. and 4. above execute the following instructions to test your local CLR changes with the built-CoreFX changes.
+Once you have finished steps 1, 2. and 4. above executing the following instructions to test your local CLR changes with the built-CoreFX changes.
 
 1. From `<coreclr_root>` run
 `build-test.cmd <arch> <build_type> buildtesthostonly` 
@@ -56,7 +56,7 @@ to generate the test host.
 <coreclr_root>/bin/<os>.<arch>.<build_type>/testhost/dotnet <corefx_root>/bin/tests/<testname>/xunit.console.netcore.exe <testname>.dll
 ```
 
-followed by any extra command-line arguments.
+followed by an extra command-line argument.
 
 For example to run .NET Core Windows tests from System.Collections.Tests with an x64 Release build of CoreCLR.
 ```

@@ -8,7 +8,7 @@ Environment
 
 These instructions are written assuming the Ubuntu 14.04 LTS, since that's the distro the team uses. Pull Requests are welcome to address other environments as long as they don't break the ability to use Ubuntu 14.04 LTS.
 
-There have been reports of issues when using other distros or versions of Ubuntu (e.g. [Issue 95](https://github.com/dotnet/coreclr/issues/95)). If you're on another distribution, consider using docker's `ubuntu:14.04` image.
+There have been reports of issues when using other distros or versions of Ubuntu (e.g. [Issue 95](https://github.com/dotnet/coreclr/issues/95)). If you're on another distribution, consider using docker's `Ubuntu:14.04` image.
 
 Minimum RAM required to build is 1GB. The build is known to fail on 512 MB VMs ([Issue 536](https://github.com/dotnet/coreclr/issues/536)).
 
@@ -132,7 +132,7 @@ The current Docker tag being used by the CI can be found in the `getDockerImageN
 
 Libunwind issue
 ---------------
-ARM libunwind versions before 1.3 require a fix. The fix allows libunwind not to break when it is ordered to access unaccessible memory locations. See [this](https://github.com/dotnet/coreclr/pull/3923) issue for history.
+ARM libunwind versions before 1.3 require a fix. The fix allows libunwind not to break when it is ordered to access inaccessible memory locations. See [this](https://github.com/dotnet/coreclr/pull/3923) issue for history.
 
 If required, first import the patch from the libunwind upstream: http://git.savannah.gnu.org/gitweb/?p=libunwind.git;a=commit;h=770152268807e460184b4152e23aba9c86601090.
 
@@ -216,4 +216,3 @@ If you want to focus on the speed optimization for high-end devices, you have to
 
  SET (CLR_DEFINES_DEBUG_INIT              DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_
 ```
-
