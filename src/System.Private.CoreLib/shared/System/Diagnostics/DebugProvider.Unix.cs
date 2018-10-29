@@ -38,7 +38,7 @@ namespace System.Diagnostics
             }
         }
 
-        public virtual void WriteCore(string message)
+        public static void WriteCore(string message)
         {
             if (s_WriteCore != null)
             {

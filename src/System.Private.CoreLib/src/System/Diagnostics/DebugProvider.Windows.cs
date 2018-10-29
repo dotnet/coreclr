@@ -36,7 +36,7 @@ namespace System.Diagnostics
 
         private static readonly object s_ForLock = new object();
 
-        public virtual void WriteCore(string message)
+        public static void WriteCore(string message)
         {
             if (s_WriteCore != null)
             {
