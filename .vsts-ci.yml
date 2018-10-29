@@ -339,7 +339,7 @@ phases:
     agentOs: Ubuntu
     displayName: ''
     steps:
-    - script: no name, empty displayname
+    - script: echo no name, empty displayname
 
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
@@ -349,7 +349,7 @@ phases:
     agentOs: Ubuntu
     name: jobNameNoDisplayName
     steps:
-    - script: name, no displayname
+    - script: echo name, no displayname
 
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
@@ -357,8 +357,18 @@ phases:
       name: Hosted Ubuntu 1604
       timeoutInMinutes: 180
     agentOs: Ubuntu
-    name: jobNameNoDisplayName
-    displayName: ''
+    displayName: jobDisplayNameNoName
     steps:
-    - script: name, empty displayname
+    - script: echo displayname, no name
+
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    queue:
+      name: Hosted Ubuntu 1604
+      timeoutInMinutes: 180
+    agentOs: Ubuntu
+    name: ''
+    displayName: jobDisplayNameEmptyName
+    steps:
+    - script: echo displayname, empty name
 
