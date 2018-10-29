@@ -8,8 +8,6 @@
 #include <limits>
 #include "Servers.h"
 
-#define THROW_FAIL_IF_FALSE(exp) { if (!(exp)) { ::printf("FALSE: %s\n", #exp); throw E_FAIL; } }
-
 class NumericTesting : public UnknownImpl, public INumericTesting
 {
 public:

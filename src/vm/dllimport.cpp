@@ -1143,7 +1143,6 @@ public:
         LOG((LF_STUBS, LL_INFO1000, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"));
 #endif // LOGGING
 
-#if !defined(PLATFORM_UNIX)
         //
         // Publish ETW events for IL stubs
         //
@@ -1162,11 +1161,9 @@ public:
                 (DWORD)cbCode
                 );
         }
-#endif // !defined(PLATFORM_UNIX)
 
     }
 
-#if !defined(PLATFORM_UNIX)
     //---------------------------------------------------------------------------------------
     // 
     void 
@@ -1315,7 +1312,6 @@ public:
             strILStubCode.GetUnicode()                  // StubMethodILCode
             );            
     } // EtwOnILStubGenerated
-#endif // !defined(PLATFORM_UNIX)
 
 #ifdef LOGGING
     //---------------------------------------------------------------------------------------
