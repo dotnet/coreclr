@@ -11,8 +11,10 @@ namespace System.Diagnostics
     /// <summary>
     /// Provides a set of properties and methods for debugging code.
     /// </summary>
-    public static partial class Debug
+    public static class Debug
     {
+        private static readonly object s_lock = new object();
+
         private static DebugProvider s_provider = new DebugProvider();
 
         public static DebugProvider SetProvider(DebugProvider provider)
@@ -25,27 +27,38 @@ namespace System.Diagnostics
 
         public static bool AutoFlush { get { return true; } set { } }
 
+        [ThreadStatic]
+        private static int t_indentLevel;
         public static int IndentLevel
         {
             get
             {
-                return s_provider.IndentLevel;
+                return t_indentLevel;
             }
             set
             {
-                s_provider.IndentLevel = value;
+                lock (s_lock)
+                {
+                    t_indentLevel = value < 0 ? 0 : value;
+                    s_provider.OnIndentLevelChanged(t_indentLevel);
+                }
             }
         }
 
+        private static int s_indentSize = 4;
         public static int IndentSize
         {
             get
             {
-                return s_provider.IndentSize;
+                return s_indentSize;
             }
             set
             {
-                s_provider.IndentSize = value;
+                lock (s_lock)
+                {
+                    s_indentSize = value < 0 ? 0 : value;
+                    s_provider.OnIndentSizeChanged(s_indentSize);
+                }
             }
         }
 
@@ -58,13 +71,19 @@ namespace System.Diagnostics
         [System.Diagnostics.Conditional("DEBUG")]
         public static void Indent()
         {
-            s_provider.IndentLevel++;
+            lock (s_lock)
+            {
+                IndentLevel++;
+            }
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
         public static void Unindent()
         {
-            s_provider.IndentLevel--;
+            lock (s_lock)
+            {
+                IndentLevel--;
+            }
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
@@ -105,7 +124,7 @@ namespace System.Diagnostics
                 {
                     stackTrace = "";
                 }
-                WriteLine(FormatAssert(stackTrace, message, detailMessage, s_provider.GetIndentString()));
+                WriteAssert(stackTrace, message, detailMessage);
                 s_provider.ShowDialog(stackTrace, message, detailMessage, "Assertion Failed");
             }
         }
@@ -123,7 +142,7 @@ namespace System.Diagnostics
                 {
                     stackTrace = "";
                 }
-                WriteLine(FormatAssert(stackTrace, message, detailMessage, s_provider.GetIndentString()));
+                WriteAssert(stackTrace, message, detailMessage);
                 s_provider.ShowDialog(stackTrace, message, detailMessage, SR.GetResourceString(failureKindMessage));
             }
         }
@@ -140,15 +159,14 @@ namespace System.Diagnostics
             Assert(false, message, detailMessage);
         }
 
-        private static string FormatAssert(string stackTrace, string message, string detailMessage, string indentString)
+        private static void WriteAssert(string stackTrace, string message, string detailMessage)
         {
-            string newLine = indentString + Environment.NewLine;
-            return SR.DebugAssertBanner + newLine
-                   + SR.DebugAssertShortMessage + newLine
-                   + message + newLine
-                   + SR.DebugAssertLongMessage + newLine
-                   + detailMessage + newLine
-                   + stackTrace;
+            WriteLine(SR.DebugAssertBanner + Environment.NewLine
+                   + SR.DebugAssertShortMessage + Environment.NewLine
+                   + message + Environment.NewLine
+                   + SR.DebugAssertLongMessage + Environment.NewLine
+                   + detailMessage + Environment.NewLine
+                   + stackTrace);
         }
 
         [System.Diagnostics.Conditional("DEBUG")]

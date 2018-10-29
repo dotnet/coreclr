@@ -39,6 +39,10 @@ namespace System.Diagnostics
             Write(message + Environment.NewLine);
         }
 
+        public virtual void OnIndentLevelChanged(int indentLevel) { }
+
+        public virtual void OnIndentSizeChanged(int indentSize) { }
+
         private static readonly object s_lock = new object();
 
         private sealed class DebugAssertException : Exception
@@ -59,40 +63,13 @@ namespace System.Diagnostics
             }
         }
 
-        [ThreadStatic]
-        private static int s_indentLevel;
-        public virtual int IndentLevel
-        {
-            get
-            {
-                return s_indentLevel;
-            }
-            set
-            {
-                s_indentLevel = value < 0 ? 0 : value;
-            }
-        }
-
-        private static int s_indentSize = 4;
-        public virtual int IndentSize
-        {
-            get
-            {
-                return s_indentSize;
-            }
-            set
-            {
-                s_indentSize = value < 0 ? 0 : value;
-            }
-        }
-
         private bool _needIndent = true;
 
         private string _indentString;
 
-        internal string GetIndentString()
+        private string GetIndentString()
         {
-            int indentCount = IndentSize * IndentLevel;
+            int indentCount = Debug.IndentSize * Debug.IndentLevel;
             if (_indentString?.Length == indentCount)
             {
                 return _indentString;
