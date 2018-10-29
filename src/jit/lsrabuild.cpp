@@ -1614,6 +1614,7 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
             else if (newRefPosition->refType == RefTypeUpperVectorSaveDef)
             {
+                // TODO-Cleanup: won't need a register once #18144 is fixed.
                 minRegCountForRef += 1;
             }
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
