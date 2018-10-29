@@ -24,10 +24,7 @@ public:
 			return hr;
 
 		hr = pTargetInterface->Foo(fooSuccessVal);
-		if (FAILED(hr))
-			pTargetInterface->Release();
-		else
-			hr = (HRESULT)(pTargetInterface->Release());
+		pTargetInterface->Release();
 
 		return hr;
 	}
