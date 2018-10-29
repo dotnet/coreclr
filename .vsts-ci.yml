@@ -14,6 +14,31 @@ variables:
 phases:
 
 ###
+### Linux x64
+###
+
+- template: linux-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x64
+
+###
+### macOS x64
+###
+
+### Product build
+- template: macos-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x64
+
+###
+### RedHat x64
+###
+
+###
 ###  Windows: x64, x86, arm64, arm
 ###
 
@@ -41,33 +66,8 @@ phases:
     buildConfigUpper: Release
     archType: arm64
 
-###
-### Linux x64
-###
-
-- template: linux-pipeline.yml
-  parameters:
-    buildConfig: release
-    buildConfigUpper: Release
-    archType: x64
-
-###
-### RedHat x64
-###
 
 
-
-
-###
-### macOS x64
-###
-
-### Product build
-- template: macos-pipeline.yml
-  parameters:
-    buildConfig: release
-    buildConfigUpper: Release
-    archType: x64
 
 #
 #- phase: Windows_NT_x64 Formatting

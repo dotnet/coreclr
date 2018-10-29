@@ -34,10 +34,32 @@ jobs:
     # skiprestore sets restoreduringbuild to false. that step has been separated out.
     - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages -skiprestore -priority=0
       displayName: Build
-    - script: echo Sign!
-      displayName: Sign Binaries (empty for now)
-    - script: .\Tools\dotnetcli\dotnet.exe msbuild 
-      displayName: Publish build to some location (empty for now)
+
+    # Upload build as pipeline artifact
+    - task: PublishPipelineArtifact@0
+      inputs:
+        targetPath: $(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)
+
+    # Sign
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+      - script: echo Sign!
+        displayName: Sign Binaries (empty for now)
+
+    ## For official build, publish packages to blob feed
+    # First, get secrets from azure key vault
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+      - task: AzureKeyVault@1
+        inputs:
+          azureSubscription: 'DotNet-Engineering-Services_KeyVault'
+          KeyVaultName: EngKeyVault
+          SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
+
+    # Next, publish to blob feed
+    # TODO: also enable publishing symbols to msdl, symweb
+#    - script: eng\common\cibuild.cmd /p:DotNetPublishToBlobFeed=true /p:DotNetPublishBlobFeedKey=$(dotnetfeed-storage-access-key-1) /p:DotNetPublishBlobFeedUrl=https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json
+    #- script: .\Tools\dotnetcli\dotnet.exe msbuild 
+    #  displayName: Publish build to some location (empty for now)
+
 
 
 ### Test build and run

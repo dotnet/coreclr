@@ -41,10 +41,28 @@ jobs:
       displayName: Sync
     - script: ./build.sh $(buildConfig) $(archType)
       displayName: Build
-    - script: echo Sign!
-      displayName: Sign Binaries (empty for now)
-    - script: echo Publish!
-      displayName: Publish build to some location (empty for now)
+
+    # Upload build as pipeline artifact
+    - task: PublishPipelineArtifact@0
+      inputs:
+        targetPath: $(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)
+
+    # Sign
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+      - script: echo Sign!
+        displayName: Sign Binaries (empty for now)
+
+    # Get key vault secrets for publishing
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+      - task: AzureKeyVault@1
+        inputs:
+          azureSubscription: 'DotNet-Engineering-Services_KeyVault'
+          KeyVaultName: EngKeyVault
+          SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
+
+    # Publish packages for official builds
+    # - script: NUGET_PACKAGES=$(Build.SourcesDirectory)/.packages .dotnet/dotnet msbuild /t:Restore src/publishwitharcade.proj
+    #   displayName: Publish build to some location (empty for now)
 
 
 ### Test build and run
