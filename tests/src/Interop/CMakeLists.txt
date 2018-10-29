@@ -12,6 +12,8 @@ list(APPEND LINK_LIBRARIES_ADDITIONAL platformdefines)
 SET(CLR_INTEROP_TEST_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 include_directories(common)
+add_subdirectory(PInvoke/Delegate/MarshalDelegateAsField)
+add_subdirectory(PInvoke/Delegate/MarshalDelegateAsParam)
 add_subdirectory(PInvoke/Primitives/Int)
 add_subdirectory(PInvoke/ExactSpelling)
 add_subdirectory(NativeCallable)
@@ -36,6 +38,7 @@ add_subdirectory(SizeConst)
 add_subdirectory(DllImportAttribute/ExeFile)
 add_subdirectory(DllImportAttribute/FileNameContainDot)
 add_subdirectory(DllImportAttribute/Simple)
+add_subdirectory(ExecInDefAppDom)
 
 if(WIN32)
     # This test doesn't necessarily need to be Windows-only, but the implementation is very tied to Windows APIs
