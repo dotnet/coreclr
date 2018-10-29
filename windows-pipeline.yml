@@ -4,6 +4,9 @@ parameters:
   archType: ''
 
 jobs:
+
+
+### Product build
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
     name: ${{ format('win_{0}_{1}_build', parameters.archType, parameters.buildConfig) }}
@@ -35,10 +38,26 @@ jobs:
       displayName: Sign Binaries (empty for now)
     - script: .\Tools\dotnetcli\dotnet.exe msbuild 
       displayName: Publish build to some location (empty for now)
+
+
+### Test build and run
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    name: ${{ format('win_{0}_{1}_test', parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('Windows_NT {0} {1} Test Build and Run', parameters.archType, parameters.buildConfigUpper) }}
+    queue:
+      name: dotnet-external-temp
+      timeoutInMinutes: 180
+    agentOs: Windows_NT
+    variables:
+      buildConfig: ${{ parameters.buildConfig }}
+      buildConfigUpper: ${{ parameters.buildConfigUpper }}
+      archType: ${{ parameters.archType }}
+    steps:
+    - script: build-test.cmd $(buildConfig) $(archType) -Priority=0
+      displayName: Build Pri-0 tests
 #    - script: build-test.cmd $(buildConfig) $(archType) buildagainstpackages runtimeid win-$(archType) -Priority=0
 #      displayName: Build tests
-    - script: build-test.cmd $(buildConfig) $(archType) -Priority=0
-      displayName: Build tests
     - script: .\Tools\dotnetcli\dotnet.exe msbuild tests\helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)\tests\core_root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2

@@ -17,7 +17,6 @@ phases:
 ###  Windows: x64, x86, arm64, arm
 ###
 
-### Product build
 - template: windows-pipeline.yml
   parameters:
     buildConfig: release
@@ -42,122 +41,15 @@ phases:
     buildConfigUpper: Release
     archType: arm64
 
-### Test build
-#- template: /eng/common/templates/phases/base.yml@arcade
-#  parameters:
-#    queue:
-#      name: dotnet-external-temp
-#      timeoutInMinutes: 180
-#      parallel: 4
-#      matrix:
-#        x64 release innerLoop:
-#          buildConfig: release
-#          buildConfigUpper: Release
-#          archType: x64
-#        x86 release innerLoop:
-#          buildConfig: release
-#          buildConfigUpper: Release
-#          archType: x86
-#        arm release innerLoop:
-#          buildConfig: release
-#          buildConfigUpper: Release
-#          archType: arm
-#        arm64 release innerLoop:
-#          buildConfig: release
-#          buildConfigUpper: Release
-#          archType: arm64
-#    agentOs: Windows_NT
-#    name: Windows_NT_test
-#    steps:
-##    - task: DotNetCoreInstaller@0
-##      inputs:
-##        version: 2.1.400
-#    # necessary to install python!
-#    - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
-#      displayName: Install native tools
-#      # TODO: do we want to skiptests? skipbuildpackages? IBCOptimize? EnforcePGO? pass an OfficialBuildId? SkipRestore? signtype? file logging parameters?
-#    - script: .\init-tools.cmd
-#      displayName: Init tools
-#    - script: .\Tools\dotnetcli\dotnet.exe msbuild build.proj /p:RestoreDuringBuild=true /t:Sync
-#      displayName: Sync
-#    # skiprestore sets restoreduringbuild to false. that step has been separated out.
-#    - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages -skiprestore -priority=0
-#      displayName: Build
-#    - script: echo Sign!
-#      displayName: Sign Binaries (empty for now)
-#    - script: .\Tools\dotnetcli\dotnet.exe msbuild 
-#      displayName: Publish build to some location (empty for now)
-##    - script: build-test.cmd $(buildConfig) $(archType) buildagainstpackages runtimeid win-$(archType) -Priority=0
-##      displayName: Build tests
-#    - script: build-test.cmd $(buildConfig) $(archType) -Priority=0
-#      displayName: Build tests
-#    - script: .\Tools\dotnetcli\dotnet.exe msbuild tests\helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)\tests\core_root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
-#      displayName: Prepare test directories for helix
-#    - task: DotNetCoreCLI@2
-#      inputs:
-#        command: custom
-#        projects: tests\helixpublishwitharcade.proj
-#        custom: msbuild
-#        arguments: '/t:test'
-#      displayName: Send tests job to Helix
-#      env:
-#        HelixAccessToken: $(HelixTestAccessToken)
-#
-
-
-
-
 ###
 ### Linux x64
 ###
 
-### Product build
-- template: /eng/common/templates/phases/base.yml@arcade
+- template: linux-pipeline.yml
   parameters:
-    queue:
-      name: Hosted Ubuntu 1604
-      timeoutInMinutes: 180
-      parallel: 3
-      matrix:
-        x64 release innerloop:
-          buildConfig: release
-          buildConfigUpper: Release
-          archType: x64
-          buildOS: Linux
-    agentOs: Ubuntu
-    name: Ubuntu
-    steps:
-    - script: sudo apt install cmake llvm-3.9 clang-3.9 lldb-3.9 liblldb-3.9-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev libkrb5-dev libnuma-dev
-      displayName: Install native dependencies
-#    - task: DotNetCoreInstaller@0
-#      inputs:
-#        version: 2.1.400
-#    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
-#      displayName: Install native tools
-    - script: ./init-tools.sh
-      displayName: Init tools
-    - script: ./Tools/dotnetcli/dotnet msbuild build.proj /p:RestoreDuringBuild=true /t:Sync
-      displayName: Sync
-    - script: ./build.sh $(buildConfig) $(archType) -skipnuget -skiprestore
-      displayName: Build
-    - script: echo Sign!
-      displayName: Sign Binaries (empty for now)
-    - script: echo Publish!
-      displayName: Publish build to some location (empty for now)
-    - script: ./build-test.sh $(buildConfig) $(archType)
-      displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(buildOS).$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
-      displayName: Prepare test directories for helix
-    - task: DotNetCoreCLI@2
-      inputs:
-        command: custom
-        projects: tests/helixpublishwitharcade.proj
-        custom: msbuild
-        arguments: '/t:test'
-      displayName: Send tests job to Helix
-      env:
-        HelixAccessToken: $(HelixTestAccessToken)
-
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x64
 
 ###
 ### RedHat x64
@@ -170,59 +62,12 @@ phases:
 ### macOS x64
 ###
 
-- template: /eng/common/templates/phases/base.yml@arcade
+### Product build
+- template: macos-pipeline.yml
   parameters:
-    queue:
-      name: Hosted macOS
-      timeoutInMinutes: 180
-      parallel: 3
-      matrix:
-        x64 release innerloop:
-          buildConfig: release
-          buildConfigUpper: Release
-          archType: x64
-          buildOS: OSX
-    agentOs: MacOS
-    name: MacOS
-    steps:
-#    - script: brew install cmake # mac machine already has cmake 3.12.2. this command fails, saying:
-  #  Error: cmake 3.12.2 is already installed
-  #  To upgrade to 3.12.3, run `brew upgrade cmake`
-    # - script: brew list icu4c # this fails when it's not installed.
-    - script: brew install icu4c
-    - script: brew link --force icu4c
-    # - script: brew list openssl
-    - script: brew install openssl
-#     - task: DotNetCoreInstaller@0
-#       inputs:
-#         version: 2.1.400
-#    - script: eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
-#      displayName: Install native tools
-#    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
-#      displayName: Install native tools
-    - script: ./init-tools.sh
-      displayName: Init tools
-    - script: ./Tools/dotnetcli/dotnet msbuild build.proj /p:RestoreDuringBuild=true /t:Sync
-      displayName: Sync
-    - script: ./build.sh $(buildConfig) $(archType)
-      displayName: Build
-    - script: echo Sign!
-      displayName: Sign Binaries (empty for now)
-    - script: echo Publish!
-      displayName: Publish build to some location (empty for now)
-    - script: ./build-test.sh $(buildConfig) $(archType)
-      displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(buildOS).$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
-      displayName: Prepare test directories for helix
-    - task: DotNetCoreCLI@2
-      inputs:
-        command: custom
-        projects: tests/helixpublishwitharcade.proj
-        custom: msbuild
-        arguments: '/t:test'
-      displayName: Send tests job to Helix
-      env:
-        HelixAccessToken: $(HelixTestAccessToken)
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x64
 
 #
 #- phase: Windows_NT_x64 Formatting
@@ -307,68 +152,3 @@ phases:
 #        displayName: Send test workload to helix
 #        env:
 #          HelixAccessToken: $(HelixTestAccessToken)
-
-
-# test no name/displayname passed to job
-- template: /eng/common/templates/phases/base.yml@arcade
-  parameters:
-    queue:
-      name: Hosted Ubuntu 1604
-      timeoutInMinutes: 180
-    agentOs: Ubuntu
-    steps:
-    - script: echo no name or displayname
-
-# test empty name passed to job
-- template: /eng/common/templates/phases/base.yml@arcade
-  parameters:
-    queue:
-      name: Hosted Ubuntu 1604
-      timeoutInMinutes: 180
-    agentOs: Ubuntu
-    name: ''
-    steps:
-    - script: echo empty name, no displayname
-
-# test no name, empty displayname passed to job
-- template: /eng/common/templates/phases/base.yml@arcade
-  parameters:
-    queue:
-      name: Hosted Ubuntu 1604
-      timeoutInMinutes: 180
-    agentOs: Ubuntu
-    displayName: ''
-    steps:
-    - script: echo no name, empty displayname
-
-- template: /eng/common/templates/phases/base.yml@arcade
-  parameters:
-    queue:
-      name: Hosted Ubuntu 1604
-      timeoutInMinutes: 180
-    agentOs: Ubuntu
-    name: jobNameNoDisplayName
-    steps:
-    - script: echo name, no displayname
-
-- template: /eng/common/templates/phases/base.yml@arcade
-  parameters:
-    queue:
-      name: Hosted Ubuntu 1604
-      timeoutInMinutes: 180
-    agentOs: Ubuntu
-    displayName: jobDisplayNameNoName
-    steps:
-    - script: echo displayname, no name
-
-- template: /eng/common/templates/phases/base.yml@arcade
-  parameters:
-    queue:
-      name: Hosted Ubuntu 1604
-      timeoutInMinutes: 180
-    agentOs: Ubuntu
-    name: ''
-    displayName: jobDisplayNameEmptyName
-    steps:
-    - script: echo displayname, empty name
-
