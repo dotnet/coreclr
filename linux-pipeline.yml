@@ -69,6 +69,7 @@ jobs:
       buildConfigUpper: ${{ parameters.buildConfigUpper }}
       archType: ${{ parameters.archType }}
     steps:
+    - script: sudo apt install cmake llvm-3.9 clang-3.9 lldb-3.9 liblldb-3.9-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev libkrb5-dev libnuma-dev
     - script: ./build-test.sh $(buildConfig) $(archType)
       displayName: Build tests
     - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/Linux.$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
