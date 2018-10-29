@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
@@ -26,13 +27,18 @@ namespace System
             public NumberBufferKind Kind;
             public Span<char> Digits;
 
-            public NumberBuffer(NumberBufferKind kind, char* pDigits, int digitsLength)
+            public NumberBuffer(NumberBufferKind kind, char* digits, int digitsLength)
             {
+                Debug.Assert(Enum.IsDefined(typeof(NumberBufferKind), kind));
+                Debug.Assert(kind != NumberBufferKind.Unknown);
+                Debug.Assert(digits != null);
+                Debug.Assert(digitsLength > 0);
+
                 Precision = 0;
                 Scale = 0;
                 Sign = false;
                 Kind = kind;
-                Digits = new Span<char>(pDigits, digitsLength);
+                Digits = new Span<char>(digits, digitsLength);
             }
 
             public char* GetDigitsPointer()
