@@ -307,3 +307,58 @@ phases:
 #        displayName: Send test workload to helix
 #        env:
 #          HelixAccessToken: $(HelixTestAccessToken)
+
+
+# test no name/displayname passed to job
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    queue:
+      name: Hosted Ubuntu 1604
+      timeoutInMinutes: 180
+    agentOs: Ubuntu
+  steps:
+  - script: echo no name or displayname
+
+# test empty name passed to job
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    queue:
+      name: Hosted Ubuntu 1604
+      timeoutInMinutes: 180
+    agentOs: Ubuntu
+    name: ''
+  steps:
+  - script: echo empty name, no displayname
+
+# test no name, empty displayname passed to job
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    queue:
+      name: Hosted Ubuntu 1604
+      timeoutInMinutes: 180
+    agentOs: Ubuntu
+    displayName: ''
+  steps:
+  - script: no name, empty displayname
+
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    queue:
+      name: Hosted Ubuntu 1604
+      timeoutInMinutes: 180
+    agentOs: Ubuntu
+    name: jobNameNoDisplayName
+  steps:
+  - script: name, no displayname
+
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    queue:
+      name: Hosted Ubuntu 1604
+      timeoutInMinutes: 180
+    agentOs: Ubuntu
+    name: jobNameNoDisplayName
+    displayName: ''
+  steps:
+  - script: name, empty displayname
+
