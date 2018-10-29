@@ -306,14 +306,9 @@ namespace System
             int total = number.Precision;
             int remaining = total;
 
-            // skip the leading zeros
-            while (src[0] == '0')
-            {
-                remaining--;
-                src++;
-            }
+            Debug.Assert(src[0] != '0');
 
-            if (remaining == 0)
+            if (total == 0)
             {
                 return number.Sign ? -0.0 : 0.0;
             }
