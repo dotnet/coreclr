@@ -13,7 +13,25 @@ namespace System
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal unsafe ref struct BigInteger
         {
-            private const int MaxBlockCount = 35;
+            // The longest binary mantissa requires: explicit mantissa bits + abs(min exponent)
+            // * Half:     10 +    14 =    24
+            // * Single:   23 +   126 =   149
+            // * Double:   52 +  1022 =  1074
+            // * Quad:    112 + 16382 = 16494
+            private const int BitsForLongestBinaryMantissa = 1074;
+
+            // The longest digit sequence requires: ceil(log2(pow(10, max significant digits + 1 rounding digit)))
+            // * Half:    ceil(log2(pow(10,    21 + 1))) =    74
+            // * Single:  ceil(log2(pow(10,   112 + 1))) =   376
+            // * Double:  ceil(log2(pow(10,   767 + 1))) =  2552
+            // * Quad:    ceil(log2(pow(10, 11563 + 1))) = 38415
+            private const int BitsForLongestDigitSequence = 2552;
+
+            // We require BitsPerBlock additional bits for shift space used during the pre-division preparation
+            private const int MaxBits = BitsForLongestBinaryMantissa + BitsForLongestDigitSequence + BitsPerBlock;
+
+            private const int BitsPerBlock = sizeof(int) * 8;
+            private const int MaxBlockCount = (MaxBits + (BitsPerBlock - 1)) / BitsPerBlock;
 
             private static readonly uint[] s_Pow10UInt32Table = new uint[]
             {
@@ -27,7 +45,7 @@ namespace System
                 10000000,   // 10^7
             };
 
-            private static readonly int[] s_s_Pow10BigNumTableIndices = new int[]
+            private static readonly int[] s_Pow10BigNumTableIndices = new int[]
             {
                 0,          // 10^8
                 2,          // 10^16
@@ -112,7 +130,88 @@ namespace System
                 0x5FDCEFCE,
                 0x000553F7,
 
-                // Trailing blocks to ensure MaxBlockCount
+                // 88 Trailing blocks to ensure MaxBlockCount
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
+                0x00000000,
                 0x00000000,
                 0x00000000,
                 0x00000000,
@@ -438,6 +537,10 @@ namespace System
                 //
                 // More details of this implementation can be found at: https://github.com/dotnet/coreclr/pull/12894#discussion_r128890596
 
+                // Validate that `s_Pow10BigNumTable` has exactly enough trailing elements to fill a BigInteger (which contains MaxBlockCount + 1 elements)
+                // We validate here, since this is the only current consumer of the array
+                Debug.Assert((s_Pow10BigNumTableIndices[s_Pow10BigNumTableIndices.Length - 1] + MaxBlockCount + 1) == s_Pow10BigNumTable.Length);
+
                 BigInteger temp1 = new BigInteger(s_Pow10UInt32Table[exponent & 0x7]);
                 ref BigInteger lhs = ref temp1;
 
@@ -453,7 +556,7 @@ namespace System
                     if ((exponent & 1) != 0)
                     {
                         // Multiply into the next temporary
-                        ref BigInteger rhs = ref *(BigInteger*)(Unsafe.AsPointer(ref s_Pow10BigNumTable[s_s_Pow10BigNumTableIndices[index]]));
+                        ref BigInteger rhs = ref *(BigInteger*)(Unsafe.AsPointer(ref s_Pow10BigNumTable[s_Pow10BigNumTableIndices[index]]));
                         Multiply(ref lhs, ref rhs, ref product);
 
                         // Swap to the next temporary
