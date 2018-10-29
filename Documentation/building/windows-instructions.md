@@ -112,7 +112,7 @@ to change it for the current user).  Simply edit the PATH variable's value and a
 -------------------------------------
 # Building
 
-Once all the necessary tools are in place, the building is trivial.  Simply run build build.cmd script that lives at
+Once all the necessary tools are in place, building is trivial.  Simply run build build.cmd script that lives at
 the base of the repository.   
 
 ```bat
@@ -131,7 +131,7 @@ As shown above, the product will be placed in
 - Test binaries will be dropped under `bin\Tests\<OS>.<arch>.<flavor>` folder
 
 By default, build generates a 'Debug' build type, that has extra checking (assert) compiled into it. You can
-also, build the 'release' version which does not have these checks
+also build the 'release' version which does not have these checks
 
 The build places logs in `bin\Logs` and these are useful when the build fails.
 

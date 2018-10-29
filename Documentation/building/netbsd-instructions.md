@@ -6,7 +6,7 @@ This guide will walk you through building CoreCLR on NetBSD.  We'll start by sho
 Environment
 ===========
 
-These instructions are written on NetBSD 7.x on the amd64 platform since that's the release the team uses.
+These instructions are written on NetBSD 7.x on the amd64 platform, since that's the release the team uses.
 
 Older releases aren't supported because building CoreCLR requires the modern LLVM stack (Clang, libunwind, and LLDB) that is developed against the NetBSD-7.x branch.
 

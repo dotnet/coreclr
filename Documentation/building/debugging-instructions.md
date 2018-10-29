@@ -36,7 +36,7 @@ To use lldb on OS X, you first need to build it and the SOS plugin on the machin
 Debugging CoreCLR on Linux
 ==========================
 
-The only lldb is supported by the SOS plugin. gdb can be used to debug the coreclr code but with no SOS support. Visual Studio 2015 RTM remote debugging isn't currently supported.
+Only lldb is supported by the SOS plugin. gdb can be used to debug the coreclr code but with no SOS support. Visual Studio 2015 RTM remote debugging isn't currently supported.
 
 1. Perform a build of the coreclr repo.
 2. Install the corefx managed assemblies to the binaries directory.

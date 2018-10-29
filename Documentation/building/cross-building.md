@@ -19,7 +19,7 @@ Build using "-arm" as the architecture. For example:
 Cross Compilation for ARM, ARM64 or x86 on Linux
 ================================================
 
-Through cross compilation, on Linux, it is possible to build CoreCLR for arm or arm64.
+Through cross compilation, on Linux it is possible to build CoreCLR for arm or arm64.
 
 Requirements for targetting Debian based distros
 ------------------------------------------------
@@ -37,7 +37,7 @@ and conversely for arm64:
     ben@ubuntu ~/git/coreclr/ $ sudo apt-get install binutils-aarch64-linux-gnu
 
 
-Requirements for targetting an ARM or ARM64 Alpine Linux
+Requirements for targetting ARM or ARM64 Alpine Linux
 -----------------------------------------------------
 
 You can use any Linux distro as a host. The qemu, qemu-user-static and binfmt-support packages need to be installed (the names may be different for some distros).
@@ -107,7 +107,7 @@ As usual, the resulting binaries will be found in `bin/Product/BuildOS.BuildArch
 Compiling System.Private.CoreLib for ARM Linux
 ==============================================
 
-It is also possible to use a Windows and a Linux machine to build the managed components of CoreCLR for ARM Linux.  This can be useful when the build on the target platform fails, for example, due to Mono issues.
+It is also possible to use a Windows and a Linux machine to build the managed components of CoreCLR for ARM Linux.  This can be useful when the build on the target platform fails, for example due to Mono issues.
 
 Build System.Private.CoreLib on Windows
 ---------------------------------------

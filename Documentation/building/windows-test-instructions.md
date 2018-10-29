@@ -37,7 +37,7 @@ To run a clean, priority 1, crossgen test pass:
 
 Note: build-test.cmd or build.cmd skipnative needs to be run at least once
 
-* Native Test: Build the generated Visual Studio solution or makefile corresponding to Test cmake file.
+* Native Test: Build the generated Visual Studio solution or make file corresponding to Test cmake file.
   
 * Managed Test: You can invoke msbuild on the project directly from Visual Studio Command Prompt.
 

@@ -213,7 +213,7 @@ janhenke@freebsd-frankfurt:~/coreclr-demo/packages % find . -wholename '*/aspnet
 Compile an App
 ==============
 
-Now you need a Hello World application to run.  You can write your own if you'd like.  Personally, I'm partial to the one on corefxlab which will draw Tux for us.
+Now you need a Hello World application to run.  You can write your own, if you'd like.  Personally, I'm partial to the one on corefxlab which will draw Tux for us.
 
 ```sh
 janhenke@freebsd-frankfurt:~/coreclr-demo/packages % cd ~/coreclr-demo/runtime
