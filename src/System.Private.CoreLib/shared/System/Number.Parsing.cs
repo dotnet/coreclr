@@ -1799,20 +1799,15 @@ namespace System
 
         private static bool TryNumberToDouble(ref NumberBuffer number, ref double value)
         {
-            double d = NumberToDouble(ref number);
-            if (!double.IsFinite(d))
+            double result = NumberToDouble(ref number);
+
+            if (!double.IsFinite(result))
             {
                 value = default;
                 return false;
             }
 
-            if (d == 0.0)
-            {
-                // normalize -0.0 to 0.0
-                d = 0.0;
-            }
-
-            value = d;
+            value = result;
             return true;
         }
     }
