@@ -265,18 +265,6 @@ namespace System
             return res;
         }
 
-        private static int GetLength(char* src)
-        {
-            int length = 0;
-
-            while (src[length] != '\0')
-            {
-                length++;
-            }
-
-            return length;
-        }
-
         // helper function to multiply two 32-bit uints
         private static ulong Mul32x32To64(uint a, uint b)
         {
@@ -315,7 +303,7 @@ namespace System
 #endif
 
             char* src = number.GetDigitsPointer();
-            int total = GetLength(src);
+            int total = number.Precision;
             int remaining = total;
 
             // skip the leading zeros
