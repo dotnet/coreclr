@@ -13,8 +13,6 @@ namespace System.Diagnostics
     /// </summary>
     public static class Debug
     {
-        private static readonly object s_lock = new object();
-
         private static DebugProvider s_provider = new DebugProvider();
 
         public static DebugProvider SetProvider(DebugProvider provider)
@@ -37,11 +35,8 @@ namespace System.Diagnostics
             }
             set
             {
-                lock (s_lock)
-                {
-                    t_indentLevel = value < 0 ? 0 : value;
-                    s_provider.OnIndentLevelChanged(t_indentLevel);
-                }
+                t_indentLevel = value < 0 ? 0 : value;
+                s_provider.OnIndentLevelChanged(t_indentLevel);
             }
         }
 
@@ -54,11 +49,8 @@ namespace System.Diagnostics
             }
             set
             {
-                lock (s_lock)
-                {
-                    s_indentSize = value < 0 ? 0 : value;
-                    s_provider.OnIndentSizeChanged(s_indentSize);
-                }
+                s_indentSize = value < 0 ? 0 : value;
+                s_provider.OnIndentSizeChanged(s_indentSize);
             }
         }
 
@@ -71,19 +63,13 @@ namespace System.Diagnostics
         [System.Diagnostics.Conditional("DEBUG")]
         public static void Indent()
         {
-            lock (s_lock)
-            {
-                IndentLevel++;
-            }
+            IndentLevel++;
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
         public static void Unindent()
         {
-            lock (s_lock)
-            {
-                IndentLevel--;
-            }
+            IndentLevel--;
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
