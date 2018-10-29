@@ -194,8 +194,11 @@ namespace NetClient
         private void Marshal_ManyInts()
         {
             var expected = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11;
-            Console.WriteLine($"{expected.GetType().Name} test invariant: 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 = {expected}");
-            Assert.IsTrue(expected == this.server.Add_ManyInts(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11));
+            Console.WriteLine($"{expected.GetType().Name} 11 test invariant: 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 = {expected}");
+            Assert.IsTrue(expected == this.server.Add_ManyInts11(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11));
+            expected = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12;
+            Console.WriteLine($"{expected.GetType().Name} 12 test invariant: 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 = {expected}");
+            Assert.IsTrue(expected == this.server.Add_ManyInts12(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12));
         }
     }
 }
