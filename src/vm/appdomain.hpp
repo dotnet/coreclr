@@ -2508,7 +2508,6 @@ public:
     }
 
 #ifdef FEATURE_COMINTEROP
-    ComCallWrapperCache* GetComCallWrapperCache();
     RCWCache *GetRCWCache()
     {
         WRAPPER_NO_CONTRACT;
@@ -2529,12 +2528,6 @@ public:
     }
 
     RCWRefCache *GetRCWRefCache();
-
-    void ResetComCallWrapperCache()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pComCallWrapperCache = NULL;
-    }
 
     MethodTable* GetLicenseInteropHelperMethodTable();
 #endif // FEATURE_COMINTEROP
@@ -3225,10 +3218,6 @@ private:
     // Hash table that remembers the last cached WinRT factory object per type per appdomain.
     WinRTFactoryCache   *m_pWinRTFactoryCache;
 
-    // The wrapper cache for this domain - it has its own CCacheLineAllocator on a per domain basis
-    // to allow the domain to go away and eventually kill the memory when all refs are gone
-    ComCallWrapperCache *m_pComCallWrapperCache;
-    
     // this cache stores the RCWs in this domain
     RCWCache *m_pRCWCache;
 

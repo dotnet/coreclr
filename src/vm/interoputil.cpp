@@ -5094,14 +5094,6 @@ ClassFactoryBase *GetComClassFactory(MethodTable* pClassMT)
 
     if (pClsFac == NULL)
     {
-        //
-        // Collectible types do not support com interop
-        //
-        if (pClassMT->Collectible())
-        {
-            COMPlusThrow(kNotSupportedException, W("NotSupported_CollectibleCOM"));
-        }
-
         NewHolder<ClassFactoryBase> pNewFactory;
 
         if (pClassMT->IsExportedToWinRT())

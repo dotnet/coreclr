@@ -43,7 +43,7 @@ class ComCallWrapperCache
 {
     enum
     {
-        AD_IS_UNLOADING = 0x01,
+        LA_IS_UNLOADING = 0x01,
     };
     
 public:
@@ -62,8 +62,8 @@ public:
     ComCallWrapperCache();
     ~ComCallWrapperCache();
 
-    // create a new WrapperCache (one per domain)
-    static ComCallWrapperCache* Create(AppDomain *pDomain);
+    // create a new WrapperCache (one for domain, one for each collectible LoaderAllocator)
+    static ComCallWrapperCache* Create(LoaderAllocator *pLoaderAllocator);
 
     // Called when the domain is going away.  We may have outstanding references to this cache,
     //  so we keep it around in a neutered state.
@@ -87,9 +87,9 @@ public:
         RETURN m_pCacheLineAllocator;
     }
 
-    AppDomain* GetDomain()
+    LoaderAllocator* GetLoaderAllocator()
     {
-        CONTRACT (AppDomain*)
+        CONTRACT (LoaderAllocator*)
         {
             WRAPPER(THROWS);
             WRAPPER(GC_TRIGGERS);
@@ -98,41 +98,27 @@ public:
         }
         CONTRACT_END;
         
-        RETURN ((AppDomain*)((size_t)m_pDomain & ~AD_IS_UNLOADING));
+        RETURN ((LoaderAllocator*)((size_t)m_pLoaderAllocator & ~LA_IS_UNLOADING));
     }
 
-    void ClearDomain()
+    void SetLoaderAllocatorIsUnloading()
     {
         LIMITED_METHOD_CONTRACT;
         
-        m_pDomain = (AppDomain *)AD_IS_UNLOADING;
+        m_pLoaderAllocator = (LoaderAllocator *)LA_IS_UNLOADING;
     }
 
-    void SetDomainIsUnloading()
+    BOOL IsLoaderAllocatorUnloading()
     {
         LIMITED_METHOD_CONTRACT;
         
-        m_pDomain = (AppDomain*)((size_t)m_pDomain | AD_IS_UNLOADING);
-    }
-
-    void ResetDomainIsUnloading()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        m_pDomain = (AppDomain*)((size_t)m_pDomain & (~AD_IS_UNLOADING));
-    }
-
-    BOOL IsDomainUnloading()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        return ((size_t)m_pDomain & AD_IS_UNLOADING) != 0;
+        return (m_pLoaderAllocator == (LoaderAllocator *)LA_IS_UNLOADING);
     }
 
 private:
     LONG                    m_cbRef;
     CCacheLineAllocator*    m_pCacheLineAllocator;
-    AppDomain*              m_pDomain;
+    LoaderAllocator*        m_pLoaderAllocator;
 
     // spin lock for fast synchronization
     Crst                    m_lock;
