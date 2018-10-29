@@ -13,7 +13,7 @@ namespace System.Diagnostics
     /// </summary>
     public static class Debug
     {
-        private static DebugProvider s_provider = new DebugProvider();
+        private static volatile DebugProvider s_provider = new DebugProvider();
 
         public static DebugProvider SetProvider(DebugProvider provider)
         {
@@ -40,7 +40,7 @@ namespace System.Diagnostics
             }
         }
 
-        private static int s_indentSize = 4;
+        private static volatile int  s_indentSize = 4;
         public static int IndentSize
         {
             get
