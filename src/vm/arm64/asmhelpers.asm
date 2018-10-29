@@ -656,10 +656,17 @@ GenericComCallStub_FirstStackAdjust     SETA GenericComCallStub_FirstStackAdjust
     cbz x0, COMToCLRDispatchHelper_RegSetup
 
     add x9, x1, #SIZEOF__ComMethodFrame
+
+    ; Compute number of 8 bytes slots to copy. This is done by rounding up the
+    ; dwStackSlots value to the nearest even value
     add x0, x0, #1
     bic x0, x0, #1
+
+    ; Compute how many slots to adjust the address to copy from. Since we
+    ; are copying 16 bytes at a time, adjust by -1 from the rounded value
     sub x6, x0, #1
     add x9, x9, x6, LSL #3
+
 COMToCLRDispatchHelper_StackLoop
     ldp     x7, x8, [x9], #-16  ; post-index
     stp     x7, x8, [sp, #-16]! ; pre-index
