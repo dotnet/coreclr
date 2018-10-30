@@ -59,6 +59,13 @@ import xml.etree.ElementTree
 from collections import defaultdict
 from sys import platform as _platform
 
+# Version specific imports
+
+if sys.version_info.major < 3:
+    import urllib
+else:
+    import urllib.request
+
 ################################################################################
 # Argument Parser
 ################################################################################
@@ -789,24 +796,18 @@ def run_tests(host_os,
     # Then file "xunit\src\xunit.console\bin\Release\netcoreapp2.0\xunit.console.dll" was archived and uploaded to the clrjit blob storage.
     #
     # Ideally, this code should be removed when we find a more robust way of running Xunit tests.
-    #  
+    #
     # References:
     #  * https://github.com/dotnet/coreclr/issues/20392
     #  * https://github.com/dotnet/coreclr/issues/20594
-    #  * https://github.com/xunit/xunit/issues/1842 
+    #  * https://github.com/xunit/xunit/issues/1842
     #  * https://github.com/xunit/xunit/pull/1846
     #
     #=====================================================================================================================================================
 
     print("Download and overwrite xunit.console.dll in Core_Root")
 
-    try:
-        import urllib.request
-        urlretrieve = urllib.request.urlretrieve
-    except ImportError:
-        import urllib
-        urlretrieve = urllib.urlretrieve
-
+    urlretrieve = urllib.urlretrieve if sys.version_info.major < 3 else urllib.request.urlretrieve
     zipfilename = os.path.join(tempfile.gettempdir(), "xunit.console.dll.zip")
     url = r"https://clrjit.blob.core.windows.net/xunit-console/xunit.console.dll.zip"
     urlretrieve(url, zipfilename)
@@ -815,7 +816,7 @@ def run_tests(host_os,
         ziparch.extractall(core_root)
 
     os.remove(zipfilename)
-
+    assert not os.path.isfile(zipfilename)
 
     # Call msbuild.
     return call_msbuild(coreclr_repo_location,
