@@ -892,7 +892,7 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(digits), SR.ArgumentOutOfRange_RoundingDigits);
             }
 
-            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.AwayFromZero)
+            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.ToZero)
             {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidEnumValue, mode, nameof(MidpointRounding)), nameof(mode));
             }
@@ -911,6 +911,14 @@ namespace System
                     {
                         value += Sign(fraction);
                     }
+                }
+                else if (mode == MidpointRounding.ToZero)
+                {
+                    var fraction = ModF(value, &value);
+
+                    if (Abs(fraction) <= 0.5)
+                    {
+                        value -= Sign(fraction);
                 }
                 else
                 {
