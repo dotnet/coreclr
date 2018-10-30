@@ -287,7 +287,7 @@ namespace System.IO
 
                 _preallocatedOverlapped?.Dispose();
                 _canSeek = false;
-                GC.SuppressFinalize(this);
+                GC.SuppressFinalize(this); // the handle is closed; nothing further for the finalizer to do
             }
         }
 
