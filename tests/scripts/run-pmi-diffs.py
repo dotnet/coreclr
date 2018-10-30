@@ -547,7 +547,10 @@ def do_pmi_diffs():
         # Generate the diffs
         #
         # Invoke command like:
-        #   dotnet c:\gh\jitutils\bin\jit-diff.dll diff --pmi --base --base_root f:\gh\coreclr12 --diff --diff_root f:\gh\coreclr10 --arch x64 --build Checked --tag 1 --output f:\output --corelib
+        #   dotnet c:\gh\jitutils\bin\jit-diff.dll diff --pmi --base --base_root f:\gh\coreclr12 --diff --diff_root f:\gh\coreclr10 --arch x64 --build Checked --tag 1 --noanalyze --output f:\output --corelib
+        #
+        # We pass --noanalyze and call jit-analyze manually. This isn't really necessary, but it does give us better output
+        # due to https://github.com/dotnet/jitutils/issues/175.
 
         altjit_args = []
         if ci_arch is not None and (ci_arch == 'x86_arm_altjit' or ci_arch == 'x64_arm64_altjit'):
@@ -558,7 +561,7 @@ def do_pmi_diffs():
         asm_source_args = ["--corelib"]
         # asm_source_args = ["--frameworks"]
 
-        command = ["dotnet", jitDiffPath, "diff", "--pmi", "--base", "--base_root", baseCoreClrPath, "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "1", "--output", asmRootPath] + asm_source_args + altjit_args
+        command = ["dotnet", jitDiffPath, "diff", "--pmi", "--base", "--base_root", baseCoreClrPath, "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "1", "--noanalyze", "--output", asmRootPath] + asm_source_args + altjit_args
         returncode = run_command(command, my_env)
         if returncode != 0:
             result = 1
