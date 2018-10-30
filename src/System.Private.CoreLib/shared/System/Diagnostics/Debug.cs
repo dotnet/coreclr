@@ -40,7 +40,7 @@ namespace System.Diagnostics
             }
         }
 
-        private static volatile int  s_indentSize = 4;
+        private static volatile int s_indentSize = 4;
         public static int IndentSize
         {
             get
