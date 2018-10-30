@@ -36,6 +36,7 @@ jobs:
     # Upload build as pipeline artifact
     - task: PublishPipelineArtifact@0
       inputs:
+        artifactName: ${{ format('linux_{0}_{1}_build', parameters.archType, parameters.buildConfig) }}
         targetPath: $(Build.SourcesDirectory)/bin/Product/Linux.$(archType).$(buildConfigUpper)
 
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:

@@ -45,6 +45,7 @@ jobs:
     # Upload build as pipeline artifact
     - task: PublishPipelineArtifact@0
       inputs:
+        artifactName: ${{ format('mac_{0}_{1}_build', parameters.archType, parameters.buildConfig) }}
         targetPath: $(Build.SourcesDirectory)/bin/Product/OSX.$(archType).$(buildConfigUpper)
 
     # Sign
