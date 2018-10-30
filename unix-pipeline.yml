@@ -1,0 +1,113 @@
+parameters:
+  buildConfig: ''
+  buildConfigUpper: ''
+  archType: ''
+  osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX)
+
+jobs:
+
+### Product build
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    name: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('{0} {1} {2} Build', parameters.osGroup, parameters.archType, parameters.buildConfigUpper) }}
+    queue:
+      ${{ if eq(parameters.osGroup, 'Linux') }}:
+        name: Hosted Ubuntu 1604
+      ${{ if eq(parameters.osGroup, 'OSX') }}:
+        name: Hosted macOS
+      timeoutInMinutes: 180
+    ${{ if eq(parameters.osGroup, 'Linux') }}:
+      agentOs: Ubuntu
+    ${{ if eq(parameters.osGroup, 'OSX') }}:
+      agentOs: MacOS
+
+    variables:
+      buildConfig: ${{ parameters.buildConfig }}
+      buildConfigUpper: ${{ parameters.buildConfigUpper }}
+      archType: ${{ parameters.archType }}
+
+    steps:
+    # Install native dependencies
+    - ${{ if eq(parameters.osGroup, 'Linux') }}:
+      - script: sudo apt install cmake llvm-3.9 clang-3.9 lldb-3.9 liblldb-3.9-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev libkrb5-dev libnuma-dev
+        displayName: Install native dependencies
+    - ${{ if eq(parameters.osGroup, 'OSX') }}:
+      - script: brew install icu4c openssl
+        displayName: Install native dependencies
+      - script: brew link --force icu4c
+        displayName: Set up native dependencies
+
+    - script: ./init-tools.sh
+      displayName: Init tools
+    - script: ./Tools/dotnetcli/dotnet msbuild build.proj /p:RestoreDuringBuild=true /t:Sync
+      displayName: Sync
+    - script: ./build.sh $(buildConfig) $(archType) -skipnuget -skiprestore
+      displayName: Build
+
+    # Upload build as pipeline artifact
+    - task: PublishPipelineArtifact@0
+      inputs:
+        artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+        targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+      - script: echo Sign!
+        displayName: Sign Binaries (empty for now)
+
+    # Get key vault secrets for publishing
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+      - task: AzureKeyVault@1
+        inputs:
+          azureSubscription: 'DotNet-Engineering-Services_KeyVault'
+          KeyVaultName: EngKeyVault
+          SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
+
+    # Publish official builds
+    # - script: echo Publish!
+    #   displayName: Publish build to some location (empty for now)
+
+
+### Test build and run
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    name: ${{ format('{0}_{1}_{2}_test', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('{0} {1} {2} Test Build and Run', parameters.osGroup, parameters.archType, parameters.buildConfigUpper) }}
+    queue:
+      ${{ if eq(parameters.osGroup, 'Linux') }}:
+        name: Hosted Ubuntu 1604
+      ${{ if eq(parameters.osGroup, 'OSX') }}:
+        name: Hosted macOS
+      timeoutInMinutes: 180
+    ${{ if eq(parameters.osGroup, 'Linux') }}:
+      agentOs: Ubuntu
+    ${{ if eq(parameters.osGroup, 'OSX') }}:
+      agentOs: MacOS
+    dependsOn: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+    variables:
+      buildConfig: ${{ parameters.buildConfig }}
+      buildConfigUpper: ${{ parameters.buildConfigUpper }}
+      archType: ${{ parameters.archType }}
+    steps:
+    - ${{ if eq(parameters.osGroup, 'Linux') }}:
+      - script: sudo apt install cmake llvm-3.9 clang-3.9 lldb-3.9 liblldb-3.9-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev libkrb5-dev libnuma-dev
+        displayName: Install native dependencies
+    - ${{ if eq(parameters.osGroup, 'OSX') }}:
+      - script: brew install icu4c openssl
+        displayName: Install native dependencies
+      - script: brew link --force icu4c
+        displayName: Set up native dependencies
+
+    - script: ./build-test.sh $(buildConfig) $(archType)
+      displayName: Build tests
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
+      displayName: Prepare test directories for helix
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: custom
+        projects: tests/helixpublishwitharcade.proj
+        custom: msbuild
+        arguments: '/t:test'
+      displayName: Send tests job to Helix
+      env:
+        HelixAccessToken: $(HelixTestAccessToken)

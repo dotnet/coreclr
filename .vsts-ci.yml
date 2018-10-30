@@ -17,22 +17,23 @@ phases:
 ### Linux x64
 ###
 
-- template: linux-pipeline.yml
+- template: unix-pipeline.yml
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: x64
+    osGroup: Linux
 
 ###
 ### macOS x64
 ###
 
-### Product build
-- template: macos-pipeline.yml
+- template: unix-pipeline.yml
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: x64
+    osGroup: OSX
 
 ###
 ### RedHat x64
@@ -65,8 +66,6 @@ phases:
     buildConfig: release
     buildConfigUpper: Release
     archType: arm64
-
-
 
 
 #
