@@ -5,7 +5,7 @@ resources:
     type: github
     endpoint: sbomer
     name: sbomer/arcade
-    ref: refs/heads/master
+    ref: refs/heads/arcadeChanges
 
 variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
