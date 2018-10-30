@@ -38,7 +38,7 @@ jobs:
     # Upload build as pipeline artifact
     - task: PublishPipelineArtifact@0
       inputs:
-        targetPath: $(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)
+        targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
 
     # Sign
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
@@ -54,7 +54,36 @@ jobs:
           KeyVaultName: EngKeyVault
           SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
 
-    # Next, publish to blob feed
+    #
+    # Logic related to publishing. We should clean this up...
+    #
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+        # TODO: generate version assets?
+        # TODO: log native version assets?
+        # TODO: upload package to myget? <--- assume we're not doing this any more
+        #- script: eng\common\msbuild.cmd src\publish.proj
+        #    /t:PublishPackages
+        #    /p:__PublishPackages=true
+        #
+        #    # PB_BuildOutputManifestArguments
+        #    /p:ManifestId=$(OfficialBuildId)
+        #    /p:ManifestBranch=$(SourceBranch)
+        #    /p:ManifestCommit=$(SourceVersion)
+        #
+        #    /p:ExpectedFeedUrl=
+        #    /p:CloudDropAccessToken=blobfeedkey
+        #    /p:CloudDropAccountName=azureblobfeedaccountname
+        #    /p:ContainerName=blobfeedcontainername
+        #    /p:OverwriteOnPublish=true
+        #    /p:PackagesPatternDir=packagedirectory
+        #    /p:__BuildType=$(buildConfig)
+        #    /p:OfficialPublish=true
+        #    /p:PublishFlatContainer=false
+        - script: echo does nothing for now
+          displayName: Upload product build to blob feed
+        # TODO: upload package to vsts? <--- assume we're not doing this any more
+        # TODO: update versions repository? <--- assume we're not doing this any more
+    
     # TODO: also enable publishing symbols to msdl, symweb
 #    - script: eng\common\cibuild.cmd /p:DotNetPublishToBlobFeed=true /p:DotNetPublishBlobFeedKey=$(dotnetfeed-storage-access-key-1) /p:DotNetPublishBlobFeedUrl=https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json
     #- script: .\Tools\dotnetcli\dotnet.exe msbuild 
