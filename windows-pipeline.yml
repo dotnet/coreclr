@@ -100,6 +100,7 @@ jobs:
       name: dotnet-external-temp
       timeoutInMinutes: 180
     agentOs: Windows_NT
+    dependsOn: ${{ format('win_{0}_{1}_build', parameters.archType, parameters.buildConfig) }}
     variables:
       buildConfig: ${{ parameters.buildConfig }}
       buildConfigUpper: ${{ parameters.buildConfigUpper }}

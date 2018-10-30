@@ -74,6 +74,7 @@ jobs:
       name: Hosted macOS
       timeoutInMinutes: 180
     agentOs: MacOS
+    dependsOn: ${{ format('mac_{0}_{1}_build', parameters.archType, parameters.buildConfig) }}
     variables:
       buildConfig: ${{ parameters.buildConfig }}
       buildConfigUpper: ${{ parameters.buildConfigUpper }}

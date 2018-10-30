@@ -64,6 +64,7 @@ jobs:
       name: Hosted Ubuntu 1604
       timeoutInMinutes: 180
     agentOs: Ubuntu
+    dependsOn: ${{ format('linux_{0}_{1}_build', parameters.archType, parameters.buildConfig) }}
     variables:
       buildConfig: ${{ parameters.buildConfig }}
       buildConfigUpper: ${{ parameters.buildConfigUpper }}
