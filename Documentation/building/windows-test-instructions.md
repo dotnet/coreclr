@@ -77,5 +77,5 @@ If you wish to run the test under a debugger (e.g. [WinDbg](http://msdn.microsof
 
 ### Modifying a test
 
-If test changes are needed, make the change and build the test project. This will bin place the binaries in test binaries folder (e.g. `<repo_root>\bin\tests\Windows_NT.x64.Checked\Exceptions\Finalization`). At this point, follow the steps to re-run a failed test to re-run the modified test.
+If test changes are needed, make the change and build the test project. This will binplace the binaries in test binaries folder (e.g. `<repo_root>\bin\tests\Windows_NT.x64.Checked\Exceptions\Finalization`). At this point, follow the steps to re-run a failed test to re-run the modified test.
 
