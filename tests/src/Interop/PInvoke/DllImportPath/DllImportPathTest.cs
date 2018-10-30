@@ -260,7 +260,11 @@ class Test
 
         success = success && DllExistsOnLocalPath();
         success = success && DllExistsOnRelativePath();
-        success = success && DllExistsUnicode();
+
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) // This test fails due to a bug in OSX 10.12 combined with the weird way that HFS+ handles unicode file names
+        {
+            success = success && DllExistsUnicode();
+        }
         success = success && DllExistsOnPathEnv();
         
         return success ? 100 : 101;
