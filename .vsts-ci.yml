@@ -40,8 +40,6 @@ phases:
     archType: x64
     osGroup: Linux
 
-
-
 - phase: build_rhel # TODO for official build
   condition: False
 - phase: build_alpine # TODO for official build
