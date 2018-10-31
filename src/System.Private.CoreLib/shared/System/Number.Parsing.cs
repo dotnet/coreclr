@@ -1827,6 +1827,12 @@ namespace System
             }
 
             value = result;
+
+            if (number.Sign)
+            {
+                value = -value;
+            }
+
             return true;
         }
 
@@ -1842,6 +1848,12 @@ namespace System
             }
 
             value = result;
+
+            if (number.Sign)
+            {
+                value = -value;
+            }
+
             return true;
         }
     }
