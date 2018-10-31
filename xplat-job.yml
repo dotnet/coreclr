@@ -5,6 +5,7 @@ parameters:
   osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX/Windows_NT)
   name: ''
   displayName: ''
+  dependsOn: ''
 
 jobs:
 - template: /eng/common/templates/phases/base.yml@arcade
@@ -12,6 +13,8 @@ jobs:
 
     name: ${{ parameters.name }}
     displayName: ${{ parameters.displayName }}
+
+    dependsOn: ${{ parameters.dependsOn }}
 
     queue:
       ${{ if eq(parameters.osGroup, 'Linux') }}:

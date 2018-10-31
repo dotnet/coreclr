@@ -254,18 +254,21 @@ phases:
     buildConfigUpper: Release
     archType: x64
     osGroup: Windows_NT
+
 - template: test-pipeline.yml
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: x86
     osGroup: Windows_NT
+
 - template: test-pipeline.yml
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: arm
     osGroup: Windows_NT
+
 - template: test-pipeline.yml
   parameters:
     buildConfig: release
