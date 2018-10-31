@@ -442,6 +442,16 @@ BOOL
 PALAPI
 PAL_NotifyRuntimeStarted(VOID);
 
+PALIMPORT
+LPCSTR
+PALAPI
+PAL_GetApplicationGroupId();
+
+PALIMPORT
+BOOL
+PALAPI
+PAL_IsApplicationSandboxed();
+
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
 
 PALIMPORT

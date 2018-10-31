@@ -139,6 +139,11 @@ Volatile<LONG> terminator = 0;
 DWORD gPID = (DWORD) -1;
 DWORD gSID = (DWORD) -1;
 
+// Application group ID for this process
+LPCSTR gApplicationGroupId = nullptr;
+int gApplicationGroupIdLength = 0;
+PathCharString gApplicationContainerPath;
+
 // The lowest common supported semaphore length, including null character
 // NetBSD-7.99.25: 15 characters
 // MacOSX 10.11: 31 -- Core 1.0 RC2 compatibility
@@ -1981,6 +1986,20 @@ exit:
         sem_close(continueSem);
     }
     return launched;
+}
+
+LPCSTR
+PALAPI
+PAL_GetApplicationGroupId()
+{
+    return gApplicationGroupId;
+}
+
+BOOL
+PALAPI
+PAL_IsApplicationSandboxed()
+{
+    return gApplicationGroupId != nullptr;
 }
 
 /*++
@@ -3943,6 +3962,19 @@ PROCGetProcessStatusExit:
     }
     
     return palError;
+}
+
+bool GetApplicationContainerFolder(PathCharString& buffer, const char *applicationGroupId, int applicationGroupIdLength)
+{
+    const char *homeDir = getpwuid(getuid())->pw_dir;
+    int homeDirLength = strlen(homeDir);
+
+    // The application group container folder is defined as:
+    // /user/{loginname}/Library/Group Containers/{AppGroupId}/
+    return buffer.Set(homeDir, homeDirLength)
+        && buffer.Append(APPLICATION_CONTAINER_BASE_PATH_SUFFIX)
+        && buffer.Append(applicationGroupId, applicationGroupIdLength)
+        && buffer.Append('/');
 }
 
 #ifdef _DEBUG
