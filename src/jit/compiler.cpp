@@ -5318,7 +5318,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     {
 #if defined(_TARGET_ARM_)
 
-        // Currently nothing needs to be done. There are no ARM flags that conflict with other flags.
+// Currently nothing needs to be done. There are no ARM flags that conflict with other flags.
 
 #endif // defined(_TARGET_ARM_)
 
