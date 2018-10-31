@@ -53,7 +53,7 @@ namespace System
             Unknown = 0,
             Integer = 1,
             Decimal = 2,
-            Double = 3,
+            FloatingPoint = 3,
         }
     }
 }

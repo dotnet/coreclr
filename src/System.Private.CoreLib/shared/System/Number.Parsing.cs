@@ -1660,9 +1660,7 @@ namespace System
         internal static unsafe bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result, out bool failureIsOverflow)
         {
             char* pDigits = stackalloc char[DoubleNumberBufferLength];
-            NumberBuffer number = new NumberBuffer(NumberBufferKind.Double, pDigits, DoubleNumberBufferLength);
-
-            result = 0;
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
             failureIsOverflow = false;
 
             if (!TryStringToNumber(value, styles, ref number, info))
@@ -1683,13 +1681,14 @@ namespace System
                 }
                 else
                 {
+                    result = 0;
                     return false; // We really failed
                 }
 
                 return true;
             }
 
-            if (!TryNumberToDouble(ref number, ref result))
+            if (!TryNumberToDouble(ref number, out result))
             {
                 failureIsOverflow = true;
                 return false;
@@ -1698,24 +1697,43 @@ namespace System
             return true;
         }
 
-        internal static bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result, out bool failureIsOverflow)
+        internal static unsafe bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result, out bool failureIsOverflow)
         {
-            result = 0;
+            char* pDigits = stackalloc char[SingleNumberBufferLength];
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, SingleNumberBufferLength);
+            failureIsOverflow = false;
 
-            if (!TryParseDouble(value, styles, info, out double doubleResult, out failureIsOverflow))
+            if (!TryStringToNumber(value, styles, ref number, info))
             {
-                return false;
+                ReadOnlySpan<char> valueTrim = value.Trim();
+
+                if (valueTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
+                {
+                    result = float.PositiveInfinity;
+                }
+                else if (valueTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
+                {
+                    result = float.NegativeInfinity;
+                }
+                else if (valueTrim.EqualsOrdinal(info.NaNSymbol))
+                {
+                    result = float.NaN;
+                }
+                else
+                {
+                    result = 0;
+                    return false; // We really failed
+                }
+
+                return true;
             }
 
-            float singleResult = (float)(doubleResult);
-
-            if (float.IsInfinity(singleResult) && double.IsFinite(doubleResult))
+            if (!TryNumberToSingle(ref number, out result))
             {
                 failureIsOverflow = true;
                 return false;
             }
 
-            result = singleResult;
             return true;
         }
 
@@ -1797,11 +1815,27 @@ namespace System
                (Exception)new FormatException(SR.Format_InvalidString);
         }
 
-        private static bool TryNumberToDouble(ref NumberBuffer number, ref double value)
+        private static bool TryNumberToDouble(ref NumberBuffer number, out double value)
         {
-            double result = NumberToDouble(ref number);
+            ulong bits = NumberToFloatingPointBitsRoslyn(ref number, in FloatingPointInfo.Double);
+            double result = BitConverter.Int64BitsToDouble((long)(bits));
 
             if (!double.IsFinite(result))
+            {
+                value = default;
+                return false;
+            }
+
+            value = result;
+            return true;
+        }
+
+        private static bool TryNumberToSingle(ref NumberBuffer number, out float value)
+        {
+            uint bits = (uint)(NumberToFloatingPointBitsRoslyn(ref number, in FloatingPointInfo.Single));
+            float result = BitConverter.Int32BitsToSingle((int)(bits));
+
+            if (!float.IsFinite(result))
             {
                 value = default;
                 return false;
