@@ -482,3 +482,12 @@ jobs:
 - template: test-build-template.yml
   parameters:
     config: configValue1
+
+    
+# Test forward-slash file paths on windows
+- job: testforwardslash
+  pool:
+    name: dotnet-external-temp
+  steps:
+  - script: dir ./src/inc
+    

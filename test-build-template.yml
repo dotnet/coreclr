@@ -7,3 +7,10 @@ jobs:
     config: ${{ parameters.config }}
   steps:
   - script: echo config is $(config)
+
+- job: testconditioninscript
+  steps:
+  - script:
+      ${{ if eq(config, 'configValue1') }}:
+        echo config1
+      echo outside config1
