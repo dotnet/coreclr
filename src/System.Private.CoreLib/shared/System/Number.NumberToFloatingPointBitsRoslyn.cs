@@ -514,7 +514,7 @@ namespace System
 
             BigInteger.DivRem(ref fractionalNumerator, ref fractionalDenominator, out BigInteger bigFractionalMantissa, out BigInteger fractionalRemainder);
             ulong fractionalMantissa = bigFractionalMantissa.ToUInt64();
-            bool hasZeroTail = fractionalRemainder.IsZero();
+            bool hasZeroTail = !number.HasNonZeroTail && fractionalRemainder.IsZero();
 
             // We may have produced more bits of precision than were required.  Check,  
             // and remove any "extra" bits:  

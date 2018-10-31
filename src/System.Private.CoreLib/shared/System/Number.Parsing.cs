@@ -252,8 +252,12 @@ namespace System
             const int StateDecimal = 0x0010;
             const int StateCurrency = 0x0020;
 
-            number.Scale = 0;
-            number.Sign = false;
+            Debug.Assert(number.Precision == 0);
+            Debug.Assert(number.Scale == 0);
+            Debug.Assert(number.Sign == false);
+            Debug.Assert(number.HasNonZeroTail == true);
+            Debug.Assert(number.Kind != NumberBufferKind.Unknown);
+
             string decSep;                  // decimal separator from NumberFormatInfo.
             string groupSep;                // group separator from NumberFormatInfo.
             string currSymbol = null;       // currency symbol from NumberFormatInfo.
@@ -332,6 +336,18 @@ namespace System
                                 digEnd = digCount;
                             }
                         }
+                        else if (ch != '0')
+                        {
+                            // For decimal and binary floating-point numbers, we only
+                            // need to store digits up to maxDigCount. However, we still
+                            // need to keep track of whether any additional digits past
+                            // maxDigCount were non-zero, as that can impact rounding
+                            // for an input that falls evenly between two representable
+                            // results.
+
+                            number.HasNonZeroTail = true;
+                        }
+
                         if ((state & StateDecimal) == 0)
                         {
                             number.Scale++;
@@ -1576,18 +1592,11 @@ namespace System
 
             if (c >= '5')
             {
-                // If the next digit is 5, round up if the number is odd or any following digit is non-zero
-                if (c == '5' && (low64 & 1) == 0)
+                if ((c == '5') && ((low64 & 1) == 0) && !number.HasNonZeroTail)
                 {
-                    c = *++p;
-                    int count = 20; // Look at the next 20 digits to check to round
-                    while (c == '0' && count != 0)
-                    {
-                        c = *++p;
-                        count--;
-                    }
-                    if (c == 0 || count == 0)
-                        goto NoRounding;// Do nothing
+                    // When the next digit is 5, the number is even, and all following digits are zero
+                    // we don't need to round.
+                    goto NoRounding;
                 }
 
                 if (++low64 == 0 && ++high == 0)
