@@ -500,3 +500,4 @@ jobs:
 - template: dependencyjob.yml
   parameters:
     config: configvalue1
+    dependsOn: basejob
