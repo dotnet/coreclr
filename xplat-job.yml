@@ -1,6 +1,5 @@
 parameters:
   buildConfig: ''
-  buildConfigUpper: ''
   archType: ''
   osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX/Windows_NT)
   name: ''
@@ -34,7 +33,12 @@ jobs:
 
     variables:
       buildConfig: ${{ parameters.buildConfig }}
-      buildConfigUpper: ${{ parameters.buildConfigUpper }}
+      ${{ if eq(parameters.buildConfig, 'checked') }}:
+        buildConfigUpper: 'Checked'
+      ${{ if eq(parameters.buildConfig, 'debug') }}:
+        buildConfigUpper: 'Debug'
+      ${{ if eq(parameters.buildConfig, 'release') }}:
+        buildConfigUpper: 'Release'
       archType: ${{ parameters.archType }}
       osGroup: ${{ parameters.osGroup }}
 
