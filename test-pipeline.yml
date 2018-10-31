@@ -57,4 +57,9 @@ jobs:
         arguments: '/t:test'
       displayName: Send tests job to Helix
       env:
-        HelixAccessToken: $(HelixTestAccessToken)
+        ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+          # Access token variable for internal project
+          HelixAccessToken: $(HelixApiAccessToken)
+        ${{ if eq(variables['System.TeamProject'], 'public') }}:
+          # Access token variable for public project
+          HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
