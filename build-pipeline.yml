@@ -5,7 +5,7 @@ parameters:
   osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX/Windows_NT)
 
 ### Product build
-jobs:
+phases:
 - template: xplat-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
