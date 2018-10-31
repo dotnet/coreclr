@@ -8,9 +8,10 @@ jobs:
   steps:
   - script: echo config is $(config)
 
-- job: testconditioninscript
-  steps:
-  - script:
-    ${{ if eq(parameters.config, 'configValue1') }}:
-      echo config1
-    echo outside config1
+# - job: testconditioninscript
+#   steps:
+#   - script:
+#     ${{ if eq(parameters.config, 'configValue1') }}:
+#       echo config1
+#     echo outside config1
+# 
