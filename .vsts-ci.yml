@@ -90,62 +90,62 @@ phases:
 
 
 # Debug
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: debug
-#    buildConfigUpper: Debug
-#    archType: x64
-#    osGroup: Windows_NT
-#
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: debug
-#    buildConfigUpper: Debug
-#    archType: x86
-#    osGroup: Windows_NT
-#
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: debug
-#    buildConfigUpper: Debug
-#    archType: arm
-#    osGroup: Windows_NT
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: debug
-#    buildConfigUpper: Debug
-#    archType: arm64
-#    osGroup: Windows_NT
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: debug
+    buildConfigUpper: Debug
+    archType: x64
+    osGroup: Windows_NT
+
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: debug
+    buildConfigUpper: Debug
+    archType: x86
+    osGroup: Windows_NT
+
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: debug
+    buildConfigUpper: Debug
+    archType: arm
+    osGroup: Windows_NT
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: debug
+    buildConfigUpper: Debug
+    archType: arm64
+    osGroup: Windows_NT
 
 
 # Checked
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: checked
-#    buildConfigUpper: Checked
-#    archType: x64
-#    osGroup: Windows_NT
-#
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: checked
-#    buildConfigUpper: Checked
-#    archType: x86
-#    osGroup: Windows_NT
-#
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: checked
-#    buildConfigUpper: Checked
-#    archType: arm
-#    osGroup: Windows_NT
-#
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: checked
-#    buildConfigUpper: Checked
-#    archType: arm64
-#    osGroup: Windows_NT
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: x64
+    osGroup: Windows_NT
+
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: x86
+    osGroup: Windows_NT
+
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: arm
+    osGroup: Windows_NT
+
+- template: windows-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: arm64
+    osGroup: Windows_NT
 
 # Release (for official build)
 - template: build-pipeline.yml
@@ -192,16 +192,16 @@ phases:
   queue:
     name: Hosted VS2017
   dependsOn:
-  - build_Linux_x64_release
+  - sbuild_Linux_x64_release
   - build_rhel
   - build_alpine
   - build_crossbuild_arm
   - build_crossbuild_arm64
-  - build_OSX_x64_release
-  - build_Windows_NT_x64_release
-  - build_Windows_NT_x86_release
-  - build_Windows_NT_arm_release
-  - build_Windows_NT_arm64_release
+  - sbuild_OSX_x64_release
+  - sbuild_Windows_NT_x64_release
+  - sbuild_Windows_NT_x86_release
+  - sbuild_Windows_NT_arm_release
+  - sbuild_Windows_NT_arm64_release
 
 # Test jobs
 
