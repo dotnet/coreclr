@@ -1,8 +1,9 @@
 parameters:
   config: ''
 
-variables:
-  paramConfig: ${{ parameters.config }}
+# can't have variables in a template! (but per-job variables in a template job work.)
+#variables:
+#  paramConfig: ${{ parameters.config }}
 
 jobs:
 - job: ${{ format('buildjob{0}', parameters.config) }}
