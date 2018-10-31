@@ -916,9 +916,10 @@ namespace System
                 {
                     var fraction = ModF(value, &value);
 
-                    if (Abs(fraction) <= 0.5)
+                    if (Abs(fraction) > 0.5)
                     {
-                        value -= Sign(fraction);
+                        value += Sign(fraction);
+                    }
                 }
                 else
                 {
