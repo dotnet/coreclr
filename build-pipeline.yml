@@ -12,8 +12,8 @@ jobs:
     buildConfigUpper: ${{ parameters.buildConfigUpper }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
-    name: ${{ format('sbuild_{0}_{1}_{2}', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
-    displayName: ${{ format('BBuild {0} {1} {2}', parameters.osGroup, parameters.archType, parameters.buildConfigUpper) }}
+    name: ${{ format('build_{0}_{1}_{2}', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('Build {0} {1} {2}', parameters.osGroup, parameters.archType, parameters.buildConfigUpper) }}
 
     steps:
 
