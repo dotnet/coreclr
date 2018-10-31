@@ -255,7 +255,7 @@ namespace System
             Debug.Assert(number.Precision == 0);
             Debug.Assert(number.Scale == 0);
             Debug.Assert(number.Sign == false);
-            Debug.Assert(number.HasNonZeroTail == true);
+            Debug.Assert(number.HasNonZeroTail == false);
             Debug.Assert(number.Kind != NumberBufferKind.Unknown);
 
             string decSep;                  // decimal separator from NumberFormatInfo.
