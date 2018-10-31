@@ -430,18 +430,25 @@ def do_pmi_diffs():
     dotnetcliUrl = ""
     dotnetcliFilename = ""
 
-    if Clr_os == 'Linux':
+    if Clr_os == 'Linux' and arch == 'x64':
         dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-linux-x64.tar.gz"
-        dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
+    elif Clr_os == 'Linux' and arch == 'arm':
+        dotnetcliUrl = "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/release/2.1.4xx/dotnet-sdk-latest-linux-arm.tar.gz"
+    elif Clr_os == 'Linux' and arch == 'arm64':
+        # Use the latest (3.0) dotnet SDK. Earlier versions don't work.
+        dotnetcliUrl = "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/master/dotnet-sdk-latest-linux-arm64.tar.gz"
     elif Clr_os == 'OSX':
         dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-osx-x64.tar.gz"
-        dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
     elif Clr_os == 'Windows_NT':
         dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-win-x64.zip"
+    else:
+        log('ERROR: unknown or unsupported OS (%s) architecture (%s) combination' % (Clr_os, arch))
+        return 1
+
+    if Is_windows:
         dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.zip')
     else:
-        log('ERROR: unknown or unsupported OS %s' % Clr_os)
-        return 1
+        dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
 
     log('Downloading: %s => %s' % (dotnetcliUrl, dotnetcliFilename))
 
@@ -507,7 +514,7 @@ def do_pmi_diffs():
 
             # Do build
 
-            command = ['build.cmd' if Is_windows else 'build.sh', '-p']
+            command = ['build.cmd', '-p'] if Is_windows else ['bash', './build.sh', '-p']
             returncode = run_command(command, my_env)
             if returncode != 0:
                 log('ERROR: jitutils build failed')
