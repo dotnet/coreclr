@@ -90,27 +90,27 @@ phases:
 
 
 # Debug
-- template: windows-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: debug
     buildConfigUpper: Debug
     archType: x64
     osGroup: Windows_NT
 
-- template: windows-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: debug
     buildConfigUpper: Debug
     archType: x86
     osGroup: Windows_NT
 
-- template: windows-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: debug
     buildConfigUpper: Debug
     archType: arm
     osGroup: Windows_NT
-- template: windows-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: debug
     buildConfigUpper: Debug
@@ -119,28 +119,28 @@ phases:
 
 
 # Checked
-- template: windows-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: checked
     buildConfigUpper: Checked
     archType: x64
     osGroup: Windows_NT
 
-- template: windows-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: checked
     buildConfigUpper: Checked
     archType: x86
     osGroup: Windows_NT
 
-- template: windows-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: checked
     buildConfigUpper: Checked
     archType: arm
     osGroup: Windows_NT
 
-- template: windows-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: checked
     buildConfigUpper: Checked
