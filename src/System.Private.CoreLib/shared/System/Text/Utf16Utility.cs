@@ -125,5 +125,39 @@ namespace System.Text
 
             return (combinedIndicator & 0x00800080u) != 0;
         }
+
+        /// <summary>
+        /// Given two UInt32s that represent two ASCII UTF-16 characters each, returns true iff
+        /// the two inputs are equal using an ordinal case-insensitive comparison.
+        /// </summary>
+        /// <remarks>
+        /// This is a branchless implementation.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool UInt32OrdinalIgnoreCaseAscii(uint valueA, uint valueB)
+        {
+            // ASSUMPTION: Caller has validated that input values are ASCII.
+            Debug.Assert(AllCharsInUInt32AreAscii(valueA));
+            Debug.Assert(AllCharsInUInt32AreAscii(valueB));
+
+            // a mask of all bits which are different between A and B
+            uint differentBits = valueA ^ valueB;
+
+            // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value < 'A'
+            uint lowerIndicator = valueA + 0x01000100u - 0x00410041u;
+
+            // the 0x80 bit of each word of 'upperIndicator' will be set iff (word | 0x20) has value > 'z'
+            uint upperIndicator = (valueA | 0x00200020u) + 0x00800080u - 0x007B007Bu;
+
+            // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word is *not* [A-Za-z]
+            uint combinedIndicator = lowerIndicator | upperIndicator;
+
+            // Shift all the 0x80 bits of 'combinedIndicator' into the 0x20 positions, then
+            // set all bits aside from 0x20. The combined indicator is now a mask detailing which
+            // bits *must not* be different between the input values A and B for them to be treated
+            // as equal using an ordinal case-insensitive comparison.
+
+            return (((combinedIndicator >> 2) | ~0x00200020u) & differentBits) == 0;
+        }
     }
 }
