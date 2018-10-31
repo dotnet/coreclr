@@ -75,7 +75,7 @@ namespace System
                 }
             }
             GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType.Standard, ref _standardDisplayName);
-            if (_baseUtcOffset > TimeSpan.Zero)
+            if (_baseUtcOffset >= TimeSpan.Zero)
                 _displayName = $"(UTC+{_baseUtcOffset:hh\\:mm}) {_standardDisplayName}";
             else
                 _displayName = $"(UTC-{_baseUtcOffset:hh\\:mm}) {_standardDisplayName}";
