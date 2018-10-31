@@ -491,11 +491,15 @@ jobs:
   steps:
   - script: dir ./src/inc
     
-- job: basejob
-  pool:
-    name: dotnet-external-temp
-  steps:
-  - script: echo hi from base job    
+# - job: basejob
+#   pool:
+#     name: dotnet-external-temp
+#   steps:
+#   - script: echo hi from base job    
+
+- template: basejob.yml
+  parameters:
+    jobname: basejob
 
 - template: dependencyjob.yml
   parameters:
