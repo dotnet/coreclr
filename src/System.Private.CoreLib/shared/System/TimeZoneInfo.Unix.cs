@@ -75,12 +75,10 @@ namespace System
                 }
             }
             GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType.Standard, ref _standardDisplayName);
-            if (_baseUtcOffset == TimeSpan.Zero)
-                _displayName = $"(UTC) {_standardDisplayName}";
-            else if (_baseUtcOffset > TimeSpan.Zero)
-                _displayName = $"(UTC+{_baseUtcOffset:hh\\mm}) {_standardDisplayName}";
+            if (_baseUtcOffset > TimeSpan.Zero)
+                _displayName = $"(UTC+{_baseUtcOffset:hh\\:mm}) {_standardDisplayName}";
             else
-                _displayName = $"(UTC{_baseUtcOffset:hh\\mm}) {_standardDisplayName}";
+                _displayName = $"(UTC-{_baseUtcOffset:hh\\:mm}) {_standardDisplayName}";
             GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType.DaylightSavings, ref _daylightDisplayName);
 
             // TZif supports seconds-level granularity with offsets but TimeZoneInfo only supports minutes since it aligns
