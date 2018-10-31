@@ -356,9 +356,8 @@ def baseline_build():
 # 1. download dotnet CLI (needed by jitutils)
 # 2. clone jitutils repo
 # 3. build jitutils
-# 4. run PMI asm generation on baseline
-# 5. run PMI asm generation on diff
-# 6. run jit-analyze to compare baseline and diff
+# 4. run PMI asm generation on baseline and diffs
+# 5. run jit-analyze to compare baseline and diff
 ##########################################################################
 
 def do_pmi_diffs():
@@ -417,7 +416,7 @@ def do_pmi_diffs():
                 log('ERROR: cannot create jitutils install directory %s' % jitutilsPath)
                 return 1
             if not os.path.isdir(asmRootPath):
-                log('ERROR: cannot create diff directory %s' % asmRootPath)
+                log('ERROR: cannot create asm directory %s' % asmRootPath)
                 return 1
 
     log('dotnet CLI install directory: %s' % dotnetcliPath)
@@ -441,7 +440,7 @@ def do_pmi_diffs():
         dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-win-x64.zip"
         dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.zip')
     else:
-        log('ERROR: unknown or unsupported OS %s' % os)
+        log('ERROR: unknown or unsupported OS %s' % Clr_os)
         return 1
 
     log('Downloading: %s => %s' % (dotnetcliUrl, dotnetcliFilename))
@@ -539,10 +538,11 @@ def do_pmi_diffs():
         # Run PMI asm diffs
         #
 
-        # We continue through many failures, to get as much asm generated as possible. But make sure we return
-        # a failure code if there are any failures.
-
-        result = 0
+        # We want this script as a whole to return 0 if it succeeds (even if there are diffs) and only
+        # return non-zero if there are any fatal errors.
+        #
+        # TO DO: figure out how to differentiate fatal errors and a return code indicating there are diffs,
+        # and have the invoking netci.groovy code act differently for each case.
 
         # Generate the diffs
         #
@@ -563,8 +563,9 @@ def do_pmi_diffs():
 
         command = ["dotnet", jitDiffPath, "diff", "--pmi", "--base", "--base_root", baseCoreClrPath, "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "1", "--noanalyze", "--output", asmRootPath] + asm_source_args + altjit_args
         returncode = run_command(command, my_env)
-        if returncode != 0:
-            result = 1
+
+        # We ignore the return code: it is non-zero if there are any diffs. If there are fatal errors here, we will miss them.
+        # Question: does jit-diff distinguish between non-zero fatal error code and the existence of diffs?
 
         # Did we get any diffs?
 
@@ -584,6 +585,7 @@ def do_pmi_diffs():
         command = ["dotnet", jitAnalyzePath, "--recursive", "--base", baseOutputDir, "--diff", diffOutputDir]
         returncode = run_command(command, my_env)
         if returncode != 0:
+            # This is not a fatal error.
             log('Compare: %s %s' % (baseOutputDir, diffOutputDir))
 
     finally:
@@ -595,7 +597,7 @@ def do_pmi_diffs():
         command = ["dotnet", "build-server", "shutdown"]
         returncode = run_command(command, my_env)
 
-    return result
+    return 0
 
 ##########################################################################
 # Main
