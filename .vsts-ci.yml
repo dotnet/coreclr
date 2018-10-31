@@ -21,7 +21,7 @@ phases:
 ### Linux x64
 ###
 
-- template: build-and-test-pipeline.yml # official build does this on centos docker
+- template: build-pipeline.yml # official build does this on centos docker
   parameters:
     buildConfig: release
     buildConfigUpper: Release
@@ -42,10 +42,14 @@ phases:
     archType: x64
     osGroup: Linux
 
-- phase: rhel_build # TODO for official build
-- phase: alpine_build # TODO for official build
-- phase: crossbuild_arm # TODO for official build
-- phase: crossbuild_arm64 # TODO for official build
+- phase: build_rhel # TODO for official build
+  condition: False
+- phase: build_alpine # TODO for official build
+  condition: False
+- phase: build_crossbuild_arm # TODO for official build
+  condition: False
+- phase: build_crossbuild_arm64 # TODO for official build
+  condition: False
 
 ###
 ### macOS x64
@@ -174,22 +178,27 @@ phases:
 # product build job), and publishes them to the build assets
 # registry. Its dependencies should be updated to include all of the
 # official builds if we add more platform/arch combinations.
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-  - template: /eng/common/templates/phases/publish-build-assets.yml@arcade
-    parameters:
-      dependsOn:
-        - Linux_x64_release_build
-        - rhel_build
-        - alpine_build
-        - crossbuild_arm
-        - crossbuild_arm64
-        - OSX_x64_release_build
-        - Windows_NT_x64_release_build
-        - Windows_NT_x86_release_build
-        - Windows_NT_arm_release_build
-        - Windows_NT_arm64_release_build
-      queue:
-        name: Hosted VS2017
+#- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+#  - template: /eng/common/templates/phases/publish-build-assets.yml@arcade
+- phase: publish to BAR (empty currently)
+  queue:
+    name: Hosted VS2017
+  dependsOn:
+  - build_Linux_x64_release
+  - build_rhel
+  - build_alpine
+  - build_crossbuild_arm
+  - build_crossbuild_arm64
+  - build_OSX_x64_release
+  - build_Windows_NT_x64_release
+  - build_Windows_NT_x86_release
+  - build_Windows_NT_arm_release
+  - build_Windows_NT_arm64_release
+
+# Test jobs
+
+## Release
+  
 
 #
 #- phase: Windows_NT_x64 Formatting
