@@ -778,7 +778,7 @@ public:
         return roundUp(lvExactSize, TARGET_POINTER_SIZE);
     }
 
-    const size_t lvArgStackSize() const;
+    size_t lvArgStackSize() const;
 
     unsigned lvSlotNum; // original slot # (if remapped)
 
@@ -850,6 +850,8 @@ public:
 
 #ifdef DEBUG
 public:
+    const char* lvReason;
+
     void PrintVarReg() const
     {
         printf("%s", getRegName(lvRegNum));
@@ -5323,7 +5325,8 @@ private:
     void fgAttachStructInlineeToAsg(GenTree* tree, GenTree* child, CORINFO_CLASS_HANDLE retClsHnd);
 #endif // FEATURE_MULTIREG_RET
 
-    static fgWalkPreFn fgUpdateInlineReturnExpressionPlaceHolder;
+    static fgWalkPreFn  fgUpdateInlineReturnExpressionPlaceHolder;
+    static fgWalkPostFn fgLateDevirtualization;
 
 #ifdef DEBUG
     static fgWalkPreFn fgDebugCheckInlineCandidates;
@@ -7133,7 +7136,7 @@ public:
         return codeGen->getEmitter();
     }
 
-    const bool isFramePointerUsed()
+    bool isFramePointerUsed()
     {
         return codeGen->isFramePointerUsed();
     }
