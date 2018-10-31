@@ -1,0 +1,8 @@
+parameters:
+  config: ''
+
+jobs:
+- job: ${{ format('dependencyjob{0}', parameters.config) }}
+  dependsOn: basejob
+  steps:
+  - script: echo I depend on the base job
