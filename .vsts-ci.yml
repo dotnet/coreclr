@@ -15,16 +15,14 @@ phases:
 
 
 
-
-
 ###
 ### Linux x64
 ###
 
-- template: build-pipeline.yml # official build does this on centos docker
+- template: build-pipeline.yml
   parameters:
-    buildConfig: release
-    buildConfigUpper: Release
+    buildConfig: debug
+    buildConfigUpper: Debug
     archType: x64
     osGroup: Linux
 
@@ -35,12 +33,14 @@ phases:
     archType: x64
     osGroup: Linux
 
-- template: build-pipeline.yml
+- template: build-pipeline.yml # official build does this on centos docker
   parameters:
-    buildConfig: debug
-    buildConfigUpper: Debug
+    buildConfig: release
+    buildConfigUpper: Release
     archType: x64
     osGroup: Linux
+
+
 
 - phase: build_rhel # TODO for official build
   condition: False
@@ -55,10 +55,10 @@ phases:
 ### macOS x64
 ###
 
-- template: build-and-test-pipeline.yml # official build
+- template: build-pipeline.yml
   parameters:
-    buildConfig: release
-    buildConfigUpper: Release
+    buildConfig: debug
+    buildConfigUpper: Debug
     archType: x64
     osGroup: OSX
 
@@ -69,12 +69,15 @@ phases:
     archType: x64
     osGroup: OSX
 
-- template: build-pipeline.yml
+- template: build-pipeline.yml # official build
   parameters:
-    buildConfig: debug
-    buildConfigUpper: Debug
+    buildConfig: release
+    buildConfigUpper: Release
     archType: x64
     osGroup: OSX
+
+
+
 
 
 ###
@@ -84,64 +87,6 @@ phases:
 ###
 ###  Windows: x64, x86, arm64, arm
 ###
-
-# Release (for official build)
-- template: build-and-test-pipeline.yml
-  parameters:
-    buildConfig: release
-    buildConfigUpper: Release
-    archType: x64
-    osGroup: Windows_NT
-
-- template: build-and-test-pipeline.yml
-  parameters:
-    buildConfig: release
-    buildConfigUpper: Release
-    archType: x86
-    osGroup: Windows_NT
-
-- template: build-and-test-pipeline.yml
-  parameters:
-    buildConfig: release
-    buildConfigUpper: Release
-    archType: arm
-    osGroup: Windows_NT
-
-- template: build-and-test-pipeline.yml
-  parameters:
-    buildConfig: release
-    buildConfigUpper: Release
-    archType: arm64
-    osGroup: Windows_NT
-
-# Checked
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: checked
-#    buildConfigUpper: Checked
-#    archType: x64
-#    osGroup: Windows_NT
-#
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: checked
-#    buildConfigUpper: Checked
-#    archType: x86
-#    osGroup: Windows_NT
-#
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: checked
-#    buildConfigUpper: Checked
-#    archType: arm
-#    osGroup: Windows_NT
-#
-#- template: windows-pipeline.yml
-#  parameters:
-#    buildConfig: checked
-#    buildConfigUpper: Checked
-#    archType: arm64
-#    osGroup: Windows_NT
 
 
 # Debug
@@ -172,6 +117,68 @@ phases:
 #    archType: arm64
 #    osGroup: Windows_NT
 
+
+# Checked
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: checked
+#    buildConfigUpper: Checked
+#    archType: x64
+#    osGroup: Windows_NT
+#
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: checked
+#    buildConfigUpper: Checked
+#    archType: x86
+#    osGroup: Windows_NT
+#
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: checked
+#    buildConfigUpper: Checked
+#    archType: arm
+#    osGroup: Windows_NT
+#
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: checked
+#    buildConfigUpper: Checked
+#    archType: arm64
+#    osGroup: Windows_NT
+
+# Release (for official build)
+- template: build-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x64
+    osGroup: Windows_NT
+
+- template: build-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x86
+    osGroup: Windows_NT
+
+- template: build-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: arm
+    osGroup: Windows_NT
+
+- template: build-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: arm64
+    osGroup: Windows_NT
+
+
+
+
 # Publish assets to BAR
 
 # This job gathers build assets from the pipeline (from each official
@@ -198,8 +205,87 @@ phases:
 
 # Test jobs
 
-## Release
-  
+## Checked (ci jobs)
+
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: x64
+    osGroup: Windows_NT
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: x86
+    osGroup: Windows_NT
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: arm
+    osGroup: Windows_NT
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: arm64
+    osGroup: Windows_NT
+
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: x64
+    osGroup: OSX
+
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: x64
+    osGroup: Linux
+
+## Release (pri1 only)
+
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x64
+    osGroup: Windows_NT
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x86
+    osGroup: Windows_NT
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: arm
+    osGroup: Windows_NT
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: arm64
+    osGroup: Windows_NT
+
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x64
+    osGroup: OSX
+
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: release
+    buildConfigUpper: Release
+    archType: x64
+    osGroup: Linux
 
 #
 #- phase: Windows_NT_x64 Formatting
