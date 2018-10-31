@@ -26,6 +26,7 @@ jobs:
       buildConfig: ${{ parameters.buildConfig }}
       buildConfigUpper: ${{ parameters.buildConfigUpper }}
       archType: ${{ parameters.archType }}
+      osGroup: ${{ parameters.osGroup }}
 
     steps:
     # Install native dependencies
@@ -84,10 +85,13 @@ jobs:
     ${{ if eq(parameters.osGroup, 'OSX') }}:
       agentOs: MacOS
     dependsOn: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+
     variables:
       buildConfig: ${{ parameters.buildConfig }}
       buildConfigUpper: ${{ parameters.buildConfigUpper }}
       archType: ${{ parameters.archType }}
+      osGroup: ${{ parameters.osGroup }}
+
     steps:
     - ${{ if eq(parameters.osGroup, 'Linux') }}:
       - script: sudo apt install cmake llvm-3.9 clang-3.9 lldb-3.9 liblldb-3.9-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev libkrb5-dev libnuma-dev

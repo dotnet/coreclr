@@ -13,27 +13,65 @@ variables:
 
 phases:
 
+
+
+
+
 ###
 ### Linux x64
 ###
 
-- template: unix-pipeline.yml
+- template: unix-pipeline.yml # official build does this on centos docker
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: x64
     osGroup: Linux
 
+- template: unix-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: x64
+    osGroup: Linux
+
+- template: unix-pipeline.yml
+  parameters:
+    buildConfig: debug
+    buildConfigUpper: Debug
+    archType: x64
+    osGroup: Linux
+
+- job: rhel_build # TODO for official build
+- job: alpine_build # TODO for official build
+- job: crossbuild_arm # TODO for official build
+- job: crossbuild_arm64 # TODO for official build
+
 ###
 ### macOS x64
 ###
 
-- template: unix-pipeline.yml
+- template: unix-pipeline.yml # official build
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: x64
     osGroup: OSX
+
+- template: unix-pipeline.yml
+  parameters:
+    buildConfig: checked
+    buildConfigUpper: Checked
+    archType: x64
+    osGroup: OSX
+
+- template: unix-pipeline.yml
+  parameters:
+    buildConfig: debug
+    buildConfigUpper: Debug
+    archType: x64
+    osGroup: OSX
+
 
 ###
 ### RedHat x64
@@ -43,6 +81,7 @@ phases:
 ###  Windows: x64, x86, arm64, arm
 ###
 
+# Release (for official build)
 - template: windows-pipeline.yml
   parameters:
     buildConfig: release
@@ -67,6 +106,79 @@ phases:
     buildConfigUpper: Release
     archType: arm64
 
+# Checked
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: checked
+#    buildConfigUpper: Checked
+#    archType: x64
+#
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: checked
+#    buildConfigUpper: Checked
+#    archType: x86
+#
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: checked
+#    buildConfigUpper: Checked
+#    archType: arm
+#
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: checked
+#    buildConfigUpper: Checked
+#    archType: arm64
+
+# Debug
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: debug
+#    buildConfigUpper: Debug
+#    archType: x64
+#
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: debug
+#    buildConfigUpper: Debug
+#    archType: x86
+#
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: debug
+#    buildConfigUpper: Debug
+#    archType: arm
+#
+#- template: windows-pipeline.yml
+#  parameters:
+#    buildConfig: debug
+#    buildConfigUpper: Debug
+#    archType: arm64
+
+
+# Publish assets to BAR
+
+# This job gathers build assets from the pipeline (from each official
+# product build job), and publishes them to the build assets
+# registry. Its dependencies should be updated to include all of the
+# official builds if we add more platform/arch combinations.
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: /eng/common/templates/phases/publish-build-assets.yml@arcade
+    parameters:
+      dependsOn:
+        - Linux_x64_release_build
+        - rhel_build
+        - alpine_build
+        - crossbuild_arm
+        - crossbuild_arm64
+        - OSX_x64_release_build
+        - Windows_NT_x64_release_build
+        - Windows_NT_x86_release_build
+        - Windows_NT_arm_release_build
+        - Windows_NT_arm64_release_build
+      queue:
+        name: Hosted VS2017
 
 #
 #- phase: Windows_NT_x64 Formatting

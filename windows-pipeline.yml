@@ -46,6 +46,11 @@ jobs:
       - script: echo Sign!
         displayName: Sign Binaries (empty for now)
 
+    # Build packages
+    # build-packages.cmd -BuildArch= -BuildType= -- /p:SignType= /p:OfficialBuildId=
+    # Publish packages
+    # publish-packages.cmd -AzureAccount= -AzureToken= -BuildArch= -BuildType= -Container= -PublishPackages -- /p:RelativePath=$(PB_BlodNamePrefix)$(PB_BuildType)/pkg /p:PublishFlatContainer= /p:OverwriteOnPublish=true
+
     ## For official build, publish packages to blob feed
     # First, get secrets from azure key vault
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
@@ -80,7 +85,12 @@ jobs:
         #    /p:__BuildType=$(buildConfig)
         #    /p:OfficialPublish=true
         #    /p:PublishFlatContainer=false
-        - script: echo does nothing for now
+        - script: eng\common\msbuild.cmd src\publish.proj
+              /p:__PublishPackages=true
+              /p:ContainerName=container1
+              /p:CloudDropAccountName=svbomerstorageaccount1
+              /p:CloudDropAccessToken=
+              /p:PublishFlatContainer=false
           displayName: Upload product build to blob feed
         # TODO: upload package to vsts? <--- assume we're not doing this any more
         # TODO: update versions repository? <--- assume we're not doing this any more
