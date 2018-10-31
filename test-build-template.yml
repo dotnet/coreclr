@@ -1,12 +1,15 @@
 parameters:
   config: ''
 
+variables:
+  paramConfig: ${{ parameters.config }}
+
 jobs:
 - job: ${{ format('buildjob{0}', parameters.config) }}
   variables:
     config: ${{ parameters.config }}
   steps:
-  - script: echo config is $(config)
+  - script: echo config is $(config), paramconfig is $(paramConfig)
 
 # - job: testconditioninscript
 #   steps:
