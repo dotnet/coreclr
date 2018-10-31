@@ -21,21 +21,21 @@ phases:
 ### Linux x64
 ###
 
-- template: unix-pipeline.yml # official build does this on centos docker
+- template: build-and-test-pipeline.yml # official build does this on centos docker
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: x64
     osGroup: Linux
 
-- template: unix-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: checked
     buildConfigUpper: Checked
     archType: x64
     osGroup: Linux
 
-- template: unix-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: debug
     buildConfigUpper: Debug
@@ -51,21 +51,21 @@ phases:
 ### macOS x64
 ###
 
-- template: unix-pipeline.yml # official build
+- template: build-and-test-pipeline.yml # official build
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: x64
     osGroup: OSX
 
-- template: unix-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: checked
     buildConfigUpper: Checked
     archType: x64
     osGroup: OSX
 
-- template: unix-pipeline.yml
+- template: build-pipeline.yml
   parameters:
     buildConfig: debug
     buildConfigUpper: Debug
@@ -82,29 +82,33 @@ phases:
 ###
 
 # Release (for official build)
-- template: windows-pipeline.yml
+- template: build-and-test-pipeline.yml
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: x64
+    osGroup: Windows_NT
 
-- template: windows-pipeline.yml
+- template: build-and-test-pipeline.yml
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: x86
+    osGroup: Windows_NT
 
-- template: windows-pipeline.yml
+- template: build-and-test-pipeline.yml
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: arm
+    osGroup: Windows_NT
 
-- template: windows-pipeline.yml
+- template: build-and-test-pipeline.yml
   parameters:
     buildConfig: release
     buildConfigUpper: Release
     archType: arm64
+    osGroup: Windows_NT
 
 # Checked
 #- template: windows-pipeline.yml
@@ -112,24 +116,29 @@ phases:
 #    buildConfig: checked
 #    buildConfigUpper: Checked
 #    archType: x64
+#    osGroup: Windows_NT
 #
 #- template: windows-pipeline.yml
 #  parameters:
 #    buildConfig: checked
 #    buildConfigUpper: Checked
 #    archType: x86
+#    osGroup: Windows_NT
 #
 #- template: windows-pipeline.yml
 #  parameters:
 #    buildConfig: checked
 #    buildConfigUpper: Checked
 #    archType: arm
+#    osGroup: Windows_NT
 #
 #- template: windows-pipeline.yml
 #  parameters:
 #    buildConfig: checked
 #    buildConfigUpper: Checked
 #    archType: arm64
+#    osGroup: Windows_NT
+
 
 # Debug
 #- template: windows-pipeline.yml
@@ -137,25 +146,27 @@ phases:
 #    buildConfig: debug
 #    buildConfigUpper: Debug
 #    archType: x64
+#    osGroup: Windows_NT
 #
 #- template: windows-pipeline.yml
 #  parameters:
 #    buildConfig: debug
 #    buildConfigUpper: Debug
 #    archType: x86
+#    osGroup: Windows_NT
 #
 #- template: windows-pipeline.yml
 #  parameters:
 #    buildConfig: debug
 #    buildConfigUpper: Debug
 #    archType: arm
-#
+#    osGroup: Windows_NT
 #- template: windows-pipeline.yml
 #  parameters:
 #    buildConfig: debug
 #    buildConfigUpper: Debug
 #    archType: arm64
-
+#    osGroup: Windows_NT
 
 # Publish assets to BAR
 

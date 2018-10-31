@@ -1,0 +1,21 @@
+parameters:
+  buildConfig: ''
+  buildConfigUpper: ''
+  archType: ''
+  osGroup: ''
+
+jobs:
+### Build job
+- template: build-pipeline.yml
+  parameters:
+    buildConfig: ${{ parameters.buildConfig }}
+    buildConfigUpper: ${{ parameters.buildConfigUpper }}
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}
+### Test job
+- template: test-pipeline.yml
+  parameters:
+    buildConfig: ${{ parameters.buildConfig }}
+    buildConfigUpper: ${{ parameters.buildConfigUpper }}
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}

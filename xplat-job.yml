@@ -1,0 +1,38 @@
+parameters:
+  buildConfig: ''
+  buildConfigUpper: ''
+  archType: ''
+  osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX/Windows_NT)
+  jobPrefix: ''
+  steps: []
+
+jobs:
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+
+    name: ${{ format('{0}_{1}_{2}_{3}', parameters.jobPrefix, parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('{0} {1} {2} {3}', parameters.jobPrefix, parameters.osGroup, parameters.archType, parameters.buildConfigUpper) }}
+
+    queue:
+      ${{ if eq(parameters.osGroup, 'Linux') }}:
+        name: Hosted Ubuntu 1604
+      ${{ if eq(parameters.osGroup, 'OSX') }}:
+        name: Hosted macOS
+      ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        name: dotnet-external-temp
+      timeoutInMinutes: 180
+
+    ${{ if eq(parameters.osGroup, 'Linux') }}:
+      agentOs: Ubuntu
+    ${{ if eq(parameters.osGroup, 'OSX') }}:
+      agentOs: MacOS
+    ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      agentOs: Windows_NT
+
+    variables:
+      buildConfig: ${{ parameters.buildConfig }}
+      buildConfigUpper: ${{ parameters.buildConfigUpper }}
+      archType: ${{ parameters.archType }}
+      osGroup: ${{ parameters.osGroup }}
+
+    steps: ${{ parameters.steps }}
