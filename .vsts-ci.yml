@@ -42,10 +42,10 @@ phases:
     archType: x64
     osGroup: Linux
 
-- job: rhel_build # TODO for official build
-- job: alpine_build # TODO for official build
-- job: crossbuild_arm # TODO for official build
-- job: crossbuild_arm64 # TODO for official build
+- phase: rhel_build # TODO for official build
+- phase: alpine_build # TODO for official build
+- phase: crossbuild_arm # TODO for official build
+- phase: crossbuild_arm64 # TODO for official build
 
 ###
 ### macOS x64
