@@ -1829,12 +1829,6 @@ namespace System
             ulong bits = NumberToFloatingPointBitsRoslyn(ref number, in FloatingPointInfo.Double);
             double result = BitConverter.Int64BitsToDouble((long)(bits));
 
-            if (!double.IsFinite(result))
-            {
-                value = default;
-                return false;
-            }
-
             value = result;
 
             if (number.Sign)
@@ -1849,12 +1843,6 @@ namespace System
         {
             uint bits = (uint)(NumberToFloatingPointBitsRoslyn(ref number, in FloatingPointInfo.Single));
             float result = BitConverter.Int32BitsToSingle((int)(bits));
-
-            if (!float.IsFinite(result))
-            {
-                value = default;
-                return false;
-            }
 
             value = result;
 
