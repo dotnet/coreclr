@@ -5312,7 +5312,8 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     // to be of the same bitness.) In these cases, we need to fix up the JIT flags to be appropriate for
     // the target, as the VM's expected target may overlap bit flags with different meaning to our target.
     // Note that it might be better to do this immediately when setting the JIT flags in CILJit::compileMethod()
-    // (when JitFlags::SetFromFlags() is called), but this is close enough.
+    // (when JitFlags::SetFromFlags() is called), but this is close enough. (To move this logic to
+    // CILJit::compileMethod() would require moving the info.compMatchedVM computation there as well.)
 
     if (!info.compMatchedVM)
     {
@@ -5325,8 +5326,8 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 #if defined(_TARGET_ARM64_)
 
         // The x86/x64 architecture capabilities flags overlap with the ARM64 ones. Set a reasonable architecture
-        // target default. Currently this is disabling all ARM64 architecture features, but this should be
-        // altered to possibly enable all of them, when they are known to all work.
+        // target default. Currently this is disabling all ARM64 architecture features except FP and SIMD, but this
+        // should be altered to possibly enable all of them, when they are known to all work.
 
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_AES);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_ATOMICS);
@@ -5334,7 +5335,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_DCPOP);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_DP);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_FCMA);
-        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_FP);
+        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_FP);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_FP16);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_JSCVT);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_LRCPC);
@@ -5343,7 +5344,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA256);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA512);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA3);
-        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD);
+        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_SIMD);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_V81);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_FP16);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SM3);
