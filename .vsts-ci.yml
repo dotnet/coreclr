@@ -180,7 +180,8 @@ phases:
 # official builds if we add more platform/arch combinations.
 #- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
 #  - template: /eng/common/templates/phases/publish-build-assets.yml@arcade
-- phase: publish to BAR (empty currently)
+- phase: publish_bar
+  displayName: publish to BAR (empty currently)
   queue:
     name: Hosted VS2017
   dependsOn:
