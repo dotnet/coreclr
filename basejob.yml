@@ -2,6 +2,6 @@ parameters:
   jobname: ''
 
 jobs:
-- job: ${{ formt('job_{0}', parameters.jobname) }}
+- job: ${{ format('job_{0}', parameters.jobname) }}
   steps:
   - script: echo I'm a base job.
