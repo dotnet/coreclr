@@ -43,7 +43,7 @@ namespace System
 
             public ushort NormalMantissaBits { get; }
             public ushort DenormalMantissaBits { get; }
-            
+
             public ushort ExponentBits { get; }
 
             public FloatingPointInfo(ushort denormalMantissaBits, ushort exponentBits, int maxBinaryExponent, int exponentBias, ulong infinityBits)
@@ -66,6 +66,33 @@ namespace System
                 ZeroBits = 0;
             }
         }
+
+        private static double[] s_Pow10Table = new double[]
+        {
+            1e0,    // 10^0
+            1e1,    // 10^1
+            1e2,    // 10^2
+            1e3,    // 10^3
+            1e4,    // 10^4
+            1e5,    // 10^5
+            1e6,    // 10^6
+            1e7,    // 10^7
+            1e8,    // 10^8
+            1e9,    // 10^9
+            1e10,   // 10^10
+            1e11,   // 10^11
+            1e12,   // 10^12
+            1e13,   // 10^13
+            1e14,   // 10^14
+            1e15,   // 10^15
+            1e16,   // 10^16
+            1e17,   // 10^17
+            1e18,   // 10^18
+            1e19,   // 10^19
+            1e20,   // 10^20
+            1e21,   // 10^21
+            1e22,   // 10^22
+        };
 
         private static void AccumulateDecimalDigitsIntoBigInteger(ref NumberBuffer number, uint firstIndex, uint lastIndex, out BigInteger result)
         {
@@ -308,6 +335,60 @@ namespace System
             uint fractionalFirstIndex = integerLastIndex;
             uint fractionalLastIndex = totalDigits;
             uint fractionalDigitsPresent = fractionalLastIndex - fractionalFirstIndex;
+
+            // When the number of significant digits is less than or equal to 15 and the
+            // scale is less than or equal to 22, we can take a shortcut and just rely 
+            // on double-precision arithmetic to compute the correct result. This is
+            // because double-precision values allow us to exactly represent any whole
+            // integer that contains less then 15 digits, the same being true for powers
+            // of ten from 16-22. Additionally, IEEE operations dictate that the result is
+            // computed to the infinitely precise result and then rounded, which means that
+            // we can rely on it to produce the correct result when both inputs are exact.
+
+            Debug.Assert(s_Pow10Table.Length == 23);
+
+            uint fastExponent = (uint)(Math.Abs(number.Scale - integerDigitsPresent - fractionalDigitsPresent));
+
+            if ((totalDigits <= 15) && (fastExponent <= 22))
+            {
+                uint remaining = totalDigits;
+                uint count = Math.Min(remaining, 9);
+                double result = DigitsToInt(src, (int)(count));
+
+                remaining -= count;
+
+                if (remaining > 0)
+                {
+                    Debug.Assert(remaining <= 6);
+
+                    // scale the value so we have space for the additional digits
+                    // and add the remaining to get an exact mantissa.
+
+                    result *= s_Pow10Table[remaining];
+                    result += DigitsToInt(src + 9, (int)(remaining));
+                }
+
+                double scale = s_Pow10Table[fastExponent];
+
+                if (fractionalDigitsPresent != 0)
+                {
+                    result /= scale;
+                }
+                else
+                {
+                    result *= scale;
+                }
+
+                if (info.DenormalMantissaBits == 52)
+                {
+                    return (ulong)(BitConverter.DoubleToInt64Bits(result));
+                }
+                else
+                {
+                    Debug.Assert(info.DenormalMantissaBits == 23);
+                    return (uint)(BitConverter.SingleToInt32Bits((float)(result)));
+                }
+            }
 
             // First, we accumulate the integer part of the mantissa into a big_integer:
             AccumulateDecimalDigitsIntoBigInteger(ref number, integerFirstIndex, integerLastIndex, out BigInteger integerValue);
