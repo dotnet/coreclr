@@ -3,8 +3,8 @@ parameters:
   config: ''
 
 jobs:
-- job: ${{ format('dependencyjob{0}', parameters.config) }}
+- job: ${{ format('dependencyjob_{0}', parameters.config) }}
   ${{ if ne(parameters.dependsOn, '') }}:
-    dependsOn: ${{ parameters.dependsOn }}
+    dependsOn: ${{ format('job_{0}', parameters.dependsOn) }}
   steps:
   - script: echo I depend on the base job
