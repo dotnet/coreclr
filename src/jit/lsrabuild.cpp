@@ -1581,6 +1581,14 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
                 }
             }
         }
+
+        if (tree->OperIsPutArgSplit())
+        {
+            // While we have attempted to account for any "specialPutArg" defs above, we're only looking at RefPositions
+            // created for this node. We must be defining at least one register in the PutArgSplit, so conservatively
+            // add one less than the maximum number of registers args to 'minRegCount'.
+            minRegCount += MAX_REG_ARG - 1;
+        }
         for (refPositionMark++; refPositionMark != refPositions.end(); refPositionMark++)
         {
             RefPosition* newRefPosition    = &(*refPositionMark);
@@ -1611,6 +1619,14 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
             {
                 minRegCountForRef++;
             }
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+            else if (newRefPosition->refType == RefTypeUpperVectorSaveDef)
+            {
+                // TODO-Cleanup: won't need a register once #18144 is fixed.
+                minRegCountForRef += 1;
+            }
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+
             newRefPosition->minRegCandidateCount = minRegCountForRef;
             if (newRefPosition->IsActualRef() && doReverseCallerCallee())
             {
@@ -2492,7 +2508,7 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     VARSET_TP liveLargeVectors(VarSetOps::UninitVal());
     bool      doLargeVectorRestore = false;
-#endif
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     if (killMask != RBM_NONE)
     {
         buildKillPositionsForNode(tree, currentLoc + 1, killMask);
@@ -2505,7 +2521,7 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
                                     buildUpperVectorSaveRefPositions(tree, currentLoc + 1, killMask));
             doLargeVectorRestore = true;
         }
-#endif
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     }
 
     // Now, create the Def(s)
