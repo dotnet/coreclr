@@ -74,12 +74,19 @@ namespace System
                     }
                 }
             }
+            _displayName = _standardDisplayName;
+
+            GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType.Generic, ref _displayName);
             GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType.Standard, ref _standardDisplayName);
-            if (_baseUtcOffset >= TimeSpan.Zero)
-                _displayName = $"(UTC+{_baseUtcOffset:hh\\:mm}) {_standardDisplayName}";
-            else
-                _displayName = $"(UTC-{_baseUtcOffset:hh\\:mm}) {_standardDisplayName}";
             GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType.DaylightSavings, ref _daylightDisplayName);
+
+            if (_standardDisplayName == _displayName)
+            {
+                if (_baseUtcOffset >= TimeSpan.Zero)
+                    _displayName = $"(UTC+{_baseUtcOffset:hh\\:mm}) {_standardDisplayName}";
+                else
+                    _displayName = $"(UTC-{_baseUtcOffset:hh\\:mm}) {_standardDisplayName}";
+            }
 
             // TZif supports seconds-level granularity with offsets but TimeZoneInfo only supports minutes since it aligns
             // with DateTimeOffset, SQL Server, and the W3C XML Specification
