@@ -357,7 +357,7 @@ Initialize(
 
         // The gSharedFilesPath is allocated dynamically so its destructor does not get 
         // called unexpectedly during cleanup
-        gSharedFilesPath = new PathCharString();
+        gSharedFilesPath = InternalNew<PathCharString>();
         if (gSharedFilesPath == nullptr)
         {
             SetLastError(ERROR_NOT_ENOUGH_MEMORY);

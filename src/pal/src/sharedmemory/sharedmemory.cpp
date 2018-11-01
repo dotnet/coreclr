@@ -950,7 +950,7 @@ void SharedMemoryProcessDataHeader::Close()
     VerifyStringOperation(path.Append('/'));
     VerifyStringOperation(m_id.AppendSessionDirectoryName(path));
     VerifyStringOperation(path.Append('/'));
-    
+
     SIZE_T sessionDirectoryPathCharCount = path.GetCount();
     VerifyStringOperation(path.Append(m_id.GetName(), m_id.GetNameCharCount()));
     unlink(path);
@@ -1037,8 +1037,8 @@ void SharedMemoryManager::StaticInitialize()
 {
     InitializeCriticalSection(&s_creationDeletionProcessLock);
 
-    s_runtimeTempDirectoryPath = new PathCharString();
-    s_sharedMemoryDirectoryPath = new PathCharString();
+    s_runtimeTempDirectoryPath = InternalNew<PathCharString>();
+    s_sharedMemoryDirectoryPath = InternalNew<PathCharString>();
 
     VerifyStringOperation(s_runtimeTempDirectoryPath && s_sharedMemoryDirectoryPath);
 
