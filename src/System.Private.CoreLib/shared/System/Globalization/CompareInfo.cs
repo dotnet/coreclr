@@ -606,7 +606,9 @@ namespace System.Globalization
                 ulong valueA = Unsafe.ReadUnaligned<ulong>(ref Unsafe.As<char, byte>(ref Unsafe.AddByteOffset(ref charA, byteOffset)));
                 ulong valueB = Unsafe.ReadUnaligned<ulong>(ref Unsafe.As<char, byte>(ref Unsafe.AddByteOffset(ref charB, byteOffset)));
 
-                if (!Utf16Utility.AllCharsInUInt64AreAscii(valueA | valueB))
+                // A 32-bit test - even with the bit-twiddling here - is more efficient than a 64-bit test.
+                ulong temp = valueA | valueB;
+                if (!Utf16Utility.AllCharsInUInt32AreAscii((uint)temp | (uint)(temp >> 32)))
                 {
                     goto NonAscii; // one of the inputs contains non-ASCII data
                 }
@@ -673,12 +675,23 @@ namespace System.Globalization
 
                 if (valueA == valueB)
                 {
-                    return true;
+                    return true; // exact match
                 }
 
                 valueA |= 0x20u;
-                return ((uint)(valueA - 'a') <= (uint)('z' - 'a'))
-                    && (valueA == (valueB | 0x20u));
+                if ((uint)(valueA - 'a') > (uint)('z' - 'a'))
+                {
+                    return false; // not exact match, and first input isn't in [A-Za-z]
+                }
+
+                if (valueA == (valueB | 0x20u))
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
 
             Debug.Assert(length == 0);

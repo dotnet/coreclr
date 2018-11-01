@@ -379,6 +379,11 @@ namespace System
                 return false;
             }
 
+            if (x.Length != y.Length)
+            {
+                return false;
+            }
+
             return CompareInfo.EqualsOrdinalIgnoreCase(ref x.GetRawStringData(), ref y.GetRawStringData(), x.Length);
         }
 

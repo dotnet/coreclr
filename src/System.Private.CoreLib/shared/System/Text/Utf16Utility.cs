@@ -182,25 +182,23 @@ namespace System.Text
             // ASSUMPTION: Caller has validated that input values are ASCII.
             Debug.Assert(AllCharsInUInt64AreAscii(valueA));
             Debug.Assert(AllCharsInUInt64AreAscii(valueB));
+            
+            // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'A'
+            ulong lowerIndicator = valueA + 0x0080008000800080ul - 0x0041004100410041ul;
 
-            // a mask of all bits which are different between A and B
-            ulong differentBits = valueA ^ valueB;
+            // the 0x80 bit of each word of 'upperIndicator' will be set iff (word | 0x20) has value <= 'z'
+            ulong upperIndicator = (valueA | 0x0020002000200020ul) + 0x0100010001000100ul - 0x007B007B007B007Bul;
 
-            // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value < 'A'
-            ulong lowerIndicator = valueA + 0x0100010001000100ul - 0x0041004100410041ul;
+            // the 0x20 bit of each word of 'combinedIndicator' will be set iff the word is [A-Za-z]
+            ulong combinedIndicator = (0x0080008000800080ul & lowerIndicator & upperIndicator) >> 2;
 
-            // the 0x80 bit of each word of 'upperIndicator' will be set iff (word | 0x20) has value > 'z'
-            ulong upperIndicator = (valueA | 0x0020002000200020ul) + 0x0080008000800080ul - 0x007B007B007B007Bul;
+            // Convert both values to lowercase (using the combined indicator from the first value)
+            // and compare for equality. It's possible that the first value will contain an alpha character
+            // where the second value doesn't (or vice versa), and applying the combined indicator will
+            // create nonsensical data, but the comparison would have failed anyway in this case so it's
+            // a safe operation to perform.
 
-            // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word is *not* [A-Za-z]
-            ulong combinedIndicator = lowerIndicator | upperIndicator;
-
-            // Shift all the 0x80 bits of 'combinedIndicator' into the 0x20 positions, then
-            // set all bits aside from 0x20. The combined indicator is now a mask detailing which
-            // bits *must not* be different between the input values A and B for them to be treated
-            // as equal using an ordinal case-insensitive comparison.
-
-            return (((combinedIndicator >> 2) | ~0x0020002000200020ul) & differentBits) == 0;
+            return (valueA | combinedIndicator) == (valueB | combinedIndicator);
         }
     }
 }
