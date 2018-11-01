@@ -395,8 +395,8 @@ void SharedMemoryHelpers::CopyPath(PathCharString& destination, const char *suff
 {
     _ASSERTE(strlen(suffix) == suffixCharCount);
 
-    VerifyStringOperation(destination.Set(*gSharedFilesPath)
-        && destination.Append(suffix, suffixCharCount));
+    VerifyStringOperation(destination.Set(*gSharedFilesPath));
+    VerifyStringOperation(destination.Append(suffix, suffixCharCount));
 }
 
 bool SharedMemoryHelpers::AppendUInt32String(
@@ -946,10 +946,11 @@ void SharedMemoryProcessDataHeader::Close()
 
     // Delete the shared memory file, and the session directory if it's not empty
     PathCharString path;
-    VerifyStringOperation(SharedMemoryManager::CopySharedMemoryBasePath(path)
-        && path.Append('/')
-        && m_id.AppendSessionDirectoryName(path)
-        && path.Append('/'));
+    VerifyStringOperation(SharedMemoryManager::CopySharedMemoryBasePath(path));
+    VerifyStringOperation(path.Append('/'));
+    VerifyStringOperation(m_id.AppendSessionDirectoryName(path));
+    VerifyStringOperation(path.Append('/'));
+    
     SIZE_T sessionDirectoryPathCharCount = path.GetCount();
     VerifyStringOperation(path.Append(m_id.GetName(), m_id.GetNameCharCount()));
     unlink(path);
