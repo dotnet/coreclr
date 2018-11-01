@@ -1630,10 +1630,6 @@ void Lowering::LowerCall(GenTree* node)
 
         controlExpr = LowerTailCallViaHelper(call, controlExpr);
     }
-    else if (call->IsFastTailCall())
-    {
-        LowerFastTailCall(call);
-    }
 
     if (controlExpr != nullptr)
     {
@@ -1675,6 +1671,15 @@ void Lowering::LowerCall(GenTree* node)
         BlockRange().InsertBefore(insertionPoint, std::move(controlExprRange));
 
         call->gtControlExpr = controlExpr;
+    }
+    if (call->IsFastTailCall())
+    {
+        // Lower fast tail call can introduce new temps to set up args correctly for Callee.
+        // This involves patching LCL_VAR and LCL_VAR_ADDR nodes holding Caller stack args
+        // and replacing them with a new temp. Control expr also can contain nodes that need
+        // to be patched.
+        // Therefore lower fast tail call must be done after controlExpr is inserted into LIR.
+        LowerFastTailCall(call);
     }
 
     if (comp->opts.IsJit64Compat())
