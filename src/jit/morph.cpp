@@ -18018,16 +18018,17 @@ public:
         {
             unsigned lclNum = node->AsLclVarCommon()->GetLclNum();
 
-            if (m_compiler->lvaIsImplicitByRefLocal(lclNum))
+            LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
+            if (varDsc->lvIsStructField)
             {
-                // Keep track of the number of appearances of each implicit
-                // byref (here during address-exposed analysis); fgMakeOutgoingStructArgCopy
-                // checks the ref counts for implicit byref params when deciding if it's legal
-                // to elide certain copies of them.
-                LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
-                JITDUMP("LocalAddressVisitor incrementing ref count from %d to %d for V%02d\n",
-                        varDsc->lvRefCnt(RCS_EARLY), varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
-                varDsc->incLvRefCnt(1, RCS_EARLY);
+                // Promoted field, increase counter for the parent lclVar.
+                assert(!m_compiler->lvaIsImplicitByRefLocal(lclNum));
+                unsigned parentLclNum = varDsc->lvParentLcl;
+                UpdateImplicitByRefCounter(parentLclNum);
+            }
+            else
+            {
+                UpdateImplicitByRefCounter(lclNum);
             }
         }
 
@@ -18415,6 +18416,29 @@ private:
         // TODO-Cleanup: Move fgMorphLocalField implementation here, it's not used anywhere else.
         m_compiler->fgMorphLocalField(node, user);
         INDEBUG(m_stmtModified |= node->OperIs(GT_LCL_VAR);)
+    }
+
+    //------------------------------------------------------------------------
+    // UpdateImplicitByRefCounter: updates the ref count for implicit byref params.
+    //
+    // Arguments:
+    //    lclNum - the local number to update the count for.
+    //
+    // Notes:
+    //    fgMakeOutgoingStructArgCopy checks the ref counts for implicit byref params when deciding
+    //    if it's legal to elide certain copies of them;
+    //    fgRetypeImplicitByRefArgs checks the ref counts when decides to undo promotions.
+    //
+    void UpdateImplicitByRefCounter(unsigned lclNum)
+    {
+        if (!m_compiler->lvaIsImplicitByRefLocal(lclNum))
+        {
+            return;
+        }
+        LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
+        JITDUMP("LocalAddressVisitor incrementing ref count from %d to %d for V%02d\n", varDsc->lvRefCnt(RCS_EARLY),
+                varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
+        varDsc->incLvRefCnt(1, RCS_EARLY);
     }
 };
 
