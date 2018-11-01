@@ -240,8 +240,8 @@ private:
     static CRITICAL_SECTION s_creationDeletionProcessLock;
     static int s_creationDeletionLockFileDescriptor;
 
-    static PathCharString s_runtimeTempDirectoryPath;
-    static PathCharString s_sharedMemoryDirectoryPath;
+    static PathCharString* s_runtimeTempDirectoryPath;
+    static PathCharString* s_sharedMemoryDirectoryPath;
 
 private:
     static SharedMemoryProcessDataHeader *s_processDataHeaderListHead;

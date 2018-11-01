@@ -413,7 +413,7 @@ bool SharedMemoryHelpers::AppendUInt32String(
 
 bool SharedMemoryManager::CopySharedMemoryBasePath(PathCharString& destination)
 {
-    return destination.Set(s_sharedMemoryDirectoryPath);
+    return destination.Set(*s_sharedMemoryDirectoryPath);
 }
 
 
@@ -1024,8 +1024,8 @@ CRITICAL_SECTION SharedMemoryManager::s_creationDeletionProcessLock;
 int SharedMemoryManager::s_creationDeletionLockFileDescriptor = -1;
 
 SharedMemoryProcessDataHeader *SharedMemoryManager::s_processDataHeaderListHead = nullptr;
-PathCharString SharedMemoryManager::s_runtimeTempDirectoryPath;
-PathCharString SharedMemoryManager::s_sharedMemoryDirectoryPath;
+PathCharString* SharedMemoryManager::s_runtimeTempDirectoryPath;
+PathCharString* SharedMemoryManager::s_sharedMemoryDirectoryPath;
 
 #ifdef _DEBUG
 SIZE_T SharedMemoryManager::s_creationDeletionProcessLockOwnerThreadId = SharedMemoryHelpers::InvalidThreadId;
@@ -1036,8 +1036,13 @@ void SharedMemoryManager::StaticInitialize()
 {
     InitializeCriticalSection(&s_creationDeletionProcessLock);
 
-    SharedMemoryHelpers::CopyPath(s_runtimeTempDirectoryPath, SHARED_MEMORY_RUNTIME_TEMP_DIRECTORY_NAME);
-    SharedMemoryHelpers::CopyPath(s_sharedMemoryDirectoryPath, SHARED_MEMORY_SHARED_MEMORY_DIRECTORY_NAME);
+    s_runtimeTempDirectoryPath = new PathCharString();
+    s_sharedMemoryDirectoryPath = new PathCharString();
+
+    VerifyStringOperation(s_runtimeTempDirectoryPath && s_sharedMemoryDirectoryPath);
+
+    SharedMemoryHelpers::CopyPath(*s_runtimeTempDirectoryPath, SHARED_MEMORY_RUNTIME_TEMP_DIRECTORY_NAME);
+    SharedMemoryHelpers::CopyPath(*s_sharedMemoryDirectoryPath, SHARED_MEMORY_SHARED_MEMORY_DIRECTORY_NAME);
 }
 
 void SharedMemoryManager::StaticClose()
@@ -1095,12 +1100,12 @@ void SharedMemoryManager::AcquireCreationDeletionFileLock()
             throw SharedMemoryException(static_cast<DWORD>(SharedMemoryError::IO));
         }
         SharedMemoryHelpers::EnsureDirectoryExists(
-            s_runtimeTempDirectoryPath,
+            *s_runtimeTempDirectoryPath,
             false /* isGlobalLockAcquired */);
         SharedMemoryHelpers::EnsureDirectoryExists(
-            s_sharedMemoryDirectoryPath,
+            *s_sharedMemoryDirectoryPath,
             false /* isGlobalLockAcquired */);
-        s_creationDeletionLockFileDescriptor = SharedMemoryHelpers::OpenDirectory(s_sharedMemoryDirectoryPath);
+        s_creationDeletionLockFileDescriptor = SharedMemoryHelpers::OpenDirectory(*s_sharedMemoryDirectoryPath);
         if (s_creationDeletionLockFileDescriptor == -1)
         {
             throw SharedMemoryException(static_cast<DWORD>(SharedMemoryError::IO));
