@@ -19,6 +19,15 @@ namespace System.Text
         }
 
         /// <summary>
+        /// Returns true iff the UInt64 represents four ASCII UTF-16 characters in machine endianness.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool AllCharsInUInt64AreAscii(ulong value)
+        {
+            return (value & ~0x007F007F007F007Ful) == 0;
+        }
+
+        /// <summary>
         /// Given a UInt32 that represents two ASCII UTF-16 characters, returns the invariant
         /// lowercase representation of those characters. Requires the input value to contain
         /// two ASCII UTF-16 characters in machine endianness.
@@ -158,6 +167,40 @@ namespace System.Text
             // as equal using an ordinal case-insensitive comparison.
 
             return (((combinedIndicator >> 2) | ~0x00200020u) & differentBits) == 0;
+        }
+
+        /// <summary>
+        /// Given two UInt64s that represent four ASCII UTF-16 characters each, returns true iff
+        /// the two inputs are equal using an ordinal case-insensitive comparison.
+        /// </summary>
+        /// <remarks>
+        /// This is a branchless implementation.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool UInt64OrdinalIgnoreCaseAscii(ulong valueA, ulong valueB)
+        {
+            // ASSUMPTION: Caller has validated that input values are ASCII.
+            Debug.Assert(AllCharsInUInt64AreAscii(valueA));
+            Debug.Assert(AllCharsInUInt64AreAscii(valueB));
+
+            // a mask of all bits which are different between A and B
+            ulong differentBits = valueA ^ valueB;
+
+            // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value < 'A'
+            ulong lowerIndicator = valueA + 0x0100010001000100ul - 0x0041004100410041ul;
+
+            // the 0x80 bit of each word of 'upperIndicator' will be set iff (word | 0x20) has value > 'z'
+            ulong upperIndicator = (valueA | 0x0020002000200020ul) + 0x0080008000800080ul - 0x007B007B007B007Bul;
+
+            // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word is *not* [A-Za-z]
+            ulong combinedIndicator = lowerIndicator | upperIndicator;
+
+            // Shift all the 0x80 bits of 'combinedIndicator' into the 0x20 positions, then
+            // set all bits aside from 0x20. The combined indicator is now a mask detailing which
+            // bits *must not* be different between the input values A and B for them to be treated
+            // as equal using an ordinal case-insensitive comparison.
+
+            return (((combinedIndicator >> 2) | ~0x0020002000200020ul) & differentBits) == 0;
         }
     }
 }
