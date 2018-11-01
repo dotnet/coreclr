@@ -4311,6 +4311,8 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_STORE_LCL_FLD:
         case GT_NOT:
         case GT_NEG:
+        case GT_BSWAP:
+        case GT_BSWAP16:
         case GT_COPY:
         case GT_RELOAD:
         case GT_ARR_LENGTH:
