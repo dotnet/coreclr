@@ -1826,7 +1826,7 @@ namespace System
 
         private static bool TryNumberToDouble(ref NumberBuffer number, out double value)
         {
-            ulong bits = NumberToFloatingPointBitsRoslyn(ref number, in FloatingPointInfo.Double);
+            ulong bits = NumberToFloatingPointBits(ref number, in FloatingPointInfo.Double);
             double result = BitConverter.Int64BitsToDouble((long)(bits));
 
             value = result;
@@ -1841,7 +1841,7 @@ namespace System
 
         private static bool TryNumberToSingle(ref NumberBuffer number, out float value)
         {
-            uint bits = (uint)(NumberToFloatingPointBitsRoslyn(ref number, in FloatingPointInfo.Single));
+            uint bits = (uint)(NumberToFloatingPointBits(ref number, in FloatingPointInfo.Single));
             float result = BitConverter.Int32BitsToSingle((int)(bits));
 
             value = result;

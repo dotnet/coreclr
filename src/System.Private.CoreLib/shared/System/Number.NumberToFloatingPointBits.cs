@@ -105,7 +105,7 @@ namespace System
             {
                 uint count = Math.Min(remaining, 9);
                 uint value = DigitsToInt(src, (int)(count));
-                
+
                 result.MultiplyPow10(count);
                 result.Add(value);
 
@@ -116,9 +116,9 @@ namespace System
 
         private static ulong AssembleFloatingPointBits(in FloatingPointInfo info, ulong initialMantissa, int initialExponent, bool hasZeroTail)
         {
-            // number of bits by which we must adjust the mantissa to shift it into the  
-            // correct position, and compute the resulting base two exponent for the  
-            // normalized mantissa:  
+            // number of bits by which we must adjust the mantissa to shift it into the
+            // correct position, and compute the resulting base two exponent for the
+            // normalized mantissa:
             uint initialMantissaBits = BigInteger.CountSignificantBits(initialMantissa);
             int normalMantissaShift = info.NormalMantissaBits - (int)(initialMantissaBits);
             int normalExponent = initialExponent - normalMantissaShift;
@@ -128,58 +128,58 @@ namespace System
 
             if (normalExponent > info.MaxBinaryExponent)
             {
-                // The exponent is too large to be represented by the floating point  
+                // The exponent is too large to be represented by the floating point
                 // type; report the overflow condition:
                 return info.InfinityBits;
             }
             else if (normalExponent < info.MinBinaryExponent)
             {
-                // The exponent is too small to be represented by the floating point  
-                // type as a normal value, but it may be representable as a denormal  
-                // value.  Compute the number of bits by which we need to shift the  
-                // mantissa in order to form a denormal number.  (The subtraction of  
-                // an extra 1 is to account for the hidden bit of the mantissa that  
-                // is not available for use when representing a denormal.)  
+                // The exponent is too small to be represented by the floating point
+                // type as a normal value, but it may be representable as a denormal
+                // value.  Compute the number of bits by which we need to shift the
+                // mantissa in order to form a denormal number.  (The subtraction of
+                // an extra 1 is to account for the hidden bit of the mantissa that
+                // is not available for use when representing a denormal.)
                 int denormalMantissaShift = normalMantissaShift + normalExponent + info.ExponentBias - 1;
 
-                // Denormal values have an exponent of zero, so the debiased exponent is  
-                // the negation of the exponent bias:  
+                // Denormal values have an exponent of zero, so the debiased exponent is
+                // the negation of the exponent bias:
                 exponent = -info.ExponentBias;
 
                 if (denormalMantissaShift < 0)
                 {
-                    // Use two steps for right shifts:  for a shift of N bits, we first  
-                    // shift by N-1 bits, then shift the last bit and use its value to  
-                    // round the mantissa.  
+                    // Use two steps for right shifts:  for a shift of N bits, we first
+                    // shift by N-1 bits, then shift the last bit and use its value to
+                    // round the mantissa.
                     mantissa = RightShiftWithRounding(mantissa, -denormalMantissaShift, hasZeroTail);
 
-                    // If the mantissa is now zero, we have underflowed:  
+                    // If the mantissa is now zero, we have underflowed:
                     if (mantissa == 0)
                     {
                         return info.ZeroBits;
                     }
 
-                    // When we round the mantissa, the result may be so large that the  
-                    // number becomes a normal value.  For example, consider the single  
-                    // precision case where the mantissa is 0x01ffffff and a right shift  
-                    // of 2 is required to shift the value into position. We perform the  
-                    // shift in two steps:  we shift by one bit, then we shift again and  
-                    // round using the dropped bit.  The initial shift yields 0x00ffffff.  
-                    // The rounding shift then yields 0x007fffff and because the least  
-                    // significant bit was 1, we add 1 to this number to round it.  The  
-                    // final result is 0x00800000.  
-                    //  
-                    // 0x00800000 is 24 bits, which is more than the 23 bits available  
-                    // in the mantissa.  Thus, we have rounded our denormal number into  
-                    // a normal number.  
-                    //  
-                    // We detect this case here and re-adjust the mantissa and exponent  
-                    // appropriately, to form a normal number:  
+                    // When we round the mantissa, the result may be so large that the
+                    // number becomes a normal value.  For example, consider the single
+                    // precision case where the mantissa is 0x01ffffff and a right shift
+                    // of 2 is required to shift the value into position. We perform the
+                    // shift in two steps:  we shift by one bit, then we shift again and
+                    // round using the dropped bit.  The initial shift yields 0x00ffffff.
+                    // The rounding shift then yields 0x007fffff and because the least
+                    // significant bit was 1, we add 1 to this number to round it.  The
+                    // final result is 0x00800000.
+                    //
+                    // 0x00800000 is 24 bits, which is more than the 23 bits available
+                    // in the mantissa.  Thus, we have rounded our denormal number into
+                    // a normal number.
+                    //
+                    // We detect this case here and re-adjust the mantissa and exponent
+                    // appropriately, to form a normal number:
                     if (mantissa > info.DenormalMantissaMask)
                     {
-                        // We add one to the denormal_mantissa_shift to account for the  
-                        // hidden mantissa bit (we subtracted one to account for this bit  
-                        // when we computed the denormal_mantissa_shift above).  
+                        // We add one to the denormal_mantissa_shift to account for the
+                        // hidden mantissa bit (we subtracted one to account for this bit
+                        // when we computed the denormal_mantissa_shift above).
                         exponent = initialExponent - (denormalMantissaShift + 1) - normalMantissaShift;
                     }
                 }
@@ -192,21 +192,21 @@ namespace System
             {
                 if (normalMantissaShift < 0)
                 {
-                    // Use two steps for right shifts:  for a shift of N bits, we first  
-                    // shift by N-1 bits, then shift the last bit and use its value to  
-                    // round the mantissa.  
+                    // Use two steps for right shifts:  for a shift of N bits, we first
+                    // shift by N-1 bits, then shift the last bit and use its value to
+                    // round the mantissa.
                     mantissa = RightShiftWithRounding(mantissa, -normalMantissaShift, hasZeroTail);
 
-                    // When we round the mantissa, it may produce a result that is too  
-                    // large.  In this case, we divide the mantissa by two and increment  
-                    // the exponent (this does not change the value).  
+                    // When we round the mantissa, it may produce a result that is too
+                    // large.  In this case, we divide the mantissa by two and increment
+                    // the exponent (this does not change the value).
                     if (mantissa > info.NormalMantissaMask)
                     {
                         mantissa >>= 1;
                         exponent++;
 
-                        // The increment of the exponent may have generated a value too  
-                        // large to be represented.  In this case, report the overflow:  
+                        // The increment of the exponent may have generated a value too
+                        // large to be represented.  In this case, report the overflow:
                         if (exponent > info.MaxBinaryExponent)
                         {
                             return info.InfinityBits;
@@ -219,8 +219,8 @@ namespace System
                 }
             }
 
-            // Unset the hidden bit in the mantissa and assemble the floating point value  
-            // from the computed components:  
+            // Unset the hidden bit in the mantissa and assemble the floating point value
+            // from the computed components:
             mantissa &= info.DenormalMantissaMask;
 
             Debug.Assert((info.DenormalMantissaMask & (1UL << info.DenormalMantissaBits)) == 0);
@@ -293,7 +293,7 @@ namespace System
             char* end = (p + count);
             uint res = (uint)(p[0] - '0');
 
-            for (p++; p<end; p++)
+            for (p++; p < end; p++)
             {
                 res = (10 * res) + p[0] - '0';
             }
@@ -301,7 +301,7 @@ namespace System
             return res;
         }
 
-        private static ulong NumberToFloatingPointBitsRoslyn(ref NumberBuffer number, in FloatingPointInfo info)
+        private static ulong NumberToFloatingPointBits(ref NumberBuffer number, in FloatingPointInfo info)
         {
             char* src = number.GetDigitsPointer();
             uint totalDigits = (uint)(number.Precision);
@@ -313,19 +313,19 @@ namespace System
                 return info.ZeroBits;
             }
 
-            // To generate an N bit mantissa we require N + 1 bits of precision.  The  
-            // extra bit is used to correctly round the mantissa (if there are fewer bits  
-            // than this available, then that's totally okay; in that case we use what we  
+            // To generate an N bit mantissa we require N + 1 bits of precision.  The
+            // extra bit is used to correctly round the mantissa (if there are fewer bits
+            // than this available, then that's totally okay; in that case we use what we
             // have and we don't need to round).
             uint requiredBitsOfPrecision = (uint)(info.NormalMantissaBits + 1);
 
-            // The input is of the form 0.Mantissa x 10^Exponent, where 'Mantissa' are  
-            // the decimal digits of the mantissa and 'Exponent' is the decimal exponent.  
-            // We decompose the mantissa into two parts: an integer part and a fractional  
-            // part.  If the exponent is positive, then the integer part consists of the  
-            // first 'exponent' digits, or all present digits if there are fewer digits.  
-            // If the exponent is zero or negative, then the integer part is empty.  In  
-            // either case, the remaining digits form the fractional part of the mantissa.  
+            // The input is of the form 0.Mantissa x 10^Exponent, where 'Mantissa' are
+            // the decimal digits of the mantissa and 'Exponent' is the decimal exponent.
+            // We decompose the mantissa into two parts: an integer part and a fractional
+            // part.  If the exponent is positive, then the integer part consists of the
+            // first 'exponent' digits, or all present digits if there are fewer digits.
+            // If the exponent is zero or negative, then the integer part is empty.  In
+            // either case, the remaining digits form the fractional part of the mantissa.
             uint positiveExponent = (uint)(Math.Max(0, number.Scale));
             uint integerDigitsPresent = Math.Min(positiveExponent, totalDigits);
             uint integerDigitsMissing = positiveExponent - integerDigitsPresent;
@@ -337,7 +337,7 @@ namespace System
             uint fractionalDigitsPresent = fractionalLastIndex - fractionalFirstIndex;
 
             // When the number of significant digits is less than or equal to 15 and the
-            // scale is less than or equal to 22, we can take a shortcut and just rely 
+            // scale is less than or equal to 22, we can take a shortcut and just rely
             // on double-precision arithmetic to compute the correct result. This is
             // because double-precision values allow us to exactly represent any whole
             // integer that contains less then 15 digits, the same being true for powers
@@ -419,13 +419,13 @@ namespace System
                 );
             }
 
-            // Otherwise, we did not get enough bits of precision from the integer part,  
-            // and the mantissa has a fractional part.  We parse the fractional part of  
-            // the mantissa to obtain more bits of precision.  To do this, we convert  
-            // the fractional part into an actual fraction N/M, where the numerator N is  
-            // computed from the digits of the fractional part, and the denominator M is   
-            // computed as the power of 10 such that N/M is equal to the value of the  
-            // fractional part of the mantissa.  
+            // Otherwise, we did not get enough bits of precision from the integer part,
+            // and the mantissa has a fractional part.  We parse the fractional part of
+            // the mantissa to obtain more bits of precision.  To do this, we convert
+            // the fractional part into an actual fraction N/M, where the numerator N is
+            // computed from the digits of the fractional part, and the denominator M is
+            // computed as the power of 10 such that N/M is equal to the value of the
+            // fractional part of the mantissa.
 
             uint fractionalDenominatorExponent = fractionalDigitsPresent;
 
@@ -436,9 +436,9 @@ namespace System
 
             if ((integerBitsOfPrecision == 0) && (fractionalDenominatorExponent - (int)(totalDigits)) > info.OverflowDecimalExponent)
             {
-                // If there were any digits in the integer part, it is impossible to  
-                // underflow (because the exponent cannot possibly be small enough),  
-                // so if we underflow here it is a true underflow and we return zero.  
+                // If there were any digits in the integer part, it is impossible to
+                // underflow (because the exponent cannot possibly be small enough),
+                // so if we underflow here it is a true underflow and we return zero.
                 return info.ZeroBits;
             }
 
@@ -447,12 +447,12 @@ namespace System
 
             BigInteger.Pow10(fractionalDenominatorExponent, out BigInteger fractionalDenominator);
 
-            // Because we are using only the fractional part of the mantissa here, the  
-            // numerator is guaranteed to be smaller than the denominator.  We normalize  
-            // the fraction such that the most significant bit of the numerator is in  
-            // the same position as the most significant bit in the denominator.  This  
-            // ensures that when we later shift the numerator N bits to the left, we  
-            // will produce N bits of precision.  
+            // Because we are using only the fractional part of the mantissa here, the
+            // numerator is guaranteed to be smaller than the denominator.  We normalize
+            // the fraction such that the most significant bit of the numerator is in
+            // the same position as the most significant bit in the denominator.  This
+            // ensures that when we later shift the numerator N bits to the left, we
+            // will produce N bits of precision.
             uint fractionalNumeratorBits = BigInteger.CountSignificantBits(ref fractionalNumerator);
             uint fractionalDenominatorBits = BigInteger.CountSignificantBits(ref fractionalDenominator);
 
@@ -473,18 +473,18 @@ namespace System
 
             if (integerBitsOfPrecision > 0)
             {
-                // If the fractional part of the mantissa provides no bits of precision  
-                // and cannot affect rounding, we can just take whatever bits we got from  
-                // the integer part of the mantissa.  This is the case for numbers like  
-                // 5.0000000000000000000001, where the significant digits of the fractional  
-                // part start so far to the right that they do not affect the floating  
-                // point representation.  
-                //  
-                // If the fractional shift is exactly equal to the number of bits of  
-                // precision that we require, then no fractional bits will be part of the  
-                // result, but the result may affect rounding.  This is e.g. the case for  
-                // large, odd integers with a fractional part greater than or equal to .5.  
-                // Thus, we need to do the division to correctly round the result.  
+                // If the fractional part of the mantissa provides no bits of precision
+                // and cannot affect rounding, we can just take whatever bits we got from
+                // the integer part of the mantissa.  This is the case for numbers like
+                // 5.0000000000000000000001, where the significant digits of the fractional
+                // part start so far to the right that they do not affect the floating
+                // point representation.
+                //
+                // If the fractional shift is exactly equal to the number of bits of
+                // precision that we require, then no fractional bits will be part of the
+                // result, but the result may affect rounding.  This is e.g. the case for
+                // large, odd integers with a fractional part greater than or equal to .5.
+                // Thus, we need to do the division to correctly round the result.
                 if (fractionalShift > remainingBitsOfPrecisionRequired)
                 {
                     return ConvertBigIntegerToFloatingPointBits(
@@ -498,11 +498,11 @@ namespace System
                 remainingBitsOfPrecisionRequired -= fractionalShift;
             }
 
-            // If there was no integer part of the mantissa, we will need to compute the  
-            // exponent from the fractional part.  The fractional exponent is the power  
-            // of two by which we must multiply the fractional part to move it into the  
-            // range [1.0, 2.0).  This will either be the same as the shift we computed  
-            // earlier, or one greater than that shift:  
+            // If there was no integer part of the mantissa, we will need to compute the
+            // exponent from the fractional part.  The fractional exponent is the power
+            // of two by which we must multiply the fractional part to move it into the
+            // range [1.0, 2.0).  This will either be the same as the shift we computed
+            // earlier, or one greater than that shift:
             uint fractionalExponent = fractionalShift;
 
             if (BigInteger.Compare(ref fractionalNumerator, ref fractionalDenominator) < 0)
@@ -516,8 +516,8 @@ namespace System
             ulong fractionalMantissa = bigFractionalMantissa.ToUInt64();
             bool hasZeroTail = !number.HasNonZeroTail && fractionalRemainder.IsZero();
 
-            // We may have produced more bits of precision than were required.  Check,  
-            // and remove any "extra" bits:  
+            // We may have produced more bits of precision than were required.  Check,
+            // and remove any "extra" bits:
             uint fractionalMantissaBits = BigInteger.CountSignificantBits(fractionalMantissa);
 
             if (fractionalMantissaBits > requiredFractionalBitsOfPrecision)
@@ -527,20 +527,20 @@ namespace System
                 fractionalMantissa >>= shift;
             }
 
-            // Compose the mantissa from the integer and fractional parts:  
+            // Compose the mantissa from the integer and fractional parts:
             ulong integerMantissa = integerValue.ToUInt64();
             ulong completeMantissa = (integerMantissa << (int)(requiredFractionalBitsOfPrecision)) + fractionalMantissa;
 
-            // Compute the final exponent:  
-            // * If the mantissa had an integer part, then the exponent is one less than  
-            //   the number of bits we obtained from the integer part.  (It's one less  
-            //   because we are converting to the form 1.11111, with one 1 to the left  
-            //   of the decimal point.)  
-            // * If the mantissa had no integer part, then the exponent is the fractional  
-            //   exponent that we computed.  
-            // Then, in both cases, we subtract an additional one from the exponent, to  
-            // account for the fact that we've generated an extra bit of precision, for  
-            // use in rounding.  
+            // Compute the final exponent:
+            // * If the mantissa had an integer part, then the exponent is one less than
+            //   the number of bits we obtained from the integer part.  (It's one less
+            //   because we are converting to the form 1.11111, with one 1 to the left
+            //   of the decimal point.)
+            // * If the mantissa had no integer part, then the exponent is the fractional
+            //   exponent that we computed.
+            // Then, in both cases, we subtract an additional one from the exponent, to
+            // account for the fact that we've generated an extra bit of precision, for
+            // use in rounding.
             int finalExponent = (integerBitsOfPrecision > 0) ? (int)(integerBitsOfPrecision) - 2 : -(int)(fractionalExponent) - 1;
 
             return AssembleFloatingPointBits(in info, completeMantissa, finalExponent, hasZeroTail);
@@ -548,8 +548,8 @@ namespace System
 
         private static ulong RightShiftWithRounding(ulong value, int shift, bool hasZeroTail)
         {
-            // If we'd need to shift further than it is possible to shift, the answer  
-            // is always zero:  
+            // If we'd need to shift further than it is possible to shift, the answer
+            // is always zero:
             if (shift >= 64)
             {
                 return 0;
@@ -568,12 +568,12 @@ namespace System
 
         private static bool ShouldRoundUp(bool lsbBit, bool roundBit, bool hasTailBits)
         {
-            // If there are insignificant set bits, we need to round to the  
-            // nearest; there are two cases:  
-            // we round up if either [1] the value is slightly greater than the midpoint  
-            // between two exactly representable values or [2] the value is exactly the  
-            // midpoint between two exactly representable values and the greater of the  
-            // two is even (this is "round-to-even").  
+            // If there are insignificant set bits, we need to round to the
+            // nearest; there are two cases:
+            // we round up if either [1] the value is slightly greater than the midpoint
+            // between two exactly representable values or [2] the value is exactly the
+            // midpoint between two exactly representable values and the greater of the
+            // two is even (this is "round-to-even").
             return roundBit && (hasTailBits || lsbBit);
         }
     }
