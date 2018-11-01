@@ -228,16 +228,19 @@ phases:
     buildConfig: checked
     archType: x64
     osGroup: Windows_NT
+
 - template: test-pipeline.yml
   parameters:
     buildConfig: checked
     archType: x86
     osGroup: Windows_NT
+
 - template: test-pipeline.yml
   parameters:
     buildConfig: checked
     archType: arm
     osGroup: Windows_NT
+
 - template: test-pipeline.yml
   parameters:
     buildConfig: checked
