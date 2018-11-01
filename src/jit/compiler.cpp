@@ -2321,58 +2321,72 @@ const char* Compiler::compLocalVarName(unsigned varNum, unsigned offs)
 #ifdef _TARGET_XARCH_
 static bool configEnableISA(InstructionSet isa)
 {
-#ifdef DEBUG
     switch (isa)
     {
+        case InstructionSet_AVX2:
+            if (JitConfig.EnableAVX2() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_AVX:
+            if (JitConfig.EnableAVX() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE42:
+            if (JitConfig.EnableSSE42() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE41:
+            if (JitConfig.EnableSSE41() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSSE3:
+            if (JitConfig.EnableSSSE3() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE3:
+            if (JitConfig.EnableSSE3() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE2:
+            if (JitConfig.EnableSSE2() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
         case InstructionSet_SSE:
             return JitConfig.EnableSSE() != 0;
-        case InstructionSet_SSE2:
-            return JitConfig.EnableSSE2() != 0;
-        case InstructionSet_SSE3:
-            return JitConfig.EnableSSE3() != 0;
-        case InstructionSet_SSSE3:
-            return JitConfig.EnableSSSE3() != 0;
-        case InstructionSet_SSE41:
-            return JitConfig.EnableSSE41() != 0;
-        case InstructionSet_SSE42:
-            return JitConfig.EnableSSE42() != 0;
-        case InstructionSet_AVX:
-            return JitConfig.EnableAVX() != 0;
-        case InstructionSet_FMA:
-            return JitConfig.EnableFMA() != 0;
-        case InstructionSet_AVX2:
-            return JitConfig.EnableAVX2() != 0;
 
-        case InstructionSet_AES:
-            return JitConfig.EnableAES() != 0;
+        // TODO:  BMI1/BMI2 actually don't depend on AVX, they depend on the VEX encoding; which is currently controlled
+        // by InstructionSet_AVX
         case InstructionSet_BMI1:
-            return JitConfig.EnableBMI1() != 0;
+            return JitConfig.EnableBMI1() != 0 && configEnableISA(InstructionSet_AVX);
         case InstructionSet_BMI2:
-            return JitConfig.EnableBMI2() != 0;
+            return JitConfig.EnableBMI2() != 0 && configEnableISA(InstructionSet_AVX);
+        case InstructionSet_FMA:
+            return JitConfig.EnableFMA() != 0 && configEnableISA(InstructionSet_AVX);
+        case InstructionSet_AES:
+            return JitConfig.EnableAES() != 0 && configEnableISA(InstructionSet_SSE2);
         case InstructionSet_LZCNT:
             return JitConfig.EnableLZCNT() != 0;
         case InstructionSet_PCLMULQDQ:
-            return JitConfig.EnablePCLMULQDQ() != 0;
+            return JitConfig.EnablePCLMULQDQ() != 0 && configEnableISA(InstructionSet_SSE2);
         case InstructionSet_POPCNT:
-            return JitConfig.EnablePOPCNT() != 0;
+            return JitConfig.EnablePOPCNT() != 0 && configEnableISA(InstructionSet_SSE42);
         default:
             return false;
     }
-#else
-    // We have a retail config switch that can disable instruction sets reliant on the VEX encoding
-    switch (isa)
-    {
-        case InstructionSet_AVX:
-        case InstructionSet_FMA:
-        case InstructionSet_AVX2:
-        case InstructionSet_BMI1:
-        case InstructionSet_BMI2:
-            return JitConfig.EnableAVX() != 0;
-
-        default:
-            return true;
-    }
-#endif
 }
 #endif // _TARGET_XARCH_
 
@@ -2428,25 +2442,11 @@ void Compiler::compSetProcessor()
         {
             opts.setSupportedISA(InstructionSet_SSE2);
         }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
-        {
-            if (configEnableISA(InstructionSet_AES))
-            {
-                opts.setSupportedISA(InstructionSet_AES);
-            }
-        }
         if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT))
         {
             if (configEnableISA(InstructionSet_LZCNT))
             {
                 opts.setSupportedISA(InstructionSet_LZCNT);
-            }
-        }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
-        {
-            if (configEnableISA(InstructionSet_PCLMULQDQ))
-            {
-                opts.setSupportedISA(InstructionSet_PCLMULQDQ);
             }
         }
         if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT))
@@ -2488,6 +2488,22 @@ void Compiler::compSetProcessor()
                 if (configEnableISA(InstructionSet_SSSE3))
                 {
                     opts.setSupportedISA(InstructionSet_SSSE3);
+                }
+            }
+            // AES and PCLMULQDQ requires 0x660F38/A encoding that is
+            // only used by SSSE3 and above ISAs
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
+            {
+                if (configEnableISA(InstructionSet_AES))
+                {
+                    opts.setSupportedISA(InstructionSet_AES);
+                }
+            }
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
+            {
+                if (configEnableISA(InstructionSet_PCLMULQDQ))
+                {
+                    opts.setSupportedISA(InstructionSet_PCLMULQDQ);
                 }
             }
         }
@@ -2545,7 +2561,8 @@ void Compiler::compSetProcessor()
             codeGen->getEmitter()->SetContains256bitAVX(false);
         }
         else if (compSupports(InstructionSet_SSSE3) || compSupports(InstructionSet_SSE41) ||
-                 compSupports(InstructionSet_SSE42))
+                 compSupports(InstructionSet_SSE42) || compSupports(InstructionSet_AES) ||
+                 compSupports(InstructionSet_PCLMULQDQ))
         {
             // Emitter::UseSSE4 controls whether we support the 4-byte encoding for certain
             // instructions. We need to check if either is supported independently, since

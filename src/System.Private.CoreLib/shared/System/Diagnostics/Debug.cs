@@ -4,35 +4,43 @@
 
 // Do not remove this, it is needed to retain calls to these conditional methods in release builds
 #define DEBUG
-using System.Diagnostics.Contracts;
-using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace System.Diagnostics
 {
     /// <summary>
     /// Provides a set of properties and methods for debugging code.
     /// </summary>
-    public static partial class Debug
+    public static class Debug
     {
-        private static readonly object s_lock = new object();
+        private static volatile DebugProvider s_provider = new DebugProvider();
+
+        public static DebugProvider SetProvider(DebugProvider provider)
+        {
+            if (provider == null)
+                throw new ArgumentNullException(nameof(provider));
+
+            return Interlocked.Exchange(ref s_provider, provider);
+        }
 
         public static bool AutoFlush { get { return true; } set { } }
 
         [ThreadStatic]
-        private static int s_indentLevel;
+        private static int t_indentLevel;
         public static int IndentLevel
         {
             get
             {
-                return s_indentLevel;
+                return t_indentLevel;
             }
             set
             {
-                s_indentLevel = value < 0 ? 0 : value;
+                t_indentLevel = value < 0 ? 0 : value;
+                s_provider.OnIndentLevelChanged(t_indentLevel);
             }
         }
 
-        private static int s_indentSize = 4;
+        private static volatile int s_indentSize = 4;
         public static int IndentSize
         {
             get
@@ -42,6 +50,7 @@ namespace System.Diagnostics
             set
             {
                 s_indentSize = value < 0 ? 0 : value;
+                s_provider.OnIndentSizeChanged(s_indentSize);
             }
         }
 
@@ -101,8 +110,8 @@ namespace System.Diagnostics
                 {
                     stackTrace = "";
                 }
-                WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowDialog(stackTrace, message, detailMessage, "Assertion Failed");
+                WriteAssert(stackTrace, message, detailMessage);
+                s_provider.ShowDialog(stackTrace, message, detailMessage, "Assertion Failed");
             }
         }
 
@@ -119,8 +128,8 @@ namespace System.Diagnostics
                 {
                     stackTrace = "";
                 }
-                WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowDialog(stackTrace, message, detailMessage, SR.GetResourceString(failureKindMessage));
+                WriteAssert(stackTrace, message, detailMessage);
+                s_provider.ShowDialog(stackTrace, message, detailMessage, SR.GetResourceString(failureKindMessage));
             }
         }
 
@@ -136,15 +145,14 @@ namespace System.Diagnostics
             Assert(false, message, detailMessage);
         }
 
-        private static string FormatAssert(string stackTrace, string message, string detailMessage)
+        private static void WriteAssert(string stackTrace, string message, string detailMessage)
         {
-            string newLine = GetIndentString() + Environment.NewLine;
-            return SR.DebugAssertBanner + newLine
-                   + SR.DebugAssertShortMessage + newLine
-                   + message + newLine
-                   + SR.DebugAssertLongMessage + newLine
-                   + detailMessage + newLine
-                   + stackTrace;
+            WriteLine(SR.DebugAssertBanner + Environment.NewLine
+                   + SR.DebugAssertShortMessage + Environment.NewLine
+                   + message + Environment.NewLine
+                   + SR.DebugAssertLongMessage + Environment.NewLine
+                   + detailMessage + Environment.NewLine
+                   + stackTrace);
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
@@ -156,30 +164,13 @@ namespace System.Diagnostics
         [System.Diagnostics.Conditional("DEBUG")]
         public static void WriteLine(string message)
         {
-            Write(message + Environment.NewLine);
+            s_provider.WriteLine(message);
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
         public static void Write(string message)
         {
-            lock (s_lock)
-            {
-                if (message == null)
-                {
-                    s_WriteCore(string.Empty);
-                    return;
-                }
-                if (s_needIndent)
-                {
-                    message = GetIndentString() + message;
-                    s_needIndent = false;
-                }
-                s_WriteCore(message);
-                if (message.EndsWith(Environment.NewLine))
-                {
-                    s_needIndent = true;
-                }
-            }
+            s_provider.Write(message);
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
@@ -209,7 +200,7 @@ namespace System.Diagnostics
             }
             else
             {
-                WriteLine(category + ":" + message);
+                WriteLine(category + ": " + message);
             }
         }
 
@@ -228,7 +219,7 @@ namespace System.Diagnostics
             }
             else
             {
-                Write(category + ":" + message);
+                Write(category + ": " + message);
             }
         }
 
@@ -309,42 +300,5 @@ namespace System.Diagnostics
                 WriteLine(message, category);
             }
         }
-
-        private static bool s_needIndent;
-
-        private static string s_indentString;
-
-        private static string GetIndentString()
-        {
-            int indentCount = IndentSize * IndentLevel;
-            if (s_indentString?.Length == indentCount)
-            {
-                return s_indentString;
-            }
-            return s_indentString = new string(' ', indentCount);
-        }
-
-        private sealed class DebugAssertException : Exception
-        {
-            internal DebugAssertException(string stackTrace) :
-                base(Environment.NewLine + stackTrace)
-            {
-            }
-
-            internal DebugAssertException(string message, string stackTrace) :
-                base(message + Environment.NewLine + Environment.NewLine + stackTrace)
-            {
-            }
-
-            internal DebugAssertException(string message, string detailMessage, string stackTrace) :
-                base(message + Environment.NewLine + detailMessage + Environment.NewLine + Environment.NewLine + stackTrace)
-            {
-            }
-        }
-
-        // internal and not readonly so that the tests can swap this out.
-        internal static Action<string, string, string, string> s_ShowDialog = ShowDialog;
-
-        internal static Action<string> s_WriteCore = WriteCore;
     }
 }
