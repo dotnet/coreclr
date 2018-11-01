@@ -27,6 +27,20 @@ jobs:
         displayName: Install native dependencies
       - script: brew link --force icu4c
         displayName: Set up native dependencies
+
+
+    # Download product build from pipeline artifact storage
+    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+      - task: DownloadPipelineArtifact@0
+        inputs:
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+          targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - task: DownloadPipelineArtifact@0
+        inputs:
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+          targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
+
       
     # Build tests
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
@@ -45,6 +59,7 @@ jobs:
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: .\Tools\dotnetcli\dotnet.exe msbuild tests\helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)\tests\core_root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType)
         displayName: Prepare tests for helix
+
 
     # Send tests to helix
     - task: DotNetCoreCLI@2
