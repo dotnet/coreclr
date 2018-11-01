@@ -1598,7 +1598,7 @@ namespace System
 
                     // At this point we should either be at the end of the buffer, or just
                     // have a single rounding digit left, and the next should be the end
-                    Debug.Assert((c == 0) || (*++p == 0));
+                    Debug.Assert((c == 0) || (p[1] == 0));
 
                     if (((c == 0) || c == '0') && !number.HasNonZeroTail)
                     {
