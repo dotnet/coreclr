@@ -60,11 +60,13 @@ jobs:
     # Upload build as pipeline artifact
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
       - task: PublishPipelineArtifact@0
+        displayName: Save product build as pipeline artifact
         inputs:
           artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
           targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - task: PublishPipelineArtifact@0
+        displayName: Save product build as pipeline artifact
         inputs:
           artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
           targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
