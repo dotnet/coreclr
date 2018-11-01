@@ -684,14 +684,9 @@ namespace System.Globalization
                     return false; // not exact match, and first input isn't in [A-Za-z]
                 }
 
-                if (valueA == (valueB | 0x20u))
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                // The ternary operator below seems redundant but helps RyuJIT generate more optimal code.
+                // See https://github.com/dotnet/coreclr/issues/914.
+                return (valueA == (valueB | 0x20u)) ? true : false;
             }
 
             Debug.Assert(length == 0);
