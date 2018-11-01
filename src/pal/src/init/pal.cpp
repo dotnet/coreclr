@@ -355,10 +355,10 @@ Initialize(
         gPID = getpid();
         gSID = getsid(gPID);
 
-        // The gApplicationContainerPath is allocated dynamically so its destructor does not get 
+        // The gSharedFilesPath is allocated dynamically so its destructor does not get 
         // called unexpectedly during cleanup
-        gApplicationContainerPath = new PathCharString();
-        if (gApplicationContainerPath == nullptr)
+        gSharedFilesPath = new PathCharString();
+        if (gSharedFilesPath == nullptr)
         {
             SetLastError(ERROR_NOT_ENOUGH_MEMORY);
             goto done;
@@ -381,10 +381,10 @@ Initialize(
             // In sandbox, all IPC files (locks, pipes) should be written to the application group
             // container. There will be no write permissions to TEMP_DIRECTORY_PATH
 
-            GetApplicationContainerFolder(*gApplicationContainerPath, gApplicationGroupId, gApplicationGroupIdLength);
+            GetApplicationContainerFolder(*gSharedFilesPath, gApplicationGroupId, gApplicationGroupIdLength);
 
             // Verify the size of the path won't exceed maximum allowed size
-            if (gApplicationContainerPath->GetCount() + SHARED_MEMORY_MAX_FILE_PATH_CHAR_COUNT + 1 /* null terminator */ > MAX_LONGPATH)
+            if (gSharedFilesPath->GetCount() + SHARED_MEMORY_MAX_FILE_PATH_CHAR_COUNT + 1 /* null terminator */ > MAX_LONGPATH)
             {
                 SetLastError(ERROR_FILENAME_EXCED_RANGE);
             }
@@ -392,7 +392,7 @@ Initialize(
         else
 #endif // __APPLE__
         {
-            gApplicationContainerPath->Set(TEMP_DIRECTORY_PATH);
+            gSharedFilesPath->Set(TEMP_DIRECTORY_PATH);
 
             // We can verify statically the non sandboxed case, since the size is known during compile time
             static_assert_no_msg(string_countof(TEMP_DIRECTORY_PATH) + SHARED_MEMORY_MAX_FILE_PATH_CHAR_COUNT + 1 /* null terminator */ <= MAX_LONGPATH);

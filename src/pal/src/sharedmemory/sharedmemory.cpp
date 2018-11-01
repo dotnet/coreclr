@@ -180,7 +180,7 @@ bool SharedMemoryHelpers::EnsureDirectoryExists(
         throw SharedMemoryException(static_cast<DWORD>(SharedMemoryError::IO));
     }
 
-    // For non-system directories (such as gApplicationContainerPath/SHARED_MEMORY_RUNTIME_TEMP_DIRECTORY_NAME),
+    // For non-system directories (such as gSharedFilesPath/SHARED_MEMORY_RUNTIME_TEMP_DIRECTORY_NAME),
     // require sufficient permissions for all users and try to update them if requested to create the directory, so that
     // shared memory files may be shared by all processes on the system.
     if ((statInfo.st_mode & PermissionsMask_AllUsers_ReadWriteExecute) == PermissionsMask_AllUsers_ReadWriteExecute)
@@ -395,7 +395,7 @@ void SharedMemoryHelpers::CopyPath(PathCharString& destination, const char *suff
 {
     _ASSERTE(strlen(suffix) == suffixCharCount);
 
-    VerifyStringOperation(destination.Set(*gApplicationContainerPath)
+    VerifyStringOperation(destination.Set(*gSharedFilesPath)
         && destination.Append(suffix, suffixCharCount));
 }
 
@@ -1092,7 +1092,7 @@ void SharedMemoryManager::AcquireCreationDeletionFileLock()
     if (s_creationDeletionLockFileDescriptor == -1)
     {
         if (!SharedMemoryHelpers::EnsureDirectoryExists(
-                *gApplicationContainerPath,
+                *gSharedFilesPath,
                 false /* isGlobalLockAcquired */,
                 false /* createIfNotExist */,
                 true /* isSystemDirectory */))

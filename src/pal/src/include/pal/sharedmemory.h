@@ -19,17 +19,17 @@
     ((success) ? 0 : throw SharedMemoryException(static_cast<DWORD>(SharedMemoryError::OutOfMemory)))
 
 // The folder is used for storing shared memory files and their lock files is defined in 
-// the gApplicationContainerPath global variable. The value of the variable depends on which 
+// the gSharedFilesPath global variable. The value of the variable depends on which 
 // OS is being used, and if the application is running in a sandbox in Mac.
-// gApplicationContainerPath ends with '/'
+// gSharedFilesPath ends with '/'
 // - Global shared memory files go in:
-//     {gApplicationContainerPath}/.dotnet/shm/global/<fileName>
+//     {gSharedFilesPath}/.dotnet/shm/global/<fileName>
 // - Session-scoped shared memory files go in:
-//     {gApplicationContainerPath}/.dotnet/shm/session<sessionId>/<fileName>
+//     {gSharedFilesPath}/.dotnet/shm/session<sessionId>/<fileName>
 // - Lock files associated with global shared memory files go in:
-//     {gApplicationContainerPath}/.dotnet/lockfiles/global/<fileName>
+//     {gSharedFilesPath}/.dotnet/lockfiles/global/<fileName>
 // - Lock files associated with session-scoped shared memory files go in:
-//     {gApplicationContainerPath}/.dotnet/lockfiles/session<sessionId>/<fileName>
+//     {gSharedFilesPath}/.dotnet/lockfiles/session<sessionId>/<fileName>
 
 #define SHARED_MEMORY_MAX_FILE_NAME_CHAR_COUNT (_MAX_FNAME - 1)
 #define SHARED_MEMORY_MAX_NAME_CHAR_COUNT (string_countof("Global\\") + SHARED_MEMORY_MAX_FILE_NAME_CHAR_COUNT)
