@@ -14,10 +14,7 @@
        extends [System.Runtime]System.Object
 {
   .method public hidebysig newslot abstract virtual
-          instance void  M(int32 arg1,
-                           int32 arg2,
-                           int32 arg3,
-                           class Base arg4) cil managed
+          instance void  M(int32 arg1, int32 arg2, int32 arg3, int32 arg4, int32 arg5, class Base arg6) cil managed
   {
   }
 
@@ -35,22 +32,19 @@
        extends Base
 {
   .method public hidebysig virtual instance void
-          M(int32 arg1,
-            int32 arg2,
-            int32 arg3,
-            class Base arg4) cil managed nooptimization
+          M(int32 arg1, int32 arg2, int32 arg3, int32 arg4, int32 arg5, class Base arg6) cil managed nooptimization
   {
     .maxstack  8
-    IL_0000:  ldarg.s    arg4
+    IL_0000:  ldarg.s    arg6
     IL_0002:  ldarg.1
     IL_0003:  ldarg.2
     IL_0004:  ldarg.3
-    IL_0005:  ldnull
-    IL_0006:  tail. callvirt   instance void Base::M(int32,
-                                                            int32,
-                                                            int32,
-                                                            class Base)
-    IL_000b:  ret
+    IL_0005:  ldarg.s    arg4
+    IL_0007:  ldarg.s    arg5
+    IL_0009:  ldnull
+    IL_000a:  tail.
+              callvirt   instance void Base::M(int32, int32, int32, int32, int32, class Base)
+    IL_000f:  ret
   }
 
   .method public hidebysig specialname rtspecialname
@@ -61,16 +55,14 @@
     IL_0001:  call       instance void Base::.ctor()
     IL_0006:  ret
   }
+
 }
 
 .class private auto ansi beforefieldinit Der2
        extends Base
 {
   .method public hidebysig virtual instance void
-          M(int32 arg1,
-            int32 arg2,
-            int32 arg3,
-            class Base arg4) cil managed
+          M(int32 arg1, int32 arg2, int32 arg3, int32 arg4, int32 arg5, class Base arg6) cil managed
   {
     .maxstack  8
     IL_0000:  ret
@@ -94,7 +86,7 @@
   {
     .entrypoint
 
-    .maxstack  5
+    .maxstack  7
     .locals init (class Der1 V_0,
              class Der2 V_1,
              int32 V_2)
@@ -105,14 +97,13 @@
     .try
     {
       IL_000c:  ldloc.0
-      IL_000d:  ldc.i4.s   20
-      IL_000f:  ldc.i4.s   62
+      IL_000d:  ldc.i4.2
+      IL_000e:  ldc.i4.0
+      IL_000f:  ldc.i4.6
+      IL_0010:  ldc.i4.2
       IL_0011:  ldc.i4.5
       IL_0012:  ldloc.1
-      IL_0013:  callvirt   instance void Base::M(int32,
-                                                              int32,
-                                                              int32,
-                                                              class Base)
+      IL_0013:  callvirt   instance void Base::M(int32, int32, int32, int32, int32, class Base)
       IL_0018:  ldc.i4.s   100
       IL_001a:  stloc.2
       IL_001b:  leave.s    IL_0022
