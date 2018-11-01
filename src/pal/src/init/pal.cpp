@@ -366,7 +366,7 @@ Initialize(
 
 #ifdef __APPLE__
         // Store application group Id. It will be null if not set
-        gApplicationGroupId = getenv("NETCOREAPP_SANDBOX_APPLICATION_GROUP_ID");
+        gApplicationGroupId = getenv("DOTNET_SANDBOX_APPLICATION_GROUP_ID");
 
         if (nullptr != gApplicationGroupId)
         {
