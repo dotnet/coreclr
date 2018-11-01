@@ -120,6 +120,15 @@ jobs:
         # TODO: upload package to vsts? <--- assume we're not doing this any more
         # TODO: update versions repository? <--- assume we're not doing this any more
     
+
+    # Kill tasks that hold onto files on Windows. Otherwise git clean
+    # may fail for later jobs on the same agent.
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: cleanup.cmd
+        displayName: Kill tasks that hold on to files
+        condition: always()
+
+
     # TODO: also enable publishing symbols to msdl, symweb
 #    - script: eng\common\cibuild.cmd /p:DotNetPublishToBlobFeed=true /p:DotNetPublishBlobFeedKey=$(dotnetfeed-storage-access-key-1) /p:DotNetPublishBlobFeedUrl=https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json
     #- script: .\Tools\dotnetcli\dotnet.exe msbuild 
