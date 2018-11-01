@@ -142,7 +142,7 @@ DWORD gSID = (DWORD) -1;
 // Application group ID for this process
 LPCSTR gApplicationGroupId = nullptr;
 int gApplicationGroupIdLength = 0;
-PathCharString gApplicationContainerPath;
+PathCharString* gApplicationContainerPath = nullptr;
 
 // The lowest common supported semaphore length, including null character
 // NetBSD-7.99.25: 15 characters

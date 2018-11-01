@@ -395,7 +395,7 @@ void SharedMemoryHelpers::CopyPath(PathCharString& destination, const char *suff
 {
     _ASSERTE(strlen(suffix) == suffixCharCount);
 
-    VerifyStringOperation(destination.Set(gApplicationContainerPath)
+    VerifyStringOperation(destination.Set(*gApplicationContainerPath)
         && destination.Append(suffix, suffixCharCount));
 }
 
@@ -1087,7 +1087,7 @@ void SharedMemoryManager::AcquireCreationDeletionFileLock()
     if (s_creationDeletionLockFileDescriptor == -1)
     {
         if (!SharedMemoryHelpers::EnsureDirectoryExists(
-                gApplicationContainerPath,
+                *gApplicationContainerPath,
                 false /* isGlobalLockAcquired */,
                 false /* createIfNotExist */,
                 true /* isSystemDirectory */))
