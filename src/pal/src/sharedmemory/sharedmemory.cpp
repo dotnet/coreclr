@@ -944,18 +944,25 @@ void SharedMemoryProcessDataHeader::Close()
         return;
     }
 
-    // Delete the shared memory file, and the session directory if it's not empty
-    PathCharString path;
-    VerifyStringOperation(SharedMemoryManager::CopySharedMemoryBasePath(path));
-    VerifyStringOperation(path.Append('/'));
-    VerifyStringOperation(m_id.AppendSessionDirectoryName(path));
-    VerifyStringOperation(path.Append('/'));
+    try
+    {
+        // Delete the shared memory file, and the session directory if it's not empty
+        PathCharString path;
+        VerifyStringOperation(SharedMemoryManager::CopySharedMemoryBasePath(path));
+        VerifyStringOperation(path.Append('/'));
+        VerifyStringOperation(m_id.AppendSessionDirectoryName(path));
+        VerifyStringOperation(path.Append('/'));
 
-    SIZE_T sessionDirectoryPathCharCount = path.GetCount();
-    VerifyStringOperation(path.Append(m_id.GetName(), m_id.GetNameCharCount()));
-    unlink(path);
-    path.CloseBuffer(sessionDirectoryPathCharCount);
-    rmdir(path);
+        SIZE_T sessionDirectoryPathCharCount = path.GetCount();
+        VerifyStringOperation(path.Append(m_id.GetName(), m_id.GetNameCharCount()));
+        unlink(path);
+        path.CloseBuffer(sessionDirectoryPathCharCount);
+        rmdir(path);
+    }
+    catch (SharedMemoryException)
+    {
+        // Ignore the error, just don't release shared data
+    }
 }
 
 SharedMemoryId *SharedMemoryProcessDataHeader::GetId()

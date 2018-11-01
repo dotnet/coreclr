@@ -1314,18 +1314,25 @@ void NamedMutexProcessData::Close(bool isAbruptShutdown, bool releaseSharedData)
         return;
     }
 
-    // Delete the lock file, and the session directory if it's not empty
-    PathCharString path;
-    SharedMemoryHelpers::CopyPath(path, SHARED_MEMORY_LOCK_FILES_DIRECTORY_NAME);
-    SharedMemoryId *id = m_processDataHeader->GetId();
-    VerifyStringOperation(path.Append('/'));
-    VerifyStringOperation(id->AppendSessionDirectoryName(path));
-    VerifyStringOperation(path.Append('/'));
-    SIZE_T sessionDirectoryPathCharCount = path.GetCount();
-    VerifyStringOperation(path.Append(id->GetName(), id->GetNameCharCount()));
-    unlink(path);
-    path.CloseBuffer(sessionDirectoryPathCharCount);
-    rmdir(path);
+    try
+    {
+        // Delete the lock file, and the session directory if it's not empty
+        PathCharString path;
+        SharedMemoryHelpers::CopyPath(path, SHARED_MEMORY_LOCK_FILES_DIRECTORY_NAME);
+        SharedMemoryId *id = m_processDataHeader->GetId();
+        VerifyStringOperation(path.Append('/'));
+        VerifyStringOperation(id->AppendSessionDirectoryName(path));
+        VerifyStringOperation(path.Append('/'));
+        SIZE_T sessionDirectoryPathCharCount = path.GetCount();
+        VerifyStringOperation(path.Append(id->GetName(), id->GetNameCharCount()));
+        unlink(path);
+        path.CloseBuffer(sessionDirectoryPathCharCount);
+        rmdir(path);
+    }
+    catch (SharedMemoryException)
+    {
+        // Ignore the error, just don't release shared data
+    }
 #endif // !NAMED_MUTEX_USE_PTHREAD_MUTEX
 }
 
