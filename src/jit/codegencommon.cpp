@@ -2276,6 +2276,15 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
         printf("\n");
 
+        if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0))
+        {
+            printf("; Tier-0 compilation\n");
+        }
+        if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
+        {
+            printf("; Tier-1 compilation\n");
+        }
+
         if ((compiler->opts.compFlags & CLFLG_MAXOPT) == CLFLG_MAXOPT)
         {
             printf("; optimized code\n");
@@ -8352,16 +8361,13 @@ void CodeGen::genFnProlog()
                  (compiler->lvaTable[compiler->lvaSecurityObject].lvOnFrame &&
                   compiler->lvaTable[compiler->lvaSecurityObject].lvMustInit));
 
-    // Initialize any "hidden" slots/locals
-
+#ifdef JIT32_GCENCODER
+    // Initialize the LocalAllocSP slot if there is localloc in the function.
     if (compiler->lvaLocAllocSPvar != BAD_VAR_NUM)
     {
-#ifdef _TARGET_ARM64_
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_FPBASE, compiler->lvaLocAllocSPvar, 0);
-#else
         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaLocAllocSPvar, 0);
-#endif
     }
+#endif // JIT32_GCENCODER
 
     // Set up the GS security cookie
 

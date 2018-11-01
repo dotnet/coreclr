@@ -26,8 +26,8 @@
     <Compile Include="ErrorTests.cs" />
     <Compile Include="NumericTests.cs" />
     <Compile Include="StringTests.cs" />
-    <Compile Include="../../ServerContracts/Primitives.cs" />
-    <Compile Include="../../ServerContracts/PrimitivesNativeServer.cs" />
+    <Compile Include="../../ServerContracts/NativeServers.cs" />
+    <Compile Include="../../ServerContracts/Server.Contracts.cs" />
     <Compile Include="../../ServerContracts/ServerGuids.cs" />
   </ItemGroup>
   <ItemGroup>

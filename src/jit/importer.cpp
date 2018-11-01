@@ -2219,6 +2219,16 @@ bool Compiler::impSpillStackEntry(unsigned level,
     {
         CORINFO_CLASS_HANDLE stkHnd = verCurrentState.esStack[level].seTypeInfo.GetClassHandle();
         lvaSetClass(tnum, tree, stkHnd);
+
+        // If we're assigning a GT_RET_EXPR, note the temp over on the call,
+        // so the inliner can use it in case it needs a return spill temp.
+        if (tree->OperGet() == GT_RET_EXPR)
+        {
+            JITDUMP("\n*** see V%02u = GT_RET_EXPR, noting temp\n", tnum);
+            GenTree*             call = tree->gtRetExpr.gtInlineCandidate;
+            InlineCandidateInfo* ici  = call->gtCall.gtInlineCandidateInfo;
+            ici->preexistingSpillTemp = tnum;
+        }
     }
 
     // The tree type may be modified by impAssignTempGen, so use the type of the lclVar.
@@ -10098,7 +10108,10 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     unsigned tmp = lvaGrabTemp(true DEBUGARG("spilling QMark2"));
     impAssignTempGen(tmp, qmarkNull, (unsigned)CHECK_SPILL_NONE);
 
-    // TODO: Is it possible op1 has a better type?
+    // TODO-CQ: Is it possible op1 has a better type?
+    //
+    // See also gtGetHelperCallClassHandle where we make the same
+    // determination for the helper call variants.
     lvaSetClass(tmp, pResolvedToken->hClass);
     return gtNewLclvNode(tmp, TYP_REF);
 #endif
@@ -18044,15 +18057,16 @@ void Compiler::impCheckCanInline(GenTree*               call,
             InlineCandidateInfo* pInfo;
             pInfo = new (pParam->pThis, CMK_Inlining) InlineCandidateInfo;
 
-            pInfo->dwRestrictions  = dwRestrictions;
-            pInfo->methInfo        = methInfo;
-            pInfo->methAttr        = pParam->methAttr;
-            pInfo->clsHandle       = clsHandle;
-            pInfo->clsAttr         = clsAttr;
-            pInfo->fncRetType      = fncRetType;
-            pInfo->exactContextHnd = pParam->exactContextHnd;
-            pInfo->ilCallerHandle  = pParam->pThis->info.compMethodHnd;
-            pInfo->initClassResult = initClassResult;
+            pInfo->dwRestrictions       = dwRestrictions;
+            pInfo->methInfo             = methInfo;
+            pInfo->methAttr             = pParam->methAttr;
+            pInfo->clsHandle            = clsHandle;
+            pInfo->clsAttr              = clsAttr;
+            pInfo->fncRetType           = fncRetType;
+            pInfo->exactContextHnd      = pParam->exactContextHnd;
+            pInfo->ilCallerHandle       = pParam->pThis->info.compMethodHnd;
+            pInfo->initClassResult      = initClassResult;
+            pInfo->preexistingSpillTemp = BAD_VAR_NUM;
 
             *(pParam->ppInlineCandidateInfo) = pInfo;
 
@@ -19458,13 +19472,8 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     // See if we have special knowlege that can get us a type or a better type.
     if ((objClass == nullptr) || !isExact)
     {
-        actualThisObj = thisObj;
-
         // Walk back through any return expression placeholders
-        while (actualThisObj->OperGet() == GT_RET_EXPR)
-        {
-            actualThisObj = actualThisObj->gtRetExpr.gtInlineCandidate;
-        }
+        actualThisObj = thisObj->gtRetExprVal();
 
         // See if we landed on a call to a special intrinsic method
         if (actualThisObj->IsCall())

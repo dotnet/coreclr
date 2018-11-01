@@ -2210,342 +2210,6 @@ DONE:
 
 /*****************************************************************************
  *
- *  Given an arbitrary expression tree, attempts to find the set of all local variables
- *  referenced by the tree, and return them as "*result".
- *  If "findPtr" is null, this is a tracked variable set;
- *  if it is non-null, this is an "all var set."
- *  The "*result" value is valid only if the call returns "true."  It may return "false"
- *  for several reasons:
- *     If "findPtr" is NULL, and the expression contains an untracked variable.
- *     If "findPtr" is non-NULL, and the expression contains a variable that can't be represented
- *        in an "all var set."
- *     If the expression accesses address-exposed variables.
- *
- *  If there
- *  are any indirections or global refs in the expression, the "*refsPtr" argument
- *  will be assigned the appropriate bit set based on the 'varRefKinds' type.
- *  It won't be assigned anything when there are no indirections or global
- *  references, though, so this value should be initialized before the call.
- *  If we encounter an expression that is equal to *findPtr we set *findPtr
- *  to NULL.
- */
-bool Compiler::lvaLclVarRefs(GenTree* tree, GenTree** findPtr, varRefKinds* refsPtr, void* result)
-{
-    genTreeOps   oper;
-    unsigned     kind;
-    varRefKinds  refs = VR_NONE;
-    ALLVARSET_TP allVars(AllVarSetOps::UninitVal());
-    VARSET_TP    trkdVars(VarSetOps::UninitVal());
-    if (findPtr)
-    {
-        AllVarSetOps::AssignNoCopy(this, allVars, AllVarSetOps::MakeEmpty(this));
-    }
-    else
-    {
-        VarSetOps::AssignNoCopy(this, trkdVars, VarSetOps::MakeEmpty(this));
-    }
-
-AGAIN:
-
-    assert(tree);
-    assert(tree->gtOper != GT_STMT);
-
-    /* Remember whether we've come across the expression we're looking for */
-
-    if (findPtr && *findPtr == tree)
-    {
-        *findPtr = nullptr;
-    }
-
-    /* Figure out what kind of a node we have */
-
-    oper = tree->OperGet();
-    kind = tree->OperKind();
-
-    /* Is this a constant or leaf node? */
-
-    if (kind & (GTK_CONST | GTK_LEAF))
-    {
-        if (oper == GT_LCL_VAR)
-        {
-            unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
-
-            /* Should we use the variable table? */
-
-            if (findPtr)
-            {
-                if (lclNum >= lclMAX_ALLSET_TRACKED)
-                {
-                    return false;
-                }
-
-                AllVarSetOps::AddElemD(this, allVars, lclNum);
-            }
-            else
-            {
-                assert(lclNum < lvaCount);
-                LclVarDsc* varDsc = lvaTable + lclNum;
-
-                if (varDsc->lvTracked == false)
-                {
-                    return false;
-                }
-
-                // Don't deal with expressions with address-exposed variables.
-                if (varDsc->lvAddrExposed)
-                {
-                    return false;
-                }
-
-                VarSetOps::AddElemD(this, trkdVars, varDsc->lvVarIndex);
-            }
-        }
-        else if (oper == GT_LCL_FLD)
-        {
-            /* We can't track every field of every var. Moreover, indirections
-               may access different parts of the var as different (but
-               overlapping) fields. So just treat them as indirect accesses */
-
-            if (varTypeIsGC(tree->TypeGet()))
-            {
-                refs = VR_IND_REF;
-            }
-            else
-            {
-                refs = VR_IND_SCL;
-            }
-        }
-        else if (oper == GT_CLS_VAR)
-        {
-            refs = VR_GLB_VAR;
-        }
-
-        if (refs != VR_NONE)
-        {
-            /* Write it back to callers parameter using an 'or' */
-            *refsPtr = varRefKinds((*refsPtr) | refs);
-        }
-        lvaLclVarRefsAccumIntoRes(findPtr, result, allVars, trkdVars);
-        return true;
-    }
-
-    /* Is it a 'simple' unary/binary operator? */
-
-    if (kind & GTK_SMPOP)
-    {
-        if (oper == GT_IND)
-        {
-            assert(tree->gtOp.gtOp2 == nullptr);
-
-            /* Set the proper indirection bit */
-
-            if ((tree->gtFlags & GTF_IND_INVARIANT) == 0)
-            {
-                if (varTypeIsGC(tree->TypeGet()))
-                {
-                    refs = VR_IND_REF;
-                }
-                else
-                {
-                    refs = VR_IND_SCL;
-                }
-
-                // If the flag GTF_IND_TGTANYWHERE is set this indirection
-                // could also point at a global variable
-
-                if (tree->gtFlags & GTF_IND_TGTANYWHERE)
-                {
-                    refs = varRefKinds(((int)refs) | ((int)VR_GLB_VAR));
-                }
-            }
-
-            /* Write it back to callers parameter using an 'or' */
-            *refsPtr = varRefKinds((*refsPtr) | refs);
-
-            // For IL volatile memory accesses we mark the GT_IND node
-            // with a GTF_DONT_CSE flag.
-            //
-            // This flag is also set for the left hand side of an assignment.
-            //
-            // If this flag is set then we return false
-            //
-            if (tree->gtFlags & GTF_DONT_CSE)
-            {
-                return false;
-            }
-        }
-
-        if (tree->gtGetOp2IfPresent())
-        {
-            /* It's a binary operator */
-            if (!lvaLclVarRefsAccum(tree->gtOp.gtOp1, findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-            // Otherwise...
-            tree = tree->gtOp.gtOp2;
-            assert(tree);
-            goto AGAIN;
-        }
-        else
-        {
-            /* It's a unary (or nilary) operator */
-
-            tree = tree->gtOp.gtOp1;
-            if (tree)
-            {
-                goto AGAIN;
-            }
-
-            lvaLclVarRefsAccumIntoRes(findPtr, result, allVars, trkdVars);
-            return true;
-        }
-    }
-
-    switch (oper)
-    {
-        case GT_ARR_ELEM:
-            if (!lvaLclVarRefsAccum(tree->gtArrElem.gtArrObj, findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-
-            unsigned dim;
-            for (dim = 0; dim < tree->gtArrElem.gtArrRank; dim++)
-            {
-                VARSET_TP tmpVs(VarSetOps::UninitVal());
-                if (!lvaLclVarRefsAccum(tree->gtArrElem.gtArrInds[dim], findPtr, refsPtr, &allVars, &trkdVars))
-                {
-                    return false;
-                }
-            }
-            lvaLclVarRefsAccumIntoRes(findPtr, result, allVars, trkdVars);
-            return true;
-
-        case GT_ARR_OFFSET:
-            if (!lvaLclVarRefsAccum(tree->gtArrOffs.gtOffset, findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-            // Otherwise...
-            if (!lvaLclVarRefsAccum(tree->gtArrOffs.gtIndex, findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-            // Otherwise...
-            if (!lvaLclVarRefsAccum(tree->gtArrOffs.gtArrObj, findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-            // Otherwise...
-            lvaLclVarRefsAccumIntoRes(findPtr, result, allVars, trkdVars);
-            return true;
-
-        case GT_ARR_BOUNDS_CHECK:
-#ifdef FEATURE_SIMD
-        case GT_SIMD_CHK:
-#endif // FEATURE_SIMD
-#ifdef FEATURE_HW_INTRINSICS
-        case GT_HW_INTRINSIC_CHK:
-#endif // FEATURE_HW_INTRINSICS
-        {
-            if (!lvaLclVarRefsAccum(tree->gtBoundsChk.gtIndex, findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-            // Otherwise...
-            if (!lvaLclVarRefsAccum(tree->gtBoundsChk.gtArrLen, findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-            // Otherwise...
-            lvaLclVarRefsAccumIntoRes(findPtr, result, allVars, trkdVars);
-            return true;
-        }
-
-        case GT_STORE_DYN_BLK:
-            if (!lvaLclVarRefsAccum(tree->gtDynBlk.Data(), findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-            // Otherwise...
-            __fallthrough;
-        case GT_DYN_BLK:
-            if (!lvaLclVarRefsAccum(tree->gtDynBlk.Addr(), findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-            // Otherwise...
-            if (!lvaLclVarRefsAccum(tree->gtDynBlk.gtDynamicSize, findPtr, refsPtr, &allVars, &trkdVars))
-            {
-                return false;
-            }
-            // Otherwise...
-            lvaLclVarRefsAccumIntoRes(findPtr, result, allVars, trkdVars);
-            break;
-
-        case GT_CALL:
-            /* Allow calls to the Shared Static helper */
-            if (IsSharedStaticHelper(tree))
-            {
-                *refsPtr = varRefKinds((*refsPtr) | VR_INVARIANT);
-                lvaLclVarRefsAccumIntoRes(findPtr, result, allVars, trkdVars);
-                return true;
-            }
-            break;
-        default:
-            break;
-
-    } // end switch (oper)
-
-    return false;
-}
-
-bool Compiler::lvaLclVarRefsAccum(
-    GenTree* tree, GenTree** findPtr, varRefKinds* refsPtr, ALLVARSET_TP* allVars, VARSET_TP* trkdVars)
-{
-    if (findPtr)
-    {
-        ALLVARSET_TP tmpVs(AllVarSetOps::UninitVal());
-        if (!lvaLclVarRefs(tree, findPtr, refsPtr, &tmpVs))
-        {
-            return false;
-        }
-        // Otherwise...
-        AllVarSetOps::UnionD(this, *allVars, tmpVs);
-    }
-    else
-    {
-        VARSET_TP tmpVs(VarSetOps::UninitVal());
-        if (!lvaLclVarRefs(tree, findPtr, refsPtr, &tmpVs))
-        {
-            return false;
-        }
-        // Otherwise...
-        VarSetOps::UnionD(this, *trkdVars, tmpVs);
-    }
-    return true;
-}
-
-void Compiler::lvaLclVarRefsAccumIntoRes(GenTree**           findPtr,
-                                         void*               result,
-                                         ALLVARSET_VALARG_TP allVars,
-                                         VARSET_VALARG_TP    trkdVars)
-{
-    if (findPtr)
-    {
-        ALLVARSET_TP* avsPtr = (ALLVARSET_TP*)result;
-        AllVarSetOps::AssignNoCopy(this, (*avsPtr), allVars);
-    }
-    else
-    {
-        VARSET_TP* vsPtr = (VARSET_TP*)result;
-        VarSetOps::AssignNoCopy(this, (*vsPtr), trkdVars);
-    }
-}
-
-/*****************************************************************************
- *
  *  Return a relational operator that is the reverse of the given one.
  */
 
@@ -5610,7 +5274,7 @@ bool GenTree::OperMayThrow(Compiler* comp)
         {
             GenTreeHWIntrinsic* hwIntrinsicNode = this->AsHWIntrinsic();
             assert(hwIntrinsicNode != nullptr);
-            if (hwIntrinsicNode->OperIsMemoryStore() || hwIntrinsicNode->OperIsMemoryLoad())
+            if (hwIntrinsicNode->OperIsMemoryLoadOrStore())
             {
                 // This operation contains an implicit indirection
                 //   it could throw a null reference exception.
@@ -7104,6 +6768,9 @@ GenTree* Compiler::gtClone(GenTree* tree, bool complexOK)
 
                 copy = gtNewFieldRef(tree->TypeGet(), tree->gtField.gtFldHnd, objp, tree->gtField.gtFldOffset);
                 copy->gtField.gtFldMayOverlap = tree->gtField.gtFldMayOverlap;
+#ifdef FEATURE_READYTORUN_COMPILER
+                copy->gtField.gtFieldLookup = tree->gtField.gtFieldLookup;
+#endif
             }
             else if (tree->OperIs(GT_ADD, GT_SUB))
             {
@@ -10113,10 +9780,12 @@ void Compiler::gtGetLclVarNameInfo(unsigned lclNum, const char** ilKindOut, cons
                 ilName = "EHSlots";
             }
 #endif // !FEATURE_EH_FUNCLETS
+#ifdef JIT32_GCENCODER
             else if (lclNum == lvaLocAllocSPvar)
             {
                 ilName = "LocAllocSP";
             }
+#endif // JIT32_GCENCODER
 #if FEATURE_EH_FUNCLETS
             else if (lclNum == lvaPSPSym)
             {
@@ -14416,7 +14085,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                     i1 = (d1 > d2);
                     goto FOLD_COND;
 
-                // non-x86 arch: floating point arithmetic should be done in declared
+                // Floating point arithmetic should be done in declared
                 // precision while doing constant folding. For this reason though TYP_FLOAT
                 // constants are stored as double constants, while performing float arithmetic,
                 // double constants should be converted to float.  Here is an example case
@@ -14433,7 +14102,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                     {
                         f1 = forceCastToFloat(d1);
                         f2 = forceCastToFloat(d2);
-                        d1 = f1 + f2;
+                        d1 = forceCastToFloat(f1 + f2);
                     }
                     else
                     {
@@ -14446,7 +14115,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                     {
                         f1 = forceCastToFloat(d1);
                         f2 = forceCastToFloat(d2);
-                        d1 = f1 - f2;
+                        d1 = forceCastToFloat(f1 - f2);
                     }
                     else
                     {
@@ -14459,7 +14128,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                     {
                         f1 = forceCastToFloat(d1);
                         f2 = forceCastToFloat(d2);
-                        d1 = f1 * f2;
+                        d1 = forceCastToFloat(f1 * f2);
                     }
                     else
                     {
@@ -14476,7 +14145,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                     {
                         f1 = forceCastToFloat(d1);
                         f2 = forceCastToFloat(d2);
-                        d1 = f1 / f2;
+                        d1 = forceCastToFloat(f1 / f2);
                     }
                     else
                     {
@@ -14746,7 +14415,18 @@ GenTree* Compiler::gtNewRefCOMfield(GenTree*                objPtr,
         args = gtNewListNode(objPtr, args);
     }
 
-    GenTree* tree = gtNewHelperCallNode(pFieldInfo->helper, genActualType(helperType), args);
+    GenTreeCall* call = gtNewHelperCallNode(pFieldInfo->helper, genActualType(helperType), args);
+
+#if FEATURE_MULTIREG_RET
+    if (varTypeIsStruct(call))
+    {
+        // Initialize Return type descriptor of call node.
+        ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
+        retTypeDesc->InitializeStructReturnType(this, structType);
+    }
+#endif // FEATURE_MULTIREG_RET
+
+    GenTree* result = call;
 
     if (pFieldInfo->fieldAccessor == CORINFO_FIELD_INSTANCE_HELPER)
     {
@@ -14757,14 +14437,14 @@ GenTree* Compiler::gtNewRefCOMfield(GenTree*                objPtr,
                 if (!varTypeIsStruct(lclTyp))
                 {
                     // get the result as primitive type
-                    tree = impGetStructAddr(tree, structType, (unsigned)CHECK_SPILL_ALL, true);
-                    tree = gtNewOperNode(GT_IND, lclTyp, tree);
+                    result = impGetStructAddr(result, structType, (unsigned)CHECK_SPILL_ALL, true);
+                    result = gtNewOperNode(GT_IND, lclTyp, result);
                 }
             }
             else if (varTypeIsIntegral(lclTyp) && genTypeSize(lclTyp) < genTypeSize(TYP_INT))
             {
                 // The helper does not extend the small return types.
-                tree = gtNewCastNode(genActualType(lclTyp), tree, false, lclTyp);
+                result = gtNewCastNode(genActualType(lclTyp), result, false, lclTyp);
             }
         }
     }
@@ -14775,30 +14455,30 @@ GenTree* Compiler::gtNewRefCOMfield(GenTree*                objPtr,
         {
             if (varTypeIsStruct(lclTyp))
             {
-                tree = gtNewObjNode(structType, tree);
+                result = gtNewObjNode(structType, result);
             }
             else
             {
-                tree = gtNewOperNode(GT_IND, lclTyp, tree);
+                result = gtNewOperNode(GT_IND, lclTyp, result);
             }
-            tree->gtFlags |= (GTF_EXCEPT | GTF_GLOB_REF);
+            result->gtFlags |= (GTF_EXCEPT | GTF_GLOB_REF);
         }
         else if (access & CORINFO_ACCESS_SET)
         {
             if (varTypeIsStruct(lclTyp))
             {
-                tree = impAssignStructPtr(tree, assg, structType, (unsigned)CHECK_SPILL_ALL);
+                result = impAssignStructPtr(result, assg, structType, (unsigned)CHECK_SPILL_ALL);
             }
             else
             {
-                tree = gtNewOperNode(GT_IND, lclTyp, tree);
-                tree->gtFlags |= (GTF_EXCEPT | GTF_GLOB_REF | GTF_IND_TGTANYWHERE);
-                tree = gtNewAssignNode(tree, assg);
+                result = gtNewOperNode(GT_IND, lclTyp, result);
+                result->gtFlags |= (GTF_EXCEPT | GTF_GLOB_REF | GTF_IND_TGTANYWHERE);
+                result = gtNewAssignNode(result, assg);
             }
         }
     }
 
-    return (tree);
+    return result;
 }
 
 /*****************************************************************************
@@ -16563,6 +16243,25 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
                     objClass = sig.retTypeClass;
                 }
             }
+            else if (call->gtCallType == CT_HELPER)
+            {
+                objClass = gtGetHelperCallClassHandle(call, isExact, isNonNull);
+            }
+
+            break;
+        }
+
+        case GT_INTRINSIC:
+        {
+            GenTreeIntrinsic* intrinsic = obj->AsIntrinsic();
+
+            if (intrinsic->gtIntrinsicId == CORINFO_INTRINSIC_Object_GetType)
+            {
+                CORINFO_CLASS_HANDLE runtimeType = info.compCompHnd->getBuiltinClass(CLASSID_RUNTIME_TYPE);
+                objClass                         = runtimeType;
+                *isExact                         = false;
+                *isNonNull                       = true;
+            }
 
             break;
         }
@@ -16606,7 +16305,40 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
                     *isExact   = false;
                     *isNonNull = false;
                 }
+                else if (base->OperGet() == GT_ADD)
+                {
+                    // This could be a static field access.
+                    //
+                    // See if op1 is a static field base helper call
+                    // and if so, op2 will have the field info.
+                    GenTree* op1 = base->gtOp.gtOp1;
+                    GenTree* op2 = base->gtOp.gtOp2;
+
+                    const bool op1IsStaticFieldBase = gtIsStaticGCBaseHelperCall(op1);
+
+                    if (op1IsStaticFieldBase && (op2->OperGet() == GT_CNS_INT))
+                    {
+                        FieldSeqNode* fieldSeq = op2->AsIntCon()->gtFieldSeq;
+
+                        if (fieldSeq != nullptr)
+                        {
+                            while (fieldSeq->m_next != nullptr)
+                            {
+                                fieldSeq = fieldSeq->m_next;
+                            }
+
+                            CORINFO_FIELD_HANDLE fieldHnd     = fieldSeq->m_fieldHnd;
+                            CORINFO_CLASS_HANDLE fieldClass   = nullptr;
+                            CorInfoType          fieldCorType = info.compCompHnd->getFieldType(fieldHnd, &fieldClass);
+                            if (fieldCorType == CORINFO_TYPE_CLASS)
+                            {
+                                objClass = fieldClass;
+                            }
+                        }
+                    }
+                }
             }
+
             break;
         }
 
@@ -16639,6 +16371,108 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
         {
             break;
         }
+    }
+
+    return objClass;
+}
+
+//------------------------------------------------------------------------
+// gtGetHelperCallClassHandle: find class handle for return value of a
+//   helper call
+//
+// Arguments:
+//    call - helper call to examine
+//    isExact - [OUT] true if type is known exactly
+//    isNonNull - [OUT] true if return value is not null
+//
+// Return Value:
+//    nullptr if helper call result is not a ref class, or the class handle
+//    is unknown, otherwise the class handle.
+
+CORINFO_CLASS_HANDLE Compiler::gtGetHelperCallClassHandle(GenTreeCall* call, bool* isExact, bool* isNonNull)
+{
+    assert(call->gtCallType == CT_HELPER);
+
+    *isNonNull                     = false;
+    *isExact                       = false;
+    CORINFO_CLASS_HANDLE  objClass = nullptr;
+    const CorInfoHelpFunc helper   = eeGetHelperNum(call->gtCallMethHnd);
+
+    switch (helper)
+    {
+        case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE:
+        case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL:
+        {
+            // Note for some runtimes these helpers return exact types.
+            //
+            // But in those cases the types are also sealed, so there's no
+            // need to claim exactness here.
+            const bool           helperResultNonNull = (helper == CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE);
+            CORINFO_CLASS_HANDLE runtimeType         = info.compCompHnd->getBuiltinClass(CLASSID_RUNTIME_TYPE);
+
+            objClass   = runtimeType;
+            *isNonNull = helperResultNonNull;
+            break;
+        }
+
+        case CORINFO_HELP_CHKCASTCLASS:
+        case CORINFO_HELP_CHKCASTANY:
+        case CORINFO_HELP_CHKCASTARRAY:
+        case CORINFO_HELP_CHKCASTINTERFACE:
+        case CORINFO_HELP_CHKCASTCLASS_SPECIAL:
+        case CORINFO_HELP_ISINSTANCEOFINTERFACE:
+        case CORINFO_HELP_ISINSTANCEOFARRAY:
+        case CORINFO_HELP_ISINSTANCEOFCLASS:
+        case CORINFO_HELP_ISINSTANCEOFANY:
+        {
+            // Fetch the class handle from the helper call arglist
+            GenTreeArgList*      args    = call->gtCallArgs;
+            GenTree*             typeArg = args->Current();
+            CORINFO_CLASS_HANDLE castHnd = gtGetHelperArgClassHandle(typeArg);
+
+            // We generally assume the type being cast to is the best type
+            // for the result, unless it is an interface type.
+            //
+            // TODO-CQ: when we have default interface methods then
+            // this might not be the best assumption. We could also
+            // explore calling something like mergeClasses to identify
+            // the more specific class. A similar issue arises when
+            // typing the temp in impCastClassOrIsInstToTree, when we
+            // expand the cast inline.
+            if (castHnd != nullptr)
+            {
+                DWORD attrs = info.compCompHnd->getClassAttribs(castHnd);
+
+                if ((attrs & CORINFO_FLG_INTERFACE) != 0)
+                {
+                    castHnd = nullptr;
+                }
+            }
+
+            // If we don't have a good estimate for the type we can use the
+            // type from the value being cast instead.
+            if (castHnd == nullptr)
+            {
+                GenTree* valueArg = args->Rest()->Current();
+                castHnd           = gtGetClassHandle(valueArg, isExact, isNonNull);
+            }
+
+            // We don't know at jit time if the cast will succeed or fail, but if it
+            // fails at runtime then an exception is thrown for cast helpers, or the
+            // result is set null for instance helpers.
+            //
+            // So it safe to claim the result has the cast type.
+            // Note we don't know for sure that it is exactly this type.
+            if (castHnd != nullptr)
+            {
+                objClass = castHnd;
+            }
+
+            break;
+        }
+
+        default:
+            break;
     }
 
     return objClass;
@@ -16680,6 +16514,55 @@ CORINFO_CLASS_HANDLE Compiler::gtGetArrayElementClassHandle(GenTree* array)
     }
 
     return nullptr;
+}
+
+//------------------------------------------------------------------------
+// gtIsGCStaticBaseHelperCall: true if tree is fetching the gc static base
+//    for a subsequent static field access
+//
+// Arguments:
+//    tree - tree to consider
+//
+// Return Value:
+//    true if the tree is a suitable helper call
+//
+// Notes:
+//    Excludes R2R helpers as they specify the target field in a way
+//    that is opaque to the jit.
+
+bool Compiler::gtIsStaticGCBaseHelperCall(GenTree* tree)
+{
+    if (tree->OperGet() != GT_CALL)
+    {
+        return false;
+    }
+
+    GenTreeCall* call = tree->AsCall();
+
+    if (call->gtCallType != CT_HELPER)
+    {
+        return false;
+    }
+
+    const CorInfoHelpFunc helper = eeGetHelperNum(call->gtCallMethHnd);
+
+    switch (helper)
+    {
+        // We are looking for a REF type so only need to check for the GC base helpers
+        case CORINFO_HELP_GETGENERICS_GCSTATIC_BASE:
+        case CORINFO_HELP_GETSHARED_GCSTATIC_BASE:
+        case CORINFO_HELP_GETSHARED_GCSTATIC_BASE_NOCTOR:
+        case CORINFO_HELP_GETSHARED_GCSTATIC_BASE_DYNAMICCLASS:
+        case CORINFO_HELP_GETGENERICS_GCTHREADSTATIC_BASE:
+        case CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE:
+        case CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE_NOCTOR:
+        case CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE_DYNAMICCLASS:
+            return true;
+        default:
+            break;
+    }
+
+    return false;
 }
 
 void GenTree::ParseArrayAddress(
@@ -17475,29 +17358,47 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoad()
     {
         return true;
     }
-    else if (category == HW_Category_IMM)
+    else if (HWIntrinsicInfo::MaybeMemoryLoad(gtHWIntrinsicId))
     {
-        // Some AVX instructions here also have MemoryLoad sematics
-
-        // Do we have less than 3 operands?
-        if (HWIntrinsicInfo::lookupNumArgs(this) < 3)
+        // Some AVX intrinsic (without HW_Category_MemoryLoad) also have MemoryLoad semantics
+        if (category == HW_Category_SIMDScalar)
         {
-            return false;
+            // Avx2.BroadcastScalarToVector128/256 have vector and pointer overloads both, e.g.,
+            // Vector128<byte> BroadcastScalarToVector128(Vector128<byte> value)
+            // Vector128<byte> BroadcastScalarToVector128(byte* source)
+            // So, we need to check the argument's type is memory-reference (TYP_I_IMPL) or not
+            assert(HWIntrinsicInfo::lookupNumArgs(this) == 1);
+            return (gtHWIntrinsicId == NI_AVX2_BroadcastScalarToVector128 ||
+                    gtHWIntrinsicId == NI_AVX2_BroadcastScalarToVector256) &&
+                   gtOp.gtOp1->TypeGet() == TYP_I_IMPL;
         }
-        else // We have 3 or more operands/args
+        else if (category == HW_Category_IMM)
         {
-            if (HWIntrinsicInfo::isAVX2GatherIntrinsic(gtHWIntrinsicId))
+            // Do we have less than 3 operands?
+            if (HWIntrinsicInfo::lookupNumArgs(this) < 3)
             {
-                return true;
+                return false;
             }
-
-            GenTreeArgList* argList = gtOp.gtOp1->AsArgList();
-
-            if ((gtHWIntrinsicId == NI_AVX_InsertVector128 || gtHWIntrinsicId == NI_AVX2_InsertVector128) &&
-                (argList->Rest()->Current()->TypeGet() == TYP_I_IMPL)) // Is the type of the second arg TYP_I_IMPL?
+            else // We have 3 or more operands/args
             {
-                // This is Avx/Avx2.InsertVector128
-                return true;
+                // All the Avx2.Gather* are "load" instructions
+                if (HWIntrinsicInfo::isAVX2GatherIntrinsic(gtHWIntrinsicId))
+                {
+                    return true;
+                }
+
+                GenTreeArgList* argList = gtOp.gtOp1->AsArgList();
+
+                // Avx/Avx2.InsertVector128 have vector and pointer overloads both, e.g.,
+                // Vector256<sbyte> InsertVector128(Vector256<sbyte> value, Vector128<sbyte> data, byte index)
+                // Vector256<sbyte> InsertVector128(Vector256<sbyte> value, sbyte* address, byte index)
+                // So, we need to check the second argument's type is memory-reference (TYP_I_IMPL) or not
+                if ((gtHWIntrinsicId == NI_AVX_InsertVector128 || gtHWIntrinsicId == NI_AVX2_InsertVector128) &&
+                    (argList->Rest()->Current()->TypeGet() == TYP_I_IMPL)) // Is the type of the second arg TYP_I_IMPL?
+                {
+                    // This is Avx/Avx2.InsertVector128
+                    return true;
+                }
             }
         }
     }
@@ -17515,22 +17416,18 @@ bool GenTreeHWIntrinsic::OperIsMemoryStore()
     {
         return true;
     }
-    else if (category == HW_Category_IMM)
+    else if (HWIntrinsicInfo::MaybeMemoryStore(gtHWIntrinsicId) && category == HW_Category_IMM)
     {
-        // Some AVX instructions here also have MemoryStore sematics
+        // Some AVX intrinsic (without HW_Category_MemoryStore) also have MemoryStore semantics
 
-        // Do we have 3 operands?
-        if (HWIntrinsicInfo::lookupNumArgs(this) != 3)
+        // Avx/Avx2.InsertVector128 have vector and pointer overloads both, e.g.,
+        // Vector128<sbyte> ExtractVector128(Vector256<sbyte> value, byte index)
+        // void ExtractVector128(sbyte* address, Vector256<sbyte> value, byte index)
+        // So, the 3-argument form is MemoryStore
+        if ((HWIntrinsicInfo::lookupNumArgs(this) == 3) &&
+            (gtHWIntrinsicId == NI_AVX_ExtractVector128 || gtHWIntrinsicId == NI_AVX2_ExtractVector128))
         {
-            return false;
-        }
-        else // We have 3 operands/args
-        {
-            if ((gtHWIntrinsicId == NI_AVX_ExtractVector128 || gtHWIntrinsicId == NI_AVX2_ExtractVector128))
-            {
-                // This is Avx/Avx2.ExtractVector128
-                return true;
-            }
+            return true;
         }
     }
 #endif // _TARGET_XARCH_
