@@ -45,8 +45,10 @@ extern DWORD gSID;
 extern LPWSTR pAppDir;
 
 // The Mac sandbox application group ID (if exists) and container (shared) path
+#ifdef __APPLE__
 extern LPCSTR gApplicationGroupId;
 extern int gApplicationGroupIdLength;
+#endif // __APPLE__
 extern PathCharString *gSharedFilesPath;
 
 /*++

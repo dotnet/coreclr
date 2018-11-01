@@ -442,6 +442,7 @@ BOOL
 PALAPI
 PAL_NotifyRuntimeStarted(VOID);
 
+#ifdef __APPLE__
 PALIMPORT
 LPCSTR
 PALAPI
@@ -451,6 +452,7 @@ PALIMPORT
 BOOL
 PALAPI
 PAL_IsApplicationSandboxed();
+#endif // __APPLE__
 
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
 

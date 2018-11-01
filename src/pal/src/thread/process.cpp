@@ -140,8 +140,10 @@ DWORD gPID = (DWORD) -1;
 DWORD gSID = (DWORD) -1;
 
 // Application group ID for this process
+#ifdef __APPLE__
 LPCSTR gApplicationGroupId = nullptr;
 int gApplicationGroupIdLength = 0;
+#endif // __APPLE__
 PathCharString* gSharedFilesPath = nullptr;
 
 // The lowest common supported semaphore length, including null character
@@ -1988,6 +1990,7 @@ exit:
     return launched;
 }
 
+#ifdef __APPLE__
 LPCSTR
 PALAPI
 PAL_GetApplicationGroupId()
@@ -2001,6 +2004,7 @@ PAL_IsApplicationSandboxed()
 {
     return gApplicationGroupId != nullptr;
 }
+#endif // __APPLE__
 
 /*++
  Function:
@@ -3964,6 +3968,7 @@ PROCGetProcessStatusExit:
     return palError;
 }
 
+#ifdef __APPLE__
 bool GetApplicationContainerFolder(PathCharString& buffer, const char *applicationGroupId, int applicationGroupIdLength)
 {
     const char *homeDir = getpwuid(getuid())->pw_dir;
@@ -3976,6 +3981,7 @@ bool GetApplicationContainerFolder(PathCharString& buffer, const char *applicati
         && buffer.Append(applicationGroupId, applicationGroupIdLength)
         && buffer.Append('/');
 }
+#endif // __APPLE__
 
 #ifdef _DEBUG
 void PROCDumpThreadList()

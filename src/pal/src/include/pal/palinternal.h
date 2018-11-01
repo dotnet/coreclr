@@ -668,8 +668,10 @@ typedef enum _TimeConversionConstants
 bool
 ReadMemoryValueFromFile(const char* filename, size_t* val);
 
+#ifdef __APPLE__
 bool
 GetApplicationContainerFolder(PathCharString& buffer, const char *applicationGroupId, int applicationGroupIdLength);
+#endif // __APPLE__
 
 /* This is duplicated in utilcode.h for CLR, with cooler type-traits */
 template <typename T>
