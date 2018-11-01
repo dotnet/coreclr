@@ -69,7 +69,7 @@ BOOL static InvokeAllFldsAndProps(IDispatch* ptoIntf, long shfld1Val, long shfld
     VARIANT  VarResult, VarResultBool, VarResultDangHnd;
 
     printf("\t\t\tCalling GetIDsOfNames() for shfld1...\n");
-    szMember = (OLECHAR *)L"shfld1";
+    szMember = (LPOLESTR)W("shfld1");
     hr = ptoIntf->GetIDsOfNames(IID_NULL, 
         &szMember, 
         1, 
@@ -81,7 +81,7 @@ BOOL static InvokeAllFldsAndProps(IDispatch* ptoIntf, long shfld1Val, long shfld
         printf("\t\t\tCall completed successfully.\n");
 
     printf("\t\t\tCalling GetIDsOfNames() for shfld2_prop...\n");
-    szMember = (OLECHAR *)L"shfld2_prop";
+    szMember = (LPOLESTR)W("shfld2_prop");
     hr = ptoIntf->GetIDsOfNames(IID_NULL, 
         &szMember, 
         1, 
@@ -138,7 +138,7 @@ BOOL static InvokeAllFldsAndProps(IDispatch* ptoIntf, long shfld1Val, long shfld
     else //invoke DangerousGetHandle on this SH property using VarResult.pdispVal
     {
         printf("\t\t\t\tCalling GetIDsOfNames() for IsInvalid (shfld2_prop)...\n");
-        szMember = (OLECHAR *)L"IsInvalid";
+        szMember = (LPOLESTR)W("IsInvalid");
         hr = (VarResult.pdispVal)->GetIDsOfNames(IID_NULL, 
             &szMember, 
             1, 
@@ -169,7 +169,7 @@ BOOL static InvokeAllFldsAndProps(IDispatch* ptoIntf, long shfld1Val, long shfld
         }
 
         printf("\t\t\t\tCalling GetIDsOfNames() for DangerousGetHandle (shfld2_prop)...\n");
-        szMember = (OLECHAR *)L"DangerousGetHandle";
+        szMember = (LPOLESTR)W("DangerousGetHandle");
         hr = (VarResult.pdispVal)->GetIDsOfNames(IID_NULL, 
             &szMember, 
             1, 
@@ -234,7 +234,7 @@ BOOL static InvokeAllInSHIntf(IDispatch* ptoIntf, long shVal, long shfld1Val, lo
 
     ///////////////////////////////////////////////////////////////////
     printf("\t\t\tCalling GetIDsOfNames() for DangerousGetHandle...\n");
-    szMember = (OLECHAR *)L"DangerousGetHandle";
+    szMember = (LPOLESTR)W("DangerousGetHandle");
     hr = ptoIntf->GetIDsOfNames(IID_NULL, 
         &szMember, 
         1, 
@@ -246,7 +246,7 @@ BOOL static InvokeAllInSHIntf(IDispatch* ptoIntf, long shVal, long shfld1Val, lo
         printf("\t\t\tCall completed successfully.\n");
 
     printf("\t\t\tCalling GetIDsOfNames() for IsClosed...\n");
-    szMember = (OLECHAR *)L"IsClosed";
+    szMember = (LPOLESTR)W("IsClosed");
     hr = ptoIntf->GetIDsOfNames(IID_NULL, 
         &szMember, 
         1, 
@@ -258,7 +258,7 @@ BOOL static InvokeAllInSHIntf(IDispatch* ptoIntf, long shVal, long shfld1Val, lo
         printf("\t\t\tCall completed successfully.\n");
 
     printf("\t\t\tCalling GetIDsOfNames() for IsInvalid...\n");
-    szMember = (OLECHAR *)L"IsInvalid";
+    szMember = (LPOLESTR)W("IsInvalid");
     hr = ptoIntf->GetIDsOfNames(IID_NULL, 
         &szMember, 
         1, 
@@ -270,7 +270,7 @@ BOOL static InvokeAllInSHIntf(IDispatch* ptoIntf, long shVal, long shfld1Val, lo
         printf("\t\t\tCall completed successfully.\n");
 
     printf("\t\t\tCalling GetIDsOfNames() for Close...\n");
-    szMember = (OLECHAR *)L"Close";
+    szMember = (LPOLESTR)W("Close");
     hr = ptoIntf->GetIDsOfNames(IID_NULL, 
         &szMember, 
         1, 
@@ -282,7 +282,7 @@ BOOL static InvokeAllInSHIntf(IDispatch* ptoIntf, long shVal, long shfld1Val, lo
         printf("\t\t\tCall completed successfully.\n");
 
     printf("\t\t\tCalling GetIDsOfNames() for Dispose...\n");
-    szMember = (OLECHAR *)L"Dispose";
+    szMember = (LPOLESTR)W("Dispose");
     hr = ptoIntf->GetIDsOfNames(IID_NULL, 
         &szMember, 
         1, 
@@ -294,7 +294,7 @@ BOOL static InvokeAllInSHIntf(IDispatch* ptoIntf, long shVal, long shfld1Val, lo
         printf("\t\t\tCall completed successfully.\n");
 
     printf("\t\t\tCalling GetIDsOfNames() for SetHandleAsInvalid...\n");
-    szMember = (OLECHAR *)L"SetHandleAsInvalid";
+    szMember = (LPOLESTR)W("SetHandleAsInvalid");
     hr = ptoIntf->GetIDsOfNames(IID_NULL, 
         &szMember, 
         1, 
