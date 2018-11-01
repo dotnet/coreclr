@@ -1592,11 +1592,20 @@ namespace System
 
             if (c >= '5')
             {
-                if ((c == '5') && ((low64 & 1) == 0) && !number.HasNonZeroTail)
+                if ((c == '5') && ((low64 & 1) == 0))
                 {
-                    // When the next digit is 5, the number is even, and all following digits are zero
-                    // we don't need to round.
-                    goto NoRounding;
+                    c = *++p;
+
+                    // At this point we should either be at the end of the buffer, or just
+                    // have a single rounding digit left, and the next should be the end
+                    Debug.Assert((c == 0) || (*++p == 0));
+
+                    if (((c == 0) || c == '0') && !number.HasNonZeroTail)
+                    {
+                        // When the next digit is 5, the number is even, and all following digits are zero
+                        // we don't need to round.
+                        goto NoRounding;
+                    }
                 }
 
                 if (++low64 == 0 && ++high == 0)
