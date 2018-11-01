@@ -15,7 +15,7 @@ namespace System.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool AllCharsInUInt32AreAscii(uint value)
         {
-            return (value & ~0x007F007Fu) == 0;
+            return (value & ~0x007F_007Fu) == 0;
         }
 
         /// <summary>
@@ -24,7 +24,7 @@ namespace System.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool AllCharsInUInt64AreAscii(ulong value)
         {
-            return (value & ~0x007F007F007F007Ful) == 0;
+            return (value & ~0x007F_007F_007F_007Ful) == 0;
         }
 
         /// <summary>
@@ -42,16 +42,16 @@ namespace System.Text
             Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'A'
-            uint lowerIndicator = value + 0x00800080u - 0x00410041u;
+            uint lowerIndicator = value + 0x0080_0080u - 0x0041_0041u;
 
             // the 0x80 bit of each word of 'upperIndicator' will be set iff the word has value > 'Z'
-            uint upperIndicator = value + 0x00800080u - 0x005B005Bu;
+            uint upperIndicator = value + 0x0080_0080u - 0x005B_005Bu;
 
             // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word has value >= 'A' and <= 'Z'
             uint combinedIndicator = (lowerIndicator ^ upperIndicator);
 
             // the 0x20 bit of each word of 'mask' will be set iff the word has value >= 'A' and <= 'Z'
-            uint mask = (combinedIndicator & 0x00800080u) >> 2;
+            uint mask = (combinedIndicator & 0x0080_0080u) >> 2;
 
             return value ^ mask; // bit flip uppercase letters [A-Z] => [a-z]
         }
@@ -71,16 +71,16 @@ namespace System.Text
             Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'a'
-            uint lowerIndicator = value + 0x00800080u - 0x00610061u;
+            uint lowerIndicator = value + 0x0080_0080u - 0x0061_0061u;
 
             // the 0x80 bit of each word of 'upperIndicator' will be set iff the word has value > 'z'
-            uint upperIndicator = value + 0x00800080u - 0x007B007Bu;
+            uint upperIndicator = value + 0x0080_0080u - 0x007B_007Bu;
 
             // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word has value >= 'a' and <= 'z'
             uint combinedIndicator = (lowerIndicator ^ upperIndicator);
 
             // the 0x20 bit of each word of 'mask' will be set iff the word has value >= 'a' and <= 'z'
-            uint mask = (combinedIndicator & 0x00800080u) >> 2;
+            uint mask = (combinedIndicator & 0x0080_0080u) >> 2;
 
             return value ^ mask; // bit flip lowercase letters [a-z] => [A-Z]
         }
@@ -99,15 +99,15 @@ namespace System.Text
             Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'a'
-            uint lowerIndicator = value + 0x00800080u - 0x00610061u;
+            uint lowerIndicator = value + 0x0080_0080u - 0x0061_0061u;
 
             // the 0x80 bit of each word of 'upperIndicator' will be set iff the word has value > 'z'
-            uint upperIndicator = value + 0x00800080u - 0x007B007Bu;
+            uint upperIndicator = value + 0x0080_0080u - 0x007B_007Bu;
 
             // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word has value >= 'a' and <= 'z'
             uint combinedIndicator = (lowerIndicator ^ upperIndicator);
 
-            return (combinedIndicator & 0x00800080u) != 0;
+            return (combinedIndicator & 0x0080_0080u) != 0;
         }
 
         /// <summary>
@@ -124,15 +124,15 @@ namespace System.Text
             Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'A'
-            uint lowerIndicator = value + 0x00800080u - 0x00410041u;
+            uint lowerIndicator = value + 0x0080_0080u - 0x0041_0041u;
 
             // the 0x80 bit of each word of 'upperIndicator' will be set iff the word has value > 'Z'
-            uint upperIndicator = value + 0x00800080u - 0x005B005Bu;
+            uint upperIndicator = value + 0x0080_0080u - 0x005B_005Bu;
 
             // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word has value >= 'A' and <= 'Z'
             uint combinedIndicator = (lowerIndicator ^ upperIndicator);
 
-            return (combinedIndicator & 0x00800080u) != 0;
+            return (combinedIndicator & 0x0080_0080u) != 0;
         }
 
         /// <summary>
@@ -153,20 +153,27 @@ namespace System.Text
             uint differentBits = valueA ^ valueB;
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value < 'A'
-            uint lowerIndicator = valueA + 0x01000100u - 0x00410041u;
+            uint lowerIndicator = valueA + 0x0100_0100u - 0x0041_0041u;
 
             // the 0x80 bit of each word of 'upperIndicator' will be set iff (word | 0x20) has value > 'z'
-            uint upperIndicator = (valueA | 0x00200020u) + 0x00800080u - 0x007B007Bu;
+            uint upperIndicator = (valueA | 0x0020_0020u) + 0x0080_0080u - 0x007B_007Bu;
 
             // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word is *not* [A-Za-z]
             uint combinedIndicator = lowerIndicator | upperIndicator;
 
-            // Shift all the 0x80 bits of 'combinedIndicator' into the 0x20 positions, then
-            // set all bits aside from 0x20. The combined indicator is now a mask detailing which
-            // bits *must not* be different between the input values A and B for them to be treated
-            // as equal using an ordinal case-insensitive comparison.
+            // Shift all the 0x80 bits of 'combinedIndicator' into the 0x20 positions, then set all bits
+            // aside from 0x20. This creates a mask where all bits are set *except* for the 0x20 bits
+            // which correspond to alpha chars (either lower or upper). For these alpha chars only, the
+            // 0x20 bit is allowed to differ between the two input values. Every other char must be an
+            // exact bitwise match between the two input values. In other words, (valueA & mask) will
+            // convert valueA to uppercase, so (valueA & mask) == (valueB & mask) answers "is the uppercase
+            // form of valueA equal to the uppercase form of valueB?" (Technically if valueA has an alpha
+            // char in the same position as a non-alpha char in valueB, or vice versa, this operation will
+            // result in nonsense, but it'll still compute as inequal regardless, which is what we want ultimately.)
+            // The line below is a more efficient way of doing the same check taking advantage of the XOR
+            // computation we performed at the beginning of the method.
 
-            return (((combinedIndicator >> 2) | ~0x00200020u) & differentBits) == 0;
+            return (((combinedIndicator >> 2) | ~0x0020_0020u) & differentBits) == 0;
         }
 
         /// <summary>
@@ -182,21 +189,25 @@ namespace System.Text
             // ASSUMPTION: Caller has validated that input values are ASCII.
             Debug.Assert(AllCharsInUInt64AreAscii(valueA));
             Debug.Assert(AllCharsInUInt64AreAscii(valueB));
-            
+
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'A'
-            ulong lowerIndicator = valueA + 0x0080008000800080ul - 0x0041004100410041ul;
+            ulong lowerIndicator = valueA + 0x0080_0080_0080_0080ul - 0x0041_0041_0041_0041ul;
 
             // the 0x80 bit of each word of 'upperIndicator' will be set iff (word | 0x20) has value <= 'z'
-            ulong upperIndicator = (valueA | 0x0020002000200020ul) + 0x0100010001000100ul - 0x007B007B007B007Bul;
+            ulong upperIndicator = (valueA | 0x0020_0020_0020_0020ul) + 0x0100_0100_0100_0100ul - 0x007B_007B_007B_007Bul;
 
             // the 0x20 bit of each word of 'combinedIndicator' will be set iff the word is [A-Za-z]
-            ulong combinedIndicator = (0x0080008000800080ul & lowerIndicator & upperIndicator) >> 2;
+            ulong combinedIndicator = (0x0080_0080_0080_0080ul & lowerIndicator & upperIndicator) >> 2;
 
             // Convert both values to lowercase (using the combined indicator from the first value)
             // and compare for equality. It's possible that the first value will contain an alpha character
             // where the second value doesn't (or vice versa), and applying the combined indicator will
             // create nonsensical data, but the comparison would have failed anyway in this case so it's
             // a safe operation to perform.
+            //
+            // This 64-bit method is similar to the 32-bit method, but it performs the equivalent of convert-to-
+            // lowercase-then-compare rather than convert-to-uppercase-and-compare. This particular operation
+            // happens to be faster on x64.
 
             return (valueA | combinedIndicator) == (valueB | combinedIndicator);
         }
