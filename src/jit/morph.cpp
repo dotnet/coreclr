@@ -17996,7 +17996,7 @@ public:
 #endif // DEBUG
     }
 
-    // Morph promoted struct fields and count promoted implict byref argument occurrences.
+    // Morph promoted struct fields and count implict byref argument occurrences.
     // Also create and push the value produced by the visited node. This is done here
     // rather than in PostOrderVisit because it makes it easy to handle nodes with an
     // arbitrary number of operands - just pop values until the value corresponding
@@ -18020,7 +18020,7 @@ public:
 
             if (m_compiler->lvaIsImplicitByRefLocal(lclNum))
             {
-                // Keep track of the number of appearances of each promoted implicit
+                // Keep track of the number of appearances of each implicit
                 // byref (here during address-exposed analysis); fgMakeOutgoingStructArgCopy
                 // checks the ref counts for implicit byref params when deciding if it's legal
                 // to elide certain copies of them.
