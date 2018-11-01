@@ -34,4 +34,15 @@
     </ItemGroup>
   </Target>
 
+  <Target Name="PrintItems"
+          AfterTargets="BuildHelixWorkItem">
+    <Message Importance="High" Text="ZipFiles: @(ZipFiles)" />
+    <Message Importance="High" Text="Identity: @(HelixWorkItem->'%(Identity)')" />
+    <Message Importance="High" Text="PayloadArchive: @(HelixWorkItem->'%(PayloadArchive)')" />
+    <Message Importance="High" Text="BuildOS: $(BuildOS), __BuildOs: $(__BuildOS), osenv: $(OSEnvironment)" />
+    <Message Importance="High" Text="usingsdk: $(UsingMicrosoftNETSdk)" />
+    <Message Importance="High" Text="targetqueues: $(HelixTargetQueues)" />
+    <Message Importance="High" Text="osenv: $(OSEnvironment)" />
+    <Message Importance="High" Text="command: @(HelixWorkItem->'%(Command)')" />
+  </Target>
 </Project>
