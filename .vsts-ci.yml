@@ -16,6 +16,47 @@ phases:
 ### Jobs will show up in the order in which they are defined here
 ### All build jobs come first, then test jobs.
 
+
+##   The following is the matrix of test runs that we have. This is
+##   duplicated for each os/arch combination. In addition, there is a
+##   job that publishes
+
+##
+##   Product build       Test build              Test run (helix)
+##
+##   ###########################################################################################
+##
+##   Formatting
+##
+##   IBC Release
+##
+##   Debug
+##
+##   Checked ----------> Pri0 -----------------> plain runtests
+##           |
+##           \---------> Pri1 -----------------> plain runtests
+##           |                \----------------> jitstress
+##           |                \----------------> gcstress
+##           |                \----------------> maybe more (dynamically selected runtest modes)
+##           |
+##           \---------> Pri1 crossgen --------> plain runtests
+##                                     \-------> jitstress
+##                                     \-------> gcstress
+##                                     \-------> maybe more (dynamically selected runtest modes)
+##
+##   Release ----------> Pri1 -----------------> plain runtests
+##           |                \----------------> jitstress
+##           |                \----------------> gcstress
+##           |                \----------------> maybe more (dynamically selected runtest modes)
+#            |
+##           \---------> Pri1 crossgen --------> plain runtests
+##                                     \-------> jitstress
+##                                     \-------> gcstress
+##                                     \-------> maybe more (dynamically selected runtest modes)
+##
+##
+
+
 ###
 ### Linux x64
 ###
