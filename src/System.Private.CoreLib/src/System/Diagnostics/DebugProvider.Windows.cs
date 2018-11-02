@@ -6,11 +6,11 @@ namespace System.Diagnostics
 {
     public partial class DebugProvider
     {
-        public static void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
+        public static void FailCore(string stackTrace, string message, string detailMessage, string errorSource)
         {
-            if (s_ShowDialog != null)
+            if (s_FailCore != null)
             {
-                s_ShowDialog(stackTrace, message, detailMessage, errorSource); 
+                s_FailCore(stackTrace, message, detailMessage, errorSource); 
                 return;
             }
 
