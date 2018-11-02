@@ -1211,6 +1211,15 @@ namespace System.Text
             return this;
         }
 
+        public StringBuilder Append(ReadOnlyMemory<char> value)
+        {
+            if (value.Length > 0)
+            {
+                return Append(value.Span);               
+            }
+            return this;
+        }
+
         #region AppendJoin
 
         public unsafe StringBuilder AppendJoin(string separator, params object[] values)
