@@ -1685,15 +1685,15 @@ namespace System
             {
                 ReadOnlySpan<char> valueTrim = value.Trim();
 
-                if (valueTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
+                if (valueTrim.EqualsOrdinalIgnoreCase(info.PositiveInfinitySymbol))
                 {
                     result = double.PositiveInfinity;
                 }
-                else if (valueTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
+                else if (valueTrim.EqualsOrdinalIgnoreCase(info.NegativeInfinitySymbol))
                 {
                     result = double.NegativeInfinity;
                 }
-                else if (valueTrim.EqualsOrdinal(info.NaNSymbol))
+                else if (valueTrim.EqualsOrdinalIgnoreCase(info.NaNSymbol))
                 {
                     result = double.NaN;
                 }
@@ -1725,15 +1725,15 @@ namespace System
             {
                 ReadOnlySpan<char> valueTrim = value.Trim();
 
-                if (valueTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
+                if (valueTrim.EqualsOrdinalIgnoreCase(info.PositiveInfinitySymbol))
                 {
                     result = float.PositiveInfinity;
                 }
-                else if (valueTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
+                else if (valueTrim.EqualsOrdinalIgnoreCase(info.NegativeInfinitySymbol))
                 {
                     result = float.NegativeInfinity;
                 }
-                else if (valueTrim.EqualsOrdinal(info.NaNSymbol))
+                else if (valueTrim.EqualsOrdinalIgnoreCase(info.NaNSymbol))
                 {
                     result = float.NaN;
                 }
