@@ -1082,10 +1082,7 @@ HANDLE ZapImage::GenerateFile(LPCWSTR wszOutputFileName, CORCOMPILE_NGEN_SIGNATU
 
 HANDLE ZapImage::SaveImage(LPCWSTR wszOutputFileName, LPCWSTR wszDllPath, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
 {
-    if (!IsReadyToRunCompilation())
-    {
-        OutputManifestMetadata();
-    }
+    OutputManifestMetadata();
 
     OutputTables();
 
@@ -1835,6 +1832,8 @@ void ZapImage::Compile()
         OutputTypesTableForReadyToRun(m_pMDImport);
         OutputInliningTableForReadyToRun();
         OutputProfileDataForReadyToRun();
+        OutputManifestMetadataForReadyToRun();
+
     }
     else
 #endif

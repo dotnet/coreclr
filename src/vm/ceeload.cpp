@@ -3579,7 +3579,7 @@ BOOL Module::IsWindowsRuntimeModule()
 
     return IsAfContentType_WindowsRuntime(dwFlags);
 }
-
+// Update this?
 BOOL Module::IsInCurrentVersionBubble()
 {
     LIMITED_METHOD_CONTRACT;
@@ -3594,7 +3594,7 @@ BOOL Module::IsInCurrentVersionBubble()
         return TRUE;
 
     if (IsReadyToRunCompilation())
-        return FALSE;
+        return TRUE;
 
 #ifdef FEATURE_COMINTEROP
     if (g_fNGenWinMDResilient)
@@ -10277,9 +10277,22 @@ Module *Module::GetModuleFromIndex(DWORD ix)
     }
     CONTRACT_END;
 
-    if (HasNativeImage())
+    if (HasNativeOrReadyToRunImage())
     {
         RETURN ZapSig::DecodeModuleFromIndex(this, ix);
+        // CORCOMPILE_IMPORT_TABLE_ENTRY *p;
+        // if (IsReadyToRun())
+        // {
+        //     //PRECONDITION(GetNativeImage()->CheckReadyToRunImportFromIndex(ix));
+        //     p = GetNativeOrReadyToRunImage()->GetReadyToRunImportFromIndex(ix);
+        // }
+        // else 
+        // {
+        //     PRECONDITION(GetNativeImage()->CheckNativeImportFromIndex(ix));
+        //     p = GetNativeImage()->GetNativeImportFromIndex(ix);
+        // }
+
+        // RETURN ZapSig::DecodeModuleFromIndexes(this, p->wAssemblyRid, p->wModuleRid);
     }
     else
     {
@@ -10354,8 +10367,8 @@ IMDInternalImport *Module::GetNativeAssemblyImport(BOOL loadAllowed)
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END;
-
-    RETURN GetFile()->GetPersistentNativeImage()->GetNativeMDImport(loadAllowed);
+    // Check if Image is even R2R?
+    RETURN GetFile()->IsILImageReadyToRun() ? GetFile()->GetOpenedILimage()->GetNativeMDImport(loadAllowed) : GetFile()->GetPersistentNativeImage()->GetNativeMDImport(loadAllowed);
 }
 
 

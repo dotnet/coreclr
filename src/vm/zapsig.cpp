@@ -1202,7 +1202,7 @@ BOOL ZapSig::EncodeMethod(
             // GetSvcLogger()->Printf(W("ReadyToRun: Method reference outside of current version bubble cannot be encoded\n"));
             ThrowHR(E_FAIL);
         }
-        _ASSERTE(pReferencingModule == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
+        //_ASSERTE(pReferencingModule == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
 
         methodToken = pResolvedToken->token;
 

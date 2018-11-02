@@ -455,7 +455,7 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
     STANDARD_VM_CONTRACT;
 
     PEFile * pFile = pModule->GetFile();
-
+    // ?
     if (!IsReadyToRunEnabled())
     {
         // Log message is ignored in this case.
@@ -601,7 +601,8 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
                                                     pamTracker, &m_pPersistentInlineTrackingMap);
         }
     }
-    // Fpr format version 2.2 and later, there is an optional profile-data section
+
+    // For format version 2.2 and later, there is an optional profile-data section
     if (IsImageVersionAtLeast(2, 2))
     {
         IMAGE_DATA_DIRECTORY * pProfileDataInfoDir = FindSection(READYTORUN_SECTION_PROFILEDATA_INFO);
@@ -611,6 +612,17 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
             pMethodProfileList = (CORCOMPILE_METHOD_PROFILE_LIST *)GetImage()->GetDirectoryData(pProfileDataInfoDir);
 
             pModule->SetMethodProfileList(pMethodProfileList);  
+        }
+    }
+
+    // TODO Change to incremented version
+    if (IsImageVersionAtLeast(2, 2))
+    {
+        IMAGE_DATA_DIRECTORY * pManifestMetadata = FindSection(READYTORUN_SECTION_MANIFEST_METADATA);
+        if (pManifestMetadata != NULL)
+        {
+            NativeParser parser = NativeParser(&m_nativeReader, pManifestMetadata->VirtualAddress);
+            m_pMetaDataHashtable = NativeHashtable(parser);
         }
     }
 }

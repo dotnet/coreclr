@@ -49,6 +49,7 @@ typedef DPTR(struct CORCOMPILE_HEADER) PTR_CORCOMPILE_HEADER;
 
 #include "readytorun.h"
 typedef DPTR(struct READYTORUN_HEADER) PTR_READYTORUN_HEADER;
+typedef DPTR(struct READYTORUN_SECTION) PTR_READYTORUN_SECTION;
 
 typedef DPTR(IMAGE_COR20_HEADER)    PTR_IMAGE_COR20_HEADER;
 
@@ -340,6 +341,10 @@ class PEDecoder
     BOOL HasReadyToRunHeader() const;
     READYTORUN_HEADER *GetReadyToRunHeader() const;
 
+#ifdef FEATURE_READYTORUN_COMPILER
+    PTR_CVOID  GetReadyToRunManifestMetadata() const;
+#endif
+
     void  GetEXEStackSizes(SIZE_T *PE_SizeOfStackReserve, SIZE_T *PE_SizeOfStackCommit) const;
 
     CHECK CheckWillCreateGuardPage() const;
@@ -400,7 +405,7 @@ class PEDecoder
     IMAGE_NT_HEADERS *FindNTHeaders() const;
     IMAGE_COR20_HEADER *FindCorHeader() const;
     CORCOMPILE_HEADER *FindNativeHeader() const;
-   READYTORUN_HEADER *FindReadyToRunHeader() const;
+    READYTORUN_HEADER *FindReadyToRunHeader() const;
 
     // Flat mapping utilities
     RVA InternalAddressToRva(SIZE_T address) const;

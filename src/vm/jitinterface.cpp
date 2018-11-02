@@ -676,17 +676,18 @@ BOOL CEEInfo::shouldEnforceCallvirtRestriction(
 // and the impact of the cut was vetted with partners. It would not be appropriate 
 // to increase that unreported set without additional review.
 
-
+// This needs to be updated to allow cross-assembly inlining
+// TODO Undo this once prototyping is finished
 bool IsInSameVersionBubble(Assembly * current, Assembly * target)
 {
     LIMITED_METHOD_CONTRACT;
 
     // trivial case: current and target are identical
     // DO NOT change this without reading the notice above
-    if (current == target)
+    //if (current == target)
         return true;
 
-    return false;
+   // return false;
 }
 
 // Returns true if the assemblies defining current and target are in the same version bubble

@@ -43,6 +43,8 @@ class ReadyToRunInfo
     NativeFormat::NativeArray       m_methodDefEntryPoints;
     NativeFormat::NativeHashtable   m_instMethodEntryPoints;
     NativeFormat::NativeHashtable   m_availableTypesHashtable;
+    // TODO Should this be a hash table? 
+    NativeFormat::NativeHashtable   m_pMetaDataHashtable;
 
     Crst                            m_Crst;
     PtrHashMap                      m_entryPointToMethodDescMap;

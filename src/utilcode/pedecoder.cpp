@@ -2474,8 +2474,6 @@ CORCOMPILE_METHOD_PROFILE_LIST *PEDecoder::GetNativeProfileDataList(COUNT_T * pS
     RETURN PTR_CORCOMPILE_METHOD_PROFILE_LIST(GetDirectoryData(pDir));
 }
 
-
-
 PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
 {
     CONTRACT(PTR_CVOID)
@@ -2487,8 +2485,27 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
         GC_NOTRIGGER;
     }
     CONTRACT_END;
+    IMAGE_DATA_DIRECTORY *pDir;
+    if (HasReadyToRunHeader())
+    {
+        READYTORUN_HEADER * pHeader = GetReadyToRunHeader();
 
-    IMAGE_DATA_DIRECTORY *pDir = GetMetaDataHelper(METADATA_SECTION_MANIFEST);
+        PTR_READYTORUN_SECTION pSections = dac_cast<PTR_READYTORUN_SECTION>(dac_cast<TADDR>(pHeader) + sizeof(READYTORUN_HEADER));
+        for (DWORD i = 0; i < pHeader->NumberOfSections; i++)
+        {
+            // Verify that section types are sorted
+            _ASSERTE(i == 0 || (pSections[i - 1].Type < pSections[i].Type));
+
+            READYTORUN_SECTION * pSection = pSections + i;
+            if (pSection->Type == READYTORUN_SECTION_MANIFEST_METADATA)
+                // Set pDir to the address of the manifest metadata section
+                pDir = &pSection->Section;
+        }
+    }
+    else
+    {
+        pDir = GetMetaDataHelper(METADATA_SECTION_MANIFEST);
+    }
 
     if (pSize != NULL)
         *pSize = VAL32(pDir->Size);
