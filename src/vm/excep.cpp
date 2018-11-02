@@ -7431,10 +7431,6 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
         void* currentStackBase = Thread::GetStackUpperBound();
         if (currentStackBase != stopPoint)
         {
-            CantAllocHolder caHolder;
-            STRESS_LOG2(LF_EH, LL_INFO100, "In CLRVectoredExceptionHandler: mismatch of cached and current stack-base indicating use of Fibers, return with EXCEPTION_CONTINUE_SEARCH: current = %p; cache = %p\n",
-                currentStackBase, stopPoint);
-            return EXCEPTION_CONTINUE_SEARCH;
         }
     }
     
