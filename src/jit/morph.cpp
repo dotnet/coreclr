@@ -18024,11 +18024,11 @@ public:
                 // Promoted field, increase counter for the parent lclVar.
                 assert(!m_compiler->lvaIsImplicitByRefLocal(lclNum));
                 unsigned parentLclNum = varDsc->lvParentLcl;
-                UpdateImplicitByRefCounter(parentLclNum);
+                UpdateEarlyRefCountForImplicitByRef(parentLclNum);
             }
             else
             {
-                UpdateImplicitByRefCounter(lclNum);
+                UpdateEarlyRefCountForImplicitByRef(lclNum);
             }
         }
 
@@ -18419,7 +18419,7 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // UpdateImplicitByRefCounter: updates the ref count for implicit byref params.
+    // UpdateEarlyRefCountForImplicitByRef: updates the ref count for implicit byref params.
     //
     // Arguments:
     //    lclNum - the local number to update the count for.
@@ -18429,7 +18429,7 @@ private:
     //    if it's legal to elide certain copies of them;
     //    fgRetypeImplicitByRefArgs checks the ref counts when decides to undo promotions.
     //
-    void UpdateImplicitByRefCounter(unsigned lclNum)
+    void UpdateEarlyRefCountForImplicitByRef(unsigned lclNum)
     {
         if (!m_compiler->lvaIsImplicitByRefLocal(lclNum))
         {
