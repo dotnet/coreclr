@@ -612,7 +612,12 @@ def call_msbuild(coreclr_repo_location,
 
     sys.stdout.flush() # flush output before creating sub-process
     proc = subprocess.Popen(command)
-    proc.communicate()
+
+    try:
+        proc.communicate()
+    except:
+        proc.kill()
+        sys.exit(1)
 
     return proc.returncode
 

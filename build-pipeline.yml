@@ -25,7 +25,7 @@ jobs:
       - script: brew link --force icu4c
         displayName: Set up native dependencies
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      # This installs python
+      # Necessary to install python
       - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
         displayName: Install native tools
 
@@ -53,6 +53,8 @@ jobs:
       - script: ./build.sh $(buildConfig) $(archType) -skipnuget -skiprestore
         displayName: Build
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      # TODO: why do we pass priority here?
+      # TODO: do we want to skiptests? skipbuildpackages? IBCOptimize? EnforcePGO? pass an OfficialBuildId? SkipRestore? signtype? file logging parameters?
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages -skiprestore -priority=0
         displayName: Build
 
@@ -72,6 +74,7 @@ jobs:
           targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
 
 
+    # TODO: Sign
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
       - script: echo Sign!
         displayName: Sign Binaries (empty for now)
@@ -89,6 +92,11 @@ jobs:
     # Publish official build
     #
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+        # Build packages
+        # build-packages.cmd -BuildArch= -BuildType= -- /p:SignType= /p:OfficialBuildId=
+        # Publish packages
+        # publish-packages.cmd -AzureAccount= -AzureToken= -BuildArch= -BuildType= -Container= -PublishPackages -- /p:RelativePath=$(PB_BlodNamePrefix)$(PB_BuildType)/pkg /p:PublishFlatContainer= /p:OverwriteOnPublish=true
+
         # TODO: generate version assets?
         # TODO: log native version assets?
         # TODO: upload package to myget? <--- assume we're not doing this any more

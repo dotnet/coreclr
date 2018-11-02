@@ -37,21 +37,15 @@
          Priority 0 tests are build using Test Group 1 with 2 subgroups or slices -->
 
     <ItemGroup Condition="$(__TestGroupToBuild) == '1' And $(TestBuildSlice) == '1'">
-      <!--      <Project Include="*\**\*.csproj" Exclude="@(DisabledProjects)"> -->
-      <Project Include="reflection\**\*.csproj" Exclude="@(DisabledProjects)">
-        <AdditionalProperties>OSGroup=$(OSGroup)</AdditionalProperties>
-      </Project>
-      <Project Include="ilasm\**\*.csproj" Exclude="@(DisabledProjects)">
+      <Project Include="*\**\*.csproj" Exclude="@(DisabledProjects)">
         <AdditionalProperties>OSGroup=$(OSGroup)</AdditionalProperties>
       </Project>
     </ItemGroup>
 
     <ItemGroup Condition="$(__TestGroupToBuild) == '1' And $(TestBuildSlice) == '2'">
-<!--
       <Project Include="*\**\*.ilproj" Exclude="@(DisabledProjects)">
         <AdditionalProperties>OSGroup=$(OSGroup)</AdditionalProperties>
       </Project>
--->
     </ItemGroup>
 
     <!-- Test build is divided in slices which can be created within Test Group
