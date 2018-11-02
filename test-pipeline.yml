@@ -69,7 +69,8 @@ jobs:
         command: custom
         projects: tests/helixpublishwitharcade.proj # this may work on windows...
         custom: msbuild
-        arguments: '/t:test'
+        # TODO: remove UsePython argument once we've removed generated wrappers in helixprep.proj
+        arguments: '/t:test /p:UsePython=true'
       displayName: Send tests job to Helix
       env:
         ${{ if eq(variables['System.TeamProject'], 'internal') }}:
