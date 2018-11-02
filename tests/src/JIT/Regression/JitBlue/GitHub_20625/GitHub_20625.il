@@ -82,43 +82,49 @@
        extends [System.Runtime]System.Object
 {
   .method private hidebysig static int32
-          Main(string[] args) cil managed
+          Run(class Base der1, class Base der2) cil managed noinlining
   {
-    .entrypoint
-
     .maxstack  7
-    .locals init (class Der1 V_0,
-             class Der2 V_1,
-             int32 V_2)
-    IL_0000:  newobj     instance void Der1::.ctor()
-    IL_0005:  stloc.0
-    IL_0006:  newobj     instance void Der2::.ctor()
-    IL_000b:  stloc.1
+    .locals init (int32 V_0)
     .try
     {
-      IL_000c:  ldloc.0
-      IL_000d:  ldc.i4.2
-      IL_000e:  ldc.i4.0
-      IL_000f:  ldc.i4.6
-      IL_0010:  ldc.i4.2
-      IL_0011:  ldc.i4.5
-      IL_0012:  ldloc.1
-      IL_0013:  callvirt   instance void Base::M(int32, int32, int32, int32, int32, class Base)
-      IL_0018:  ldc.i4.s   100
-      IL_001a:  stloc.2
-      IL_001b:  leave.s    IL_0022
+      IL_0000:  ldarg.0
+      IL_0001:  ldc.i4.2
+      IL_0002:  ldc.i4.0
+      IL_0003:  ldc.i4.6
+      IL_0004:  ldc.i4.2
+      IL_0005:  ldc.i4.5
+      IL_0006:  ldarg.1
+      IL_0007:  callvirt   instance void Base::M(int32, int32, int32, int32, int32, class Base)
+      IL_000c:  ldc.i4.s   100
+      IL_000e:  stloc.0
+      IL_000f:  leave.s    IL_0016
 
     }
     catch [System.Runtime]System.NullReferenceException
     {
-      IL_001d:  pop
-      IL_001e:  ldc.i4.1
-      IL_001f:  stloc.2
-      IL_0020:  leave.s    IL_0022
-
+      IL_0011:  pop
+      IL_0012:  ldc.i4.1
+      IL_0013:  stloc.0
+      IL_0014:  leave.s    IL_0016
     }
-    IL_0022:  ldloc.2
-    IL_0023:  ret
+    IL_0016:  ldloc.0
+    IL_0017:  ret
+  }
+
+  .method private hidebysig static int32
+          Main(string[] args) cil managed
+  {
+    .entrypoint
+
+    .maxstack  2
+    .locals init (class Der2 V_0)
+    IL_0000:  newobj     instance void Der1::.ctor()
+    IL_0005:  newobj     instance void Der2::.ctor()
+    IL_000a:  stloc.0
+    IL_000b:  ldloc.0
+    IL_000c:  call       int32 Program::Run(class Base, class Base)
+    IL_0011:  ret
   }
 
   .method public hidebysig specialname rtspecialname
@@ -129,5 +135,4 @@
     IL_0001:  call       instance void [System.Runtime]System.Object::.ctor()
     IL_0006:  ret
   }
-
 }
