@@ -10,8 +10,14 @@ namespace System.Diagnostics
     {
         private static readonly bool s_shouldWriteToStdErr = Environment.GetEnvironmentVariable("COMPlus_DebugWriteToStdErr") == "1";
 
-        public virtual void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
+        public static void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
         {
+            if (s_ShowDialog != null)
+            {
+                s_ShowDialog(stackTrace, message, detailMessage, errorSource); 
+                return;
+            }
+
             if (Debugger.IsAttached)
             {
                 Debugger.Break();
