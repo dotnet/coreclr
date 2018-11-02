@@ -1,6 +1,9 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
+// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See THIRD-PARTY-NOTICES.TXT in the project root for license information.
+
+// LICENSING NOTE: The license for this file is from the originating source
+// and not the general CoreCLR License.
+//
+// See https://github.com/dotnet/roslyn/blob/82b2f694b26e5933ff8dd0856a2cd775273ac138/src/Compilers/Core/Portable/RealParser.cs
 
 using System.Diagnostics;
 
@@ -8,9 +11,6 @@ namespace System
 {
     internal unsafe partial class Number
     {
-        // The below implementation comes from the Roslyn RealParser: https://github.com/dotnet/roslyn/blob/82b2f694b26e5933ff8dd0856a2cd775273ac138/src/Compilers/Core/Portable/RealParser.cs
-        // The original implementation is: Licensed under the Apache License, Version 2.0.
-
         public readonly struct FloatingPointInfo
         {
             public static readonly FloatingPointInfo Double = new FloatingPointInfo(
