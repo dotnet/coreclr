@@ -1679,6 +1679,8 @@ void Lowering::LowerCall(GenTree* node)
         // and replacing them with a new temp. Control expr also can contain nodes that need
         // to be patched.
         // Therefore lower fast tail call must be done after controlExpr is inserted into LIR.
+        // There is one side effect which is flipping the order of PME and control expression
+        // since LowerFastTailCall calls InsertPInvokeMethodEpilog.
         LowerFastTailCall(call);
     }
 
