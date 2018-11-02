@@ -1,15 +1,41 @@
 <Project Sdk="Microsoft.DotNet.Helix.Sdk">
 
+  <!-- This project uses the helix SDK ,documented at
+       https://github.com/dotnet/arcade/tree/master/src/Microsoft.DotNet.Helix/Sdk,
+       to send test jobs to helix. -->
+
   <Import Project="..\dir.props" />
 
   <PropertyGroup>
     <HelixSource>pr/coreclr/master</HelixSource>
     <HelixType>test/stuff</HelixType>
     <HelixBuild>$(BUILD_BUILDNUMBER)</HelixBuild>
-    <HelixTargetQueues>Windows.10.Amd64.Open;Windows.7.Amd64.Open;windows.10.arm64.open;Windows.81.Amd64.Open;fedora.27.amd64.open</HelixTargetQueues>
-    <HelixTargetQueues Condition=" '$(BuildOS)' == 'Windows_NT' ">Windows.10.Amd64;Windows.10.Nano.Amd64;Windows.10.Amd64.Core;Windows.7.Amd64;Windows.81.Amd64</HelixTargetQueues>
-    <HelixTargetQueues Condition=" '$(BuildOS)' == 'Linux' ">debian.82.amd64;fedora.27.amd64;fedora.28.amd64;redhat.73.amd64;ubuntu.1404.amd64;ubuntu.1604.amd64;ubuntu.1804.amd64;opensuse.423.amd64;sles.12.amd64</HelixTargetQueues>
-    <HelixTargetQueues Condition=" '$(BuildOS)' == 'OSX' ">osx.1012.amd64;osx.1013.amd64</HelixTargetQueues>
+
+    <!-- TODO: add target queues for rhel and linux-musl -->
+    <!-- TODO: why don't we currently run tests on windows x86? -->
+    <HelixTargetQueues Condition=" '$(BuildOS)' == 'Windows_NT' ">
+      Windows.10.Amd64;
+      Windows.10.Nano.Amd64;
+      Windows.10.Amd64.Core;
+      Windows.7.Amd64;
+      Windows.81.Amd64
+    </HelixTargetQueues>
+    <HelixTargetQueues Condition=" '$(BuildOS)' == 'Linux' ">
+      debian.82.amd64;
+      fedora.27.amd64;
+      fedora.28.amd64;
+      redhat.73.amd64;
+      ubuntu.1404.amd64;
+      ubuntu.1604.amd64;
+      ubuntu.1804.amd64;
+      opensuse.423.amd64;
+      sles.12.amd64
+    </HelixTargetQueues>
+    <HelixTargetQueues Condition=" '$(BuildOS)' == 'OSX' ">
+      osx.1012.amd64;
+      osx.1013.amd64
+    </HelixTargetQueues>
+
     <EnableXUnitReporter>true</EnableXUnitReporter>
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
     <SourceDirectory>$(MSBuildProjectDirectory)/..</SourceDirectory>
@@ -21,17 +47,35 @@
     </HelixCorrelationPayload>
   </ItemGroup>
 
+  <Target Name="SubmitTestsToHelix">
+    <ItemGroup>
+      <Scenarios Include="$(Scenarios)" />
+    </ItemGroup>
+
+    <!-- If no scenario was specified, just run the normal test
+         scenario -->
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="Test"
+             Condition=" '@(Scenarios->Count())' == '0' " />
+
+    <!-- If scenarios were specified, submit jobs for each
+         scenario. -->
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="Test"
+             Properties="Scenario=%(Scenarios.Identity)"
+             Condition=" '@(Scenarios->Count())' != '0' " />
+
+  </Target>
+
   <Target Name="BuildHelixWorkItem"
           BeforeTargets="Test">
     <ItemGroup>
       <TestZipFiles Include="$(SourceDirectory)\bin\tests\*\archive\tests\*.zip" />
-
       <HelixWorkItem Include="@(TestZipFiles->'%(FileName)')" >
         <PayloadArchive>%(Identity)</PayloadArchive>
-        <Command Condition=" '$(OSEnvironment)' == 'Unix' ">./runtests.sh</Command>
-        <Command Condition=" '$(OSEnvironment)' == 'Windows_NT' ">runtests.cmd</Command>
+        <Command Condition=" '$(Scenario)' == '' ">python runtest_helix.py -wrapper %(FileName).dll</Command>
+        <Command Condition=" '$(Scenario)' != '' ">python runtest_helix.py -scenario $(Scenario) -wrapper %(FileName).dll</Command>
       </HelixWorkItem>
     </ItemGroup>
+
   </Target>
 
   <Target Name="PrintItems"
@@ -45,4 +89,5 @@
     <Message Importance="High" Text="osenv: $(OSEnvironment)" />
     <Message Importance="High" Text="command: @(HelixWorkItem->'%(Command)')" />
   </Target>
+
 </Project>

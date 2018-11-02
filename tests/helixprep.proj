@@ -11,6 +11,7 @@
   <PropertyGroup>
     <DiscoveryDirectory>$(TestWorkingDir)</DiscoveryDirectory>
     <CoreRootName>Core_Root_$(RuntimeID)</CoreRootName>
+    <UsePython Condition=" '$(UsePython)' == '' ">false</UsePython>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +20,7 @@
   </ItemGroup>
 
   <!-- Build the platform-specific wrapper to run an individual xunit wrapper -->
+  <!-- We should remove the generated wrappers once we have transitioned our official build -->
 
   <Target Name="GenerateWrapperExecutables"
     Inputs="@(XunitDlls)"
@@ -33,15 +35,27 @@
              Targets="GenerateWrapperSh" />
   </Target>
 
+  <!-- Copy the wrapper script to the xunit directory -->
+  <!-- This wrapper script is what we hope to use for all test runs in the future. -->
+  <Target Name="CopyWrapperScript"
+    Inputs="@(XunitDlls)"
+    Outputs="$(TestWorkingDir)*\runtest_helix.py" >
+
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)\runtest_helix.py"
+          DestinationFolder="%(XunitDlls.RootDir)%(XunitDlls.Directory)" />
+
+  </Target>
+
   <!-- Zip each top-level test folder to send to Helix -->
 
   <Target Name="ArchiveTests"
     Inputs="@(XunitDlls)"
     Outputs="$(TestWorkingDir)archive\**" >
-    
+
     <Copy SourceFiles="$(CORE_ROOT)\xunit.console.dll"
           DestinationFolder="%(XunitDlls.RootDir)%(XunitDlls.Directory)"
-    />
+          Condition=" '$(UsePython)' == 'fales' " />
+
     <Message Text="Deleting '.requires_signing' files to avoid file name lengths exceeding MAX_PATH" Importance="Low" />
     <Delete Files="@(RequiresSigningFilesToDelete)" />
     <MSBuild Projects="helixprep.proj"
@@ -181,8 +195,13 @@ EXIT /B %ERRORLEVEL%
   <!-- Default target to run - builds executables & archives everything needed for Helix run -->
 
   <Target Name="ArchiveAll" >
+    <PropertyGroup>
+      <_ArchiveTargets Condition=" '$(UsePython)' == 'false' ">GenerateWrapperExecutables</_ArchiveTargets>
+      <_ArchiveTargets Condition=" '$(UsePython)' == 'true' ">CopyWrapperScript</_ArchiveTargets>
+      <_ArchiveTargets>$(_ArchiveTargets);ArchiveTests;ArchiveCoreRoot</_ArchiveTargets>
+    </PropertyGroup>
     <MSBuild Projects="helixprep.proj"
-             Targets="GenerateWrapperExecutables;ArchiveTests;ArchiveCoreRoot" />
+             Targets="$(_ArchiveTargets)" />
   </Target>
 
 </Project>
