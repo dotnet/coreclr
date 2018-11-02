@@ -331,7 +331,7 @@ namespace System
                         if (digCount < maxDigCount)
                         {
                             number.Digits[digCount++] = ch;
-                            if (ch != '0' || number.Kind == NumberBufferKind.Decimal)
+                            if ((ch != '0') || (number.Kind != NumberBufferKind.Integer))
                             {
                                 digEnd = digCount;
                             }

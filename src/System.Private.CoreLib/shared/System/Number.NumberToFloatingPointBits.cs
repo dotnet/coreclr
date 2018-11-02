@@ -451,8 +451,8 @@ namespace System
 
             uint fastExponent = (uint)(Math.Abs(number.Scale - integerDigitsPresent - fractionalDigitsPresent));
 
-            // When the number of significant digits is less than or equal to 19 and the
-            // scale is less than or equal to 27, we can take some shortcuts and just rely
+            // When the number of significant digits is less than or equal to 15 and the
+            // scale is less than or equal to 22, we can take some shortcuts and just rely
             // on floating-point arithmetic to compute the correct result. This is
             // because each floating-point precision values allows us to exactly represent
             // different whole integers and certain powers of 10, depending on the underlying
@@ -460,99 +460,56 @@ namespace System
             // computed to the infinitely precise result and then rounded, which means that
             // we can rely on it to produce the correct result when both inputs are exact.
 
-            if ((totalDigits <= 19) && (fastExponent <= 27))
+            char* src = number.GetDigitsPointer();
+
+            if (totalDigits == 0)
             {
-                char* src = number.GetDigitsPointer();
+                return info.ZeroBits;
+            }
 
-                if (totalDigits == 0)
+            if ((info.DenormalMantissaBits == 23) && (totalDigits <= 7) && (fastExponent <= 10))
+            {
+                // It is only valid to do this optimization for single-precision floating-point
+                // values since we can lose some of the mantissa bits and would return the
+                // wrong value when upcasting to double.
+
+                float result = DigitsToUInt32(src, (int)(totalDigits));
+                float scale = s_Pow10SingleTable[fastExponent];
+
+                if (fractionalDigitsPresent != 0)
                 {
-                    return info.ZeroBits;
+                    result /= scale;
+                }
+                else
+                {
+                    result *= scale;
                 }
 
-                if ((info.DenormalMantissaBits == 23) && (totalDigits <= 7) && (fastExponent <= 10))
+                return (uint)(BitConverter.SingleToInt32Bits(result));
+            }
+
+            if ((totalDigits <= 15) && (fastExponent <= 22))
+            {
+                double result = DigitsToUInt64(src, (int)(totalDigits));
+                double scale = s_Pow10DoubleTable[fastExponent];
+
+                if (fractionalDigitsPresent != 0)
                 {
-                    // It is only valid to do this optimization for single-precision floating-point
-                    // values since we can lose some of the mantissa bits and would return the
-                    // wrong value when upcasting to double.
-
-                    float result = DigitsToUInt32(src, (int)(totalDigits));
-                    float scale = s_Pow10SingleTable[fastExponent];
-
-                    if (fractionalDigitsPresent != 0)
-                    {
-                        result /= scale;
-                    }
-                    else
-                    {
-                        result *= scale;
-                    }
-
-                    return (uint)(BitConverter.SingleToInt32Bits(result));
+                    result /= scale;
+                }
+                else
+                {
+                    result *= scale;
                 }
 
-                if ((totalDigits <= 15) && (fastExponent <= 22))
+                if (info.DenormalMantissaBits == 52)
                 {
-                    double result = DigitsToUInt64(src, (int)(totalDigits));
-                    double scale = s_Pow10DoubleTable[fastExponent];
-
-                    if (fractionalDigitsPresent != 0)
-                    {
-                        result /= scale;
-                    }
-                    else
-                    {
-                        result *= scale;
-                    }
-
-                    if (info.DenormalMantissaBits == 52)
-                    {
-                        return (ulong)(BitConverter.DoubleToInt64Bits(result));
-                    }
-                    else
-                    {
-                        Debug.Assert(info.DenormalMantissaBits == 23);
-                        return (uint)(BitConverter.SingleToInt32Bits((float)(result)));
-                    }
+                    return (ulong)(BitConverter.DoubleToInt64Bits(result));
                 }
-
-                // Adjust the mantissa and exponent to the extended precision format
-                ulong mantissa = DigitsToUInt64(src, (int)(totalDigits));
-                int shift = (int)(BigInteger.LeadingZeroCount(mantissa));
-
-                mantissa <<= shift;
-                int exponent = 63 - shift;
-
-                ulong scaleMantissa = s_Pow10ExtendedMantissaTable[fastExponent];
-                int scaleExponent = s_Pow10ExtendedExponentTable[fastExponent];
-
-                bool hasNonZeroTail = number.HasNonZeroTail;
-
-                if (fractionalDigitsPresent == 0)
+                else
                 {
-                    mantissa = Multiply64x64To128(mantissa, scaleMantissa, out ulong tail);
-                    exponent += scaleExponent;
-
-                    if ((uint)(mantissa >> 32) < 0x80000000)
-                    {
-                        // We need to normalize the mantissa by multiplying by two
-                        // and the exponent by subtracting one.
-
-                        ulong carry = tail + tail;
-                        mantissa += mantissa;
-
-                        if (carry < tail)
-                        {
-                            mantissa += 1;
-                        }
-
-                        tail = carry;
-
-                        exponent--;
-                    }
-
-                    hasNonZeroTail |= (tail != 0);
-
-                    return AssembleFloatingPointBits(in info, mantissa, exponent, !hasNonZeroTail, exponentNormalized: true);
+                    Debug.Assert(info.DenormalMantissaBits == 23);
+                    return (uint)(BitConverter.SingleToInt32Bits((float)(result)));
                 }
             }
 
