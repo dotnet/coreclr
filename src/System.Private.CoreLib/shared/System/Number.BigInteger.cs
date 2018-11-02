@@ -702,6 +702,11 @@ namespace System
                 return 32 - CountSignificantBits(value);
             }
 
+            public static uint LeadingZeroCount(ulong value)
+            {
+                return 64 - CountSignificantBits(value);
+            }
+
             public static uint LogBase2(uint value)
             {
                 Debug.Assert(value != 0);

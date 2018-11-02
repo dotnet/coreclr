@@ -18,7 +18,7 @@ namespace System
                 exponentBits: 11,
                 maxBinaryExponent: 1023,
                 exponentBias: 1023,
-                infinityBits: 0x7FF0000000000000
+                infinityBits: 0x7FF00000_00000000
             );
 
             public static readonly FloatingPointInfo Single = new FloatingPointInfo(
@@ -67,7 +67,22 @@ namespace System
             }
         }
 
-        private static double[] s_Pow10Table = new double[]
+        private static float[] s_Pow10SingleTable = new float[]
+        {
+            1e0f,   // 10^0
+            1e1f,   // 10^1
+            1e2f,   // 10^2
+            1e3f,   // 10^3
+            1e4f,   // 10^4
+            1e5f,   // 10^5
+            1e6f,   // 10^6
+            1e7f,   // 10^7
+            1e8f,   // 10^8
+            1e9f,   // 10^9
+            1e10f,  // 10^10
+        };
+
+        private static double[] s_Pow10DoubleTable = new double[]
         {
             1e0,    // 10^0
             1e1,    // 10^1
@@ -94,6 +109,70 @@ namespace System
             1e22,   // 10^22
         };
 
+        private static ulong[] s_Pow10ExtendedMantissaTable = new ulong[]
+        {
+            0x80000000_00000000,    // 10^0
+            0xA0000000_00000000,    // 10^1
+            0xC8000000_00000000,    // 10^2
+            0xFA000000_00000000,    // 10^3
+            0x9C400000_00000000,    // 10^4
+            0xC3500000_00000000,    // 10^5
+            0xF4240000_00000000,    // 10^6
+            0x98968000_00000000,    // 10^7
+            0xBEBC2000_00000000,    // 10^8
+            0xEE6B2800_00000000,    // 10^9
+            0x9502F900_00000000,    // 10^10
+            0xBA43B740_00000000,    // 10^11
+            0xE8D4A510_00000000,    // 10^12
+            0x9184E72A_00000000,    // 10^13
+            0xB5E620F4_80000000,    // 10^14
+            0xE35FA931_A0000000,    // 10^15
+            0x8E1BC9BF_04000000,    // 10^16
+            0xB1A2BC2E_C5000000,    // 10^17
+            0xDE0B6B3A_76400000,    // 10^18
+            0x8AC72304_89E80000,    // 10^19
+            0xAD78EBC5_AC620000,    // 10^20
+            0xD8D726B7_177A8000,    // 10^21
+            0x87867832_6EAC9000,    // 10^22
+            0xA968163F_0A57B400,    // 10^23
+            0xD3C21BCE_CCEDA100,    // 10^24
+            0x84595161_401484A0,    // 10^25
+            0xA56FA5B9_9019A5C8,    // 10^26
+            0xCECB8F27_F4200F3A,    // 10^27
+        };
+
+        private static ushort[] s_Pow10ExtendedExponentTable = new ushort[]
+        {
+            1,      // 10^0
+            4,      // 10^1
+            7,      // 10^2
+            10,     // 10^3
+            14,     // 10^4
+            17,     // 10^5
+            20,     // 10^6
+            24,     // 10^7
+            27,     // 10^8
+            30,     // 10^9
+            34,     // 10^10
+            37,     // 10^11
+            40,     // 10^12
+            44,     // 10^13
+            47,     // 10^14
+            50,     // 10^15
+            54,     // 10^16
+            57,     // 10^17
+            60,     // 10^18
+            64,     // 10^19
+            67,     // 10^20
+            70,     // 10^21
+            74,     // 10^22
+            77,     // 10^23
+            80,     // 10^24
+            84,     // 10^25
+            87,     // 10^26
+            90,     // 10^27
+        };
+
         private static void AccumulateDecimalDigitsIntoBigInteger(ref NumberBuffer number, uint firstIndex, uint lastIndex, out BigInteger result)
         {
             result = new BigInteger(0);
@@ -104,7 +183,7 @@ namespace System
             while (remaining != 0)
             {
                 uint count = Math.Min(remaining, 9);
-                uint value = DigitsToInt(src, (int)(count));
+                uint value = DigitsToUInt32(src, (int)(count));
 
                 result.MultiplyPow10(count);
                 result.Add(value);
@@ -114,14 +193,19 @@ namespace System
             }
         }
 
-        private static ulong AssembleFloatingPointBits(in FloatingPointInfo info, ulong initialMantissa, int initialExponent, bool hasZeroTail)
+        private static ulong AssembleFloatingPointBits(in FloatingPointInfo info, ulong initialMantissa, int initialExponent, bool hasZeroTail, bool exponentNormalized = false)
         {
             // number of bits by which we must adjust the mantissa to shift it into the
             // correct position, and compute the resulting base two exponent for the
             // normalized mantissa:
             uint initialMantissaBits = BigInteger.CountSignificantBits(initialMantissa);
             int normalMantissaShift = info.NormalMantissaBits - (int)(initialMantissaBits);
-            int normalExponent = initialExponent - normalMantissaShift;
+            int normalExponent = initialExponent;
+
+            if (!exponentNormalized)
+            {
+                normalExponent -= normalMantissaShift;
+            }
 
             ulong mantissa = initialMantissa;
             int exponent = normalExponent;
@@ -286,7 +370,7 @@ namespace System
         }
 
         // get 32-bit integer from at most 9 digits
-        private static uint DigitsToInt(char* p, int count)
+        private static uint DigitsToUInt32(char* p, int count)
         {
             Debug.Assert((1 <= count) && (count <= 9));
 
@@ -299,6 +383,52 @@ namespace System
             }
 
             return res;
+        }
+
+        // get 64-bit integer from at most 19 digits
+        private static ulong DigitsToUInt64(char* p, int count)
+        {
+            Debug.Assert((1 <= count) && (count <= 19));
+
+            char* end = (p + count);
+            ulong res = (ulong)(p[0] - '0');
+
+            for (p++; p < end; p++)
+            {
+                res = (10 * res) + p[0] - '0';
+            }
+
+            return res;
+        }
+
+        // Get the 64-bit product of two 32-bit integers
+        private static ulong Multiply32x32To64(uint lhs, uint rhs)
+        {
+            return (ulong)(lhs) * rhs;
+        }
+
+        // Get the high 64-bits of the product of two 64-bit integers
+        private static ulong Multiply64x64To128(ulong lhs, ulong rhs, out ulong lower)
+        {
+            uint al = (uint)(lhs);
+            uint au = (uint)(lhs >> 32);
+
+            uint bl = (uint)(rhs);
+            uint bu = (uint)(rhs >> 32);
+
+            ulong c = Multiply32x32To64(al, bl);
+            uint cl = (uint)(c);
+            uint cu = (uint)(c >> 32);
+
+            ulong d = Multiply32x32To64(au, bl) + cu;
+            uint dl = (uint)(d);
+            uint du = (uint)(d >> 32);
+
+            ulong e = Multiply32x32To64(al, bu) + dl;
+            uint eu = (uint)(e >> 32);
+
+            lower = (e << 32) + eu;
+            return Multiply32x32To64(au, bu) + du + eu;
         }
 
         private static ulong NumberToFloatingPointBits(ref NumberBuffer number, in FloatingPointInfo info)
@@ -345,30 +475,39 @@ namespace System
             // computed to the infinitely precise result and then rounded, which means that
             // we can rely on it to produce the correct result when both inputs are exact.
 
-            Debug.Assert(s_Pow10Table.Length == 23);
+            Debug.Assert(s_Pow10DoubleTable.Length == 23);
 
             uint fastExponent = (uint)(Math.Abs(number.Scale - integerDigitsPresent - fractionalDigitsPresent));
 
-            if ((totalDigits <= 15) && (fastExponent <= 22))
+            if ((totalDigits <= 7) && (fastExponent <= 10))
             {
-                uint remaining = totalDigits;
-                uint count = Math.Min(remaining, 9);
-                double result = DigitsToInt(src, (int)(count));
+                float result = DigitsToUInt32(src, (int)(totalDigits));
+                float scale = s_Pow10SingleTable[fastExponent];
 
-                remaining -= count;
-
-                if (remaining > 0)
+                if (fractionalDigitsPresent != 0)
                 {
-                    Debug.Assert(remaining <= 6);
-
-                    // scale the value so we have space for the additional digits
-                    // and add the remaining to get an exact mantissa.
-
-                    result *= s_Pow10Table[remaining];
-                    result += DigitsToInt(src + 9, (int)(remaining));
+                    result /= scale;
+                }
+                else
+                {
+                    result *= scale;
                 }
 
-                double scale = s_Pow10Table[fastExponent];
+                if (info.DenormalMantissaBits == 52)
+                {
+                    return (ulong)(BitConverter.DoubleToInt64Bits(result));
+                }
+                else
+                {
+                    Debug.Assert(info.DenormalMantissaBits == 23);
+                    return (uint)(BitConverter.SingleToInt32Bits(result));
+                }
+            }
+
+            if ((totalDigits <= 15) && (fastExponent <= 22))
+            {
+                double result = DigitsToUInt64(src, (int)(totalDigits));
+                double scale = s_Pow10DoubleTable[fastExponent];
 
                 if (fractionalDigitsPresent != 0)
                 {
@@ -387,6 +526,49 @@ namespace System
                 {
                     Debug.Assert(info.DenormalMantissaBits == 23);
                     return (uint)(BitConverter.SingleToInt32Bits((float)(result)));
+                }
+            }
+
+            if ((totalDigits <= 19) && (fastExponent <= 27))
+            {
+                // Adjust the mantissa and exponent to the extended precision format
+                ulong mantissa = DigitsToUInt64(src, (int)(totalDigits));
+                int shift = (int)(BigInteger.LeadingZeroCount(mantissa));
+
+                mantissa <<= shift;
+                int exponent = 63 - shift;
+
+                ulong scaleMantissa = s_Pow10ExtendedMantissaTable[fastExponent];
+                int scaleExponent = s_Pow10ExtendedExponentTable[fastExponent];
+
+                bool hasNonZeroTail = number.HasNonZeroTail;
+
+                if (fractionalDigitsPresent == 0)
+                {
+                    mantissa = Multiply64x64To128(mantissa, scaleMantissa, out ulong tail);
+                    exponent += scaleExponent;
+
+                    if ((uint)(mantissa >> 32) < 0x80000000)
+                    {
+                        // We need to normalize the mantissa by multiplying by two
+                        // and the exponent by subtracting one.
+
+                        ulong carry = tail + tail;
+                        mantissa += mantissa;
+
+                        if (carry < tail)
+                        {
+                            mantissa += 1;
+                        }
+
+                        tail = carry;
+
+                        exponent--;
+                    }
+
+                    hasNonZeroTail |= (tail != 0);
+
+                    return AssembleFloatingPointBits(in info, mantissa, exponent, !hasNonZeroTail, exponentNormalized: true);
                 }
             }
 
