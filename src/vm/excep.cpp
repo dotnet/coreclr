@@ -8262,39 +8262,52 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
                 TADDR* sp;
                 sp = (TADDR*)&sp;
                 DWORD count = 0;
+                // Fiber-friendly Vectored Exception Handling:
+                // Check if the current and the cached stack-base match.
+                // If they don't match then probably the thread is running on a different Fiber
+                // than during the initialization of the Thread-object.
                 void* stopPoint = pThread->GetCachedStackBase();
-                // If Frame chain is corrupted, we may get AV while accessing frames, and this function will be
-                // called recursively.  We use Frame chain to limit our search range.  It is not disaster if we
-                // can not use it.
-                if (!(dwCode == STATUS_ACCESS_VIOLATION &&
-                      IsIPInEE(pExceptionInfo->ExceptionRecord->ExceptionAddress)))
+                void* currentStackBase = Thread::GetStackUpperBound();
+                if (currentStackBase != stopPoint)
                 {
-                    // Find the stop point (most jitted function)
-                    Frame* pFrame = pThread->GetFrame();
-                    for(;;)
-                    {
-                        // skip GC frames
-                        if (pFrame == 0 || pFrame == (Frame*) -1)
-                            break;
-
-                        Frame::ETransitionType type = pFrame->GetTransitionType();
-                        if (type == Frame::TT_M2U || type == Frame::TT_InternalCall)
-                        {
-                            stopPoint = pFrame;
-                            break;
-                        }
-                        pFrame = pFrame->Next();
-                    }
+                    STRESS_LOG2(LF_EH, LL_INFO100, "CLRVectoredExceptionHandlerShim: mismatch of cached and current stack-base indicating use of Fibers: current = %p; cache = %p\n",
+                        currentStackBase, stopPoint);
                 }
-                STRESS_LOG0(LF_EH, LL_INFO100, "CLRVectoredExceptionHandlerShim: stack");
-                while (count < 20 && sp < stopPoint)
+                else
                 {
-                    if (IsIPInEE((BYTE*)*sp))
+                    // If Frame chain is corrupted, we may get AV while accessing frames, and this function will be
+                    // called recursively.  We use Frame chain to limit our search range.  It is not disaster if we
+                    // can not use it.
+                    if (!(dwCode == STATUS_ACCESS_VIOLATION &&
+                          IsIPInEE(pExceptionInfo->ExceptionRecord->ExceptionAddress)))
                     {
-                        STRESS_LOG1(LF_EH, LL_INFO100, "%pK\n", *sp);
-                        count ++;
+                        // Find the stop point (most jitted function)
+                        Frame* pFrame = pThread->GetFrame();
+                        for(;;)
+                        {
+                            // skip GC frames
+                            if (pFrame == 0 || pFrame == (Frame*) -1)
+                                break;
+
+                            Frame::ETransitionType type = pFrame->GetTransitionType();
+                            if (type == Frame::TT_M2U || type == Frame::TT_InternalCall)
+                            {
+                                stopPoint = pFrame;
+                                break;
+                            }
+                            pFrame = pFrame->Next();
+                        }
                     }
-                    sp += 1;
+                    STRESS_LOG0(LF_EH, LL_INFO100, "CLRVectoredExceptionHandlerShim: stack");
+                    while (count < 20 && sp < stopPoint)
+                    {
+                        if (IsIPInEE((BYTE*)*sp))
+                        {
+                            STRESS_LOG1(LF_EH, LL_INFO100, "%pK\n", *sp);
+                            count ++;
+                        }
+                        sp += 1;
+                    }
                 }
             }
         }
