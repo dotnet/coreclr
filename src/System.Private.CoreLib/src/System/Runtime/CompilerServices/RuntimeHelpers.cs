@@ -218,8 +218,6 @@ namespace System.Runtime.CompilerServices
         }
 
         // Given an object reference, returns its MethodTable* as an IntPtr.
-        //[Intrinsic]
-        //[NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IntPtr GetObjectMethodTablePointer(object obj)
         {
@@ -230,11 +228,13 @@ namespace System.Runtime.CompilerServices
             // This is not ideal in terms of minimizing instruction count but is the best we can do at the moment.
 
             return Unsafe.Add(ref Unsafe.As<byte, IntPtr>(ref JitHelpers.GetPinningHelper(obj).m_data), -1);
-
-            // Ideally this method would be replaced by the VM with:
-            // ldarg.0
-            // ldind.i
-            // ret
+            
+            // The JIT currently implements this as:
+            // lea tmp, [rax + 8h] ; assume rax contains the object reference, tmp is type IntPtr&
+            // mov tmp, qword ptr [tmp - 8h] ; tmp now contains the MethodTable* pointer
+            //
+            // Ideally this would just be a single dereference:
+            // mov tmp, qword ptr [rax] ; rax = obj ref, tmp = MethodTable* pointer
         }
     }
 }
