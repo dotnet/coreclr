@@ -39,9 +39,6 @@ namespace System.Text
         internal static readonly UTF32Encoding s_default = new UTF32Encoding(bigEndian: false, byteOrderMark: true);
         internal static readonly UTF32Encoding s_bigEndianDefault = new UTF32Encoding(bigEndian: true, byteOrderMark: true);
 
-        private static ReadOnlySpan<byte> BigEndianPreamble => new byte[4] { 0x00, 0x00, 0xFE, 0xFF }; // uses C# compiler's optimization for static byte[] data
-        private static ReadOnlySpan<byte> LittleEndianPreamble => new byte[4] { 0xFF, 0xFE, 0x00, 0x00 };
-
         private readonly bool _emitUTF32ByteOrderMark = false;
         private readonly bool _isThrowException = false;
         private readonly bool _bigEndian = false;
@@ -1156,8 +1153,9 @@ namespace System.Text
 
         public override ReadOnlySpan<byte> Preamble =>
             GetType() != typeof(UTF32Encoding) ? new ReadOnlySpan<byte>(GetPreamble()) : // in case a derived UTF32Encoding overrode GetPreamble
-            _emitUTF32ByteOrderMark ? (_bigEndian ? BigEndianPreamble : LittleEndianPreamble) :
-            default;
+            !_emitUTF32ByteOrderMark ? default :
+            _bigEndian ? (ReadOnlySpan<byte>)new byte[4] { 0x00, 0x00, 0xFE, 0xFF } : // uses C# compiler's optimization for static byte[] data
+            (ReadOnlySpan<byte>)new byte[4] { 0xFF, 0xFE, 0x00, 0x00 };      
 
         public override bool Equals(object value)
         {
