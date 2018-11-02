@@ -7,8 +7,6 @@ parameters:
 
   # Optional: name of the phase (not specifying phase name may cause name collisions)
   name: ''
-  # Optional: display name of the phase
-  displayName: ''
 
   # Required: A defined YAML queue
   queue: {}
@@ -39,7 +37,6 @@ parameters:
 
 phases:
 - phase: ${{ parameters.name }}
-  displayName: ${{ parameters.displayName }}
 
   queue: ${{ parameters.queue }}
 
@@ -62,8 +59,8 @@ phases:
 
   - ${{ if eq(parameters.enableMicrobuild, 'true') }}:
     # Internal only resource, and Microbuild signing shouldn't be applied to PRs.
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-      - task: MicroBuildSigningPlugin@1
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), ne(variables['Build.Repository.Provider'], 'GitHub')) }}:
+      - task: MicroBuildSigningPlugin@2
         displayName: Install MicroBuild plugin
         inputs:
           signType: $(_SignType)
@@ -80,7 +77,7 @@ phases:
 
   - ${{ if eq(parameters.enableMicrobuild, 'true') }}:
     # Internal only resources
-    - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Repository.Provider'], 'GitHub')) }}:
       - task: MicroBuildCleanup@1
         displayName: Execute Microbuild cleanup tasks  
         condition: and(always(), in(variables['_SignType'], 'real', 'test'), eq(variables['Agent.Os'], 'Windows_NT'))
@@ -93,7 +90,7 @@ phases:
         helixSource: $(_HelixSource)
         helixType: $(_HelixType)
 
-  - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+  - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), ne(variables['Build.Repository.Provider'], 'GitHub')) }}:
     - task: CopyFiles@2
       displayName: Gather Asset Manifests
       inputs:
