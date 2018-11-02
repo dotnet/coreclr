@@ -3678,6 +3678,51 @@ public:
                 __gcframe.Pop(); } while(0)
 
 
+template<typename T, size_t... I>
+void ReleaseFrames(T& frames, std::index_sequence<I...>)
+{
+    (frames[I].Pop(), ...);
+}
+
+template<typename FrameType, size_t N, typename Indices = std::make_index_sequence<N>>
+void ReleaseFrames(FrameWithCookie<FrameType>(&a)[N])
+{
+    ReleaseFrames(a, Indices{});
+}
+
+template<typename... TRefs>
+auto GCProtect(TRefs&... refs)
+{
+    return [&](auto callback)
+    {
+        FrameWithCookie<GCFrame> gcFrames[sizeof...(TRefs)] = { FrameWithCookie<GCFrame>(reinterpret_cast<OBJECTREF*>(&refs), sizeof(refs) / sizeof(OBJECTREF), FALSE) ... };
+        callback();
+        ReleaseFrames(gcFrames);
+    };
+}
+
+template<typename... TRefs>
+auto GCProtectThread(Thread* pThread, TRefs&... refs)
+{
+    return [&](auto callback)
+    {
+        FrameWithCookie<GCFrame> gcFrames[sizeof...(TRefs)] = { FrameWithCookie<GCFrame>(pThread, reinterpret_cast<OBJECTREF*>(&refs), sizeof(refs) / sizeof(OBJECTREF), FALSE) ... };
+        callback();
+        ReleaseFrames(gcFrames);
+    };
+}
+
+template<typename... TRefs>
+auto GCProtectInterior(TRefs&... refs)
+{
+    return [&](auto callback)
+    {
+        FrameWithCookie<GCFrame> gcFrames[sizeof...(TRefs)] = { FrameWithCookie<GCFrame>(reinterpret_cast<OBJECTREF*>(&refs), sizeof(refs) / sizeof(OBJECTREF), TRUE) ... };
+        callback();
+        ReleaseFrames(gcFrames);
+    };
+}
+
 #else // #ifndef DACCESS_COMPILE
 
 #define GCPROTECT_BEGIN(ObjRefStruct)

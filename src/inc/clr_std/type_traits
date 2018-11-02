@@ -133,6 +133,19 @@ namespace std
     };
 
     //-----------------------------------------------------------------------------------------
+    // TEMPLATE CLASS enable_if
+    template<bool _Test, class _Type = void>
+    struct enable_if
+    {   // type is undefined for assumed !_Test
+    };
+
+    template<class _Type>
+    struct enable_if<true, _Type>
+    {   // type is _Type for _Test
+        typedef _Type type;
+    };
+
+    //-----------------------------------------------------------------------------------------
     // TEMPLATE CLASS integral_constant
     template<class _Ty, _Ty _Val>
     struct integral_constant
@@ -146,6 +159,94 @@ namespace std
     typedef integral_constant<bool, true> true_type;
     typedef integral_constant<bool, false> false_type;
 
+    template<class _Ty,
+        _Ty... _Vals>
+        struct integer_sequence
+    {
+        using value_type = _Ty;
+
+        static constexpr size_t size() noexcept
+        {	// get length of parameter list
+            return (sizeof...(_Vals));
+        }
+    };
+
+#ifndef __has_bulitin
+#define __has_builtin(x) 0
+#endif
+
+#if defined(_MSC_VER) || __has_builtin(__make_integer_seq)
+    // ALIAS TEMPLATE make_integer_sequence
+    template<class _Ty,
+        _Ty _Size>
+        using make_integer_sequence = __make_integer_seq<integer_sequence, _Ty, _Size>;
+#else
+    namespace detail
+    {
+        template<typename T, T... values>
+        struct template_value_list
+        {
+            template <typename U>
+            struct append;
+
+            template<T... rhs>
+            struct append<template_value_list<T, rhs...>>
+            {
+                using type = template_value_list<T, values..., rhs...>;
+            };
+
+            template<typename U>
+            using append_t = typename append<U>::type;
+
+            template<T toAdd>
+            using add_to_all_t = template_value_list<T, (toAdd + values)...>;
+
+            using as_integer_sequence = std::integer_sequence<T, values...>;
+        };
+
+        template<typename T, T UpTo, typename Enable = void>
+        struct builder;
+
+        template<typename T, T UpTo>
+        struct builder<T, UpTo, typename std::enable_if<UpTo == 0>::type>
+        {
+            using list = template_value_list<T, 0>;
+            using type = std::integer_sequence<T, 0>;
+        };
+
+        template<typename T, T UpTo>
+        struct builder<T, UpTo, typename std::enable_if<UpTo == 1>::type>
+        {
+            using list = template_value_list<T, 1>;
+            using type = std::integer_sequence<T, 1>;
+        };
+
+        template<typename T, T UpTo>
+        struct builder<T, UpTo, typename std::enable_if<(UpTo > 1)>::type>
+        {
+            using lhs = typename builder<T, UpTo / 2>::list;
+
+            using rhsPreScale = typename builder<T, UpTo - (UpTo / 2)>::list;
+
+            using rhs = typename rhsPreScale::template add_to_all_t<(UpTo / 2)>;
+
+            using list = typename lhs::template append_t<rhs>;
+        };
+    }
+
+    template<typename T, T Value>
+    using make_integer_sequence = typename detail::builder<T, Value>::list::template add_to_all_t<(-1)>::as_integer_sequence;
+#endif
+
+    template<size_t... _Vals>
+    using index_sequence = integer_sequence<size_t, _Vals...>;
+
+    template<size_t _Size>
+    using make_index_sequence = make_integer_sequence<size_t, _Size>;
+
+    template<class... _Types>
+    using index_sequence_for = make_index_sequence<sizeof...(_Types)>;
+
     // TEMPLATE CLASS _Cat_base
     template<bool>
     struct _Cat_base
@@ -157,19 +258,6 @@ namespace std
     struct _Cat_base<true>
         : true_type
     {    // base class for type predicates
-    };
-
-    //-----------------------------------------------------------------------------------------
-    // TEMPLATE CLASS enable_if
-    template<bool _Test, class _Type = void>
-    struct enable_if
-    {   // type is undefined for assumed !_Test
-    };
-
-    template<class _Type>
-    struct enable_if<true, _Type>
-    {   // type is _Type for _Test
-        typedef _Type type;
     };
 
     //-----------------------------------------------------------------------------------------

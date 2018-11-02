@@ -4,7 +4,7 @@ SET (CLR_C_FLAGS_CHECKED_INIT          "/O1 /Zi")
 SET (CMAKE_C_FLAGS_RELEASE_INIT        "/Ox /Zi")
 SET (CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "/O2 /Zi")
 
-SET (CMAKE_CXX_FLAGS_INIT                "/Wall /FC /Zc:strictStrings")
+SET (CMAKE_CXX_FLAGS_INIT                "/Wall /FC /Zc:strictStrings /std:c++17")
 SET (CMAKE_CXX_FLAGS_DEBUG_INIT          "/Od /Zi")
 SET (CLR_CXX_FLAGS_CHECKED_INIT          "/O1 /Zi")
 SET (CMAKE_CXX_FLAGS_RELEASE_INIT        "/Ox /Zi")

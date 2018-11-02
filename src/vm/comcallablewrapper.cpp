@@ -879,35 +879,37 @@ HRESULT WeakReferenceImpl::ResolveInternal(Thread *pThread, REFIID riid, IInspec
         GCX_COOP_THREAD_EXISTS(pThread);
         
         OBJECTREF refTarget = NULL;
-        GCPROTECT_BEGIN_THREAD(pThread, refTarget);
-        refTarget = ObjectFromHandle(m_ppObject);
-        if (refTarget != NULL)
+        GCProtectThread(pThread, refTarget)(
+            [&]()
         {
-            //
-            // Retrieve the wrapper
-            //
-            // NOTE: Even though the object is alive, the old CCW (where you create the weakreference)
-            // could be gone if :
-            // 1. the object is domain-agile (for example, string), and 
-            // 2. the domain A where the object used to live is unloaded, and
-            // 3. the domain B where we create WeakReferenceImpl is a in a different domain
-            //
-            // In the above case, the object is alive, and the CCW in domain A is neutered,
-            // and InlineGetWrapper creates a new CCW
-            // This means, you might get a different IUnknown* identity with Resolve in this case,
-            // but this has always been the case since whidbey. If we were to fix the identity
-            // problem, we need to make sure:
-            // 1. We hand out different CCW for each domain (instead of having "agile" CCWs), and
-            // 2. per-Domain SyncBlockInfo on SyncBlock
-            //
-            CCWHolder pWrap = ComCallWrapper::InlineGetWrapper(&refTarget); 
-            
-            //
-            // Retrieve the pUnk pointer and AddRef
-            //
-            pUnk = pWrap->GetBasicIP();
-        }
-        GCPROTECT_END();
+            refTarget = ObjectFromHandle(m_ppObject);
+            if (refTarget != NULL)
+            {
+                //
+                // Retrieve the wrapper
+                //
+                // NOTE: Even though the object is alive, the old CCW (where you create the weakreference)
+                // could be gone if :
+                // 1. the object is domain-agile (for example, string), and 
+                // 2. the domain A where the object used to live is unloaded, and
+                // 3. the domain B where we create WeakReferenceImpl is a in a different domain
+                //
+                // In the above case, the object is alive, and the CCW in domain A is neutered,
+                // and InlineGetWrapper creates a new CCW
+                // This means, you might get a different IUnknown* identity with Resolve in this case,
+                // but this has always been the case since whidbey. If we were to fix the identity
+                // problem, we need to make sure:
+                // 1. We hand out different CCW for each domain (instead of having "agile" CCWs), and
+                // 2. per-Domain SyncBlockInfo on SyncBlock
+                //
+                CCWHolder pWrap = ComCallWrapper::InlineGetWrapper(&refTarget);
+
+                //
+                // Retrieve the pUnk pointer and AddRef
+                //
+                pUnk = pWrap->GetBasicIP();
+            }
+        });
     }
     
     if (pUnk != NULL)

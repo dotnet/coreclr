@@ -6,6 +6,8 @@
 #ifndef _DEBUGRETURN_H_
 #define _DEBUGRETURN_H_
 
+#define _ALLOW_KEYWORD_MACROS
+
 // Note that with OACR Prefast is run over checked (_DEBUG is defined) sources
 // so we have to first check the _PREFAST_ define followed by the _DEBUG define
 //
