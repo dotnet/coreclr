@@ -2,6 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+// GitHub 20625: bug with LowerFastTailCall on platforms where fast tail call is supported.
+// Lower fast tail call can replace local variables (holding Caller stack arguments) with new temps
+// in order to set up Callee stack arguments correctly.
+// This involves patching corresponding LCL_VAR and LCL_VAR_ADDR nodes and replacing them with the location
+// of a new temp. This was not done for control expression which continued pointing to the old location
+// and could contain a Callee argument.
+// In this example, in Der1:M during tail call Caller arg6 points to the same location as Callee arg6
+// (which is null) and causes NullReferenceException.
+
 .assembly extern System.Runtime
 {
 }
