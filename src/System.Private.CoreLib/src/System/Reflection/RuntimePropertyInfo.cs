@@ -122,12 +122,7 @@ namespace System.Reflection
         #region Object Overrides
         public override string ToString()
         {
-            return FormatNameAndSig(false);
-        }
-
-        private string FormatNameAndSig(bool serialization)
-        {
-            StringBuilder sbName = new StringBuilder(PropertyType.FormatTypeName(serialization));
+            StringBuilder sbName = new StringBuilder(PropertyType.FormatTypeName());
 
             sbName.Append(" ");
             sbName.Append(Name);
@@ -136,7 +131,7 @@ namespace System.Reflection
             if (arguments.Length > 0)
             {
                 sbName.Append(" [");
-                sbName.Append(MethodBase.ConstructParameters(arguments, Signature.CallingConvention, serialization));
+                sbName.Append(MethodBase.ConstructParameters(arguments, Signature.CallingConvention));
                 sbName.Append("]");
             }
 

@@ -124,20 +124,17 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal override string FormatNameAndSig(bool serialization)
+        internal override string FormatNameAndSig()
         {
-            // Serialization uses ToString to resolve MethodInfo overloads.
             StringBuilder sbName = new StringBuilder(Name);
 
-            // serialization == true: use unambiguous (except for assembly name) type names to distinguish between overloads.
-            // serialization == false: use basic format to maintain backward compatibility of MethodInfo.ToString().
-            TypeNameFormatFlags format = serialization ? TypeNameFormatFlags.FormatSerialization : TypeNameFormatFlags.FormatBasic;
+            TypeNameFormatFlags format = TypeNameFormatFlags.FormatBasic;
 
             if (IsGenericMethod)
                 sbName.Append(RuntimeMethodHandle.ConstructInstantiation(this, format));
 
             sbName.Append("(");
-            sbName.Append(ConstructParameters(GetParameterTypes(), CallingConvention, serialization));
+            sbName.Append(ConstructParameters(GetParameterTypes(), CallingConvention));
             sbName.Append(")");
 
             return sbName.ToString();
