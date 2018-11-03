@@ -380,8 +380,11 @@ Initialize(
 
             // In sandbox, all IPC files (locks, pipes) should be written to the application group
             // container. There will be no write permissions to TEMP_DIRECTORY_PATH
-
-            GetApplicationContainerFolder(*gSharedFilesPath, gApplicationGroupId, gApplicationGroupIdLength);
+            if (!GetApplicationContainerFolder(*gSharedFilesPath, gApplicationGroupId, gApplicationGroupIdLength))
+            {
+                SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+                goto done;
+            }
 
             // Verify the size of the path won't exceed maximum allowed size
             if (gSharedFilesPath->GetCount() + SHARED_MEMORY_MAX_FILE_PATH_CHAR_COUNT + 1 /* null terminator */ > MAX_LONGPATH)
@@ -436,7 +439,11 @@ Initialize(
             // we use large numbers of threads or have many open files.
         }
 
-        SharedMemoryManager::StaticInitialize();
+        if (!SharedMemoryManager::StaticInitialize())
+        {
+            ERROR("Shared memory static initialization failed!\n");
+            goto CLEANUP0;
+        }
 
         /* initialize the shared memory infrastructure */
         if (!SHMInitialize())

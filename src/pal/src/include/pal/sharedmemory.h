@@ -252,7 +252,7 @@ private:
 #endif // _DEBUG
 
 public:
-    static void StaticInitialize();
+    static bool StaticInitialize();
     static void StaticClose();
 
 public:

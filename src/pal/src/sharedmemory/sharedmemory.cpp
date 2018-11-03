@@ -1042,17 +1042,28 @@ SIZE_T SharedMemoryManager::s_creationDeletionProcessLockOwnerThreadId = SharedM
 SIZE_T SharedMemoryManager::s_creationDeletionFileLockOwnerThreadId = SharedMemoryHelpers::InvalidThreadId;
 #endif // _DEBUG
 
-void SharedMemoryManager::StaticInitialize()
+bool SharedMemoryManager::StaticInitialize()
 {
     InitializeCriticalSection(&s_creationDeletionProcessLock);
 
     s_runtimeTempDirectoryPath = InternalNew<PathCharString>();
     s_sharedMemoryDirectoryPath = InternalNew<PathCharString>();
 
-    SharedMemoryHelpers::VerifyStringOperation(s_runtimeTempDirectoryPath && s_sharedMemoryDirectoryPath);
+    if (s_runtimeTempDirectoryPath && s_sharedMemoryDirectoryPath)
+    {
+        try
+        {
+            SharedMemoryHelpers::CopyPath(*s_runtimeTempDirectoryPath, SHARED_MEMORY_RUNTIME_TEMP_DIRECTORY_NAME);
+            SharedMemoryHelpers::CopyPath(*s_sharedMemoryDirectoryPath, SHARED_MEMORY_SHARED_MEMORY_DIRECTORY_NAME);
 
-    SharedMemoryHelpers::CopyPath(*s_runtimeTempDirectoryPath, SHARED_MEMORY_RUNTIME_TEMP_DIRECTORY_NAME);
-    SharedMemoryHelpers::CopyPath(*s_sharedMemoryDirectoryPath, SHARED_MEMORY_SHARED_MEMORY_DIRECTORY_NAME);
+            return true;
+        }
+        catch (SharedMemoryException)
+        {
+            // Ignore and let function fail
+        }
+    }
+    return false;
 }
 
 void SharedMemoryManager::StaticClose()
