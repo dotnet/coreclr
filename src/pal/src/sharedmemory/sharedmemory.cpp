@@ -411,11 +411,13 @@ bool SharedMemoryHelpers::AppendUInt32String(
     return destination.Append(int32String, valueCharCount);
 }
 
-bool SharedMemoryManager::CopySharedMemoryBasePath(PathCharString& destination)
+void SharedMemoryHelpers::VerifyStringOperation(bool success)
 {
-    return destination.Set(*s_sharedMemoryDirectoryPath);
+    if (!success)
+    {
+        throw SharedMemoryException(static_cast<DWORD>(SharedMemoryError::OutOfMemory));
+    }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // SharedMemoryId
@@ -649,8 +651,8 @@ SharedMemoryProcessDataHeader *SharedMemoryProcessDataHeader::CreateOrOpen(
     // Create the session directory
     PathCharString filePath;
     SharedMemoryManager::CopySharedMemoryBasePath(filePath);
-    VerifyStringOperation(filePath.Append('/'));
-    VerifyStringOperation(id.AppendSessionDirectoryName(filePath));
+    SharedMemoryHelpers::VerifyStringOperation(filePath.Append('/'));
+    SharedMemoryHelpers::VerifyStringOperation(id.AppendSessionDirectoryName(filePath));
     if (!SharedMemoryHelpers::EnsureDirectoryExists(filePath, true /* isGlobalLockAcquired */, createIfNotExist))
     {
         _ASSERTE(!createIfNotExist);
@@ -660,8 +662,8 @@ SharedMemoryProcessDataHeader *SharedMemoryProcessDataHeader::CreateOrOpen(
     autoCleanup.m_sessionDirectoryPathCharCount = filePath.GetCount();
 
     // Create or open the shared memory file
-    VerifyStringOperation(filePath.Append('/'));
-    VerifyStringOperation(filePath.Append(id.GetName(), id.GetNameCharCount()));
+    SharedMemoryHelpers::VerifyStringOperation(filePath.Append('/'));
+    SharedMemoryHelpers::VerifyStringOperation(filePath.Append(id.GetName(), id.GetNameCharCount()));
 
     bool createdFile;
     int fileDescriptor = SharedMemoryHelpers::CreateOrOpenFile(filePath, createIfNotExist, &createdFile);
@@ -948,13 +950,13 @@ void SharedMemoryProcessDataHeader::Close()
     {
         // Delete the shared memory file, and the session directory if it's not empty
         PathCharString path;
-        VerifyStringOperation(SharedMemoryManager::CopySharedMemoryBasePath(path));
-        VerifyStringOperation(path.Append('/'));
-        VerifyStringOperation(m_id.AppendSessionDirectoryName(path));
-        VerifyStringOperation(path.Append('/'));
+        SharedMemoryHelpers::VerifyStringOperation(SharedMemoryManager::CopySharedMemoryBasePath(path));
+        SharedMemoryHelpers::VerifyStringOperation(path.Append('/'));
+        SharedMemoryHelpers::VerifyStringOperation(m_id.AppendSessionDirectoryName(path));
+        SharedMemoryHelpers::VerifyStringOperation(path.Append('/'));
 
         SIZE_T sessionDirectoryPathCharCount = path.GetCount();
-        VerifyStringOperation(path.Append(m_id.GetName(), m_id.GetNameCharCount()));
+        SharedMemoryHelpers::VerifyStringOperation(path.Append(m_id.GetName(), m_id.GetNameCharCount()));
         unlink(path);
         path.CloseBuffer(sessionDirectoryPathCharCount);
         rmdir(path);
@@ -1047,7 +1049,7 @@ void SharedMemoryManager::StaticInitialize()
     s_runtimeTempDirectoryPath = InternalNew<PathCharString>();
     s_sharedMemoryDirectoryPath = InternalNew<PathCharString>();
 
-    VerifyStringOperation(s_runtimeTempDirectoryPath && s_sharedMemoryDirectoryPath);
+    SharedMemoryHelpers::VerifyStringOperation(s_runtimeTempDirectoryPath && s_sharedMemoryDirectoryPath);
 
     SharedMemoryHelpers::CopyPath(*s_runtimeTempDirectoryPath, SHARED_MEMORY_RUNTIME_TEMP_DIRECTORY_NAME);
     SharedMemoryHelpers::CopyPath(*s_sharedMemoryDirectoryPath, SHARED_MEMORY_SHARED_MEMORY_DIRECTORY_NAME);
@@ -1204,4 +1206,9 @@ SharedMemoryProcessDataHeader *SharedMemoryManager::FindProcessDataHeader(Shared
         }
     }
     return nullptr;
+}
+
+bool SharedMemoryManager::CopySharedMemoryBasePath(PathCharString& destination)
+{
+    return destination.Set(*s_sharedMemoryDirectoryPath);
 }

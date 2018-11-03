@@ -1188,8 +1188,8 @@ SharedMemoryProcessDataHeader *NamedMutexProcessData::CreateOrOpen(
 
         // Create the session directory
         SharedMemoryId *id = processDataHeader->GetId();
-        VerifyStringOperation(lockFilePath.Append('/'));
-        VerifyStringOperation(id->AppendSessionDirectoryName(lockFilePath));
+        SharedMemoryHelpers::VerifyStringOperation(lockFilePath.Append('/'));
+        SharedMemoryHelpers::VerifyStringOperation(id->AppendSessionDirectoryName(lockFilePath));
         if (created)
         {
             SharedMemoryHelpers::EnsureDirectoryExists(lockFilePath, true /* isGlobalLockAcquired */);
@@ -1198,8 +1198,8 @@ SharedMemoryProcessDataHeader *NamedMutexProcessData::CreateOrOpen(
         }
 
         // Create or open the lock file
-        VerifyStringOperation(lockFilePath.Append('/'));
-        VerifyStringOperation(lockFilePath.Append(id->GetName(), id->GetNameCharCount()));
+        SharedMemoryHelpers::VerifyStringOperation(lockFilePath.Append('/'));
+        SharedMemoryHelpers::VerifyStringOperation(lockFilePath.Append(id->GetName(), id->GetNameCharCount()));
         int lockFileDescriptor = SharedMemoryHelpers::CreateOrOpenFile(lockFilePath, created);
         if (lockFileDescriptor == -1)
         {
@@ -1320,11 +1320,11 @@ void NamedMutexProcessData::Close(bool isAbruptShutdown, bool releaseSharedData)
         PathCharString path;
         SharedMemoryHelpers::CopyPath(path, SHARED_MEMORY_LOCK_FILES_DIRECTORY_NAME);
         SharedMemoryId *id = m_processDataHeader->GetId();
-        VerifyStringOperation(path.Append('/'));
-        VerifyStringOperation(id->AppendSessionDirectoryName(path));
-        VerifyStringOperation(path.Append('/'));
+        SharedMemoryHelpers::VerifyStringOperation(path.Append('/'));
+        SharedMemoryHelpers::VerifyStringOperation(id->AppendSessionDirectoryName(path));
+        SharedMemoryHelpers::VerifyStringOperation(path.Append('/'));
         SIZE_T sessionDirectoryPathCharCount = path.GetCount();
-        VerifyStringOperation(path.Append(id->GetName(), id->GetNameCharCount()));
+        SharedMemoryHelpers::VerifyStringOperation(path.Append(id->GetName(), id->GetNameCharCount()));
         unlink(path);
         path.CloseBuffer(sessionDirectoryPathCharCount);
         rmdir(path);

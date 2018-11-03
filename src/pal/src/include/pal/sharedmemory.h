@@ -15,9 +15,6 @@
 #define _countof(a) (sizeof(a) / sizeof(a[0]))
 #endif // !_countof
 
-#define VerifyStringOperation(success) \
-    ((success) ? 0 : throw SharedMemoryException(static_cast<DWORD>(SharedMemoryError::OutOfMemory)))
-
 // The folder is used for storing shared memory files and their lock files is defined in 
 // the gSharedFilesPath global variable. The value of the variable depends on which 
 // OS is being used, and if the application is running in a sandbox in Mac.
@@ -128,6 +125,8 @@ public:
 
     static bool TryAcquireFileLock(int fileDescriptor, int operation);
     static void ReleaseFileLock(int fileDescriptor);
+
+    static void VerifyStringOperation(bool success);
 };
 
 class SharedMemoryId
