@@ -1640,13 +1640,7 @@ namespace System
 
             internal object[] GetEmptyArray()
             {
-                if (_emptyArray == null)
-                {
-                    MethodInfo method = typeof(Array).GetMethod(nameof(Array.Empty));
-                    MethodInfo genericMethod = method.MakeGenericMethod(m_runtimeType);
-                    _emptyArray = (object[])genericMethod.Invoke(null, null);
-                }
-                return _emptyArray;
+                return _emptyArray ?? (_emptyArray = Attribute.CreateAttributeArrayHelper(m_runtimeType, 0));
             }
             #endregion
 
