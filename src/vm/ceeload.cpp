@@ -10280,11 +10280,26 @@ Module *Module::GetModuleFromIndex(DWORD ix)
     if (HasNativeOrReadyToRunImage())
     {
         RETURN ZapSig::DecodeModuleFromIndex(this, ix);
+        // // CORCOMPILE_IMPORT_TABLE_ENTRY *p;
+        // // if (IsReadyToRun())
+        // // {
+        // //     //PRECONDITION(GetNativeImage()->CheckReadyToRunImportFromIndex(ix));
+        // //     p = GetNativeOrReadyToRunImage()->GetReadyToRunImportFromIndex(ix);
+        // // }
+        // // else 
+        // // {
+        // //     PRECONDITION(GetNativeImage()->CheckNativeImportFromIndex(ix));
+        // //     p = GetNativeImage()->GetNativeImportFromIndex(ix);
+        // // }
+
+        // // RETURN ZapSig::DecodeModuleFromIndexes(this, p->wAssemblyRid, p->wModuleRid);
         // CORCOMPILE_IMPORT_TABLE_ENTRY *p;
         // if (IsReadyToRun())
         // {
         //     //PRECONDITION(GetNativeImage()->CheckReadyToRunImportFromIndex(ix));
-        //     p = GetNativeOrReadyToRunImage()->GetReadyToRunImportFromIndex(ix);
+        //     //GetReadyToRunInfo()->GetReadyToRunImportFromIndex(ix);
+        //     RETURN ZapSig::DecodeModuleFromIndexes(this, ix, 0);
+
         // }
         // else 
         // {
