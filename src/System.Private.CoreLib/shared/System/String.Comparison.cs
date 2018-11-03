@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 using Internal.Runtime.CompilerServices;
 
@@ -814,51 +815,35 @@ namespace System
 
                 while (length > 2)
                 {
+                    // Where length is 4n-1 (e.g. 3,7,11,15,19) this additionally consumes the null terminator
                     uint value1 = ptr[0];
                     uint value2 = ptr[1];
 
-                    if (((value1 | value2) & 0xff80ff80) != 0)
+                    if (!Utf16Utility.AllCharsInUInt32AreAscii(value1 | value2))
                     {
                         // Non-ascii detected, fallback to non-ascii aware casing
                         return GetRemainingIgnoreCaseHashCode((char*)ptr, length, hash1, hash2);
                     }
 
                     length -= 4;
-                    // Where length is 4n-1 (e.g. 3,7,11,15,19) this additionally consumes the null terminator
 
-                    // Branchless double char (uint) ascii lowercase 
-                    uint upper = value1 + 0x_0025_0025u; // Ignore chars > 'Z'
-                    uint lower = upper + 0x_001a_001au;  // Ignore chars < 'A'
-                    // Keep high bit for range, and shift into case bit, xor to flip case
-                    value1 ^= (~(value1 | upper) & lower & 0x0080_0080u) >> 2;
+                    hash1 = NonRandomizedHashCodeCombine(hash1, Utf16Utility.ConvertAllAsciiCharsInUInt32ToLowercase(value1));
+                    hash2 = NonRandomizedHashCodeCombine(hash2, Utf16Utility.ConvertAllAsciiCharsInUInt32ToLowercase(value2));
 
-                    upper = value2 + 0x_0025_0025u; // repeat for next uint
-                    lower = upper + 0x_001a_001au;
-                    value2 ^= (~(value2 | upper) & lower & 0x0080_0080u) >> 2;
-
-                    hash1 = NonRandomizedHashCodeCombine(hash1, value1);
-                    hash2 = NonRandomizedHashCodeCombine(hash2, value2);
                     ptr += 2;
                 }
 
                 if (length > 0)
                 {
+                    // Where length is 4n-3 (e.g. 1,5,9,13,17) this additionally consumes the null terminator
                     uint value = ptr[0];
-                    if ((value & 0xff80ff80) != 0)
+                    if (!Utf16Utility.AllCharsInUInt32AreAscii(value))
                     {
                         // Non-ascii detected, fallback to non-ascii aware casing
                         return GetRemainingIgnoreCaseHashCode((char*)ptr, length, hash1, hash2);
                     }
 
-                    // Where length is 4n-3 (e.g. 1,5,9,13,17) this additionally consumes the null terminator
-
-                    // Branchless double char (uint) ascii lowercase 
-                    uint upper = value + 0x_0025_0025u; // Ignore chars > 'Z'
-                    uint lower = upper + 0x_001a_001au; // Ignore chars < 'A'
-                    // Keep high bit for range, and shift into case bit, xor to flip case
-                    value ^= (~(value | upper) & lower & 0x0080_0080u) >> 2;
-
-                    hash2 = NonRandomizedHashCodeCombine(hash2, value);
+                    hash2 = NonRandomizedHashCodeCombine(hash2, Utf16Utility.ConvertAllAsciiCharsInUInt32ToLowercase(value));
                 }
 
                 return NonRandomizedHashCodeFinalize(hash1, hash2);
