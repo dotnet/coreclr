@@ -650,7 +650,7 @@ SharedMemoryProcessDataHeader *SharedMemoryProcessDataHeader::CreateOrOpen(
     autoCleanup.m_acquiredCreationDeletionFileLock = true;
 
     // Create the session directory
-    SharedMemoryManager::CopySharedMemoryBasePath(filePath);
+    SharedMemoryHelpers::VerifyStringOperation(SharedMemoryManager::CopySharedMemoryBasePath(filePath));
     SharedMemoryHelpers::VerifyStringOperation(filePath.Append('/'));
     SharedMemoryHelpers::VerifyStringOperation(id.AppendSessionDirectoryName(filePath));
     if (!SharedMemoryHelpers::EnsureDirectoryExists(filePath, true /* isGlobalLockAcquired */, createIfNotExist))

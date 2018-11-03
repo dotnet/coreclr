@@ -637,7 +637,9 @@ function_name() to call the system's implementation
 
 #define PROCESS_PIPE_NAME_PREFIX ".dotnet-pal-processpipe"
 
+#ifdef __APPLE__
 #define APPLICATION_CONTAINER_BASE_PATH_SUFFIX "/Library/Group Containers/"
+#endif // __APPLE__
 
 // Not much to go with, but Max semaphore length on Mac is 31 characters. In a sandbox, the semaphore name
 // must be prefixed with an application group ID. This will be 10 characters for developer ID and extra 2 
