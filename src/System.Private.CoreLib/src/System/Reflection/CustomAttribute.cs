@@ -1859,7 +1859,7 @@ namespace System.Reflection
                 return elementType.GetEmptyArray();
             }
 
-            return (object[])Array.UnsafeCreateInstance(elementType, elementCount);
+            return (object[])Array.CreateInstance(elementType, elementCount);
         }
         #endregion
     }
