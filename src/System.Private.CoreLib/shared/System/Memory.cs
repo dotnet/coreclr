@@ -105,6 +105,7 @@ namespace System
             if (default(T) == null && array.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
 #if BIT64
+            // See comment in Span<T>.Slice for how this works.
             if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)array.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 #else
@@ -256,6 +257,7 @@ namespace System
             int capturedLength = _length;
             int actualLength = capturedLength & RemoveFlagsBitMask;
 #if BIT64
+            // See comment in Span<T>.Slice for how this works.
             if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)actualLength)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 #else

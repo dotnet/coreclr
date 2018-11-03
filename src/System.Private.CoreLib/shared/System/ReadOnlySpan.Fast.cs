@@ -76,6 +76,7 @@ namespace System
                 return; // returns default
             }
 #if BIT64
+            // See comment in Span<T>.Slice for how this works.
             if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)array.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 #else
@@ -265,6 +266,7 @@ namespace System
         public ReadOnlySpan<T> Slice(int start, int length)
         {
 #if BIT64
+            // See comment in Span<T>.Slice for how this works.
             if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)_length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 #else
