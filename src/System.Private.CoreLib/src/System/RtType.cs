@@ -1462,6 +1462,7 @@ namespace System
             private static object s_methodInstantiationsLock;
             private string m_defaultMemberName;
             private object m_genericCache; // Generic cache for rare scenario specific data. It is used to cache Enum names and values.
+            private object[] _emptyArray; // Object array cache for Attribute.GetCustomAttributes() pathological no-result case.
             #endregion
 
             #region Constructor
@@ -1635,6 +1636,17 @@ namespace System
                 }
 
                 return m_defaultMemberName;
+            }
+
+            internal object[] GetEmptyArray()
+            {
+                if (_emptyArray == null)
+                {
+                    MethodInfo method = typeof(Array).GetMethod(nameof(Array.Empty));
+                    MethodInfo genericMethod = method.MakeGenericMethod(m_runtimeType);
+                    _emptyArray = (object[])genericMethod.Invoke(null, null);
+                }
+                return _emptyArray;
             }
             #endregion
 
@@ -3548,6 +3560,11 @@ namespace System
         public override Type GetElementType()
         {
             return RuntimeTypeHandle.GetElementType(this);
+        }
+
+        internal object[] GetEmptyArray()
+        {
+            return Cache.GetEmptyArray();
         }
         #endregion
 

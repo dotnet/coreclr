@@ -1294,6 +1294,11 @@ namespace System.Reflection
                 type = type.BaseType as RuntimeType;
             }
 
+            if (result.Count == 0)
+            {
+                return useObjectArray ? Array.Empty<object>() : caType.GetEmptyArray();
+            }
+
             object[] typedResult = CreateAttributeArrayHelper(arrayType, result.Count);
             Array.Copy(result.ToArray(), 0, typedResult, 0, result.Count);
             return typedResult;
