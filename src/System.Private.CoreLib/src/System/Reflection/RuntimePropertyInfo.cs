@@ -122,17 +122,18 @@ namespace System.Reflection
         #region Object Overrides
         public override string ToString()
         {
-            StringBuilder sbName = new StringBuilder(PropertyType.FormatTypeName());
+            var sbName = new ValueStringBuilder(MethodBase.MethodNameBufferSize);
 
-            sbName.Append(" ");
+            sbName.Append(PropertyType.FormatTypeName());
+            sbName.Append(' ');
             sbName.Append(Name);
 
             RuntimeType[] arguments = Signature.Arguments;
             if (arguments.Length > 0)
             {
                 sbName.Append(" [");
-                sbName.Append(MethodBase.ConstructParameters(arguments, Signature.CallingConvention));
-                sbName.Append("]");
+                MethodBase.AppendParameters(ref sbName, arguments, Signature.CallingConvention);
+                sbName.Append(']');
             }
 
             return sbName.ToString();

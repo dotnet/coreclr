@@ -4480,8 +4480,6 @@ namespace System
         //  3. Remove the namespace ("System") for all primitive types, which is not language neutral.
         //  4. MethodBase.ToString() use "ByRef" for byref parameters which is different than Type.ToString().
         //  5. ConstructorInfo.ToString() outputs "Void" as the return type. Why Void?
-        // Since it could be a breaking changes to fix these legacy behaviors, we only use the better and more unambiguous format
-        // in serialization (MemberInfoSerializationHolder).
         internal override string FormatTypeName()
         {
             Type elementType = GetRootElementType();

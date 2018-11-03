@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Threading;
@@ -54,9 +53,10 @@ namespace System.Reflection
         #region Internal Methods
         // helper method to construct the string representation of the parameter list
 
-        internal static string ConstructParameters(Type[] parameterTypes, CallingConventions callingConvention)
+        internal const int MethodNameBufferSize = 100;
+
+        internal static void AppendParameters(ref ValueStringBuilder sbParamList, Type[] parameterTypes, CallingConventions callingConvention)
         {
-            StringBuilder sbParamList = new StringBuilder();
             string comma = "";
 
             for (int i = 0; i < parameterTypes.Length; i++)
@@ -88,26 +88,6 @@ namespace System.Reflection
                 sbParamList.Append(comma);
                 sbParamList.Append("...");
             }
-
-            return sbParamList.ToString();
-        }
-
-        internal string FullName
-        {
-            get
-            {
-                return string.Format("{0}.{1}", DeclaringType.FullName, FormatNameAndSig());
-            }
-        }
-        internal virtual string FormatNameAndSig()
-        {
-            StringBuilder sbName = new StringBuilder(Name);
-
-            sbName.Append("(");
-            sbName.Append(ConstructParameters(GetParameterTypes(), CallingConvention));
-            sbName.Append(")");
-
-            return sbName.ToString();
         }
 
         internal virtual Type[] GetParameterTypes()

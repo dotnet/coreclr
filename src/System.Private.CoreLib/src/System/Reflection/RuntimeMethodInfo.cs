@@ -124,22 +124,6 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal override string FormatNameAndSig()
-        {
-            StringBuilder sbName = new StringBuilder(Name);
-
-            TypeNameFormatFlags format = TypeNameFormatFlags.FormatBasic;
-
-            if (IsGenericMethod)
-                sbName.Append(RuntimeMethodHandle.ConstructInstantiation(this, format));
-
-            sbName.Append("(");
-            sbName.Append(ConstructParameters(GetParameterTypes(), CallingConvention));
-            sbName.Append(")");
-
-            return sbName.ToString();
-        }
-
         internal override bool CacheEquals(object o)
         {
             RuntimeMethodInfo m = o as RuntimeMethodInfo;
@@ -194,7 +178,22 @@ namespace System.Reflection
         public override string ToString()
         {
             if (m_toString == null)
-                m_toString = ReturnType.FormatTypeName() + " " + FormatNameAndSig();
+            {
+                var sbName = new ValueStringBuilder(MethodNameBufferSize);
+
+                sbName.Append(ReturnType.FormatTypeName());
+                sbName.Append(' ');
+                sbName.Append(Name);
+
+                if (IsGenericMethod)
+                    sbName.Append(RuntimeMethodHandle.ConstructInstantiation(this, TypeNameFormatFlags.FormatBasic));
+
+                sbName.Append('(');
+                AppendParameters(ref sbName, GetParameterTypes(), CallingConvention);
+                sbName.Append(')');
+
+                m_toString = sbName.ToString();
+            }
 
             return m_toString;
         }
