@@ -1276,7 +1276,7 @@ namespace System.Reflection
                 return attributes;
             }
 
-            List<object> result = new List<object>();
+            RuntimeType.ListBuilder<object> result = new RuntimeType.ListBuilder<object>();
             bool mustBeInheritable = false;
             bool useObjectArray = (caType == null || caType.IsValueType || caType.ContainsGenericParameters);
             Type arrayType = useObjectArray ? typeof(object) : caType;
@@ -1327,7 +1327,7 @@ namespace System.Reflection
                 return attributes;
             }
 
-            List<object> result = new List<object>();
+            RuntimeType.ListBuilder<object> result = new RuntimeType.ListBuilder<object>();
             bool mustBeInheritable = false;
             bool useObjectArray = (caType == null || caType.IsValueType || caType.ContainsGenericParameters);
             Type arrayType = useObjectArray ? typeof(object) : caType;
@@ -1471,7 +1471,7 @@ namespace System.Reflection
                     CustomAttributeRecord caRecord = car[i];
 
                     if (FilterCustomAttributeRecord(caRecord, scope, ref lastAptcaOkAssembly,
-                        decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable, null, null,
+                        decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable, null, default,
                         out attributeType, out ctor, out ctorHasParameters, out isVarArg))
                         return true;
                 }
@@ -1496,12 +1496,12 @@ namespace System.Reflection
         private static unsafe object[] GetCustomAttributes(
             RuntimeModule decoratedModule, int decoratedMetadataToken, int pcaCount, RuntimeType attributeFilterType)
         {
-            return GetCustomAttributes(decoratedModule, decoratedMetadataToken, pcaCount, attributeFilterType, false, null);
+            return GetCustomAttributes(decoratedModule, decoratedMetadataToken, pcaCount, attributeFilterType, false, default);
         }
 
         private static unsafe object[] GetCustomAttributes(
             RuntimeModule decoratedModule, int decoratedMetadataToken, int pcaCount,
-            RuntimeType attributeFilterType, bool mustBeInheritable, IList derivedAttributes)
+            RuntimeType attributeFilterType, bool mustBeInheritable, RuntimeType.ListBuilder<object> derivedAttributes)
         {
             MetadataImport scope = decoratedModule.MetadataImport;
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
@@ -1663,7 +1663,7 @@ namespace System.Reflection
             RuntimeType attributeFilterType,
             bool mustBeInheritable,
             object[] attributes,
-            IList derivedAttributes,
+            RuntimeType.ListBuilder<object> derivedAttributes,
             out RuntimeType attributeType,
             out IRuntimeMethodInfo ctor,
             out bool ctorHasParameters,
@@ -1687,7 +1687,7 @@ namespace System.Reflection
 
             // Ensure if attribute type must be inheritable that it is inhertiable
             // Ensure that to consider a duplicate attribute type AllowMultiple is true
-            if (!AttributeUsageCheck(attributeType, mustBeInheritable, attributes, derivedAttributes))
+            if (!AttributeUsageCheck(attributeType, mustBeInheritable, derivedAttributes))
                 return false;
 
             // Windows Runtime attributes aren't real types - they exist to be read as metadata only, and as such
@@ -1759,7 +1759,7 @@ namespace System.Reflection
 
         #region Private Static Methods
         private static bool AttributeUsageCheck(
-            RuntimeType attributeType, bool mustBeInheritable, object[] attributes, IList derivedAttributes)
+            RuntimeType attributeType, bool mustBeInheritable, RuntimeType.ListBuilder<object> derivedAttributes)
         {
             AttributeUsageAttribute attributeUsageAttribute = null;
 
@@ -1772,8 +1772,7 @@ namespace System.Reflection
             }
 
             // Legacy: AllowMultiple ignored for none inheritable attributes
-
-            if (derivedAttributes == null)
+            if (derivedAttributes.Count == 0)
                 return true;
 
             for (int i = 0; i < derivedAttributes.Count; i++)

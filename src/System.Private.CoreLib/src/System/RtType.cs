@@ -83,7 +83,7 @@ namespace System
         }
 
         // Helper to build lists of MemberInfos. Special cased to avoid allocations for lists of one element.
-        private struct ListBuilder<T> where T : class
+        internal struct ListBuilder<T> where T : class
         {
             private T[] _items;
             private T _item;
