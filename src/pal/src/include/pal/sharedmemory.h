@@ -127,6 +127,10 @@ public:
     static void ReleaseFileLock(int fileDescriptor);
 
     static void VerifyStringOperation(bool success);
+    static void VerifyStringOperation(BOOL success)
+    {
+        VerifyStringOperation(success != FALSE); 
+    }
 };
 
 class SharedMemoryId

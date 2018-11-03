@@ -19,5 +19,4 @@ void SharedMemoryHelpers::BuildSharedFilesPath(
     BuildSharedFilesPath(destination, suffix, SuffixByteCount - 1);
 }
 
-
 #endif // !_PAL_SHARED_MEMORY_INL_

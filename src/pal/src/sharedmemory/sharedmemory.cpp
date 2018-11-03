@@ -408,7 +408,7 @@ bool SharedMemoryHelpers::AppendUInt32String(
     int valueCharCount =
         sprintf_s(int32String, sizeof(int32String), "%u", value);
     _ASSERTE(valueCharCount > 0);
-    return destination.Append(int32String, valueCharCount);
+    return destination.Append(int32String, valueCharCount) != FALSE;
 }
 
 void SharedMemoryHelpers::VerifyStringOperation(bool success)
@@ -506,12 +506,12 @@ bool SharedMemoryId::AppendSessionDirectoryName(PathCharString& path) const
 {
     if (IsSessionScope())
     {
-        return path.Append(SHARED_MEMORY_SESSION_DIRECTORY_NAME_PREFIX)
+        return path.Append(SHARED_MEMORY_SESSION_DIRECTORY_NAME_PREFIX) != FALSE
             && SharedMemoryHelpers::AppendUInt32String(path, GetCurrentSessionId());
     }
     else
     {
-        return path.Append(SHARED_MEMORY_GLOBAL_DIRECTORY_NAME);
+        return path.Append(SHARED_MEMORY_GLOBAL_DIRECTORY_NAME) != FALSE;
     }
 }
 
@@ -1221,5 +1221,5 @@ SharedMemoryProcessDataHeader *SharedMemoryManager::FindProcessDataHeader(Shared
 
 bool SharedMemoryManager::CopySharedMemoryBasePath(PathCharString& destination)
 {
-    return destination.Set(*s_sharedMemoryDirectoryPath);
+    return destination.Set(*s_sharedMemoryDirectoryPath) != FALSE;
 }
