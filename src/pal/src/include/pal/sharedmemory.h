@@ -106,8 +106,8 @@ public:
 
     static void *Alloc(SIZE_T byteCount);
 
-    template<SIZE_T SuffixByteCount> static void CopyPath(PathCharString& destination, const char (&suffix)[SuffixByteCount]);
-    static void CopyPath(PathCharString& destination, const char *suffix, int suffixByteCount);
+    template<SIZE_T SuffixByteCount> static void BuildSharedFilesPath(PathCharString& destination, const char (&suffix)[SuffixByteCount]);
+    static void BuildSharedFilesPath(PathCharString& destination, const char *suffix, int suffixByteCount);
     static bool AppendUInt32String(PathCharString& destination, UINT32 value);
 
     static bool EnsureDirectoryExists(const char *path, bool isGlobalLockAcquired, bool createIfNotExist = true, bool isSystemDirectory = false);

@@ -12,11 +12,11 @@
 #include <string.h>
 
 template<SIZE_T SuffixByteCount>
-void SharedMemoryHelpers::CopyPath(
+void SharedMemoryHelpers::BuildSharedFilesPath(
     PathCharString& destination,
     const char (&suffix)[SuffixByteCount])
 {
-    CopyPath(destination, suffix, SuffixByteCount - 1);
+    BuildSharedFilesPath(destination, suffix, SuffixByteCount - 1);
 }
 
 

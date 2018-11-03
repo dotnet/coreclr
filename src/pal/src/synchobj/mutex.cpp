@@ -1183,7 +1183,7 @@ SharedMemoryProcessDataHeader *NamedMutexProcessData::CreateOrOpen(
     {
     #if !NAMED_MUTEX_USE_PTHREAD_MUTEX
         // Create the lock files directory
-        SharedMemoryHelpers::CopyPath(lockFilePath, SHARED_MEMORY_LOCK_FILES_DIRECTORY_NAME);
+        SharedMemoryHelpers::BuildSharedFilesPath(lockFilePath, SHARED_MEMORY_LOCK_FILES_DIRECTORY_NAME);
         if (created)
         {
             SharedMemoryHelpers::EnsureDirectoryExists(lockFilePath, true /* isGlobalLockAcquired */);
@@ -1321,7 +1321,7 @@ void NamedMutexProcessData::Close(bool isAbruptShutdown, bool releaseSharedData)
     {
         // Delete the lock file, and the session directory if it's not empty
         PathCharString path;
-        SharedMemoryHelpers::CopyPath(path, SHARED_MEMORY_LOCK_FILES_DIRECTORY_NAME);
+        SharedMemoryHelpers::BuildSharedFilesPath(path, SHARED_MEMORY_LOCK_FILES_DIRECTORY_NAME);
         SharedMemoryId *id = m_processDataHeader->GetId();
         SharedMemoryHelpers::VerifyStringOperation(path.Append('/'));
         SharedMemoryHelpers::VerifyStringOperation(id->AppendSessionDirectoryName(path));

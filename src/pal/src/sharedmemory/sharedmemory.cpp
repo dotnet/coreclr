@@ -137,7 +137,7 @@ bool SharedMemoryHelpers::EnsureDirectoryExists(
         }
 
         PathCharString tempPath;
-        CopyPath(tempPath, SHARED_MEMORY_UNIQUE_TEMP_NAME_TEMPLATE);
+        BuildSharedFilesPath(tempPath, SHARED_MEMORY_UNIQUE_TEMP_NAME_TEMPLATE);
 
         if (mkdtemp(tempPath.OpenStringBuffer()) == nullptr)
         {
@@ -391,7 +391,7 @@ void SharedMemoryHelpers::ReleaseFileLock(int fileDescriptor)
     } while (flockResult != 0 && errno == EINTR);
 }
 
-void SharedMemoryHelpers::CopyPath(PathCharString& destination, const char *suffix, int suffixCharCount)
+void SharedMemoryHelpers::BuildSharedFilesPath(PathCharString& destination, const char *suffix, int suffixCharCount)
 {
     _ASSERTE(strlen(suffix) == suffixCharCount);
 
@@ -1053,8 +1053,8 @@ bool SharedMemoryManager::StaticInitialize()
     {
         try
         {
-            SharedMemoryHelpers::CopyPath(*s_runtimeTempDirectoryPath, SHARED_MEMORY_RUNTIME_TEMP_DIRECTORY_NAME);
-            SharedMemoryHelpers::CopyPath(*s_sharedMemoryDirectoryPath, SHARED_MEMORY_SHARED_MEMORY_DIRECTORY_NAME);
+            SharedMemoryHelpers::BuildSharedFilesPath(*s_runtimeTempDirectoryPath, SHARED_MEMORY_RUNTIME_TEMP_DIRECTORY_NAME);
+            SharedMemoryHelpers::BuildSharedFilesPath(*s_sharedMemoryDirectoryPath, SHARED_MEMORY_SHARED_MEMORY_DIRECTORY_NAME);
 
             return true;
         }
