@@ -1640,7 +1640,7 @@ namespace System
 
             internal object[] GetEmptyArray()
             {
-                return _emptyArray ?? (_emptyArray = Attribute.CreateAttributeArrayHelper(m_runtimeType, 0));
+                return _emptyArray ?? (_emptyArray = (object[])Array.CreateInstance(m_runtimeType, 0));
             }
             #endregion
 

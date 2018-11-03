@@ -434,7 +434,7 @@ namespace System
                 SR.Format(SR.Format_AttributeUsage, type));
         }
 
-        internal static Attribute[] CreateAttributeArrayHelper(Type elementType, int elementCount)
+        private static Attribute[] CreateAttributeArrayHelper(Type elementType, int elementCount)
         {
             return (Attribute[])Array.UnsafeCreateInstance(elementType, elementCount);
         }
