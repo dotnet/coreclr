@@ -3576,7 +3576,7 @@ namespace System
             ulong[] values = Enum.InternalGetValues(this);
 
             // Create a generic Array
-            Array ret = Array.UnsafeCreateInstance(this, values.Length);
+            Array ret = Array.CreateInstance(this, values.Length);
 
             for (int i = 0; i < values.Length; i++)
             {
@@ -4997,7 +4997,7 @@ namespace System
                     // Allocate the new array of wrappers.
                     Array oldArray = (Array)aArgs[i];
                     int numElems = oldArray.Length;
-                    Object[] newArray = (Object[])Array.UnsafeCreateInstance(wrapperType, numElems);
+                    Object[] newArray = (Object[])Array.CreateInstance(wrapperType, numElems);
 
                     // Retrieve the ConstructorInfo for the wrapper type.
                     ConstructorInfo wrapperCons;
