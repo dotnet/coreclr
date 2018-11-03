@@ -564,12 +564,13 @@ SharedMemoryProcessDataHeader *SharedMemoryProcessDataHeader::CreateOrOpen(
         *createdRef = false;
     }
 
+    PathCharString filePath;
     SharedMemoryId id(name);
 
     struct AutoCleanup
     {
         bool m_acquiredCreationDeletionFileLock;
-        char *m_filePath;
+        PathCharString *m_filePath;
         SIZE_T m_sessionDirectoryPathCharCount;
         bool m_createdFile;
         int m_fileDescriptor;
@@ -618,14 +619,14 @@ SharedMemoryProcessDataHeader *SharedMemoryProcessDataHeader::CreateOrOpen(
             if (m_createdFile)
             {
                 _ASSERTE(m_filePath != nullptr);
-                unlink(m_filePath);
+                unlink(*m_filePath);
             }
 
             if (m_sessionDirectoryPathCharCount != 0)
             {
-                _ASSERTE(m_filePath != nullptr);
-                m_filePath[m_sessionDirectoryPathCharCount] = '\0';
-                rmdir(m_filePath);
+                _ASSERTE(*m_filePath != nullptr);
+                m_filePath->CloseBuffer(m_sessionDirectoryPathCharCount);
+                rmdir(*m_filePath);
             }
 
             if (m_acquiredCreationDeletionFileLock)
@@ -649,7 +650,6 @@ SharedMemoryProcessDataHeader *SharedMemoryProcessDataHeader::CreateOrOpen(
     autoCleanup.m_acquiredCreationDeletionFileLock = true;
 
     // Create the session directory
-    PathCharString filePath;
     SharedMemoryManager::CopySharedMemoryBasePath(filePath);
     SharedMemoryHelpers::VerifyStringOperation(filePath.Append('/'));
     SharedMemoryHelpers::VerifyStringOperation(id.AppendSessionDirectoryName(filePath));
@@ -658,7 +658,7 @@ SharedMemoryProcessDataHeader *SharedMemoryProcessDataHeader::CreateOrOpen(
         _ASSERTE(!createIfNotExist);
         return nullptr;
     }
-    autoCleanup.m_filePath = filePath.OpenStringBuffer();
+    autoCleanup.m_filePath = &filePath;
     autoCleanup.m_sessionDirectoryPathCharCount = filePath.GetCount();
 
     // Create or open the shared memory file

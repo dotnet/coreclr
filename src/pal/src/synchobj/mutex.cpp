@@ -1069,13 +1069,17 @@ SharedMemoryProcessDataHeader *NamedMutexProcessData::CreateOrOpen(
     _ASSERTE(name != nullptr);
     _ASSERTE(createIfNotExist || !acquireLockIfCreated);
 
+#if !NAMED_MUTEX_USE_PTHREAD_MUTEX
+    PathCharString lockFilePath;
+#endif // !NAMED_MUTEX_USE_PTHREAD_MUTEX
+
     struct AutoCleanup
     {
         bool m_acquiredCreationDeletionProcessLock;
         bool m_acquiredCreationDeletionFileLock;
         SharedMemoryProcessDataHeader *m_processDataHeader;
     #if !NAMED_MUTEX_USE_PTHREAD_MUTEX
-        char *m_lockFilePath;
+        PathCharString *m_lockFilePath;
         SIZE_T m_sessionDirectoryPathCharCount;
         bool m_createdLockFile;
         int m_lockFileDescriptor;
@@ -1109,14 +1113,14 @@ SharedMemoryProcessDataHeader *NamedMutexProcessData::CreateOrOpen(
                 if (m_createdLockFile)
                 {
                     _ASSERTE(m_lockFilePath != nullptr);
-                    unlink(m_lockFilePath);
+                    unlink(*m_lockFilePath);
                 }
 
                 if (m_sessionDirectoryPathCharCount != 0)
                 {
                     _ASSERTE(m_lockFilePath != nullptr);
-                    m_lockFilePath[m_sessionDirectoryPathCharCount] = '\0';
-                    rmdir(m_lockFilePath);
+                    m_lockFilePath->CloseBuffer(m_sessionDirectoryPathCharCount);
+                    rmdir(*m_lockFilePath);
                 }
             }
         #endif // !NAMED_MUTEX_USE_PTHREAD_MUTEX
@@ -1179,7 +1183,6 @@ SharedMemoryProcessDataHeader *NamedMutexProcessData::CreateOrOpen(
     {
     #if !NAMED_MUTEX_USE_PTHREAD_MUTEX
         // Create the lock files directory
-        PathCharString lockFilePath;
         SharedMemoryHelpers::CopyPath(lockFilePath, SHARED_MEMORY_LOCK_FILES_DIRECTORY_NAME);
         if (created)
         {
@@ -1193,7 +1196,7 @@ SharedMemoryProcessDataHeader *NamedMutexProcessData::CreateOrOpen(
         if (created)
         {
             SharedMemoryHelpers::EnsureDirectoryExists(lockFilePath, true /* isGlobalLockAcquired */);
-            autoCleanup.m_lockFilePath = lockFilePath.OpenStringBuffer();
+            autoCleanup.m_lockFilePath = &lockFilePath;
             autoCleanup.m_sessionDirectoryPathCharCount = lockFilePath.GetCount();
         }
 
