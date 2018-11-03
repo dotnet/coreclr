@@ -62,7 +62,7 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes(target.GetRuntimeModule(), target.MetadataToken);
 
-            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes((RuntimeType)target, typeof(object) as RuntimeType, out int pcaCount);
+            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes((RuntimeType)target, (RuntimeType)typeof(object), out int pcaCount);
 
             if (pcaCount == 0)
                 return cad;
@@ -83,7 +83,7 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes(target.GetRuntimeModule(), target.MetadataToken);
 
-            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes((RuntimeFieldInfo)target, typeof(object) as RuntimeType, out int pcaCount);
+            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes((RuntimeFieldInfo)target, (RuntimeType)typeof(object), out int pcaCount);
 
             if (pcaCount == 0)
                 return cad;
@@ -104,7 +104,7 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes(target.GetRuntimeModule(), target.MetadataToken);
 
-            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes((RuntimeMethodInfo)target, typeof(object) as RuntimeType, out int pcaCount);
+            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes((RuntimeMethodInfo)target, (RuntimeType)typeof(object), out int pcaCount);
 
             if (pcaCount == 0)
                 return cad;
@@ -156,7 +156,7 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes((RuntimeModule)target.ManifestModule, RuntimeAssembly.GetToken(target.GetNativeHandle()));
 
-            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes(target, typeof(object) as RuntimeType, out int pcaCount);
+            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes(target, (RuntimeType)typeof(object), out int pcaCount);
 
             if (pcaCount == 0)
                 return cad;
@@ -177,7 +177,7 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes(target.GetRuntimeModule(), target.MetadataToken);
 
-            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes(target, typeof(object) as RuntimeType, out int pcaCount);
+            Attribute[] a = PseudoCustomAttribute.GetCustomAttributes(target, (RuntimeType)typeof(object), out int pcaCount);
 
             if (pcaCount == 0)
                 return cad;
@@ -1279,7 +1279,7 @@ namespace System.Reflection
             RuntimeType.ListBuilder<object> result = new RuntimeType.ListBuilder<object>();
             bool mustBeInheritable = false;
             bool useObjectArray = (caType == null || caType.IsValueType || caType.ContainsGenericParameters);
-            RuntimeType arrayType = useObjectArray ? typeof(object) as RuntimeType : caType;
+            RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : caType;
 
             while (pcaCount > 0)
                 result.Add(pca[--pcaCount]);
@@ -1325,7 +1325,7 @@ namespace System.Reflection
             RuntimeType.ListBuilder<object> result = new RuntimeType.ListBuilder<object>();
             bool mustBeInheritable = false;
             bool useObjectArray = (caType == null || caType.IsValueType || caType.ContainsGenericParameters);
-            RuntimeType arrayType = useObjectArray ? typeof(object) as RuntimeType : caType;
+            RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : caType;
 
             while (pcaCount > 0)
                 result.Add(pca[--pcaCount]);
@@ -1499,7 +1499,7 @@ namespace System.Reflection
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
 
             bool useObjectArray = (attributeFilterType == null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters);
-            RuntimeType arrayType = useObjectArray ? typeof(object) as RuntimeType : attributeFilterType;
+            RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : attributeFilterType;
 
             if (attributeFilterType == null && car.Length == 0)
                 return CreateAttributeArrayHelper(arrayType, 0);
