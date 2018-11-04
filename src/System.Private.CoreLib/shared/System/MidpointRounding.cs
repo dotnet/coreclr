@@ -8,8 +8,8 @@ namespace System
     {
         ToEven = 0,
         AwayFromZero = 1,
-        ToPositiveInfinity = 2,
+        ToZero = 2,
         ToNegativeInfinity = 3,
-        ToZero = 4
+        ToPositiveInfinity = 4
     }
 }

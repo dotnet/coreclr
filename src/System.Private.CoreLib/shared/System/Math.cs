@@ -892,7 +892,7 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(digits), SR.ArgumentOutOfRange_RoundingDigits);
             }
 
-            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.ToZero)
+            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.ToPositiveInfinity)
             {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidEnumValue, mode, nameof(MidpointRounding)), nameof(mode));
             }
@@ -903,7 +903,11 @@ namespace System
 
                 value *= power10;
 
-                if (mode == MidpointRounding.AwayFromZero)
+                if (mode is MidpointRounding.ToEven)
+                {
+                    value = Round(value);
+                }
+                else if (mode is MidpointRounding.AwayFromZero)
                 {
                     var fraction = ModF(value, &value);
 
@@ -912,7 +916,7 @@ namespace System
                         value += Sign(fraction);
                     }
                 }
-                else if (mode == MidpointRounding.ToZero)
+                else if (mode is MidpointRounding.ToZero)
                 {
                     var fraction = ModF(value, &value);
 
@@ -921,9 +925,31 @@ namespace System
                         value += Sign(fraction);
                     }
                 }
-                else
+                else if (mode is MidpointRounding.ToNegativeInfinity)
                 {
-                    value = Round(value);
+                    var fraction = ModF(value, &value);
+
+                    if (Abs(fraction) == 0.5) 
+                    {
+                        value = value + fraction + -0.5;
+                    }
+                    else if (Abs(fraction) > 0.5)
+                    {
+                        value += Sign(fraction);
+                    }
+                }      
+                else if (mode is MidpointRounding.ToPositiveInfinity)
+                {
+                    var fraction = ModF(value, &value);
+
+                    if (Abs(fraction) == 0.5)
+                    {
+                        value = value + fraction + 0.5;
+                    }
+                    else if (Abs(fraction) > 0.5)
+                    {
+                        value += Sign(fraction); 
+                    }
                 }
 
                 value /= power10;
