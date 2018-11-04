@@ -1243,11 +1243,8 @@ namespace System.Reflection
 
             while (type != (RuntimeType)typeof(object) && type != null)
             {
-                object[] attributes = GetCustomAttributes(type.GetRuntimeModule(), type.MetadataToken, 0, caType, mustBeInheritable, ref result);
+                AddCustomAttributes(ref result, type.GetRuntimeModule(), type.MetadataToken, caType, mustBeInheritable, ref result);
                 mustBeInheritable = true;
-                for (int i = 0; i < attributes.Length; i++)
-                    result.Add(attributes[i]);
-
                 type = type.BaseType as RuntimeType;
             }
 
@@ -1289,11 +1286,8 @@ namespace System.Reflection
 
             while (method != null)
             {
-                object[] attributes = GetCustomAttributes(method.GetRuntimeModule(), method.MetadataToken, 0, caType, mustBeInheritable, ref result);
+                AddCustomAttributes(ref result, method.GetRuntimeModule(), method.MetadataToken, caType, mustBeInheritable, ref result);
                 mustBeInheritable = true;
-                for (int i = 0; i < attributes.Length; i++)
-                    result.Add(attributes[i]);
-
                 method = method.GetParentDefinition();
             }
 
@@ -1409,16 +1403,12 @@ namespace System.Reflection
                 bool ctorHasParameters, isVarArg;
                 RuntimeType.ListBuilder<object> derivedAttributes = default;
 
-                // Optimization for the case where attributes decorate entities in the same assembly in which case 
-                // we can cache the successful APTCA check between the decorated and the declared assembly.
-                Assembly lastAptcaOkAssembly = null;
-
                 for (int i = 0; i < car.Length; i++)
                 {
                     CustomAttributeRecord caRecord = car[i];
 
-                    if (FilterCustomAttributeRecord(caRecord, scope, ref lastAptcaOkAssembly,
-                        decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable, null, ref derivedAttributes,
+                    if (FilterCustomAttributeRecord(caRecord, scope,
+                        decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable, ref derivedAttributes,
                         out attributeType, out ctor, out ctorHasParameters, out isVarArg))
                         return true;
                 }
@@ -1443,12 +1433,25 @@ namespace System.Reflection
         private static unsafe object[] GetCustomAttributes(
             RuntimeModule decoratedModule, int decoratedMetadataToken, int pcaCount, RuntimeType attributeFilterType)
         {
+            RuntimeType.ListBuilder<object> attributes = new RuntimeType.ListBuilder<object>();
             RuntimeType.ListBuilder<object> _ = default;
-            return GetCustomAttributes(decoratedModule, decoratedMetadataToken, pcaCount, attributeFilterType, false, ref _);
+
+            AddCustomAttributes(ref attributes, decoratedModule, decoratedMetadataToken, attributeFilterType, false, ref _);
+
+            bool useObjectArray = attributeFilterType == null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters;
+            RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : attributeFilterType;
+
+            object[] result = CreateAttributeArrayHelper(arrayType, attributes.Count + pcaCount);
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                result[i] = attributes[i];
+            }
+            return result;
         }
 
-        private static unsafe object[] GetCustomAttributes(
-            RuntimeModule decoratedModule, int decoratedMetadataToken, int pcaCount,
+        private static unsafe void AddCustomAttributes(
+            ref RuntimeType.ListBuilder<object> attributes,
+            RuntimeModule decoratedModule, int decoratedMetadataToken,
             RuntimeType attributeFilterType, bool mustBeInheritable, ref RuntimeType.ListBuilder<object> derivedAttributes)
         {
             MetadataImport scope = decoratedModule.MetadataImport;
@@ -1458,14 +1461,7 @@ namespace System.Reflection
             RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : attributeFilterType;
 
             if (attributeFilterType == null && car.Length == 0)
-                return CreateAttributeArrayHelper(arrayType, 0);
-
-            object[] attributes = CreateAttributeArrayHelper(arrayType, car.Length);
-            int cAttributes = 0;
-
-            // Optimization for the case where attributes decorate entities in the same assembly in which case 
-            // we can cache the successful APTCA check between the decorated and the declared assembly.
-            Assembly lastAptcaOkAssembly = null;
+                return;
 
             for (int i = 0; i < car.Length; i++)
             {
@@ -1481,9 +1477,9 @@ namespace System.Reflection
                 IntPtr blobEnd = (IntPtr)((byte*)blobStart + caRecord.blob.Length);
                 int blobLen = (int)((byte*)blobEnd - (byte*)blobStart);
 
-                if (!FilterCustomAttributeRecord(caRecord, scope, ref lastAptcaOkAssembly,
+                if (!FilterCustomAttributeRecord(caRecord, scope,
                                                  decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable,
-                                                 attributes, ref derivedAttributes,
+                                                 ref derivedAttributes,
                                                  out attributeType, out ctor, out ctorHasParameters, out isVarArg))
                     continue;
 
@@ -1591,26 +1587,17 @@ namespace System.Reflection
                 if (blobStart != blobEnd)
                     throw new CustomAttributeFormatException();
 
-                attributes[cAttributes++] = attribute;
+                attributes.Add(attribute);
             }
-
-            if (cAttributes == car.Length && pcaCount == 0)
-                return attributes;
-
-            object[] result = CreateAttributeArrayHelper(arrayType, cAttributes + pcaCount);
-            Array.Copy(attributes, 0, result, 0, cAttributes);
-            return result;
         }
 
         private static unsafe bool FilterCustomAttributeRecord(
             CustomAttributeRecord caRecord,
             MetadataImport scope,
-            ref Assembly lastAptcaOkAssembly,
             RuntimeModule decoratedModule,
             MetadataToken decoratedToken,
             RuntimeType attributeFilterType,
             bool mustBeInheritable,
-            object[] attributes,
             ref RuntimeType.ListBuilder<object> derivedAttributes,
             out RuntimeType attributeType,
             out IRuntimeMethodInfo ctor,
