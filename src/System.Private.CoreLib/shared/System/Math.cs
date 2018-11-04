@@ -129,7 +129,7 @@ namespace System
             }
 
             // Negative values need to be incremented
-            // Postiive values need to be decremented
+            // Positive values need to be decremented
 
             bits += ((bits < 0) ? +1 : -1);
             return BitConverter.Int64BitsToDouble(bits);
@@ -154,7 +154,7 @@ namespace System
             }
 
             // Negative values need to be decremented
-            // Postiive values need to be incremented
+            // Positive values need to be incremented
 
             bits += ((bits < 0) ? -1 : +1);
             return BitConverter.Int64BitsToDouble(bits);
@@ -162,6 +162,9 @@ namespace System
 
         public static unsafe double CopySign(double x, double y)
         {
+            // This method is required to work for all inputs,
+            // including NaN, so we operate on the raw bits.
+
             var xbits = BitConverter.DoubleToInt64Bits(x);
             var ybits = BitConverter.DoubleToInt64Bits(y);
 
@@ -169,7 +172,7 @@ namespace System
             // flip the sign bit of x and return the new value;
             // otherwise, just return x
 
-            if (((xbits ^ ybits) >> 63) != 0)
+            if ((xbits ^ ybits) < 0)
             {
                 return BitConverter.Int64BitsToDouble(xbits ^ long.MinValue);
             }
