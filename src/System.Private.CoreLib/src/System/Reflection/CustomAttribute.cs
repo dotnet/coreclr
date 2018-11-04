@@ -364,7 +364,7 @@ namespace System.Reflection
                 new CustomAttributeNamedArgument(type.GetField("CallingConvention"), dllImport.CallingConvention),
                 new CustomAttributeNamedArgument(type.GetField("BestFitMapping"), dllImport.BestFitMapping),
                 new CustomAttributeNamedArgument(type.GetField("ThrowOnUnmappableChar"), dllImport.ThrowOnUnmappableChar)
-});
+            });
         }
         private void Init(FieldOffsetAttribute fieldOffset)
         {
@@ -1398,9 +1398,6 @@ namespace System.Reflection
                 Debug.Assert(attributeCtorToken == 0);
 
                 MetadataImport scope = decoratedModule.MetadataImport;
-                RuntimeType attributeType;
-                IRuntimeMethodInfo ctor;
-                bool ctorHasParameters, isVarArg;
                 RuntimeType.ListBuilder<object> derivedAttributes = default;
 
                 for (int i = 0; i < car.Length; i++)
@@ -1409,7 +1406,7 @@ namespace System.Reflection
 
                     if (FilterCustomAttributeRecord(caRecord, scope,
                         decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable, ref derivedAttributes,
-                        out attributeType, out ctor, out ctorHasParameters, out isVarArg))
+                        out _, out _, out _, out _))
                         return true;
                 }
             }
@@ -1456,9 +1453,6 @@ namespace System.Reflection
         {
             MetadataImport scope = decoratedModule.MetadataImport;
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
-
-            bool useObjectArray = (attributeFilterType == null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters);
-            RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : attributeFilterType;
 
             if (attributeFilterType == null && car.Length == 0)
                 return;
@@ -1526,8 +1520,6 @@ namespace System.Reflection
                     bool isProperty;
                     RuntimeType type;
                     object value;
-
-                    IntPtr blobItr = caRecord.blob.Signature;
 
                     GetPropertyOrFieldData(decoratedModule, ref blobStart, blobEnd, out name, out isProperty, out type, out value);
 
@@ -1605,16 +1597,11 @@ namespace System.Reflection
             out bool isVarArg)
         {
             ctor = null;
-            attributeType = null;
             ctorHasParameters = false;
             isVarArg = false;
 
-            IntPtr blobStart = caRecord.blob.Signature;
-            IntPtr blobEnd = (IntPtr)((byte*)blobStart + caRecord.blob.Length);
-
             // Resolve attribute type from ctor parent token found in decorated decoratedModule scope
             attributeType = decoratedModule.ResolveType(scope.GetParentToken(caRecord.tkCtor), null, null) as RuntimeType;
-
 
             // Test attribute type against user provided attribute type filter
             if (!(attributeFilterType.IsAssignableFrom(attributeType)))
