@@ -1855,7 +1855,7 @@ namespace System.Reflection
             if (!all && !s_pca.ContainsKey(caType))
                 return default;
 
-            RuntimeType.ListBuilder<Attribute> pcas = new RuntimeType.ListBuilder<Attribute>(all ? 2 : 1);
+            RuntimeType.ListBuilder<Attribute> pcas = new RuntimeType.ListBuilder<Attribute>(0);
 
             if (all || caType == typeof(SerializableAttribute))
             {
@@ -1899,7 +1899,7 @@ namespace System.Reflection
             if (!all && !s_pca.ContainsKey(caType))
                 return default;
 
-            RuntimeType.ListBuilder<Attribute> pcas = new RuntimeType.ListBuilder<Attribute>(all ? 2 : 1);
+            RuntimeType.ListBuilder<Attribute> pcas = new RuntimeType.ListBuilder<Attribute>(0);
             Attribute pca;
 
             if (all || caType == typeof(DllImportAttribute))
@@ -1944,7 +1944,7 @@ namespace System.Reflection
             if (!all && !s_pca.ContainsKey(caType))
                 return default;
 
-            RuntimeType.ListBuilder<Attribute> pcas = new RuntimeType.ListBuilder<Attribute>(all ? 4 : 1);
+            RuntimeType.ListBuilder<Attribute> pcas = new RuntimeType.ListBuilder<Attribute>(0);
             Attribute pca;
 
             if (all || caType == typeof(InAttribute))
@@ -2010,7 +2010,7 @@ namespace System.Reflection
             if (!all && !s_pca.ContainsKey(caType))
                 return default;
 
-            RuntimeType.ListBuilder<Attribute> pcas = new RuntimeType.ListBuilder<Attribute>(all ? 3 : 1);
+            RuntimeType.ListBuilder<Attribute> pcas = new RuntimeType.ListBuilder<Attribute>(0);
             Attribute pca;
 
             if (all || caType == typeof(MarshalAsAttribute))
