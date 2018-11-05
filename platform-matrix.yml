@@ -52,3 +52,10 @@ jobs:
     archType: arm64
     osGroup: Windows_NT
     ${{ insert }}: ${{ parameters.jobParameters }}
+
+# TODO for official build:
+# RedHat x64
+# Linux crossbuild arm
+# Linux crossbuild arm64
+# Linux musl x64
+

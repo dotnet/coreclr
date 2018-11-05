@@ -14,13 +14,14 @@ variables:
 phases:
 
 ##   The following is the matrix of test runs that we have. This is
-##   duplicated for each os/arch combination. 
+##   duplicated for each os/arch combination in platform-matrix.yml.g
 
 ##
-##   Product build       Test build              Test run (helix)
+##   Product build       Test build              Test run
+##   (Azure DevOps)      (Azure DevOps)          (helix)
 ##
 ##   ###########################################################################################
-####
+##
 ##   Debug
 ##
 ##   Checked ----------> Pri0 -----------------> plain runtests
@@ -35,54 +36,20 @@ phases:
 ##                                     \-------> gcstress
 ##                                     \-------> maybe more (dynamically selected runtest modes)
 ##
-##
-##         (The release Pri1 jobs are the only ones
-##          that run during official builds)
-##
 ##   Release ----------> Pri1 -----------------> plain runtests
-#            |
+##           |
 ##           \---------> Pri1 crossgen --------> plain runtests
 ##
 ##
 
+### Each build or test job is defined in Azure DevOps, and will show
+### up in the UI in the order in which they are defined here. The
+### build and test build job matrix is defined statically, but
+### queue-time inputs can be used to control whether a job executes
+### (used to select which jobs run in ci vs for official builds), or
+### to select test modes. This should eventually be used to enable
+### requesting specific test runs from pull requests.
 
-### Jobs will show up in the build definition on Azure DevOps in the
-### order in which they are defined here. Build jobs come first,
-### followed by test jobs.
-
-
-
-
-###
-### Linux x64
-###
-
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: debug
-####    archType: x64
-####    osGroup: Linux
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x64
-####    osGroup: Linux
-####
-####- template: build-pipeline.yml # official build does this on centos docker
-####  parameters:
-####    buildConfig: release
-####    archType: x64
-####    osGroup: Linux
-
-- phase: build_rhel # TODO for official build
-  condition: False
-- phase: build_alpine # TODO for official build
-  condition: False
-- phase: build_crossbuild_arm # TODO for official build
-  condition: False
-- phase: build_crossbuild_arm64 # TODO for official build
-  condition: False
 
 # Debug build
 - template: platform-matrix.yml
@@ -103,142 +70,7 @@ phases:
     buildConfig: release
 
 
-###
-### macOS x64
-###
-
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: debug
-####    archType: x64
-####    osGroup: OSX
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x64
-####    osGroup: OSX
-####
-####- template: build-pipeline.yml # official build
-####  parameters:
-####    buildConfig: release
-####    archType: x64
-####    osGroup: OSX
-
-###
-### RedHat x64
-###
-
-###
-###  Windows: x64, x86, arm64, arm
-###
-
-# Debug
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: debug
-####    archType: x64
-####    osGroup: Windows_NT
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: debug
-####    archType: x86
-####    osGroup: Windows_NT
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: debug
-####    archType: arm
-####    osGroup: Windows_NT
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: debug
-####    archType: arm64
-####    osGroup: Windows_NT
-
-
-# Checked
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x64
-####    osGroup: Windows_NT
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x86
-####    osGroup: Windows_NT
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: arm
-####    osGroup: Windows_NT
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: arm64
-####    osGroup: Windows_NT
-
-# Release (for official build)
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: x64
-####    osGroup: Windows_NT
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: x86
-####    osGroup: Windows_NT
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: arm
-####    osGroup: Windows_NT
-####
-####- template: build-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: arm64
-####    osGroup: Windows_NT
-
-
-
-# Publish assets to BAR
-
-# This job gathers build assets from the pipeline (from each official
-# product build job), and publishes them to the build assets
-# registry. Its dependencies should be updated to include all of the
-# official builds if we add more platform/arch combinations.
-#- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-#  - template: /eng/common/templates/phases/publish-build-assets.yml@arcade
-- phase: publish_bar
-  displayName: publish to BAR (empty currently)
-  queue:
-    name: Hosted VS2017
-  dependsOn:
-  - build_Linux_x64_release
-  - build_rhel
-  - build_alpine
-  - build_crossbuild_arm
-  - build_crossbuild_arm64
-  - build_OSX_x64_release
-  - build_Windows_NT_x64_release
-  - build_Windows_NT_x86_release
-  - build_Windows_NT_arm_release
-  - build_Windows_NT_arm64_release
-
-# Test jobs
-
-## Checked (ci jobs) Pri0
-
+# Checked Pri0 test build
 - template: platform-matrix.yml
   parameters:
     jobTemplate: test-pipeline.yml
@@ -246,44 +78,8 @@ phases:
     jobParameters:
       testBuild: priority0
 
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x64
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x86
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: arm
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: arm64
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x64
-####    osGroup: OSX
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x64
-####    osGroup: Linux
 
-## Checked Pri1
-# TODO : pass priority
+# Checked Pri1 test build
 - template: platform-matrix.yml
   parameters:
     jobTemplate: test-pipeline.yml
@@ -291,46 +87,9 @@ phases:
     jobParameters:
       testBuild: priority1
 
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x64
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x86
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: arm
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: arm64
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x64
-####    osGroup: OSX
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: checked
-####    archType: x64
-####    osGroup: Linux
+# TODO: Checked Pri1 crossgen test build
 
-## Release (pri1 test run only)
-
-## Release Pri1
-# TODO : pass priority
+# Release Pri1 test build
 - template: platform-matrix.yml
   parameters:
     jobTemplate: test-pipeline.yml
@@ -338,44 +97,37 @@ phases:
     jobParameters:
       testBuild: priority1
 
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: x64
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: x86
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: arm
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: arm64
-####    osGroup: Windows_NT
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: x64
-####    osGroup: OSX
-####
-####- template: test-pipeline.yml
-####  parameters:
-####    buildConfig: release
-####    archType: x64
-####    osGroup: Linux
+# TODO: Release Pri1 crossgen test build
 
-#
+
+# Publish build information to Build Assets Registry
+
+# This job gathers build assets from the pipeline (from each official
+# product build job), and publishes them to the build assets
+# registry. Its dependencies should be updated to include all of the
+# official builds if we add more platform/arch combinations.
+
+# TODO: Enable publish to BAR
+#- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+#  - template: /eng/common/templates/phases/publish-build-assets.yml@arcade
+#- phase: publish_bar
+#  displayName: publish to BAR (empty currently)
+#  queue:
+#    name: Hosted VS2017
+#  dependsOn:
+#  - build_Linux_x64_release
+#  - build_OSX_x64_release
+#  - build_Windows_NT_x64_release
+#  - build_Windows_NT_x86_release
+#  - build_Windows_NT_arm_release
+#  - build_Windows_NT_arm64_release
+  # TODO: enable these builds
+  #  - build_rhel_x64_release
+  #  - build_alpine_x64_release
+  #  - build_crossbuild_arm_release
+  #  - build_crossbuild_arm64_release
+
+# TODO
 #- phase: Windows_NT_x64 Formatting
 #    queue:
 #      name: Hosted VS2017
@@ -411,7 +163,7 @@ phases:
 #  CentOS7.1 x64 Debug Innerloop Build
 #  Linux-musl x64 Debug Build
 #  OSX 10.12 x64 Checked InnerLoop Build and Test
-#  Tizen armel Corss Checked Innerloop Build and Test
+#  Tizen armel Cross Checked Innerloop Build and Test
 #  Ubuntu arm Cross Checked InnerLoop Build and Test
 #  Ubuntu arm64 Cross Debug Innerloop Build
 #  Ubuntu x64 Checked Innerloop Build and Test
