@@ -2,9 +2,13 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX/Windows_NT)
-  testBuild: priority0 ## priority0 or priority1
+  testBuild: priority0 ## priority0/empty, priority0_crossgen/crossgen, priority1, or priority1_crossgen
 
 ### Test job
+
+### Each test job depends on a corresponding build job with the same
+### buildConfig and archType.
+
 jobs:
 - template: xplat-job.yml
   parameters:
@@ -13,11 +17,14 @@ jobs:
     osGroup: ${{ parameters.osGroup }}
     name: ${{ format('testbuild_{0}_{1}_{2}_{3}', parameters.testBuild, parameters.osGroup, parameters.archType, parameters.buildConfig) }}
     displayName: ${{ format('Test {0} {1} {2} {3}', parameters.testBuild, parameters.osGroup, parameters.archType, parameters.buildConfig) }}
-    ${{ if eq(parameters.testBuild, 'priority1') }}:
-      ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-        testBuildArg: 'priority1'
-      ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-        testBuildArg: '-priority=1'
+
+    variables:
+      # Map template parameters to command line arguments
+      ${{ if eq(parameters.testBuild, 'priority1') }}:
+        ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+          testBuildArgs: 'priority1'
+        ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+          testBuildArgs: '-priority=1'
 
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
@@ -52,11 +59,11 @@ jobs:
       
     # Build tests
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-      - script: ./build-test.sh $(buildConfig) $(archType) $(priorityArg)
+      - script: ./build-test.sh $(buildConfig) $(archType) $(testBuildArgs)
         displayName: Build pri-0 tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
         #    - script: build-test.cmd $(buildConfig) $(archType) buildagainstpackages runtimeid win-$(archType) -Priority=0
-      - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg)
+      - script: build-test.cmd $(buildConfig) $(archType) $(testBuildArgs)
         displayName: Build pri-0 tests
 
 
