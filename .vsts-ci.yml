@@ -13,23 +13,14 @@ variables:
 
 phases:
 
-### Jobs will show up in the order in which they are defined here
-### All build jobs come first, then test jobs.
-
-
 ##   The following is the matrix of test runs that we have. This is
-##   duplicated for each os/arch combination. In addition, there is a
-##   job that publishes
+##   duplicated for each os/arch combination. 
 
 ##
 ##   Product build       Test build              Test run (helix)
 ##
 ##   ###########################################################################################
-##
-##   Formatting
-##
-##   IBC Release
-##
+####
 ##   Debug
 ##
 ##   Checked ----------> Pri0 -----------------> plain runtests
@@ -44,40 +35,45 @@ phases:
 ##                                     \-------> gcstress
 ##                                     \-------> maybe more (dynamically selected runtest modes)
 ##
+##
+##         (The release Pri1 jobs are the only ones
+##          that run during official builds)
+##
 ##   Release ----------> Pri1 -----------------> plain runtests
-##           |                \----------------> jitstress
-##           |                \----------------> gcstress
-##           |                \----------------> maybe more (dynamically selected runtest modes)
 #            |
 ##           \---------> Pri1 crossgen --------> plain runtests
-##                                     \-------> jitstress
-##                                     \-------> gcstress
-##                                     \-------> maybe more (dynamically selected runtest modes)
 ##
 ##
+
+
+### Jobs will show up in the build definition on Azure DevOps in the
+### order in which they are defined here. Build jobs come first,
+### followed by test jobs.
+
+
 
 
 ###
 ### Linux x64
 ###
 
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: debug
-    archType: x64
-    osGroup: Linux
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: x64
-    osGroup: Linux
-
-- template: build-pipeline.yml # official build does this on centos docker
-  parameters:
-    buildConfig: release
-    archType: x64
-    osGroup: Linux
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: debug
+####    archType: x64
+####    osGroup: Linux
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x64
+####    osGroup: Linux
+####
+####- template: build-pipeline.yml # official build does this on centos docker
+####  parameters:
+####    buildConfig: release
+####    archType: x64
+####    osGroup: Linux
 
 - phase: build_rhel # TODO for official build
   condition: False
@@ -88,27 +84,43 @@ phases:
 - phase: build_crossbuild_arm64 # TODO for official build
   condition: False
 
+# Debug build
+- template: platform-matrix.yml
+  jobTemplate: build-pipeline.yml
+  buildConfig: debug
+
+# Checked build
+- template: platform-matrix.yml
+  jobTemplate: build-pipeline.yml
+  buildConfig: debug
+
+# Release build
+- template: platform-matrix.yml
+  jobTemplate: build-pipeline.yml
+  buildConfig: debug
+
+
 ###
 ### macOS x64
 ###
 
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: debug
-    archType: x64
-    osGroup: OSX
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: x64
-    osGroup: OSX
-
-- template: build-pipeline.yml # official build
-  parameters:
-    buildConfig: release
-    archType: x64
-    osGroup: OSX
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: debug
+####    archType: x64
+####    osGroup: OSX
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x64
+####    osGroup: OSX
+####
+####- template: build-pipeline.yml # official build
+####  parameters:
+####    buildConfig: release
+####    archType: x64
+####    osGroup: OSX
 
 ###
 ### RedHat x64
@@ -119,79 +131,80 @@ phases:
 ###
 
 # Debug
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: debug
-    archType: x64
-    osGroup: Windows_NT
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: debug
-    archType: x86
-    osGroup: Windows_NT
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: debug
-    archType: arm
-    osGroup: Windows_NT
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: debug
-    archType: arm64
-    osGroup: Windows_NT
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: debug
+####    archType: x64
+####    osGroup: Windows_NT
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: debug
+####    archType: x86
+####    osGroup: Windows_NT
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: debug
+####    archType: arm
+####    osGroup: Windows_NT
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: debug
+####    archType: arm64
+####    osGroup: Windows_NT
 
 
 # Checked
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: x64
-    osGroup: Windows_NT
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: x86
-    osGroup: Windows_NT
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: arm
-    osGroup: Windows_NT
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: arm64
-    osGroup: Windows_NT
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x64
+####    osGroup: Windows_NT
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x86
+####    osGroup: Windows_NT
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: arm
+####    osGroup: Windows_NT
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: arm64
+####    osGroup: Windows_NT
 
 # Release (for official build)
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: release
-    archType: x64
-    osGroup: Windows_NT
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: release
-    archType: x86
-    osGroup: Windows_NT
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: release
-    archType: arm
-    osGroup: Windows_NT
-
-- template: build-pipeline.yml
-  parameters:
-    buildConfig: release
-    archType: arm64
-    osGroup: Windows_NT
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: x64
+####    osGroup: Windows_NT
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: x86
+####    osGroup: Windows_NT
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: arm
+####    osGroup: Windows_NT
+####
+####- template: build-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: arm64
+####    osGroup: Windows_NT
 
 
 
@@ -221,81 +234,138 @@ phases:
 
 # Test jobs
 
-## Checked (ci jobs)
+## Checked (ci jobs) Pri0
 
-- template: test-pipeline.yml
+# TODO : pass priority
+- template: platform-matrix.yml
   parameters:
+    jobTemplate: test-pipeline.yml
     buildConfig: checked
-    archType: x64
-    osGroup: Windows_NT
 
-- template: test-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: x86
-    osGroup: Windows_NT
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x64
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x86
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: arm
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: arm64
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x64
+####    osGroup: OSX
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x64
+####    osGroup: Linux
 
-- template: test-pipeline.yml
+## Checked Pri1
+# TODO : pass priority
+- template: platform-matrix.yml
   parameters:
+    jobTemplate: test-pipeline.yml
     buildConfig: checked
-    archType: arm
-    osGroup: Windows_NT
 
-- template: test-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: arm64
-    osGroup: Windows_NT
-
-- template: test-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: x64
-    osGroup: OSX
-
-- template: test-pipeline.yml
-  parameters:
-    buildConfig: checked
-    archType: x64
-    osGroup: Linux
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x64
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x86
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: arm
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: arm64
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x64
+####    osGroup: OSX
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: checked
+####    archType: x64
+####    osGroup: Linux
 
 ## Release (pri1 test run only)
 
-- template: test-pipeline.yml
+## Release Pri1
+# TODO : pass priority
+- template: platform-matrix.yml
   parameters:
+    jobTemplate: test-pipeline.yml
     buildConfig: release
-    archType: x64
-    osGroup: Windows_NT
 
-- template: test-pipeline.yml
-  parameters:
-    buildConfig: release
-    archType: x86
-    osGroup: Windows_NT
-
-- template: test-pipeline.yml
-  parameters:
-    buildConfig: release
-    archType: arm
-    osGroup: Windows_NT
-
-- template: test-pipeline.yml
-  parameters:
-    buildConfig: release
-    archType: arm64
-    osGroup: Windows_NT
-
-- template: test-pipeline.yml
-  parameters:
-    buildConfig: release
-    archType: x64
-    osGroup: OSX
-
-- template: test-pipeline.yml
-  parameters:
-    buildConfig: release
-    archType: x64
-    osGroup: Linux
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: x64
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: x86
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: arm
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: arm64
+####    osGroup: Windows_NT
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: x64
+####    osGroup: OSX
+####
+####- template: test-pipeline.yml
+####  parameters:
+####    buildConfig: release
+####    archType: x64
+####    osGroup: Linux
 
 #
 #- phase: Windows_NT_x64 Formatting
@@ -342,41 +412,3 @@ phases:
 #  Windows_NT arm64 Cross Checked Innerloop Build and Test
 #  Windows_NT x64 Checked CoreFx tests
 #  Windows_NT x64 Release CoreFx tests
-
-#- template: /eng/common/templates/phases/base.yml@arcade
-#  parameters:
-#    queue:
-#      name: Hosted Ubuntu 1604
-#      timeoutInMinutes: 180
-#      parallel: 1
-#    agentOs: Ubuntu
-#    name: UbuntuHelix
-#    steps:
-#      - task: DotNetCoreCLI@2
-#        inputs:
-#          command: custom
-#          projects: helixtest.proj
-#          custom: msbuild
-#          arguments: '/t:test'
-#        displayName: Send test workload to helix
-#        env:
-#          HelixAccessToken: $(HelixTestAccessToken)
-#
-#- template: /eng/common/templates/phases/base.yml@arcade
-#  parameters:
-#    queue:
-#      name: dotnet-external-temp
-#      timeoutInMinutes: 180
-#      parallel: 1
-#    agentOs: Windows_NT
-#    name: WindowsHelix
-#    steps:
-#      - task: DotNetCoreCLI@2
-#        inputs:
-#          command: custom
-#          projects: helixtest.proj
-#          custom: msbuild
-#          arguments: '/t:test'
-#        displayName: Send test workload to helix
-#        env:
-#          HelixAccessToken: $(HelixTestAccessToken)

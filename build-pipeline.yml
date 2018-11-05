@@ -50,11 +50,19 @@ jobs:
 
     # Build
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+        # for build.sh, skipnuget is equivalent to skipbuildpackages
+        # TODO: skiptests?
+        # this always passes FALSE for corelib -BuildNugetPackage.
       - script: ./build.sh $(buildConfig) $(archType) -skipnuget -skiprestore
         displayName: Build
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # TODO: why do we pass priority here?
       # TODO: do we want to skiptests? skipbuildpackages? IBCOptimize? EnforcePGO? pass an OfficialBuildId? SkipRestore? signtype? file logging parameters?
+      # build.cmd has no -skipnuget arg.
+      # skipnugetpackage of spc is done when building SPC for different platform, or for ARM64 for some reason
+      # for the x-plat SPC builds, skipnugetpackage is always set together with buildpackages.
+      # skipnugetpackage applies to SPC build
+      # buildpackages applies to .nuget\packages.builds
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages -skiprestore -priority=0
         displayName: Build
 
@@ -87,6 +95,7 @@ jobs:
           azureSubscription: 'DotNet-Engineering-Services_KeyVault'
           KeyVaultName: EngKeyVault
           SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
+
 
     #
     # Publish official build
