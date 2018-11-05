@@ -40,8 +40,9 @@ jobs:
           priorityArg: 'priority1'
         ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
           priorityArg: '-priority=1'
-#      ${{ if eq(parameters.priority, '0') }}:
-#       
+      ${{ if eq(parameters.priority, '0') }}:
+        priorityArg: ''
+
       ${{ if eq(parameters.crossgen, 'true') }}:
         crossgenArg: 'crossgen'
       ${{ if eq(parameters.crossgen, 'false') }}:
