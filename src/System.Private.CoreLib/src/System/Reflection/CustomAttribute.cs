@@ -61,7 +61,7 @@ namespace System.Reflection
             Debug.Assert(target != null);
 
             IList<CustomAttributeData> cad = GetCustomAttributes(target.GetRuntimeModule(), target.MetadataToken);
-            RuntimeType.ListBuilder<Attribute> pcas = PseudoCustomAttribute.GetCustomAttributes((RuntimeType)target, (RuntimeType)typeof(object));
+            PseudoCustomAttribute.GetCustomAttributes((RuntimeType)target, (RuntimeType)typeof(object), out RuntimeType.ListBuilder<Attribute> pcas);
             return GetCombinedList(cad, ref pcas);
         }
 
@@ -1221,7 +1221,7 @@ namespace System.Reflection
             if (type.IsGenericType && !type.IsGenericTypeDefinition)
                 type = type.GetGenericTypeDefinition() as RuntimeType;
 
-            RuntimeType.ListBuilder<Attribute> pcas = PseudoCustomAttribute.GetCustomAttributes(type, caType);
+            PseudoCustomAttribute.GetCustomAttributes(type, caType, out RuntimeType.ListBuilder<Attribute> pcas);
 
             // if we are asked to go up the hierarchy chain we have to do it now and regardless of the
             // attribute usage for the specific attribute because a derived attribute may override the usage...           
@@ -1846,29 +1846,26 @@ namespace System.Reflection
         #endregion
 
         #region Internal Static
-        internal static RuntimeType.ListBuilder<Attribute> GetCustomAttributes(RuntimeType type, RuntimeType caType)
+        internal static void GetCustomAttributes(RuntimeType type, RuntimeType caType, out RuntimeType.ListBuilder<Attribute> attributes)
         {
             Debug.Assert(type != null);
             Debug.Assert(caType != null);
+            attributes = new RuntimeType.ListBuilder<Attribute>(0);
 
             bool all = caType == typeof(object) || caType == typeof(Attribute);
             if (!all && !s_pca.ContainsKey(caType))
-                return default;
-
-            RuntimeType.ListBuilder<Attribute> pcas = new RuntimeType.ListBuilder<Attribute>(0);
+                return;
 
             if (all || caType == typeof(SerializableAttribute))
             {
                 if ((type.Attributes & TypeAttributes.Serializable) != 0)
-                    pcas.Add(new SerializableAttribute());
+                    attributes.Add(new SerializableAttribute());
             }
             if (all || caType == typeof(ComImportAttribute))
             {
                 if ((type.Attributes & TypeAttributes.Import) != 0)
-                    pcas.Add(new ComImportAttribute());
+                    attributes.Add(new ComImportAttribute());
             }
-
-            return pcas;
         }
         internal static bool IsDefined(RuntimeType type, RuntimeType caType)
         {
