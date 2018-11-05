@@ -94,13 +94,13 @@ phases:
 - template: platform-matrix.yml
   parameters:
     jobTemplate: build-pipeline.yml
-    buildConfig: debug
+    buildConfig: checked
 
 # Release build
 - template: platform-matrix.yml
   parameters:
     jobTemplate: build-pipeline.yml
-    buildConfig: debug
+    buildConfig: release
 
 
 ###
