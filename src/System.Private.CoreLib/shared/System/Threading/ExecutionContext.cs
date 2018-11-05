@@ -292,7 +292,71 @@ namespace System.Threading
             edi?.Throw();
         }
 
-        internal static void RunFromThreadPool<TState>(ExecutionContext executionContext, Action<TState> callback, in TState state)
+        internal static void RunFromThreadPool(ExecutionContext executionContext, ContextCallback callback, object state)
+        {
+            // ThreadPool starts on Default Context so we don't need to save the "previous" state as we know it is Default (null)
+
+            Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
+            Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
+            Debug.Assert(Thread.CurrentThread.SynchronizationContext == null, "ThreadPool thread not on Default SynchronizationContext.");
+
+            Thread currentThread = Thread.CurrentThread;
+
+            if (executionContext?.m_isDefault ?? false)
+            {
+                // Default is a null ExecutionContext internally
+                executionContext = null;
+            }
+            else if (executionContext != null)
+            {
+                // Non-Default context to restore
+                currentThread.ExecutionContext = executionContext;
+                if (executionContext.HasChangeNotifications)
+                {
+                    // There are change notifications; trigger any affected
+                    OnValuesChanged(previousExecutionCtx: null, executionContext);
+                }
+            }
+
+            ExceptionDispatchInfo edi = null;
+            try
+            {
+                callback.Invoke(state);
+            }
+            catch (Exception ex)
+            {
+                // Note: we have a "catch" rather than a "finally" because we want
+                // to stop the first pass of EH here.  That way we can restore the previous
+                // context before any of our callers' EH filters run.
+                edi = ExceptionDispatchInfo.Capture(ex);
+            }
+
+            // Enregister currentThread to alternative varibale as crossing EH will have forced it to stack
+            Thread currentThread1 = currentThread;
+            // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
+            if (currentThread1.SynchronizationContext != null)
+            {
+                // Restore changed SynchronizationContext back to previous
+                currentThread1.SynchronizationContext = null;
+            }
+
+            ExecutionContext currentExecutionCtx = currentThread1.ExecutionContext;
+            if (currentExecutionCtx != null && !currentExecutionCtx.m_isDefault)
+            {
+                // Restore changed ExecutionContext back to Default (null)
+                currentThread1.ExecutionContext = null;
+                if (currentExecutionCtx.HasChangeNotifications)
+                {
+                    // There are change notifications; trigger any affected
+                    OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
+                }
+            }
+
+            // If exception was thrown by callback, rethrow it now original contexts are restored
+            edi?.Throw();
+        }
+
+        internal static void RunUserWorkItem<TState>(ExecutionContext executionContext, Action<TState> callback, in TState state)
         {
             Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
             Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
@@ -329,7 +393,7 @@ namespace System.Threading
             // will reset EC and SyncCtx back to defaults, so it doesn't need to be done here.
         }
 
-        internal static void RunDefaultFromThreadPool<TState>(Action<TState> callback, in TState state)
+        internal static void RunUserWorkItemWithDefaultContext<TState>(Action<TState> callback, in TState state)
         {
             Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
             Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
