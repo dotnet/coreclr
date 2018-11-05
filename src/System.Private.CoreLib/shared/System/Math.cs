@@ -909,7 +909,7 @@ namespace System
                 }
                 else if (mode is MidpointRounding.AwayFromZero)
                 {
-                    var fraction = ModF(value, &value);
+                    double fraction = ModF(value, &value);
 
                     if (Abs(fraction) >= 0.5)
                     {
@@ -918,11 +918,11 @@ namespace System
                 }
                 else if (mode is MidpointRounding.ToZero)
                 {
-                    ModF(value, &value);
+                    value = Truncate(value);
                 }
                 else if (mode is MidpointRounding.ToNegativeInfinity)
                 {
-                    var fraction = ModF(value, &value);
+                    double fraction = ModF(value, &value);
 
                     if (Sign(fraction) == -1)
                     {
@@ -931,7 +931,7 @@ namespace System
                 }      
                 else if (mode is MidpointRounding.ToPositiveInfinity)
                 {
-                    var fraction = ModF(value, &value);
+                    double fraction = ModF(value, &value);
 
                     if (Sign(fraction) == 1)
                     {
