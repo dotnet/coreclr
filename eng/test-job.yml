@@ -50,7 +50,7 @@ jobs:
         crossgenArg: ''
       ${{ if ne(parameters.scenarios, '') }}:
         # The quoting is a workaround for https://github.com/Microsoft/msbuild/issues/471
-        scenariosArg: ${{ format("'/p:\"Scenarios={0}\"'", parameters.scenarios) }}
+        scenariosArg: ${{ format('''/p:"Scenarios={0}"''', parameters.scenarios) }}
       ${{ if eq(parameters.scenarios, '') }}:
         scenariosArg: ''
 
