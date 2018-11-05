@@ -54,26 +54,26 @@ phases:
 # Debug build
 - template: eng/platform-matrix.yml
   parameters:
-    jobTemplate: eng/build-job.yml
+    jobTemplate: build-job.yml
     buildConfig: debug
 
 # Checked build
 - template: eng/platform-matrix.yml
   parameters:
-    jobTemplate: eng/build-job.yml
+    jobTemplate: build-job.yml
     buildConfig: checked
 
 # Release build
 - template: eng/platform-matrix.yml
   parameters:
-    jobTemplate: eng/build-job.yml
+    jobTemplate: build-job.yml
     buildConfig: release
 
 
 # Checked Pri0 test build
 - template: eng/platform-matrix.yml
   parameters:
-    jobTemplate: eng/test-job.yml
+    jobTemplate: test-job.yml
     buildConfig: checked
     jobParameters:
       priority: 0
@@ -82,7 +82,7 @@ phases:
 # Checked Pri1 test build
 - template: eng/platform-matrix.yml
   parameters:
-    jobTemplate: eng/test-job.yml
+    jobTemplate: test-job.yml
     buildConfig: checked
     jobParameters:
       priority: 1
@@ -90,7 +90,7 @@ phases:
 # Checked Pri0 crossgen test build
 - template: eng/platform-matrix.yml
   parameters:
-    jobTemplate: eng/test-job.yml
+    jobTemplate: test-job.yml
     buildConfig: release
     jobParameters:
       priority: 0
@@ -99,7 +99,7 @@ phases:
 # Release Pri1 test build
 - template: eng/platform-matrix.yml
   parameters:
-    jobTemplate: eng/test-job.yml
+    jobTemplate: test-job.yml
     buildConfig: release
     jobParameters:
       priority: 1
@@ -107,7 +107,7 @@ phases:
 # Release Pri1 crossgen test build
 - template: eng/platform-matrix.yml
   parameters:
-    jobTemplate: eng/test-job.yml
+    jobTemplate: test-job.yml
     buildConfig: release
     jobParameters:
       priority: 1
