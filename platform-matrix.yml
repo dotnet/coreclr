@@ -3,6 +3,7 @@ parameters:
   buildConfig: ''
   jobParameters: {}
 
+jobs:
 # Linux x64
 
 - template: ${{ parameters.jobTemplate }}
