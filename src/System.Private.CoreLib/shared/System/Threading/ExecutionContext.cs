@@ -136,6 +136,11 @@ namespace System.Threading
             Thread currentThread0 = Thread.CurrentThread;
             Thread currentThread = currentThread0;
             ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
+            if (previousExecutionCtx0?.m_isDefault ?? false)
+            {
+                // Default is a null ExecutionContext internally
+                previousExecutionCtx0 = null;
+            }
 
             // Store current ExecutionContext and SynchronizationContext as "previousXxx".
             // This allows us to restore them and undo any Context changes made in callback.Invoke
@@ -144,7 +149,7 @@ namespace System.Threading
             ExecutionContext previousExecutionCtx = previousExecutionCtx0;
             SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
 
-            if (executionContext != null && executionContext.m_isDefault)
+            if (executionContext?.m_isDefault ?? false)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
@@ -215,6 +220,11 @@ namespace System.Threading
             Thread currentThread0 = Thread.CurrentThread;
             Thread currentThread = currentThread0;
             ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
+            if (previousExecutionCtx0?.m_isDefault ?? false)
+            {
+                // Default is a null ExecutionContext internally
+                previousExecutionCtx0 = null;
+            }
 
             // Store current ExecutionContext and SynchronizationContext as "previousXxx".
             // This allows us to restore them and undo any Context changes made in callback.Invoke
@@ -223,7 +233,7 @@ namespace System.Threading
             ExecutionContext previousExecutionCtx = previousExecutionCtx0;
             SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
 
-            if (executionContext != null && executionContext.m_isDefault)
+            if (executionContext?.m_isDefault ?? false)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
@@ -280,6 +290,69 @@ namespace System.Threading
 
             // If exception was thrown by callback, rethrow it now original contexts are restored
             edi?.Throw();
+        }
+
+        internal static void RunFromThreadPool<TState>(ExecutionContext executionContext, Action<TState> callback, in TState state)
+        {
+            Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
+            Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
+            Debug.Assert(Thread.CurrentThread.SynchronizationContext == null, "ThreadPool thread not on Default SynchronizationContext.");
+
+            // Capture current thread to local rather than looking it up multiple times
+            Thread currentThread = Thread.CurrentThread;
+            if (executionContext != null && !executionContext.m_isDefault)
+            {
+                // Restore changed ExecutionContext
+                currentThread.ExecutionContext = executionContext;
+                if (executionContext.HasChangeNotifications)
+                {
+                    // There are change notifications; trigger any affected
+                    OnValuesChanged(previousExecutionCtx: null, executionContext);
+                }
+            }
+
+            // Note: we aren't running in try/catch as if an exception is directly thrown on the threadpool
+            // either process will crash or its a ThreadAbortException. 
+            // In either case sending AsyncLocal change notifications is unimportant.
+            callback.Invoke(state);
+
+            ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
+            if (currentExecutionCtx?.HasChangeNotifications ?? false)
+            {
+                // Reset ExecutionContext to null (Default) prior to calling OnValuesChanged callback
+                currentThread.ExecutionContext = null;
+                // There are change notifications; trigger any affected
+                OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
+            }
+
+            // For QUWICallbacks there are no extra steps and ThreadPoolWorkQueue.Dispatch 
+            // will reset EC and SyncCtx back to defaults, so it doesn't need to be done here.
+        }
+
+        internal static void RunDefaultFromThreadPool<TState>(Action<TState> callback, in TState state)
+        {
+            Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
+            Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
+            Debug.Assert(Thread.CurrentThread.SynchronizationContext == null, "ThreadPool thread not on Default SynchronizationContext.");
+
+            // Note: we aren't running in try/catch as if an exception is directly thrown on the threadpool
+            // either process will crash or its a ThreadAbortException. 
+            // In either case sending AsyncLocal change notifications is unimportant.
+            callback.Invoke(state);
+
+            // Capture current thread to local rather than looking it up multiple times
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
+            if (currentExecutionCtx?.HasChangeNotifications ?? false)
+            {
+                // Reset ExecutionContext to null (Default) prior to calling OnValuesChanged callback
+                currentThread.ExecutionContext = null;
+                // There are change notifications; trigger any affected
+                OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
+            }
+
+            // For QUWICallbacks there are no extra steps and ThreadPoolWorkQueue.Dispatch 
+            // will reset EC and SyncCtx back to defaults, so it doesn't need to be done here.
         }
 
         internal static void OnValuesChanged(ExecutionContext previousExecutionCtx, ExecutionContext nextExecutionCtx)

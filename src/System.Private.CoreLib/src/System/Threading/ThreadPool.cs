@@ -532,6 +532,7 @@ namespace System.Threading
                 // Set up our thread-local data
                 //
                 ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
+                Thread currentThread = Thread.CurrentThread;
 
                 //
                 // Loop until our quantum expires.
@@ -606,6 +607,18 @@ namespace System.Threading
                         Unsafe.As<IThreadPoolWorkItem>(workItem).Execute();
                     }
                     workItem = null;
+
+                    if (currentThread.ExecutionContext != null)
+                    {
+                        // Reset ThreadPool thread's EC back to Default (null) if changed by Execute and not restored
+                        currentThread.ExecutionContext = null;
+                    }
+
+                    if (currentThread.SynchronizationContext != null)
+                    {
+                        // Reset ThreadPool thread's SyncCtx back to Default (null) if changed by Execute and not restored
+                        currentThread.SynchronizationContext = null;
+                    }
 
                     // 
                     // Notify the VM that we executed this workitem.  This is also our opportunity to ask whether Hill Climbing wants
@@ -937,13 +950,13 @@ namespace System.Threading
         private readonly object _state;
         private readonly ExecutionContext _context;
 
-        internal static readonly ContextCallback s_executionContextShim = state =>
+        internal static readonly Action<QueueUserWorkItemCallback> s_executionContextShim = quwi =>
         {
-            var obj = (QueueUserWorkItemCallback)state;
-            WaitCallback c = obj._callback;
-            Debug.Assert(c != null);
-            obj._callback = null;
-            c(obj._state);
+            WaitCallback callback = quwi._callback;
+            Debug.Assert(callback != null);
+            quwi._callback = null;
+
+            callback(quwi._state);
         };
 
         internal QueueUserWorkItemCallback(WaitCallback callback, object state, ExecutionContext context)
@@ -959,13 +972,15 @@ namespace System.Threading
             ExecutionContext context = _context;
             if (context == null)
             {
-                WaitCallback c = _callback;
+                WaitCallback callback = _callback;
+                Debug.Assert(callback != null);
                 _callback = null;
-                c(_state);
+
+                callback(_state);
             }
             else
             {
-                ExecutionContext.RunInternal(context, s_executionContextShim, this);
+                ExecutionContext.RunFromThreadPool(context, s_executionContextShim, this);
             }
         }
     }
@@ -975,15 +990,6 @@ namespace System.Threading
         private Action<TState> _callback;
         private readonly TState _state;
         private readonly ExecutionContext _context;
-
-        internal static readonly ContextCallback s_executionContextShim = state =>
-        {
-            var obj = (QueueUserWorkItemCallback<TState>)state;
-            Action<TState> c = obj._callback;
-            Debug.Assert(c != null);
-            obj._callback = null;
-            c(obj._state);
-        };
 
         internal QueueUserWorkItemCallback(Action<TState> callback, TState state, ExecutionContext context)
         {
@@ -1004,7 +1010,11 @@ namespace System.Threading
             }
             else
             {
-                ExecutionContext.RunInternal(context, s_executionContextShim, this);
+                Action<TState> callback = _callback;
+                Debug.Assert(callback != null);
+                _callback = null;
+
+                ExecutionContext.RunFromThreadPool(context, callback, in _state);
             }
         }
     }
@@ -1014,13 +1024,13 @@ namespace System.Threading
         private WaitCallback _callback;
         private readonly object _state;
 
-        internal static readonly ContextCallback s_executionContextShim = state =>
+        internal static readonly Action<QueueUserWorkItemCallbackDefaultContext> s_executionContextShim = quwi =>
         {
-            var obj = (QueueUserWorkItemCallbackDefaultContext)state;
-            WaitCallback c = obj._callback;
-            Debug.Assert(c != null);
-            obj._callback = null;
-            c(obj._state);
+            WaitCallback callback = quwi._callback;
+            Debug.Assert(callback != null);
+            quwi._callback = null;
+
+            callback(quwi._state);
         };
 
         internal QueueUserWorkItemCallbackDefaultContext(WaitCallback callback, object state)
@@ -1032,7 +1042,7 @@ namespace System.Threading
         public override void Execute()
         {
             base.Execute();
-            ExecutionContext.RunInternal(executionContext: null, s_executionContextShim, this); // null executionContext on RunInternal is Default context
+            ExecutionContext.RunDefaultFromThreadPool(s_executionContextShim, this);
         }
     }
 
@@ -1040,15 +1050,6 @@ namespace System.Threading
     {
         private Action<TState> _callback;
         private readonly TState _state;
-
-        internal static readonly ContextCallback s_executionContextShim = state =>
-        {
-            var obj = (QueueUserWorkItemCallbackDefaultContext<TState>)state;
-            Action<TState> c = obj._callback;
-            Debug.Assert(c != null);
-            obj._callback = null;
-            c(obj._state);
-        };
 
         internal QueueUserWorkItemCallbackDefaultContext(Action<TState> callback, TState state)
         {
@@ -1059,7 +1060,11 @@ namespace System.Threading
         public override void Execute()
         {
             base.Execute();
-            ExecutionContext.RunInternal(executionContext: null, s_executionContextShim, this); // null executionContext on RunInternal is Default context
+            Action<TState> callback = _callback;
+            Debug.Assert(callback != null);
+            _callback = null;
+
+            ExecutionContext.RunDefaultFromThreadPool(callback, in _state);
         }
     }
 
