@@ -62,7 +62,7 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes(target.GetRuntimeModule(), target.MetadataToken);
             RuntimeType.ListBuilder<Attribute> pcas = PseudoCustomAttribute.GetCustomAttributes((RuntimeType)target, (RuntimeType)typeof(object));
-            return GetCombinedList(cad, pcas);
+            return GetCombinedList(cad, ref pcas);
         }
 
         internal static IList<CustomAttributeData> GetCustomAttributesInternal(RuntimeFieldInfo target)
@@ -71,7 +71,7 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes(target.GetRuntimeModule(), target.MetadataToken);
             RuntimeType.ListBuilder<Attribute> pcas = PseudoCustomAttribute.GetCustomAttributes((RuntimeFieldInfo)target, (RuntimeType)typeof(object));
-            return GetCombinedList(cad, pcas);
+            return GetCombinedList(cad, ref pcas);
         }
 
         internal static IList<CustomAttributeData> GetCustomAttributesInternal(RuntimeMethodInfo target)
@@ -80,7 +80,7 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes(target.GetRuntimeModule(), target.MetadataToken);
             RuntimeType.ListBuilder<Attribute> pcas = PseudoCustomAttribute.GetCustomAttributes((RuntimeMethodInfo)target, (RuntimeType)typeof(object));
-            return GetCombinedList(cad, pcas);
+            return GetCombinedList(cad, ref pcas);
         }
 
         internal static IList<CustomAttributeData> GetCustomAttributesInternal(RuntimeConstructorInfo target)
@@ -120,7 +120,7 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes((RuntimeModule)target.ManifestModule, RuntimeAssembly.GetToken(target.GetNativeHandle()));
             RuntimeType.ListBuilder<Attribute> pcas = PseudoCustomAttribute.GetCustomAttributes(target, (RuntimeType)typeof(object));
-            return GetCombinedList(cad, pcas);
+            return GetCombinedList(cad, ref pcas);
         }
 
         internal static IList<CustomAttributeData> GetCustomAttributesInternal(RuntimeParameterInfo target)
@@ -129,19 +129,19 @@ namespace System.Reflection
 
             IList<CustomAttributeData> cad = GetCustomAttributes(target.GetRuntimeModule(), target.MetadataToken);
             RuntimeType.ListBuilder<Attribute> pcas = PseudoCustomAttribute.GetCustomAttributes(target, (RuntimeType)typeof(object));
-            return GetCombinedList(cad, pcas);
+            return GetCombinedList(cad, ref pcas);
         }
 
-        private static IList<CustomAttributeData> GetCombinedList(IList<CustomAttributeData> customAttributes, RuntimeType.ListBuilder<Attribute> psuedoAttributes)
+        private static IList<CustomAttributeData> GetCombinedList(IList<CustomAttributeData> customAttributes, ref RuntimeType.ListBuilder<Attribute> pseudoAttributes)
         {
-            if (psuedoAttributes.Count == 0)
+            if (pseudoAttributes.Count == 0)
                 return customAttributes;
 
-            CustomAttributeData[] pca = new CustomAttributeData[customAttributes.Count + psuedoAttributes.Count];
-            customAttributes.CopyTo(pca, psuedoAttributes.Count);
-            for (int i = 0; i < psuedoAttributes.Count; i++)
+            CustomAttributeData[] pca = new CustomAttributeData[customAttributes.Count + pseudoAttributes.Count];
+            customAttributes.CopyTo(pca, pseudoAttributes.Count);
+            for (int i = 0; i < pseudoAttributes.Count; i++)
             {
-                pca[i] = new CustomAttributeData(psuedoAttributes[i]);
+                pca[i] = new CustomAttributeData(pseudoAttributes[i]);
             }
 
             return Array.AsReadOnly(pca);
