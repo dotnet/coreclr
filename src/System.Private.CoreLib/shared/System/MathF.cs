@@ -325,46 +325,33 @@ namespace System
                 {
                     var fraction = ModF(x, &x);
 
-                    if (Abs(fraction) >= 0.5f)
+                    if (Abs(fraction) >= 0.5)
                     {
                         x += Sign(fraction);
                     }
                 }
                 else if (mode is MidpointRounding.ToZero)
                 {
-                    var fraction = ModF(x, &x);
-
-                    if (Abs(fraction) > 0.5f)
-                    {
-                        x += Sign(fraction);
-                    }
+                    ModF(x, &x);
                 }
                 else if (mode is MidpointRounding.ToNegativeInfinity)
                 {
                     var fraction = ModF(x, &x);
 
-                    if (Abs(fraction) == 0.5f) 
+                    if (Sign(fraction) == -1)
                     {
-                        x = x + fraction + -0.5f;
+                        x--;
                     }
-                    else if (Abs(fraction) > 0.5f)
-                    {
-                        x += Sign(fraction);
-                    }
-                }     
+                }      
                 else if (mode is MidpointRounding.ToPositiveInfinity)
                 {
                     var fraction = ModF(x, &x);
 
-                    if (Abs(fraction) == 0.5f)
+                    if (Sign(fraction) == 1)
                     {
-                        x = x + fraction + 0.5f;
+                        x++;
                     }
-                    else if (Abs(fraction) > 0.5f)
-                    {
-                        x += Sign(fraction); 
-                    }
-                }           
+                }
 
                 x /= power10;
             }

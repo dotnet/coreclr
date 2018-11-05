@@ -918,37 +918,24 @@ namespace System
                 }
                 else if (mode is MidpointRounding.ToZero)
                 {
-                    var fraction = ModF(value, &value);
-
-                    if (Abs(fraction) > 0.5)
-                    {
-                        value += Sign(fraction);
-                    }
+                    ModF(value, &value);
                 }
                 else if (mode is MidpointRounding.ToNegativeInfinity)
                 {
                     var fraction = ModF(value, &value);
 
-                    if (Abs(fraction) == 0.5) 
+                    if (Sign(fraction) == -1)
                     {
-                        value = value + fraction + -0.5;
-                    }
-                    else if (Abs(fraction) > 0.5)
-                    {
-                        value += Sign(fraction);
+                        value--;
                     }
                 }      
                 else if (mode is MidpointRounding.ToPositiveInfinity)
                 {
                     var fraction = ModF(value, &value);
 
-                    if (Abs(fraction) == 0.5)
+                    if (Sign(fraction) == 1)
                     {
-                        value = value + fraction + 0.5;
-                    }
-                    else if (Abs(fraction) > 0.5)
-                    {
-                        value += Sign(fraction); 
+                        value++;
                     }
                 }
 
