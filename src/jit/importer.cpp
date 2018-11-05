@@ -3933,8 +3933,9 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
                 // We expect the return type of the ReverseEndianness routine to match the type of the
                 // one and only argument to the method. We use a special instruction for 16-bit
-                // BSWAPs since on x86 processors this is implemented as ROR value, 8. Additionally,
-                // we only allow BSWAPs with 64-bit arguments on 64-bit architectures.
+                // BSWAPs since on x86 processors this is implemented as ROR <16-bit reg>, 8. Additionally,
+                // we only emit 64-bit BSWAP instructions on 64-bit archs; if we're asked to perform a
+                // 64-bit byte swap on a 32-bit arch, we'll fall to the default case in the switch block below.
 
                 switch (sig->retType)
                 {
