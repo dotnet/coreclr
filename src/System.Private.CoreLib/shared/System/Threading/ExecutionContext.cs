@@ -292,7 +292,7 @@ namespace System.Threading
             edi?.Throw();
         }
 
-        internal static void RunFromThreadPool(ExecutionContext executionContext, ContextCallback callback, object state)
+        internal static void RunFromThreadPoolDispatchLoop(ExecutionContext executionContext, ContextCallback callback, object state)
         {
             // ThreadPool starts on Default Context so we don't need to save the "previous" state as we know it is Default (null)
 
@@ -341,7 +341,7 @@ namespace System.Threading
             }
 
             ExecutionContext currentExecutionCtx = currentThread1.ExecutionContext;
-            if (currentExecutionCtx != null && !currentExecutionCtx.m_isDefault)
+            if (currentExecutionCtx != null)
             {
                 // Restore changed ExecutionContext back to Default (null)
                 currentThread1.ExecutionContext = null;
@@ -356,7 +356,7 @@ namespace System.Threading
             edi?.Throw();
         }
 
-        internal static void RunUserWorkItem<TState>(ExecutionContext executionContext, Action<TState> callback, in TState state)
+        internal static void RunForThreadPoolUserWorkItem<TState>(ExecutionContext executionContext, Action<TState> callback, in TState state)
         {
             Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
             Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
@@ -393,7 +393,7 @@ namespace System.Threading
             // will reset EC and SyncCtx back to defaults, so it doesn't need to be done here.
         }
 
-        internal static void RunUserWorkItemWithDefaultContext<TState>(Action<TState> callback, in TState state)
+        internal static void RunForThreadPoolUserWorkItemWithDefaultContext<TState>(Action<TState> callback, in TState state)
         {
             Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
             Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");

@@ -984,7 +984,7 @@ namespace System.Threading
             }
             else
             {
-                ExecutionContext.RunUserWorkItem(context, s_executionContextShim, this);
+                ExecutionContext.RunForThreadPoolUserWorkItem(context, s_executionContextShim, this);
             }
         }
     }
@@ -1018,7 +1018,7 @@ namespace System.Threading
                 Debug.Assert(callback != null);
                 _callback = null;
 
-                ExecutionContext.RunUserWorkItem(context, callback, in _state);
+                ExecutionContext.RunForThreadPoolUserWorkItem(context, callback, in _state);
             }
         }
     }
@@ -1046,7 +1046,7 @@ namespace System.Threading
         public override void Execute()
         {
             base.Execute();
-            ExecutionContext.RunUserWorkItemWithDefaultContext(s_executionContextShim, this);
+            ExecutionContext.RunForThreadPoolUserWorkItemWithDefaultContext(s_executionContextShim, this);
         }
     }
 
@@ -1068,7 +1068,7 @@ namespace System.Threading
             Debug.Assert(callback != null);
             _callback = null;
 
-            ExecutionContext.RunUserWorkItemWithDefaultContext(callback, in _state);
+            ExecutionContext.RunForThreadPoolUserWorkItemWithDefaultContext(callback, in _state);
         }
     }
 

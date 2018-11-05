@@ -564,7 +564,7 @@ namespace System.Runtime.CompilerServices
                 {
                     if (isThreadPool)
                     {
-                        ExecutionContext.RunFromThreadPool(context, s_callback, this);
+                        ExecutionContext.RunFromThreadPoolDispatchLoop(context, s_callback, this);
                     }
                     else
                     {

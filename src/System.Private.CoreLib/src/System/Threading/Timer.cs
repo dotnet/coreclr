@@ -734,7 +734,7 @@ namespace System.Threading
             {
                 if (isThreadPool)
                 {
-                    ExecutionContext.RunFromThreadPool(context, s_callCallbackInContext, this);
+                    ExecutionContext.RunFromThreadPoolDispatchLoop(context, s_callCallbackInContext, this);
                 }
                 else
                 {

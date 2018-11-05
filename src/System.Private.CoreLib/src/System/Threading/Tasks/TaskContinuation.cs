@@ -654,7 +654,7 @@ namespace System.Threading.Tasks
                 // If there is an execution context, get the cached delegate and run the action under the context.
                 else
                 {
-                    ExecutionContext.RunFromThreadPool(context, GetInvokeActionCallback(), m_action);
+                    ExecutionContext.RunFromThreadPoolDispatchLoop(context, GetInvokeActionCallback(), m_action);
                 }
             }
             finally

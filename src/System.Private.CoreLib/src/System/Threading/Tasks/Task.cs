@@ -2440,7 +2440,7 @@ namespace System.Threading.Tasks
                         // Invoke it under the captured ExecutionContext
                         if (isThreadPool)
                         {
-                            ExecutionContext.RunFromThreadPool(ec, s_ecCallback, this);
+                            ExecutionContext.RunFromThreadPoolDispatchLoop(ec, s_ecCallback, this);
                         }
                         else
                         {
