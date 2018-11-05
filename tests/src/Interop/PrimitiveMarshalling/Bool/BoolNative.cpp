@@ -177,7 +177,6 @@ extern "C" DLL_EXPORT bool STDMETHODCALLTYPE Marshal_As_Out(/*[Out]*/bool boolVa
 #ifdef _WIN32
 extern "C" DLL_EXPORT bool STDMETHODCALLTYPE Marshal_ByValue_Variant(VARIANT_BOOL boolValue, bool expected)
 {
-    
     if (boolValue == (expected ? VARIANT_TRUE : VARIANT_FALSE))
     {
         printf("Error in function Marshal_ByValue_Variant(Native Client)\n");
@@ -190,5 +189,26 @@ extern "C" DLL_EXPORT bool STDMETHODCALLTYPE Marshal_ByValue_Variant(VARIANT_BOO
 
     return true;
 }
+
+struct ContainsVariantBool
+{
+    VARIANT_BOOL value;
+};
+
+extern "C" DLL_EXPORT bool STDMETHODCALLTYPE Marshal_ByValue_Struct_Variant(ContainsVariantBool value, bool expected)
+{
+    if (value.value == (expected ? VARIANT_TRUE : VARIANT_FALSE))
+    {
+        printf("Error in function Marshal_ByValue_Variant(Native Client)\n");
+
+        printf("Expected true ");
+        printf("Actual %s (%hi)", value.value == VARIANT_FALSE ? "false" : "(unknown variant value)", value.value);
+
+        return false;
+    }
+
+    return true;
+}
+
 #endif
 #pragma warning(pop)
