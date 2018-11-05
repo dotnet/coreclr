@@ -116,7 +116,8 @@ EventPipeSessionProviderList::EventPipeSessionProviderList(
             EventPipeSessionProvider *pProvider = new EventPipeSessionProvider(
                 pConfig->GetProviderName(),
                 pConfig->GetKeywords(),
-                (EventPipeEventLevel)pConfig->GetLevel());
+                (EventPipeEventLevel)pConfig->GetLevel(),
+                pConfig->GetFilterData());
 
             m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider*>(pProvider));
         }
@@ -223,7 +224,8 @@ bool EventPipeSessionProviderList::IsEmpty() const
 EventPipeSessionProvider::EventPipeSessionProvider(
     LPCWSTR providerName,
     UINT64 keywords,
-    EventPipeEventLevel loggingLevel)
+    EventPipeEventLevel loggingLevel,
+    LPCWSTR filterData)
 {
     CONTRACTL
     {
@@ -246,6 +248,17 @@ EventPipeSessionProvider::EventPipeSessionProvider(
     m_keywords = keywords;
     m_loggingLevel = loggingLevel;
 
+    if(filterData != NULL)
+    {
+        size_t bufSize = wcslen(filterData) + 1;
+        m_pFilterData = new WCHAR[bufSize];
+        wcscpy_s(m_pFilterData, bufSize, filterData);
+    }
+    else
+    {
+        m_pFilterData = NULL;
+    }
+
 }
 
 EventPipeSessionProvider::~EventPipeSessionProvider()
@@ -258,11 +271,12 @@ EventPipeSessionProvider::~EventPipeSessionProvider()
     }
     CONTRACTL_END;
 
-    if(m_pProviderName != NULL)
-    {
-        delete[] m_pProviderName;
-        m_pProviderName = NULL;
-    }
+    // C++ standard, $5.3.5/2: Deleting a NULL pointer is safe.
+    delete[] m_pProviderName;
+    m_pProviderName = NULL;
+
+    delete[] m_pFilterData;
+    m_pFilterData = NULL;
 }
 
 LPCWSTR EventPipeSessionProvider::GetProviderName() const
@@ -281,6 +295,12 @@ EventPipeEventLevel EventPipeSessionProvider::GetLevel() const
 {
     LIMITED_METHOD_CONTRACT;
     return m_loggingLevel;
+}
+
+LPCWSTR EventPipeSessionProvider::GetFilterData() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_pFilterData;
 }
 
 #endif // FEATURE_PERFTRACING

@@ -182,7 +182,8 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
             provider.SetConfiguration(
                 true /* providerEnabled */,
                 pSessionProvider->GetKeywords(),
-                pSessionProvider->GetLevel());
+                pSessionProvider->GetLevel(),
+                pSessionProvider->GetFilterData());
         }
     }
 
@@ -372,7 +373,8 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession)
                 pProvider->SetConfiguration(
                     true /* providerEnabled */,
                     pSessionProvider->GetKeywords(),
-                    pSessionProvider->GetLevel());
+                    pSessionProvider->GetLevel(),
+                    pSessionProvider->GetFilterData());
             }
 
             pElem = m_pProviderList->GetNext(pElem);

@@ -4,6 +4,8 @@
 #if FEATURE_PERFTRACING
 using Internal.IO;
 using Microsoft.Win32;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Globalization;
 using System.Reflection;
@@ -166,26 +168,29 @@ namespace System.Diagnostics.Tracing
             string[] configEntries = strConfigContents.Split(ConfigFileLineDelimiters, StringSplitOptions.RemoveEmptyEntries);
             foreach (string configEntry in configEntries)
             {
-                //`Split the key and value by '='.
-                string[] entryComponents = configEntry.Split(ConfigEntryDelimiter);
-                if(entryComponents.Length == 2)
+                string[] entryComponents = configEntry.Split(
+                    ConfigEntryDelimiter,
+                    2,  // Stop split on first occurrence of the separator.
+                    StringSplitOptions.RemoveEmptyEntries);
+                if (entryComponents.Length == 2)
                 {
-                    string key = entryComponents[0];
-                    if (key.Equals(ConfigKey_Providers))
+                    switch (entryComponents[0])
                     {
-                        strProviderConfig = entryComponents[1];
-                    }
-                    else if (key.Equals(ConfigKey_OutputPath))
-                    {
-                        outputPath = entryComponents[1];
-                    }
-                    else if (key.Equals(ConfigKey_CircularMB))
-                    {
-                        strCircularMB = entryComponents[1];
-                    }
-                    else if (key.Equals(ConfigKey_ProcessID))
-                    {
-                        strProcessID = entryComponents[1];
+                        case ConfigKey_Providers:
+                            strProviderConfig = entryComponents[1];
+                            break;
+
+                        case ConfigKey_OutputPath:
+                            outputPath = entryComponents[1];
+                            break;
+
+                        case ConfigKey_CircularMB:
+                            strCircularMB = entryComponents[1];
+                            break;
+
+                        case ConfigKey_ProcessID:
+                            strProcessID = entryComponents[1];
+                            break;
                     }
                 }
             }
@@ -300,33 +305,87 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(strConfig));
             }
 
-            // String must be of the form "providerName:keywords:level,providerName:keywords:level..."
-            string[] providers = strConfig.Split(ProviderConfigDelimiter);
+            // String must be of the form "providerName:keywords:level:parameter,providerName:keywords:level:parameter..."
+            // where parameter is of the form: "key=value;key=value..."
+            string[] providers = strConfig.Split(
+                ProviderConfigDelimiter,
+                StringSplitOptions.RemoveEmptyEntries); // Remove "empty" providers.
             foreach (string provider in providers)
             {
-                string[] components = provider.Split(ConfigComponentDelimiter);
-                if (components.Length == 3)
+                const char FilterDataDelimiter = ';';
+                string[] components = provider.Split(
+                    ConfigComponentDelimiter,
+                    StringSplitOptions.None); // Keep empty tokens
+
+                string providerName = null;
+                ulong keywords = 0;
+                uint level = 0;
+                string filterData = null;
+
+                for (int i = 0; i < components.Length; ++i)
                 {
-                    string providerName = components[0];
-
-                    // We use a try/catch block here because ulong.TryParse won't accept 0x at the beginning
-                    // of a hex string.  Thus, we either need to conditionally strip it or handle the exception.
-                    // Given that this is not a perf-critical path, catching the exception is the simpler code.
-                    ulong keywords = 0;
-                    try
+                    switch(i)
                     {
-                        keywords = Convert.ToUInt64(components[1], 16);
-                    }
-                    catch { }
+                        case 0: // provider
+                            providerName = components[i];
+                            break;
+                        case 1: // keywords
+                            // We use a try/catch block here because ulong.TryParse won't accept 0x at the beginning
+                            // of a hex string.  Thus, we either need to conditionally strip it or handle the exception.
+                            // Given that this is not a perf-critical path, catching the exception is the simpler code.
+                            try
+                            {
+                                keywords = Convert.ToUInt64(components[i], 16);
+                            }
+                            catch { }
+                            break;
+                        case 2: // level
+                            uint.TryParse(components[i], out level);
+                            break;
+                        case 3: // parameter
+                            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            string[] parameters = components[i].Split(
+                                FilterDataDelimiter,
+                                StringSplitOptions.RemoveEmptyEntries);
 
-                    uint level;
-                    if (!uint.TryParse(components[2], out level))
-                    {
-                        level = 0;
-                    }
+                            foreach (string parameter in parameters)
+                            {
+                                string[] pair = parameter.Split(
+                                    '=',
+                                    StringSplitOptions.RemoveEmptyEntries);
+                                if (pair.Length == 2)
+                                {
+                                    string key = pair[0].Trim();
+                                    string value = pair[1].Trim();
 
-                    config.EnableProvider(providerName, keywords, level);
+                                    // Sanitize user input.
+                                    if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(value))
+                                        dict[key] = value;
+                                }
+                            }
+
+                            // TODO: No Linq
+                            // filterData = String.Join(
+                            //     FilterDataDelimiter,
+                            //     dict.Select(pair => $"{pair.Key}={pair.Value}"));
+                            StringBuilder sb = new StringBuilder();
+                            foreach (var pair in dict)
+                                sb.Append($"{pair.Key}={pair.Value};");
+                            if (sb.Length > 0)
+                                sb.Length--;
+                            filterData = sb.ToString();
+
+                            // Size of filterData cannot exceed 1024 bytes.
+                            if (filterData.Length * sizeof(char) > 1024)
+                                filterData = null; // TODO: Ignore?
+                            break;
+                    }
                 }
+
+                if (string.IsNullOrWhiteSpace(providerName))
+                    continue;  // Nothing to do here.
+
+                config.EnableProvider(providerName, keywords, level, filterData);
             }
         }
 

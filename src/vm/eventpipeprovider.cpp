@@ -111,7 +111,7 @@ bool EventPipeProvider::EventEnabled(INT64 keywords, EventPipeEventLevel eventLe
         ((eventLevel == EventPipeEventLevel::LogAlways) || (m_providerLevel >= eventLevel)));
 }
 
-void EventPipeProvider::SetConfiguration(bool providerEnabled, INT64 keywords, EventPipeEventLevel providerLevel)
+void EventPipeProvider::SetConfiguration(bool providerEnabled, INT64 keywords, EventPipeEventLevel providerLevel, LPCWSTR pFilterData)
 {
     CONTRACTL
     {
@@ -127,7 +127,7 @@ void EventPipeProvider::SetConfiguration(bool providerEnabled, INT64 keywords, E
     m_providerLevel = providerLevel;
 
     RefreshAllEvents();
-    InvokeCallback();
+    InvokeCallback(pFilterData);
 }
 
 EventPipeEvent* EventPipeProvider::AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, BYTE *pMetadata, unsigned int metadataLength)
@@ -186,7 +186,7 @@ void EventPipeProvider::AddEvent(EventPipeEvent &event)
     event.RefreshState();
 }
 
-void EventPipeProvider::InvokeCallback()
+void EventPipeProvider::InvokeCallback(LPCWSTR pFilterData)
 {
     CONTRACTL
     {
@@ -197,6 +197,30 @@ void EventPipeProvider::InvokeCallback()
     }
     CONTRACTL_END;
 
+    const unsigned int MaxNumberOfBytes = 1024;
+    WCHAR buffer[MaxNumberOfBytes / sizeof(WCHAR)]{};
+    EventFilterDescriptor eventFilterDescriptor{};
+    bool isEventFilterDescriptorInitialized = false;
+
+    if (pFilterData != NULL)
+    {
+        // Why can't we use standard C++ algorithms and containers?
+        const size_t filterDataLength = wcslen(pFilterData) + 1;
+        const size_t filterDataSizeInBytes = filterDataLength * sizeof(WCHAR);
+        const size_t nCharactersToCopy = filterDataSizeInBytes <= sizeof(buffer) ?
+            filterDataLength : sizeof(buffer) / sizeof(WCHAR);
+        wcscpy_s(buffer, nCharactersToCopy, pFilterData);
+
+        for (size_t i = 0; i < nCharactersToCopy; ++i)
+            if (buffer[i] == L'=' || buffer[i] == L';')
+                buffer[i] = L'\0';
+
+        eventFilterDescriptor.Ptr = (ULONGLONG)&buffer[0];
+        eventFilterDescriptor.Size = (ULONG)nCharactersToCopy;
+        eventFilterDescriptor.Type = 0; // TODO: What should the type be?
+        isEventFilterDescriptorInitialized = true;
+    }
+
     if(m_pCallbackFunction != NULL && !g_fEEShutDown)
     {
         (*m_pCallbackFunction)(
@@ -205,7 +229,7 @@ void EventPipeProvider::InvokeCallback()
             (UCHAR) m_providerLevel,
             m_keywords,
             0 /* matchAllKeywords */,
-            NULL /* FilterData */,
+            isEventFilterDescriptorInitialized ? &eventFilterDescriptor : NULL,
             m_pCallbackData /* CallbackContext */);
     }
 }

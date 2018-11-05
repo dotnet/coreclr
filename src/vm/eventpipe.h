@@ -324,6 +324,7 @@ private:
     LPCWSTR m_pProviderName;
     UINT64 m_keywords;
     UINT32 m_loggingLevel;
+    LPCWSTR m_pFilterData;
 
 public:
 
@@ -333,17 +334,20 @@ public:
         m_pProviderName = NULL;
         m_keywords = NULL;
         m_loggingLevel = 0;
+        m_pFilterData = NULL;
     }
 
     EventPipeProviderConfiguration(
         LPCWSTR pProviderName,
         UINT64 keywords,
-        UINT32 loggingLevel)
+        UINT32 loggingLevel,
+        LPCWSTR pFilterData = NULL)
     {
         LIMITED_METHOD_CONTRACT;
         m_pProviderName = pProviderName;
         m_keywords = keywords;
         m_loggingLevel = loggingLevel;
+        m_pFilterData = pFilterData;
     }
 
     LPCWSTR GetProviderName() const
@@ -362,6 +366,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_loggingLevel;
+    }
+
+    LPCWSTR GetFilterData() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pFilterData;
     }
 };
 
@@ -450,7 +460,7 @@ public:
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 
     static bool QCALLTYPE GetNextEvent(
-        EventPipeEventInstanceData *pInstance); 
+        EventPipeEventInstanceData *pInstance);
 };
 
 #endif // FEATURE_PERFTRACING
