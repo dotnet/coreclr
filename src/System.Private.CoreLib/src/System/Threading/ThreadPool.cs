@@ -532,7 +532,7 @@ namespace System.Threading
                 // Set up our thread-local data
                 //
                 ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
-                Thread currentThread = Thread.CurrentThread;
+                Thread currentThread = tl.currentThread;
 
                 //
                 // Loop until our quantum expires.
@@ -698,6 +698,7 @@ namespace System.Threading
 
         public readonly ThreadPoolWorkQueue workQueue;
         public readonly ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
+        public readonly Thread currentThread;
         public FastRandom random = new FastRandom(Thread.CurrentThread.ManagedThreadId); // mutable struct, do not copy or make readonly
 
         public ThreadPoolWorkQueueThreadLocals(ThreadPoolWorkQueue tpq)
@@ -705,6 +706,7 @@ namespace System.Threading
             workQueue = tpq;
             workStealingQueue = new ThreadPoolWorkQueue.WorkStealingQueue();
             ThreadPoolWorkQueue.WorkStealingQueueList.Add(workStealingQueue);
+            currentThread = Thread.CurrentThread;
         }
 
         private void CleanUp()
