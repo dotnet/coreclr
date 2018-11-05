@@ -567,6 +567,17 @@ namespace System.Threading
                     //
                     workQueue.EnsureThreadRequested();
 
+                    // Start on clean ExecutionContext and SynchronizationContext
+                    if (currentThread.ExecutionContext != null)
+                    {
+                        currentThread.ExecutionContext = null;
+                    }
+
+                    if (currentThread.SynchronizationContext != null)
+                    {
+                        currentThread.SynchronizationContext = null;
+                    }
+
                     //
                     // Execute the workitem outside of any finally blocks, so that it can be aborted if needed.
                     //
@@ -607,18 +618,6 @@ namespace System.Threading
                         Unsafe.As<IThreadPoolWorkItem>(workItem).Execute();
                     }
                     workItem = null;
-
-                    if (currentThread.ExecutionContext != null)
-                    {
-                        // Reset ThreadPool thread's EC back to Default (null) if changed by Execute and not restored
-                        currentThread.ExecutionContext = null;
-                    }
-
-                    if (currentThread.SynchronizationContext != null)
-                    {
-                        // Reset ThreadPool thread's SyncCtx back to Default (null) if changed by Execute and not restored
-                        currentThread.SynchronizationContext = null;
-                    }
 
                     // 
                     // Notify the VM that we executed this workitem.  This is also our opportunity to ask whether Hill Climbing wants
