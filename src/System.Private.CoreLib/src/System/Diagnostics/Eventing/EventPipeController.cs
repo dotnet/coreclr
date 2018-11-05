@@ -55,9 +55,9 @@ namespace System.Diagnostics.Tracing
         // The default set of providers/keywords/levels.  Used if an alternative configuration is not specified.
         private static readonly EventPipeProviderConfiguration[] DefaultProviderConfiguration = new EventPipeProviderConfiguration[]
         {
-            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntime", 0x4c14fccbd, 5),
-            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5),
-            new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5)
+            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntime", 0x4c14fccbd, 5, null),
+            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5, null),
+            new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5, null),
         };
 
         // Singleton controller instance.
@@ -312,78 +312,36 @@ namespace System.Diagnostics.Tracing
                 StringSplitOptions.RemoveEmptyEntries); // Remove "empty" providers.
             foreach (string provider in providers)
             {
-                const char FilterDataDelimiter = ';';
                 string[] components = provider.Split(
                     ConfigComponentDelimiter,
                     StringSplitOptions.None); // Keep empty tokens
 
-                string providerName = null;
-                ulong keywords = 0;
-                uint level = 0;
-                string filterData = null;
+                string providerName = components.Length > 0 ? components[0] : null;
+                if (string.IsNullOrEmpty(providerName))
+                    continue;  // No provider name specified.
 
-                for (int i = 0; i < components.Length; ++i)
+                ulong keywords = ulong.MaxValue;
+                if (components.Length > 1)
                 {
-                    switch(i)
+                    // We use a try/catch block here because ulong.TryParse won't accept 0x at the beginning
+                    // of a hex string.  Thus, we either need to conditionally strip it or handle the exception.
+                    // Given that this is not a perf-critical path, catching the exception is the simpler code.
+                    try
                     {
-                        case 0: // provider
-                            providerName = components[i];
-                            break;
-                        case 1: // keywords
-                            // We use a try/catch block here because ulong.TryParse won't accept 0x at the beginning
-                            // of a hex string.  Thus, we either need to conditionally strip it or handle the exception.
-                            // Given that this is not a perf-critical path, catching the exception is the simpler code.
-                            try
-                            {
-                                keywords = Convert.ToUInt64(components[i], 16);
-                            }
-                            catch { }
-                            break;
-                        case 2: // level
-                            uint.TryParse(components[i], out level);
-                            break;
-                        case 3: // parameter
-                            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                            string[] parameters = components[i].Split(
-                                FilterDataDelimiter,
-                                StringSplitOptions.RemoveEmptyEntries);
-
-                            foreach (string parameter in parameters)
-                            {
-                                string[] pair = parameter.Split(
-                                    '=',
-                                    StringSplitOptions.RemoveEmptyEntries);
-                                if (pair.Length == 2)
-                                {
-                                    string key = pair[0].Trim();
-                                    string value = pair[1].Trim();
-
-                                    // Sanitize user input.
-                                    if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(value))
-                                        dict[key] = value;
-                                }
-                            }
-
-                            // TODO: No Linq
-                            // filterData = String.Join(
-                            //     FilterDataDelimiter,
-                            //     dict.Select(pair => $"{pair.Key}={pair.Value}"));
-                            StringBuilder sb = new StringBuilder();
-                            foreach (var pair in dict)
-                                sb.Append($"{pair.Key}={pair.Value};");
-                            if (sb.Length > 0)
-                                sb.Length--;
-                            filterData = sb.ToString();
-
-                            // Size of filterData cannot exceed 1024 bytes.
-                            if (filterData.Length * sizeof(char) > 1024)
-                                filterData = null; // TODO: Ignore?
-                            break;
+                        keywords = Convert.ToUInt64(components[1], 16);
+                    }
+                    catch
+                    {
                     }
                 }
 
-                if (string.IsNullOrWhiteSpace(providerName))
-                    continue;  // Nothing to do here.
+                uint level = 5; // Verbose
+                if (components.Length > 2)
+                {
+                    uint.TryParse(components[2], out level);
+                }
+
+                string filterData = components.Length > 3 ? components[3] : null;
 
                 config.EnableProvider(providerName, keywords, level, filterData);
             }

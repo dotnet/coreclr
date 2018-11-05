@@ -217,7 +217,7 @@ void EventPipeProvider::InvokeCallback(LPCWSTR pFilterData)
 
         eventFilterDescriptor.Ptr = (ULONGLONG)&buffer[0];
         eventFilterDescriptor.Size = (ULONG)nCharactersToCopy;
-        eventFilterDescriptor.Type = 0; // TODO: What should the type be?
+        eventFilterDescriptor.Type = 0; // EventProvider.cs: `internal enum ControllerCommand.Update`
         isEventFilterDescriptorInitialized = true;
     }
 

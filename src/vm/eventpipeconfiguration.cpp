@@ -404,7 +404,11 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession)
         while(pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
-            pProvider->SetConfiguration(false /* providerEnabled */, 0 /* keywords */, EventPipeEventLevel::Critical /* level */);
+            pProvider->SetConfiguration(
+                false /* providerEnabled */,
+                0 /* keywords */,
+                EventPipeEventLevel::Critical /* level */,
+                NULL /* filterData */);
 
             pElem = m_pProviderList->GetNext(pElem);
         }

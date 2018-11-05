@@ -341,7 +341,7 @@ public:
         LPCWSTR pProviderName,
         UINT64 keywords,
         UINT32 loggingLevel,
-        LPCWSTR pFilterData = NULL)
+        LPCWSTR pFilterData)
     {
         LIMITED_METHOD_CONTRACT;
         m_pProviderName = pProviderName;

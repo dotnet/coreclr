@@ -117,7 +117,7 @@ public:
 
     // Set the provider configuration (enable and disable sets of events).
     // This is called by EventPipeConfiguration.
-    void SetConfiguration(bool providerEnabled, INT64 keywords, EventPipeEventLevel providerLevel, LPCWSTR pFilterData = NULL);
+    void SetConfiguration(bool providerEnabled, INT64 keywords, EventPipeEventLevel providerLevel, LPCWSTR pFilterData);
 
     // Refresh the runtime state of all events.
     void RefreshAllEvents();

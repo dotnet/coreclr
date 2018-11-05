@@ -153,7 +153,7 @@ public:
         LPCWSTR providerName,
         UINT64 keywords,
         EventPipeEventLevel loggingLevel,
-        LPCWSTR filterData = NULL);
+        LPCWSTR filterData);
     ~EventPipeSessionProvider();
 
     LPCWSTR GetProviderName() const;

@@ -47,7 +47,7 @@ namespace System.Diagnostics.Tracing
             string providerName,
             ulong keywords,
             uint loggingLevel,
-            string filterData = null)
+            string filterData)
         {
             if(string.IsNullOrEmpty(providerName))
             {

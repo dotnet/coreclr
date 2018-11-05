@@ -109,7 +109,7 @@ EventPipeSessionProviderList::EventPipeSessionProviderList(
         // Enable all events if the provider name == '*', all keywords are on and the requested level == verbose.
         if((wcscmp(W("*"), pConfig->GetProviderName()) == 0) && (pConfig->GetKeywords() == 0xFFFFFFFFFFFFFFFF) && ((EventPipeEventLevel)pConfig->GetLevel() == EventPipeEventLevel::Verbose) && (m_pCatchAllProvider == NULL))
         {
-            m_pCatchAllProvider = new EventPipeSessionProvider(NULL, 0xFFFFFFFFFFFFFFFF, EventPipeEventLevel::Verbose);
+            m_pCatchAllProvider = new EventPipeSessionProvider(NULL, 0xFFFFFFFFFFFFFFFF, EventPipeEventLevel::Verbose, NULL);
         }
         else
         {
@@ -258,7 +258,6 @@ EventPipeSessionProvider::EventPipeSessionProvider(
     {
         m_pFilterData = NULL;
     }
-
 }
 
 EventPipeSessionProvider::~EventPipeSessionProvider()
