@@ -58,14 +58,13 @@ jobs:
       - script: ./build.sh $(buildConfig) $(archType) -skipnuget -skiprestore
         displayName: Build
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      # TODO: why do we pass priority here?
       # TODO: do we want to skiptests? skipbuildpackages? IBCOptimize? EnforcePGO? pass an OfficialBuildId? SkipRestore? signtype? file logging parameters?
       # build.cmd has no -skipnuget arg.
       # skipnugetpackage of spc is done when building SPC for different platform, or for ARM64 for some reason
       # for the x-plat SPC builds, skipnugetpackage is always set together with buildpackages.
       # skipnugetpackage applies to SPC build
       # buildpackages applies to .nuget\packages.builds
-      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages -skiprestore -priority=0
+      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages -skiprestore
         displayName: Build
 
 
