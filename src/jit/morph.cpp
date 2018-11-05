@@ -18425,9 +18425,9 @@ private:
     //    lclNum - the local number to update the count for.
     //
     // Notes:
-    //    fgMakeOutgoingStructArgCopy checks the ref counts for implicit byref params when deciding
+    //    fgMakeOutgoingStructArgCopy checks the ref counts for implicit byref params when it decides
     //    if it's legal to elide certain copies of them;
-    //    fgRetypeImplicitByRefArgs checks the ref counts when decides to undo promotions.
+    //    fgRetypeImplicitByRefArgs checks the ref counts when it decides to undo promotions.
     //
     void UpdateEarlyRefCountForImplicitByRef(unsigned lclNum)
     {
