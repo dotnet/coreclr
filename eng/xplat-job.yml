@@ -4,6 +4,7 @@ parameters:
   osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX/Windows_NT)
   name: ''
   displayName: ''
+  condition: ''
   dependsOn: ''
   variables: {} ## any extra variables to add to the defaults defined below
 
@@ -13,6 +14,8 @@ jobs:
 
     name: ${{ parameters.name }}
     displayName: ${{ parameters.displayName }}
+
+    condition: ${{ parameters.condition }}
 
     dependsOn: ${{ parameters.dependsOn }}
 
