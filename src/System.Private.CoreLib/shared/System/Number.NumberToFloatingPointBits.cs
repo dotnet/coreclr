@@ -112,70 +112,6 @@ namespace System
             1e22,   // 10^22
         };
 
-        private static ulong[] s_Pow10ExtendedMantissaTable = new ulong[]
-        {
-            0x80000000_00000000,    // 10^0
-            0xA0000000_00000000,    // 10^1
-            0xC8000000_00000000,    // 10^2
-            0xFA000000_00000000,    // 10^3
-            0x9C400000_00000000,    // 10^4
-            0xC3500000_00000000,    // 10^5
-            0xF4240000_00000000,    // 10^6
-            0x98968000_00000000,    // 10^7
-            0xBEBC2000_00000000,    // 10^8
-            0xEE6B2800_00000000,    // 10^9
-            0x9502F900_00000000,    // 10^10
-            0xBA43B740_00000000,    // 10^11
-            0xE8D4A510_00000000,    // 10^12
-            0x9184E72A_00000000,    // 10^13
-            0xB5E620F4_80000000,    // 10^14
-            0xE35FA931_A0000000,    // 10^15
-            0x8E1BC9BF_04000000,    // 10^16
-            0xB1A2BC2E_C5000000,    // 10^17
-            0xDE0B6B3A_76400000,    // 10^18
-            0x8AC72304_89E80000,    // 10^19
-            0xAD78EBC5_AC620000,    // 10^20
-            0xD8D726B7_177A8000,    // 10^21
-            0x87867832_6EAC9000,    // 10^22
-            0xA968163F_0A57B400,    // 10^23
-            0xD3C21BCE_CCEDA100,    // 10^24
-            0x84595161_401484A0,    // 10^25
-            0xA56FA5B9_9019A5C8,    // 10^26
-            0xCECB8F27_F4200F3A,    // 10^27
-        };
-
-        private static ushort[] s_Pow10ExtendedExponentTable = new ushort[]
-        {
-            1,      // 10^0
-            4,      // 10^1
-            7,      // 10^2
-            10,     // 10^3
-            14,     // 10^4
-            17,     // 10^5
-            20,     // 10^6
-            24,     // 10^7
-            27,     // 10^8
-            30,     // 10^9
-            34,     // 10^10
-            37,     // 10^11
-            40,     // 10^12
-            44,     // 10^13
-            47,     // 10^14
-            50,     // 10^15
-            54,     // 10^16
-            57,     // 10^17
-            60,     // 10^18
-            64,     // 10^19
-            67,     // 10^20
-            70,     // 10^21
-            74,     // 10^22
-            77,     // 10^23
-            80,     // 10^24
-            84,     // 10^25
-            87,     // 10^26
-            90,     // 10^27
-        };
-
         private static void AccumulateDecimalDigitsIntoBigInteger(ref NumberBuffer number, uint firstIndex, uint lastIndex, out BigInteger result)
         {
             result = new BigInteger(0);
@@ -196,19 +132,14 @@ namespace System
             }
         }
 
-        private static ulong AssembleFloatingPointBits(in FloatingPointInfo info, ulong initialMantissa, int initialExponent, bool hasZeroTail, bool exponentNormalized = false)
+        private static ulong AssembleFloatingPointBits(in FloatingPointInfo info, ulong initialMantissa, int initialExponent, bool hasZeroTail)
         {
             // number of bits by which we must adjust the mantissa to shift it into the
             // correct position, and compute the resulting base two exponent for the
             // normalized mantissa:
             uint initialMantissaBits = BigInteger.CountSignificantBits(initialMantissa);
             int normalMantissaShift = info.NormalMantissaBits - (int)(initialMantissaBits);
-            int normalExponent = initialExponent;
-
-            if (!exponentNormalized)
-            {
-                normalExponent -= normalMantissaShift;
-            }
+            int normalExponent = initialExponent - normalMantissaShift;
 
             ulong mantissa = initialMantissa;
             int exponent = normalExponent;
@@ -402,36 +333,6 @@ namespace System
             }
 
             return res;
-        }
-
-        // Get the 64-bit product of two 32-bit integers
-        private static ulong Multiply32x32To64(uint lhs, uint rhs)
-        {
-            return (ulong)(lhs) * rhs;
-        }
-
-        // Get the high 64-bits of the product of two 64-bit integers
-        private static ulong Multiply64x64To128(ulong lhs, ulong rhs, out ulong lower)
-        {
-            uint al = (uint)(lhs);
-            uint au = (uint)(lhs >> 32);
-
-            uint bl = (uint)(rhs);
-            uint bu = (uint)(rhs >> 32);
-
-            ulong c = Multiply32x32To64(al, bl);
-            uint cl = (uint)(c);
-            uint cu = (uint)(c >> 32);
-
-            ulong d = Multiply32x32To64(au, bl) + cu;
-            uint dl = (uint)(d);
-            uint du = (uint)(d >> 32);
-
-            ulong e = Multiply32x32To64(al, bu) + dl;
-            uint eu = (uint)(e >> 32);
-
-            lower = (e << 32) + eu;
-            return Multiply32x32To64(au, bu) + du + eu;
         }
 
         private static ulong NumberToFloatingPointBits(ref NumberBuffer number, in FloatingPointInfo info)
