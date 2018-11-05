@@ -5,6 +5,9 @@
 //
 // See https://github.com/dotnet/roslyn/blob/82b2f694b26e5933ff8dd0856a2cd775273ac138/src/Compilers/Core/Portable/RealParser.cs
 
+// This file is a port of the original code and has been modified to have certain performance improvements
+// and to better fit in with the requirements of CoreCLR and existing code in System.Private.Corelib.
+
 using System.Diagnostics;
 
 namespace System
