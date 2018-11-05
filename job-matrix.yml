@@ -1,6 +1,0 @@
-
-parameters:
-  archType: ''
-  osGroup: ''
-
-- template: 

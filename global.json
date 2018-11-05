@@ -1,5 +1,4 @@
 {
-  "projects": [ "./tests/src", "./tests/src/Common" ],
   "tools": {
     "dotnet": "2.1.401"
   },

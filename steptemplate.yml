@@ -1,7 +1,0 @@
-parameters:
-  myparam: 'paramName'
-
-steps:
-- bash: echo step template, param is $PARAMETERS_MYPARAM
-- script: echo ${{ parameters.myparam }}
-- bash: ${{ format('echo {0}', parameters.myparam) }}

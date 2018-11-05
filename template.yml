@@ -1,8 +1,0 @@
-parameters:
-  name: paramName
-
-jobs:
-- job: ${{ parameters.name }}
-  steps:
-  - bash: echo $PARAMETERS_NAME in step 1
-#   - script: echo ${{ parameters.name }}

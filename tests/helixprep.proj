@@ -54,7 +54,7 @@
 
     <Copy SourceFiles="$(CORE_ROOT)\xunit.console.dll"
           DestinationFolder="%(XunitDlls.RootDir)%(XunitDlls.Directory)"
-          Condition=" '$(UsePython)' == 'fales' " />
+          Condition=" '$(UsePython)' == 'false' " />
 
     <Message Text="Deleting '.requires_signing' files to avoid file name lengths exceeding MAX_PATH" Importance="Low" />
     <Delete Files="@(RequiresSigningFilesToDelete)" />
