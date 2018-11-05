@@ -68,7 +68,7 @@ if __name__ == "__main__":
                "-notrait", "category=outerloop",
                "-notrait", "category=failing"]
 
-    if scenario is None or scenario == "normal":
+    if scenario is None:
         print("CORE_ROOT=%s" % core_root)
         os.environ["CORE_ROOT"] = core_root
 

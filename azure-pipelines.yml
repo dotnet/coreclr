@@ -86,15 +86,17 @@ phases:
     buildConfig: checked
     jobParameters:
       priority: 1
+      scenarios: 'normal;jitstress2'
 
-# Checked Pri0 crossgen test build
+# Checked Pri1 crossgen test build
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
     buildConfig: release
     jobParameters:
-      priority: 0
+      priority: 1
       crossgen: true
+      scenarios: 'normal;jitstress2'
 
 # Release Pri1 test build
 - template: eng/platform-matrix.yml

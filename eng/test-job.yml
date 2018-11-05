@@ -4,6 +4,7 @@ parameters:
   osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX/Windows_NT)
   priority: 0
   crossgen: false
+  scenarios: ''
 
 ### Test job
 
@@ -47,6 +48,11 @@ jobs:
         crossgenArg: 'crossgen'
       ${{ if eq(parameters.crossgen, 'false') }}:
         crossgenArg: ''
+      ${{ if ne(parameters.scenarios, '') }}:
+        # The quoting is a workaround for https://github.com/Microsoft/msbuild/issues/471
+        scenariosArg: ${{ format("'/p:\"Scenarios={0}\"'", parameters.scenarios) }}
+      ${{ if eq(parameters.scenarios, '') }}:
+        scenariosArg: ''
 
     # TODO: Enable crossgen in build-test.sh. It currently doesn't
     # accept a crossgen arg, so disable the macos/linux crossgen test
@@ -112,7 +118,7 @@ jobs:
         projects: tests/helixpublishwitharcade.proj # this may work on windows...
         custom: msbuild
         # TODO: remove UsePython argument once we've removed generated wrappers in helixprep.proj
-        arguments: '/t:test /p:UsePython=true'
+        arguments: '/t:test /p:UsePython=true $(scenariosArg)'
       displayName: Send tests job to Helix
       env:
         ${{ if eq(variables['System.TeamProject'], 'internal') }}:
