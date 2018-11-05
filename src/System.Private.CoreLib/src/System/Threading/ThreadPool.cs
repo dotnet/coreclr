@@ -500,7 +500,7 @@ namespace System.Threading
 
         internal static bool Dispatch()
         {
-            var workQueue = ThreadPoolGlobals.workQueue;
+            ThreadPoolWorkQueue outerWorkQueue = ThreadPoolGlobals.workQueue;
             //
             // The clock is ticking!  We have ThreadPoolGlobals.TP_QUANTUM milliseconds to get some work done, and then
             // we need to return to the VM.
@@ -515,22 +515,24 @@ namespace System.Threading
             // Note that if this thread is aborted before we get a chance to request another one, the VM will
             // record a thread request on our behalf.  So we don't need to worry about getting aborted right here.
             //
-            workQueue.MarkThreadRequestSatisfied();
+            outerWorkQueue.MarkThreadRequestSatisfied();
 
             // Has the desire for logging changed since the last time we entered?
-            workQueue.loggingEnabled = FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool | FrameworkEventSource.Keywords.ThreadTransfer);
+            outerWorkQueue.loggingEnabled = FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool | FrameworkEventSource.Keywords.ThreadTransfer);
 
             //
             // Assume that we're going to need another thread if this one returns to the VM.  We'll set this to 
             // false later, but only if we're absolutely certain that the queue is empty.
             //
             bool needAnotherThread = true;
-            object workItem = null;
+            object outerWorkItem = null;
             try
             {
                 //
                 // Set up our thread-local data
                 //
+                // Use operate on workQueue local to try block so it can be enregistered 
+                ThreadPoolWorkQueue workQueue = outerWorkQueue;
                 ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
                 Thread currentThread = tl.currentThread;
 
@@ -540,7 +542,8 @@ namespace System.Threading
                 while ((Environment.TickCount - quantumStartTime) < ThreadPoolGlobals.TP_QUANTUM)
                 {
                     bool missedSteal = false;
-                    workItem = workQueue.Dequeue(tl, ref missedSteal);
+                    // Use operate on workItem local to try block so it can be enregistered 
+                    object workItem = outerWorkItem = workQueue.Dequeue(tl, ref missedSteal);
 
                     if (workItem == null)
                     {
@@ -638,7 +641,7 @@ namespace System.Threading
                 // it was executed or not (in debug builds only).  Task uses this to communicate the ThreadAbortException to anyone
                 // who waits for the task to complete.
                 //
-                if (workItem is Task task)
+                if (outerWorkItem is Task task)
                 {
                     task.MarkAbortedFromThreadPool(tae);
                 }
@@ -655,7 +658,7 @@ namespace System.Threading
                 // thread to pick up where we left off.
                 //
                 if (needAnotherThread)
-                    workQueue.EnsureThreadRequested();
+                    outerWorkQueue.EnsureThreadRequested();
             }
 
             // we can never reach this point, but the C# compiler doesn't know that, because it doesn't know the ThreadAbortException will be reraised above.
