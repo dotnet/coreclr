@@ -2,7 +2,7 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX/Windows_NT)
-  testBuild: '' ## priority0/empty or priority1
+  testBuild: priority0 ## priority0 or priority1
 
 ### Test job
 jobs:
@@ -11,8 +11,8 @@ jobs:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
-    name: ${{ format('testbuild_{0}_{1}_{2}', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
-    displayName: ${{ format('Test {0} {1} {2}', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+    name: ${{ format('testbuild_{0}_{1}_{2}_{3}', parameters.testBuild, parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('Test {0} {1} {2} {3}', parameters.testBuild, parameters.osGroup, parameters.archType, parameters.buildConfig) }}
     ${{ if eq(parameters.testBuild, 'priority1') }}:
       ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
         testBuildArg: 'priority1'
