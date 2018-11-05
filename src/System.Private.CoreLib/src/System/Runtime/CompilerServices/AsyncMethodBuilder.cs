@@ -543,9 +543,9 @@ namespace System.Runtime.CompilerServices
             internal sealed override void ExecuteFromThreadPool() => MoveNext(isThreadPool: true);
 
             /// <summary>Calls MoveNext on <see cref="StateMachine"/></summary>
-            public void MoveNext() => MoveNext();
+            public void MoveNext() => MoveNext(isThreadPool: false);
 
-            private void MoveNext(bool isThreadPool = false)
+            private void MoveNext(bool isThreadPool)
             {
                 Debug.Assert(!IsCompleted);
 
