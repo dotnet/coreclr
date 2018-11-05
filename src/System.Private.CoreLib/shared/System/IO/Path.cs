@@ -824,5 +824,23 @@ namespace System.IO
                     StringComparison.OrdinalIgnoreCase;
             }
         }
+
+        /// <summary>
+        /// Trims the ending directory separator if present.
+        /// </summary>
+        /// <param name="path"></param>
+        public static string TrimEndingDirectorySeparator(string path) =>
+            PathInternal.EndsInDirectorySeparator(path.AsSpan()) && !PathInternal.IsRoot(path.AsSpan()) ?
+                path.Substring(0, path.Length - 1) :
+                path;
+
+        /// <summary>
+        /// Trims the ending directory separator if present.
+        /// </summary>
+        /// <param name="path"></param>
+        public static ReadOnlySpan<char> TrimEndingDirectorySeparator(ReadOnlySpan<char> path) =>
+            PathInternal.EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path) ?
+                path.Slice(0, path.Length - 1) :
+                path;
     }
 }
