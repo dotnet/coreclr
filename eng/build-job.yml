@@ -33,6 +33,7 @@ jobs:
 
 
     # Run init-tools (pre-arcade dependency bootstrapping)
+    # TODO: replace this with an arcade equivalent
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
       - script: ./init-tools.sh
         displayName: Init tools
@@ -98,46 +99,19 @@ jobs:
           SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
 
 
-    #
-    # Publish official build
-    #
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-        # Build packages
-        # build-packages.cmd -BuildArch= -BuildType= -- /p:SignType= /p:OfficialBuildId=
-        # Publish packages
-        # publish-packages.cmd -AzureAccount= -AzureToken= -BuildArch= -BuildType= -Container= -PublishPackages -- /p:RelativePath=$(PB_BlodNamePrefix)$(PB_BuildType)/pkg /p:PublishFlatContainer= /p:OverwriteOnPublish=true
-
-        # TODO: generate version assets?
-        # TODO: log native version assets?
-        # TODO: upload package to myget? <--- assume we're not doing this any more
-        #- script: eng\common\msbuild.cmd src\publish.proj
-        #    /t:PublishPackages
-        #    /p:__PublishPackages=true
-        #
-        #    # PB_BuildOutputManifestArguments
-        #    /p:ManifestId=$(OfficialBuildId)
-        #    /p:ManifestBranch=$(SourceBranch)
-        #    /p:ManifestCommit=$(SourceVersion)
-        #
-        #    /p:ExpectedFeedUrl=
-        #    /p:CloudDropAccessToken=blobfeedkey
-        #    /p:CloudDropAccountName=azureblobfeedaccountname
-        #    /p:ContainerName=blobfeedcontainername
-        #    /p:OverwriteOnPublish=true
-        #    /p:PackagesPatternDir=packagedirectory
-        #    /p:__BuildType=$(buildConfig)
-        #    /p:OfficialPublish=true
-        #    /p:PublishFlatContainer=false
-        - script: eng\common\msbuild.cmd src\publish.proj
-              /p:__PublishPackages=true
-              /p:ContainerName=container1
-              /p:CloudDropAccountName=svbomerstorageaccount1
-              /p:CloudDropAccessToken=
-              /p:PublishFlatContainer=false
-          displayName: Upload product build to blob feed
-        # TODO: upload package to vsts? <--- assume we're not doing this any more
-        # TODO: update versions repository? <--- assume we're not doing this any more
-    
+    # TODO: Publish official build
+    #- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+    #    ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+    #      # TODO: ensure that NUGET_PACKAGES path is correctly set
+    #      - script: .dotnet/dotnet msbuild src/restorearcadepublishtasks.proj /t:Restore
+    #        displayName: Restore tasks used to publish the build
+    #      - script: .dotnet/dotnet msbuild src/publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)
+    #        displayName: Publish official build
+    #    ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+    #      # TODO: pass publish feed url and access token in from the internal pipeline
+    #      - script: .dotnet\dotnet.exe msbuild src\restorearcadepublishtasks.proj /t:Restore
+    #        displayName: Restore tasks used to publish the build
+    #      - script: .dotnet\dotnet.exe msbuild src/publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)
 
     # Kill tasks that hold onto files on Windows. Otherwise git clean
     # may fail for later jobs on the same agent.
@@ -145,9 +119,3 @@ jobs:
       - script: eng/kill_tasks.cmd
         displayName: Kill tasks that hold on to files
         condition: always()
-
-
-    # TODO: also enable publishing symbols to msdl, symweb
-#    - script: eng\common\cibuild.cmd /p:DotNetPublishToBlobFeed=true /p:DotNetPublishBlobFeedKey=$(dotnetfeed-storage-access-key-1) /p:DotNetPublishBlobFeedUrl=https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json
-    #- script: .\Tools\dotnetcli\dotnet.exe msbuild 
-    #  displayName: Publish build to some location (empty for now)

@@ -115,7 +115,7 @@ jobs:
     - task: DotNetCoreCLI@2
       inputs:
         command: custom
-        projects: tests/helixpublishwitharcade.proj # this may work on windows...
+        projects: tests/helixpublishwitharcade.proj
         custom: msbuild
         # TODO: remove UsePython argument once we've removed generated wrappers in helixprep.proj
         arguments: '/t:test /p:UsePython=true $(scenariosArg)'
