@@ -50,5 +50,5 @@ jobs:
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: arm64
-    osGroup: Window_NT
+    osGroup: Windows_NT
     ${{ insert }}: ${{ parameters.jobParameters }}
