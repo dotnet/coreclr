@@ -5,6 +5,7 @@ parameters:
   name: ''
   displayName: ''
   dependsOn: ''
+  variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
 - template: /eng/common/templates/phases/base.yml@arcade
@@ -41,5 +42,7 @@ jobs:
         buildConfigUpper: 'Release'
       archType: ${{ parameters.archType }}
       osGroup: ${{ parameters.osGroup }}
+      ${{ if ne(parameters.variables, '') }}:
+        ${{insert}}: ${{ parameters.variables }}
 
     steps: ${{ parameters.steps }}
