@@ -86,18 +86,21 @@ phases:
 
 # Debug build
 - template: platform-matrix.yml
-  jobTemplate: build-pipeline.yml
-  buildConfig: debug
+  parameters:
+    jobTemplate: build-pipeline.yml
+    buildConfig: debug
 
 # Checked build
 - template: platform-matrix.yml
-  jobTemplate: build-pipeline.yml
-  buildConfig: debug
+  parameters:
+    jobTemplate: build-pipeline.yml
+    buildConfig: debug
 
 # Release build
 - template: platform-matrix.yml
-  jobTemplate: build-pipeline.yml
-  buildConfig: debug
+  parameters:
+    jobTemplate: build-pipeline.yml
+    buildConfig: debug
 
 
 ###
@@ -236,11 +239,12 @@ phases:
 
 ## Checked (ci jobs) Pri0
 
-# TODO : pass priority
 - template: platform-matrix.yml
   parameters:
     jobTemplate: test-pipeline.yml
     buildConfig: checked
+    jobParameters:
+      testBuild: priority0
 
 ####- template: test-pipeline.yml
 ####  parameters:
@@ -284,6 +288,8 @@ phases:
   parameters:
     jobTemplate: test-pipeline.yml
     buildConfig: checked
+    jobParameters:
+      testBuild: priority1
 
 ####- template: test-pipeline.yml
 ####  parameters:
@@ -329,6 +335,8 @@ phases:
   parameters:
     jobTemplate: test-pipeline.yml
     buildConfig: release
+    jobParameters:
+      testBuild: priority1
 
 ####
 ####- template: test-pipeline.yml
