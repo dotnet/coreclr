@@ -149,7 +149,7 @@ namespace System.Threading
             ExecutionContext previousExecutionCtx = previousExecutionCtx0;
             SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
 
-            if (executionContext?.m_isDefault ?? false)
+            if (executionContext != null && executionContext.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
@@ -220,7 +220,7 @@ namespace System.Threading
             Thread currentThread0 = Thread.CurrentThread;
             Thread currentThread = currentThread0;
             ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
-            if (previousExecutionCtx0?.m_isDefault ?? false)
+            if (previousExecutionCtx0 != null && previousExecutionCtx0.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 previousExecutionCtx0 = null;
@@ -233,7 +233,7 @@ namespace System.Threading
             ExecutionContext previousExecutionCtx = previousExecutionCtx0;
             SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
 
-            if (executionContext?.m_isDefault ?? false)
+            if (executionContext != null && executionContext.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
@@ -302,7 +302,7 @@ namespace System.Threading
 
             Thread currentThread = Thread.CurrentThread;
 
-            if (executionContext?.m_isDefault ?? false)
+            if (executionContext != null && executionContext.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
@@ -381,12 +381,15 @@ namespace System.Threading
             callback.Invoke(state);
 
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
-            if (currentExecutionCtx?.HasChangeNotifications ?? false)
+            if (currentExecutionCtx != null)
             {
                 // Reset ExecutionContext to null (Default) prior to calling OnValuesChanged callback
                 currentThread.ExecutionContext = null;
-                // There are change notifications; trigger any affected
-                OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
+                if (currentExecutionCtx.HasChangeNotifications)
+                {
+                    // There are change notifications; trigger any affected
+                    OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
+                }
             }
 
             // For QUWICallbacks there are no extra steps and ThreadPoolWorkQueue.Dispatch 
@@ -407,12 +410,15 @@ namespace System.Threading
             // Capture current thread to local rather than looking it up multiple times
             Thread currentThread = Thread.CurrentThread;
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
-            if (currentExecutionCtx?.HasChangeNotifications ?? false)
+            if (currentExecutionCtx != null)
             {
                 // Reset ExecutionContext to null (Default) prior to calling OnValuesChanged callback
                 currentThread.ExecutionContext = null;
-                // There are change notifications; trigger any affected
-                OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
+                if (currentExecutionCtx.HasChangeNotifications)
+                {
+                    // There are change notifications; trigger any affected
+                    OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
+                }
             }
 
             // For QUWICallbacks there are no extra steps and ThreadPoolWorkQueue.Dispatch 
