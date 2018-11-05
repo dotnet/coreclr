@@ -76,7 +76,7 @@ phases:
     jobTemplate: eng/test-job.yml
     buildConfig: checked
     jobParameters:
-      testBuild: priority0
+      priority: 0
 
 
 # Checked Pri1 test build
@@ -85,16 +85,16 @@ phases:
     jobTemplate: eng/test-job.yml
     buildConfig: checked
     jobParameters:
-      testBuild: priority1
+      priority: 1
 
-# TODO: Checked Pri1 crossgen test build
+# Checked Pri0 crossgen test build
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: eng/test-job.yml
     buildConfig: release
     jobParameters:
-      testBuild: priority0
-
+      priority: 0
+      crossgen: true
 
 # Release Pri1 test build
 - template: eng/platform-matrix.yml
@@ -102,9 +102,16 @@ phases:
     jobTemplate: eng/test-job.yml
     buildConfig: release
     jobParameters:
-      testBuild: priority1
+      priority: 1
 
-# TODO: Release Pri1 crossgen test build
+# Release Pri1 crossgen test build
+- template: eng/platform-matrix.yml
+  parameters:
+    jobTemplate: eng/test-job.yml
+    buildConfig: release
+    jobParameters:
+      priority: 1
+      crossgen: true
 
 
 # Publish build information to Build Assets Registry
