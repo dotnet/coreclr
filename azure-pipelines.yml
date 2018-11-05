@@ -50,27 +50,38 @@ phases:
 ### to select test modes. This should eventually be used to enable
 ### requesting specific test runs from pull requests.
 
-
+#
 # Debug build
+#
+
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: debug
 
+#
 # Checked build
+#
+
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: checked
 
+#
 # Release build
+#
+
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: release
 
+#
+# Checked test builds
+#
 
-# Checked Pri0 test build
+# Pri0
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
@@ -78,8 +89,7 @@ phases:
     jobParameters:
       priority: 0
 
-
-# Checked Pri1 test build
+# Pri1
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
@@ -88,17 +98,21 @@ phases:
       priority: 1
       scenarios: 'normal;jitstress2'
 
-# Checked Pri1 crossgen test build
+# Pri1 crossgen
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
-    buildConfig: release
+    buildConfig: checked
     jobParameters:
       priority: 1
       crossgen: true
       scenarios: 'normal;jitstress2'
 
-# Release Pri1 test build
+#
+# Release test builds
+#
+
+# Pri1
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
@@ -106,7 +120,7 @@ phases:
     jobParameters:
       priority: 1
 
-# Release Pri1 crossgen test build
+# Pri1 crossgen
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
