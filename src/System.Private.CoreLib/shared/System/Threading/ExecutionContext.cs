@@ -136,7 +136,7 @@ namespace System.Threading
             Thread currentThread0 = Thread.CurrentThread;
             Thread currentThread = currentThread0;
             ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
-            if (previousExecutionCtx0?.m_isDefault ?? false)
+            if (previousExecutionCtx0 != null && previousExecutionCtx0.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 previousExecutionCtx0 = null;
