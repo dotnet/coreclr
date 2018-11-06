@@ -36,7 +36,6 @@
   </Target>
 
   <!-- Copy the wrapper script to the xunit directory -->
-  <!-- This wrapper script is what we hope to use for all test runs in the future. -->
   <Target Name="CopyWrapperScript"
     Inputs="@(XunitDlls)"
     Outputs="$(TestWorkingDir)*\runtest_helix.py" >

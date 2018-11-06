@@ -91,7 +91,7 @@
 
   <Target Name="PrintItems"
           AfterTargets="BuildHelixWorkItem">
-    <Message Importance="High" Text="ZipFiles: @(ZipFiles)" />
+    <Message Importance="High" Text="ZipFiles: @(TestZipFiles)" />
     <Message Importance="High" Text="Identity: @(HelixWorkItem->'%(Identity)')" />
     <Message Importance="High" Text="PayloadArchive: @(HelixWorkItem->'%(PayloadArchive)')" />
     <Message Importance="High" Text="BuildOS: $(BuildOS), __BuildOs: $(__BuildOS), osenv: $(OSEnvironment)" />

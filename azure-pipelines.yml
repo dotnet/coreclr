@@ -96,7 +96,8 @@ phases:
     buildConfig: checked
     jobParameters:
       priority: 1
-      scenarios: 'normal;jitstress2'
+      # Use %3b instead of ; to work around https://github.com/Microsoft/msbuild/issues/471
+      scenarios: 'normal%3bjitstress2'
 
 # Pri1 crossgen
 - template: eng/platform-matrix.yml
@@ -106,7 +107,7 @@ phases:
     jobParameters:
       priority: 1
       crossgen: true
-      scenarios: 'normal;jitstress2'
+      scenarios: 'normal%3bjitstress2'
 
 #
 # Release test builds
