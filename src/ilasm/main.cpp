@@ -171,6 +171,7 @@ extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
       printf("\n/CLOCK          Measure and report compilation times");
 //      printf("\n/ERROR          Try to create .exe or .dll file despite errors reported");
 //      printf("\n       Warning! Results are unpredictable, use this option at your own risk!");
+      printf("\n/RESOURCE=<res_file>    Link the specified resource file (*.res) \n\t\t\tinto resulting .exe or .dll");
       printf("\n/OUTPUT=<targetfile>    Compile to file with specified name \n\t\t\t(user must provide extension, if any)");
       printf("\n/KEY=<keyfile>      Compile with strong signature \n\t\t\t(<keyfile> contains private key)");
       printf("\n/KEY=@<keysource>   Compile with strong signature \n\t\t\t(<keysource> is the private key source name)");
@@ -366,6 +367,19 @@ extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
                     else if (!_stricmp(szOpt, "LIS"))
                     {
                         printf("Option /LISTING is not supported, use ILDASM.EXE\n");
+                    }
+                    else if (!_stricmp(szOpt, "RES"))
+                    {
+                        if(pAsm->m_wzResourceFile==NULL)
+                        {
+                            WCHAR *pStr = EqualOrColon(argv[i]);
+                            if(pStr == NULL) goto ErrorExit;
+                            for(pStr++; *pStr == L' '; pStr++); //skip the blanks
+                            if(wcslen(pStr)==0) goto InvalidOption; //if no file name
+                            pAsm->m_wzResourceFile = pStr;
+                        }
+                        else
+                            printf("Multiple resource files not allowed. Option %ls skipped\n",argv[i]);
                     }
                     else if (!_stricmp(szOpt, "KEY"))
                     {
