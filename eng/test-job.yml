@@ -1,7 +1,7 @@
 parameters:
   buildConfig: ''
   archType: ''
-  osGroup: '' ## the parameter to build.sh/build-test.sh (Linux/OSX/Windows_NT)
+  osGroup: ''
   priority: 0
   crossgen: false
   scenarios: ''
@@ -91,7 +91,6 @@ jobs:
       - script: ./build-test.sh $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
         displayName: Build pri-0 tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-        #    - script: build-test.cmd $(buildConfig) $(archType) buildagainstpackages runtimeid win-$(archType) -Priority=0
       - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
         displayName: Build pri-0 tests
 
