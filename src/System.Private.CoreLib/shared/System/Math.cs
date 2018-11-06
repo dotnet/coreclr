@@ -922,21 +922,11 @@ namespace System
                 }
                 else if (mode is MidpointRounding.ToNegativeInfinity)
                 {
-                    double fraction = ModF(value, &value);
-
-                    if (Sign(fraction) == -1)
-                    {
-                        value--;
-                    }
+                    value = Floor(value);
                 }      
                 else if (mode is MidpointRounding.ToPositiveInfinity)
                 {
-                    double fraction = ModF(value, &value);
-
-                    if (Sign(fraction) == 1)
-                    {
-                        value++;
-                    }
+                    value = Ceiling(value);
                 }
 
                 value /= power10;
