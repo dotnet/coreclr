@@ -536,6 +536,10 @@ namespace System.Threading
                 ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
                 Thread currentThread = tl.currentThread;
 
+                // Start on clean ExecutionContext and SynchronizationContext
+                currentThread.ExecutionContext = null;
+                currentThread.SynchronizationContext = null;
+
                 //
                 // Loop until our quantum expires.
                 //
@@ -569,10 +573,6 @@ namespace System.Threading
                     // in parallel.  Note that this will only ask for a max of #procs threads, so it's safe to call it for every dequeue.
                     //
                     workQueue.EnsureThreadRequested();
-
-                    // Start on clean ExecutionContext and SynchronizationContext
-                    currentThread.ExecutionContext = null;
-                    currentThread.SynchronizationContext = null;
 
                     //
                     // Execute the workitem outside of any finally blocks, so that it can be aborted if needed.
@@ -613,7 +613,11 @@ namespace System.Threading
                         Debug.Assert(workItem is IThreadPoolWorkItem);
                         Unsafe.As<IThreadPoolWorkItem>(workItem).Execute();
                     }
-                    workItem = null;
+
+                    // Release refs and return to clean ExecutionContext and SynchronizationContext
+                    outerWorkItem = workItem = null;
+                    currentThread.ExecutionContext = null;
+                    currentThread.SynchronizationContext = null;
 
                     // 
                     // Notify the VM that we executed this workitem.  This is also our opportunity to ask whether Hill Climbing wants
