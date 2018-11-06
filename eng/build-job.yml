@@ -49,11 +49,11 @@ jobs:
     # Build
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
       - script: ./build.sh $(buildConfig) $(archType) -skipnuget -skiprestore
-        displayName: Build
+        displayName: Build product
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # TODO: IBCOptimize? EnforcePGO? pass an OfficialBuildId? SignType? file logging parameters?
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages -skiprestore
-        displayName: Build
+        displayName: Build product
 
 
     # Upload build as pipeline artifact
