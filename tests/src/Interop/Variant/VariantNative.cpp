@@ -163,7 +163,7 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Object(VARIANT valu
     }
     
 
-    IDispatch* obj = *value.ppdispVal;
+    IDispatch* obj = value.pdispVal;
 
     if (obj == NULL)
     {
@@ -237,7 +237,6 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_DateTime(VARIANT va
 
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Decimal(VARIANT value)
 {
-    
     if (value.vt != VT_DECIMAL)
     {
         printf("Invalid format. Expected VT_DECIMAL.\n");
@@ -245,6 +244,17 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Decimal(VARIANT val
     }
 
     return memcmp(&value.decVal, &DecimalValue, sizeof(DECIMAL)) == 0;
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Null(VARIANT value)
+{
+    if (value.vt != VT_NULL)
+    {
+        printf("Invalid format. Expected VT_NULL. \n");
+        return FALSE;
+    }
+    
+    return TRUE;
 }
 
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Invalid(VARIANT value)

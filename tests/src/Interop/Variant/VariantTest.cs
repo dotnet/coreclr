@@ -54,7 +54,8 @@ class Test
     private static extern bool Marshal_ByValue_Object(object obj);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Empty(object obj);
-
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByValue_Null(object obj);
 
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Invalid(object obj);
@@ -77,10 +78,10 @@ class Test
         Assert.IsTrue(Marshal_ByValue_DateTime(new DateTime(2018, 11, 6)));
         Assert.Throws<ArgumentException>(() => Marshal_ByValue_Invalid(TimeSpan.Zero));
         Assert.IsTrue(Marshal_ByValue_Decimal((decimal)DecimalValue));
-
+        Assert.IsTrue(Marshal_ByValue_Null(DBNull.Value));
         Assert.IsTrue(Marshal_ByValue_Missing(System.Reflection.Missing.Value));
-        // Assert.IsTrue(Marshal_ByValue_Object(new object()));
         Assert.IsTrue(Marshal_ByValue_Empty(null));
+        Assert.IsTrue(Marshal_ByValue_Object(new object()));
     }
 
     public static int Main()
