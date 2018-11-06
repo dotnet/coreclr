@@ -295,7 +295,7 @@ def main(args):
     if not Is_windows and arch == 'arm' :
         # We need to force clang5.0; we are building in a docker container that doesn't have
         # clang3.9, which is currently the default used by the native build.
-        build_args += ' /p:Clang=--clang5.0'
+        build_args += ' /p:BuildNativeClang=--clang5.0'
 
     command = ' '.join(('build.cmd' if Is_windows else './build.sh', build_args))
     log(command)
