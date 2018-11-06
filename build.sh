@@ -1050,11 +1050,6 @@ build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeA
 # Build cross-architecture components
 if [[ $__CrossBuild == 1 ]]; then
     build_cross_architecture_components "$__CrossArch"
-
-    # For now, continue building Hostx86/arm crossgen
-    if [[ "$__HostArch" == "x64" && "$__BuildArch" == "arm" ]]; then
-        build_cross_architecture_components "x86"
-    fi
 fi
 
 # Build System.Private.CoreLib.
