@@ -246,10 +246,18 @@ namespace System
                     int desiredStartIndex = _index & RemoveFlagsBitMask;
                     int desiredLength = _length;
 
+#if BIT64
+                    // See comment in Span<T>.Slice for how this works.
+                    if ((ulong)(uint)desiredStartIndex + (ulong)(uint)desiredLength > (ulong)(uint)lengthOfUnderlyingSpan)
+                    {
+                        ThrowHelper.ThrowArgumentOutOfRangeException();
+                    }
+#else
                     if ((uint)desiredStartIndex > (uint)lengthOfUnderlyingSpan || (uint)desiredLength > (uint)(lengthOfUnderlyingSpan - desiredStartIndex))
                     {
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }
+#endif
 
                     refToReturn = ref Unsafe.Add(ref refToReturn, desiredStartIndex);
                     lengthOfUnderlyingSpan = desiredLength;
@@ -374,19 +382,11 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return (_object != null) ? CombineHashCodes(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
+            // We use RuntimeHelpers.GetHashCode instead of Object.GetHashCode because the hash
+            // code is based on object identity and referential equality, not deep equality (as common with string).
+            return (_object != null) ? HashCode.Combine(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
         }
-
-        private static int CombineHashCodes(int left, int right)
-        {
-            return ((left << 5) + left) ^ right;
-        }
-
-        internal static int CombineHashCodes(int h1, int h2, int h3)
-        {
-            return CombineHashCodes(CombineHashCodes(h1, h2), h3);
-        }
-
+        
         /// <summary>Gets the state of the memory as individual fields.</summary>
         /// <param name="start">The offset.</param>
         /// <param name="length">The count.</param>

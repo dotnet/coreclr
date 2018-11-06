@@ -325,11 +325,19 @@ namespace System
                     int desiredStartIndex = _index & ReadOnlyMemory<T>.RemoveFlagsBitMask;
                     int desiredLength = _length;
 
+#if BIT64
+                    // See comment in Span<T>.Slice for how this works.
+                    if ((ulong)(uint)desiredStartIndex + (ulong)(uint)desiredLength > (ulong)(uint)lengthOfUnderlyingSpan)
+                    {
+                        ThrowHelper.ThrowArgumentOutOfRangeException();
+                    }
+#else
                     if ((uint)desiredStartIndex > (uint)lengthOfUnderlyingSpan || (uint)desiredLength > (uint)(lengthOfUnderlyingSpan - desiredStartIndex))
                     {
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }
-
+#endif
+                    
                     refToReturn = ref Unsafe.Add(ref refToReturn, desiredStartIndex);
                     lengthOfUnderlyingSpan = desiredLength;
                 }
@@ -465,7 +473,9 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return (_object != null) ? ReadOnlyMemory<T>.CombineHashCodes(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
+            // We use RuntimeHelpers.GetHashCode instead of Object.GetHashCode because the hash
+            // code is based on object identity and referential equality, not deep equality (as common with string).
+            return (_object != null) ? HashCode.Combine(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
         }
     }
 }

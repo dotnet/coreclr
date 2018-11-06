@@ -198,7 +198,7 @@ namespace System.Runtime.CompilerServices
         }
 
         // Returns true iff the object has a component size;
-        // i.e., is variable length like string, array, Utf8String.
+        // i.e., is variable length like System.String or Array.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe bool ObjectHasComponentSize(object obj)
         {
