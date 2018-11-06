@@ -181,12 +181,28 @@ extern "C" DLL_EXPORT bool STDMETHODCALLTYPE Marshal_ByValue_Variant(VARIANT_BOO
     {
         printf("Error in function Marshal_ByValue_Variant(Native Client)\n");
 
-        printf("Expected true ");
+        printf("Expected %s ", expected ? "true" : "false");
         printf("Actual %s (%hi)", boolValue == VARIANT_FALSE ? "false" : "(unknown variant value)", boolValue);
 
         return false;
     }
 
+    return true;
+}
+
+extern "C" DLL_EXPORT bool STDMETHODCALLTYPE Marshal_Ref_Variant(VARIANT_BOOL* pBoolValue)
+{
+    if (*pBoolValue != (boolManaged ? VARIANT_TRUE : VARIANT_FALSE))
+    {
+        printf("Error in function Marshal_ByValue_Variant(Native Client)\n");
+
+        printf("Expected %s ", boolManaged ? "true" : "false");
+        printf("Actual %s (%hi)", *pBoolValue == VARIANT_FALSE ? "false" : "(unknown variant value)", *pBoolValue);
+
+        return false;
+    }
+
+    *pBoolValue = (boolNative ? VARIANT_TRUE : VARIANT_FALSE);
     return true;
 }
 
@@ -201,7 +217,7 @@ extern "C" DLL_EXPORT bool STDMETHODCALLTYPE Marshal_ByValue_Struct_Variant(Cont
     {
         printf("Error in function Marshal_ByValue_Variant(Native Client)\n");
 
-        printf("Expected true ");
+        printf("Expected %s ", expected ? "true" : "false");
         printf("Actual %s (%hi)", value.value == VARIANT_FALSE ? "false" : "(unknown variant value)", value.value);
 
         return false;

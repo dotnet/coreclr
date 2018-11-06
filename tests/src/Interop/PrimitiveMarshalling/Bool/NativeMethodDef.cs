@@ -58,6 +58,10 @@ public class NativeMethods
         [MarshalAs(UnmanagedType.VariantBool)] bool value,
         [MarshalAs(UnmanagedType.U1)] bool expected);
 
+    [DllImport(NativeSharedBinaryName)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static extern bool Marshal_Ref_Variant(
+        [MarshalAs(UnmanagedType.VariantBool)] ref bool value);
     
     [DllImport(NativeSharedBinaryName)]
     [return: MarshalAs(UnmanagedType.U1)]

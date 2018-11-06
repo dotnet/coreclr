@@ -92,7 +92,7 @@ class Test
         bool boolValueRet7 = NativeMethods.Marshal_As_In(boolValue7);
         if (!boolValueRet7)
         {
-            ReportFailure("Method Marshal_As_In[Managed Side],The return value is wrong", true, boolValueRet1);
+            ReportFailure("Method Marshal_As_In[Managed Side],The return value is wrong", true, boolValueRet7);
         }
 
         //TestMethod8
@@ -100,7 +100,7 @@ class Test
         bool boolValueRet8 = NativeMethods.Marshal_As_InOut(boolValue8);
         if (!boolValueRet8)
         {
-            ReportFailure("Method Marshal_As_InOut[Managed Side],The return value is wrong", true, boolValueRet2);
+            ReportFailure("Method Marshal_As_InOut[Managed Side],The return value is wrong", true, boolValueRet8);
         }
         if (boolValue8 != boolManaged)
         {
@@ -112,17 +112,29 @@ class Test
         bool boolValueRet9 = NativeMethods.Marshal_As_Out(boolValue9);
         if (!boolValueRet9)
         {
-            ReportFailure("Method Marshal_As_Out[Managed Side],The return value is wrong", true, boolValueRet3);
+            ReportFailure("Method Marshal_As_Out[Managed Side],The return value is wrong", true, boolValueRet9);
         }
         if (boolValue9 != boolManaged)
         {
-            ReportFailure("Method Marshal_As_Out[Managed Side],The parameter value is changed", boolManaged, boolValue3);
+            ReportFailure("Method Marshal_As_Out[Managed Side],The parameter value is changed", boolManaged, boolValue9);
         }
 
         if (!NativeMethods.Marshal_ByValue_Variant(true, true))
         {
             ReportFailure("Method Marshal_ByValue_Variant[Managed Side], The return value is wrong", true, true);
         }
+
+        bool boolValue10 = boolManaged;
+        bool boolValueRet10 = NativeMethods.Marshal_Ref_Variant(ref boolValue10);
+
+        if (!boolValueRet10)
+        {
+            ReportFailure("Method Marshal_Ref_Variant[Managed Side], The return value is wrong.", true, boolValueRet10);
+        }
+        if (boolValue10 != boolNative)
+        {
+            ReportFailure("Method Marshal_Ref_Variant[Managed Side],The passed value is wrong", boolNative, boolValue10);
+        } 
         
         if (!NativeMethods.Marshal_ByValue_Variant(false, false))
         {
