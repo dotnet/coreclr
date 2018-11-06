@@ -1052,7 +1052,7 @@ if [[ $__CrossBuild == 1 ]]; then
     build_cross_architecture_components "$__CrossArch"
 
     # For now, continue building Hostx86/arm crossgen
-    if [[ "$__HostArch" == "x64" && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
+    if [[ "$__HostArch" == "x64" && "$__BuildArch" == "arm" ]]; then
         build_cross_architecture_components "x86"
     fi
 fi
