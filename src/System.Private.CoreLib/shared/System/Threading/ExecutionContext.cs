@@ -336,7 +336,10 @@ namespace System.Threading
             ExecutionContext currentExecutionCtx = currentThread1.ExecutionContext;
             if (currentExecutionCtx != null)
             {
-                // Restore to Default before Notifications
+                // The EC always needs to be reset for this overload, as it will flow back to the caller if it performs 
+                // extra work prior to returning to the Dispatch loop. For example for Task-likes it will flow out of await points
+
+                // Restore to Default before Notifications, as the change can be observed in the handler.
                 currentThread1.ExecutionContext = null;
                 if (currentExecutionCtx.HasChangeNotifications)
                 {
@@ -371,7 +374,7 @@ namespace System.Threading
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
             if (currentExecutionCtx.HasChangeNotifications)
             {
-                // Restore to Default before Notifications
+                // Restore to Default before Notifications, as the change can be observed in the handler
                 currentThread.ExecutionContext = null;
                 OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
             }
@@ -389,7 +392,7 @@ namespace System.Threading
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
             if (currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications)
             {
-                // Restore to Default before Notifications
+                // Restore to Default before Notifications, as the change can be observed in the handler
                 currentThread.ExecutionContext = null;
                 OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
             }
