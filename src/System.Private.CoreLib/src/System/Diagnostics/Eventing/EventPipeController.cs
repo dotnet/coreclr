@@ -191,6 +191,9 @@ namespace System.Diagnostics.Tracing
                         case ConfigKey_ProcessID:
                             strProcessID = entryComponents[1];
                             break;
+
+                        default:
+                            break;
                     }
                 }
             }
@@ -305,15 +308,18 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(strConfig));
             }
 
-            // String must be of the form "providerName:keywords:level:parameter,providerName:keywords:level:parameter..."
-            // where parameter is of the form: "key=value;key=value..."
+            // Provider format: "(GUID|KnownProviderName)[:Flags[:Level][:EventCouter]]"
+            // where EventCouters are of the form: "[key1=value1][;key2=value2]"
+            // `strConfig` must be of the form "Provider[,Provider]"
             string[] providers = strConfig.Split(
                 ProviderConfigDelimiter,
                 StringSplitOptions.RemoveEmptyEntries); // Remove "empty" providers.
             foreach (string provider in providers)
             {
+                // Split expecting a maximum of four tokens.
                 string[] components = provider.Split(
                     ConfigComponentDelimiter,
+                    4, // if there is ':' in the parameters then anything after it will not be ignored.
                     StringSplitOptions.None); // Keep empty tokens
 
                 string providerName = components.Length > 0 ? components[0] : null;
