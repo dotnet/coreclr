@@ -118,6 +118,16 @@ class Test
         {
             ReportFailure("Method Marshal_As_Out[Managed Side],The parameter value is changed", boolManaged, boolValue3);
         }
+
+        if (!NativeMethods.Marshal_ByValue_Variant(true, true))
+        {
+            ReportFailure("Method Marshal_ByValue_Variant[Managed Side], The return value is wrong", true, true);
+        }
+        
+        if (!NativeMethods.Marshal_ByValue_Variant(false, false))
+        {
+            ReportFailure("Method Marshal_ByValue_Variant[Managed Side], The return value is wrong", false, false);
+        }
         return 100;
     }
 }
