@@ -1768,7 +1768,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             // Only Checked is an innerloop trigger.
                             if (configuration == 'Checked')
                             {
-                                Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
+                                Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
                             }
                             break
                         case 'normal':
@@ -1819,7 +1819,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     switch (scenario) {
                         case 'innerloop':
                             if (configuration == 'Debug' && !isFlowJob) {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Innerloop Build")
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Innerloop Build", triggerString)
                             }
                             
                             break
@@ -1847,7 +1847,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     switch (scenario) {
                         case 'innerloop':
                             if (configuration == 'Checked') {
-                                Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
+                                Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
                             }
                             
                             break
