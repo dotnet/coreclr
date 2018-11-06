@@ -614,10 +614,11 @@ namespace System.Threading
                         Unsafe.As<IThreadPoolWorkItem>(workItem).Execute();
                     }
 
-                    // Release refs and return to clean ExecutionContext and SynchronizationContext
+                    // Release refs
                     outerWorkItem = workItem = null;
-                    currentThread.ExecutionContext = null;
-                    currentThread.SynchronizationContext = null;
+
+                    // Return to clean ExecutionContext and SynchronizationContext
+                    ExecutionContext.ResetThreadPoolThread(currentThread);
 
                     // 
                     // Notify the VM that we executed this workitem.  This is also our opportunity to ask whether Hill Climbing wants

@@ -371,15 +371,7 @@ namespace System.Threading
 
             callback.Invoke(state);
 
-            ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
-            if (currentExecutionCtx.HasChangeNotifications)
-            {
-                // Restore to Default before Notifications, as the change can be observed in the handler
-                currentThread.ExecutionContext = null;
-                OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
-            }
-
-            // ThreadPoolWorkQueue.Dispatch will reset EC and SyncCtx back to default
+            // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
         }
 
         internal static void RunForThreadPoolUserWorkItemWithDefaultContext<TState>(Action<TState> callback, in TState state)
@@ -388,16 +380,23 @@ namespace System.Threading
 
             callback.Invoke(state);
 
-            Thread currentThread = Thread.CurrentThread;
+            // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
+        }
+
+        internal static void ResetThreadPoolThread(Thread currentThread)
+        {
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
             if (currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications)
             {
                 // Restore to Default before Notifications, as the change can be observed in the handler
+                currentThread.SynchronizationContext = null;
                 currentThread.ExecutionContext = null;
                 OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
             }
 
-            // ThreadPoolWorkQueue.Dispatch will reset EC and SyncCtx back to default
+            // Reset back to defaults in case the Change handler changed the contexts
+            currentThread.ExecutionContext = null;
+            currentThread.SynchronizationContext = null;
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
