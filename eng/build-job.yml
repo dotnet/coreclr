@@ -18,18 +18,13 @@ jobs:
     steps:
 
     # Install native dependencies
-    - ${{ if eq(parameters.osGroup, 'Linux') }}:
-      - script: sudo apt update && sudo apt install cmake llvm-3.9 clang-3.9 lldb-3.9 liblldb-3.9-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev libkrb5-dev libnuma-dev
+    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX') }}:
+      - script: sh eng/install-native-dependencies.sh $(osGroup)
         displayName: Install native dependencies
-    - ${{ if eq(parameters.osGroup, 'OSX') }}:
-      - script: brew install icu4c openssl
-        displayName: Install native dependencies
-      - script: brew link --force icu4c
-        displayName: Set up native dependencies
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # Necessary to install python
       - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
-        displayName: Install native tools
+        displayName: Install native dependencies
 
 
     # Run init-tools (pre-arcade dependency bootstrapping)
