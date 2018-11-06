@@ -374,15 +374,6 @@ namespace System.Threading
             // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
         }
 
-        internal static void RunForThreadPoolUserWorkItemWithDefaultContext<TState>(Action<TState> callback, in TState state)
-        {
-            CheckThreadPoolAndContextsAreDefault();
-
-            callback.Invoke(state);
-
-            // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
-        }
-
         internal static void ResetThreadPoolThread(Thread currentThread)
         {
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;

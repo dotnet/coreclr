@@ -952,10 +952,9 @@ namespace System.Threading
         private readonly object _state;
         private readonly ExecutionContext _context;
 
-        internal static readonly Action<QueueUserWorkItemCallback> s_executionContextShim = quwi =>
+        private static readonly Action<QueueUserWorkItemCallback> s_executionContextShim = quwi =>
         {
             WaitCallback callback = quwi._callback;
-            Debug.Assert(callback != null);
             quwi._callback = null;
 
             callback(quwi._state);
@@ -963,6 +962,8 @@ namespace System.Threading
 
         internal QueueUserWorkItemCallback(WaitCallback callback, object state, ExecutionContext context)
         {
+            Debug.Assert(context != null);
+
             _callback = callback;
             _state = state;
             _context = context;
@@ -971,19 +972,8 @@ namespace System.Threading
         public override void Execute()
         {
             base.Execute();
-            ExecutionContext context = _context;
-            if (context == null)
-            {
-                WaitCallback callback = _callback;
-                Debug.Assert(callback != null);
-                _callback = null;
 
-                callback(_state);
-            }
-            else
-            {
-                ExecutionContext.RunForThreadPoolUserWorkItem(context, s_executionContextShim, this);
-            }
+            ExecutionContext.RunForThreadPoolUserWorkItem(_context, s_executionContextShim, this);
         }
     }
 
@@ -995,6 +985,8 @@ namespace System.Threading
 
         internal QueueUserWorkItemCallback(Action<TState> callback, TState state, ExecutionContext context)
         {
+            Debug.Assert(callback != null);
+
             _callback = callback;
             _state = state;
             _context = context;
@@ -1003,21 +995,11 @@ namespace System.Threading
         public override void Execute()
         {
             base.Execute();
-            ExecutionContext context = _context;
-            if (context == null)
-            {
-                Action<TState> c = _callback;
-                _callback = null;
-                c(_state);
-            }
-            else
-            {
-                Action<TState> callback = _callback;
-                Debug.Assert(callback != null);
-                _callback = null;
 
-                ExecutionContext.RunForThreadPoolUserWorkItem(context, callback, in _state);
-            }
+            Action<TState> callback = _callback;
+            _callback = null;
+
+            ExecutionContext.RunForThreadPoolUserWorkItem(_context, callback, in _state);
         }
     }
 
@@ -1026,17 +1008,10 @@ namespace System.Threading
         private WaitCallback _callback;
         private readonly object _state;
 
-        internal static readonly Action<QueueUserWorkItemCallbackDefaultContext> s_executionContextShim = quwi =>
-        {
-            WaitCallback callback = quwi._callback;
-            Debug.Assert(callback != null);
-            quwi._callback = null;
-
-            callback(quwi._state);
-        };
-
         internal QueueUserWorkItemCallbackDefaultContext(WaitCallback callback, object state)
         {
+            Debug.Assert(callback != null);
+
             _callback = callback;
             _state = state;
         }
@@ -1044,7 +1019,13 @@ namespace System.Threading
         public override void Execute()
         {
             base.Execute();
-            ExecutionContext.RunForThreadPoolUserWorkItemWithDefaultContext(s_executionContextShim, this);
+
+            WaitCallback callback = _callback;
+            _callback = null;
+
+            callback(_state);
+
+            // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
         }
     }
 
@@ -1055,6 +1036,8 @@ namespace System.Threading
 
         internal QueueUserWorkItemCallbackDefaultContext(Action<TState> callback, TState state)
         {
+            Debug.Assert(callback != null);
+
             _callback = callback;
             _state = state;
         }
@@ -1062,11 +1045,13 @@ namespace System.Threading
         public override void Execute()
         {
             base.Execute();
+
             Action<TState> callback = _callback;
-            Debug.Assert(callback != null);
             _callback = null;
 
-            ExecutionContext.RunForThreadPoolUserWorkItemWithDefaultContext(callback, in _state);
+            callback(_state);
+
+            // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
         }
     }
 
@@ -1310,7 +1295,7 @@ namespace System.Threading
 
             ExecutionContext context = ExecutionContext.Capture();
 
-            object tpcallBack = (context != null && context.IsDefault) ?
+            object tpcallBack = (context == null || context.IsDefault) ?
                 new QueueUserWorkItemCallbackDefaultContext(callBack, state) :
                 (object)new QueueUserWorkItemCallback(callBack, state, context);
 
@@ -1330,7 +1315,7 @@ namespace System.Threading
 
             ExecutionContext context = ExecutionContext.Capture();
 
-            object tpcallBack = (context != null && context.IsDefault) ?
+            object tpcallBack = (context == null || context.IsDefault) ?
                 new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state) :
                 (object)new QueueUserWorkItemCallback<TState>(callBack, state, context);
 
@@ -1350,7 +1335,7 @@ namespace System.Threading
             EnsureVMInitialized();
 
             ThreadPoolGlobals.workQueue.Enqueue(
-                new QueueUserWorkItemCallback<TState>(callBack, state, null), forceGlobal: !preferLocal);
+                new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state), forceGlobal: !preferLocal);
 
             return true;
         }
@@ -1364,7 +1349,7 @@ namespace System.Threading
 
             EnsureVMInitialized();
 
-            object tpcallBack = new QueueUserWorkItemCallback(callBack, state, null);
+            object tpcallBack = new QueueUserWorkItemCallbackDefaultContext(callBack, state);
 
             ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: true);
 
