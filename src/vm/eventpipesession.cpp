@@ -10,9 +10,11 @@
 #ifdef FEATURE_PERFTRACING
 
 EventPipeSession::EventPipeSession(
+    EventPipeSessionType sessionType,
     unsigned int circularBufferSizeInMB,
     EventPipeProviderConfiguration *pProviders,
-    unsigned int numProviders)
+    unsigned int numProviders,
+    UINT64 multiFileTraceLengthInSeconds)
 {
     CONTRACTL
     {
@@ -22,11 +24,15 @@ EventPipeSession::EventPipeSession(
     }
     CONTRACTL_END;
 
+    m_sessionType = sessionType;
     m_circularBufferSizeInBytes = circularBufferSizeInMB * 1024 * 1024; // 1MB;
     m_rundownEnabled = false;
     m_pProviderList = new EventPipeSessionProviderList(
         pProviders,
         numProviders);
+    m_multiFileTraceLengthInSeconds = multiFileTraceLengthInSeconds;
+    GetSystemTimeAsFileTime(&m_sessionStartTime);
+    QueryPerformanceCounter(&m_sessionStartTimeStamp);
 }
 
 EventPipeSession::~EventPipeSession()
@@ -71,19 +77,6 @@ void EventPipeSession::AddSessionProvider(EventPipeSessionProvider *pProvider)
     m_pProviderList->AddSessionProvider(pProvider);
 }
 
-void EventPipeSession::EnableAllEvents()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    m_pProviderList->EnableAllEvents();
-}
-
 EventPipeSessionProvider* EventPipeSession::GetSessionProvider(EventPipeProvider *pProvider)
 {
     CONTRACTL
@@ -114,12 +107,21 @@ EventPipeSessionProviderList::EventPipeSessionProviderList(
     for(unsigned int i=0; i<numConfigs; i++)
     {
         EventPipeProviderConfiguration *pConfig = &pConfigs[i];
-        EventPipeSessionProvider *pProvider = new EventPipeSessionProvider(
-            pConfig->GetProviderName(),
-            pConfig->GetKeywords(),
-            (EventPipeEventLevel)pConfig->GetLevel());
 
-        m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider*>(pProvider));
+        // Enable all events if the provider name == '*', all keywords are on and the requested level == verbose.
+        if((wcscmp(W("*"), pConfig->GetProviderName()) == 0) && (pConfig->GetKeywords() == 0xFFFFFFFFFFFFFFFF) && ((EventPipeEventLevel)pConfig->GetLevel() == EventPipeEventLevel::Verbose) && (m_pCatchAllProvider == NULL))
+        {
+            m_pCatchAllProvider = new EventPipeSessionProvider(NULL, 0xFFFFFFFFFFFFFFFF, EventPipeEventLevel::Verbose);
+        }
+        else
+        {
+            EventPipeSessionProvider *pProvider = new EventPipeSessionProvider(
+                pConfig->GetProviderName(),
+                pConfig->GetKeywords(),
+                (EventPipeEventLevel)pConfig->GetLevel());
+
+            m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider*>(pProvider));
+        }
     }
 }
 
@@ -169,16 +171,6 @@ void EventPipeSessionProviderList::AddSessionProvider(EventPipeSessionProvider *
     if(pProvider != NULL)
     {
         m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider*>(pProvider));
-    }
-}
-
-void EventPipeSessionProviderList::EnableAllEvents()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if(m_pCatchAllProvider == NULL)
-    {
-        m_pCatchAllProvider = new EventPipeSessionProvider(NULL, 0xFFFFFFFFFFFFFFFF, EventPipeEventLevel::Verbose);
     }
 }
 
