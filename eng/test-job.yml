@@ -49,7 +49,7 @@ jobs:
       ${{ if eq(parameters.crossgen, 'false') }}:
         crossgenArg: ''
       ${{ if ne(parameters.scenarios, '') }}:
-        scenariosArg: ${{ format('/p:Scenarios={0}', parameters.scenarios) }}
+        scenariosArg: ${{ format('/p:"Scenarios={0}"', parameters.scenarios) }}
       ${{ if eq(parameters.scenarios, '') }}:
         scenariosArg: ''
 
@@ -113,16 +113,23 @@ jobs:
 
 
     # Send tests to helix
-    - task: DotNetCoreCLI@2
-      inputs:
-        command: custom
-        projects: tests/helixpublishwitharcade.proj
-        custom: msbuild
-      displayName: Send tests job to Helix
-      env:
-        ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-          # Access token variable for internal project
-          HelixAccessToken: $(HelixApiAccessToken)
-        ${{ if eq(variables['System.TeamProject'], 'public') }}:
-          # Access token variable for public project
-          HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
+    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixpublishwitharcade.proj $(scenariosArg)
+        displayName: Send test job to Helix
+        env:
+          ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+            # Access token variable for internal project
+            HelixAccessToken: $(HelixApiAccessToken)
+          ${{ if eq(variables['System.TeamProject'], 'public') }}:
+            # Access token variable for public project
+            HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: .\Tools\dotnetcli\dotnet msbuild tests\helixpublishwitharcade.proj $(scenariosArg)
+        displayName: Send test job to Helix
+        env:
+          ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+            # Access token variable for internal project
+            HelixAccessToken: $(HelixApiAccessToken)
+          ${{ if eq(variables['System.TeamProject'], 'public') }}:
+            # Access token variable for public project
+            HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
