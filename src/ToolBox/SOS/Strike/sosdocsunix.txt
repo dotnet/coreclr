@@ -34,12 +34,12 @@ GCRoot (gcroot)                    GCInfo
 PrintException (pe)                EHInfo
                                    bpmd (bpmd)
                                    
-
 Examining CLR data structures      Diagnostic Utilities
 -----------------------------      -----------------------------
 DumpDomain                         VerifyHeap
 EEHeap (eeheap)                    FindAppDomain          
 Name2EE (name2ee)                  DumpLog (dumplog)
+SyncBlk (syncblk)
 DumpMT (dumpmt)
 DumpClass (dumpclass)
 DumpMD (dumpmd)                    
@@ -308,7 +308,7 @@ DumpHeap [-stat]
 
 DumpHeap is a powerful command that traverses the garbage collected heap, 
 collection statistics about objects. With it's various options, it can look for
-particular types, restrict to a range, or look for ThinLocks (see SyncBlk 
+particular types, restrict to a range, or look for ThinLocks (see syncblk 
 documentation). Finally, it will provide a warning if it detects excessive 
 fragmentation in the GC heap. 
 
@@ -361,7 +361,7 @@ The arguments in detail:
 -live     Only print live objects
 -dead     Only print dead objects (objects which will be collected in the
           next full GC)
--thinlock Report on any ThinLocks (an efficient locking scheme, see SyncBlk 
+-thinlock Report on any ThinLocks (an efficient locking scheme, see syncblk 
           documentation for more info)
 -startAtLowerBound 
           Force heap walk to begin at lower bound of a supplied address range.
@@ -1208,7 +1208,7 @@ all loaded modules in all domains. And remember that you can browse all the
 types in a module with DumpModule -mt <module pointer>.
 \\
 
-OMMAND: syncblk.
+COMMAND: syncblk.
 SyncBlk [-all | <syncblk number>]
 
 A SyncBlock is a holder for extra information that doesn't need to be created 
@@ -1282,7 +1282,7 @@ NOTE:
 It is not always the case that a SyncBlock will be created for every object 
 that is locked by a thread. In version 2.0 of the CLR and above, a mechanism 
 called a ThinLock will be used if there is not already a SyncBlock for the 
-object in question. ThinLocks will not be reported by the !SyncBlk command. 
+object in question. ThinLocks will not be reported by the syncblk command. 
 You can use "dumpheap -thinlock" to list objects locked in this way.
 \\
 
