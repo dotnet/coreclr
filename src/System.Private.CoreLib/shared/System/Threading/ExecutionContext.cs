@@ -386,17 +386,19 @@ namespace System.Threading
         internal static void ResetThreadPoolThread(Thread currentThread)
         {
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
+
+            // Reset to defaults
+            currentThread.SynchronizationContext = null;
+            currentThread.ExecutionContext = null;
+
             if (currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications)
             {
-                // Restore to Default before Notifications, as the change can be observed in the handler
+                OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
+
+                // Reset to defaults again without change notifications in case the Change handler changed the contexts
                 currentThread.SynchronizationContext = null;
                 currentThread.ExecutionContext = null;
-                OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
             }
-
-            // Reset back to defaults in case the Change handler changed the contexts
-            currentThread.ExecutionContext = null;
-            currentThread.SynchronizationContext = null;
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
