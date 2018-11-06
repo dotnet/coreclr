@@ -122,7 +122,6 @@
 #include "ExpressionNode.h"
 #include "WatchCmd.h"
 
-#include <set>
 #include <algorithm>
 
 #include "tls.h"
@@ -146,6 +145,7 @@ const PROCESSINFOCLASS ProcessVmCounters = static_cast<PROCESSINFOCLASS>(3);
 
 #endif // !FEATURE_PAL
 
+#include <set>
 #include <vector>
 #include <map>
 
@@ -4243,7 +4243,7 @@ private:
 void ResolveContinuation(CLRDATA_ADDRESS* contAddr)
 {
     // Ideally this continuation is itself an async method box.
-    sos::Object contObj = *contAddr;
+    sos::Object contObj = TO_TADDR(*contAddr);
     if (GetObjFieldOffset(contObj.GetAddress(), contObj.GetMT(), W("StateMachine")) == 0)
     {
         // It was something else.
@@ -4255,7 +4255,7 @@ void ResolveContinuation(CLRDATA_ADDRESS* contAddr)
             MOVE(*contAddr, contObj.GetAddress() + offset);
             if (sos::IsObject(*contAddr, false))
             {
-                contObj = *contAddr;
+                contObj = TO_TADDR(*contAddr);
             }
         }
         else
@@ -4266,7 +4266,7 @@ void ResolveContinuation(CLRDATA_ADDRESS* contAddr)
                 MOVE(*contAddr, contObj.GetAddress() + offset);
                 if (sos::IsObject(*contAddr, false))
                 {
-                    contObj = *contAddr;
+                    contObj = TO_TADDR(*contAddr);
                 }
             }
 
@@ -4276,7 +4276,7 @@ void ResolveContinuation(CLRDATA_ADDRESS* contAddr)
                 MOVE(*contAddr, contObj.GetAddress() + offset);
                 if (sos::IsObject(*contAddr, false))
                 {
-                    contObj = *contAddr;
+                    contObj = TO_TADDR(*contAddr);
                 }
             }
         }
@@ -4350,7 +4350,7 @@ void ExtOutTaskDelegateMethod(sos::Object& obj)
         CLRDATA_ADDRESS actionMD;
         if (actionAddr != NULL && TryGetMethodDescriptorForDelegate(actionAddr, &actionMD))
         {
-            NameForMD_s(actionMD, g_mdName, mdNameLen);
+            NameForMD_s((DWORD_PTR)actionMD, g_mdName, mdNameLen);
             ExtOut("(%S) ", g_mdName);
         }
     }
@@ -4407,14 +4407,18 @@ DECLARE_API(DumpAsync)
         return E_FAIL;
     }
 
+#ifndef FEATURE_PAL
     FILE* pDgmlFile = NULL;
+#endif
     try
     {
         // Process command-line arguments.
         size_t nArg = 0;
         TADDR mt = NULL, addr = NULL;
         ArrayHolder<char> ansiType = NULL;
+#ifndef FEATURE_PAL
         ArrayHolder<char> dgmlPath = NULL;
+#endif
         ArrayHolder<WCHAR> type = NULL;
         BOOL dml = FALSE, includeCompleted = FALSE, includeStacks = FALSE, includeRoots = FALSE, includeAllTasks = FALSE, dumpFields = FALSE;
         CMDOption option[] =
@@ -4427,8 +4431,8 @@ DECLARE_API(DumpAsync)
             { "-fields", &dumpFields, COBOOL, FALSE },          // show relevant fields of found async objects
             { "-stacks", &includeStacks, COBOOL, FALSE },       // gather and output continuation/stack information
             { "-roots", &includeRoots, COBOOL, FALSE },         // gather and output GC root information
-            { "-dgmlPath", &dgmlPath, COSTRING, TRUE },         // output state machine graph to specified dgml file
 #ifndef FEATURE_PAL
+            { "-dgmlPath", &dgmlPath, COSTRING, TRUE },         // output state machine graph to specified dgml file
             { "/d", &dml, COBOOL, FALSE },                      // Debugger Markup Language
 #endif
         };
@@ -4444,7 +4448,9 @@ DECLARE_API(DumpAsync)
                 "[-fields]              => Show the fields of state machines.\n"
                 "[-stacks]              => Gather, output, and consolidate based on continuation chains / async stacks for discovered async objects.\n"
                 "[-roots]               => Perform a gcroot on each rendered async object.\n"
+#ifndef FEATURE_PAL
                 "[-dgmlPath outputPath] => Output to the specified path a DGML representation of the discovered async objects.\n"
+#endif
                 );
         }
         if (ansiType != NULL)
@@ -4522,7 +4528,7 @@ DECLARE_API(DumpAsync)
             int offset = GetObjFieldOffset(ar.Address, ar.MT, W("m_stateFlags"), TRUE, &stateFlagsField);
             if (offset != 0)
             {
-                sos::Object obj = ar.Address;
+                sos::Object obj = TO_TADDR(ar.Address);
                 MOVE(ar.TaskStateFlags, obj.GetAddress() + offset);
             }
 
@@ -4573,7 +4579,7 @@ DECLARE_API(DumpAsync)
             CLRDATA_ADDRESS nextAddr;
             if ((includeStacks || dgmlPath != NULL) && TryGetContinuation(itr->GetAddress(), itr->GetMT(), &nextAddr))
             {
-                sos::Object contObj = nextAddr;
+                sos::Object contObj = TO_TADDR(nextAddr);
                 if (_wcsncmp(contObj.GetTypeName(), W("System.Collections.Generic.List`1"), 33) == 0)
                 {
                     // The continuation is a List<object>.  Iterate through its internal object[]
@@ -4621,7 +4627,7 @@ DECLARE_API(DumpAsync)
             {
                 if (!hasTypeFilter || arIt->second.FilteredByOptions)
                 {
-                    stats.Add(arIt->second.MT, arIt->second.Size);
+                    stats.Add((DWORD_PTR)arIt->second.MT, (DWORD)arIt->second.Size);
                 }
             }
             stats.Sort();
@@ -4654,6 +4660,7 @@ DECLARE_API(DumpAsync)
             ExtOut("In %d chains.\n", uniqueChains);
         }
 
+#ifndef FEATURE_PAL
         // If the user has asked for a DGML rendering of the async records, create it.
         if (dgmlPath != NULL)
         {
@@ -4675,7 +4682,7 @@ DECLARE_API(DumpAsync)
                 {
                     if (asyncRecords.find(*contIt) == asyncRecords.end())
                     {
-                        sos::Object contObj = *contIt;
+                        sos::Object contObj = TO_TADDR(*contIt);
                         std::map<CLRDATA_ADDRESS, std::pair<CLRDATA_ADDRESS, int>>::iterator found = mtCounts.find(contObj.GetMT());
                         if (found == mtCounts.end())
                         {
@@ -4706,7 +4713,7 @@ DECLARE_API(DumpAsync)
             for (std::map<CLRDATA_ADDRESS, std::pair<CLRDATA_ADDRESS, int>>::iterator mtIt = mtCounts.begin(); mtIt != mtCounts.end(); ++mtIt)
             {
                 fprintf_s(pDgmlFile, "  <Node Id=\"%d\" Label=\"", mtIt->first);
-                sos::MethodTable curMT = mtIt->second.first;
+                sos::MethodTable curMT = TO_TADDR(mtIt->second.first);
                 for (const WCHAR* c = curMT.GetName(); *c != 0; c++)
                 {
                     switch (*c)
@@ -4731,7 +4738,7 @@ DECLARE_API(DumpAsync)
             {
                 for (std::vector<CLRDATA_ADDRESS>::iterator contIt = arIt->second.Continuations.begin(); contIt != arIt->second.Continuations.end(); ++contIt)
                 {
-                    sos::Object contObj = *contIt;
+                    sos::Object contObj = TO_TADDR(*contIt);
                     fprintf_s(pDgmlFile, "  <Link Source=\"%d\" Target=\"%d\" Label=\"\" />", arIt->second.MT, contObj.GetMT());
                 }
             }
@@ -4755,6 +4762,7 @@ DECLARE_API(DumpAsync)
             pDgmlFile = NULL;
             ExtOut("Graph saved to %s.\n", dgmlPath);
         }
+#endif
 
         // Print out header for the main line of each result.
         ExtOut("%" POINTERSIZE "s %" POINTERSIZE "s %8s ", "Address", "MT", "Size");
@@ -4771,7 +4779,7 @@ DECLARE_API(DumpAsync)
             }
 
             // Output the state machine's details as a single line.
-            sos::Object obj = arIt->second.Address;
+            sos::Object obj = TO_TADDR(arIt->second.Address);
             DacpMethodTableData mtabledata;
             DacpMethodTableFieldData vMethodTableFields;
             if (arIt->second.IsStateMachine &&
@@ -4780,7 +4788,7 @@ DECLARE_API(DumpAsync)
                 vMethodTableFields.wNumInstanceFields + vMethodTableFields.wNumStaticFields > 0)
             {
                 // This has a StateMachine.  Output its details.
-                sos::MethodTable mt = (TADDR)arIt->second.StateMachineMT;
+                sos::MethodTable mt = TO_TADDR(arIt->second.StateMachineMT);
                 DMLOut("%s %s %8d ", DMLAsync(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize());
                 if (includeCompleted) ExtOut("%8s ", GetAsyncRecordStatusDescription(arIt->second));
                 ExtOut("%10d %S\n", arIt->second.StateValue, mt.GetName());
@@ -4830,7 +4838,7 @@ DECLARE_API(DumpAsync)
                     // Iterate through all continuations from this object.
                     for (std::vector<CLRDATA_ADDRESS>::iterator contIt = curAsyncRecord->second.Continuations.begin(); contIt != curAsyncRecord->second.Continuations.end(); ++contIt)
                     {
-                        sos::Object cont = *contIt;
+                        sos::Object cont = TO_TADDR(*contIt);
 
                         // Print out the depth of the continuation with dots, then its address.
                         for (int i = 0; i < cur.first; i++) ExtOut(".");
@@ -4844,7 +4852,7 @@ DECLARE_API(DumpAsync)
                         std::map<CLRDATA_ADDRESS, AsyncRecord>::iterator contAsyncRecord = asyncRecords.find(cont.GetAddress());
                         if (contAsyncRecord != asyncRecords.end())
                         {
-                            sos::MethodTable contMT = contAsyncRecord->second.StateMachineMT;
+                            sos::MethodTable contMT = TO_TADDR(contAsyncRecord->second.StateMachineMT);
                             if (contAsyncRecord->second.IsStateMachine) ExtOut("(%d) ", contAsyncRecord->second.StateValue);
                             ExtOut("%S\n", contMT.GetName());
                         }
@@ -4885,10 +4893,12 @@ DECLARE_API(DumpAsync)
     }
     catch (const sos::Exception &e)
     {
+#ifndef FEATURE_PAL
         if (pDgmlFile != NULL)
         {
             fclose(pDgmlFile);
         }
+#endif
 
         ExtOut("%s\n", e.what());
         return E_FAIL;
