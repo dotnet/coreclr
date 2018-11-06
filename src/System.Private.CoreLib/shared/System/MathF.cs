@@ -319,10 +319,14 @@ namespace System
 
                 if (mode is MidpointRounding.ToEven)
                 {
+                    // Rounds to the nearest value; if the number falls midway,
+                    // it is rounded to the nearest value with an even least significant digit
                     x = Round(x);
                 }
                 else if (mode is MidpointRounding.AwayFromZero)
                 {
+                    // Rounds to the nearest value; if the number falls midway,
+                    // it is rounded to the nearest value above (for positive numbers) or below (for negative numbers)
                     float fraction = ModF(x, &x);
 
                     if (Abs(fraction) >= 0.5f)
@@ -332,25 +336,18 @@ namespace System
                 }
                 else if (mode is MidpointRounding.ToZero)
                 {
+                    // Directed rounding: Round toward zero, to nearest value above (positive numbers) or below (negative numbers)
                     x = Truncate(x);
                 }
                 else if (mode is MidpointRounding.ToNegativeInfinity)
                 {
-                    float fraction = ModF(x, &x);
-
-                    if (Sign(fraction) == -1)
-                    {
-                        x--;
-                    }
+                    // Directed Rounding: Round down to the next value, toward −∞
+                    x = Floor(x);
                 }      
                 else if (mode is MidpointRounding.ToPositiveInfinity)
                 {
-                    float fraction = ModF(x, &x);
-
-                    if (Sign(fraction) == 1)
-                    {
-                        x++;
-                    }
+                    // Directed rounding: Round up to the next value, toward +∞
+                    x = Ceiling(x);
                 }
 
                 x /= power10;

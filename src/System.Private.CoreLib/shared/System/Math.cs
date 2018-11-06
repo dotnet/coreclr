@@ -905,10 +905,14 @@ namespace System
 
                 if (mode is MidpointRounding.ToEven)
                 {
+                    // Rounds to the nearest value; if the number falls midway,
+                    // it is rounded to the nearest value with an even least significant digit
                     value = Round(value);
                 }
                 else if (mode is MidpointRounding.AwayFromZero)
                 {
+                    // Rounds to the nearest value; if the number falls midway,
+                    // it is rounded to the nearest value above (for positive numbers) or below (for negative numbers)
                     double fraction = ModF(value, &value);
 
                     if (Abs(fraction) >= 0.5)
@@ -918,14 +922,17 @@ namespace System
                 }
                 else if (mode is MidpointRounding.ToZero)
                 {
+                    // Directed rounding: Round toward zero, to nearest value above (positive numbers) or below (negative numbers)
                     value = Truncate(value);
                 }
                 else if (mode is MidpointRounding.ToNegativeInfinity)
                 {
+                    // Directed Rounding: Round down to the next value, toward −∞
                     value = Floor(value);
                 }      
                 else if (mode is MidpointRounding.ToPositiveInfinity)
                 {
+                    // Directed rounding: Round up to the next value, toward +∞
                     value = Ceiling(value);
                 }
 
