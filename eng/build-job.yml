@@ -53,18 +53,10 @@ jobs:
 
     # Build
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-        # for build.sh, skipnuget is equivalent to skipbuildpackages
-        # TODO: skiptests?
-        # this always passes FALSE for corelib -BuildNugetPackage.
       - script: ./build.sh $(buildConfig) $(archType) -skipnuget -skiprestore
         displayName: Build
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      # TODO: do we want to skiptests? skipbuildpackages? IBCOptimize? EnforcePGO? pass an OfficialBuildId? SkipRestore? signtype? file logging parameters?
-      # build.cmd has no -skipnuget arg.
-      # skipnugetpackage of spc is done when building SPC for different platform, or for ARM64 for some reason
-      # for the x-plat SPC builds, skipnugetpackage is always set together with buildpackages.
-      # skipnugetpackage applies to SPC build
-      # buildpackages applies to .nuget\packages.builds
+      # TODO: IBCOptimize? EnforcePGO? pass an OfficialBuildId? SignType? file logging parameters?
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages -skiprestore
         displayName: Build
 
@@ -99,7 +91,7 @@ jobs:
           SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
 
 
-    # TODO: Publish official build
+    # TODO: Build packages and publish official build
     #- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
     #    ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
     #      # TODO: ensure that NUGET_PACKAGES path is correctly set

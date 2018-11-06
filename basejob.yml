@@ -1,7 +1,0 @@
-parameters:
-  jobname: ''
-
-jobs:
-- job: ${{ format('job_{0}', parameters.jobname) }}
-  steps:
-  - script: echo I'm a base job.
