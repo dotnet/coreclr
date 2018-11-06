@@ -119,6 +119,7 @@ namespace System.Reflection
             Debug.Assert(target != null);
 
             // No pseudo attributes for RuntimeAssembly
+
             return GetCustomAttributes((RuntimeModule)target.ManifestModule, RuntimeAssembly.GetToken(target.GetNativeHandle()));
         }
 
@@ -1138,6 +1139,7 @@ namespace System.Reflection
             Debug.Assert(caType != null);
 
             // No pseudo attributes for RuntimeConstructorInfo
+
             return IsCustomAttributeDefined(ctor.GetRuntimeModule(), ctor.MetadataToken, caType);
         }
 
@@ -1147,6 +1149,7 @@ namespace System.Reflection
             Debug.Assert(caType != null);
 
             // No pseudo attributes for RuntimePropertyInfo
+
             return IsCustomAttributeDefined(property.GetRuntimeModule(), property.MetadataToken, caType);
         }
 
@@ -1156,6 +1159,7 @@ namespace System.Reflection
             Debug.Assert(caType != null);
 
             // No pseudo attributes for RuntimeEventInfo
+
             return IsCustomAttributeDefined(e.GetRuntimeModule(), e.MetadataToken, caType);
         }
 
@@ -1196,6 +1200,7 @@ namespace System.Reflection
             Debug.Assert(caType != null);
 
             // No pseudo attributes for RuntimeModule
+
             return IsCustomAttributeDefined(module, module.MetadataToken, caType);
         }
 
@@ -1294,6 +1299,7 @@ namespace System.Reflection
             Debug.Assert(caType != null);
 
             // No pseudo attributes for RuntimeConstructorInfo
+
             return GetCustomAttributes(ctor.GetRuntimeModule(), ctor.MetadataToken, 0, caType);
         }
 
@@ -1303,6 +1309,7 @@ namespace System.Reflection
             Debug.Assert(caType != null);
 
             // No pseudo attributes for RuntimePropertyInfo
+
             return GetCustomAttributes(property.GetRuntimeModule(), property.MetadataToken, 0, caType);
         }
 
@@ -1312,6 +1319,7 @@ namespace System.Reflection
             Debug.Assert(caType != null);
 
             // No pseudo attributes for RuntimeEventInfo
+
             return GetCustomAttributes(e.GetRuntimeModule(), e.MetadataToken, 0, caType);
         }
 
@@ -1343,6 +1351,7 @@ namespace System.Reflection
             Debug.Assert(caType != null);
 
             // No pseudo attributes for RuntimeAssembly
+
             int assemblyToken = RuntimeAssembly.GetToken(assembly.GetNativeHandle());
             return GetCustomAttributes(assembly.ManifestModule as RuntimeModule, assemblyToken, 0, caType);
         }
@@ -1353,6 +1362,7 @@ namespace System.Reflection
             Debug.Assert(caType != null);
 
             // No pseudo attributes for RuntimeModule
+
             return GetCustomAttributes(module, module.MetadataToken, 0, caType);
         }
 
