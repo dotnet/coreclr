@@ -197,26 +197,20 @@ void EventPipeProvider::InvokeCallback(LPCWSTR pFilterData)
     }
     CONTRACTL_END;
 
-    const unsigned int MaxNumberOfBytes = 1024;
-    WCHAR buffer[MaxNumberOfBytes / sizeof(WCHAR)]{};
+    SString buffer;
     EventFilterDescriptor eventFilterDescriptor{};
     bool isEventFilterDescriptorInitialized = false;
 
     if (pFilterData != NULL)
     {
-        // Why can't we use standard C++ algorithms and containers?
-        const size_t filterDataLength = wcslen(pFilterData) + 1;
-        const size_t filterDataSizeInBytes = filterDataLength * sizeof(WCHAR);
-        const size_t nCharactersToCopy = filterDataSizeInBytes <= sizeof(buffer) ?
-            filterDataLength : sizeof(buffer) / sizeof(WCHAR);
-        wcscpy_s(buffer, nCharactersToCopy, pFilterData);
+        while (*pFilterData != L'\0')
+        {
+            buffer.Append((*pFilterData == L'=' || *pFilterData == L';') ? L'\0' : *pFilterData);
+            pFilterData++;
+        }
 
-        for (size_t i = 0; i < nCharactersToCopy; ++i)
-            if (buffer[i] == L'=' || buffer[i] == L';')
-                buffer[i] = L'\0';
-
-        eventFilterDescriptor.Ptr = (ULONGLONG)&buffer[0];
-        eventFilterDescriptor.Size = (ULONG)nCharactersToCopy;
+        eventFilterDescriptor.Ptr = reinterpret_cast<ULONGLONG>(buffer.GetUnicode());
+        eventFilterDescriptor.Size = static_cast<ULONG>(buffer.GetCount() + 1);
         eventFilterDescriptor.Type = 0; // EventProvider.cs: `internal enum ControllerCommand.Update`
         isEventFilterDescriptorInitialized = true;
     }
