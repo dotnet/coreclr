@@ -639,13 +639,13 @@ function_name() to call the system's implementation
 
 #ifdef __APPLE__
 #define APPLICATION_CONTAINER_BASE_PATH_SUFFIX "/Library/Group Containers/"
-#endif // __APPLE__
 
 // Not much to go with, but Max semaphore length on Mac is 31 characters. In a sandbox, the semaphore name
 // must be prefixed with an application group ID. This will be 10 characters for developer ID and extra 2 
 // characters for group name. For example ABCDEFGHIJ.MS. We still need some characters left
 // for the actual semaphore names.
 #define MAX_APPLICATION_GROUP_ID_LENGTH 13
+#endif // __APPLE__
 
 #ifdef __cplusplus
 extern "C"
