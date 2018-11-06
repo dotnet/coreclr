@@ -2523,12 +2523,12 @@ COUNT_T PEDecoder::GetNativeImportTableCount() const
 
     IMAGE_DATA_DIRECTORY *pDir = &GetNativeHeader()->ImportTable;
 
-    RETURN (VAL32(pDir->Size) / sizeof(CORCOMPILE_IMPORT_TABLE_ENTRY));
+    RETURN (VAL32(pDir->Size) / sizeof(USHORT));
 }
 
-CORCOMPILE_IMPORT_TABLE_ENTRY *PEDecoder::GetNativeImportFromIndex(COUNT_T index) const
+USHORT *PEDecoder::GetNativeImportFromIndex(COUNT_T index) const
 {
-    CONTRACT(CORCOMPILE_IMPORT_TABLE_ENTRY *)
+    CONTRACT(USHORT *)
     {
         PRECONDITION(CheckNativeHeader());
         PRECONDITION(CheckNativeImportFromIndex(index));
@@ -2540,8 +2540,8 @@ CORCOMPILE_IMPORT_TABLE_ENTRY *PEDecoder::GetNativeImportFromIndex(COUNT_T index
 
     IMAGE_DATA_DIRECTORY *pDir = &GetNativeHeader()->ImportTable;
 
-    CORCOMPILE_IMPORT_TABLE_ENTRY *pEntry
-      = (CORCOMPILE_IMPORT_TABLE_ENTRY *) GetDirectoryData(pDir);
+    USHORT *pEntry
+      = (USHORT *) GetDirectoryData(pDir);
 
     RETURN pEntry + index;
 }

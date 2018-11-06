@@ -33,12 +33,11 @@ void ZapImportTable::Save(ZapWriter * pZapWriter)
         ModuleReferenceEntry * pModuleReference = m_modules[i];
         _ASSERTE(pModuleReference != NULL);
 
-        CORCOMPILE_IMPORT_TABLE_ENTRY entry;
+        USHORT assemblyRid;
 
-        entry.wAssemblyRid = pModuleReference->m_wAssemblyRid;
-        entry.wModuleRid = pModuleReference->m_wModuleRid;
+        assemblyRid = pModuleReference->m_wAssemblyRid;
 
-        pZapWriter->Write(&entry, sizeof(entry));
+        pZapWriter->Write(&assemblyRid, sizeof(assemblyRid));
     }
 }
 
@@ -69,7 +68,7 @@ ZapImportTable::ModuleReferenceEntry * ZapImportTable::GetModuleReference(CORINF
     pEntry->m_wAssemblyRid = (USHORT) assemblyIndex;
     pEntry->m_wModuleRid = (USHORT) moduleIndex;
 
-    pEntry->m_index = m_modules.GetCount();
+    pEntry->m_index = (USHORT) assemblyIndex;
     m_modules.Append(pEntry);
 
     m_moduleReferences.Add(pEntry);

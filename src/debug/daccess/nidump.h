@@ -322,7 +322,7 @@ public:
      */
     struct Import
     {
-        PTR_CORCOMPILE_IMPORT_TABLE_ENTRY entry;
+        PTR_USHORT assemblyRid;
         Dependency *dependency;
     };
 private:

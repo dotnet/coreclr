@@ -449,7 +449,7 @@ public:
 
     virtual DWORD GetSize()
     {
-        return m_modules.GetCount() * sizeof(CORCOMPILE_IMPORT_TABLE_ENTRY);
+        return m_modules.GetCount() * sizeof(USHORT);
     }
 
     virtual UINT GetAlignment()

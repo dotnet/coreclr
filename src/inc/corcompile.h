@@ -45,8 +45,6 @@ typedef DPTR(struct CORCOMPILE_EE_INFO_TABLE)
     PTR_CORCOMPILE_EE_INFO_TABLE;
 typedef DPTR(struct CORCOMPILE_HEADER)
     PTR_CORCOMPILE_HEADER;
-typedef DPTR(struct CORCOMPILE_IMPORT_TABLE_ENTRY)
-    PTR_CORCOMPILE_IMPORT_TABLE_ENTRY;
 typedef DPTR(struct CORCOMPILE_COLD_METHOD_ENTRY)
     PTR_CORCOMPILE_COLD_METHOD_ENTRY;
 typedef DPTR(struct CORCOMPILE_EXCEPTION_LOOKUP_TABLE)
@@ -238,7 +236,7 @@ struct CORCOMPILE_HEADER
 
     IMAGE_DATA_DIRECTORY    HelperTable;    // Table of function pointers to JIT helpers indexed by helper number
     IMAGE_DATA_DIRECTORY    ImportSections; // points to array of code:CORCOMPILE_IMPORT_SECTION
-    IMAGE_DATA_DIRECTORY    ImportTable;    // points to table CORCOMPILE_IMPORT_TABLE_ENTRY
+    IMAGE_DATA_DIRECTORY    ImportTable;    // points to table of PTR_USHORT represinting assembly RIDs
     IMAGE_DATA_DIRECTORY    StubsData;      // contains the value to register with the stub manager for the delegate stubs & AMD64 tail call stubs
     IMAGE_DATA_DIRECTORY    VersionInfo;    // points to a code:CORCOMPILE_VERSION_INFO
     IMAGE_DATA_DIRECTORY    Dependencies;   // points to an array of code:CORCOMPILE_DEPENDENCY
@@ -449,12 +447,6 @@ public :
     {
         return ((sectionType & ColdRange) == ColdRange) && ((sectionType & IBCProfiledSection) == IBCProfiledSection); 
     }
-};
-
-struct CORCOMPILE_IMPORT_TABLE_ENTRY
-{
-    USHORT                  wAssemblyRid;
-    USHORT                  wModuleRid;
 };
 
 struct CORCOMPILE_EE_INFO_TABLE

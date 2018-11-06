@@ -330,7 +330,7 @@ class PEDecoder
     CORCOMPILE_DEPENDENCY * GetNativeDependencies(COUNT_T *pCount = NULL) const;
 
     COUNT_T GetNativeImportTableCount() const;
-    CORCOMPILE_IMPORT_TABLE_ENTRY *GetNativeImportFromIndex(COUNT_T index) const;
+    USHORT *GetNativeImportFromIndex(COUNT_T index) const;
     CHECK CheckNativeImportFromIndex(COUNT_T index) const;
 
     PTR_CORCOMPILE_IMPORT_SECTION GetNativeImportSections(COUNT_T *pCount = NULL) const;
