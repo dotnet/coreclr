@@ -203,7 +203,8 @@ The arguments in detail:
 \\
 
 COMMAND: dumpasync.
-!DumpAsync [-mt <MethodTable address>]
+!DumpAsync [-addr <Object Address>]
+           [-mt <MethodTable address>]
            [-type <partial type name>]
            [-tasks]
            [-completed]
