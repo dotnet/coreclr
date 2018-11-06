@@ -308,8 +308,8 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(strConfig));
             }
 
-            // Provider format: "(GUID|KnownProviderName)[:Flags[:Level][:EventCouter]]"
-            // where EventCouters are of the form: "[key1=value1][;key2=value2]"
+            // Provider format: "(GUID|KnownProviderName)[:Flags[:Level][:KeyValueArgs]]"
+            // where KeyValueArgs are of the form: "[key1=value1][;key2=value2]"
             // `strConfig` must be of the form "Provider[,Provider]"
             string[] providers = strConfig.Split(
                 ProviderConfigDelimiter,
