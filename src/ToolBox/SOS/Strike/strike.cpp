@@ -4327,6 +4327,18 @@ bool AsyncRecordIsCompleted(AsyncRecord& ar)
     return (ar.TaskStateFlags & TASK_STATE_COMPLETED_MASK) != 0;
 }
 
+const char* GetAsyncRecordStatusDescription(AsyncRecord& ar)
+{
+    const int TASK_STATE_RAN_TO_COMPLETION = 0x1000000;
+    const int TASK_STATE_FAULTED = 0x200000;
+    const int TASK_STATE_CANCELED = 0x400000;
+
+    if ((ar.TaskStateFlags & TASK_STATE_RAN_TO_COMPLETION) != 0) return "Success";
+    if ((ar.TaskStateFlags & TASK_STATE_FAULTED) != 0) return "Failed";
+    if ((ar.TaskStateFlags & TASK_STATE_CANCELED) != 0) return "Canceled";
+    return "Pending";
+}
+
 void ExtOutTaskDelegateMethod(sos::Object& obj)
 {
     DacpFieldDescData actionField;
@@ -4342,6 +4354,47 @@ void ExtOutTaskDelegateMethod(sos::Object& obj)
             ExtOut("(%S) ", g_mdName);
         }
     }
+}
+
+void ExtOutTaskStateFlagsDescription(int stateFlags)
+{
+    if (stateFlags == 0) return;
+
+    ExtOut("State Flags: ");
+
+    // TaskCreationOptions.*
+    if ((stateFlags & 0x01) != 0) ExtOut("PreferFairness ");
+    if ((stateFlags & 0x02) != 0) ExtOut("LongRunning ");
+    if ((stateFlags & 0x04) != 0) ExtOut("AttachedToParent ");
+    if ((stateFlags & 0x08) != 0) ExtOut("DenyChildAttach ");
+    if ((stateFlags & 0x10) != 0) ExtOut("HideScheduler ");
+    if ((stateFlags & 0x40) != 0) ExtOut("RunContinuationsAsynchronously ");
+
+    // InternalTaskOptions.*
+    if ((stateFlags & 0x0200) != 0) ExtOut("ContinuationTask ");
+    if ((stateFlags & 0x0400) != 0) ExtOut("PromiseTask ");
+    if ((stateFlags & 0x1000) != 0) ExtOut("LazyCancellation ");
+    if ((stateFlags & 0x2000) != 0) ExtOut("QueuedByRuntime ");
+    if ((stateFlags & 0x4000) != 0) ExtOut("DoNotDispose ");
+
+    // TASK_STATE_*
+    if ((stateFlags & 0x10000) != 0) ExtOut("STARTED ");
+    if ((stateFlags & 0x20000) != 0) ExtOut("DELEGATE_INVOKED ");
+    if ((stateFlags & 0x40000) != 0) ExtOut("DISPOSED ");
+    if ((stateFlags & 0x80000) != 0) ExtOut("EXCEPTIONOBSERVEDBYPARENT ");
+    if ((stateFlags & 0x100000) != 0) ExtOut("CANCELLATIONACKNOWLEDGED ");
+    if ((stateFlags & 0x200000) != 0) ExtOut("FAULTED ");
+    if ((stateFlags & 0x400000) != 0) ExtOut("CANCELED ");
+    if ((stateFlags & 0x800000) != 0) ExtOut("WAITING_ON_CHILDREN ");
+    if ((stateFlags & 0x1000000) != 0) ExtOut("RAN_TO_COMPLETION ");
+    if ((stateFlags & 0x2000000) != 0) ExtOut("WAITINGFORACTIVATION ");
+    if ((stateFlags & 0x4000000) != 0) ExtOut("COMPLETION_RESERVED ");
+    if ((stateFlags & 0x8000000) != 0) ExtOut("THREAD_WAS_ABORTED ");
+    if ((stateFlags & 0x10000000) != 0) ExtOut("WAIT_COMPLETION_NOTIFICATION ");
+    if ((stateFlags & 0x20000000) != 0) ExtOut("EXECUTIONCONTEXT_IS_NULL ");
+    if ((stateFlags & 0x40000000) != 0) ExtOut("TASKSCHEDULED_WAS_FIRED ");
+
+    ExtOut("\n");
 }
 
 DECLARE_API(DumpAsync)
@@ -4703,14 +4756,15 @@ DECLARE_API(DumpAsync)
         }
 
         // Print out header for the main line of each result.
-        ExtOut("%" POINTERSIZE "s %" POINTERSIZE "s %8s %10s %s\n", "Address", "MT", "Size", "State", "Description");
+        ExtOut("%" POINTERSIZE "s %" POINTERSIZE "s %8s ", "Address", "MT", "Size");
+        if (includeCompleted) ExtOut("%8s ", "Status");
+        ExtOut("%10s %s\n", "State", "Description");
 
         // Output each top-level async record.
         int counter = 0;
         for (std::map<CLRDATA_ADDRESS, AsyncRecord>::iterator arIt = asyncRecords.begin(); arIt != asyncRecords.end(); ++arIt)
         {
-            if (!arIt->second.IsTopLevel ||
-                (hasTypeFilter && !arIt->second.FilteredByOptions))
+            if (!arIt->second.IsTopLevel || (hasTypeFilter && !arIt->second.FilteredByOptions))
             {
                 continue;
             }
@@ -4726,20 +4780,20 @@ DECLARE_API(DumpAsync)
             {
                 // This has a StateMachine.  Output its details.
                 sos::MethodTable mt = (TADDR)arIt->second.StateMachineMT;
-                DMLOut("%s %s %8d %10d", DMLObject(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize(), arIt->second.StateValue);
-                ExtOut("  %S\n", mt.GetName());
-                if (dumpFields)
-                {
-                    DisplayFields(arIt->second.StateMachineMT, &mtabledata, &vMethodTableFields, (DWORD_PTR)arIt->second.StateMachineAddr, TRUE, arIt->second.IsValueType);
-                }
+                DMLOut("%s %s %8d ", DMLObject(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize());
+                if (includeCompleted) ExtOut("%8s ", GetAsyncRecordStatusDescription(arIt->second));
+                ExtOut("%10d %S\n", arIt->second.StateValue, mt.GetName());
+                if (dumpFields) DisplayFields(arIt->second.StateMachineMT, &mtabledata, &vMethodTableFields, (DWORD_PTR)arIt->second.StateMachineAddr, TRUE, arIt->second.IsValueType);
             }
             else
             {
                 // This does not have a StateMachine.  Output the details of the Task itself.
-                DMLOut("%s %s %8d [%08x]", DMLObject(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize(), arIt->second.TaskStateFlags);
-                ExtOut("  %S ", obj.GetTypeName());
+                DMLOut("%s %s %8d ", DMLObject(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize());
+                if (includeCompleted) ExtOut("%8s ", GetAsyncRecordStatusDescription(arIt->second));
+                ExtOut("[%08x] %S ", arIt->second.TaskStateFlags, obj.GetTypeName());
                 ExtOutTaskDelegateMethod(obj);
                 ExtOut("\n");
+                if (dumpFields) ExtOutTaskStateFlagsDescription(arIt->second.TaskStateFlags);
             }
 
             // If we gathered any continuations for this record, output the chains now.
@@ -4790,10 +4844,7 @@ DECLARE_API(DumpAsync)
                         if (contAsyncRecord != asyncRecords.end())
                         {
                             sos::MethodTable contMT = contAsyncRecord->second.StateMachineMT;
-                            if (contAsyncRecord->second.IsStateMachine)
-                            {
-                                ExtOut("(%d) ", contAsyncRecord->second.StateValue);
-                            }
+                            if (contAsyncRecord->second.IsStateMachine) ExtOut("(%d) ", contAsyncRecord->second.StateValue);
                             ExtOut("%S\n", contMT.GetName());
                         }
                         else
