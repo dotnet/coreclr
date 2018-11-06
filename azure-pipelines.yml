@@ -3,9 +3,9 @@ resources:
   # shared library repository
   - repository: arcade
     type: github
-    endpoint: sbomer
-    name: sbomer/arcade
-    ref: refs/heads/arcadeChanges
+    endpoint: dotnet
+    name: dotnet/arcade
+    ref: refs/heads/master
 
 variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
