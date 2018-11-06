@@ -509,9 +509,9 @@ build_CoreLib()
            exit 1
        fi
     else
-       if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ) ]]; then
+       if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
-       elif [[ ( "$__CrossArch" == "x64" ) && ( "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ) ]]; then
+       elif [[ ( "$__CrossArch" == "x64" ) && ( "$__BuildArch" == "arm" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "arm64" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
