@@ -12,7 +12,7 @@
     <ApplicationManifest>App.manifest</ApplicationManifest>
 
     <!-- Blocked on ILAsm supporting embedding resources. See https://github.com/dotnet/coreclr/issues/20819 -->
-    <ILAsmTestKind>BuildOnly</ILAsmTestKind>
+    <IlrtTestKind>BuildOnly</IlrtTestKind>
 
     <!-- Test unsupported outside of windows -->
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>

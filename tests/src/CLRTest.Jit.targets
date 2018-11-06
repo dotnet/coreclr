@@ -69,7 +69,7 @@ if defined RunningJitDisasm (
   </Target>
 
   <PropertyGroup>
-    <ILAsmTestKind Condition="'$(ILAsmTestKind)' == ''">$(CLRTestKind)</ILAsmTestKind>
+    <IlrtTestKind Condition="'$(IlrtTestKind)' == ''">$(CLRTestKind)</IlrtTestKind>
   </PropertyGroup>
 
   <Target
@@ -111,7 +111,7 @@ fi
         ]]>
       </IlasmRoundTripBashScript>
       
-      <BashIlrtTestLaunchCmds Condition="'$(ILAsmTestKind)' != 'BuildOnly'">
+      <BashIlrtTestLaunchCmds Condition="'$(IlrtTestKind)' != 'BuildOnly'">
         <![CDATA[
 if [ -z "$DoLink" -a ! -z "$RunningIlasmRoundTrip" ];
 then
@@ -162,7 +162,7 @@ IF NOT DEFINED DoLink (
 )
         ]]>
       </IlasmRoundTripBatchScript>
-      <BatchIlrtTestLaunchCmds Condition="'$(ILAsmTestKind)' != 'BuildOnly'"><![CDATA[
+      <BatchIlrtTestLaunchCmds Condition="'$(IlrtTestKind)' != 'BuildOnly'"><![CDATA[
 IF NOT DEFINED DoLink (
   if defined RunningIlasmRoundTrip (
     ECHO %LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
