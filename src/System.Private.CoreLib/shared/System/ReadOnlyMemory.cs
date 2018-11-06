@@ -176,7 +176,7 @@ namespace System
         {
 #if BIT64
             // See comment in Span<T>.Slice for how this works.
-            if ((ulong)(uint)start + (ulong)(uint)_length > (ulong)(uint)_length)
+            if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)_length)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 #else
             if ((uint)start > (uint)_length || (uint)length > (uint)(_length - start))
