@@ -4412,18 +4412,19 @@ DECLARE_API(DumpAsync)
     {
         // Process command-line arguments.
         size_t nArg = 0;
-        TADDR mt = NULL;
+        TADDR mt = NULL, addr = NULL;
         ArrayHolder<char> ansiType = NULL;
         ArrayHolder<char> dgmlPath = NULL;
         ArrayHolder<WCHAR> type = NULL;
         BOOL dml = FALSE, includeCompleted = FALSE, includeStacks = FALSE, includeRoots = FALSE, includeAllTasks = FALSE, dumpFields = FALSE;
         CMDOption option[] =
         {   // name, vptr, type, hasValue
-            { "-mt", &mt, COHEX, TRUE },                        // dump state machines only with a given MethodTable
-            { "-type", &ansiType, COSTRING, TRUE },             // dump state machines only that contain the specified type substring
+            { "-addr", &addr, COHEX, TRUE },                // dump only the async object at the specified address
+            { "-mt", &mt, COHEX, TRUE },                        // dump only async objects with a given MethodTable
+            { "-type", &ansiType, COSTRING, TRUE },             // dump only async objects that contain the specified type substring
             { "-tasks", &includeAllTasks, COBOOL, FALSE },      // include all tasks that can be found on the heap, not just async methods
             { "-completed", &includeCompleted, COBOOL, FALSE }, // include async objects that are in a completed state
-            { "-fields", &dumpFields, COBOOL, FALSE },          // show fields of found async state machines
+            { "-fields", &dumpFields, COBOOL, FALSE },          // show relevant fields of found async objects
             { "-stacks", &includeStacks, COBOOL, FALSE },       // gather and output continuation/stack information
             { "-roots", &includeRoots, COBOOL, FALSE },         // gather and output GC root information
             { "-dgmlPath", &dgmlPath, COSTRING, TRUE },         // output state machine graph to specified dgml file
@@ -4434,7 +4435,8 @@ DECLARE_API(DumpAsync)
         if (!GetCMDOption(args, option, _countof(option), NULL, 0, &nArg) || nArg != 0)
         {
             sos::Throw<sos::Exception>(
-                "Usage: DumpAsync [-mt MethodTableAddr] [-type TypeName] [-tasks] [-completed] [-fields] [-stacks] [-roots] [-dgmlPath outputPath]\n"
+                "Usage: DumpAsync [-addr ObjectAddr] [-mt MethodTableAddr] [-type TypeName] [-tasks] [-completed] [-fields] [-stacks] [-roots] [-dgmlPath outputPath]\n"
+                "[-addr ObjectAddr]     => Only display the async object at the specified address.\n"
                 "[-mt MethodTableAddr]  => Only display top-level async objects with the specified method table address.\n"
                 "[-type TypeName]       => Only display top-level async objects whose type name includes the specified substring.\n"
                 "[-tasks]               => Include Task and Task-derived objects, in addition to any state machine objects found.\n"
@@ -4447,18 +4449,13 @@ DECLARE_API(DumpAsync)
         }
         if (ansiType != NULL)
         {
-            if (mt != NULL)
-            {
-                sos::Throw<sos::Exception>("Cannot specify both -mt and -type");
-            }
-
             size_t ansiTypeLen = strlen(ansiType) + 1;
             type = new WCHAR[ansiTypeLen];
             MultiByteToWideChar(CP_ACP, 0, ansiType, -1, type, (int)ansiTypeLen);
         }
         
         EnableDMLHolder dmlHolder(dml);
-        BOOL hasTypeFilter = mt != NULL || ansiType != NULL;
+        BOOL hasTypeFilter = mt != NULL || ansiType != NULL || addr != NULL;
 
         // Display a message if the heap isn't verified.
         sos::GCHeap gcheap;
@@ -4515,7 +4512,8 @@ DECLARE_API(DumpAsync)
             ar.StateValue = 0;
             ar.FilteredByOptions = // we process all objects to support forming proper chains, but then only display ones that match the user's request
                 (mt == NULL || mt == itr->GetMT()) && // Match only MTs the user requested.
-                (type == NULL || _wcsstr(itr->GetTypeName(), type) != NULL); // Match only type name substrings the user requested.
+                (type == NULL || _wcsstr(itr->GetTypeName(), type) != NULL) && // Match only type name substrings the user requested.
+                (addr == NULL || addr == itr->GetAddress()); // Match only the object at the specified address.
 
             // Get the state flags for the task.  This is used to determine whether async objects are completed (and thus should
             // be culled by default).  It avoids our needing to depend on interpreting the compiler's "<>1__state" field, and also lets
@@ -4616,16 +4614,19 @@ DECLARE_API(DumpAsync)
 
         // As with DumpHeap, output a summary table about all of the objects we found.  In contrast, though, his is based on the filtered
         // list of async records we gathered rather than everything on the heap.
-        HeapStat stats;
-        for (std::map<CLRDATA_ADDRESS, AsyncRecord>::iterator arIt = asyncRecords.begin(); arIt != asyncRecords.end(); ++arIt)
+        if (addr == NULL) // no point in stats if we're only targeting a single object
         {
-            if (!hasTypeFilter || arIt->second.FilteredByOptions)
+            HeapStat stats;
+            for (std::map<CLRDATA_ADDRESS, AsyncRecord>::iterator arIt = asyncRecords.begin(); arIt != asyncRecords.end(); ++arIt)
             {
-                stats.Add(arIt->second.MT, arIt->second.Size);
+                if (!hasTypeFilter || arIt->second.FilteredByOptions)
+                {
+                    stats.Add(arIt->second.MT, arIt->second.Size);
+                }
             }
+            stats.Sort();
+            stats.Print();
         }
-        stats.Sort();
-        stats.Print();
 
         // If the user has asked for "async stacks" and if there's not MT/type name filter, look through all of our async records
         // to find the "top-level" nodes that start rather than that are a part of a continuation chain.  When we then iterate through
@@ -4780,7 +4781,7 @@ DECLARE_API(DumpAsync)
             {
                 // This has a StateMachine.  Output its details.
                 sos::MethodTable mt = (TADDR)arIt->second.StateMachineMT;
-                DMLOut("%s %s %8d ", DMLObject(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize());
+                DMLOut("%s %s %8d ", DMLAsync(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize());
                 if (includeCompleted) ExtOut("%8s ", GetAsyncRecordStatusDescription(arIt->second));
                 ExtOut("%10d %S\n", arIt->second.StateValue, mt.GetName());
                 if (dumpFields) DisplayFields(arIt->second.StateMachineMT, &mtabledata, &vMethodTableFields, (DWORD_PTR)arIt->second.StateMachineAddr, TRUE, arIt->second.IsValueType);
@@ -4788,7 +4789,7 @@ DECLARE_API(DumpAsync)
             else
             {
                 // This does not have a StateMachine.  Output the details of the Task itself.
-                DMLOut("%s %s %8d ", DMLObject(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize());
+                DMLOut("%s %s %8d ", DMLAsync(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize());
                 if (includeCompleted) ExtOut("%8s ", GetAsyncRecordStatusDescription(arIt->second));
                 ExtOut("[%08x] %S ", arIt->second.TaskStateFlags, obj.GetTypeName());
                 ExtOutTaskDelegateMethod(obj);
@@ -4867,7 +4868,7 @@ DECLARE_API(DumpAsync)
                 GCRootImpl gcroot;
                 int numRoots = gcroot.PrintRootsForObject(obj.GetAddress(), FALSE, FALSE);
                 DecrementIndent();
-                if (numRoots == 0 && AsyncRecordIsCompleted(arIt->second))
+                if (numRoots == 0 && !AsyncRecordIsCompleted(arIt->second))
                 {
                     ExtOut("Incomplete state machine or task with 0 roots.\n");
                 }
