@@ -1997,13 +1997,6 @@ PAL_GetApplicationGroupId()
 {
     return gApplicationGroupId;
 }
-
-BOOL
-PALAPI
-PAL_IsApplicationSandboxed()
-{
-    return gApplicationGroupId != nullptr;
-}
 #endif // __APPLE__
 
 /*++
