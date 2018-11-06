@@ -571,15 +571,8 @@ namespace System.Threading
                     workQueue.EnsureThreadRequested();
 
                     // Start on clean ExecutionContext and SynchronizationContext
-                    if (currentThread.ExecutionContext != null)
-                    {
-                        currentThread.ExecutionContext = null;
-                    }
-
-                    if (currentThread.SynchronizationContext != null)
-                    {
-                        currentThread.SynchronizationContext = null;
-                    }
+                    currentThread.ExecutionContext = null;
+                    currentThread.SynchronizationContext = null;
 
                     //
                     // Execute the workitem outside of any finally blocks, so that it can be aborted if needed.
