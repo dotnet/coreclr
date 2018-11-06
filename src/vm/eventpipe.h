@@ -24,6 +24,27 @@ class SampleProfilerEventInstance;
 struct EventPipeProviderConfiguration;
 class EventPipeSession;
 
+// EVENT_FILTER_DESCRIPTOR (This type does not exist on non-Windows platforms.)
+//  https://docs.microsoft.com/en-us/windows/desktop/api/evntprov/ns-evntprov-_event_filter_descriptor
+//  The structure supplements the event provider, level, and keyword data that
+//  determines which events are reported and traced. The structure gives the
+//  event provider greater control over the selection of events for reporting
+//  and tracing.
+struct EventFilterDescriptor
+{
+    // A pointer to the filter data.
+    ULONGLONG Ptr;
+
+    // The size of the filter data, in bytes. The maximum size is 1024 bytes.
+    ULONG     Size;
+
+    // The type of filter data. The type is application-defined. An event
+    // controller that knows about the provider and knows details about the
+    // provider's events can use the Type field to send the provider an
+    // arbitrary set of data for use as enhancements to the filtering of events.
+    ULONG     Type;
+};
+
 // Define the event pipe callback to match the ETW callback signature.
 typedef void (*EventPipeCallback)(
     LPCGUID SourceID,
@@ -31,7 +52,7 @@ typedef void (*EventPipeCallback)(
     UCHAR Level,
     ULONGLONG MatchAnyKeywords,
     ULONGLONG MatchAllKeywords,
-    void *FilterData,
+    EventFilterDescriptor *FilterData,
     void *CallbackContext);
 
 struct EventData
@@ -251,7 +272,7 @@ class EventPipe
         static bool Enabled();
 
         // Create a provider.
-        static EventPipeProvider* CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
+        static EventPipeProvider* CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, EventPipeCallback *pCallbackData = NULL);
 
         // Get a provider.
         static EventPipeProvider* GetProvider(const SString &providerName);

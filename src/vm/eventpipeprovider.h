@@ -13,37 +13,6 @@
 
 class EventPipeEvent;
 
-// EVENT_FILTER_DESCRIPTOR (This type does not exist on non-Windows platforms.)
-//  https://docs.microsoft.com/en-us/windows/desktop/api/evntprov/ns-evntprov-_event_filter_descriptor
-//  The structure supplements the event provider, level, and keyword data that
-//  determines which events are reported and traced. The structure gives the
-//  event provider greater control over the selection of events for reporting
-//  and tracing.
-struct EventFilterDescriptor
-{
-    // A pointer to the filter data.
-    ULONGLONG Ptr;
-
-    // The size of the filter data, in bytes. The maximum size is 1024 bytes.
-    ULONG     Size;
-
-    // The type of filter data. The type is application-defined. An event
-    // controller that knows about the provider and knows details about the
-    // provider's events can use the Type field to send the provider an
-    // arbitrary set of data for use as enhancements to the filtering of events.
-    ULONG     Type;
-};
-
-// Define the event pipe callback to match the ETW callback signature.
-typedef void (*EventPipeCallback)(
-    LPCGUID SourceID,
-    ULONG IsEnabled,
-    UCHAR Level,
-    ULONGLONG MatchAnyKeywords,
-    ULONGLONG MatchAllKeywords,
-    void *FilterData, // FIXME: It should be EventFilterDescriptor
-    void *CallbackContext);
-
 class EventPipeProvider
 {
     // Declare friends.
