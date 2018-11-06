@@ -18,6 +18,11 @@ class Test
 
     private const decimal DecimalValue = decimal.MaxValue;
 
+    private struct CustomStruct
+    {
+
+    }
+
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Byte(object obj);
     [DllImport(NativeLibrary)]
@@ -82,6 +87,7 @@ class Test
         Assert.IsTrue(Marshal_ByValue_Missing(System.Reflection.Missing.Value));
         Assert.IsTrue(Marshal_ByValue_Empty(null));
         Assert.IsTrue(Marshal_ByValue_Object(new object()));
+        Assert.Throws<NotSupportedException>(() => Marshal_ByValue_Invalid(new CustomStruct()));
     }
 
     public static int Main()
