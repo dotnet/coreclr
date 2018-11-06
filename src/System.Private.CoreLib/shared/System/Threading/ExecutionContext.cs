@@ -12,6 +12,7 @@
 ===========================================================*/
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.Serialization;
 
@@ -374,6 +375,8 @@ namespace System.Threading
             // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
         }
 
+        // Inline as only called in one place and always called
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void ResetThreadPoolThread(Thread currentThread)
         {
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
