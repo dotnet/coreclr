@@ -203,6 +203,11 @@ void EventPipeProvider::InvokeCallback(LPCWSTR pFilterData)
 
     if (pFilterData != NULL)
     {
+        // The callback is expecting that filter data to be a concatenated list
+        // of pairs of null terminated strings. The first member of the pair is
+        // the key and the second is the value.
+        // To convert to this format we need to convert all '=' and ';'
+        // characters to '\0'.
         while (*pFilterData != L'\0')
         {
             buffer.Append((*pFilterData == L'=' || *pFilterData == L';') ? L'\0' : *pFilterData);
