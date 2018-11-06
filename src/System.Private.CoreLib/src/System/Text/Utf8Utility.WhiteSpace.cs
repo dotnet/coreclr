@@ -3,8 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Runtime.CompilerServices;
+using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
@@ -244,7 +245,7 @@ namespace System.Text
 
             if (BitConverter.IsLittleEndian)
             {
-                return BitConverter.ByteSwap(value);
+                return BinaryPrimitives.ReverseEndianness(value);
             }
             else
             {

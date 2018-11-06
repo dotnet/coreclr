@@ -2012,7 +2012,7 @@ public:
     bool IsNativeHFA();
     CorElementType GetNativeHFAType();
 
-#if defined(UNIX_AMD64_ABI)
+#ifdef UNIX_AMD64_ABI
     inline bool IsRegPassedStruct()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2024,7 +2024,12 @@ public:
         LIMITED_METHOD_CONTRACT;
         SetFlag(enum_flag_IsRegStructPassed);
     }
-#endif // defined(UNIX_AMD64_ABI)
+#else
+    inline bool IsRegPassedStruct()
+    {
+        return false;
+    }
+#endif
 
 #ifdef FEATURE_64BIT_ALIGNMENT
     // Returns true iff the native view of this type requires 64-bit aligment.
@@ -3835,7 +3840,7 @@ private:
         enum_flag_GenericsMask_SharedInst   = 0x00000020,   // shared instantiation, e.g. List<__Canon> or List<MyValueType<__Canon>>
         enum_flag_GenericsMask_TypicalInst  = 0x00000030,   // the type instantiated at its formal parameters, e.g. List<T>
 
-        enum_flag_HasVariance               = 0x00000100,   // This is an instantiated type some of whose type parameters are co or contra-variant
+        enum_flag_HasVariance               = 0x00000100,   // This is an instantiated type some of whose type parameters are co- or contra-variant
 
         enum_flag_HasDefaultCtor            = 0x00000200,
         enum_flag_HasPreciseInitCctors      = 0x00000400,   // Do we need to run class constructors at allocation time? (Not perf important, could be moved to EEClass

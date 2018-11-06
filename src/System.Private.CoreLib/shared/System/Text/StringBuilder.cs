@@ -14,7 +14,6 @@ using System.Threading;
 using System.Globalization;
 using System.Diagnostics;
 using System.Collections.Generic;
-using Internal.Runtime.CompilerServices;
 
 namespace System.Text
 {
@@ -155,7 +154,13 @@ namespace System.Text
             m_ChunkChars = new char[capacity];
             m_ChunkLength = length;
 
-            ThreadSafeCopy(ref Unsafe.Add(ref value.GetRawStringData(), startIndex), m_ChunkChars, 0, length);
+            unsafe
+            {
+                fixed (char* sourcePtr = value)
+                {
+                    ThreadSafeCopy(sourcePtr + startIndex, m_ChunkChars, 0, length);
+                }
+            }
         }
 
         /// <summary>
@@ -359,32 +364,37 @@ namespace System.Text
 
             string result = string.FastAllocateString(Length);
             StringBuilder chunk = this;
-
-            ref char destinationRef = ref result.GetRawStringData();
-            do
+            unsafe
             {
-                if (chunk.m_ChunkLength > 0)
+                fixed (char* destinationPtr = result)
                 {
-                    // Copy these into local variables so that they are stable even in the presence of race conditions
-                    char[] sourceArray = chunk.m_ChunkChars;
-                    int chunkOffset = chunk.m_ChunkOffset;
-                    int chunkLength = chunk.m_ChunkLength;
+                    do
+                    {
+                        if (chunk.m_ChunkLength > 0)
+                        {
+                            // Copy these into local variables so that they are stable even in the presence of race conditions
+                            char[] sourceArray = chunk.m_ChunkChars;
+                            int chunkOffset = chunk.m_ChunkOffset;
+                            int chunkLength = chunk.m_ChunkLength;
 
-                    // Check that we will not overrun our boundaries.
-                    if ((uint)(chunkLength + chunkOffset) <= (uint)result.Length && (uint)chunkLength <= (uint)sourceArray.Length)
-                    {
-                        string.wstrcpy(ref Unsafe.Add(ref destinationRef, chunkOffset), ref sourceArray.GetRawSzArrayData(), chunkLength);
+                            // Check that we will not overrun our boundaries.
+                            if ((uint)(chunkLength + chunkOffset) <= (uint)result.Length && (uint)chunkLength <= (uint)sourceArray.Length)
+                            {
+                                fixed (char* sourcePtr = &sourceArray[0])
+                                    string.wstrcpy(destinationPtr + chunkOffset, sourcePtr, chunkLength);
+                            }
+                            else
+                            {
+                                throw new ArgumentOutOfRangeException(nameof(chunkLength), SR.ArgumentOutOfRange_Index);
+                            }
+                        }
+                        chunk = chunk.m_ChunkPrevious;
                     }
-                    else
-                    {
-                        throw new ArgumentOutOfRangeException(nameof(chunkLength), SR.ArgumentOutOfRange_Index);
-                    }
+                    while (chunk != null);
+
+                    return result;
                 }
-                chunk = chunk.m_ChunkPrevious;
             }
-            while (chunk != null);
-
-            return result;
         }
 
         /// <summary>
@@ -413,10 +423,15 @@ namespace System.Text
             }
 
             AssertInvariants();
-
             string result = string.FastAllocateString(length);
-            this.CopyTo(startIndex, new Span<char>(ref result.GetRawStringData(), length), length);
-            return result;
+            unsafe
+            {
+                fixed (char* destinationPtr = result)
+                {
+                    this.CopyTo(startIndex, new Span<char>(destinationPtr, length), length);
+                    return result;
+                }
+            }
         }
 
         public StringBuilder Clear()
@@ -757,8 +772,14 @@ namespace System.Text
                 return this;
             }
 
-            Append(ref value[startIndex], charCount);
-            return this;
+            unsafe
+            {
+                fixed (char* valueChars = &value[startIndex])
+                {
+                    Append(valueChars, charCount);
+                    return this;
+                }
+            }
         }
 
 
@@ -787,18 +808,38 @@ namespace System.Text
                     }
                     else
                     {
-                        string.wstrcpy(ref chunkChars[chunkLength], ref value.GetRawStringData(), valueLen);
+                        unsafe
+                        {
+                            fixed (char* valuePtr = value)
+                            fixed (char* destPtr = &chunkChars[chunkLength])
+                            {
+                                string.wstrcpy(destPtr, valuePtr, valueLen);
+                            }
+                        }
                     }
 
                     m_ChunkLength = newCurrentIndex;
                 }
                 else
                 {
-                    Append(ref value.GetRawStringData(), value.Length);
+                    AppendHelper(value);
                 }
             }
 
             return this;
+        }
+
+        // We put this fixed in its own helper to avoid the cost of zero-initing `valueChars` in the
+        // case we don't actually use it.
+        private void AppendHelper(string value)
+        {
+            unsafe
+            {
+                fixed (char* valueChars = value)
+                {
+                    Append(valueChars, value.Length);
+                }
+            }
         }
 
         /// <summary>
@@ -837,8 +878,14 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
 
-            Append(ref Unsafe.Add(ref value.GetRawStringData(), startIndex), count);
-            return this;
+            unsafe
+            {
+                fixed (char* valueChars = value)
+                {
+                    Append(valueChars + startIndex, count);
+                    return this;
+                }
+            }
         }
 
         public StringBuilder Append(StringBuilder value)
@@ -1025,14 +1072,19 @@ namespace System.Text
             StringBuilder chunk;
             int indexInChunk;
             MakeRoom(index, (int)insertingChars, out chunk, out indexInChunk, false);
-
-            while (count > 0)
+            unsafe
             {
-                ReplaceInPlaceAtChunk(ref chunk, ref indexInChunk, ref value.GetRawStringData(), value.Length);
-                --count;
-            }
+                fixed (char* valuePtr = value)
+                {
+                    while (count > 0)
+                    {
+                        ReplaceInPlaceAtChunk(ref chunk, ref indexInChunk, valuePtr, value.Length);
+                        --count;
+                    }
 
-            return this;
+                    return this;
+                }
+            }
         }
 
         /// <summary>
@@ -1133,7 +1185,13 @@ namespace System.Text
         {
             if (value?.Length > 0)
             {
-                Append(ref value.GetRawSzArrayData(), value.Length);
+                unsafe
+                {
+                    fixed (char* valueChars = &value[0])
+                    {
+                        Append(valueChars, value.Length);
+                    }
+                }
             }
             return this;
         }
@@ -1142,49 +1200,66 @@ namespace System.Text
         {
             if (value.Length > 0)
             {
-                Append(ref MemoryMarshal.GetReference(value), value.Length);
+                unsafe
+                {
+                    fixed (char* valueChars = &MemoryMarshal.GetReference(value))
+                    {
+                        Append(valueChars, value.Length);
+                    }
+                }
             }
             return this;
         }
+
+        public StringBuilder Append(ReadOnlyMemory<char> value) => Append(value.Span);
 
         #region AppendJoin
 
         public unsafe StringBuilder AppendJoin(string separator, params object[] values)
         {
             separator = separator ?? string.Empty;
-            return AppendJoinCore(ref separator.GetRawStringData(), separator.Length, values);
+            fixed (char* pSeparator = separator)
+            {
+                return AppendJoinCore(pSeparator, separator.Length, values);
+            }
         }
 
         public unsafe StringBuilder AppendJoin<T>(string separator, IEnumerable<T> values)
         {
             separator = separator ?? string.Empty;
-            return AppendJoinCore(ref separator.GetRawStringData(), separator.Length, values);
+            fixed (char* pSeparator = separator)
+            {
+                return AppendJoinCore(pSeparator, separator.Length, values);
+            }
         }
 
         public unsafe StringBuilder AppendJoin(string separator, params string[] values)
         {
             separator = separator ?? string.Empty;
-            return AppendJoinCore(ref separator.GetRawStringData(), separator.Length, values);
+            fixed (char* pSeparator = separator)
+            {
+                return AppendJoinCore(pSeparator, separator.Length, values);
+            }
         }
 
         public unsafe StringBuilder AppendJoin(char separator, params object[] values)
         {
-            return AppendJoinCore(ref separator, 1, values);
+            return AppendJoinCore(&separator, 1, values);
         }
 
         public unsafe StringBuilder AppendJoin<T>(char separator, IEnumerable<T> values)
         {
-            return AppendJoinCore(ref separator, 1, values);
+            return AppendJoinCore(&separator, 1, values);
         }
 
         public unsafe StringBuilder AppendJoin(char separator, params string[] values)
         {
-            return AppendJoinCore(ref separator, 1, values);
+            return AppendJoinCore(&separator, 1, values);
         }
 
-        private unsafe StringBuilder AppendJoinCore<T>(ref char separator, int separatorLength, IEnumerable<T> values)
+        private unsafe StringBuilder AppendJoinCore<T>(char* separator, int separatorLength, IEnumerable<T> values)
         {
-            Debug.Assert(Unsafe.AsPointer(ref separator) != null);
+            Debug.Assert(separator != null);
             Debug.Assert(separatorLength >= 0);
 
             if (values == null)
@@ -1207,7 +1282,7 @@ namespace System.Text
 
                 while (en.MoveNext())
                 {
-                    Append(ref separator, separatorLength);
+                    Append(separator, separatorLength);
                     value = en.Current;
                     if (value != null)
                     {
@@ -1218,7 +1293,7 @@ namespace System.Text
             return this;
         }
 
-        private StringBuilder AppendJoinCore<T>(ref char separator, int separatorLength, T[] values)
+        private unsafe StringBuilder AppendJoinCore<T>(char* separator, int separatorLength, T[] values)
         {
             if (values == null)
             {
@@ -1237,7 +1312,7 @@ namespace System.Text
 
             for (int i = 1; i < values.Length; i++)
             {
-                Append(ref separator, separatorLength);
+                Append(separator, separatorLength);
                 if (values[i] != null)
                 {
                     Append(values[i].ToString());
@@ -1257,7 +1332,11 @@ namespace System.Text
 
             if (value != null)
             {
-                Insert(index, ref value.GetRawStringData(), value.Length);
+                unsafe
+                {
+                    fixed (char* sourcePtr = value)
+                        Insert(index, sourcePtr, value.Length);
+                }
             }
             return this;
         }
@@ -1273,7 +1352,10 @@ namespace System.Text
 
         public StringBuilder Insert(int index, char value)
         {
-            Insert(index, ref value, 1);
+            unsafe
+            {
+                Insert(index, &value, 1);
+            }
             return this;
         }
 
@@ -1323,7 +1405,11 @@ namespace System.Text
 
             if (charCount > 0)
             {
-                Insert(index, ref value[startIndex], charCount);
+                unsafe
+                {
+                    fixed (char* sourcePtr = &value[startIndex])
+                        Insert(index, sourcePtr, charCount);
+                }
             }
             return this;
         }
@@ -1358,7 +1444,11 @@ namespace System.Text
 
             if (value.Length > 0)
             {
-                Insert(index, ref MemoryMarshal.GetReference(value), value.Length);
+                unsafe
+                {
+                    fixed (char* sourcePtr = &MemoryMarshal.GetReference(value))
+                        Insert(index, sourcePtr, value.Length);
+                }
             }
             return this;
         }
@@ -1911,11 +2001,6 @@ namespace System.Text
         [CLSCompliant(false)]
         public unsafe StringBuilder Append(char* value, int valueCount)
         {
-            return Append(ref *value, valueCount);
-        }
-
-        private StringBuilder Append(ref char value, int valueCount)
-        {
             // We don't check null value as this case will throw null reference exception anyway
             if (valueCount < 0)
             {
@@ -1934,7 +2019,7 @@ namespace System.Text
             int newIndex = valueCount + m_ChunkLength;
             if (newIndex <= m_ChunkChars.Length)
             {
-                ThreadSafeCopy(ref value, m_ChunkChars, m_ChunkLength, valueCount);
+                ThreadSafeCopy(value, m_ChunkChars, m_ChunkLength, valueCount);
                 m_ChunkLength = newIndex;
             }
             else
@@ -1943,7 +2028,7 @@ namespace System.Text
                 int firstLength = m_ChunkChars.Length - m_ChunkLength;
                 if (firstLength > 0)
                 {
-                    ThreadSafeCopy(ref value, m_ChunkChars, m_ChunkLength, firstLength);
+                    ThreadSafeCopy(value, m_ChunkChars, m_ChunkLength, firstLength);
                     m_ChunkLength = m_ChunkChars.Length;
                 }
 
@@ -1953,7 +2038,7 @@ namespace System.Text
                 Debug.Assert(m_ChunkLength == 0, "A new block was not created.");
 
                 // Copy the second chunk
-                ThreadSafeCopy(ref Unsafe.Add(ref value, firstLength), m_ChunkChars, 0, restLength);
+                ThreadSafeCopy(value + firstLength, m_ChunkChars, 0, restLength);
                 m_ChunkLength = restLength;
             }
             AssertInvariants();
@@ -1966,7 +2051,7 @@ namespace System.Text
         /// <param name="index">The index to insert in this builder.</param>
         /// <param name="value">The pointer to the start of the buffer.</param>
         /// <param name="valueCount">The number of characters in the buffer.</param>
-        private void Insert(int index, ref char value, int valueCount)
+        private unsafe void Insert(int index, char* value, int valueCount)
         {
             if ((uint)index > (uint)Length)
             {
@@ -1978,7 +2063,7 @@ namespace System.Text
                 StringBuilder chunk;
                 int indexInChunk;
                 MakeRoom(index, valueCount, out chunk, out indexInChunk, false);
-                ReplaceInPlaceAtChunk(ref chunk, ref indexInChunk, ref value, valueCount);
+                ReplaceInPlaceAtChunk(ref chunk, ref indexInChunk, value, valueCount);
             }
         }
 
@@ -2000,47 +2085,57 @@ namespace System.Text
                 return;
             }
 
-            // calculate the total amount of extra space or space needed for all the replacements.
-            int delta = (value.Length - removeCount) * replacementsCount;
-
-            StringBuilder targetChunk = sourceChunk;        // the target as we copy chars down
-            int targetIndexInChunk = replacements[0];
-
-            // Make the room needed for all the new characters if needed.
-            if (delta > 0)
-                MakeRoom(targetChunk.m_ChunkOffset + targetIndexInChunk, delta, out targetChunk, out targetIndexInChunk, true);
-            // We made certain that characters after the insertion point are not moved,
-            int i = 0;
-            for (;;)
+            unsafe
             {
-                // Copy in the new string for the ith replacement
-                ReplaceInPlaceAtChunk(ref targetChunk, ref targetIndexInChunk, ref value.GetRawStringData(), value.Length);
-                int gapStart = replacements[i] + removeCount;
-                i++;
-                if (i >= replacementsCount)
+                fixed (char* valuePtr = value)
                 {
-                    break;
-                }
+                    // calculate the total amount of extra space or space needed for all the replacements.
+                    long longDelta = (value.Length - removeCount) * (long)replacementsCount;
+                    int delta = (int)longDelta;
+                    if (delta != longDelta)
+                        throw new OutOfMemoryException();
 
-                int gapEnd = replacements[i];
-                Debug.Assert(gapStart < sourceChunk.m_ChunkChars.Length, "gap starts at end of buffer.  Should not happen");
-                Debug.Assert(gapStart <= gapEnd, "negative gap size");
-                Debug.Assert(gapEnd <= sourceChunk.m_ChunkLength, "gap too big");
-                if (delta != 0)     // can skip the sliding of gaps if source an target string are the same size.
-                {
-                    // Copy the gap data between the current replacement and the next replacement
-                    ReplaceInPlaceAtChunk(ref targetChunk, ref targetIndexInChunk, ref sourceChunk.m_ChunkChars[gapStart], gapEnd - gapStart);
-                }
-                else
-                {
-                    targetIndexInChunk += gapEnd - gapStart;
-                    Debug.Assert(targetIndexInChunk <= targetChunk.m_ChunkLength, "gap not in chunk");
+                    StringBuilder targetChunk = sourceChunk;        // the target as we copy chars down
+                    int targetIndexInChunk = replacements[0];
+
+                    // Make the room needed for all the new characters if needed.
+                    if (delta > 0)
+                        MakeRoom(targetChunk.m_ChunkOffset + targetIndexInChunk, delta, out targetChunk, out targetIndexInChunk, true);
+                    // We made certain that characters after the insertion point are not moved,
+                    int i = 0;
+                    for (;;)
+                    {
+                        // Copy in the new string for the ith replacement
+                        ReplaceInPlaceAtChunk(ref targetChunk, ref targetIndexInChunk, valuePtr, value.Length);
+                        int gapStart = replacements[i] + removeCount;
+                        i++;
+                        if (i >= replacementsCount)
+                        {
+                            break;
+                        }
+
+                        int gapEnd = replacements[i];
+                        Debug.Assert(gapStart < sourceChunk.m_ChunkChars.Length, "gap starts at end of buffer.  Should not happen");
+                        Debug.Assert(gapStart <= gapEnd, "negative gap size");
+                        Debug.Assert(gapEnd <= sourceChunk.m_ChunkLength, "gap too big");
+                        if (delta != 0)     // can skip the sliding of gaps if source an target string are the same size.
+                        {
+                            // Copy the gap data between the current replacement and the next replacement
+                            fixed (char* sourcePtr = &sourceChunk.m_ChunkChars[gapStart])
+                                ReplaceInPlaceAtChunk(ref targetChunk, ref targetIndexInChunk, sourcePtr, gapEnd - gapStart);
+                        }
+                        else
+                        {
+                            targetIndexInChunk += gapEnd - gapStart;
+                            Debug.Assert(targetIndexInChunk <= targetChunk.m_ChunkLength, "gap not in chunk");
+                        }
+                    }
+
+                    // Remove extra space if necessary.
+                    if (delta < 0)
+                        Remove(targetChunk.m_ChunkOffset + targetIndexInChunk, -delta, out targetChunk, out targetIndexInChunk);
                 }
             }
-
-            // Remove extra space if necessary.
-            if (delta < 0)
-                Remove(targetChunk.m_ChunkOffset + targetIndexInChunk, -delta, out targetChunk, out targetIndexInChunk);
         }
 
         /// <summary>
@@ -2093,7 +2188,7 @@ namespace System.Text
         /// </param>
         /// <param name="value">The pointer to the start of the character buffer.</param>
         /// <param name="count">The number of characters in the buffer.</param>
-        private void ReplaceInPlaceAtChunk(ref StringBuilder chunk, ref int indexInChunk, ref char value, int count)
+        private unsafe void ReplaceInPlaceAtChunk(ref StringBuilder chunk, ref int indexInChunk, char* value, int count)
         {
             if (count != 0)
             {
@@ -2103,7 +2198,7 @@ namespace System.Text
                     Debug.Assert(lengthInChunk >= 0, "Index isn't in the chunk.");
 
                     int lengthToCopy = Math.Min(lengthInChunk, count);
-                    ThreadSafeCopy(ref value, chunk.m_ChunkChars, indexInChunk, lengthToCopy);
+                    ThreadSafeCopy(value, chunk.m_ChunkChars, indexInChunk, lengthToCopy);
 
                     // Advance the index.
                     indexInChunk += lengthToCopy;
@@ -2117,7 +2212,7 @@ namespace System.Text
                     {
                         break;
                     }
-                    value = ref Unsafe.Add(ref value, lengthToCopy);
+                    value += lengthToCopy;
                 }
             }
         }
@@ -2126,13 +2221,14 @@ namespace System.Text
         /// This method prevents out-of-bounds writes in the case a different thread updates a field in the builder just before a copy begins.
         /// All interesting variables are copied out of the heap into the parameters of this method, and then bounds checks are run.
         /// </remarks>
-        private static void ThreadSafeCopy(ref char sourcePtr, char[] destination, int destinationIndex, int count)
+        private static unsafe void ThreadSafeCopy(char* sourcePtr, char[] destination, int destinationIndex, int count)
         {
             if (count > 0)
             {
                 if ((uint)destinationIndex <= (uint)destination.Length && (destinationIndex + count) <= destination.Length)
                 {
-                    string.wstrcpy(ref destination[destinationIndex], ref sourcePtr, count);
+                    fixed (char* destinationPtr = &destination[destinationIndex])
+                        string.wstrcpy(destinationPtr, sourcePtr, count);
                 }
                 else
                 {
@@ -2141,7 +2237,7 @@ namespace System.Text
             }
         }
 
-        private static void ThreadSafeCopy(char[] source, int sourceIndex, Span<char> destination, int destinationIndex, int count)
+        private static unsafe void ThreadSafeCopy(char[] source, int sourceIndex, Span<char> destination, int destinationIndex, int count)
         {
             if (count > 0)
             {
@@ -2155,7 +2251,9 @@ namespace System.Text
                     throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_Index);
                 }
 
-                string.wstrcpy(ref Unsafe.Add(ref MemoryMarshal.GetReference(destination), destinationIndex), ref source[sourceIndex], count);
+                fixed (char* sourcePtr = &source[sourceIndex])
+                    fixed (char* destinationPtr = &MemoryMarshal.GetReference(destination))
+                        string.wstrcpy(destinationPtr + destinationIndex, sourcePtr, count);
             }
         }
 
@@ -2244,19 +2342,20 @@ namespace System.Text
             //     really big chunks even if the string gets really big.
             int newBlockLength = Math.Max(minBlockCharCount, Math.Min(Length, MaxChunkSize));
 
+            // Check for integer overflow (logical buffer size > int.MaxValue)
+            if (m_ChunkOffset + m_ChunkLength + newBlockLength < newBlockLength)
+                throw new OutOfMemoryException();
+
+            // Allocate the array before updating any state to avoid leaving inconsistent state behind in case of out of memory exception
+            char[] chunkChars = new char[newBlockLength];
+
             // Move all of the data from this chunk to a new one, via a few O(1) pointer adjustments.
             // Then, have this chunk point to the new one as its predecessor.
             m_ChunkPrevious = new StringBuilder(this);
             m_ChunkOffset += m_ChunkLength;
             m_ChunkLength = 0;
 
-            // Check for integer overflow (logical buffer size > int.MaxValue)
-            if (m_ChunkOffset + newBlockLength < newBlockLength)
-            {
-                m_ChunkChars = null;
-                throw new OutOfMemoryException();
-            }
-            m_ChunkChars = new char[newBlockLength];
+            m_ChunkChars = chunkChars;
 
             AssertInvariants();
         }
@@ -2355,15 +2454,17 @@ namespace System.Text
             {
                 unsafe
                 {
-                    ref char chunkCharsPtr = ref chunk.m_ChunkChars.GetRawSzArrayData();
-                    ThreadSafeCopy(ref chunkCharsPtr, newChunk.m_ChunkChars, 0, copyCount1);
-
-                    // Slide characters over in the current buffer to make room.
-                    int copyCount2 = indexInChunk - copyCount1;
-                    if (copyCount2 >= 0)
+                    fixed (char* chunkCharsPtr = &chunk.m_ChunkChars[0])
                     {
-                        ThreadSafeCopy(ref Unsafe.Add(ref chunkCharsPtr, copyCount1), chunk.m_ChunkChars, 0, copyCount2);
-                        indexInChunk = copyCount2;
+                        ThreadSafeCopy(chunkCharsPtr, newChunk.m_ChunkChars, 0, copyCount1);
+
+                        // Slide characters over in the current buffer to make room.
+                        int copyCount2 = indexInChunk - copyCount1;
+                        if (copyCount2 >= 0)
+                        {
+                            ThreadSafeCopy(chunkCharsPtr + copyCount1, chunk.m_ChunkChars, 0, copyCount2);
+                            indexInChunk = copyCount2;
+                        }
                     }
                 }
             }

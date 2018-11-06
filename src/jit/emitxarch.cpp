@@ -11019,7 +11019,6 @@ BYTE* emitter::emitOutputR(BYTE* dst, instrDesc* id)
             break;
 
         case INS_bswap:
-
         {
             assert(size >= EA_4BYTE && size <= EA_PTRSIZE); // 16-bit BSWAP is undefined
 

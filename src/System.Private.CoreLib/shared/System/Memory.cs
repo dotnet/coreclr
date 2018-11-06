@@ -31,9 +31,7 @@ namespace System
         private readonly object _object;
         private readonly int _index;
         private readonly int _length;
-
-        private const int RemoveFlagsBitMask = 0x7FFFFFFF;
-
+        
         /// <summary>
         /// Creates a new memory over the entirety of the target array.
         /// </summary>
@@ -100,8 +98,14 @@ namespace System
             }
             if (default(T) == null && array.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
+#if BIT64
+            // See comment in Span<T>.Slice for how this works.
+            if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)array.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+#else
             if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException();
+#endif
 
             _object = array;
             _index = start;
@@ -158,7 +162,11 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Memory(object obj, int start, int length)
         {
-            // No validation performed; caller must provide any necessary validation.
+            // No validation performed in release builds; caller must provide any necessary validation.
+
+            // 'obj is T[]' below also handles things like int[] <-> uint[] being convertible
+            Debug.Assert((obj == null) || (typeof(T) == typeof(char) && obj is string) || (obj is T[]) || (obj is MemoryManager<T>));
+
             _object = obj;
             _index = start;
             _length = length;
@@ -244,10 +252,14 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Memory<T> Slice(int start, int length)
         {
-            if ((uint)start > (uint)_length || (uint)length > (uint)(_length - start))
-            {
+#if BIT64
+            // See comment in Span<T>.Slice for how this works.
+            if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)_length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
-            }
+#else
+            if ((uint)start > (uint)_length || (uint)length > (uint)(_length - start))
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+#endif
 
             // It is expected for _index + start to be negative if the memory is already pre-pinned.
             return new Memory<T>(_object, _index + start, length);
@@ -279,6 +291,7 @@ namespace System
                     if (typeof(T) == typeof(char) && tmpObject.GetType() == typeof(string))
                     {
                         // Special-case string since it's the most common for ROM<char>.
+
                         refToReturn = ref Unsafe.As<char, T>(ref Unsafe.As<string>(tmpObject).GetRawStringData());
                         lengthOfUnderlyingSpan = Unsafe.As<string>(tmpObject).Length;
                     }
@@ -294,7 +307,10 @@ namespace System
                         // remaining option is for it to be a T[] (or a U[] which is blittable to T[], like int[]
                         // and uint[]). Otherwise somebody used private reflection to set this field, and we're not
                         // too worried about type safety violations at this point.
-                        Debug.Assert(tmpObject is Array);
+
+                        // 'tmpObject is T[]' below also handles things like int[] <-> uint[] being convertible
+                        Debug.Assert(tmpObject is T[]);
+
                         refToReturn = ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData();
                         lengthOfUnderlyingSpan = Unsafe.As<T[]>(tmpObject).Length;
                     }
@@ -302,7 +318,10 @@ namespace System
                     {
                         // We know the object is not null, and it's not variable-length, so it must be a MemoryManager<T>.
                         // Otherwise somebody used private reflection to set this field, and we're not too worried about
-                        // type safety violations at that point.
+                        // type safety violations at that point. Note that it can't be a MemoryManager<U>, even if U and
+                        // T are blittable (e.g., MemoryManager<int> to MemoryManager<uint>), since there exists no
+                        // constructor or other public API which would allow such a conversion.
+
                         Debug.Assert(tmpObject is MemoryManager<T>);
                         Span<T> memoryManagerSpan = Unsafe.As<MemoryManager<T>>(tmpObject).GetSpan();
                         refToReturn = ref MemoryMarshal.GetReference(memoryManagerSpan);
@@ -315,14 +334,22 @@ namespace System
                     // least to be in-bounds when compared with the original Memory<T> instance, so using the span won't
                     // AV the process.
 
-                    int desiredStartIndex = _index & RemoveFlagsBitMask;
+                    int desiredStartIndex = _index & ReadOnlyMemory<T>.RemoveFlagsBitMask;
                     int desiredLength = _length;
 
+#if BIT64
+                    // See comment in Span<T>.Slice for how this works.
+                    if ((ulong)(uint)desiredStartIndex + (ulong)(uint)desiredLength > (ulong)(uint)lengthOfUnderlyingSpan)
+                    {
+                        ThrowHelper.ThrowArgumentOutOfRangeException();
+                    }
+#else
                     if ((uint)desiredStartIndex > (uint)lengthOfUnderlyingSpan || (uint)desiredLength > (uint)(lengthOfUnderlyingSpan - desiredStartIndex))
                     {
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }
-
+#endif
+                    
                     refToReturn = ref Unsafe.Add(ref refToReturn, desiredStartIndex);
                     lengthOfUnderlyingSpan = desiredLength;
                 }
@@ -390,26 +417,27 @@ namespace System
                     ref byte stringData = ref Unsafe.Add(ref Unsafe.As<Utf8String>(tmpObject).GetRawStringData(), _index);
                     return new MemoryHandle(Unsafe.AsPointer(ref stringData), handle);
                 }
-                else if (tmpObject is T[] array)
+                else if (RuntimeHelpers.ObjectHasComponentSize(tmpObject))
                 {
+                    // 'tmpObject is T[]' below also handles things like int[] <-> uint[] being convertible
+                    Debug.Assert(tmpObject is T[]);
+
                     // Array is already pre-pinned
                     if (_index < 0)
                     {
-                        void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index & RemoveFlagsBitMask);
+                        void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData()), _index & ReadOnlyMemory<T>.RemoveFlagsBitMask);
                         return new MemoryHandle(pointer);
                     }
                     else
                     {
-                        GCHandle handle = GCHandle.Alloc(array, GCHandleType.Pinned);
-                        void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index);
+                        GCHandle handle = GCHandle.Alloc(tmpObject, GCHandleType.Pinned);
+                        void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData()), _index);
                         return new MemoryHandle(pointer, handle);
                     }
-                }
-                else
+                }                else
                 {
-                    // Can't use Unsafe.As<MemoryManager<T>> below since tmpObject could be a U[], where
-                    // U is blittable with T. (example: int[] and uint[])
-                    return ((MemoryManager<T>)tmpObject).Pin(_index);
+                    Debug.Assert(tmpObject is MemoryManager<T>);
+                    return Unsafe.As<MemoryManager<T>>(tmpObject).Pin(_index);
                 }
             }
 
@@ -462,19 +490,10 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return _object != null ? CombineHashCodes(RuntimeHelpers.GetHashCode(_object), _index.GetHashCode(), _length.GetHashCode()) : 0;
+            // We use RuntimeHelpers.GetHashCode instead of Object.GetHashCode because the hash
+            // code is based on object identity and referential equality, not deep equality (as common with string).
+            return (_object != null) ? HashCode.Combine(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
         }
-
-        private static int CombineHashCodes(int left, int right)
-        {
-            return ((left << 5) + left) ^ right;
-        }
-
-        private static int CombineHashCodes(int h1, int h2, int h3)
-        {
-            return CombineHashCodes(CombineHashCodes(h1, h2), h3);
-        }
-
         // Returns true iff this Memory<T> / ROM<T> instance may represent UTF-8 data.
         // JIT should elide this entire method into a single true / false.
         private static bool MayRepresentUtf8 => typeof(T) == typeof(byte) || typeof(T) == typeof(Utf8Char);

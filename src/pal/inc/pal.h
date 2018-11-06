@@ -442,6 +442,13 @@ BOOL
 PALAPI
 PAL_NotifyRuntimeStarted(VOID);
 
+#ifdef __APPLE__
+PALIMPORT
+LPCSTR
+PALAPI
+PAL_GetApplicationGroupId();
+#endif // __APPLE__
+
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
 
 PALIMPORT
@@ -3255,10 +3262,10 @@ typedef EXCEPTION_DISPOSITION (PALAPI *PVECTORED_EXCEPTION_HANDLER)(
 
 // Define BitScanForward64 and BitScanForward
 // Per MSDN, BitScanForward64 will search the mask data from LSB to MSB for a set bit.
-// If one is found, its bit position is returned in the out PDWORD argument and 1 is returned.
-// Otherwise, 0 is returned.
+// If one is found, its bit position is stored in the out PDWORD argument and 1 is returned;
+// otherwise, an undefined value is stored in the out PDWORD argument and 0 is returned.
 //
-// On GCC, the equivalent function is __builtin_ffsl. It returns 1+index of the least
+// On GCC, the equivalent function is __builtin_ffsll. It returns 1+index of the least
 // significant set bit, or 0 if if mask is zero.
 //
 // The same is true for BitScanForward, except that the GCC function is __builtin_ffs.
@@ -3271,16 +3278,12 @@ BitScanForward(
     IN OUT PDWORD Index,
     IN UINT qwMask)
 {
-    unsigned char bRet = FALSE;
-    int iIndex = __builtin_ffsl(qwMask);
-    if (iIndex != 0)
-    {
-        // Set the Index after deducting unity
-        *Index = (DWORD)(iIndex - 1);
-        bRet = TRUE;
-    }
-
-    return bRet;
+    int iIndex = __builtin_ffs(qwMask);
+    // Set the Index after deducting unity
+    *Index = (DWORD)(iIndex - 1);
+    // Both GCC and Clang generate better, smaller code if we check whether the
+    // mask was/is zero rather than the equivalent check that iIndex is zero.
+    return qwMask != 0 ? TRUE : FALSE;
 }
 
 EXTERN_C
@@ -3292,16 +3295,12 @@ BitScanForward64(
     IN OUT PDWORD Index,
     IN UINT64 qwMask)
 {
-    unsigned char bRet = FALSE;
-    int iIndex = __builtin_ffsl(qwMask);
-    if (iIndex != 0)
-    {
-        // Set the Index after deducting unity
-        *Index = (DWORD)(iIndex - 1);
-        bRet = TRUE;
-    }
-
-    return bRet;
+    int iIndex = __builtin_ffsll(qwMask);
+    // Set the Index after deducting unity
+    *Index = (DWORD)(iIndex - 1);
+    // Both GCC and Clang generate better, smaller code if we check whether the
+    // mask was/is zero rather than the equivalent check that iIndex is zero.
+    return qwMask != 0 ? TRUE : FALSE;
 }
 
 FORCEINLINE void PAL_ArmInterlockedOperationBarrier()
@@ -4167,18 +4166,26 @@ SetThreadIdealProcessorEx(
 #define asinh         PAL_asinh
 #define atan2         PAL_atan2
 #define exp           PAL_exp
+#define fma           PAL_fma
+#define ilogb         PAL_ilogb
 #define log           PAL_log
+#define log2          PAL_log2
 #define log10         PAL_log10
 #define pow           PAL_pow
+#define scalbn        PAL_scalbn
 #define acosf         PAL_acosf
 #define acoshf        PAL_acoshf
 #define asinf         PAL_asinf
 #define asinhf        PAL_asinhf
 #define atan2f        PAL_atan2f
 #define expf          PAL_expf
+#define fmaf          PAL_fmaf
+#define ilogbf        PAL_ilogbf
 #define logf          PAL_logf
+#define log2f         PAL_log2f
 #define log10f        PAL_log10f
 #define powf          PAL_powf
+#define scalbnf       PAL_scalbnf
 #define malloc        PAL_malloc
 #define free          PAL_free
 #define mkstemp       PAL_mkstemp
@@ -4433,10 +4440,14 @@ PALIMPORT double __cdecl exp(double);
 PALIMPORT double __cdecl fabs(double);
 PALIMPORT double __cdecl floor(double);
 PALIMPORT double __cdecl fmod(double, double); 
+PALIMPORT double __cdecl fma(double, double, double);
+PALIMPORT int __cdecl ilogb(double);
 PALIMPORT double __cdecl log(double);
+PALIMPORT double __cdecl log2(double);
 PALIMPORT double __cdecl log10(double);
 PALIMPORT double __cdecl modf(double, double*);
 PALIMPORT double __cdecl pow(double, double);
+PALIMPORT double __cdecl scalbn(double, int);
 PALIMPORT double __cdecl sin(double);
 PALIMPORT double __cdecl sinh(double);
 PALIMPORT double __cdecl sqrt(double);
@@ -4461,11 +4472,15 @@ PALIMPORT float __cdecl coshf(float);
 PALIMPORT float __cdecl expf(float);
 PALIMPORT float __cdecl fabsf(float);
 PALIMPORT float __cdecl floorf(float);
-PALIMPORT float __cdecl fmodf(float, float); 
+PALIMPORT float __cdecl fmodf(float, float);
+PALIMPORT float __cdecl fmaf(float, float, float);
+PALIMPORT int __cdecl ilogbf(float);
 PALIMPORT float __cdecl logf(float);
+PALIMPORT float __cdecl log2f(float);
 PALIMPORT float __cdecl log10f(float);
 PALIMPORT float __cdecl modff(float, float*);
 PALIMPORT float __cdecl powf(float, float);
+PALIMPORT float __cdecl scalbnf(float, int);
 PALIMPORT float __cdecl sinf(float);
 PALIMPORT float __cdecl sinhf(float);
 PALIMPORT float __cdecl sqrtf(float);

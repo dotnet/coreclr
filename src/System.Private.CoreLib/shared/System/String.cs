@@ -501,6 +501,13 @@ namespace System
             Buffer.Memmove(ref dmem, ref smem, (uint)charCount /* char count, not byte count */);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe void wstrcpy(char* dmem, char* smem, int charCount)
+        {
+            Debug.Assert(charCount >= 0);
+            Buffer.Memmove(ref *dmem, ref *smem, (uint)charCount /* char count, not byte count */);
+        }
+
         // Returns this string.
         public override string ToString()
         {

@@ -2220,6 +2220,16 @@ bool Compiler::impSpillStackEntry(unsigned level,
     {
         CORINFO_CLASS_HANDLE stkHnd = verCurrentState.esStack[level].seTypeInfo.GetClassHandle();
         lvaSetClass(tnum, tree, stkHnd);
+
+        // If we're assigning a GT_RET_EXPR, note the temp over on the call,
+        // so the inliner can use it in case it needs a return spill temp.
+        if (tree->OperGet() == GT_RET_EXPR)
+        {
+            JITDUMP("\n*** see V%02u = GT_RET_EXPR, noting temp\n", tnum);
+            GenTree*             call = tree->gtRetExpr.gtInlineCandidate;
+            InlineCandidateInfo* ici  = call->gtCall.gtInlineCandidateInfo;
+            ici->preexistingSpillTemp = tnum;
+        }
     }
 
     // The tree type may be modified by impAssignTempGen, so use the type of the lclVar.
@@ -3377,7 +3387,14 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 #ifdef FEATURE_HW_INTRINSICS
             if (ni > NI_HW_INTRINSIC_START && ni < NI_HW_INTRINSIC_END)
             {
-                return impHWIntrinsic(ni, method, sig, mustExpand);
+                GenTree* hwintrinsic = impHWIntrinsic(ni, method, sig, mustExpand);
+
+                if (mustExpand && (hwintrinsic == nullptr))
+                {
+                    return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_NOT_IMPLEMENTED, method, sig, mustExpand);
+                }
+
+                return hwintrinsic;
             }
 #endif // FEATURE_HW_INTRINSICS
 
@@ -3926,6 +3943,45 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 break;
             }
 
+            case NI_System_Buffers_Binary_BinaryPrimitives_ReverseEndianness:
+            {
+                assert(sig->numArgs == 1);
+
+                // We expect the return type of the ReverseEndianness routine to match the type of the
+                // one and only argument to the method. We use a special instruction for 16-bit
+                // BSWAPs since on x86 processors this is implemented as ROR <16-bit reg>, 8. Additionally,
+                // we only emit 64-bit BSWAP instructions on 64-bit archs; if we're asked to perform a
+                // 64-bit byte swap on a 32-bit arch, we'll fall to the default case in the switch block below.
+
+                switch (sig->retType)
+                {
+                    case CorInfoType::CORINFO_TYPE_SHORT:
+                    case CorInfoType::CORINFO_TYPE_USHORT:
+                        retNode = gtNewOperNode(GT_BSWAP16, callType, impPopStack().val);
+                        break;
+
+                    case CorInfoType::CORINFO_TYPE_INT:
+                    case CorInfoType::CORINFO_TYPE_UINT:
+#ifdef _TARGET_64BIT_
+                    case CorInfoType::CORINFO_TYPE_LONG:
+                    case CorInfoType::CORINFO_TYPE_ULONG:
+#endif // _TARGET_64BIT_
+                        retNode = gtNewOperNode(GT_BSWAP, callType, impPopStack().val);
+                        break;
+
+                    default:
+                        // This default case gets hit on 32-bit archs when a call to a 64-bit overload
+                        // of ReverseEndianness is encountered. In that case we'll let JIT treat this as a standard
+                        // method call, where the implementation decomposes the operation into two 32-bit
+                        // bswap routines. If the input to the 64-bit function is a constant, then we rely
+                        // on inlining + constant folding of 32-bit bswaps to effectively constant fold
+                        // the 64-bit call site.
+                        break;
+                }
+
+                break;
+            }
+
             case NI_System_Runtime_CompilerServices_RuntimeHelpers_GetUtf8StringLiteral:
             {
                 GenTree* op1 = impStackTop(0).val;
@@ -3945,53 +4001,14 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 }
                 break;
             }
-
-            case NI_BitConverter_ByteSwap:
-            {
-                assert(sig->numArgs == 1);
-
-                // We expect the return type of the ByteSwap routine to match the type of the
-                // one and only argument to the method. We use a special instruction for 16-bit
-                // BSWAPs since on x86 processors this is implemented as ROR value, 8. Additionally,
-                // we only allow BSWAPs with 64-bit arguments on 64-bit architectures.
-
-                switch (sig->retType)
-                {
-                    case CorInfoType::CORINFO_TYPE_USHORT:
-                        retNode = gtNewOperNode(GT_BSWAP16, callType, impPopStack().val);
-                        break;
-
-                    case CorInfoType::CORINFO_TYPE_UINT:
-#ifdef _TARGET_64BIT_
-                    case CorInfoType::CORINFO_TYPE_ULONG:
-#endif // _TARGET_64BIT_
-                        retNode = gtNewOperNode(GT_BSWAP, callType, impPopStack().val);
-                        break;
-
-                    default:
-                        // This default case gets hit on 32-bit archs when a call to a 64-bit overload
-                        // of ByteSwap is encountered. In that case we'll let JIT treat this as a standard
-                        // method call, where the implementation decomposes the operation into two 32-bit
-                        // bswap routines. If the input to the 64-bit function is a constant, then we rely
-                        // on inlining + constant folding of 32-bit bswaps to effectively constant fold
-                        // the 64-bit call site.
-                        break;
-                }
-
-                break;
-            }
-
             default:
                 break;
         }
     }
 
-    if (mustExpand)
+    if (mustExpand && (retNode == nullptr))
     {
-        if (retNode == nullptr)
-        {
-            NO_WAY("JIT must expand the intrinsic!");
-        }
+        NO_WAY("JIT must expand the intrinsic!");
     }
 
     // Optionally report if this intrinsic is special
@@ -4014,17 +4031,7 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
     GenTree* op2;
 
     assert(callType != TYP_STRUCT);
-    assert((intrinsicID == CORINFO_INTRINSIC_Sin) || intrinsicID == CORINFO_INTRINSIC_Cbrt ||
-           (intrinsicID == CORINFO_INTRINSIC_Sqrt) || (intrinsicID == CORINFO_INTRINSIC_Abs) ||
-           (intrinsicID == CORINFO_INTRINSIC_Cos) || (intrinsicID == CORINFO_INTRINSIC_Round) ||
-           (intrinsicID == CORINFO_INTRINSIC_Cosh) || (intrinsicID == CORINFO_INTRINSIC_Sinh) ||
-           (intrinsicID == CORINFO_INTRINSIC_Tan) || (intrinsicID == CORINFO_INTRINSIC_Tanh) ||
-           (intrinsicID == CORINFO_INTRINSIC_Asin) || (intrinsicID == CORINFO_INTRINSIC_Asinh) ||
-           (intrinsicID == CORINFO_INTRINSIC_Acos) || (intrinsicID == CORINFO_INTRINSIC_Acosh) ||
-           (intrinsicID == CORINFO_INTRINSIC_Atan) || (intrinsicID == CORINFO_INTRINSIC_Atan2) ||
-           (intrinsicID == CORINFO_INTRINSIC_Atanh) || (intrinsicID == CORINFO_INTRINSIC_Log10) ||
-           (intrinsicID == CORINFO_INTRINSIC_Pow) || (intrinsicID == CORINFO_INTRINSIC_Exp) ||
-           (intrinsicID == CORINFO_INTRINSIC_Ceiling) || (intrinsicID == CORINFO_INTRINSIC_Floor));
+    assert(IsMathIntrinsic(intrinsicID));
 
     op1 = nullptr;
 
@@ -4131,13 +4138,16 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
         {
             result = NI_Math_Round;
         }
-#if defined(_TARGET_XARCH_) // We currently only support BSWAP on x86
-        else if ((strcmp(className, "BitConverter") == 0) && (strcmp(methodName, "ByteSwap") == 0))
-        {
-            result = NI_BitConverter_ByteSwap;
-        }
-#endif // !defined(_TARGET_XARCH_)
     }
+#if defined(_TARGET_XARCH_) // We currently only support BSWAP on x86
+    else if (strcmp(namespaceName, "System.Buffers.Binary") == 0)
+    {
+        if ((strcmp(className, "BinaryPrimitives") == 0) && (strcmp(methodName, "ReverseEndianness") == 0))
+        {
+            result = NI_System_Buffers_Binary_BinaryPrimitives_ReverseEndianness;
+        }
+    }
+#endif // !defined(_TARGET_XARCH_)
     else if (strcmp(namespaceName, "System.Collections.Generic") == 0)
     {
         if ((strcmp(className, "EqualityComparer`1") == 0) && (strcmp(methodName, "get_Default") == 0))
@@ -18126,15 +18136,16 @@ void Compiler::impCheckCanInline(GenTree*               call,
             InlineCandidateInfo* pInfo;
             pInfo = new (pParam->pThis, CMK_Inlining) InlineCandidateInfo;
 
-            pInfo->dwRestrictions  = dwRestrictions;
-            pInfo->methInfo        = methInfo;
-            pInfo->methAttr        = pParam->methAttr;
-            pInfo->clsHandle       = clsHandle;
-            pInfo->clsAttr         = clsAttr;
-            pInfo->fncRetType      = fncRetType;
-            pInfo->exactContextHnd = pParam->exactContextHnd;
-            pInfo->ilCallerHandle  = pParam->pThis->info.compMethodHnd;
-            pInfo->initClassResult = initClassResult;
+            pInfo->dwRestrictions       = dwRestrictions;
+            pInfo->methInfo             = methInfo;
+            pInfo->methAttr             = pParam->methAttr;
+            pInfo->clsHandle            = clsHandle;
+            pInfo->clsAttr              = clsAttr;
+            pInfo->fncRetType           = fncRetType;
+            pInfo->exactContextHnd      = pParam->exactContextHnd;
+            pInfo->ilCallerHandle       = pParam->pThis->info.compMethodHnd;
+            pInfo->initClassResult      = initClassResult;
+            pInfo->preexistingSpillTemp = BAD_VAR_NUM;
 
             *(pParam->ppInlineCandidateInfo) = pInfo;
 

@@ -6797,6 +6797,9 @@ GenTree* Compiler::gtClone(GenTree* tree, bool complexOK)
 
                 copy = gtNewFieldRef(tree->TypeGet(), tree->gtField.gtFldHnd, objp, tree->gtField.gtFldOffset);
                 copy->gtField.gtFldMayOverlap = tree->gtField.gtFldMayOverlap;
+#ifdef FEATURE_READYTORUN_COMPILER
+                copy->gtField.gtFieldLookup = tree->gtField.gtFieldLookup;
+#endif
             }
             else if (tree->OperIs(GT_ADD, GT_SUB))
             {
@@ -12951,6 +12954,15 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                         i1 = -i1;
                         break;
 
+                    case GT_BSWAP:
+                        i1 = ((i1 >> 24) & 0xFF) | ((i1 >> 8) & 0xFF00) | ((i1 << 8) & 0xFF0000) |
+                             ((i1 << 24) & 0xFF000000);
+                        break;
+
+                    case GT_BSWAP16:
+                        i1 = ((i1 >> 8) & 0xFF) | ((i1 << 8) & 0xFF00);
+                        break;
+
                     case GT_CAST:
                         // assert (genActualType(tree->CastToType()) == tree->gtType);
                         switch (tree->CastToType())
@@ -13063,15 +13075,6 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                         }
                         return tree;
 
-                    case GT_BSWAP:
-                        i1 = ((i1 >> 24) & 0xFF) | ((i1 >> 8) & 0xFF00) | ((i1 << 8) & 0xFF0000) |
-                             ((i1 << 24) & 0xFF000000);
-                        break;
-
-                    case GT_BSWAP16:
-                        i1 = ((i1 >> 8) & 0xFF) | ((i1 << 8) & 0xFF00);
-                        break;
-
                     default:
                         return tree;
                 }
@@ -13093,6 +13096,13 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
 
                     case GT_NEG:
                         lval1 = -lval1;
+                        break;
+
+                    case GT_BSWAP:
+                        lval1 = ((lval1 >> 56) & 0xFF) | ((lval1 >> 40) & 0xFF00) | ((lval1 >> 24) & 0xFF0000) |
+                                ((lval1 >> 8) & 0xFF000000) | ((lval1 << 8) & 0xFF00000000) |
+                                ((lval1 << 24) & 0xFF0000000000) | ((lval1 << 40) & 0xFF000000000000) |
+                                ((lval1 << 56) & 0xFF00000000000000);
                         break;
 
                     case GT_CAST:
@@ -13178,13 +13188,6 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                                 break;
                         }
                         return tree;
-
-                    case GT_BSWAP:
-                        lval1 = ((lval1 >> 56) & 0xFF) | ((lval1 >> 40) & 0xFF00) | ((lval1 >> 24) & 0xFF0000) |
-                                ((lval1 >> 8) & 0xFF000000) | ((lval1 << 8) & 0xFF00000000) |
-                                ((lval1 << 24) & 0xFF0000000000) | ((lval1 << 40) & 0xFF000000000000) |
-                                ((lval1 << 56) & 0xFF00000000000000);
-                        break;
 
                     default:
                         return tree;
