@@ -1,7 +1,0 @@
-<Project>
-
-  <Target Name="Sven">
-    <Message Importance="High" Text="prop: $(MyProperty)" />
-  </Target>
-
-</Project>

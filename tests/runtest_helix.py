@@ -9,6 +9,8 @@
 # separate process. This process will have the scenario environment
 # variables set, but the xunit process will not.
 
+# TODO: Factor out logic common with runtest.py
+
 import argparse
 import subprocess
 import os
