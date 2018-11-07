@@ -12,7 +12,7 @@
 //	Start of SafeArray calls
 //--------------------------------
 
-extern "C" __declspec(dllexport) BOOL __stdcall SafeArray_In(SAFEARRAY* psa)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_In(SAFEARRAY* psa)
 {
 	long i, lUbound, lLbound;
 	int  *pInt; //will point to the data
@@ -86,7 +86,7 @@ extern "C" __declspec(dllexport) BOOL __stdcall SafeArray_In(SAFEARRAY* psa)
 	return TRUE;
 }
 
-extern "C" __declspec(dllexport) BOOL __stdcall SafeArray_InOut(SAFEARRAY* psa)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_InOut(SAFEARRAY* psa)
 {
 	long i, lUbound, lLbound;
 	int  *pInt; //will point to the data
@@ -172,7 +172,7 @@ extern "C" __declspec(dllexport) BOOL __stdcall SafeArray_InOut(SAFEARRAY* psa)
 	return TRUE;
 }
 
-extern "C" __declspec(dllexport) SAFEARRAY* _stdcall SafeArray_Ret()
+extern "C" DLL_EXPORT SAFEARRAY* _stdcall SafeArray_Ret()
 {
 	SAFEARRAY * psa;
 	int * pInt;
@@ -201,7 +201,7 @@ extern "C" __declspec(dllexport) SAFEARRAY* _stdcall SafeArray_Ret()
 	return psa;
 }
 
-extern "C" __declspec(dllexport) BOOL __stdcall SafeArray_InByRef(SAFEARRAY** ppsa)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_InByRef(SAFEARRAY** ppsa)
 {
 	long i, lUbound, lLbound;
 	int  *pInt; //will point to the data
@@ -276,7 +276,7 @@ extern "C" __declspec(dllexport) BOOL __stdcall SafeArray_InByRef(SAFEARRAY** pp
 	return TRUE;
 }
 
-extern "C" __declspec(dllexport) BOOL __stdcall SafeArray_InOutByRef(SAFEARRAY** ppsa)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_InOutByRef(SAFEARRAY** ppsa)
 {
 	long i, lUbound, lLbound;
 	int  *pInt; //will point to the data
@@ -358,7 +358,7 @@ extern "C" __declspec(dllexport) BOOL __stdcall SafeArray_InOutByRef(SAFEARRAY**
 	return TRUE;
 }
 
-extern "C" __declspec(dllexport) BOOL __stdcall SafeArrayWithOutAttribute(SAFEARRAY* psa)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArrayWithOutAttribute(SAFEARRAY* psa)
 {
 	long i, lUbound;
 	int  *pInt; //will point to the data
@@ -407,7 +407,7 @@ extern "C" __declspec(dllexport) BOOL __stdcall SafeArrayWithOutAttribute(SAFEAR
 	return TRUE;
 }
 
-extern "C" __declspec(dllexport) SAFEARRAY* _stdcall SafeArray_Ret_MismatchRank()
+extern "C" DLL_EXPORT SAFEARRAY* _stdcall SafeArray_Ret_MismatchRank()
 {
 	SAFEARRAY * psa;
 
@@ -428,7 +428,7 @@ extern "C" __declspec(dllexport) SAFEARRAY* _stdcall SafeArray_Ret_MismatchRank(
 	return psa;
 }
 
-extern "C" __declspec(dllexport) SAFEARRAY* _stdcall SafeArray_Ret_InvalidLBound()
+extern "C" DLL_EXPORT SAFEARRAY* _stdcall SafeArray_Ret_InvalidLBound()
 {
 	SAFEARRAY * psa;
 
