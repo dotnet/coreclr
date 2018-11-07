@@ -98,7 +98,7 @@ jobs:
     #      # TODO: pass publish feed url and access token in from the internal pipeline
     #      - script: .dotnet\dotnet.exe msbuild src\restorearcadepublishtasks.proj /t:Restore
     #        displayName: Restore tasks used to publish the build
-    #      - script: .dotnet\dotnet.exe msbuild src/publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)
+    #      - script: .dotnet\dotnet.exe msbuild src\publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)
 
     # Kill tasks that hold onto files on Windows. Otherwise git clean
     # may fail for later jobs on the same agent.
