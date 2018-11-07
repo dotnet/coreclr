@@ -1007,7 +1007,7 @@ HRESULT MDInternalRW::EnumInit(     // return S_FALSE if record not found
     HENUMInternal *phEnum)              // [OUT] the enumerator to fill 
 {
     HRESULT     hr = S_OK;
-    ULONG       ulStart, ulEnd, ulMax;
+    ULONG       ulStart, ulEnd;//, ulMax;
     ULONG       index;
     LOCKREAD();
 
@@ -1018,15 +1018,12 @@ HRESULT MDInternalRW::EnumInit(     // return S_FALSE if record not found
     // cache the tkKind and the scope
     phEnum->m_tkKind = TypeFromToken(tkKind);
 
-    TypeDefRec  *pRec;
-
     phEnum->m_EnumType = MDSimpleEnum;
 
     switch (TypeFromToken(tkKind))
     {
     case mdtFieldDef:
-        IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(RidFromToken(tkParent), &pRec));
-        ulStart = m_pStgdb->m_MiniMd.getFieldListOfTypeDef(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartFieldListOfTypeDef(RidFromToken(tkParent), &ulStart));
         IfFailGo(m_pStgdb->m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(tkParent), &ulEnd));
         if ( m_pStgdb->m_MiniMd.HasDelete() )
         {
@@ -1068,8 +1065,7 @@ HRESULT MDInternalRW::EnumInit(     // return S_FALSE if record not found
         break;
 
     case mdtMethodDef:
-        IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(RidFromToken(tkParent), &pRec));
-        ulStart = m_pStgdb->m_MiniMd.getMethodListOfTypeDef(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartMethodListOfTypeDef(RidFromToken(tkParent), &ulStart));
         IfFailGo(m_pStgdb->m_MiniMd.getEndMethodListOfTypeDef(RidFromToken(tkParent), &ulEnd));
         if ( m_pStgdb->m_MiniMd.HasDelete() )
         {
@@ -1185,19 +1181,17 @@ HRESULT MDInternalRW::EnumInit(     // return S_FALSE if record not found
 
     case mdtProperty:
         RID         ridPropertyMap;
-        PropertyMapRec *pPropertyMapRec;
 
         // get the starting/ending rid of properties of this typedef
         IfFailGo(m_pStgdb->m_MiniMd.FindPropertyMapFor(RidFromToken(tkParent), &ridPropertyMap));
         if (!InvalidRid(ridPropertyMap))
         {
-            IfFailGo(m_pStgdb->m_MiniMd.GetPropertyMapRecord(ridPropertyMap, &pPropertyMapRec));
-            ulStart = m_pStgdb->m_MiniMd.getPropertyListOfPropertyMap(pPropertyMapRec);
+            IfFailGo(m_pStgdb->m_MiniMd.getStartPropertyListOfPropertyMap(ridPropertyMap, &ulStart));
             IfFailGo(m_pStgdb->m_MiniMd.getEndPropertyListOfPropertyMap(ridPropertyMap, &ulEnd));
-            ulMax = m_pStgdb->m_MiniMd.getCountPropertys() + 1;
-            if(ulStart == 0) ulStart = 1;
-            if(ulEnd > ulMax) ulEnd = ulMax;
-            if(ulStart > ulEnd) ulStart = ulEnd;
+            //ulMax = m_pStgdb->m_MiniMd.getCountPropertys() + 1;
+            //if(ulStart == 0) ulStart = 1;
+            //if(ulEnd > ulMax) ulEnd = ulMax;
+            //if(ulStart > ulEnd) ulStart = ulEnd;
             if ( m_pStgdb->m_MiniMd.HasDelete() )
             {
                 HENUMInternal::InitDynamicArrayEnum(phEnum);
@@ -1242,19 +1236,17 @@ HRESULT MDInternalRW::EnumInit(     // return S_FALSE if record not found
 
     case mdtEvent:
         RID         ridEventMap;
-        EventMapRec *pEventMapRec;
 
         // get the starting/ending rid of events of this typedef
         IfFailGo(m_pStgdb->m_MiniMd.FindEventMapFor(RidFromToken(tkParent), &ridEventMap));
         if (!InvalidRid(ridEventMap))
         {
-            IfFailGo(m_pStgdb->m_MiniMd.GetEventMapRecord(ridEventMap, &pEventMapRec));
-            ulStart = m_pStgdb->m_MiniMd.getEventListOfEventMap(pEventMapRec);
+            IfFailGo(m_pStgdb->m_MiniMd.getStartEventListOfEventMap(ridEventMap, &ulStart));
             IfFailGo(m_pStgdb->m_MiniMd.getEndEventListOfEventMap(ridEventMap, &ulEnd));
-            ulMax = m_pStgdb->m_MiniMd.getCountEvents() + 1;
-            if(ulStart == 0) ulStart = 1;
-            if(ulEnd > ulMax) ulEnd = ulMax;
-            if(ulStart > ulEnd) ulStart = ulEnd;
+            //ulMax = m_pStgdb->m_MiniMd.getCountEvents() + 1;
+            //if(ulStart == 0) ulStart = 1;
+            //if(ulEnd > ulMax) ulEnd = ulMax;
+            //if(ulStart > ulEnd) ulStart = ulEnd;
             if ( m_pStgdb->m_MiniMd.HasDelete() )
             {
                 HENUMInternal::InitDynamicArrayEnum(phEnum);
@@ -1298,11 +1290,8 @@ HRESULT MDInternalRW::EnumInit(     // return S_FALSE if record not found
     case mdtParamDef:
         _ASSERTE(TypeFromToken(tkParent) == mdtMethodDef);
 
-        MethodRec *pMethodRec;
-        IfFailGo(m_pStgdb->m_MiniMd.GetMethodRecord(RidFromToken(tkParent), &pMethodRec));
-
         // figure out the start rid and end rid of the parameter list of this methoddef
-        ulStart = m_pStgdb->m_MiniMd.getParamListOfMethod(pMethodRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartParamListOfMethod(RidFromToken(tkParent), &ulStart));
         IfFailGo(m_pStgdb->m_MiniMd.getEndParamListOfMethod(RidFromToken(tkParent), &ulEnd));
         if (m_pStgdb->m_MiniMd.HasIndirectTable(TBL_Param))
         {
@@ -2036,17 +2025,13 @@ HRESULT MDInternalRW::FindParamOfMethod(// S_OK or error.
     ParamRec    *pParamRec;
     RID         ridStart, ridEnd;
     HRESULT     hr = NOERROR;
-    MethodRec *pMethodRec = NULL;
     
     LOCKREAD();
 
     _ASSERTE(TypeFromToken(md) == mdtMethodDef && pparamdef);
 
-    // get the methoddef record
-    IfFailGo(m_pStgdb->m_MiniMd.GetMethodRecord(RidFromToken(md), &pMethodRec));
-
     // figure out the start rid and end rid of the parameter list of this methoddef
-    ridStart = m_pStgdb->m_MiniMd.getParamListOfMethod(pMethodRec);
+    IfFailGo(m_pStgdb->m_MiniMd.getStartParamListOfMethod(RidFromToken(md), &ridStart));
     IfFailGo(m_pStgdb->m_MiniMd.getEndParamListOfMethod(RidFromToken(md), &ridEnd));
 
     // loop through each param
@@ -3177,13 +3162,8 @@ HRESULT  MDInternalRW::GetClassLayoutInit(
     _ASSERTE(pmdLayout);
     memset(pmdLayout, 0, sizeof(MD_CLASS_LAYOUT));
 
-    TypeDefRec  *pTypeDefRec;
-
-    // record for this typedef in TypeDef Table
-    IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(RidFromToken(td), &pTypeDefRec));
-
     // find the starting and end field for this typedef
-    pmdLayout->m_ridFieldCur = m_pStgdb->m_MiniMd.getFieldListOfTypeDef(pTypeDefRec);
+    IfFailGo(m_pStgdb->m_MiniMd.getStartFieldListOfTypeDef(RidFromToken(td), &(pmdLayout->m_ridFieldCur)));
     IfFailGo(m_pStgdb->m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(td), &(pmdLayout->m_ridFieldEnd)));
 
 ErrExit:
@@ -3323,7 +3303,6 @@ HRESULT  MDInternalRW::FindProperty(
     // output parameters have to be supplied
     _ASSERTE(TypeFromToken(td) == mdtTypeDef && pProp);
 
-    PropertyMapRec *pRec;
     PropertyRec *pProperty;
     RID         ridPropertyMap;
     RID         ridCur;
@@ -3338,10 +3317,8 @@ HRESULT  MDInternalRW::FindProperty(
         goto ErrExit;
     }
 
-    IfFailGo(m_pStgdb->m_MiniMd.GetPropertyMapRecord(ridPropertyMap, &pRec));
-
     // get the starting/ending rid of properties of this typedef
-    ridCur = m_pStgdb->m_MiniMd.getPropertyListOfPropertyMap(pRec);
+    IfFailGo(m_pStgdb->m_MiniMd.getStartPropertyListOfPropertyMap(ridPropertyMap, &ridCur));
     IfFailGo(m_pStgdb->m_MiniMd.getEndPropertyListOfPropertyMap(ridPropertyMap, &ridEnd));
 
     for ( ; ridCur < ridEnd; ridCur ++ )
@@ -3434,7 +3411,6 @@ HRESULT  MDInternalRW::FindEvent(
     // output parameters have to be supplied
     _ASSERTE(TypeFromToken(td) == mdtTypeDef && pEvent);
 
-    EventMapRec *pRec;
     EventRec    *pEventRec;
     RID         ridEventMap;
     RID         ridCur;
@@ -3448,10 +3424,9 @@ HRESULT  MDInternalRW::FindEvent(
         hr = CLDB_E_RECORD_NOTFOUND;
         goto ErrExit;
     }
-    IfFailGo(m_pStgdb->m_MiniMd.GetEventMapRecord(ridEventMap, &pRec));
 
     // get the starting/ending rid of properties of this typedef
-    ridCur = m_pStgdb->m_MiniMd.getEventListOfEventMap(pRec);
+    IfFailGo(m_pStgdb->m_MiniMd.getStartEventListOfEventMap(ridEventMap, &ridCur));
     IfFailGo(m_pStgdb->m_MiniMd.getEndEventListOfEventMap(ridEventMap, &ridEnd));
 
     for (; ridCur < ridEnd; ridCur ++)

@@ -179,6 +179,12 @@ CMiniMd::Impl_GetEndRidForColumn(   // The End rid.
         BYTE *pRow;
         IfFailRet(Impl_GetRow(nTableIndex, nRowIndex + 1, &pRow));
         *pEndRid = getIX(pRow, def);
+
+        if (InvalidRid(*pEndRid))
+        {
+            _ASSERTE(nTargetTableIndex < TBL_COUNT);
+            *pEndRid = m_Schema.m_cRecs[nTargetTableIndex] + 1;
+        }
     }
     else    // Convert count to 1-based rid.
     {
@@ -193,6 +199,44 @@ CMiniMd::Impl_GetEndRidForColumn(   // The End rid.
     
     return S_OK;
 } // CMiniMd::Impl_GetEndRidForColumn
+
+//*****************************************************************************
+// Given a table with a pointer (index) to a sequence of rows in another 
+//  table, get the RID of the start row.  This is the STL-ish start; the first row
+//  not in the list.  Thus, for a list of 0 elements, the start and end will
+//  be the same. This also adjusts for row 0.
+//*****************************************************************************
+__checkReturn
+HRESULT
+CMiniMd::Impl_GetStartRidForColumn(   // The Start rid.
+    UINT32       nTableIndex,
+    RID          nRowIndex,
+    CMiniColDef &def,                   // Column containing the RID into other table.
+    UINT32       nTargetTableIndex,     // The other table.
+    RID         *pStartRid)
+{
+    HRESULT hr;
+    _ASSERTE(nTableIndex < TBL_COUNT);
+    RID nLastRowIndex = m_Schema.m_cRecs[nTableIndex];
+
+    if (nRowIndex > nLastRowIndex)
+    {
+        Debug_ReportError("Invalid table row index.");
+        IfFailRet(METADATA_E_INDEX_NOTFOUND);
+    }
+
+    BYTE *pRow;
+    IfFailRet(Impl_GetRow(nTableIndex, nRowIndex, &pRow));
+    *pStartRid = getIX(pRow, def);
+
+    if (InvalidRid(*pStartRid))
+    {
+        _ASSERTE(nTargetTableIndex < TBL_COUNT);
+        *pStartRid = m_Schema.m_cRecs[nTargetTableIndex] + 1;
+    }
+
+    return S_OK;
+} // CMiniMd::Impl_GetStartRidForColumn
 
 
 //*****************************************************************************
@@ -286,7 +330,7 @@ CMiniMd::vSearchTable(
             return S_OK;
         }
         // If middle item is too small, search the top half.
-        if (val < ulTarget)
+        if (val < ulTarget || InvalidRid(val))
             lo = mid + 1;
         else // but if middle is to big, search bottom half.
             hi = mid - 1;
@@ -343,7 +387,7 @@ CMiniMd::vSearchTableNotGreater(
         if (val == ulTarget)
             break;
         // If middle item is too small, search the top half.
-        if (val < ulTarget)
+        if (val < ulTarget && !InvalidRid(val))
             lo = mid + 1;
         else // but if middle is to big, search bottom half.
             hi = mid - 1;
@@ -357,9 +401,9 @@ CMiniMd::vSearchTableNotGreater(
     
     // If the value is greater than the target, back up just until the value is
     //  less than or equal to the target.  SHOULD only be one step.
-    if (val > ulTarget)
+    if (val > ulTarget || InvalidRid(val))
     {
-        while (val > ulTarget)
+        while (val > ulTarget || InvalidRid(val))
         {
             // If there is nothing else to look at, we won't find it.
             if (--mid < 1)
@@ -378,7 +422,7 @@ CMiniMd::vSearchTableNotGreater(
             IfFailRet(getRow(ixTbl, mid+1, &pRow));
             val = getIX(pRow, sColumn);
             // If that record is too high, stop.
-            if (val > ulTarget)
+            if (val > ulTarget || InvalidRid(val))
                 break;
             mid++;
         }

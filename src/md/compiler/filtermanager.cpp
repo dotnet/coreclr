@@ -839,12 +839,9 @@ HRESULT FilterManager::MarkParamsWithParentToken(mdMethodDef md)
     HRESULT     hr = NOERROR;
     RID         ulStart, ulEnd;
     RID         index;
-    MethodRec   *pMethodRec;
-
-    IfFailGo(m_pMiniMd->GetMethodRecord(RidFromToken(md), &pMethodRec));
 
     // figure out the start rid and end rid of the parameter list of this methoddef
-    ulStart = m_pMiniMd->getParamListOfMethod(pMethodRec);
+    IfFailGo(m_pMiniMd->getStartParamListOfMethod(RidFromToken(md), &ulStart));
     IfFailGo(m_pMiniMd->getEndParamListOfMethod(RidFromToken(md), &ulEnd));
     for (index = ulStart; index < ulEnd; index ++ )
     {
@@ -867,10 +864,8 @@ HRESULT FilterManager::MarkMethodsWithParentToken(mdTypeDef td)
     HRESULT     hr = NOERROR;
     RID         ulStart, ulEnd;
     RID         index;
-    TypeDefRec  *pTypeDefRec;
 
-    IfFailGo(m_pMiniMd->GetTypeDefRecord(RidFromToken(td), &pTypeDefRec));
-    ulStart = m_pMiniMd->getMethodListOfTypeDef( pTypeDefRec );
+    IfFailGo(m_pMiniMd->getStartMethodListOfTypeDef(RidFromToken(td), &ulStart));
     IfFailGo(m_pMiniMd->getEndMethodListOfTypeDef(RidFromToken(td), &ulEnd));
     for ( index = ulStart; index < ulEnd; index ++ )
     {
@@ -928,10 +923,8 @@ HRESULT FilterManager::MarkFieldsWithParentToken(mdTypeDef td)
     HRESULT     hr = NOERROR;
     RID         ulStart, ulEnd;
     RID         index;
-    TypeDefRec  *pTypeDefRec;
 
-    IfFailGo(m_pMiniMd->GetTypeDefRecord(RidFromToken(td), &pTypeDefRec));
-    ulStart = m_pMiniMd->getFieldListOfTypeDef( pTypeDefRec );
+    IfFailGo(m_pMiniMd->getStartFieldListOfTypeDef(RidFromToken(td), &ulStart));
     IfFailGo(m_pMiniMd->getEndFieldListOfTypeDef(RidFromToken(td), &ulEnd));
     for ( index = ulStart; index < ulEnd; index ++ )
     {
@@ -956,14 +949,12 @@ HRESULT FilterManager::MarkEventsWithParentToken(
     RID         ridEventMap;
     RID         ulStart, ulEnd;
     RID         index;
-    EventMapRec *pEventMapRec;
 
     // get the starting/ending rid of Events of this typedef
     IfFailGo(m_pMiniMd->FindEventMapFor(RidFromToken(td), &ridEventMap));
     if ( !InvalidRid(ridEventMap) )
     {
-        IfFailGo(m_pMiniMd->GetEventMapRecord(ridEventMap, &pEventMapRec));
-        ulStart = m_pMiniMd->getEventListOfEventMap( pEventMapRec );
+        IfFailGo(m_pMiniMd->getStartEventListOfEventMap(ridEventMap, &ulStart));
         IfFailGo(m_pMiniMd->getEndEventListOfEventMap(ridEventMap, &ulEnd));
         for ( index = ulStart; index < ulEnd; index ++ )
         {
@@ -990,14 +981,12 @@ HRESULT FilterManager::MarkPropertiesWithParentToken(
     RID         ridPropertyMap;
     RID         ulStart, ulEnd;
     RID         index;
-    PropertyMapRec *pPropertyMapRec;
 
     // get the starting/ending rid of properties of this typedef
     IfFailGo(m_pMiniMd->FindPropertyMapFor(RidFromToken(td), &ridPropertyMap));
     if ( !InvalidRid(ridPropertyMap) )
     {
-        IfFailGo(m_pMiniMd->GetPropertyMapRecord(ridPropertyMap, &pPropertyMapRec));
-        ulStart = m_pMiniMd->getPropertyListOfPropertyMap( pPropertyMapRec );
+        IfFailGo(m_pMiniMd->getStartPropertyListOfPropertyMap(ridPropertyMap, &ulStart));
         IfFailGo(m_pMiniMd->getEndPropertyListOfPropertyMap(ridPropertyMap, &ulEnd));
         for ( index = ulStart; index < ulEnd; index ++ )
         {
@@ -1375,7 +1364,6 @@ HRESULT FilterManager::UnmarkTypeDef(
     mdTypeDef       td)
 {
     HRESULT         hr = NOERROR;
-    TypeDefRec      *pTypeDefRec;
     RID             ridStart, ridEnd;
     RID             index;
     CustomAttributeRec  *pCARec;
@@ -1393,11 +1381,8 @@ HRESULT FilterManager::UnmarkTypeDef(
     // Don't need to unmark InterfaceImpl because the TypeDef is unmarked that will make
     // the InterfaceImpl automatically unmarked.
 
-    // unmark all of the children of this TypeDef
-    IfFailGo(m_pMiniMd->GetTypeDefRecord(RidFromToken(td), &pTypeDefRec));
-
     // unmark the methods
-    ridStart = m_pMiniMd->getMethodListOfTypeDef(pTypeDefRec);
+    IfFailGo(m_pMiniMd->getStartMethodListOfTypeDef(RidFromToken(td), &ridStart));
     IfFailGo(m_pMiniMd->getEndMethodListOfTypeDef(RidFromToken(td), &ridEnd));
     for ( index = ridStart; index < ridEnd; index ++ )
     {
@@ -1409,7 +1394,7 @@ HRESULT FilterManager::UnmarkTypeDef(
     }
 
     // unmark the fields
-    ridStart = m_pMiniMd->getFieldListOfTypeDef(pTypeDefRec);
+    IfFailGo(m_pMiniMd->getStartFieldListOfTypeDef(RidFromToken(td), &ridStart));
     IfFailGo(m_pMiniMd->getEndFieldListOfTypeDef(RidFromToken(td), &ridEnd));
     for ( index = ridStart; index < ridEnd; index ++ )
     {

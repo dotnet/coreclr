@@ -380,8 +380,7 @@ HRESULT RegMeta::UnmarkAll()
     if (m_OptionValue.m_LinkerOption == MDNetModule)
     {
         // Mark global function if NetModule. We will not keep _Delete method.
-        IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(1, &pRec));
-        iStart = m_pStgdb->m_MiniMd.getMethodListOfTypeDef(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartMethodListOfTypeDef(1, (RID *)&iStart));
         IfFailGo(m_pStgdb->m_MiniMd.getEndMethodListOfTypeDef(1, (RID *)&iEnd));
         for ( i = iStart; i < iEnd; i ++ )
         {

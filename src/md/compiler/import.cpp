@@ -44,7 +44,6 @@ STDMETHODIMP RegMeta::EnumMembers(            // S_OK, S_FALSE, or error.
     ULONG           ridEndField;
     ULONG           index;
     ULONG           indexField;
-    TypeDefRec      *pRec;
     HENUMInternal   *pEnum = *ppmdEnum;
 
     LOG((LOGMD, "MD RegMeta::EnumMembers(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
@@ -63,12 +62,10 @@ STDMETHODIMP RegMeta::EnumMembers(            // S_OK, S_FALSE, or error.
             cl = m_tdModule;
         }
 
-        IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(RidFromToken(cl), &pRec));
-
-        ridStartMethod = m_pStgdb->m_MiniMd.getMethodListOfTypeDef(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartMethodListOfTypeDef(RidFromToken(cl), &ridStartMethod));
         IfFailGo(m_pStgdb->m_MiniMd.getEndMethodListOfTypeDef(RidFromToken(cl), &ridEndMethod));
 
-        ridStartField = m_pStgdb->m_MiniMd.getFieldListOfTypeDef(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartFieldListOfTypeDef(RidFromToken(cl), &ridStartField));
         IfFailGo(m_pStgdb->m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(cl), &ridEndField));
 
         
@@ -130,7 +127,6 @@ STDMETHODIMP RegMeta::EnumMembersWithName(    // S_OK, S_FALSE, or error.
     ULONG               ridStart;
     ULONG               ridEnd;
     ULONG               index;
-    TypeDefRec          *pRec;
     MethodRec           *pMethod;
     FieldRec            *pField;
     HENUMInternal       *pEnum = *ppmdEnum;
@@ -158,8 +154,7 @@ STDMETHODIMP RegMeta::EnumMembersWithName(    // S_OK, S_FALSE, or error.
         }
         
         // get the range of method rids given a typedef
-        IfFailGo(pMiniMd->GetTypeDefRecord(RidFromToken(cl), &pRec));
-        ridStart = pMiniMd->getMethodListOfTypeDef(pRec);
+        IfFailGo(pMiniMd->getStartMethodListOfTypeDef(RidFromToken(cl), &ridStart));
         IfFailGo(pMiniMd->getEndMethodListOfTypeDef(RidFromToken(cl), &ridEnd));
 
         for (index = ridStart; index < ridEnd; index++ )
@@ -186,7 +181,7 @@ STDMETHODIMP RegMeta::EnumMembersWithName(    // S_OK, S_FALSE, or error.
             }
         }
 
-        ridStart = m_pStgdb->m_MiniMd.getFieldListOfTypeDef(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartFieldListOfTypeDef(RidFromToken(cl), &ridStart));
         IfFailGo(m_pStgdb->m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(cl), &ridEnd));
 
         for (index = ridStart; index < ridEnd; index++ )
@@ -246,7 +241,6 @@ STDMETHODIMP RegMeta::EnumMethods(
     HENUMInternal       **ppmdEnum = reinterpret_cast<HENUMInternal **> (phEnum);
     ULONG               ridStart;
     ULONG               ridEnd;
-    TypeDefRec          *pRec;
     HENUMInternal       *pEnum = *ppmdEnum;
 
     LOG((LOGMD, "MD RegMeta::EnumMethods(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
@@ -270,8 +264,7 @@ STDMETHODIMP RegMeta::EnumMethods(
             td = m_tdModule;
         }
 
-        IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(RidFromToken(td), &pRec));
-        ridStart = m_pStgdb->m_MiniMd.getMethodListOfTypeDef(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartMethodListOfTypeDef(RidFromToken(td), &ridStart));
         IfFailGo(m_pStgdb->m_MiniMd.getEndMethodListOfTypeDef(RidFromToken(td), &ridEnd));
 
         if (pMiniMd->HasIndirectTable(TBL_Method) || pMiniMd->HasDelete())
@@ -345,7 +338,6 @@ STDMETHODIMP RegMeta::EnumMethodsWithName(    // S_OK, S_FALSE, or error.
     ULONG               ridStart;
     ULONG               ridEnd;
     ULONG               index;
-    TypeDefRec          *pRec;
     MethodRec           *pMethod;
     HENUMInternal       *pEnum = *ppmdEnum;
     LPUTF8              szNameUtf8;
@@ -379,8 +371,7 @@ STDMETHODIMP RegMeta::EnumMethodsWithName(    // S_OK, S_FALSE, or error.
         IfFailGo( HENUMInternal::CreateDynamicArrayEnum( mdtMethodDef, &pEnum) );
         
         // get the range of method rids given a typedef
-        IfFailGo(pMiniMd->GetTypeDefRecord(RidFromToken(cl), &pRec));
-        ridStart = pMiniMd->getMethodListOfTypeDef(pRec);
+        IfFailGo(pMiniMd->getStartMethodListOfTypeDef(RidFromToken(cl), &ridStart));
         IfFailGo(pMiniMd->getEndMethodListOfTypeDef(RidFromToken(cl), &ridEnd));
 
         for (index = ridStart; index < ridEnd; index++ )
@@ -445,7 +436,6 @@ RegMeta::EnumFields(
     HENUMInternal **ppmdEnum = reinterpret_cast<HENUMInternal **>(phEnum);
     ULONG           ridStart;
     ULONG           ridEnd;
-    TypeDefRec     *pRec;
     HENUMInternal  *pEnum = *ppmdEnum;
     
     LOG((LOGMD, "MD RegMeta::EnumFields(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
@@ -467,8 +457,7 @@ RegMeta::EnumFields(
             td = m_tdModule;
         }
         
-        IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(RidFromToken(td), &pRec));
-        ridStart = m_pStgdb->m_MiniMd.getFieldListOfTypeDef(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartFieldListOfTypeDef(RidFromToken(td), &ridStart));
         IfFailGo(m_pStgdb->m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(td), &ridEnd));
         
         if (pMiniMd->HasIndirectTable(TBL_Field) || pMiniMd->HasDelete())
@@ -541,7 +530,6 @@ STDMETHODIMP RegMeta::EnumFieldsWithName(     // S_OK, S_FALSE, or error.
     ULONG               ridStart;
     ULONG               ridEnd;
     ULONG               index;
-    TypeDefRec          *pRec;
     FieldRec            *pField;
     HENUMInternal       *pEnum = *ppmdEnum;
     LPUTF8              szNameUtf8;
@@ -573,8 +561,7 @@ STDMETHODIMP RegMeta::EnumFieldsWithName(     // S_OK, S_FALSE, or error.
         IfFailGo( HENUMInternal::CreateDynamicArrayEnum( mdtMethodDef, &pEnum) );
         
         // get the range of field rids given a typedef
-        IfFailGo(pMiniMd->GetTypeDefRecord(RidFromToken(cl), &pRec));
-        ridStart = m_pStgdb->m_MiniMd.getFieldListOfTypeDef(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartFieldListOfTypeDef(RidFromToken(cl), &ridStart));
         IfFailGo(m_pStgdb->m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(cl), &ridEnd));
 
         for (index = ridStart; index < ridEnd; index++ )
@@ -637,7 +624,6 @@ STDMETHODIMP RegMeta::EnumParams(             // S_OK, S_FALSE, or error.
     HENUMInternal       **ppmdEnum = reinterpret_cast<HENUMInternal **> (phEnum);
     ULONG               ridStart;
     ULONG               ridEnd;
-    MethodRec           *pRec;
     HENUMInternal       *pEnum = *ppmdEnum;
 
     LOG((LOGMD, "MD RegMeta::EnumParams(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
@@ -650,8 +636,7 @@ STDMETHODIMP RegMeta::EnumParams(             // S_OK, S_FALSE, or error.
     {
         // instantiating a new ENUM
         CMiniMdRW       *pMiniMd = &(m_pStgdb->m_MiniMd);
-        IfFailGo(m_pStgdb->m_MiniMd.GetMethodRecord(RidFromToken(mb), &pRec));
-        ridStart = m_pStgdb->m_MiniMd.getParamListOfMethod(pRec);
+        IfFailGo(m_pStgdb->m_MiniMd.getStartParamListOfMethod(RidFromToken(mb), &ridStart));
         IfFailGo(m_pStgdb->m_MiniMd.getEndParamListOfMethod(RidFromToken(mb), &ridEnd));
 
         if (pMiniMd->HasIndirectTable(TBL_Param))
@@ -1342,19 +1327,17 @@ STDMETHODIMP RegMeta::EnumProperties(         // S_OK, S_FALSE, or error.
         // instantiating a new ENUM
         CMiniMdRW       *pMiniMd = &(m_pStgdb->m_MiniMd);
         RID         ridPropertyMap;
-        PropertyMapRec *pPropertyMapRec;
 
         // get the starting/ending rid of properties of this typedef
         IfFailGo(pMiniMd->FindPropertyMapFor(RidFromToken(td), &ridPropertyMap));
         if (!InvalidRid(ridPropertyMap))
         {
-            IfFailGo(m_pStgdb->m_MiniMd.GetPropertyMapRecord(ridPropertyMap, &pPropertyMapRec));
-            ridStart = pMiniMd->getPropertyListOfPropertyMap(pPropertyMapRec);
+            IfFailGo(pMiniMd->getStartPropertyListOfPropertyMap(ridPropertyMap, &ridStart));
             IfFailGo(pMiniMd->getEndPropertyListOfPropertyMap(ridPropertyMap, &ridEnd));
-            ridMax = pMiniMd->getCountPropertys() + 1;
-            if(ridStart == 0) ridStart = 1;
-            if(ridEnd > ridMax) ridEnd = ridMax;
-            if(ridStart > ridEnd) ridStart=ridEnd;
+            //ridMax = pMiniMd->getCountPropertys() + 1;
+            //if(ridStart == 0) ridStart = 1;
+            //if(ridEnd > ridMax) ridEnd = ridMax;
+            //if(ridStart > ridEnd) ridStart=ridEnd;
         }
 
         if (pMiniMd->HasIndirectTable(TBL_Property) || pMiniMd->HasDelete())
@@ -1443,19 +1426,17 @@ STDMETHODIMP RegMeta::EnumEvents(              // S_OK, S_FALSE, or error.
         // instantiating a new ENUM
         CMiniMdRW       *pMiniMd = &(m_pStgdb->m_MiniMd);
         RID         ridEventMap;
-        EventMapRec *pEventMapRec;
 
         // get the starting/ending rid of properties of this typedef
         IfFailGo(pMiniMd->FindEventMapFor(RidFromToken(td), &ridEventMap));
         if (!InvalidRid(ridEventMap))
         {
-            IfFailGo(pMiniMd->GetEventMapRecord(ridEventMap, &pEventMapRec));
-            ridStart = pMiniMd->getEventListOfEventMap(pEventMapRec);
+            IfFailGo(pMiniMd->getStartEventListOfEventMap(ridEventMap, &ridStart));
             IfFailGo(pMiniMd->getEndEventListOfEventMap(ridEventMap, &ridEnd));
-            ridMax = pMiniMd->getCountEvents() + 1;
-            if(ridStart == 0) ridStart = 1;
-            if(ridEnd > ridMax) ridEnd = ridMax;
-            if(ridStart > ridEnd) ridStart=ridEnd;
+            //ridMax = pMiniMd->getCountEvents() + 1;
+            //if(ridStart == 0) ridStart = 1;
+            //if(ridEnd > ridMax) ridEnd = ridMax;
+            //if(ridStart > ridEnd) ridStart=ridEnd;
         }
 
         if (pMiniMd->HasIndirectTable(TBL_Event) || pMiniMd->HasDelete())
@@ -1799,15 +1780,11 @@ STDMETHODIMP RegMeta::GetClassLayout(
         ULONG       ridFieldEnd;
         ULONG       ridFieldLayout;
         ULONG       ulOffset;
-        TypeDefRec  *pTypeDefRec;
         FieldLayoutRec *pLayout2Rec;
         mdFieldDef  fd;
 
-        // record for this typedef in TypeDef Table
-        IfFailGo(pMiniMd->GetTypeDefRecord(RidFromToken(td), &pTypeDefRec));
-
         // find the starting and end field for this typedef
-        ridFieldStart = pMiniMd->getFieldListOfTypeDef(pTypeDefRec);
+        IfFailGo(pMiniMd->getStartFieldListOfTypeDef(RidFromToken(td), &ridFieldStart));
         IfFailGo(pMiniMd->getEndFieldListOfTypeDef(RidFromToken(td), &ridFieldEnd));
 
         // loop through the field table
@@ -2334,7 +2311,7 @@ STDMETHODIMP RegMeta::EnumUnresolvedMethods(  // S_OK or error.
             // If the type is an interface, check the static methods.
             bIsInterface = IsTdInterface(pTypeDefRec->GetFlags());
 
-            ulStart = pMiniMd->getMethodListOfTypeDef(pTypeDefRec);
+            IfFailGo(pMiniMd->getStartMethodListOfTypeDef(indexTypeDef, &ulStart));
             IfFailGo(pMiniMd->getEndMethodListOfTypeDef(indexTypeDef, &ulEnd));
 
             // always report errors even with any unimplemented methods

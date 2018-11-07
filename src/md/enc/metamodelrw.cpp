@@ -2853,8 +2853,9 @@ CMiniMdRW::PreSaveFull()
                 {
                     IfFailGo(PutCol(TBL_Method, MethodRec::COL_ParamList, pNew, newParams.GetRecordCount() + 1));
                 }
-                RID ixStart = getParamListOfMethod(pOld);
+                RID ixStart;
                 RID ixEnd;
+                IfFailGo(getStartParamListOfMethod(ridOld, &ixStart));
                 IfFailGo(getEndParamListOfMethod(ridOld, &ixEnd));
                 for (; ixStart<ixEnd; ++ixStart)
                 {
@@ -5034,6 +5035,30 @@ CMiniMdRW::Impl_GetEndRidForColumn(   // The End rid.
 } // CMiniMd::Impl_GetEndRidForColumn
 
 //*****************************************************************************
+// Given a table with a pointer (index) to a sequence of rows in another
+//  table, get the RID of the end row.  This is the STL-ish end; the first row
+//  not in the list.  Thus, for a list of 0 elements, the start and end will
+//  be the same.
+//*****************************************************************************
+__checkReturn
+HRESULT
+CMiniMdRW::Impl_GetStartRidForColumn(   // The Start rid.
+    UINT32       nTableIndex,
+    RID          nRowIndex,
+    CMiniColDef &def,                   // Column containing the RID into other table.
+    UINT32       nTargetTableIndex,     // The other table.
+    RID         *pStartRid)
+{
+    HRESULT hr;
+    void *pRow;
+
+    IfFailRet(getRow(nTableIndex, nRowIndex, &pRow));
+    *pStartRid = getIX(pRow, def);
+    
+    return S_OK;
+} // CMiniMd::Impl_GetStartRidForColumn
+
+//*****************************************************************************
 // Add a row to any table.
 //*****************************************************************************
 __checkReturn 
@@ -5881,10 +5906,9 @@ CMiniMdRW::FixParamSequence(
     RID md)     // Rid of method with new parameter.
 {
     HRESULT     hr;
-    MethodRec * pMethod;
-    IfFailRet(GetMethodRecord(md, &pMethod));
-    RID ixStart = getParamListOfMethod(pMethod);
+    RID ixStart;
     RID ixEnd;
+    IfFailRet(getStartParamListOfMethod(md, &ixStart));
     IfFailRet(getEndParamListOfMethod(md, &ixEnd));
     int iSlots = 0;
 
@@ -7347,7 +7371,6 @@ CMiniMdRW::CreateMemberDefHash()
         ULONG        iType;
         ULONG        ridStart;
         ULONG        ridEnd;
-        TypeDefRec * pRec;
         MethodRec *  pMethod;
         FieldRec *   pField;
 
@@ -7361,8 +7384,7 @@ CMiniMdRW::CreateMemberDefHash()
 
             for (iType = 1; iType <= getCountTypeDefs(); iType++)
             {
-                IfFailGo(GetTypeDefRecord(iType, &pRec));
-                ridStart = getMethodListOfTypeDef(pRec);
+                IfFailGo(getStartMethodListOfTypeDef(iType, &ridStart));
                 IfFailGo(getEndMethodListOfTypeDef(iType, &ridEnd));
 
                 // add all of the methods of this typedef into hash table
@@ -7383,7 +7405,7 @@ CMiniMdRW::CreateMemberDefHash()
                 }
 
                 // add all of the fields of this typedef into hash table
-                ridStart = getFieldListOfTypeDef(pRec);
+                IfFailGo(getStartFieldListOfTypeDef(iType, &ridStart));
                 IfFailGo(getEndFieldListOfTypeDef(iType, &ridEnd));
 
                 // Scan every entry already in the Method table, add it to the hash.
@@ -7848,7 +7870,6 @@ CMiniMdRW::FindParentOfMethodHelper(
             ULONG          indexMd;
             ULONG          ridStart;
             ULONG          ridEnd;
-            TypeDefRec *   pTypeDefRec;
             MethodPtrRec * pMethodPtrRec;
             
             // build the MethodMap table
@@ -7863,8 +7884,7 @@ CMiniMdRW::FindParentOfMethodHelper(
                 IfFailGo(E_OUTOFMEMORY);
             for (indexTd = 1; indexTd <= m_Schema.m_cRecs[TBL_TypeDef]; indexTd++)
             {
-                IfFailGo(GetTypeDefRecord(indexTd, &pTypeDefRec));
-                ridStart = getMethodListOfTypeDef(pTypeDefRec);
+                IfFailGo(getStartMethodListOfTypeDef(indexTd, &ridStart));
                 IfFailGo(getEndMethodListOfTypeDef(indexTd, &ridEnd));
 
                 for (indexMd = ridStart; indexMd < ridEnd; indexMd++)
@@ -7911,7 +7931,6 @@ CMiniMdRW::FindParentOfFieldHelper(
             ULONG       indexTd;
             ULONG       indexFd;
             ULONG       ridStart, ridEnd;
-            TypeDefRec  *pTypeDefRec;
             FieldPtrRec *pFieldPtrRec;
             
             // build the FieldMap table
@@ -7926,8 +7945,7 @@ CMiniMdRW::FindParentOfFieldHelper(
                 IfFailGo(E_OUTOFMEMORY);
             for (indexTd = 1; indexTd<= m_Schema.m_cRecs[TBL_TypeDef]; indexTd++)
             {
-                IfFailGo(GetTypeDefRecord(indexTd, &pTypeDefRec));
-                ridStart = getFieldListOfTypeDef(pTypeDefRec);
+                IfFailGo(getStartFieldListOfTypeDef(indexTd, &ridStart));
                 IfFailGo(getEndFieldListOfTypeDef(indexTd, &ridEnd));
 
                 for (indexFd = ridStart; indexFd < ridEnd; indexFd++)
@@ -7990,7 +8008,7 @@ CMiniMdRW::FindParentOfPropertyHelper(
             for (indexMap = 1; indexMap<= m_Schema.m_cRecs[TBL_PropertyMap]; indexMap++)
             {
                 IfFailGo(GetPropertyMapRecord(indexMap, &pPropertyMapRec));
-                ridStart = getPropertyListOfPropertyMap(pPropertyMapRec);
+                IfFailGo(getStartPropertyListOfPropertyMap(indexMap, &ridStart));
                 IfFailGo(getEndPropertyListOfPropertyMap(indexMap, &ridEnd));
                 
                 for (indexPr = ridStart; indexPr < ridEnd; indexPr++)
@@ -8059,7 +8077,7 @@ CMiniMdRW::FindParentOfEventHelper(
             for (indexMap = 1; indexMap<= m_Schema.m_cRecs[TBL_EventMap]; indexMap++)
             {
                 IfFailGo(GetEventMapRecord(indexMap, &pEventMapRec));
-                ridStart = getEventListOfEventMap(pEventMapRec);
+                IfFailGo(getStartEventListOfEventMap(indexMap, &ridStart));
                 IfFailGo(getEndEventListOfEventMap(indexMap, &ridEnd));
                 
                 for (indexEv = ridStart; indexEv < ridEnd; indexEv++)
@@ -8112,7 +8130,6 @@ CMiniMdRW::FindParentOfParamHelper(
             ULONG       indexMd;
             ULONG       indexPd;
             ULONG       ridStart, ridEnd;
-            MethodRec   *pMethodRec;
             ParamPtrRec *pParamPtrRec;
             
             // build the ParamMap table
@@ -8127,8 +8144,7 @@ CMiniMdRW::FindParentOfParamHelper(
                 IfFailGo(E_OUTOFMEMORY);
             for (indexMd = 1; indexMd<= m_Schema.m_cRecs[TBL_Method]; indexMd++)
             {
-                IfFailGo(GetMethodRecord(indexMd, &pMethodRec));
-                ridStart = getParamListOfMethod(pMethodRec);
+                IfFailGo(getStartParamListOfMethod(indexMd, &ridStart));
                 IfFailGo(getEndParamListOfMethod(indexMd, &ridEnd));
 
                 for (indexPd = ridStart; indexPd < ridEnd; indexPd++)

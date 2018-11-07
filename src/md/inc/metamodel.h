@@ -382,7 +382,7 @@ public:
 
 // Functions for the start and end of a list.
 #define _GETLIST(tbl,fld,tbl2) \
-    RID _GETRID(tbl,fld); \
+    __checkReturn HRESULT getStart##fld##Of##tbl(RID nRowIndex, RID *pEndRid) { return getStartRidForColumn(TBL_##tbl, nRowIndex, _COLDEF(tbl,fld), TBL_##tbl2, pEndRid); } \
     __checkReturn HRESULT getEnd##fld##Of##tbl(RID nRowIndex, RID *pEndRid) { return getEndRidForColumn(TBL_##tbl, nRowIndex, _COLDEF(tbl,fld), TBL_##tbl2, pEndRid); }
 
 
@@ -706,6 +706,17 @@ public:
         return static_cast<Impl*>(this)->Impl_GetEndRidForColumn(nTableIndex, nRowIndex, columnDefinition, nTargetTableIndex, pEndRid);
     }
     __checkReturn 
+    FORCEINLINE HRESULT getStartRidForColumn(
+              UINT32       nTableIndex, 
+              RID          nRowIndex, 
+              CMiniColDef &columnDefinition, 
+              UINT32       nTargetTableIndex, 
+        __out RID         *pStartRid)
+    { 
+        MINIMD_POSSIBLE_INTERNAL_POINTER_EXPOSED();
+        return static_cast<Impl*>(this)->Impl_GetStartRidForColumn(nTableIndex, nRowIndex, columnDefinition, nTargetTableIndex, pStartRid);
+    }
+    __checkReturn 
     FORCEINLINE HRESULT doSearchTable(ULONG ixTbl, CMiniColDef sColumn, ULONG ixColumn, ULONG ulTarget, RID *pFoundRid)
     { 
         MINIMD_POSSIBLE_INTERNAL_POINTER_EXPOSED();
@@ -849,7 +860,7 @@ public:
         }
         if (pMethodList != NULL)
         {
-            *pMethodList = getMethodListOfTypeDef(pRec);
+            IfFailRet(getStartMethodListOfTypeDef(RidFromToken(td), pMethodList));
         }
         return hr;
     }

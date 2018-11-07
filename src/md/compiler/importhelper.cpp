@@ -192,7 +192,6 @@ HRESULT ImportHelper::FindMethod(
     ULONG       ridStart;               // Start of td's methods.
     ULONG       ridEnd;                 // End of td's methods.
     ULONG       index;                  // Loop control.
-    TypeDefRec  *pRec;                  // A TypeDef Record.
     MethodRec   *pMethod;               // A MethodDef Record.
     LPCUTF8     szNameUtf8Tmp;          // A found MethodDef's name.
     PCCOR_SIGNATURE pSigTmp;            // A found MethodDef's signature.
@@ -225,8 +224,7 @@ HRESULT ImportHelper::FindMethod(
     *pmb = mdMethodDefNil;
 
     // get the range of method rids given a typedef
-    IfFailGo(pMiniMd->GetTypeDefRecord(RidFromToken(td), &pRec));
-    ridStart = pMiniMd->getMethodListOfTypeDef(pRec);
+    IfFailGo(pMiniMd->getStartMethodListOfTypeDef(RidFromToken(td), &ridStart));
     IfFailGo(pMiniMd->getEndMethodListOfTypeDef(RidFromToken(td), &ridEnd));
     // Iterate over the methods.
     for (index = ridStart; index < ridEnd; index ++ )
@@ -298,7 +296,6 @@ HRESULT ImportHelper::FindField(
     ULONG       ridStart;               // Start of td's methods.
     ULONG       ridEnd;                 // End of td's methods.
     ULONG       index;                  // Loop control.
-    TypeDefRec  *pRec;                  // A TypeDef Record.
     FieldRec    *pField;                // A FieldDef Record.
     LPCUTF8     szNameUtf8Tmp;          // A found FieldDef's name.
     PCCOR_SIGNATURE pSigTmp;            // A found FieldDef's signature.
@@ -320,8 +317,7 @@ HRESULT ImportHelper::FindField(
     *pfd = mdFieldDefNil;
 
     // get the range of method rids given a typedef
-    IfFailGo(pMiniMd->GetTypeDefRecord(RidFromToken(td), &pRec));
-    ridStart = pMiniMd->getFieldListOfTypeDef(pRec);
+    IfFailGo(pMiniMd->getStartFieldListOfTypeDef(RidFromToken(td), &ridStart));
     IfFailGo(pMiniMd->getEndFieldListOfTypeDef(RidFromToken(td), &ridEnd));
 
     // Iterate over the methods.
@@ -1057,7 +1053,6 @@ HRESULT ImportHelper::FindProperty(
 {
     HRESULT     hr;
     RID         ridPropertyMap;
-    PropertyMapRec *pPropertyMapRec;
     PropertyRec *pRec;
     ULONG       ridStart;
     ULONG       ridEnd;
@@ -1070,8 +1065,7 @@ HRESULT ImportHelper::FindProperty(
     IfFailRet(pMiniMd->FindPropertyMapFor(RidFromToken(tkTypeDef), &ridPropertyMap));
     if ( !InvalidRid(ridPropertyMap) )
     {
-        IfFailRet(pMiniMd->GetPropertyMapRecord(ridPropertyMap, &pPropertyMapRec));
-        ridStart = pMiniMd->getPropertyListOfPropertyMap(pPropertyMapRec);
+        IfFailRet(pMiniMd->getStartPropertyListOfPropertyMap(ridPropertyMap, &ridStart));
         IfFailRet(pMiniMd->getEndPropertyListOfPropertyMap(ridPropertyMap, &ridEnd));
 
         for (i = ridStart; i < ridEnd; i++)
@@ -1110,7 +1104,6 @@ HRESULT ImportHelper::FindEvent(
 {
     HRESULT     hr;
     RID         ridEventMap;
-    EventMapRec *pEventMapRec;
     EventRec    *pRec;
     ULONG       ridStart;
     ULONG       ridEnd;
@@ -1121,8 +1114,7 @@ HRESULT ImportHelper::FindEvent(
     IfFailRet(pMiniMd->FindEventMapFor(RidFromToken(tkTypeDef), &ridEventMap));
     if ( !InvalidRid(ridEventMap) )
     {
-        IfFailRet(pMiniMd->GetEventMapRecord(ridEventMap, &pEventMapRec));
-        ridStart = pMiniMd->getEventListOfEventMap(pEventMapRec);
+        IfFailRet(pMiniMd->getStartEventListOfEventMap(ridEventMap, &ridStart));
         IfFailRet(pMiniMd->getEndEventListOfEventMap(ridEventMap, &ridEnd));
 
         for (i = ridStart; i < ridEnd; i++)

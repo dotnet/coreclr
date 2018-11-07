@@ -1135,12 +1135,8 @@ HRESULT RegMeta::_FindParamOfMethod(    // S_OK or error.
 
     _ASSERTE(TypeFromToken(md) == mdtMethodDef && pParamDef);
 
-    // get the methoddef record
-    MethodRec *pMethodRec;
-    IfFailRet(m_pStgdb->m_MiniMd.GetMethodRecord(RidFromToken(md), &pMethodRec));
-
     // figure out the start rid and end rid of the parameter list of this methoddef
-    ridStart = m_pStgdb->m_MiniMd.getParamListOfMethod(pMethodRec);
+    IfFailRet(m_pStgdb->m_MiniMd.getStartParamListOfMethod(RidFromToken(md), &ridStart));
     IfFailRet(m_pStgdb->m_MiniMd.getEndParamListOfMethod(RidFromToken(md), &ridEnd));
 
     // loop through each param

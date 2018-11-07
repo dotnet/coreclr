@@ -385,7 +385,7 @@ HRESULT MDInternalRO::EnumInit(     // return S_FALSE if record not found
     HENUMInternal *phEnum)              // [OUT] the enumerator to fill 
 {
     HRESULT     hr = S_OK;
-    ULONG       ulMax = 0;
+    //ULONG       ulMax = 0;
 
     // Vars for query.
     _ASSERTE(phEnum);
@@ -394,21 +394,17 @@ HRESULT MDInternalRO::EnumInit(     // return S_FALSE if record not found
     // cache the tkKind and the scope
     phEnum->m_tkKind = TypeFromToken(tkKind);
 
-    TypeDefRec  *pRec;
-
     phEnum->m_EnumType = MDSimpleEnum;
 
     switch (TypeFromToken(tkKind))
     {
     case mdtFieldDef:
-        IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetTypeDefRecord(RidFromToken(tkParent), &pRec));
-        phEnum->u.m_ulStart = m_LiteWeightStgdb.m_MiniMd.getFieldListOfTypeDef(pRec);
+        IfFailGo(m_LiteWeightStgdb.m_MiniMd.getStartFieldListOfTypeDef(RidFromToken(tkParent), &(phEnum->u.m_ulStart)));
         IfFailGo(m_LiteWeightStgdb.m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(tkParent), &(phEnum->u.m_ulEnd)));
         break;
 
     case mdtMethodDef:
-        IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetTypeDefRecord(RidFromToken(tkParent), &pRec));
-        phEnum->u.m_ulStart = m_LiteWeightStgdb.m_MiniMd.getMethodListOfTypeDef(pRec);
+        IfFailGo(m_LiteWeightStgdb.m_MiniMd.getStartMethodListOfTypeDef(RidFromToken(tkParent), &(phEnum->u.m_ulStart)));
         IfFailGo(m_LiteWeightStgdb.m_MiniMd.getEndMethodListOfTypeDef(RidFromToken(tkParent), &(phEnum->u.m_ulEnd)));
         break;
 
@@ -447,48 +443,41 @@ HRESULT MDInternalRO::EnumInit(     // return S_FALSE if record not found
 
     case mdtProperty:
         RID         ridPropertyMap;
-        PropertyMapRec *pPropertyMapRec;
 
         // get the starting/ending rid of properties of this typedef
         IfFailGo(m_LiteWeightStgdb.m_MiniMd.FindPropertyMapFor(RidFromToken(tkParent), &ridPropertyMap));
         if (!InvalidRid(ridPropertyMap))
         {
-            IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetPropertyMapRecord(ridPropertyMap, &pPropertyMapRec));
-            phEnum->u.m_ulStart = m_LiteWeightStgdb.m_MiniMd.getPropertyListOfPropertyMap(pPropertyMapRec);
+            IfFailGo(m_LiteWeightStgdb.m_MiniMd.getStartPropertyListOfPropertyMap(ridPropertyMap, &(phEnum->u.m_ulStart)));
             IfFailGo(m_LiteWeightStgdb.m_MiniMd.getEndPropertyListOfPropertyMap(ridPropertyMap, &(phEnum->u.m_ulEnd)));
-            ulMax = m_LiteWeightStgdb.m_MiniMd.getCountPropertys() + 1;
-            if(phEnum->u.m_ulStart == 0) phEnum->u.m_ulStart = 1;
-            if(phEnum->u.m_ulEnd > ulMax) phEnum->u.m_ulEnd = ulMax;
-            if(phEnum->u.m_ulStart > phEnum->u.m_ulEnd) phEnum->u.m_ulStart = phEnum->u.m_ulEnd;
+            //ulMax = m_LiteWeightStgdb.m_MiniMd.getCountPropertys() + 1;
+            //if(phEnum->u.m_ulStart == 0) phEnum->u.m_ulStart = 1;
+            //if(phEnum->u.m_ulEnd > ulMax) phEnum->u.m_ulEnd = ulMax;
+            //if(phEnum->u.m_ulStart > phEnum->u.m_ulEnd) phEnum->u.m_ulStart = phEnum->u.m_ulEnd;
         }
         break;
 
     case mdtEvent:
         RID         ridEventMap;
-        EventMapRec *pEventMapRec;
 
         // get the starting/ending rid of events of this typedef
         IfFailGo(m_LiteWeightStgdb.m_MiniMd.FindEventMapFor(RidFromToken(tkParent), &ridEventMap));
         if (!InvalidRid(ridEventMap))
         {
-            IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetEventMapRecord(ridEventMap, &pEventMapRec));
-            phEnum->u.m_ulStart = m_LiteWeightStgdb.m_MiniMd.getEventListOfEventMap(pEventMapRec);
+            IfFailGo(m_LiteWeightStgdb.m_MiniMd.getStartEventListOfEventMap(ridEventMap, &(phEnum->u.m_ulStart)));
             IfFailGo(m_LiteWeightStgdb.m_MiniMd.getEndEventListOfEventMap(ridEventMap, &(phEnum->u.m_ulEnd)));
-            ulMax = m_LiteWeightStgdb.m_MiniMd.getCountEvents() + 1;
-            if(phEnum->u.m_ulStart == 0) phEnum->u.m_ulStart = 1;
-            if(phEnum->u.m_ulEnd > ulMax) phEnum->u.m_ulEnd = ulMax;
-            if(phEnum->u.m_ulStart > phEnum->u.m_ulEnd) phEnum->u.m_ulStart = phEnum->u.m_ulEnd;
+            //ulMax = m_LiteWeightStgdb.m_MiniMd.getCountEvents() + 1;
+            //if(phEnum->u.m_ulStart == 0) phEnum->u.m_ulStart = 1;
+            //if(phEnum->u.m_ulEnd > ulMax) phEnum->u.m_ulEnd = ulMax;
+            //if(phEnum->u.m_ulStart > phEnum->u.m_ulEnd) phEnum->u.m_ulStart = phEnum->u.m_ulEnd;
         }
         break;
 
     case mdtParamDef:
         _ASSERTE(TypeFromToken(tkParent) == mdtMethodDef);
 
-        MethodRec *pMethodRec;
-        IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetMethodRecord(RidFromToken(tkParent), &pMethodRec));
-
         // figure out the start rid and end rid of the parameter list of this methoddef
-        phEnum->u.m_ulStart = m_LiteWeightStgdb.m_MiniMd.getParamListOfMethod(pMethodRec);
+        IfFailGo(m_LiteWeightStgdb.m_MiniMd.getStartParamListOfMethod(RidFromToken(tkParent), &(phEnum->u.m_ulStart)));
         IfFailGo(m_LiteWeightStgdb.m_MiniMd.getEndParamListOfMethod(RidFromToken(tkParent), &(phEnum->u.m_ulEnd)));
         break;
     case mdtCustomAttribute:
@@ -1081,14 +1070,10 @@ HRESULT MDInternalRO::FindMethodDefUsingCompare(    // S_OK or error.
     LPCUTF8     szCurMethodName;
     void const  *pvCurMethodSig;
     ULONG       cbSig;
-    TypeDefRec  *pRec;
     RID         ridStart;
 
-    // get the typedef record
-    IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetTypeDefRecord(RidFromToken(classdef), &pRec));
-
     // get the range of methoddef rids given the classdef
-    ridStart = m_LiteWeightStgdb.m_MiniMd.getMethodListOfTypeDef(pRec);
+    IfFailGo(m_LiteWeightStgdb.m_MiniMd.getStartMethodListOfTypeDef(RidFromToken(classdef), &ridStart));
     IfFailGo(m_LiteWeightStgdb.m_MiniMd.getEndMethodListOfTypeDef(RidFromToken(classdef), &ridMax));
 
     // loop through each methoddef
@@ -1139,12 +1124,8 @@ HRESULT MDInternalRO::FindParamOfMethod(// S_OK or error.
 
     _ASSERTE(TypeFromToken(md) == mdtMethodDef && pparamdef);
 
-    // get the methoddef record
-    MethodRec *pMethodRec;
-    IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetMethodRecord(RidFromToken(md), &pMethodRec));
-
     // figure out the start rid and end rid of the parameter list of this methoddef
-    ridStart = m_LiteWeightStgdb.m_MiniMd.getParamListOfMethod(pMethodRec);
+    IfFailRet(m_LiteWeightStgdb.m_MiniMd.getStartParamListOfMethod(RidFromToken(md), &ridStart));
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.getEndParamListOfMethod(RidFromToken(md), &ridEnd));
 
     // Ensure that the paramList is valid. If the count is negative, the metadata
@@ -2380,13 +2361,8 @@ HRESULT MDInternalRO::GetClassLayoutInit(
     _ASSERTE(pmdLayout);
     memset(pmdLayout, 0, sizeof(MD_CLASS_LAYOUT));
 
-    TypeDefRec  *pTypeDefRec;
-
-    // record for this typedef in TypeDef Table
-    IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetTypeDefRecord(RidFromToken(td), &pTypeDefRec));
-
     // find the starting and end field for this typedef
-    pmdLayout->m_ridFieldCur = m_LiteWeightStgdb.m_MiniMd.getFieldListOfTypeDef(pTypeDefRec);
+    IfFailRet(m_LiteWeightStgdb.m_MiniMd.getStartFieldListOfTypeDef(RidFromToken(td), &(pmdLayout->m_ridFieldCur)));
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(td), &(pmdLayout->m_ridFieldEnd)));
     return hr;
 } // MDInternalRO::GetClassLayoutInit
@@ -2519,7 +2495,6 @@ HRESULT  MDInternalRO::FindProperty(
     // output parameters have to be supplied
     _ASSERTE(TypeFromToken(td) == mdtTypeDef && pProp);
 
-    PropertyMapRec *pRec;
     PropertyRec *pProperty;
     RID         ridPropertyMap;
     RID         ridCur;
@@ -2534,10 +2509,8 @@ HRESULT  MDInternalRO::FindProperty(
         goto ErrExit;
     }
 
-    IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetPropertyMapRecord(ridPropertyMap, &pRec));
-
     // get the starting/ending rid of properties of this typedef
-    ridCur = m_LiteWeightStgdb.m_MiniMd.getPropertyListOfPropertyMap(pRec);
+    IfFailGo(m_LiteWeightStgdb.m_MiniMd.getStartPropertyListOfPropertyMap(ridPropertyMap, &ridCur));
     IfFailGo(m_LiteWeightStgdb.m_MiniMd.getEndPropertyListOfPropertyMap(ridPropertyMap, &ridEnd));
 
     for (; ridCur < ridEnd; ridCur ++)
@@ -2626,7 +2599,6 @@ HRESULT MDInternalRO::FindEvent(
     // output parameters have to be supplied
     _ASSERTE(TypeFromToken(td) == mdtTypeDef && pEvent);
 
-    EventMapRec *pRec;
     EventRec    *pEventRec;
     RID         ridEventMap;
     RID         ridCur;
@@ -2640,10 +2612,9 @@ HRESULT MDInternalRO::FindEvent(
         hr = CLDB_E_RECORD_NOTFOUND;
         goto ErrExit;
     }
-    IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetEventMapRecord(ridEventMap, &pRec));
 
     // get the starting/ending rid of properties of this typedef
-    ridCur = m_LiteWeightStgdb.m_MiniMd.getEventListOfEventMap(pRec);
+    IfFailGo(m_LiteWeightStgdb.m_MiniMd.getStartEventListOfEventMap(ridEventMap, &ridCur));
     IfFailGo(m_LiteWeightStgdb.m_MiniMd.getEndEventListOfEventMap(ridEventMap, &ridEnd));
 
     for (; ridCur < ridEnd; ridCur ++)

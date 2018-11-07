@@ -1227,6 +1227,15 @@ protected:
         UINT32       nTargetTableIndex,     // The other table.
         RID         *pEndRid);
     
+        // Count of rows in tbl2, pointed to by the column in tbl.
+    __checkReturn 
+    HRESULT Impl_GetStartRidForColumn(
+        UINT32       nTableIndex, 
+        RID          nRowIndex, 
+        CMiniColDef &def,                   // Column containing the RID into other table.
+        UINT32       nTargetTableIndex,     // The other table.
+        RID         *pStartRid);
+
     __checkReturn 
     FORCEINLINE HRESULT Impl_SearchTable(ULONG ixTbl, CMiniColDef sColumn, ULONG ixCol, ULONG ulTarget, RID *pFoundRid)
     { return Impl_SearchTableRW(ixTbl, ixCol, ulTarget, pFoundRid); }

@@ -909,7 +909,6 @@ STDMETHODIMP RegMeta::DeleteClassLayout(
     BEGIN_ENTRYPOINT_NOTHROW;
 
     ClassLayoutRec  *pClassLayoutRec;
-    TypeDefRec  *pTypeDefRec;
     FieldLayoutRec *pFieldLayoutRec;
     RID         iClassLayoutRec;
     RID         iFieldLayoutRec;
@@ -945,8 +944,7 @@ STDMETHODIMP RegMeta::DeleteClassLayout(
     IfFailGo(UpdateENCLog2(TBL_ClassLayout, iClassLayoutRec));
 
     // Delete all the corresponding FieldLayout records if there are any.
-    IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(RidFromToken(td), &pTypeDefRec));
-    ridStart = m_pStgdb->m_MiniMd.getFieldListOfTypeDef(pTypeDefRec);
+    IfFailGo(m_pStgdb->m_MiniMd.getStartFieldListOfTypeDef(RidFromToken(td), &ridStart));
     IfFailGo(m_pStgdb->m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(td), &ridEnd));
 
     for (index = ridStart; index < ridEnd; index++)
