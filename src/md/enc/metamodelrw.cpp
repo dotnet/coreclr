@@ -2721,17 +2721,17 @@ CMiniMdRW::PreSaveFull()
     m_bSaveCompressed = false;
 
     // Convert any END_OF_TABLE values for tables with child pointer tables.
-    IfFailGo(ConvertMarkerToEndOfTable(
+    IfFailGo(PreSaveConvertMarkerToEndOfTable(
         TBL_TypeDef, 
         TypeDefRec::COL_MethodList, 
         m_Schema.m_cRecs[TBL_Method] + 1, 
         m_Schema.m_cRecs[TBL_TypeDef]));
-    IfFailGo(ConvertMarkerToEndOfTable(
+    IfFailGo(PreSaveConvertMarkerToEndOfTable(
         TBL_TypeDef, 
         TypeDefRec::COL_FieldList, 
         m_Schema.m_cRecs[TBL_Field] + 1, 
         m_Schema.m_cRecs[TBL_TypeDef]));
-    IfFailGo(ConvertMarkerToEndOfTable(
+    IfFailGo(PreSaveConvertMarkerToEndOfTable(
         TBL_Method, 
         MethodRec::COL_ParamList, 
         m_Schema.m_cRecs[TBL_Param]+1, 

@@ -1241,6 +1241,20 @@ protected:
     { if (HasIndirectTable(ixTbl)) return m_Schema.m_cRecs[ixTbl]+1; else return END_OF_TABLE; }
 
     __checkReturn HRESULT ConvertMarkerToEndOfTable(ULONG tblParent, ULONG colParent, ULONG ridChild, RID ridParent);
+
+    FORCEINLINE __checkReturn HRESULT PreSaveConvertMarkerToEndOfTable(ULONG tblParent, ULONG colParent, ULONG ridChild, RID ridParent)
+    {
+        // End of table RID being 0x10000 is problematic for the file format because it doesn't fit the 2 byte column
+        // that the file format allocates for columns with <= 0xFFFF entries.
+        // Using a RID of 0 is allowed per the ECMA-335 spec to signify "no child", but most tools can't deal with
+        // that value because nobody has historically used it (the CLR couldn't deal with it either).
+        // We therefore only emit it for the "end of table is 0x10000" case which would result in a corrupted
+        // or unemittable file anyway.
+        if (ridChild == 0x10000)
+            ridChild = 0;
+
+        return ConvertMarkerToEndOfTable(tblParent, colParent, ridChild, ridParent);
+    }
     
     // Add a child row, adjust pointers in parent rows.
     __checkReturn 
