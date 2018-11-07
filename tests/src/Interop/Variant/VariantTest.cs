@@ -23,6 +23,29 @@ class Test
 
     }
 
+    private enum ExpectedVariantType
+    {
+        Byte,
+        SByte,
+        Int16,
+        UInt16,
+        Int32,
+        UInt32,
+        Int64,
+        UInt64,
+        Single,
+        Double,
+        String,
+        Char,
+        Boolean,
+        DateTime,
+        Decimal,
+        Missing,
+        Object,
+        Empty,
+        Null
+    }
+
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Byte(object obj);
     [DllImport(NativeLibrary)]
@@ -65,6 +88,15 @@ class Test
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Invalid(object obj);
 
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef(ref object obj, ExpectedVariantType type);
+
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ChangeVariantType(ref object obj);
+
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_Out(out object obj);
+
     private unsafe static void TestByValue()
     {
         Assert.IsTrue(Marshal_ByValue_Byte((byte)NumericValue));
@@ -90,11 +122,91 @@ class Test
         Assert.Throws<NotSupportedException>(() => Marshal_ByValue_Invalid(new CustomStruct()));
     }
 
+    private unsafe static void TestByRef()
+    {
+        object obj;
+
+        obj = (byte)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Byte));
+        
+        obj = (sbyte)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.SByte));
+        
+        obj = (short)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Int16));
+        
+        obj = (ushort)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.UInt16));
+        
+        obj = (int)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Int32));
+        
+        obj = (uint)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.UInt32));
+        
+        obj = (long)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Int64));
+        
+        obj = (ulong)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.UInt64));
+        
+        obj = (float)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Single));
+        
+        obj = (double)NumericValue; 
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Double));
+        
+        obj = StringValue;
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.String));
+        
+        obj = CharValue;
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Char));
+        
+        obj = true;
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Boolean));
+        
+        obj = new DateTime(2018, 11, 6);
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.DateTime));
+        
+        obj = DecimalValue;
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Decimal));
+        
+        obj = DBNull.Value;
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Null));
+        
+        obj = System.Reflection.Missing.Value;
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Missing));
+        
+        obj = null;
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Empty));
+        
+        obj = new object();
+        Assert.IsTrue(Marshal_ByRef(ref obj, ExpectedVariantType.Object));
+
+        obj = DecimalValue;
+
+        Assert.IsTrue(Marshal_ChangeVariantType(ref obj));
+
+        Assert.IsTrue(obj is int);
+
+        Assert.AreEqual(NumericValue, (int)obj);
+    }
+
+    private unsafe static void TestOut()
+    {
+        Assert.IsTrue(Marshal_Out(out object obj));
+
+        Assert.IsTrue(obj is int);
+        Assert.AreEqual(NumericValue, (int)obj);
+    }
+
     public static int Main()
     {
         try
         {
             TestByValue();
+            TestByRef();
+            TestOut();
         }
         catch (System.Exception e)
         {

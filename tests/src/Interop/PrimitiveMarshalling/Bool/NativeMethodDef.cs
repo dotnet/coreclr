@@ -69,6 +69,10 @@ public class NativeMethods
         ContainsVariantBool value,
         [MarshalAs(UnmanagedType.U1)] bool expected);
 
+    [DllImport(NativeSharedBinaryName)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static extern bool Marshal_Ref_Struct_Variant(ref ContainsVariantBool value);
+
 #pragma warning restore CS0612, CS0618
 
 }

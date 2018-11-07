@@ -13,6 +13,36 @@ LPCOLESTR StringValue = W("Abcdefg");
 // The reserved field of the DECIMAL struct overlaps with the vt field in the definition of VARIANT.
 DECIMAL DecimalValue = { VT_DECIMAL, {{ 0, 0 }}, 0xffffffff, {{0xffffffff, 0xffffffff}} }; 
 
+#define EXPECTED_VARIANT_TYPE_ALL \
+    EXPECTED_VARIANT_TYPE(Byte) \
+    EXPECTED_VARIANT_TYPE(SByte) \
+    EXPECTED_VARIANT_TYPE(Int16) \
+    EXPECTED_VARIANT_TYPE(UInt16) \
+    EXPECTED_VARIANT_TYPE(Int32) \
+    EXPECTED_VARIANT_TYPE(UInt32) \
+    EXPECTED_VARIANT_TYPE(Int64) \
+    EXPECTED_VARIANT_TYPE(UInt64) \
+    EXPECTED_VARIANT_TYPE(Single) \
+    EXPECTED_VARIANT_TYPE(Double) \
+    EXPECTED_VARIANT_TYPE(String) \
+    EXPECTED_VARIANT_TYPE(Char) \
+    EXPECTED_VARIANT_TYPE(Boolean) \
+    EXPECTED_VARIANT_TYPE(DateTime) \
+    EXPECTED_VARIANT_TYPE(Decimal) \
+    EXPECTED_VARIANT_TYPE(Missing) \
+    EXPECTED_VARIANT_TYPE(Object) \
+    EXPECTED_VARIANT_TYPE(Empty) \
+    EXPECTED_VARIANT_TYPE(Null)
+
+#define EXPECTED_VARIANT_TYPE(Type) Type,
+
+enum ExpectedVariantType
+{
+    EXPECTED_VARIANT_TYPE_ALL
+};
+
+#undef EXPECTED_VARIANT_TYPE
+
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Byte(VARIANT value)
 {
     if (value.vt != VT_UI1)
@@ -260,4 +290,44 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Null(VARIANT value)
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Invalid(VARIANT value)
 {
     return FALSE;
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef(VARIANT* pValue, ExpectedVariantType type)
+{
+    switch (type)
+    {
+#define EXPECTED_VARIANT_TYPE(Type) case Type: return Marshal_ByValue_##Type (*pValue);
+
+        EXPECTED_VARIANT_TYPE_ALL
+
+        default:
+            printf("Invalid Expected Variant Type.\n");
+            return FALSE;
+    }
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Out(VARIANT* pValue)
+{
+    if (FAILED(VariantClear(pValue)))
+    {
+        printf("Failed to clear pValue.\n");
+        return FALSE;
+    }
+    pValue->vt = VT_I4;
+    pValue->lVal = NumericValue;
+
+    return TRUE;
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ChangeVariantType(VARIANT* pValue)
+{
+    if (FAILED(VariantClear(pValue)))
+    {
+        printf("Failed to clear pValue.\n");
+        return FALSE;
+    }
+    pValue->vt = VT_I4;
+    pValue->lVal = NumericValue;
+
+    return TRUE;
 }

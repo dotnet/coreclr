@@ -9,6 +9,9 @@ using System.Text;
 
 class Test
 {
+    const bool boolManaged = true;
+    const bool boolNative = false;
+
     static void ReportFailure(string describe, bool expect, bool actual)
     {
         throw new Exception(" === Fail: " + describe + "\n\tExpected:" + expect + "\n\tActual:" + actual);        
@@ -16,9 +19,6 @@ class Test
     
     public static int Main(string[] args)
     {
-        const bool boolManaged = true;
-        const bool boolNative = false;
-        
         //Test Method1
         bool boolValue1 = boolManaged;
         bool boolValueRet1 = NativeMethods.Marshal_In(boolValue1);
@@ -119,9 +119,25 @@ class Test
             ReportFailure("Method Marshal_As_Out[Managed Side],The parameter value is changed", boolManaged, boolValue9);
         }
 
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            TestVariantBool();
+        }
+        
+        return 100;
+    }
+
+    private static void TestVariantBool()
+    {
+        
         if (!NativeMethods.Marshal_ByValue_Variant(true, true))
         {
             ReportFailure("Method Marshal_ByValue_Variant[Managed Side], The return value is wrong", true, true);
+        }
+        
+        if (!NativeMethods.Marshal_ByValue_Variant(false, false))
+        {
+            ReportFailure("Method Marshal_ByValue_Variant[Managed Side], The return value is wrong", false, false);
         }
 
         bool boolValue10 = boolManaged;
@@ -136,10 +152,40 @@ class Test
             ReportFailure("Method Marshal_Ref_Variant[Managed Side],The passed value is wrong", boolNative, boolValue10);
         } 
         
-        if (!NativeMethods.Marshal_ByValue_Variant(false, false))
+        var trueStruct = new NativeMethods.ContainsVariantBool
+        {
+            value = true
+        };
+
+        var falseStruct = new NativeMethods.ContainsVariantBool
+        {
+            value = false
+        };
+        
+        if (!NativeMethods.Marshal_ByValue_Struct_Variant(trueStruct, true))
+        {
+            ReportFailure("Method Marshal_ByValue_Variant[Managed Side], The return value is wrong", true, true);
+        }
+        
+        if (!NativeMethods.Marshal_ByValue_Struct_Variant(falseStruct, false))
         {
             ReportFailure("Method Marshal_ByValue_Variant[Managed Side], The return value is wrong", false, false);
         }
-        return 100;
+
+        var boolValue11 = new NativeMethods.ContainsVariantBool
+        {
+            value = boolManaged
+        };
+        
+        bool boolValueRet11 = NativeMethods.Marshal_Ref_Struct_Variant(ref boolValue11);
+
+        if (!boolValueRet11)
+        {
+            ReportFailure("Method Marshal_Ref_Variant[Managed Side], The return value is wrong.", true, boolValueRet11);
+        }
+        if (boolValue11.value != boolNative)
+        {
+            ReportFailure("Method Marshal_Ref_Variant[Managed Side],The passed value is wrong", boolNative, boolValue11.value);
+        }
     }
 }

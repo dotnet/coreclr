@@ -226,5 +226,21 @@ extern "C" DLL_EXPORT bool STDMETHODCALLTYPE Marshal_ByValue_Struct_Variant(Cont
     return true;
 }
 
+extern "C" DLL_EXPORT bool STDMETHODCALLTYPE Marshal_Ref_Struct_Variant(ContainsVariantBool* pBoolValue)
+{
+    if (pBoolValue->value != (boolManaged ? VARIANT_TRUE : VARIANT_FALSE))
+    {
+        printf("Error in function Marshal_ByValue_Variant(Native Client)\n");
+
+        printf("Expected %s ", boolManaged ? "true" : "false");
+        printf("Actual %s (%hi)", pBoolValue->value == VARIANT_FALSE ? "false" : "(unknown variant value)", pBoolValue->value);
+
+        return false;
+    }
+
+    pBoolValue->value = (boolNative ? VARIANT_TRUE : VARIANT_FALSE);
+    return true;
+}
+
 #endif
 #pragma warning(pop)
