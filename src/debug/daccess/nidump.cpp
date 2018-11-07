@@ -1272,7 +1272,7 @@ void NativeImageDumper::TraceDumpImport(int idx, NativeImageDumper::Import * imp
     {
         m_display->ErrorPrintF("Import: %d\n", idx);
         m_display->ErrorPrintF("\tDependency: %p\n", import->dependency);
-        m_display->ErrorPrintF("\tAssemblyRid: %d\n", import->assemblyRid);
+        m_display->ErrorPrintF("\tAssemblyRid: %d\n", *(import->assemblyRid));
     }
 }
 void NativeImageDumper::TraceDumpDependency(int idx, NativeImageDumper::Dependency * dependency)
@@ -1942,7 +1942,7 @@ void NativeImageDumper::FixupBlobToString(RVA rva, SString& buf)
         // print assembly/module info
 
         PTR_USHORT assemblyRid = import->assemblyRid;
-        if (assemblyRid != 0)
+        if (*assemblyRid != 0)
         {
             mdToken realRef =
                 MapAssemblyRefToManifest(TokenFromRid(*assemblyRid,
@@ -2226,7 +2226,7 @@ DataToTokenCore:
             Import *targetImport = OpenImport(targetModuleIndex);
 
             PTR_USHORT assemblyRid = targetImport->assemblyRid;
-            if (assemblyRid != 0)
+            if (*assemblyRid != 0)
             {
                 mdToken realRef =
                     MapAssemblyRefToManifest(TokenFromRid(*assemblyRid,
