@@ -24,7 +24,7 @@ namespace System
 #else
         public static readonly bool IsLittleEndian = true;
 #endif
-        
+
         // Converts a Boolean into an array of bytes with length one.
         public static byte[] GetBytes(bool value)
         {

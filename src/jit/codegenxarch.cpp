@@ -1614,7 +1614,6 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
                 break;
             }
             __fallthrough;
-
         case GT_MOD:
         case GT_UMOD:
         case GT_UDIV:
