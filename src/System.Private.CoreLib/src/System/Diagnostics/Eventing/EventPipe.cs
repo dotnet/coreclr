@@ -126,7 +126,12 @@ namespace System.Diagnostics.Tracing
             get { return m_minTimeBetweenSamples.Ticks * 100; }
         }
 
-        internal void EnableProvider(string providerName, ulong keywords, uint loggingLevel, string filterData = null)
+        internal void EnableProvider(string providerName, ulong keywords, uint loggingLevel)
+        {
+            EnableProviderWithFilter(providerName, keywords, loggingLevel, null);
+        }
+
+        internal void EnableProviderWithFilter(string providerName, ulong keywords, uint loggingLevel, string filterData)
         {
             m_providers.Add(new EventPipeProviderConfiguration(
                 providerName,

@@ -342,7 +342,7 @@ namespace System.Diagnostics.Tracing
 
                 string filterData = components.Length > 3 ? components[3] : null;
 
-                config.EnableProvider(providerName, keywords, level, filterData);
+                config.EnableProviderWithFilter(providerName, keywords, level, filterData);
             }
         }
 
