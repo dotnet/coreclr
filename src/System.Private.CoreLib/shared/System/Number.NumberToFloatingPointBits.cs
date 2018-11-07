@@ -1,12 +1,6 @@
-// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See THIRD-PARTY-NOTICES.TXT in the project root for license information.
-
-// LICENSING NOTE: The license for this file is from the originating source
-// and not the general CoreCLR License.
-//
-// See https://github.com/dotnet/roslyn/blob/82b2f694b26e5933ff8dd0856a2cd775273ac138/src/Compilers/Core/Portable/RealParser.cs
-
-// This file is a port of the original code and has been modified to have certain performance improvements
-// and to better fit in with the requirements of CoreCLR and existing code in System.Private.Corelib.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 
