@@ -295,6 +295,7 @@ namespace System.Threading
 
         internal static void RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, object state)
         {
+            Debug.Assert(threadPoolThread == Thread.CurrentThread);
             CheckThreadPoolAndContextsAreDefault();
             // ThreadPool starts on Default Context so we don't need to save the "previous" state as we know it is Default (null)
 
