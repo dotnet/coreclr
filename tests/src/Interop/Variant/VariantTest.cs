@@ -23,6 +23,14 @@ class Test
 
     }
 
+    private struct ObjectWrapper
+    {
+#pragma warning disable CS0612, CS0618
+        [MarshalAs(UnmanagedType.Struct)]
+        public object value;
+#pragma warning restore CS0612, CS0618
+    }
+
     private enum ExpectedVariantType
     {
         Byte,
@@ -96,6 +104,12 @@ class Test
 
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Out(out object obj);
+
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_Struct_ByValue(ObjectWrapper wrapper, ExpectedVariantType type);
+
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_Struct_ByRef(ref ObjectWrapper wrapper, ExpectedVariantType type);
 
     private unsafe static void TestByValue()
     {
@@ -200,6 +214,132 @@ class Test
         Assert.AreEqual(NumericValue, (int)obj);
     }
 
+    
+    private unsafe static void TestFieldByValue()
+    {
+        ObjectWrapper wrapper = new ObjectWrapper();
+
+        wrapper.value = (byte)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Byte));
+        
+        wrapper.value = (sbyte)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.SByte));
+        
+        wrapper.value = (short)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Int16));
+        
+        wrapper.value = (ushort)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.UInt16));
+        
+        wrapper.value = (int)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Int32));
+        
+        wrapper.value = (uint)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.UInt32));
+        
+        wrapper.value = (long)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Int64));
+        
+        wrapper.value = (ulong)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.UInt64));
+        
+        wrapper.value = (float)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Single));
+        
+        wrapper.value = (double)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Double));
+        
+        wrapper.value = StringValue;
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.String));
+        
+        wrapper.value = CharValue;
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Char));
+        
+        wrapper.value = true;
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Boolean));
+        
+        wrapper.value = new DateTime(2018, 11, 6);
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.DateTime));
+        
+        wrapper.value = DecimalValue;
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Decimal));
+        
+        wrapper.value = DBNull.Value;
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Null));
+        
+        wrapper.value = System.Reflection.Missing.Value;
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Missing));
+        
+        wrapper.value = null;
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Empty));
+        
+        wrapper.value = new object();
+        Assert.IsTrue(Marshal_Struct_ByValue(wrapper, ExpectedVariantType.Object));
+    }
+
+    
+    private unsafe static void TestFieldByRef()
+    {
+        ObjectWrapper wrapper = new ObjectWrapper();
+
+        wrapper.value = (byte)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Byte));
+        
+        wrapper.value = (sbyte)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.SByte));
+        
+        wrapper.value = (short)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Int16));
+        
+        wrapper.value = (ushort)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.UInt16));
+        
+        wrapper.value = (int)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Int32));
+        
+        wrapper.value = (uint)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.UInt32));
+        
+        wrapper.value = (long)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Int64));
+        
+        wrapper.value = (ulong)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.UInt64));
+        
+        wrapper.value = (float)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Single));
+        
+        wrapper.value = (double)NumericValue; 
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Double));
+        
+        wrapper.value = StringValue;
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.String));
+        
+        wrapper.value = CharValue;
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Char));
+        
+        wrapper.value = true;
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Boolean));
+        
+        wrapper.value = new DateTime(2018, 11, 6);
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.DateTime));
+        
+        wrapper.value = DecimalValue;
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Decimal));
+        
+        wrapper.value = DBNull.Value;
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Null));
+        
+        wrapper.value = System.Reflection.Missing.Value;
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Missing));
+        
+        wrapper.value = null;
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Empty));
+        
+        wrapper.value = new object();
+        Assert.IsTrue(Marshal_Struct_ByRef(ref wrapper, ExpectedVariantType.Object));
+    }
+
     public static int Main()
     {
         try
@@ -207,6 +347,8 @@ class Test
             TestByValue();
             TestByRef();
             TestOut();
+            TestFieldByValue();
+            TestFieldByRef();
         }
         catch (System.Exception e)
         {

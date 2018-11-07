@@ -300,6 +300,7 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef(VARIANT* pValue, Expe
 
         EXPECTED_VARIANT_TYPE_ALL
 
+#undef EXPECTED_VARIANT_TYPE
         default:
             printf("Invalid Expected Variant Type.\n");
             return FALSE;
@@ -330,4 +331,19 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ChangeVariantType(VARIANT* 
     pValue->lVal = NumericValue;
 
     return TRUE;
+}
+
+struct VariantWrapper
+{
+    VARIANT variant;
+};
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByValue(VariantWrapper wrapper, ExpectedVariantType type)
+{
+    return Marshal_ByRef(&wrapper.variant, type);
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByRef(VariantWrapper* wrapper, ExpectedVariantType type)
+{
+    return Marshal_ByRef(&wrapper->variant, type);
 }
