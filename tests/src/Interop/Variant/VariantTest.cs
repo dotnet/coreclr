@@ -85,6 +85,8 @@ class Test
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Decimal(object obj, decimal expected);
     [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByValue_Currency(object obj, [MarshalAs(UnmanagedType.Currency)] decimal expected);
+    [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Missing(object obj);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Object(object obj);
@@ -126,6 +128,8 @@ class Test
     private static extern bool Marshal_ByRef_DateTime(ref object obj, DateTime expected);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByRef_Decimal(ref object obj, decimal expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Currency(ref object obj, [MarshalAs(UnmanagedType.Currency)] decimal expected);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByRef_Missing(ref object obj);
     [DllImport(NativeLibrary)]
@@ -171,6 +175,8 @@ class Test
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByValue_Decimal(ObjectWrapper wrapper, decimal expected);
     [DllImport(NativeLibrary)]
+    private static extern bool Marshal_Struct_ByValue_Currency(ObjectWrapper wrapper, [MarshalAs(UnmanagedType.Currency)] decimal expected);
+    [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByValue_Missing(ObjectWrapper wrapper);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByValue_Object(ObjectWrapper wrapper);
@@ -210,6 +216,8 @@ class Test
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByRef_Decimal(ref ObjectWrapper wrapper, decimal expected);
     [DllImport(NativeLibrary)]
+    private static extern bool Marshal_Struct_ByRef_Currency(ref ObjectWrapper wrapper, [MarshalAs(UnmanagedType.Currency)] decimal expected);
+    [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByRef_Missing(ref ObjectWrapper wrapper);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByRef_Object(ref ObjectWrapper wrapper);
@@ -231,10 +239,12 @@ class Test
         Assert.IsTrue(Marshal_ByValue_Single((float)NumericValue, NumericValue));
         Assert.IsTrue(Marshal_ByValue_Double((double)NumericValue, NumericValue));
         Assert.IsTrue(Marshal_ByValue_String(StringValue, StringValue));
+        Assert.IsTrue(Marshal_ByValue_String(new BStrWrapper(null), null));
         Assert.IsTrue(Marshal_ByValue_Char(CharValue, CharValue));
         Assert.IsTrue(Marshal_ByValue_Boolean(true, true));
         Assert.IsTrue(Marshal_ByValue_DateTime(DateValue, DateValue));
-        Assert.IsTrue(Marshal_ByValue_Decimal((decimal)DecimalValue, DecimalValue));
+        Assert.IsTrue(Marshal_ByValue_Decimal(DecimalValue, DecimalValue));
+        Assert.IsTrue(Marshal_ByValue_Currency(new CurrencyWrapper(DecimalValue), DecimalValue));
         Assert.IsTrue(Marshal_ByValue_Null(DBNull.Value));
         Assert.IsTrue(Marshal_ByValue_Missing(System.Reflection.Missing.Value));
         Assert.IsTrue(Marshal_ByValue_Empty(null));
@@ -279,6 +289,9 @@ class Test
         
         obj = StringValue;
         Assert.IsTrue(Marshal_ByRef_String(ref obj, StringValue));
+
+        obj = new BStrWrapper(null);
+        Assert.IsTrue(Marshal_ByRef_String(ref obj, null));
         
         obj = CharValue;
         Assert.IsTrue(Marshal_ByRef_Char(ref obj, CharValue));
@@ -291,6 +304,9 @@ class Test
         
         obj = DecimalValue;
         Assert.IsTrue(Marshal_ByRef_Decimal(ref obj, DecimalValue));
+
+        obj = new CurrencyWrapper(DecimalValue);
+        Assert.IsTrue(Marshal_ByRef_Currency(ref obj, DecimalValue));
         
         obj = DBNull.Value;
         Assert.IsTrue(Marshal_ByRef_Null(ref obj));
@@ -353,6 +369,9 @@ class Test
         
         wrapper.value = StringValue;
         Assert.IsTrue(Marshal_Struct_ByValue_String(wrapper, StringValue));
+
+        wrapper.value = new BStrWrapper(null);
+        Assert.IsTrue(Marshal_Struct_ByValue_String(wrapper, null));
         
         wrapper.value = CharValue;
         Assert.IsTrue(Marshal_Struct_ByValue_Char(wrapper, CharValue));
@@ -365,6 +384,9 @@ class Test
         
         wrapper.value = DecimalValue;
         Assert.IsTrue(Marshal_Struct_ByValue_Decimal(wrapper, DecimalValue));
+
+        wrapper.value = new CurrencyWrapper(DecimalValue);
+        Assert.IsTrue(Marshal_Struct_ByValue_Currency(wrapper, DecimalValue));
         
         wrapper.value = DBNull.Value;
         Assert.IsTrue(Marshal_Struct_ByValue_Null(wrapper));
@@ -415,6 +437,9 @@ class Test
         
         wrapper.value = StringValue;
         Assert.IsTrue(Marshal_Struct_ByRef_String(ref wrapper, StringValue));
+
+        wrapper.value = new BStrWrapper(null);
+        Assert.IsTrue(Marshal_Struct_ByRef_String(ref wrapper, null));
         
         wrapper.value = CharValue;
         Assert.IsTrue(Marshal_Struct_ByRef_Char(ref wrapper, CharValue));
@@ -427,6 +452,9 @@ class Test
         
         wrapper.value = DecimalValue;
         Assert.IsTrue(Marshal_Struct_ByRef_Decimal(ref wrapper, DecimalValue));
+        
+        wrapper.value = new CurrencyWrapper(DecimalValue);
+        Assert.IsTrue(Marshal_Struct_ByRef_Currency(ref wrapper, DecimalValue));
         
         wrapper.value = DBNull.Value;
         Assert.IsTrue(Marshal_Struct_ByRef_Null(ref wrapper));

@@ -135,6 +135,11 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_String(VARIANT valu
         return FALSE;
     }
 
+    if (value.bstrVal == NULL || expected == NULL)
+    {
+        return value.bstrVal == NULL && expected == NULL;
+    }
+
     size_t len = TP_SysStringByteLen(value.bstrVal);
 
     return len == TP_SysStringByteLen(expected) && memcmp(value.bstrVal, expected, len) == 0;
@@ -221,6 +226,18 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Decimal(VARIANT val
 
     return memcmp(&value.decVal, &expected, sizeof(DECIMAL)) == 0;
 }
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Currency(VARIANT value, CY expected)
+{
+    if (value.vt != VT_CY)
+    {
+        printf("Invalid format. Expected VT_CY.\n");
+        return FALSE;
+    }
+
+    return memcmp(&value.cyVal, &expected, sizeof(CY)) == 0;
+}
+
 
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Null(VARIANT value)
 {
@@ -365,6 +382,11 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef_String(VARIANT* value
         printf("Invalid format. Expected VT_BSTR.\n");
         return FALSE;
     }
+    
+    if (value->bstrVal == NULL || expected == NULL)
+    {
+        return value->bstrVal == NULL && expected == NULL;
+    }
 
     size_t len = TP_SysStringByteLen(value->bstrVal);
 
@@ -451,6 +473,17 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef_Decimal(VARIANT* valu
     expected.wReserved = VT_DECIMAL; // The wReserved field in DECIMAL overlaps with the vt field in VARIANT*
 
     return memcmp(&value->decVal, &expected, sizeof(DECIMAL)) == 0;
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef_Currency(VARIANT* value, CY expected)
+{
+    if (value->vt != VT_CY)
+    {
+        printf("Invalid format. Expected VT_CY.\n");
+        return FALSE;
+    }
+
+    return memcmp(&value->cyVal, &expected, sizeof(CY)) == 0;
 }
 
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef_Null(VARIANT* value)
@@ -622,6 +655,11 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByValue_String(Varia
         printf("Invalid format. Expected VT_BSTR.\n");
         return FALSE;
     }
+    
+    if (wrapper.value.bstrVal == NULL || expected == NULL)
+    {
+        return wrapper.value.bstrVal == NULL && expected == NULL;
+    }
 
     size_t len = TP_SysStringByteLen(wrapper.value.bstrVal);
 
@@ -708,6 +746,17 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByValue_Decimal(Vari
     expected.wReserved = VT_DECIMAL; // The wReserved field in DECIMAL overlaps with the vt field in VARIANT*
 
     return memcmp(&wrapper.value.decVal, &expected, sizeof(DECIMAL)) == 0;
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByValue_Currency(VariantWrapper wrapper, CY expected)
+{
+    if (wrapper.value.vt != VT_CY)
+    {
+        printf("Invalid format. Expected VT_CY.\n");
+        return FALSE;
+    }
+
+    return memcmp(&wrapper.value.cyVal, &expected, sizeof(CY)) == 0;
 }
 
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByValue_Null(VariantWrapper wrapper)
@@ -849,6 +898,11 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByRef_String(Variant
         printf("Invalid format. Expected VT_BSTR.\n");
         return FALSE;
     }
+    
+    if (pWrapper->value.bstrVal == NULL || expected == NULL)
+    {
+        return pWrapper->value.bstrVal == NULL && expected == NULL;
+    }
 
     size_t len = TP_SysStringByteLen(pWrapper->value.bstrVal);
 
@@ -935,6 +989,17 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByRef_Decimal(Varian
     expected.wReserved = VT_DECIMAL; // The wReserved field in DECIMAL overlaps with the vt field in VARIANT*
 
     return memcmp(&pWrapper->value.decVal, &expected, sizeof(DECIMAL)) == 0;
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByRef_Currency(VariantWrapper* pWrapper, CY expected)
+{
+    if (pWrapper->value.vt != VT_CY)
+    {
+        printf("Invalid format. Expected VT_CY.\n");
+        return FALSE;
+    }
+
+    return memcmp(&pWrapper->value.cyVal, &expected, sizeof(CY)) == 0;
 }
 
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByRef_Null(VariantWrapper* pWrapper)
