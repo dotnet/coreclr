@@ -4,15 +4,11 @@
 #if FEATURE_PERFTRACING
 using Internal.IO;
 using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Globalization;
 using System.Reflection;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace System.Diagnostics.Tracing
 {
@@ -168,32 +164,29 @@ namespace System.Diagnostics.Tracing
             string[] configEntries = strConfigContents.Split(ConfigFileLineDelimiters, StringSplitOptions.RemoveEmptyEntries);
             foreach (string configEntry in configEntries)
             {
+                //`Split the key and value by '='.
                 string[] entryComponents = configEntry.Split(
                     ConfigEntryDelimiter,
                     2,  // Stop split on first occurrence of the separator.
                     StringSplitOptions.RemoveEmptyEntries);
                 if (entryComponents.Length == 2)
                 {
-                    switch (entryComponents[0])
+                    string key = entryComponents[0];
+                    if (key.Equals(ConfigKey_Providers))
                     {
-                        case ConfigKey_Providers:
-                            strProviderConfig = entryComponents[1];
-                            break;
-
-                        case ConfigKey_OutputPath:
-                            outputPath = entryComponents[1];
-                            break;
-
-                        case ConfigKey_CircularMB:
-                            strCircularMB = entryComponents[1];
-                            break;
-
-                        case ConfigKey_ProcessID:
-                            strProcessID = entryComponents[1];
-                            break;
-
-                        default:
-                            break;
+                        strProviderConfig = entryComponents[1];
+                    }
+                    else if (key.Equals(ConfigKey_OutputPath))
+                    {
+                        outputPath = entryComponents[1];
+                    }
+                    else if (key.Equals(ConfigKey_CircularMB))
+                    {
+                        strCircularMB = entryComponents[1];
+                    }
+                    else if (key.Equals(ConfigKey_ProcessID))
+                    {
+                        strProcessID = entryComponents[1];
                     }
                 }
             }
@@ -221,7 +214,7 @@ namespace System.Diagnostics.Tracing
 
             // Get the circular buffer size.
             uint circularMB = DefaultCircularBufferMB;
-            if(!string.IsNullOrEmpty(strCircularMB))
+            if (!string.IsNullOrEmpty(strCircularMB))
             {
                 circularMB = Convert.ToUInt32(strCircularMB);
             }
