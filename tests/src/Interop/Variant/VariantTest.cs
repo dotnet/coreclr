@@ -260,6 +260,7 @@ class Test
         Assert.IsTrue(Marshal_ByValue_Object_IUnknown(new UnknownWrapper(new object())));
         Assert.Throws<ArgumentException>(() => Marshal_ByValue_Invalid(TimeSpan.Zero));
         Assert.Throws<NotSupportedException>(() => Marshal_ByValue_Invalid(new CustomStruct()));
+        Assert.Throws<ArgumentException>(() => Marshal_ByValue_Invalid(new VariantWrapper(CharValue)));
     }
 
     private unsafe static void TestByRef()
