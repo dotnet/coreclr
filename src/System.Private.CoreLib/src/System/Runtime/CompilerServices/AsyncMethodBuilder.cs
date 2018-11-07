@@ -540,12 +540,12 @@ namespace System.Runtime.CompilerServices
             /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
             public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
 
-            internal sealed override void ExecuteFromThreadPool() => MoveNext(isThreadPool: true);
+            internal sealed override void ExecuteFromThreadPool(Thread threadPoolThread) => MoveNext(threadPoolThread);
 
             /// <summary>Calls MoveNext on <see cref="StateMachine"/></summary>
-            public void MoveNext() => MoveNext(isThreadPool: false);
+            public void MoveNext() => MoveNext(threadPoolThread: null);
 
-            private void MoveNext(bool isThreadPool)
+            private void MoveNext(Thread threadPoolThread)
             {
                 Debug.Assert(!IsCompleted);
 
@@ -562,13 +562,13 @@ namespace System.Runtime.CompilerServices
                 }
                 else
                 {
-                    if (isThreadPool)
+                    if (threadPoolThread is null)
                     {
-                        ExecutionContext.RunFromThreadPoolDispatchLoop(context, s_callback, this);
+                        ExecutionContext.RunInternal(context, s_callback, this);
                     }
                     else
                     {
-                        ExecutionContext.RunInternal(context, s_callback, this);
+                        ExecutionContext.RunFromThreadPoolDispatchLoop(threadPoolThread, context, s_callback, this);
                     }
                 }
 

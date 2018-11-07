@@ -586,7 +586,7 @@ namespace System.Threading
                             reportedStatus = true;
                             if (workItem is Task task)
                             {
-                                task.ExecuteFromThreadPool();
+                                task.ExecuteFromThreadPool(currentThread);
                             }
                             else
                             {
@@ -606,7 +606,7 @@ namespace System.Threading
                         // for Task and then Unsafe.As for the interface, rather than
                         // vice versa, in particular when the object implements a bunch
                         // of interfaces.
-                        task.ExecuteFromThreadPool();
+                        task.ExecuteFromThreadPool(currentThread);
                     }
                     else
                     {

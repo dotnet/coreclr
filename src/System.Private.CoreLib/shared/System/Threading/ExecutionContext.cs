@@ -293,12 +293,11 @@ namespace System.Threading
             edi?.Throw();
         }
 
-        internal static void RunFromThreadPoolDispatchLoop(ExecutionContext executionContext, ContextCallback callback, object state)
+        internal static void RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, object state)
         {
             CheckThreadPoolAndContextsAreDefault();
             // ThreadPool starts on Default Context so we don't need to save the "previous" state as we know it is Default (null)
 
-            Thread currentThread = Thread.CurrentThread;
             if (executionContext != null && executionContext.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
@@ -307,7 +306,7 @@ namespace System.Threading
             else if (executionContext != null)
             {
                 // Non-Default context to restore
-                currentThread.ExecutionContext = executionContext;
+                threadPoolThread.ExecutionContext = executionContext;
                 if (executionContext.HasChangeNotifications)
                 {
                     // There are change notifications; trigger any affected
@@ -328,20 +327,20 @@ namespace System.Threading
                 edi = ExceptionDispatchInfo.Capture(ex);
             }
 
-            // Enregister currentThread to alternative varibale as crossing EH will have forced it to stack
-            Thread currentThread1 = currentThread;
+            // Enregister threadPoolThread as it crossed EH, and use enregistered variable
+            Thread currentThread = threadPoolThread;
+
+            ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
 
             // Restore changed SynchronizationContext back to Default
-            currentThread1.SynchronizationContext = null;
-
-            ExecutionContext currentExecutionCtx = currentThread1.ExecutionContext;
+            currentThread.SynchronizationContext = null;
             if (currentExecutionCtx != null)
             {
                 // The EC always needs to be reset for this overload, as it will flow back to the caller if it performs 
                 // extra work prior to returning to the Dispatch loop. For example for Task-likes it will flow out of await points
 
                 // Restore to Default before Notifications, as the change can be observed in the handler.
-                currentThread1.ExecutionContext = null;
+                currentThread.ExecutionContext = null;
                 if (currentExecutionCtx.HasChangeNotifications)
                 {
                     // There are change notifications; trigger any affected

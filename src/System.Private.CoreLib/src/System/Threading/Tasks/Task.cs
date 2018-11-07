@@ -2367,16 +2367,16 @@ namespace System.Threading.Tasks
         /// can override to customize their behavior, which is usually done by promises
         /// that want to reuse the same object as a queued work item.
         /// </summary>
-        internal virtual void ExecuteFromThreadPool() => ExecuteEntryUnsafe(isThreadPool: true);
+        internal virtual void ExecuteFromThreadPool(Thread threadPoolThread) => ExecuteEntryUnsafe(threadPoolThread);
 
-        internal void ExecuteEntryUnsafe(bool isThreadPool = false) // used instead of ExecuteEntry() when we don't have to worry about double-execution prevent
+        internal void ExecuteEntryUnsafe(Thread threadPoolThread) // used instead of ExecuteEntry() when we don't have to worry about double-execution prevent
         {
             // Remember that we started running the task delegate.
             m_stateFlags |= TASK_STATE_DELEGATE_INVOKED;
 
             if (!IsCancellationRequested & !IsCanceled)
             {
-                ExecuteWithThreadLocal(ref t_currentTask, isThreadPool);
+                ExecuteWithThreadLocal(ref t_currentTask, threadPoolThread);
             }
             else
             {
@@ -2397,7 +2397,7 @@ namespace System.Threading.Tasks
         }
 
         // A trick so we can refer to the TLS slot with a byref.
-        private void ExecuteWithThreadLocal(ref Task currentTaskSlot, bool isThreadPool = false)
+        private void ExecuteWithThreadLocal(ref Task currentTaskSlot, Thread threadPoolThread = null)
         {
             // Remember the current task so we can restore it after running, and then
             Task previousTask = currentTaskSlot;
@@ -2438,13 +2438,13 @@ namespace System.Threading.Tasks
                     else
                     {
                         // Invoke it under the captured ExecutionContext
-                        if (isThreadPool)
+                        if (threadPoolThread is null)
                         {
-                            ExecutionContext.RunFromThreadPoolDispatchLoop(ec, s_ecCallback, this);
+                            ExecutionContext.RunInternal(ec, s_ecCallback, this);
                         }
                         else
                         {
-                            ExecutionContext.RunInternal(ec, s_ecCallback, this);
+                            ExecutionContext.RunFromThreadPoolDispatchLoop(threadPoolThread, ec, s_ecCallback, this);
                         }
                     }
                 }

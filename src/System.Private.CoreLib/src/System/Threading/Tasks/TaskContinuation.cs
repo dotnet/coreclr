@@ -646,15 +646,17 @@ namespace System.Threading.Tasks
                 // We're not inside of a task, so t_currentTask doesn't need to be specially maintained.
                 // We're on a thread pool thread with no higher-level callers, so exceptions can just propagate.
 
-                // If there's no execution context, just invoke the delegate.
-                if (context == null)
+                // If there's no execution context or Default, just invoke the delegate as ThreadPool is on Default context.
+                // We don't have to use ExecutionContext.Run for the Default context here as there is no extra processing after the delegate
+                if (context == null || context.IsDefault)
                 {
                     m_action();
+                    // ThreadPoolWorkQueue.Dispatch handles notifications and reset context back to default
                 }
                 // If there is an execution context, get the cached delegate and run the action under the context.
                 else
                 {
-                    ExecutionContext.RunFromThreadPoolDispatchLoop(context, GetInvokeActionCallback(), m_action);
+                    ExecutionContext.RunFromThreadPoolDispatchLoop(Thread.CurrentThread, context, GetInvokeActionCallback(), m_action);
                 }
             }
             finally
