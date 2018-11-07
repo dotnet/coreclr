@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="16.0">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <CLRTestKind>BuildAndRun</CLRTestKind>
+    <CLRTestPriority>1</CLRTestPriority>
+    <Platform>$(__BuildArch)</Platform>
+    <ProjectGuid>{ABB86728-A3E0-4489-BD97-A0BAB00B322F}</ProjectGuid>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DefineConstants Condition="$(OSGroup) == 'Windows_NT'">WINDOWS</DefineConstants>
+    <DefineConstants Condition="$(OSGroup) == 'OSX'">OSX</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="ComponentDependencyResolver.cs" />
+    <Compile Include="ComponentDependencyResolverTests.cs" />
+    <Compile Include="HostPolicyMock.cs" />
+    <Compile Include="InvalidHostingTest.cs" />
+    <Compile Include="TestBase.cs" />
+    <Compile Include="XPlatformUtils.cs" />
+  </ItemGroup>
+  <!-- These are "hacks" to make the project build and launch from VS which makes it really easy to debug it. -->
+  <PropertyGroup Condition="'$(BuildingInsideVisualStudio)'=='true'">
+    <Platforms>x64</Platforms>
+    <StartAction>Program</StartAction>
+    <StartProgram>$(CoreclrDir)/bin/tests/$(OSPlatformConfig)/Tests/Core_Root/CoreRun.exe</StartProgram>
+    <StartArguments>$(CoreclrDir)/bin/tests/$(OSPlatformConfig)/Loader/ComponentDependencyResolverTests/ComponentDependencyResolverTests/ComponentDependencyResolverTests.exe</StartArguments>
+    <StartWorkingDirectory>$(CoreclrDir)/bin/tests/$(OSPlatformConfig)/Tests/Core_Root</StartWorkingDirectory>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(BuildingInsideVisualStudio)'=='true'">
+    <Reference Include="$(TargetingPackPath)/*.dll">
+      <Private>false</Private>
+    </Reference>
+    <ProjectReference Include="CMakeLists.txt" />
+  </ItemGroup>
+</Project>
