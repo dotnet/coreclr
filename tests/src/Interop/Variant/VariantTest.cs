@@ -137,13 +137,10 @@ class Test
     private static extern bool Marshal_ByRef_Null(ref object obj);
 
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByRef_Invalid(ref object obj);
-
-    [DllImport(NativeLibrary)]
     private static extern bool Marshal_ChangeVariantType(ref object obj, int expected);
-
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Out(out object obj, int expected);
+
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByValue_Byte(ObjectWrapper wrapper, byte expected);
     [DllImport(NativeLibrary)]
@@ -309,11 +306,8 @@ class Test
         Assert.IsTrue(Marshal_ByRef_Object(ref obj));
 
         obj = DecimalValue;
-
         Assert.IsTrue(Marshal_ChangeVariantType(ref obj, NumericValue));
-
         Assert.IsTrue(obj is int);
-
         Assert.AreEqual(NumericValue, (int)obj);
     }
 

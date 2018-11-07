@@ -464,11 +464,6 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef_Null(VARIANT* value)
     return TRUE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef_Invalid(VARIANT* value)
-{
-    return FALSE;
-}
-
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Out(VARIANT* pValue, LONG expected)
 {
     if (FAILED(VariantClear(pValue)))
