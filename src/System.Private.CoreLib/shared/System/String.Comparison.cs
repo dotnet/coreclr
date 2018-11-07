@@ -773,30 +773,15 @@ namespace System
         // A span-based equivalent of String.GetHashCode(StringComparison). Uses the specified comparison type.
         public static int GetHashCode(ReadOnlySpan<char> value, StringComparison comparisonType)
         {
-            CultureInfo culture;
-            CompareOptions compareOptions;
-
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    culture = CultureInfo.CurrentCulture;
-                    compareOptions = CompareOptions.None;
-                    break;
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    culture = CultureInfo.CurrentCulture;
-                    compareOptions = CompareOptions.IgnoreCase;
-                    break;
+                    return CultureInfo.CurrentCulture.CompareInfo.GetHashCode(value, GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.InvariantCulture:
-                    culture = CultureInfo.InvariantCulture;
-                    compareOptions = CompareOptions.None;
-                    break;
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    culture = CultureInfo.InvariantCulture;
-                    compareOptions = CompareOptions.IgnoreCase;
-                    break;
+                    return CultureInfo.InvariantCulture.CompareInfo.GetHashCode(value, GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
                     return GetHashCode(value);
@@ -806,10 +791,9 @@ namespace System
 
                 default:
                     ThrowHelper.ThrowArgumentException(ExceptionResource.NotSupported_StringComparison, ExceptionArgument.comparisonType);
-                    throw null; // shouldn't be hit
+                    Debug.Fail("Should not reach this point.");
+                    return default;
             }
-
-            return culture.CompareInfo.GetHashCodeOfString(value, compareOptions);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

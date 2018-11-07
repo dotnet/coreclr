@@ -862,8 +862,6 @@ namespace System.Globalization
         internal unsafe int GetHashCodeOfStringCore(ReadOnlySpan<char> source, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
-
-            Debug.Assert(source != null);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
             if (source.Length == 0)

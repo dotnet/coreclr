@@ -111,12 +111,10 @@ namespace System.Globalization
 
             return FindStringOrdinal(FIND_FROMEND, source, startIndex - count + 1, count, value, value.Length, ignoreCase);
         }
-
+        
         private unsafe int GetHashCodeOfStringCore(ReadOnlySpan<char> source, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
-
-            Debug.Assert(source != null);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
             if (source.Length == 0)
@@ -130,7 +128,7 @@ namespace System.Globalization
             {
                 int sortKeyLength = Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
                                                   flags,
-                                                  pSource, source.Length,
+                                                  pSource, source.Length /* in chars */,
                                                   null, 0,
                                                   null, null, _sortHandle);
                 if (sortKeyLength == 0)
@@ -152,7 +150,7 @@ namespace System.Globalization
                 {
                     if (Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
                                                       flags,
-                                                      pSource, source.Length,
+                                                      pSource, source.Length /* in chars */,
                                                       pSortKey, sortKeyLength,
                                                       null, null, _sortHandle) != sortKeyLength)
                     {
