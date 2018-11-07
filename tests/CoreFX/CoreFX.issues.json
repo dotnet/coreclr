@@ -494,7 +494,8 @@
                 {
                     "name": "System.SpanTests.MemoryMarshalTests.CreateFromPinnedArrayIntReadOnlyMemorySliceRemainsPinned",
                     "reason": "https://github.com/dotnet/corefx/pull/32994"
-                }
+                },
+                {
                     "name": "System.Buffers.Text.Tests.ParserTests.TestParserSingle",
                     "reason": "https://github.com/dotnet/coreclr/pull/20707"
                 },
