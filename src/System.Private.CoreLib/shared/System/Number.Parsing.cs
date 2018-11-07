@@ -1635,9 +1635,9 @@ namespace System
 
         internal static double ParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
-            if (!TryParseDouble(value, styles, info, out double result, out bool failureIsOverflow))
+            if (!TryParseDouble(value, styles, info, out double result))
             {
-                ThrowOverflowOrFormatException(failureIsOverflow, nameof(SR.Overflow_Double));
+                ThrowOverflowOrFormatException(overflow: false, overflowResourceKey: null);
             }
 
             return result;
@@ -1645,9 +1645,9 @@ namespace System
 
         internal static float ParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
-            if (!TryParseSingle(value, styles, info, out float result, out bool failureIsOverflow))
+            if (!TryParseSingle(value, styles, info, out float result))
             {
-                ThrowOverflowOrFormatException(failureIsOverflow, nameof(SR.Overflow_Single));
+                ThrowOverflowOrFormatException(overflow: false, overflowResourceKey: null);
             }
 
             return result;
@@ -1675,11 +1675,10 @@ namespace System
             return true;
         }
 
-        internal static unsafe bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result, out bool failureIsOverflow)
+        internal static unsafe bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result)
         {
             char* pDigits = stackalloc char[DoubleNumberBufferLength];
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
-            failureIsOverflow = false;
 
             if (!TryStringToNumber(value, styles, ref number, info))
             {
@@ -1702,24 +1701,19 @@ namespace System
                     result = 0;
                     return false; // We really failed
                 }
-
-                return true;
             }
-
-            if (!TryNumberToDouble(ref number, out result))
+            else
             {
-                failureIsOverflow = true;
-                return false;
+                result = NumberToDouble(ref number);
             }
 
             return true;
         }
 
-        internal static unsafe bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result, out bool failureIsOverflow)
+        internal static unsafe bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result)
         {
             char* pDigits = stackalloc char[SingleNumberBufferLength];
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, SingleNumberBufferLength);
-            failureIsOverflow = false;
 
             if (!TryStringToNumber(value, styles, ref number, info))
             {
@@ -1742,14 +1736,10 @@ namespace System
                     result = 0;
                     return false; // We really failed
                 }
-
-                return true;
             }
-
-            if (!TryNumberToSingle(ref number, out result))
+            else
             {
-                failureIsOverflow = true;
-                return false;
+                result = NumberToSingle(ref number);
             }
 
             return true;
@@ -1759,7 +1749,7 @@ namespace System
         {
             if (!TryStringToNumber(value, styles, ref number, info))
             {
-                ThrowOverflowOrFormatException(overflow: false, null);
+                ThrowOverflowOrFormatException(overflow: false, overflowResourceKey: null);
             }
         }
 
@@ -1833,34 +1823,18 @@ namespace System
                (Exception)new FormatException(SR.Format_InvalidString);
         }
 
-        private static bool TryNumberToDouble(ref NumberBuffer number, out double value)
+        private static double NumberToDouble(ref NumberBuffer number)
         {
             ulong bits = NumberToFloatingPointBits(ref number, in FloatingPointInfo.Double);
             double result = BitConverter.Int64BitsToDouble((long)(bits));
-
-            value = result;
-
-            if (number.Sign)
-            {
-                value = -value;
-            }
-
-            return true;
+            return number.Sign ? -result : result;
         }
 
-        private static bool TryNumberToSingle(ref NumberBuffer number, out float value)
+        private static float NumberToSingle(ref NumberBuffer number)
         {
             uint bits = (uint)(NumberToFloatingPointBits(ref number, in FloatingPointInfo.Single));
             float result = BitConverter.Int32BitsToSingle((int)(bits));
-
-            value = result;
-
-            if (number.Sign)
-            {
-                value = -value;
-            }
-
-            return true;
+            return number.Sign ? -result : result;
         }
     }
 }

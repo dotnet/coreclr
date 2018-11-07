@@ -604,7 +604,7 @@ namespace System
             bool roundBit = (value & roundBitMask) != 0;
             bool hasTailBits = !hasZeroTail || (value & extraBitsMask) != 0;
 
-            return (value >> shift) + (ShouldRoundUp(lsbBit: lsbBit, roundBit: roundBit, hasTailBits: hasTailBits) ? 1UL : 0);
+            return (value >> shift) + (ShouldRoundUp(lsbBit, roundBit, hasTailBits) ? 1UL : 0);
         }
 
         private static bool ShouldRoundUp(bool lsbBit, bool roundBit, bool hasTailBits)

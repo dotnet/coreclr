@@ -413,7 +413,9 @@ namespace System
                         return number.Sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
                     }
 
-                    if (TryNumberToDouble(ref number, out double roundTrip) && (roundTrip == value))
+                    double roundTrip = NumberToDouble(ref number);
+
+                    if (roundTrip == value)
                     {
                         NumberToString(ref sb, ref number, 'G', DoublePrecision, info);
                     }
@@ -515,7 +517,9 @@ namespace System
                         return number.Sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
                     }
 
-                    if (TryNumberToSingle(ref number, out float roundTrip) && (roundTrip == value))
+                    float roundTrip = NumberToSingle(ref number);
+
+                    if (roundTrip == value)
                     {
                         NumberToString(ref sb, ref number, 'G', SinglePrecision, info);
                     }
