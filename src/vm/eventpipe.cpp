@@ -467,7 +467,7 @@ bool EventPipe::Enabled()
     return enabled;
 }
 
-EventPipeProvider* EventPipe::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, EventPipeCallback *pCallbackData)
+EventPipeProvider* EventPipe::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
 {
     CONTRACTL
     {

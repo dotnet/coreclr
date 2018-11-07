@@ -272,7 +272,7 @@ class EventPipe
         static bool Enabled();
 
         // Create a provider.
-        static EventPipeProvider* CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, EventPipeCallback *pCallbackData = NULL);
+        static EventPipeProvider* CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
 
         // Get a provider.
         static EventPipeProvider* GetProvider(const SString &providerName);
