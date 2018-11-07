@@ -7,12 +7,6 @@
 
 #define LCID_ENGLISH MAKELCID(MAKELANGID(0x09, 0x01), SORT_DEFAULT)
 
-const BYTE NumericValue = 15;
-const WCHAR CharValue = W('z');
-LPCOLESTR StringValue = W("Abcdefg");
-// The reserved field of the DECIMAL struct overlaps with the vt field in the definition of VARIANT.
-DECIMAL DecimalValue = { VT_DECIMAL, {{ 0, 0 }}, 0xffffffff, {{0xffffffff, 0xffffffff}} }; 
-
 #define EXPECTED_VARIANT_TYPE_ALL \
     EXPECTED_VARIANT_TYPE(Byte) \
     EXPECTED_VARIANT_TYPE(SByte) \
@@ -43,7 +37,7 @@ enum ExpectedVariantType
 
 #undef EXPECTED_VARIANT_TYPE
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Byte(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Byte(VARIANT value, BYTE expected)
 {
     if (value.vt != VT_UI1)
     {
@@ -51,10 +45,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Byte(VARIANT value)
         return FALSE;
     }
 
-    return value.cVal == NumericValue ? TRUE : FALSE;
+    return value.bVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_SByte(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_SByte(VARIANT value, CHAR expected)
 {
     if (value.vt != VT_I1)
     {
@@ -62,10 +56,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_SByte(VARIANT value
         return FALSE;
     }
 
-    return value.bVal == NumericValue ? TRUE : FALSE;
+    return value.cVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Int16(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Int16(VARIANT value, SHORT expected)
 {
     if (value.vt != VT_I2)
     {
@@ -73,10 +67,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Int16(VARIANT value
         return FALSE;
     }
 
-    return value.iVal == NumericValue ? TRUE : FALSE;
+    return value.iVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_UInt16(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_UInt16(VARIANT value, USHORT expected)
 {
     if (value.vt != VT_UI2)
     {
@@ -84,9 +78,9 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_UInt16(VARIANT valu
         return FALSE;
     }
 
-    return value.uiVal == NumericValue ? TRUE : FALSE;
+    return value.uiVal == expected ? TRUE : FALSE;
 }
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Int32(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Int32(VARIANT value, LONG expected)
 {
     if (value.vt != VT_I4)
     {
@@ -94,10 +88,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Int32(VARIANT value
         return FALSE;
     }
 
-    return value.lVal == NumericValue ? TRUE : FALSE;
+    return value.lVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_UInt32(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_UInt32(VARIANT value, ULONG expected)
 {
     if (value.vt != VT_UI4)
     {
@@ -105,10 +99,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_UInt32(VARIANT valu
         return FALSE;
     }
 
-    return value.ulVal == NumericValue ? TRUE : FALSE;
+    return value.ulVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Int64(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Int64(VARIANT value, LONGLONG expected)
 {
     if (value.vt != VT_I8)
     {
@@ -116,10 +110,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Int64(VARIANT value
         return FALSE;
     }
 
-    return value.llVal == NumericValue ? TRUE : FALSE;
+    return value.llVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_UInt64(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_UInt64(VARIANT value, ULONGLONG expected)
 {
     if (value.vt != VT_UI8)
     {
@@ -127,10 +121,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_UInt64(VARIANT valu
         return FALSE;
     }
 
-    return value.ullVal == NumericValue ? TRUE : FALSE;
+    return value.ullVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Single(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Single(VARIANT value, FLOAT expected)
 {
     if (value.vt != VT_R4)
     {
@@ -138,10 +132,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Single(VARIANT valu
         return FALSE;
     }
 
-    return value.fltVal == NumericValue ? TRUE : FALSE;
+    return value.fltVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Double(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Double(VARIANT value, DOUBLE expected)
 {
     if (value.vt != VT_R8)
     {
@@ -149,10 +143,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Double(VARIANT valu
         return FALSE;
     }
 
-    return value.dblVal == NumericValue ? TRUE : FALSE;
+    return value.dblVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Char(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Char(VARIANT value, WCHAR expected)
 {
     if (value.vt != VT_UI2)
     {
@@ -160,18 +154,11 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Char(VARIANT value)
         return FALSE;
     }
 
-    return value.uiVal == CharValue ? TRUE : FALSE;
+    return value.uiVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_String(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_String(VARIANT value, BSTR expected)
 {
-    static BSTR expected = NULL;
-
-    if (expected == NULL)
-    {
-        expected = SysAllocString(StringValue);
-    }
-
     if (value.vt != VT_BSTR)
     {
         printf("Invalid format. Expected VT_BSTR.\n");
@@ -230,7 +217,7 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Empty(VARIANT value
     return TRUE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Boolean(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Boolean(VARIANT value, VARIANT_BOOL expected)
 {
     if (value.vt != VT_BOOL)
     {
@@ -238,10 +225,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Boolean(VARIANT val
         return FALSE;
     }
 
-    return value.boolVal == VARIANT_TRUE ? TRUE : FALSE;
+    return value.boolVal == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_DateTime(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_DateTime(VARIANT value, DATE expected)
 {
     if (value.vt != VT_DATE)
     {
@@ -249,23 +236,10 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_DateTime(VARIANT va
         return FALSE;
     }
 
-    BSTR str;
-    
-    // always use the ENGLISH locale so that the string comes out as 11/16/1977 as opposed to 
-    // say 16/11/1977 for German locale; otherwise this test would fail on non-ENU locales
-
-    VarBstrFromDate(value.date, LCID_ENGLISH, VAR_FOURDIGITYEARS, &str);
-
-    if(wcscmp(L"11/6/2018", (wchar_t *)str) != 0 )
-    {
-        wprintf(L"FAILURE! InDATE expected '07/04/2008' but received: %s\n", str);
-        return FALSE;
-    }
-
-    return TRUE;
+    return value.date == expected ? TRUE : FALSE;
 }
 
-extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Decimal(VARIANT value)
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Decimal(VARIANT value, DECIMAL expected)
 {
     if (value.vt != VT_DECIMAL)
     {
@@ -273,7 +247,9 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Decimal(VARIANT val
         return FALSE;
     }
 
-    return memcmp(&value.decVal, &DecimalValue, sizeof(DECIMAL)) == 0;
+    expected.wReserved = VT_DECIMAL; // The wReserved field in DECIMAL overlaps with the vt field in VARIANT
+
+    return memcmp(&value.decVal, &expected, sizeof(DECIMAL)) == 0;
 }
 
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Null(VARIANT value)
@@ -315,7 +291,7 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Out(VARIANT* pValue)
         return FALSE;
     }
     pValue->vt = VT_I4;
-    pValue->lVal = NumericValue;
+    pValue->lVal = expected;
 
     return TRUE;
 }
@@ -328,7 +304,7 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ChangeVariantType(VARIANT* 
         return FALSE;
     }
     pValue->vt = VT_I4;
-    pValue->lVal = NumericValue;
+    pValue->lVal = expected;
 
     return TRUE;
 }

@@ -16,7 +16,9 @@ class Test
 
     private const string StringValue = "Abcdefg";
 
-    private const decimal DecimalValue = decimal.MaxValue;
+    private const decimal DecimalValue = 74.25;
+
+    private static readonly DateTime DateValue = new DateTime(2018, 11, 6);
 
     private struct CustomStruct
     {
@@ -55,35 +57,35 @@ class Test
     }
 
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_Byte(object obj);
+    private static extern bool Marshal_ByValue_Byte(object obj, byte expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_SByte(object obj);
+    private static extern bool Marshal_ByValue_SByte(object obj, sbyte expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_Int16(object obj);
+    private static extern bool Marshal_ByValue_Int16(object obj, short expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_UInt16(object obj);
+    private static extern bool Marshal_ByValue_UInt16(object obj, ushort expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_Int32(object obj);
+    private static extern bool Marshal_ByValue_Int32(object obj, int expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_UInt32(object obj);
+    private static extern bool Marshal_ByValue_UInt32(object obj, uint expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_Int64(object obj);
+    private static extern bool Marshal_ByValue_Int64(object obj, long expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_UInt64(object obj);
+    private static extern bool Marshal_ByValue_UInt64(object obj, ulong expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_Single(object obj);
+    private static extern bool Marshal_ByValue_Single(object obj, float expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_Double(object obj);
+    private static extern bool Marshal_ByValue_Double(object obj, double expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_String(object obj);
+    private static extern bool Marshal_ByValue_String(object obj, String expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_Char(object obj);
+    private static extern bool Marshal_ByValue_Char(object obj, char expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_Boolean(object obj);
+    private static extern bool Marshal_ByValue_Boolean(object obj, bool expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_DateTime(object obj);
+    private static extern bool Marshal_ByValue_DateTime(object obj, DateTime expected);
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_ByValue_Decimal(object obj);
+    private static extern bool Marshal_ByValue_Decimal(object obj, decimal expected);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Missing(object obj);
     [DllImport(NativeLibrary)]
@@ -98,6 +100,36 @@ class Test
 
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByRef(ref object obj, ExpectedVariantType type);
+        [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Byte(ref object obj, byte expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_SByte(ref object obj, sbyte expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Int16(ref object obj, short expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_UInt16(ref object obj, ushort expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Int32(ref object obj, int expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_UInt32(ref object obj, uint expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Int64(ref object obj, long expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_UInt64(ref object obj, ulong expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Single(ref object obj, float expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Double(ref object obj, double expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_String(ref object obj, String expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Char(ref object obj, char expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Boolean(ref object obj, bool expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_DateTime(ref object obj, DateTime expected);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Decimal(ref object obj, decimal expected);
 
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ChangeVariantType(ref object obj);
@@ -113,26 +145,26 @@ class Test
 
     private unsafe static void TestByValue()
     {
-        Assert.IsTrue(Marshal_ByValue_Byte((byte)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_SByte((sbyte)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_Int16((short)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_UInt16((ushort)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_Int32((int)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_UInt32((uint)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_Int64((long)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_UInt64((ulong)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_Single((float)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_Double((double)NumericValue));
-        Assert.IsTrue(Marshal_ByValue_String(StringValue));
-        Assert.IsTrue(Marshal_ByValue_Char(CharValue));
+        Assert.IsTrue(Marshal_ByValue_Byte((byte)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_SByte((sbyte)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_Int16((short)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_UInt16((ushort)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_Int32((int)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_UInt32((uint)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_Int64((long)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_UInt64((ulong)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_Single((float)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_Double((double)NumericValue, NumericValue));
+        Assert.IsTrue(Marshal_ByValue_String(StringValue, StringValue));
+        Assert.IsTrue(Marshal_ByValue_Char(CharValue, CharValue));
         Assert.IsTrue(Marshal_ByValue_Boolean(true));
-        Assert.IsTrue(Marshal_ByValue_DateTime(new DateTime(2018, 11, 6)));
-        Assert.Throws<ArgumentException>(() => Marshal_ByValue_Invalid(TimeSpan.Zero));
-        Assert.IsTrue(Marshal_ByValue_Decimal((decimal)DecimalValue));
+        Assert.IsTrue(Marshal_ByValue_DateTime(DateValue, DateValue));
+        Assert.IsTrue(Marshal_ByValue_Decimal((decimal)DecimalValue, DecimalValue));
         Assert.IsTrue(Marshal_ByValue_Null(DBNull.Value));
         Assert.IsTrue(Marshal_ByValue_Missing(System.Reflection.Missing.Value));
         Assert.IsTrue(Marshal_ByValue_Empty(null));
         Assert.IsTrue(Marshal_ByValue_Object(new object()));
+        Assert.Throws<ArgumentException>(() => Marshal_ByValue_Invalid(TimeSpan.Zero));
         Assert.Throws<NotSupportedException>(() => Marshal_ByValue_Invalid(new CustomStruct()));
     }
 
