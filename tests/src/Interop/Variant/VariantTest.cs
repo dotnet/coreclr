@@ -23,7 +23,6 @@ class Test
 
     private struct CustomStruct
     {
-
     }
 
     private struct ObjectWrapper
@@ -314,11 +313,9 @@ class Test
     private unsafe static void TestOut()
     {
         Assert.IsTrue(Marshal_Out(out object obj, NumericValue));
-
         Assert.IsTrue(obj is int);
         Assert.AreEqual(NumericValue, (int)obj);
     }
-
     
     private unsafe static void TestFieldByValue()
     {
@@ -382,7 +379,6 @@ class Test
         Assert.IsTrue(Marshal_Struct_ByValue_Object(wrapper));
     }
 
-    
     private unsafe static void TestFieldByRef()
     {
         ObjectWrapper wrapper = new ObjectWrapper();
