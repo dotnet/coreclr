@@ -610,7 +610,7 @@ Exit:
     
     if (! m_fTokenMapSupported) {
         // Remove the handler that we set
-        hr = emitter->SetHandler(NULL);
+        emitter->SetHandler(NULL);
     }
 
 #ifdef _DEBUG
