@@ -211,7 +211,6 @@ COMMAND: dumpasync.
            [-fields]
            [-stacks]
            [-roots]
-           [-dgmlPath <output DGML file path>]
 
 !DumpAsync traverses the garbage collected heap, looking for objects representing
 async state machines as created when an async method's state is transferred to the

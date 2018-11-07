@@ -4407,18 +4407,12 @@ DECLARE_API(DumpAsync)
         return E_FAIL;
     }
 
-#ifndef FEATURE_PAL
-    FILE* pDgmlFile = NULL;
-#endif
     try
     {
         // Process command-line arguments.
         size_t nArg = 0;
         TADDR mt = NULL, addr = NULL;
         ArrayHolder<char> ansiType = NULL;
-#ifndef FEATURE_PAL
-        ArrayHolder<char> dgmlPath = NULL;
-#endif
         ArrayHolder<WCHAR> type = NULL;
         BOOL dml = FALSE, includeCompleted = FALSE, includeStacks = FALSE, includeRoots = FALSE, includeAllTasks = FALSE, dumpFields = FALSE;
         CMDOption option[] =
@@ -4432,14 +4426,13 @@ DECLARE_API(DumpAsync)
             { "-stacks", &includeStacks, COBOOL, FALSE },       // gather and output continuation/stack information
             { "-roots", &includeRoots, COBOOL, FALSE },         // gather and output GC root information
 #ifndef FEATURE_PAL
-            { "-dgmlPath", &dgmlPath, COSTRING, TRUE },         // output state machine graph to specified dgml file
             { "/d", &dml, COBOOL, FALSE },                      // Debugger Markup Language
 #endif
         };
         if (!GetCMDOption(args, option, _countof(option), NULL, 0, &nArg) || nArg != 0)
         {
             sos::Throw<sos::Exception>(
-                "Usage: DumpAsync [-addr ObjectAddr] [-mt MethodTableAddr] [-type TypeName] [-tasks] [-completed] [-fields] [-stacks] [-roots] [-dgmlPath outputPath]\n"
+                "Usage: DumpAsync [-addr ObjectAddr] [-mt MethodTableAddr] [-type TypeName] [-tasks] [-completed] [-fields] [-stacks] [-roots]\n"
                 "[-addr ObjectAddr]     => Only display the async object at the specified address.\n"
                 "[-mt MethodTableAddr]  => Only display top-level async objects with the specified method table address.\n"
                 "[-type TypeName]       => Only display top-level async objects whose type name includes the specified substring.\n"
@@ -4448,9 +4441,6 @@ DECLARE_API(DumpAsync)
                 "[-fields]              => Show the fields of state machines.\n"
                 "[-stacks]              => Gather, output, and consolidate based on continuation chains / async stacks for discovered async objects.\n"
                 "[-roots]               => Perform a gcroot on each rendered async object.\n"
-#ifndef FEATURE_PAL
-                "[-dgmlPath outputPath] => Output to the specified path a DGML representation of the discovered async objects.\n"
-#endif
                 );
         }
         if (ansiType != NULL)
@@ -4577,7 +4567,7 @@ DECLARE_API(DumpAsync)
             // that might be registered with it.  This could be a single continuation, or it could
             // be a list of continuations in the case of the same task being awaited multiple times.
             CLRDATA_ADDRESS nextAddr;
-            if ((includeStacks || dgmlPath != NULL) && TryGetContinuation(itr->GetAddress(), itr->GetMT(), &nextAddr))
+            if (includeStacks && TryGetContinuation(itr->GetAddress(), itr->GetMT(), &nextAddr))
             {
                 sos::Object contObj = TO_TADDR(nextAddr);
                 if (_wcsncmp(contObj.GetTypeName(), W("System.Collections.Generic.List`1"), 33) == 0)
@@ -4638,7 +4628,7 @@ DECLARE_API(DumpAsync)
         // to find the "top-level" nodes that start rather than that are a part of a continuation chain.  When we then iterate through
         // async records, we only print ones out that are still classified as top-level.  We don't do this if there's a type filter
         // because in that case we consider those and only those objects to be top-level.
-        if ((includeStacks || dgmlPath != NULL) && !hasTypeFilter)
+        if (includeStacks && !hasTypeFilter)
         {
             size_t uniqueChains = asyncRecords.size();
             for (std::map<CLRDATA_ADDRESS, AsyncRecord>::iterator arIt = asyncRecords.begin(); arIt != asyncRecords.end(); ++arIt)
@@ -4659,110 +4649,6 @@ DECLARE_API(DumpAsync)
 
             ExtOut("In %d chains.\n", uniqueChains);
         }
-
-#ifndef FEATURE_PAL
-        // If the user has asked for a DGML rendering of the async records, create it.
-        if (dgmlPath != NULL)
-        {
-            // Count the occurrences of each MT.
-            std::map<CLRDATA_ADDRESS, std::pair<CLRDATA_ADDRESS, int>> mtCounts;
-            for (std::map<CLRDATA_ADDRESS, AsyncRecord>::iterator arIt = asyncRecords.begin(); arIt != asyncRecords.end(); ++arIt)
-            {
-                std::map<CLRDATA_ADDRESS, std::pair<CLRDATA_ADDRESS, int>>::iterator found = mtCounts.find(arIt->second.MT);
-                if (found == mtCounts.end())
-                {
-                    mtCounts.insert(std::pair<CLRDATA_ADDRESS, std::pair<CLRDATA_ADDRESS, int>>(arIt->second.MT, std::pair<CLRDATA_ADDRESS, int>(arIt->second.StateMachineMT, 1)));
-                }
-                else
-                {
-                    found->second.second++;
-                }
-        
-                for (std::vector<CLRDATA_ADDRESS>::iterator contIt = arIt->second.Continuations.begin(); contIt != arIt->second.Continuations.end(); ++contIt)
-                {
-                    if (asyncRecords.find(*contIt) == asyncRecords.end())
-                    {
-                        sos::Object contObj = TO_TADDR(*contIt);
-                        std::map<CLRDATA_ADDRESS, std::pair<CLRDATA_ADDRESS, int>>::iterator found = mtCounts.find(contObj.GetMT());
-                        if (found == mtCounts.end())
-                        {
-                            mtCounts.insert(std::pair<CLRDATA_ADDRESS, std::pair<CLRDATA_ADDRESS, int>>(contObj.GetMT(), std::pair<CLRDATA_ADDRESS, int>(contObj.GetMT(), 1)));
-                        }
-                        else
-                        {
-                            found->second.second++;
-                        }
-                    }
-                }
-            }
-        
-            // Open the output file.
-            if (fopen_s(&pDgmlFile, dgmlPath, "w") != 0)
-            {
-                ExtOut("Unable to open output DGML file.\n");
-                return Status;
-            }
-
-            // Render the header.
-            fprintf_s(pDgmlFile,
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-                "<DirectedGraph Title=\"Async Graph\" Layout=\"Sugiyama\" xmlns=\"http://schemas.microsoft.com/vs/2009/dgml\">"
-                "<Nodes>");
-        
-            // Render each node.
-            for (std::map<CLRDATA_ADDRESS, std::pair<CLRDATA_ADDRESS, int>>::iterator mtIt = mtCounts.begin(); mtIt != mtCounts.end(); ++mtIt)
-            {
-                fprintf_s(pDgmlFile, "  <Node Id=\"%d\" Label=\"", mtIt->first);
-                sos::MethodTable curMT = TO_TADDR(mtIt->second.first);
-                for (const WCHAR* c = curMT.GetName(); *c != 0; c++)
-                {
-                    switch (*c)
-                    {
-                    case '&':  fprintf_s(pDgmlFile, "&amp;");  break;
-                    case '\"': fprintf_s(pDgmlFile, "&quot;"); break;
-                    case '\'': fprintf_s(pDgmlFile, "&apos;"); break;
-                    case '<':  fprintf_s(pDgmlFile, "&lt;");   break;
-                    case '>':  fprintf_s(pDgmlFile, "&gt;");   break;
-                    default:   fprintf_s(pDgmlFile, "%c", *c); break;
-                    }
-                }
-                fprintf_s(pDgmlFile, " (%d)\" />", mtIt->second.second);
-            }
-        
-            fprintf_s(pDgmlFile,
-                "</Nodes>"
-                "<Links>");
-        
-            // Render each link between nodes.
-            for (std::map<CLRDATA_ADDRESS, AsyncRecord>::iterator arIt = asyncRecords.begin(); arIt != asyncRecords.end(); ++arIt)
-            {
-                for (std::vector<CLRDATA_ADDRESS>::iterator contIt = arIt->second.Continuations.begin(); contIt != arIt->second.Continuations.end(); ++contIt)
-                {
-                    sos::Object contObj = TO_TADDR(*contIt);
-                    fprintf_s(pDgmlFile, "  <Link Source=\"%d\" Target=\"%d\" Label=\"\" />", arIt->second.MT, contObj.GetMT());
-                }
-            }
-
-            // Render the footer.
-            fprintf_s(pDgmlFile,
-                "</Links>"
-                "<Properties>"
-                "  <Property Id=\"IsUnreferenced\" Label=\"Unreferenced\" Description=\"Top-Level Async Object\" DataType=\"System.Boolean\" />"
-                "</Properties>"
-                "<Styles>"
-                "  <Style TargetType=\"Node\" GroupLabel=\"Unreferenced\" ToolTip=\"Top-Level Async Object\" ValueLabel=\"True\">"
-                "    <Condition Expression=\"IsUnreferenced\" />"
-                "    <Setter Property=\"Background\" Value=\"Purple\" />"
-                "  </Style>"
-                "</Styles>"
-                "</DirectedGraph>");
-
-            // We're done; close the file.
-            fclose(pDgmlFile);
-            pDgmlFile = NULL;
-            ExtOut("Graph saved to %s.\n", dgmlPath);
-        }
-#endif
 
         // Print out header for the main line of each result.
         ExtOut("%" POINTERSIZE "s %" POINTERSIZE "s %8s ", "Address", "MT", "Size");
@@ -4893,13 +4779,6 @@ DECLARE_API(DumpAsync)
     }
     catch (const sos::Exception &e)
     {
-#ifndef FEATURE_PAL
-        if (pDgmlFile != NULL)
-        {
-            fclose(pDgmlFile);
-        }
-#endif
-
         ExtOut("%s\n", e.what());
         return E_FAIL;
     }
