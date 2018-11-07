@@ -170,6 +170,31 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Object(VARIANT valu
     return TRUE;
 }
 
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Object_IUnknown(VARIANT value)
+{
+    
+    if (value.vt != VT_UNKNOWN)
+    {
+        printf("Invalid format. Expected VT_UNKNOWN.\n");
+        return FALSE;
+    }
+    
+
+    IUnknown* obj = value.punkVal;
+
+    if (obj == NULL)
+    {
+        printf("Marshal_ByValue (Native side) recieved an invalid IUnknown pointer\n");
+        return FALSE;
+    }
+
+    obj->AddRef();
+
+    obj->Release();
+
+    return TRUE;
+}
+
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByValue_Missing(VARIANT value)
 {
     if (value.vt != VT_ERROR)
@@ -408,6 +433,31 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef_Object(VARIANT* value
     if (obj == NULL)
     {
         printf("Marshal_ByRef (Native side) recieved an invalid IDispatch pointer\n");
+        return FALSE;
+    }
+
+    obj->AddRef();
+
+    obj->Release();
+
+    return TRUE;
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_ByRef_Object_IUnknown(VARIANT* value)
+{
+    
+    if (value->vt != VT_UNKNOWN)
+    {
+        printf("Invalid format. Expected VT_UNKNOWN.\n");
+        return FALSE;
+    }
+    
+
+    IUnknown* obj = value->punkVal;
+
+    if (obj == NULL)
+    {
+        printf("Marshal_ByRef (Native side) recieved an invalid IUnknown pointer\n");
         return FALSE;
     }
 
@@ -691,6 +741,31 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByValue_Object(Varia
     return TRUE;
 }
 
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByValue_Object_IUnknown(VariantWrapper wrapper)
+{
+    
+    if (wrapper.value.vt != VT_UNKNOWN)
+    {
+        printf("Invalid format. Expected VT_UNKNOWN.\n");
+        return FALSE;
+    }
+    
+
+    IUnknown* obj = wrapper.value.punkVal;
+
+    if (obj == NULL)
+    {
+        printf("Marshal_Struct_ByValue (Native side) recieved an invalid IUnknown pointer\n");
+        return FALSE;
+    }
+
+    obj->AddRef();
+
+    obj->Release();
+
+    return TRUE;
+}
+
 extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByValue_Missing(VariantWrapper wrapper)
 {
     if (wrapper.value.vt != VT_ERROR)
@@ -924,6 +999,31 @@ extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByRef_Object(Variant
     if (obj == NULL)
     {
         printf("Marshal_Struct_ByRef (Native side) recieved an invalid IDispatch pointer\n");
+        return FALSE;
+    }
+
+    obj->AddRef();
+
+    obj->Release();
+
+    return TRUE;
+}
+
+extern "C" BOOL DLL_EXPORT STDMETHODCALLTYPE Marshal_Struct_ByRef_Object_IUnknown(VariantWrapper* pWrapper)
+{
+    
+    if (pWrapper->value.vt != VT_UNKNOWN)
+    {
+        printf("Invalid format. Expected VT_UNKNOWN.\n");
+        return FALSE;
+    }
+    
+
+    IUnknown* obj = pWrapper->value.punkVal;
+
+    if (obj == NULL)
+    {
+        printf("Marshal_Struct_ByRef (Native side) recieved an invalid IUnknown pointer\n");
         return FALSE;
     }
 

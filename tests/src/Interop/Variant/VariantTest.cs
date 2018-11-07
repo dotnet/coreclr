@@ -91,6 +91,8 @@ class Test
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Object(object obj);
     [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByValue_Object_IUnknown(object obj);
+    [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Empty(object obj);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByValue_Null(object obj);
@@ -134,6 +136,8 @@ class Test
     private static extern bool Marshal_ByRef_Missing(ref object obj);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByRef_Object(ref object obj);
+    [DllImport(NativeLibrary)]
+    private static extern bool Marshal_ByRef_Object_IUnknown(ref object obj);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_ByRef_Empty(ref object obj);
     [DllImport(NativeLibrary)]
@@ -181,6 +185,8 @@ class Test
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByValue_Object(ObjectWrapper wrapper);
     [DllImport(NativeLibrary)]
+    private static extern bool Marshal_Struct_ByValue_Object_IUnknown(ObjectWrapper wrapper);
+    [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByValue_Empty(ObjectWrapper wrapper);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByValue_Null(ObjectWrapper wrapper);
@@ -222,6 +228,8 @@ class Test
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByRef_Object(ref ObjectWrapper wrapper);
     [DllImport(NativeLibrary)]
+    private static extern bool Marshal_Struct_ByRef_Object_IUnknown(ref ObjectWrapper wrapper);
+    [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByRef_Empty(ref ObjectWrapper wrapper);
     [DllImport(NativeLibrary)]
     private static extern bool Marshal_Struct_ByRef_Null(ref ObjectWrapper wrapper);
@@ -249,6 +257,7 @@ class Test
         Assert.IsTrue(Marshal_ByValue_Missing(System.Reflection.Missing.Value));
         Assert.IsTrue(Marshal_ByValue_Empty(null));
         Assert.IsTrue(Marshal_ByValue_Object(new object()));
+        Assert.IsTrue(Marshal_ByValue_Object_IUnknown(new UnknownWrapper(new object())));
         Assert.Throws<ArgumentException>(() => Marshal_ByValue_Invalid(TimeSpan.Zero));
         Assert.Throws<NotSupportedException>(() => Marshal_ByValue_Invalid(new CustomStruct()));
     }
@@ -319,6 +328,9 @@ class Test
         
         obj = new object();
         Assert.IsTrue(Marshal_ByRef_Object(ref obj));
+
+        obj = new UnknownWrapper(new object());
+        Assert.IsTrue(Marshal_ByRef_Object_IUnknown(ref obj));
 
         obj = DecimalValue;
         Assert.IsTrue(Marshal_ChangeVariantType(ref obj, NumericValue));
@@ -399,6 +411,9 @@ class Test
         
         wrapper.value = new object();
         Assert.IsTrue(Marshal_Struct_ByValue_Object(wrapper));
+        
+        wrapper.value = new UnknownWrapper(new object());
+        Assert.IsTrue(Marshal_Struct_ByValue_Object_IUnknown(wrapper));
     }
 
     private unsafe static void TestFieldByRef()
@@ -467,6 +482,9 @@ class Test
         
         wrapper.value = new object();
         Assert.IsTrue(Marshal_Struct_ByRef_Object(ref wrapper));
+        
+        wrapper.value = new UnknownWrapper(new object());
+        Assert.IsTrue(Marshal_Struct_ByRef_Object_IUnknown(ref wrapper));
     }
 
     public static int Main()
