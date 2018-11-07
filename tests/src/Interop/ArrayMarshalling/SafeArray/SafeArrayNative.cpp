@@ -172,7 +172,7 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_InOut(SAFEARRAY* psa)
 	return TRUE;
 }
 
-extern "C" DLL_EXPORT SAFEARRAY* _stdcall SafeArray_Ret()
+extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE SafeArray_Ret()
 {
 	SAFEARRAY * psa;
 	int * pInt;
@@ -407,7 +407,7 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArrayWithOutAttribute(SAFEARRAY
 	return TRUE;
 }
 
-extern "C" DLL_EXPORT SAFEARRAY* _stdcall SafeArray_Ret_MismatchRank()
+extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE SafeArray_Ret_MismatchRank()
 {
 	SAFEARRAY * psa;
 
@@ -428,7 +428,7 @@ extern "C" DLL_EXPORT SAFEARRAY* _stdcall SafeArray_Ret_MismatchRank()
 	return psa;
 }
 
-extern "C" DLL_EXPORT SAFEARRAY* _stdcall SafeArray_Ret_InvalidLBound()
+extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE SafeArray_Ret_InvalidLBound()
 {
 	SAFEARRAY * psa;
 
