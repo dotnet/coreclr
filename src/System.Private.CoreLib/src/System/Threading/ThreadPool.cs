@@ -1018,6 +1018,7 @@ namespace System.Threading
 
         public override void Execute()
         {
+            ExecutionContext.CheckThreadPoolAndContextsAreDefault();
             base.Execute();
 
             WaitCallback callback = _callback;
@@ -1044,6 +1045,7 @@ namespace System.Threading
 
         public override void Execute()
         {
+            ExecutionContext.CheckThreadPoolAndContextsAreDefault();
             base.Execute();
 
             Action<TState> callback = _callback;

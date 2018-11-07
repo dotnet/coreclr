@@ -650,6 +650,7 @@ namespace System.Threading.Tasks
                 // We don't have to use ExecutionContext.Run for the Default context here as there is no extra processing after the delegate
                 if (context == null || context.IsDefault)
                 {
+                    ExecutionContext.CheckThreadPoolAndContextsAreDefault();
                     m_action();
                     // ThreadPoolWorkQueue.Dispatch handles notifications and reset context back to default
                 }

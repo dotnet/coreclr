@@ -396,7 +396,7 @@ namespace System.Threading
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
-        private static void CheckThreadPoolAndContextsAreDefault()
+        internal static void CheckThreadPoolAndContextsAreDefault()
         {
             Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
             Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
