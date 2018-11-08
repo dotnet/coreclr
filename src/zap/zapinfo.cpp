@@ -2343,7 +2343,7 @@ CORINFO_CLASS_HANDLE ZapInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fi
 {
     if (isInitOnly != NULL)
     {
-        isInitOnly = false;
+        *isInitOnly = false;
     }
 
     return NULL;
