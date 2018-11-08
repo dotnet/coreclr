@@ -454,7 +454,7 @@ namespace System
                         {
                             number.Scale = 0;
                         }
-                        if ((state & StateDecimal) == 0)
+                        if (((state & StateDecimal) == 0) && (number.Kind == NumberBufferKind.Integer))
                         {
                             number.IsNegative = false;
                         }
