@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Text;
 using Internal.Runtime.CompilerServices;
 
 namespace System
@@ -43,10 +44,53 @@ namespace System
                 Digits = new Span<byte>(digits, digitsLength);
             }
 
+            [Conditional("DEBUG")]
+            public void CheckConsistency()
+            {
+#if DEBUG
+                Debug.Assert(Digits[0] != '0', "Leading zeros should never be stored in a Number");
+
+                int numDigits;
+                for (numDigits = 0; numDigits < Digits.Length; numDigits++)
+                {
+                    byte digit = Digits[numDigits];
+                    if (digit == 0)
+                        break;
+
+                    Debug.Assert(digit >= '0' && digit <= '9', "Unexpected character found in Number");
+                }
+
+                Debug.Assert(numDigits < Digits.Length, "Null terminator not found in Number");
+#endif // DEBUG
+            }
+
             public byte* GetDigitsPointer()
             {
                 // This is safe to do since we are a ref struct
                 return (byte*)(Unsafe.AsPointer(ref Digits[0]));
+            }
+
+            //
+            // Code coverage note: This only exists so that Number displays nicely in the VS watch window. So yes, I know it works.
+            //
+            public override string ToString()
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append('[');
+                sb.Append('"');
+                Span<byte> digits = Digits;
+                for (int i = 0; i < Digits.Length; i++)
+                {
+                    byte digit = digits[i];
+                    if (digit == 0)
+                        break;
+                    sb.Append((char)digit);
+                }
+                sb.Append('"');
+                sb.Append(", Scale = " + Scale);
+                sb.Append(", IsNegative   = " + IsNegative);
+                sb.Append(']');
+                return sb.ToString();
             }
         }
 
