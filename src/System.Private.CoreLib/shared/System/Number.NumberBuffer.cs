@@ -42,9 +42,10 @@ namespace System
 
 #if DEBUG
                 Digits.Fill(0xCC);
+#endif
+
                 Digits[0] = (byte)('\0');
                 CheckConsistency();
-#endif
             }
 
             [Conditional("DEBUG")]
@@ -65,14 +66,6 @@ namespace System
                     }
 
                     Debug.Assert((digit >= '0') && (digit <= '9'), "Unexpected character found in Number");
-                }
-
-                Debug.Assert(Digits[numDigits] == 0);
-
-                for (int i = numDigits + 1; i < Digits.Length; i++)
-                {
-                    byte digit = Digits[i];
-                    Debug.Assert(digit == 0xCC);
                 }
 
                 Debug.Assert(numDigits == DigitsCount, "Null terminator found in unexpected location in Number");

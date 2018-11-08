@@ -347,6 +347,8 @@ namespace System
             p = UInt32ToDecChars(p, d.Low, 0);
 
             int i = (int)((buffer + DecimalPrecision) - p);
+
+            number.DigitsCount = i;
             number.Scale = i - d.Scale;
 
             byte* dst = number.GetDigitsPointer();
@@ -964,8 +966,10 @@ namespace System
 
             byte* buffer = number.GetDigitsPointer();
             byte* p = UInt32ToDecChars(buffer + Int32Precision, (uint)value, 0);
+
             int i = (int)(buffer + Int32Precision - p);
 
+            number.DigitsCount = i;
             number.Scale = i;
 
             byte* dst = number.GetDigitsPointer();
@@ -1083,7 +1087,10 @@ namespace System
 
             byte* buffer = number.GetDigitsPointer();
             byte* p = UInt32ToDecChars(buffer + UInt32Precision, value, 0);
+
             int i = (int)(buffer + UInt32Precision - p);
+
+            number.DigitsCount = i;
             number.Scale = i;
 
             byte* dst = number.GetDigitsPointer();
@@ -1215,8 +1222,10 @@ namespace System
             while (High32(value) != 0)
                 p = UInt32ToDecChars(p, Int64DivMod1E9(ref value), 9);
             p = UInt32ToDecChars(p, Low32(value), 0);
+
             int i = (int)(buffer + Int64Precision - p);
 
+            number.DigitsCount = i;
             number.Scale = i;
 
             byte* dst = number.GetDigitsPointer();
@@ -1358,8 +1367,10 @@ namespace System
             while (High32(value) != 0)
                 p = UInt32ToDecChars(p, Int64DivMod1E9(ref value), 9);
             p = UInt32ToDecChars(p, Low32(value), 0);
+
             int i = (int)(buffer + UInt64Precision - p);
 
+            number.DigitsCount = i;
             number.Scale = i;
 
             byte* dst = number.GetDigitsPointer();
@@ -2265,7 +2276,10 @@ namespace System
                     number.IsNegative = false;
                 }
             }
+
             dig[i] = (byte)('\0');
+            number.DigitsCount = i;
+            number.CheckConsistency();
         }
 
         private static unsafe int FindSection(ReadOnlySpan<char> format, int section)
@@ -2323,8 +2337,6 @@ namespace System
 
         private static unsafe void DoubleToNumber(double value, int precision, ref NumberBuffer number)
         {
-            number.DigitsCount = precision;
-
             if (!double.IsFinite(value))
             {
                 number.Scale = double.IsNaN(value) ? ScaleNAN : ScaleINF;
@@ -2337,9 +2349,14 @@ namespace System
                 number.IsNegative = double.IsNegative(value);
                 number.Digits[0] = (byte)('\0');
             }
-            else if (!Grisu3.Run(value, precision, ref number))
+            else
             {
-                Dragon4(value, precision, ref number);
+                number.DigitsCount = precision;
+
+                if (!Grisu3.Run(value, precision, ref number))
+                {
+                    Dragon4(value, precision, ref number);
+                }
             }
 
             number.CheckConsistency();
