@@ -28,7 +28,7 @@ namespace System.Buffers.Text
         /// <exceptions>
         /// <cref>System.FormatException</cref> if the format is not valid for this data type.
         /// </exceptions>
-        public static bool TryParse(ReadOnlySpan<byte> source, out decimal value, out int bytesConsumed, char standardFormat = default)
+        public static unsafe bool TryParse(ReadOnlySpan<byte> source, out decimal value, out int bytesConsumed, char standardFormat = default)
         {
             ParseNumberOptions options;
             switch (standardFormat)
@@ -50,7 +50,8 @@ namespace System.Buffers.Text
                     return ThrowHelper.TryParseThrowFormatException(out value, out bytesConsumed);
             }
 
-            NumberBuffer number = default;
+            byte* pDigits = stackalloc byte[DecimalNumberBufferLength];
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.Decimal, pDigits, DecimalNumberBufferLength);
             if (!TryParseNumber(source, ref number, out bytesConsumed, options, out bool textUsedExponentNotation))
             {
                 value = default;

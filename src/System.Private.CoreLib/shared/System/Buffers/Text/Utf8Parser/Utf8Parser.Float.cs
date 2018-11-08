@@ -70,7 +70,7 @@ namespace System.Buffers.Text
         //
         // Attempt to parse the regular floating points (the ones without names like "Infinity" and "NaN")
         //
-        private static bool TryParseNormalAsFloatingPoint(ReadOnlySpan<byte> source, out double value, out int bytesConsumed, char standardFormat)
+        private static unsafe bool TryParseNormalAsFloatingPoint(ReadOnlySpan<byte> source, out double value, out int bytesConsumed, char standardFormat)
         {
             ParseNumberOptions options;
             switch (standardFormat)
@@ -92,7 +92,8 @@ namespace System.Buffers.Text
                     return ThrowHelper.TryParseThrowFormatException(out value, out bytesConsumed);
             }
 
-            NumberBuffer number = default;
+            byte* pDigits = stackalloc byte[DoubleNumberBufferLength];
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
             if (!TryParseNumber(source, ref number, out bytesConsumed, options, out bool textUsedExponentNotation))
             {
                 value = default;

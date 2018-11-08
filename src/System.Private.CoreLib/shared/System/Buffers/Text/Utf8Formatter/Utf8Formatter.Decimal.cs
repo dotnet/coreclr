@@ -83,7 +83,8 @@ namespace System.Buffers.Text
                 case 'f':
                 case 'F':
                     {
-                        NumberBuffer number = default;
+                        byte* pDigits = stackalloc byte[DecimalNumberBufferLength];
+                        NumberBuffer number = new NumberBuffer(NumberBufferKind.Decimal, pDigits, DecimalNumberBufferLength);
                         DecimalToNumber(ref value, ref number);
                         byte precision = (format.Precision == StandardFormat.NoPrecision) ? (byte)2 : format.Precision;
                         RoundNumber(ref number, number.Scale + precision);
@@ -93,7 +94,8 @@ namespace System.Buffers.Text
                 case 'e':
                 case 'E':
                     {
-                        NumberBuffer number = default;
+                        byte* pDigits = stackalloc byte[DecimalNumberBufferLength];
+                        NumberBuffer number = new NumberBuffer(NumberBufferKind.Decimal, pDigits, DecimalNumberBufferLength);
                         DecimalToNumber(ref value, ref number);
                         byte precision = (format.Precision == StandardFormat.NoPrecision) ? (byte)6 : format.Precision;
                         RoundNumber(ref number, precision + 1);
