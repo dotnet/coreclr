@@ -103,8 +103,9 @@ namespace System.Buffers.Text
                     }
 
                 default:
-                    return ThrowHelper.TryFormatThrowFormatException(out bytesWritten);
+                    return FormattingHelpers.TryFormatThrowFormatException(out bytesWritten);
             }
+
         }
     }
 }

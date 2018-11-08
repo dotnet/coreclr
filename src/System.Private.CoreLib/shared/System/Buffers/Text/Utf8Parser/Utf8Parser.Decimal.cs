@@ -47,7 +47,7 @@ namespace System.Buffers.Text
                     break;
 
                 default:
-                    return ThrowHelper.TryParseThrowFormatException(out value, out bytesConsumed);
+                    return ParserHelpers.TryParseThrowFormatException(out value, out bytesConsumed);
             }
 
             byte* pDigits = stackalloc byte[DecimalNumberBufferLength];

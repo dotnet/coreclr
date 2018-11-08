@@ -98,7 +98,7 @@ namespace System.Buffers.Text
                     break;
 
                 default:
-                    return ThrowHelper.TryParseThrowFormatException(out bytesConsumed);
+                    return ParserHelpers.TryParseThrowFormatException(out bytesConsumed);
             }
 
             if (!TryParseNumber(source, ref number, out bytesConsumed, options, out bool textUsedExponentNotation))
