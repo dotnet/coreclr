@@ -197,9 +197,11 @@ void EventPipeProvider::InvokeCallback(LPCWSTR pFilterData)
     }
     CONTRACTL_END;
 
-    SString buffer;
-    EventFilterDescriptor eventFilterDescriptor{};
+
     bool isEventFilterDescriptorInitialized = false;
+    EventFilterDescriptor eventFilterDescriptor{};
+    CQuickArrayBase<char> buffer;
+    buffer.Init();
 
     if (pFilterData != NULL)
     {
@@ -208,14 +210,16 @@ void EventPipeProvider::InvokeCallback(LPCWSTR pFilterData)
         // the key and the second is the value.
         // To convert to this format we need to convert all '=' and ';'
         // characters to '\0'.
-        while (*pFilterData != L'\0')
-        {
-            buffer.Append((*pFilterData == L'=' || *pFilterData == L';') ? L'\0' : *pFilterData);
-            pFilterData++;
-        }
+        SString dstBuffer;
+        SString(pFilterData).ConvertToUTF8(dstBuffer);
 
-        eventFilterDescriptor.Ptr = reinterpret_cast<ULONGLONG>(buffer.GetUnicode());
-        eventFilterDescriptor.Size = static_cast<ULONG>(buffer.GetCount() + 1);
+        const COUNT_T BUFFER_SIZE = dstBuffer.GetCount() + 1;
+        buffer.AllocThrows(BUFFER_SIZE);
+        for (COUNT_T i = 0; i < BUFFER_SIZE; ++i)
+            buffer[i] = (dstBuffer[i] == '=' || dstBuffer[i] == ';') ? '\0' : dstBuffer[i];
+
+        eventFilterDescriptor.Ptr = reinterpret_cast<ULONGLONG>(buffer.Ptr());
+        eventFilterDescriptor.Size = static_cast<ULONG>(BUFFER_SIZE);
         eventFilterDescriptor.Type = 0; // EventProvider.cs: `internal enum ControllerCommand.Update`
         isEventFilterDescriptorInitialized = true;
     }
@@ -231,6 +235,8 @@ void EventPipeProvider::InvokeCallback(LPCWSTR pFilterData)
             isEventFilterDescriptorInitialized ? &eventFilterDescriptor : NULL,
             m_pCallbackData /* CallbackContext */);
     }
+
+    buffer.Destroy();
 }
 
 bool EventPipeProvider::GetDeleteDeferred() const
