@@ -533,19 +533,6 @@ BOOL IsManagedObject(IUnknown *pIUnknown)
         // We found an existing CCW hence this is a managed exception.
         return TRUE;
     }
-    
-    // QI IManagedObject. Note AppX doesn't support IManagedObject
-    if (!AppX::IsAppXProcess())
-    {
-        SafeComHolder<IManagedObject> pManagedObject = NULL;
-        HRESULT hrLocal = SafeQueryInterface(pIUnknown, IID_IManagedObject, (IUnknown**)&pManagedObject);
-        LogInteropQI(pIUnknown, IID_IManagedObject, hrLocal, "QI to determine if IErrorInfo is a managed exception");
-        if(SUCCEEDED(hrLocal))
-        {
-            return TRUE;
-        }
-        
-    }
     return FALSE;
 }
 
@@ -1615,7 +1602,7 @@ BOOL CanCastComObject(OBJECTREF obj, MethodTable * pTargetMT)
     }
     else
     {
-        return obj->GetTrueMethodTable()->CanCastToClass(pTargetMT);
+        return obj->GetMethodTable()->CanCastToClass(pTargetMT);
     }
 }
 
@@ -2230,7 +2217,7 @@ NOINLINE ComCallWrapper* GetCCWFromIUnknown_CrossDomain(IUnknown* pUnk, ComCallW
     // We ignore PreferComInsteadOfManagedRemoting/ICustomQueryInterface if the CCW is from
     // the current domain (we never create RCWs pointing to CCWs in the same domain).
 
-    if (pDomain && pDomain->GetPreferComInsteadOfManagedRemoting())
+    if (pDomain)
     {
         return NULL;
     }
@@ -4014,7 +4001,7 @@ BOOL IsComTargetValidForType(REFLECTCLASSBASEREF* pRefClassObj, OBJECTREF* pTarg
     
     MethodTable* pInvokedMT = (*pRefClassObj)->GetType().GetMethodTable();
 
-    MethodTable* pTargetMT = (*pTarget)->GetTrueMethodTable();
+    MethodTable* pTargetMT = (*pTarget)->GetMethodTable();
     _ASSERTE(pTargetMT);
     PREFIX_ASSUME(pInvokedMT != NULL);
 
@@ -6636,7 +6623,7 @@ void UnmarshalObjectFromInterface(OBJECTREF *ppObjectDest, IUnknown **ppUnkSrc, 
             // We only verify that the object supports the interface for non-WinRT scenarios because we
             // believe that the likelihood of improperly constructed programs is significantly lower
             // with WinRT and the Object::SupportsInterface check is very expensive.
-            if (!(*ppObjectDest)->IsTransparentProxy() && !Object::SupportsInterface(*ppObjectDest, pItfMT))
+            if (!Object::SupportsInterface(*ppObjectDest, pItfMT))
             {
                 COMPlusThrowInvalidCastException(ppObjectDest, TypeHandle(pItfMT));
             }
@@ -6832,74 +6819,6 @@ TypeHandle GetClassFromIInspectable(IUnknown* pUnk, bool *pfSupportsIInspectable
     RETURN classTypeHandle;
 }
 
-//--------------------------------------------------------------------------
-// switch objects for this wrapper
-// used by JIT&ObjectPooling to ensure a deactivated CCW can point to a new object
-// during reactivate
-//--------------------------------------------------------------------------
-BOOL ReconnectWrapper(OBJECTREF* pOldRef, OBJECTREF* pNewRef)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(pOldRef));
-        PRECONDITION(CheckPointer(pNewRef));
-    }
-    CONTRACTL_END;
-
-    if (!(*pOldRef)->IsTransparentProxy())
-    {
-        COMPlusThrowArgumentException(W("oldtp"), W("Argument_NotATP"));
-    }
-    else if (!(*pNewRef)->IsTransparentProxy())
-    {
-        COMPlusThrowArgumentException(W("newtp"), W("Argument_NotATP"));
-    }
-
-    _ASSERTE((*pOldRef)->GetTrueMethodTable() == (*pNewRef)->GetTrueMethodTable());
-
-    // grab the sync block for the current object
-    SyncBlock* pOldSyncBlock = (*pOldRef)->GetSyncBlock();
-    _ASSERTE(pOldSyncBlock);
-
-    // get the wrapper for the old object
-    InteropSyncBlockInfo* pInteropInfo = pOldSyncBlock->GetInteropInfo();
-    ComCallWrapper* pCCW = pInteropInfo->GetCCW();      
-    if (pCCW == NULL)
-        COMPlusThrowArgumentException(W("oldtp"), W("Argument_NoUnderlyingCCW"));
-
-    // get the syncblock for the new object and allocate an InteropSyncBlockInfo structure
-    SyncBlock* pNewSyncBlock = (*pNewRef)->GetSyncBlock();
-    _ASSERTE(pNewSyncBlock != NULL);
-    
-    NewHolder<InteropSyncBlockInfo> pNewInteropInfo = new InteropSyncBlockInfo();
-    bool check = pNewSyncBlock->SetInteropInfo(pNewInteropInfo);
-
-    //
-    // Now we switch
-    //
-    
-    // First, prevent the old object from getting to the CCW
-    pInteropInfo->SetCCW(NULL);
-        
-    // Next, point the CCW at the new object
-    StoreObjectInHandle(pCCW->GetObjectHandle(), (*pNewRef));
-
-    // Finally, point the new object at the CCW
-    pNewSyncBlock->GetInteropInfo()->SetCCW(pCCW);
-
-    // store other information about the new server
-    SimpleComCallWrapper* pSimpleWrap = pCCW->GetSimpleWrapper();
-    _ASSERTE(pSimpleWrap);
-    pSimpleWrap->ReInit(pNewSyncBlock);
-
-    if (check)
-        pNewInteropInfo.SuppressRelease();
-    
-    return TRUE;
-}
 
 ABI::Windows::Foundation::IUriRuntimeClass *CreateWinRTUri(LPCWSTR wszUri, INT32 cchUri)
 {
