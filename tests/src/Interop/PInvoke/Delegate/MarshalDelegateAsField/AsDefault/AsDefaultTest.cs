@@ -31,6 +31,7 @@ class AsDefaultTest
             s.verification = true;
             s.dele = new Dele(CommonMethod);
             Assert.IsTrue(TakeDelegateAsFieldInStruct_Seq(s), "Delegate marshaled as field in struct with Sequential.");
+            GC.KeepAlive(s);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -39,6 +40,7 @@ class AsDefaultTest
                 s2.verification = true;
                 s2.dele = new Dele(CommonMethod);
                 Assert.IsTrue(TakeDelegateAsFieldInStruct_Exp(s2), "Delegate marshaled as field in struct with Explicit");
+                GC.KeepAlive(s2);
             }
 
             Console.WriteLine("\n\nScenario 3 : Delegate marshaled as field in class with Sequential.");

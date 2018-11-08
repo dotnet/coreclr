@@ -39,6 +39,7 @@ class AsInterfaceTest
             sis.dele += new Dele2(CommonMethod2);
             sis.dele += new Dele2(CommonMethod3);
             Assert.IsTrue(Take_DelegatePtrAsFieldInStruct_Seq(sis), "Delegate marshaled as field in struct with Sequential.");
+            GC.KeepAlive(sis);
 
             Console.WriteLine("\n\nScenario 2 : Delegate marshaled as field in struct with Explicit.");
             Struct3_InterfacePtrAsField2_Exp sie = new Struct3_InterfacePtrAsField2_Exp();
@@ -47,6 +48,7 @@ class AsInterfaceTest
             sie.dele += new Dele2(CommonMethod2);
             sie.dele += new Dele2(CommonMethod3);
             Assert.IsTrue(Take_DelegatePtrAsFieldInStruct_Exp(sie), "Delegate marshaled as field in struct with Explicit.");
+            GC.KeepAlive(sie);
 
             Console.WriteLine("\n\nScenario 3 : Delegate marshaled as field in class with Sequential.");
             Class3_InterfacePtrAsField3_Seq cis = new Class3_InterfacePtrAsField3_Seq();

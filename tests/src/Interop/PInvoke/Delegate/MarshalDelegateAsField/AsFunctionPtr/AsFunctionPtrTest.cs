@@ -31,6 +31,7 @@ class AsFunctionPtrTest
             s1.verification = true;
             s1.dele = new Dele(CommonMethod);
             Assert.IsTrue(TakeDelegateAsFieldInStruct_Seq(s1), "Delegate marshaled as field in struct with Sequential.");
+            GC.KeepAlive(s1);
             
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) // We don't support marshalling explicit structs by-val on the System V x64 ABI
             {
@@ -39,6 +40,7 @@ class AsFunctionPtrTest
                 s2.verification = true;
                 s2.dele = new Dele(CommonMethod);
                 Assert.IsTrue(TakeDelegateAsFieldInStruct_Exp(s2), "Delegate marshaled as field in struct with Explicit.");
+                GC.KeepAlive(s2);
             }
 
             Console.WriteLine("\n\nScenario 3 : Delegate marshaled as field in class with Sequential.");
