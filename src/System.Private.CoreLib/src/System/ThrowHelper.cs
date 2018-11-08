@@ -419,12 +419,20 @@ namespace System
         //
         // Enable use of ThrowHelper from TryParse() routines without introducing dozens of non-code-coveraged "value= default; bytesConsumed = 0; return false" boilerplate.
         //
-        public static bool TryParseThrowFormatException<T>(out T value, out int bytesConsumed)
+        public static bool TryParseThrowFormatException(out int bytesConsumed)
         {
-            value = default;
             bytesConsumed = 0;
             ThrowHelper.ThrowFormatException_BadFormatSpecifier();
             return false;
+        }
+
+        //
+        // Enable use of ThrowHelper from TryParse() routines without introducing dozens of non-code-coveraged "value= default; bytesConsumed = 0; return false" boilerplate.
+        //
+        public static bool TryParseThrowFormatException<T>(out T value, out int bytesConsumed)
+        {
+            value = default;
+            return TryParseThrowFormatException(out bytesConsumed);
         }
     }
 

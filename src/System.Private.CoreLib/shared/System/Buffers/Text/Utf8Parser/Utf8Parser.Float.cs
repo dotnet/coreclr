@@ -28,15 +28,18 @@ namespace System.Buffers.Text
         /// <exceptions>
         /// <cref>System.FormatException</cref> if the format is not valid for this data type.
         /// </exceptions>
-        public static bool TryParse(ReadOnlySpan<byte> source, out float value, out int bytesConsumed, char standardFormat = default)
+        public static unsafe bool TryParse(ReadOnlySpan<byte> source, out float value, out int bytesConsumed, char standardFormat = default)
         {
-            if (TryParseNormalAsFloatingPoint(source, out double d, out bytesConsumed, standardFormat))
+            byte* pDigits = stackalloc byte[SingleNumberBufferLength];
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, SingleNumberBufferLength);
+
+            if (!TryParseNormalAsFloatingPoint(source, ref number, out bytesConsumed, standardFormat))
             {
-                value = (float)(d);
-                return true;
+                return TryParseAsSpecialFloatingPoint(source, float.PositiveInfinity, float.NegativeInfinity, float.NaN, out value, out bytesConsumed);
             }
 
-            return TryParseAsSpecialFloatingPoint(source, float.PositiveInfinity, float.NegativeInfinity, float.NaN, out value, out bytesConsumed);
+            value = NumberToSingle(ref number);
+            return true;
         }
 
         /// <summary>
@@ -59,18 +62,24 @@ namespace System.Buffers.Text
         /// <exceptions>
         /// <cref>System.FormatException</cref> if the format is not valid for this data type.
         /// </exceptions>
-        public static bool TryParse(ReadOnlySpan<byte> source, out double value, out int bytesConsumed, char standardFormat = default)
+        public static unsafe bool TryParse(ReadOnlySpan<byte> source, out double value, out int bytesConsumed, char standardFormat = default)
         {
-            if (TryParseNormalAsFloatingPoint(source, out value, out bytesConsumed, standardFormat))
-                return true;
+            byte* pDigits = stackalloc byte[DoubleNumberBufferLength];
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
 
-            return TryParseAsSpecialFloatingPoint(source, double.PositiveInfinity, double.NegativeInfinity, double.NaN, out value, out bytesConsumed);
+            if (!TryParseNormalAsFloatingPoint(source, ref number, out bytesConsumed, standardFormat))
+            {
+                return TryParseAsSpecialFloatingPoint(source, double.PositiveInfinity, double.NegativeInfinity, double.NaN, out value, out bytesConsumed);
+            }
+
+            value = NumberToDouble(ref number);
+            return true;
         }
 
         //
         // Attempt to parse the regular floating points (the ones without names like "Infinity" and "NaN")
         //
-        private static unsafe bool TryParseNormalAsFloatingPoint(ReadOnlySpan<byte> source, out double value, out int bytesConsumed, char standardFormat)
+        private static bool TryParseNormalAsFloatingPoint(ReadOnlySpan<byte> source, ref NumberBuffer number, out int bytesConsumed, char standardFormat)
         {
             ParseNumberOptions options;
             switch (standardFormat)
@@ -89,25 +98,20 @@ namespace System.Buffers.Text
                     break;
 
                 default:
-                    return ThrowHelper.TryParseThrowFormatException(out value, out bytesConsumed);
+                    return ThrowHelper.TryParseThrowFormatException(out bytesConsumed);
             }
 
-            byte* pDigits = stackalloc byte[DoubleNumberBufferLength];
-            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
             if (!TryParseNumber(source, ref number, out bytesConsumed, options, out bool textUsedExponentNotation))
             {
-                value = default;
                 return false;
             }
 
             if ((!textUsedExponentNotation) && (standardFormat == 'E' || standardFormat == 'e'))
             {
-                value = default;
                 bytesConsumed = 0;
                 return false;
             }
 
-            value = NumberToDouble(ref number);
             return true;
         }
 
