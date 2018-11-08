@@ -699,7 +699,8 @@ namespace R2RDump
                     break;
 
                 case CorElementType.ELEMENT_TYPE_PTR:
-                    builder.Append("ptr");
+                    ParseType(builder);
+                    builder.Append('*');
                     break;
 
                 case CorElementType.ELEMENT_TYPE_BYREF:
@@ -717,7 +718,33 @@ namespace R2RDump
                     break;
 
                 case CorElementType.ELEMENT_TYPE_ARRAY:
-                    builder.Append("array");
+                    ParseType(builder);
+                    {
+                        builder.Append('[');
+                        uint rank = ReadUInt();
+                        if (rank != 0)
+                        {
+                            uint sizeCount = ReadUInt(); // number of sizes
+                            for (uint sizeIndex = 0; sizeIndex < sizeCount; sizeIndex++)
+                            {
+                                ReadUInt();
+                            }
+                            uint lowerBoundCount = ReadUInt(); // number of lower bounds
+                            for (uint lowerBoundIndex = 0; lowerBoundIndex < lowerBoundCount; lowerBoundIndex++)
+                            {
+                                ReadUInt();
+                            }
+                            if (rank == 1)
+                            {
+                                builder.Append('*');
+                            }
+                            else
+                            {
+                                builder.Append(new string(',', (int)(rank - 1)));
+                            }
+                        }
+                        builder.Append(']');
+                    }
                     break;
 
                 case CorElementType.ELEMENT_TYPE_GENERICINST:
@@ -745,7 +772,8 @@ namespace R2RDump
                     break;
 
                 case CorElementType.ELEMENT_TYPE_SZARRAY:
-                    builder.Append("szarray");
+                    ParseType(builder);
+                    builder.Append("[]");
                     break;
 
                 case CorElementType.ELEMENT_TYPE_MVAR:
