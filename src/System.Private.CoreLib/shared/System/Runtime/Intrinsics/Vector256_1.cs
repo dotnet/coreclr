@@ -173,7 +173,7 @@ namespace System.Runtime.Intrinsics
         /// <returns>A <see cref="Vector256{T}" /> with the value of the element at <paramref name="index" /> set to <paramref name="value" /> and the remaining elements set to the same value as that in the current instance.</returns>
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="index" /> was less than zero or greater than the number of elements.</exception>
-        public Vector256<T> SetElement(int index, T value)
+        public Vector256<T> WithElement(int index, T value)
         {
             ThrowIfUnsupportedType();
 
@@ -202,7 +202,7 @@ namespace System.Runtime.Intrinsics
         /// <param name="value">The value of the lower 128-bits as a <see cref="Vector128{T}" />.</param>
         /// <returns>A new <see cref="Vector256{T}" /> with the lower 128-bits set to the specified value and the lower 128-bits set to the same value as that in the current instance.</returns>
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
-        public Vector256<T> SetLower(Vector128<T> value)
+        public Vector256<T> WithLower(Vector128<T> value)
         {
             ThrowIfUnsupportedType();
             Vector128<T>.ThrowIfUnsupportedType();
@@ -228,7 +228,7 @@ namespace System.Runtime.Intrinsics
         /// <param name="value">The value of the upper 128-bits as a <see cref="Vector128{T}" />.</param>
         /// <returns>A new <see cref="Vector256{T}" /> with the upper 128-bits set to the specified value and the upper 128-bits set to the same value as that in the current instance.</returns>
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
-        public Vector256<T> SetUpper(Vector128<T> value)
+        public Vector256<T> WithUpper(Vector128<T> value)
         {
             ThrowIfUnsupportedType();
             Vector128<T>.ThrowIfUnsupportedType();
