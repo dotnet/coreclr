@@ -1799,7 +1799,7 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
     if (target == NULL)
     {
         CONSISTENCY_CHECK(stub == CALL_STUB_EMPTY_ENTRY);
-        patch = Resolver(objectType, token, protectedObj, &target, TRUE /* throwOnFailure */);
+        patch = Resolver(objectType, token, protectedObj, &target, TRUE /* throwOnConflict */);
 
 #if defined(_DEBUG) 
         if ( !objectType->IsTransparentProxy() &&

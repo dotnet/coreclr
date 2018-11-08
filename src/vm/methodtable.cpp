@@ -9916,8 +9916,7 @@ MethodTable::TryResolveConstraintMethodApprox(
                 {
                     // We can resolve to exact method
                     pMD = this->GetMethodDescForInterfaceMethod(pInterfaceMT, pInterfaceMD, FALSE /* throwOnConflict */);
-                    _ASSERTE(pMD != NULL);
-                    fIsExactMethodResolved = TRUE;
+                    fIsExactMethodResolved = pMD != NULL;
                 }
             }
 
