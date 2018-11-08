@@ -345,7 +345,7 @@ namespace System
         {
             byte* buffer = number.GetDigitsPointer();
             number.Precision = DecimalPrecision;
-            number.Sign = d.IsNegative;
+            number.IsNegative = d.IsNegative;
 
             byte* p = buffer + DecimalPrecision;
             while ((d.Mid | d.High) != 0)
@@ -410,7 +410,7 @@ namespace System
                     }
                     else if (number.Scale == ScaleINF)
                     {
-                        return number.Sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                        return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
                     }
 
                     double roundTrip = NumberToDouble(ref number);
@@ -454,7 +454,7 @@ namespace System
             }
             else if (number.Scale == ScaleINF)
             {
-                return number.Sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
             }
 
             if (fmt != 0)
@@ -514,7 +514,7 @@ namespace System
                     }
                     else if (number.Scale == ScaleINF)
                     {
-                        return number.Sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                        return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
                     }
 
                     float roundTrip = NumberToSingle(ref number);
@@ -557,7 +557,7 @@ namespace System
             }
             else if (number.Scale == ScaleINF)
             {
-                return number.Sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
             }
 
             if (fmt != 0)
@@ -972,11 +972,11 @@ namespace System
 
             if (value >= 0)
             {
-                number.Sign = false;
+                number.IsNegative = false;
             }
             else
             {
-                number.Sign = true;
+                number.IsNegative = true;
                 value = -value;
             }
 
@@ -1095,7 +1095,7 @@ namespace System
         private static unsafe void UInt32ToNumber(uint value, ref NumberBuffer number)
         {
             number.Precision = UInt32Precision;
-            number.Sign = false;
+            number.IsNegative = false;
 
             byte* buffer = number.GetDigitsPointer();
             byte* p = UInt32ToDecChars(buffer + UInt32Precision, value, 0);
@@ -1217,9 +1217,9 @@ namespace System
         private static unsafe void Int64ToNumber(long input, ref NumberBuffer number)
         {
             ulong value = (ulong)input;
-            number.Sign = input < 0;
+            number.IsNegative = input < 0;
             number.Precision = Int64Precision;
-            if (number.Sign)
+            if (number.IsNegative)
             {
                 value = (ulong)(-input);
             }
@@ -1362,7 +1362,7 @@ namespace System
         private static unsafe void UInt64ToNumber(ulong value, ref NumberBuffer number)
         {
             number.Precision = UInt64Precision;
-            number.Sign = false;
+            number.IsNegative = false;
 
             byte* buffer = number.GetDigitsPointer();
             byte* p = buffer + UInt64Precision;
@@ -1528,7 +1528,7 @@ namespace System
 
                     RoundNumber(ref number, number.Scale + nMaxDigits);
 
-                    if (number.Sign)
+                    if (number.IsNegative)
                         sb.Append(info.NegativeSign);
 
                     FormatFixed(ref sb, ref number, nMaxDigits, info, null, info.NumberDecimalSeparator, null);
@@ -1558,7 +1558,7 @@ namespace System
 
                     RoundNumber(ref number, nMaxDigits);
 
-                    if (number.Sign)
+                    if (number.IsNegative)
                         sb.Append(info.NegativeSign);
 
                     FormatScientific(ref sb, ref number, nMaxDigits, info, format);
@@ -1587,7 +1587,7 @@ namespace System
                     RoundNumber(ref number, nMaxDigits);
 
                 SkipRounding:
-                    if (number.Sign)
+                    if (number.IsNegative)
                         sb.Append(info.NegativeSign);
 
                     FormatGeneral(ref sb, ref number, nMaxDigits, info, (char)(format - ('G' - 'E')), noRounding);
@@ -1635,7 +1635,7 @@ namespace System
             byte* dig = number.GetDigitsPointer();
             char ch;
 
-            section = FindSection(format, dig[0] == 0 ? 2 : number.Sign ? 1 : 0);
+            section = FindSection(format, dig[0] == 0 ? 2 : number.IsNegative ? 1 : 0);
 
             while (true)
             {
@@ -1813,7 +1813,7 @@ namespace System
                 }
             }
 
-            if (number.Sign && (section == 0) && (number.Scale != 0))
+            if (number.IsNegative && (section == 0) && (number.Scale != 0))
                 sb.Append(info.NegativeSign);
 
             bool decimalWritten = false;
@@ -1972,13 +1972,13 @@ namespace System
                 }
             }
 
-            if (number.Sign && (section == 0) && (number.Scale == 0) && (sb.Length > 0))
+            if (number.IsNegative && (section == 0) && (number.Scale == 0) && (sb.Length > 0))
                 sb.Insert(0, info.NegativeSign);
         }
 
         private static void FormatCurrency(ref ValueStringBuilder sb, ref NumberBuffer number, int nMaxDigits, NumberFormatInfo info)
         {
-            string fmt = number.Sign ?
+            string fmt = number.IsNegative ?
                 s_negCurrencyFormats[info.CurrencyNegativePattern] :
                 s_posCurrencyFormats[info.CurrencyPositivePattern];
 
@@ -2106,7 +2106,7 @@ namespace System
 
         private static void FormatNumber(ref ValueStringBuilder sb, ref NumberBuffer number, int nMaxDigits, NumberFormatInfo info)
         {
-            string fmt = number.Sign ?
+            string fmt = number.IsNegative ?
                 s_negNumberFormats[info.NumberNegativePattern] :
                 PosNumberFormat;
 
@@ -2213,7 +2213,7 @@ namespace System
 
         private static void FormatPercent(ref ValueStringBuilder sb, ref NumberBuffer number, int nMaxDigits, NumberFormatInfo info)
         {
-            string fmt = number.Sign ?
+            string fmt = number.IsNegative ?
                 s_negPercentFormats[info.PercentNegativePattern] :
                 s_posPercentFormats[info.PercentPositivePattern];
 
@@ -2272,7 +2272,7 @@ namespace System
 
                 if (number.Kind == NumberBufferKind.Integer)
                 {
-                    number.Sign = false;
+                    number.IsNegative = false;
                 }
             }
             dig[i] = (byte)('\0');
@@ -2338,13 +2338,13 @@ namespace System
             if (!double.IsFinite(value))
             {
                 number.Scale = double.IsNaN(value) ? ScaleNAN : ScaleINF;
-                number.Sign = double.IsNegative(value);
+                number.IsNegative = double.IsNegative(value);
                 number.Digits[0] = (byte)('\0');
             }
             else if (value == 0.0)
             {
                 number.Scale = 0;
-                number.Sign = double.IsNegative(value);
+                number.IsNegative = double.IsNegative(value);
                 number.Digits[0] = (byte)('\0');
             }
             else if (!Grisu3.Run(value, precision, ref number))

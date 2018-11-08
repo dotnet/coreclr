@@ -22,7 +22,7 @@ namespace System
         {
             public int Precision;
             public int Scale;
-            public bool Sign;
+            public bool IsNegative;
             public bool HasNonZeroTail;
             public NumberBufferKind Kind;
             public Span<byte> Digits;
@@ -37,7 +37,7 @@ namespace System
 
                 Precision = 0;
                 Scale = 0;
-                Sign = false;
+                IsNegative = false;
                 HasNonZeroTail = false;
                 Kind = kind;
                 Digits = new Span<byte>(digits, digitsLength);
