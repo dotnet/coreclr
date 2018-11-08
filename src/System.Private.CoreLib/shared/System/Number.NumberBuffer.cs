@@ -25,9 +25,9 @@ namespace System
             public bool Sign;
             public bool HasNonZeroTail;
             public NumberBufferKind Kind;
-            public Span<char> Digits;
+            public Span<byte> Digits;
 
-            public NumberBuffer(NumberBufferKind kind, char* digits, int digitsLength)
+            public NumberBuffer(NumberBufferKind kind, byte* digits, int digitsLength)
             {
                 Debug.Assert(kind == NumberBufferKind.Integer
                     || kind == NumberBufferKind.Decimal
@@ -40,13 +40,13 @@ namespace System
                 Sign = false;
                 HasNonZeroTail = false;
                 Kind = kind;
-                Digits = new Span<char>(digits, digitsLength);
+                Digits = new Span<byte>(digits, digitsLength);
             }
 
-            public char* GetDigitsPointer()
+            public byte* GetDigitsPointer()
             {
                 // This is safe to do since we are a ref struct
-                return (char*)(Unsafe.AsPointer(ref Digits[0]));
+                return (byte*)(Unsafe.AsPointer(ref Digits[0]));
             }
         }
 
