@@ -68,6 +68,11 @@ extern "C" {
 #include <pal_error.h>
 #include <pal_mstypes.h>
 
+// Native system libray handle.
+// On Unix systems, NATIVE_LIBRARY_HANDLE type represents a library handle not registered with the PAL.
+// To get a HMODULE on Unix, call PAL_RegisterLibraryDirect() on a NATIVE_LIBRARY_HANDLE.
+typedef void * NATIVE_LIBRARY_HANDLE;
+
 /******************* Processor-specific glue  *****************************/
 
 #ifndef _MSC_VER

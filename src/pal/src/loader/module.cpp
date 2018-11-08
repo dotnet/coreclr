@@ -103,10 +103,10 @@ static bool LOADConvertLibraryPathWideStringToMultibyteString(
     INT *multibyteLibraryPathLengthRef);
 static BOOL LOADValidateModule(MODSTRUCT *module);
 static LPWSTR LOADGetModuleFileName(MODSTRUCT *module);
-static MODSTRUCT *LOADAddModule(void *dl_handle, LPCSTR libraryNameOrPath);
+static MODSTRUCT *LOADAddModule(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR libraryNameOrPath);
 static void *LOADLoadLibraryDirect(LPCSTR libraryNameOrPath);
 static BOOL LOADFreeLibrary(MODSTRUCT *module, BOOL fCallDllMain);
-static HMODULE LOADRegisterLibraryDirect(void *dl_handle, LPCSTR libraryNameOrPath, BOOL fDynamic);
+static HMODULE LOADRegisterLibraryDirect(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR libraryNameOrPath, BOOL fDynamic);
 static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic);
 static BOOL LOADCallDllMainSafe(MODSTRUCT *module, DWORD dwReason, LPVOID lpReserved);
 
@@ -564,7 +564,7 @@ Function:
 
   Returns the system handle to the loaded library, or nullptr upon failure (error is set via SetLastError()).
 */
-void *
+NATIVE_LIBRARY_HANDLE
 PALAPI
 PAL_LoadLibraryDirect(
     IN LPCWSTR lpLibFileName)
@@ -572,7 +572,7 @@ PAL_LoadLibraryDirect(
     PathCharString pathstr;
     CHAR * lpstr = nullptr;
     INT name_length;
-    void *dl_handle = nullptr;
+    NATIVE_LIBRARY_HANDLE dl_handle = nullptr;
 
     PERF_ENTRY(LoadLibraryDirect);
     ENTRY("LoadLibraryDirect (lpLibFileName=%p (%S)) \n",
@@ -617,7 +617,7 @@ Function:
 HMODULE
 PALAPI
 PAL_RegisterLibraryDirect(
-    IN void *dl_handle,
+    IN NATIVE_LIBRARY_HANDLE dl_handle,
     IN LPCWSTR lpLibFileName)
 {
     PathCharString pathstr;
@@ -684,7 +684,7 @@ PAL_RegisterModule(
 
         LockModuleList();
 
-        void *dl_handle = LOADLoadLibraryDirect(lpLibFileName);
+        NATIVE_LIBRARY_HANDLE dl_handle = LOADLoadLibraryDirect(lpLibFileName);
         if (dl_handle)
         {
             // This only creates/adds the module handle and doesn't call DllMain
@@ -1400,7 +1400,7 @@ static void *LOADLoadLibraryDirect(LPCSTR libraryNameOrPath)
     _ASSERTE(libraryNameOrPath != nullptr);
     _ASSERTE(libraryNameOrPath[0] != '\0');
 
-    void *dl_handle = dlopen(libraryNameOrPath, RTLD_LAZY);
+    NATIVE_LIBRARY_HANDLE dl_handle = dlopen(libraryNameOrPath, RTLD_LAZY);
     if (dl_handle == nullptr)
     {
         SetLastError(ERROR_MOD_NOT_FOUND);
@@ -1420,7 +1420,7 @@ Function :
     Allocate and initialize a new MODSTRUCT structure
 
 Parameters :
-    void *dl_handle :   handle returned by dl_open, goes in MODSTRUCT::dl_handle
+    NATIVE_LIBRARY_HANDLE dl_handle :   handle returned by dl_open, goes in MODSTRUCT::dl_handle
     
     char *name :        name of new module. after conversion to widechar, 
                         goes in MODSTRUCT::lib_name
@@ -1432,7 +1432,7 @@ Notes :
     'name' is used to initialize MODSTRUCT::lib_name. The other member is set to NULL
     In case of failure (in malloc or MBToWC), this function sets LastError.
 --*/
-static MODSTRUCT *LOADAllocModule(void *dl_handle, LPCSTR name)
+static MODSTRUCT *LOADAllocModule(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR name)
 {   
     MODSTRUCT *module;
     LPWSTR wide_name;
@@ -1485,13 +1485,13 @@ Function:
     Registers a system handle to a loaded library with the module list.
 
 Parameters:
-    void *dl_handle:                    System handle to the loaded library.
+    NATIVE_LIBRARY_HANDLE dl_handle:    System handle to the loaded library.
     LPCSTR libraryNameOrPath:           The library that was loaded.
 
 Return value:
     PAL handle to the loaded library, or nullptr upon failure (error is set via SetLastError()).
 */
-static MODSTRUCT *LOADAddModule(void *dl_handle, LPCSTR libraryNameOrPath)
+static MODSTRUCT *LOADAddModule(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR libraryNameOrPath)
 {
     _ASSERTE(dl_handle != nullptr);
     _ASSERTE(libraryNameOrPath != nullptr);
@@ -1555,14 +1555,14 @@ Function:
     Registers a system handle to a loaded library with the module list.
 
 Parameters:
-    void *dl_handle:                    System handle to the loaded library.
+    NATIVE_LIBRARY_HANDLE dl_handle:    System handle to the loaded library.
     LPCSTR libraryNameOrPath:           The library that was loaded.
     BOOL fDynamic:                      TRUE if dynamic load through LoadLibrary, FALSE if static load through RegisterLibrary.
 
 Return value:
     PAL handle to the loaded library, or nullptr upon failure (error is set via SetLastError()).
 */
-static HMODULE LOADRegisterLibraryDirect(void *dl_handle, LPCSTR libraryNameOrPath, BOOL fDynamic)
+static HMODULE LOADRegisterLibraryDirect(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR libraryNameOrPath, BOOL fDynamic)
 {
     MODSTRUCT *module = LOADAddModule(dl_handle, libraryNameOrPath);
     if (module == nullptr)
@@ -1631,7 +1631,7 @@ Return value :
 static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic)
 {
     HMODULE module = nullptr;
-    void *dl_handle = nullptr;
+    NATIVE_LIBRARY_HANDLE dl_handle = nullptr;
 
     // Check whether we have been requested to load 'libc'. If that's the case, then:
     // * For Linux, use the full name of the library that is defined in <gnu/lib-names.h> by the
