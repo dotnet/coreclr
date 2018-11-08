@@ -294,12 +294,8 @@ namespace System
 
             DecimalToNumber(ref value, ref number);
 
-            ValueStringBuilder sb;
-            unsafe
-            {
-                char* stackPtr = stackalloc char[CharStackBufferSize];
-                sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-            }
+            char* stackPtr = stackalloc char[CharStackBufferSize];
+            ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
 
             if (fmt != 0)
             {
@@ -322,12 +318,8 @@ namespace System
 
             DecimalToNumber(ref value, ref number);
 
-            ValueStringBuilder sb;
-            unsafe
-            {
-                char* stackPtr = stackalloc char[CharStackBufferSize];
-                sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-            }
+            char* stackPtr = stackalloc char[CharStackBufferSize];
+            ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
 
             if (fmt != 0)
             {
@@ -363,6 +355,8 @@ namespace System
                 *dst++ = *p++;
             }
             *dst = (byte)('\0');
+
+            number.CheckConsistency();
         }
 
         public static string FormatDouble(double value, string format, NumberFormatInfo info)
@@ -404,6 +398,7 @@ namespace System
                     // number using 15 digits and then determine if it round trips to the same value. If it does, we
                     // convert that NUMBER to a string, otherwise we reparse using 17 digits and display that.
                     DoubleToNumber(value, DoublePrecision, ref number);
+
                     if (number.Scale == ScaleNAN)
                     {
                         return info.NaNSymbol;
@@ -448,6 +443,7 @@ namespace System
             }
 
             DoubleToNumber(value, precision, ref number);
+
             if (number.Scale == ScaleNAN)
             {
                 return info.NaNSymbol;
@@ -508,6 +504,7 @@ namespace System
                     // number using 7 digits and then determine if it round trips to the same value. If it does, we
                     // convert that NUMBER to a string, otherwise we reparse using 9 digits and display that.
                     DoubleToNumber(value, SinglePrecision, ref number);
+
                     if (number.Scale == ScaleNAN)
                     {
                         return info.NaNSymbol;
@@ -551,6 +548,7 @@ namespace System
             }
 
             DoubleToNumber(value, precision, ref number);
+
             if (number.Scale == ScaleNAN)
             {
                 return info.NaNSymbol;
@@ -615,12 +613,10 @@ namespace System
                 NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int32NumberBufferLength);
 
                 Int32ToNumber(value, ref number);
-                ValueStringBuilder sb;
-                unsafe
-                {
-                    char* stackPtr = stackalloc char[CharStackBufferSize];
-                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-                }
+
+                char* stackPtr = stackalloc char[CharStackBufferSize];
+                ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info);
@@ -663,12 +659,10 @@ namespace System
                 NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int32NumberBufferLength);
 
                 Int32ToNumber(value, ref number);
-                ValueStringBuilder sb;
-                unsafe
-                {
-                    char* stackPtr = stackalloc char[CharStackBufferSize];
-                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-                }
+
+                char* stackPtr = stackalloc char[CharStackBufferSize];
+                ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info);
@@ -709,12 +703,10 @@ namespace System
                 NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt32NumberBufferLength);
 
                 UInt32ToNumber(value, ref number);
-                ValueStringBuilder sb;
-                unsafe
-                {
-                    char* stackPtr = stackalloc char[CharStackBufferSize];
-                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-                }
+
+                char* stackPtr = stackalloc char[CharStackBufferSize];
+                ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info);
@@ -755,12 +747,10 @@ namespace System
                 NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt32NumberBufferLength);
 
                 UInt32ToNumber(value, ref number);
-                ValueStringBuilder sb;
-                unsafe
-                {
-                    char* stackPtr = stackalloc char[CharStackBufferSize];
-                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-                }
+
+                char* stackPtr = stackalloc char[CharStackBufferSize];
+                ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info);
@@ -804,12 +794,10 @@ namespace System
                 NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int64NumberBufferLength);
 
                 Int64ToNumber(value, ref number);
-                ValueStringBuilder sb;
-                unsafe
-                {
-                    char* stackPtr = stackalloc char[CharStackBufferSize];
-                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-                }
+
+                char* stackPtr = stackalloc char[CharStackBufferSize];
+                ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info);
@@ -853,12 +841,10 @@ namespace System
                 NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int64NumberBufferLength);
 
                 Int64ToNumber(value, ref number);
-                ValueStringBuilder sb;
-                unsafe
-                {
-                    char* stackPtr = stackalloc char[CharStackBufferSize];
-                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-                }
+
+                char* stackPtr = stackalloc char[CharStackBufferSize];
+                ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info);
@@ -900,12 +886,10 @@ namespace System
                 NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt64NumberBufferLength);
 
                 UInt64ToNumber(value, ref number);
-                ValueStringBuilder sb;
-                unsafe
-                {
-                    char* stackPtr = stackalloc char[CharStackBufferSize];
-                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-                }
+
+                char* stackPtr = stackalloc char[CharStackBufferSize];
+                ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info);
@@ -947,12 +931,10 @@ namespace System
                 NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt64NumberBufferLength);
 
                 UInt64ToNumber(value, ref number);
-                ValueStringBuilder sb;
-                unsafe
-                {
-                    char* stackPtr = stackalloc char[CharStackBufferSize];
-                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
-                }
+
+                char* stackPtr = stackalloc char[CharStackBufferSize];
+                ValueStringBuilder sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info);
@@ -990,6 +972,8 @@ namespace System
             while (--i >= 0)
                 *dst++ = *p++;
             *dst = (byte)('\0');
+
+            number.CheckConsistency();
         }
 
         private static unsafe string NegativeInt32ToDecStr(int value, int digits, string sNegative)
@@ -1106,6 +1090,8 @@ namespace System
             while (--i >= 0)
                 *dst++ = *p++;
             *dst = (byte)('\0');
+
+            number.CheckConsistency();
         }
 
         internal static unsafe byte* UInt32ToDecChars(byte* bufferEnd, uint value, int digits)
@@ -1237,6 +1223,8 @@ namespace System
             while (--i >= 0)
                 *dst++ = *p++;
             *dst = (byte)('\0');
+
+            number.CheckConsistency();
         }
 
         private static unsafe string NegativeInt64ToDecStr(long input, int digits, string sNegative)
@@ -1378,6 +1366,8 @@ namespace System
             while (--i >= 0)
                 *dst++ = *p++;
             *dst = (byte)('\0');
+
+            number.CheckConsistency();
         }
 
         private static unsafe string UInt64ToDecStr(ulong value, int digits)
@@ -1503,7 +1493,7 @@ namespace System
 
         internal static unsafe void NumberToString(ref ValueStringBuilder sb, ref NumberBuffer number, char format, int nMaxDigits, NumberFormatInfo info)
         {
-            Debug.Assert(number.Kind != NumberBufferKind.Unknown);
+            number.CheckConsistency();
 
             switch (format)
             {
@@ -1616,7 +1606,7 @@ namespace System
 
         internal static unsafe void NumberToStringFormat(ref ValueStringBuilder sb, ref NumberBuffer number, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
-            Debug.Assert(number.Kind != NumberBufferKind.Unknown);
+            number.CheckConsistency();
 
             int digitCount;
             int decimalPos;
@@ -2351,6 +2341,8 @@ namespace System
             {
                 Dragon4(value, precision, ref number);
             }
+
+            number.CheckConsistency();
         }
 
         private static long ExtractFractionAndBiasedExponent(double value, out int exponent)

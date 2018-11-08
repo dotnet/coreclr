@@ -30,9 +30,6 @@ namespace System
 
             public NumberBuffer(NumberBufferKind kind, byte* digits, int digitsLength)
             {
-                Debug.Assert(kind == NumberBufferKind.Integer
-                    || kind == NumberBufferKind.Decimal
-                    || kind == NumberBufferKind.FloatingPoint);
                 Debug.Assert(digits != null);
                 Debug.Assert(digitsLength > 0);
 
@@ -42,24 +39,43 @@ namespace System
                 HasNonZeroTail = false;
                 Kind = kind;
                 Digits = new Span<byte>(digits, digitsLength);
+
+#if DEBUG
+                Digits.Fill(0xCC);
+                Digits[0] = (byte)('\0');
+                CheckConsistency();
+#endif
             }
 
             [Conditional("DEBUG")]
             public void CheckConsistency()
             {
 #if DEBUG
+                Debug.Assert((Kind == NumberBufferKind.Integer) || (Kind == NumberBufferKind.Decimal) || (Kind == NumberBufferKind.FloatingPoint));
                 Debug.Assert(Digits[0] != '0', "Leading zeros should never be stored in a Number");
 
                 int numDigits;
                 for (numDigits = 0; numDigits < Digits.Length; numDigits++)
                 {
                     byte digit = Digits[numDigits];
-                    if (digit == 0)
-                        break;
 
-                    Debug.Assert(digit >= '0' && digit <= '9', "Unexpected character found in Number");
+                    if (digit == 0)
+                    {
+                        break;
+                    }
+
+                    Debug.Assert((digit >= '0') && (digit <= '9'), "Unexpected character found in Number");
                 }
 
+                Debug.Assert(Digits[numDigits] == 0);
+
+                for (int i = numDigits + 1; i < Digits.Length; i++)
+                {
+                    byte digit = Digits[i];
+                    Debug.Assert(digit == 0xCC);
+                }
+
+                Debug.Assert(numDigits == DigitsCount, "Null terminator found in unexpected location in Number");
                 Debug.Assert(numDigits < Digits.Length, "Null terminator not found in Number");
 #endif // DEBUG
             }
@@ -76,20 +92,30 @@ namespace System
             public override string ToString()
             {
                 StringBuilder sb = new StringBuilder();
+
                 sb.Append('[');
                 sb.Append('"');
-                Span<byte> digits = Digits;
+
                 for (int i = 0; i < Digits.Length; i++)
                 {
-                    byte digit = digits[i];
+                    byte digit = Digits[i];
+
                     if (digit == 0)
+                    {
                         break;
-                    sb.Append((char)digit);
+                    }
+
+                    sb.Append((char)(digit));
                 }
+
                 sb.Append('"');
+                sb.Append(", Length = " + DigitsCount);
                 sb.Append(", Scale = " + Scale);
-                sb.Append(", IsNegative   = " + IsNegative);
+                sb.Append(", IsNegative = " + IsNegative);
+                sb.Append(", HasNonZeroTail = " + HasNonZeroTail);
+                sb.Append(", Kind = " + Kind);
                 sb.Append(']');
+
                 return sb.ToString();
             }
         }

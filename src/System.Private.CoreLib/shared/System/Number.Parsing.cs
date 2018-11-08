@@ -54,6 +54,8 @@ namespace System
 
         private static unsafe bool TryNumberToInt32(ref NumberBuffer number, ref int value)
         {
+            number.CheckConsistency();
+
             int i = number.Scale;
             if (i > Int32Precision || i < number.DigitsCount)
             {
@@ -95,6 +97,8 @@ namespace System
 
         private static unsafe bool TryNumberToInt64(ref NumberBuffer number, ref long value)
         {
+            number.CheckConsistency();
+
             int i = number.Scale;
             if (i > Int64Precision || i < number.DigitsCount)
             {
@@ -136,6 +140,8 @@ namespace System
 
         private static unsafe bool TryNumberToUInt32(ref NumberBuffer number, ref uint value)
         {
+            number.CheckConsistency();
+
             int i = number.Scale;
             if (i > UInt32Precision || i < number.DigitsCount || number.IsNegative)
             {
@@ -168,6 +174,8 @@ namespace System
 
         private static unsafe bool TryNumberToUInt64(ref NumberBuffer number, ref ulong value)
         {
+            number.CheckConsistency();
+
             int i = number.Scale;
             if (i > UInt64Precision || i < number.DigitsCount || number.IsNegative)
             {
@@ -256,7 +264,8 @@ namespace System
             Debug.Assert(number.Scale == 0);
             Debug.Assert(number.IsNegative == false);
             Debug.Assert(number.HasNonZeroTail == false);
-            Debug.Assert(number.Kind != NumberBufferKind.Unknown);
+
+            number.CheckConsistency();
 
             string decSep;                  // decimal separator from NumberFormatInfo.
             string groupSep;                // group separator from NumberFormatInfo.
@@ -900,7 +909,6 @@ namespace System
                 return false;
             }
 
-
             if (!TryNumberToUInt32(ref number, ref result))
             {
                 failureIsOverflow = true;
@@ -1222,7 +1230,6 @@ namespace System
                 return false;
             }
 
-
             if (!TryNumberToUInt64(ref number, ref result))
             {
                 failureIsOverflow = true;
@@ -1532,6 +1539,8 @@ namespace System
 
         private static unsafe bool TryNumberToDecimal(ref NumberBuffer number, ref decimal value)
         {
+            number.CheckConsistency();
+
             byte* p = number.GetDigitsPointer();
             int e = number.Scale;
             bool sign = number.IsNegative;
@@ -1762,10 +1771,12 @@ namespace System
                 if (!TryParseNumber(ref p, p + value.Length, styles, ref number, info)
                     || (p - stringPointer < value.Length && !TrailingZeros(value, (int)(p - stringPointer))))
                 {
+                    number.CheckConsistency();
                     return false;
                 }
             }
 
+            number.CheckConsistency();
             return true;
         }
 
@@ -1825,6 +1836,8 @@ namespace System
 
         private static double NumberToDouble(ref NumberBuffer number)
         {
+            number.CheckConsistency();
+
             ulong bits = NumberToFloatingPointBits(ref number, in FloatingPointInfo.Double);
             double result = BitConverter.Int64BitsToDouble((long)(bits));
             return number.IsNegative ? -result : result;
@@ -1832,6 +1845,8 @@ namespace System
 
         private static float NumberToSingle(ref NumberBuffer number)
         {
+            number.CheckConsistency();
+
             uint bits = (uint)(NumberToFloatingPointBits(ref number, in FloatingPointInfo.Single));
             float result = BitConverter.Int32BitsToSingle((int)(bits));
             return number.IsNegative ? -result : result;
