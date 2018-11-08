@@ -382,6 +382,9 @@
   <data name="Arg_InvalidANSIString" xml:space="preserve">
     <value>The ANSI string passed in could not be converted from the default ANSI code page to Unicode.</value>
   </data>
+  <data name="Arg_InvalidWideString" xml:space="preserve">
+    <value>The Unicode string passed in could not be converted to multi-byte encoding.</value>
+  </data>
   <data name="Arg_InvalidBase" xml:space="preserve">
     <value>Invalid Base.</value>
   </data>

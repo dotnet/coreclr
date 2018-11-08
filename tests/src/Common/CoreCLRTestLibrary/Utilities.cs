@@ -57,10 +57,10 @@ namespace TestLibrary
             }
         }
 
-        public static bool IsWindows => (Path.DirectorySeparatorChar == '\\');
-
+        public static bool IsMacOSX => (Environment.OSVersion.Platform == PlatformID.MacOSX);
+        public static bool IsUnix => (Environment.OSVersion.Platform == PlatformID.Unix);
+        public static bool IsWindows => (!IsUnix && !IsMacOSX);
         public static bool IsWindowsNanoServer => (!IsWindowsIoTCore && GetInstallationType().Equals("Nano Server", StringComparison.OrdinalIgnoreCase));
-
         public static bool IsWindowsIoTCore
         {
             get
