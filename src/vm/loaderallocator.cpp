@@ -1027,12 +1027,13 @@ void LoaderAllocator::ActivateManagedTracking()
 #endif // !CROSSGEN_COMPILE
 
 
-// We don't actually allocate a low frequency heap for collectible types
+// We don't actually allocate a low frequency heap for collectible types.
+// This is carefully tuned to sum up to 16 pages to reduce waste.
 #define COLLECTIBLE_LOW_FREQUENCY_HEAP_SIZE        (0 * GetOsPageSize())
 #define COLLECTIBLE_HIGH_FREQUENCY_HEAP_SIZE       (3 * GetOsPageSize())
 #define COLLECTIBLE_STUB_HEAP_SIZE                 GetOsPageSize()
 #define COLLECTIBLE_CODEHEAP_SIZE                  (7 * GetOsPageSize())
-#define COLLECTIBLE_VIRTUALSTUBDISPATCH_HEAP_SPACE (6 * GetOsPageSize())
+#define COLLECTIBLE_VIRTUALSTUBDISPATCH_HEAP_SPACE (5 * GetOsPageSize())
 
 void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 {

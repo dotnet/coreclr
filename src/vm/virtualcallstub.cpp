@@ -690,8 +690,12 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
         resolve_heap_reserve_size        = GetOsPageSize();
         resolve_heap_commit_size         = GetOsPageSize();
 
-        vtable_heap_reserve_size         = GetOsPageSize();
-        vtable_heap_commit_size          = GetOsPageSize();
+        // Heap for the collectible case is carefully tuned to sum up to 16 pages. Today, we only use the 
+        // vtable jump stubs in the R2R scenario, which is unlikely to be loaded in the collectible context,
+        // so we'll keep the heap numbers at zero for now. If we ever use vtable stubs in the collectible
+        // scenario, we'll just allocate the memory on demand.
+        vtable_heap_reserve_size         = 0;
+        vtable_heap_commit_size          = 0;
 
 #ifdef _DEBUG
         DWORD dwTotalReserveMemSizeCalc  = indcell_heap_reserve_size     +
