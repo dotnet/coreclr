@@ -35,6 +35,7 @@
 // multiple times for different instantiation. 
 // 
 
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -289,6 +290,18 @@ namespace System
             throw GetArraySegmentCtorValidationFailedException(array, offset, count);
         }
 
+        internal static void ThrowArgumentOutOfRangeException_PrecisionTooLarge() { throw CreateArgumentOutOfRangeException_PrecisionTooLarge(); }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static Exception CreateArgumentOutOfRangeException_PrecisionTooLarge() { return new ArgumentOutOfRangeException("precision", SR.Format(SR.Argument_PrecisionTooLarge, StandardFormat.MaxPrecision)); }
+
+        internal static void ThrowArgumentOutOfRangeException_SymbolDoesNotFit() { throw CreateArgumentOutOfRangeException_SymbolDoesNotFit(); }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static Exception CreateArgumentOutOfRangeException_SymbolDoesNotFit() { return new ArgumentOutOfRangeException("symbol", SR.Argument_BadFormatSpecifier); }
+
+        internal static void ThrowFormatException_BadFormatSpecifier() { throw CreateFormatException_BadFormatSpecifier(); }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static Exception CreateFormatException_BadFormatSpecifier() { return new FormatException(SR.Argument_BadFormatSpecifier); }
+
         private static Exception GetArraySegmentCtorValidationFailedException(Array array, int offset, int count)
         {
             if (array == null)
@@ -391,6 +404,27 @@ namespace System
             {
                 throw new NotSupportedException(SR.Arg_TypeNotSupported);
             }
+        }
+
+        //
+        // Enable use of ThrowHelper from TryFormat() routines without introducing dozens of non-code-coveraged "bytesWritten = 0; return false" boilerplate.
+        //
+        public static bool TryFormatThrowFormatException(out int bytesWritten)
+        {
+            bytesWritten = 0;
+            ThrowHelper.ThrowFormatException_BadFormatSpecifier();
+            return false;
+        }
+
+        //
+        // Enable use of ThrowHelper from TryParse() routines without introducing dozens of non-code-coveraged "value= default; bytesConsumed = 0; return false" boilerplate.
+        //
+        public static bool TryParseThrowFormatException<T>(out T value, out int bytesConsumed)
+        {
+            value = default;
+            bytesConsumed = 0;
+            ThrowHelper.ThrowFormatException_BadFormatSpecifier();
+            return false;
         }
     }
 
