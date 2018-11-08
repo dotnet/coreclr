@@ -353,12 +353,11 @@ namespace System.Threading
             edi?.Throw();
         }
 
-
-        // For the two RunForThreadPoolUserWorkItem{WithDefault} methods: we aren't running in try/catch as if an exception 
-        // is directly thrown on the ThreadPool either process will crash or its a ThreadAbortException. 
-        // In either case sending AsyncLocal change notifications is unimportant.
-        internal static void RunForThreadPoolUserWorkItem<TState>(ExecutionContext executionContext, Action<TState> callback, in TState state)
+        internal static void RunForThreadPoolUnsafe<TState>(ExecutionContext executionContext, Action<TState> callback, in TState state)
         {
+            // We aren't running in try/catch as if an exception is directly thrown on the ThreadPool either process 
+            // will crash or its a ThreadAbortException. 
+
             CheckThreadPoolAndContextsAreDefault();
             Debug.Assert(executionContext != null && !executionContext.m_isDefault, "ExecutionContext argument is Default.");
 

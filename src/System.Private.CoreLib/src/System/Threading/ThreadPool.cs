@@ -973,7 +973,7 @@ namespace System.Threading
         {
             base.Execute();
 
-            ExecutionContext.RunForThreadPoolUserWorkItem(_context, s_executionContextShim, this);
+            ExecutionContext.RunForThreadPoolUnsafe(_context, s_executionContextShim, this);
         }
     }
 
@@ -999,7 +999,7 @@ namespace System.Threading
             Action<TState> callback = _callback;
             _callback = null;
 
-            ExecutionContext.RunForThreadPoolUserWorkItem(_context, callback, in _state);
+            ExecutionContext.RunForThreadPoolUnsafe(_context, callback, in _state);
         }
     }
 
