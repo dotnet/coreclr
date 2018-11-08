@@ -46,6 +46,7 @@ class AsFunctionPtrTest
             c3.verification = true;
             c3.dele = new Dele(CommonMethod);
             Assert.IsTrue(TakeDelegateAsFieldInClass_Seq(c3), "Delegate marshaled as field in class with Sequential.");
+            GC.KeepAlive(c3);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -54,6 +55,7 @@ class AsFunctionPtrTest
                 c4.verification = true;
                 c4.dele = new Dele(CommonMethod);
                 Assert.IsTrue(TakeDelegateAsFieldInClass_Exp(c4), "Delegate marshaled as field in class with Explicit.");
+                GC.KeepAlive(c4);
             }
             return 100;
         } catch (Exception e){

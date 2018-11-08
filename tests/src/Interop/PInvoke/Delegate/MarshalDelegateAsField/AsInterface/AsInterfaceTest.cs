@@ -55,6 +55,7 @@ class AsInterfaceTest
             cis.dele += new Dele2(CommonMethod2);
             cis.dele += new Dele2(CommonMethod3);
             Assert.IsTrue(Take_DelegatePtrAsFieldInClass_Seq(cis), "Delegate marshaled as field in class with Sequential");
+            GC.KeepAlive(cis);
 
             Console.WriteLine("\n\nScenario 4 : Delegate marshaled as field in class with Sequential.");
             Class3_InterfacePtrAsField4_Exp cie = new Class3_InterfacePtrAsField4_Exp();
@@ -63,6 +64,7 @@ class AsInterfaceTest
             cie.dele += new Dele2(CommonMethod2);
             cie.dele += new Dele2(CommonMethod3);
             Assert.IsTrue(Take_DelegatePtrAsFieldInClass_Exp(cie), "Delegate marshaled as field in class with Sequential");
+            GC.KeepAlive(cie);
 
             return 100;
         } catch (Exception e){
