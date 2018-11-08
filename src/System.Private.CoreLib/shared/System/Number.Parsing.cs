@@ -55,7 +55,7 @@ namespace System
         private static unsafe bool TryNumberToInt32(ref NumberBuffer number, ref int value)
         {
             int i = number.Scale;
-            if (i > Int32Precision || i < number.Precision)
+            if (i > Int32Precision || i < number.DigitsCount)
             {
                 return false;
             }
@@ -96,7 +96,7 @@ namespace System
         private static unsafe bool TryNumberToInt64(ref NumberBuffer number, ref long value)
         {
             int i = number.Scale;
-            if (i > Int64Precision || i < number.Precision)
+            if (i > Int64Precision || i < number.DigitsCount)
             {
                 return false;
             }
@@ -137,7 +137,7 @@ namespace System
         private static unsafe bool TryNumberToUInt32(ref NumberBuffer number, ref uint value)
         {
             int i = number.Scale;
-            if (i > UInt32Precision || i < number.Precision || number.IsNegative)
+            if (i > UInt32Precision || i < number.DigitsCount || number.IsNegative)
             {
                 return false;
             }
@@ -169,7 +169,7 @@ namespace System
         private static unsafe bool TryNumberToUInt64(ref NumberBuffer number, ref ulong value)
         {
             int i = number.Scale;
-            if (i > UInt64Precision || i < number.Precision || number.IsNegative)
+            if (i > UInt64Precision || i < number.DigitsCount || number.IsNegative)
             {
                 return false;
             }
@@ -252,7 +252,7 @@ namespace System
             const int StateDecimal = 0x0010;
             const int StateCurrency = 0x0020;
 
-            Debug.Assert(number.Precision == 0);
+            Debug.Assert(number.DigitsCount == 0);
             Debug.Assert(number.Scale == 0);
             Debug.Assert(number.IsNegative == false);
             Debug.Assert(number.HasNonZeroTail == false);
@@ -376,7 +376,7 @@ namespace System
             }
 
             bool negExp = false;
-            number.Precision = digEnd;
+            number.DigitsCount = digEnd;
             number.Digits[digEnd] = (byte)('\0');
             if ((state & StateDigits) != 0)
             {

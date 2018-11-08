@@ -341,7 +341,7 @@ namespace System
             // If the exponent is zero or negative, then the integer part is empty.  In
             // either case, the remaining digits form the fractional part of the mantissa.
 
-            uint totalDigits = (uint)(number.Precision);
+            uint totalDigits = (uint)(number.DigitsCount);
             uint positiveExponent = (uint)(Math.Max(0, number.Scale));
 
             uint integerDigitsPresent = Math.Min(positiveExponent, totalDigits);
@@ -422,7 +422,7 @@ namespace System
             // have and we don't need to round).
             uint requiredBitsOfPrecision = (uint)(info.NormalMantissaBits + 1);
 
-            uint totalDigits = (uint)(number.Precision);
+            uint totalDigits = (uint)(number.DigitsCount);
             uint integerDigitsMissing = positiveExponent - integerDigitsPresent;
 
             uint integerFirstIndex = 0;

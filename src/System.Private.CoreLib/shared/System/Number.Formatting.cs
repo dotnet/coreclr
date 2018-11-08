@@ -344,7 +344,7 @@ namespace System
         private static unsafe void DecimalToNumber(ref decimal d, ref NumberBuffer number)
         {
             byte* buffer = number.GetDigitsPointer();
-            number.Precision = DecimalPrecision;
+            number.DigitsCount = DecimalPrecision;
             number.IsNegative = d.IsNegative;
 
             byte* p = buffer + DecimalPrecision;
@@ -968,7 +968,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // called from only one location
         private static unsafe void Int32ToNumber(int value, ref NumberBuffer number)
         {
-            number.Precision = Int32Precision;
+            number.DigitsCount = Int32Precision;
 
             if (value >= 0)
             {
@@ -1094,7 +1094,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // called from only one location
         private static unsafe void UInt32ToNumber(uint value, ref NumberBuffer number)
         {
-            number.Precision = UInt32Precision;
+            number.DigitsCount = UInt32Precision;
             number.IsNegative = false;
 
             byte* buffer = number.GetDigitsPointer();
@@ -1218,7 +1218,7 @@ namespace System
         {
             ulong value = (ulong)input;
             number.IsNegative = input < 0;
-            number.Precision = Int64Precision;
+            number.DigitsCount = Int64Precision;
             if (number.IsNegative)
             {
                 value = (ulong)(-input);
@@ -1361,7 +1361,7 @@ namespace System
 
         private static unsafe void UInt64ToNumber(ulong value, ref NumberBuffer number)
         {
-            number.Precision = UInt64Precision;
+            number.DigitsCount = UInt64Precision;
             number.IsNegative = false;
 
             byte* buffer = number.GetDigitsPointer();
@@ -1580,7 +1580,7 @@ namespace System
                         else
                         {
                             // This ensures that the PAL code pads out to the correct place even when we use the default precision
-                            nMaxDigits = number.Precision;
+                            nMaxDigits = number.DigitsCount;
                         }
                     }
 
@@ -2040,7 +2040,7 @@ namespace System
 
                     groupSizeIndex = 0;
                     int digitCount = 0;
-                    int digLength = number.Precision;
+                    int digLength = number.DigitsCount;
                     int digStart = (digPos < digLength) ? digPos : digLength;
                     fixed (char* spanPtr = &MemoryMarshal.GetReference(sb.AppendSpan(bufferSize)))
                     {
@@ -2333,7 +2333,7 @@ namespace System
 
         private static unsafe void DoubleToNumber(double value, int precision, ref NumberBuffer number)
         {
-            number.Precision = precision;
+            number.DigitsCount = precision;
 
             if (!double.IsFinite(value))
             {

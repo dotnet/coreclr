@@ -20,7 +20,7 @@ namespace System
 
         internal unsafe ref struct NumberBuffer
         {
-            public int Precision;
+            public int DigitsCount;
             public int Scale;
             public bool IsNegative;
             public bool HasNonZeroTail;
@@ -35,7 +35,7 @@ namespace System
                 Debug.Assert(digits != null);
                 Debug.Assert(digitsLength > 0);
 
-                Precision = 0;
+                DigitsCount = 0;
                 Scale = 0;
                 IsNegative = false;
                 HasNonZeroTail = false;
