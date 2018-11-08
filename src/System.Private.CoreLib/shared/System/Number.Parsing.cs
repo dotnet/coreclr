@@ -59,7 +59,7 @@ namespace System
             {
                 return false;
             }
-            char* p = number.GetDigitsPointer();
+            byte* p = number.GetDigitsPointer();
             Debug.Assert(p != null);
             int n = 0;
             while (--i >= 0)
@@ -100,7 +100,7 @@ namespace System
             {
                 return false;
             }
-            char* p = number.GetDigitsPointer();
+            byte* p = number.GetDigitsPointer();
             Debug.Assert(p != null);
             long n = 0;
             while (--i >= 0)
@@ -141,7 +141,7 @@ namespace System
             {
                 return false;
             }
-            char* p = number.GetDigitsPointer();
+            byte* p = number.GetDigitsPointer();
             Debug.Assert(p != null);
             uint n = 0;
             while (--i >= 0)
@@ -173,7 +173,7 @@ namespace System
             {
                 return false;
             }
-            char* p = number.GetDigitsPointer();
+            byte* p = number.GetDigitsPointer();
             Debug.Assert(p != null);
             ulong n = 0;
             while (--i >= 0)
@@ -330,7 +330,7 @@ namespace System
                     {
                         if (digCount < maxDigCount)
                         {
-                            number.Digits[digCount++] = ch;
+                            number.Digits[digCount++] = (byte)(ch);
                             if ((ch != '0') || (number.Kind != NumberBufferKind.Integer))
                             {
                                 digEnd = digCount;
@@ -377,7 +377,7 @@ namespace System
 
             bool negExp = false;
             number.Precision = digEnd;
-            number.Digits[digEnd] = '\0';
+            number.Digits[digEnd] = (byte)('\0');
             if ((state & StateDigits) != 0)
             {
                 if ((ch == 'E' || ch == 'e') && ((styles & NumberStyles.AllowExponent) != 0))
@@ -483,7 +483,7 @@ namespace System
                 return TryParseUInt32HexNumberStyle(value, styles, out Unsafe.As<int, uint>(ref result), ref failureIsOverflow);
             }
 
-            char* pDigits = stackalloc char[Int32NumberBufferLength];
+            byte* pDigits = stackalloc byte[Int32NumberBufferLength];
             NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int32NumberBufferLength);
 
             if (!TryStringToNumber(value, styles, ref number, info))
@@ -859,7 +859,7 @@ namespace System
                 return TryParseUInt64HexNumberStyle(value, styles, out Unsafe.As<long, ulong>(ref result), ref failureIsOverflow);
             }
 
-            char* pDigits = stackalloc char[Int64NumberBufferLength];
+            byte* pDigits = stackalloc byte[Int64NumberBufferLength];
             NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, Int64NumberBufferLength);
 
             if (!TryStringToNumber(value, styles, ref number, info))
@@ -892,7 +892,7 @@ namespace System
                 return TryParseUInt32HexNumberStyle(value, styles, out result, ref failureIsOverflow);
             }
 
-            char* pDigits = stackalloc char[UInt32NumberBufferLength];
+            byte* pDigits = stackalloc byte[UInt32NumberBufferLength];
             NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt32NumberBufferLength);
 
             if (!TryStringToNumber(value, styles, ref number, info))
@@ -1214,7 +1214,7 @@ namespace System
                 return TryParseUInt64HexNumberStyle(value, styles, out result, ref failureIsOverflow);
             }
 
-            char* pDigits = stackalloc char[UInt64NumberBufferLength];
+            byte* pDigits = stackalloc byte[UInt64NumberBufferLength];
             NumberBuffer number = new NumberBuffer(NumberBufferKind.Integer, pDigits, UInt64NumberBufferLength);
 
             if (!TryStringToNumber(value, styles, ref number, info))
@@ -1532,7 +1532,7 @@ namespace System
 
         private static unsafe bool TryNumberToDecimal(ref NumberBuffer number, ref decimal value)
         {
-            char* p = number.GetDigitsPointer();
+            byte* p = number.GetDigitsPointer();
             int e = number.Scale;
             bool sign = number.Sign;
             uint c = *p;
@@ -1655,7 +1655,7 @@ namespace System
 
         internal static unsafe bool TryParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out decimal result, out bool failureIsOverflow)
         {
-            char* pDigits = stackalloc char[DecimalNumberBufferLength];
+            byte* pDigits = stackalloc byte[DecimalNumberBufferLength];
             NumberBuffer number = new NumberBuffer(NumberBufferKind.Decimal, pDigits, DecimalNumberBufferLength);
 
             result = 0;
@@ -1677,7 +1677,7 @@ namespace System
 
         internal static unsafe bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result)
         {
-            char* pDigits = stackalloc char[DoubleNumberBufferLength];
+            byte* pDigits = stackalloc byte[DoubleNumberBufferLength];
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
 
             if (!TryStringToNumber(value, styles, ref number, info))
@@ -1712,7 +1712,7 @@ namespace System
 
         internal static unsafe bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result)
         {
-            char* pDigits = stackalloc char[SingleNumberBufferLength];
+            byte* pDigits = stackalloc byte[SingleNumberBufferLength];
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, SingleNumberBufferLength);
 
             if (!TryStringToNumber(value, styles, ref number, info))
