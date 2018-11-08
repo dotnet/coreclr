@@ -74,7 +74,7 @@ namespace System
                     n += (*p++ - '0');
                 }
             }
-            if (number.Sign)
+            if (number.IsNegative)
             {
                 n = -n;
                 if (n > 0)
@@ -115,7 +115,7 @@ namespace System
                     n += (*p++ - '0');
                 }
             }
-            if (number.Sign)
+            if (number.IsNegative)
             {
                 n = -n;
                 if (n > 0)
@@ -137,7 +137,7 @@ namespace System
         private static unsafe bool TryNumberToUInt32(ref NumberBuffer number, ref uint value)
         {
             int i = number.Scale;
-            if (i > UInt32Precision || i < number.Precision || number.Sign)
+            if (i > UInt32Precision || i < number.Precision || number.IsNegative)
             {
                 return false;
             }
@@ -169,7 +169,7 @@ namespace System
         private static unsafe bool TryNumberToUInt64(ref NumberBuffer number, ref ulong value)
         {
             int i = number.Scale;
-            if (i > UInt64Precision || i < number.Precision || number.Sign)
+            if (i > UInt64Precision || i < number.Precision || number.IsNegative)
             {
                 return false;
             }
@@ -254,7 +254,7 @@ namespace System
 
             Debug.Assert(number.Precision == 0);
             Debug.Assert(number.Scale == 0);
-            Debug.Assert(number.Sign == false);
+            Debug.Assert(number.IsNegative == false);
             Debug.Assert(number.HasNonZeroTail == false);
             Debug.Assert(number.Kind != NumberBufferKind.Unknown);
 
@@ -290,7 +290,7 @@ namespace System
                 // "-Kr 1231.47" is legal but "- 1231.47" is not.
                 if (!IsWhite(ch) || (styles & NumberStyles.AllowLeadingWhite) == 0 || ((state & StateSign) != 0 && ((state & StateCurrency) == 0 && info.NumberNegativePattern != 2)))
                 {
-                    if ((((styles & NumberStyles.AllowLeadingSign) != 0) && (state & StateSign) == 0) && ((next = MatchChars(p, strEnd, info.PositiveSign)) != null || ((next = MatchChars(p, strEnd, info.NegativeSign)) != null && (number.Sign = true))))
+                    if ((((styles & NumberStyles.AllowLeadingSign) != 0) && (state & StateSign) == 0) && ((next = MatchChars(p, strEnd, info.PositiveSign)) != null || ((next = MatchChars(p, strEnd, info.NegativeSign)) != null && (number.IsNegative = true))))
                     {
                         state |= StateSign;
                         p = next - 1;
@@ -298,7 +298,7 @@ namespace System
                     else if (ch == '(' && ((styles & NumberStyles.AllowParentheses) != 0) && ((state & StateSign) == 0))
                     {
                         state |= StateSign | StateParens;
-                        number.Sign = true;
+                        number.IsNegative = true;
                     }
                     else if (currSymbol != null && (next = MatchChars(p, strEnd, currSymbol)) != null)
                     {
@@ -425,7 +425,7 @@ namespace System
                 {
                     if (!IsWhite(ch) || (styles & NumberStyles.AllowTrailingWhite) == 0)
                     {
-                        if (((styles & NumberStyles.AllowTrailingSign) != 0 && ((state & StateSign) == 0)) && ((next = MatchChars(p, strEnd, info.PositiveSign)) != null || (((next = MatchChars(p, strEnd, info.NegativeSign)) != null) && (number.Sign = true))))
+                        if (((styles & NumberStyles.AllowTrailingSign) != 0 && ((state & StateSign) == 0)) && ((next = MatchChars(p, strEnd, info.PositiveSign)) != null || (((next = MatchChars(p, strEnd, info.NegativeSign)) != null) && (number.IsNegative = true))))
                         {
                             state |= StateSign;
                             p = next - 1;
@@ -456,7 +456,7 @@ namespace System
                         }
                         if ((state & StateDecimal) == 0)
                         {
-                            number.Sign = false;
+                            number.IsNegative = false;
                         }
                     }
                     str = p;
@@ -1534,7 +1534,7 @@ namespace System
         {
             byte* p = number.GetDigitsPointer();
             int e = number.Scale;
-            bool sign = number.Sign;
+            bool sign = number.IsNegative;
             uint c = *p;
             if (c == 0)
             {
@@ -1827,14 +1827,14 @@ namespace System
         {
             ulong bits = NumberToFloatingPointBits(ref number, in FloatingPointInfo.Double);
             double result = BitConverter.Int64BitsToDouble((long)(bits));
-            return number.Sign ? -result : result;
+            return number.IsNegative ? -result : result;
         }
 
         private static float NumberToSingle(ref NumberBuffer number)
         {
             uint bits = (uint)(NumberToFloatingPointBits(ref number, in FloatingPointInfo.Single));
             float result = BitConverter.Int32BitsToSingle((int)(bits));
-            return number.Sign ? -result : result;
+            return number.IsNegative ? -result : result;
         }
     }
 }

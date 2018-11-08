@@ -248,7 +248,7 @@ namespace System
             number.Digits[precision] = (byte)('\0');
 
             number.Scale++;
-            number.Sign = double.IsNegative(value);
+            number.IsNegative = double.IsNegative(value);
         }
     }
 }

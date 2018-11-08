@@ -341,11 +341,11 @@ namespace System
                 if (double.IsNegative(value))
                 {
                     value = -value;
-                    number.Sign = true;
+                    number.IsNegative = true;
                 }
                 else
                 {
-                    number.Sign = false;
+                    number.IsNegative = false;
                 }
 
                 // Step 1: Determine the normalized DiyFp w.
