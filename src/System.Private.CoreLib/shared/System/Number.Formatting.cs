@@ -354,7 +354,7 @@ namespace System
             }
             p = UInt32ToDecChars(p, d.Low, 0);
 
-            int i = (int)((buffer + DecimalPrecision) - p) >> 1;
+            int i = (int)((buffer + DecimalPrecision) - p);
             number.Scale = i - d.Scale;
 
             byte* dst = number.GetDigitsPointer();
