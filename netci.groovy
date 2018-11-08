@@ -1311,6 +1311,11 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
 
 def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def os, def configuration, def scenario, def isFlowJob, def isWindowsBuildOnlyJob, def bidailyCrossList) {
 
+    // No non-PR jobs in feature/utf8string branch: it's too much load on Jenkins.
+    if (branch == 'feature/utf8string') {
+        return
+    }
+
     // The dev/unix_test_workflow branch is used for Jenkins CI testing. We generally do not need any non-PR
     // triggers in the branch, because that would use machine resources unnecessarily.
     if (branch == 'dev/unix_test_workflow') {
