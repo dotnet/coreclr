@@ -1733,7 +1733,7 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
         pMTTarg = gc.target->GetMethodTable();
     }
 
-    MethodDesc *pMethOrig = Entry2MethodDesc(method, MT);
+    MethodDesc *pMethOrig = Entry2MethodDesc(method, pMTTarg);
     MethodDesc *pMeth = pMethOrig;
 
     MethodTable* pDelMT = gc.refThis->GetMethodTable();
