@@ -11,10 +11,10 @@ namespace PInvokeTests
 {
     class VarargsTest
     {
-        [DllImport("VarargsNative", CharSet = CharSet.Unicode)]
+        [DllImport("VarargsNative", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
         private static extern void TestVarArgs(StringBuilder builder, IntPtr bufferSize, string formatString, __arglist);
 
-        [DllImport("VarargsNative", CharSet = CharSet.Unicode)]
+        [DllImport("VarargsNative", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
         private static extern void TestArgIterator(StringBuilder builder, IntPtr bufferSize, string formatString, ArgIterator arguments);
 
         private static void TestArgIteratorWrapper(StringBuilder builder, IntPtr bufferSize, string formatString, __arglist)
