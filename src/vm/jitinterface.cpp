@@ -11783,15 +11783,13 @@ CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE
     JIT_TO_EE_TRANSITION();
 
     FieldDesc* field = (FieldDesc*) fieldHnd;
+    bool isClassInitialized = false;
 
     // We're only interested in ref class typed static fields
     // where the field handle specifies a unique location.
     if (field->IsStatic() && field->IsObjRef() && !field->IsThreadStatic())
     {
         MethodTable* pEnclosingMT = field->GetEnclosingMethodTable();
-
-        // We must not call here for statics of collectible types.
-        _ASSERTE(!pEnclosingMT->Collectible());
 
         if (!pEnclosingMT->IsSharedByGenericInstantiations())
         {
@@ -11805,6 +11803,9 @@ CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE
             OBJECTREF fieldObj = field->GetStaticOBJECTREF();
             VALIDATEOBJECTREF(fieldObj);
 
+            // Check for initialization before looking at the value
+            isClassInitialized = !!pEnclosingMT->IsClassInited();
+
             if (fieldObj != NULL)
             {
                 MethodTable *pObjMT = fieldObj->GetMethodTable();
@@ -11815,9 +11816,10 @@ CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE
             }
         }
     }
-    
-    // If the field is init only, and the class is known, the class can't ever change.
-    if ((result != NULL) && (isInitOnly != NULL))
+
+    // If the field is init only, and the class is known, and class initialization
+    // has finished, the class can't ever change.
+    if ((result != NULL) && isClassInitialized && (isInitOnly != NULL))
     {
         DWORD fieldAttribs = field->GetAttributes();
         *isInitOnly = !!IsFdInitOnly(fieldAttribs);
