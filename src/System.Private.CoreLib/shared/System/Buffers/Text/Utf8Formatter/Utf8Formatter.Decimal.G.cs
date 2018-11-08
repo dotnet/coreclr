@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using static System.Number;
 
 namespace System.Buffers.Text
 {
@@ -12,7 +13,7 @@ namespace System.Buffers.Text
         {
             int scale = number.Scale;
             ReadOnlySpan<byte> digits = number.Digits;
-            int numDigits = number.NumDigits;
+            int numDigits = number.Precision;
 
             bool isFraction = scale < numDigits;
             int numBytesNeeded;

@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using static System.Number;
 
 namespace System.Buffers.Text
 {
@@ -28,7 +29,7 @@ namespace System.Buffers.Text
         /// <exceptions>
         /// <cref>System.FormatException</cref> if the format is not valid for this data type.
         /// </exceptions>
-        public static bool TryFormat(decimal value, Span<byte> destination, out int bytesWritten, StandardFormat format = default)
+        public static unsafe bool TryFormat(decimal value, Span<byte> destination, out int bytesWritten, StandardFormat format = default)
         {
             if (format.IsDefault)
             {
@@ -42,8 +43,9 @@ namespace System.Buffers.Text
                     {
                         if (format.Precision != StandardFormat.NoPrecision)
                             throw new NotSupportedException(SR.Argument_GWithPrecisionNotSupported);
-                        NumberBuffer number = default;
-                        Number.DecimalToNumber(value, ref number);
+                        byte* pDigits = stackalloc byte[DecimalNumberBufferLength];
+                        NumberBuffer number = new NumberBuffer(NumberBufferKind.Decimal, pDigits, DecimalNumberBufferLength);
+                        DecimalToNumber(ref value, ref number);
                         bool success = TryFormatDecimalG(ref number, destination, out bytesWritten);
 #if DEBUG
                         // This DEBUG segment exists to close a code coverage hole inside TryFormatDecimalG(). Because we don't call RoundNumber() on this path, we have no way to feed
@@ -52,7 +54,7 @@ namespace System.Buffers.Text
                         if (success)
                         {
                             Span<byte> digits = number.Digits;
-                            int numDigits = number.NumDigits;
+                            int numDigits = number.Precision;
                             if (numDigits != 0 && number.Scale == numDigits && digits[numDigits - 1] == '0')
                             {
                                 while (numDigits != 0 && digits[numDigits - 1] == '0')
@@ -82,9 +84,9 @@ namespace System.Buffers.Text
                 case 'F':
                     {
                         NumberBuffer number = default;
-                        Number.DecimalToNumber(value, ref number);
+                        DecimalToNumber(ref value, ref number);
                         byte precision = (format.Precision == StandardFormat.NoPrecision) ? (byte)2 : format.Precision;
-                        Number.RoundNumber(ref number, number.Scale + precision);
+                        RoundNumber(ref number, number.Scale + precision);
                         return TryFormatDecimalF(ref number, destination, out bytesWritten, precision);
                     }
 
@@ -92,9 +94,9 @@ namespace System.Buffers.Text
                 case 'E':
                     {
                         NumberBuffer number = default;
-                        Number.DecimalToNumber(value, ref number);
+                        DecimalToNumber(ref value, ref number);
                         byte precision = (format.Precision == StandardFormat.NoPrecision) ? (byte)6 : format.Precision;
-                        Number.RoundNumber(ref number, precision + 1);
+                        RoundNumber(ref number, precision + 1);
                         return TryFormatDecimalE(ref number, destination, out bytesWritten, precision, exponentSymbol: (byte)format.Symbol);
                     }
 

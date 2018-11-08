@@ -341,7 +341,7 @@ namespace System
             return sb.TryCopyTo(destination, out charsWritten);
         }
 
-        private static unsafe void DecimalToNumber(ref decimal d, ref NumberBuffer number)
+        internal static unsafe void DecimalToNumber(ref decimal d, ref NumberBuffer number)
         {
             byte* buffer = number.GetDigitsPointer();
             number.Precision = DecimalPrecision;
@@ -2237,7 +2237,7 @@ namespace System
             }
         }
 
-        private static unsafe void RoundNumber(ref NumberBuffer number, int pos)
+        internal static unsafe void RoundNumber(ref NumberBuffer number, int pos)
         {
             byte* dig = number.GetDigitsPointer();
 

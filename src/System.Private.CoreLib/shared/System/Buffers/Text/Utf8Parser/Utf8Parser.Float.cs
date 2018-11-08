@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using static System.Number;
+
 namespace System.Buffers.Text
 {
     public static partial class Utf8Parser
@@ -104,7 +106,7 @@ namespace System.Buffers.Text
                 return false;
             }
 
-            value = Number.NumberBufferToDouble(ref number);
+            value = NumberToDouble(ref number);
             return true;
         }
 

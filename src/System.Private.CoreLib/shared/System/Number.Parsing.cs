@@ -1530,7 +1530,7 @@ namespace System
             return result;
         }
 
-        private static unsafe bool TryNumberToDecimal(ref NumberBuffer number, ref decimal value)
+        internal static unsafe bool TryNumberToDecimal(ref NumberBuffer number, ref decimal value)
         {
             byte* p = number.GetDigitsPointer();
             int e = number.Scale;
@@ -1823,14 +1823,14 @@ namespace System
                (Exception)new FormatException(SR.Format_InvalidString);
         }
 
-        private static double NumberToDouble(ref NumberBuffer number)
+        internal static double NumberToDouble(ref NumberBuffer number)
         {
             ulong bits = NumberToFloatingPointBits(ref number, in FloatingPointInfo.Double);
             double result = BitConverter.Int64BitsToDouble((long)(bits));
             return number.IsNegative ? -result : result;
         }
 
-        private static float NumberToSingle(ref NumberBuffer number)
+        internal static float NumberToSingle(ref NumberBuffer number)
         {
             uint bits = (uint)(NumberToFloatingPointBits(ref number, in FloatingPointInfo.Single));
             float result = BitConverter.Int32BitsToSingle((int)(bits));
