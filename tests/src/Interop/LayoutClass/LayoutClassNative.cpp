@@ -32,7 +32,7 @@ struct BlittableClass
 
 struct NestedLayoutClass
 {
-    SeqClass* str;
+    SeqClass str;
 };
 
 extern "C"
@@ -70,5 +70,5 @@ DLL_EXPORT BOOL STDMETHODCALLTYPE SimpleExpLayoutClassByRef(ExpClass *p)
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SimpleNestedLayoutClassByValue(NestedLayoutClass v)
 {
-    return SimpleSeqLayoutClassByRef(v.str);
+    return SimpleSeqLayoutClassByRef(&v.str);
 }

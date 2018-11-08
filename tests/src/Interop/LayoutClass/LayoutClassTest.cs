@@ -189,7 +189,7 @@ namespace PInvokeTests
                 value = p
             };
 
-            TestFramework.BeginScenario("Test #4 (Roundtrip of a nested sequential layout class in a structure. Verify that values updated on unmanaged side reflect on managed side)");
+            TestFramework.BeginScenario("Test #4 Nested sequential layout class in a structure.");
 
             try
             {
