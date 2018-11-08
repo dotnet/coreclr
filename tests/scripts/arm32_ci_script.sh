@@ -265,10 +265,10 @@ function cross_build_coreclr_with_docker {
         # For armel Tizen, we are going to construct RootFS on the fly.
         case $__linuxCodeName in
         tizen)
-            __dockerImage=" hqueue/dotnet-buildtools-prereqs:ubuntu-14.04-cross-0cd4667-20172211042239-tizen-rootfs-20170925"
+            __dockerImage=" tizendotnet/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180426002255-tizen-rootfs-5.0m1"
             __skipRootFS=1
             __dockerEnvironmentVariables+=" -e ROOTFS_DIR=/crossrootfs/armel.tizen.build"
-            __runtimeOS="tizen.4.0.0"
+            __runtimeOS="tizen.5.0.0"
         ;;
         *)
             echo "ERROR: $__linuxCodeName is not a supported linux name for $__buildArch"
@@ -296,7 +296,7 @@ function cross_build_coreclr_with_docker {
 
     # Cross building coreclr with rootfs in Docker
     (set +x; echo "Start cross build coreclr for $__buildArch $__linuxCodeName")
-    __buildCmd="./build.sh $__buildArch cross $__verboseFlag $__skipMscorlib $__buildConfig $__extraArgs -rebuild"
+    __buildCmd="./build.sh $__buildArch cross $__verboseFlag $__skipMscorlib $__buildConfig $__extraArgs"
     $__dockerCmd $__buildCmd
     sudo chown -R $(id -u -n) ./bin
 }
@@ -388,7 +388,7 @@ function run_tests_using_docker {
     elif [ "$__buildArch" == "armel" ]; then
         case $__linuxCodeName in
         tizen)
-            __dockerImage=" hqueue/dotnet-buildtools-prereqs:ubuntu-14.04-cross-0cd4667-20172211042239-tizen-rootfs-20170925"
+            __dockerImage=" tizendotnet/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180426002255-tizen-rootfs-5.0m1"
             __skipRootFS=1
             __dockerEnvironmentVariables=" -e ROOTFS_DIR=/crossrootfs/armel.tizen.test"
         ;;
