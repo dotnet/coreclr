@@ -7,7 +7,6 @@ using TestLibrary;
 
 namespace PInvokeTests
 {
-    [SecuritySafeCritical]
     [StructLayout(LayoutKind.Sequential)]
     public class SeqClass
     {
@@ -23,7 +22,6 @@ namespace PInvokeTests
         }
     }
 
-    [SecuritySafeCritical]
     [StructLayout(LayoutKind.Explicit)]
     public class ExpClass
     {
@@ -69,6 +67,18 @@ namespace PInvokeTests
         Cancel = 2
     }
 
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public class Blittable
+    {
+        public int a;
+
+        public Blittable(int _a)
+        {
+            a = _a;
+        }
+    }
+
     public struct NestedLayout
     {
         public SeqClass value;
@@ -76,7 +86,6 @@ namespace PInvokeTests
 
     class StructureTests
     {
-        //Simple struct - sequential layout by ref
         [DllImport("LayoutClassNative")]
         private static extern bool SimpleSeqLayoutClassByRef(SeqClass p);
 
@@ -86,14 +95,16 @@ namespace PInvokeTests
         [DllImport("LayoutClassNative")]
         private static extern bool SimpleNestedLayoutClassByValue(NestedLayout p);
 
+        [DllImport("LayoutClassNative")]
+        private static extern bool SimpleBlittableSeqLayoutClassByRef(Blittable p);
+
         public static bool SequentialClass()
         {
             string s = "before";
-            string changedValue = "after";
             bool retval = true;
             SeqClass p = new SeqClass(0, false, s);
 
-            TestFramework.BeginScenario("Test #1 (Roundtrip of a sequential layout class. Verify that values updated on unmanaged side reflect on managed side)");
+            TestFramework.BeginScenario("Test #1 Pass a sequential layout class.");
 
             try
             {
@@ -119,10 +130,8 @@ namespace PInvokeTests
             ExpClass p;
             bool retval = false;
 
-            TestFramework.BeginScenario("Test #3 (Roundtrip of a explicit layout class by reference. Verify that values updated on unmanaged side reflect on managed side)");
-            //direct pinvoke
+            TestFramework.BeginScenario("Test #2 Pass an explicit layout class.");
 
-            //cdecl
             try
             {
                 p = new ExpClass(DialogResult.None, 10);
@@ -144,11 +153,35 @@ namespace PInvokeTests
             return retval;
         }
 
+        public static bool BlittableClass()
+        {
+            bool retval = true;
+            Blittable p = new Blittable(10);
+
+            TestFramework.BeginScenario("Test #3 Pass a blittable sequential layout class.");
+
+            try
+            {
+                retval = SimpleBlittableSeqLayoutClassByRef(p);
+
+                if (retval == false)
+                {
+                    TestFramework.LogError("01", "PInvokeTests->Blittable : Unexpected error occured on unmanaged side");
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                TestFramework.LogError("04", "Unexpected exception: " + e.ToString());
+                retval = false;
+            }
+
+            return retval;
+        }
         
         public static bool NestedLayoutClass()
         {
             string s = "before";
-            string changedValue = "after";
             bool retval = true;
             SeqClass p = new SeqClass(0, false, s);
             NestedLayout target = new NestedLayout
@@ -156,7 +189,7 @@ namespace PInvokeTests
                 value = p
             };
 
-            TestFramework.BeginScenario("Test #3 (Roundtrip of a nested sequential layout class in a structure. Verify that values updated on unmanaged side reflect on managed side)");
+            TestFramework.BeginScenario("Test #4 (Roundtrip of a nested sequential layout class in a structure. Verify that values updated on unmanaged side reflect on managed side)");
 
             try
             {
@@ -183,6 +216,7 @@ namespace PInvokeTests
 
             retVal = retVal && SequentialClass();
             retVal = retVal && ExplicitClass();
+            retVal = retVal && BlittableClass();
             retVal = retVal && NestedLayoutClass();
 
             return (retVal ? 100 : 101);

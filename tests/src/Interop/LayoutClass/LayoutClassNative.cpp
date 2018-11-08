@@ -25,6 +25,11 @@ struct ExpClass
 	} udata;
 };
 
+struct BlittableClass
+{
+    int a;
+};
+
 struct NestedLayoutClass
 {
     SeqClass* str;
@@ -36,6 +41,17 @@ DLL_EXPORT BOOL STDMETHODCALLTYPE SimpleSeqLayoutClassByRef(SeqClass *p)
     if((p->a != 0) || (p->b) || strcmp(p->str, "before") != 0)
     {
         printf("\np->a=%d, p->b=%s, p->str=%s", p->a, p->b ? "true" : "false", p->str);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+extern "C"
+DLL_EXPORT BOOL STDMETHODCALLTYPE SimpleBlittableSeqLayoutClassByRef(BlittableClass *p) 
+{
+    if(p->a != 10)
+    {
+        printf("\np->a=%d", p->a);
         return FALSE;
     }
     return TRUE;
