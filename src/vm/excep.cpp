@@ -6966,6 +6966,48 @@ AdjustContextForWriteBarrier(
 {
     WRAPPER_NO_CONTRACT;
 
+#ifdef FEATURE_DATABREAKPOINT
+
+    // If pExceptionRecord is null, it means it is called from EEDbgInterfaceImpl::AdjustContextForWriteBarrierForDebugger()
+    // This is called only when a data breakpoint is hitm which could be inside a JIT write barrier helper and required
+    // this logic to help unwind out of it. For the x86, not patched case, we assume the IP lies within the region where we 
+    // have already saved the registers on the stack, and therefore the code unwind those registers as well. This is not true 
+    // for the usual AV case where the registers are not saved yet.
+
+    if (pExceptionRecord == nullptr)
+    {
+        PCODE ip = GetIP(pContext);
+#if defined(_TARGET_X86_)
+        bool withinWriteBarrierGroup = ((ip >= (PCODE) JIT_WriteBarrierGroup) && (ip <= (PCODE) JIT_WriteBarrierGroup_End));
+        bool withinPatchedWriteBarrierGroup = ((ip >= (PCODE) JIT_PatchedWriteBarrierGroup) && (ip <= (PCODE) JIT_PatchedWriteBarrierGroup_End));
+        if (withinWriteBarrierGroup || withinPatchedWriteBarrierGroup)
+        {
+            DWORD* esp = (DWORD*)pContext->Esp;
+            if (withinWriteBarrierGroup)
+            {
+#if defined(WRITE_BARRIER_CHECK)
+                pContext->Ebp = *esp++;
+                pContext->Ecx = *esp++;
+#endif
+            }
+            pContext->Eip = *esp++;
+            pContext->Esp = (DWORD)esp;
+            return TRUE;
+        }
+#elif defined(_TARGET_AMD64_)
+        if (IsIPInMarkedJitHelper((UINT_PTR)ip))
+        {
+            Thread::VirtualUnwindToFirstManagedCallFrame(pContext);
+            return TRUE;
+        }
+#else
+        #error Not supported
+#endif
+        return FALSE;
+    }
+
+#endif // FEATURE_DATABREAKPOINT
+
 #if defined(_TARGET_X86_) && !defined(PLATFORM_UNIX)
     void* f_IP = (void *)GetIP(pContext);
 
@@ -8172,6 +8214,24 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
     // this thread will bypass all our locks.
     Thread *pThread = GetThread();
 
+    if (pThread)
+    {
+        // Fiber-friendly Vectored Exception Handling:
+        // Check if the current and the cached stack-base match.
+        // If they don't match then probably the thread is running on a different Fiber
+        // than during the initialization of the Thread-object.
+        void* stopPoint = pThread->GetCachedStackBase();
+        void* currentStackBase = Thread::GetStackUpperBound();
+        if (currentStackBase != stopPoint)
+        {
+            CantAllocHolder caHolder;
+            STRESS_LOG2(LF_EH, LL_INFO100, "In CLRVectoredExceptionHandler: mismatch of cached and current stack-base indicating use of Fibers, return with EXCEPTION_CONTINUE_SEARCH: current = %p; cache = %p\n",
+                currentStackBase, stopPoint);
+            return EXCEPTION_CONTINUE_SEARCH;
+        }
+    }
+    
+    
     // Also check if the exception was in the EE or not
     BOOL fExceptionInEE = FALSE;
     if (!pThread)

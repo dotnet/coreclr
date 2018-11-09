@@ -778,7 +778,7 @@ public:
         return roundUp(lvExactSize, TARGET_POINTER_SIZE);
     }
 
-    const size_t lvArgStackSize() const;
+    size_t lvArgStackSize() const;
 
     unsigned lvSlotNum; // original slot # (if remapped)
 
@@ -850,6 +850,8 @@ public:
 
 #ifdef DEBUG
 public:
+    const char* lvReason;
+
     void PrintVarReg() const
     {
         printf("%s", getRegName(lvRegNum));
@@ -2854,10 +2856,17 @@ public:
     unsigned lvaPromotedStructAssemblyScratchVar;
 #endif // _TARGET_ARM_
 
-#ifdef DEBUG
-    unsigned lvaReturnEspCheck; // confirms ESP not corrupted on return
-    unsigned lvaCallEspCheck;   // confirms ESP not corrupted after a call
-#endif
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
+
+    unsigned lvaReturnSpCheck; // Stores SP to confirm it is not corrupted on return.
+
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
+
+#if defined(DEBUG) && defined(_TARGET_X86_)
+
+    unsigned lvaCallSpCheck; // Stores SP to confirm it is not corrupted after every call.
+
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
 
     unsigned lvaGenericsContextUseCount;
 
@@ -3398,6 +3407,8 @@ protected:
                                        bool                  mustExpand);
 
 protected:
+    bool compSupportsHWIntrinsic(InstructionSet isa);
+
 #ifdef _TARGET_XARCH_
     GenTree* impSSEIntrinsic(NamedIntrinsic        intrinsic,
                              CORINFO_METHOD_HANDLE method,
@@ -3443,7 +3454,6 @@ protected:
                                 CORINFO_METHOD_HANDLE method,
                                 CORINFO_SIG_INFO*     sig,
                                 bool                  mustExpand);
-    bool compSupportsHWIntrinsic(InstructionSet isa);
 
 protected:
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
@@ -7134,7 +7144,7 @@ public:
         return codeGen->getEmitter();
     }
 
-    const bool isFramePointerUsed()
+    bool isFramePointerUsed()
     {
         return codeGen->isFramePointerUsed();
     }
@@ -8262,11 +8272,20 @@ public:
 #endif
 
 #ifdef DEBUG
-        bool compGcChecks;         // Check arguments and return values to ensure they are sane
-        bool compStackCheckOnRet;  // Check ESP on return to ensure it is correct
-        bool compStackCheckOnCall; // Check ESP after every call to ensure it is correct
-
+        bool compGcChecks; // Check arguments and return values to ensure they are sane
 #endif
+
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
+
+        bool compStackCheckOnRet; // Check stack pointer on return to ensure it is correct.
+
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
+
+#if defined(DEBUG) && defined(_TARGET_X86_)
+
+        bool compStackCheckOnCall; // Check stack pointer after call to ensure it is correct. Only for x86.
+
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
 
         bool compNeedSecurityCheck; // This flag really means where or not a security object needs
                                     // to be allocated on the stack.
@@ -9739,6 +9758,8 @@ public:
             // Standard unary operators
             case GT_NOT:
             case GT_NEG:
+            case GT_BSWAP:
+            case GT_BSWAP16:
             case GT_COPY:
             case GT_RELOAD:
             case GT_ARR_LENGTH:

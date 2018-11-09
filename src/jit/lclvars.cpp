@@ -2116,17 +2116,21 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
 // Now grab the temp for the field local.
 
 #ifdef DEBUG
-        char  buf[200];
-        char* bufp = &buf[0];
-
-        sprintf_s(bufp, sizeof(buf), "%s V%02u.%s (fldOffset=0x%x)", "field", lclNum,
+        char buf[200];
+        sprintf_s(buf, sizeof(buf), "%s V%02u.%s (fldOffset=0x%x)", "field", lclNum,
                   compiler->eeGetFieldName(pFieldInfo->fldHnd), pFieldInfo->fldOffset);
+
+        // We need to copy 'buf' as lvaGrabTemp() below caches a copy to its argument.
+        size_t len  = strlen(buf) + 1;
+        char*  bufp = compiler->getAllocator(CMK_DebugOnly).allocate<char>(len);
+        strcpy_s(bufp, len, buf);
 
         if (index > 0)
         {
             noway_assert(pFieldInfo->fldOffset > (pFieldInfo - 1)->fldOffset);
         }
 #endif
+
         // Lifetime of field locals might span multiple BBs, so they must be long lifetime temps.
         unsigned varNum = compiler->lvaGrabTemp(false DEBUGARG(bufp));
 
@@ -2227,12 +2231,16 @@ void Compiler::lvaPromoteLongVars()
             CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef DEBUG
-            char  buf[200];
-            char* bufp = &buf[0];
-
-            sprintf_s(bufp, sizeof(buf), "%s V%02u.%s (fldOffset=0x%x)", "field", lclNum, index == 0 ? "lo" : "hi",
+            char buf[200];
+            sprintf_s(buf, sizeof(buf), "%s V%02u.%s (fldOffset=0x%x)", "field", lclNum, index == 0 ? "lo" : "hi",
                       index * 4);
+
+            // We need to copy 'buf' as lvaGrabTemp() below caches a copy to its argument.
+            size_t len  = strlen(buf) + 1;
+            char*  bufp = getAllocator(CMK_DebugOnly).allocate<char>(len);
+            strcpy_s(bufp, len, buf);
 #endif
+
             unsigned varNum = lvaGrabTemp(false DEBUGARG(bufp)); // Lifetime of field locals might span multiple BBs, so
                                                                  // they are long lifetime temps.
 
@@ -3467,7 +3475,7 @@ void LclVarDsc::lvaDisqualifyVar()
 /**********************************************************************************
 * Get stack size of the varDsc.
 */
-const size_t LclVarDsc::lvArgStackSize() const
+size_t LclVarDsc::lvArgStackSize() const
 {
     // Make sure this will have a stack size
     assert(!this->lvIsRegArg);
@@ -6962,6 +6970,11 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
                     break;
             }
         }
+    }
+
+    if (varDsc->lvReason != nullptr)
+    {
+        printf(" \"%s\"", varDsc->lvReason);
     }
 
     printf("\n");
