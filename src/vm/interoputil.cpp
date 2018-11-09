@@ -2037,51 +2037,6 @@ HRESULT SafeQueryInterfacePreemp(IUnknown* pUnk, REFIID riid, IUnknown** pResUnk
 
 #ifdef FEATURE_COMINTEROP
 
-// process unique GUID, every process has a unique GUID
-static Volatile<BSTR> bstrProcessGUID = NULL;
-
-// Global process GUID to identify the process
-BSTR GetProcessGUID()
-{
-    CONTRACT (BSTR)
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-    }
-    CONTRACT_END;
-    
-    // See if we were beaten to it.
-    if (bstrProcessGUID.Load() == NULL)
-    {
-        // setup a process unique GUID
-        GUID processGUID = GUID_NULL;
-        HRESULT hr = CoCreateGuid(&processGUID);
-        _ASSERTE(hr == S_OK);
-        if (hr != S_OK)
-            RETURN NULL;
-
-        // This is a global memory alloc that will live as long as the process.
-        NewArrayHolder<WCHAR> guidstr = new (nothrow) WCHAR[48];
-        if (!guidstr)
-            RETURN NULL;
-        
-        int cbLen = GuidToLPWSTR (processGUID, guidstr, 46);
-        _ASSERTE(cbLen <= 46);
-        
-        // Save this new stub on the DelegateEEClass.       
-        if (FastInterlockCompareExchangePointer(bstrProcessGUID.GetPointer(), guidstr.GetValue(), NULL ) == NULL)
-        {
-            guidstr.SuppressRelease();
-        }
-        
-    }
-
-    RETURN bstrProcessGUID;
-}
-
-
 #ifndef CROSSGEN_COMPILE
 
 //--------------------------------------------------------------------------------
