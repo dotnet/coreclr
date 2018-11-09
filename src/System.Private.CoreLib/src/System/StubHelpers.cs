@@ -1455,6 +1455,7 @@ namespace System.StubHelpers
 
     internal abstract class CleanupWorkListElement
     {
+        public CleanupWorkListElement m_Next;
         public abstract void Cleanup();
     }
 
@@ -1501,18 +1502,19 @@ namespace System.StubHelpers
 
     internal sealed class CleanupWorkList
     {
-        private List<CleanupWorkListElement> m_list = new List<CleanupWorkListElement>();
+        private CleanupWorkListElement m_first;
 
         public void Add(CleanupWorkListElement elem)
         {
-            m_list.Add(elem);
+            elem.m_Next = m_first;
+            m_first = elem;
         }
 
         public void Destroy()
         {
-            for (int i = m_list.Count - 1; i >= 0; i--)
+            for (CleanupWorkListElement elem = m_first; elem != null; elem = elem.m_Next)
             {
-                m_list[i].Cleanup();
+                elem.Cleanup();
             }
         }
     }  // class CleanupWorkList
