@@ -1149,13 +1149,6 @@ VOID SimpleComCallWrapper::Neuter(bool fSkipHandleCleanup)
     // NULL the context, we shall only use m_dwDomainId from this point on
     m_pContext = NULL;
     
-    // NULL the handles of DispatchMemberInfo if the AppDomain host them has been unloaded
-    DispatchExInfo *pDispatchExInfo = GetDispatchExInfo();
-    if (pDispatchExInfo)
-    {
-        pDispatchExInfo->DestroyMemberInfoHandles();
-    }
-
     StackSString ssMessage;
     ComCallWrapper *pWrap = m_pWrap;
     if (g_pConfig->LogCCWRefCountChangeEnabled())
