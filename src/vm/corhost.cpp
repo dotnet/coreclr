@@ -513,9 +513,7 @@ HRESULT CorHost2::ExecuteInDefaultAppDomain(LPCWSTR pwzAssemblyPath,
     CONTRACTL_END;
 
     // No point going further if the runtime is not running...
-    if (!IsRuntimeActive()
-        || !m_fStarted
-    )
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
     }   
