@@ -914,6 +914,7 @@ BEGIN
     IDS_EE_SAFEHANDLECLOSED                 "Safe handle has been closed"
     IDS_EE_SAFEHANDLECANNOTSETHANDLE        "Safe handle's handle field can only be set if the safe handle is not closed and has a ref count of 1."
 
+    IDS_EE_SH_FIELD_INVALID_OPERATION       "Structures containing SafeHandle fields are not allowed in this operation."
     IDS_EE_CANNOT_CREATE_SAFEHANDLE_FIELD   "SafeHandle fields cannot be created from an unmanaged handle."
     IDS_EE_SH_IN_VARIANT_NOT_SUPPORTED      "SafeHandle derived types cannot be stored in Variants."
     

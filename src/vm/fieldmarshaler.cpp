@@ -3974,8 +3974,7 @@ VOID FieldMarshaler_SafeHandle::UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pN
     // A cleanup list MUST be specified in order for us to be able to marshal
     // the SafeHandle.
     if (ppCleanupWorkListOnStack == NULL)
-        
-    _ASSERTE_MSG(ppCleanupWorkListOnStack != NULL, "A CleanupWorkList is required to marshal a SafeHandle.");
+        COMPlusThrow(kInvalidOperationException, IDS_EE_SH_FIELD_INVALID_OPERATION); 
 
     if (*pSafeHandleObj == NULL)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_SafeHandle"));
