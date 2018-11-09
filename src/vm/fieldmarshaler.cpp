@@ -3910,14 +3910,12 @@ VOID FieldMarshaler_Delegate::UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNat
     }
     CONTRACTL_END;
 
-    // A cleanup list MUST be specified in order for us to be able to marshal
-    // the Delegate.
-    if (ppCleanupWorkListOnStack == NULL)
-        COMPlusThrow(kInvalidOperationException, IDS_EE_SH_DEL_FIELD_INVALID_OPERATION);
-
     LPVOID fnPtr = COMDelegate::ConvertToCallback(*pCLRValue);
     
-    if (*pCLRValue != NULL)   
+    // If there is no CleanupWorkList (i.e. a call from Marshal.StructureToPtr), we don't use it to manage delegate lifetime.
+    // In that case, it falls on the user to manage the delegate lifetime. This is the cleanest way to do this since there is no well-defined
+    // object lifetime for the unmanaged memory that the structure would be marshalled to in the Marshal.StructureToPtr case.
+    if (*pCLRValue != NULL && ppCleanupWorkListOnStack != NULL)
     {
         // Call StubHelpers.AddToCleanupList to ensure the delegate is kept alive across the full native call.
         MethodDescCallSite AddToCleanupList(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST_DELEGATE);
@@ -3930,7 +3928,7 @@ VOID FieldMarshaler_Delegate::UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNat
 
         AddToCleanupList.Call(args);
     }
-    
+
     MAYBE_UNALIGNED_WRITE(pNativeValue, _PTR, fnPtr);
 }
 
@@ -3976,7 +3974,8 @@ VOID FieldMarshaler_SafeHandle::UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pN
     // A cleanup list MUST be specified in order for us to be able to marshal
     // the SafeHandle.
     if (ppCleanupWorkListOnStack == NULL)
-        COMPlusThrow(kInvalidOperationException, IDS_EE_SH_DEL_FIELD_INVALID_OPERATION);
+        
+    _ASSERTE_MSG(ppCleanupWorkListOnStack != NULL, "A CleanupWorkList is required to marshal a SafeHandle.");
 
     if (*pSafeHandleObj == NULL)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_SafeHandle"));
