@@ -365,9 +365,6 @@ private:
     // This flag indicates if this instance was the first to load and start CoreCLR
     BOOL m_fFirstToLoadCLR;
 
-    // This flag indicates if the host has authenticated with us or not
-    BOOL m_fIsHostAuthenticated;
-
 
     // Helpers for both ICLRRuntimeHost2 and ICLRPrivRuntime
     HRESULT _CreateAppDomain(
