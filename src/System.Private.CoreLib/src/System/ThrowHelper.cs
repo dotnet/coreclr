@@ -490,6 +490,7 @@ namespace System
         pHandle,
         values,
         task,
+        ch,
         s,
         input,
         pointer,
