@@ -1461,13 +1461,12 @@ namespace System.StubHelpers
         public void Destroy()
         {
             DestroyCore();
-            var next = m_Next;
+            CleanupWorkListElement next = m_Next;
             while (next != null)
             {
                 next.DestroyCore();
                 next = next.m_Next;
             }
-            m_Next = null;
         }
         
         public static void AddToCleanupList(ref CleanupWorkListElement list, CleanupWorkListElement newElement)
