@@ -11,8 +11,30 @@ namespace System
 
         private Range(Index start, Index end)
         {
-            this.Start = start;
-            this.End = end;
+            Start = start;
+            End = end;
+        }
+
+        public override bool Equals(object value)
+        {
+            if (value is Range)
+            {
+                Range r = (Range) value;
+                return r.Start.Equals(Start) && r.End.Equals(End);
+            }
+
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            int hash = ((5381 << 5) + 5381 + (5381 >> 27));
+            return unchecked((hash ^ Start.GetHashCode()) + ((hash ^  End.GetHashCode()) * 1566083941));
+        }
+
+        public override string ToString()
+        {
+            return Start + ".." + End;
         }
 
         public static Range Create(Index start, Index end) => new Range(start, end);

@@ -154,12 +154,25 @@ namespace System
 #endif
         }
 
-        public T this[Index index]
+        public ref readonly T this[Index index]
         {
+#if PROJECTN
+            [BoundsChecking]
             get
             {
-                return index.FromEnd ? this[_length - index.Value] : this[index.Value];
+                return ref Unsafe.Add(ref _pointer.Value, index.FromEnd ? _length - index.Value : index.Value);
             }
+#else
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [NonVersionable]
+            get
+            {
+                int i = index.FromEnd ? _length - index.Value : index.Value;
+                if ((uint)i >= (uint)_length)
+                    ThrowHelper.ThrowIndexOutOfRangeException();
+                return ref Unsafe.Add(ref _pointer.Value, i);
+            }
+#endif
         }
 
         public ReadOnlySpan<T> this[Range range]
@@ -168,7 +181,7 @@ namespace System
             {
                 int start = range.Start.FromEnd ? _length - range.Start.Value : range.Start.Value;
                 int end = range.End.FromEnd ? _length - range.End.Value : range.End.Value;
-                return this.Slice(start, end - start);
+                return Slice(start, end - start);
             }
         }
 
