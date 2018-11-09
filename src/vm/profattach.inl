@@ -302,7 +302,7 @@ inline void ProfilingAPIAttachDetach::GetAttachEventNameForPidAndVersion(HANDLE 
         {
             // App container to app container or the current process is the profilee process
             // In any case, use a local name
-            pAttachEventName->Printf(L"CPFATE_%d_%s", dwProfileeProcessPid, strRuntimeVersion.GetUnicode());        
+            pAttachEventName->Printf(L"NCPFATE_%d_%s", dwProfileeProcessPid, strRuntimeVersion.GetUnicode());        
         }
         else
         {
@@ -320,14 +320,14 @@ inline void ProfilingAPIAttachDetach::GetAttachEventNameForPidAndVersion(HANDLE 
                 COMPlusThrowHR(HRESULT_FROM_GetLastError());
             }
 
-            pAttachEventName->Printf(L"Session\\%d\\%s\\CPFATE_%d_%s", dwSessionId, wszObjectPath, dwProfileeProcessPid, strRuntimeVersion.GetUnicode());        
+            pAttachEventName->Printf(L"Session\\%d\\%s\\NCPFATE_%d_%s", dwSessionId, wszObjectPath, dwProfileeProcessPid, strRuntimeVersion.GetUnicode());        
         }        
     }
     else
     {
         // Non-app conatiner scenario
         // Create in global namespace
-        pAttachEventName->Printf(L"Global\\CPFATE_%d_%s", dwProfileeProcessPid, strRuntimeVersion.GetUnicode());
+        pAttachEventName->Printf(L"Global\\NCPFATE_%d_%s", dwProfileeProcessPid, strRuntimeVersion.GetUnicode());
     }
 }
 
@@ -386,11 +386,11 @@ inline void ProfilingAPIAttachDetach::GetAttachPipeNameForPidAndVersion(HANDLE h
             COMPlusThrowHR(HRESULT_FROM_GetLastError());
         }
             
-        pAttachPipeName->Printf(L"\\\\.\\pipe\\Sessions\\%d\\%s\\CPFATP_%d_%s", dwSessionId, wszObjectPath, dwProfileeProcessPid, strRuntimeVersion.GetUnicode());    
+        pAttachPipeName->Printf(L"\\\\.\\pipe\\Sessions\\%d\\%s\\NCPFATP_%d_%s", dwSessionId, wszObjectPath, dwProfileeProcessPid, strRuntimeVersion.GetUnicode());    
     }
     else
     {
-        pAttachPipeName->Printf(L"\\\\.\\pipe\\CPFATP_%d_%s", dwProfileeProcessPid, strRuntimeVersion.GetUnicode());    
+        pAttachPipeName->Printf(L"\\\\.\\pipe\\NCPFATP_%d_%s", dwProfileeProcessPid, strRuntimeVersion.GetUnicode());    
     }    
 }
 
