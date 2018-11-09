@@ -1453,15 +1453,15 @@ namespace System.StubHelpers
 #endif
     }  // struct NativeVariant
 
-    internal interface ICleanupWorkListElement
+    internal abstract class CleanupWorkListElement
     {
-        void Cleanup();
+        public abstract void Cleanup();
     }
 
     // Keeps a Delegate instance alive across the full Managed->Native call.
     // This ensures that users don't have to call GC.KeepAlive after passing a struct or class
     // that has a delegate field to native code.
-    internal sealed class DelegateCleanupWorkListElement : ICleanupWorkListElement
+    internal sealed class DelegateCleanupWorkListElement : CleanupWorkListElement
     {
         public DelegateCleanupWorkListElement(Delegate del)
         {
@@ -1470,7 +1470,7 @@ namespace System.StubHelpers
 
         private Delegate m_del;
 
-        public void Cleanup()
+        public override void Cleanup()
         {
             GC.KeepAlive(m_del);
         }
@@ -1479,7 +1479,7 @@ namespace System.StubHelpers
     // Aggregates SafeHandle and the "owned" bit which indicates whether the SafeHandle
     // has been successfully AddRef'ed. This allows us to do realiable cleanup (Release)
     // if and only if it is needed.
-    internal sealed class SafeHandleCleanupWorkListElement : ICleanupWorkListElement
+    internal sealed class SafeHandleCleanupWorkListElement : CleanupWorkListElement
     {
         public SafeHandleCleanupWorkListElement(SafeHandle handle)
         {
@@ -1492,7 +1492,7 @@ namespace System.StubHelpers
         // CleanupWorkList.Destroy ignores this element if m_owned is not set to true.
         public bool m_owned;
 
-        public void Cleanup()
+        public override void Cleanup()
         {
             if (m_owned)
                 StubHelpers.SafeHandleRelease(m_handle);
@@ -1501,9 +1501,9 @@ namespace System.StubHelpers
 
     internal sealed class CleanupWorkList
     {
-        private List<ICleanupWorkListElement> m_list = new List<ICleanupWorkListElement>();
+        private List<CleanupWorkListElement> m_list = new List<CleanupWorkListElement>();
 
-        public void Add(ICleanupWorkListElement elem)
+        public void Add(CleanupWorkListElement elem)
         {
             m_list.Add(elem);
         }
