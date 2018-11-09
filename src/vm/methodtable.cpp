@@ -8314,14 +8314,7 @@ InteropMethodTableData *MethodTable::LookupComInteropData()
 {
     WRAPPER_NO_CONTRACT;
 
-    if (Collectible())
-    {
-        return GetLoaderAllocator()->LookupComInteropData(this);
-    }
-    else
-    {
-        return GetDomain()->LookupComInteropData(this);
-    }
+    return GetLoaderAllocator()->LookupComInteropData(this);
 }
 
 //==========================================================================================
@@ -8329,14 +8322,8 @@ InteropMethodTableData *MethodTable::LookupComInteropData()
 BOOL MethodTable::InsertComInteropData(InteropMethodTableData *pData)
 {
     WRAPPER_NO_CONTRACT;
-    if (Collectible())
-    {
-        return GetLoaderAllocator()->InsertComInteropData(this, pData);
-    }
-    else
-    {
-        return GetDomain()->InsertComInteropData(this, pData);
-    }
+
+    return GetLoaderAllocator()->InsertComInteropData(this, pData);
 }
 
 //==========================================================================================

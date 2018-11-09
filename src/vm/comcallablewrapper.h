@@ -62,7 +62,7 @@ public:
     ComCallWrapperCache();
     ~ComCallWrapperCache();
 
-    // create a new WrapperCache (one for domain, one for each collectible LoaderAllocator)
+    // create a new WrapperCache (one per each LoaderAllocator)
     static ComCallWrapperCache* Create(LoaderAllocator *pLoaderAllocator);
 
     // Called when the domain is going away.  We may have outstanding references to this cache,

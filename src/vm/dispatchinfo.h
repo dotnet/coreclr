@@ -151,9 +151,7 @@ struct DispatchMemberInfo
 
 #ifndef DACCESS_COMPILE
     OBJECTREF GetMemberInfoObject();
-
     void ClearMemberInfoObject();
-
 #endif // DACCESS_COMPILE
 
     // Parameter marshaling methods.

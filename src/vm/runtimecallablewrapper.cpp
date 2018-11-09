@@ -2958,14 +2958,6 @@ IUnknown* RCW::GetComIPFromRCW(MethodTable* pMT)
         RETURN result;
     }
 
-    //
-    // Collectible types do not support com interop
-    //
-    if (pMT->Collectible())
-    {
-        //COMPlusThrow(kNotSupportedException, W("NotSupported_CollectibleCOM"));
-    }
-
     // returns an AddRef'ed IP
     RETURN GetComIPForMethodTableFromCache(pMT);
 }
