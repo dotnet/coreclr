@@ -3466,7 +3466,7 @@ void* MethodContext::repGetFieldAddress(CORINFO_FIELD_HANDLE field, void** ppInd
     return temp;
 }
 
-void MethodContext::recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool isInitOnly, CORINFO_CLASS_HANDLE result)
+void MethodContext::recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool isSpeculative, CORINFO_CLASS_HANDLE result)
 {
     if (GetStaticFieldCurrentClass == nullptr)
         GetStaticFieldCurrentClass = new LightWeightMap<DWORDLONG, Agnostic_GetStaticFieldCurrentClass>();
@@ -3474,22 +3474,22 @@ void MethodContext::recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bo
     Agnostic_GetStaticFieldCurrentClass value;
     
     value.classHandle = (DWORDLONG)result;
-    value.isInitOnly = isInitOnly;
+    value.isSpeculative = isSpeculative;
 
     GetStaticFieldCurrentClass->Add((DWORDLONG)field, value);
     DEBUG_REC(dmpGetFieldAddress((DWORDLONG)field, value));
 }
 void MethodContext::dmpGetStaticFieldCurrentClass(DWORDLONG key, const Agnostic_GetStaticFieldCurrentClass& value)
 {
-    printf("GetStaticFieldCurrentClass key fld-%016llX, value clsHnd-%016llX isInitOnly-%u", key, value.classHandle, value.isInitOnly);
+    printf("GetStaticFieldCurrentClass key fld-%016llX, value clsHnd-%016llX isSpeculative-%u", key, value.classHandle, value.isSpeculative);
 }
-CORINFO_CLASS_HANDLE MethodContext::repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* isInitOnly)
+CORINFO_CLASS_HANDLE MethodContext::repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* isSpeculative)
 {
     Agnostic_GetStaticFieldCurrentClass value = GetStaticFieldCurrentClass->Get((DWORDLONG) field);
 
-    if (isInitOnly != nullptr)
+    if (isSpeculative != nullptr)
     {
-        *isInitOnly = value.isInitOnly;
+        *isSpeculative = value.isSpeculative;
     }
 
     CORINFO_CLASS_HANDLE result = (CORINFO_CLASS_HANDLE) value.classHandle;

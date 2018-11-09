@@ -2339,11 +2339,11 @@ void * ZapInfo::getFieldAddress(CORINFO_FIELD_HANDLE field, void **ppIndirection
     return NULL;
 }
 
-CORINFO_CLASS_HANDLE ZapInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* isInitOnly)
+CORINFO_CLASS_HANDLE ZapInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* isSpeculative)
 {
-    if (isInitOnly != NULL)
+    if (isSpeculative != NULL)
     {
-        *isInitOnly = false;
+        *isSpeculative = true;
     }
 
     return NULL;

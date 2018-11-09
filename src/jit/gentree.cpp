@@ -16576,30 +16576,19 @@ CORINFO_CLASS_HANDLE Compiler::gtGetFieldClassHandle(CORINFO_FIELD_HANDLE fieldH
                     eeGetClassName(fieldClass));
 #endif // DEBUG
 
-            // Is this an initialized static init-only field?
-            bool                 isFieldInitOnly = false;
-            CORINFO_CLASS_HANDLE currentClass =
-                info.compCompHnd->getStaticFieldCurrentClass(fieldHnd, &isFieldInitOnly);
+            // Is this a fully initialized init-only static field?
+            //
+            // Note we're not asking for speculative results here, yet.
+            CORINFO_CLASS_HANDLE currentClass = info.compCompHnd->getStaticFieldCurrentClass(fieldHnd);
 
             if (currentClass != NO_CLASS_HANDLE)
             {
-                // We know the current type -- can we rely on it?
-                if (isFieldInitOnly)
-                {
-                    // Yes! We know the class exactly and can rely on this to always be true.
-                    fieldClass = currentClass;
-                    *isExact   = true;
-                    *isNonNull = true;
-                    JITDUMP("Runtime reports field is init-only and has type %s\n", eeGetClassName(fieldClass));
-                }
-                else
-                {
-                    // No. We know the current type but it may change over time.
-                    //
-                    // We could use this type as an informed guess, someday,
-                    // if it is a "better" type than the declared field type.
-                    JITDUMP("Field is not init-only\n");
-                }
+                // Yes! We know the class exactly and can rely on this to always be true.
+                fieldClass = currentClass;
+                *isExact   = true;
+                *isNonNull = true;
+                JITDUMP("Runtime reports field is init-only and initialized and has class %s\n",
+                        eeGetClassName(fieldClass));
             }
             else
             {

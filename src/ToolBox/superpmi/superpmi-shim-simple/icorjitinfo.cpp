@@ -1259,9 +1259,9 @@ void* interceptor_ICJI::getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppInd
 }
 
 // return the class handle for the current value of a static field
-CORINFO_CLASS_HANDLE interceptor_ICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *isInitOnly)
+CORINFO_CLASS_HANDLE interceptor_ICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *isSpeculative)
 {
-    return original_ICorJitInfo->getStaticFieldCurrentClass(field, isInitOnly);
+    return original_ICorJitInfo->getStaticFieldCurrentClass(field, isSpeculative);
 }
 
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)

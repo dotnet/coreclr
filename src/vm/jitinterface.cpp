@@ -11758,7 +11758,7 @@ void* CEEJitInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
 
 /*********************************************************************/
 CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
-                                                            bool* isInitOnly)
+                                                            bool* isSpeculative)
 {
     CONTRACTL {
         SO_TOLERANT;
@@ -11769,9 +11769,9 @@ CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE
 
     CORINFO_CLASS_HANDLE result = NULL;
 
-    if (isInitOnly != NULL)
+    if (isSpeculative != NULL)
     {
-        *isInitOnly = false;
+        *isSpeculative = true;
     }
 
     // Only examine the field's value if we are producing jitted code.
@@ -11817,12 +11817,27 @@ CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE
         }
     }
 
-    // If the field is init only, and the class is known, and class initialization
-    // has finished, the class can't ever change.
-    if ((result != NULL) && isClassInitialized && (isInitOnly != NULL))
+    // Did we find a class?
+    if (result != NULL)
     {
+        // Figure out what to report back.
         DWORD fieldAttribs = field->GetAttributes();
-        *isInitOnly = !!IsFdInitOnly(fieldAttribs);
+        bool isInitOnly = !!IsFdInitOnly(fieldAttribs);
+        bool isResultImmutable = isInitOnly && isClassInitialized;
+
+        if (isSpeculative != NULL)
+        {
+            // Caller is ok with potentially mutable results.
+            *isSpeculative = !isResultImmutable;
+        }
+        else
+        {
+            // Caller only wants to see immutable results.
+            if (!isResultImmutable)
+            {
+                result = NULL;
+            }
+        }
     }
 
     EE_TO_JIT_TRANSITION();
@@ -13941,12 +13956,12 @@ void* CEEInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
 }
 
 CORINFO_CLASS_HANDLE CEEInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
-                                                         bool* isInitOnly)
+                                                         bool* isSpeculative)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(isVerifyOnly());
-    if (isInitOnly != NULL)
-        *isInitOnly = false;
+    if (isSpeculative != NULL)
+        *isSpeculative = true;
     return NULL;
 }
 

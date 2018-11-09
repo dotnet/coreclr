@@ -177,7 +177,7 @@ public:
     struct Agnostic_GetStaticFieldCurrentClass
     {
         DWORDLONG classHandle;
-        bool      isInitOnly;
+        bool      isSpeculative;
     };
     struct Agnostic_CORINFO_RESOLVED_TOKEN
     {
@@ -928,9 +928,9 @@ public:
     void dmpGetFieldAddress(DWORDLONG key, const Agnostic_GetFieldAddress& value);
     void* repGetFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection);
 
-    void recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool isInitOnly, CORINFO_CLASS_HANDLE result);
+    void recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool isSpeculative, CORINFO_CLASS_HANDLE result);
     void dmpGetStaticFieldCurrentClass(DWORDLONG key, const Agnostic_GetStaticFieldCurrentClass& value);
-    CORINFO_CLASS_HANDLE repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* isInitOnly);
+    CORINFO_CLASS_HANDLE repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* isSpeculative);
 
     void recGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs, unsigned len, unsigned result);
     void dmpGetClassGClayout(DWORDLONG key, const Agnostic_GetClassGClayout& value);
