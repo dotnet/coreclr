@@ -1517,10 +1517,10 @@ void* MyICJI::getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection)
 }
 
 // return the class handle for the current value of a static field
-CORINFO_CLASS_HANDLE MyICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *isSpeculative)
+CORINFO_CLASS_HANDLE MyICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *pIsSpeculative)
 {
     jitInstance->mc->cr->AddCall("getStaticFieldCurrentClass");
-    return jitInstance->mc->repGetStaticFieldCurrentClass(field, isSpeculative);
+    return jitInstance->mc->repGetStaticFieldCurrentClass(field, pIsSpeculative);
 }
 
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)

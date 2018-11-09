@@ -1817,15 +1817,15 @@ void* interceptor_ICJI::getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppInd
 }
 
 // return the class handle for the current value of a static field
-CORINFO_CLASS_HANDLE interceptor_ICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *isSpeculative)
+CORINFO_CLASS_HANDLE interceptor_ICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *pIsSpeculative)
 {
     mc->cr->AddCall("getStaticFieldCurrentClass");
     bool localIsSpeculative = false;
     CORINFO_CLASS_HANDLE result = original_ICorJitInfo->getStaticFieldCurrentClass(field, &localIsSpeculative);
     mc->recGetStaticFieldCurrentClass(field, localIsSpeculative, result);
-    if (isSpeculative != nullptr)
+    if (pIsSpeculative != nullptr)
     {
-        *isSpeculative = localIsSpeculative;
+        *pIsSpeculative = localIsSpeculative;
     }
     return result;
 }

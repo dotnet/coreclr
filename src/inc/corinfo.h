@@ -3119,20 +3119,20 @@ public:
                     void                  **ppIndirection = NULL
                     ) = 0;
 
-    // If isSpeculative is NULL, return the class handle for the value of ref-class typed 
+    // If pIsSpeculative is NULL, return the class handle for the value of ref-class typed
     // static readonly fields, if there is a unique location for the static and the class
     // is already initialized.
     // 
-    // If isSpeculative is not NULL, fetch the class handle for the value of all ref-class
+    // If pIsSpeculative is not NULL, fetch the class handle for the value of all ref-class
     // typed static fields, if there is a unique location for the static and the field is
     // not null.
     //
-    // Set *isSpeculative true if this type may change over time (field is not readonly or
-    // is readonly but class has not yet finished initialization). Set *isSpeculative false
+    // Set *pIsSpeculative true if this type may change over time (field is not readonly or
+    // is readonly but class has not yet finished initialization). Set *pIsSpeculative false
     // if this type will not change.
     virtual CORINFO_CLASS_HANDLE getStaticFieldCurrentClass(
                     CORINFO_FIELD_HANDLE    field,
-                    bool                   *isSpeculative = NULL
+                    bool                   *pIsSpeculative = NULL
                     ) = 0;
 
     // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)

@@ -11758,7 +11758,7 @@ void* CEEJitInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
 
 /*********************************************************************/
 CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
-                                                            bool* isSpeculative)
+                                                            bool* pIsSpeculative)
 {
     CONTRACTL {
         SO_TOLERANT;
@@ -11769,9 +11769,9 @@ CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE
 
     CORINFO_CLASS_HANDLE result = NULL;
 
-    if (isSpeculative != NULL)
+    if (pIsSpeculative != NULL)
     {
-        *isSpeculative = true;
+        *pIsSpeculative = true;
     }
 
     // Only examine the field's value if we are producing jitted code.
@@ -11821,14 +11821,12 @@ CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE
     if (result != NULL)
     {
         // Figure out what to report back.
-        DWORD fieldAttribs = field->GetAttributes();
-        bool isInitOnly = !!IsFdInitOnly(fieldAttribs);
-        bool isResultImmutable = isInitOnly && isClassInitialized;
+        bool isResultImmutable = isClassInitialized && IsFdInitOnly(field->GetAttributes());
 
-        if (isSpeculative != NULL)
+        if (pIsSpeculative != NULL)
         {
             // Caller is ok with potentially mutable results.
-            *isSpeculative = !isResultImmutable;
+            *pIsSpeculative = !isResultImmutable;
         }
         else
         {
@@ -13956,12 +13954,12 @@ void* CEEInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
 }
 
 CORINFO_CLASS_HANDLE CEEInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
-                                                         bool* isSpeculative)
+                                                         bool* pIsSpeculative)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(isVerifyOnly());
-    if (isSpeculative != NULL)
-        *isSpeculative = true;
+    if (pIsSpeculative != NULL)
+        *pIsSpeculative = true;
     return NULL;
 }
 

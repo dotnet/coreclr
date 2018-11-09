@@ -3483,13 +3483,13 @@ void MethodContext::dmpGetStaticFieldCurrentClass(DWORDLONG key, const Agnostic_
 {
     printf("GetStaticFieldCurrentClass key fld-%016llX, value clsHnd-%016llX isSpeculative-%u", key, value.classHandle, value.isSpeculative);
 }
-CORINFO_CLASS_HANDLE MethodContext::repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* isSpeculative)
+CORINFO_CLASS_HANDLE MethodContext::repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative)
 {
     Agnostic_GetStaticFieldCurrentClass value = GetStaticFieldCurrentClass->Get((DWORDLONG) field);
 
-    if (isSpeculative != nullptr)
+    if (pIsSpeculative != nullptr)
     {
-        *isSpeculative = value.isSpeculative;
+        *pIsSpeculative = value.isSpeculative;
     }
 
     CORINFO_CLASS_HANDLE result = (CORINFO_CLASS_HANDLE) value.classHandle;
