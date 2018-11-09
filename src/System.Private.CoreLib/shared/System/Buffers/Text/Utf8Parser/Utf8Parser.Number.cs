@@ -14,7 +14,7 @@ namespace System.Buffers.Text
             AllowExponent = 0x00000001,
         }
 
-        private static bool TryParseNumber(ReadOnlySpan<byte> source, ref NumberBuffer number, out int bytesConsumed, ParseNumberOptions options, out bool textUsedExponentNotation)
+        private static bool TryParseNumber(ReadOnlySpan<byte> source, ref Number.NumberBuffer number, out int bytesConsumed, ParseNumberOptions options, out bool textUsedExponentNotation)
         {
             Debug.Assert(number.Digits[0] == 0 && number.Scale == 0 && !number.IsNegative, "Number not initialized to default(NumberBuffer)");
 
@@ -87,7 +87,7 @@ namespace System.Buffers.Text
             int numNonLeadingDigitsBeforeDecimal = srcIndex - startIndexNonLeadingDigitsBeforeDecimal;
 
             Debug.Assert(dstIndex == 0);
-            int numNonLeadingDigitsBeforeDecimalToCopy = Math.Min(numNonLeadingDigitsBeforeDecimal, NumberBuffer.BufferSize - 1);
+            int numNonLeadingDigitsBeforeDecimalToCopy = Math.Min(numNonLeadingDigitsBeforeDecimal, number.Digits.Length - 1);
             source.Slice(startIndexNonLeadingDigitsBeforeDecimal, numNonLeadingDigitsBeforeDecimalToCopy).CopyTo(digits);
             dstIndex = numNonLeadingDigitsBeforeDecimalToCopy;
             number.Scale = numNonLeadingDigitsBeforeDecimal;
@@ -128,7 +128,7 @@ namespace System.Buffers.Text
                     }
                 }
 
-                int numDigitsAfterDecimalToCopy = Math.Min(srcIndex - startIndexOfDigitsAfterDecimalToCopy, NumberBuffer.BufferSize - dstIndex - 1);
+                int numDigitsAfterDecimalToCopy = Math.Min(srcIndex - startIndexOfDigitsAfterDecimalToCopy, number.Digits.Length - 1);
                 source.Slice(startIndexOfDigitsAfterDecimalToCopy, numDigitsAfterDecimalToCopy).CopyTo(digits.Slice(dstIndex));
                 dstIndex += numDigitsAfterDecimalToCopy;
                 // We "should" really NUL terminate, but there are multiple places we'd have to do this and it is a precondition that the caller pass in a fully zero=initialized Number.
