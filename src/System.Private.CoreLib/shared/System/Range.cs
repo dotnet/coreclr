@@ -17,9 +17,8 @@ namespace System
 
         public override bool Equals(object value)
         {
-            if (value is Range)
+            if (value is Range r)
             {
-                Range r = (Range) value;
                 return r.Start.Equals(Start) && r.End.Equals(End);
             }
 
@@ -28,8 +27,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            int hash = ((5381 << 5) + 5381 + (5381 >> 27));
-            return unchecked((hash ^ Start.GetHashCode()) + ((hash ^  End.GetHashCode()) * 1566083941));
+            return HashCode.Combine(Start.GetHashCode(), End.GetHashCode());
         }
 
         public override string ToString()

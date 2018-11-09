@@ -161,23 +161,10 @@ namespace System
 
         public ref readonly T this[Index index]
         {
-#if PROJECTN
-            [BoundsChecking]
             get
             {
-                return ref Unsafe.Add(ref _pointer.Value, index.FromEnd ? _length - index.Value : index.Value);
+                return ref this [index.FromEnd ? _length - index.Value : index.Value];
             }
-#else
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            [NonVersionable]
-            get
-            {
-                int i = index.FromEnd ? _length - index.Value : index.Value;
-                if ((uint)i >= (uint)_length)
-                    ThrowHelper.ThrowIndexOutOfRangeException();
-                return ref Unsafe.Add(ref _pointer.Value, i);
-            }
-#endif
         }
 
         public Span<T> this[Range range]
