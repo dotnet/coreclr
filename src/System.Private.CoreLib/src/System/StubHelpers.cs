@@ -584,7 +584,7 @@ namespace System.StubHelpers
     internal static class ValueClassMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ConvertToNative(IntPtr dst, IntPtr src, IntPtr pMT, ref CleanupWorkList pCleanupWorkList);
+        internal static extern void ConvertToNative(IntPtr dst, IntPtr src, IntPtr pMT, ref CleanupWorkListElement pCleanupWorkList);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void ConvertToManaged(IntPtr dst, IntPtr src, IntPtr pMT);
@@ -900,7 +900,7 @@ namespace System.StubHelpers
         private Type layoutType;
 
         // Cleanup list to be destroyed when clearing the native view (for layouts with SafeHandles).
-        private CleanupWorkList cleanupWorkList;
+        private CleanupWorkListElement cleanupWorkList;
 
         [Flags]
         internal enum AsAnyFlags
@@ -1455,8 +1455,33 @@ namespace System.StubHelpers
 
     internal abstract class CleanupWorkListElement
     {
-        public CleanupWorkListElement m_Next;
-        public abstract void Cleanup();
+        private CleanupWorkListElement m_Next;
+        protected abstract void DestroyCore();
+
+        public void Destroy()
+        {
+            DestroyCore();
+            var next = m_Next;
+            while (next != null)
+            {
+                next.DestroyCore();
+                next = next.m_Next;
+            }
+            m_Next = null;
+        }
+        
+        public static void AddToCleanupList(ref CleanupWorkListElement list, CleanupWorkListElement newElement)
+        {
+            if (list == null)
+            {
+                list = newElement;
+            }
+            else
+            {
+                newElement.m_Next = list;
+                list = newElement;
+            }
+        }
     }
 
     // Keeps a Delegate instance alive across the full Managed->Native call.
@@ -1471,7 +1496,7 @@ namespace System.StubHelpers
 
         private Delegate m_del;
 
-        public override void Cleanup()
+        protected override void DestroyCore()
         {
             GC.KeepAlive(m_del);
         }
@@ -1490,34 +1515,21 @@ namespace System.StubHelpers
         private SafeHandle m_handle;
 
         // This field is passed by-ref to SafeHandle.DangerousAddRef.
-        // CleanupWorkList.Destroy ignores this element if m_owned is not set to true.
-        public bool m_owned;
+        // DestroyCore ignores this element if m_owned is not set to true.
+        private bool m_owned;
 
-        public override void Cleanup()
+        protected override void DestroyCore()
         {
             if (m_owned)
                 StubHelpers.SafeHandleRelease(m_handle);
         }
+
+        public IntPtr AddRef()
+        {
+            // element.m_owned will be true iff the AddRef succeeded
+            return StubHelpers.SafeHandleAddRef(m_handle, ref m_owned);
+        }
     }  // class CleanupWorkListElement
-
-    internal sealed class CleanupWorkList
-    {
-        private CleanupWorkListElement m_first;
-
-        public void Add(CleanupWorkListElement elem)
-        {
-            elem.m_Next = m_first;
-            m_first = elem;
-        }
-
-        public void Destroy()
-        {
-            for (CleanupWorkListElement elem = m_first; elem != null; elem = elem.m_Next)
-            {
-                elem.Cleanup();
-            }
-        }
-    }  // class CleanupWorkList
 
     internal static class StubHelpers
     {
@@ -1542,28 +1554,20 @@ namespace System.StubHelpers
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void ThrowInteropParamException(int resID, int paramIdx);
 
-        internal static IntPtr AddToCleanupList(ref CleanupWorkList pCleanupWorkList, SafeHandle handle)
+        internal static IntPtr AddToCleanupList(ref CleanupWorkListElement pCleanupWorkList, SafeHandle handle)
         {
-            if (pCleanupWorkList == null)
-                pCleanupWorkList = new CleanupWorkList();
-
             SafeHandleCleanupWorkListElement element = new SafeHandleCleanupWorkListElement(handle);
-            pCleanupWorkList.Add(element);
-
-            // element.m_owned will be true iff the AddRef succeeded
-            return SafeHandleAddRef(handle, ref element.m_owned);
+            CleanupWorkListElement.AddToCleanupList(ref pCleanupWorkList, element);
+            return element.AddRef();
         }
 
-        internal static void AddToCleanupList(ref CleanupWorkList pCleanupWorkList, Delegate del)
+        internal static void AddToCleanupList(ref CleanupWorkListElement pCleanupWorkList, Delegate del)
         {
-            if (pCleanupWorkList == null)
-                pCleanupWorkList = new CleanupWorkList();
-
             DelegateCleanupWorkListElement element = new DelegateCleanupWorkListElement(del);
-            pCleanupWorkList.Add(element);
+            CleanupWorkListElement.AddToCleanupList(ref pCleanupWorkList, element);
         }
 
-        internal static void DestroyCleanupList(ref CleanupWorkList pCleanupWorkList)
+        internal static void DestroyCleanupList(ref CleanupWorkListElement pCleanupWorkList)
         {
             if (pCleanupWorkList != null)
             {
@@ -1728,7 +1732,7 @@ namespace System.StubHelpers
         internal static extern unsafe int strlen(sbyte* ptr);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern unsafe void FmtClassUpdateNativeInternal(object obj, byte* pNative, ref CleanupWorkList pCleanupWorkList);
+        internal static extern unsafe void FmtClassUpdateNativeInternal(object obj, byte* pNative, ref CleanupWorkListElement pCleanupWorkList);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern unsafe void FmtClassUpdateCLRInternal(object obj, byte* pNative);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
