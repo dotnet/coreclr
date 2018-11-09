@@ -39,15 +39,21 @@ namespace PInvokeTests
         public static int Main()
         {
             var passed = true;
+            int arg1 = 10;
+            int arg2 = 20;
+            double arg3 = 12.5;
+
+            string expected = $"{arg1}, {arg2}, {arg3:F1}";
+
             StringBuilder builder;
 
             builder = new StringBuilder(30);
-            TestVarArgs(builder, (IntPtr)30, "%i, %i, %.1f", __arglist(10, 10, 12.5));
-            passed &= AssertEqual(builder.ToString(), "10, 10, 12.5");
+            TestVarArgs(builder, (IntPtr)30, "%i, %i, %.1f", __arglist(arg1, arg2, arg3));
+            passed &= AssertEqual(builder.ToString(), expected);
 
             builder = new StringBuilder(30);
-            TestArgIteratorWrapper(builder, (IntPtr)30, "%i, %i, %.1f", __arglist(10, 10, 12.5));
-            passed &= AssertEqual(builder.ToString(), "10, 10, 12.5");
+            TestArgIteratorWrapper(builder, (IntPtr)30, "%i, %i, %.1f", __arglist(arg1, arg2, arg3));
+            passed &= AssertEqual(builder.ToString(), expected);
 
             return passed ? 100 : 101;
         }
