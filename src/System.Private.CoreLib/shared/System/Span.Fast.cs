@@ -159,7 +159,7 @@ namespace System
 #endif
         }
 
-        public ref readonly T this[Index index]
+        public ref T this[Index index]
         {
             get
             {

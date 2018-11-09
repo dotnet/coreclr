@@ -4,7 +4,7 @@
 
 namespace System
 {
-    public readonly struct Index
+    public readonly struct Index : IEquatable<Index>
     {
         private readonly int _value;
 
@@ -20,15 +20,8 @@ namespace System
 
         public int Value => _value < 0 ? ~_value : _value;
         public bool FromEnd => _value < 0;
-
-        public override bool Equals(object value)
-        {
-            if (value is Index)
-            {
-                return _value == ((Index) value)._value;
-            }
-            return false;
-        }
+        public override bool Equals(object value) => value is Index && _value == ((Index)value)._value;
+        public bool Equals (Index other) => _value == other._value;
 
         public override int GetHashCode()
         {
@@ -37,7 +30,8 @@ namespace System
 
         public override string ToString()
         {
-            return FromEnd ? "^" + Value.ToString() : Value.ToString();
+            string str = Value.ToString();
+            return FromEnd ? "^" + str : str;
         }
 
         public static implicit operator Index(int value)

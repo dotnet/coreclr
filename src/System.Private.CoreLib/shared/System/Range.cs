@@ -4,7 +4,7 @@
 
 namespace System
 {
-    public readonly struct Range
+    public readonly struct Range : IEquatable<Range>
     {
         public Index Start { get; }
         public Index End { get; }
@@ -17,13 +17,16 @@ namespace System
 
         public override bool Equals(object value)
         {
-            if (value is Range r)
+            if (value is Range)
             {
+                Range r = (Range)value;
                 return r.Start.Equals(Start) && r.End.Equals(End);
             }
 
             return false;
         }
+
+        public bool Equals (Range other) => other.Start.Equals(Start) && other.End.Equals(End);
 
         public override int GetHashCode()
         {
