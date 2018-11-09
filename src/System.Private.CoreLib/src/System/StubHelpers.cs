@@ -1453,30 +1453,58 @@ namespace System.StubHelpers
 #endif
     }  // struct NativeVariant
 
+    internal interface ICleanupWorkListElement
+    {
+        void Cleanup();
+    }
+
+    // Keeps a Delegate instance alive across the full Managed->Native call.
+    // This ensures that users don't have to call GC.KeepAlive after passing a struct or class
+    // that has a delegate field to native code.
+    internal sealed class DelegateCleanupWorkListElement : ICleanupWorkListElement
+    {
+        public DelegateCleanupWorkListElement(Delegate del)
+        {
+            m_del = del;
+        }
+
+        private Delegate m_del;
+
+        public void Cleanup()
+        {
+            GC.KeepAlive(m_del);
+        }
+    }
+
     // Aggregates SafeHandle and the "owned" bit which indicates whether the SafeHandle
     // has been successfully AddRef'ed. This allows us to do realiable cleanup (Release)
     // if and only if it is needed.
-    internal sealed class CleanupWorkListElement
+    internal sealed class SafeHandleCleanupWorkListElement : ICleanupWorkListElement
     {
-        public CleanupWorkListElement(SafeHandle handle)
+        public SafeHandleCleanupWorkListElement(SafeHandle handle)
         {
             m_handle = handle;
         }
 
-        public SafeHandle m_handle;
+        private SafeHandle m_handle;
 
         // This field is passed by-ref to SafeHandle.DangerousAddRef.
         // CleanupWorkList.Destroy ignores this element if m_owned is not set to true.
         public bool m_owned;
+
+        public void Cleanup()
+        {
+            if (m_owned)
+                StubHelpers.SafeHandleRelease(m_handle);
+        }
     }  // class CleanupWorkListElement
 
     internal sealed class CleanupWorkList
     {
-        private List<CleanupWorkListElement> m_list = new List<CleanupWorkListElement>();
+        private List<ICleanupWorkListElement> m_list = new List<ICleanupWorkListElement>();
 
-        public void Add(CleanupWorkListElement elem)
+        public void Add(ICleanupWorkListElement elem)
         {
-            Debug.Assert(elem.m_owned == false, "m_owned is supposed to be false and set later by DangerousAddRef");
             m_list.Add(elem);
         }
 
@@ -1484,8 +1512,7 @@ namespace System.StubHelpers
         {
             for (int i = m_list.Count - 1; i >= 0; i--)
             {
-                if (m_list[i].m_owned)
-                    StubHelpers.SafeHandleRelease(m_list[i].m_handle);
+                m_list[i].Cleanup();
             }
         }
     }  // class CleanupWorkList
@@ -1518,11 +1545,20 @@ namespace System.StubHelpers
             if (pCleanupWorkList == null)
                 pCleanupWorkList = new CleanupWorkList();
 
-            CleanupWorkListElement element = new CleanupWorkListElement(handle);
+            SafeHandleCleanupWorkListElement element = new SafeHandleCleanupWorkListElement(handle);
             pCleanupWorkList.Add(element);
 
             // element.m_owned will be true iff the AddRef succeeded
             return SafeHandleAddRef(handle, ref element.m_owned);
+        }
+
+        internal static void AddToCleanupList(ref CleanupWorkList pCleanupWorkList, Delegate del)
+        {
+            if (pCleanupWorkList == null)
+                pCleanupWorkList = new CleanupWorkList();
+
+            DelegateCleanupWorkListElement element = new DelegateCleanupWorkListElement(del);
+            pCleanupWorkList.Add(element);
         }
 
         internal static void DestroyCleanupList(ref CleanupWorkList pCleanupWorkList)

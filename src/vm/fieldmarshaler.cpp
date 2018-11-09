@@ -3910,7 +3910,27 @@ VOID FieldMarshaler_Delegate::UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNat
     }
     CONTRACTL_END;
 
+    // A cleanup list MUST be specified in order for us to be able to marshal
+    // the Delegate.
+    if (ppCleanupWorkListOnStack == NULL)
+        COMPlusThrow(kInvalidOperationException, IDS_EE_SH_DEL_FIELD_INVALID_OPERATION);
+
     LPVOID fnPtr = COMDelegate::ConvertToCallback(*pCLRValue);
+    
+    if (*pCLRValue != NULL)   
+    {
+        // Call StubHelpers.AddToCleanupList to ensure the delegate is kept alive across the full native call.
+        MethodDescCallSite AddToCleanupList(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST_DELEGATE);
+
+        ARG_SLOT args[] =
+        {
+            (ARG_SLOT)ppCleanupWorkListOnStack,
+            ObjToArgSlot(*pCLRValue)
+        };
+
+        AddToCleanupList.Call(args);
+    }
+    
     MAYBE_UNALIGNED_WRITE(pNativeValue, _PTR, fnPtr);
 }
 
@@ -3956,14 +3976,14 @@ VOID FieldMarshaler_SafeHandle::UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pN
     // A cleanup list MUST be specified in order for us to be able to marshal
     // the SafeHandle.
     if (ppCleanupWorkListOnStack == NULL)
-        COMPlusThrow(kInvalidOperationException, IDS_EE_SH_FIELD_INVALID_OPERATION);
+        COMPlusThrow(kInvalidOperationException, IDS_EE_SH_DEL_FIELD_INVALID_OPERATION);
 
     if (*pSafeHandleObj == NULL)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_SafeHandle"));
 
     // Call StubHelpers.AddToCleanupList to AddRef and schedule Release on this SafeHandle
     // This is realiable, i.e. the cleanup will happen if and only if the SH was actually AddRef'ed.
-    MethodDescCallSite AddToCleanupList(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST);
+    MethodDescCallSite AddToCleanupList(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST_SAFEHANDLE);
 
     ARG_SLOT args[] =
     {
