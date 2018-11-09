@@ -1,6 +1,12 @@
 @if not defined _echo @echo off
+@echo on
 rem
 rem This file invokes cmake and generates the build system for windows.
+
+echo ================================================================================================================
+echo gen-buildsys-win: initial environment
+set
+echo ================================================================================================================
 
 set argC=0
 for %%x in (%*) do Set /A argC+=1
@@ -34,10 +40,28 @@ shift
 goto loop
 :end_loop
 
+echo ================================================================================================================
+echo gen-buildsys-win: environment
+set
+echo ================================================================================================================
+
 if defined CMakePath goto DoGen
 
+echo ================================================================================================================
+echo gen-buildsys-win: invoking probe-win-test.ps1
+powershell -NoProfile -ExecutionPolicy ByPass "%basePath%\probe-win-test.ps1"
+echo ================================================================================================================
+
+echo ================================================================================================================
+echo gen-buildsys-win: invoking probe-win-test-corefx.ps1
+powershell -NoProfile -ExecutionPolicy ByPass "%basePath%\probe-win-test-corefx.ps1"
+echo ================================================================================================================
+
+echo ================================================================================================================
+echo gen-buildsys-win: invoking probe-win.ps1
 :: Eval the output from probe-win1.ps1
 for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& "%basePath%\probe-win.ps1""') do %%a
+echo ================================================================================================================
 
 :DoGen
 "%CMakePath%" "-DCMAKE_USER_MAKE_RULES_OVERRIDE=%basePath%\windows-compiler-override.txt" "-DCMAKE_INSTALL_PREFIX:PATH=$ENV{__CMakeBinDir}" "-DCLR_CMAKE_HOST_ARCH=%__Arch%" %__ExtraCmakeParams% -G "%__CmakeGenerator%" %__SourceDir%

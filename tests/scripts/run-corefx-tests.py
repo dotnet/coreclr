@@ -31,7 +31,7 @@ import sys
 
 testing = False
 
-Corefx_url = 'https://github.com/dotnet/corefx.git'
+Corefx_url = 'https://github.com/BruceForstall/corefx.git'
 
 # This should be factored out of build.sh
 Unix_name_map = {
@@ -243,6 +243,7 @@ def main(args):
 
     # Clone the corefx branch
 
+    fx_branch = 'TestCIEnv'
     command = 'git clone -b %s --single-branch %s %s' % (
         fx_branch, Corefx_url, fx_root)
     log(command)

@@ -1,6 +1,11 @@
 @if not defined _echo @echo off
 setlocal EnableDelayedExpansion EnableExtensions
 
+echo ================================================================================================================
+echo build.cmd: initial environment
+set
+echo ================================================================================================================
+
 :: Define a prefix for most output progress messages that come from this script. That makes
 :: it easier to see where these are coming from. Note that there is a trailing space here.
 set "__MsgPrefix=BUILD: "
@@ -438,6 +443,11 @@ if %__BuildNative% EQU 1 (
     REM Scope environment changes start {
     setlocal
 
+    echo ================================================================================================================
+    echo build.cmd: environment at start of build native, before vcvarsall.bat
+    set
+    echo ================================================================================================================
+
     echo %__MsgPrefix%Commencing build of native components for %__BuildOS%.%__BuildArch%.%__BuildType%
 
     REM Set the environment for the native build
@@ -460,6 +470,11 @@ if %__BuildNative% EQU 1 (
     call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
     @if defined _echo @echo on
 
+    echo ================================================================================================================
+    echo build.cmd: environment in build native, after vcvarsall.bat
+    set
+    echo ================================================================================================================
+
     if not defined VSINSTALLDIR (
         echo %__MsgPrefix%Error: VSINSTALLDIR variable not defined.
         exit /b 1
@@ -472,6 +487,12 @@ if %__BuildNative% EQU 1 (
 
     pushd "%__IntermediatesDir%"
     set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOS%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%"
+
+    echo ================================================================================================================
+    echo build.cmd: environment before gen-buildsys-win.bat
+    set
+    echo ================================================================================================================
+
     call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
     @if defined _echo @echo on
     popd
