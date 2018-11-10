@@ -45,8 +45,6 @@ echo gen-buildsys-win: environment
 set
 echo ================================================================================================================
 
-if defined CMakePath goto DoGen
-
 echo ================================================================================================================
 echo gen-buildsys-win: invoking probe-win-test.ps1
 powershell -NoProfile -ExecutionPolicy ByPass "%basePath%\probe-win-test.ps1"
@@ -56,6 +54,8 @@ echo ===========================================================================
 echo gen-buildsys-win: invoking probe-win-test-corefx.ps1
 powershell -NoProfile -ExecutionPolicy ByPass "%basePath%\probe-win-test-corefx.ps1"
 echo ================================================================================================================
+
+if defined CMakePath goto DoGen
 
 echo ================================================================================================================
 echo gen-buildsys-win: invoking probe-win.ps1

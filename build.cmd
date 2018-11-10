@@ -18,6 +18,11 @@ set __ThisScriptDir="%~dp0"
 call "%__ThisScriptDir%"\setup_vs_tools.cmd
 if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
+echo ================================================================================================================
+echo build.cmd: after setup_vs_tools environment
+set
+echo ================================================================================================================
+
 if defined VS150COMNTOOLS (
     set "__VSToolsRoot=%VS150COMNTOOLS%"
     set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
@@ -325,8 +330,23 @@ REM Set the remaining variables based upon the determined build configuration
 
 echo %__MsgPrefix%Checking prerequisites
 
+echo ================================================================================================================
+echo build.cmd: environment before probe-win.ps1
+set
+echo ================================================================================================================
+
+echo ================================================================================================================
+echo build.cmd: invoking probe-win-test.ps1
+powershell -NoProfile -ExecutionPolicy ByPass %__SourceDir%\pal\tools\probe-win-test.ps1
+echo ================================================================================================================
+
 REM Eval the output from probe-win1.ps1
 for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\probe-win.ps1"""') do %%a
+
+echo ================================================================================================================
+echo build.cmd: environment after probe-win.ps1
+set
+echo ================================================================================================================
 
 REM NumberOfCores is an WMI property providing number of physical cores on machine
 REM processor(s). It is used to set optimal level of CL parallelism during native build step
