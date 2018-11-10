@@ -127,6 +127,9 @@ namespace System.Threading
 
             public void LocalPush(object obj)
             {
+                // Cannot put reusable WorkItems on the local queue
+                Debug.Assert(!(obj is ReusableWorkItemCallback) && !(obj is ReusableWorkItemCallbackOfT));
+
                 int tail = m_tailIndex;
 
                 // We're going to increment the tail; if we'll overflow, then we need to reset our counts
@@ -436,6 +439,18 @@ namespace System.Threading
             }
         }
 
+        public void EnqueueGlobal(object callback)
+        {
+            Debug.Assert((callback is ReusableWorkItemCallback) ^ (callback is ReusableWorkItemCallbackOfT));
+
+            if (loggingEnabled)
+                System.Diagnostics.Tracing.FrameworkEventSource.Log.ThreadPoolEnqueueWorkObject(callback);
+
+            workItems.Enqueue(callback);
+
+            EnsureThreadRequested();
+        }
+
         public void Enqueue(object callback, bool forceGlobal)
         {
             Debug.Assert((callback is IThreadPoolWorkItem) ^ (callback is Task));
@@ -690,15 +705,137 @@ namespace System.Threading
         }
     }
 
+    internal class LocalGlobalPool
+    {
+        public static ReusableWorkItemCallback TryRentItem()
+        {
+            ReusableWorkItemCallback item = null;
+            ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
+            if (tl != null)
+            {
+                item = tl.RentItem();
+            }
+            else
+            {
+                item = LocalGlobalPool<ReusableWorkItemCallback>.TryRentFromGlobal();
+            }
+
+            return item;
+        }
+
+        public static ReusableWorkItemCallbackOfT TryRentItemOfT()
+        {
+            ReusableWorkItemCallbackOfT item = null;
+            ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
+            if (tl != null)
+            {
+                item = tl.RentItemOfT();
+            }
+            else
+            {
+                item = LocalGlobalPool<ReusableWorkItemCallbackOfT>.TryRentFromGlobal();
+            }
+
+            return item;
+        }
+
+        public static void ReturnItem(ReusableWorkItemCallback item)
+        {
+            ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
+            Debug.Assert(tl != null);
+            tl.ReturnItem(item);
+        }
+
+        public static void ReturnItem(ReusableWorkItemCallbackOfT item)
+        {
+            ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
+            Debug.Assert(tl != null);
+            tl.ReturnItem(item);
+        }
+    }
+
+    internal class LocalGlobalPool<T> where T : class
+    {
+        const int MaxLocalItems = 64;
+        const int MaxGlobalItems = MaxLocalItems * 4;
+
+        private readonly static ConcurrentQueueSegment<T> _globalItems = new ConcurrentQueueSegment<T>(MaxGlobalItems);
+
+        private readonly T[] _localItems = new T[MaxLocalItems];
+
+        private int _head;       // The index from which to dequeue if the queue isn't empty.
+        private int _tail;       // The index at which to enqueue if the queue isn't full.
+        private int _size;       // Number of elements.
+
+        public static T TryRentFromGlobal() => _globalItems.TryDequeue(out T item) ? item : null;
+
+        public void ReturnItem(T item)
+        {
+            T[] array = _localItems;
+            if (_size == array.Length)
+            {
+                _globalItems.TryEnqueue(item);
+                return;
+            }
+
+            int tail = _tail;
+
+            array[tail] = item;
+
+            if (tail + 1 < array.Length)
+            {
+                _tail = tail + 1;
+            }
+            else
+            {
+                _tail = 0;
+            }
+
+            _size++;
+        }
+
+        public T RentItem()
+        {
+            T item;
+            if (_size == 0)
+            {
+                return _globalItems.TryDequeue(out item) ? item : null;
+            }
+
+            T[] array = _localItems;
+            int head = _head;
+
+            item = array[head];
+            array[head] = default;
+
+            if (head + 1 < array.Length)
+            {
+                _head = head + 1;
+            }
+            else
+            {
+                _head = 0;
+            }
+
+            _size--;
+
+            return item;
+        }
+    }
+
     // Holds a WorkStealingQueue, and removes it from the list when this object is no longer referenced.
     internal sealed class ThreadPoolWorkQueueThreadLocals
     {
         [ThreadStatic]
         public static ThreadPoolWorkQueueThreadLocals threadLocals;
 
+        private readonly LocalGlobalPool<ReusableWorkItemCallback> _workItemsPool;
+        private readonly LocalGlobalPool<ReusableWorkItemCallbackOfT> _workItemsPoolOfT;
+
         public readonly ThreadPoolWorkQueue workQueue;
         public readonly ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
         public readonly Thread currentThread;
+
         public FastRandom random = new FastRandom(Thread.CurrentThread.ManagedThreadId); // mutable struct, do not copy or make readonly
 
         public ThreadPoolWorkQueueThreadLocals(ThreadPoolWorkQueue tpq)
@@ -707,6 +844,8 @@ namespace System.Threading
             workStealingQueue = new ThreadPoolWorkQueue.WorkStealingQueue();
             ThreadPoolWorkQueue.WorkStealingQueueList.Add(workStealingQueue);
             currentThread = Thread.CurrentThread;
+            _workItemsPool = new LocalGlobalPool<ReusableWorkItemCallback>();
+            _workItemsPoolOfT = new LocalGlobalPool<ReusableWorkItemCallbackOfT>();
         }
 
         private void CleanUp()
@@ -725,6 +864,26 @@ namespace System.Threading
 
                 ThreadPoolWorkQueue.WorkStealingQueueList.Remove(workStealingQueue);
             }
+        }
+
+        public ReusableWorkItemCallbackOfT RentItemOfT()
+        {
+            return _workItemsPoolOfT.RentItem();
+        }
+
+        public ReusableWorkItemCallback RentItem()
+        {
+            return _workItemsPool.RentItem();
+        }
+
+        public void ReturnItem(ReusableWorkItemCallbackOfT item)
+        {
+            _workItemsPoolOfT.ReturnItem(item);
+        }
+
+        public void ReturnItem(ReusableWorkItemCallback item)
+        {
+            _workItemsPool.ReturnItem(item);
         }
 
         ~ThreadPoolWorkQueueThreadLocals()
@@ -1057,6 +1216,125 @@ namespace System.Threading
         }
     }
 
+    // Reusable workitems only valid for the global queue (ABA-problem)
+    internal sealed class ReusableWorkItemCallback : QueueUserWorkItemCallbackBase
+    {
+        private WaitCallback _callback; // SOS's ThreadPool command depends on this name
+        private object _state;
+        private ExecutionContext _context;
+
+        private static readonly Action<ReusableWorkItemCallback> s_executionContextShim = quwi =>
+        {
+            WaitCallback callback = quwi._callback;
+            quwi._callback = null;
+
+            callback(quwi._state);
+        };
+
+        internal void Initalize(WaitCallback callback, object state, ExecutionContext context)
+        {
+#if DEBUG
+            GC.ReRegisterForFinalize(this);
+#endif
+            Debug.Assert(callback != null);
+
+            _callback = callback;
+            _state = state;
+            _context = context;
+        }
+
+        public override void Execute()
+        {
+            base.Execute();
+
+            if (_context != null)
+            {
+                ExecutionContext.RunForThreadPoolUnsafe(_context, s_executionContextShim, this);
+            }
+            else
+            {
+                WaitCallback callback = _callback;
+                _callback = null;
+                callback(_state);
+            }
+
+            _state = null;
+            _context = null;
+
+            LocalGlobalPool.ReturnItem(this);
+
+            // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
+        }
+    }
+
+    // Reusable workitems only valid for the global queue (ABA-problem) and class based state (boxing)
+    internal sealed class ReusableWorkItemCallbackOfT : QueueUserWorkItemCallbackBase
+    {
+        private class ActionConverter<TState>
+        {
+            public readonly static Action<object, object> s_invoke = (cb, state) =>
+            {
+                Debug.Assert(cb.GetType() == typeof(Action<TState>));
+                Debug.Assert(state.GetType() == typeof(TState));
+                Debug.Assert(default(TState) == null);
+
+                Unsafe.As<Action<TState>>(cb).Invoke(Unsafe.As<object, TState>(ref state));
+            };
+        }
+
+        private Action<object, object> _converter;
+        private object _callback; // SOS's ThreadPool command depends on this name
+        private object _state;
+        private ExecutionContext _context;
+
+        private static readonly Action<ReusableWorkItemCallbackOfT> s_executionContextShim = quwi =>
+        {
+            object callback = quwi._callback;
+            quwi._callback = null;
+
+            quwi._converter(callback, quwi._state);
+        };
+
+        internal void Initalize<TState>(Action<TState> callback, TState state, ExecutionContext context)
+        {
+#if DEBUG
+            GC.ReRegisterForFinalize(this);
+#endif
+            // Not valid for valuetypes due to boxing
+            Debug.Assert(default(TState) == null);
+            Debug.Assert(callback != null);
+
+            _callback = callback;
+            _state = state;
+            _context = context;
+            _converter = ActionConverter<TState>.s_invoke;
+        }
+
+        public override void Execute()
+        {
+            base.Execute();
+
+            if (_context != null)
+            {
+                ExecutionContext.RunForThreadPoolUnsafe(_context, s_executionContextShim, this);
+            }
+            else
+            {
+                object callback = _callback;
+                _callback = null;
+
+                _converter(callback, _state);
+            }
+
+            _state = null;
+            _context = null;
+
+            LocalGlobalPool.ReturnItem(this);
+
+            // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
+        }
+    }
+
     internal class _ThreadPoolWaitOrTimerCallback
     {
         private WaitOrTimerCallback _waitOrTimerCallback;
@@ -1296,12 +1574,15 @@ namespace System.Threading
             EnsureVMInitialized();
 
             ExecutionContext context = ExecutionContext.Capture();
+            if (context != null && context.IsDefault)
+            {
+                context = null;
+            }
 
-            object tpcallBack = (context == null || context.IsDefault) ?
-                new QueueUserWorkItemCallbackDefaultContext(callBack, state) :
-                (object)new QueueUserWorkItemCallback(callBack, state, context);
+            ReusableWorkItemCallback rucallBack = LocalGlobalPool.TryRentItem() ?? new ReusableWorkItemCallback();
+            rucallBack.Initalize(callBack, state, context);
 
-            ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: true);
+            ThreadPoolGlobals.workQueue.EnqueueGlobal(rucallBack);
 
             return true;
         }
@@ -1316,12 +1597,27 @@ namespace System.Threading
             EnsureVMInitialized();
 
             ExecutionContext context = ExecutionContext.Capture();
+            if (context != null && context.IsDefault)
+            {
+                context = null;
+            }
 
-            object tpcallBack = (context == null || context.IsDefault) ?
-                new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state) :
-                (object)new QueueUserWorkItemCallback<TState>(callBack, state, context);
+            if (default(TState) == null && !preferLocal)
+            {
+                // Reusable workitems only valid for global queue (ABA-problem) and class based state (boxing)
+                ReusableWorkItemCallbackOfT rucallBack = LocalGlobalPool.TryRentItemOfT() ?? new ReusableWorkItemCallbackOfT();
+                rucallBack.Initalize(callBack, state, context);
 
-            ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: !preferLocal);
+                ThreadPoolGlobals.workQueue.EnqueueGlobal(rucallBack);
+            }
+            else
+            {
+                object tpcallBack = (context == null) ?
+                    new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state) :
+                    (object)new QueueUserWorkItemCallback<TState>(callBack, state, context);
+
+                ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: !preferLocal);
+            }
 
             return true;
         }
@@ -1336,8 +1632,19 @@ namespace System.Threading
 
             EnsureVMInitialized();
 
-            ThreadPoolGlobals.workQueue.Enqueue(
-                new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state), forceGlobal: !preferLocal);
+            if (default(TState) == null && !preferLocal)
+            {
+                // Reusable workitems only valid global queue (ABA-problem) and class based state (boxing)
+                ReusableWorkItemCallbackOfT rucallBack = LocalGlobalPool.TryRentItemOfT() ?? new ReusableWorkItemCallbackOfT();
+                rucallBack.Initalize(callBack, state, context: null);
+
+                ThreadPoolGlobals.workQueue.EnqueueGlobal(rucallBack);
+            }
+            else
+            {
+                ThreadPoolGlobals.workQueue.Enqueue(
+                    new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state), forceGlobal: !preferLocal);
+            }
 
             return true;
         }
@@ -1351,9 +1658,10 @@ namespace System.Threading
 
             EnsureVMInitialized();
 
-            object tpcallBack = new QueueUserWorkItemCallbackDefaultContext(callBack, state);
+            ReusableWorkItemCallback rucallBack = LocalGlobalPool.TryRentItem() ?? new ReusableWorkItemCallback();
+            rucallBack.Initalize(callBack, state, context: null);
 
-            ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: true);
+            ThreadPoolGlobals.workQueue.EnqueueGlobal(rucallBack);
 
             return true;
         }
