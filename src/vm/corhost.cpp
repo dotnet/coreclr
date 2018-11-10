@@ -108,7 +108,6 @@ CorHost2::CorHost2()
 {
     LIMITED_METHOD_CONTRACT;
 
-    m_fStarted = FALSE;
     m_fFirstToLoadCLR = FALSE;
     m_fAppDomainCreated = FALSE;
 }
@@ -298,9 +297,7 @@ HRESULT CorHost2::GetCurrentAppDomainId(DWORD *pdwAppDomainId)
     // No point going further if the runtime is not running...
     // We use CanRunManagedCode() instead of IsRuntimeActive() because this allows us
     // to specify test using the form that does not trigger a GC.
-    if (!(g_fEEStarted && CanRunManagedCode(LoaderLockCheck::None))
-        || !m_fStarted
-    )
+    if (!(g_fEEStarted && CanRunManagedCode(LoaderLockCheck::None)))
     {
         return HOST_E_CLRNOTAVAILABLE;
     }   
@@ -417,7 +414,7 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         return HOST_E_INVALIDOPERATION;
 
     // No point going further if the runtime is not running...
-    if (!IsRuntimeActive() || !m_fStarted)
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
     }   
@@ -620,9 +617,7 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
 {
 
     // No point going further if the runtime is not running...
-    if (!IsRuntimeActive()
-        || !m_fStarted
-    )
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
     }       
@@ -849,9 +844,6 @@ HRESULT CorHost2::_CreateDelegate(
     if(wszMethodName == NULL)
         return E_INVALIDARG;
     
-    if (!m_fStarted)
-        return HOST_E_INVALIDOPERATION;
-
     BEGIN_ENTRYPOINT_NOTHROW;
 
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
@@ -1239,7 +1231,6 @@ STDMETHODIMP CorHost2::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDone, i
         if (1 == refCount)
         {
             // Stop coreclr on unload.
-            m_fStarted = FALSE;
             EEShutDown(FALSE);
         }
         else
