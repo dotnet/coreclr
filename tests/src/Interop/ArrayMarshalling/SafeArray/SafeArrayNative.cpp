@@ -172,13 +172,13 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_InOut(SAFEARRAY* psa)
 	return TRUE;
 }
 
-extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE SafeArray_Ret()
+extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE SafeArray_Ret(LONG length)
 {
 	SAFEARRAY * psa;
 	int * pInt;
     HRESULT hr;
 
-	psa = SafeArrayCreateVector(VT_I4, 0, 1024); //data is array of ints; size = 1024 elements
+	psa = SafeArrayCreateVector(VT_I4, 0, length); //data is array of ints; size = 1024 elements
 	if(psa == NULL)
 	{
 		printf("\t\tSafeArrayCreateVector call failed!\n");
@@ -193,7 +193,7 @@ extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE SafeArray_Ret()
 			printf("\t\tSafeArrayAccessData call in SafeArray_Ret failed!\n");
 			return NULL;
 		}
-		for(int i = 0; i < 1024; i++)		
+		for(int i = 0; i < length; i++)		
 			pInt[i] = -1; //each element set to -1
 	}
 
@@ -455,36 +455,6 @@ struct StructWithSA
 
 const int NumArrElements = 256;
 
-StructWithSA* NewStructWithSA()
-{
-	int* pInt;
-	HRESULT hr;
-	StructWithSA* ps = (StructWithSA*)CoreClrAlloc(sizeof(StructWithSA));
-	(*ps).i32 = 77;
-
-	//create new SAFEARRAY; 1 dimension
-	(*ps).ptoArrOfInt32s = SafeArrayCreateVector(VT_I4, 0, NumArrElements);  
-	if((*ps).ptoArrOfInt32s == NULL)
-	{
-		printf("\t\tSafeArrayCreateVector call failed!\n");
-		exit(1);
-	}
-	else
-	{
-		// Get a pointer to the elements of the array.
-		hr = SafeArrayAccessData((*ps).ptoArrOfInt32s, (void**)&pInt);
-		if(FAILED(hr))
-		{
-			printf("\t\tSafeArrayAccessData call in NewStructWithSA failed!\n");
-			exit(1);
-		}
-		for(int i = 0; i < NumArrElements; i++)		
-			pInt[i] = 77; //each element set to 77
-	}
-	SafeArrayUnaccessData((*ps).ptoArrOfInt32s);
-	return ps;
-}
-
 bool ValidateSafearray(SAFEARRAY* psa)
 {
 	int* pInt;
@@ -639,12 +609,42 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE StructWithSA_InOutRef(StructWithSA*
 	return TRUE;
 }
 
+StructWithSA* NewStructWithSA(LONG numElements)
+{
+	int* pInt;
+	HRESULT hr;
+	StructWithSA* ps = (StructWithSA*)CoreClrAlloc(sizeof(StructWithSA));
+	(*ps).i32 = 77;
+
+	//create new SAFEARRAY; 1 dimension
+	(*ps).ptoArrOfInt32s = SafeArrayCreateVector(VT_I4, 0, numElements);  
+	if((*ps).ptoArrOfInt32s == NULL)
+	{
+		printf("\t\tSafeArrayCreateVector call failed!\n");
+		exit(1);
+	}
+	else
+	{
+		// Get a pointer to the elements of the array.
+		hr = SafeArrayAccessData((*ps).ptoArrOfInt32s, (void**)&pInt);
+		if(FAILED(hr))
+		{
+			printf("\t\tSafeArrayAccessData call in NewStructWithSA failed!\n");
+			exit(1);
+		}
+		for(int i = 0; i < numElements; i++)		
+			pInt[i] = 77; //each element set to 77
+	}
+	SafeArrayUnaccessData((*ps).ptoArrOfInt32s);
+	return ps;
+}
+
 //StructWithSA_Ret
-extern "C" DLL_EXPORT StructWithSA STDMETHODCALLTYPE StructWithSA_Ret()
+extern "C" DLL_EXPORT StructWithSA STDMETHODCALLTYPE StructWithSA_Ret(LONG numElements)
 {
 	StructWithSA* ps;
 
-	ps = NewStructWithSA();
+	ps = NewStructWithSA(numElements);
 
 	//return newly allocated StructWithSA
 	return *ps;

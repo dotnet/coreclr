@@ -18,7 +18,7 @@ public class Tester
 
     [DllImport("SafeArrayNative.dll")]
     [return: MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)]
-    public static extern int[] SafeArray_Ret();
+    public static extern int[] SafeArray_Ret(int length);
 
     [DllImport("SafeArrayNative.dll")]
     public static extern bool SafeArray_InByRef([In][MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)] ref int[] arr);
@@ -48,7 +48,7 @@ public class Tester
     [DllImport("SafeArrayNative")]
     public static extern bool StructWithSA_InOutRef([In, Out]ref StructWithSA s);
     [DllImport("SafeArrayNative")]
-    public static extern StructWithSA StructWithSA_Ret();
+    public static extern StructWithSA StructWithSA_Ret(int numElements);
 
     public static bool TestParam()
     {
@@ -88,7 +88,7 @@ public class Tester
 
         //testing SafeArray_Ret
         Console.WriteLine("Calling SafeArray_Ret...");
-        int[] arrRet = SafeArray_Ret();
+        int[] arrRet = SafeArray_Ret(1024);
         if (arrRet.Length != 1024)
         {
             passed = false;
@@ -158,18 +158,7 @@ public class Tester
         }
         catch (SafeArrayRankMismatchException sae)
         {
-            if (Thread.CurrentThread.CurrentCulture.Name == "en-US")
-            {
-                if (sae.Message != "SafeArray of rank 2 has been passed to a method expecting an array of rank 1.")
-                {
-                    passed = false;
-                    Console.WriteLine("Exception message not as expected! FAILED! Message is: " + sae.Message);
-                }
-                else
-                    Console.WriteLine("\tPassed.");
-            }
-            else
-                Console.WriteLine("\tPassed.");
+            Console.WriteLine("\tPassed.");
         }
         catch (Exception e)
         {
@@ -308,7 +297,7 @@ public class Tester
         Console.WriteLine("\tTesting StructWithSA_Ret...");
         try
         {
-            StructWithSA sRet = StructWithSA_Ret();
+            StructWithSA sRet = StructWithSA_Ret(256);
             passed = false;
             Console.WriteLine("\t\tError! No exception thrown on StructWithSA_Ret call.");
         }
