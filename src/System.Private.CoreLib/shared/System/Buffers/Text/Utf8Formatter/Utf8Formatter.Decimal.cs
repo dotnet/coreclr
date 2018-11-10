@@ -64,6 +64,7 @@ namespace System.Buffers.Text
                                     numDigits--;
                                 }
 
+                                number.DigitsCount = numDigits;
                                 number.CheckConsistency();
 
                                 byte[] buffer2 = new byte[destination.Length];

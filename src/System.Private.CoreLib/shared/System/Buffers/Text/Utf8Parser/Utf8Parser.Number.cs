@@ -16,8 +16,12 @@ namespace System.Buffers.Text
 
         private static bool TryParseNumber(ReadOnlySpan<byte> source, ref Number.NumberBuffer number, out int bytesConsumed, ParseNumberOptions options, out bool textUsedExponentNotation)
         {
-            Debug.Assert(number.Digits[0] == 0 && number.Scale == 0 && !number.IsNegative, "Number not initialized to default(NumberBuffer)");
+            Debug.Assert(number.DigitsCount == 0);
+            Debug.Assert(number.Scale == 0);
+            Debug.Assert(number.IsNegative == false);
+            Debug.Assert(number.HasNonZeroTail == false);
 
+            number.CheckConsistency();
             textUsedExponentNotation = false;
 
             if (source.Length == 0)
@@ -54,6 +58,8 @@ namespace System.Buffers.Text
             }
 
             int startIndexDigitsBeforeDecimal = srcIndex;
+            int digitCount = 0;
+            int maxDigitCount = digits.Length - 1;
 
             // Throw away any leading zeroes
             while (srcIndex != source.Length)
@@ -66,8 +72,6 @@ namespace System.Buffers.Text
 
             if (srcIndex == source.Length)
             {
-                digits[0] = 0;
-                number.Scale = 0;
                 number.IsNegative = false;
                 bytesConsumed = srcIndex;
                 number.CheckConsistency();
@@ -75,12 +79,30 @@ namespace System.Buffers.Text
             }
 
             int startIndexNonLeadingDigitsBeforeDecimal = srcIndex;
+
             while (srcIndex != source.Length)
             {
                 c = source[srcIndex];
+
                 if ((c - 48u) > 9)
+                {
                     break;
+                }
+
                 srcIndex++;
+                digitCount++;
+
+                if (digitCount >= maxDigitCount)
+                {
+                    // For decimal and binary floating-point numbers, we only
+                    // need to store digits up to maxDigCount. However, we still
+                    // need to keep track of whether any additional digits past
+                    // maxDigCount were non-zero, as that can impact rounding
+                    // for an input that falls evenly between two representable
+                    // results.
+
+                    number.HasNonZeroTail = (c != '0');
+                }
             }
 
             int numDigitsBeforeDecimal = srcIndex - startIndexDigitsBeforeDecimal;
@@ -94,6 +116,8 @@ namespace System.Buffers.Text
 
             if (srcIndex == source.Length)
             {
+                digits[dstIndex] = 0;
+                number.DigitsCount = dstIndex;
                 bytesConsumed = srcIndex;
                 number.CheckConsistency();
                 return true;
@@ -108,13 +132,32 @@ namespace System.Buffers.Text
 
                 srcIndex++;
                 int startIndexDigitsAfterDecimal = srcIndex;
+
                 while (srcIndex != source.Length)
                 {
                     c = source[srcIndex];
+
                     if ((c - 48u) > 9)
+                    {
                         break;
+                    }
+
                     srcIndex++;
+                    digitCount++;
+
+                    if (digitCount >= maxDigitCount)
+                    {
+                        // For decimal and binary floating-point numbers, we only
+                        // need to store digits up to maxDigCount. However, we still
+                        // need to keep track of whether any additional digits past
+                        // maxDigCount were non-zero, as that can impact rounding
+                        // for an input that falls evenly between two representable
+                        // results.
+
+                        number.HasNonZeroTail = (c != '0');
+                    }
                 }
+
                 numDigitsAfterDecimal = srcIndex - startIndexDigitsAfterDecimal;
 
                 int startIndexOfDigitsAfterDecimalToCopy = startIndexDigitsAfterDecimal;
@@ -142,6 +185,8 @@ namespace System.Buffers.Text
                         return false;
                     }
 
+                    digits[dstIndex] = 0;
+                    number.DigitsCount = dstIndex;
                     bytesConsumed = srcIndex;
                     number.CheckConsistency();
                     return true;
@@ -161,6 +206,8 @@ namespace System.Buffers.Text
                     number.IsNegative = false;
                 }
 
+                digits[dstIndex] = 0;
+                number.DigitsCount = dstIndex;
                 bytesConsumed = srcIndex;
                 number.CheckConsistency();
                 return true;
@@ -238,6 +285,8 @@ namespace System.Buffers.Text
                 number.Scale += (int)absoluteExponent;
             }
 
+            digits[dstIndex] = 0;
+            number.DigitsCount = dstIndex;
             bytesConsumed = srcIndex;
             number.CheckConsistency();
             return true;
