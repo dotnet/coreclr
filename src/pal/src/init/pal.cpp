@@ -113,7 +113,7 @@ static int Initialize(int argc, const char *const argv[], DWORD flags);
 static BOOL INIT_IncreaseDescriptorLimit(void);
 static LPWSTR INIT_FormatCommandLine (int argc, const char * const *argv);
 static LPWSTR INIT_ConvertEXEPath(LPCSTR exe_name);
-static bool INIT_SharedFilesPath(void);
+static BOOL INIT_SharedFilesPath(void);
 
 #ifdef _DEBUG
 extern void PROCDumpThreadList(void);
@@ -365,7 +365,7 @@ Initialize(
             goto done;
         }
 
-        if (!INIT_SharedFilesPath())
+        if (INIT_SharedFilesPath() == FALSE)
         {
             goto done;
         }
@@ -1359,7 +1359,7 @@ Function:
 Abstract:
     Initializes the shared application
 --*/
-static bool INIT_SharedFilesPath(void)
+static BOOL INIT_SharedFilesPath(void)
 {
 #ifdef __APPLE__
     // Store application group Id. It will be null if not set
@@ -1372,7 +1372,7 @@ static bool INIT_SharedFilesPath(void)
         if (gApplicationGroupIdLength > MAX_APPLICATION_GROUP_ID_LENGTH)
         {
             SetLastError(ERROR_BAD_LENGTH);
-            return false;
+            return FALSE;
         }
 
         // In sandbox, all IPC files (locks, pipes) should be written to the application group
@@ -1380,14 +1380,14 @@ static bool INIT_SharedFilesPath(void)
         if (!GetApplicationContainerFolder(*gSharedFilesPath, gApplicationGroupId, gApplicationGroupIdLength))
         {
             SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            return false;
+            return FALSE;
         }
 
         // Verify the size of the path won't exceed maximum allowed size
         if (gSharedFilesPath->GetCount() + SHARED_MEMORY_MAX_FILE_PATH_CHAR_COUNT + 1 /* null terminator */ > MAX_LONGPATH)
         {
             SetLastError(ERROR_FILENAME_EXCED_RANGE);
-            return false;
+            return FALSE;
         }
 
         // Check if the path already exists and it's a directory
@@ -1398,15 +1398,15 @@ static bool INIT_SharedFilesPath(void)
         if (statResult != 0 || !(statInfo.st_mode & S_IFDIR))
         {
             SetLastError(ERROR_PATH_NOT_FOUND);
-            return false;
+            return FALSE;
         }
 
-        return true;
+        return TRUE;
     }
 #endif // __APPLE__
 
     // If we are here, then we are not in sandbox mode, resort to TEMP_DIRECTORY_PATH as shared files path
-    return gSharedFilesPath->Set(TEMP_DIRECTORY_PATH) != FALSE;
+    return gSharedFilesPath->Set(TEMP_DIRECTORY_PATH);
 
     // We can verify statically the non sandboxed case, since the size is known during compile time
     static_assert_no_msg(string_countof(TEMP_DIRECTORY_PATH) + SHARED_MEMORY_MAX_FILE_PATH_CHAR_COUNT + 1 /* null terminator */ <= MAX_LONGPATH);
