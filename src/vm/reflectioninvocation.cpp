@@ -337,6 +337,15 @@ FCIMPL7(void, RuntimeFieldHandle::SetValue, ReflectFieldObject *pFieldUNSAFE, Ob
 
     FieldDesc* pFieldDesc = gc.refField->GetField();
 
+    // Verify we're not trying to set the value of a static initonly field
+    // once the class has been initialized.
+    if (pFieldDesc->IsStatic())
+    {
+        MethodTable* pEnclosingMT = pFieldDesc->GetEnclosingMethodTable();
+        if (pEnclosingMT->IsClassInited() && IsFdInitOnly(pFieldDesc->GetAttributes()))
+            FCThrowVoid(kFieldAccessException);
+    }
+
     HELPER_METHOD_FRAME_BEGIN_PROTECT(gc);
 
     //TODO: cleanup this function
@@ -1712,6 +1721,11 @@ FCIMPL5(void, RuntimeFieldHandle::SetValueDirect, ReflectFieldObject *pFieldUNSA
         // Verify that this is not a Final Field
         DWORD attr = pField->GetAttributes(); // should we cache?
         if (IsFdLiteral(attr))
+            COMPlusThrow(kFieldAccessException,W("Acc_ReadOnly"));
+
+        // Verify we're not trying to set the value of a static initonly field
+        // once the class has been initialized.
+        if (pField->IsStatic() && pEnclosingMT->IsClassInited() && IsFdInitOnly(attr))
             COMPlusThrow(kFieldAccessException,W("Acc_ReadOnly"));
 
         // Verify the callee/caller access
