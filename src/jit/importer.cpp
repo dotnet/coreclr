@@ -3583,13 +3583,33 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
         case CORINFO_INTRINSIC_GetTypeFromHandle:
             op1 = impStackTop(0).val;
-            if (op1->gtOper == GT_CALL && (op1->gtCall.gtCallType == CT_HELPER) &&
-                gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()))
+
+            if (IsTargetAbi(CORINFO_CORERT_ABI))
             {
-                op1 = impPopStack().val;
-                // Change call to return RuntimeType directly.
-                op1->gtType = TYP_REF;
-                retNode     = op1;
+                if (op1->gtOper == GT_CALL && (op1->gtCall.gtCallType == CT_HELPER) &&
+                    op1->AsCall()->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE))
+                {
+                    op1 = impPopStack().val;
+                    // Replace helper with a more specialized helper that returns RuntimeType
+                    op1 = op1->gtCall.gtCallArgs;
+                    assert(op1->OperIsList());
+                    assert(op1->gtOp.gtOp2 == nullptr);
+                    GenTreeArgList* helperArgs = gtNewArgList(op1->gtOp.gtOp1);
+                    op1 = gtNewHelperCallNode(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE, TYP_REF, helperArgs);
+                    op1->gtType = TYP_REF;
+                    retNode     = op1;
+                }
+            }
+            else
+            {
+                if (op1->gtOper == GT_CALL && (op1->gtCall.gtCallType == CT_HELPER) &&
+                    gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()))
+                {
+                    op1 = impPopStack().val;
+                    // Change call to return RuntimeType directly.
+                    op1->gtType = TYP_REF;
+                    retNode     = op1;
+                }
             }
             // Call the regular function.
             break;
@@ -3597,7 +3617,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         case CORINFO_INTRINSIC_RTH_GetValueInternal:
             op1 = impStackTop(0).val;
             if (op1->gtOper == GT_CALL && (op1->gtCall.gtCallType == CT_HELPER) &&
-                gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()))
+                (gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()) || op1->AsCall()->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE)))
             {
                 // Old tree
                 // Helper-RuntimeTypeHandle -> TreeToGetNativeTypeHandle
@@ -8350,7 +8370,9 @@ DONE_CALL:
                 if (call->IsCall())
                 {
                     GenTreeCall* callNode = call->AsCall();
-                    if ((callNode->gtCallType == CT_HELPER) && gtIsTypeHandleToRuntimeTypeHelper(callNode))
+                    if ((callNode->gtCallType == CT_HELPER) &&
+                        (gtIsTypeHandleToRuntimeTypeHelper(callNode) ||
+                         callNode->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE)))
                     {
                         spillStack = false;
                     }
@@ -14695,7 +14717,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     return;
                 }
 
-                helper = CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE;
+                helper = IsTargetAbi(CORINFO_CORERT_ABI) ? CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE
+                                                         : CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE;
                 assert(resolvedToken.hClass != nullptr);
 
                 if (resolvedToken.hMethod != nullptr)
