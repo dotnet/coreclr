@@ -19,6 +19,10 @@ namespace ComponentDependencyResolverTests
             string hostPolicyFileName = XPlatformUtils.GetStandardNativeLibraryFileName("hostpolicy");
             _localHostPolicyPath = Path.Combine(TestBasePath, hostPolicyFileName);
             _renamedHostPolicyPath = Path.Combine(TestBasePath, hostPolicyFileName + "_renamed");
+            if (File.Exists(_renamedHostPolicyPath))
+            {
+                File.Delete(_renamedHostPolicyPath);
+            }
             File.Move(_localHostPolicyPath, _renamedHostPolicyPath);
 
             _componentDirectory = Path.Combine(TestBasePath, $"InvalidHostingComponent_{Guid.NewGuid().ToString().Substring(0, 8)}");
@@ -29,6 +33,11 @@ namespace ComponentDependencyResolverTests
 
         protected override void Cleanup()
         {
+            if (Directory.Exists(_componentDirectory))
+            {
+                Directory.Delete(_componentDirectory, recursive: true);
+            }
+
             if (File.Exists(_renamedHostPolicyPath))
             {
                 File.Move(_renamedHostPolicyPath, _localHostPolicyPath);
