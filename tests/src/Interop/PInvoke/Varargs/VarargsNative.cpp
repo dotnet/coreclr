@@ -5,7 +5,7 @@
 #include <xplatform.h>
 #include <stdarg.h>
 
-extern "C" DLL_EXPORT void TestVarArgs(LPWSTR formattedString, SIZE_T bufferSize, LPCWSTR format, ...)
+extern "C" DLL_EXPORT __cdecl void TestVarArgs(LPWSTR formattedString, SIZE_T bufferSize, LPCWSTR format, ...)
 {
     va_list args;
     va_start(args, format);
