@@ -21,6 +21,11 @@
     <Compile Include="TestBase.cs" />
     <Compile Include="XPlatformUtils.cs" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="CMakeLists.txt" />
+  </ItemGroup>
+
   <!-- These are "hacks" to make the project build and launch from VS which makes it really easy to debug it. -->
   <PropertyGroup Condition="'$(BuildingInsideVisualStudio)'=='true'">
     <Platforms>x64</Platforms>
@@ -33,6 +38,5 @@
     <Reference Include="$(TargetingPackPath)/*.dll">
       <Private>false</Private>
     </Reference>
-    <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
 </Project>
