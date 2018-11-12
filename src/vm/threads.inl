@@ -36,7 +36,7 @@ EXTERN_C inline Thread* STDCALL GetThread()
 
 EXTERN_C inline AppDomain* STDCALL GetAppDomain()
 {
-    return SystemDomain::System()->DefaultDomain();
+    return AppDomain::GetCurrentDomain();
 }
 
 #endif // !DACCESS_COMPILE

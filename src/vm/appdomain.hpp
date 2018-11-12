@@ -1908,16 +1908,16 @@ public:
 #ifndef DACCESS_COMPILE
     AppDomain();
     virtual ~AppDomain();
+    static void Create();
 #endif
+
     DomainAssembly* FindDomainAssembly(Assembly*);
     void EnterContext(Thread* pThread, Context* pCtx,ContextTransitionFrame *pFrame);
 
-#ifndef DACCESS_COMPILE
     //-----------------------------------------------------------------------------------------------------------------
     // Convenience wrapper for ::GetAppDomain to provide better encapsulation.
     static AppDomain * GetCurrentDomain()
-    { return ::GetAppDomain(); }
-#endif //!DACCESS_COMPILE
+    { return m_pTheAppDomain; }
     
     //-----------------------------------------------------------------------------------------------------------------
     // Initializes an AppDomain. (this functions is not called from the SystemDomain)
@@ -3314,6 +3314,9 @@ public:
 #endif
 
 private:
+    // The one and only AppDomain
+    static AppDomain* m_pTheAppDomain;
+
     SString         m_friendlyName;
     PTR_Assembly    m_pRootAssembly;
 
@@ -3876,7 +3879,7 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
-        return m_pDefaultDomain;
+        return AppDomain::GetCurrentDomain();
     }
 
     // Notification when an assembly is loaded into the system domain
@@ -4200,7 +4203,6 @@ private:
     {
         STANDARD_VM_CONTRACT;
 
-        m_pDefaultDomain = NULL;
         m_pDelayedUnloadListOfLoaderAllocators=NULL;
 
         m_GlobalAllocator.Init(this);
@@ -4209,7 +4211,6 @@ private:
 
     PTR_PEAssembly  m_pSystemFile;      // Single assembly (here for quicker reference);
     PTR_Assembly    m_pSystemAssembly;  // Single assembly (here for quicker reference);
-    PTR_AppDomain   m_pDefaultDomain;   // Default domain for COM+ classes exposed through IClassFactory.
 
     GlobalLoaderAllocator m_GlobalAllocator;
 
