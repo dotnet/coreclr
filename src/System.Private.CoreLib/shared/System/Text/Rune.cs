@@ -18,9 +18,9 @@ namespace System.Text
     [DebuggerDisplay("{DebuggerDisplay,nq}")]
     public readonly struct Rune : IComparable<Rune>, IEquatable<Rune>
     {
-        private const byte IS_WHITESPACE_FLAG = 0x80;
-        private const byte IS_LETTER_OR_DIGIT_FLAG = 0x40;
-        private const byte UNICODECATEGORY_MASK = 0x1F;
+        private const byte IsWhiteSpaceFlag = 0x80;
+        private const byte IsLetterOrDigitFlag = 0x40;
+        private const byte UnicodeCategoryMask = 0x1F;
 
         // Contains information about the ASCII character range [ U+0000..U+007F ], with:
         // - 0x80 bit if set means 'is whitespace'
@@ -39,6 +39,8 @@ namespace System.Text
             0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x14, 0x19, 0x15, 0x19, 0x0E
         };
 
+        internal readonly uint UnsignedValue;
+
         /// <summary>
         /// Creates a <see cref="Rune"/> from the provided UTF-16 code unit.
         /// </summary>
@@ -53,7 +55,7 @@ namespace System.Text
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.ch);
             }
-            ValueUnsigned = expanded;
+            UnsignedValue = expanded;
         }
 
         /// <summary>
@@ -80,27 +82,27 @@ namespace System.Text
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             }
-            ValueUnsigned = value;
+            UnsignedValue = value;
         }
 
         // non-validating ctor
         private Rune(uint scalarValue, bool unused)
         {
             UnicodeDebug.AssertIsValidScalar(scalarValue);
-            ValueUnsigned = scalarValue;
+            UnsignedValue = scalarValue;
         }
 
-        public static bool operator ==(Rune left, Rune right) => (left.ValueUnsigned == right.ValueUnsigned);
+        public static bool operator ==(Rune left, Rune right) => (left.UnsignedValue == right.UnsignedValue);
 
-        public static bool operator !=(Rune left, Rune right) => (left.ValueUnsigned != right.ValueUnsigned);
+        public static bool operator !=(Rune left, Rune right) => (left.UnsignedValue != right.UnsignedValue);
 
-        public static bool operator <(Rune left, Rune right) => (left.ValueUnsigned < right.ValueUnsigned);
+        public static bool operator <(Rune left, Rune right) => (left.UnsignedValue < right.UnsignedValue);
 
-        public static bool operator <=(Rune left, Rune right) => (left.ValueUnsigned <= right.ValueUnsigned);
+        public static bool operator <=(Rune left, Rune right) => (left.UnsignedValue <= right.UnsignedValue);
 
-        public static bool operator >(Rune left, Rune right) => (left.ValueUnsigned > right.ValueUnsigned);
+        public static bool operator >(Rune left, Rune right) => (left.UnsignedValue > right.UnsignedValue);
 
-        public static bool operator >=(Rune left, Rune right) => (left.ValueUnsigned >= right.ValueUnsigned);
+        public static bool operator >=(Rune left, Rune right) => (left.UnsignedValue >= right.UnsignedValue);
 
         // Operators below are explicit because they may throw.
 
@@ -112,24 +114,24 @@ namespace System.Text
         public static explicit operator Rune(int value) => new Rune(value);
 
         // Displayed as "'<char>' (U+XXXX)"; e.g., "'e' (U+0065)"
-        private string DebuggerDisplay => FormattableString.Invariant($"'{(IsValid(ValueUnsigned) ? ToString() : "\uFFFD")}' (U+{ValueUnsigned:X4})");
+        private string DebuggerDisplay => FormattableString.Invariant($"U+{UnsignedValue:X4} '{(IsValid(UnsignedValue) ? ToString() : "\uFFFD")}'");
 
         /// <summary>
         /// Returns true if and only if this scalar value is ASCII ([ U+0000..U+007F ])
         /// and therefore representable by a single UTF-8 code unit.
         /// </summary>
-        public bool IsAscii => UnicodeUtility.IsAsciiCodePoint(ValueUnsigned);
+        public bool IsAscii => UnicodeUtility.IsAsciiCodePoint(UnsignedValue);
 
         /// <summary>
         /// Returns true if and only if this scalar value is within the BMP ([ U+0000..U+FFFF ])
         /// and therefore representable by a single UTF-16 code unit.
         /// </summary>
-        public bool IsBmp => UnicodeUtility.IsBmpCodePoint(ValueUnsigned);
+        public bool IsBmp => UnicodeUtility.IsBmpCodePoint(UnsignedValue);
 
         /// <summary>
         /// Returns the Unicode plane (0 to 16, inclusive) which contains this scalar.
         /// </summary>
-        public int Plane => UnicodeUtility.GetPlane(ValueUnsigned);
+        public int Plane => UnicodeUtility.GetPlane(UnsignedValue);
 
         /// <summary>
         /// A <see cref="Rune"/> instance that represents the Unicode replacement character U+FFFD.
@@ -143,7 +145,7 @@ namespace System.Text
         /// <remarks>
         /// The return value will be 1 or 2.
         /// </remarks>
-        public int Utf16SequenceLength => UnicodeUtility.GetUtf16SequenceLength(ValueUnsigned);
+        public int Utf16SequenceLength => UnicodeUtility.GetUtf16SequenceLength(UnsignedValue);
 
         /// <summary>
         /// Returns the length in code units (<see cref="Utf8Char"/>) of the
@@ -152,20 +154,18 @@ namespace System.Text
         /// <remarks>
         /// The return value will be 1 through 4, inclusive.
         /// </remarks>
-        public int Utf8SequenceLength => UnicodeUtility.GetUtf8SequenceLength(ValueUnsigned);
+        public int Utf8SequenceLength => UnicodeUtility.GetUtf8SequenceLength(UnsignedValue);
 
         /// <summary>
         /// Returns the Unicode scalar value as an integer.
         /// </summary>
-        public int Value => (int)ValueUnsigned;
-
-        internal uint ValueUnsigned { get; }
+        public int Value => (int)UnsignedValue;
 
         private static Rune ChangeCase(Rune rune, CultureInfo culture, bool toUpper)
         {
             if (culture == null)
             {
-                throw new ArgumentNullException(nameof(culture));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.culture);
             }
 
             var textInfo = culture.TextInfo;
@@ -200,7 +200,7 @@ namespace System.Text
             }
         }
 
-        public int CompareTo(Rune other) => this.ValueUnsigned.CompareTo(other.ValueUnsigned);
+        public int CompareTo(Rune other) => this.UnsignedValue.CompareTo(other.UnsignedValue);
 
         // returns the number of chars written
         private int EncodeToUtf16(Span<char> destination)
@@ -324,13 +324,13 @@ namespace System.Text
             {
                 if (IsBmp)
                 {
-                    destination[0] = (char)ValueUnsigned;
+                    destination[0] = (char)UnsignedValue;
                     charsWritten = 1;
                     return true;
                 }
                 else if (destination.Length >= 2)
                 {
-                    UnicodeUtility.GetUtf16SurrogatesFromSupplementaryPlaneScalar(ValueUnsigned, out destination[0], out destination[1]);
+                    UnicodeUtility.GetUtf16SurrogatesFromSupplementaryPlaneScalar(UnsignedValue, out destination[0], out destination[1]);
                     charsWritten = 2;
                     return true;
                 }
@@ -365,30 +365,30 @@ namespace System.Text
             {
                 if (IsAscii)
                 {
-                    destination[0] = (byte)ValueUnsigned;
+                    destination[0] = (byte)UnsignedValue;
                     bytesWritten = 1;
                     return true;
                 }
 
                 if (destination.Length >= 2)
                 {
-                    if (ValueUnsigned <= 0x7FFu)
+                    if (UnsignedValue <= 0x7FFu)
                     {
                         // Scalar 00000yyy yyxxxxxx -> bytes [ 110yyyyy 10xxxxxx ]
-                        destination[0] = (byte)((ValueUnsigned + (0b110u << 11)) >> 6);
-                        destination[1] = (byte)((ValueUnsigned & 0x3Fu) + 0x80u);
+                        destination[0] = (byte)((UnsignedValue + (0b110u << 11)) >> 6);
+                        destination[1] = (byte)((UnsignedValue & 0x3Fu) + 0x80u);
                         bytesWritten = 2;
                         return true;
                     }
 
                     if (destination.Length >= 3)
                     {
-                        if (ValueUnsigned <= 0xFFFFu)
+                        if (UnsignedValue <= 0xFFFFu)
                         {
                             // Scalar zzzzyyyy yyxxxxxx -> bytes [ 1110zzzz 10yyyyyy 10xxxxxx ]
-                            destination[0] = (byte)((ValueUnsigned + (0b1110 << 16)) >> 12);
-                            destination[1] = (byte)(((ValueUnsigned & (0x3Fu << 6)) >> 6) + 0x80u);
-                            destination[2] = (byte)((ValueUnsigned & 0x3Fu) + 0x80u);
+                            destination[0] = (byte)((UnsignedValue + (0b1110 << 16)) >> 12);
+                            destination[1] = (byte)(((UnsignedValue & (0x3Fu << 6)) >> 6) + 0x80u);
+                            destination[2] = (byte)((UnsignedValue & 0x3Fu) + 0x80u);
                             bytesWritten = 3;
                             return true;
                         }
@@ -396,10 +396,10 @@ namespace System.Text
                         if (destination.Length >= 4)
                         {
                             // Scalar 000uuuuu zzzzyyyy yyxxxxxx -> bytes [ 11110uuu 10uuzzzz 10yyyyyy 10xxxxxx ]
-                            destination[0] = (byte)((ValueUnsigned + (0b11110 << 21)) >> 18);
-                            destination[1] = (byte)(((ValueUnsigned & (0x3Fu << 12)) >> 12) + 0x80u);
-                            destination[2] = (byte)(((ValueUnsigned & (0x3Fu << 6)) >> 6) + 0x80u);
-                            destination[3] = (byte)((ValueUnsigned & 0x3Fu) + 0x80u);
+                            destination[0] = (byte)((UnsignedValue + (0b11110 << 21)) >> 18);
+                            destination[1] = (byte)(((UnsignedValue & (0x3Fu << 12)) >> 12) + 0x80u);
+                            destination[2] = (byte)(((UnsignedValue & (0x3Fu << 6)) >> 6) + 0x80u);
+                            destination[3] = (byte)((UnsignedValue & 0x3Fu) + 0x80u);
                             bytesWritten = 4;
                             return true;
                         }
@@ -500,7 +500,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                uint baseNum = value.ValueUnsigned - '0';
+                uint baseNum = value.UnsignedValue - '0';
                 return (baseNum <= 9) ? (double)baseNum : -1;
             }
             else
@@ -514,7 +514,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return (UnicodeCategory)(AsciiCharInfo[value.Value] & UNICODECATEGORY_MASK);
+                return (UnicodeCategory)(AsciiCharInfo[value.Value] & UnicodeCategoryMask);
             }
             else
             {
@@ -576,14 +576,14 @@ namespace System.Text
             // 00..1F (+1) => 01..20 (&~80) => 01..20
             // 7F..9F (+1) => 80..A0 (&~80) => 00..20
 
-            return (((value.ValueUnsigned + 1) & ~0x80u) <= 0x20u);
+            return (((value.UnsignedValue + 1) & ~0x80u) <= 0x20u);
         }
 
         public static bool IsDigit(Rune value)
         {
             if (value.IsAscii)
             {
-                return UnicodeUtility.IsInRangeInclusive(value.ValueUnsigned, '0', '9');
+                return UnicodeUtility.IsInRangeInclusive(value.UnsignedValue, '0', '9');
             }
             else
             {
@@ -595,7 +595,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return (((value.ValueUnsigned - 'A') & ~0x20u) <= (uint)('Z' - 'A')); // [A-Za-z]
+                return (((value.UnsignedValue - 'A') & ~0x20u) <= (uint)('Z' - 'A')); // [A-Za-z]
             }
             else
             {
@@ -607,7 +607,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return ((AsciiCharInfo[value.Value] & IS_LETTER_OR_DIGIT_FLAG) != 0);
+                return ((AsciiCharInfo[value.Value] & IsLetterOrDigitFlag) != 0);
             }
             else
             {
@@ -619,7 +619,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return UnicodeUtility.IsInRangeInclusive(value.ValueUnsigned, 'a', 'z');
+                return UnicodeUtility.IsInRangeInclusive(value.UnsignedValue, 'a', 'z');
             }
             else
             {
@@ -631,7 +631,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return UnicodeUtility.IsInRangeInclusive(value.ValueUnsigned, '0', '9');
+                return UnicodeUtility.IsInRangeInclusive(value.UnsignedValue, '0', '9');
             }
             else
             {
@@ -658,7 +658,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return UnicodeUtility.IsInRangeInclusive(value.ValueUnsigned, 'A', 'Z');
+                return UnicodeUtility.IsInRangeInclusive(value.UnsignedValue, 'A', 'Z');
             }
             else
             {
@@ -670,14 +670,14 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return (AsciiCharInfo[value.Value] & IS_WHITESPACE_FLAG) != 0;
+                return (AsciiCharInfo[value.Value] & IsWhiteSpaceFlag) != 0;
             }
 
             // U+0085 is special since it's a whitespace character but is in the Control category
             // instead of a normal separator category. No other code point outside the ASCII range
             // has this mismatch.
 
-            if (value.ValueUnsigned == 0x0085u)
+            if (value.UnsignedValue == 0x0085u)
             {
                 return true;
             }
@@ -694,8 +694,9 @@ namespace System.Text
 
             if (value.IsAscii || GlobalizationMode.Invariant)
             {
-                bool isUpperAlpha = UnicodeUtility.IsInRangeInclusive(value.ValueUnsigned, 'A', 'Z');
-                return UnsafeCreate(value.ValueUnsigned + ((isUpperAlpha) ? 0x20U : 0));
+                // It's ok for us to use the UTF-16 conversion utility for this since the high
+                // 16 bits of the value will never be set so will be left unchanged.
+                return UnsafeCreate(Utf16Utility.ConvertAllAsciiCharsInUInt32ToLowercase(value.UnsignedValue));
             }
 
             // Non-ASCII data requires going through the case folding tables.
@@ -712,8 +713,9 @@ namespace System.Text
 
             if (value.IsAscii || GlobalizationMode.Invariant)
             {
-                bool isLowerAlpha = UnicodeUtility.IsInRangeInclusive(value.ValueUnsigned, 'a', 'z');
-                return UnsafeCreate(value.ValueUnsigned ^ ((isLowerAlpha) ? 0x20u : 0));
+                // It's ok for us to use the UTF-16 conversion utility for this since the high
+                // 16 bits of the value will never be set so will be left unchanged.
+                return UnsafeCreate(Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(value.UnsignedValue));
             }
 
             // Non-ASCII data requires going through the case folding tables.
