@@ -2595,7 +2595,7 @@ LoadLibraryExW(
         IN DWORD dwFlags);
 
 PALIMPORT
-void *
+NATIVE_LIBRARY_HANDLE
 PALAPI
 PAL_LoadLibraryDirect(
         IN LPCWSTR lpLibFileName);

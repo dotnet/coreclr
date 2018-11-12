@@ -104,7 +104,7 @@ static bool LOADConvertLibraryPathWideStringToMultibyteString(
 static BOOL LOADValidateModule(MODSTRUCT *module);
 static LPWSTR LOADGetModuleFileName(MODSTRUCT *module);
 static MODSTRUCT *LOADAddModule(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR libraryNameOrPath);
-static void *LOADLoadLibraryDirect(LPCSTR libraryNameOrPath);
+static NATIVE_LIBRARY_HANDLE LOADLoadLibraryDirect(LPCSTR libraryNameOrPath);
 static BOOL LOADFreeLibrary(MODSTRUCT *module, BOOL fCallDllMain);
 static HMODULE LOADRegisterLibraryDirect(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR libraryNameOrPath, BOOL fDynamic);
 static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic);
@@ -556,6 +556,33 @@ done:
     return retval;
 }
 
+LPCSTR FixLibCName(LPCSTR shortAsciiName)
+{
+    // Check whether we have been requested to load 'libc'. If that's the case, then:
+    // * For Linux, use the full name of the library that is defined in <gnu/lib-names.h> by the
+    //   LIBC_SO constant. The problem is that calling dlopen("libc.so") will fail for libc even
+    //   though it works for other libraries. The reason is that libc.so is just linker script
+    //   (i.e. a test file).
+    //   As a result, we have to use the full name (i.e. lib.so.6) that is defined by LIBC_SO.
+    // * For macOS, use constant value absolute path "/usr/lib/libc.dylib".
+    // * For FreeBSD, use constant value "libc.so.7".
+    // * For rest of Unices, use constant value "libc.so".
+    if (strcmp(shortAsciiName, LIBC_NAME_WITHOUT_EXTENSION) == 0)
+    {
+#if defined(__APPLE__)
+        return "/usr/lib/libc.dylib";
+#elif defined(__FreeBSD__)
+        return "libc.so.7";
+#elif defined(LIBC_SO)
+        return LIBC_SO;
+#else
+        return "libc.so";
+#endif
+    }
+
+    return shortAsciiName;
+}
+
 /*
 Function:
   PAL_LoadLibraryDirect
@@ -571,6 +598,7 @@ PAL_LoadLibraryDirect(
 {
     PathCharString pathstr;
     CHAR * lpstr = nullptr;
+    LPCSTR lpcstr = nullptr;
     INT name_length;
     NATIVE_LIBRARY_HANDLE dl_handle = nullptr;
 
@@ -597,8 +625,9 @@ PAL_LoadLibraryDirect(
     /* do the Dos/Unix conversion on our own copy of the name */
     FILEDosToUnixPathA(lpstr);
     pathstr.CloseBuffer(name_length);
+    lpcstr = FixLibCName(lpstr);
 
-    dl_handle = LOADLoadLibraryDirect(lpstr);
+    dl_handle = LOADLoadLibraryDirect(lpcstr);
 
 done:
     LOGEXIT("LoadLibraryDirect returns HMODULE %p\n", dl_handle);
@@ -651,7 +680,7 @@ PAL_RegisterLibraryDirect(
 
     /* let LOADRegisterLibraryDirect call SetLastError in case of failure */
     LockModuleList();
-    hModule = LOADRegisterLibraryDirect((void *)dl_handle, lpstr, true /* fDynamic */);
+    hModule = LOADRegisterLibraryDirect(dl_handle, lpstr, true /* fDynamic */);
     UnlockModuleList();
 
 done:
@@ -1395,7 +1424,7 @@ Parameters:
 Return value:
     System handle to the loaded library, or nullptr upon failure (error is set via SetLastError()).
 */
-static void *LOADLoadLibraryDirect(LPCSTR libraryNameOrPath)
+static NATIVE_LIBRARY_HANDLE LOADLoadLibraryDirect(LPCSTR libraryNameOrPath)
 {
     _ASSERTE(libraryNameOrPath != nullptr);
     _ASSERTE(libraryNameOrPath[0] != '\0');
@@ -1633,28 +1662,8 @@ static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic)
     HMODULE module = nullptr;
     NATIVE_LIBRARY_HANDLE dl_handle = nullptr;
 
-    // Check whether we have been requested to load 'libc'. If that's the case, then:
-    // * For Linux, use the full name of the library that is defined in <gnu/lib-names.h> by the
-    //   LIBC_SO constant. The problem is that calling dlopen("libc.so") will fail for libc even
-    //   though it works for other libraries. The reason is that libc.so is just linker script
-    //   (i.e. a test file).
-    //   As a result, we have to use the full name (i.e. lib.so.6) that is defined by LIBC_SO.
-    // * For macOS, use constant value absolute path "/usr/lib/libc.dylib".
-    // * For FreeBSD, use constant value "libc.so.7".
-    // * For rest of Unices, use constant value "libc.so".
-    if (strcmp(shortAsciiName, LIBC_NAME_WITHOUT_EXTENSION) == 0)
-    {
-#if defined(__APPLE__)
-        shortAsciiName = "/usr/lib/libc.dylib";
-#elif defined(__FreeBSD__)
-        shortAsciiName = "libc.so.7";
-#elif defined(LIBC_SO)
-        shortAsciiName = LIBC_SO;
-#else
-        shortAsciiName = "libc.so";
-#endif
-    }
-
+    shortAsciiName = FixLibCName(shortAsciiName);
+    
     LockModuleList();
 
     dl_handle = LOADLoadLibraryDirect(shortAsciiName);
