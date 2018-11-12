@@ -76,6 +76,11 @@ namespace System
             throw new ArgumentException(SR.Argument_OverlapAlignmentMismatch);
         }
 
+        internal static void ThrowArgumentException_CannotExtractScalar(ExceptionArgument argument)
+        {
+            throw GetArgumentException(ExceptionResource.Argument_CannotExtractScalar, argument);
+        }
+
         internal static void ThrowArgumentOutOfRange_IndexException()
         {
             throw GetArgumentOutOfRangeException(ExceptionArgument.index,
@@ -529,6 +534,7 @@ namespace System
         ArgumentOutOfRange_Index,
         Argument_InvalidOffLen,
         Argument_ItemNotExist,
+        Argument_CannotExtractScalar,
         ArgumentOutOfRange_Count,
         ArgumentOutOfRange_InvalidThreshold,
         ArgumentOutOfRange_ListInsert,

@@ -517,6 +517,89 @@ namespace System
             return this;
         }
 
+        /// <summary>
+        /// Gets the <see cref="Rune"/> which begins at index <paramref name="index"/> in this string.
+        /// </summary>
+        /// <remarks>
+        /// Throws if <paramref name="index"/> is out of range or if <paramref name="index"/> does not
+        /// reference the start of a valid scalar value within this string.
+        /// </remarks>
+        public Rune GetRuneAt(int index)
+        {
+            int runeValue = ReadRuneAtIndex(index);
+            if (runeValue < 0)
+            {
+                ThrowHelper.ThrowArgumentException_CannotExtractScalar(ExceptionArgument.index);
+            }
+
+            return Rune.UnsafeCreate((uint)runeValue);
+        }
+
+        /// <summary>
+        /// Attempts to get the <see cref="Rune"/> which begins at index <paramref name="index"/> in this string.
+        /// </summary>
+        /// <returns>True if a scalar value was successfully extracted from the specified index,
+        /// false if a value could not be extracted due to invalid data.</returns>
+        /// <remarks>
+        /// Throws only if <paramref name="index"/> is out of range.
+        /// </remarks>
+        public bool TryGetRuneAt(int index, out Rune value)
+        {
+            int runeValue = ReadRuneAtIndex(index);
+            if (runeValue >= 0)
+            {
+                value = Rune.UnsafeCreate((uint)runeValue);
+                return true;
+            }
+            else
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        private int ReadRuneAtIndex(int index)
+        {
+            if ((uint)index >= (uint)Length)
+            {
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+            }
+
+            // Optimistically assume input is within BMP.
+
+            uint returnValue = this[index];
+            if (UnicodeUtility.IsSurrogateCodePoint(returnValue))
+            {
+                if (!UnicodeUtility.IsHighSurrogateCodePoint(returnValue))
+                {
+                    return -1;
+                }
+
+                // Treat 'returnValue' as the high surrogate.
+                //
+                // If this becomes a hot code path, we can skip the below bounds check by reading
+                // off the end of the string using unsafe code. Since strings are null-terminated,
+                // we're guaranteed not to read a valid low surrogate, so we'll fail correctly if
+                // the string terminates unexpectedly.
+
+                index++;
+                if ((uint)index >= (uint)Length)
+                {
+                    return -1; // not an argument exception - just a "bad data" failure
+                }
+
+                uint potentialLowSurrogate = this[index];
+                if (!UnicodeUtility.IsLowSurrogateCodePoint(potentialLowSurrogate))
+                {
+                    return -1;
+                }
+
+                returnValue = UnicodeUtility.GetScalarFromUtf16SurrogatePair(returnValue, potentialLowSurrogate);
+            }
+
+            return (int)returnValue;
+        }
+
         public CharEnumerator GetEnumerator()
         {
             return new CharEnumerator(this);

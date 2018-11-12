@@ -218,24 +218,6 @@ namespace System.Text
         public override int GetHashCode() => Value;
 
         /// <summary>
-        /// Gets the <see cref="Rune"/> which begins at index <paramref name="index"/> in
-        /// string <paramref name="input"/>.
-        /// </summary>
-        /// <remarks>
-        /// Throws if the input is null, the index is out of range, or the input does not
-        /// point to the beginning of a valid scalar within the string.
-        /// </remarks>
-        public static Rune GetRuneAt(string input, int index)
-        {
-            if (!TryGetRuneAt(input, index, out Rune value))
-            {
-                ThrowInvalidSurrogateException();
-            }
-
-            return value;
-        }
-
-        /// <summary>
         /// Returns <see langword="true"/> iff <paramref name="value"/> is a valid Unicode scalar
         /// value, i.e., is in [ U+0000..U+D7FF ], inclusive; or [ U+E000..U+10FFFF ], inclusive.
         /// </summary>
@@ -247,15 +229,7 @@ namespace System.Text
         /// </summary>
         [CLSCompliant(false)]
         public static bool IsValid(uint value) => UnicodeUtility.IsValidUnicodeScalar(value);
-
-        [StackTraceHidden]
-        private static void ThrowInvalidSurrogateException()
-        {
-            throw new ArgumentException(
-                message: SR.Argument_CannotExtractScalar,
-                paramName: "index");
-        }
-
+        
         /// <summary>
         /// Returns a <see cref="string"/> representation of this <see cref="Rune"/> instance.
         /// </summary>
@@ -412,67 +386,7 @@ namespace System.Text
             bytesWritten = default;
             return false;
         }
-
-        /// <summary>
-        /// Attempts to get the <see cref="Rune"/> which begins at index <paramref name="index"/> in
-        /// string <paramref name="input"/>.
-        /// </summary>
-        /// <remarks>
-        /// Throws if the input is null or the index is out of range, but not if the input contains
-        /// invalid data from which a Rune cannot be extracted.
-        /// </remarks>
-        public static bool TryGetRuneAt(string input, int index, out Rune value)
-        {
-            if (input == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
-            }
-
-            if ((uint)index >= (uint)input.Length)
-            {
-                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-            }
-
-            // Optimistically assume input is within BMP.
-
-            uint returnValue = input[index];
-            if (UnicodeUtility.IsSurrogateCodePoint(returnValue))
-            {
-                if (!UnicodeUtility.IsHighSurrogateCodePoint(returnValue))
-                {
-                    goto Fail;
-                }
-
-                // Treat 'returnValue' as the high surrogate.
-                //
-                // If this becomes a hot code path, we can skip the below bounds check by reading
-                // off the end of the string using unsafe code. Since strings are null-terminated,
-                // we're guaranteed not to read a valid low surrogate, so we'll fail correctly if
-                // the string terminates unexpectedly.
-
-                index++;
-                if ((uint)index >= (uint)input.Length)
-                {
-                    goto Fail; // not an argument exception - just a "bad data" failure
-                }
-
-                uint potentialLowSurrogate = input[index];
-                if (!UnicodeUtility.IsLowSurrogateCodePoint(potentialLowSurrogate))
-                {
-                    goto Fail;
-                }
-
-                returnValue = UnicodeUtility.GetScalarFromUtf16SurrogatePair(returnValue, potentialLowSurrogate);
-            }
-
-            value = UnsafeCreate(returnValue);
-            return true;
-
-        Fail:
-            value = default;
-            return false;
-        }
-
+        
         // Allows constructing a Unicode scalar value from an arbitrary 32-bit integer without
         // validation. It is the caller's responsibility to have performed manual validation
         // before calling this method. If a Rune instance is forcibly constructed
