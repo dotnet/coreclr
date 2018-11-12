@@ -267,7 +267,6 @@ namespace R2RDump
         /// <param name="r2r">The structure containing the info of the ReadyToRun image</param>
         public void Dump(R2RReader r2r)
         {
-
             _dumper.Begin();
 
             if (_queries.Count == 0 && _keywords.Count == 0 && _runtimeFunctions.Count == 0 && _sections.Count == 0) //dump all sections and methods if no queries specified
@@ -439,6 +438,11 @@ namespace R2RDump
 
                 if (_diff && _inputFilenames.Count < 2)
                     throw new ArgumentException("Need at least 2 input files in diff mode");
+
+                if (_options.Naked && _options.Raw)
+                {
+                    throw new ArgumentException("The option '--naked' is incompatible with '--raw'");
+                }
 
                 R2RReader previousReader = null;
 

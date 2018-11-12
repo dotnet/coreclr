@@ -725,22 +725,40 @@ namespace R2RDump
                         if (rank != 0)
                         {
                             uint sizeCount = ReadUInt(); // number of sizes
+                            uint[] sizes = new uint[sizeCount];
                             for (uint sizeIndex = 0; sizeIndex < sizeCount; sizeIndex++)
                             {
-                                ReadUInt();
+                                sizes[sizeIndex] = ReadUInt();
                             }
                             uint lowerBoundCount = ReadUInt(); // number of lower bounds
+                            int[] lowerBounds = new int[sizeCount];
                             for (uint lowerBoundIndex = 0; lowerBoundIndex < lowerBoundCount; lowerBoundIndex++)
                             {
-                                ReadUInt();
+                                lowerBounds[lowerBoundIndex] = ReadInt();
                             }
-                            if (rank == 1)
+                            for (int index = 0; index < rank; index++)
                             {
-                                builder.Append('*');
-                            }
-                            else
-                            {
-                                builder.Append(new string(',', (int)(rank - 1)));
+                                if (index > 0)
+                                {
+                                    builder.Append(',');
+                                }
+                                if (lowerBoundCount > index && lowerBounds[index] != 0)
+                                {
+                                    builder.Append(lowerBounds[index]);
+                                    builder.Append("..");
+                                    if (sizeCount > index)
+                                    {
+                                        builder.Append(lowerBounds[index] + sizes[index] - 1);
+                                    }
+                                }
+                                else if (sizeCount > index)
+                                {
+                                    builder.Append(sizes[index]);
+                                }
+                                else if (rank == 1)
+                                {
+                                    builder.Append('*');
+                                }
                             }
                         }
                         builder.Append(']');
