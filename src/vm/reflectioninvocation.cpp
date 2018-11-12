@@ -347,7 +347,7 @@ FCIMPL7(void, RuntimeFieldHandle::SetValue, ReflectFieldObject *pFieldUNSAFE, Ob
         if (pEnclosingMT->IsClassInited() && IsFdInitOnly(pFieldDesc->GetAttributes()))
         {
             DefineFullyQualifiedNameForClassW();
-            StackSString ssFieldName(SString::Utf8, pFieldDesc->GetName());
+            SString ssFieldName(SString::Utf8, pFieldDesc->GetName());
             COMPlusThrow(kFieldAccessException,
                 IDS_EE_CANNOT_SET_INITONLY_STATIC_FIELD,
                 ssFieldName.GetUnicode(),
@@ -1730,7 +1730,7 @@ FCIMPL5(void, RuntimeFieldHandle::SetValueDirect, ReflectFieldObject *pFieldUNSA
         if (pField->IsStatic() && pEnclosingMT->IsClassInited() && IsFdInitOnly(pField->GetAttributes()))
         {
             DefineFullyQualifiedNameForClassW();
-            StackSString ssFieldName(SString::Utf8, pField->GetName());
+            SString ssFieldName(SString::Utf8, pField->GetName());
             COMPlusThrow(kFieldAccessException,
                 IDS_EE_CANNOT_SET_INITONLY_STATIC_FIELD,
                 ssFieldName.GetUnicode(),
