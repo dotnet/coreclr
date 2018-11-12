@@ -211,7 +211,7 @@ namespace System.Runtime.Loader
         {
             // This is a copy of the logic in DetermineLibNameVariations in dllimport.cpp in CoreCLR
 
-        if (!isRelativePath)
+            if (!isRelativePath)
             {
                 yield return new LibraryNameVariation(string.Empty, string.Empty);
             }
@@ -254,7 +254,6 @@ namespace System.Runtime.Loader
                     }
                 }
             }
-
 
             yield return new LibraryNameVariation(string.Empty, string.Empty);
 

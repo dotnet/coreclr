@@ -248,7 +248,8 @@ namespace ComponentDependencyResolverTests
                 // to delete (if it's there) the hostpolicy.dll. All other tests will end up loading the dll
                 // and thus locking it.
                 typeof(InvalidHostingTest),
-                typeof(ComponentDependencyResolverTests));
+                typeof(ComponentDependencyResolverTests),
+                typeof(NativeDependencyTests));
         }
     }
 }
