@@ -21,8 +21,8 @@ typedef unsigned error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
-
-typedef unsigned int UINT_PTR;
+typedef long INT_PTR;
+typedef unsigned long UINT_PTR;
 
 typedef unsigned long long ULONG64;
 typedef double DOUBLE;
