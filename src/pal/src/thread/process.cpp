@@ -63,6 +63,10 @@ SET_DEFAULT_DEBUG_CHANNEL(PROCESS); // some headers have code with asserts, so d
 
 #ifdef __linux__
 #include <sys/syscall.h> // __NR_membarrier
+// Ensure __NR_membarrier is defined for x64 portable build.
+#if defined(__amd64__) && !defined(__NR_membarrier)
+# define __NR_membarrier  324
+#endif
 #endif
 
 #ifdef __APPLE__
