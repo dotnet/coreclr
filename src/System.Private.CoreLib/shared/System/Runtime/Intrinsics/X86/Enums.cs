@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+using System;
 
 namespace System.Runtime.Intrinsics.X86
 {
@@ -165,5 +166,124 @@ namespace System.Runtime.Intrinsics.X86
         /// _CMP_TRUE_US
         /// </summary>
         TrueUnorderedSignaling = 31,
+    }
+
+    [Flags]
+    public enum StringComparisonMode : byte {
+        /// <summary>
+        /// _SIDD_CMP_EQUAL_ANY
+        /// </summary>
+        EqualAny = 0x00,
+
+        /// <summary>
+        /// _SIDD_CMP_RANGES
+        /// </summary>
+        Ranges = 0x04,
+
+        /// <summary>
+        /// _SIDD_CMP_EQUAL_EACH
+        /// </summary>
+        EqualEach = 0x08,
+
+        /// <summary>
+        /// _SIDD_CMP_EQUAL_ORDERED
+        /// </summary>
+        EqualOrdered = 0x0c,
+
+        /// <summary>
+        /// _SIDD_NEGATIVE_POLARITY
+        /// </summary>
+        NegativePolarity = 0x10,
+
+        /// <summary>
+        /// _SIDD_MASKED_NEGATIVE_POLARITY
+        /// </summary>
+        MaskedNegativePolarity = 0x30,
+    }
+
+    [Flags]
+    public enum IndexStringComparisonMode : byte {
+        /// <summary>
+        /// _SIDD_CMP_EQUAL_ANY
+        /// </summary>
+        EqualAny = 0x00,
+
+        /// <summary>
+        /// _SIDD_CMP_RANGES
+        /// </summary>
+        Ranges = 0x04,
+
+        /// <summary>
+        /// _SIDD_CMP_EQUAL_EACH
+        /// </summary>
+        EqualEach = 0x08,
+
+        /// <summary>
+        /// _SIDD_CMP_EQUAL_ORDERED
+        /// </summary>
+        EqualOrdered = 0x0c,
+
+        /// <summary>
+        /// _SIDD_NEGATIVE_POLARITY
+        /// </summary>
+        NegativePolarity = 0x10,
+
+        /// <summary>
+        /// _SIDD_MASKED_NEGATIVE_POLARITY
+        /// </summary>
+        MaskedNegativePolarity = 0x30,
+
+        /// <summary>
+        /// _SIDD_LEAST_SIGNIFICANT
+        /// </summary>
+        LeastSignificant = 0x00,
+
+        /// <summary>
+        /// _SIDD_MOST_SIGNIFICANT
+        /// </summary>
+        MostSignificant = 0x40,
+    }
+
+    [Flags]
+    public enum MaskStringComparisonMode : byte {
+        /// <summary>
+        /// _SIDD_CMP_EQUAL_ANY
+        /// </summary>
+        EqualAny = 0x00,
+
+        /// <summary>
+        /// _SIDD_CMP_RANGES
+        /// </summary>
+        Ranges = 0x04,
+
+        /// <summary>
+        /// _SIDD_CMP_EQUAL_EACH
+        /// </summary>
+        EqualEach = 0x08,
+
+        /// <summary>
+        /// _SIDD_CMP_EQUAL_ORDERED
+        /// </summary>
+        EqualOrdered = 0x0c,
+
+        /// <summary>
+        /// _SIDD_NEGATIVE_POLARITY
+        /// </summary>
+        NegativePolarity = 0x10,
+
+        /// <summary>
+        /// _SIDD_MASKED_NEGATIVE_POLARITY
+        /// </summary>
+        MaskedNegativePolarity = 0x30,
+
+        /// <summary>
+        /// _SIDD_BIT_MASK
+        /// </summary>
+        BitMask = 0x00,
+
+        /// <summary>
+        /// _SIDD_UNIT_MASK
+        /// </summary>
+        UnitMask = 0x40,
     }
 }
