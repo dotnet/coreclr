@@ -80,11 +80,12 @@ namespace System.Buffers.Text
 
             int startIndexNonLeadingDigitsBeforeDecimal = srcIndex;
 
+            int hasNonZeroTail = 0;
             while (srcIndex != source.Length)
             {
                 c = source[srcIndex];
 
-                if ((c - 48u) > 9)
+                if ((c -= (byte)('0')) > 9)
                 {
                     break;
                 }
@@ -101,15 +102,16 @@ namespace System.Buffers.Text
                     // for an input that falls evenly between two representable
                     // results.
 
-                    number.HasNonZeroTail = (c != '0');
+                    hasNonZeroTail |= c;
                 }
             }
+            number.HasNonZeroTail = (hasNonZeroTail != 0);
 
             int numDigitsBeforeDecimal = srcIndex - startIndexDigitsBeforeDecimal;
             int numNonLeadingDigitsBeforeDecimal = srcIndex - startIndexNonLeadingDigitsBeforeDecimal;
 
             Debug.Assert(dstIndex == 0);
-            int numNonLeadingDigitsBeforeDecimalToCopy = Math.Min(numNonLeadingDigitsBeforeDecimal, number.Digits.Length - 1);
+            int numNonLeadingDigitsBeforeDecimalToCopy = Math.Min(numNonLeadingDigitsBeforeDecimal, maxDigitCount);
             source.Slice(startIndexNonLeadingDigitsBeforeDecimal, numNonLeadingDigitsBeforeDecimalToCopy).CopyTo(digits);
             dstIndex = numNonLeadingDigitsBeforeDecimalToCopy;
             number.Scale = numNonLeadingDigitsBeforeDecimal;
@@ -137,7 +139,7 @@ namespace System.Buffers.Text
                 {
                     c = source[srcIndex];
 
-                    if ((c - 48u) > 9)
+                    if ((c -= (byte)('0')) > 9)
                     {
                         break;
                     }
@@ -154,9 +156,10 @@ namespace System.Buffers.Text
                         // for an input that falls evenly between two representable
                         // results.
 
-                        number.HasNonZeroTail = (c != '0');
+                        hasNonZeroTail |= c;
                     }
                 }
+                number.HasNonZeroTail = (hasNonZeroTail != 0);
 
                 numDigitsAfterDecimal = srcIndex - startIndexDigitsAfterDecimal;
 
@@ -171,7 +174,7 @@ namespace System.Buffers.Text
                     }
                 }
 
-                int numDigitsAfterDecimalToCopy = Math.Min(srcIndex - startIndexOfDigitsAfterDecimalToCopy, number.Digits.Length - 1);
+                int numDigitsAfterDecimalToCopy = Math.Min(srcIndex - startIndexOfDigitsAfterDecimalToCopy, maxDigitCount - dstIndex);
                 source.Slice(startIndexOfDigitsAfterDecimalToCopy, numDigitsAfterDecimalToCopy).CopyTo(digits.Slice(dstIndex));
                 dstIndex += numDigitsAfterDecimalToCopy;
                 // We "should" really NUL terminate, but there are multiple places we'd have to do this and it is a precondition that the caller pass in a fully zero=initialized Number.
