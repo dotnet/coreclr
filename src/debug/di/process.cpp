@@ -4915,7 +4915,7 @@ void CordbProcess::RawDispatchEvent(
             }
             break;
         }
-
+#ifdef FEATURE_DATABREAKPOINT
     case DB_IPCE_DATA_BREAKPOINT:
         {
             _ASSERTE(pThread != NULL);
@@ -4927,6 +4927,7 @@ void CordbProcess::RawDispatchEvent(
             break;
         }
         break;
+#endif
     case DB_IPCE_USER_BREAKPOINT:
         {
             STRESS_LOG1(LF_CORDB, LL_INFO1000, "[%x] RCET::DRCE: user breakpoint.\n",

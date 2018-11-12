@@ -2012,7 +2012,11 @@ struct MSLAYOUT DebuggerIPCEvent
 
         struct MSLAYOUT
         {
+#ifdef FEATURE_DATABREAKPOINT
             CONTEXT context;
+#else
+            int dummy;
+#endif
         } DataBreakpointData;
 
         struct MSLAYOUT
