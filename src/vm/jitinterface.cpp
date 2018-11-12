@@ -1961,6 +1961,10 @@ CEEInfo::getHeapClassSize(
     MethodTable* pMT = VMClsHnd.GetMethodTable();
     _ASSERTE(pMT);
     _ASSERTE(!pMT->IsValueType());
+    _ASSERTE(!pMT->HasComponentSize());
+#ifdef FEATURE_READYTORUN_COMPILER
+    _ASSERTE(!IsReadyToRunCompilation() || pMT->IsInheritanceChainLayoutFixedInCurrentVersionBubble());
+#endif
 
     // Add OBJECT_SIZE to account for method table pointer.
     result = pMT->GetNumInstanceFieldBytes() + OBJECT_SIZE;
@@ -2280,13 +2284,20 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
     }
     else
     {
-        _ASSERTE(pMT->IsValueType());
         _ASSERTE(sizeof(BYTE) == 1);
+
+        BOOL isValueClass = pMT->IsValueType();
+
+#ifdef FEATURE_READYTORUN_COMPILER
+        _ASSERTE(isValueClass || !IsReadyToRunCompilation() || pMT->IsInheritanceChainLayoutFixedInCurrentVersionBubble());
+#endif
+
+        unsigned int size = isValueClass ? VMClsHnd.GetSize() : pMT->GetNumInstanceFieldBytes() + OBJECT_SIZE;
 
         // assume no GC pointers at first
         result = 0;
         memset(gcPtrs, TYPE_GC_NONE,
-               (VMClsHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
+               (size + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
 
         // walk the GC descriptors, turning on the correct bits
         if (pMT->ContainsPointers())
@@ -2298,7 +2309,8 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
             {
                 // Get offset into the value class of the first pointer field (includes a +Object)
                 size_t cbSeriesSize = pByValueSeries->GetSeriesSize() + pMT->GetBaseSize();
-                size_t cbOffset = pByValueSeries->GetSeriesOffset() - OBJECT_SIZE;
+                size_t cbSeriesOffset = pByValueSeries->GetSeriesOffset();
+                size_t cbOffset = isValueClass ? cbSeriesOffset - OBJECT_SIZE : cbSeriesOffset;
 
                 _ASSERTE (cbOffset % TARGET_POINTER_SIZE == 0);
                 _ASSERTE (cbSeriesSize % TARGET_POINTER_SIZE == 0);
@@ -4217,80 +4229,9 @@ CorInfoInitClassResult CEEInfo::initClass(
         result = CORINFO_INITCLASS_INITIALIZED;
         goto exit;
     }
-
-#ifdef FEATURE_MULTICOREJIT
-    // Once multicore JIT is enabled in an AppDomain by calling SetProfileRoot, always use helper function to call class init, for consistency
-    if (! GetAppDomain()->GetMulticoreJitManager().AllowCCtorsToRunDuringJITing())
-    {
-        result = CORINFO_INITCLASS_USE_HELPER;
-
-        goto exit;
-    }
-#endif
-
-    // To preserve consistent behavior between ngen and not-ngenned states, do not eagerly
-    // run class constructors for autongennable code.
-    if (pTypeToInitMT->RunCCTorAsIfNGenImageExists())
-    {
-        result = CORINFO_INITCLASS_USE_HELPER;
-        goto exit;
-    }
-
-    if (!pTypeToInitMT->GetClass()->IsBeforeFieldInit())
-    {
-        // Do not inline the access if we cannot initialize the class. Chances are that the class will get
-        // initialized by the time the access is jitted.
-        result = CORINFO_INITCLASS_USE_HELPER | CORINFO_INITCLASS_DONT_INLINE;
-        goto exit;
-    }
-
-    if (speculative)
-    {
-        // Tell the JIT that we may be able to initialize the class when asked to.
-        result = CORINFO_INITCLASS_SPECULATIVE;
-        goto exit;
-    }
-
-    //
-    // We cannot run the class constructor without first activating the
-    // module containing the class.  However, since the current module
-    // we are compiling inside is not active, we don't want to do this.
-    //
-    // This should be an unusal case since normally the method's module should
-    // be active during jitting.
-    //
-    // @TODO: We should check IsActivating() instead of IsActive() since we may
-    // be running the Module::.cctor(). The assembly is not marked as active
-    // until then.
-    if (!methodBeingCompiled->GetLoaderModule()->GetDomainFile()->IsActive())
-    {
-        result = CORINFO_INITCLASS_USE_HELPER;
-        goto exit;
-    }
-
-    //
-    // Run the .cctor
-    //
-
-    EX_TRY
-    {
-        pTypeToInitMT->CheckRunClassInitThrowing();
-    }
-    EX_CATCH
-    {
-    } EX_END_CATCH(SwallowAllExceptions);
-
-    if (pTypeToInitMT->IsClassInited())
-    {
-        result = CORINFO_INITCLASS_INITIALIZED;
-        goto exit;
-    }
 #endif // CROSSGEN_COMPILE
 
-    // Do not inline the access if we were unable to initialize the class. Chances are that the class will get
-    // initialized by the time the access is jitted.
-    result = (CORINFO_INITCLASS_USE_HELPER | CORINFO_INITCLASS_DONT_INLINE);
-
+    result = CORINFO_INITCLASS_USE_HELPER;
     }
 exit: ;
     EE_TO_JIT_TRANSITION();

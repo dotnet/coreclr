@@ -1974,68 +1974,6 @@ MethodTable* AppDomain::GetLicenseInteropHelperMethodTable()
     }
     return m_pLicenseInteropHelperMT;
 }
-
-COMorRemotingFlag AppDomain::GetComOrRemotingFlag()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // 0. check if the value is already been set
-    if (m_COMorRemotingFlag != COMorRemoting_NotInitialized)
-        return m_COMorRemotingFlag;
-
-    // 1. check whether the process is AppX
-    if (AppX::IsAppXProcess())
-    {
-        // do not use Remoting in AppX
-        m_COMorRemotingFlag = COMorRemoting_COM;
-        return m_COMorRemotingFlag;
-    }
-
-    // 2. check the xml file
-    m_COMorRemotingFlag = GetPreferComInsteadOfManagedRemotingFromConfigFile();
-    if (m_COMorRemotingFlag != COMorRemoting_NotInitialized)
-    {
-        return m_COMorRemotingFlag;
-    }
-
-    // 3. check the global setting
-    if (NULL != g_pConfig && g_pConfig->ComInsteadOfManagedRemoting())
-    {
-        m_COMorRemotingFlag = COMorRemoting_COM;
-    }
-    else
-    {
-        m_COMorRemotingFlag = COMorRemoting_Remoting;
-    }
-
-    return m_COMorRemotingFlag;
-}
-
-BOOL AppDomain::GetPreferComInsteadOfManagedRemoting()
-{
-    WRAPPER_NO_CONTRACT;
-
-    return (GetComOrRemotingFlag() == COMorRemoting_COM);
-}
-
-COMorRemotingFlag AppDomain::GetPreferComInsteadOfManagedRemotingFromConfigFile()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    return COMorRemoting_COM;
-}
 #endif // FEATURE_COMINTEROP
 
 #endif // CROSSGEN_COMPILE
@@ -3881,7 +3819,6 @@ AppDomain::AppDomain()
     m_pRCWCache = NULL;
     m_pRCWRefCache = NULL;
     m_pLicenseInteropHelperMT = NULL;
-    m_COMorRemotingFlag = COMorRemoting_NotInitialized;
     memset(m_rpCLRTypes, 0, sizeof(m_rpCLRTypes));
 #endif // FEATURE_COMINTEROP
 
@@ -6447,7 +6384,7 @@ BOOL AppDomain::PostBindResolveAssembly(AssemblySpec  *pPrePolicySpec,
             // the adding of the result to fail. Checking for already chached specs
             // is not an option as it would introduce another race window.
             // The binder does a re-fetch of the
-            // orignal binding spec and therefore will not cause inconsistency here.
+            // original binding spec and therefore will not cause inconsistency here.
             // For the purposes of the resolve event, failure to add to the cache still is a success.
             AddFileToCache(pPrePolicySpec, result, TRUE /* fAllowFailure */);
             if (*ppFailedSpec != pPrePolicySpec && pPostPolicySpec->CanUseWithBindingCache())
