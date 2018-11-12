@@ -28,6 +28,17 @@ namespace System
                 return GetCachedSwitchValue(AppContextDefaultValues.SwitchFormatJapaneseFirstYearAsANumber, ref _formatJapaneseFirstYearAsANumber);
             }
         }
+
+        private static int _enforceJapaneseEraYearRanges;
+        public static bool EnforceJapaneseEraYearRanges
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return GetCachedSwitchValue(AppContextDefaultValues.SwitchEnforceJapaneseEraYearRanges, ref _enforceJapaneseEraYearRanges);
+            }
+        }
+
         private static int _enforceLegacyJapaneseDateParsing;
         public static bool EnforceLegacyJapaneseDateParsing
         {

@@ -1079,6 +1079,11 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
 
 def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def os, def configuration, def scenario, def isFlowJob, def isWindowsBuildOnlyJob, def bidailyCrossList) {
 
+    // Don't run non-PR jobs in release/2.1 branch: it takes too many resources.
+    if (branch == 'release/2.1') {
+        return
+    }
+
     // Limited Windows ARM64 hardware is restricted for non-PR triggers to certain branches.
     if (os == 'Windows_NT') {
         if ((architecture == 'arm64') || (architecture == 'arm') || (architecture == 'armlb')) {
@@ -1768,7 +1773,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             // Only Checked is an innerloop trigger.
                             if (configuration == 'Checked')
                             {
-                                Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
+                                Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
                             }
                             break
                         case 'normal':
@@ -1819,7 +1824,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     switch (scenario) {
                         case 'innerloop':
                             if (configuration == 'Debug' && !isFlowJob) {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Innerloop Build")
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Innerloop Build", triggerString)
                             }
                             
                             break
@@ -1847,7 +1852,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     switch (scenario) {
                         case 'innerloop':
                             if (configuration == 'Checked') {
-                                Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
+                                Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
                             }
                             
                             break

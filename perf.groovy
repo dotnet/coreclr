@@ -39,7 +39,12 @@ def static getOSGroup(def os) {
 
                         def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
                             // Set the label.
-                            label('windows_server_2016_clr_perf')
+                            if (isSmoketest) {
+                                label('Windows.Amd64.ClientRS4.DevEx.15.8.Perf')
+                            }
+                            else {
+                                label('windows_server_2016_clr_perf')
+                            }
                             wrappers {
                                 credentialsBinding {
                                     string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
@@ -102,9 +107,6 @@ def static getOSGroup(def os) {
                             }
                         }
 
-                        if (isSmoketest) {
-                            Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')
-                        }
                         def archiveSettings = new ArchivalSettings()
                         archiveSettings.addFiles('bin/sandbox_logs/**')
                         archiveSettings.addFiles('machinedata.json')
@@ -675,6 +677,7 @@ parallel(
     ['x64', 'x86'].each { arch ->
         def architecture = arch
         def newJob = job(Utilities.getFullJobName(project, "sizeondisk_${arch}", false)) {
+            label('Windows.Amd64.ClientRS4.DevEx.15.8.Perf')
 
             wrappers {
                 credentialsBinding {
@@ -724,8 +727,6 @@ parallel(
             }
         }
 
-        Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')
-
         def archiveSettings = new ArchivalSettings()
         archiveSettings.addFiles('bin/toArchive/**')
         archiveSettings.addFiles('machinedata.json')
@@ -761,6 +762,7 @@ parallel(
                 ['full_opt'].each { opt_level ->
                     def architecture = arch
                     def newJob = job(Utilities.getFullJobName(project, "perf_illink_${os}_${arch}_${opt_level}_${jit}", isPR)) {
+                        label('Windows.Amd64.ClientRS4.DevEx.15.8.Perf')
 
                         def testEnv = ""
                         wrappers {
@@ -817,7 +819,6 @@ parallel(
                     archiveSettings.setAlwaysArchive()
 
                     // Set the label (currently we are only measuring size, therefore we are running on VM).
-                    Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')
                     Utilities.addArchival(newJob, archiveSettings)
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
 
