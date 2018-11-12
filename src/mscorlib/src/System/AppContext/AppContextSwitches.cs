@@ -19,6 +19,16 @@ namespace System
             }
         }
 
+        private static int _formatJapaneseFirstYearAsANumber;
+        public static bool FormatJapaneseFirstYearAsANumber
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return GetCachedSwitchValue(AppContextDefaultValues.SwitchFormatJapaneseFirstYearAsANumber, ref _formatJapaneseFirstYearAsANumber);
+            }
+        }
+
         private static int _enforceJapaneseEraYearRanges;
         public static bool EnforceJapaneseEraYearRanges
         {
@@ -26,6 +36,16 @@ namespace System
             get
             {
                 return GetCachedSwitchValue(AppContextDefaultValues.SwitchEnforceJapaneseEraYearRanges, ref _enforceJapaneseEraYearRanges);
+            }
+        }
+
+        private static int _enforceLegacyJapaneseDateParsing;
+        public static bool EnforceLegacyJapaneseDateParsing
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return GetCachedSwitchValue(AppContextDefaultValues.SwitchEnforceLegacyJapaneseDateParsing, ref _enforceLegacyJapaneseDateParsing);
             }
         }
 
