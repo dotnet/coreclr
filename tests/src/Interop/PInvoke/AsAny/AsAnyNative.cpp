@@ -10,8 +10,8 @@ struct test1 {
 };
 
 extern "C" DLL_EXPORT LONG64 STDMETHODCALLTYPE PassLayout(test1* i) {
-    printf("PassLayout: i->a  = %I64d\n", i->a);
-    printf("PassLayout: i->b = %I64d\n", i->b);
+    printf("PassLayout: i->a  = %lld\n", i->a);
+    printf("PassLayout: i->b = %lld\n", i->b);
     return i->b;
 }
 
