@@ -62,7 +62,7 @@ namespace System.Text
         /// Creates a <see cref="Rune"/> from the provided Unicode scalar value.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// If <paramref name="scalarValue"/> does not represent a value Unicode scalar value.
+        /// If <paramref name="value"/> does not represent a value Unicode scalar value.
         /// </exception>
         public Rune(int value)
             : this((uint)value)
@@ -73,7 +73,7 @@ namespace System.Text
         /// Creates a <see cref="Rune"/> from the provided Unicode scalar value.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// If <paramref name="scalarValue"/> does not represent a value Unicode scalar value.
+        /// If <paramref name="value"/> does not represent a value Unicode scalar value.
         /// </exception>
         [CLSCompliant(false)]
         public Rune(uint value)
@@ -489,7 +489,7 @@ namespace System.Text
         //
         // public int GetMarvin32HashCode(Rune r) {
         //   Span<char> buffer = stackalloc char[r.Utf16SequenceLength];
-        //   s.TryEncode(buffer, ...);
+        //   r.TryEncode(buffer, ...);
         //   return Marvin32.ComputeHash(buffer.AsBytes());
         // }
 
