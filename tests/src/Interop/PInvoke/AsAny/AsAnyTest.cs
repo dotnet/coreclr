@@ -173,6 +173,10 @@ class AsAnyTests
         UIntPtr[] expected,
         int len
     );
+    
+    [DllImport("AsAnyNative")]
+    public static extern long PassLayout(
+    [MarshalAs(UnmanagedType.AsAny)] Object i);
 
     [DllImport("AsAnyNative", EntryPoint = "PassUnicodeStr", CharSet = CharSet.Unicode, 
     BestFitMapping = true, ThrowOnUnmappableChar = true)]
@@ -209,10 +213,6 @@ class AsAnyTests
     public static extern bool PassAnsiStrFF(
     [MarshalAs(UnmanagedType.AsAny)]
     Object i, bool isIncludeUnMappableChar);
-
-    [DllImport("AsAnyNative")]
-    public static extern long PassLayout(
-    [MarshalAs(UnmanagedType.AsAny)] Object i);
 
     [DllImport("AsAnyNative", EntryPoint = "PassUnicodeStrbd", CharSet = CharSet.Unicode,
     BestFitMapping = true, ThrowOnUnmappableChar = true)]
@@ -632,7 +632,7 @@ class AsAnyTests
     }
 
     public static void TestLayout() {
-        Console.WriteLine("\nRunning Layout Tests:");
+        Console.WriteLine("Scenario: Running Layout Tests:");
         Console.WriteLine("------------------------");
 
         A layoutStruct = new A
@@ -642,6 +642,7 @@ class AsAnyTests
         };
         
         Assert.AreEqual(layoutStruct.b, PassLayout(layoutStruct));   
+        Console.WriteLine("------------------------");
     }
 
     static void CharArrayInit(char[] unMappableCharArray_In, char[] unMappableCharArray_InOut, char[] unMappableCharArray_Out,
