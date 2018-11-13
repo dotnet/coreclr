@@ -1104,6 +1104,11 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
 
 def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def os, def configuration, def scenario, def isFlowJob, def isWindowsBuildOnlyJob, def bidailyCrossList) {
 
+    // Don't run non-PR jobs in release/2.1 branch: it takes too many resources.
+    if (branch == 'release/2.1') {
+        return
+    }
+
     // Limited Windows ARM64 hardware is restricted for non-PR triggers to certain branches.
     if (os == 'Windows_NT') {
         if ((architecture == 'arm64') || (architecture == 'arm') || (architecture == 'armlb')) {
