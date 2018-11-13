@@ -24,7 +24,7 @@ typedef void* LPVOID;
 typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
 typedef intptr_t INT_PTR;
-typedef intptr_t UINT_PTR;
+typedef uintptr_t UINT_PTR;
 
 typedef unsigned long long ULONG64;
 typedef double DOUBLE;
