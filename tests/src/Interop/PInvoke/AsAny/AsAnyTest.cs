@@ -39,6 +39,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object sbyteArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object sbyteArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object sbyteArray_Out,
+        sbyte[] expected,
         int len
     );
     
@@ -48,6 +49,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object byteArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object byteArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object byteArray_Out,
+        byte[] expected,
         int len
     );
 
@@ -58,6 +60,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object shortArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object shortArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object shortArray_Out,
+        short[] expected,
         int len
     );
 
@@ -67,6 +70,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object ushortArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object ushortArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object ushortArray_Out,
+        ushort[] expected,
         int len
     );
 
@@ -76,6 +80,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object intArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object intArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object intArray_Out,
+        int[] expected,
         int len
     );
 
@@ -85,6 +90,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object uintArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object uintArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object uintArray_Out,
+        uint[] expected,
         int len
     );
 
@@ -94,6 +100,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object longArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object longArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object longArray_Out,
+        long[] expected,
         int len
     );
 
@@ -103,6 +110,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object ulongArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object ulongArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object ulongArray_Out,
+        ulong[] expected,
         int len
     );
 
@@ -112,6 +120,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object singleArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object singleArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object singleArray_Out,
+        float[] expected,
         int len
     );
 
@@ -121,6 +130,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object doubleArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object doubleArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object doubleArray_Out,
+        double[] expected,
         int len
     );
 
@@ -130,6 +140,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object charArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object charArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object charArray_Out,
+        char[] expected,
         int len
     );
 
@@ -139,6 +150,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object boolArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object boolArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object boolArray_Out,
+        bool[] expected,
         int len
     );
 
@@ -148,6 +160,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object intPtrArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object intPtrArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object intPtrArray_Out,
+        IntPtr[] expected,
         int len
     );
 
@@ -157,6 +170,7 @@ class AsAnyTests
         [In, MarshalAs(UnmanagedType.AsAny)] object uIntPtrArray_In,
         [In, Out, MarshalAs(UnmanagedType.AsAny)] object uIntPtrArray_InOut,
         [Out, MarshalAs(UnmanagedType.AsAny)] object uIntPtrArray_Out,
+        UIntPtr[] expected,
         int len
     );
 
@@ -441,7 +455,8 @@ class AsAnyTests
         UIntPtr[] uIntPtrArray_InOut = new UIntPtr[] { new UIntPtr(0), new UIntPtr(1), new UIntPtr(2) };
         UIntPtr[] uIntPtrArray_Out = new UIntPtr[] { new UIntPtr(0), new UIntPtr(1), new UIntPtr(2) };
         UIntPtr[] uIntPtrArray_Back = new UIntPtr[] { new UIntPtr(10), new UIntPtr(11), new UIntPtr(12) };
-        Assert.IsTrue(PassArrayUIntPtr(uIntPtrArray, uIntPtrArray_In, uIntPtrArray_InOut, uIntPtrArray_Out, 3));
+        UIntPtr[] expected = new UIntPtr[] { new UIntPtr(0), new UIntPtr(1), new UIntPtr(2) };
+        Assert.IsTrue(PassArrayUIntPtr(uIntPtrArray, uIntPtrArray_In, uIntPtrArray_InOut, uIntPtrArray_Out, expected, 3));
         Assert.AreAllEqual(uIntPtrArray_Back, uIntPtrArray_InOut);
         Assert.AreAllEqual(uIntPtrArray_Back, uIntPtrArray_Out);
     }
@@ -454,7 +469,8 @@ class AsAnyTests
         IntPtr[] intPtrArray_InOut = new IntPtr[] { new IntPtr(0), new IntPtr(1), new IntPtr(2) };
         IntPtr[] intPtrArray_Out = new IntPtr[] { new IntPtr(0), new IntPtr(1), new IntPtr(2) };
         IntPtr[] intPtrArray_Back = new IntPtr[] { new IntPtr(10), new IntPtr(11), new IntPtr(12) };
-        Assert.IsTrue(PassArrayIntPtr(intPtrArray, intPtrArray_In, intPtrArray_InOut, intPtrArray_Out, 3));
+        IntPtr[] expected = new IntPtr[] { new IntPtr(0), new IntPtr(1), new IntPtr(2) };
+        Assert.IsTrue(PassArrayIntPtr(intPtrArray, intPtrArray_In, intPtrArray_InOut, intPtrArray_Out, expected, 3));
         Assert.AreAllEqual(intPtrArray_Back, intPtrArray_InOut);
         Assert.AreAllEqual(intPtrArray_Back, intPtrArray_Out);
     }
@@ -467,7 +483,7 @@ class AsAnyTests
         bool[] boolArray_InOut = new bool[] { true, false, false };
         bool[] boolArray_Out = new bool[] { true, false, false };
         bool[] boolArray_Back = new bool[] { false, true, true };
-        Assert.IsTrue(PassArrayBool(boolArray, boolArray_In, boolArray_InOut, boolArray_Out, 3));
+        Assert.IsTrue(PassArrayBool(boolArray, boolArray_In, boolArray_InOut, boolArray_Out, new bool[] { true, false, false }, 3));
         Assert.AreAllEqual(boolArray_Back, boolArray_InOut);
         Assert.AreAllEqual(boolArray_Back, boolArray_Out);
     }
@@ -480,7 +496,7 @@ class AsAnyTests
         char[] charArray_InOut = new char[] { 'a', 'b', 'c' };
         char[] charArray_Out = new char[] { 'a', 'b', 'c' };
         char[] charArray_Back = new char[] { 'd', 'e', 'f' };
-        Assert.IsTrue(PassArrayChar(charArray, charArray_In, charArray_InOut, charArray_Out, 3));
+        Assert.IsTrue(PassArrayChar(charArray, charArray_In, charArray_InOut, charArray_Out, new char[] { 'a', 'b', 'c' }, 3));
         Assert.AreAllEqual(charArray_Back, charArray_InOut);
         Assert.AreAllEqual(charArray_Back, charArray_Out);
     }
@@ -493,20 +509,20 @@ class AsAnyTests
         double[] doubleArray_InOut = new double[] { 0.0, 1.1, 2.2 };
         double[] doubleArray_Out = new double[] { 0.0, 1.1, 2.2 };
         double[] doubleArray_Back = new double[] { 10.0, 11.1, 12.2 };
-        Assert.IsTrue(PassArrayDouble(doubleArray, doubleArray_In, doubleArray_InOut, doubleArray_Out, 3));
+        Assert.IsTrue(PassArrayDouble(doubleArray, doubleArray_In, doubleArray_InOut, doubleArray_Out, new double[] { 0.0, 1.1, 2.2 }, 3));
         Assert.AreAllEqual(doubleArray_Back, doubleArray_InOut);
         Assert.AreAllEqual(doubleArray_Back, doubleArray_Out);
     }
 
     private static void TestSingleArray()
     {
-        Console.WriteLine("Scenario : Checking Marshal AsAny for Single(float) array ");
-        Single[] singleArray = new Single[] { 0, 1, 2 };
-        Single[] singleArray_In = new Single[] { 0, 1, 2 };
-        Single[] singleArray_InOut = new Single[] { 0, 1, 2 };
-        Single[] singleArray_Out = new Single[] { 0, 1, 2 };
-        Single[] singleArray_Back = new Single[] { 10, 11, 12 };
-        Assert.IsTrue(PassArraySingle(singleArray, singleArray_In, singleArray_InOut, singleArray_Out, 3));
+        Console.WriteLine("Scenario : Checking Marshal AsAny for float array ");
+        float[] singleArray = new float[] { 0, 1, 2 };
+        float[] singleArray_In = new float[] { 0, 1, 2 };
+        float[] singleArray_InOut = new float[] { 0, 1, 2 };
+        float[] singleArray_Out = new float[] { 0, 1, 2 };
+        float[] singleArray_Back = new float[] { 10, 11, 12 };
+        Assert.IsTrue(PassArraySingle(singleArray, singleArray_In, singleArray_InOut, singleArray_Out, new float[] { 0, 1, 2 }, 3));
         Assert.AreAllEqual(singleArray_Back, singleArray_InOut);
         Assert.AreAllEqual(singleArray_Back, singleArray_Out);
     }
@@ -519,7 +535,7 @@ class AsAnyTests
         ulong[] ulongArray_InOut = new ulong[] { 0, 1, 2 };
         ulong[] ulongArray_Out = new ulong[] { 0, 1, 2 };
         ulong[] ulongArray_Back = new ulong[] { 10, 11, 12 };
-        Assert.IsTrue(PassArrayUlong(ulongArray, ulongArray_In, ulongArray_InOut, ulongArray_Out, 3));
+        Assert.IsTrue(PassArrayUlong(ulongArray, ulongArray_In, ulongArray_InOut, ulongArray_Out, new ulong[] { 0, 1, 2 }, 3));
         Assert.AreAllEqual(ulongArray_Back, ulongArray_InOut);
         Assert.AreAllEqual(ulongArray_Back, ulongArray_Out);
     }
@@ -532,7 +548,7 @@ class AsAnyTests
         long[] longArray_InOut = new long[] { 0, 1, 2 };
         long[] longArray_Out = new long[] { 0, 1, 2 };
         long[] longArray_Back = new long[] { 10, 11, 12 };
-        Assert.IsTrue(PassArrayLong(longArray, longArray_In, longArray_InOut, longArray_Out, 3));
+        Assert.IsTrue(PassArrayLong(longArray, longArray_In, longArray_InOut, longArray_Out, new long[] { 0, 1, 2 }, 3));
         Assert.AreAllEqual(longArray_Back, longArray_InOut);
         Assert.AreAllEqual(longArray_Back, longArray_Out);
     }
@@ -545,7 +561,7 @@ class AsAnyTests
         uint[] uintArray_InOut = new uint[] { 0, 1, 2 };
         uint[] uintArray_Out = new uint[] { 0, 1, 2 };
         uint[] uintArray_Back = new uint[] { 10, 11, 12 };
-        Assert.IsTrue(PassArrayUint(uintArray, uintArray_In, uintArray_InOut, uintArray_Out, 3));
+        Assert.IsTrue(PassArrayUint(uintArray, uintArray_In, uintArray_InOut, uintArray_Out, new uint[] { 0, 1, 2 }, 3));
         Assert.AreAllEqual(uintArray_Back, uintArray_InOut);
         Assert.AreAllEqual(uintArray_Back, uintArray_Out);
     }
@@ -558,7 +574,7 @@ class AsAnyTests
         int[] intArray_InOut = new int[] { 0, 1, 2 };
         int[] intArray_Out = new int[] { 0, 1, 2 };
         int[] intArray_Back = new int[] { 10, 11, 12 };
-        Assert.IsTrue(PassArrayInt(intArray, intArray_In, intArray_InOut, intArray_Out, 3));
+        Assert.IsTrue(PassArrayInt(intArray, intArray_In, intArray_InOut, intArray_Out, new int[] { 0, 1, 2 }, 3));
         Assert.AreAllEqual(intArray_Back, intArray_InOut);
         Assert.AreAllEqual(intArray_Back, intArray_Out);
     }
@@ -571,7 +587,7 @@ class AsAnyTests
         ushort[] ushortArray_InOut = new ushort[] { 0, 1, 2 };
         ushort[] ushortArray_Out = new ushort[] { 0, 1, 2 };
         ushort[] ushortArray_Back = new ushort[] { 10, 11, 12 };
-        Assert.IsTrue(PassArrayUshort(ushortArray, ushortArray_In, ushortArray_InOut, ushortArray_Out, 3));
+        Assert.IsTrue(PassArrayUshort(ushortArray, ushortArray_In, ushortArray_InOut, ushortArray_Out, new ushort[] { 0, 1, 2 }, 3));
         Assert.AreAllEqual(ushortArray_Back, ushortArray_InOut);
         Assert.AreAllEqual(ushortArray_Back, ushortArray_Out);
     }
@@ -584,7 +600,7 @@ class AsAnyTests
         short[] shortArray_InOut = new short[] { -1, 0, 1 };
         short[] shortArray_Out = new short[] { -1, 0, 1 };
         short[] shortArray_Back = new short[] { 9, 10, 11 };
-        Assert.IsTrue(PassArrayShort(shortArray, shortArray_In, shortArray_InOut, shortArray_Out, 3));
+        Assert.IsTrue(PassArrayShort(shortArray, shortArray_In, shortArray_InOut, shortArray_Out, new short[] { -1, 0, 1 }, 3));
         Assert.AreAllEqual(shortArray_Back, shortArray_InOut);
         Assert.AreAllEqual(shortArray_Back, shortArray_Out);
     }
@@ -597,7 +613,7 @@ class AsAnyTests
         byte[] byteArray_InOut = new byte[] { 0, 1, 2 };
         byte[] byteArray_Out = new byte[] { 0, 1, 2 };
         byte[] byteArray_Back = new byte[] { 10, 11, 12 };
-        Assert.IsTrue(PassArrayByte(byteArray, byteArray_In, byteArray_InOut, byteArray_Out, 3));
+        Assert.IsTrue(PassArrayByte(byteArray, byteArray_In, byteArray_InOut, byteArray_Out, new byte[] { 0, 1, 2 }, 3));
         Assert.AreAllEqual(byteArray_Back, byteArray_InOut);
         Assert.AreAllEqual(byteArray_Back, byteArray_Out);
     }
@@ -610,7 +626,7 @@ class AsAnyTests
         sbyte[] sbyteArray_InOut = new sbyte[] { -1, 0, 1 };
         sbyte[] sbyteArray_Out = new sbyte[] { -1, 0, 1 };
         sbyte[] sbyteArray_Back = new sbyte[] { 9, 10, 11 };
-        Assert.IsTrue(PassArraySbyte(sbyteArray, sbyteArray_In, sbyteArray_InOut, sbyteArray_Out, 3));
+        Assert.IsTrue(PassArraySbyte(sbyteArray, sbyteArray_In, sbyteArray_InOut, sbyteArray_Out, new sbyte[] {-1, 0, 1}, 3));
         Assert.AreAllEqual(sbyteArray_Back, sbyteArray_InOut);
         Assert.AreAllEqual(sbyteArray_Back, sbyteArray_Out);
     }

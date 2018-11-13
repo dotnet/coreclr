@@ -86,175 +86,174 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassAnsiCharArray(CHAR CharArray_In
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArraySbyte(
-			BYTE sbyteArray[], BYTE sbyteArray_In[], BYTE sbyteArray_InOut[], BYTE sbyteArray_Out[], int len){
-		BYTE bs [3] = {-1, 0 ,1};
+			BYTE sbyteArray[], BYTE sbyteArray_In[], BYTE sbyteArray_InOut[], BYTE sbyteArray_Out[], BYTE expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(sbyteArray[i] != bs[i] || sbyteArray_In[i] != bs[i] || sbyteArray_InOut[i] != bs[i])
+			if(sbyteArray[i] != expected[i] || sbyteArray_In[i] != expected[i] || sbyteArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArraySbyte\n");
 				return FALSE;
 			}
-			sbyteArray_InOut[i] = 10 + bs[i];
-			sbyteArray_Out[i] = 10 + bs[i];
+			sbyteArray_InOut[i] = 10 + expected[i];
+			sbyteArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;    
 }
 
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayByte(	
-		BYTE byteArray[], BYTE byteArray_In[], BYTE byteArray_InOut[], BYTE byteArray_Out[], int len){
-		BYTE arrs[3] = {0, 1 ,2};
+		BYTE byteArray[], BYTE byteArray_In[], BYTE byteArray_InOut[], BYTE byteArray_Out[], BYTE expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(byteArray[i] != arrs[i] || byteArray_In[i] != arrs[i] || byteArray_InOut[i] != arrs[i])
+			if(byteArray[i] != expected[i] || byteArray_In[i] != expected[i] || byteArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayByte\n");
 				return FALSE;
 			}
-			byteArray_InOut[i] = 10 + arrs[i];
-			byteArray_Out[i] = 10 + arrs[i];
+			byteArray_InOut[i] = 10 + expected[i];
+			byteArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;    
 }
     
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayShort(	
-		SHORT shortArray[], SHORT shortArray_In[], SHORT shortArray_InOut[], SHORT shortArray_Out[], int len){
-		SHORT arrs[3] = {-1, 0 ,1};
+		SHORT shortArray[], SHORT shortArray_In[], SHORT shortArray_InOut[], SHORT shortArray_Out[], SHORT expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(shortArray[i] != arrs[i] || shortArray_In[i] != arrs[i] || shortArray_InOut[i] != arrs[i])
+			if(shortArray[i] != expected[i] || shortArray_In[i] != expected[i] || shortArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayShort\n");
 				return FALSE;
 			}
-			shortArray_InOut[i] = 10 + arrs[i];
-			shortArray_Out[i] = 10 + arrs[i];
+			shortArray_InOut[i] = 10 + expected[i];
+			shortArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;    
 }
     
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayUshort(	
-		USHORT ushortArray[], USHORT ushortArray_In[], USHORT ushortArray_InOut[], USHORT ushortArray_Out[], int len){
-		USHORT arrs[3] = {0, 1 ,2};
+		USHORT ushortArray[], USHORT ushortArray_In[], USHORT ushortArray_InOut[], USHORT ushortArray_Out[], USHORT expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(ushortArray[i] != arrs[i] || ushortArray_In[i] != arrs[i] || ushortArray_InOut[i] != arrs[i])
+			if(ushortArray[i] != expected[i] || ushortArray_In[i] != expected[i] || ushortArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayUshort\n");
 				return FALSE;
 			}
-			ushortArray_InOut[i] = 10 + arrs[i];
-			ushortArray_Out[i] = 10 + arrs[i];
+			ushortArray_InOut[i] = 10 + expected[i];
+			ushortArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;    
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayInt(	
-		int IntArray[], int IntArray_In[], int IntArray_InOut[], int IntArray_Out[], int len){
-		int arrs[3] = {0, 1 ,2};
+		int IntArray[], int IntArray_In[], int IntArray_InOut[], int IntArray_Out[], int expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(IntArray[i] != arrs[i] || IntArray_In[i] != arrs[i] || IntArray_InOut[i] != arrs[i])
+			if(IntArray[i] != expected[i] || IntArray_In[i] != expected[i] || IntArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayInt\n");
 				return FALSE;
 			}
-			IntArray_InOut[i] = 10 + arrs[i];
-			IntArray_Out[i] = 10 + arrs[i];
+			IntArray_InOut[i] = 10 + expected[i];
+			IntArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;    
 }
 
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayUint(	
-		UINT uintArray[], UINT uintArray_In[], UINT uintArray_InOut[], UINT uintArray_Out[], int len){
-		UINT arrs[3] = {0, 1 ,2};
+		UINT uintArray[], UINT uintArray_In[], UINT uintArray_InOut[], UINT uintArray_Out[], UINT expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(uintArray[i] != arrs[i] || uintArray_In[i] != arrs[i] || uintArray_InOut[i] != arrs[i])
+			if(uintArray[i] != expected[i] || uintArray_In[i] != expected[i] || uintArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayUint\n");
 				return FALSE;
 			}
-			uintArray_InOut[i] = 10 + arrs[i];
-			uintArray_Out[i] = 10 + arrs[i];
+			uintArray_InOut[i] = 10 + expected[i];
+			uintArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;    
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayLong(	
-		LONGLONG longArray[], LONGLONG longArray_In[], LONGLONG longArray_InOut[], LONGLONG longArray_Out[], int len){
-		LONGLONG arrs[3] = {0, 1 ,2};
+		LONGLONG longArray[], LONGLONG longArray_In[], LONGLONG longArray_InOut[], LONGLONG longArray_Out[], LONGLONG expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(longArray[i] != arrs[i] || longArray_In[i] != arrs[i] || longArray_InOut[i] != arrs[i])
+			if(longArray[i] != expected[i] || longArray_In[i] != expected[i] || longArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayLong\n");
 				return FALSE;
 			}
-			longArray_InOut[i] = 10 + arrs[i];
-			longArray_Out[i] = 10 + arrs[i];
+			longArray_InOut[i] = 10 + expected[i];
+			longArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;    
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayUlong(	
 	LONGLONG ulongArray[], LONGLONG ulongArray_In[], LONGLONG ulongArray_InOut[], 
-	LONGLONG ulongArray_Out[], int len){
-		LONGLONG arrs[3] = {0, 1 ,2};
+	LONGLONG ulongArray_Out[], LONGLONG expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(ulongArray[i] != arrs[i] || ulongArray_In[i] != arrs[i] || ulongArray_InOut[i] != arrs[i])
+			if(ulongArray[i] != expected[i] || ulongArray_In[i] != expected[i] || ulongArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayUlong\n");
 				return FALSE;
 			}
-			ulongArray_InOut[i] = 10 + arrs[i];
-			ulongArray_Out[i] = 10 + arrs[i];
+			ulongArray_InOut[i] = 10 + expected[i];
+			ulongArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;  
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArraySingle(	
 	float singleArray[], float singleArray_In[], float singleArray_InOut[], 
-	float singleArray_Out[], int len){
-		float arrs[3] = {0, 1 ,2};
+	float singleArray_Out[], float expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(singleArray[i] != arrs[i] || singleArray_In[i] != arrs[i] || singleArray_InOut[i] != arrs[i])
+			if(singleArray[i] != expected[i] || singleArray_In[i] != expected[i] || singleArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArraySingle\n");
 				return FALSE;
 			}
-			singleArray_InOut[i] = 10 + arrs[i];
-			singleArray_Out[i] = 10 + arrs[i];
+			singleArray_InOut[i] = 10 + expected[i];
+			singleArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;  
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayDouble(	
-	double doubleArray[], double doubleArray_In[], double doubleArray_InOut[], double doubleArray_Out[], int len){
-		double arrs[3] = {0.0, 1.1 ,2.2};
+	double doubleArray[], double doubleArray_In[], double doubleArray_InOut[], double doubleArray_Out[], double expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(doubleArray[i] != arrs[i] || doubleArray_In[i] != arrs[i] || doubleArray_InOut[i] != arrs[i])
+			if(doubleArray[i] != expected[i] || doubleArray_In[i] != expected[i] || doubleArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayDouble\n");
 				return FALSE;
 			}
-			doubleArray_InOut[i] = 10 + arrs[i];
-			doubleArray_Out[i] = 10 + arrs[i];
+			doubleArray_InOut[i] = 10 + expected[i];
+			doubleArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;  
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayChar(	
-	CHAR charArray[], CHAR charArray_In[], CHAR charArray_InOut[], CHAR charArray_Out[], int len){
-		const CHAR *arrs = "abc";
+	CHAR charArray[], CHAR charArray_In[], CHAR charArray_InOut[], CHAR charArray_Out[], CHAR expected[], int len){
 		for(int i = 0; i < len; i++)
 		{
-			if(charArray[i] != arrs[i] || charArray_In[i] != arrs[i] || charArray_InOut[i] != arrs[i])
+			if(charArray[i] != expected[i] || charArray_In[i] != expected[i] || charArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayChar\n");
 				return FALSE;
@@ -272,11 +271,11 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayChar(
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayBool(	
-	BOOL boolArray[], BOOL boolArray_In[], BOOL boolArray_InOut[], BOOL boolArray_Out[], int len){
-		BOOL arrs[3] = {TRUE, FALSE, FALSE};
+	BOOL boolArray[], BOOL boolArray_In[], BOOL boolArray_InOut[], BOOL boolArray_Out[], BOOL expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(boolArray[i] != arrs[i] || boolArray_In[i] != arrs[i] || boolArray_InOut[i] != arrs[i])
+			if(boolArray[i] != expected[i] || boolArray_In[i] != expected[i] || boolArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayBool\n");
 				return FALSE;
@@ -294,33 +293,33 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayBool(
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayIntPtr(	
-	INT_PTR intPtrArray[], INT_PTR intPtrArray_In[], INT_PTR intPtrArray_InOut[], INT_PTR intPtrArray_Out[], int len){
-		INT_PTR arrs[3] = {0, 1, 2};
+	INT_PTR intPtrArray[], INT_PTR intPtrArray_In[], INT_PTR intPtrArray_InOut[], INT_PTR intPtrArray_Out[], INT_PTR expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(intPtrArray[i] != arrs[i] || intPtrArray_In[i] != arrs[i] || intPtrArray_InOut[i] != arrs[i])
+			if(intPtrArray[i] != expected[i] || intPtrArray_In[i] != expected[i] || intPtrArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayIntPtr\n");
 				return FALSE;
 			}
-			intPtrArray_InOut[i] = 10 + arrs[i];
-			intPtrArray_Out[i] = 10 + arrs[i];
+			intPtrArray_InOut[i] = 10 + expected[i];
+			intPtrArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;  
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayUIntPtr(	
-	UINT_PTR uIntPtrArray[], UINT_PTR uIntPtrArray_In[], UINT_PTR uIntPtrArray_InOut[], UINT_PTR uIntPtrArray_Out[], int len){
-		UINT_PTR arrs[3] = {0, 1, 2};
+	UINT_PTR uIntPtrArray[], UINT_PTR uIntPtrArray_In[], UINT_PTR uIntPtrArray_InOut[], UINT_PTR uIntPtrArray_Out[], UINT_PTR expected[], int len){
+
 		for(int i = 0; i < len; i++)
 		{
-			if(uIntPtrArray[i] != arrs[i] || uIntPtrArray_In[i] != arrs[i] || uIntPtrArray_InOut[i] != arrs[i])
+			if(uIntPtrArray[i] != expected[i] || uIntPtrArray_In[i] != expected[i] || uIntPtrArray_InOut[i] != expected[i])
 			{
 				printf("Not correct pass in paremeter in PassArrayUIntPtr\n");
 				return FALSE;
 			}
-			uIntPtrArray_InOut[i] = 10 + arrs[i];
-			uIntPtrArray_Out[i] = 10 + arrs[i];
+			uIntPtrArray_InOut[i] = 10 + expected[i];
+			uIntPtrArray_Out[i] = 10 + expected[i];
 		}
 		return TRUE;  
 }
