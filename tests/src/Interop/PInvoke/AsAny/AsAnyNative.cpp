@@ -5,11 +5,11 @@
 #include <xplatform.h>
 
 struct test1 {
-    LONGLONG a;
-    LONGLONG b;
+    LONG64 a;
+    LONG64 b;
 };
 
-extern "C" DLL_EXPORT LONGLONG STDMETHODCALLTYPE PassLayout(test1* i) {
+extern "C" DLL_EXPORT LONG64 STDMETHODCALLTYPE PassLayout(test1* i) {
     printf("PassLayout: i->a  = %I64d\n", i->a);
     printf("PassLayout: i->b = %I64d\n", i->b);
     return i->b;
@@ -184,7 +184,7 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayUint(
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayLong(	
-		LONGLONG longArray[], LONGLONG longArray_In[], LONGLONG longArray_InOut[], LONGLONG longArray_Out[], LONGLONG expected[], int len){
+		LONG64 longArray[], LONG64 longArray_In[], LONG64 longArray_InOut[], LONG64 longArray_Out[], LONG64 expected[], int len){
 
 		for(int i = 0; i < len; i++)
 		{
@@ -200,8 +200,8 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayLong(
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE PassArrayUlong(	
-	LONGLONG ulongArray[], LONGLONG ulongArray_In[], LONGLONG ulongArray_InOut[], 
-	LONGLONG ulongArray_Out[], LONGLONG expected[], int len){
+	LONG64 ulongArray[], LONG64 ulongArray_In[], LONG64 ulongArray_InOut[], 
+	LONG64 ulongArray_Out[], LONG64 expected[], int len){
 
 		for(int i = 0; i < len; i++)
 		{

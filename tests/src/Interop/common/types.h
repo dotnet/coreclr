@@ -5,6 +5,8 @@
 #ifndef _INTEROP_TYPES__H
 #define _INTEROP_TYPES__H
 
+#include <stddef.h>
+
 #undef INT_MIN
 #define INT_MIN	   (-2147483647 - 1)
 
@@ -21,8 +23,8 @@ typedef unsigned error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
-typedef long INT_PTR;
-typedef unsigned long UINT_PTR;
+typedef intptr_t INT_PTR;
+typedef intptr_t UINT_PTR;
 
 typedef unsigned long long ULONG64;
 typedef double DOUBLE;
