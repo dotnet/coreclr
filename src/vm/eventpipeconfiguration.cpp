@@ -86,7 +86,7 @@ void EventPipeConfiguration::Initialize()
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -108,7 +108,7 @@ EventPipeProvider* EventPipeConfiguration::CreateProvider(const SString &provide
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -151,7 +151,7 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -182,7 +182,8 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
             provider.SetConfiguration(
                 true /* providerEnabled */,
                 pSessionProvider->GetKeywords(),
-                pSessionProvider->GetLevel());
+                pSessionProvider->GetLevel(),
+                pSessionProvider->GetFilterData());
         }
     }
 
@@ -309,7 +310,7 @@ size_t EventPipeConfiguration::GetCircularBufferSize() const
     return ret;
 }
 
-EventPipeSession* EventPipeConfiguration::CreateSession(unsigned int circularBufferSizeInMB, EventPipeProviderConfiguration *pProviders, unsigned int numProviders)
+EventPipeSession* EventPipeConfiguration::CreateSession(EventPipeSessionType sessionType, unsigned int circularBufferSizeInMB, EventPipeProviderConfiguration *pProviders, unsigned int numProviders, UINT64 multiFileTraceLengthInSeconds)
 {
     CONTRACTL
     {
@@ -319,7 +320,7 @@ EventPipeSession* EventPipeConfiguration::CreateSession(unsigned int circularBuf
     }
     CONTRACTL_END;
 
-    return new EventPipeSession(circularBufferSizeInMB, pProviders, numProviders);
+    return new EventPipeSession(sessionType, circularBufferSizeInMB, pProviders, numProviders, multiFileTraceLengthInSeconds);
 }
 
 void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
@@ -346,7 +347,7 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pSession != NULL);
         // Lock must be held by EventPipe::Enable.
@@ -372,7 +373,8 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession)
                 pProvider->SetConfiguration(
                     true /* providerEnabled */,
                     pSessionProvider->GetKeywords(),
-                    pSessionProvider->GetLevel());
+                    pSessionProvider->GetLevel(),
+                    pSessionProvider->GetFilterData());
             }
 
             pElem = m_pProviderList->GetNext(pElem);
@@ -385,7 +387,7 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
         // TODO: Multiple session support will require that the session be specified.
         PRECONDITION(pSession != NULL);
@@ -402,7 +404,11 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession)
         while(pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
-            pProvider->SetConfiguration(false /* providerEnabled */, 0 /* keywords */, EventPipeEventLevel::Critical /* level */);
+            pProvider->SetConfiguration(
+                false /* providerEnabled */,
+                0 /* keywords */,
+                EventPipeEventLevel::Critical /* level */,
+                NULL /* filterData */);
 
             pElem = m_pProviderList->GetNext(pElem);
         }
@@ -431,7 +437,7 @@ void EventPipeConfiguration::EnableRundown(EventPipeSession *pSession)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pSession != NULL);
         // Lock must be held by EventPipe::Disable.

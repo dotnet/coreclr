@@ -3,8 +3,8 @@
 
   <UsingTask TaskName="PrereleaseResolveNuGetPackageAssets" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll"/>
   <ItemGroup>
-    <TestTargetFramework Include=".NETCoreApp,Version=v2.1">
-      <Folder>netcoreapp2.1</Folder>
+    <TestTargetFramework Include=".NETCoreApp,Version=v2.2">
+      <Folder>netcoreapp2.2</Folder>
     </TestTargetFramework>
   </ItemGroup>
 
@@ -32,7 +32,7 @@
 
   <ItemGroup>
     <CrossGenFiles Include="..\packages\runtime.$(TargetRid).Microsoft.NETCore.Runtime.CoreCLR\$(DesiredPackageVersionArg)\tools\crossgen*"/>
-    <VCRuntimeFiles Include="..\packages\vc-runtime\$(VCRuntimeVersion)\lib\netcoreapp1.1\*.dll"/>
+    <VCRuntimeFiles Include="..\packages\vc-runtime\$(VCRuntimeVersion)\content\VC\Redist\MSVC\14.14.26405\onecore\$(BuildArch)\Microsoft.VC141.CRT\*"/>
   </ItemGroup>
 
   <PropertyGroup>
@@ -162,7 +162,7 @@
   <Target Name="CopyVCRuntimeToCoreRoot"
     AfterTargets="CopyDependecyToCoreRoot"
     Outputs="$(CORE_ROOT)\*.*"
-    Condition="'$(BuildArch)' == 'arm'">
+    Condition="'$(BuildArch)' == 'arm' or '$(BuildArch)' == 'arm64'">
 
     <Copy
       SourceFiles="@(VCRuntimeFiles)"

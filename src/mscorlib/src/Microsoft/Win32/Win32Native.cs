@@ -290,14 +290,11 @@ namespace Microsoft.Win32
         [DllImport(Interop.Libraries.OleAut32)]
         internal static extern void SysFreeString(IntPtr bstr);
 
-#if FEATURE_COMINTEROP
         [DllImport(Interop.Libraries.OleAut32)]
         internal static extern IntPtr SysAllocStringByteLen(byte[] str, uint len);  // BSTR
 
         [DllImport(Interop.Libraries.OleAut32)]
-        internal static extern uint SysStringByteLen(IntPtr bstr);
-
-#endif
+        internal static extern uint SysStringByteLen(IntPtr bstr);  // BSTR
 
         [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern bool SetEvent(SafeWaitHandle handle);

@@ -1024,11 +1024,6 @@ void EEStartupHelper(COINITIEE fFlags)
         SystemDomain::System()->PublishAppDomainAndInformDebugger(SystemDomain::System()->DefaultDomain());
 #endif
 
-#ifdef FEATURE_PERFTRACING
-        // Start the event pipe if requested.
-        EventPipe::EnableOnStartup();
-#endif // FEATURE_PERFTRACING
-
 #endif // CROSSGEN_COMPILE
 
         SystemDomain::System()->Init();
@@ -1096,13 +1091,6 @@ void EEStartupHelper(COINITIEE fFlags)
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "===================EEStartup Completed===================");
 
 #ifndef CROSSGEN_COMPILE
-
-#ifdef FEATURE_TIERED_COMPILATION
-        if (g_pConfig->TieredCompilation())
-        {
-            SystemDomain::System()->DefaultDomain()->GetTieredCompilationManager()->InitiateTier1CountingDelay();
-        }
-#endif
 
 #ifdef _DEBUG
 

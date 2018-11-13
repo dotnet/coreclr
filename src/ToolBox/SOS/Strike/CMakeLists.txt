@@ -38,6 +38,7 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
   add_definitions(-DDBG_TARGET_64BIT)
   add_definitions(-DDBG_TARGET_WIN64=1)
 endif()
+
 add_definitions(-DSTRIKE)  
 
 remove_definitions(-DUNICODE)
@@ -104,7 +105,6 @@ if(WIN32)
     ntdll.lib
   )
 else(WIN32)
-  add_definitions(-DFEATURE_ENABLE_HARDWARE_EXCEPTIONS)
   add_definitions(-DPAL_STDCPP_COMPAT=1)
   add_compile_options(-Wno-null-arithmetic)
   add_compile_options(-Wno-format)
@@ -183,6 +183,11 @@ endif()
 
 list(APPEND SOS_SOURCES ${SOS_SOURCES_ARCH})
 
+# Add the DAC PAL export mapping file
+if(CLR_CMAKE_PLATFORM_LINUX)
+    list(APPEND SOS_SOURCES ${PAL_REDEFINES_FILE})
+endif(CLR_CMAKE_PLATFORM_LINUX)
+
 if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
     # Add linker exports file option
     set(EXPORTS_LINKER_OPTION -Wl,--version-script=${EXPORTS_FILE})
@@ -194,6 +199,10 @@ if(CLR_CMAKE_PLATFORM_DARWIN)
 endif(CLR_CMAKE_PLATFORM_DARWIN)
 
 add_library_clr(sos SHARED ${SOS_SOURCES})
+
+if(CLR_CMAKE_PLATFORM_LINUX)
+    add_dependencies(sos pal_redefines_file)
+endif(CLR_CMAKE_PLATFORM_LINUX)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_custom_target(sos_exports DEPENDS ${EXPORTS_FILE})
