@@ -686,10 +686,6 @@ static HRESULT PrettyPrintTypeA(
         str = "class "; 
         goto DO_CLASS;
         
-    case ELEMENT_TYPE_CMOD_REQD:
-        str = "required_modifier ";
-        goto DO_CLASS;
-        
     case ELEMENT_TYPE_CMOD_OPT:
         str = "optional_modifier ";
         goto DO_CLASS;
@@ -733,7 +729,14 @@ static HRESULT PrettyPrintTypeA(
             IfFailGo(appendStrA(out, pN));
         }
         break;
-        
+
+    case ELEMENT_TYPE_CMOD_REQD:
+        str = "required_modifier ";
+        IfFailGo(appendStrA(out, str));
+        typePtr += CorSigUncompressToken(typePtr, &tk);
+        IfFailGo(PrettyPrintTypeA(typePtr, (typeEnd - typePtr), out, pIMDI));
+        break;
+
     case ELEMENT_TYPE_SZARRAY:
         IfFailGo(PrettyPrintTypeA(typePtr, (typeEnd - typePtr), out, pIMDI)); 
         IfFailGo(appendStrA(out, "[]"));
