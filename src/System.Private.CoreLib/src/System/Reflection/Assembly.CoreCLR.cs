@@ -51,7 +51,9 @@ namespace System.Reflection
             // in the same folder as it.
             // Form the name of the assembly using the path of the assembly that requested its load.
             AssemblyName requestedAssemblyName = new AssemblyName(args.Name);
-            string requestedAssemblyPath = Path.Combine(Path.GetDirectoryName(requestorPath), requestedAssemblyName.Name+".dll");
+            string requestedAssemblyPath = String.IsNullOrEmpty(requestedAssemblyName.CultureName) ?
+                Path.Combine(Path.GetDirectoryName(requestorPath), requestedAssemblyName.Name+".dll") :
+                Path.Combine(Path.GetDirectoryName(requestorPath), requestedAssemblyName.CultureName, requestedAssemblyName.Name+".dll");
 
             // Load the dependency via LoadFrom so that it goes through the same path of being in the LoadFrom list.
             Assembly resolvedAssembly = null;
