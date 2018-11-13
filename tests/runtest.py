@@ -809,7 +809,7 @@ def run_tests(host_os,
 
     urlretrieve = urllib.urlretrieve if sys.version_info.major < 3 else urllib.request.urlretrieve
     zipfilename = os.path.join(tempfile.gettempdir(), "xunit.console.dll.zip")
-    url = r"https://clrjit.blob.core.windows.net/xunit-console/xunit.console.dll.zip"
+    url = r"https://clrjit.blob.core.windows.net/xunit-console/xunit.console.dll-v2.4.1.zip"
     urlretrieve(url, zipfilename)
 
     with zipfile.ZipFile(zipfilename,"r") as ziparch:
