@@ -1,0 +1,141 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+#include "platformdefines.h"
+
+const char *strManaged = " \0Managed\0String\0 ";
+size_t lenstrManaged = 18; // the length of strManaged
+
+const char *strReturn = "a";
+size_t lenstrReturn = 1; //the length of strReturn
+
+const char *strNative = "Native String";
+size_t lenstrNative = 13; //the len of strNative
+
+//Test Method1
+extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE Marshal_In(/*[in]*/ BSTR s)
+{
+    //Check the input
+    size_t len = TP_SysStringByteLen(s);
+    if ((len != lenstrManaged) || (memcmp(s, strManaged, len) != 0))
+    {
+        printf("Error in Function Marshal_In(Native Client)\n");
+
+        //Expected
+        printf("Expected:");
+        for (int i = 0; i < lenstrManaged; ++i)
+            putchar(*(((char *)strManaged) + i));
+        printf("\tThe length of Expected:%zd\n", lenstrManaged);
+
+        //Actual
+        printf("Actual:");
+        for (int j = 0; j < len; ++j)
+            putchar(*(((char *)s) + j));
+        printf("\tThe length of Actual:%zd\n", len);
+    }
+
+    return TP_SysAllocStringByteLen(strReturn, lenstrReturn);
+}
+
+//Test Method2
+extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE Marshal_InOut(/*[In,Out]*/ BSTR s)
+{
+
+    //Check the Input
+    size_t len = TP_SysStringByteLen(s);
+    if ((len != lenstrManaged) || (memcmp(s, strManaged, len) != 0))
+    {
+        printf("Error in Function Marshal_InOut(Native Client)\n");
+
+        //Expected
+        printf("Expected:");
+        for (int i = 0; i < lenstrManaged; ++i)
+            putchar(*(((char *)strManaged) + i));
+        printf("\tThe length of Expected:%zd\n", lenstrManaged);
+
+        //Actual
+        printf("Actual:");
+        for (int j = 0; j < len; ++j)
+            putchar(*(((char *)s) + j));
+        printf("\tThe length of Actual:%zd\n", len);
+    }
+
+    //In-Place Change
+    memcpy_s((char *)s, lenstrManaged, strNative, lenstrNative);
+    *((UINT *)s - 1) = (UINT) TP_SysStringByteLen(s);
+
+    //Return
+    return TP_SysAllocStringByteLen(strReturn, lenstrReturn);
+}
+extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE Marshal_Out(/*[Out]*/ BSTR s)
+{
+    s = TP_SysAllocStringByteLen(strNative, lenstrNative);
+
+    //In-Place Change
+    memcpy_s((char *)s, lenstrManaged, strNative, lenstrNative);
+    *((UINT *)s - 1) = (UINT) TP_SysStringByteLen(s);
+
+    //Return
+    return TP_SysAllocStringByteLen(strReturn, lenstrReturn);
+}
+
+extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE MarshalPointer_In(/*[in]*/ BSTR *s)
+{
+    //CheckInput
+    size_t len = TP_SysStringByteLen(*s);
+    if ((len != lenstrManaged) || (memcmp(*s, strManaged, len) != 0))
+    {
+        printf("Error in Function MarshalPointer_In\n");
+
+        //Expected
+        printf("Expected:");
+        for (int i = 0; i < lenstrManaged; ++i)
+            putchar(*(((char *)strManaged) + i));
+        printf("\tThe length of Expected:%zd\n", lenstrManaged);
+
+        //Actual
+        printf("Actual:");
+        for (int j = 0; j < len; ++j)
+            putchar(*(((char *)*s) + j));
+        printf("\tThe length of Actual:%zd\n", len);
+    }
+
+    return TP_SysAllocStringByteLen(strReturn, lenstrReturn);
+}
+
+extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE MarshalPointer_InOut(/*[in,out]*/ BSTR *s)
+{
+    //Check the Input
+    size_t len = TP_SysStringByteLen(*s);
+    if ((len != lenstrManaged) || (memcmp(*s, strManaged, len) != 0))
+    {
+        printf("Error in Function MarshalPointer_InOut\n");
+
+        //Expected
+        printf("Expected:");
+        for (int i = 0; i < lenstrManaged; ++i)
+            putchar(*(((char *)strManaged) + i));
+
+        printf("\tThe length of Expected:%zd\n", lenstrManaged);
+
+        //Actual
+        printf("Actual:");
+        for (int j = 0; j < len; ++j)
+            putchar(*(((char *)*s) + j));
+
+        printf("\tThe length of Actual:%zd\n", len);
+    }
+
+    //Allocate New
+    TP_SysFreeString(*s);
+    *s = TP_SysAllocStringByteLen(strNative, lenstrNative);
+
+    //Return
+    return TP_SysAllocStringByteLen(strReturn, lenstrReturn);
+}
+
+extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE MarshalPointer_Out(/*[out]*/ BSTR *s)
+{
+    *s = TP_SysAllocStringByteLen(strNative, lenstrNative);
+    return TP_SysAllocStringByteLen(strReturn, lenstrReturn);
+}
