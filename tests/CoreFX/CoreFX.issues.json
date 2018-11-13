@@ -525,6 +525,30 @@
                     "name": "System.Tests.ConvertToSingleTests.FromString",
                     "reason": "https://github.com/dotnet/coreclr/pull/20707"
                 },
+                {
+                    "name": "System.Tests.MathTests.Max_Double",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathTests.Max_Single",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathTests.Min_Double",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathTests.Min_Single",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathFTests.Max",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathFTests.Min",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
             ]
         }
     },
@@ -768,5 +792,19 @@
                 },
             ]
         }
-    },
+    },    
+    {
+        "name": "System.Linq.Expressions.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Linq.Expressions.Tests.BindTests.StaticReadonlyField",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20886 and https://github.com/dotnet/corefx/pull/33413"
+                }
+            ]
+        }
+    }
 ]
