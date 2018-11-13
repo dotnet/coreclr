@@ -52,20 +52,12 @@ namespace System
         FormatAngleBrackets = 0x00000040, // Whether generic types are C<T> or C[T]
         FormatStubInfo = 0x00000080, // Include stub info like {unbox-stub}
         FormatGenericParam = 0x00000100, // Use !name and !!name for generic type and method parameters
-
-        // If we want to be able to distinguish between overloads whose parameter types have the same name but come from different assemblies,
-        // we can add FormatAssembly | FormatNoVersion to FormatSerialization. But we are omitting it because it is not a useful scenario
-        // and including the assembly name will normally increase the size of the serialized data and also decrease the performance.
-        FormatSerialization = FormatNamespace |
-                              FormatGenericParam |
-                              FormatFullInst
     }
 
     internal enum TypeNameKind
     {
         Name,
         ToString,
-        SerializationName,
         FullName,
     }
 
@@ -83,7 +75,7 @@ namespace System
         }
 
         // Helper to build lists of MemberInfos. Special cased to avoid allocations for lists of one element.
-        private struct ListBuilder<T> where T : class
+        internal struct ListBuilder<T> where T : class
         {
             private T[] _items;
             private T _item;
@@ -1448,7 +1440,6 @@ namespace System
             private string m_fullname;
             private string m_toString;
             private string m_namespace;
-            private string m_serializationname;
             private bool m_isGlobal;
             private bool m_bIsDomainInitialized;
             private MemberInfoCache<RuntimeMethodInfo> m_methodInfoCache;
@@ -1462,6 +1453,7 @@ namespace System
             private static object s_methodInstantiationsLock;
             private string m_defaultMemberName;
             private object m_genericCache; // Generic cache for rare scenario specific data. It is used to cache Enum names and values.
+            private object[] _emptyArray; // Object array cache for Attribute.GetCustomAttributes() pathological no-result case.
             #endregion
 
             #region Constructor
@@ -1544,13 +1536,6 @@ namespace System
                     case TypeNameKind.ToString:
                         // No full instantiation and assembly.
                         return ConstructName(ref m_toString, TypeNameFormatFlags.FormatNamespace);
-
-                    case TypeNameKind.SerializationName:
-                        // Use FormatGenericParam in serialization. Otherwise we won't be able 
-                        // to distinguish between a generic parameter and a normal type with the same name.
-                        // e.g. Foo<T>.Bar(T t), the parameter type T could be !1 or a real type named "T".
-                        // Excluding the version number in the assembly name for VTS.
-                        return ConstructName(ref m_serializationname, TypeNameFormatFlags.FormatSerialization);
 
                     default:
                         throw new InvalidOperationException();
@@ -1635,6 +1620,11 @@ namespace System
                 }
 
                 return m_defaultMemberName;
+            }
+
+            internal object[] GetEmptyArray()
+            {
+                return _emptyArray ?? (_emptyArray = (object[])Array.CreateInstance(m_runtimeType, 0));
             }
             #endregion
 
@@ -3549,6 +3539,11 @@ namespace System
         {
             return RuntimeTypeHandle.GetElementType(this);
         }
+
+        internal object[] GetEmptyArray()
+        {
+            return Cache.GetEmptyArray();
+        }
         #endregion
 
         #region Enums
@@ -3576,7 +3571,7 @@ namespace System
             ulong[] values = Enum.InternalGetValues(this);
 
             // Create a generic Array
-            Array ret = Array.UnsafeCreateInstance(this, values.Length);
+            Array ret = Array.CreateInstance(this, values.Length);
 
             for (int i = 0; i < values.Length; i++)
             {
@@ -3966,8 +3961,6 @@ namespace System
             return members;
         }
 
-#if FEATURE_COMINTEROP
-#endif
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         public override object InvokeMember(
@@ -4009,7 +4002,6 @@ namespace System
             }
             #endregion
 
-            #region COM Interop
 #if FEATURE_COMINTEROP && FEATURE_USE_LCID
             if (target != null && target.GetType().IsCOMObject)
             {
@@ -4048,7 +4040,6 @@ namespace System
                 }
             }
 #endif // FEATURE_COMINTEROP && FEATURE_USE_LCID
-            #endregion
 
             #region Check that any named parameters are not null
             if (namedParams != null && Array.IndexOf(namedParams, null) != -1)
@@ -4500,38 +4491,33 @@ namespace System
         //  3. Remove the namespace ("System") for all primitive types, which is not language neutral.
         //  4. MethodBase.ToString() use "ByRef" for byref parameters which is different than Type.ToString().
         //  5. ConstructorInfo.ToString() outputs "Void" as the return type. Why Void?
-        // Since it could be a breaking changes to fix these legacy behaviors, we only use the better and more unambiguous format
-        // in serialization (MemberInfoSerializationHolder).
-        internal override string FormatTypeName(bool serialization)
+        internal override string FormatTypeName()
         {
-            if (serialization)
+            Type elementType = GetRootElementType();
+
+            // Legacy: this doesn't make sense, why use only Name for nested types but otherwise
+            // ToString() which contains namespace.
+            if (elementType.IsNested)
+                return Name;
+
+            string typeName = ToString();
+
+            // Legacy: why removing "System"? Is it just because C# has keywords for these types?
+            // If so why don't we change it to lower case to match the C# keyword casing?
+            if (elementType.IsPrimitive ||
+                elementType == typeof(void) ||
+                elementType == typeof(TypedReference))
             {
-                return GetCachedName(TypeNameKind.SerializationName);
+                typeName = typeName.Substring(@"System.".Length);
             }
-            else
-            {
-                Type elementType = GetRootElementType();
 
-                // Legacy: this doesn't make sense, why use only Name for nested types but otherwise
-                // ToString() which contains namespace.
-                if (elementType.IsNested)
-                    return Name;
-
-                string typeName = ToString();
-
-                // Legacy: why removing "System"? Is it just because C# has keywords for these types?
-                // If so why don't we change it to lower case to match the C# keyword casing?
-                if (elementType.IsPrimitive ||
-                    elementType == typeof(void) ||
-                    elementType == typeof(TypedReference))
-                {
-                    typeName = typeName.Substring(@"System.".Length);
-                }
-
-                return typeName;
-            }
+            return typeName;
         }
 
+        // This method looks like an attractive inline but expands to two calls,
+        // neither of which can be inlined or optimized further. So block it
+        // from inlining.
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private string GetCachedName(TypeNameKind kind)
         {
             return Cache.GetName(kind);
@@ -4768,11 +4754,16 @@ namespace System
         {
             RuntimeMethodHandleInternal runtime_ctor = default;
             bool bCanBeCached = false;
+            bool bHasNoDefaultCtor = false;
 
             if (!skipCheckThis)
                 CreateInstanceCheckThis();
 
-            object instance = RuntimeTypeHandle.CreateInstance(this, publicOnly, wrapExceptions, ref bCanBeCached, ref runtime_ctor);
+            object instance = RuntimeTypeHandle.CreateInstance(this, publicOnly, wrapExceptions, ref bCanBeCached, ref runtime_ctor, ref bHasNoDefaultCtor);
+            if (bHasNoDefaultCtor)
+            {
+                throw new MissingMethodException(SR.Format(SR.Arg_NoDefCTor, this));
+            }
 
             if (bCanBeCached && fillCache)
             {
@@ -4809,7 +4800,7 @@ namespace System
                         if (ace.m_ctor != null &&
                             (ace.m_ctorAttributes & MethodAttributes.MemberAccessMask) != MethodAttributes.Public)
                         {
-                            throw new MissingMethodException(SR.Arg_NoDefCTor);
+                            throw new MissingMethodException(SR.Format(SR.Arg_NoDefCTor, this));
                         }
                     }
 
@@ -4883,8 +4874,199 @@ namespace System
 
         #endregion
 
-        #region COM
-        #endregion
+#if FEATURE_COMINTEROP
+        private Object ForwardCallToInvokeMember(
+            String memberName,
+            BindingFlags flags,
+            Object target,
+            Object[] aArgs, // in/out - only byref values are in a valid state upon return
+            bool[] aArgsIsByRef,
+            int[] aArgsWrapperTypes, // _maybe_null_
+            Type[] aArgsTypes,
+            Type retType)
+        {
+            Debug.Assert(
+                aArgs.Length == aArgsIsByRef.Length
+                && aArgs.Length == aArgsTypes.Length
+                && (aArgsWrapperTypes == null || aArgs.Length == aArgsWrapperTypes.Length), "Input arrays should all be of the same length");
+
+            int cArgs = aArgs.Length;
+
+            // Handle arguments that are passed as ByRef and those
+            // arguments that need to be wrapped.
+            ParameterModifier[] aParamMod = null;
+            if (cArgs > 0)
+            {
+                ParameterModifier paramMod = new ParameterModifier(cArgs);
+                for (int i = 0; i < cArgs; i++)
+                {
+                    paramMod[i] = aArgsIsByRef[i];
+                }
+
+                aParamMod = new ParameterModifier[] { paramMod };
+                if (aArgsWrapperTypes != null)
+                {
+                    WrapArgsForInvokeCall(aArgs, aArgsWrapperTypes);
+                }
+            }
+
+            // For target invocation exceptions, the exception is wrapped.
+            flags |= BindingFlags.DoNotWrapExceptions;
+            Object ret = InvokeMember(memberName, flags, null, target, aArgs, aParamMod, null, null);
+
+            // Convert each ByRef argument that is _not_ of the proper type to
+            // the parameter type.
+            for (int i = 0; i < cArgs; i++)
+            {
+                // Determine if the parameter is ByRef.
+                if (aParamMod[0][i] && aArgs[i] != null)
+                {
+                    Type argType = aArgsTypes[i];
+                    if (!Object.ReferenceEquals(argType, aArgs[i].GetType()))
+                    {
+                        aArgs[i] = ForwardCallBinder.ChangeType(aArgs[i], argType, null);
+                    }
+                }
+            }
+
+            // If the return type is _not_ of the proper type, then convert it.
+            if (ret != null)
+            {
+                if (!Object.ReferenceEquals(retType, ret.GetType()))
+                {
+                    ret = ForwardCallBinder.ChangeType(ret, retType, null);
+                }
+            }
+
+            return ret;
+        }
+
+        private void WrapArgsForInvokeCall(Object[] aArgs, int[] aArgsWrapperTypes)
+        {
+            int cArgs = aArgs.Length;
+            for (int i = 0; i < cArgs; i++)
+            {
+                if (aArgsWrapperTypes[i] == 0)
+                {
+                    continue;
+                }
+
+                if (((DispatchWrapperType)aArgsWrapperTypes[i]).HasFlag(DispatchWrapperType.SafeArray))
+                {
+                    Type wrapperType = null;
+                    bool isString = false;
+
+                    // Determine the type of wrapper to use.
+                    switch ((DispatchWrapperType)aArgsWrapperTypes[i] & ~DispatchWrapperType.SafeArray)
+                    {
+                        case DispatchWrapperType.Unknown:
+                            wrapperType = typeof(UnknownWrapper);
+                            break;
+                        case DispatchWrapperType.Dispatch:
+                            wrapperType = typeof(DispatchWrapper);
+                            break;
+                        case DispatchWrapperType.Error:   
+                            wrapperType = typeof(ErrorWrapper);
+                            break;
+                        case DispatchWrapperType.Currency:
+                            wrapperType = typeof(CurrencyWrapper);
+                            break;
+                        case DispatchWrapperType.BStr:
+                            wrapperType = typeof(BStrWrapper);
+                            isString = true;
+                            break;
+                        default:
+                            Debug.Assert(false, "[RuntimeType.WrapArgsForInvokeCall]Invalid safe array wrapper type specified.");
+                            break;
+                    }
+
+                    // Allocate the new array of wrappers.
+                    Array oldArray = (Array)aArgs[i];
+                    int numElems = oldArray.Length;
+                    Object[] newArray = (Object[])Array.CreateInstance(wrapperType, numElems);
+
+                    // Retrieve the ConstructorInfo for the wrapper type.
+                    ConstructorInfo wrapperCons;
+                    if (isString)
+                    {
+                         wrapperCons = wrapperType.GetConstructor(new Type[] {typeof(String)});
+                    }
+                    else
+                    {
+                         wrapperCons = wrapperType.GetConstructor(new Type[] {typeof(Object)});
+                    }
+                
+                    // Wrap each of the elements of the array.
+                    for (int currElem = 0; currElem < numElems; currElem++)
+                    {
+                        if(isString)
+                        {
+                            newArray[currElem] = wrapperCons.Invoke(new Object[] {(String)oldArray.GetValue(currElem)});
+                        }
+                        else
+                        {
+                            newArray[currElem] = wrapperCons.Invoke(new Object[] {oldArray.GetValue(currElem)});
+                        }
+                    }
+
+                    // Update the argument.
+                    aArgs[i] = newArray;
+                }
+                else
+                {
+                    // Determine the wrapper to use and then wrap the argument.
+                    switch ((DispatchWrapperType)aArgsWrapperTypes[i])
+                    {
+                        case DispatchWrapperType.Unknown:
+                            aArgs[i] = new UnknownWrapper(aArgs[i]);
+                            break;
+                        case DispatchWrapperType.Dispatch:
+                            aArgs[i] = new DispatchWrapper(aArgs[i]);
+                            break;
+                        case DispatchWrapperType.Error:
+                            aArgs[i] = new ErrorWrapper(aArgs[i]);
+                            break;
+                        case DispatchWrapperType.Currency:
+                            aArgs[i] = new CurrencyWrapper(aArgs[i]);
+                            break;
+                        case DispatchWrapperType.BStr:
+                            aArgs[i] = new BStrWrapper((String)aArgs[i]);
+                            break;
+                        default:
+                            Debug.Assert(false, "[RuntimeType.WrapArgsForInvokeCall]Invalid wrapper type specified.");
+                            break;
+                    }
+                }
+            }
+        }
+
+        private static OleAutBinder s_ForwardCallBinder;
+        private OleAutBinder ForwardCallBinder 
+        {
+            get 
+            {
+                // Synchronization is not required.
+                if (s_ForwardCallBinder == null)
+                    s_ForwardCallBinder = new OleAutBinder();
+
+                return s_ForwardCallBinder;
+            }
+        }
+
+        [Flags]
+        private enum DispatchWrapperType : int
+        {
+            // This enum must stay in sync with the DispatchWrapperType enum defined in MLInfo.h
+            Unknown         = 0x00000001,
+            Dispatch        = 0x00000002,
+            // Record          = 0x00000004,
+            Error           = 0x00000008,
+            Currency        = 0x00000010,
+            BStr            = 0x00000020,
+            SafeArray       = 0x00010000
+        }
+
+#endif // FEATURE_COMINTEROP
     }
 
     #region Library

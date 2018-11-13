@@ -5,11 +5,11 @@
 /* link this file in with the server and any clients */
 
 
- /* File created by MIDL compiler version 8.00.0603 */
-/* at Fri Sep 23 15:43:16 2016
+ /* File created by MIDL compiler version 8.01.0622 */
+/* at Mon Jan 18 19:14:07 2038
  */
-/* Compiler settings for cordebug.idl:
-    Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.00.0603 
+/* Compiler settings for D:/dotnet/coreclr/src/inc/cordebug.idl:
+    Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.01.0622 
     protocol : dce , ms_ext, c_ext, robust
     error checks: allocation ref bounds_check enum stub_data 
     VC __declspec() decoration level: 
@@ -63,9 +63,9 @@ typedef IID CLSID;
 #endif // CLSID_DEFINED
 
 #define MIDL_DEFINE_GUID(type,name,l,w1,w2,b1,b2,b3,b4,b5,b6,b7,b8) \
-        const type name = {l,w1,w2,{b1,b2,b3,b4,b5,b6,b7,b8}}
+        EXTERN_C __declspec(selectany) const type name = {l,w1,w2,{b1,b2,b3,b4,b5,b6,b7,b8}}
 
-#endif !_MIDL_USE_GUIDDEF_
+#endif // !_MIDL_USE_GUIDDEF_
 
 MIDL_DEFINE_GUID(IID, IID_ICorDebugDataTarget,0xFE06DC28,0x49FB,0x4636,0xA4,0xA3,0xE8,0x0D,0xB4,0xAE,0x11,0x6C);
 
@@ -116,6 +116,9 @@ MIDL_DEFINE_GUID(IID, IID_ICorDebugManagedCallback,0x3d6f5f60,0x7538,0x11d3,0x8d
 
 
 MIDL_DEFINE_GUID(IID, IID_ICorDebugManagedCallback3,0x264EA0FC,0x2591,0x49AA,0x86,0x8E,0x83,0x5E,0x65,0x15,0x32,0x3F);
+
+
+MIDL_DEFINE_GUID(IID, IID_ICorDebugManagedCallback4,0x322911AE,0x16A5,0x49BA,0x84,0xA3,0xED,0x69,0x67,0x81,0x38,0xA3);
 
 
 MIDL_DEFINE_GUID(IID, IID_ICorDebugManagedCallback2,0x250E5EEA,0xDB5C,0x4C76,0xB6,0xF3,0x8C,0x46,0xF1,0x2E,0x32,0x03);
@@ -197,6 +200,9 @@ MIDL_DEFINE_GUID(IID, IID_ICorDebugProcess7,0x9B2C54E4,0x119F,0x4D6F,0xB4,0x02,0
 
 
 MIDL_DEFINE_GUID(IID, IID_ICorDebugProcess8,0x2E6F28C1,0x85EB,0x4141,0x80,0xAD,0x0A,0x90,0x94,0x4B,0x96,0x39);
+
+
+MIDL_DEFINE_GUID(IID, IID_ICorDebugProcess10,0x8F378F6F,0x1017,0x4461,0x98,0x90,0xEC,0xF6,0x4C,0x54,0x07,0x9F);
 
 
 MIDL_DEFINE_GUID(IID, IID_ICorDebugModuleDebugEvent,0x51A15E8D,0x9FFF,0x4864,0x9B,0x87,0xF4,0xFB,0xDE,0xA7,0x47,0xA2);

@@ -91,7 +91,6 @@ public:
     void gcMarkRegSetByref(regMaskTP regMask DEBUGARG(bool forceOutput = false));
     void gcMarkRegSetNpt(regMaskTP regMask DEBUGARG(bool forceOutput = false));
     void gcMarkRegPtrVal(regNumber reg, var_types type);
-    void gcMarkRegPtrVal(GenTree* tree);
 
 #ifdef DEBUG
     void gcDspGCrefSetChanges(regMaskTP gcRegGCrefSetNew DEBUGARG(bool forceOutput = false));
@@ -231,6 +230,9 @@ public:
                                      unsigned       instrOffset,
                                      regPtrDsc*     genStackPtrFirst,
                                      regPtrDsc*     genStackPtrLast);
+
+    // Update the flags for a stack allocated object
+    void gcUpdateFlagForStackAllocatedObjects(GcSlotFlags& flags);
 
 #endif
 

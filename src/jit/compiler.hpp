@@ -1208,19 +1208,10 @@ inline GenTree* Compiler::gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldH
 {
 #if SMALL_TREE_NODES
     /* 'GT_FIELD' nodes may later get transformed into 'GT_IND' */
-
     assert(GenTree::s_gtNodeSizes[GT_IND] <= GenTree::s_gtNodeSizes[GT_FIELD]);
-    GenTree* tree = new (this, GT_FIELD) GenTreeField(typ);
-#else
-    GenTree* tree = new (this, GT_FIELD) GenTreeField(typ);
-#endif
-    tree->gtField.gtFldObj    = obj;
-    tree->gtField.gtFldHnd    = fldHnd;
-    tree->gtField.gtFldOffset = offset;
+#endif // SMALL_TREE_NODES
 
-#ifdef FEATURE_READYTORUN_COMPILER
-    tree->gtField.gtFieldLookup.addr = nullptr;
-#endif
+    GenTree* tree = new (this, GT_FIELD) GenTreeField(typ, obj, fldHnd, offset);
 
     // If "obj" is the address of a local, note that a field of that struct local has been accessed.
     if (obj != nullptr && obj->OperGet() == GT_ADDR && varTypeIsStruct(obj->gtOp.gtOp1) &&
@@ -1701,6 +1692,8 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
     }
 
 #ifdef DEBUG
+    lvaTable[tempNum].lvReason = reason;
+
     if (verbose)
     {
         printf("\nlvaGrabTemp returning %d (", tempNum);
@@ -3612,34 +3605,6 @@ inline bool Compiler::optIsVarAssgLoop(unsigned lnum, unsigned var)
     }
 }
 
-/*****************************************************************************
- * If the tree is a tracked local variable, return its LclVarDsc ptr.
- */
-
-inline LclVarDsc* Compiler::optIsTrackedLocal(GenTree* tree)
-{
-    LclVarDsc* varDsc;
-    unsigned   lclNum;
-
-    if (tree->gtOper != GT_LCL_VAR)
-    {
-        return nullptr;
-    }
-
-    lclNum = tree->gtLclVarCommon.gtLclNum;
-
-    assert(lclNum < lvaCount);
-    varDsc = lvaTable + lclNum;
-
-    /* if variable not tracked, return NULL */
-    if (!varDsc->lvTracked)
-    {
-        return nullptr;
-    }
-
-    return varDsc;
-}
-
 /*
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -4236,13 +4201,14 @@ inline void Compiler::CLR_API_Leave(API_ICorJitInfo_Names ename)
 //             false otherwise
 //
 // Notes:
-//     Structs with GC pointer fields are fully zero-initialized in the prolog if compInitMem is true.
-//     Therefore, we don't need to insert zero-initialization if this block is not in a loop.
+//     If compInitMem is true, structs with GC pointer fields and long-lifetime structs
+//     are fully zero-initialized in the prologue. Therefore, we don't need to insert
+//     zero-initialization in this block if it is not in a loop.
 
 bool Compiler::fgStructTempNeedsExplicitZeroInit(LclVarDsc* varDsc, BasicBlock* block)
 {
     bool containsGCPtr = (varDsc->lvStructGcCount > 0);
-    return (!containsGCPtr || !info.compInitMem || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0));
+    return (!info.compInitMem || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0) || (!containsGCPtr && varDsc->lvIsTemp));
 }
 
 /*****************************************************************************/
@@ -4346,6 +4312,8 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_STORE_LCL_FLD:
         case GT_NOT:
         case GT_NEG:
+        case GT_BSWAP:
+        case GT_BSWAP16:
         case GT_COPY:
         case GT_RELOAD:
         case GT_ARR_LENGTH:

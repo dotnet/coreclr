@@ -2468,6 +2468,65 @@ BOOL IsStringObject (size_t obj)
     return FALSE;
 }
 
+BOOL IsDerivedFrom(CLRDATA_ADDRESS mtObj, __in_z LPCWSTR baseString)
+{
+    DacpMethodTableData dmtd;
+    CLRDATA_ADDRESS walkMT = mtObj;
+    while (walkMT != NULL)
+    {
+        if (dmtd.Request(g_sos, walkMT) != S_OK)
+        {
+            break;
+        }
+
+        NameForMT_s(TO_TADDR(walkMT), g_mdName, mdNameLen);
+        if (_wcscmp(baseString, g_mdName) == 0)
+        {
+            return TRUE;
+        }
+
+        walkMT = dmtd.ParentMethodTable;
+    }
+
+    return FALSE;
+}
+
+BOOL TryGetMethodDescriptorForDelegate(CLRDATA_ADDRESS delegateAddr, CLRDATA_ADDRESS* pMD)
+{
+    if (!sos::IsObject(delegateAddr, false))
+    {
+        return FALSE;
+    }
+
+    sos::Object delegateObj = TO_TADDR(delegateAddr);
+
+    for (int i = 0; i < 2; i++)
+    {
+        int offset;
+        if ((offset = GetObjFieldOffset(delegateObj.GetAddress(), delegateObj.GetMT(), i == 0 ? W("_methodPtrAux") : W("_methodPtr"))) != 0)
+        {
+            CLRDATA_ADDRESS methodPtr;
+            MOVE(methodPtr, delegateObj.GetAddress() + offset);
+            if (methodPtr != NULL)
+            {
+                if (g_sos->GetMethodDescPtrFromIP(methodPtr, pMD) == S_OK)
+                {
+                    return TRUE;
+                }
+
+                DacpCodeHeaderData codeHeaderData;
+                if (codeHeaderData.Request(g_sos, methodPtr) == S_OK)
+                {
+                    *pMD = codeHeaderData.MethodDescPtr;
+                    return TRUE;
+                }
+            }
+        }
+    }
+
+    return FALSE;
+}
+
 void DumpStackObjectsOutput(const char *location, DWORD_PTR objAddr, BOOL verifyFields)
 {
     // rule out pointers that are outside of the gc heap.
@@ -5454,6 +5513,7 @@ const char * const DMLFormats[] =
     "<exec cmd=\"!DumpRCW /d %s\">%s</exec>",       // DML_RCWrapper
     "<exec cmd=\"!DumpCCW /d %s\">%s</exec>",       // DML_CCWrapper
     "<exec cmd=\"!ClrStack -i %S %d\">%S</exec>",   // DML_ManagedVar
+    "<exec cmd=\"!DumpAsync -addr %s -tasks -completed -fields -stacks -roots\">%s</exec>", // DML_Async
 };
 
 void ConvertToLower(__out_ecount(len) char *buffer, size_t len)

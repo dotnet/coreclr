@@ -1581,6 +1581,14 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
                 }
             }
         }
+
+        if (tree->OperIsPutArgSplit())
+        {
+            // While we have attempted to account for any "specialPutArg" defs above, we're only looking at RefPositions
+            // created for this node. We must be defining at least one register in the PutArgSplit, so conservatively
+            // add one less than the maximum number of registers args to 'minRegCount'.
+            minRegCount += MAX_REG_ARG - 1;
+        }
         for (refPositionMark++; refPositionMark != refPositions.end(); refPositionMark++)
         {
             RefPosition* newRefPosition    = &(*refPositionMark);
@@ -1611,6 +1619,14 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
             {
                 minRegCountForRef++;
             }
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+            else if (newRefPosition->refType == RefTypeUpperVectorSaveDef)
+            {
+                // TODO-Cleanup: won't need a register once #18144 is fixed.
+                minRegCountForRef += 1;
+            }
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+
             newRefPosition->minRegCandidateCount = minRegCountForRef;
             if (newRefPosition->IsActualRef() && doReverseCallerCallee())
             {
@@ -2492,7 +2508,7 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     VARSET_TP liveLargeVectors(VarSetOps::UninitVal());
     bool      doLargeVectorRestore = false;
-#endif
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     if (killMask != RBM_NONE)
     {
         buildKillPositionsForNode(tree, currentLoc + 1, killMask);
@@ -2505,7 +2521,7 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
                                     buildUpperVectorSaveRefPositions(tree, currentLoc + 1, killMask));
             doLargeVectorRestore = true;
         }
-#endif
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     }
 
     // Now, create the Def(s)
@@ -2944,12 +2960,11 @@ int LinearScan::BuildSimple(GenTree* tree)
 //    tree - The node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildReturn(GenTree* tree)
 {
-    int      srcCount = 0;
-    GenTree* op1      = tree->gtGetOp1();
+    GenTree* op1 = tree->gtGetOp1();
 
 #if !defined(_TARGET_64BIT_)
     if (tree->TypeGet() == TYP_LONG)
@@ -2957,17 +2972,15 @@ int LinearScan::BuildReturn(GenTree* tree)
         assert((op1->OperGet() == GT_LONG) && op1->isContained());
         GenTree* loVal = op1->gtGetOp1();
         GenTree* hiVal = op1->gtGetOp2();
-        srcCount       = 2;
         BuildUse(loVal, RBM_LNGRET_LO);
         BuildUse(hiVal, RBM_LNGRET_HI);
+        return 2;
     }
     else
 #endif // !defined(_TARGET_64BIT_)
         if ((tree->TypeGet() != TYP_VOID) && !op1->isContained())
     {
         regMaskTP useCandidates = RBM_NONE;
-
-        srcCount = 1;
 
 #if FEATURE_MULTIREG_RET
         if (varTypeIsStruct(tree))
@@ -2982,12 +2995,13 @@ int LinearScan::BuildReturn(GenTree* tree)
                 noway_assert(op1->IsMultiRegCall());
 
                 ReturnTypeDesc* retTypeDesc = op1->AsCall()->GetReturnTypeDesc();
-                srcCount                    = retTypeDesc->GetReturnRegCount();
+                int             srcCount    = retTypeDesc->GetReturnRegCount();
                 useCandidates               = retTypeDesc->GetABIReturnRegs();
                 for (int i = 0; i < srcCount; i++)
                 {
                     BuildUse(op1, useCandidates, i);
                 }
+                return srcCount;
             }
         }
         else
@@ -3014,11 +3028,12 @@ int LinearScan::BuildReturn(GenTree* tree)
                     break;
             }
             BuildUse(op1, useCandidates);
+            return 1;
         }
     }
-    // No kills or defs
 
-    return srcCount;
+    // No kills or defs.
+    return 0;
 }
 
 //------------------------------------------------------------------------

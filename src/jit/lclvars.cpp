@@ -57,7 +57,9 @@ void Compiler::lvaInit()
 #ifdef _TARGET_ARM_
     lvaPromotedStructAssemblyScratchVar = BAD_VAR_NUM;
 #endif // _TARGET_ARM_
-    lvaLocAllocSPvar    = BAD_VAR_NUM;
+#ifdef JIT32_GCENCODER
+    lvaLocAllocSPvar = BAD_VAR_NUM;
+#endif // JIT32_GCENCODER
     lvaNewObjArrayArgs  = BAD_VAR_NUM;
     lvaGSSecurityCookie = BAD_VAR_NUM;
 #ifdef _TARGET_X86_
@@ -1586,7 +1588,12 @@ void Compiler::StructPromotionHelper::CheckRetypedAsScalar(CORINFO_FIELD_HANDLE 
 //
 bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd)
 {
-    assert(compiler->eeIsValueClass(typeHnd));
+    if (!compiler->eeIsValueClass(typeHnd))
+    {
+        // TODO-ObjectStackAllocation: Enable promotion of fields of stack-allocated objects.
+        return false;
+    }
+
     if (structPromotionInfo.typeHnd == typeHnd)
     {
         // Asking for the same type of struct as the last time.
@@ -2114,17 +2121,21 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
 // Now grab the temp for the field local.
 
 #ifdef DEBUG
-        char  buf[200];
-        char* bufp = &buf[0];
-
-        sprintf_s(bufp, sizeof(buf), "%s V%02u.%s (fldOffset=0x%x)", "field", lclNum,
+        char buf[200];
+        sprintf_s(buf, sizeof(buf), "%s V%02u.%s (fldOffset=0x%x)", "field", lclNum,
                   compiler->eeGetFieldName(pFieldInfo->fldHnd), pFieldInfo->fldOffset);
+
+        // We need to copy 'buf' as lvaGrabTemp() below caches a copy to its argument.
+        size_t len  = strlen(buf) + 1;
+        char*  bufp = compiler->getAllocator(CMK_DebugOnly).allocate<char>(len);
+        strcpy_s(bufp, len, buf);
 
         if (index > 0)
         {
             noway_assert(pFieldInfo->fldOffset > (pFieldInfo - 1)->fldOffset);
         }
 #endif
+
         // Lifetime of field locals might span multiple BBs, so they must be long lifetime temps.
         unsigned varNum = compiler->lvaGrabTemp(false DEBUGARG(bufp));
 
@@ -2225,12 +2236,16 @@ void Compiler::lvaPromoteLongVars()
             CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef DEBUG
-            char  buf[200];
-            char* bufp = &buf[0];
-
-            sprintf_s(bufp, sizeof(buf), "%s V%02u.%s (fldOffset=0x%x)", "field", lclNum, index == 0 ? "lo" : "hi",
+            char buf[200];
+            sprintf_s(buf, sizeof(buf), "%s V%02u.%s (fldOffset=0x%x)", "field", lclNum, index == 0 ? "lo" : "hi",
                       index * 4);
+
+            // We need to copy 'buf' as lvaGrabTemp() below caches a copy to its argument.
+            size_t len  = strlen(buf) + 1;
+            char*  bufp = getAllocator(CMK_DebugOnly).allocate<char>(len);
+            strcpy_s(bufp, len, buf);
 #endif
+
             unsigned varNum = lvaGrabTemp(false DEBUGARG(bufp)); // Lifetime of field locals might span multiple BBs, so
                                                                  // they are long lifetime temps.
 
@@ -2450,7 +2465,16 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
     }
     if (varDsc->lvExactSize == 0)
     {
-        varDsc->lvExactSize = info.compCompHnd->getClassSize(typeHnd);
+        BOOL isValueClass = info.compCompHnd->isValueClass(typeHnd);
+
+        if (isValueClass)
+        {
+            varDsc->lvExactSize = info.compCompHnd->getClassSize(typeHnd);
+        }
+        else
+        {
+            varDsc->lvExactSize = info.compCompHnd->getHeapClassSize(typeHnd);
+        }
 
         size_t lvSize = varDsc->lvSize();
         assert((lvSize % TARGET_POINTER_SIZE) ==
@@ -2458,7 +2482,14 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
         varDsc->lvGcLayout = getAllocator(CMK_LvaTable).allocate<BYTE>(lvSize / TARGET_POINTER_SIZE);
         unsigned  numGCVars;
         var_types simdBaseType = TYP_UNKNOWN;
-        varDsc->lvType         = impNormStructType(typeHnd, varDsc->lvGcLayout, &numGCVars, &simdBaseType);
+        if (isValueClass)
+        {
+            varDsc->lvType = impNormStructType(typeHnd, varDsc->lvGcLayout, &numGCVars, &simdBaseType);
+        }
+        else
+        {
+            numGCVars = info.compCompHnd->getClassGClayout(typeHnd, varDsc->lvGcLayout);
+        }
 
         // We only save the count of GC vars in a struct up to 7.
         if (numGCVars >= 8)
@@ -2466,33 +2497,37 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
             numGCVars = 7;
         }
         varDsc->lvStructGcCount = numGCVars;
-#if FEATURE_SIMD
-        if (simdBaseType != TYP_UNKNOWN)
+
+        if (isValueClass)
         {
-            assert(varTypeIsSIMD(varDsc));
-            varDsc->lvSIMDType = true;
-            varDsc->lvBaseType = simdBaseType;
-        }
+#if FEATURE_SIMD
+            if (simdBaseType != TYP_UNKNOWN)
+            {
+                assert(varTypeIsSIMD(varDsc));
+                varDsc->lvSIMDType = true;
+                varDsc->lvBaseType = simdBaseType;
+            }
 #endif // FEATURE_SIMD
 #ifdef FEATURE_HFA
-        // for structs that are small enough, we check and set lvIsHfa and lvHfaTypeIsFloat
-        if (varDsc->lvExactSize <= MAX_PASS_MULTIREG_BYTES)
-        {
-            var_types hfaType = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-            if (varTypeIsFloating(hfaType))
+            // for structs that are small enough, we check and set lvIsHfa and lvHfaTypeIsFloat
+            if (varDsc->lvExactSize <= MAX_PASS_MULTIREG_BYTES)
             {
-                varDsc->_lvIsHfa = true;
-                varDsc->lvSetHfaTypeIsFloat(hfaType == TYP_FLOAT);
+                var_types hfaType = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
+                if (varTypeIsFloating(hfaType))
+                {
+                    varDsc->_lvIsHfa = true;
+                    varDsc->lvSetHfaTypeIsFloat(hfaType == TYP_FLOAT);
 
-                // hfa variables can never contain GC pointers
-                assert(varDsc->lvStructGcCount == 0);
-                // The size of this struct should be evenly divisible by 4 or 8
-                assert((varDsc->lvExactSize % genTypeSize(hfaType)) == 0);
-                // The number of elements in the HFA should fit into our MAX_ARG_REG_COUNT limit
-                assert((varDsc->lvExactSize / genTypeSize(hfaType)) <= MAX_ARG_REG_COUNT);
+                    // hfa variables can never contain GC pointers
+                    assert(varDsc->lvStructGcCount == 0);
+                    // The size of this struct should be evenly divisible by 4 or 8
+                    assert((varDsc->lvExactSize % genTypeSize(hfaType)) == 0);
+                    // The number of elements in the HFA should fit into our MAX_ARG_REG_COUNT limit
+                    assert((varDsc->lvExactSize / genTypeSize(hfaType)) <= MAX_ARG_REG_COUNT);
+                }
             }
-        }
 #endif // FEATURE_HFA
+        }
     }
     else
     {
@@ -3465,7 +3500,7 @@ void LclVarDsc::lvaDisqualifyVar()
 /**********************************************************************************
 * Get stack size of the varDsc.
 */
-const size_t LclVarDsc::lvArgStackSize() const
+size_t LclVarDsc::lvArgStackSize() const
 {
     // Make sure this will have a stack size
     assert(!this->lvIsRegArg);
@@ -3951,14 +3986,27 @@ void Compiler::lvaMarkLocalVars()
         }
 #endif // FEATURE_EH_FUNCLETS
 
-        // TODO: LocAllocSPvar should be only required by the implicit frame layout expected by the VM on x86.
-        // It should be removed on other platforms once we check there are no other implicit dependencies.
+#ifdef JIT32_GCENCODER
+        // LocAllocSPvar is only required by the implicit frame layout expected by the VM on x86. Whether
+        // a function contains a Localloc is conveyed in the GC information, in the InfoHdrSmall.localloc
+        // field. The function must have an EBP frame. Then, the VM finds the LocAllocSP slot by assuming
+        // the following stack layout:
+        //
+        //      -- higher addresses --
+        //      saved EBP                       <-- EBP points here
+        //      other callee-saved registers    // InfoHdrSmall.savedRegsCountExclFP specifies this size
+        //      optional GS cookie              // InfoHdrSmall.security is 1 if this exists
+        //      LocAllocSP slot
+        //      -- lower addresses --
+        //
+        // See also eetwain.cpp::GetLocallocSPOffset() and its callers.
         if (compLocallocUsed)
         {
             lvaLocAllocSPvar         = lvaGrabTempWithImplicitUse(false DEBUGARG("LocAllocSPvar"));
             LclVarDsc* locAllocSPvar = &lvaTable[lvaLocAllocSPvar];
             locAllocSPvar->lvType    = TYP_I_IMPL;
         }
+#endif // JIT32_GCENCODER
     }
 
     // Ref counting is now enabled normally.
@@ -5688,13 +5736,13 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
         stkOffs = lvaAllocLocalAndSetVirtualOffset(lvaSecurityObject, TARGET_POINTER_SIZE, stkOffs);
     }
 
+#ifdef JIT32_GCENCODER
     if (lvaLocAllocSPvar != BAD_VAR_NUM)
     {
-#ifdef JIT32_GCENCODER
         noway_assert(codeGen->isFramePointerUsed()); // else offsets of locals of frameless methods will be incorrect
-#endif
         stkOffs = lvaAllocLocalAndSetVirtualOffset(lvaLocAllocSPvar, TARGET_POINTER_SIZE, stkOffs);
     }
+#endif // JIT32_GCENCODER
 
     if (lvaReportParamTypeArg())
     {
@@ -5886,7 +5934,10 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
 #else
                 lclNum == lvaShadowSPslotsVar ||
 #endif // FEATURE_EH_FUNCLETS
-                lclNum == lvaLocAllocSPvar || lclNum == lvaSecurityObject)
+#ifdef JIT32_GCENCODER
+                lclNum == lvaLocAllocSPvar ||
+#endif // JIT32_GCENCODER
+                lclNum == lvaSecurityObject)
             {
                 assert(varDsc->lvStkOffs != BAD_STK_OFFS);
                 continue;
@@ -6658,8 +6709,7 @@ void Compiler::lvaDumpRegLocation(unsigned lclNum)
 /*****************************************************************************
  *
  *  Dump the frame location assigned to a local.
- *  For non-LSRA, this will only be valid if there is no assigned register.
- *  For LSRA, it's the home location, even though the variable doesn't always live
+ *  It's the home location, even though the variable doesn't always live
  *  in its home location.
  */
 
@@ -6945,6 +6995,11 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
                     break;
             }
         }
+    }
+
+    if (varDsc->lvReason != nullptr)
+    {
+        printf(" \"%s\"", varDsc->lvReason);
     }
 
     printf("\n");

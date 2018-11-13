@@ -232,14 +232,18 @@ DWORD getBreakOnBadCode()
 void debugError(const char* msg, const char* file, unsigned line)
 {
     const char* tail = strrchr(file, '\\');
-    if (tail)
+    if (tail != nullptr)
     {
-        file = tail + 1;
+        tail = tail + 1;
+    }
+    else
+    {
+        tail = file;
     }
 
     LogEnv* env = JitTls::GetLogEnv();
 
-    logf(LL_ERROR, "COMPILATION FAILED: file: %s:%d compiling method %s reason %s\n", file, line,
+    logf(LL_ERROR, "COMPILATION FAILED: file: %s:%d compiling method %s reason %s\n", tail, line,
          env->compiler->info.compFullName, msg);
 
     // We now only assert when user explicitly set ComPlus_JitRequired=1
@@ -249,7 +253,7 @@ void debugError(const char* msg, const char* file, unsigned line)
         // Don't assert if verification is done.
         if (!env->compiler->tiVerificationNeeded || getBreakOnBadCode())
         {
-            assertAbort(msg, "NO-FILE", 0);
+            assertAbort(msg, file, line);
         }
     }
 
@@ -299,18 +303,6 @@ extern "C" void __cdecl assertAbort(const char* why, const char* file, unsigned 
     // the first assert for any function, but we don't want to kill the whole ngen process on the
     // first assert (which would happen if you used COMPlus_NoGuiOnAssert=1 for example).
     if (JitConfig.AltJitSkipOnAssert() != 0)
-    {
-        fatal(CORJIT_SKIPPED);
-    }
-#elif defined(_TARGET_ARM64_)
-    // TODO-ARM64-NYI: remove this after the JIT no longer asserts during startup
-    //
-    // When we are bringing up the new Arm64 JIT we set COMPlus_ContinueOnAssert=1
-    // We only want to hit one assert then we will fall back to the interpreter.
-    //
-    bool interpreterFallback = (JitConfig.InterpreterFallback() != 0);
-
-    if (interpreterFallback)
     {
         fatal(CORJIT_SKIPPED);
     }

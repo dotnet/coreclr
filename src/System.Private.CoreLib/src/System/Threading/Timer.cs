@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace System.Threading
 {
@@ -314,7 +315,7 @@ namespace System.Threading
                             }
                             else
                             {
-                                ThreadPool.UnsafeQueueCustomWorkItem(timer, forceGlobal: true);
+                                ThreadPool.UnsafeQueueUserWorkItemInternal(timer, preferLocal: false);
                             }
                         }
                         else
@@ -523,10 +524,11 @@ namespace System.Threading
         // after all pending callbacks are complete.  We set m_canceled to prevent any callbacks that
         // are already queued from running.  We track the number of callbacks currently executing in 
         // m_callbacksRunning.  We set m_notifyWhenNoCallbacksRunning only when m_callbacksRunning
-        // reaches zero.
+        // reaches zero.  Same applies if Timer.DisposeAsync() is used, except with a Task<bool>
+        // instead of with a provided WaitHandle.
         private int m_callbacksRunning;
         private volatile bool m_canceled;
-        private volatile WaitHandle m_notifyWhenNoCallbacksRunning;
+        private volatile object m_notifyWhenNoCallbacksRunning; // may be either WaitHandle or Task<bool>
 
 
         internal TimerQueueTimer(TimerCallback timerCallback, object state, uint dueTime, uint period, bool flowExecutionContext)
@@ -605,10 +607,7 @@ namespace System.Threading
                     m_canceled = true;
                     m_notifyWhenNoCallbacksRunning = toSignal;
                     m_associatedTimerQueue.DeleteTimer(this);
-
-                    if (m_callbacksRunning == 0)
-                        shouldSignal = true;
-
+                    shouldSignal = m_callbacksRunning == 0;
                     success = true;
                 }
             }
@@ -619,8 +618,65 @@ namespace System.Threading
             return success;
         }
 
+        public ValueTask CloseAsync()
+        {
+            lock (m_associatedTimerQueue)
+            {
+                object notifyWhenNoCallbacksRunning = m_notifyWhenNoCallbacksRunning;
 
-        internal void Fire()
+                // Mark the timer as canceled if it's not already.
+                if (m_canceled)
+                {
+                    if (notifyWhenNoCallbacksRunning is WaitHandle)
+                    {
+                        // A previous call to Close(WaitHandle) stored a WaitHandle.  We could try to deal with
+                        // this case by using ThreadPool.RegisterWaitForSingleObject to create a Task that'll
+                        // complete when the WaitHandle is set, but since arbitrary WaitHandle's can be supplied
+                        // by the caller, it could be for an auto-reset event or similar where that caller's
+                        // WaitOne on the WaitHandle could prevent this wrapper Task from completing.  We could also
+                        // change the implementation to support storing multiple objects, but that's not pay-for-play,
+                        // and the existing Close(WaitHandle) already discounts this as being invalid, instead just
+                        // returning false if you use it multiple times. Since first calling Timer.Dispose(WaitHandle)
+                        // and then calling Timer.DisposeAsync is not something anyone is likely to or should do, we
+                        // simplify by just failing in that case.
+                        return new ValueTask(Task.FromException(new InvalidOperationException(SR.InvalidOperation_TimerAlreadyClosed)));
+                    }
+                }
+                else
+                {
+                    m_canceled = true;
+                    m_associatedTimerQueue.DeleteTimer(this);
+                }
+
+                // We've deleted the timer, so if there are no callbacks queued or running,
+                // we're done and return an already-completed value task.
+                if (m_callbacksRunning == 0)
+                {
+                    return default;
+                }
+
+                Debug.Assert(
+                    notifyWhenNoCallbacksRunning == null ||
+                    notifyWhenNoCallbacksRunning is Task<bool>);
+
+                // There are callbacks queued or running, so we need to store a Task<bool>
+                // that'll be used to signal the caller when all callbacks complete. Do so as long as
+                // there wasn't a previous CloseAsync call that did.
+                if (notifyWhenNoCallbacksRunning == null)
+                {
+                    var t = new Task<bool>((object)null, TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_notifyWhenNoCallbacksRunning = t;
+                    return new ValueTask(t);
+                }
+
+                // A previous CloseAsync call already hooked up a task.  Just return it.
+                return new ValueTask((Task<bool>)notifyWhenNoCallbacksRunning);
+            }
+        }
+
+        void IThreadPoolWorkItem.Execute() => Fire(isThreadPool: true);
+
+        internal void Fire(bool isThreadPool = false)
         {
             bool canceled = false;
 
@@ -634,7 +690,7 @@ namespace System.Threading
             if (canceled)
                 return;
 
-            CallCallback();
+            CallCallback(isThreadPool);
 
             bool shouldSignal = false;
             lock (m_associatedTimerQueue)
@@ -648,16 +704,22 @@ namespace System.Threading
                 SignalNoCallbacksRunning();
         }
 
-        void IThreadPoolWorkItem.ExecuteWorkItem() => Fire();
-
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { }
-
         internal void SignalNoCallbacksRunning()
         {
-            Interop.Kernel32.SetEvent(m_notifyWhenNoCallbacksRunning.SafeWaitHandle);
+            object toSignal = m_notifyWhenNoCallbacksRunning;
+            Debug.Assert(toSignal is WaitHandle || toSignal is Task<bool>);
+
+            if (toSignal is WaitHandle wh)
+            {
+                Interop.Kernel32.SetEvent(wh.SafeWaitHandle);
+            }
+            else
+            {
+                ((Task<bool>)toSignal).TrySetResult(true);
+            }
         }
 
-        internal void CallCallback()
+        internal void CallCallback(bool isThreadPool)
         {
             if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.ThreadTransfer))
                 FrameworkEventSource.Log.ThreadTransferReceiveObj(this, 1, string.Empty);
@@ -670,7 +732,14 @@ namespace System.Threading
             }
             else
             {
-                ExecutionContext.RunInternal(context, s_callCallbackInContext, this);
+                if (isThreadPool)
+                {
+                    ExecutionContext.RunFromThreadPoolDispatchLoop(Thread.CurrentThread, context, s_callCallbackInContext, this);
+                }
+                else
+                {
+                    ExecutionContext.RunInternal(context, s_callCallbackInContext, this);
+                }
             }
         }
 
@@ -726,10 +795,17 @@ namespace System.Threading
             GC.SuppressFinalize(this);
             return result;
         }
+
+        public ValueTask CloseAsync()
+        {
+            ValueTask result = m_timer.CloseAsync();
+            GC.SuppressFinalize(this);
+            return result;
+        }
     }
 
 
-    public sealed class Timer : MarshalByRefObject, IDisposable
+    public sealed class Timer : MarshalByRefObject, IDisposable, IAsyncDisposable
     {
         private const uint MAX_SUPPORTED_TIMEOUT = (uint)0xfffffffe;
 
@@ -870,6 +946,11 @@ namespace System.Threading
         public void Dispose()
         {
             m_timer.Close();
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return m_timer.CloseAsync();
         }
     }
 }

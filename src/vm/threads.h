@@ -197,8 +197,6 @@ class Thread
     friend class ThreadStatics;
 
     PTR_ThreadLocalBlock m_pThreadLocalBlock;
-    PTR_PTR_ThreadLocalBlock m_pTLBTable;
-    SIZE_T m_TLBTableSize;
 
 public:
     BOOL IsAddressInStack (PTR_VOID addr) const { return TRUE; }
@@ -2436,30 +2434,9 @@ public:
     void EnterContextRestricted(Context* c, ContextTransitionFrame* pFrame);
     void ReturnToContext(ContextTransitionFrame *pFrame);
 
-private:
-    typedef enum {
-        RaiseCrossContextSuccess,
-        RaiseCrossContextRetry,
-        RaiseCrossContextClassInit
-    } RaiseCrossContextResult;
-
-
-    // The "orBlob" stores the serialized image of a managed Exception object as it gets marshaled
-    // across AD boundaries.
-    //
-    // In Telesto, we don't support true appdomain marshaling so the "orBlob" is in fact an
-    // agile wrapper object whose ToString() echoes the original exception's ToString().
-    typedef OBJECTREF  ORBLOBREF;
-
-    RaiseCrossContextResult TryRaiseCrossContextException(Exception **ppExOrig,
-                                                          Exception *pException,
-                                                          RuntimeExceptionKind *pKind,
-                                                          OBJECTREF *ppThrowable,
-                                                          ORBLOBREF *pOrBlob);
 public:
 
     void DECLSPEC_NORETURN RaiseCrossContextException(Exception* pEx, ContextTransitionFrame* pFrame);
-    void RaiseCrossContextExceptionHelper(Exception* pEx,ContextTransitionFrame* pFrame);
 
     // ClearContext are to be called only during shutdown
     void ClearContext();
@@ -3628,10 +3605,6 @@ public:
     // space to restore the guard page, so make sure you know what you're doing when you decide to call this.
     VOID RestoreGuardPage();
 
-    // Commit the thread's entire stack. Note: this works on managed or unmanaged threads, and pLowerBoundMemInfo
-    // is optional.
-    static BOOL CommitThreadStack(Thread* pThreadOptional);
-
 #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
 private:
     // Redirecting of threads in managed code at suspension
@@ -3649,7 +3622,7 @@ private:
     static void __stdcall RedirectedHandledJITCaseForGCThreadControl();
     static void __stdcall RedirectedHandledJITCaseForUserSuspend();
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
-    static void __stdcall Thread::RedirectedHandledJITCaseForGCStress();
+    static void __stdcall RedirectedHandledJITCaseForGCStress();
 #endif // defined(HAVE_GCCOVER) && USE_REDIRECT_FOR_GCSTRESS
 
     friend void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThread);
@@ -4490,41 +4463,8 @@ public:
     
     // m_pThreadLocalBLock points to the ThreadLocalBlock that corresponds to the 
     // AppDomain that the Thread is currently in
-
-    // m_pTLBTable points to the this Thread's table of ThreadLocalBlocks, indexed by
-    // ADIndex. It's important to note that ADIndexes get recycled when AppDomains are
-    // torn down. m_TLBTableSize holds to current size the size of this Thread's TLB table.
-    // See "ThreadStatics.h" for more information.
     
     PTR_ThreadLocalBlock m_pThreadLocalBlock;
-    PTR_PTR_ThreadLocalBlock m_pTLBTable;
-    SIZE_T m_TLBTableSize;
-
-    // This getter is used by SOS; if m_pThreadLocalBlock is NULL, it's
-    // important that we look in the TLB table as well
-    /*
-    PTR_ThreadLocalBlock GetThreadLocalBlock()
-    {
-        // If the current TLB pointer is NULL, search the TLB table
-        if (m_pThreadLocalBlock != NULL)
-            return m_pThreadLocalBlock;
-        
-        ADIndex index = GetDomain()->GetIndex();
-
-        // Check to see if we have a ThreadLocalBlock for the the current AppDomain,
-        if (index.m_dwIndex < m_TLBTableSize)
-        {
-            // Update the current ThreadLocalBlock pointer,
-            // but only on non-DAC builds
-#ifndef DACCESS_COMPILE
-            m_pThreadLocalBlock = m_pTLBTable[index.m_dwIndex];
-#endif
-            return m_pTLBTable[index.m_dwIndex];
-        }
-    
-        return NULL;
-    }
-    */
 
     // Called during AssemblyLoadContext teardown to clean up all structures
     // associated with thread statics for the specific Module

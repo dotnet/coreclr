@@ -5346,8 +5346,6 @@ void Compiler::fgMoveOpsLeft(GenTree* tree)
             break;
         }
 
-#if FEATURE_PREVENT_BAD_BYREFS
-
         // Don't split up a byref calculation and create a new byref. E.g.,
         // [byref]+ (ref, [int]+ (int, int)) => [byref]+ ([byref]+ (ref, int), int).
         // Doing this transformation could create a situation where the first
@@ -5362,8 +5360,6 @@ void Compiler::fgMoveOpsLeft(GenTree* tree)
             assert(varTypeIsGC(tree->TypeGet()) && (oper == GT_ADD));
             break;
         }
-
-#endif // FEATURE_PREVENT_BAD_BYREFS
 
         /* Change "(x op (y op z))" to "(x op y) op z" */
         /* ie.    "(op1 op (ad1 op ad2))" to "(op1 op ad1) op ad2" */
@@ -5742,14 +5738,15 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
         addr = index;
     }
 
-#if FEATURE_PREVENT_BAD_BYREFS
-
     // Be careful to only create the byref pointer when the full index expression is added to the array reference.
     // We don't want to create a partial byref address expression that doesn't include the full index offset:
     // a byref must point within the containing object. It is dangerous (especially when optimizations come into
     // play) to create a "partial" byref that doesn't point exactly to the correct object; there is risk that
     // the partial byref will not point within the object, and thus not get updated correctly during a GC.
     // This is mostly a risk in fully-interruptible code regions.
+    //
+    // NOTE: the tree form created here is pattern matched by optExtractArrIndex(), so changes here must
+    // be reflected there.
 
     /* Add the first element's offset */
 
@@ -5760,20 +5757,6 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
     /* Add the object ref to the element's offset */
 
     addr = gtNewOperNode(GT_ADD, TYP_BYREF, arrRef, addr);
-
-#else // !FEATURE_PREVENT_BAD_BYREFS
-
-    /* Add the object ref to the element's offset */
-
-    addr = gtNewOperNode(GT_ADD, TYP_BYREF, arrRef, addr);
-
-    /* Add the first element's offset */
-
-    GenTree* cns = gtNewIconNode(elemOffs, TYP_I_IMPL);
-
-    addr = gtNewOperNode(GT_ADD, TYP_BYREF, addr, cns);
-
-#endif // !FEATURE_PREVENT_BAD_BYREFS
 
 #if SMALL_TREE_NODES
     assert((tree->gtDebugFlags & GTF_DEBUG_NODE_LARGE) || GenTree::s_gtNodeSizes[GT_IND] == TREE_NODE_SZ_SMALL);
@@ -5870,9 +5853,6 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
     GenTree* cnsOff = nullptr;
     if (addr->OperGet() == GT_ADD)
     {
-
-#if FEATURE_PREVENT_BAD_BYREFS
-
         assert(addr->TypeGet() == TYP_BYREF);
         assert(addr->gtOp.gtOp1->TypeGet() == TYP_REF);
 
@@ -5896,28 +5876,6 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
             // Label any constant array index contributions with #ConstantIndex and any LclVars with GTF_VAR_ARR_INDEX
             addr->LabelIndex(this);
         }
-
-#else // !FEATURE_PREVENT_BAD_BYREFS
-
-        if (addr->gtOp.gtOp2->gtOper == GT_CNS_INT)
-        {
-            cnsOff = addr->gtOp.gtOp2;
-            addr   = addr->gtOp.gtOp1;
-        }
-
-        while ((addr->OperGet() == GT_ADD) || (addr->OperGet() == GT_SUB))
-        {
-            assert(addr->TypeGet() == TYP_BYREF);
-            GenTree* index = addr->gtOp.gtOp2;
-
-            // Label any constant array index contributions with #ConstantIndex and any LclVars with GTF_VAR_ARR_INDEX
-            index->LabelIndex(this);
-
-            addr = addr->gtOp.gtOp1;
-        }
-        assert(addr->TypeGet() == TYP_REF);
-
-#endif // !FEATURE_PREVENT_BAD_BYREFS
     }
     else if (addr->OperGet() == GT_CNS_INT)
     {
@@ -12803,8 +12761,6 @@ DONE_MORPHING_CHILDREN:
                     /* Fold "((x+icon1)+icon2) to (x+(icon1+icon2))" */
                     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if FEATURE_PREVENT_BAD_BYREFS
-
                     if (op1->gtOper == GT_ADD &&                          //
                         !gtIsActiveCSE_Candidate(op1) &&                  //
                         !op1->gtOverflow() &&                             //
@@ -12812,14 +12768,6 @@ DONE_MORPHING_CHILDREN:
                         (op1->gtOp.gtOp2->OperGet() == op2->OperGet()) && //
                         (op1->gtOp.gtOp2->TypeGet() != TYP_REF) &&        // Don't fold REFs
                         (op2->TypeGet() != TYP_REF))                      // Don't fold REFs
-
-#else // !FEATURE_PREVENT_BAD_BYREFS
-
-                    if (op1->gtOper == GT_ADD && !gtIsActiveCSE_Candidate(op1) && op1->gtOp.gtOp2->IsCnsIntOrI() &&
-                        !op1->gtOverflow() && op1->gtOp.gtOp2->OperGet() == op2->OperGet())
-
-#endif // !FEATURE_PREVENT_BAD_BYREFS
-
                     {
                         cns1 = op1->gtOp.gtOp2;
                         op2->gtIntConCommon.SetIconValue(cns1->gtIntConCommon.IconValue() +
@@ -13113,6 +13061,12 @@ DONE_MORPHING_CHILDREN:
                     //
                     // The below transformation cannot be applied if the local var needs to be normalized on load.
                     else if (varTypeIsSmall(typ) && (genTypeSize(lvaTable[lclNum].lvType) == genTypeSize(typ)) &&
+                             !lvaTable[lclNum].lvNormalizeOnLoad())
+                    {
+                        tree->gtType = typ = temp->TypeGet();
+                        foldAndReturnTemp  = true;
+                    }
+                    else if (!varTypeIsStruct(typ) && (lvaTable[lclNum].lvType == typ) &&
                              !lvaTable[lclNum].lvNormalizeOnLoad())
                     {
                         tree->gtType = typ = temp->TypeGet();
@@ -16740,19 +16694,23 @@ void Compiler::fgMorph()
             }
         }
     }
+#endif // DEBUG
 
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
     if (opts.compStackCheckOnRet)
     {
-        lvaReturnEspCheck                  = lvaGrabTempWithImplicitUse(false DEBUGARG("ReturnEspCheck"));
-        lvaTable[lvaReturnEspCheck].lvType = TYP_INT;
+        lvaReturnSpCheck                  = lvaGrabTempWithImplicitUse(false DEBUGARG("ReturnSpCheck"));
+        lvaTable[lvaReturnSpCheck].lvType = TYP_I_IMPL;
     }
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 
+#if defined(DEBUG) && defined(_TARGET_X86_)
     if (opts.compStackCheckOnCall)
     {
-        lvaCallEspCheck                  = lvaGrabTempWithImplicitUse(false DEBUGARG("CallEspCheck"));
-        lvaTable[lvaCallEspCheck].lvType = TYP_INT;
+        lvaCallSpCheck                  = lvaGrabTempWithImplicitUse(false DEBUGARG("CallSpCheck"));
+        lvaTable[lvaCallSpCheck].lvType = TYP_I_IMPL;
     }
-#endif // DEBUG
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
 
     /* Filter out unimported BBs */
 
@@ -16779,6 +16737,16 @@ void Compiler::fgMorph()
     // Transform each GT_ALLOCOBJ node into either an allocation helper call or
     // local variable allocation on the stack.
     ObjectAllocator objectAllocator(this); // PHASE_ALLOCATE_OBJECTS
+
+// TODO-ObjectStackAllocation: Enable the optimization for architectures using
+// JIT32_GCENCODER (i.e., x86).
+#ifndef JIT32_GCENCODER
+    if (JitConfig.JitObjectStackAllocation() && !opts.MinOpts() && !opts.compDbgCode)
+    {
+        objectAllocator.EnableObjectStackAllocation();
+    }
+#endif // JIT32_GCENCODER
+
     objectAllocator.Run();
 
     /* Add any internal blocks/trees we may need */
@@ -18042,7 +18010,7 @@ public:
 #endif // DEBUG
     }
 
-    // Morph promoted struct fields and count promoted implict byref argument occurrences.
+    // Morph promoted struct fields and count implict byref argument occurrences.
     // Also create and push the value produced by the visited node. This is done here
     // rather than in PostOrderVisit because it makes it easy to handle nodes with an
     // arbitrary number of operands - just pop values until the value corresponding
@@ -18064,16 +18032,17 @@ public:
         {
             unsigned lclNum = node->AsLclVarCommon()->GetLclNum();
 
-            if (m_compiler->lvaIsImplicitByRefLocal(lclNum))
+            LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
+            if (varDsc->lvIsStructField)
             {
-                // Keep track of the number of appearances of each promoted implicit
-                // byref (here during address-exposed analysis); fgMakeOutgoingStructArgCopy
-                // checks the ref counts for implicit byref params when deciding if it's legal
-                // to elide certain copies of them.
-                LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
-                JITDUMP("LocalAddressVisitor incrementing ref count from %d to %d for V%02d\n",
-                        varDsc->lvRefCnt(RCS_EARLY), varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
-                varDsc->incLvRefCnt(1, RCS_EARLY);
+                // Promoted field, increase counter for the parent lclVar.
+                assert(!m_compiler->lvaIsImplicitByRefLocal(lclNum));
+                unsigned parentLclNum = varDsc->lvParentLcl;
+                UpdateEarlyRefCountForImplicitByRef(parentLclNum);
+            }
+            else
+            {
+                UpdateEarlyRefCountForImplicitByRef(lclNum);
             }
         }
 
@@ -18461,6 +18430,29 @@ private:
         // TODO-Cleanup: Move fgMorphLocalField implementation here, it's not used anywhere else.
         m_compiler->fgMorphLocalField(node, user);
         INDEBUG(m_stmtModified |= node->OperIs(GT_LCL_VAR);)
+    }
+
+    //------------------------------------------------------------------------
+    // UpdateEarlyRefCountForImplicitByRef: updates the ref count for implicit byref params.
+    //
+    // Arguments:
+    //    lclNum - the local number to update the count for.
+    //
+    // Notes:
+    //    fgMakeOutgoingStructArgCopy checks the ref counts for implicit byref params when it decides
+    //    if it's legal to elide certain copies of them;
+    //    fgRetypeImplicitByRefArgs checks the ref counts when it decides to undo promotions.
+    //
+    void UpdateEarlyRefCountForImplicitByRef(unsigned lclNum)
+    {
+        if (!m_compiler->lvaIsImplicitByRefLocal(lclNum))
+        {
+            return;
+        }
+        LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
+        JITDUMP("LocalAddressVisitor incrementing ref count from %d to %d for V%02d\n", varDsc->lvRefCnt(RCS_EARLY),
+                varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
+        varDsc->incLvRefCnt(1, RCS_EARLY);
     }
 };
 

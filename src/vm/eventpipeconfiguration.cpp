@@ -182,7 +182,8 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
             provider.SetConfiguration(
                 true /* providerEnabled */,
                 pSessionProvider->GetKeywords(),
-                pSessionProvider->GetLevel());
+                pSessionProvider->GetLevel(),
+                pSessionProvider->GetFilterData());
         }
     }
 
@@ -309,7 +310,7 @@ size_t EventPipeConfiguration::GetCircularBufferSize() const
     return ret;
 }
 
-EventPipeSession* EventPipeConfiguration::CreateSession(EventPipeSessionType sessionType, unsigned int circularBufferSizeInMB, EventPipeProviderConfiguration *pProviders, unsigned int numProviders)
+EventPipeSession* EventPipeConfiguration::CreateSession(EventPipeSessionType sessionType, unsigned int circularBufferSizeInMB, EventPipeProviderConfiguration *pProviders, unsigned int numProviders, UINT64 multiFileTraceLengthInSeconds)
 {
     CONTRACTL
     {
@@ -319,7 +320,7 @@ EventPipeSession* EventPipeConfiguration::CreateSession(EventPipeSessionType ses
     }
     CONTRACTL_END;
 
-    return new EventPipeSession(sessionType, circularBufferSizeInMB, pProviders, numProviders);
+    return new EventPipeSession(sessionType, circularBufferSizeInMB, pProviders, numProviders, multiFileTraceLengthInSeconds);
 }
 
 void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
@@ -372,7 +373,8 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession)
                 pProvider->SetConfiguration(
                     true /* providerEnabled */,
                     pSessionProvider->GetKeywords(),
-                    pSessionProvider->GetLevel());
+                    pSessionProvider->GetLevel(),
+                    pSessionProvider->GetFilterData());
             }
 
             pElem = m_pProviderList->GetNext(pElem);
@@ -402,7 +404,11 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession)
         while(pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
-            pProvider->SetConfiguration(false /* providerEnabled */, 0 /* keywords */, EventPipeEventLevel::Critical /* level */);
+            pProvider->SetConfiguration(
+                false /* providerEnabled */,
+                0 /* keywords */,
+                EventPipeEventLevel::Critical /* level */,
+                NULL /* filterData */);
 
             pElem = m_pProviderList->GetNext(pElem);
         }
