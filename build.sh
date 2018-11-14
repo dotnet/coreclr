@@ -815,11 +815,6 @@ while :; do
             __SkipCoreCLR=1
             ;;
 
-        crosscomponent|-crosscomponent)
-            # Accept "crosscomponent" for backward-compatibility but ignore it.
-            echo "WARNING: 'crosscomponent' is obsolete and should not be used"
-            ;;
-
         skipmanaged|-skipmanaged)
             __SkipManaged=1
             ;;
