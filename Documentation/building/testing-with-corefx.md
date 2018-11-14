@@ -7,9 +7,9 @@ You can use CoreFX tests to validate your changes to CoreCLR. There are two basi
 2. Use a snapshot of the CoreFX test build with a build of CoreCLR.
 
 Both mechanisms are exposed to certain types of breaking changes which can cause test failures.
-However, we have a test exclusion mechanism for option #2, which exclusions specified in the
-CoreCLR tree, not the CoreFX tree, which can make it possible to exclude tests that fail for
-transient breaking change reasons, as well as more long-lasting reasons.
+However, we have a test exclusion mechanism for option #2, with exclusions specified in the
+CoreCLR tree, not the CoreFX tree. This can make it possible to exclude tests that fail for
+transient breaking change reasons, as well as for more long-lasting reasons.
 
 Mechanism #2 is used to run CoreFX tests in the CI against every CoreCLR pull request.
 
