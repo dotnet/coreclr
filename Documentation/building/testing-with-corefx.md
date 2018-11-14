@@ -114,7 +114,7 @@ C:\coreclr\bin\tests\Windows_NT.x64.Release\testhost\dotnet.exe .\xunit.console.
 For Linux:
 ```
 cd ~/corefx/bin/tests/System.Collections.Tests
-~/coreclr/artifacts/bin/tests/Linux.x64.Release/testhost/dotnet .\xunit.console.netcore.exe .\System.Collections.Tests.dll -notrait category=nonnetcoretests -notrait category=nonlinuxtests
+~/coreclr/artifacts/bin/tests/Linux.x64.Release/testhost/dotnet ./xunit.console.netcore.exe ./System.Collections.Tests.dll -notrait category=nonnetcoretests -notrait category=nonlinuxtests
 ```
 
 ## Running against a cached copy of the CoreFX tests
