@@ -12,8 +12,6 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
-    <!-- Have to reference System.Private.Corelib since System.ArgIterator isn't exposed in Microsoft.NetCore.App. See dotnet/corefx#32898, dotnet/corefx#33369 -->
-    <ReferenceSystemPrivateCoreLib>true</ReferenceSystemPrivateCoreLib>
 
     <!-- Varargs/ArgIterator marshalling unsupported outside of windows -->
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>

@@ -9,8 +9,6 @@ using System.Text;
 using System.Runtime.InteropServices;
 using TestLibrary;
 
-using Console = Internal.Console;
-
 namespace PInvokeTests
 {
     class VarargsTest
