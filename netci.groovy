@@ -452,7 +452,7 @@ class Constants {
                // 'gc_reliability_framework'
                // 'illink'
                // 'corefx_innerloop'
-               // 'crossgen_comparison'
+               'crossgen_comparison'
                'pmi_asm_diffs',
                'r2r_jitstress1',
                'r2r_jitstress2',
@@ -918,7 +918,7 @@ def static isCrossGenComparisonScenario(def scenario) {
 
 def static shouldGenerateCrossGenComparisonJob(def os, def architecture, def configuration, def scenario) {
     assert isCrossGenComparisonScenario(scenario)
-    return (os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release'))
+    return ((os == 'Ubuntu' && architecture == 'arm') || (os == 'Ubuntu16.04' && architecture == 'arm64')) && (configuration == 'Checked' || configuration == 'Release')
 }
 
 def static getFxBranch(def branch) {
@@ -1321,7 +1321,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
     // Check scenario.
     switch (scenario) {
         case 'crossgen_comparison':
-            if (isFlowJob && os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release')) {
+            if (isFlowJob && ((os == 'Ubuntu' && architecture == 'arm') || (os == 'Ubuntu16.04' && architecture == 'arm64')) && (configuration == 'Checked' || configuration == 'Release')) {
                 addPeriodicTriggerHelper(job, '@daily')
             }
             break
