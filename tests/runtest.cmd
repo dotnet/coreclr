@@ -48,7 +48,6 @@ set __CoreFXTestsRunAllAvailable=
 set __SkipGenerateLayout=
 set __BuildXUnitWrappers=
 set __PrintLastResultsOnly=
-set __AltJitArch=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -208,6 +207,10 @@ if defined __DoCrossgen (
 
 if defined __PrintLastResultsOnly (
     set __RuntestPyArgs=%__RuntestPyArgs% --analyze_results_only
+)
+
+if defined __AltJitArch (
+    set __RuntestPyArgs=%__RuntestPyArgs% -altjit_arch %__AltJitArch%
 )
 
 REM __ProjectDir is poorly named, it is actually <projectDir>/tests
