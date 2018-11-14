@@ -53,59 +53,57 @@ class Test
 
     public static int Main(string[] args)
     {
-#pragma warning disable 0219
         string strManaged = " \0Managed\0String\0 ";
         string strRet = "a";
         string strNative = "Native String";
-#pragma warning restore 0219
 
         //since the out attributes doesnt work for string, so i dont check the out value.
         string strPara2 = strManaged;
-        string strRet2 = PInvokeDef.Marshal_InOut(strPara2);
+        string strRet2 = AnsiBStrTestNative.Marshal_InOut(strPara2);
         if (!strRet2.Equals(strRet))
         {
-            ReportFailure("Method PInvokeDef.Marshal_InOut[Managed Side],The Return string is wrong", strRet, strRet2);
+            ReportFailure("Method AnsiBStrTestNative.Marshal_InOut[Managed Side],The Return string is wrong", strRet, strRet2);
         }
         if (!strPara2.Equals(strManaged))
         {
-            ReportFailure("Method PInvokeDef.Marshal_InOut[Managed Side],The Parameter string is Changed", strManaged, strPara2);
+            ReportFailure("Method AnsiBStrTestNative.Marshal_InOut[Managed Side],The Parameter string is Changed", strManaged, strPara2);
         }
 
         //TestMethod3
         string strPara3 = strManaged;
-        string strRet3 = PInvokeDef.Marshal_Out(strPara3);
+        string strRet3 = AnsiBStrTestNative.Marshal_Out(strPara3);
         if (!strRet.Equals(strRet3))
         {
-            ReportFailure("Method PInvokeDef.Marshal_Out[Managed Side],The Return string is wrong", strRet, strRet3);
+            ReportFailure("Method AnsiBStrTestNative.Marshal_Out[Managed Side],The Return string is wrong", strRet, strRet3);
         }
         if (!strPara3.Equals(strManaged))
         {
-            ReportFailure("Method PInvokeDef.Marshal_Out[Managed Side],The Parameter string is not Changed", strManaged, strPara3);
+            ReportFailure("Method AnsiBStrTestNative.Marshal_Out[Managed Side],The Parameter string is not Changed", strManaged, strPara3);
         }
 
         //TestMethod5
         string strPara5 = strManaged;
-        string strRet5 = PInvokeDef.MarshalPointer_InOut(ref strPara5);
+        string strRet5 = AnsiBStrTestNative.MarshalPointer_InOut(ref strPara5);
 
         if (!strRet5.Equals(strRet))
         {
-            ReportFailure("Method PInvokeDef.MarshalPointer_InOut[Managed Side],The Return string is wrong", strRet, strRet5);
+            ReportFailure("Method AnsiBStrTestNative.MarshalPointer_InOut[Managed Side],The Return string is wrong", strRet, strRet5);
         }
         if (!strPara5.Equals(strNative))
         {
-            ReportFailure("Method PInvokeDef.MarshalPointer_InOut[Managed Side],The Passed string is wrong", strNative, strPara5);
+            ReportFailure("Method AnsiBStrTestNative.MarshalPointer_InOut[Managed Side],The Passed string is wrong", strNative, strPara5);
         }
 
         //TestMethod6
         string strPara6 = strManaged;
-        string strRet6 = PInvokeDef.MarshalPointer_Out(out strPara6);
+        string strRet6 = AnsiBStrTestNative.MarshalPointer_Out(out strPara6);
         if (!strRet6.Equals(strRet))
         {
-            ReportFailure("Method PInvokeDef.MarshalPointer_Out[Managed Side],The Return string is wrong", strRet, strRet6);
+            ReportFailure("Method AnsiBStrTestNative.MarshalPointer_Out[Managed Side],The Return string is wrong", strRet, strRet6);
         }
         if (!strPara6.Equals(strNative))
         {
-            ReportFailure("Method PInvokeDef.MarshalPointer_Out[Managed Side],The Passed string is wrong", strNative, strPara6);
+            ReportFailure("Method AnsiBStrTestNative.MarshalPointer_Out[Managed Side],The Passed string is wrong", strNative, strPara6);
         }
 
         return ExitTest();

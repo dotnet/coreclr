@@ -11,9 +11,9 @@ using System.Text;
 
 namespace NativeDefs
 {
-    public static class PInvokeDef
+    public static class AnsiBStrTestNative
     {
-        public const string NativeBinaryName = "AnsiBStrTestNative";
+        public const string NativeBinaryName = nameof(AnsiBStrTestNative);
 
         [DllImport(NativeBinaryName)]
         [return: MarshalAs(UnmanagedType.AnsiBStr)]

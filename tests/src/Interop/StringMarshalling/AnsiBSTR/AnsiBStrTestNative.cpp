@@ -4,14 +4,14 @@
 #include <xplatform.h>
 #include "platformdefines.h"
 
-const char *strManaged = " \0Managed\0String\0 ";
-size_t lenstrManaged = 18; // the length of strManaged
+const char strManaged[] = " \0Managed\0String\0 ";
+size_t lenstrManaged = ARRAYSIZE(strManaged) - 1; // the length of strManaged
 
-const char *strReturn = "a";
-size_t lenstrReturn = 1; //the length of strReturn
+const char strReturn[] = "a";
+size_t lenstrReturn = ARRAYSIZE(strReturn) - 1; //the length of strReturn
 
-const char *strNative = "Native String";
-size_t lenstrNative = 13; //the len of strNative
+const char strNative[] = "Native String";
+size_t lenstrNative = ARRAYSIZE(strNative) - 1; //the len of strNative
 
 //Test Method1
 extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE Marshal_In(/*[in]*/ BSTR s)
