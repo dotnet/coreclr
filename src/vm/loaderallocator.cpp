@@ -1072,6 +1072,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     m_crstLoaderAllocator.Init(CrstLoaderAllocator, (CrstFlags)CRST_UNSAFE_COOPGC);
 #ifdef FEATURE_COMINTEROP
     m_InteropDataCrst.Init(CrstInteropData, CRST_REENTRANCY);
+    m_ComCallWrapperCrst.Init(CrstComCallWrapper);
 #endif
 
     //
@@ -1351,6 +1352,10 @@ void LoaderAllocator::Terminate()
     m_pUMEntryThunkCache = NULL;
 
     m_crstLoaderAllocator.Destroy();
+#ifdef FEATURE_COMINTEROP
+    m_ComCallWrapperCrst.Destroy();
+    m_InteropDataCrst.Destroy();
+#endif
     m_LoaderAllocatorReferences.RemoveAll();
 
     // In collectible types we merge the low frequency and high frequency heaps
@@ -1915,7 +1920,6 @@ void AssemblyLoaderAllocator::ReleaseManagedAssemblyLoadContext()
 }
 
 #ifdef FEATURE_COMINTEROP
-// TODO: should it rather go to AssemblyLoaderAllocator?
 ComCallWrapperCache * LoaderAllocator::GetComCallWrapperCache()
 {
     CONTRACTL
@@ -1929,8 +1933,7 @@ ComCallWrapperCache * LoaderAllocator::GetComCallWrapperCache()
 
     if (!m_pComCallWrapperCache)
     {
-        //        BaseDomain::LockHolder lh(this);
-                // TODO: add a lock
+        CrstHolder lh(&m_ComCallWrapperCrst);
 
         if (!m_pComCallWrapperCache)
             m_pComCallWrapperCache = ComCallWrapperCache::Create(this);

@@ -2234,11 +2234,11 @@ ComCallWrapper* ComCallWrapper::CopyFromTemplate(ComCallWrapperTemplate* pTempla
     // num interfaces on the object    
     size_t numInterfaces = pTemplate->GetNumInterfaces();
 
-    // we have a template, create a wrapper and initialize from the template
-    // alloc wrapper, aligned 32 bytes
     if (pWrapperCache->IsLoaderAllocatorUnloading())
         COMPlusThrow(kAppDomainUnloadedException);
     
+    // we have a template, create a wrapper and initialize from the template
+    // alloc wrapper, aligned to cache line
     NewCCWHolder pStartWrapper(pWrapperCache);
     pStartWrapper = (ComCallWrapper*)pWrapperCache->GetCacheLineAllocator()->
 #ifdef _WIN64
@@ -3844,6 +3844,7 @@ ComCallWrapperCache *ComCallWrapperCache::Create(LoaderAllocator *pLoaderAllocat
         GC_TRIGGERS;
         MODE_ANY;
         INJECT_FAULT(COMPlusThrowOM());
+        PRECONDITION(CheckPointer(pLoaderAllocator));
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END;

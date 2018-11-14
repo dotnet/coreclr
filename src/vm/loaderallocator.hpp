@@ -256,8 +256,9 @@ private:
     // The wrapper cache for this loader allocator - it has its own CCacheLineAllocator on a per loader allocator basis
     // to allow the loader allocator to go away and eventually kill the memory when all refs are gone
     
-    // TODO: is the volatile needed? The AppDomain version didn't have one
     VolatilePtr<ComCallWrapperCache> m_pComCallWrapperCache;
+    // Used for synchronizing creation of the m_pComCallWrapperCache
+    CrstExplicitInit m_ComCallWrapperCrst;
     // Hash table that maps a MethodTable to COM Interop compatibility data.
     PtrHashMap m_interopDataHash;
     // Used for synchronizing access to the m_interopDataHash
