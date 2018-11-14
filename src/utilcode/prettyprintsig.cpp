@@ -686,6 +686,51 @@ static HRESULT PrettyPrintTypeA(
         str = "class "; 
         goto DO_CLASS;
         
+    case ELEMENT_TYPE_CMOD_REQD:
+        str = "required_modifier ";
+        IfFailGo(appendStrA(out, str));
+    
+        typePtr += CorSigUncompressToken(typePtr, &tk);
+        str = "<UNKNOWN>";
+    
+        if (TypeFromToken(tk) == mdtTypeSpec)
+        {
+            ULONG cSig;
+            PCCOR_SIGNATURE sig;
+            IfFailGo(pIMDI->GetSigFromToken(tk, &cSig, &sig));
+            IfFailGo(PrettyPrintTypeA(sig, cSig, out, pIMDI));
+        }
+        else
+        {
+            if (TypeFromToken(tk) == mdtTypeRef)
+            {
+                //<TODO>@consider: assembly name?</TODO>
+                if (FAILED(pIMDI->GetNameOfTypeRef(tk, &pNS, &pN)))
+                {
+                    pNS = pN = "Invalid TypeRef record";
+                }
+            }
+            else
+            {
+                _ASSERTE(TypeFromToken(tk) == mdtTypeDef);
+                if (FAILED(pIMDI->GetNameOfTypeDef(tk, &pN, &pNS)))
+                {
+                    pNS = pN = "Invalid TypeDef record";
+                }
+            }
+    
+            if (pNS && *pNS)
+            {
+                IfFailGo(appendStrA(out, pNS));
+                IfFailGo(appendStrA(out, NAMESPACE_SEPARATOR_STR));
+            }
+            IfFailGo(appendStrA(out, pN));
+        }
+    
+        IfFailGo(appendStrA(out, " "));
+        IfFailGo(PrettyPrintTypeA(typePtr, (typeEnd - typePtr), out, pIMDI));
+        break;
+        
     case ELEMENT_TYPE_CMOD_OPT:
         str = "optional_modifier ";
         goto DO_CLASS;
@@ -728,13 +773,6 @@ static HRESULT PrettyPrintTypeA(
             }
             IfFailGo(appendStrA(out, pN));
         }
-        break;
-
-    case ELEMENT_TYPE_CMOD_REQD:
-        str = "required_modifier ";
-        IfFailGo(appendStrA(out, str));
-        typePtr += CorSigUncompressToken(typePtr, &tk);
-        IfFailGo(PrettyPrintTypeA(typePtr, (typeEnd - typePtr), out, pIMDI));
         break;
 
     case ELEMENT_TYPE_SZARRAY:
