@@ -313,7 +313,7 @@ def baseline_build():
                 dockerOpts = Docker_opts_arm64
 
             dockerCmd = 'docker run -i --rm -v %s:%s -w %s %s %s ' % (baseCoreClrPath, baseCoreClrPath, baseCoreClrPath, dockerOpts, dockerFile)
-            buildOpts = 'cross crosscomponent'
+            buildOpts = 'cross'
             scriptPath = baseCoreClrPath
 
         # Build a checked baseline jit 
