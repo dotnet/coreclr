@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+#include <xplatform.h>
 #include "platformdefines.h"
 
 const char *strManaged = " \0Managed\0String\0 ";
@@ -23,13 +24,13 @@ extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE Marshal_In(/*[in]*/ BSTR s)
 
         //Expected
         printf("Expected:");
-        for (int i = 0; i < lenstrManaged; ++i)
+        for (size_t i = 0; i < lenstrManaged; ++i)
             putchar(*(((char *)strManaged) + i));
         printf("\tThe length of Expected:%zd\n", lenstrManaged);
 
         //Actual
         printf("Actual:");
-        for (int j = 0; j < len; ++j)
+        for (size_t j = 0; j < len; ++j)
             putchar(*(((char *)s) + j));
         printf("\tThe length of Actual:%zd\n", len);
     }
@@ -49,13 +50,13 @@ extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE Marshal_InOut(/*[In,Out]*/ BSTR s)
 
         //Expected
         printf("Expected:");
-        for (int i = 0; i < lenstrManaged; ++i)
+        for (size_t i = 0; i < lenstrManaged; ++i)
             putchar(*(((char *)strManaged) + i));
         printf("\tThe length of Expected:%zd\n", lenstrManaged);
 
         //Actual
         printf("Actual:");
-        for (int j = 0; j < len; ++j)
+        for (size_t j = 0; j < len; ++j)
             putchar(*(((char *)s) + j));
         printf("\tThe length of Actual:%zd\n", len);
     }
@@ -89,13 +90,13 @@ extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE MarshalPointer_In(/*[in]*/ BSTR *s)
 
         //Expected
         printf("Expected:");
-        for (int i = 0; i < lenstrManaged; ++i)
+        for (size_t i = 0; i < lenstrManaged; ++i)
             putchar(*(((char *)strManaged) + i));
         printf("\tThe length of Expected:%zd\n", lenstrManaged);
 
         //Actual
         printf("Actual:");
-        for (int j = 0; j < len; ++j)
+        for (size_t j = 0; j < len; ++j)
             putchar(*(((char *)*s) + j));
         printf("\tThe length of Actual:%zd\n", len);
     }
@@ -113,14 +114,14 @@ extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE MarshalPointer_InOut(/*[in,out]*/ B
 
         //Expected
         printf("Expected:");
-        for (int i = 0; i < lenstrManaged; ++i)
+        for (size_t i = 0; i < lenstrManaged; ++i)
             putchar(*(((char *)strManaged) + i));
 
         printf("\tThe length of Expected:%zd\n", lenstrManaged);
 
         //Actual
         printf("Actual:");
-        for (int j = 0; j < len; ++j)
+        for (size_t j = 0; j < len; ++j)
             putchar(*(((char *)*s) + j));
 
         printf("\tThe length of Actual:%zd\n", len);
