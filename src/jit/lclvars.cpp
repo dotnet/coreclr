@@ -387,11 +387,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
     if (!info.compIsStatic)
     {
         varDsc->lvIsParam = 1;
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
-
-        varDsc->lvIsPtr = 1;
+        varDsc->lvIsPtr   = 1;
 
         lvaArg0Var = info.compThisArg = varDscInfo->varNum;
         noway_assert(info.compThisArg == 0);
@@ -474,9 +470,7 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
         varDsc->lvType      = TYP_BYREF;
         varDsc->lvIsParam   = 1;
         varDsc->lvIsRegArg  = 1;
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
+
         if (hasFixedRetBuffReg())
         {
             varDsc->lvArgReg = theFixedRetBuffReg();
@@ -564,9 +558,6 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
         CorInfoTypeWithMod corInfoType = info.compCompHnd->getArgType(&info.compMethodInfo->args, argLst, &typeHnd);
         varDsc->lvIsParam              = 1;
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
 
         lvaInitVarDsc(varDsc, varDscInfo->varNum, strip(corInfoType), typeHnd, argLst, &info.compMethodInfo->args);
 
@@ -1046,11 +1037,7 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
 
         LclVarDsc* varDsc = varDscInfo->varDsc;
         varDsc->lvIsParam = 1;
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
-
-        varDsc->lvType = TYP_I_IMPL;
+        varDsc->lvType    = TYP_I_IMPL;
 
         if (varDscInfo->canEnreg(TYP_I_IMPL))
         {
@@ -1111,10 +1098,6 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
         // hammer.  But I think it should be possible to switch; it may just work now
         // that other problems are fixed.
         lvaSetVarAddrExposed(varDscInfo->varNum);
-
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
 
         if (varDscInfo->canEnreg(TYP_I_IMPL))
         {
@@ -4155,6 +4138,10 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
         {
             varDsc->lvSlotNum = lclNum;
         }
+
+        // Set initial value for lvSingleDef for explicit and implicit
+        // argument locals as they are "defined" on entry.
+        varDsc->lvSingleDef = varDsc->lvIsParam;
     }
 
     JITDUMP("\n*** lvaComputeRefCounts -- explicit counts ***\n");
