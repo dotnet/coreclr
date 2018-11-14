@@ -34,10 +34,14 @@ Do the following:
 1. Build the CoreCLR you wish to test under `<coreclr_root>`.
 2. Build the CoreFX repo (using `build.[cmd|sh]`) under `<corefx_root>`, but don't build tests yet.
 3. Copy the contents of the CoreCLR binary root you wish to test into the CoreFX runtime
-folder (`<flavor>` below) created in step #2. For example:
+folder created in step #2.
+
+For example:
 
 `copy <coreclr_root>\bin\Product\Windows_NT.<arch>.<build_type>\* <corefx_root>\artifacts\bin\testhost\netcoreapp-Windows_NT-<build_type>-<arch>\shared\Microsoft.NETCore.App\9.9.9`
+
 -or-  
+
 `cp <coreclr_root>/bin/Product/<os>.<arch>.<build_type>/* <corefx_root>/artifacts/bin/testhost/netcoreapp-<os>-<build_type>-<arch>/shared/Microsoft.NETCore.App/9.9.9`
   
 4. Build and run the CoreFX tests using `build.[cmd|sh] -test` as described in the Developer Guide.
@@ -89,12 +93,12 @@ you would like to run.
 
 For Windows:
 ```cmd
-<coreclr_root>\bin\<os>.<arch>.<build_type>\testhost\dotnet.exe <corefx_root>\artifacts\bin\tests\<testname>\xunit.console.netcore.exe <testname>.dll
+<coreclr_root>\bin\<os>.<arch>.<build_type>\testhost\dotnet.exe .\xunit.console.netcore.exe <testname>.dll
 ```
 
 For Linux:
 ```sh
-<coreclr_root>/bin/<os>.<arch>.<build_type>/testhost/dotnet <corefx_root>/artifacts/bin/tests/<testname>/xunit.console.netcore.exe <testname>.dll
+<coreclr_root>/bin/<os>.<arch>.<build_type>/testhost/dotnet ./xunit.console.netcore.exe <testname>.dll
 ```
 
 followed by any extra command-line arguments for xunit.
