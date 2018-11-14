@@ -1035,9 +1035,9 @@ public:
     void dmpGetFieldName(DWORDLONG key, DD value);
     const char* repGetFieldName(CORINFO_FIELD_HANDLE ftn, const char** moduleName);
 
-    void recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, BOOL result);
+    void recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, CorInfoObjectVTableTypeCheckInliningResult result);
     void dmpCanInlineTypeCheckWithObjectVTable(DWORDLONG key, DWORD value);
-    BOOL repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls);
+    CorInfoObjectVTableTypeCheckInliningResult repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls);
 
     void recSatisfiesMethodConstraints(CORINFO_CLASS_HANDLE parent, CORINFO_METHOD_HANDLE method, BOOL result);
     void dmpSatisfiesMethodConstraints(DLDL key, DWORD value);

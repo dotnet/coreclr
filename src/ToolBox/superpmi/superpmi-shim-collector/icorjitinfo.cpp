@@ -595,12 +595,12 @@ BOOL interceptor_ICJI::isValueClass(CORINFO_CLASS_HANDLE cls)
     return temp;
 }
 
-// If this method returns true, JIT will do optimization to inline the check for
+// Decides how the JIT should do the optimization to inline the check for
 //     GetTypeFromHandle(handle) == obj.GetType()
-BOOL interceptor_ICJI::canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
+CorInfoObjectVTableTypeCheckInliningResult interceptor_ICJI::canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
 {
     mc->cr->AddCall("canInlineTypeCheckWithObjectVTable");
-    BOOL temp = original_ICorJitInfo->canInlineTypeCheckWithObjectVTable(cls);
+    CorInfoObjectVTableTypeCheckInliningResult temp = original_ICorJitInfo->canInlineTypeCheckWithObjectVTable(cls);
     mc->recCanInlineTypeCheckWithObjectVTable(cls, temp);
     return temp;
 }

@@ -3829,11 +3829,11 @@ BOOL CEEInfo::isValueClass(CORINFO_CLASS_HANDLE clsHnd)
 }
 
 /*********************************************************************/
-// If this method returns true, JIT will do optimization to inline the check for
-//     GetClassFromHandle(handle) == obj.GetType()
+// Decides how the JIT should do the optimization to inline the check for
+//     GetTypeFromHandle(handle) == obj.GetType()
 //
 // This will enable to use directly the typehandle instead of going through getClassByHandle
-BOOL CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
+CorInfoObjectVTableTypeCheckInliningResult CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
         SO_TOLERANT;
@@ -3842,7 +3842,7 @@ BOOL CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
-    BOOL ret = FALSE;
+    CorInfoObjectVTableTypeCheckInliningResult ret = CORINFO_INLINE_TYPECHECK_NEVER;
 
     JIT_TO_EE_TRANSITION_LEAF();
 
@@ -3853,13 +3853,13 @@ BOOL CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
     if (VMClsHnd.IsTypeDesc())
     {
         // We can't do this optimization for arrays because of the object methodtable is template methodtable
-        ret = FALSE;
+        ret = CORINFO_INLINE_TYPECHECK_NEVER;
     }
     else
     if (VMClsHnd.AsMethodTable()->IsMarshaledByRef())
     {
         // We can't do this optimization for marshalbyrefs because of the object methodtable can be transparent proxy
-        ret = FALSE;
+        ret = CORINFO_INLINE_TYPECHECK_NEVER;
     }
     else
     if (VMClsHnd.AsMethodTable()->IsInterface())
@@ -3869,19 +3869,19 @@ BOOL CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
         // as expected for WCF custom remoting proxy. Note that this optimization is still not going to work well for custom
         // remoting proxies that are even more broken than the WCF one, e.g. returning random non-marshalbyref types 
         // from Object.GetType().
-        ret = FALSE;
+        ret = CORINFO_INLINE_TYPECHECK_NEVER;
     }
     else
     if (VMClsHnd == TypeHandle(g_pCanonMethodTableClass))   
     {
         // We can't do this optimization in shared generics code because of we do not know what the actual type is going to be.
         // (It can be array, marshalbyref, etc.)
-        ret = FALSE;
+        ret = CORINFO_INLINE_TYPECHECK_NEVER;
     }
     else
     {
         // It is safe to perform this optimization
-        ret = TRUE;
+        ret = CORINFO_INLINE_TYPECHECK_PASS;
     }
 
     EE_TO_JIT_TRANSITION_LEAF();

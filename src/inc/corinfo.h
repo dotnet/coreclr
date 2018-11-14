@@ -1025,6 +1025,12 @@ enum CorInfoInlineRestrictions
     INLINE_SAME_THIS        = 0x00000004, // You can inline only if the callee is on the same this reference as caller
 };
 
+enum CorInfoObjectVTableTypeCheckInliningResult
+{
+    CORINFO_INLINE_TYPECHECK_NEVER      = 0x00000000, // It's not okay to compare type's vtable with a native type handle
+    CORINFO_INLINE_TYPECHECK_PASS       = 0x00000001, // It's okay to compare type's vtable with a native type handle
+    CORINFO_INLINE_TYPECHECK_USE_HELPER = 0x00000002, // Use a specialized helper to compare type's vtable with native type handle
+};
 
 // If you add more values here, keep it in sync with TailCallTypeMap in ..\vm\ClrEtwAll.man
 // and the string enum in CEEInfo::reportTailCallDecision in ..\vm\JITInterface.cpp
@@ -2338,9 +2344,9 @@ public:
     // Quick check whether the type is a value class. Returns the same value as getClassAttribs(cls) & CORINFO_FLG_VALUECLASS, except faster.
     virtual BOOL isValueClass(CORINFO_CLASS_HANDLE cls) = 0;
 
-    // If this method returns true, JIT will do optimization to inline the check for
+    // Decides how the JIT should do the optimization to inline the check for
     //     GetTypeFromHandle(handle) == obj.GetType()
-    virtual BOOL canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls) = 0;
+    virtual CorInfoObjectVTableTypeCheckInliningResult canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls) = 0;
 
     // return flags (defined above, CORINFO_FLG_PUBLIC ...)
     virtual DWORD getClassAttribs (

@@ -3591,11 +3591,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 {
                     op1 = impPopStack().val;
                     // Replace helper with a more specialized helper that returns RuntimeType
-                    op1 = op1->gtCall.gtCallArgs;
-                    assert(op1->OperIsList());
-                    assert(op1->gtOp.gtOp2 == nullptr);
-                    GenTreeArgList* helperArgs = gtNewArgList(op1->gtOp.gtOp1);
-                    op1 = gtNewHelperCallNode(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE, TYP_REF, helperArgs);
+                    assert(op1->gtCall.gtCallArgs->gtOp.gtOp2 == nullptr);
+                    op1 = gtNewHelperCallNode(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE, TYP_REF, op1->gtCall.gtCallArgs);
                     op1->gtType = TYP_REF;
                     retNode     = op1;
                 }

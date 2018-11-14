@@ -4371,7 +4371,7 @@ const char* MethodContext::repGetFieldName(CORINFO_FIELD_HANDLE ftn, const char*
     return (const char*)GetFieldName->GetBuffer(value.A);
 }
 
-void MethodContext::recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, BOOL result)
+void MethodContext::recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, CorInfoObjectVTableTypeCheckInliningResult result)
 {
     if (CanInlineTypeCheckWithObjectVTable == nullptr)
         CanInlineTypeCheckWithObjectVTable = new LightWeightMap<DWORDLONG, DWORD>();
@@ -4382,11 +4382,11 @@ void MethodContext::dmpCanInlineTypeCheckWithObjectVTable(DWORDLONG key, DWORD v
 {
     printf("CanInlineTypeCheckWithObjectVTable key cls-%016llX, value res-%u", key, value);
 }
-BOOL MethodContext::repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
+CorInfoObjectVTableTypeCheckInliningResult MethodContext::repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
 {
     AssertCodeMsg(CanInlineTypeCheckWithObjectVTable != nullptr, EXCEPTIONCODE_MC,
                   "No map for CanInlineTypeCheckWithObjectVTable");
-    return (BOOL)CanInlineTypeCheckWithObjectVTable->Get((DWORDLONG)cls);
+    return (CorInfoObjectVTableTypeCheckInliningResult)CanInlineTypeCheckWithObjectVTable->Get((DWORDLONG)cls);
 }
 
 void MethodContext::recSatisfiesMethodConstraints(CORINFO_CLASS_HANDLE  parent,

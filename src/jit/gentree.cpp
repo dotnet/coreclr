@@ -11819,30 +11819,33 @@ GenTree* Compiler::gtFoldExprCompare(GenTree* tree)
 //    oper -- comparison operation (equal/not equal)
 //    op1 -- first operand
 //    op2 -- second operand
-//    canComparePointers -- flag indicating whether it's safe to compare handles as integers
+//    typeCheckInliningResult -- indicates how the comparison should happen
 //
 // Returns:
 //    Type comparison tree
 //
 
-GenTree* Compiler::gtCreateHandleCompare(genTreeOps oper, GenTree* op1, GenTree* op2, bool canComparePointers)
+GenTree* Compiler::gtCreateHandleCompare(genTreeOps oper, GenTree* op1, GenTree* op2, CorInfoObjectVTableTypeCheckInliningResult typeCheckInliningResult)
 {
     // If we can compare pointers directly, just emit the binary operation
-    if (canComparePointers)
+    if (typeCheckInliningResult == CORINFO_INLINE_TYPECHECK_PASS)
     {
         return gtNewOperNode(oper, TYP_INT, op1, op2);
     }
     
-    // CoreRT has a helper to do comparison otherwise. This helper is not present in CoreCLR.
-    assert(IsTargetAbi(CORINFO_CORERT_ABI));
+    assert(typeCheckInliningResult == CORINFO_INLINE_TYPECHECK_USE_HELPER);
 
     // Emit a call to a runtime helper
     GenTreeArgList* helperArgs = gtNewArgList(op1, op2);
     GenTree* ret = gtNewHelperCallNode(CORINFO_HELP_ARE_TYPES_EQUIVALENT, TYP_INT, helperArgs);
-    if (oper != GT_EQ)
+    if (oper == GT_EQ)
+    {
+        ret = gtNewOperNode(GT_NE, TYP_INT, ret, gtNewIconNode(0, TYP_INT));
+    }
+    else
     {
         assert(oper == GT_NE);
-        ret = gtNewOperNode(GT_NOT, TYP_INT, ret);
+        ret = gtNewOperNode(GT_EQ, TYP_INT, ret, gtNewIconNode(0, TYP_INT));
     }
 
     return ret;
@@ -11967,11 +11970,15 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         GenTree* compare = nullptr;
         if ((op1TunneledHandle != nullptr) && (op2TunneledHandle != nullptr))
         {
-            compare = gtCreateHandleCompare(oper, op1TunneledHandle, op2TunneledHandle, !IsTargetAbi(CORINFO_CORERT_ABI));
+            CorInfoObjectVTableTypeCheckInliningResult inliningKind = IsTargetAbi(CORINFO_CORERT_ABI) ?
+                CORINFO_INLINE_TYPECHECK_USE_HELPER : CORINFO_INLINE_TYPECHECK_PASS;
+            compare = gtCreateHandleCompare(oper, op1TunneledHandle, op2TunneledHandle, inliningKind);
         }
         else
         {
-            compare = gtCreateHandleCompare(oper, op1ClassFromHandle, op2ClassFromHandle, !IsTargetAbi(CORINFO_CORERT_ABI));
+            CorInfoObjectVTableTypeCheckInliningResult inliningKind = IsTargetAbi(CORINFO_CORERT_ABI) ?
+                CORINFO_INLINE_TYPECHECK_USE_HELPER : CORINFO_INLINE_TYPECHECK_PASS;
+            compare = gtCreateHandleCompare(oper, op1ClassFromHandle, op2ClassFromHandle, inliningKind);
         }
 
         // Drop any now-irrelvant flags
@@ -12007,8 +12014,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
 
     // Ask the VM if this type can be equality tested by a simple method
     // table comparison.
-    BOOL canInlineTypeCheckWithObjectVTable = info.compCompHnd->canInlineTypeCheckWithObjectVTable(clsHnd);
-    if (!canInlineTypeCheckWithObjectVTable && !IsTargetAbi(CORINFO_CORERT_ABI))
+    CorInfoObjectVTableTypeCheckInliningResult typeCheckInliningResult = info.compCompHnd->canInlineTypeCheckWithObjectVTable(clsHnd);
+    if (typeCheckInliningResult == CORINFO_INLINE_TYPECHECK_NEVER)
     {
         return tree;
     }
@@ -12042,7 +12049,7 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
     optMethodFlags |= OMF_HAS_VTABLEREF;
 
     // Compare the two method tables
-    GenTree* const compare = gtCreateHandleCompare(oper, objMT, knownMT, canInlineTypeCheckWithObjectVTable);
+    GenTree* const compare = gtCreateHandleCompare(oper, objMT, knownMT, typeCheckInliningResult);
 
     // Drop any any now irrelevant flags
     compare->gtFlags |= tree->gtFlags & (GTF_RELOP_JMP_USED | GTF_RELOP_QMARK | GTF_DONT_CSE);

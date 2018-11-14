@@ -395,10 +395,10 @@ BOOL WrapICorJitInfo::isValueClass(CORINFO_CLASS_HANDLE cls)
     return temp;
 }
 
-BOOL WrapICorJitInfo::canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
+CorInfoObjectVTableTypeCheckInliningResult WrapICorJitInfo::canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
 {
     API_ENTER(canInlineTypeCheckWithObjectVTable);
-    BOOL temp = wrapHnd->canInlineTypeCheckWithObjectVTable(cls);
+    CorInfoObjectVTableTypeCheckInliningResult temp = wrapHnd->canInlineTypeCheckWithObjectVTable(cls);
     API_LEAVE(canInlineTypeCheckWithObjectVTable);
     return temp;
 }

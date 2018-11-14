@@ -481,7 +481,7 @@ public:
                                   BOOL fFullInst,
                                   BOOL fAssembly);
     BOOL isValueClass (CORINFO_CLASS_HANDLE cls);
-    BOOL canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE cls);
+    CorInfoObjectVTableTypeCheckInliningResult canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE cls);
 
     DWORD getClassAttribs (CORINFO_CLASS_HANDLE cls);
 
