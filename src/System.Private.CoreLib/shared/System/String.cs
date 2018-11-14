@@ -532,6 +532,17 @@ namespace System
             return new CharEnumerator(this);
         }
 
+        /// <summary>
+        /// Returns an enumeration of <see cref="Rune"/> from this string.
+        /// </summary>
+        /// <remarks>
+        /// Invalid sequences will be represented in the enumeration by <see cref="Rune.ReplacementChar"/>.
+        /// </remarks>
+        public RuneEnumerator EnumerateRunes()
+        {
+            return new RuneEnumerator(this);
+        }
+
         internal static unsafe int wcslen(char* ptr)
         {
             char* end = ptr;
