@@ -13,7 +13,6 @@ if [ "$PYTHON" == "" ] ; then
        exit 1
     fi
 fi
-
 # validate python-dependency
 # useful in case of explicitly set option.
 if ! command -v $PYTHON > /dev/null
@@ -337,10 +336,8 @@ build_native()
 
 build_cross_architecture_components()
 {
-    local crossArch="$1"
-
-    local intermediatesForBuild="$__IntermediatesDir/Host$crossArch/crossgen"
-    local crossArchBinDir="$__BinDir/$crossArch"
+    local intermediatesForBuild="$__IntermediatesDir/Host$__CrossArch/crossgen"
+    local crossArchBinDir="$__BinDir/$__CrossArch"
 
     mkdir -p "$intermediatesForBuild"
     mkdir -p "$crossArchBinDir"
@@ -349,11 +346,11 @@ build_cross_architecture_components()
 
     __SkipCrossArchBuild=1
     # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
-    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$crossArch" == "x86" ]]; then
+    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$__CrossArch" == "x86" ]]; then
         __SkipCrossArchBuild=0
-    elif [[ ("$__BuildArch" == "arm64") && "$crossArch" == "x64" ]]; then
+    elif [[ ("$__BuildArch" == "arm64") && "$__CrossArch" == "x64" ]]; then
         __SkipCrossArchBuild=0
-    elif [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$crossArch" == "x64" ]]; then
+    elif [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$__CrossArch" == "x64" ]]; then
         __SkipCrossArchBuild=0
     else
         # not supported
@@ -364,7 +361,7 @@ build_cross_architecture_components()
     export CROSSCOMPILE=0
 
     __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize -DCLR_CROSS_COMPONENTS_BUILD=1"
-    build_native $__SkipCrossArchBuild "$crossArch" "$intermediatesForBuild" "$__ExtraCmakeArgs" "cross-architecture components"
+    build_native $__SkipCrossArchBuild "$__CrossArch" "$intermediatesForBuild" "$__ExtraCmakeArgs" "cross-architecture components"
 
     export CROSSCOMPILE=1
 }
@@ -1027,7 +1024,7 @@ build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeA
 
 # Build cross-architecture components
 if [[ $__CrossBuild == 1 ]]; then
-    build_cross_architecture_components "$__CrossArch"
+    build_cross_architecture_components
 fi
 
 # Build System.Private.CoreLib.
