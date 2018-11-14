@@ -62,7 +62,7 @@ extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE Marshal_InOut(/*[In,Out]*/ BSTR s)
     }
 
     //In-Place Change
-    memcpy_s((char *)s, lenstrManaged, strNative, lenstrNative);
+    memcpy((char *)s, strNative, lenstrNative);
     *((UINT *)s - 1) = (UINT) TP_SysStringByteLen(s);
 
     //Return
@@ -73,7 +73,7 @@ extern "C" DLL_EXPORT BSTR STDMETHODCALLTYPE Marshal_Out(/*[Out]*/ BSTR s)
     s = TP_SysAllocStringByteLen(strNative, lenstrNative);
 
     //In-Place Change
-    memcpy_s((char *)s, lenstrManaged, strNative, lenstrNative);
+    memcpy((char *)s, strNative, lenstrNative);
     *((UINT *)s - 1) = (UINT) TP_SysStringByteLen(s);
 
     //Return
