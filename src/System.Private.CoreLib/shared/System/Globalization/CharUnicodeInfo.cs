@@ -12,6 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Text;
 using Internal.Runtime.CompilerServices;
@@ -156,9 +157,11 @@ namespace System.Globalization
                 // Note that & has the lower precedence than addition, so don't forget the parathesis.
                 index = NumericLevel2Index[(index << 4) + ((ch >> 4) & 0x000f)];
                 index = NumericLevel3Index[(index << 4) + (ch & 0x000f)];
+                ref var value = ref Unsafe.AsRef(in NumericValues[index * 8]);
 
-                Debug.Assert(BitConverter.IsLittleEndian);
-                return Unsafe.As<byte, double>(ref Unsafe.AsRef(in NumericValues[index * 8]));
+                if (BitConverter.IsLittleEndian)
+                    return Unsafe.ReadUnaligned<double>(ref value);
+                return BitConverter.Int64BitsToDouble(BinaryPrimitives.ReverseEndianness(Unsafe.ReadUnaligned<long>(ref value)));
             }
             return -1;
         }
@@ -298,9 +301,9 @@ namespace System.Globalization
             int index = CategoryLevel1Index[ch >> 9];
             // Get the level 2 WORD offset from the next 5 bits of ch.  This provides the base offset of the level 3 table.
             // Note that & has the lower precedence than addition, so don't forget the parathesis.
-            index = Unsafe.As<byte, ushort>(ref Unsafe.AsRef(in CategoryLevel2Index[(index << 6) + ((ch >> 3) & 0b111110)]));
+            index = Unsafe.ReadUnaligned<ushort>(ref Unsafe.AsRef(in CategoryLevel2Index[(index << 6) + ((ch >> 3) & 0b111110)]));
             if (!BitConverter.IsLittleEndian)
-                index = Buffers.Binary.BinaryPrimitives.ReverseEndianness((ushort)index);
+                index = BinaryPrimitives.ReverseEndianness((ushort)index);
 
             // Get the result from the 0 -3 bit of ch.
             index = CategoryLevel3Index[(index << 4) + (ch & 0x000f)];
