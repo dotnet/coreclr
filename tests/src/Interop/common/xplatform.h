@@ -47,6 +47,7 @@
 #else
     #include "types.h"
 
+    #define ARRAYSIZE(x)    (sizeof(x)/sizeof(x[0]))
 #endif
 #include <wchar.h>
 
