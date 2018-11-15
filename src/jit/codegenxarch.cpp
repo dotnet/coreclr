@@ -520,6 +520,46 @@ void CodeGen::genCodeForNegNot(GenTree* tree)
     genProduceReg(tree);
 }
 
+//------------------------------------------------------------------------
+// genCodeForBswap: Produce code for a GT_BSWAP / GT_BSWAP16 node.
+//
+// Arguments:
+//    tree - the node
+//
+void CodeGen::genCodeForBswap(GenTree* tree)
+{
+    // TODO: If we're swapping immediately after a read from memory or immediately before
+    // a write to memory, use the MOVBE instruction instead of the BSWAP instruction if
+    // the platform supports it.
+
+    assert(tree->OperIs(GT_BSWAP, GT_BSWAP16));
+
+    regNumber targetReg  = tree->gtRegNum;
+    var_types targetType = tree->TypeGet();
+
+    GenTree* operand = tree->gtGetOp1();
+    assert(operand->isUsedFromReg());
+    regNumber operandReg = genConsumeReg(operand);
+
+    if (operandReg != targetReg)
+    {
+        inst_RV_RV(INS_mov, targetReg, operandReg, targetType);
+    }
+
+    if (tree->OperIs(GT_BSWAP))
+    {
+        // 32-bit and 64-bit byte swaps use "bswap reg"
+        inst_RV(INS_bswap, targetReg, targetType);
+    }
+    else
+    {
+        // 16-bit byte swaps use "ror reg.16, 8"
+        inst_RV_IV(INS_ror_N, targetReg, 8 /* val */, emitAttr::EA_2BYTE);
+    }
+
+    genProduceReg(tree);
+}
+
 // Generate code to get the high N bits of a N*N=2N bit multiplication result
 void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
 {
@@ -1562,6 +1602,11 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             genCodeForNegNot(treeNode);
             break;
 
+        case GT_BSWAP:
+        case GT_BSWAP16:
+            genCodeForBswap(treeNode);
+            break;
+
         case GT_DIV:
             if (varTypeIsFloating(treeNode->TypeGet()))
             {
@@ -2152,20 +2197,7 @@ void CodeGen::genLclHeap(GenTree* tree)
     BasicBlock* endLabel  = nullptr;
 
 #ifdef DEBUG
-    // Verify ESP
-    if (compiler->opts.compStackCheckOnRet)
-    {
-        noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
-        getEmitter()->emitIns_S_R(INS_cmp, EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnEspCheck, 0);
-
-        BasicBlock*  esp_check = genCreateTempLabel();
-        emitJumpKind jmpEqual  = genJumpKindForOper(GT_EQ, CK_SIGNED);
-        inst_JMP(jmpEqual, esp_check);
-        getEmitter()->emitIns(INS_BREAKPOINT);
-        genDefineTempLabel(esp_check);
-    }
+    genStackPointerCheck(compiler->opts.compStackCheckOnRet, compiler->lvaReturnSpCheck);
 #endif
 
     noway_assert(isFramePointerUsed()); // localloc requires Frame Pointer to be established since SP changes
@@ -2473,13 +2505,13 @@ BAILOUT:
 #endif
 
 #ifdef DEBUG
-    // Update new ESP
+    // Update local variable to reflect the new stack pointer.
     if (compiler->opts.compStackCheckOnRet)
     {
-        noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnEspCheck, 0);
+        noway_assert(compiler->lvaReturnSpCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaReturnSpCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaReturnSpCheck].lvOnFrame);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnSpCheck, 0);
     }
 #endif
 
@@ -5167,6 +5199,17 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         }
     }
 
+#if defined(DEBUG) && defined(_TARGET_X86_)
+    // Store the stack pointer so we can check it after the call.
+    if (compiler->opts.compStackCheckOnCall && call->gtCallType == CT_USER_FUNC)
+    {
+        noway_assert(compiler->lvaCallSpCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaCallSpCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaCallSpCheck].lvOnFrame);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaCallSpCheck, 0);
+    }
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
+
     bool            fPossibleSyncHelperCall = false;
     CorInfoHelpFunc helperNum               = CORINFO_HELP_UNDEF;
 
@@ -5480,6 +5523,33 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     {
         gcInfo.gcMarkRegSetNpt(RBM_INTRET);
     }
+
+#if defined(DEBUG) && defined(_TARGET_X86_)
+    if (compiler->opts.compStackCheckOnCall && call->gtCallType == CT_USER_FUNC)
+    {
+        noway_assert(compiler->lvaCallSpCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaCallSpCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaCallSpCheck].lvOnFrame);
+        if (!fCallerPop && (stackArgBytes != 0))
+        {
+            // ECX is trashed, so can be used to compute the expected SP. We saved the value of SP
+            // after pushing all the stack arguments, but the caller popped the arguments, so we need
+            // to do some math to figure a good comparison.
+            getEmitter()->emitIns_R_R(INS_mov, EA_4BYTE, REG_ARG_0, REG_SPBASE);
+            getEmitter()->emitIns_R_I(INS_sub, EA_4BYTE, REG_ARG_0, stackArgBytes);
+            getEmitter()->emitIns_S_R(INS_cmp, EA_4BYTE, REG_ARG_0, compiler->lvaCallSpCheck, 0);
+        }
+        else
+        {
+            getEmitter()->emitIns_S_R(INS_cmp, EA_4BYTE, REG_SPBASE, compiler->lvaCallSpCheck, 0);
+        }
+
+        BasicBlock* sp_check = genCreateTempLabel();
+        getEmitter()->emitIns_J(INS_je, sp_check);
+        instGen(INS_BREAKPOINT);
+        genDefineTempLabel(sp_check);
+    }
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
 
 #if !FEATURE_EH_FUNCLETS
     //-------------------------------------------------------------------------

@@ -3622,7 +3622,7 @@ private:
     static void __stdcall RedirectedHandledJITCaseForGCThreadControl();
     static void __stdcall RedirectedHandledJITCaseForUserSuspend();
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
-    static void __stdcall Thread::RedirectedHandledJITCaseForGCStress();
+    static void __stdcall RedirectedHandledJITCaseForGCStress();
 #endif // defined(HAVE_GCCOVER) && USE_REDIRECT_FOR_GCSTRESS
 
     friend void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThread);
@@ -7277,7 +7277,7 @@ class Compiler;
 struct ThreadLocalInfo
 {
     Thread* m_pThread;
-    AppDomain* m_pAppDomain;
+    AppDomain* m_pAppDomain; // This field is read only by the SOS plugin to get the AppDomain
     void** m_EETlsData; // ClrTlsInfo::data
 };
 

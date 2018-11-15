@@ -4201,13 +4201,14 @@ inline void Compiler::CLR_API_Leave(API_ICorJitInfo_Names ename)
 //             false otherwise
 //
 // Notes:
-//     Structs with GC pointer fields are fully zero-initialized in the prolog if compInitMem is true.
-//     Therefore, we don't need to insert zero-initialization if this block is not in a loop.
+//     If compInitMem is true, structs with GC pointer fields and long-lifetime structs
+//     are fully zero-initialized in the prologue. Therefore, we don't need to insert
+//     zero-initialization in this block if it is not in a loop.
 
 bool Compiler::fgStructTempNeedsExplicitZeroInit(LclVarDsc* varDsc, BasicBlock* block)
 {
     bool containsGCPtr = (varDsc->lvStructGcCount > 0);
-    return (!containsGCPtr || !info.compInitMem || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0));
+    return (!info.compInitMem || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0) || (!containsGCPtr && varDsc->lvIsTemp));
 }
 
 /*****************************************************************************/
@@ -4311,6 +4312,8 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_STORE_LCL_FLD:
         case GT_NOT:
         case GT_NEG:
+        case GT_BSWAP:
+        case GT_BSWAP16:
         case GT_COPY:
         case GT_RELOAD:
         case GT_ARR_LENGTH:
