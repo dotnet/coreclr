@@ -3809,6 +3809,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
             GenTree* ptrToSpan      = impPopStack().val;
             GenTree* indexClone     = nullptr;
             GenTree* ptrToSpanClone = nullptr;
+            assert(varTypeIsIntegral(index));
+            assert(ptrToSpan->TypeGet() == TYP_BYREF);
 
 #if defined(DEBUG)
             if (verbose)
