@@ -98,6 +98,24 @@ const SIZE_T MethodDesc::s_ClassificationSizeTable[] = {
 #undef ComPlusCallMethodDesc
 #endif
 
+class ArgIteratorBaseForPInvoke : public ArgIteratorBase
+{
+protected:
+    FORCEINLINE BOOL IsRegPassedStruct(MethodTable* pMT)
+    {
+        return pMT->GetLayoutInfo()->IsNativeStructPassedInRegisters();
+    }
+};
+
+class PInvokeArgIterator : public ArgIteratorTemplate<ArgIteratorBaseForPInvoke>
+{
+public:
+    PInvokeArgIterator(MetaSig* pSig)
+    {
+        m_pSig = pSig;
+    }
+};
+
 
 //*******************************************************************************
 SIZE_T MethodDesc::SizeOf()
@@ -1753,6 +1771,19 @@ UINT MethodDesc::SizeOfArgStack()
     return argit.SizeOfArgStack();
 }
 
+
+UINT MethodDesc::SizeOfNativeArgStack()
+{
+#ifndef UNIX_AMD64_ABI
+    return SizeOfArgStack();
+#else
+    WRAPPER_NO_CONTRACT;
+    MetaSig msig(this);
+    PInvokeArgIterator argit(&msig);
+    return argit.SizeOfArgStack();
+#endif
+}
+
 #ifdef _TARGET_X86_
 //*******************************************************************************
 UINT MethodDesc::CbStackPop()
@@ -1912,22 +1943,11 @@ MethodDesc* MethodDesc::ResolveGenericVirtualMethod(OBJECTREF *orThis)
     CONTRACT_END;
 
     // Method table of target (might be instantiated)
-    // Deliberately use GetMethodTable -- not GetTrueMethodTable
     MethodTable *pObjMT = (*orThis)->GetMethodTable();
 
     // This is the static method descriptor describing the call.
     // It is not the destination of the call, which we must compute.
     MethodDesc* pStaticMD = this;
-
-    if (pObjMT->IsTransparentProxy())
-    {
-        // For transparent proxies get the client's view of the server type
-        // unless we're calling through an interface (in which case we let the
-        // server handle the resolution).
-        if (pStaticMD->IsInterface())
-            RETURN(pStaticMD);
-        pObjMT = (*orThis)->GetTrueMethodTable();
-    }
 
     // Strip off the method instantiation if present
     MethodDesc* pStaticMDWithoutGenericMethodArgs = pStaticMD->StripMethodInstantiation();
@@ -1974,7 +1994,6 @@ PCODE MethodDesc::GetSingleCallableAddrOfVirtualizedCode(OBJECTREF *orThis, Type
     WRAPPER_NO_CONTRACT;
     PRECONDITION(IsVtableMethod());
 
-    // Deliberately use GetMethodTable -- not GetTrueMethodTable
     MethodTable *pObjMT = (*orThis)->GetMethodTable();
 
     if (HasMethodInstantiation())
@@ -2020,7 +2039,6 @@ PCODE MethodDesc::GetMultiCallableAddrOfVirtualizedCode(OBJECTREF *orThis, TypeH
     CONTRACT_END;
 
     // Method table of target (might be instantiated)
-    // Deliberately use GetMethodTable -- not GetTrueMethodTable
     MethodTable *pObjMT = (*orThis)->GetMethodTable();
 
     // This is the static method descriptor describing the call.
@@ -2447,54 +2465,7 @@ BOOL MethodDesc::RequiresStableEntryPoint(BOOL fEstimateForChunk /*=FALSE*/)
     return FALSE;
 }
 
-//*******************************************************************************
-BOOL MethodDesc::IsClassConstructorTriggeredViaPrestub()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // FCalls do not need cctor triggers
-    if (IsFCall())
-        return FALSE;
-
-    // NGened code has explicit cctor triggers
-    if (IsZapped())
-        return FALSE;
-
-    // Domain neutral code has explicit cctor triggers
-    if (IsDomainNeutral())
-        return FALSE;
-
-    MethodTable * pMT = GetMethodTable();
-
-    // Shared generic code has explicit cctor triggers
-    if (pMT->IsSharedByGenericInstantiations())
-        return FALSE;
-
-    bool fRunBeforeFieldInitCctorsLazily = true;
-
-    // Always run beforefieldinit cctors lazily for optimized code. Running cctors lazily should be good for perf.
-    // Variability between optimized and non-optimized code should reduce chance of people taking dependencies
-    // on exact beforefieldinit cctors timing.
-    if (fRunBeforeFieldInitCctorsLazily && pMT->GetClass()->IsBeforeFieldInit() && !CORDisableJITOptimizations(pMT->GetModule()->GetDebuggerInfoBits()))
-        return FALSE;
-
-    // To preserve consistent behavior between ngen and not-ngenned states, always
-    // run class constructors lazily for autongennable code.
-    if (pMT->RunCCTorAsIfNGenImageExists())
-        return FALSE;
-
-    return TRUE;
-}
-
 #endif // !DACCESS_COMPILE
-
-
 
 //*******************************************************************************
 BOOL MethodDesc::MayHaveNativeCode()
@@ -5494,13 +5465,6 @@ PrecodeType MethodDesc::GetPrecodeType()
     
     PrecodeType precodeType = PRECODE_INVALID;
 
-#ifdef HAS_REMOTING_PRECODE
-    if (IsComPlusCall() && !IsStatic())
-    {
-        precodeType = PRECODE_REMOTING;
-    }
-    else
-#endif // HAS_REMOTING_PRECODE
 #ifdef HAS_FIXUP_PRECODE
     if (!RequiresMethodDescCallingConvention())
     {
