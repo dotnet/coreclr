@@ -43,8 +43,8 @@ add_subdirectory(DllImportAttribute/Simple)
 add_subdirectory(ExecInDefAppDom)
 
 if(WIN32)
+    add_subdirectory(PInvoke/Variant)
     add_subdirectory(PInvoke/NativeCallManagedComVisible)
-    add_subdirectory(Variant)
     # This test doesn't necessarily need to be Windows-only, but the implementation is very tied to Windows APIs
     add_subdirectory(PInvoke/DateTime)
     add_subdirectory(COM/NativeServer)
