@@ -310,7 +310,7 @@ INT_PTR QCALLTYPE AssemblyNative::InternalLoadUnmanagedDllFromPath(LPCWSTR unman
 {
     QCALL_CONTRACT;
 
-    HMODULE moduleHandle = nullptr;
+    NATIVE_LIBRARY_HANDLE moduleHandle = nullptr;
 
     BEGIN_QCALL;
 
@@ -724,6 +724,21 @@ BOOL QCALLTYPE AssemblyNative::GetNeutralResourcesLanguageAttribute(QCall::Assem
         outFallbackLocation = fallbackLocation;
         retVal = TRUE;
     }
+
+    END_QCALL;
+
+    return retVal;
+}
+
+BOOL QCALLTYPE AssemblyNative::GetIsCollectible(QCall::AssemblyHandle pAssembly)
+{
+    QCALL_CONTRACT;
+
+    BOOL retVal = FALSE;
+
+    BEGIN_QCALL;
+
+    retVal = pAssembly->IsCollectible();
 
     END_QCALL;
 

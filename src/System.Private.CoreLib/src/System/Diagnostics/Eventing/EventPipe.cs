@@ -40,10 +40,14 @@ namespace System.Diagnostics.Tracing
         private ulong m_keywords;
         private uint m_loggingLevel;
 
+        [MarshalAs(UnmanagedType.LPWStr)]
+        private readonly string m_filterData;
+
         internal EventPipeProviderConfiguration(
             string providerName,
             ulong keywords,
-            uint loggingLevel)
+            uint loggingLevel,
+            string filterData)
         {
             if(string.IsNullOrEmpty(providerName))
             {
@@ -56,6 +60,7 @@ namespace System.Diagnostics.Tracing
             m_providerName = providerName;
             m_keywords = keywords;
             m_loggingLevel = loggingLevel;
+            m_filterData = filterData;
         }
 
         internal string ProviderName
@@ -72,6 +77,8 @@ namespace System.Diagnostics.Tracing
         {
             get { return m_loggingLevel; }
         }
+
+        internal string FilterData => m_filterData;
     }
 
     internal sealed class EventPipeConfiguration
@@ -80,6 +87,7 @@ namespace System.Diagnostics.Tracing
         private uint m_circularBufferSizeInMB;
         private List<EventPipeProviderConfiguration> m_providers;
         private TimeSpan m_minTimeBetweenSamples = TimeSpan.FromMilliseconds(1);
+        private ulong m_multiFileTraceLengthInSeconds = 0;
 
         internal EventPipeConfiguration(
             string outputFile,
@@ -108,6 +116,11 @@ namespace System.Diagnostics.Tracing
             get { return m_circularBufferSizeInMB; }
         }
 
+        internal ulong MultiFileTraceLengthInSeconds
+        {
+            get { return m_multiFileTraceLengthInSeconds; }
+        }
+
         internal EventPipeProviderConfiguration[] Providers
         {
             get { return m_providers.ToArray(); }
@@ -121,10 +134,16 @@ namespace System.Diagnostics.Tracing
 
         internal void EnableProvider(string providerName, ulong keywords, uint loggingLevel)
         {
+            EnableProviderWithFilter(providerName, keywords, loggingLevel, null);
+        }
+
+        internal void EnableProviderWithFilter(string providerName, ulong keywords, uint loggingLevel, string filterData)
+        {
             m_providers.Add(new EventPipeProviderConfiguration(
                 providerName,
                 keywords,
-                loggingLevel));
+                loggingLevel,
+                filterData));
         }
 
         private void EnableProviderConfiguration(EventPipeProviderConfiguration providerConfig)
@@ -148,6 +167,11 @@ namespace System.Diagnostics.Tracing
             }
 
             m_minTimeBetweenSamples = minTimeBetweenSamples;
+        }
+
+        internal void SetMultiFileTraceLength(ulong traceLengthInSeconds)
+        {
+            m_multiFileTraceLengthInSeconds = traceLengthInSeconds;
         }
     }
 
@@ -174,7 +198,8 @@ namespace System.Diagnostics.Tracing
                 configuration.CircularBufferSizeInMB,
                 configuration.ProfilerSamplingRateInNanoseconds,
                 providers,
-                providers.Length);
+                providers.Length,
+                configuration.MultiFileTraceLengthInSeconds);
         }
 
         internal static void Disable()
@@ -189,7 +214,7 @@ namespace System.Diagnostics.Tracing
         // These PInvokes are used by the configuration APIs to interact with EventPipe.
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern UInt64 Enable(string outputFile, uint circularBufferSizeInMB, long profilerSamplingRateInNanoseconds, EventPipeProviderConfiguration[] providers, int numProviders);
+        internal static extern UInt64 Enable(string outputFile, uint circularBufferSizeInMB, long profilerSamplingRateInNanoseconds, EventPipeProviderConfiguration[] providers, int numProviders, ulong multiFileTraceLengthInSeconds);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void Disable(UInt64 sessionID);

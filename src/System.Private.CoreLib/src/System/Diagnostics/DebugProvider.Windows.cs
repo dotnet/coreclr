@@ -6,8 +6,14 @@ namespace System.Diagnostics
 {
     public partial class DebugProvider
     {
-        public virtual void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
+        public static void FailCore(string stackTrace, string message, string detailMessage, string errorSource)
         {
+            if (s_FailCore != null)
+            {
+                s_FailCore(stackTrace, message, detailMessage, errorSource); 
+                return;
+            }
+
             if (Debugger.IsAttached)
             {
                 Debugger.Break();
@@ -36,8 +42,14 @@ namespace System.Diagnostics
 
         private static readonly object s_ForLock = new object();
 
-        private static void WriteCore(string message)
+        public static void WriteCore(string message)
         {
+            if (s_WriteCore != null)
+            {
+                s_WriteCore(message); 
+                return;
+            }
+
             // really huge messages mess up both VS and dbmon, so we chop it up into 
             // reasonable chunks if it's too big. This is the number of characters 
             // that OutputDebugstring chunks at.

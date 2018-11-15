@@ -287,6 +287,7 @@ set(VM_SOURCES_WKS
     cachelinealloc.cpp
     callcounter.cpp
     callhelpers.cpp
+    callsiteinspect.cpp
     ceemain.cpp
     clrconfignative.cpp
     clrex.cpp
@@ -402,6 +403,7 @@ set(VM_HEADERS_WKS
     cachelinealloc.h
     callcounter.h
     callhelpers.h
+    callsiteinspect.h
     ceemain.h
     clrconfignative.h
     clrex.h
@@ -844,7 +846,6 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 set(VM_SOURCES_DAC_ARCH
-    gcinfodecoder.cpp
     exceptionhandling.cpp
 )
 

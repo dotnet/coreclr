@@ -339,6 +339,22 @@ FCIMPL7(void, RuntimeFieldHandle::SetValue, ReflectFieldObject *pFieldUNSAFE, Ob
 
     HELPER_METHOD_FRAME_BEGIN_PROTECT(gc);
 
+    // Verify we're not trying to set the value of a static initonly field
+    // once the class has been initialized.
+    if (pFieldDesc->IsStatic())
+    {
+        MethodTable* pEnclosingMT = pFieldDesc->GetEnclosingMethodTable();
+        if (pEnclosingMT->IsClassInited() && IsFdInitOnly(pFieldDesc->GetAttributes()))
+        {
+            DefineFullyQualifiedNameForClassW();
+            SString ssFieldName(SString::Utf8, pFieldDesc->GetName());
+            COMPlusThrow(kFieldAccessException,
+                IDS_EE_CANNOT_SET_INITONLY_STATIC_FIELD,
+                ssFieldName.GetUnicode(),
+                GetFullyQualifiedNameForClassW(pEnclosingMT));
+        }
+    }
+
     //TODO: cleanup this function
     InvokeUtil::SetValidField(fieldType.GetSignatureCorElementType(), fieldType, pFieldDesc, &gc.target, &gc.value, declaringType, pDomainInitialized);
 
@@ -372,18 +388,21 @@ FCIMPL1(Object*, RuntimeTypeHandle::Allocate, ReflectClassBaseObject* pTypeUNSAF
 }//Allocate
 FCIMPLEND
 
-FCIMPL5(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refThisUNSAFE,
+FCIMPL6(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refThisUNSAFE,
                                                     CLR_BOOL publicOnly,
                                                     CLR_BOOL wrapExceptions,
                                                     CLR_BOOL* pbCanBeCached,
-                                                    MethodDesc** pConstructor) {
+                                                    MethodDesc** pConstructor,
+                                                    CLR_BOOL* pbHasNoDefaultCtor) {
     CONTRACTL {
         FCALL_CHECK;
         PRECONDITION(CheckPointer(refThisUNSAFE));
         PRECONDITION(CheckPointer(pbCanBeCached));
         PRECONDITION(CheckPointer(pConstructor));
+        PRECONDITION(CheckPointer(pbHasNoDefaultCtor));
         PRECONDITION(*pbCanBeCached == false);
         PRECONDITION(*pConstructor == NULL);
+        PRECONDITION(*pbHasNoDefaultCtor == false);
     }
     CONTRACTL_END;
 
@@ -406,8 +425,10 @@ FCIMPL5(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
     MethodTable* pVMT;
 
     // Get the type information associated with refThis
-    if (thisTH.IsNull() || thisTH.IsTypeDesc())
-        COMPlusThrow(kMissingMethodException,W("Arg_NoDefCTor"));
+    if (thisTH.IsNull() || thisTH.IsTypeDesc()) {
+        *pbHasNoDefaultCtor = true;
+        goto DoneCreateInstance;
+    }
         
     pVMT = thisTH.AsMethodTable();
 
@@ -458,7 +479,8 @@ FCIMPL5(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
             //  if this is a Value class we can simply allocate one and return it
 
             if (!pVMT->IsValueType()) {
-                COMPlusThrow(kMissingMethodException,W("Arg_NoDefCTor"));
+                *pbHasNoDefaultCtor = true;
+                goto DoneCreateInstance;
             }
 
             // Handle the nullable<T> special case
@@ -480,8 +502,10 @@ FCIMPL5(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
             // Validate the method can be called by this caller
             DWORD attr = pMeth->GetAttrs();
 
-            if (!IsMdPublic(attr) && publicOnly)
-                COMPlusThrow(kMissingMethodException, W("Arg_NoDefCTor"));
+            if (!IsMdPublic(attr) && publicOnly) {
+                *pbHasNoDefaultCtor = true;
+                goto DoneCreateInstance;
+            }
 
             // We've got the class, lets allocate it and call the constructor
             OBJECTREF o;
@@ -515,7 +539,7 @@ FCIMPL5(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
             }
         }
     }
-
+DoneCreateInstance:
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(rv);
 }
@@ -750,6 +774,11 @@ protected:
     FORCEINLINE void Reset()
     {
         LIMITED_METHOD_CONTRACT;
+    }
+    
+    FORCEINLINE BOOL IsRegPassedStruct(MethodTable* pMT)
+    {
+        return pMT->IsRegPassedStruct();
     }
 
 public:
@@ -1696,10 +1725,17 @@ FCIMPL5(void, RuntimeFieldHandle::SetValueDirect, ReflectFieldObject *pFieldUNSA
         // Verify that the value passed can be widened into the target
         InvokeUtil::ValidField(fieldType, &gc.oValue);
 
-        // Verify that this is not a Final Field
-        DWORD attr = pField->GetAttributes(); // should we cache?
-        if (IsFdLiteral(attr))
-            COMPlusThrow(kFieldAccessException,W("Acc_ReadOnly"));
+        // Verify we're not trying to set the value of a static initonly field
+        // once the class has been initialized.
+        if (pField->IsStatic() && pEnclosingMT->IsClassInited() && IsFdInitOnly(pField->GetAttributes()))
+        {
+            DefineFullyQualifiedNameForClassW();
+            SString ssFieldName(SString::Utf8, pField->GetName());
+            COMPlusThrow(kFieldAccessException,
+                IDS_EE_CANNOT_SET_INITONLY_STATIC_FIELD,
+                ssFieldName.GetUnicode(),
+                GetFullyQualifiedNameForClassW(pEnclosingMT));
+        }
 
         // Verify the callee/caller access
         if (!pField->IsPublic() || (pEnclosingMT != NULL && !pEnclosingMT->IsExternallyVisible())) 

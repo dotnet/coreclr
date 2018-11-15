@@ -112,7 +112,7 @@ typedef const TCHAR* LPCTSTR;
 typedef void* FARPROC;
 typedef void* HMODULE;
 typedef void* ULONG_PTR;
-typedef unsigned error_t;
+typedef int error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
@@ -125,13 +125,14 @@ typedef ULONG_PTR DWORD_PTR;
 //
 error_t TP_scpy_s(LPWSTR strDestination, size_t sizeInWords, LPCWSTR strSource);
 error_t TP_scat_s(LPWSTR strDestination, size_t sizeInWords, LPCWSTR strSource);
-int TP_slen(LPWSTR str);
+size_t TP_slen(LPCWSTR str);
 int TP_scmp_s(LPCSTR str1, LPCSTR str2);
-int TP_wcmp_s(LPWSTR str1, LPWSTR str2);
+int TP_wcmp_s(LPCWSTR str1, LPCWSTR str2);
 error_t TP_getenv_s(size_t* pReturnValue, LPWSTR buffer, size_t sizeInWords, LPCWSTR varname);
 error_t TP_putenv_s(LPTSTR name, LPTSTR value);
 void TP_ZeroMemory(LPVOID buffer, size_t sizeInBytes);
 error_t TP_itow_s(int num, LPWSTR buffer, size_t sizeInCharacters, int radix);
+error_t TP_itoa_s(int num, LPSTR buffer, size_t sizeInCharacters, int radix);
 LPWSTR TP_sstr(LPWSTR str, LPWSTR searchStr);
 LPSTR  HackyConvertToSTR(LPWSTR pwszInput);
 DWORD TP_CreateThread(THREAD_ID* tThread, LPTHREAD_START_ROUTINE worker,  LPVOID lpParameter);
@@ -184,6 +185,7 @@ BSTR TP_SysAllocString(LPWSTR psz);
 #define _putenv_s TP_putenv_s
 #define ZeroMemory TP_ZeroMemory
 #define _itow_s TP_itow_s
+#define _itoa_s TP_itoa_s
 #define wcsstr TP_sstr
 #define strcmp TP_scmp_s
 #define wcscmp TP_wcmp_s

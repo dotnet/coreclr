@@ -122,7 +122,7 @@ The CI system and official builds use Docker to build ARM for Linux (for example
 ```
 ROOT=/Users/me/git/coreclr
 DOCKER_ARGS="run -i --rm -v ${ROOT}:/mnt/coreclr -w /mnt/coreclr -e ROOTFS_DIR=/crossrootfs/arm -e CAC_ROOTFS_DIR=/crossrootfs/x86 microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420"
-docker ${DOCKER_ARGS} /mnt/coreclr/build.sh arm checked cross crosscomponent
+docker ${DOCKER_ARGS} /mnt/coreclr/build.sh arm checked cross
 docker ${DOCKER_ARGS} /mnt/coreclr/build-test.sh arm checked cross generatelayoutonly
 ```
 
@@ -132,7 +132,7 @@ The current Docker tag being used by the CI can be found in the `getDockerImageN
 
 Libunwind issue
 ---------------
-ARM libunwind versions before 1.3 require a fix. The fix allows libunwind not to break when it is ordered to access unaccessible memory locations. See [this](https://github.com/dotnet/coreclr/pull/3923) issue for history.
+ARM libunwind versions before 1.3 require a fix. The fix allows libunwind not to break when it is ordered to access inaccessible memory locations. See [this](https://github.com/dotnet/coreclr/pull/3923) issue for history.
 
 If required, first import the patch from the libunwind upstream: http://git.savannah.gnu.org/gitweb/?p=libunwind.git;a=commit;h=770152268807e460184b4152e23aba9c86601090.
 
@@ -216,4 +216,3 @@ If you want to focus on the speed optimization for high-end devices, you have to
 
  SET (CLR_DEFINES_DEBUG_INIT              DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_
 ```
-
