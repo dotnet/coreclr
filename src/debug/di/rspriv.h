@@ -2305,6 +2305,7 @@ public:
     RSExtSmartPtr<ICorDebugManagedCallback>    m_managedCallback;
     RSExtSmartPtr<ICorDebugManagedCallback2>   m_managedCallback2;
     RSExtSmartPtr<ICorDebugManagedCallback3>   m_managedCallback3;
+    RSExtSmartPtr<ICorDebugManagedCallback4>   m_managedCallback4;
     RSExtSmartPtr<ICorDebugUnmanagedCallback>  m_unmanagedCallback;
 
     CordbRCEventThread*         m_rcEventThread;
@@ -2922,6 +2923,7 @@ class CordbProcess :
     public ICorDebugProcess5,
     public ICorDebugProcess7,
     public ICorDebugProcess8,
+    public ICorDebugProcess10,
     public IDacDbiInterface::IAllocator,
     public IDacDbiInterface::IMetaDataLookup,
     public IProcessShimHooks
@@ -3133,6 +3135,11 @@ public:
     //-----------------------------------------------------------
     COM_METHOD EnableExceptionCallbacksOutsideOfMyCode(BOOL enableExceptionsOutsideOfJMC);
 
+    //-----------------------------------------------------------
+    // ICorDebugProcess10
+    //-----------------------------------------------------------
+    COM_METHOD EnableGCNotificationEvents(BOOL fEnable);
+
 #ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
     // ---------------------------------------------------------------
     // ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly
@@ -3307,7 +3314,8 @@ public:
         RSLockHolder *              pLockHolder,
         ICorDebugManagedCallback *  pCallback1, 
         ICorDebugManagedCallback2 * pCallback2,
-        ICorDebugManagedCallback3 * pCallback3);
+        ICorDebugManagedCallback3 * pCallback3,
+        ICorDebugManagedCallback4 * pCallback4);
 
     void MarkAllThreadsDirty();
 
@@ -3643,7 +3651,7 @@ public:
     // the jit attach.
     HRESULT GetAttachStateFlags(CLR_DEBUGGING_PROCESS_FLAGS *pFlags);
 
-    HRESULT GetTypeForObject(CORDB_ADDRESS obj, CordbType **ppType, CordbAppDomain **pAppDomain = NULL);
+    HRESULT GetTypeForObject(CORDB_ADDRESS obj, CordbAppDomain* pAppDomainOverride, CordbType **ppType, CordbAppDomain **pAppDomain = NULL);
 
     WriteableMetadataUpdateMode GetWriteableMetadataUpdateMode() { return m_writableMetadataUpdateMode; }
 private:
@@ -3739,7 +3747,6 @@ public:
     // It comes in both Attach and Launch scenarios.
     // This is also used in fake-native debugging scenarios.
     bool                  m_loaderBPReceived;
-
 
 private:
 
@@ -4105,6 +4112,8 @@ private:
 
     // controls how metadata updated in the target is handled
     WriteableMetadataUpdateMode m_writableMetadataUpdateMode;
+
+    COM_METHOD GetObjectInternal(CORDB_ADDRESS addr, CordbAppDomain* pAppDomainOverride, ICorDebugObjectValue **pObject);
 };
 
 // Some IMDArocess APIs are supported as interop-only.
@@ -8707,6 +8716,8 @@ public:
         return (S_OK);
     }
 
+    virtual HRESULT STDMETHODCALLTYPE GetAddress(CORDB_ADDRESS *pAddress) = 0;
+
     //-----------------------------------------------------------
     // Methods not exported through COM
     //-----------------------------------------------------------
@@ -8779,11 +8790,11 @@ public:
 };
 
 /* ------------------------------------------------------------------------- *
- * Value Breakpoint class
- * ------------------------------------------------------------------------- */
+* Value Breakpoint class
+* ------------------------------------------------------------------------- */
 
 class CordbValueBreakpoint : public CordbBreakpoint,
-                             public ICorDebugValueBreakpoint
+    public ICorDebugValueBreakpoint
 {
 public:
     CordbValueBreakpoint(CordbValue *pValue);
@@ -8827,12 +8838,12 @@ public:
     void Disconnect();
 
 public:
-    CordbValue       *m_value;
+    CordbValue * m_value;
 };
 
 /* ------------------------------------------------------------------------- *
- * Generic Value class
- * ------------------------------------------------------------------------- */
+* Generic Value class
+* ------------------------------------------------------------------------- */
 
 class CordbGenericValue : public CordbValue, public ICorDebugGenericValue, public ICorDebugValue2, public ICorDebugValue3
 {

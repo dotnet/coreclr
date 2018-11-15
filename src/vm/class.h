@@ -516,6 +516,11 @@ class EEClassLayoutInfo
             LIMITED_METHOD_CONTRACT;
             return (m_bFlags & e_NATIVE_PASS_IN_REGISTERS) != 0;
         }
+#else
+        bool IsNativeStructPassedInRegisters()
+        {
+            return false;
+        }
 #endif // UNIX_AMD64_ABI
 
         CorElementType GetNativeHFATypeRaw();
@@ -874,11 +879,6 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         return IsTdSequentialLayout(GetAttrClass());
-    }
-    BOOL IsSerializable()
-    {
-        WRAPPER_NO_CONTRACT;
-        return IsTdSerializable(GetAttrClass());
     }
     BOOL IsBeforeFieldInit()
     {
@@ -1584,9 +1584,6 @@ public:
         EnsureWritablePages(&m_pGuidInfo)->SetValueMaybeNull(pGuidInfo);
         #endif // DACCESS_COMPILE
     }
-
-    // Cached class level reliability contract info, see ConstrainedExecutionRegion.cpp for details.
-    DWORD GetReliabilityContract();
 
 
 #if defined(UNIX_AMD64_ABI)
