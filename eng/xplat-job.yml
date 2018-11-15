@@ -30,7 +30,7 @@ jobs:
         name: dotnet-internal-temp
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
         name: dotnet-external-temp
-      timeoutInMinutes: 180
+      timeoutInMinutes: 240
 
     ${{ if eq(parameters.osGroup, 'Linux') }}:
       agentOs: Ubuntu
