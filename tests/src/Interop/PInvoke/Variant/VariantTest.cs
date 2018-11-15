@@ -20,39 +20,6 @@ class Test
 
     private static readonly DateTime DateValue = new DateTime(2018, 11, 6);
 
-    private struct CustomStruct
-    {
-    }
-
-    private struct ObjectWrapper
-    {
-        [MarshalAs(UnmanagedType.Struct)]
-        public object value;
-    }
-
-    private enum ExpectedVariantType
-    {
-        Byte,
-        SByte,
-        Int16,
-        UInt16,
-        Int32,
-        UInt32,
-        Int64,
-        UInt64,
-        Single,
-        Double,
-        String,
-        Char,
-        Boolean,
-        DateTime,
-        Decimal,
-        Missing,
-        Object,
-        Empty,
-        Null
-    }
-
     private unsafe static void TestByValue()
     {
         Assert.IsTrue(Marshal_ByValue_Byte((byte)NumericValue, NumericValue));

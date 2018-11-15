@@ -7,7 +7,17 @@ using System.Runtime.InteropServices;
 
 #pragma warning disable CS0612, CS0618
 class VariantNative
-{    
+{
+    public struct CustomStruct
+    {
+    }
+
+    public struct ObjectWrapper
+    {
+        [MarshalAs(UnmanagedType.Struct)]
+        public object value;
+    }
+
     [DllImport(nameof(VariantNative))]
     public static extern bool Marshal_ByValue_Byte(object obj, byte expected);
     [DllImport(nameof(VariantNative))]
