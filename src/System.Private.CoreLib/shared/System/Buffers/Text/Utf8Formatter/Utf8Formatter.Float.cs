@@ -65,7 +65,7 @@ namespace System.Buffers.Text
         // be preferable not to have another version of that lying around. Until we really hit a scenario where floating point formatting needs the perf, we'll
         // make do with this.
         //
-        private static bool TryFormatFloatingPoint<T>(T value, Span<byte> destination, out int bytesWritten, StandardFormat format) where T : IFormattable
+        private static bool TryFormatFloatingPoint<T>(T value, Span<byte> destination, out int bytesWritten, StandardFormat format) where T : ISpanFormattable
         {
             if (format.IsDefault)
             {
@@ -90,22 +90,21 @@ namespace System.Buffers.Text
                     return FormattingHelpers.TryFormatThrowFormatException(out bytesWritten);
             }
 
-            string formatString = format.ToString();
-            string utf16Text = value.ToString(formatString, CultureInfo.InvariantCulture);
-            int length = utf16Text.Length;
-            if (length > destination.Length)
+            ReadOnlySpan<char> formatSpan = stackalloc char[] {format.Symbol};
+            Span<char> outputSpan = stackalloc char[Number.CharStackBufferSize];
+            if(!value.TryFormat(outputSpan, out int charsWritten, formatSpan, CultureInfo.InvariantCulture))
             {
                 bytesWritten = 0;
                 return false;
             }
 
-            for (int i = 0; i < length; i++)
+            for (int i = 0; i < charsWritten; i++)
             {
-                Debug.Assert(utf16Text[i] < 128, "A culture-invariant ToString() of a floating point expected to produce ASCII characters only.");
-                destination[i] = (byte)(utf16Text[i]);
+                Debug.Assert(outputSpan[i] < 128, "A culture-invariant ToString() of a floating point expected to produce ASCII characters only.");
+                destination[i] = (byte)(outputSpan[i]);
             }
 
-            bytesWritten = length;
+            bytesWritten = charsWritten;
             return true;
         }
     }

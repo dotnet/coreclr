@@ -248,7 +248,7 @@ namespace System
         private const int ScaleNAN = unchecked((int)0x80000000);
         private const int ScaleINF = 0x7FFFFFFF;
         private const int MaxUInt32DecDigits = 10;
-        private const int CharStackBufferSize = 32;
+        internal const int CharStackBufferSize = 32; // Utf8Formatter.Float also uses this value
         private const string PosNumberFormat = "#";
 
         private static readonly string[] s_singleDigitStringCache = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
