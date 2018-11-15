@@ -1025,11 +1025,17 @@ enum CorInfoInlineRestrictions
     INLINE_SAME_THIS        = 0x00000004, // You can inline only if the callee is on the same this reference as caller
 };
 
-enum CorInfoObjectVTableTypeCheckInliningResult
+enum CorInfoInlineTypeCheck
 {
-    CORINFO_INLINE_TYPECHECK_NEVER      = 0x00000000, // It's not okay to compare type's vtable with a native type handle
+    CORINFO_INLINE_TYPECHECK_NONE       = 0x00000000, // It's not okay to compare type's vtable with a native type handle
     CORINFO_INLINE_TYPECHECK_PASS       = 0x00000001, // It's okay to compare type's vtable with a native type handle
     CORINFO_INLINE_TYPECHECK_USE_HELPER = 0x00000002, // Use a specialized helper to compare type's vtable with native type handle
+};
+
+enum CorInfoInlineTypeCheckSource
+{
+    CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE = 0x00000000, // Type handle comes from the vtable
+    CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN  = 0x00000001, // Type handle comes from an ldtoken
 };
 
 // If you add more values here, keep it in sync with TailCallTypeMap in ..\vm\ClrEtwAll.man
@@ -2345,8 +2351,13 @@ public:
     virtual BOOL isValueClass(CORINFO_CLASS_HANDLE cls) = 0;
 
     // Decides how the JIT should do the optimization to inline the check for
+    //     GetTypeFromHandle(handle) == obj.GetType() (for CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE)
+    //     GetTypeFromHandle(X) == GetTypeFromHandle(Y) (for CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+    virtual CorInfoInlineTypeCheck canInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source) = 0;
+
+    // If this method returns true, JIT will do optimization to inline the check for
     //     GetTypeFromHandle(handle) == obj.GetType()
-    virtual CorInfoObjectVTableTypeCheckInliningResult canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls) = 0;
+    virtual BOOL canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls) = 0;
 
     // return flags (defined above, CORINFO_FLG_PUBLIC ...)
     virtual DWORD getClassAttribs (

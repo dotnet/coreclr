@@ -292,8 +292,13 @@ int appendClassName(__deref_inout_ecount(*pnBufLen) WCHAR** ppBuf,
 BOOL isValueClass(CORINFO_CLASS_HANDLE cls);
 
 // Decides how the JIT should do the optimization to inline the check for
+//     GetTypeFromHandle(handle) == obj.GetType() (for CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE)
+//     GetTypeFromHandle(X) == GetTypeFromHandle(Y) (for CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+CorInfoInlineTypeCheck canInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source);
+
+// If this method returns true, JIT will do optimization to inline the check for
 //     GetTypeFromHandle(handle) == obj.GetType()
-CorInfoObjectVTableTypeCheckInliningResult canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls);
+BOOL canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls);
 
 // return flags (defined above, CORINFO_FLG_PUBLIC ...)
 DWORD getClassAttribs(CORINFO_CLASS_HANDLE cls);

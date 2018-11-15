@@ -3068,7 +3068,12 @@ BOOL ZapInfo::isValueClass(CORINFO_CLASS_HANDLE cls)
     return m_pEEJitInfo->isValueClass(cls);
 }
 
-CorInfoObjectVTableTypeCheckInliningResult ZapInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE cls)
+CorInfoInlineTypeCheck ZapInfo::canInlineTypeCheck (CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source)
+{
+    return m_pEEJitInfo->canInlineTypeCheck(cls, source);
+}
+
+BOOL ZapInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE cls)
 {
     return m_pEEJitInfo->canInlineTypeCheckWithObjectVTable(cls);
 }

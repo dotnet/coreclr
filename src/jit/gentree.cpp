@@ -1301,6 +1301,7 @@ AGAIN:
 
                 // For the ones below no extra argument matters for comparison.
                 case GT_BOX:
+                case GT_RUNTIMELOOKUP:
                     break;
 
                 default:
@@ -11825,7 +11826,7 @@ GenTree* Compiler::gtFoldExprCompare(GenTree* tree)
 //    Type comparison tree
 //
 
-GenTree* Compiler::gtCreateHandleCompare(genTreeOps oper, GenTree* op1, GenTree* op2, CorInfoObjectVTableTypeCheckInliningResult typeCheckInliningResult)
+GenTree* Compiler::gtCreateHandleCompare(genTreeOps oper, GenTree* op1, GenTree* op2, CorInfoInlineTypeCheck typeCheckInliningResult)
 {
     // If we can compare pointers directly, just emit the binary operation
     if (typeCheckInliningResult == CORINFO_INLINE_TYPECHECK_PASS)
@@ -11965,19 +11966,26 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         // We can't answer the equality comparison definitively at jit
         // time, but can still simplfy the comparison.
         //
+        // Find out how we can compare the two handles.
+        // NOTE: We're potentially passing NO_CLASS_HANDLE, but the runtime knows what to do with it here.
+        CorInfoInlineTypeCheck inliningKind = info.compCompHnd->canInlineTypeCheck(cls1Hnd, CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN);
+        assert(inliningKind == CORINFO_INLINE_TYPECHECK_PASS || inliningKind == CORINFO_INLINE_TYPECHECK_USE_HELPER);
+
+        // If the first type needs helper, we're done and use helper. Otherwise check the other type.
+        if (inliningKind != CORINFO_INLINE_TYPECHECK_USE_HELPER)
+        {
+            inliningKind = info.compCompHnd->canInlineTypeCheck(cls2Hnd, CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN);
+        }
+
         // If we successfully tunneled through both operands, compare
         // the tunneled values, otherwise compare the original values.
-        GenTree* compare = nullptr;
+        GenTree* compare;
         if ((op1TunneledHandle != nullptr) && (op2TunneledHandle != nullptr))
         {
-            CorInfoObjectVTableTypeCheckInliningResult inliningKind = IsTargetAbi(CORINFO_CORERT_ABI) ?
-                CORINFO_INLINE_TYPECHECK_USE_HELPER : CORINFO_INLINE_TYPECHECK_PASS;
             compare = gtCreateHandleCompare(oper, op1TunneledHandle, op2TunneledHandle, inliningKind);
         }
         else
         {
-            CorInfoObjectVTableTypeCheckInliningResult inliningKind = IsTargetAbi(CORINFO_CORERT_ABI) ?
-                CORINFO_INLINE_TYPECHECK_USE_HELPER : CORINFO_INLINE_TYPECHECK_PASS;
             compare = gtCreateHandleCompare(oper, op1ClassFromHandle, op2ClassFromHandle, inliningKind);
         }
 
@@ -12014,8 +12022,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
 
     // Ask the VM if this type can be equality tested by a simple method
     // table comparison.
-    CorInfoObjectVTableTypeCheckInliningResult typeCheckInliningResult = info.compCompHnd->canInlineTypeCheckWithObjectVTable(clsHnd);
-    if (typeCheckInliningResult == CORINFO_INLINE_TYPECHECK_NEVER)
+    CorInfoInlineTypeCheck typeCheckInliningResult = info.compCompHnd->canInlineTypeCheck(clsHnd, CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE);
+    if (typeCheckInliningResult == CORINFO_INLINE_TYPECHECK_NONE)
     {
         return tree;
     }

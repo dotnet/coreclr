@@ -1035,9 +1035,12 @@ public:
     void dmpGetFieldName(DWORDLONG key, DD value);
     const char* repGetFieldName(CORINFO_FIELD_HANDLE ftn, const char** moduleName);
 
-    void recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, CorInfoObjectVTableTypeCheckInliningResult result);
+    void recCanInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source, CorInfoInlineTypeCheck result);
+    void dmpCanInlineTypeCheck(DLD key, DWORD value);
+    CorInfoInlineTypeCheck repCanInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source);
+    void recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, BOOL result);
     void dmpCanInlineTypeCheckWithObjectVTable(DWORDLONG key, DWORD value);
-    CorInfoObjectVTableTypeCheckInliningResult repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls);
+    BOOL repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls);
 
     void recSatisfiesMethodConstraints(CORINFO_CLASS_HANDLE parent, CORINFO_METHOD_HANDLE method, BOOL result);
     void dmpSatisfiesMethodConstraints(DLDL key, DWORD value);
@@ -1317,7 +1320,7 @@ private:
 };
 
 // ********************* Please keep this up-to-date to ease adding more ***************
-// Highest packet number: 171
+// Highest packet number: 172
 // *************************************************************************************
 enum mcPackets
 {
@@ -1332,6 +1335,7 @@ enum mcPackets
     Packet_CanGetCookieForPInvokeCalliSig                = 7,
     Packet_CanGetVarArgsHandle                           = 8,
     Packet_CanInline                                     = 9,
+    Packet_CanInlineTypeCheck                            = 172, // Added 11/15/2018 as a replacement for CanInlineTypeCheckWithObjectVTable
     Packet_CanInlineTypeCheckWithObjectVTable            = 10,
     Packet_CanSkipMethodVerification                     = 11,
     Packet_CanTailCall                                   = 12,

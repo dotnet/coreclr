@@ -4371,7 +4371,40 @@ const char* MethodContext::repGetFieldName(CORINFO_FIELD_HANDLE ftn, const char*
     return (const char*)GetFieldName->GetBuffer(value.A);
 }
 
-void MethodContext::recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, CorInfoObjectVTableTypeCheckInliningResult result)
+void MethodContext::recCanInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source, CorInfoInlineTypeCheck result)
+{
+    if (CanInlineTypeCheck == nullptr)
+        CanInlineTypeCheck = new LightWeightMap<DLD, DWORD>();
+
+    DLD key;
+    ZeroMemory(&key, sizeof(DLD)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                   // out padding too
+
+    key.A = (DWORDLONG)cls;
+    key.B = (DWORD)source;
+
+    CanInlineTypeCheck->Add(key, (DWORD)result);
+}
+void MethodContext::dmpCanInlineTypeCheck(DLD key, DWORD value)
+{
+    printf("CanInlineTypeCheck key cls-%016llX src-%08X, value res-%u", key.A, key.B, value);
+}
+CorInfoInlineTypeCheck MethodContext::repCanInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source)
+{
+    AssertCodeMsg(CanInlineTypeCheck != nullptr, EXCEPTIONCODE_MC,
+                  "No map for CanInlineTypeCheck");
+
+    DLD key;
+    ZeroMemory(&key, sizeof(DLD)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                   // out padding too
+
+    key.A = (DWORDLONG)cls;
+    key.B = (DWORD)source;
+
+    return (CorInfoInlineTypeCheck)CanInlineTypeCheck->Get(key);
+}
+
+void MethodContext::recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, BOOL result)
 {
     if (CanInlineTypeCheckWithObjectVTable == nullptr)
         CanInlineTypeCheckWithObjectVTable = new LightWeightMap<DWORDLONG, DWORD>();
@@ -4382,11 +4415,11 @@ void MethodContext::dmpCanInlineTypeCheckWithObjectVTable(DWORDLONG key, DWORD v
 {
     printf("CanInlineTypeCheckWithObjectVTable key cls-%016llX, value res-%u", key, value);
 }
-CorInfoObjectVTableTypeCheckInliningResult MethodContext::repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
+BOOL MethodContext::repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
 {
     AssertCodeMsg(CanInlineTypeCheckWithObjectVTable != nullptr, EXCEPTIONCODE_MC,
                   "No map for CanInlineTypeCheckWithObjectVTable");
-    return (CorInfoObjectVTableTypeCheckInliningResult)CanInlineTypeCheckWithObjectVTable->Get((DWORDLONG)cls);
+    return (BOOL)CanInlineTypeCheckWithObjectVTable->Get((DWORDLONG)cls);
 }
 
 void MethodContext::recSatisfiesMethodConstraints(CORINFO_CLASS_HANDLE  parent,

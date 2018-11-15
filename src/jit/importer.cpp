@@ -3584,29 +3584,15 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         case CORINFO_INTRINSIC_GetTypeFromHandle:
             op1 = impStackTop(0).val;
 
-            if (IsTargetAbi(CORINFO_CORERT_ABI))
+            if (op1->gtOper == GT_CALL && (op1->gtCall.gtCallType == CT_HELPER) &&
+                (gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()) || op1->AsCall()->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE)))
             {
-                if (op1->gtOper == GT_CALL && (op1->gtCall.gtCallType == CT_HELPER) &&
-                    op1->AsCall()->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE))
-                {
-                    op1 = impPopStack().val;
-                    // Replace helper with a more specialized helper that returns RuntimeType
-                    assert(op1->gtCall.gtCallArgs->gtOp.gtOp2 == nullptr);
-                    op1 = gtNewHelperCallNode(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE, TYP_REF, op1->gtCall.gtCallArgs);
-                    op1->gtType = TYP_REF;
-                    retNode     = op1;
-                }
-            }
-            else
-            {
-                if (op1->gtOper == GT_CALL && (op1->gtCall.gtCallType == CT_HELPER) &&
-                    gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()))
-                {
-                    op1 = impPopStack().val;
-                    // Change call to return RuntimeType directly.
-                    op1->gtType = TYP_REF;
-                    retNode     = op1;
-                }
+                op1 = impPopStack().val;
+                // Replace helper with a more specialized helper that returns RuntimeType
+                assert(op1->gtCall.gtCallArgs->gtOp.gtOp2 == nullptr);
+                op1 = gtNewHelperCallNode(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE, TYP_REF, op1->gtCall.gtCallArgs);
+                op1->gtType = TYP_REF;
+                retNode     = op1;
             }
             // Call the regular function.
             break;
@@ -14714,8 +14700,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     return;
                 }
 
-                helper = IsTargetAbi(CORINFO_CORERT_ABI) ? CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE
-                                                         : CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE;
+                helper = CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE;
                 assert(resolvedToken.hClass != nullptr);
 
                 if (resolvedToken.hMethod != nullptr)

@@ -2579,7 +2579,7 @@ public:
         gtFoldExprConst(GenTree* tree);
     GenTree* gtFoldExprSpecial(GenTree* tree);
     GenTree* gtFoldExprCompare(GenTree* tree);
-    GenTree* gtCreateHandleCompare(genTreeOps oper, GenTree* op1, GenTree* op2, CorInfoObjectVTableTypeCheckInliningResult typeCheckInliningResult);
+    GenTree* gtCreateHandleCompare(genTreeOps oper, GenTree* op1, GenTree* op2, CorInfoInlineTypeCheck typeCheckInliningResult);
     GenTree* gtFoldExprCall(GenTreeCall* call);
     GenTree* gtFoldTypeCompare(GenTree* tree);
     GenTree* gtFoldTypeEqualityCall(CorInfoIntrinsics methodID, GenTree* op1, GenTree* op2);
