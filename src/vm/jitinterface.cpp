@@ -5191,6 +5191,8 @@ void CEEInfo::getCallInfo(
 
     INDEBUG(memset(pResult, 0xCC, sizeof(*pResult)));
 
+    pResult->stubLookup.lookupKind.needsRuntimeLookup = false;
+
     MethodDesc* pMD = (MethodDesc *)pResolvedToken->hMethod;
     TypeHandle th(pResolvedToken->hClass);
 
@@ -5496,13 +5498,18 @@ void CEEInfo::getCallInfo(
         pResult->nullInstanceCheck = TRUE;
     }
     // Non-interface dispatches go through the vtable.
-    // We'll special virtual calls to target methods in the corelib assembly when compiling in R2R mode and generate fragile-NI-like callsites for improved performance. We
-    // can do that because today we'll always service the corelib assembly and the runtime in one bundle. Any caller in the corelib version bubble can benefit from this
-    // performance optimization.
-    else if (!pTargetMD->IsInterface() && (!IsReadyToRunCompilation() || CallerAndCalleeInSystemVersionBubble((MethodDesc*)callerHandle, pTargetMD)))
+    else if (!pTargetMD->IsInterface())
     {
         pResult->kind = CORINFO_VIRTUALCALL_VTABLE;
         pResult->nullInstanceCheck = TRUE;
+
+        // We'll special virtual calls to target methods in the corelib assembly when compiling in R2R mode, and generate fragile-NI-like callsites for improved performance. We
+        // can do that because today we'll always service the corelib assembly and the runtime in one bundle. Any caller in the corelib version bubble can benefit from this
+        // performance optimization.
+        if (IsReadyToRunCompilation() && !CallerAndCalleeInSystemVersionBubble((MethodDesc*)callerHandle, pTargetMD))
+        {
+            pResult->kind = CORINFO_VIRTUALCALL_STUB;
+        }
     }
     else
     {
@@ -5540,8 +5547,6 @@ void CEEInfo::getCallInfo(
         }
         else
         {
-            pResult->stubLookup.lookupKind.needsRuntimeLookup = false;
-
             BYTE * indcell = NULL;
 
             if (!(flags & CORINFO_CALLINFO_KINDONLY) && !isVerifyOnly())
@@ -8881,29 +8886,11 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethodHelper(CORINFO_METHOD_HANDLE 
                 pOwnerMT = pOwnerMT->GetCanonicalMethodTable();
             }
 
-            // In a try block because the interface method resolution might end up being
-            // ambiguous (diamond inheritance case of default interface methods).
-            EX_TRY
-            {
-                pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(TypeHandle(pOwnerMT), pBaseMD);
-            }
-            EX_CATCH
-            {
-            }
-            EX_END_CATCH(RethrowTransientExceptions)
+            pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(TypeHandle(pOwnerMT), pBaseMD, FALSE /* throwOnConflict */);
         }
         else if (!pBaseMD->HasClassOrMethodInstantiation())
         {
-            // In a try block because the interface method resolution might end up being
-            // ambiguous (diamond inheritance case of default interface methods).
-            EX_TRY
-            {
-                pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(pBaseMD);
-            }
-            EX_CATCH
-            {
-            }
-            EX_END_CATCH(RethrowTransientExceptions)
+            pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(pBaseMD, FALSE /* throwOnConflict */);
         }
         
         if (pDevirtMD == nullptr)
@@ -11792,6 +11779,94 @@ void* CEEJitInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
     return result;
 }
 
+/*********************************************************************/
+CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
+                                                            bool* pIsSpeculative)
+{
+    CONTRACTL {
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    CORINFO_CLASS_HANDLE result = NULL;
+
+    if (pIsSpeculative != NULL)
+    {
+        *pIsSpeculative = true;
+    }
+
+    // Only examine the field's value if we are producing jitted code.
+    if (isVerifyOnly() || IsCompilingForNGen() || IsReadyToRunCompilation())
+    {
+        return result;
+    }
+
+    JIT_TO_EE_TRANSITION();
+
+    FieldDesc* field = (FieldDesc*) fieldHnd;
+    bool isClassInitialized = false;
+
+    // We're only interested in ref class typed static fields
+    // where the field handle specifies a unique location.
+    if (field->IsStatic() && field->IsObjRef() && !field->IsThreadStatic())
+    {
+        MethodTable* pEnclosingMT = field->GetEnclosingMethodTable();
+
+        if (!pEnclosingMT->IsSharedByGenericInstantiations())
+        {
+            // Allocate space for the local class if necessary, but don't trigger
+            // class construction.
+            DomainLocalModule *pLocalModule = pEnclosingMT->GetDomainLocalModule();
+            pLocalModule->PopulateClass(pEnclosingMT);
+            
+            GCX_COOP();
+            
+            OBJECTREF fieldObj = field->GetStaticOBJECTREF();
+            VALIDATEOBJECTREF(fieldObj);
+
+            // Check for initialization before looking at the value
+            isClassInitialized = !!pEnclosingMT->IsClassInited();
+
+            if (fieldObj != NULL)
+            {
+                MethodTable *pObjMT = fieldObj->GetMethodTable();
+                
+                // TODO: Check if the jit is allowed to embed this handle in jitted code.
+                // Note for the initonly cases it probably won't embed.
+                result = (CORINFO_CLASS_HANDLE) pObjMT;
+            }
+        }
+    }
+
+    // Did we find a class?
+    if (result != NULL)
+    {
+        // Figure out what to report back.
+        bool isResultImmutable = isClassInitialized && IsFdInitOnly(field->GetAttributes());
+
+        if (pIsSpeculative != NULL)
+        {
+            // Caller is ok with potentially mutable results.
+            *pIsSpeculative = !isResultImmutable;
+        }
+        else
+        {
+            // Caller only wants to see immutable results.
+            if (!isResultImmutable)
+            {
+                result = NULL;
+            }
+        }
+    }
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
+}
+
+/*********************************************************************/
 static void *GetClassSync(MethodTable *pMT)
 {
     STANDARD_VM_CONTRACT;
@@ -13899,6 +13974,16 @@ void* CEEInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
     if (ppIndirection != NULL)
         *ppIndirection = NULL;
     return (void *)0x10;
+}
+
+CORINFO_CLASS_HANDLE CEEInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
+                                                         bool* pIsSpeculative)
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(isVerifyOnly());
+    if (pIsSpeculative != NULL)
+        *pIsSpeculative = true;
+    return NULL;
 }
 
 void* CEEInfo::getMethodSync(CORINFO_METHOD_HANDLE ftnHnd,

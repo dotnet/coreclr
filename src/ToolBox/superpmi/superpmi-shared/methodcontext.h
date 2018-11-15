@@ -174,6 +174,11 @@ public:
         DWORDLONG fieldAddress;
         DWORD     fieldValue;
     };
+    struct Agnostic_GetStaticFieldCurrentClass
+    {
+        DWORDLONG classHandle;
+        bool      isSpeculative;
+    };
     struct Agnostic_CORINFO_RESOLVED_TOKEN
     {
         Agnostic_CORINFO_RESOLVED_TOKENin inValue;
@@ -923,6 +928,10 @@ public:
     void dmpGetFieldAddress(DWORDLONG key, const Agnostic_GetFieldAddress& value);
     void* repGetFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection);
 
+    void recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool isSpeculative, CORINFO_CLASS_HANDLE result);
+    void dmpGetStaticFieldCurrentClass(DWORDLONG key, const Agnostic_GetStaticFieldCurrentClass& value);
+    CORINFO_CLASS_HANDLE repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative);
+
     void recGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs, unsigned len, unsigned result);
     void dmpGetClassGClayout(DWORDLONG key, const Agnostic_GetClassGClayout& value);
     unsigned repGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs);
@@ -1400,6 +1409,7 @@ enum mcPackets
     Packet_GetEEInfo                                     = 50,
     Packet_GetEHinfo                                     = 51,
     Packet_GetFieldAddress                               = 52,
+    Packet_GetStaticFieldCurrentClass                    = 172, // Added 11/7/2018
     Packet_GetFieldClass                                 = 53,
     Packet_GetFieldInClass                               = 54,
     Packet_GetFieldInfo                                  = 55,
