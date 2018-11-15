@@ -9,11 +9,11 @@ using System.Runtime.InteropServices;
 unsafe class ArrayWithOffsetNative
 {
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_InOut(int* expected, [In, Out] ArrayWithOffset actual, int numElements, int* newValue);
+    public static extern bool Marshal_InOut(int* expected, [In, Out] ArrayWithOffset actual, int numElements, int* newValue);
 
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_Invalid(ArrayWithOffset invalidArray);
+    public static extern bool Marshal_Invalid(ArrayWithOffset invalidArray);
 
     [DllImport(NativeLibrary)]
-    private static extern bool Marshal_Invalid(ref ArrayWithOffset array);
+    public static extern bool Marshal_Invalid(ref ArrayWithOffset array);
 }
