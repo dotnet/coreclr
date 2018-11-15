@@ -90,7 +90,7 @@ namespace System.Buffers.Text
                     return FormattingHelpers.TryFormatThrowFormatException(out bytesWritten);
             }
 
-            ReadOnlySpan<char> formatSpan = stackalloc char[] {format.Symbol};
+            ReadOnlySpan<char> formatSpan = format.ToString();
             Span<char> outputSpan = stackalloc char[Number.CharStackBufferSize];
             if(!value.TryFormat(outputSpan, out int charsWritten, formatSpan, CultureInfo.InvariantCulture))
             {
