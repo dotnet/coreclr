@@ -1546,6 +1546,9 @@ def build_test_wrappers(host_os,
                 "/p:__BuildType=%s" % build_type,
                 "/p:__LogsDir=%s" % logs_dir]
 
+    if not altjit_arch is None:
+        command += ["/p:__AltJitArch=%s" % altjit_arch]
+
     print("Creating test wrappers...")
     print(" ".join(command))
 
