@@ -213,11 +213,11 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* 12768bf8-549c-455b-a3df-57a751a81813 */
-    0x12768bf8,
-    0x549c,
-    0x455b,
-    {0xa3, 0xdf, 0x57, 0xa7, 0x51, 0xa8, 0x18, 0x13}
+SELECTANY const GUID JITEEVersionIdentifier = { /* b2da2a6e-72fa-4730-b47c-4c9275e1c5ce */
+    0xb2da2a6e,
+    0x72fa,
+    0x4730,
+    {0xb4, 0x7c, 0x4c, 0x92, 0x75, 0xe1, 0xc5, 0xce}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -642,6 +642,7 @@ enum CorInfoHelpFunc
 
     CORINFO_HELP_THROW_ARGUMENTEXCEPTION,           // throw ArgumentException
     CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION, // throw ArgumentOutOfRangeException
+    CORINFO_HELP_THROW_NOT_IMPLEMENTED,             // throw NotImplementedException
     CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED,      // throw PlatformNotSupportedException
     CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED,          // throw TypeNotSupportedException
 
@@ -3116,6 +3117,22 @@ public:
     virtual void* getFieldAddress(
                     CORINFO_FIELD_HANDLE    field,
                     void                  **ppIndirection = NULL
+                    ) = 0;
+
+    // If pIsSpeculative is NULL, return the class handle for the value of ref-class typed
+    // static readonly fields, if there is a unique location for the static and the class
+    // is already initialized.
+    // 
+    // If pIsSpeculative is not NULL, fetch the class handle for the value of all ref-class
+    // typed static fields, if there is a unique location for the static and the field is
+    // not null.
+    //
+    // Set *pIsSpeculative true if this type may change over time (field is not readonly or
+    // is readonly but class has not yet finished initialization). Set *pIsSpeculative false
+    // if this type will not change.
+    virtual CORINFO_CLASS_HANDLE getStaticFieldCurrentClass(
+                    CORINFO_FIELD_HANDLE    field,
+                    bool                   *pIsSpeculative = NULL
                     ) = 0;
 
     // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)

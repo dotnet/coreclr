@@ -757,7 +757,7 @@ CPFH_RealFirstPassHandler(                  // ExceptionContinueSearch, etc.
         const char * eClsName = "!EXCEPTION_COMPLUS";
         if (e != 0)
         {
-            eClsName = e->GetTrueMethodTable()->GetDebugClassName();
+            eClsName = e->GetMethodTable()->GetDebugClassName();
     }
         LOG((LF_EH, LL_INFO100, "CPFH_RealFirstPassHandler: exception: 0x%08X, class: '%s', IP: 0x%p\n",
              exceptionCode, eClsName, pContext ? GetIP(pContext) : NULL));
@@ -1255,6 +1255,13 @@ CPFH_RealFirstPassHandler(                  // ExceptionContinueSearch, etc.
     CallRtlUnwindSafe(pEstablisherFrame, RtlUnwindCallback, pExceptionRecord, 0);
     // on x86 at least, RtlUnwind always returns
 
+    // The CallRtlUnwindSafe could have popped the explicit frame that the tct.pBottomFrame points to (UMThunkPrestubHandler
+    // does that). In such case, the tct.pBottomFrame needs to be updated to point to the first valid explicit frame.
+    Frame* frame = pThread->GetFrame();
+    if ((tct.pBottomFrame != NULL) && (frame > tct.pBottomFrame))
+    {
+        tct.pBottomFrame = frame;
+    }
     // Note: we've completed the unwind pass up to the establisher frame, and we're headed off to finish our
     // cleanup and end up back in jitted code. Any more FS0 handlers pushed from this point on out will _not_ be
     // unwound.
@@ -2509,7 +2516,7 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
         if (throwable != NULL)
         {
             throwable = PossiblyUnwrapThrowable(throwable, pCf->GetAssembly());
-            thrownType = TypeHandle(throwable->GetTrueMethodTable());
+            thrownType = TypeHandle(throwable->GetMethodTable());
         }
     }
 
@@ -2886,7 +2893,7 @@ StackWalkAction COMPlusUnwindCallback (CrawlFrame *pCf, ThrowCallbackType *pData
         if (throwable != NULL)
         {
             throwable = PossiblyUnwrapThrowable(throwable, pCf->GetAssembly());
-            thrownType = TypeHandle(throwable->GetTrueMethodTable());
+            thrownType = TypeHandle(throwable->GetMethodTable());
         }
     }
 #ifdef DEBUGGING_SUPPORTED

@@ -2434,30 +2434,9 @@ public:
     void EnterContextRestricted(Context* c, ContextTransitionFrame* pFrame);
     void ReturnToContext(ContextTransitionFrame *pFrame);
 
-private:
-    typedef enum {
-        RaiseCrossContextSuccess,
-        RaiseCrossContextRetry,
-        RaiseCrossContextClassInit
-    } RaiseCrossContextResult;
-
-
-    // The "orBlob" stores the serialized image of a managed Exception object as it gets marshaled
-    // across AD boundaries.
-    //
-    // In Telesto, we don't support true appdomain marshaling so the "orBlob" is in fact an
-    // agile wrapper object whose ToString() echoes the original exception's ToString().
-    typedef OBJECTREF  ORBLOBREF;
-
-    RaiseCrossContextResult TryRaiseCrossContextException(Exception **ppExOrig,
-                                                          Exception *pException,
-                                                          RuntimeExceptionKind *pKind,
-                                                          OBJECTREF *ppThrowable,
-                                                          ORBLOBREF *pOrBlob);
 public:
 
     void DECLSPEC_NORETURN RaiseCrossContextException(Exception* pEx, ContextTransitionFrame* pFrame);
-    void RaiseCrossContextExceptionHelper(Exception* pEx,ContextTransitionFrame* pFrame);
 
     // ClearContext are to be called only during shutdown
     void ClearContext();
@@ -3626,10 +3605,6 @@ public:
     // space to restore the guard page, so make sure you know what you're doing when you decide to call this.
     VOID RestoreGuardPage();
 
-    // Commit the thread's entire stack. Note: this works on managed or unmanaged threads, and pLowerBoundMemInfo
-    // is optional.
-    static BOOL CommitThreadStack(Thread* pThreadOptional);
-
 #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
 private:
     // Redirecting of threads in managed code at suspension
@@ -3647,7 +3622,7 @@ private:
     static void __stdcall RedirectedHandledJITCaseForGCThreadControl();
     static void __stdcall RedirectedHandledJITCaseForUserSuspend();
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
-    static void __stdcall Thread::RedirectedHandledJITCaseForGCStress();
+    static void __stdcall RedirectedHandledJITCaseForGCStress();
 #endif // defined(HAVE_GCCOVER) && USE_REDIRECT_FOR_GCSTRESS
 
     friend void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThread);
@@ -7302,7 +7277,7 @@ class Compiler;
 struct ThreadLocalInfo
 {
     Thread* m_pThread;
-    AppDomain* m_pAppDomain;
+    AppDomain* m_pAppDomain; // This field is read only by the SOS plugin to get the AppDomain
     void** m_EETlsData; // ClrTlsInfo::data
 };
 

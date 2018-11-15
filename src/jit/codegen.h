@@ -1035,6 +1035,7 @@ protected:
     void genCodeForIndexAddr(GenTreeIndexAddr* tree);
     void genCodeForIndir(GenTreeIndir* tree);
     void genCodeForNegNot(GenTree* tree);
+    void genCodeForBswap(GenTree* tree);
     void genCodeForLclVar(GenTreeLclVar* tree);
     void genCodeForLclFld(GenTreeLclFld* tree);
     void genCodeForStoreLclFld(GenTreeLclFld* tree);
@@ -1184,6 +1185,10 @@ protected:
     unsigned m_stkArgOffset;
 #endif // !_TARGET_X86_
 #endif // !FEATURE_PUT_STRUCT_ARG_STK
+
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
+    void genStackPointerCheck(bool doStackPointerCheck, unsigned lvaStackPointerVar);
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 
 #ifdef DEBUG
     GenTree* lastConsumedNode;

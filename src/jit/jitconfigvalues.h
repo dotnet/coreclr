@@ -95,6 +95,7 @@ CONFIG_INTEGER(JitNoRegLoc, W("JitNoRegLoc"), 0)
 CONFIG_INTEGER(JitNoStructPromotion, W("JitNoStructPromotion"), 0) // Disables struct promotion in Jit32
 CONFIG_INTEGER(JitNoUnroll, W("JitNoUnroll"), 0)
 CONFIG_INTEGER(JitOrder, W("JitOrder"), 0)
+CONFIG_INTEGER(JitQueryCurrentStaticFieldClass, W("JitQueryCurrentStaticFieldClass"), 1)
 CONFIG_INTEGER(JitReportFastTailCallDecisions, W("JitReportFastTailCallDecisions"), 0)
 CONFIG_INTEGER(JitPInvokeCheckEnabled, W("JITPInvokeCheckEnabled"), 0)
 CONFIG_INTEGER(JitPInvokeEnabled, W("JITPInvokeEnabled"), 1)
@@ -347,6 +348,7 @@ CONFIG_STRING(JitInlineReplayFile, W("JitInlineReplayFile"))
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
 CONFIG_INTEGER(JitInlinePolicyModel, W("JitInlinePolicyModel"), 0)
+CONFIG_INTEGER(JitObjectStackAllocation, W("JitObjectStackAllocation"), 0)
 
 CONFIG_INTEGER(JitEECallTimingInfo, W("JitEECallTimingInfo"), 0)
 

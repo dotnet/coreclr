@@ -26,7 +26,7 @@ private:
 
     // The configured size of the circular buffer.
     size_t m_circularBufferSizeInBytes;
-    
+
     // True if rundown is enabled.
     Volatile<bool> m_rundownEnabled;
 
@@ -40,6 +40,9 @@ private:
     // Start timestamp.
     LARGE_INTEGER m_sessionStartTimeStamp;
 
+    // The maximum trace length in seconds.  Used to determine when to flush the current file and start a new one.
+    UINT64 m_multiFileTraceLengthInSeconds;
+
 public:
 
     // TODO: This needs to be exposed via EventPipe::CreateSession() and EventPipe::DeleteSession() to avoid memory ownership issues.
@@ -47,7 +50,8 @@ public:
         EventPipeSessionType sessionType,
         unsigned int circularBufferSizeInMB,
         EventPipeProviderConfiguration *pProviders,
-        unsigned int numProviders);
+        unsigned int numProviders,
+        UINT64 multiFileTraceLengthInSeconds);
 
     ~EventPipeSession();
 
@@ -94,6 +98,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_sessionStartTimeStamp;
+    }
+
+    UINT64 GetMultiFileTraceLengthInSeconds() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_multiFileTraceLengthInSeconds;
     }
 
     // Add a new provider to the session.
@@ -144,12 +154,16 @@ private:
     // The loging level.
     EventPipeEventLevel m_loggingLevel;
 
+    // The filter data.
+    WCHAR *m_pFilterData;
+
 public:
 
     EventPipeSessionProvider(
         LPCWSTR providerName,
         UINT64 keywords,
-        EventPipeEventLevel loggingLevel);
+        EventPipeEventLevel loggingLevel,
+        LPCWSTR filterData);
     ~EventPipeSessionProvider();
 
     LPCWSTR GetProviderName() const;
@@ -157,6 +171,8 @@ public:
     UINT64 GetKeywords() const;
 
     EventPipeEventLevel GetLevel() const;
+
+    LPCWSTR GetFilterData() const;
 };
 
 #endif // FEATURE_PERFTRACING
