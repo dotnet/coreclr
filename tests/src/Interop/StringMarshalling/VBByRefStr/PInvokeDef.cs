@@ -10,13 +10,13 @@ class VBByRefStrNative
 {
     
     [DllImport(nameof(VBByRefStrNative), CharSet = CharSet.Ansi)]
-    private static extern bool Marshal_Ansi(string expected, [MarshalAs(UnmanagedType.VBByRefStr)] ref string actual, string newValue);
+    public static extern bool Marshal_Ansi(string expected, [MarshalAs(UnmanagedType.VBByRefStr)] ref string actual, string newValue);
     [DllImport(nameof(VBByRefStrNative), CharSet = CharSet.Unicode)]
-    private static extern bool Marshal_Unicode(string expected, [MarshalAs(UnmanagedType.VBByRefStr)] ref string actual, string newValue);
+    public static extern bool Marshal_Unicode(string expected, [MarshalAs(UnmanagedType.VBByRefStr)] ref string actual, string newValue);
 
     [DllImport(nameof(VBByRefStrNative), EntryPoint = "Marshal_Invalid")]
-    private static extern bool Marshal_StringBuilder([MarshalAs(UnmanagedType.VBByRefStr)]ref  StringBuilder builder);
+    public static extern bool Marshal_StringBuilder([MarshalAs(UnmanagedType.VBByRefStr)]ref  StringBuilder builder);
 
     [DllImport(nameof(VBByRefStrNative), EntryPoint = "Marshal_Invalid")]
-    private static extern bool Marshal_ByVal([MarshalAs(UnmanagedType.VBByRefStr)]string str);
+    public static extern bool Marshal_ByVal([MarshalAs(UnmanagedType.VBByRefStr)]string str);
 }
