@@ -72,7 +72,6 @@ namespace System.Buffers.Text
 
             if (srcIndex == source.Length)
             {
-                number.IsNegative = false;
                 bytesConsumed = srcIndex;
                 number.CheckConsistency();
                 return true;
@@ -206,11 +205,6 @@ namespace System.Buffers.Text
 
             if ((c & ~0x20u) != 'E')
             {
-                if ((digits[0] == 0) && (numDigitsAfterDecimal == 0))
-                {
-                    number.IsNegative = false;
-                }
-
                 digits[dstIndex] = 0;
                 number.DigitsCount = dstIndex;
                 bytesConsumed = srcIndex;

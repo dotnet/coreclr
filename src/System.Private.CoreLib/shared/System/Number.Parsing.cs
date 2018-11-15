@@ -463,7 +463,7 @@ namespace System
                         {
                             number.Scale = 0;
                         }
-                        if ((state & StateDecimal) == 0)
+                        if ((number.Kind != NumberBufferKind.FloatingPoint) && (state & StateDecimal) == 0)
                         {
                             number.IsNegative = false;
                         }
