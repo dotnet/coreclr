@@ -558,6 +558,7 @@ HRESULT PrettyPrintSigWorkerInternal(
 
 static HRESULT PrettyPrintClass(
     PCCOR_SIGNATURE     &typePtr,   // type to convert
+    PCCOR_SIGNATURE     typeEnd,    // end of the signature.
     CQuickBytes         *out,       // where to put the pretty printed string
     IMDInternalImport   *pIMDI);    // ptr to IMDInternal class with ComSig
 
@@ -689,22 +690,25 @@ static HRESULT PrettyPrintTypeA(
     case ELEMENT_TYPE_CLASS:
         str = "class "; 
         goto DO_CLASS;
+
+    DO_CLASS:
+        IfFailGo(appendStrA(out, str));
+        IfFailGo(PrettyPrintClass(typePtr, typeEnd, out, pIMDI));
+        break;
         
     case ELEMENT_TYPE_CMOD_REQD:
         str = "required_modifier ";
-        IfFailGo(appendStrA(out, str));
-        IfFailGo(PrettyPrintClass(typePtr, out, pIMDI));                  
-        IfFailGo(appendStrA(out, " "));
-        IfFailGo(PrettyPrintTypeA(typePtr, (typeEnd - typePtr), out, pIMDI));
-        break;
+        goto CMOD;
         
     case ELEMENT_TYPE_CMOD_OPT:
         str = "optional_modifier ";
-        goto DO_CLASS;
+        goto CMOD;
         
-    DO_CLASS:
+    CMOD:
         IfFailGo(appendStrA(out, str));
-        PrettyPrintClass(typePtr, out, pIMDI);
+        IfFailGo(PrettyPrintClass(typePtr, typeEnd, out, pIMDI));
+        IfFailGo(appendStrA(out, " "));
+        IfFailGo(PrettyPrintTypeA(typePtr, (typeEnd - typePtr), out, pIMDI));
         break;
 
     case ELEMENT_TYPE_SZARRAY:
@@ -842,6 +846,7 @@ static HRESULT PrettyPrintTypeA(
 // pretty prints the class 'type' to the buffer 'out'
 static HRESULT PrettyPrintClass(
     PCCOR_SIGNATURE     &typePtr,   // type to convert
+    PCCOR_SIGNATURE     typeEnd,    // end of the signature.
     CQuickBytes         *out,       // where to put the pretty printed string
     IMDInternalImport   *pIMDI)     // ptr to IMDInternal class with ComSig
 {
@@ -858,7 +863,7 @@ static HRESULT PrettyPrintClass(
     LPCUTF8     pN;     // type's name.
     HRESULT     hr;     // result
 
-    typePtr += CorSigUncompressToken(typePtr, &tk);
+    IfFailGo(CorSigUncompressToken_EndPtr(typePtr, typeEnd, &tk));
     str = "<UNKNOWN>";
 
     if (TypeFromToken(tk) == mdtTypeSpec)
