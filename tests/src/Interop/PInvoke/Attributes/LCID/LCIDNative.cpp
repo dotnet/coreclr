@@ -7,13 +7,13 @@
 #include <windows.h>
 #include <xplatform.h>
 
-char* strManaged = "Managed\0String\0";
+const char* strManaged = "Managed\0String\0";
 size_t lenstrManaged = 7; // the length of strManaged
 
-char* strReturn = "a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-char* strFalseReturn = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+const char* strReturn = "a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+const char* strFalseReturn = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
-char* strNative = " Native\0String\0";
+const char* strNative = " Native\0String\0";
 size_t lenstrNative = 7; //the len of strNative
 
 extern "C" LPSTR ReturnString()
@@ -34,18 +34,18 @@ extern "C" LPSTR ReturnFalseString()
     return ret;
 }
 
-extern "C" void PrintExpectedAndActual(LPSTR s, size_t len)
+extern "C" void PrintExpectedAndActual(LPCSTR s, size_t len)
 {
     //Expected
     printf("Expected:");
     for(size_t i = 0; i< lenstrManaged;++i)
-        putchar(*(((char *)strManaged)+i));
+        putchar(*(((const char *)strManaged)+i));
     printf("\tThe length of Expected:%d\n",static_cast<int>(lenstrManaged));
 
     //Actual
     printf("Actual:");
     for(size_t j = 0; j < len; ++j )
-        putchar(*(((char *)s) + j));
+        putchar(*(((const char *)s) + j));
     printf("\tThe length of Actual:%d\n",static_cast<int>(len));
 }
 
