@@ -116,6 +116,9 @@ SVAL_IMPL(BOOL, SystemDomain, s_fForceDebug);
 SVAL_IMPL(BOOL, SystemDomain, s_fForceProfiling);
 SVAL_IMPL(BOOL, SystemDomain, s_fForceInstrument);
 
+// The one and only AppDomain
+AppDomain* AppDomain::m_pTheAppDomain = NULL;
+
 #ifndef DACCESS_COMPILE
 
 // Base Domain Statics
@@ -1974,68 +1977,6 @@ MethodTable* AppDomain::GetLicenseInteropHelperMethodTable()
     }
     return m_pLicenseInteropHelperMT;
 }
-
-COMorRemotingFlag AppDomain::GetComOrRemotingFlag()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // 0. check if the value is already been set
-    if (m_COMorRemotingFlag != COMorRemoting_NotInitialized)
-        return m_COMorRemotingFlag;
-
-    // 1. check whether the process is AppX
-    if (AppX::IsAppXProcess())
-    {
-        // do not use Remoting in AppX
-        m_COMorRemotingFlag = COMorRemoting_COM;
-        return m_COMorRemotingFlag;
-    }
-
-    // 2. check the xml file
-    m_COMorRemotingFlag = GetPreferComInsteadOfManagedRemotingFromConfigFile();
-    if (m_COMorRemotingFlag != COMorRemoting_NotInitialized)
-    {
-        return m_COMorRemotingFlag;
-    }
-
-    // 3. check the global setting
-    if (NULL != g_pConfig && g_pConfig->ComInsteadOfManagedRemoting())
-    {
-        m_COMorRemotingFlag = COMorRemoting_COM;
-    }
-    else
-    {
-        m_COMorRemotingFlag = COMorRemoting_Remoting;
-    }
-
-    return m_COMorRemotingFlag;
-}
-
-BOOL AppDomain::GetPreferComInsteadOfManagedRemoting()
-{
-    WRAPPER_NO_CONTRACT;
-
-    return (GetComOrRemotingFlag() == COMorRemoting_COM);
-}
-
-COMorRemotingFlag AppDomain::GetPreferComInsteadOfManagedRemotingFromConfigFile()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    return COMorRemoting_COM;
-}
 #endif // FEATURE_COMINTEROP
 
 #endif // CROSSGEN_COMPILE
@@ -2133,8 +2074,8 @@ void SystemDomain::Attach()
     // We need to initialize the memory pools etc. for the system domain.
     m_pSystemDomain->BaseDomain::Init(); // Setup the memory heaps
 
-    // Create the default domain
-    m_pSystemDomain->CreateDefaultDomain();
+    // Create the one and only app domain
+    AppDomain::Create();
     SharedDomain::Attach();
 
     // Each domain gets its own ReJitManager, and ReJitManager has its own static
@@ -2175,8 +2116,9 @@ void SystemDomain::DetachEnd()
     {
         GCX_PREEMP();
         m_pSystemDomain->ClearFusionContext();
-        if (m_pSystemDomain->m_pDefaultDomain)
-            m_pSystemDomain->m_pDefaultDomain->ClearFusionContext();
+        AppDomain* pAppDomain = GetAppDomain();
+        if (pAppDomain)
+            pAppDomain->ClearFusionContext();
     }
 }
 
@@ -3637,7 +3579,7 @@ StackWalkAction SystemDomain::CallersMethodCallback(CrawlFrame* pCf, VOID* data)
 extern CompilationDomain * theDomain;
 #endif
 
-void SystemDomain::CreateDefaultDomain()
+void AppDomain::Create()
 {
     STANDARD_VM_CONTRACT;
 
@@ -3647,25 +3589,25 @@ void SystemDomain::CreateDefaultDomain()
     AppDomainRefHolder pDomain(new AppDomain());
 #endif
 
-    SystemDomain::LockHolder lh;
     pDomain->Init();
 
     // need to make this assignment here since we'll be releasing
     // the lock before calling AddDomain. So any other thread
     // grabbing this lock after we release it will find that
     // the COM Domain has already been created
-    m_pDefaultDomain = pDomain;
     _ASSERTE (pDomain->GetId().m_dwId == DefaultADID);
 
     // allocate a Virtual Call Stub Manager for the default domain
-    m_pDefaultDomain->InitVSD();
+    pDomain->InitVSD();
 
     pDomain->SetStage(AppDomain::STAGE_OPEN);
     pDomain.SuppressRelease();
 
+    m_pTheAppDomain = pDomain;
+
     LOG((LF_CLASSLOADER | LF_CORDB,
          LL_INFO10,
-         "Created default domain at %p\n", m_pDefaultDomain));
+         "Created the app domain at %p\n", m_pTheAppDomain));
 }
 
 #ifdef DEBUGGING_SUPPORTED
@@ -3881,11 +3823,8 @@ AppDomain::AppDomain()
     m_pRCWCache = NULL;
     m_pRCWRefCache = NULL;
     m_pLicenseInteropHelperMT = NULL;
-    m_COMorRemotingFlag = COMorRemoting_NotInitialized;
     memset(m_rpCLRTypes, 0, sizeof(m_rpCLRTypes));
 #endif // FEATURE_COMINTEROP
-
-    m_pUMEntryThunkCache = NULL;
 
     m_pAsyncPool = NULL;
     m_handleStore = NULL;
@@ -4022,7 +3961,6 @@ void AppDomain::Init()
     CONTRACTL
     {
         STANDARD_VM_CHECK;
-        PRECONDITION(SystemDomain::IsUnderDomainLock());
     }
     CONTRACTL_END;
 
@@ -4221,12 +4159,6 @@ void AppDomain::Terminate()
 
     delete m_pDefaultContext;
     m_pDefaultContext = NULL;
-
-    if (m_pUMEntryThunkCache)
-    {
-        delete m_pUMEntryThunkCache;
-        m_pUMEntryThunkCache = NULL;
-    }
 
 #ifdef FEATURE_COMINTEROP
     if (m_pRCWCache)
@@ -6133,7 +6065,7 @@ LPCWSTR AppDomain::GetFriendlyName(BOOL fDebuggerCares/*=TRUE*/)
 
 LPCWSTR AppDomain::GetFriendlyNameForLogging()
 {
-    CONTRACT(LPWSTR)
+    CONTRACT(LPCWSTR)
     {
         NOTHROW;
         GC_NOTRIGGER;
@@ -6455,7 +6387,7 @@ BOOL AppDomain::PostBindResolveAssembly(AssemblySpec  *pPrePolicySpec,
             // the adding of the result to fail. Checking for already chached specs
             // is not an option as it would introduce another race window.
             // The binder does a re-fetch of the
-            // orignal binding spec and therefore will not cause inconsistency here.
+            // original binding spec and therefore will not cause inconsistency here.
             // For the purposes of the resolve event, failure to add to the cache still is a success.
             AddFileToCache(pPrePolicySpec, result, TRUE /* fAllowFailure */);
             if (*ppFailedSpec != pPrePolicySpec && pPostPolicySpec->CanUseWithBindingCache())
@@ -7546,31 +7478,6 @@ BOOL AppDomain::WasSystemAssemblyLoadEventSent(void)
 }
 
 #ifndef CROSSGEN_COMPILE
-// U->M thunks created in this domain and not associated with a delegate.
-UMEntryThunkCache *AppDomain::GetUMEntryThunkCache()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-
-    if (!m_pUMEntryThunkCache)
-    {
-        UMEntryThunkCache *pUMEntryThunkCache = new UMEntryThunkCache(this);
-
-        if (FastInterlockCompareExchangePointer(&m_pUMEntryThunkCache, pUMEntryThunkCache, NULL) != NULL)
-        {
-            // some thread swooped in and set the field
-            delete pUMEntryThunkCache;
-        }
-    }
-    _ASSERTE(m_pUMEntryThunkCache);
-    return m_pUMEntryThunkCache;
-}
 
 #ifdef FEATURE_COMINTEROP
 
@@ -9714,9 +9621,9 @@ SystemDomain::EnumMemoryRegions(CLRDataEnumMemoryFlags flags,
     {
         m_pSystemAssembly->EnumMemoryRegions(flags);
     }
-    if (m_pDefaultDomain.IsValid())
+    if (AppDomain::GetCurrentDomain())
     {
-        m_pDefaultDomain->EnumMemoryRegions(flags, true);
+        AppDomain::GetCurrentDomain()->EnumMemoryRegions(flags, true);
     }
 
     m_appDomainIndexList.EnumMem();

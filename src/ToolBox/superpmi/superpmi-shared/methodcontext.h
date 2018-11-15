@@ -174,6 +174,11 @@ public:
         DWORDLONG fieldAddress;
         DWORD     fieldValue;
     };
+    struct Agnostic_GetStaticFieldCurrentClass
+    {
+        DWORDLONG classHandle;
+        bool      isSpeculative;
+    };
     struct Agnostic_CORINFO_RESOLVED_TOKEN
     {
         Agnostic_CORINFO_RESOLVED_TOKENin inValue;
@@ -696,6 +701,14 @@ public:
     void dmpGetClassSize(DWORDLONG key, DWORD val);
     unsigned repGetClassSize(CORINFO_CLASS_HANDLE cls);
 
+    void recGetHeapClassSize(CORINFO_CLASS_HANDLE cls, unsigned result);
+    void dmpGetHeapClassSize(DWORDLONG key, DWORD val);
+    unsigned repGetHeapClassSize(CORINFO_CLASS_HANDLE cls);
+
+    void recCanAllocateOnStack(CORINFO_CLASS_HANDLE cls, BOOL result);
+    void dmpCanAllocateOnStack(DWORDLONG key, DWORD val);
+    BOOL repCanAllocateOnStack(CORINFO_CLASS_HANDLE cls);
+
     void recGetClassNumInstanceFields(CORINFO_CLASS_HANDLE cls, unsigned result);
     void dmpGetClassNumInstanceFields(DWORDLONG key, DWORD value);
     unsigned repGetClassNumInstanceFields(CORINFO_CLASS_HANDLE cls);
@@ -914,6 +927,10 @@ public:
     void recGetFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection, void* result, CorInfoType cit);
     void dmpGetFieldAddress(DWORDLONG key, const Agnostic_GetFieldAddress& value);
     void* repGetFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection);
+
+    void recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool isSpeculative, CORINFO_CLASS_HANDLE result);
+    void dmpGetStaticFieldCurrentClass(DWORDLONG key, const Agnostic_GetStaticFieldCurrentClass& value);
+    CORINFO_CLASS_HANDLE repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative);
 
     void recGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs, unsigned len, unsigned result);
     void dmpGetClassGClayout(DWORDLONG key, const Agnostic_GetClassGClayout& value);
@@ -1309,7 +1326,7 @@ private:
 };
 
 // ********************* Please keep this up-to-date to ease adding more ***************
-// Highest packet number: 168
+// Highest packet number: 172
 // *************************************************************************************
 enum mcPackets
 {
@@ -1378,6 +1395,8 @@ enum mcPackets
     Packet_GetTypeInstantiationArgument                  = 167, // Added 12/4/17
     Packet_GetClassNumInstanceFields                     = 46,
     Packet_GetClassSize                                  = 47,
+    Packet_GetHeapClassSize                              = 170, // Added 10/5/2018
+    Packet_CanAllocateOnStack                            = 171, // Added 10/5/2018
     Packet_GetIntConfigValue                             = 151, // Added 2/12/2015
     Packet_GetStringConfigValue                          = 152, // Added 2/12/2015
     Packet_GetCookieForPInvokeCalliSig                   = 48,
@@ -1386,6 +1405,7 @@ enum mcPackets
     Packet_GetEEInfo                                     = 50,
     Packet_GetEHinfo                                     = 51,
     Packet_GetFieldAddress                               = 52,
+    Packet_GetStaticFieldCurrentClass                    = 172, // Added 11/7/2018
     Packet_GetFieldClass                                 = 53,
     Packet_GetFieldInClass                               = 54,
     Packet_GetFieldInfo                                  = 55,

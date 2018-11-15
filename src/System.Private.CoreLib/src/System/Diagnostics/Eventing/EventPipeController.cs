@@ -5,12 +5,10 @@
 using Internal.IO;
 using Microsoft.Win32;
 using System.IO;
-using System.Globalization;
 using System.Reflection;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace System.Diagnostics.Tracing
 {
@@ -49,13 +47,14 @@ namespace System.Diagnostics.Tracing
         private const string ConfigKey_CircularMB = "CircularMB";
         private const string ConfigKey_OutputPath = "OutputPath";
         private const string ConfigKey_ProcessID = "ProcessID";
+        private const string ConfigKey_MultiFileSec = "MultiFileSec";
 
         // The default set of providers/keywords/levels.  Used if an alternative configuration is not specified.
         private static readonly EventPipeProviderConfiguration[] DefaultProviderConfiguration = new EventPipeProviderConfiguration[]
         {
-            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntime", 0x4c14fccbd, 5),
-            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5),
-            new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5)
+            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntime", 0x4c14fccbd, 5, null),
+            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5, null),
+            new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5, null),
         };
 
         // Singleton controller instance.
@@ -94,7 +93,7 @@ namespace System.Diagnostics.Tracing
         private EventPipeController()
         {
             // Set the config file path.
-            m_configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, BuildConfigFileName());
+            m_configFilePath = Path.Combine(AppContext.BaseDirectory, BuildConfigFileName());
 
             // Initialize the timer, but don't set it to run.
             // The timer will be set to run each time PollForTracingCommand is called.
@@ -161,14 +160,18 @@ namespace System.Diagnostics.Tracing
             string strProviderConfig = null;
             string strCircularMB = null;
             string strProcessID = null;
+            string strMultiFileSec = null;
 
             // Split the configuration entries by line.
             string[] configEntries = strConfigContents.Split(ConfigFileLineDelimiters, StringSplitOptions.RemoveEmptyEntries);
             foreach (string configEntry in configEntries)
             {
                 //`Split the key and value by '='.
-                string[] entryComponents = configEntry.Split(ConfigEntryDelimiter);
-                if(entryComponents.Length == 2)
+                string[] entryComponents = configEntry.Split(
+                    ConfigEntryDelimiter,
+                    2,  // Stop split on first occurrence of the separator.
+                    StringSplitOptions.RemoveEmptyEntries);
+                if (entryComponents.Length == 2)
                 {
                     string key = entryComponents[0];
                     if (key.Equals(ConfigKey_Providers))
@@ -186,6 +189,10 @@ namespace System.Diagnostics.Tracing
                     else if (key.Equals(ConfigKey_ProcessID))
                     {
                         strProcessID = entryComponents[1];
+                    }
+                    else if (key.Equals(ConfigKey_MultiFileSec))
+                    {
+                        strMultiFileSec = entryComponents[1];
                     }
                 }
             }
@@ -207,19 +214,27 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(outputPath));
             }
 
+            // Check to see if MultiFileSec is specified.
+            ulong multiFileSec = 0;
+            if (!string.IsNullOrEmpty(strMultiFileSec))
+            {
+                multiFileSec = Convert.ToUInt64(strMultiFileSec);
+            }
+
             // Build the full path to the trace file.
             string traceFileName = BuildTraceFileName();
             string outputFile = Path.Combine(outputPath, traceFileName);
 
             // Get the circular buffer size.
             uint circularMB = DefaultCircularBufferMB;
-            if(!string.IsNullOrEmpty(strCircularMB))
+            if (!string.IsNullOrEmpty(strCircularMB))
             {
                 circularMB = Convert.ToUInt32(strCircularMB);
             }
 
             // Initialize a new configuration object.
             EventPipeConfiguration config = new EventPipeConfiguration(outputFile, circularMB);
+            config.SetMultiFileTraceLength(multiFileSec);
 
             // Set the provider configuration if specified.
             if (!string.IsNullOrEmpty(strProviderConfig))
@@ -300,33 +315,48 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(strConfig));
             }
 
-            // String must be of the form "providerName:keywords:level,providerName:keywords:level..."
-            string[] providers = strConfig.Split(ProviderConfigDelimiter);
+            // Provider format: "(GUID|KnownProviderName)[:Flags[:Level][:KeyValueArgs]]"
+            // where KeyValueArgs are of the form: "[key1=value1][;key2=value2]"
+            // `strConfig` must be of the form "Provider[,Provider]"
+            string[] providers = strConfig.Split(
+                ProviderConfigDelimiter,
+                StringSplitOptions.RemoveEmptyEntries); // Remove "empty" providers.
             foreach (string provider in providers)
             {
-                string[] components = provider.Split(ConfigComponentDelimiter);
-                if (components.Length == 3)
-                {
-                    string providerName = components[0];
+                // Split expecting a maximum of four tokens.
+                string[] components = provider.Split(
+                    ConfigComponentDelimiter,
+                    4, // if there is ':' in the parameters then anything after it will not be ignored.
+                    StringSplitOptions.None); // Keep empty tokens
 
+                string providerName = components.Length > 0 ? components[0] : null;
+                if (string.IsNullOrEmpty(providerName))
+                    continue;  // No provider name specified.
+
+                ulong keywords = ulong.MaxValue;
+                if (components.Length > 1)
+                {
                     // We use a try/catch block here because ulong.TryParse won't accept 0x at the beginning
                     // of a hex string.  Thus, we either need to conditionally strip it or handle the exception.
                     // Given that this is not a perf-critical path, catching the exception is the simpler code.
-                    ulong keywords = 0;
                     try
                     {
                         keywords = Convert.ToUInt64(components[1], 16);
                     }
-                    catch { }
-
-                    uint level;
-                    if (!uint.TryParse(components[2], out level))
+                    catch
                     {
-                        level = 0;
                     }
-
-                    config.EnableProvider(providerName, keywords, level);
                 }
+
+                uint level = 5; // Verbose
+                if (components.Length > 2)
+                {
+                    uint.TryParse(components[2], out level);
+                }
+
+                string filterData = components.Length > 3 ? components[3] : null;
+
+                config.EnableProviderWithFilter(providerName, keywords, level, filterData);
             }
         }
 

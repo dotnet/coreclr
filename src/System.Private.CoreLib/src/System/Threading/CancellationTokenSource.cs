@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace System.Threading
 {
@@ -49,8 +50,8 @@ namespace System.Threading
         private long _executingCallbackId;
         /// <summary>Partitions of callbacks.  Split into multiple partitions to help with scalability of registering/unregistering; each is protected by its own lock.</summary>
         private volatile CallbackPartition[] _callbackPartitions;
-        /// <summary>Timer used by CancelAfter and Timer-related ctors.</summary>
-        private volatile Timer _timer;
+        /// <summary>TimerQueueTimer used by CancelAfter and Timer-related ctors. Used instead of Timer to avoid extra allocations and because the rooted behavior is desired.</summary>
+        private volatile TimerQueueTimer _timer;
         /// <summary><see cref="System.Threading.WaitHandle"/> lazily initialized and returned from <see cref="WaitHandle"/>.</summary>
         private volatile ManualResetEvent _kernelEvent;
         /// <summary>Whether this <see cref="CancellationTokenSource"/> has been disposed.</summary>
@@ -205,7 +206,12 @@ namespace System.Threading
         private void InitializeWithTimer(int millisecondsDelay)
         {
             _state = NotCanceledState;
-            _timer = new Timer(s_timerCallback, this, millisecondsDelay, -1, flowExecutionContext: false);
+            _timer = new TimerQueueTimer(s_timerCallback, this, (uint)millisecondsDelay, Timeout.UnsignedInfinite, flowExecutionContext: false);
+
+            // The timer roots this CTS instance while it's scheduled.  That is by design, so
+            // that code like:
+            //     CancellationToken ct = new CancellationTokenSource(timeout).Token;
+            // will successfully cancel the token after the timeout.
         }
 
         /// <summary>Communicates a request for cancellation.</summary>
@@ -339,25 +345,28 @@ namespace System.Threading
             // expired and Disposed itself).  But this would be considered bad behavior, as
             // Dispose() is not thread-safe and should not be called concurrently with CancelAfter().
 
-            if (_timer == null)
+            TimerQueueTimer timer = _timer;
+            if (timer == null)
             {
                 // Lazily initialize the timer in a thread-safe fashion.
                 // Initially set to "never go off" because we don't want to take a
                 // chance on a timer "losing" the initialization and then
                 // cancelling the token before it (the timer) can be disposed.
-                Timer newTimer = new Timer(s_timerCallback, this, -1, -1, flowExecutionContext: false);
-                if (Interlocked.CompareExchange(ref _timer, newTimer, null) != null)
+                timer = new TimerQueueTimer(s_timerCallback, this, Timeout.UnsignedInfinite, Timeout.UnsignedInfinite, flowExecutionContext: false);
+                TimerQueueTimer currentTimer = Interlocked.CompareExchange(ref _timer, timer, null);
+                if (currentTimer != null)
                 {
                     // We did not initialize the timer.  Dispose the new timer.
-                    newTimer.Dispose();
+                    timer.Close();
+                    timer = currentTimer;
                 }
             }
 
-            // It is possible that m_timer has already been disposed, so we must do
+            // It is possible that _timer has already been disposed, so we must do
             // the following in a try/catch block.
             try
             {
-                _timer.Change(millisecondsDelay, -1);
+                timer.Change((uint)millisecondsDelay, Timeout.UnsignedInfinite);
             }
             catch (ObjectDisposedException)
             {
@@ -407,7 +416,12 @@ namespace System.Threading
                 // internal source of cancellation, then Disposes of that linked source, which could
                 // happen at the same time the external entity is requesting cancellation).
 
-                _timer?.Dispose(); // Timer.Dispose is thread-safe
+                TimerQueueTimer timer = _timer;
+                if (timer != null)
+                {
+                    _timer = null;
+                    timer.Close(); // TimerQueueTimer.Close is thread-safe
+                }
 
                 _callbackPartitions = null; // free for GC; Cancel correctly handles a null field
 
@@ -551,8 +565,13 @@ namespace System.Threading
             // If we're the first to signal cancellation, do the main extra work.
             if (!IsCancellationRequested && Interlocked.CompareExchange(ref _state, NotifyingState, NotCanceledState) == NotCanceledState)
             {
-                // Dispose of the timer, if any.  Dispose may be running concurrently here, but Timer.Dispose is thread-safe.
-                _timer?.Dispose();
+                // Dispose of the timer, if any.  Dispose may be running concurrently here, but TimerQueueTimer.Close is thread-safe.
+                TimerQueueTimer timer = _timer;
+                if (timer != null)
+                {
+                    _timer = null;
+                    timer.Close();
+                }
 
                 // Set the event if it's been lazily initialized and hasn't yet been disposed of.  Dispose may
                 // be running concurrently, in which case either it'll have set m_kernelEvent back to null and
@@ -766,6 +785,33 @@ namespace System.Threading
             {
                 sw.SpinOnce();  // spin, as we assume callback execution is fast and that this situation is rare.
             }
+        }
+
+        /// <summary>
+        /// Asynchronously wait for a single callback to complete (or, more specifically, to not be running).
+        /// It is ok to call this method if the callback has already finished.
+        /// Calling this method before the target callback has been selected for execution would be an error.
+        /// </summary>
+        internal ValueTask WaitForCallbackToCompleteAsync(long id)
+        {
+            // If the currently executing callback is not the target one, then the target one has already
+            // completed and we can simply return.  This should be the most common case, as the caller
+            // calls if we're currently canceling but doesn't know what callback is running, if any.
+            if (ExecutingCallback != id)
+            {
+                return default;
+            }
+
+            // The specified callback is actually running: queue a task that'll poll for the currently
+            // executing callback to complete. In general scheduling such a work item that polls is a really
+            // unfortunate thing to do.  However, we expect this to be a rare case (disposing while the associated
+            // callback is running), and brief when it happens (so the polling will be minimal), and making
+            // this work with a callback mechanism will add additional cost to other more common cases.
+            return new ValueTask(Task.Factory.StartNew(s =>
+            {
+                var state = (Tuple<CancellationTokenSource, long>)s;
+                state.Item1.WaitForCallbackToComplete(state.Item2);
+            }, Tuple.Create(this, id), CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default));
         }
 
         private sealed class Linked1CancellationTokenSource : CancellationTokenSource

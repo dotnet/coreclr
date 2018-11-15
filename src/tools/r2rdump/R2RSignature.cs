@@ -444,20 +444,21 @@ namespace R2RDump
             switch ((ReadyToRunFixupKind)fixupType)
             {
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_ThisObjDictionaryLookup:
-                    builder.Append("THIS_OBJ_DICTIONARY_LOOKUP");
-                    // TODO
+                    builder.Append("THISOBJ_DICTIONARY_LOOKUP @ ");
+                    ParseType(builder);
+                    builder.Append(": ");
+                    ParseSignature(builder);
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_TypeDictionaryLookup:
-                    builder.Append("TYPE_DICTIONARY_LOOKUP");
-                    // TODO
+                    builder.Append("TYPE_DICTIONARY_LOOKUP: ");
+                    ParseSignature(builder);
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodDictionaryLookup:
-                    builder.Append("METHOD_DICTIONARY_LOOKUP");
-                    // TODO
+                    builder.Append("METHOD_DICTIONARY_LOOKUP: ");
+                    ParseSignature(builder);
                     break;
-
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_TypeHandle:
                     ParseType(builder);
@@ -465,8 +466,8 @@ namespace R2RDump
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodHandle:
-                    builder.Append("METHOD_HANDLE");
-                    // TODO
+                    ParseMethod(builder);
+                    builder.Append(" (METHOD_HANDLE)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_FieldHandle:
@@ -507,8 +508,11 @@ namespace R2RDump
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry_Slot:
-                    builder.Append("VIRTUAL_ENTRY_SLOT");
-                    // TODO
+                    {
+                        uint slot = ReadUInt();
+                        ParseType(builder);
+                        builder.Append($@" #{slot} (VIRTUAL_ENTRY_SLOT)");
+                    }
                     break;
 
 
@@ -695,7 +699,8 @@ namespace R2RDump
                     break;
 
                 case CorElementType.ELEMENT_TYPE_PTR:
-                    builder.Append("ptr");
+                    ParseType(builder);
+                    builder.Append('*');
                     break;
 
                 case CorElementType.ELEMENT_TYPE_BYREF:
@@ -708,11 +713,56 @@ namespace R2RDump
                     break;
 
                 case CorElementType.ELEMENT_TYPE_VAR:
-                    builder.Append("var");
+                    builder.Append("var #");
+                    builder.Append(ReadUInt());
                     break;
 
                 case CorElementType.ELEMENT_TYPE_ARRAY:
-                    builder.Append("array");
+                    ParseType(builder);
+                    {
+                        builder.Append('[');
+                        uint rank = ReadUInt();
+                        if (rank != 0)
+                        {
+                            uint sizeCount = ReadUInt(); // number of sizes
+                            uint[] sizes = new uint[sizeCount];
+                            for (uint sizeIndex = 0; sizeIndex < sizeCount; sizeIndex++)
+                            {
+                                sizes[sizeIndex] = ReadUInt();
+                            }
+                            uint lowerBoundCount = ReadUInt(); // number of lower bounds
+                            int[] lowerBounds = new int[sizeCount];
+                            for (uint lowerBoundIndex = 0; lowerBoundIndex < lowerBoundCount; lowerBoundIndex++)
+                            {
+                                lowerBounds[lowerBoundIndex] = ReadInt();
+                            }
+                            for (int index = 0; index < rank; index++)
+                            {
+                                if (index > 0)
+                                {
+                                    builder.Append(',');
+                                }
+                                if (lowerBoundCount > index && lowerBounds[index] != 0)
+                                {
+                                    builder.Append(lowerBounds[index]);
+                                    builder.Append("..");
+                                    if (sizeCount > index)
+                                    {
+                                        builder.Append(lowerBounds[index] + sizes[index] - 1);
+                                    }
+                                }
+                                else if (sizeCount > index)
+                                {
+                                    builder.Append(sizes[index]);
+                                }
+                                else if (rank == 1)
+                                {
+                                    builder.Append('*');
+                                }
+                            }
+                        }
+                        builder.Append(']');
+                    }
                     break;
 
                 case CorElementType.ELEMENT_TYPE_GENERICINST:
@@ -740,11 +790,13 @@ namespace R2RDump
                     break;
 
                 case CorElementType.ELEMENT_TYPE_SZARRAY:
-                    builder.Append("szarray");
+                    ParseType(builder);
+                    builder.Append("[]");
                     break;
 
                 case CorElementType.ELEMENT_TYPE_MVAR:
-                    builder.Append("mvar");
+                    builder.Append("mvar #");
+                    builder.Append(ReadUInt());
                     break;
 
                 case CorElementType.ELEMENT_TYPE_CMOD_REQD:

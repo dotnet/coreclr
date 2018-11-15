@@ -765,16 +765,12 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
                                         structPassingKind*   wbPassStruct,
                                         bool                 isVarArg,
-                                        unsigned             structSize /* = 0 */)
+                                        unsigned             structSize)
 {
     var_types         useType         = TYP_UNKNOWN;
     structPassingKind howToPassStruct = SPK_Unknown; // We must change this before we return
 
-    if (structSize == 0)
-    {
-        structSize = info.compCompHnd->getClassSize(clsHnd);
-    }
-    assert(structSize > 0);
+    assert(structSize != 0);
 
 // Determine if we can pass the struct as a primitive type.
 // Note that on x86 we never pass structs as primitive types (unless the VM unwraps them for us).
@@ -913,7 +909,7 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             // and can't be passed in multiple registers
             CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(UNIX_AMD64_ABI)
 
             // Otherwise we pass this struct by value on the stack
             // setup wbPassType and useType indicate that this is passed by value according to the X86/ARM32 ABI
@@ -2325,58 +2321,72 @@ const char* Compiler::compLocalVarName(unsigned varNum, unsigned offs)
 #ifdef _TARGET_XARCH_
 static bool configEnableISA(InstructionSet isa)
 {
-#ifdef DEBUG
     switch (isa)
     {
+        case InstructionSet_AVX2:
+            if (JitConfig.EnableAVX2() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_AVX:
+            if (JitConfig.EnableAVX() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE42:
+            if (JitConfig.EnableSSE42() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE41:
+            if (JitConfig.EnableSSE41() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSSE3:
+            if (JitConfig.EnableSSSE3() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE3:
+            if (JitConfig.EnableSSE3() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_SSE2:
+            if (JitConfig.EnableSSE2() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
         case InstructionSet_SSE:
             return JitConfig.EnableSSE() != 0;
-        case InstructionSet_SSE2:
-            return JitConfig.EnableSSE2() != 0;
-        case InstructionSet_SSE3:
-            return JitConfig.EnableSSE3() != 0;
-        case InstructionSet_SSSE3:
-            return JitConfig.EnableSSSE3() != 0;
-        case InstructionSet_SSE41:
-            return JitConfig.EnableSSE41() != 0;
-        case InstructionSet_SSE42:
-            return JitConfig.EnableSSE42() != 0;
-        case InstructionSet_AVX:
-            return JitConfig.EnableAVX() != 0;
-        case InstructionSet_FMA:
-            return JitConfig.EnableFMA() != 0;
-        case InstructionSet_AVX2:
-            return JitConfig.EnableAVX2() != 0;
 
-        case InstructionSet_AES:
-            return JitConfig.EnableAES() != 0;
+        // TODO:  BMI1/BMI2 actually don't depend on AVX, they depend on the VEX encoding; which is currently controlled
+        // by InstructionSet_AVX
         case InstructionSet_BMI1:
-            return JitConfig.EnableBMI1() != 0;
+            return JitConfig.EnableBMI1() != 0 && configEnableISA(InstructionSet_AVX);
         case InstructionSet_BMI2:
-            return JitConfig.EnableBMI2() != 0;
+            return JitConfig.EnableBMI2() != 0 && configEnableISA(InstructionSet_AVX);
+        case InstructionSet_FMA:
+            return JitConfig.EnableFMA() != 0 && configEnableISA(InstructionSet_AVX);
+        case InstructionSet_AES:
+            return JitConfig.EnableAES() != 0 && configEnableISA(InstructionSet_SSE2);
         case InstructionSet_LZCNT:
             return JitConfig.EnableLZCNT() != 0;
         case InstructionSet_PCLMULQDQ:
-            return JitConfig.EnablePCLMULQDQ() != 0;
+            return JitConfig.EnablePCLMULQDQ() != 0 && configEnableISA(InstructionSet_SSE2);
         case InstructionSet_POPCNT:
-            return JitConfig.EnablePOPCNT() != 0;
+            return JitConfig.EnablePOPCNT() != 0 && configEnableISA(InstructionSet_SSE42);
         default:
             return false;
     }
-#else
-    // We have a retail config switch that can disable instruction sets reliant on the VEX encoding
-    switch (isa)
-    {
-        case InstructionSet_AVX:
-        case InstructionSet_FMA:
-        case InstructionSet_AVX2:
-        case InstructionSet_BMI1:
-        case InstructionSet_BMI2:
-            return JitConfig.EnableAVX() != 0;
-
-        default:
-            return true;
-    }
-#endif
 }
 #endif // _TARGET_XARCH_
 
@@ -2386,8 +2396,10 @@ void Compiler::compSetProcessor()
 
 #if defined(_TARGET_ARM_)
     info.genCPU = CPU_ARM;
+#elif defined(_TARGET_ARM64_)
+    info.genCPU       = CPU_ARM64;
 #elif defined(_TARGET_AMD64_)
-    info.genCPU       = CPU_X64;
+    info.genCPU                   = CPU_X64;
 #elif defined(_TARGET_X86_)
     if (jitFlags.IsSet(JitFlags::JIT_FLAG_TARGET_P4))
         info.genCPU = CPU_X86_PENTIUM_4;
@@ -2430,25 +2442,11 @@ void Compiler::compSetProcessor()
         {
             opts.setSupportedISA(InstructionSet_SSE2);
         }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
-        {
-            if (configEnableISA(InstructionSet_AES))
-            {
-                opts.setSupportedISA(InstructionSet_AES);
-            }
-        }
         if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT))
         {
             if (configEnableISA(InstructionSet_LZCNT))
             {
                 opts.setSupportedISA(InstructionSet_LZCNT);
-            }
-        }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
-        {
-            if (configEnableISA(InstructionSet_PCLMULQDQ))
-            {
-                opts.setSupportedISA(InstructionSet_PCLMULQDQ);
             }
         }
         if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT))
@@ -2490,6 +2488,22 @@ void Compiler::compSetProcessor()
                 if (configEnableISA(InstructionSet_SSSE3))
                 {
                     opts.setSupportedISA(InstructionSet_SSSE3);
+                }
+            }
+            // AES and PCLMULQDQ requires 0x660F38/A encoding that is
+            // only used by SSSE3 and above ISAs
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
+            {
+                if (configEnableISA(InstructionSet_AES))
+                {
+                    opts.setSupportedISA(InstructionSet_AES);
+                }
+            }
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
+            {
+                if (configEnableISA(InstructionSet_PCLMULQDQ))
+                {
+                    opts.setSupportedISA(InstructionSet_PCLMULQDQ);
                 }
             }
         }
@@ -2547,7 +2561,8 @@ void Compiler::compSetProcessor()
             codeGen->getEmitter()->SetContains256bitAVX(false);
         }
         else if (compSupports(InstructionSet_SSSE3) || compSupports(InstructionSet_SSE41) ||
-                 compSupports(InstructionSet_SSE42))
+                 compSupports(InstructionSet_SSE42) || compSupports(InstructionSet_AES) ||
+                 compSupports(InstructionSet_PCLMULQDQ))
         {
             // Emitter::UseSSE4 controls whether we support the 4-byte encoding for certain
             // instructions. We need to check if either is supported independently, since
@@ -3471,12 +3486,14 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 #ifdef DEBUG
     assert(!codeGen->isGCTypeFixed());
     opts.compGcChecks = (JitConfig.JitGCChecks() != 0) || compStressCompile(STRESS_GENERIC_VARN, 5);
+#endif
 
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
     enum
     {
         STACK_CHECK_ON_RETURN = 0x1,
         STACK_CHECK_ON_CALL   = 0x2,
-        STACK_CHECK_ALL       = 0x3,
+        STACK_CHECK_ALL       = 0x3
     };
 
     DWORD dwJitStackChecks = JitConfig.JitStackChecks();
@@ -3484,9 +3501,11 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
     {
         dwJitStackChecks = STACK_CHECK_ALL;
     }
-    opts.compStackCheckOnRet  = (dwJitStackChecks & DWORD(STACK_CHECK_ON_RETURN)) != 0;
+    opts.compStackCheckOnRet = (dwJitStackChecks & DWORD(STACK_CHECK_ON_RETURN)) != 0;
+#if defined(_TARGET_X86_)
     opts.compStackCheckOnCall = (dwJitStackChecks & DWORD(STACK_CHECK_ON_CALL)) != 0;
-#endif
+#endif // defined(_TARGET_X86_)
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 
 #if MEASURE_MEM_ALLOC
     s_dspMemStats = (JitConfig.DisplayMemStats() != 0);
@@ -3663,6 +3682,18 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 
     if (verbose)
     {
+        // If we are compiling for a specific tier, make that very obvious in the output.
+        // Note that we don't expect multiple TIER flags to be set at one time, but there
+        // is nothing preventing that.
+        if (jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0))
+        {
+            printf("OPTIONS: Tier-0 compilation (set COMPlus_TieredCompilation=0 to disable)\n");
+        }
+        if (jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
+        {
+            printf("OPTIONS: Tier-1 compilation\n");
+        }
+
         printf("OPTIONS: compCodeOpt = %s\n",
                (opts.compCodeOpt == BLENDED_CODE)
                    ? "BLENDED_CODE"
@@ -4665,11 +4696,6 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         EndPhase(PHASE_COMPUTE_REACHABILITY);
     }
 
-    // Transform each GT_ALLOCOBJ node into either an allocation helper call or
-    // local variable allocation on the stack.
-    ObjectAllocator objectAllocator(this);
-    objectAllocator.Run();
-
     if (!opts.MinOpts() && !opts.compDbgCode)
     {
         /*  Perform loop inversion (i.e. transform "while" loops into
@@ -5283,6 +5309,54 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     // getExpectedTargetArchitecture() JIT-EE interface method.
     info.compMatchedVM = false;
 #endif
+
+    // If we are not compiling for a matched VM, then we are getting JIT flags that don't match our target
+    // architecture. The two main examples here are an ARM targeting altjit hosted on x86 and an ARM64
+    // targeting altjit hosted on x64. (Though with cross-bitness work, the host doesn't necessarily need
+    // to be of the same bitness.) In these cases, we need to fix up the JIT flags to be appropriate for
+    // the target, as the VM's expected target may overlap bit flags with different meaning to our target.
+    // Note that it might be better to do this immediately when setting the JIT flags in CILJit::compileMethod()
+    // (when JitFlags::SetFromFlags() is called), but this is close enough. (To move this logic to
+    // CILJit::compileMethod() would require moving the info.compMatchedVM computation there as well.)
+
+    if (!info.compMatchedVM)
+    {
+#if defined(_TARGET_ARM_)
+
+// Currently nothing needs to be done. There are no ARM flags that conflict with other flags.
+
+#endif // defined(_TARGET_ARM_)
+
+#if defined(_TARGET_ARM64_)
+
+        // The x86/x64 architecture capabilities flags overlap with the ARM64 ones. Set a reasonable architecture
+        // target default. Currently this is disabling all ARM64 architecture features except FP and SIMD, but this
+        // should be altered to possibly enable all of them, when they are known to all work.
+
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_AES);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_ATOMICS);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_CRC32);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_DCPOP);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_DP);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_FCMA);
+        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_FP);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_FP16);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_JSCVT);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_LRCPC);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_PMULL);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA1);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA256);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA512);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA3);
+        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_SIMD);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_V81);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_FP16);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SM3);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SM4);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SVE);
+
+#endif // defined(_TARGET_ARM64_)
+    }
 
     compMaxUncheckedOffsetForNullObject = eeGetEEInfo()->maxUncheckedOffsetForNullObject;
 
@@ -7004,7 +7078,7 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
                         if (arg->gtFlags & GTF_LATE_ARG)
                         {
                             // Find the corresponding late arg.
-                            GenTree* lateArg = call->fgArgInfo->GetLateArg(i);
+                            GenTree* lateArg = call->fgArgInfo->GetArgNode(i);
                             if (GetNodeTestData()->Lookup(lateArg, &tlAndN))
                             {
                                 reachable->Set(lateArg, 0);

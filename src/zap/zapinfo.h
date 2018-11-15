@@ -417,6 +417,9 @@ public:
 
     void * getFieldAddress(CORINFO_FIELD_HANDLE field,
                                     void **ppIndirection);
+    CORINFO_CLASS_HANDLE getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field,
+                                                    bool* pIsSpeculative);
+
     DWORD getFieldThreadLocalStoreID (CORINFO_FIELD_HANDLE field,
                                                 void **ppIndirection);
     CORINFO_VARARGS_HANDLE getVarArgsHandle(CORINFO_SIG_INFO *sig,
@@ -529,6 +532,8 @@ public:
     size_t getClassModuleIdForStatics(CORINFO_CLASS_HANDLE cls, CORINFO_MODULE_HANDLE *pModule, void **ppIndirection);
 
     unsigned getClassSize(CORINFO_CLASS_HANDLE cls);
+    unsigned getHeapClassSize(CORINFO_CLASS_HANDLE cls);
+    BOOL canAllocateOnStack(CORINFO_CLASS_HANDLE cls);
     unsigned getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint);
 
     CORINFO_FIELD_HANDLE getFieldInClass(CORINFO_CLASS_HANDLE clsHnd, INT num);

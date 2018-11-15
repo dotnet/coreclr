@@ -7757,14 +7757,16 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
                                     ArrayInfo arrInfo;
                                     bool      b = GetArrayInfoMap()->Lookup(addrArg, &arrInfo);
                                     assert(b);
-                                    CORINFO_CLASS_HANDLE elemType =
+                                    CORINFO_CLASS_HANDLE elemTypeEq =
                                         EncodeElemType(arrInfo.m_elemType, arrInfo.m_elemStructType);
-                                    tree->gtVNPair.SetBoth(
-                                        vnStore->VNForFunc(TYP_BYREF, VNF_PtrToArrElem,
-                                                           vnStore->VNForHandle(ssize_t(elemType), GTF_ICON_CLASS_HDL),
+                                    ValueNum elemTypeEqVN =
+                                        vnStore->VNForHandle(ssize_t(elemTypeEq), GTF_ICON_CLASS_HDL);
+                                    ValueNum ptrToArrElemVN =
+                                        vnStore->VNForFunc(TYP_BYREF, VNF_PtrToArrElem, elemTypeEqVN,
                                                            // The rest are dummy arguments.
                                                            vnStore->VNForNull(), vnStore->VNForNull(),
-                                                           vnStore->VNForNull()));
+                                                           vnStore->VNForNull());
+                                    tree->gtVNPair.SetBoth(ptrToArrElemVN);
                                 }
                             }
                         }
@@ -8064,94 +8066,6 @@ ssize_t Compiler::optGetArrayRefScaleAndIndex(GenTree* mul, GenTree** pIndex DEB
     return scale;
 }
 
-/*****************************************************************************
- * Find the last assignment to of the local variable in the block. Return
- * RHS or NULL. If any local variable in the RHS has been killed in
- * intervening code, return NULL. If the variable being searched for is killed
- * in the intervening code, return NULL.
- *
- */
-
-GenTree* Compiler::optFindLocalInit(BasicBlock* block,
-                                    GenTree*    local,
-                                    VARSET_TP*  pKilledInOut,
-                                    bool*       pLhsRhsKilledAfterInit)
-{
-    assert(pKilledInOut);
-    assert(pLhsRhsKilledAfterInit);
-
-    *pLhsRhsKilledAfterInit = false;
-
-    unsigned LclNum = local->gtLclVarCommon.gtLclNum;
-
-    GenTree* list = block->bbTreeList;
-    if (list == nullptr)
-    {
-        return nullptr;
-    }
-
-    GenTree* rhs  = nullptr;
-    GenTree* stmt = list;
-    do
-    {
-        stmt = stmt->gtPrev;
-        if (stmt == nullptr)
-        {
-            break;
-        }
-
-        GenTree* tree = stmt->gtStmt.gtStmtExpr;
-        // If we encounter an assignment to a local variable,
-        if (tree->OperIs(GT_ASG) && (tree->gtOp.gtOp1->gtOper == GT_LCL_VAR))
-        {
-            // And the assigned variable equals the input local,
-            if (tree->gtOp.gtOp1->gtLclVarCommon.gtLclNum == LclNum)
-            {
-                // If the assignment is '=' and it is not a conditional, then return rhs.
-                if ((tree->gtFlags & GTF_COLON_COND) == 0)
-                {
-                    rhs = tree->gtOp.gtOp2;
-                }
-                // If the assignment is 'op=' or a conditional equal, then the search ends here,
-                // as we found a kill to the input local.
-                else
-                {
-                    *pLhsRhsKilledAfterInit = true;
-                    assert(rhs == nullptr);
-                }
-                break;
-            }
-            else
-            {
-                LclVarDsc* varDsc = optIsTrackedLocal(tree->gtOp.gtOp1);
-                if (varDsc == nullptr)
-                {
-                    return nullptr;
-                }
-                VarSetOps::AddElemD(this, *pKilledInOut, varDsc->lvVarIndex);
-            }
-        }
-    } while (stmt != list);
-
-    if (rhs == nullptr)
-    {
-        return nullptr;
-    }
-
-    // If any local in the RHS is killed in intervening code, or RHS has an indirection, return NULL.
-    varRefKinds rhsRefs = VR_NONE;
-    VARSET_TP   rhsLocals(VarSetOps::UninitVal());
-    bool        b = lvaLclVarRefs(rhs, nullptr, &rhsRefs, &rhsLocals);
-    if (!b || !VarSetOps::IsEmptyIntersection(this, rhsLocals, *pKilledInOut) || (rhsRefs != VR_NONE))
-    {
-        // If RHS has been indirectly referenced, consider it a write and a kill.
-        *pLhsRhsKilledAfterInit = true;
-        return nullptr;
-    }
-
-    return rhs;
-}
-
 //------------------------------------------------------------------------------
 // optObtainLoopCloningOpts: Identify optimization candidates and update
 //      the "context" for array optimizations.
@@ -8309,23 +8223,24 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
 //
 //  TODO-CQ: CLONE: After morph make sure this method extracts values before morph.
 //
-//    [000000001AF828D8] ---XG-------                     indir     int
-//    [000000001AF872C8] ------------                           const     long   16 Fseq[#FirstElem]
-//    [000000001AF87340] ------------                        +         byref
-//    [000000001AF87160] -------N----                                 const     long   2
-//    [000000001AF871D8] ------------                              <<        long
-//    [000000001AF870C0] ------------                                 cast      long <- int
-//    [000000001AF86F30] i-----------                                    lclVar    int    V04 loc0
-//    [000000001AF87250] ------------                           +         byref
-//    [000000001AF86EB8] ------------                              lclVar    ref    V01 arg1
-//    [000000001AF87468] ---XG-------                  comma     int
-//    [000000001AF87020] ---X--------                     arrBndsChk void
-//    [000000001AF86FA8] ---X--------                        arrLen    int
-//    [000000001AF827E8] ------------                           lclVar    ref    V01 arg1
-//    [000000001AF82860] ------------                        lclVar    int    V04 loc0
-//    [000000001AF829F0] -A-XG-------               =         int
-//    [000000001AF82978] D------N----                  lclVar    int    V06 tmp0
-//
+//  [000024] ------------              *  STMT      void(IL 0x007...0x00C)
+//  [000021] a--XG+------              |     /--*  IND       int
+//  [000045] -----+------              |     |  |     /--*  CNS_INT   long   16 Fseq[#FirstElem]
+//  [000046] -----+------              |     |  |  /--*  ADD       long
+//  [000043] -----+-N----              |     |  |  |  |  /--*  CNS_INT   long   2
+//  [000044] -----+------              |     |  |  |  \--*  LSH       long
+//  [000042] -----+------              |     |  |  |     \--*  CAST      long < -int
+//  [000039] i----+------              |     |  |  |        \--*  LCL_VAR   int    V04 loc0
+//  [000047] -----+------              |     |  \--*  ADD       byref
+//  [000038] -----+------              |     |     \--*  LCL_VAR   ref    V00 arg0
+//  [000048] ---XG+------              |  /--*  COMMA     int
+//  [000041] ---X-+------              |  |  \--*  ARR_BOUNDS_CHECK_Rng void
+//  [000020] -----+------              |  |     +--*  LCL_VAR   int    V04 loc0
+//  [000040] ---X-+------              |  |     \--*  ARR_LENGTH int
+//  [000019] -----+------              |  |        \--*  LCL_VAR   ref    V00 arg0
+//  [000023] -A-XG+------              \--*  ASG       int
+//  [000022] D----+-N----                 \--*  LCL_VAR   int    V06 tmp1
+
 bool Compiler::optExtractArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsNum)
 {
     if (tree->gtOper != GT_COMMA)
@@ -8378,28 +8293,28 @@ bool Compiler::optExtractArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsN
         return false;
     }
 
-    GenTree* sibo = after->gtGetOp1();
+    GenTree* sibo = after->gtGetOp1(); // sibo = scale*index + base + offset
     if (sibo->gtOper != GT_ADD)
     {
         return false;
     }
-    GenTree* sib = sibo->gtGetOp1();
-    GenTree* ofs = sibo->gtGetOp2();
+    GenTree* base = sibo->gtGetOp1();
+    GenTree* sio  = sibo->gtGetOp2(); // sio == scale*index + offset
+    if (base->OperGet() != GT_LCL_VAR || base->gtLclVarCommon.gtLclNum != arrLcl)
+    {
+        return false;
+    }
+    if (sio->gtOper != GT_ADD)
+    {
+        return false;
+    }
+    GenTree* ofs = sio->gtGetOp2();
+    GenTree* si  = sio->gtGetOp1(); // si = scale*index
     if (ofs->gtOper != GT_CNS_INT)
     {
         return false;
     }
-    if (sib->gtOper != GT_ADD)
-    {
-        return false;
-    }
-    GenTree* si   = sib->gtGetOp2();
-    GenTree* base = sib->gtGetOp1();
     if (si->gtOper != GT_LSH)
-    {
-        return false;
-    }
-    if (base->OperGet() != GT_LCL_VAR || base->gtLclVarCommon.gtLclNum != arrLcl)
     {
         return false;
     }
@@ -8409,7 +8324,7 @@ bool Compiler::optExtractArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsN
     {
         return false;
     }
-#ifdef _TARGET_AMD64_
+#ifdef _TARGET_64BIT_
     if (index->gtOper != GT_CAST)
     {
         return false;

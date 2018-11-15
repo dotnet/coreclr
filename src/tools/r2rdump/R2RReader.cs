@@ -35,11 +35,17 @@ namespace R2RDump
         /// </summary>
         public uint CellOffset;
 
-        public FixupCell(int index, uint tableIndex, uint cellOffset)
+        /// <summary>
+        /// Fixup cell signature (textual representation of the typesystem object).
+        /// </summary>
+        public string Signature;
+
+        public FixupCell(int index, uint tableIndex, uint cellOffset, string signature)
         {
             Index = index;
             TableIndex = tableIndex;
             CellOffset = cellOffset;
+            Signature = signature;
         }
     }
 
@@ -54,6 +60,18 @@ namespace R2RDump
         NetBSD = 0x1993,
         Windows = 0,
         Unknown = -1
+    }
+
+    public struct InstanceMethod
+    {
+        public byte Bucket;
+        public R2RMethod Method;
+
+        public InstanceMethod(byte bucket, R2RMethod method)
+        {
+            Bucket = bucket;
+            Method = method;
+        }
     }
 
     public class R2RReader
@@ -106,6 +124,11 @@ namespace R2RDump
         /// The runtime functions and method signatures of each method
         /// </summary>
         public IList<R2RMethod> R2RMethods { get; }
+
+        /// <summary>
+        /// Parsed instance entrypoint table entries.
+        /// </summary>
+        public IList<InstanceMethod> InstanceMethods { get; }
 
         /// <summary>
         /// The available types from READYTORUN_SECTION_AVAILABLE_TYPES
@@ -195,7 +218,13 @@ namespace R2RDump
                         EHLookupTable = new EHLookupTable(Image, GetOffset(exceptionInfoSection.RelativeVirtualAddress), exceptionInfoSection.Size);
                     }
 
+                    ImportSections = new List<R2RImportSection>();
+                    ImportCellNames = new Dictionary<int, string>();
+                    ParseImportSections();
+
                     R2RMethods = new List<R2RMethod>();
+                    InstanceMethods = new List<InstanceMethod>();
+
                     if (R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS))
                     {
                         int runtimeFunctionSize = CalculateRuntimeFunctionSize();
@@ -215,10 +244,6 @@ namespace R2RDump
                     ParseAvailableTypes();
 
                     CompilerIdentifier = ParseCompilerIdentifier();
-
-                    ImportSections = new List<R2RImportSection>();
-                    ImportCellNames = new Dictionary<int, string>();
-                    ParseImportSections();
                 }
             }
         }
@@ -350,6 +375,7 @@ namespace R2RDump
                     isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
                 }
                 R2RMethods.Add(method);
+                InstanceMethods.Add(new InstanceMethod(curParser.LowHashcode, method));
                 curParser = allEntriesEnum.GetNext();
             }
         }
@@ -678,7 +704,9 @@ namespace R2RDump
 
                 while (true)
                 {
-                    cells.Add(new FixupCell(cells.Count, curTableIndex, fixupIndex));
+                    R2RImportSection importSection = ImportSections[(int)curTableIndex];
+                    R2RImportSection.ImportSectionEntry entry = importSection.Entries[(int)fixupIndex];
+                    cells.Add(new FixupCell(cells.Count, curTableIndex, fixupIndex, entry.Signature));
 
                     uint delta = reader.ReadUInt();
 

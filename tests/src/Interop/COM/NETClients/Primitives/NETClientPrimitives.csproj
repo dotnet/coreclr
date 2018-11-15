@@ -11,6 +11,9 @@
     <ProjectTypeGuids>{209912F9-0DA1-4184-9CC1-8D583BAF4A28};{87799F5D-CEBD-499D-BDBA-B2C6105CD766}</ProjectTypeGuids>
     <ApplicationManifest>App.manifest</ApplicationManifest>
 
+    <!-- Blocked on ILAsm supporting embedding resources. See https://github.com/dotnet/coreclr/issues/20819 -->
+    <IlrtTestKind>BuildOnly</IlrtTestKind>
+
     <!-- Test unsupported outside of windows -->
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
@@ -26,8 +29,8 @@
     <Compile Include="ErrorTests.cs" />
     <Compile Include="NumericTests.cs" />
     <Compile Include="StringTests.cs" />
-    <Compile Include="../../ServerContracts/Primitives.cs" />
-    <Compile Include="../../ServerContracts/PrimitivesNativeServer.cs" />
+    <Compile Include="../../ServerContracts/NativeServers.cs" />
+    <Compile Include="../../ServerContracts/Server.Contracts.cs" />
     <Compile Include="../../ServerContracts/ServerGuids.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -588,7 +588,7 @@ namespace System.Threading.Tasks
                 }
 
                 // We couldn't inline, so now we need to schedule it
-                ThreadPool.UnsafeQueueCustomWorkItem(this, forceGlobal: false);
+                ThreadPool.UnsafeQueueUserWorkItemInternal(this, preferLocal: true);
             }
         }
 
@@ -624,10 +624,17 @@ namespace System.Threading.Tasks
             }
         }
 
-        /// <summary>IThreadPoolWorkItem override, which is the entry function for this when the ThreadPool scheduler decides to run it.</summary>
-        private void ExecuteWorkItemHelper()
+        void IThreadPoolWorkItem.Execute()
         {
             var etwLog = TplEtwProvider.Log;
+            ExecutionContext context = m_capturedContext;
+
+            if (!etwLog.IsEnabled() && context == null)
+            {
+                m_action();
+                return;
+            }
+
             Guid savedActivityId = Guid.Empty;
             if (etwLog.TasksSetActivityIds && m_continuationId != 0)
             {
@@ -639,17 +646,20 @@ namespace System.Threading.Tasks
                 // We're not inside of a task, so t_currentTask doesn't need to be specially maintained.
                 // We're on a thread pool thread with no higher-level callers, so exceptions can just propagate.
 
-                // If there's no execution context, just invoke the delegate.
-                ExecutionContext context = m_capturedContext;
-                if (context == null)
+                ExecutionContext.CheckThreadPoolAndContextsAreDefault();
+                // If there's no execution context or Default, just invoke the delegate as ThreadPool is on Default context.
+                // We don't have to use ExecutionContext.Run for the Default context here as there is no extra processing after the delegate
+                if (context == null || context.IsDefault)
                 {
                     m_action();
                 }
                 // If there is an execution context, get the cached delegate and run the action under the context.
                 else
                 {
-                    ExecutionContext.RunInternal(context, GetInvokeActionCallback(), m_action);
+                    ExecutionContext.RunForThreadPoolUnsafe(context, s_invokeAction, m_action);
                 }
+
+                // ThreadPoolWorkQueue.Dispatch handles notifications and reset context back to default
             }
             finally
             {
@@ -660,38 +670,12 @@ namespace System.Threading.Tasks
             }
         }
 
-        void IThreadPoolWorkItem.ExecuteWorkItem()
-        {
-            // inline the fast path
-            if (m_capturedContext == null && !TplEtwProvider.Log.IsEnabled())
-            {
-                m_action();
-            }
-            else
-            {
-                ExecuteWorkItemHelper();
-            }
-        }
-
-        /// <summary>
-        /// The ThreadPool calls this if a ThreadAbortException is thrown while trying to execute this workitem.
-        /// </summary>
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ }
-
         /// <summary>Cached delegate that invokes an Action passed as an object parameter.</summary>
-        private static ContextCallback s_invokeActionCallback;
-
-        /// <summary>Runs an action provided as an object parameter.</summary>
-        /// <param name="state">The Action to invoke.</param>
-        private static void InvokeAction(object state) { ((Action)state)(); }
+        private readonly static ContextCallback s_invokeContextCallback = (state) => ((Action)state)();
+        private readonly static Action<Action> s_invokeAction = (action) => action();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected static ContextCallback GetInvokeActionCallback()
-        {
-            ContextCallback callback = s_invokeActionCallback;
-            if (callback == null) { s_invokeActionCallback = callback = InvokeAction; } // lazily initialize SecurityCritical delegate
-            return callback;
-        }
+        protected static ContextCallback GetInvokeActionCallback() => s_invokeContextCallback;
 
         /// <summary>Runs the callback synchronously with the provided state.</summary>
         /// <param name="callback">The callback to run.</param>
@@ -802,7 +786,7 @@ namespace System.Threading.Tasks
                 }
                 else
                 {
-                    ThreadPool.UnsafeQueueCustomWorkItem(box, forceGlobal: false);
+                    ThreadPool.UnsafeQueueUserWorkItemInternal(box, preferLocal: true);
                 }
                 return;
             }
@@ -836,7 +820,7 @@ namespace System.Threading.Tasks
                 etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, atc.m_continuationId);
             }
 
-            ThreadPool.UnsafeQueueCustomWorkItem(atc, forceGlobal: false);
+            ThreadPool.UnsafeQueueUserWorkItemInternal(atc, preferLocal: true);
         }
 
         /// <summary>Throws the exception asynchronously on the ThreadPool.</summary>

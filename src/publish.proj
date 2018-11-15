@@ -13,6 +13,7 @@
     <PackagesPattern Condition="'$(PackagesPattern)' == ''">$(PackagesPatternDir)pkg\*.nupkg</PackagesPattern>
     <TestNativeBinariesPattern Condition="'$(TestNativeBinariesPattern)' == ''">$(OutputPath)\bin\**</TestNativeBinariesPattern>
     <SymbolsPackagesPattern Condition="'$(SymbolPackagesPattern)' == ''">$(PackagesPatternDir)symbolpkg\*.nupkg</SymbolsPackagesPattern>
+    <SymbolsExcludePattern Condition="'$(SymbolsExcludePattern)' == ''">$(PackagesPatternDir)symbolpkg\*freebsd*.nupkg</SymbolsExcludePattern>
     <PublishFlatContainer Condition="'$(PublishFlatContainer)' == ''">true</PublishFlatContainer>
     <RelativePathWithSlash>$(RelativePath)</RelativePathWithSlash>
     <RelativePathWithSlash Condition="'$(RelativePathWithSlash)' != '' and !HasTrailingSlash('$(RelativePathWithSlash)')">$(RelativePathWithSlash)/</RelativePathWithSlash>
@@ -140,10 +141,9 @@
   <Target Name="SetupPublishSymbols">
     <PropertyGroup>
       <ConvertPortablePdbsToWindowsPdbs Condition="'$(ConvertPortablePdbsToWindowsPdbs)'==''">true</ConvertPortablePdbsToWindowsPdbs>
-      <SymbolVerboseLogging>true</SymbolVerboseLogging>
     </PropertyGroup>
     <ItemGroup>
-      <SymbolPackagesToPublish Include="$(SymbolsPackagesPattern)" />
+      <SymbolPackagesToPublish Include="$(SymbolsPackagesPattern)" Exclude="$(SymbolsExcludePattern)" />
     </ItemGroup>
     <Error Condition="'$(SymbolServerPath)'==''" Text="Missing property SymbolServerPath" />
     <Error Condition="'$(SymbolServerPAT)'==''" Text="Missing property SymbolServerPAT" />

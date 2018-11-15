@@ -5853,19 +5853,34 @@ void Compiler::fgFindBasicBlocks()
         // or if the inlinee has GC ref locals.
         if ((info.compRetNativeType != TYP_VOID) && ((retBlocks > 1) || impInlineInfo->HasGcRefLocals()))
         {
-            // The lifetime of this var might expand multiple BBs. So it is a long lifetime compiler temp.
-            lvaInlineeReturnSpillTemp                  = lvaGrabTemp(false DEBUGARG("Inline return value spill temp"));
-            lvaTable[lvaInlineeReturnSpillTemp].lvType = info.compRetNativeType;
+            // If we've spilled the ret expr to a temp we can reuse the temp
+            // as the inlinee return spill temp.
+            //
+            // Todo: see if it is even better to always use this existing temp
+            // for return values, even if we otherwise wouldn't need a return spill temp...
+            lvaInlineeReturnSpillTemp = impInlineInfo->inlineCandidateInfo->preexistingSpillTemp;
 
-            // If the method returns a ref class, set the class of the spill temp
-            // to the method's return value. We may update this later if it turns
-            // out we can prove the method returns a more specific type.
-            if (info.compRetType == TYP_REF)
+            if (lvaInlineeReturnSpillTemp != BAD_VAR_NUM)
             {
-                CORINFO_CLASS_HANDLE retClassHnd = impInlineInfo->inlineCandidateInfo->methInfo.args.retTypeClass;
-                if (retClassHnd != nullptr)
+                // This temp should already have the type of the return value.
+                JITDUMP("\nInliner: re-using pre-existing spill temp V%02u\n", lvaInlineeReturnSpillTemp);
+            }
+            else
+            {
+                // The lifetime of this var might expand multiple BBs. So it is a long lifetime compiler temp.
+                lvaInlineeReturnSpillTemp = lvaGrabTemp(false DEBUGARG("Inline return value spill temp"));
+                lvaTable[lvaInlineeReturnSpillTemp].lvType = info.compRetNativeType;
+
+                // If the method returns a ref class, set the class of the spill temp
+                // to the method's return value. We may update this later if it turns
+                // out we can prove the method returns a more specific type.
+                if (info.compRetType == TYP_REF)
                 {
-                    lvaSetClass(lvaInlineeReturnSpillTemp, retClassHnd);
+                    CORINFO_CLASS_HANDLE retClassHnd = impInlineInfo->inlineCandidateInfo->methInfo.args.retTypeClass;
+                    if (retClassHnd != nullptr)
+                    {
+                        lvaSetClass(lvaInlineeReturnSpillTemp, retClassHnd);
+                    }
                 }
             }
         }
@@ -10976,6 +10991,14 @@ void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
 
         /* First update the loop table and bbWeights */
         optUpdateLoopsBeforeRemoveBlock(block, skipUnmarkLoop);
+
+        // Update successor block start IL offset, if empty predecessor
+        // covers the immediately preceding range.
+        if ((block->bbCodeOffsEnd == succBlock->bbCodeOffs) && (block->bbCodeOffs != BAD_IL_OFFSET))
+        {
+            assert(block->bbCodeOffs <= succBlock->bbCodeOffs);
+            succBlock->bbCodeOffs = block->bbCodeOffs;
+        }
 
         /* Remove the block */
 
@@ -21831,7 +21854,20 @@ void Compiler::fgInline()
 
             // See if we need to replace the return value place holder.
             // Also, see if this update enables further devirtualization.
-            fgWalkTreePre(&stmt->gtStmtExpr, fgUpdateInlineReturnExpressionPlaceHolder, (void*)this);
+            //
+            // Note we have both preorder and postorder callbacks here.
+            //
+            // The preorder callback is responsible for replacing GT_RET_EXPRs
+            // with the appropriate expansion (call or inline result).
+            // Replacement may introduce subtrees with GT_RET_EXPR and so
+            // we rely on the preorder to recursively process those as well.
+            //
+            // On the way back up, the postorder callback then re-examines nodes for
+            // possible further optimization, as the (now complete) GT_RET_EXPR
+            // replacement may have enabled optimizations by providing more
+            // specific types for trees or variables.
+            fgWalkTree(&stmt->gtStmtExpr, fgUpdateInlineReturnExpressionPlaceHolder, fgLateDevirtualization,
+                       (void*)this);
 
             // See if stmt is of the form GT_COMMA(call, nop)
             // If yes, we can get rid of GT_COMMA.
@@ -21878,8 +21914,9 @@ void Compiler::fgInline()
 
     if (verbose || fgPrintInlinedMethods)
     {
-        printf("**************** Inline Tree\n");
-        m_inlineStrategy->Dump();
+        JITDUMP("**************** Inline Tree");
+        printf("\n");
+        m_inlineStrategy->Dump(verbose);
     }
 
 #endif // DEBUG
@@ -22121,25 +22158,29 @@ void Compiler::fgAttachStructInlineeToAsg(GenTree* tree, GenTree* child, CORINFO
 //    the inlinee return expression if the inline is successful (see
 //    tail end of fgInsertInlineeBlocks for the update of iciCall).
 //
-//    If the parent of the GT_RET_EXPR is a virtual call,
-//    devirtualization is attempted. This should only succeed in the
-//    successful inline case, when the inlinee's return value
-//    expression provides a better type than the return type of the
-//    method. Note for failed inlines, the devirtualizer can only go
-//    by the return type, and any devirtualization that type enabled
-//    would have already happened during importation.
-//
 //    If the return type is a struct type and we're on a platform
 //    where structs can be returned in multiple registers, ensure the
 //    call has a suitable parent.
 
 Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTree** pTree, fgWalkData* data)
 {
-    GenTree*             tree      = *pTree;
+    // All the operations here and in the corresponding postorder
+    // callback (fgLateDevirtualization) are triggered by GT_CALL or
+    // GT_RET_EXPR trees, and these (should) have the call side
+    // effect flag.
+    //
+    // So bail out for any trees that don't have this flag.
+    GenTree* tree = *pTree;
+
+    if ((tree->gtFlags & GTF_CALL) == 0)
+    {
+        return WALK_SKIP_SUBTREES;
+    }
+
     Compiler*            comp      = data->compiler;
     CORINFO_CLASS_HANDLE retClsHnd = NO_CLASS_HANDLE;
 
-    if (tree->gtOper == GT_RET_EXPR)
+    if (tree->OperGet() == GT_RET_EXPR)
     {
         // We are going to copy the tree from the inlinee,
         // so record the handle now.
@@ -22149,71 +22190,33 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
             retClsHnd = tree->gtRetExpr.gtRetClsHnd;
         }
 
-        do
+        // Skip through chains of GT_RET_EXPRs (say from nested inlines)
+        // to the actual tree to use.
+        GenTree* inlineCandidate = tree->gtRetExprVal();
+
+#ifdef DEBUG
+        if (comp->verbose)
         {
-            // Obtained the expanded inline candidate
-            GenTree* inlineCandidate = tree->gtRetExpr.gtInlineCandidate;
-
-#ifdef DEBUG
-            if (comp->verbose)
-            {
-                printf("\nReplacing the return expression placeholder ");
-                printTreeID(tree);
-                printf(" with ");
-                printTreeID(inlineCandidate);
-                printf("\n");
-                // Dump out the old return expression placeholder it will be overwritten by the ReplaceWith below
-                comp->gtDispTree(tree);
-            }
-#endif // DEBUG
-
-            tree->ReplaceWith(inlineCandidate, comp);
-
-#ifdef DEBUG
-            if (comp->verbose)
-            {
-                printf("\nInserting the inline return expression\n");
-                comp->gtDispTree(tree);
-                printf("\n");
-            }
-#endif // DEBUG
-        } while (tree->gtOper == GT_RET_EXPR);
-
-        // Now see if this return value expression feeds the 'this'
-        // object at a virtual call site.
-        //
-        // Note for void returns where the inline failed, the
-        // GT_RET_EXPR may be top-level.
-        //
-        // May miss cases where there are intermediaries between call
-        // and this, eg commas.
-        GenTree* parentTree = data->parent;
-
-        if ((parentTree != nullptr) && (parentTree->gtOper == GT_CALL))
-        {
-            GenTreeCall* call  = parentTree->AsCall();
-            bool tryLateDevirt = call->IsVirtual() && (call->gtCallObjp == tree) && (call->gtCallType == CT_USER_FUNC);
-
-#ifdef DEBUG
-            tryLateDevirt = tryLateDevirt && (JitConfig.JitEnableLateDevirtualization() == 1);
-#endif // DEBUG
-
-            if (tryLateDevirt)
-            {
-#ifdef DEBUG
-                if (comp->verbose)
-                {
-                    printf("**** Late devirt opportunity\n");
-                    comp->gtDispTree(call);
-                }
-#endif // DEBUG
-
-                CORINFO_METHOD_HANDLE  method      = call->gtCallMethHnd;
-                unsigned               methodFlags = 0;
-                CORINFO_CONTEXT_HANDLE context     = nullptr;
-                comp->impDevirtualizeCall(call, &method, &methodFlags, &context, nullptr);
-            }
+            printf("\nReplacing the return expression placeholder ");
+            printTreeID(tree);
+            printf(" with ");
+            printTreeID(inlineCandidate);
+            printf("\n");
+            // Dump out the old return expression placeholder it will be overwritten by the ReplaceWith below
+            comp->gtDispTree(tree);
         }
+#endif // DEBUG
+
+        tree->ReplaceWith(inlineCandidate, comp);
+
+#ifdef DEBUG
+        if (comp->verbose)
+        {
+            printf("\nInserting the inline return expression\n");
+            comp->gtDispTree(tree);
+            printf("\n");
+        }
+#endif // DEBUG
     }
 
     // If an inline was rejected and the call returns a struct, we may
@@ -22332,20 +22335,94 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
     // leaving an assert in here. This can be fixed by looking ahead
     // when we visit GT_ASG similar to fgAttachStructInlineeToAsg.
     //
-    if ((tree->gtOper == GT_ASG) && (tree->gtOp.gtOp2->gtOper == GT_COMMA))
+    if (tree->OperGet() == GT_ASG)
     {
-        GenTree* comma;
-        for (comma = tree->gtOp.gtOp2; comma->gtOper == GT_COMMA; comma = comma->gtOp.gtOp2)
-        {
-            // empty
-        }
+        GenTree* value = tree->gtOp.gtOp2;
 
-        noway_assert(!varTypeIsStruct(comma) || comma->gtOper != GT_RET_EXPR ||
-                     !comp->IsMultiRegReturnedType(comma->gtRetExpr.gtRetClsHnd));
+        if (value->OperGet() == GT_COMMA)
+        {
+            GenTree* effectiveValue = value->gtEffectiveVal(/*commaOnly*/ true);
+
+            noway_assert(!varTypeIsStruct(effectiveValue) || (effectiveValue->OperGet() != GT_RET_EXPR) ||
+                         !comp->IsMultiRegReturnedType(effectiveValue->gtRetExpr.gtRetClsHnd));
+        }
     }
 
 #endif // defined(DEBUG)
 #endif // FEATURE_MULTIREG_RET
+
+    return WALK_CONTINUE;
+}
+
+//------------------------------------------------------------------------
+// fgLateDevirtualization: re-examine calls after inlining to see if we
+//   can do more devirtualization
+//
+// Arguments:
+//    pTree -- pointer to tree to examine for updates
+//    data  -- context data for the tree walk
+//
+// Returns:
+//    fgWalkResult indicating the walk should continue; that
+//    is we wish to fully explore the tree.
+//
+// Notes:
+//    We used to check this opportunistically in the preorder callback for
+//    calls where the `obj` was fed by a return, but we now re-examine
+//    all calls.
+//
+//    Late devirtualization (and eventually, perhaps, other type-driven
+//    opts like cast optimization) can happen now because inlining or other
+//    optimizations may have provided more accurate types than we saw when
+//    first importing the trees.
+//
+//    It would be nice to screen candidate sites based on the likelihood
+//    that something has changed. Otherwise we'll waste some time retrying
+//    an optimization that will just fail again.
+
+Compiler::fgWalkResult Compiler::fgLateDevirtualization(GenTree** pTree, fgWalkData* data)
+{
+    GenTree*  tree   = *pTree;
+    GenTree*  parent = data->parent;
+    Compiler* comp   = data->compiler;
+
+    // In some (rare) cases the parent node of tree will be smashed to a NOP during
+    // the preorder by fgAttachStructToInlineeArg.
+    //
+    // jit\Methodical\VT\callconv\_il_reljumper3 for x64 linux
+    //
+    // If so, just bail out here.
+    if ((parent != nullptr) && parent->OperGet() == GT_NOP)
+    {
+        assert(tree == nullptr);
+        return WALK_CONTINUE;
+    }
+
+    if (tree->OperGet() == GT_CALL)
+    {
+        GenTreeCall* call          = tree->AsCall();
+        bool         tryLateDevirt = call->IsVirtual() && (call->gtCallType == CT_USER_FUNC);
+
+#ifdef DEBUG
+        tryLateDevirt = tryLateDevirt && (JitConfig.JitEnableLateDevirtualization() == 1);
+#endif // DEBUG
+
+        if (tryLateDevirt)
+        {
+#ifdef DEBUG
+            if (comp->verbose)
+            {
+                printf("**** Late devirt opportunity\n");
+                comp->gtDispTree(call);
+            }
+#endif // DEBUG
+
+            CORINFO_METHOD_HANDLE  method      = call->gtCallMethHnd;
+            unsigned               methodFlags = 0;
+            CORINFO_CONTEXT_HANDLE context     = nullptr;
+            comp->impDevirtualizeCall(call, &method, &methodFlags, &context, nullptr);
+        }
+    }
 
     return WALK_CONTINUE;
 }
@@ -22573,7 +22650,7 @@ void Compiler::fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* inlineRe
 
 #ifdef DEBUG
 
-    if (verbose || fgPrintInlinedMethods)
+    if (verbose)
     {
         printf("Successfully inlined %s (%d IL bytes) (depth %d) [%s]\n", eeGetMethodFullName(fncHandle),
                inlineCandidateInfo->methInfo.ILCodeSize, inlineDepth, inlineResult->ReasonString());

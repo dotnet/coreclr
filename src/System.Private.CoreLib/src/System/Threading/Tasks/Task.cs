@@ -130,7 +130,7 @@ namespace System.Threading.Tasks
     /// </remarks>
     [DebuggerTypeProxy(typeof(SystemThreadingTasks_TaskDebugView))]
     [DebuggerDisplay("Id = {Id}, Status = {Status}, Method = {DebuggerDisplayMethodDescription}")]
-    public class Task : IThreadPoolWorkItem, IAsyncResult, IDisposable
+    public class Task : IAsyncResult, IDisposable
     {
         [ThreadStatic]
         internal static Task t_currentTask;  // The currently executing task.
@@ -153,7 +153,7 @@ namespace System.Threading.Tasks
         internal object m_stateObject; // A state object that can be optionally supplied, passed to action.
         internal TaskScheduler m_taskScheduler; // The task scheduler this task runs under. 
 
-        internal volatile int m_stateFlags;
+        internal volatile int m_stateFlags; // SOS DumpAsync command depends on this name
 
         private Task ParentForDebugger => m_contingentProperties?.m_parent; // Private property used by a debugger to access this Task's parent
         private int StateFlagsForDebugger => m_stateFlags; // Private property used by a debugger to access this Task's state flags
@@ -185,7 +185,8 @@ namespace System.Threading.Tasks
         internal const int TASK_STATE_EXECUTIONCONTEXT_IS_NULL = 0x20000000;                   //bin: 0010 0000 0000 0000 0000 0000 0000 0000
         internal const int TASK_STATE_TASKSCHEDULED_WAS_FIRED = 0x40000000;                    //bin: 0100 0000 0000 0000 0000 0000 0000 0000
 
-        // A mask for all of the final states a task may be in
+        // A mask for all of the final states a task may be in.
+        // SOS DumpAsync command depends on these values.
         private const int TASK_STATE_COMPLETED_MASK = TASK_STATE_CANCELED | TASK_STATE_FAULTED | TASK_STATE_RAN_TO_COMPLETION;
 
         // Values for ContingentProperties.m_internalCancellationRequested.
@@ -2317,19 +2318,10 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>
-        /// IThreadPoolWorkItem override, which is the entry function for this task when the TP scheduler decides to run it.
-        /// 
+        /// The ThreadPool calls this if a ThreadAbortException is thrown while trying to execute this Task.
+        /// This may occur before Task would otherwise be able to observe it.  
         /// </summary>
-        void IThreadPoolWorkItem.ExecuteWorkItem()
-        {
-            ExecuteEntryUnsafe();
-        }
-
-        /// <summary>
-        /// The ThreadPool calls this if a ThreadAbortException is thrown while trying to execute this workitem.  This may occur
-        /// before Task would otherwise be able to observe it.  
-        /// </summary>
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
+        internal virtual void MarkAbortedFromThreadPool(ThreadAbortException tae)
         {
             // If the task has marked itself as Completed, then it either a) already observed this exception (so we shouldn't handle it here)
             // or b) completed before the exception ocurred (in which case it shouldn't count against this Task).
@@ -2370,14 +2362,22 @@ namespace System.Threading.Tasks
             return true;
         }
 
-        internal void ExecuteEntryUnsafe() // used instead of ExecuteEntry() when we don't have to worry about double-execution prevent
+        /// <summary>
+        /// ThreadPool's entry point into the Task.  The base behavior is simply to
+        /// use the entry point that's not protected from double-invoke; derived internal tasks
+        /// can override to customize their behavior, which is usually done by promises
+        /// that want to reuse the same object as a queued work item.
+        /// </summary>
+        internal virtual void ExecuteFromThreadPool(Thread threadPoolThread) => ExecuteEntryUnsafe(threadPoolThread);
+
+        internal void ExecuteEntryUnsafe(Thread threadPoolThread) // used instead of ExecuteEntry() when we don't have to worry about double-execution prevent
         {
             // Remember that we started running the task delegate.
             m_stateFlags |= TASK_STATE_DELEGATE_INVOKED;
 
             if (!IsCancellationRequested & !IsCanceled)
             {
-                ExecuteWithThreadLocal(ref t_currentTask);
+                ExecuteWithThreadLocal(ref t_currentTask, threadPoolThread);
             }
             else
             {
@@ -2398,7 +2398,7 @@ namespace System.Threading.Tasks
         }
 
         // A trick so we can refer to the TLS slot with a byref.
-        private void ExecuteWithThreadLocal(ref Task currentTaskSlot)
+        private void ExecuteWithThreadLocal(ref Task currentTaskSlot, Thread threadPoolThread = null)
         {
             // Remember the current task so we can restore it after running, and then
             Task previousTask = currentTaskSlot;
@@ -2439,7 +2439,14 @@ namespace System.Threading.Tasks
                     else
                     {
                         // Invoke it under the captured ExecutionContext
-                        ExecutionContext.RunInternal(ec, s_ecCallback, this);
+                        if (threadPoolThread is null)
+                        {
+                            ExecutionContext.RunInternal(ec, s_ecCallback, this);
+                        }
+                        else
+                        {
+                            ExecutionContext.RunFromThreadPoolDispatchLoop(threadPoolThread, ec, s_ecCallback, this);
+                        }
                     }
                 }
                 catch (Exception exn)
@@ -3373,7 +3380,7 @@ namespace System.Threading.Tasks
             }
             else
             {
-                ThreadPool.UnsafeQueueCustomWorkItem(new CompletionActionInvoker(completionAction, this), forceGlobal: false);
+                ThreadPool.UnsafeQueueUserWorkItemInternal(new CompletionActionInvoker(completionAction, this), preferLocal: true);
             }
         }
 
@@ -6211,14 +6218,9 @@ namespace System.Threading.Tasks
             m_completingTask = completingTask;
         }
 
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        void IThreadPoolWorkItem.Execute()
         {
             m_action.Invoke(m_completingTask);
-        }
-
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-            /* NOP */
         }
     }
 

@@ -683,6 +683,25 @@ unsigned interceptor_ICJI::getClassSize(CORINFO_CLASS_HANDLE cls)
     return temp;
 }
 
+// return the number of bytes needed by an instance of the class allocated on the heap
+unsigned interceptor_ICJI::getHeapClassSize(CORINFO_CLASS_HANDLE cls)
+{
+    mc->cr->AddCall("getHeapClassSize");
+    unsigned temp = original_ICorJitInfo->getHeapClassSize(cls);
+    mc->recGetHeapClassSize(cls, temp);
+    return temp;
+}
+
+BOOL interceptor_ICJI::canAllocateOnStack(
+    CORINFO_CLASS_HANDLE cls
+)
+{
+    mc->cr->AddCall("canAllocateOnStack");
+    BOOL temp = original_ICorJitInfo->canAllocateOnStack(cls);
+    mc->recCanAllocateOnStack(cls, temp);
+    return temp;
+}
+
 unsigned interceptor_ICJI::getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint)
 {
     mc->cr->AddCall("getClassAlignmentRequirement");
@@ -1795,6 +1814,20 @@ void* interceptor_ICJI::getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppInd
     CorInfoType          cit = getFieldType(field, &cch, NULL);
     mc->recGetFieldAddress(field, ppIndirection, temp, cit);
     return temp;
+}
+
+// return the class handle for the current value of a static field
+CORINFO_CLASS_HANDLE interceptor_ICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *pIsSpeculative)
+{
+    mc->cr->AddCall("getStaticFieldCurrentClass");
+    bool localIsSpeculative = false;
+    CORINFO_CLASS_HANDLE result = original_ICorJitInfo->getStaticFieldCurrentClass(field, &localIsSpeculative);
+    mc->recGetStaticFieldCurrentClass(field, localIsSpeculative, result);
+    if (pIsSpeculative != nullptr)
+    {
+        *pIsSpeculative = localIsSpeculative;
+    }
+    return result;
 }
 
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)

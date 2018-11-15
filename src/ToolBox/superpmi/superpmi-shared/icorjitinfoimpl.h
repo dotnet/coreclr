@@ -326,6 +326,11 @@ size_t getClassModuleIdForStatics(CORINFO_CLASS_HANDLE cls, CORINFO_MODULE_HANDL
 // return the number of bytes needed by an instance of the class
 unsigned getClassSize(CORINFO_CLASS_HANDLE cls);
 
+// return the number of bytes needed by an instance of the class allocated on the heap
+unsigned getHeapClassSize(CORINFO_CLASS_HANDLE cls);
+
+BOOL canAllocateOnStack(CORINFO_CLASS_HANDLE cls);
+
 unsigned getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint = FALSE);
 
 // This is only called for Value classes.  It returns a boolean array
@@ -871,6 +876,9 @@ unsigned getClassDomainID(CORINFO_CLASS_HANDLE cls, void** ppIndirection = NULL)
 
 // return the data's address (for static fields only)
 void* getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection = NULL);
+
+// return the class handle for the current value of a static field
+CORINFO_CLASS_HANDLE getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *pIsSpeculative);
 
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)
 CORINFO_VARARGS_HANDLE getVarArgsHandle(CORINFO_SIG_INFO* pSig, void** ppIndirection = NULL);

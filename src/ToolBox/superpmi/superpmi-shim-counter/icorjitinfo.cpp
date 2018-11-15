@@ -519,6 +519,19 @@ unsigned interceptor_ICJI::getClassSize(CORINFO_CLASS_HANDLE cls)
     return original_ICorJitInfo->getClassSize(cls);
 }
 
+// return the number of bytes needed by an instance of the class allocated on the heap
+unsigned interceptor_ICJI::getHeapClassSize(CORINFO_CLASS_HANDLE cls)
+{
+    mcs->AddCall("getHeapClassSize");
+    return original_ICorJitInfo->getHeapClassSize(cls);
+}
+
+BOOL interceptor_ICJI::canAllocateOnStack(CORINFO_CLASS_HANDLE cls)
+{
+    mcs->AddCall("canAllocateOnStack");
+    return original_ICorJitInfo->canAllocateOnStack(cls);
+}
+
 unsigned interceptor_ICJI::getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint)
 {
     mcs->AddCall("getClassAlignmentRequirement");
@@ -1388,6 +1401,13 @@ void* interceptor_ICJI::getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppInd
 {
     mcs->AddCall("getFieldAddress");
     return original_ICorJitInfo->getFieldAddress(field, ppIndirection);
+}
+
+// return the class handle for the current value of a static field
+CORINFO_CLASS_HANDLE interceptor_ICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *pIsSpeculative)
+{
+    mcs->AddCall("getStaticFieldCurrentClass");
+    return original_ICorJitInfo->getStaticFieldCurrentClass(field, pIsSpeculative);
 }
 
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)

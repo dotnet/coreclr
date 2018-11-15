@@ -24,6 +24,27 @@ class SampleProfilerEventInstance;
 struct EventPipeProviderConfiguration;
 class EventPipeSession;
 
+// EVENT_FILTER_DESCRIPTOR (This type does not exist on non-Windows platforms.)
+//  https://docs.microsoft.com/en-us/windows/desktop/api/evntprov/ns-evntprov-_event_filter_descriptor
+//  The structure supplements the event provider, level, and keyword data that
+//  determines which events are reported and traced. The structure gives the
+//  event provider greater control over the selection of events for reporting
+//  and tracing.
+struct EventFilterDescriptor
+{
+    // A pointer to the filter data.
+    ULONGLONG Ptr;
+
+    // The size of the filter data, in bytes. The maximum size is 1024 bytes.
+    ULONG     Size;
+
+    // The type of filter data. The type is application-defined. An event
+    // controller that knows about the provider and knows details about the
+    // provider's events can use the Type field to send the provider an
+    // arbitrary set of data for use as enhancements to the filtering of events.
+    ULONG     Type;
+};
+
 // Define the event pipe callback to match the ETW callback signature.
 typedef void (*EventPipeCallback)(
     LPCGUID SourceID,
@@ -31,7 +52,7 @@ typedef void (*EventPipeCallback)(
     UCHAR Level,
     ULONGLONG MatchAnyKeywords,
     ULONGLONG MatchAllKeywords,
-    void *FilterData,
+    EventFilterDescriptor *FilterData,
     void *CallbackContext);
 
 struct EventData
@@ -239,7 +260,8 @@ class EventPipe
             LPCWSTR strOutputPath,
             unsigned int circularBufferSizeInMB,
             EventPipeProviderConfiguration *pProviders,
-            int numProviders);
+            int numProviders,
+            UINT64 multiFileTraceLengthInSeconds);
 
         // Disable tracing via the event pipe.
         static void Disable(EventPipeSessionID id);
@@ -292,6 +314,22 @@ class EventPipe
         // Enable the specified EventPipe session.
         static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
 
+        static void CreateFileSwitchTimer();
+
+        static void DeleteFileSwitchTimer();
+
+        // Performs one polling operation to determine if it is necessary to switch to a new file.
+        // If the polling operation decides it is time, it will perform the switch.
+        // Called directly from the timer when the timer is triggered.
+        static void WINAPI SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired);
+
+        // If event pipe has been configured to write multiple files, switch to the next file.
+        static void SwitchToNextFile();
+
+        // Generate the file path for the next trace file.
+        // This is used when event pipe has been configured to create multiple trace files with a specified maximum length of time.
+        static void GetNextFilePath(EventPipeSession *pSession, SString &nextTraceFilePath);
+
         // Callback function for the stack walker.  For each frame walked, this callback is invoked.
         static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
 
@@ -307,13 +345,14 @@ class EventPipe
         static EventPipeConfiguration *s_pConfig;
         static EventPipeSession *s_pSession;
         static EventPipeBufferManager *s_pBufferManager;
+        static LPCWSTR s_pOutputPath;
+        static unsigned long s_nextFileIndex;
         static EventPipeFile *s_pFile;
         static EventPipeEventSource *s_pEventSource;
         static LPCWSTR s_pCommandLine;
-#ifdef _DEBUG
-        static EventPipeFile *s_pSyncFile;
-        static EventPipeJsonFile *s_pJsonFile;
-#endif // _DEBUG
+        const static DWORD FileSwitchTimerPeriodMS = 1000;
+        static HANDLE s_fileSwitchTimerHandle;
+        static ULONGLONG s_lastFileSwitchTime;
 };
 
 struct EventPipeProviderConfiguration
@@ -324,6 +363,7 @@ private:
     LPCWSTR m_pProviderName;
     UINT64 m_keywords;
     UINT32 m_loggingLevel;
+    LPCWSTR m_pFilterData;
 
 public:
 
@@ -333,17 +373,20 @@ public:
         m_pProviderName = NULL;
         m_keywords = NULL;
         m_loggingLevel = 0;
+        m_pFilterData = NULL;
     }
 
     EventPipeProviderConfiguration(
         LPCWSTR pProviderName,
         UINT64 keywords,
-        UINT32 loggingLevel)
+        UINT32 loggingLevel,
+        LPCWSTR pFilterData)
     {
         LIMITED_METHOD_CONTRACT;
         m_pProviderName = pProviderName;
         m_keywords = keywords;
         m_loggingLevel = loggingLevel;
+        m_pFilterData = pFilterData;
     }
 
     LPCWSTR GetProviderName() const
@@ -362,6 +405,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_loggingLevel;
+    }
+
+    LPCWSTR GetFilterData() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pFilterData;
     }
 };
 
@@ -406,7 +455,8 @@ public:
         UINT32 circularBufferSizeInMB,
         INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
-        INT32 numProviders);
+        INT32 numProviders,
+        UINT64 multiFileTraceLengthInSeconds);
 
     static void QCALLTYPE Disable(UINT64 sessionID);
 
@@ -450,7 +500,7 @@ public:
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 
     static bool QCALLTYPE GetNextEvent(
-        EventPipeEventInstanceData *pInstance); 
+        EventPipeEventInstanceData *pInstance);
 };
 
 #endif // FEATURE_PERFTRACING

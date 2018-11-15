@@ -491,6 +491,8 @@ public:
     BOOL isStructRequiringStackAllocRetBuf(CORINFO_CLASS_HANDLE cls);
 
     unsigned getClassSize (CORINFO_CLASS_HANDLE cls);
+    unsigned getHeapClassSize(CORINFO_CLASS_HANDLE cls);
+    BOOL canAllocateOnStack(CORINFO_CLASS_HANDLE cls);
     unsigned getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint);
     static unsigned getClassAlignmentRequirementStatic(TypeHandle clsHnd);
 
@@ -850,6 +852,8 @@ public:
     bool isWriteBarrierHelperRequired(CORINFO_FIELD_HANDLE field);
 
     void* getFieldAddress(CORINFO_FIELD_HANDLE field, void **ppIndirection);
+
+    CORINFO_CLASS_HANDLE getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative);
 
     // ICorDebugInfo stuff
     void * allocateArray(ULONG cBytes);
@@ -1490,6 +1494,7 @@ public:
     InfoAccessType constructStringLiteral(CORINFO_MODULE_HANDLE scopeHnd, mdToken metaTok, void **ppValue);
     InfoAccessType emptyStringLiteral(void ** ppValue);
     void* getFieldAddress(CORINFO_FIELD_HANDLE field, void **ppIndirection);
+    CORINFO_CLASS_HANDLE getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative);
     void* getMethodSync(CORINFO_METHOD_HANDLE ftnHnd, void **ppIndirection);
 
     void BackoutJitData(EEJitManager * jitMgr);
