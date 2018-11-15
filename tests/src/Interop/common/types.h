@@ -16,6 +16,7 @@ typedef const WCHAR *LPCWSTR, *PCWSTR;
 typedef char* LPSTR;
 typedef const char* LPCSTR;
 typedef void* FARPROC;
+typedef void* HANDLE;
 typedef void* HMODULE;
 typedef unsigned error_t;
 typedef void* LPVOID;
