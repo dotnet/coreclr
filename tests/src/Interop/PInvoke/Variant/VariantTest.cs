@@ -317,9 +317,9 @@ class Test
             TestFieldByValue();
             TestFieldByRef();
         }
-        catch (System.Exception e)
+        catch (Exception e)
         {
-            Console.WriteLine($"Test failed: {e.ToString()}");
+            Console.WriteLine($"Test failed: {e}");
             return 101;
         }
         return 100;
