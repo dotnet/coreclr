@@ -639,6 +639,7 @@ DEFINE_LSPTR_TYPE(class DebuggerJitInfo, LSPTR_DJI);
 DEFINE_LSPTR_TYPE(class DebuggerMethodInfo, LSPTR_DMI);
 DEFINE_LSPTR_TYPE(class MethodDesc,         LSPTR_METHODDESC);
 DEFINE_LSPTR_TYPE(class DebuggerBreakpoint, LSPTR_BREAKPOINT);
+DEFINE_LSPTR_TYPE(class DebuggerDataBreakpoint, LSPTR_DATA_BREAKPOINT);
 DEFINE_LSPTR_TYPE(class DebuggerEval,       LSPTR_DEBUGGEREVAL);
 DEFINE_LSPTR_TYPE(class DebuggerStepper,    LSPTR_STEPPER);
 
@@ -2011,6 +2012,15 @@ struct MSLAYOUT DebuggerIPCEvent
 
         struct MSLAYOUT
         {
+#ifdef FEATURE_DATABREAKPOINT
+            CONTEXT context;
+#else
+            int dummy;
+#endif
+        } DataBreakpointData;
+
+        struct MSLAYOUT
+        {
             LSPTR_STEPPER        stepperToken;
             VMPTR_Thread         vmThreadToken;
             FramePointer         frameToken;
@@ -2343,7 +2353,6 @@ struct MSLAYOUT DebuggerIPCEvent
             void * pMetadataStart;
             ULONG nMetadataSize;
         } MetadataUpdateRequest;
-
     };
 };
 

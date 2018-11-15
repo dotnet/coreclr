@@ -213,7 +213,7 @@ int g_rgCrstLevelMap[] =
     7,          // CrstBaseDomain
     -1,         // CrstCCompRC
     9,          // CrstCer
-    11,         // CrstClassFactInfoHash
+    12,         // CrstClassFactInfoHash
     8,          // CrstClassInit
     -1,         // CrstClrNotification
     0,          // CrstCLRPrivBinderMaps
@@ -234,7 +234,7 @@ int g_rgCrstLevelMap[] =
     0,          // CrstDebuggerHeapExecMemLock
     0,          // CrstDebuggerHeapLock
     4,          // CrstDebuggerJitInfo
-    11,         // CrstDebuggerMutex
+    10,         // CrstDebuggerMutex
     0,          // CrstDelegateToFPtrHash
     15,         // CrstDomainLocalBlock
     0,          // CrstDynamicIL
@@ -269,7 +269,7 @@ int g_rgCrstLevelMap[] =
     6,          // CrstFusionWarningLog
     10,         // CrstGCCover
     0,          // CrstGCMemoryPressure
-    11,         // CrstGlobalStrLiteralMap
+    12,         // CrstGlobalStrLiteralMap
     1,          // CrstHandleTable
     0,          // CrstHostAssemblyMap
     3,          // CrstHostAssemblyMapAdd
@@ -283,7 +283,7 @@ int g_rgCrstLevelMap[] =
     0,          // CrstInterfaceVTableMap
     17,         // CrstInterop
     4,          // CrstInteropData
-    11,         // CrstIOThreadpoolWorker
+    12,         // CrstIOThreadpoolWorker
     0,          // CrstIsJMCMethod
     7,          // CrstISymUnmanagedReader
     8,          // CrstJit
@@ -302,7 +302,7 @@ int g_rgCrstLevelMap[] =
     14,         // CrstModuleFixup
     3,          // CrstModuleLookupTable
     0,          // CrstMulticoreJitHash
-    11,         // CrstMulticoreJitManager
+    12,         // CrstMulticoreJitManager
     0,          // CrstMUThunkHash
     -1,         // CrstNativeBinderInit
     -1,         // CrstNativeImageCache
@@ -358,9 +358,9 @@ int g_rgCrstLevelMap[] =
     0,          // CrstThreadpoolEventCache
     7,          // CrstThreadpoolTimerQueue
     7,          // CrstThreadpoolWaitThreads
-    11,         // CrstThreadpoolWorker
+    12,         // CrstThreadpoolWorker
     4,          // CrstThreadStaticDataHashTable
-    10,         // CrstThreadStore
+    11,         // CrstThreadStore
     9,          // CrstTieredCompilation
     9,          // CrstTPMethodTable
     3,          // CrstTypeEquivalenceMap

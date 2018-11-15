@@ -2696,6 +2696,20 @@ public:
     virtual
         HRESULT GetILCodeVersionNodeData(VMPTR_ILCodeVersionNode ilCodeVersionNode, DacSharedReJitInfo* pData) = 0;
 
+    // Enable or disable the GC notification events. The GC notification events are turned off by default
+    // They will be delivered through ICorDebugManagedCallback4
+    // 
+    // 
+    // Arguments:
+    //    fEnable - true to enable the events, false to disable
+    //
+    // Returns:
+    //    S_OK if no error
+    //    error HRESULTs such as CORDBG_READ_VIRTUAL_FAILURE are possible
+    // 
+    virtual
+        HRESULT EnableGCNotificationEvents(BOOL fEnable) = 0;
+
     // The following tag tells the DD-marshalling tool to stop scanning.
     // END_MARSHAL
     
