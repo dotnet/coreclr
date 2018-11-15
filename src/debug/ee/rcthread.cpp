@@ -11,8 +11,9 @@
 //*****************************************************************************
 
 #include "stdafx.h"
-
+#include "threadsuspend.h"
 #ifndef FEATURE_PAL
+
 #include "securitywrapper.h"
 #endif
 #include <aclapi.h>
@@ -1247,7 +1248,8 @@ void DebuggerRCThread::MainLoop()
         else if (dwWaitResult == WAIT_OBJECT_0 + DRCT_CONTROL_EVENT)
         {
             LOG((LF_CORDB, LL_INFO1000, "DRCT::ML:: straggler event set.\n"));
-
+            
+            ThreadStoreLockHolder tsl;
             Debugger::DebuggerLockHolder debugLockHolder(m_debugger);
             // Make sure that we're still synchronizing...
             if (m_debugger->IsSynchronizing())
@@ -1258,7 +1260,7 @@ void DebuggerRCThread::MainLoop()
 
                 //
                 // Skip waiting the first time and just give it a go.  Note: Implicit
-                // release of the lock, because we are leaving its scope.
+                // release of the debugger and thread store lock, because we are leaving its scope.
                 //
                 goto LWaitTimedOut;
             }
@@ -1267,6 +1269,7 @@ void DebuggerRCThread::MainLoop()
                 LOG((LF_CORDB, LL_INFO1000, "DRCT::ML:: told to wait, but not syncing anymore.\n"));
 #endif
             // dbgLockHolder goes out of scope - implicit Release
+            // tsl goes out of scope - implicit Release
          }
         else if (dwWaitResult == WAIT_TIMEOUT)
         {
@@ -1275,6 +1278,7 @@ LWaitTimedOut:
 
             LOG((LF_CORDB, LL_INFO1000, "DRCT::ML:: wait timed out.\n"));
 
+            ThreadStore::LockThreadStore();
             // Debugger::DebuggerLockHolder debugLockHolder(m_debugger);
             // Explicitly get the lock here since we try to check to see if
             // have suspended.  We will release the lock if we are not suspended yet.
@@ -1329,6 +1333,7 @@ LWaitTimedOut:
                 // And so the sweep should always succeed.
                 STRESS_LOG0(LF_CORDB, LL_INFO1000, "DRCT::ML:: threads still syncing after sweep.\n");
                 debugLockHolderSuspended.Release();
+                ThreadStore::UnlockThreadStore();
             }
             // debugLockHolderSuspended does not go out of scope. It has to be either released explicitly on the line above or
             // we intend to hold the lock till we hit continue event.
@@ -1772,22 +1777,39 @@ HRESULT DebuggerRCThread::SendIPCEvent()
         NOTHROW;
         GC_NOTRIGGER; // duh, we're in preemptive..
 
-        if (ThisIsHelperThreadWorker())
+        if (m_debugger->m_isBlockedOnGarbageCollectionEvent)
         {
-            // When we're stopped, the helper could actually be contracted as either mode-cooperative
-            // or mode-preemptive!
-            // If we're the helper thread, we're only sending events while we're stopped.
-            // Our callers will be mode-cooperative, so call this mode_cooperative to avoid a bunch
-            // of unncessary contract violations.
+            //
+            // If m_debugger->m_isBlockedOnGarbageCollectionEvent is true, then it must be reporting
+            // either the BeforeGarbageCollection event or the AfterGarbageCollection event
+            // The thread is in preemptive mode during BeforeGarbageCollection
+            // The thread is in cooperative mode during AfterGarbageCollection
+            // In either case, the thread mode doesn't really matter because GC has already taken control
+            // of execution.
+            //
+            // Despite the fact that we are actually in preemptive mode during BeforeGarbageCollection,
+            // because IsGCThread() is true, the EEContract::DoCheck() will happily accept the fact we are
+            // testing for MODE_COOPERATIVE.
+            //
             MODE_COOPERATIVE;
         }
         else
         {
-            // Managed threads sending debug events should always be in preemptive mode.
-            MODE_PREEMPTIVE;
+            if (ThisIsHelperThreadWorker())
+            {
+                // When we're stopped, the helper could actually be contracted as either mode-cooperative
+                // or mode-preemptive!
+                // If we're the helper thread, we're only sending events while we're stopped.
+                // Our callers will be mode-cooperative, so call this mode_cooperative to avoid a bunch
+                // of unncessary contract violations.
+                MODE_COOPERATIVE;
+            }
+            else
+            {
+                // Managed threads sending debug events should always be in preemptive mode.
+                MODE_PREEMPTIVE;
+            }
         }
-
-
         PRECONDITION(ThisMaybeHelperThread());
     }
     CONTRACTL_END;
