@@ -146,7 +146,7 @@ public:
 
     size_t GetFunctionSize(MethodDesc *pFD) DAC_UNEXPECTED();
 
-    const PCODE GetFunctionAddress(MethodDesc *pFD);
+    PCODE GetFunctionAddress(MethodDesc *pFD);
 
     void DisablePreemptiveGC(void);
 
@@ -342,6 +342,10 @@ public:
 #ifdef _DEBUG
     virtual void ObjectRefFlush(Thread *pThread);
 #endif
+#endif
+
+#ifndef DACCESS_COMPILE
+    virtual BOOL AdjustContextForWriteBarrierForDebugger(CONTEXT* context);
 #endif
 };
 

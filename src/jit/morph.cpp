@@ -13066,6 +13066,12 @@ DONE_MORPHING_CHILDREN:
                         tree->gtType = typ = temp->TypeGet();
                         foldAndReturnTemp  = true;
                     }
+                    else if (!varTypeIsStruct(typ) && (lvaTable[lclNum].lvType == typ) &&
+                             !lvaTable[lclNum].lvNormalizeOnLoad())
+                    {
+                        tree->gtType = typ = temp->TypeGet();
+                        foldAndReturnTemp  = true;
+                    }
                     else
                     {
                         // Assumes that when Lookup returns "false" it will leave "fieldSeq" unmodified (i.e.
@@ -15844,9 +15850,25 @@ void Compiler::fgMorphBlocks()
                         noway_assert(ret->OperGet() == GT_RETURN);
                         noway_assert(ret->gtGetOp1() != nullptr);
 
-                        GenTree* tree = gtNewTempAssign(genReturnLocal, ret->gtGetOp1());
+                        GenTree*   pAfterStatement = last;
+                        IL_OFFSETX offset          = last->AsStmt()->gtStmtILoffsx;
+                        GenTree*   tree =
+                            gtNewTempAssign(genReturnLocal, ret->gtGetOp1(), &pAfterStatement, offset, block);
+                        if (tree->OperIsCopyBlkOp())
+                        {
+                            tree = fgMorphCopyBlock(tree);
+                        }
 
-                        last->gtStmt.gtStmtExpr = (tree->OperIsCopyBlkOp()) ? fgMorphCopyBlock(tree) : tree;
+                        if (pAfterStatement == last)
+                        {
+                            last->gtStmt.gtStmtExpr = tree;
+                        }
+                        else
+                        {
+                            // gtNewTempAssign inserted additional statements after last
+                            fgRemoveStmt(block, last);
+                            last = fgInsertStmtAfter(block, pAfterStatement, gtNewStmt(tree, offset));
+                        }
 
                         // make sure that copy-prop ignores this assignment.
                         last->gtStmt.gtStmtExpr->gtFlags |= GTF_DONT_CSE;
@@ -16688,19 +16710,23 @@ void Compiler::fgMorph()
             }
         }
     }
+#endif // DEBUG
 
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
     if (opts.compStackCheckOnRet)
     {
-        lvaReturnEspCheck                  = lvaGrabTempWithImplicitUse(false DEBUGARG("ReturnEspCheck"));
-        lvaTable[lvaReturnEspCheck].lvType = TYP_INT;
+        lvaReturnSpCheck                  = lvaGrabTempWithImplicitUse(false DEBUGARG("ReturnSpCheck"));
+        lvaTable[lvaReturnSpCheck].lvType = TYP_I_IMPL;
     }
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 
+#if defined(DEBUG) && defined(_TARGET_X86_)
     if (opts.compStackCheckOnCall)
     {
-        lvaCallEspCheck                  = lvaGrabTempWithImplicitUse(false DEBUGARG("CallEspCheck"));
-        lvaTable[lvaCallEspCheck].lvType = TYP_INT;
+        lvaCallSpCheck                  = lvaGrabTempWithImplicitUse(false DEBUGARG("CallSpCheck"));
+        lvaTable[lvaCallSpCheck].lvType = TYP_I_IMPL;
     }
-#endif // DEBUG
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
 
     /* Filter out unimported BBs */
 
@@ -16727,6 +16753,16 @@ void Compiler::fgMorph()
     // Transform each GT_ALLOCOBJ node into either an allocation helper call or
     // local variable allocation on the stack.
     ObjectAllocator objectAllocator(this); // PHASE_ALLOCATE_OBJECTS
+
+// TODO-ObjectStackAllocation: Enable the optimization for architectures using
+// JIT32_GCENCODER (i.e., x86).
+#ifndef JIT32_GCENCODER
+    if (JitConfig.JitObjectStackAllocation() && !opts.MinOpts() && !opts.compDbgCode)
+    {
+        objectAllocator.EnableObjectStackAllocation();
+    }
+#endif // JIT32_GCENCODER
+
     objectAllocator.Run();
 
     /* Add any internal blocks/trees we may need */
@@ -17990,7 +18026,7 @@ public:
 #endif // DEBUG
     }
 
-    // Morph promoted struct fields and count promoted implict byref argument occurrences.
+    // Morph promoted struct fields and count implict byref argument occurrences.
     // Also create and push the value produced by the visited node. This is done here
     // rather than in PostOrderVisit because it makes it easy to handle nodes with an
     // arbitrary number of operands - just pop values until the value corresponding
@@ -18012,16 +18048,17 @@ public:
         {
             unsigned lclNum = node->AsLclVarCommon()->GetLclNum();
 
-            if (m_compiler->lvaIsImplicitByRefLocal(lclNum))
+            LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
+            if (varDsc->lvIsStructField)
             {
-                // Keep track of the number of appearances of each promoted implicit
-                // byref (here during address-exposed analysis); fgMakeOutgoingStructArgCopy
-                // checks the ref counts for implicit byref params when deciding if it's legal
-                // to elide certain copies of them.
-                LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
-                JITDUMP("LocalAddressVisitor incrementing ref count from %d to %d for V%02d\n",
-                        varDsc->lvRefCnt(RCS_EARLY), varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
-                varDsc->incLvRefCnt(1, RCS_EARLY);
+                // Promoted field, increase counter for the parent lclVar.
+                assert(!m_compiler->lvaIsImplicitByRefLocal(lclNum));
+                unsigned parentLclNum = varDsc->lvParentLcl;
+                UpdateEarlyRefCountForImplicitByRef(parentLclNum);
+            }
+            else
+            {
+                UpdateEarlyRefCountForImplicitByRef(lclNum);
             }
         }
 
@@ -18409,6 +18446,29 @@ private:
         // TODO-Cleanup: Move fgMorphLocalField implementation here, it's not used anywhere else.
         m_compiler->fgMorphLocalField(node, user);
         INDEBUG(m_stmtModified |= node->OperIs(GT_LCL_VAR);)
+    }
+
+    //------------------------------------------------------------------------
+    // UpdateEarlyRefCountForImplicitByRef: updates the ref count for implicit byref params.
+    //
+    // Arguments:
+    //    lclNum - the local number to update the count for.
+    //
+    // Notes:
+    //    fgMakeOutgoingStructArgCopy checks the ref counts for implicit byref params when it decides
+    //    if it's legal to elide certain copies of them;
+    //    fgRetypeImplicitByRefArgs checks the ref counts when it decides to undo promotions.
+    //
+    void UpdateEarlyRefCountForImplicitByRef(unsigned lclNum)
+    {
+        if (!m_compiler->lvaIsImplicitByRefLocal(lclNum))
+        {
+            return;
+        }
+        LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
+        JITDUMP("LocalAddressVisitor incrementing ref count from %d to %d for V%02d\n", varDsc->lvRefCnt(RCS_EARLY),
+                varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
+        varDsc->incLvRefCnt(1, RCS_EARLY);
     }
 };
 

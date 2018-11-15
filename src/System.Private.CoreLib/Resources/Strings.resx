@@ -584,7 +584,7 @@
     <value>Must specify binding flags describing the invoke operation required (BindingFlags.InvokeMethod CreateInstance GetField SetField GetProperty SetProperty).</value>
   </data>
   <data name="Arg_NoDefCTor" xml:space="preserve">
-    <value>No parameterless constructor defined for this object.</value>
+    <value>No parameterless constructor defined for type '{0}'.</value>
   </data>
   <data name="Arg_NoITypeInfo" xml:space="preserve">
     <value>Specified TypeInfo was invalid because it did not support the ITypeInfo interface.</value>
@@ -1933,6 +1933,9 @@
   <data name="BadImageFormat_ParameterSignatureMismatch" xml:space="preserve">
     <value>The parameters and the signature of the method don't match.</value>
   </data>
+  <data name="BadImageFormat_ResType_SerBlobMismatch" xml:space="preserve">
+    <value>The type serialized in the .resources file was not the same type that the .resources file said it contained. Expected '{0}' but read '{1}'.</value>
+  </data>
   <data name="BadImageFormat_ResourceDataLengthInvalid" xml:space="preserve">
     <value>Corrupt .resources file.  The specified data length '{0}' is not a valid position in the stream.</value>
   </data>
@@ -2620,6 +2623,9 @@
   <data name="InvalidOperation_TimeoutsNotSupported" xml:space="preserve">
     <value>Timeouts are not supported on this stream.</value>
   </data>
+  <data name="InvalidOperation_TimerAlreadyClosed" xml:space="preserve">
+    <value>The Timer was already closed using an incompatible Dispose method.</value>
+  </data>
   <data name="InvalidOperation_TypeCannotBeBoxed" xml:space="preserve">
     <value>The given type cannot be boxed.</value>
   </data>
@@ -2858,10 +2864,10 @@
     <value>Cannot create arrays of ByRef-like values.</value>
   </data>
   <data name="NotSupported_ByRefToByRefLikeReturn" xml:space="preserve">
-    <value>ByRef to ByRefLike return values not supported in reflection invocation.</value>
+    <value>ByRef to ByRef-like return values are not supported in reflection invocation.</value>
   </data>
   <data name="NotSupported_ByRefToVoidReturn" xml:space="preserve">
-    <value>ByRef to void return values not supported in reflection invocation.</value>
+    <value>ByRef to void return values are not supported in reflection invocation.</value>
   </data>
   <data name="NotSupported_CallToVarArg" xml:space="preserve">
     <value>Vararg calling convention not supported.</value>
@@ -3097,9 +3103,6 @@
   <data name="Overflow_Decimal" xml:space="preserve">
     <value>Value was either too large or too small for a Decimal.</value>
   </data>
-  <data name="Overflow_Double" xml:space="preserve">
-    <value>Value was either too large or too small for a Double.</value>
-  </data>
   <data name="Overflow_Duration" xml:space="preserve">
     <value>The duration cannot be returned for TimeSpan.MinValue because the absolute value of TimeSpan.MinValue exceeds the value of TimeSpan.MaxValue.</value>
   </data>
@@ -3120,9 +3123,6 @@
   </data>
   <data name="Overflow_SByte" xml:space="preserve">
     <value>Value was either too large or too small for a signed byte.</value>
-  </data>
-  <data name="Overflow_Single" xml:space="preserve">
-    <value>Value was either too large or too small for a Single.</value>
   </data>
   <data name="Overflow_TimeSpanElementTooLarge" xml:space="preserve">
     <value>The TimeSpan string '{0}' could not be parsed because at least one of the numeric components is out of range or contains too many digits.</value>
@@ -3651,5 +3651,17 @@
   </data>
   <data name="Argument_MethodRedefined" xml:space="preserve">
     <value>Method has been already defined.</value>
+  </data>
+  <data name="Argument_CannotExtractScalar" xml:space="preserve">
+    <value>Cannot extract a Unicode scalar value from the specified index in the input.</value>
+  </data>
+  <data name="Argument_CannotParsePrecision" xml:space="preserve">
+    <value>Characters following the format symbol must be a number of {0} or less.</value>
+  </data>
+  <data name="Argument_GWithPrecisionNotSupported" xml:space="preserve">
+    <value>The 'G' format combined with a precision is not supported.</value>
+  </data>
+  <data name="Argument_PrecisionTooLarge" xml:space="preserve">
+    <value>Precision cannot be larger than {0}.</value>
   </data>
 </root>

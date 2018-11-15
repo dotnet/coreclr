@@ -641,7 +641,7 @@ size_t EEDbgInterfaceImpl::GetFunctionSize(MethodDesc *pFD)
 }
 #endif //!DACCESS_COMPILE
 
-const PCODE EEDbgInterfaceImpl::GetFunctionAddress(MethodDesc *pFD)
+PCODE EEDbgInterfaceImpl::GetFunctionAddress(MethodDesc *pFD)
 { 
     CONTRACTL
     {
@@ -1628,6 +1628,16 @@ void EEDbgInterfaceImpl::ObjectRefFlush(Thread *pThread)
     Thread::ObjectRefFlush(pThread);
 }
 #endif
+#endif
+
+#ifndef DACCESS_COMPILE
+
+BOOL AdjustContextForWriteBarrier(EXCEPTION_RECORD *pExceptionRecord, CONTEXT *pContext);
+BOOL EEDbgInterfaceImpl::AdjustContextForWriteBarrierForDebugger(CONTEXT* context)
+{
+    WRAPPER_NO_CONTRACT;
+    return AdjustContextForWriteBarrier(nullptr, context);
+}
 #endif
 
 #endif // DEBUGGING_SUPPORTED

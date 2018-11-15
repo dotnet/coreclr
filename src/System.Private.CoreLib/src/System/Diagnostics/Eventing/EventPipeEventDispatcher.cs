@@ -107,10 +107,10 @@ namespace System.Diagnostics.Tracing
             // Enable the EventPipe session.
             EventPipeProviderConfiguration[] providerConfiguration = new EventPipeProviderConfiguration[]
             {
-                new EventPipeProviderConfiguration(RuntimeEventSource.EventSourceName, (ulong) aggregatedKeywords, (uint) highestLevel)
+                new EventPipeProviderConfiguration(RuntimeEventSource.EventSourceName, (ulong) aggregatedKeywords, (uint) highestLevel, null)
             };
 
-            m_sessionID = EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
+            m_sessionID = EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1, 0);
             Debug.Assert(m_sessionID != 0);
 
             // Get the session information that is required to properly dispatch events.

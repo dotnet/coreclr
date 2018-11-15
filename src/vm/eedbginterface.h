@@ -165,7 +165,7 @@ public:
 
     virtual size_t GetFunctionSize(MethodDesc *pFD) = 0;
 
-    virtual const PCODE GetFunctionAddress(MethodDesc *pFD) = 0;
+    virtual PCODE GetFunctionAddress(MethodDesc *pFD) = 0;
 
 #ifndef DACCESS_COMPILE
 
@@ -372,6 +372,10 @@ public:
 #ifdef _DEBUG
     virtual void ObjectRefFlush(Thread *pThread) = 0;
 #endif
+#endif
+
+#ifndef DACCESS_COMPILE
+    virtual BOOL AdjustContextForWriteBarrierForDebugger(CONTEXT* context) = 0;
 #endif
 };
 
