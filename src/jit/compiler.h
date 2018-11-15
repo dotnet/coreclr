@@ -2438,7 +2438,11 @@ public:
 
     GenTree* gtNewAssignNode(GenTree* dst, GenTree* src);
 
-    GenTree* gtNewTempAssign(unsigned tmp, GenTree* val);
+    GenTree* gtNewTempAssign(unsigned    tmp,
+                             GenTree*    val,
+                             GenTree**   pAfterStmt = nullptr,
+                             IL_OFFSETX  ilOffset   = BAD_IL_OFFSET,
+                             BasicBlock* block      = nullptr);
 
     GenTree* gtNewRefCOMfield(GenTree*                objPtr,
                               CORINFO_RESOLVED_TOKEN* pResolvedToken,
@@ -3525,12 +3529,14 @@ public:
                              CORINFO_CLASS_HANDLE structHnd,
                              unsigned             curLevel,
                              GenTree**            pAfterStmt = nullptr,
+                             IL_OFFSETX           ilOffset   = BAD_IL_OFFSET,
                              BasicBlock*          block      = nullptr);
     GenTree* impAssignStructPtr(GenTree*             dest,
                                 GenTree*             src,
                                 CORINFO_CLASS_HANDLE structHnd,
                                 unsigned             curLevel,
                                 GenTree**            pAfterStmt = nullptr,
+                                IL_OFFSETX           ilOffset   = BAD_IL_OFFSET,
                                 BasicBlock*          block      = nullptr);
 
     GenTree* impGetStructAddr(GenTree* structVal, CORINFO_CLASS_HANDLE structHnd, unsigned curLevel, bool willDeref);
@@ -8408,6 +8414,10 @@ public:
 #endif // DEBUG
 
 #ifdef DEBUG
+// silence warning of cast to greater size. It is easier to silence than construct code the compiler is happy with, and
+// it is safe in this case
+#pragma warning(push)
+#pragma warning(disable : 4312)
 
     template <typename T>
     T dspPtr(T p)
@@ -8420,6 +8430,7 @@ public:
     {
         return (o == ZERO) ? ZERO : (opts.dspDiffable ? T(0xD1FFAB1E) : o);
     }
+#pragma warning(pop)
 
     static int dspTreeID(GenTree* tree)
     {

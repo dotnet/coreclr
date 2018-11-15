@@ -8165,7 +8165,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                 if (!info.compMatchedVM)
                 {
                     // If we don't have a matched VM, we won't get valid results when asking for a thunk.
-                    pfnCopyArgs = (void*)0xCA11CA11; // "callcall"
+                    pfnCopyArgs = UlongToPtr(0xCA11CA11); // "callcall"
                 }
                 else
                 {
@@ -15850,9 +15850,25 @@ void Compiler::fgMorphBlocks()
                         noway_assert(ret->OperGet() == GT_RETURN);
                         noway_assert(ret->gtGetOp1() != nullptr);
 
-                        GenTree* tree = gtNewTempAssign(genReturnLocal, ret->gtGetOp1());
+                        GenTree*   pAfterStatement = last;
+                        IL_OFFSETX offset          = last->AsStmt()->gtStmtILoffsx;
+                        GenTree*   tree =
+                            gtNewTempAssign(genReturnLocal, ret->gtGetOp1(), &pAfterStatement, offset, block);
+                        if (tree->OperIsCopyBlkOp())
+                        {
+                            tree = fgMorphCopyBlock(tree);
+                        }
 
-                        last->gtStmt.gtStmtExpr = (tree->OperIsCopyBlkOp()) ? fgMorphCopyBlock(tree) : tree;
+                        if (pAfterStatement == last)
+                        {
+                            last->gtStmt.gtStmtExpr = tree;
+                        }
+                        else
+                        {
+                            // gtNewTempAssign inserted additional statements after last
+                            fgRemoveStmt(block, last);
+                            last = fgInsertStmtAfter(block, pAfterStatement, gtNewStmt(tree, offset));
+                        }
 
                         // make sure that copy-prop ignores this assignment.
                         last->gtStmt.gtStmtExpr->gtFlags |= GTF_DONT_CSE;
