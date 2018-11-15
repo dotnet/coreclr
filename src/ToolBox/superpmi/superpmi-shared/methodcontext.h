@@ -1329,7 +1329,7 @@ private:
 };
 
 // ********************* Please keep this up-to-date to ease adding more ***************
-// Highest packet number: 172
+// Highest packet number: 173
 // *************************************************************************************
 enum mcPackets
 {
@@ -1344,7 +1344,7 @@ enum mcPackets
     Packet_CanGetCookieForPInvokeCalliSig                = 7,
     Packet_CanGetVarArgsHandle                           = 8,
     Packet_CanInline                                     = 9,
-    Packet_CanInlineTypeCheck                            = 172, // Added 11/15/2018 as a replacement for CanInlineTypeCheckWithObjectVTable
+    Packet_CanInlineTypeCheck                            = 173, // Added 11/15/2018 as a replacement for CanInlineTypeCheckWithObjectVTable
     Packet_CanInlineTypeCheckWithObjectVTable            = 10,
     Packet_CanSkipMethodVerification                     = 11,
     Packet_CanTailCall                                   = 12,
