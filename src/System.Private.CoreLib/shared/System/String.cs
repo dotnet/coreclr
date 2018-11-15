@@ -538,9 +538,9 @@ namespace System
         /// <remarks>
         /// Invalid sequences will be represented in the enumeration by <see cref="Rune.ReplacementChar"/>.
         /// </remarks>
-        public RuneEnumerator EnumerateRunes()
+        public StringRuneEnumerator EnumerateRunes()
         {
-            return new RuneEnumerator(this);
+            return new StringRuneEnumerator(this);
         }
 
         internal static unsafe int wcslen(char* ptr)
