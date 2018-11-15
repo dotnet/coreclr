@@ -137,11 +137,6 @@ namespace System.Runtime.Loader
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void LoadFromPath(IntPtr ptrNativeAssemblyLoadContet, string ilPath, string niPath, ObjectHandleOnStack retAssembly);
 
-        public static Assembly[] GetLoadedAssemblies()
-        {
-            return AppDomain.CurrentDomain.GetAssemblies(false);
-        }
-
         // These methods load assemblies into the current AssemblyLoadContext 
         // They may be used in the implementation of an AssemblyLoadContext derivation
         public Assembly LoadFromAssemblyPath(string assemblyPath)
