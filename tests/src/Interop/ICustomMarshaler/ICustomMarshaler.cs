@@ -23,7 +23,8 @@ namespace System.Runtime.InteropServices.Tests
         [Fact]
         public void CustomMarshaler_StringType_Success()
         {
-            Assert.Equal(123, MarshalerOnStringTypeMethod("123"));
+            int val = 64001;
+            Assert.Equal(val, MarshalerOnStringTypeMethod(val.ToString()));
         }
 
         public class StringForwardingCustomMarshaler : ICustomMarshaler
@@ -45,7 +46,8 @@ namespace System.Runtime.InteropServices.Tests
         [Fact]
         public void CustomMarshaler_ArrayType_Success()
         {
-            Assert.Equal(123, MarshalerOnArrayTypeMethod(new string[] { "123" }));
+            int val = 64001;
+            Assert.Equal(val, MarshalerOnArrayTypeMethod(new string[] { val.ToString() }));
         }
 
         public class ArrayForwardingCustomMarshaler : ICustomMarshaler
@@ -67,7 +69,8 @@ namespace System.Runtime.InteropServices.Tests
         [Fact]
         public void CustomMarshaler_BoxedValueType_Success()
         {
-            Assert.Equal(246, MarshalerOnBoxedValueTypeMethod(123));
+            int val = 64001;
+            Assert.Equal(val * 2, MarshalerOnBoxedValueTypeMethod(val));
         }
 
         public class BoxedValueTypeCustomMarshaler : ICustomMarshaler
@@ -94,7 +97,8 @@ namespace System.Runtime.InteropServices.Tests
         [Fact]
         public void Parameter_CustomMarshalerProvidedOnClassType_ForwardsCorrectly()
         {
-            Assert.Equal("246", MarshalerOnClassTypeMethod(new StringContainer { Value = "123" }).Value);
+            int val = 64001;
+            Assert.Equal((val * 2).ToString(), MarshalerOnClassTypeMethod(new StringContainer { Value = val.ToString() }).Value);
         }
 
         public class StringContainer
@@ -104,10 +108,19 @@ namespace System.Runtime.InteropServices.Tests
 
         public class ClassForwardingCustomMarshaler : ICustomMarshaler
         {
+            private bool CleanedString { get; set; }
+
             public void CleanUpManagedData(object ManagedObj) {}
+
             public void CleanUpNativeData(IntPtr pNativeData)
             {
+                if (CleanedString)
+                {
+                    return;
+                }
+
                 Marshal.ZeroFreeCoTaskMemAnsi(pNativeData);
+                CleanedString = true;
             }
 
             public int GetNativeDataSize() => IntPtr.Size;
@@ -134,7 +147,9 @@ namespace System.Runtime.InteropServices.Tests
         public void Parameter_CustomMarshalerProvided_CallsMethodsInCorrectOrdering()
         {
             Assert.Empty(OrderTrackingCustomMarshaler.Events);
-            Assert.Equal("123", OrderTrackingMethod("123"));
+
+            string val1 = "64001";
+            Assert.Equal(val1, OrderTrackingMethod(val1));
 
             string[] expectedOrderingFirstCall = new string[]
             {
@@ -146,7 +161,8 @@ namespace System.Runtime.InteropServices.Tests
             Assert.Equal(expectedOrderingFirstCall, OrderTrackingCustomMarshaler.Events);
 
             // GetInstance is only called once.
-            Assert.Equal("234", OrderTrackingMethod("234"));
+            string val2 = "234";
+            Assert.Equal(val2, OrderTrackingMethod(val2));
             IEnumerable<string> expectedOrderingSecondCall = expectedOrderingFirstCall.Concat(new string[]
             {
                 "Called MarshalManagedToNative",
@@ -209,7 +225,7 @@ namespace System.Runtime.InteropServices.Tests
         [Fact]
         public void CustomMarshaler_BothMarshalTypeRefAndMarshalTypeProvided_PicksMarshalType()
         {
-            Assert.Equal(2, BothTypeRefAndTypeMethod("123"));
+            Assert.Equal(2, BothTypeRefAndTypeMethod("64001"));
         }
 
         public class OverridingCustomMarshaler : ICustomMarshaler
@@ -231,7 +247,8 @@ namespace System.Runtime.InteropServices.Tests
         [Fact]
         public void Parameter_CookieProvided_PassesCookieToGetInstance()
         {
-            Assert.Equal(123, CustomCookieMethod("123"));
+            int val = 64001;
+            Assert.Equal(val, CustomCookieMethod(val.ToString()));
             Assert.Equal("Cookie", CookieTrackingCustomMarshaler.Cookie);
         }
 
@@ -260,7 +277,8 @@ namespace System.Runtime.InteropServices.Tests
         [Fact]
         public void Parameter_NotCustomMarshalerType_UsesSpecifiedMarshaler()
         {
-            Assert.Equal(123, NonCustomMarshalerTypeMethod("123"));
+            int val = 64001;
+            Assert.Equal(val, NonCustomMarshalerTypeMethod(val.ToString()));
         }
 
         [DllImport(LibcLibrary, EntryPoint = "atoi", CallingConvention = CallingConvention.Cdecl)]
@@ -269,7 +287,7 @@ namespace System.Runtime.InteropServices.Tests
         [Fact]
         public void CustomMarshaler_Generic_Success()
         {
-            Assert.Equal(234, GenericGetInstanceCustomMarshalerMethod("123"));
+            Assert.Equal(234, GenericGetInstanceCustomMarshalerMethod("64001"));
         }
 
         public class GenericCustomMarshaler<T> : ICustomMarshaler
@@ -294,7 +312,7 @@ namespace System.Runtime.InteropServices.Tests
         [Fact]
         public void CustomMarshaler_ValueTypeWithStringType_Success()
         {
-            Assert.Equal(234, ValueTypeMarshalerOnStringTypeMethod("123"));
+            Assert.Equal(234, ValueTypeMarshalerOnStringTypeMethod("64001"));
         }
 
         public struct CustomMarshalerValueType : ICustomMarshaler
