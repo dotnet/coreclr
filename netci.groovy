@@ -452,7 +452,7 @@ class Constants {
                // 'gc_reliability_framework'
                // 'illink'
                // 'corefx_innerloop'
-               'crossgen_comparison'
+               'crossgen_comparison',
                'pmi_asm_diffs',
                'r2r_jitstress1',
                'r2r_jitstress2',
