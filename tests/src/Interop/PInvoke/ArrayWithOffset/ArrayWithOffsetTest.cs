@@ -9,17 +9,6 @@ using TestLibrary;
 
 unsafe class ArrayWithOffsetTest
 {
-    private const string NativeLibrary = "ArrayWithOffsetNative";
-
-    [DllImport(NativeLibrary)]
-    private static extern bool Marshal_InOut(int* expected, [In, Out] ArrayWithOffset actual, int numElements, int* newValue);
-
-    [DllImport(NativeLibrary, EntryPoint = "Marshal_Invalid")]
-    private static extern bool Marshal_In(ArrayWithOffset invalidArray);
-
-    [DllImport(NativeLibrary)]
-    private static extern bool Marshal_Invalid(ref ArrayWithOffset array);
-
     public static int Main()
     {
         try
@@ -35,7 +24,7 @@ unsafe class ArrayWithOffsetTest
                 fixed (int* expectedSubArray = expected.Slice(i))
                 fixed (int* newValueSubArray = newValue.Slice(i))
                 {
-                    Assert.IsTrue(Marshal_InOut(expectedSubArray, offset, expected.Length - i, newValueSubArray), $"Native call failed with element offset {i}.");
+                    Assert.IsTrue(ArrayWithOffsetNative.Marshal_InOut(expectedSubArray, offset, expected.Length - i, newValueSubArray), $"Native call failed with element offset {i}.");
                 }
 
                 for (int j = 0; j < i; j++)
@@ -51,10 +40,10 @@ unsafe class ArrayWithOffsetTest
 
             ArrayWithOffset arrayWithOffset = new ArrayWithOffset(new int[]{ 1 }, 0);
 
-            Assert.Throws<MarshalDirectiveException>(() => Marshal_In(arrayWithOffset));
-            Assert.Throws<MarshalDirectiveException>(() => Marshal_Invalid(ref arrayWithOffset));
+            Assert.Throws<MarshalDirectiveException>(() => ArrayWithOffsetNative.Marshal_Invalid(arrayWithOffset));
+            Assert.Throws<MarshalDirectiveException>(() => ArrayWithOffsetNative.Marshal_Invalid(ref arrayWithOffset));
         }
-        catch (System.Exception e)
+        catch (Exception e)
         {
             Console.WriteLine(e);
             return 101;
