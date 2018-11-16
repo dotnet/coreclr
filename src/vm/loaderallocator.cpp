@@ -1072,7 +1072,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     m_crstLoaderAllocator.Init(CrstLoaderAllocator, (CrstFlags)CRST_UNSAFE_COOPGC);
 #ifdef FEATURE_COMINTEROP
     m_InteropDataCrst.Init(CrstInteropData, CRST_REENTRANCY);
-    m_ComCallWrapperCrst.Init(CrstComCallWrapper);
+    m_ComCallWrapperCrst.Init(CrstCOMCallWrapper);
 #endif
 
     //
