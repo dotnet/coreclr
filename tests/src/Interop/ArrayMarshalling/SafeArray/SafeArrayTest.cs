@@ -42,18 +42,16 @@ public class Tester
             Assert.IsTrue(SafeArrayNative.ReverseStringsBSTR(bstrTest));
             Assert.AreAllEqual(reversedStrings, bstrTest);
 
-            // var blittableRecords = new SafeArrayNative.BlittableRecord[]
-            // {
-            //     new SafeArrayNative.BlittableRecord { a = 1 },
-            //     new SafeArrayNative.BlittableRecord { a = 5 },
-            //     new SafeArrayNative.BlittableRecord { a = 7 },
-            //     new SafeArrayNative.BlittableRecord { a = 3 },
-            //     new SafeArrayNative.BlittableRecord { a = 9 },
-            //     new SafeArrayNative.BlittableRecord { a = 15 },
-            // };
-
-            // Assert.IsTrue(SafeArrayNative.MeanBlittableIntRecords(blittableRecords, out var blittableMean));
-            // Assert.AreEqual(blittableRecords.Aggregate(0, (sum, record) => sum += record.a) / blittableRecords.Length, blittableMean);
+            var blittableRecords = new SafeArrayNative.BlittableRecord[]
+            {
+                new SafeArrayNative.BlittableRecord { a = 1 },
+                new SafeArrayNative.BlittableRecord { a = 5 },
+                new SafeArrayNative.BlittableRecord { a = 7 },
+                new SafeArrayNative.BlittableRecord { a = 3 },
+                new SafeArrayNative.BlittableRecord { a = 9 },
+                new SafeArrayNative.BlittableRecord { a = 15 },
+            };
+            Assert.AreAllEqual(blittableRecords, SafeArrayNative.CreateSafeArrayOfRecords(blittableRecords));
 
             // var nonBlittableRecords = boolArray.Select(b => new SafeArrayNative.NonBlittableRecord{ b = b }).ToArray();
             // Assert.IsTrue(SafeArrayNative.XorNonBlittableBoolRecords(nonBlittableRecords, out var nonBlittableXor));
@@ -120,9 +118,16 @@ class SafeArrayNative
         public int a;
     }
 
-    public struct NonBlittableRecord
+    [DllImport(nameof(SafeArrayNative))]
+    [return: MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_RECORD)]
+    private static extern  BlittableRecord[] CreateSafeArrayOfRecords(
+        BlittableRecord[] records,
+        int numElements
+    );
+
+    public static BlittableRecord[] CreateSafeArrayOfRecords(BlittableRecord[] records)
     {
-        public bool b;
+        return CreateSafeArrayOfRecords(records, records.Length);
     }
 
     [DllImport(nameof(SafeArrayNative))]
@@ -156,18 +161,6 @@ class SafeArrayNative
     [DllImport(nameof(SafeArrayNative), EntryPoint = "ReverseStrings")]
     public static extern bool ReverseStringsBSTR(
         [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_BSTR), In, Out] string[] strings
-    );
-
-    [DllImport(nameof(SafeArrayNative))]
-    public static extern bool MeanBlittableIntRecords(
-        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_RECORD)] BlittableRecord[] records,
-        out int result
-    );
-
-    [DllImport(nameof(SafeArrayNative))]
-    public static extern bool XorNonBlittableBoolRecords(
-        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_RECORD)] NonBlittableRecord[] records,
-        out bool result
     );
 
     [DllImport(nameof(SafeArrayNative), EntryPoint = "VerifyInterfaceArray")]

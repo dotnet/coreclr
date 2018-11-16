@@ -395,7 +395,7 @@ HRESULT CbSysStringSize(ULONG cchSize, BOOL isByteLen, ULONG *result)
     return INTSAFE_E_ARITHMETIC_OVERFLOW;
 }
 
-BSTR TP_SysAllocString(LPWSTR psz)
+BSTR TP_SysAllocString(LPCWSTR psz)
 {
 #ifdef WINDOWS    
     return SysAllocString(psz);
@@ -406,7 +406,7 @@ BSTR TP_SysAllocString(LPWSTR psz)
 #endif
 }
 
-BSTR TP_SysAllocStringLen(LPWSTR psz, size_t len)
+BSTR TP_SysAllocStringLen(LPCWSTR psz, size_t len)
 {
     ULONG cbTotal = 0;
 

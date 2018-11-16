@@ -6,8 +6,7 @@
 #include <oleauto.h>
 #include <algorithm>
 #include "platformdefines.h"
-
-#define RETURN_FALSE_IF_FAILED(x) do { if(!SUCCEEDED(x)) { return FALSE; } } while(0)
+#include "Helpers.h"
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE XorBoolArray(SAFEARRAY* d, BOOL* result)
 {
@@ -192,76 +191,6 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseStrings(SAFEARRAY* d)
             ::SafeArrayUnaccessData(d);
             return FALSE;
         }
-    }
-
-    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
-    
-    return TRUE;
-}
-
-struct BlittableRecord
-{
-    int a;
-};
-
-struct NonBlittableRecord
-{
-    BOOL b;
-};
-
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MeanBlittableIntRecords(SAFEARRAY* d, int* result)
-{
-    *result = 0;
-    VARTYPE elementType;
-    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
-
-    if (elementType != VT_RECORD)
-    {
-        return FALSE;
-    }
-
-    LONG lowerBoundIndex;
-    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
-    LONG upperBoundIndex;
-    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
-
-    BlittableRecord* values;
-    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
-    
-    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
-    {
-        *result += values[i].a;
-    }
-
-    *result /= upperBoundIndex - lowerBoundIndex + 1;
-
-    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
-    
-    return TRUE;
-}
-
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE XorNonBlittableBoolRecords(SAFEARRAY* d, BOOL* result)
-{
-    *result = FALSE;
-    VARTYPE elementType;
-    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
-
-    if (elementType != VT_RECORD)
-    {
-        return FALSE;
-    }
-
-    LONG lowerBoundIndex;
-    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
-    LONG upperBoundIndex;
-    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
-
-    NonBlittableRecord* values;
-    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
-    
-    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
-    {
-        *result ^= values[i].b;
     }
 
     RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
