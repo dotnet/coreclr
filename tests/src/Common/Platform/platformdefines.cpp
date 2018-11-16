@@ -507,6 +507,6 @@ DWORD TP_SysStringLen(BSTR bstr)
 #else
     if(bstr == NULL)
       return 0;
-    return (unsigned int)((((DWORD FAR*)bstr)[-1]) / sizeof(OLECHAR));
+    return (unsigned int)((((DWORD *)bstr)[-1]) / sizeof(OLECHAR));
 #endif
 }
