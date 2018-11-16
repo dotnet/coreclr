@@ -3623,7 +3623,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
             op1 = impStackTop(0).val;
 
             if (op1->gtOper == GT_CALL && (op1->gtCall.gtCallType == CT_HELPER) &&
-                (gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()) || op1->AsCall()->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE)))
+                (gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()) ||
+                 op1->AsCall()->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE)))
             {
                 op1 = impPopStack().val;
                 // Replace helper with a more specialized helper that returns RuntimeType
@@ -3638,7 +3639,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         case CORINFO_INTRINSIC_RTH_GetValueInternal:
             op1 = impStackTop(0).val;
             if (op1->gtOper == GT_CALL && (op1->gtCall.gtCallType == CT_HELPER) &&
-                (gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()) || op1->AsCall()->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE)))
+                (gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()) ||
+                 op1->AsCall()->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE)))
             {
                 // Old tree
                 // Helper-RuntimeTypeHandle -> TreeToGetNativeTypeHandle

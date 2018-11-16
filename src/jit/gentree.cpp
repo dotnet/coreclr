@@ -11826,19 +11826,22 @@ GenTree* Compiler::gtFoldExprCompare(GenTree* tree)
 //    Type comparison tree
 //
 
-GenTree* Compiler::gtCreateHandleCompare(genTreeOps oper, GenTree* op1, GenTree* op2, CorInfoInlineTypeCheck typeCheckInliningResult)
+GenTree* Compiler::gtCreateHandleCompare(genTreeOps             oper,
+                                         GenTree*               op1,
+                                         GenTree*               op2,
+                                         CorInfoInlineTypeCheck typeCheckInliningResult)
 {
     // If we can compare pointers directly, just emit the binary operation
     if (typeCheckInliningResult == CORINFO_INLINE_TYPECHECK_PASS)
     {
         return gtNewOperNode(oper, TYP_INT, op1, op2);
     }
-    
+
     assert(typeCheckInliningResult == CORINFO_INLINE_TYPECHECK_USE_HELPER);
 
     // Emit a call to a runtime helper
     GenTreeArgList* helperArgs = gtNewArgList(op1, op2);
-    GenTree* ret = gtNewHelperCallNode(CORINFO_HELP_ARE_TYPES_EQUIVALENT, TYP_INT, helperArgs);
+    GenTree*        ret        = gtNewHelperCallNode(CORINFO_HELP_ARE_TYPES_EQUIVALENT, TYP_INT, helperArgs);
     if (oper == GT_EQ)
     {
         ret = gtNewOperNode(GT_NE, TYP_INT, ret, gtNewIconNode(0, TYP_INT));
@@ -11968,7 +11971,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         //
         // Find out how we can compare the two handles.
         // NOTE: We're potentially passing NO_CLASS_HANDLE, but the runtime knows what to do with it here.
-        CorInfoInlineTypeCheck inliningKind = info.compCompHnd->canInlineTypeCheck(cls1Hnd, CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN);
+        CorInfoInlineTypeCheck inliningKind =
+            info.compCompHnd->canInlineTypeCheck(cls1Hnd, CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN);
         assert(inliningKind == CORINFO_INLINE_TYPECHECK_PASS || inliningKind == CORINFO_INLINE_TYPECHECK_USE_HELPER);
 
         // If the first type needs helper, we're done and use helper. Otherwise check the other type.
@@ -12022,7 +12026,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
 
     // Ask the VM if this type can be equality tested by a simple method
     // table comparison.
-    CorInfoInlineTypeCheck typeCheckInliningResult = info.compCompHnd->canInlineTypeCheck(clsHnd, CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE);
+    CorInfoInlineTypeCheck typeCheckInliningResult =
+        info.compCompHnd->canInlineTypeCheck(clsHnd, CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE);
     if (typeCheckInliningResult == CORINFO_INLINE_TYPECHECK_NONE)
     {
         return tree;
