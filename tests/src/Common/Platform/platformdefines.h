@@ -39,7 +39,7 @@ typedef const WCHAR *LPCWSTR, *PCWSTR;
 typedef int HRESULT;
 #define LONGLONG long long
 #define ULONGLONG unsigned LONGLONG
-typedef unsigned long ULONG, *PULONG;
+typedef unsigned int ULONG, *PULONG;
 #define S_OK                    0x0
 #define SUCCEEDED(_hr)          ((HRESULT)(_hr) >= 0)
 #define FAILED(_hr)             ((HRESULT)(_hr) < 0)
@@ -58,6 +58,8 @@ typedef unsigned long ULONG, *PULONG;
 #endif // RC_INVOKED
 #define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
 #define UInt32x32To64(a, b) ((unsigned __int64)((ULONG)(a)) * (unsigned __int64)((ULONG)(b)))
+
+#define ARRAYSIZE(x) (sizeof(x)/sizeof(*x))
 
 #ifndef TRUE
 #define TRUE 1
@@ -141,7 +143,7 @@ void TP_DebugBreak();
 DWORD TP_GetFullPathName(LPWSTR fileName, DWORD nBufferLength, LPWSTR lpBuffer);
 
 typedef WCHAR* BSTR;
-BSTR TP_SysAllocStringByteLen(LPSTR psz, size_t len);
+BSTR TP_SysAllocStringByteLen(LPCSTR psz, size_t len);
 void TP_SysFreeString(BSTR bstr);
 size_t TP_SysStringByteLen(BSTR bstr);
 BSTR TP_SysAllocStringLen(LPWSTR psz, size_t len);

@@ -37,6 +37,9 @@ typedef char CHAR, *PCHAR;
 typedef unsigned short USHORT;
 typedef signed short SHORT;
 typedef unsigned short WORD, *PWORD, *LPWORD;
+typedef int LONG;
+
+typedef size_t SIZE_T;
 
 typedef union tagCY {
     struct {
