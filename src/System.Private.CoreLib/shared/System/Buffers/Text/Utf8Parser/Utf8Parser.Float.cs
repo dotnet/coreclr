@@ -114,32 +114,32 @@ namespace System.Buffers.Text
         // Assuming the text doesn't look like a normal floating point, we attempt to parse it as one the special floating point values.
         //
         private static bool TryParseAsSpecialFloatingPoint<T>(ReadOnlySpan<byte> source, T positiveInfinity, T negativeInfinity, T nan, out T value, out int bytesConsumed)
-        {
+        {            
             int srcIndex = 0;
+            int remaining = source.Length;
             bool isNegative = false;
-            byte c = source[srcIndex];
 
-            switch (c)
+            // We need at least 4 characters to process a sign
+            if (remaining >= 4)
             {
-                case Utf8Constants.Minus:
-                {
-                    isNegative = true;
-                    goto case Utf8Constants.Plus;
-                }
+                byte c = source[srcIndex];
 
-                case Utf8Constants.Plus:
+                switch (c)
                 {
-                    srcIndex++;
-                    break;
-                }
+                    case Utf8Constants.Minus:
+                    {
+                        isNegative = true;
+                        goto case Utf8Constants.Plus;
+                    }
 
-                default:
-                {
-                    break;
+                    case Utf8Constants.Plus:
+                    {
+                        srcIndex++;
+                        remaining--;
+                        break;
+                    }
                 }
             }
-
-            int remaining = (source.Length - srcIndex);
 
             // We can efficiently do an ASCII IsLower check by xor'ing with the expected
             // result and validating that it returns either 0 or exactly 0x20 (which is the
