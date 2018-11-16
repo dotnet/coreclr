@@ -10,313 +10,107 @@ using System.Runtime.InteropServices;
 
 public class Tester
 {
-    [DllImport("SafeArrayNative.dll")]
-    public static extern bool SafeArray_In([In][MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)] int[] arr);
+}
 
-    [DllImport("SafeArrayNative.dll")]
-    public static extern bool SafeArray_InOut([In, Out][MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)] int[] arr);
-
-    [DllImport("SafeArrayNative.dll")]
-    [return: MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)]
-    public static extern int[] SafeArray_Ret(int length);
-
-    [DllImport("SafeArrayNative.dll")]
-    public static extern bool SafeArray_InByRef([In][MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)] ref int[] arr);
-
-    [DllImport("SafeArrayNative.dll")]
-    public static extern bool SafeArray_InOutByRef([In, Out][MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)] ref int[] arr);
-
-    [DllImport("SafeArrayNative.dll", EntryPoint = "SafeArrayWithOutAttribute")]
-    public static extern bool SafeArrayWithOutAttribute([Out, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)] int[] arr);
-
-    [DllImport("SafeArrayNative.dll")]
-    [return: MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)]
-    public static extern int[] SafeArray_Ret_MismatchRank();
-
-    [DllImport("SafeArrayNative.dll")]
-    [return: MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_I4)]
-    public static extern int[] SafeArray_Ret_InvalidLBound();
-
-    [DllImport("SafeArrayNative")]
-    public static extern bool StructWithSA_In([In] StructWithSA s);
-    [DllImport("SafeArrayNative")]
-    public static extern bool StructWithSA_Out(out StructWithSA s);
-    [DllImport("SafeArrayNative")]
-    public static extern bool StructWithSA_Out2([Out] StructWithSA s);
-    [DllImport("SafeArrayNative")]
-    public static extern bool StructWithSA_InOut([In, Out]StructWithSA s);
-    [DllImport("SafeArrayNative")]
-    public static extern bool StructWithSA_InOutRef([In, Out]ref StructWithSA s);
-    [DllImport("SafeArrayNative")]
-    public static extern StructWithSA StructWithSA_Ret(int numElements);
-
-    public static bool TestParam()
+class SafeArrayNative
+{
+    public struct StructWithSafeArray
     {
-        bool passed = true;
-        int size = 256;
-        int[] arr = NewIntArr(size);
-
-        Console.WriteLine("Testing SafeArray Marshaling...\n");
-
-        //testing SafeArray_In
-        Console.WriteLine("Calling SafeArray_In...");
-        if (!SafeArray_In(arr))
-        {
-            passed = false;
-            Console.WriteLine("\tSafeArray_In call failed!");
-        }
-        else
-            Console.WriteLine("\tPassed.");
-
-        //testing SafeArray_InOut
-        Console.WriteLine("Calling SafeArray_InOut...");
-        if (!SafeArray_InOut(arr))
-        {
-            passed = false;
-            Console.WriteLine("\tSafeArray_InOut did not receive param as expected!");
-        }
-        else
-        {
-            if (!IsIntArrReversed(arr)) //data in array should have been reversed
-            {
-                passed = false;
-                Console.WriteLine("\tSafeArray_InOut did not return param as expected!");
-            }
-            else
-                Console.WriteLine("\tPassed.");
-        }
-
-        //testing SafeArray_Ret
-        Console.WriteLine("Calling SafeArray_Ret...");
-        int[] arrRet = SafeArray_Ret(1024);
-        if (arrRet.Length != 1024)
-        {
-            passed = false;
-            Console.WriteLine("\tSafeArray_Ret: returned array's size not as expected!");
-        }
-        else if (!IsIntArrOfAllOnes(arrRet))//every bin should contain -1
-        {
-            passed = false;
-            Console.WriteLine("\tSafeArray_Ret's returned array not as expected!");
-        }
-        else
-            Console.WriteLine("\tPassed.");
-
-        //reset arr an put elements in order again
-        arr = NewIntArr(size);
-
-        //testing SafeArray_InByRef
-        Console.WriteLine("Calling SafeArray_InByRef...");
-        if (!SafeArray_InByRef(ref arr))
-        {
-            passed = false;
-            Console.WriteLine("\tSafeArray_InByRef did not receive param as expected!");
-        }
-        else
-            Console.WriteLine("\tPassed.");
-
-        //testing SafeArray_InOutByRef
-        Console.WriteLine("Calling SafeArray_InOutByRef...");
-        if (!SafeArray_InOutByRef(ref arr))
-        {
-            passed = false;
-            Console.WriteLine("\tSafeArray_InOutByRef did not receive param as expected!");
-        }
-        else
-        {
-            if (!IsIntArrReversed(arr)) //data in array should have been reversed
-            {
-                passed = false;
-                Console.WriteLine("\tSafeArray_InOutByRef did not return param as expected!");
-            }
-            else
-                Console.WriteLine("\tPassed.");
-        }
-
-        //reset arr an put elements in order again
-        arr = NewIntArr(size);
-
-        Console.WriteLine("Calling SafeArrayWithOutAttribute...");
-        if (!SafeArrayWithOutAttribute(arr))
-        {
-            passed = false;
-            Console.WriteLine("\tSafeArrayWithOutAttribute call failed!");
-        }
-        else if (!IsIntArrOfAllOnes(arr))//every bin should contain -1
-        {
-            passed = false;
-            Console.WriteLine("\tSafeArrayWithOutAttribute returned array not as expected!");
-        }
-        else
-            Console.WriteLine("\tPassed.");
-
-        //testing SafeArray_Ret_MismatchRank
-        Console.WriteLine("Calling SafeArray_Ret_MismatchRank...");
-        try
-        {
-            arrRet = SafeArray_Ret_MismatchRank();
-        }
-        catch (SafeArrayRankMismatchException sae)
-        {
-            Console.WriteLine("\tPassed.");
-        }
-        catch (Exception e)
-        {
-            passed = false;
-            Console.WriteLine("Unexpected exception: " + e.ToString());
-        }
-
-        //testing SafeArray_Ret_InvalidLBound
-        Console.WriteLine("Calling SafeArray_Ret_InvalidLBound..");
-        try
-        {
-            arrRet = SafeArray_Ret_InvalidLBound();
-        }
-        catch (SafeArrayRankMismatchException sae)
-        {
-            Console.WriteLine("\tPassed.");
-        }
-        catch (Exception e)
-        {
-            passed = false;
-            Console.WriteLine("Unexpected exception: " + e.ToString());
-        }
-
-        return passed;
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_BOOL)]
+        public bool[] values;
     }
 
-    internal static int[] NewIntArr(int size)
+    public struct BlittableRecord
     {
-        int[] arr = new int[size];
-        //initializing arr
-        for (int i = 0; i < arr.Length; i++)
-            arr[i] = i;
-        return arr;
+        public int a;
     }
 
-    internal static bool IsIntArrReversed(int[] arr)
+    public struct NonBlittableRecord
     {
-        for (int i = 0; i < arr.Length; i++)
-        {
-            if (arr[i] != arr.Length - i - 1) //data in array should have been reversed
-                return false;
-        }
-        return true;
+        public bool b;
     }
 
-    internal static bool IsIntArrOfAllOnes(int[] arr)
+    [DllImport(nameof(SafeArrayNative))]
+    public static extern bool XorBoolArray(
+        [MarshalAs(UnmanagedType.SafeArray)] bool[] values,
+        out bool result
+    );
+
+    [DllImport(nameof(SafeArrayNative))]
+    public static extern bool MeanDecimalArray(
+        [MarshalAs(UnmanagedType.SafeArray)] decimal[] values,
+        out decimal result
+    );
+
+    [DllImport(nameof(SafeArrayNative))]
+    public static extern bool SumCurrencyArray(
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_CURRENCY)] decimal[] values,
+        [MarshalAs(UnmanagedType.Currency)] out decimal result
+    );
+
+    [DllImport(nameof(SafeArrayNative), EntryPoint = "ReverseStrings")]
+    public static extern bool ReverseStringsAnsi(
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_LPSTR), In, Out] string[] strings
+    );
+
+    [DllImport(nameof(SafeArrayNative), EntryPoint = "ReverseStrings")]
+    public static extern bool ReverseStringsUnicode(
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_LPWSTR), In, Out] string[] strings
+    );
+
+    [DllImport(nameof(SafeArrayNative), EntryPoint = "ReverseStrings")]
+    public static extern bool ReverseStringsBSTR(
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_BSTR), In, Out] string[] strings
+    );
+
+    [DllImport(nameof(SafeArrayNative))]
+    public static extern bool MeanBlittableIntRecords(
+        [MarshalAs(UnmanagedType.SafeArray)] BlittableRecord[] records,
+        out int result
+    );
+
+    [DllImport(nameof(SafeArrayNative))]
+    public static extern bool XorNonBlittableBoolRecords(
+        [MarshalAs(UnmanagedType.SafeArray)] NonBlittableRecord[] records,
+        out bool result
+    );
+
+    [DllImport(nameof(SafeArrayNative), EntryPoint = "VerifyInterfaceArray")]
+    private static extern bool VerifyInterfaceArray(
+        [MarshalAs(UnmanagedType.SafeArray)] object[] objects,
+        short expectedVarType
+    );
+
+    public static bool VerifyIUnknownArray(object[] objects)
     {
-        for (int i = 0; i < arr.Length; i++)
+        var wrappers = new object[objects.Length];
+
+        for (int i = 0; i < wrappers.Length; i++)
         {
-            if (arr[i] != -1) //every bin should contain -1
-                return false;
+            wrappers[i] = new UnknownWrapper(objects[i]);
         }
-        return true;
+
+        VerifyInterfaceArray(wrappers, (short)VarEnum.VT_UNKNOWN);
     }
 
-    public static bool TestField()
+    public static bool VerifyIDispatchArray(object[] objects)
     {
-        bool passed = true; //Set the passing return code
-
-        Console.WriteLine("Testing SafearrayFields Marshaling");
-
-        StructWithSA sParm;
-        sParm = Helper.NewStructWithSA();
-        Console.WriteLine("\tTesting StructWithSA_In ([In] StructWithSA s)...");
-        if (!StructWithSA_In(sParm))
-        {
-            passed = false;
-            Console.WriteLine("\t\tStructWithSA_In call failed! (did not receive StructWithSA as expected)");
-        }
-        else
-        {
-            if (!Helper.CheckStructWithSA(sParm)) //should not have changed
-            {
-                passed = false;
-                Console.WriteLine("\t\tStructWithSA_In call failed! (did not return StructWithSA as expected)");
-            }
-        }
-
-        //sParm does not need to be initialized
-        Console.WriteLine("\tTesting StructWithSA_Out (out StructWithSA s)...");
-        if (!StructWithSA_Out(out sParm))
-        {
-            passed = false;
-            Console.WriteLine("\t\tStructWithSA_Out call failed!");
-        }
-        else
-        {
-            if (!Helper.CheckChangedStructWithSA(sParm))  //should have changed
-            {
-                passed = false;
-                Console.WriteLine("\t\tStructWithSA_Out call failed! (did not return StructWithSA as expected)");
-            }
-        }
-
-        sParm = Helper.NewStructWithSA();
-        Console.WriteLine("\tTesting StructWithSA_Out2 ([Out] StructWithSA s)...");
-        StructWithSA_Out2(sParm);
-        if (!Helper.CheckStructWithSA(sParm))  //should not have changed
-        {
-            passed = false;
-            Console.WriteLine("\t\tStructWithSA_Out2 call failed! (did not return StructWithSA as expected)");
-        }
-
-        Console.WriteLine("\tTesting StructWithSA_InOut...");
-        sParm = Helper.NewStructWithSA();
-        if (!StructWithSA_InOut(sParm))
-        {
-            passed = false;
-            Console.WriteLine("\t\tStructWithSA_InOut call failed! (did not receive StructWithSA as expected)");
-        }
-        else
-        {
-            if (!Helper.CheckStructWithSA(sParm)) //should not have changed
-            {
-                passed = false;
-                Console.WriteLine("\t\tStructWithSA_InOut call failed! (did not return StructWithSA as expected)");
-            }
-        }
-
-        Console.WriteLine("\tTesting StructWithSA_InOutRef...");
-        sParm = Helper.NewStructWithSA();
-        if (!StructWithSA_InOutRef(ref sParm))
-        {
-            passed = false;
-            Console.WriteLine("\t\tStructWithSA_InOutRef call failed! (did not receive StructWithSA as expected)");
-        }
-        else
-        {
-            if (!Helper.CheckChangedStructWithSA(sParm)) //should have changed
-            {
-                passed = false;
-                Console.WriteLine("\t\tStructWithSA_InOutRef call failed! (did not return StructWithSA as expected)");
-            }
-        }
-
-        Console.WriteLine("\tTesting StructWithSA_Ret...");
-        try
-        {
-            StructWithSA sRet = StructWithSA_Ret(256);
-            passed = false;
-            Console.WriteLine("\t\tError! No exception thrown on StructWithSA_Ret call.");
-        }
-        catch (MarshalDirectiveException mde)
-        {
-            Console.WriteLine("\t\tCaught expected MarshalDirectiveException. ");
-        }
-        catch (Exception e)
-        {
-            passed = false;
-            Console.WriteLine("\t\tError! Wrong exception thrown! Exception is: ");
-            Console.WriteLine("\t\t\t" + e + "\n");
-        }
-
-        return passed;
+        VerifyInterfaceArray(objects, (short)VarEnum.VT_DISPATCH);
     }
 
-    public static int Main()
-    {
-        return TestParam() && TestField() ? 100 : 101;
-    }
+    [DllImport(nameof(SafeArrayNative))]
+    public static extern bool MeanVariantIntArray(
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_VARIANT)]
+        object[] objects,
+        out int result
+    );
+
+    [DllImport(nameof(SafeArrayNative))]
+    public static extern bool DistanceBetweenDates(
+        [MarshalAs(UnmanagedType.SafeArray)] DateTime[] dates,
+        out double result
+    );
+
+    [DllImport(nameof(SafeArrayNative))]
+    public static extern bool XorBoolArrayInStruct(StructWithSafeArray str, out bool result);
 }

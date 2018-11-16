@@ -499,3 +499,14 @@ size_t TP_SysStringByteLen(BSTR bstr)
     return (unsigned int)(((DWORD *)bstr)[-1]);
 #endif    
 }
+
+UINT TP_SysStringLen(BSTR bstr)
+{
+#ifdef WINDOWS
+    return SysStringLen(bstr);
+#else
+    if(bstr == NULL)
+      return 0;
+    return (unsigned int)((((DWORD FAR*)bstr)[-1]) / sizeof(OLECHAR));
+#endif
+}

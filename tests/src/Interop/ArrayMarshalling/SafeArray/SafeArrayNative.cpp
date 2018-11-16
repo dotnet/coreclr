@@ -2,650 +2,383 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#include <oleauto.h>
 #include <xplatform.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <algorithm>
 #include "platformdefines.h"
 
-//--------------------------------
-//	Start of SafeArray calls
-//--------------------------------
+#define RETURN_FALSE_IF_FAILED(x) do { if(!SUCCEEDED(x)) { return FALSE; } } while(0)
 
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_In(SAFEARRAY* psa)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE XorBoolArray(SAFEARRAY* d, BOOL* result)
 {
-	long i, lUbound, lLbound;
-	int  *pInt; //will point to the data
-	HRESULT hr;
+    *result = FALSE;
+    VARTYPE elementType;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
 
-	// Get a pointer to the elements of the array.
-	hr = SafeArrayAccessData(psa, (void **)&pInt);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayAccessData call in SafeArray_In failed!\n");
-		return FALSE;
-	}
+    if (elementType != VT_BOOL)
+    {
+        return FALSE;
+    }
 
-	//get upperbound
-	hr = SafeArrayGetUBound(psa, 1, &lUbound);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayGetUBound call in SafeArray_In failed!\n");
-		return FALSE;
-	}
+    LONG lowerBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
+    LONG upperBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
 
-	//check upperbound
-	if(lUbound != 255) //since num of elems = lUBound - lLBound + 1
-	{
-		printf("\t\tlUbound not as expected in SafeArray_In!\n");
-		printf("\t\t\tlUbound = %d",lUbound);
-		return FALSE;
-	}
+    VARIANT_BOOL* values;
+    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
+    
+    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
+    {
+        *result ^= values[i] == VARIANT_TRUE ? TRUE : FALSE;
+    }
 
-	//get lowerbound
-	hr = SafeArrayGetLBound(psa, 1, &lLbound);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayGetLBound call in SafeArray_In failed!\n");
-		return FALSE;
-	}
-
-	//check lowerbound
-	if(lLbound != 0) 
-	{
-		printf("\t\tlLbound not as expected in SafeArray_In!\n");
-		printf("\t\t\tlLbound = %d",lLbound);
-		return FALSE;
-	}
-
-	//check dimension
-	if(SafeArrayGetDim(psa) != 1)
-	{
-		printf("\t\tDimension not as expected in SafeArray_In!\n");
-		return FALSE;
-	}
-
-	//check element size
-	if(SafeArrayGetElemsize(psa) != 4) //size of each element should be 4 bytes
-	{
-		printf("\t\tElement size not as expected in SafeArray_In!\n");
-		return FALSE;
-	}
-
-	//validate data
-	for(i = 0; i <= lUbound; i++)
-	{
-		if(pInt[i] != i)
-		{
-			printf("\t\tData not as expected in SafeArray_In!\n");
-			return FALSE;
-		}
-	}
-
-	SafeArrayUnaccessData(psa);
-	return TRUE;
+    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
+    
+    return TRUE;
 }
 
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_InOut(SAFEARRAY* psa)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MeanDecimalArray(SAFEARRAY* d, DECIMAL* result)
 {
-	long i, lUbound, lLbound;
-	int  *pInt; //will point to the data
-	HRESULT hr;
+    DECIMAL sum{};
+    DECIMAL_SETZERO(sum);
 
-	/************************************************
-	* Validate the safearray 
-	************************************************/
+    VARTYPE elementType;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
 
-	// Get a pointer to the elements of the array.
-	hr = SafeArrayAccessData(psa, (void **)&pInt);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayAccessData call in SafeArray_InOut failed!\n");
-		return FALSE;
-	}
+    if (elementType != VT_DECIMAL)
+    {
+        return FALSE;
+    }
 
-	//get upperbound
-	hr = SafeArrayGetUBound(psa, 1, &lUbound);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayGetUBound call in SafeArray_InOut failed!\n");
-		return FALSE;
-	}
+    LONG lowerBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
+    LONG upperBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
 
-	//check upperbound
-	if(lUbound != 255) //since num of elems = lUBound - lLBound + 1
-	{
-		printf("\t\tlUbound not as expected in SafeArray_InOut!\n");
-		printf("\t\t\tlUbound = %d",lUbound);
-		return FALSE;
-	}
+    DECIMAL* values;
+    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
+    
+    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
+    {
+        DECIMAL lhs = sum;
+        VarDecAdd(&lhs, &values[i], &sum);
+    }
 
-	//get lowerbound
-	hr = SafeArrayGetLBound(psa, 1, &lLbound);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayGetLBound call in SafeArray_InOut failed!\n");
-		return FALSE;
-	}
+    DECIMAL numElements;
+    VarDecFromI4(upperBoundIndex - lowerBoundIndex + 1, &numElements);
 
-	//check lowerbound
-	if(lLbound != 0) 
-	{
-		printf("\t\tlLbound not as expected in SafeArray_InOut!\n");
-		printf("\t\t\tlLbound = %d",lLbound);
-		return FALSE;
-	}
+    VarDecDiv(&sum, &numElements, result);
 
-	//check dimension
-	if(SafeArrayGetDim(psa) != 1)
-	{
-		printf("\t\tDimension not as expected in SafeArray_InOut!\n");
-		return FALSE;
-	}
-
-	//check element size
-	if(SafeArrayGetElemsize(psa) != 4) //size of each element should be 4 bytes
-	{
-		printf("\t\tElement size not as expected in SafeArray_InOut!\n");
-		return FALSE;
-	}
-
-	//validate data
-	for(i = 0; i <= lUbound; i++)
-	{
-		if(pInt[i] != i)
-		{
-			printf("\t\tData not as expected in SafeArray_InOut!\n");
-			return FALSE;
-		}
-	}
-
-	/************************************************
-	* Change the safearray 
-	************************************************/
-
-	//reverse data
-	for(i = 0; i <= lUbound; i++)	
-		pInt[i] = lUbound - i;
-
-	SafeArrayUnaccessData(psa);
-	return TRUE;
+    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
+    
+    return TRUE;
 }
 
-extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE SafeArray_Ret(LONG length)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SumCurrencyArray(SAFEARRAY* d, CY* result)
 {
-	SAFEARRAY * psa;
-	int * pInt;
-    HRESULT hr;
+    CY sum{};
+    VARTYPE elementType;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
 
-	psa = SafeArrayCreateVector(VT_I4, 0, length); //data is array of ints; size = 1024 elements
-	if(psa == NULL)
-	{
-		printf("\t\tSafeArrayCreateVector call failed!\n");
-		return NULL;
-	}
-	else
-	{
-		// Get a pointer to the elements of the array.
-		hr = SafeArrayAccessData(psa, (void **)&pInt);
-		if(FAILED(hr))
-		{
-			printf("\t\tSafeArrayAccessData call in SafeArray_Ret failed!\n");
-			return NULL;
-		}
-		for(int i = 0; i < length; i++)		
-			pInt[i] = -1; //each element set to -1
-	}
+    if (elementType != VT_CY)
+    {
+        return FALSE;
+    }
 
-	SafeArrayUnaccessData(psa);
-	return psa;
+    LONG lowerBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
+    LONG upperBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
+
+    CY* values;
+    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
+    
+    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
+    {
+        CY lhs = sum;
+        VarCyAdd(lhs, values[i], &sum);
+    }
+
+    *result = sum;
+
+    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
+    
+    return TRUE;
 }
 
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_InByRef(SAFEARRAY** ppsa)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseStrings(SAFEARRAY* d)
 {
-	long i, lUbound, lLbound;
-	int  *pInt; //will point to the data
-	HRESULT hr;
+    VARTYPE elementType;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
 
-	// Get a pointer to the elements of the array.
-	hr = SafeArrayAccessData(*ppsa, (void **)&pInt);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayAccessData call in SafeArray_InByRef failed!\n");
-		return FALSE;
-	}
+    if (elementType != VT_LPSTR && elementType != VT_LPWSTR && elementType != VT_BSTR)
+    {
+        return FALSE;
+    }
 
-	//get upperbound
-	hr = SafeArrayGetUBound(*ppsa, 1, &lUbound);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayGetUBound call in SafeArray_InByRef failed!\n");
-		return FALSE;
-	}
+    LONG lowerBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
+    LONG upperBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
 
-	//check upperbound
-	if(lUbound != 255) //since num of elems = lUBound - lLBound + 1
-	{
-		printf("\t\tlUbound not as expected in SafeArray_InByRef!\n");
-		printf("\t\t\tlUbound = %d",lUbound);
-		return FALSE;
-	}
+    void** values;
+    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
+    
+    bool success = true;
 
-	//get lowerbound
-	hr = SafeArrayGetLBound(*ppsa, 1, &lLbound);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayGetLBound call in SafeArray_InByRef failed!\n");
-		return FALSE;
-	}
+    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
+    {
+        if (elementType == VT_LPSTR)
+        {
+            LPSTR reversed;
+            success &= Reverse((LPSTR)values[i], &reversed);
+            values[i] = reversed;
+        }
+        else if (elementType == VT_LPWSTR)
+        {
+            LPWSTR reversed;
+            success &= Reverse((LPWSTR)values[i], &reversed);
+            values[i] = reversed;
+        }
+        else if (elementType == VT_BSTR)
+        {
+            BSTR reversed;
+            success &= ReverseBSTR((BSTR)values[i], &reversed);
+            values[i] = reversed;
+        }
 
-	//check lowerbound
-	if(lLbound != 0) 
-	{
-		printf("\t\tlLbound not as expected in SafeArray_InByRef!\n");
-		printf("\t\t\tlLbound = %d",lLbound);
-		return FALSE;
-	}
+        if (!success)
+        {
+            ::SafeArrayUnaccessData(d);
+            return FALSE;
+        }
+    }
 
-	//check dimension
-	if(SafeArrayGetDim(*ppsa) != 1)
-	{
-		printf("\t\tDimension not as expected in SafeArray_InByRef!\n");
-		return FALSE;
-	}
-
-	//check element size
-	if(SafeArrayGetElemsize(*ppsa) != 4) //size of each element should be 4 bytes
-	{
-		printf("\t\tElement size not as expected in SafeArray_InByRef!\n");
-		return FALSE;
-	}
-
-	//validate data
-	for(i = 0; i <= lUbound; i++)
-	{
-		//printf("\t\t\ti = %d ; pInt[i] = %d\n", i, pInt[i]);
-		if(pInt[i] != i)
-		{
-			printf("\t\tData not as expected in SafeArray_InByRef!\n");
-			return FALSE;
-		}
-	}
-
-	SafeArrayUnaccessData(*ppsa);
-	return TRUE;
+    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
+    
+    return TRUE;
 }
 
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArray_InOutByRef(SAFEARRAY** ppsa)
+template<typename StringType>
+bool Reverse(StringType str, StringType *res)
 {
-	long i, lUbound, lLbound;
-	int  *pInt; //will point to the data
-	HRESULT hr;
-	
-	// Validate the safearray 
+    StringType tmp = str;
+    size_t len = 0;
+    while (*tmp++)
+        ++len;
 
-	// Get a pointer to the elements of the array.
-	hr = SafeArrayAccessData(*ppsa, (void **)&pInt);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayAccessData call in SafeArray_InOutByRef failed!\n");
-		return FALSE;
-	}
+    size_t strDataLen = (len + 1) * sizeof(str[0]);
+    auto resLocal = (StringType)CoreClrAlloc(strDataLen);
+    if (resLocal == nullptr)
+        return false;
 
-	//get upperbound
-	hr = SafeArrayGetUBound(*ppsa, 1, &lUbound);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayGetUBound call in SafeArray_InOutByRef failed!\n");
-		return FALSE;
-	}
+    memcpy(resLocal, str, strDataLen);
+    *res = ReverseInplace(len, resLocal);
 
-	//check upperbound
-	if(lUbound != 255) //since num of elems = lUBound - lLBound + 1
-	{
-		printf("\t\tlUbound not as expected in SafeArray_InOutByRef!\n");
-		printf("\t\t\tlUbound = %d",lUbound);
-		return FALSE;
-	}
-
-	//get lowerbound
-	hr = SafeArrayGetLBound(*ppsa, 1, &lLbound);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayGetLBound call in SafeArray_InOutByRef failed!\n");
-		return FALSE;
-	}
-
-	//check lowerbound
-	if(lLbound != 0) 
-	{
-		printf("\t\tlLbound not as expected in SafeArray_InOutByRef!\n");
-		printf("\t\t\tlLbound = %d",lLbound);
-		return FALSE;
-	}
-
-	//check dimension
-	if(SafeArrayGetDim(*ppsa) != 1)
-	{
-		printf("\t\tDimension not as expected in SafeArray_InOutByRef!\n");
-		return FALSE;
-	}
-
-	//check element size
-	if(SafeArrayGetElemsize(*ppsa) != 4) //size of each element should be 4 bytes
-	{
-		printf("\t\tElement size not as expected in SafeArray_InOut!\n");
-		return FALSE;
-	}
-
-	//validate data
-	for(i = 0; i <= lUbound; i++)
-	{
-		if(pInt[i] != i)
-		{
-			printf("\t\tData not as expected in SafeArray_InOut!\n");
-			return FALSE;
-		}
-	}
-
-	// Change the safearray 
-
-	//reverse data
-	for(i = 0; i <= lUbound; i++)	
-		pInt[i] = lUbound - i;
-
-	SafeArrayUnaccessData(*ppsa);
-	return TRUE;
+    return true;
 }
 
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SafeArrayWithOutAttribute(SAFEARRAY* psa)
+bool ReverseBSTR(BSTR str, BSTR *res)
 {
-	long i, lUbound;
-	int  *pInt; //will point to the data
-	HRESULT hr;
+    UINT strDataLen = TP_SysStringByteLen(str);
+    BSTR resLocal = TP_SysAllocStringByteLen(reinterpret_cast<LPSTR>(str), strDataLen);
+    if (resLocal == nullptr)
+        return false;
 
-	// Get a pointer to the elements of the array.
-	hr = SafeArrayAccessData(psa, (void **)&pInt);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayAccessData call in SafeArray_InOut failed!\n");
-		return FALSE;
-	}
+    UINT len = TP_SysStringLen(str);
+    *res = ReverseInplace(len, resLocal);
 
-	//get upperbound
-	hr = SafeArrayGetUBound(psa, 1, &lUbound);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayGetUBound call in SafeArray_InOut failed!\n");
-		return FALSE;
-	}
-
-	//check upperbound
-	if(lUbound != 255) //since num of elems = lUBound - lLBound + 1
-	{
-		printf("\t\tlUbound not as expected in SafeArray_InOut!\n");
-		printf("\t\t\tlUbound = %d",lUbound);
-		return FALSE;
-	}
-
-	//check dimension
-	if(SafeArrayGetDim(psa) != 1)
-	{
-		printf("\t\tDimension not as expected in SafeArray_InOut!\n");
-		return FALSE;
-	}
-
-	/************************************************
-	* Change the safearray 
-	************************************************/
-
-	//change the elements to -1
-	for(i = 0; i <= lUbound; i++)	
-		pInt[i] = -1;
-
-	SafeArrayUnaccessData(psa);
-	return TRUE;
+    return true;
 }
 
-extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE SafeArray_Ret_MismatchRank()
+template <typename StringType>
+StringType ReverseInplace(size_t len, StringType s)
 {
-	SAFEARRAY * psa;
-
-	const int rank = 2;
-	SAFEARRAYBOUND rgsabound[rank];
-	for(int i = 0; i < rank; i++)
-	{
-		rgsabound[i].lLbound = 0;
-		rgsabound[i].cElements = 5;
-	}
-	psa = SafeArrayCreate(VT_I4, rank, rgsabound);
-	if(psa == NULL)
-	{
-		printf("\t\tSafeArrayCreate call failed!\n");
-		return NULL;
-	}
-	
-	return psa;
+    std::reverse(s, s + len);
+    return s;
 }
 
-extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE SafeArray_Ret_InvalidLBound()
+struct BlittableRecord
 {
-	SAFEARRAY * psa;
-
-	int rank = 1;
-	SAFEARRAYBOUND rgsabound[1];
-	rgsabound[0].lLbound = 99;
-	rgsabound[0].cElements = 5;
-
-	psa = SafeArrayCreate(VT_I4, rank, rgsabound);
-	if(psa == NULL)
-	{
-		printf("\t\tSafeArrayCreate call failed!\n");
-		return NULL;
-	}
-	
-	return psa;
-}
-
-struct StructWithSA
-{
-	int i32;
-	SAFEARRAY* ptoArrOfInt32s;
+    int a;
 };
 
-const int NumArrElements = 256;
-
-bool ValidateSafearray(SAFEARRAY* psa)
+struct NonBlittableRecord
 {
-	int* pInt;
-	HRESULT hr;
+    BOOL b;
+};
 
-	// Get a pointer to the elements of the array.
-	hr = SafeArrayAccessData(psa, (void**)&pInt);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayAccessData call in ValidateSafearray failed!\n");
-		if(hr == E_INVALIDARG)
-			printf("E_INVALIDARG\n");
-		else
-			printf("E_UNEXPECTED\n");
-		return false;
-	}
-	for(int i = 0; i < NumArrElements; i++)		
-		if(pInt[i] != 7) {
-			printf("ERROR! pInt[i] != 7 in ValidateSafearray \n");
-			return false;
-		}
-	SafeArrayUnaccessData(psa);
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MeanBlittableIntRecords(SAFEARRAY* d, int* result)
+{
+    *result = 0;
+    VARTYPE elementType;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
 
-	return true;
+    if (elementType != VT_RECORD)
+    {
+        return FALSE;
+    }
+
+    LONG lowerBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
+    LONG upperBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
+
+    BlittableRecord* values;
+    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
+    
+    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
+    {
+        *result += values[i].a;
+    }
+
+    *result /= upperBoundIndex - lowerBoundIndex + 1;
+
+    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
+    
+    return TRUE;
 }
 
-bool ChangeStructWithSA(StructWithSA* ps)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE XorNonBlittableBoolRecords(SAFEARRAY* d, BOOL* result)
 {
-	int *pInt; //will point to the data
-	HRESULT hr;
+    *result = FALSE;
+    VARTYPE elementType;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
 
-	(*ps).i32 = 77; //non-array field
-	
-	// Get a pointer to the elements of the array.
-	hr = SafeArrayAccessData((*ps).ptoArrOfInt32s, (void**)&pInt);
-	if(FAILED(hr))
-	{
-		printf("\t\tSafeArrayAccessData call in ChangeStructWithSA failed!\n");
-		return false;
-	}
-	for(int i = 0; i < NumArrElements; i++)		
-		pInt[i] = 77; //each element set to -1
-	SafeArrayUnaccessData((*ps).ptoArrOfInt32s);
+    if (elementType != VT_RECORD)
+    {
+        return FALSE;
+    }
 
-	return true;
+    LONG lowerBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
+    LONG upperBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
+
+    NonBlittableRecord* values;
+    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
+    
+    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
+    {
+        *result ^= values[i].b;
+    }
+
+    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
+    
+    return TRUE;
 }
 
-bool CheckStructWithSA(StructWithSA* ps)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE VerifyInterfaceArray(SAFEARRAY* d, VARTYPE expectedType)
 {
-	//checking non-array fields
-	if((*ps).i32 != 1) {
-		printf("\t\tError!  (*ps).i32 != 1 \n");
-		return false;
-	}
+    VARTYPE elementType;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
 
-	//checking array field
-	if(!ValidateSafearray((*ps).ptoArrOfInt32s)) 
-	{
-		printf("\t\tError!  (*ps).ptoArrOfInt32s not as expected \n");	 
-		return false;
-	}
+    if (elementType != expectedType)
+    {
+        return FALSE;
+    }
 
-	return true;
+    LONG lowerBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
+    LONG upperBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
+
+    IUnknown** values;
+    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
+    
+    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
+    {
+        values[i]->AddRef();
+        values[i]->Release();
+    }
+
+    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
+    
+    return TRUE;
 }
 
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE StructWithSA_In(StructWithSA s)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MeanVariantIntArray(SAFEARRAY* d, int* result)
 {
-	//Make sure the StructWithSA is what we expect
-	if(!CheckStructWithSA(&s))
-		return FALSE;
+    *result = 0;
+    VARTYPE elementType;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
 
-	//If it's what we expect, change the value and return.
-	//NOTE: this changed should not be propagated back to the caller
-	//	  since this is not a ref call
-	if(!ChangeStructWithSA(&s))
-		return FALSE;
-	return TRUE;
+    if (elementType != VT_VARIANT)
+    {
+        return FALSE;
+    }
+
+    LONG lowerBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
+    LONG upperBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
+
+    VARIANT* values;
+    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
+    
+    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
+    {
+        if (values[i].vt != VT_I4)
+        {
+            ::SafeArrayUnaccessData(d);
+            return FALSE;
+        }
+        
+        *result += values[i].intVal;
+    }
+
+    *result /= upperBoundIndex - lowerBoundIndex + 1;
+
+    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
+    
+    return TRUE;
 }
 
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE StructWithSA_Out2(StructWithSA s)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE DistanceBetweenDates(SAFEARRAY* d, double* result)
 {
-	//Make sure the StructWithSA is what we expect
-	if(!CheckStructWithSA(&s))
-		return FALSE;
+    *result = 0;
+    VARTYPE elementType;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetVartype(d, &elementType));
 
-	//If it's what we expect, change the value and return.
-	//NOTE: this changed should not be propagated back to the caller
-	//	  since this is not a ref call
-	if(!ChangeStructWithSA(&s))
-		return FALSE;
-	return TRUE;
+    if (elementType != VT_DATE)
+    {
+        return FALSE;
+    }
+
+    LONG lowerBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetLBound(d, 1, &lowerBoundIndex));
+    LONG upperBoundIndex;
+    RETURN_FALSE_IF_FAILED(::SafeArrayGetUBound(d, 1, &upperBoundIndex));
+
+    DATE* values;
+    RETURN_FALSE_IF_FAILED(::SafeArrayAccessData(d, (void**)&values));
+    
+    bool haveLastValue = false;
+    DATE lastValue;
+
+    for(long i = lowerBoundIndex; i <= upperBoundIndex; i++)
+    {
+        if (haveLastValue)
+        {
+            *result += values[i] - lastValue;
+        }
+
+        lastValue = values[i];
+        haveLastValue = true;
+    }
+
+    RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
+    
+    return TRUE;
 }
 
-//behaves like a ref parameter
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE StructWithSA_Out(StructWithSA* ps)
+struct StructWithSafeArray
 {
-	//ps = NewStructWithSA();
-	int* pInt;
-	HRESULT hr;
-	
-	(*ps).i32 = 77; //change i32 field
+    SAFEARRAY* array;
+};
 
-	//create new SAFEARRAY; 1 dimension
-	(*ps).ptoArrOfInt32s = SafeArrayCreateVector(VT_I4, 0, NumArrElements);  
-	if((*ps).ptoArrOfInt32s == NULL)
-	{
-		printf("\t\tSafeArrayCreateVector call failed!\n");
-		exit(1);
-	}
-	else
-	{
-		// Get a pointer to the elements of the array.
-		hr = SafeArrayAccessData((*ps).ptoArrOfInt32s, (void**)&pInt);
-		if(FAILED(hr))
-		{
-			printf("\t\tSafeArrayAccessData call in NewStructWithSA failed!\n");
-			exit(1);
-		}
-		for(int i = 0; i < NumArrElements; i++)		
-			pInt[i] = 77; //each element set to 77
-	}
-	SafeArrayUnaccessData((*ps).ptoArrOfInt32s);
-
-	return TRUE;
-}
-
-//StructWithSA_InOut
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE StructWithSA_InOut(StructWithSA s)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE XorBoolArrayInStruct(StructWithSafeArray str, BOOL* result)
 {
-	//Make sure the StructWithSA is what we expect
-	if(!CheckStructWithSA(&s))
-		return FALSE;
-
-	//If it's what we expect, change the value and return.
-	//NOTE: this changed should not be propagated back to the caller
-	//	  since this is not a ref call
-	if(!ChangeStructWithSA(&s))
-		return FALSE;
-	return TRUE;
-}
-
-//StructWithSA_InOutRef
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE StructWithSA_InOutRef(StructWithSA* ps)
-{
-	//Make sure the StructWithSA is what we expect
-	if(!CheckStructWithSA(ps))
-		return FALSE;
-
-	//If it's what we expect, change the value and return.
-	if(!ChangeStructWithSA(ps))
-		return FALSE;
-	return TRUE;
-}
-
-StructWithSA* NewStructWithSA(LONG numElements)
-{
-	int* pInt;
-	HRESULT hr;
-	StructWithSA* ps = (StructWithSA*)CoreClrAlloc(sizeof(StructWithSA));
-	(*ps).i32 = 77;
-
-	//create new SAFEARRAY; 1 dimension
-	(*ps).ptoArrOfInt32s = SafeArrayCreateVector(VT_I4, 0, numElements);  
-	if((*ps).ptoArrOfInt32s == NULL)
-	{
-		printf("\t\tSafeArrayCreateVector call failed!\n");
-		exit(1);
-	}
-	else
-	{
-		// Get a pointer to the elements of the array.
-		hr = SafeArrayAccessData((*ps).ptoArrOfInt32s, (void**)&pInt);
-		if(FAILED(hr))
-		{
-			printf("\t\tSafeArrayAccessData call in NewStructWithSA failed!\n");
-			exit(1);
-		}
-		for(int i = 0; i < numElements; i++)		
-			pInt[i] = 77; //each element set to 77
-	}
-	SafeArrayUnaccessData((*ps).ptoArrOfInt32s);
-	return ps;
-}
-
-//StructWithSA_Ret
-extern "C" DLL_EXPORT StructWithSA STDMETHODCALLTYPE StructWithSA_Ret(LONG numElements)
-{
-	StructWithSA* ps;
-
-	ps = NewStructWithSA(numElements);
-
-	//return newly allocated StructWithSA
-	return *ps;
+    return XorBoolArray(str.array, result);
 }
