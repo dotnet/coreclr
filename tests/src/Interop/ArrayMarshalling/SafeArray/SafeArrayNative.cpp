@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#include <oleauto.h>
 #include <xplatform.h>
+#include <oleauto.h>
 #include <algorithm>
 #include "platformdefines.h"
 
@@ -107,6 +107,45 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE SumCurrencyArray(SAFEARRAY* d, CY* 
     return TRUE;
 }
 
+template <typename StringType>
+StringType ReverseInplace(size_t len, StringType s)
+{
+    std::reverse(s, s + len);
+    return s;
+}
+
+template<typename StringType>
+bool Reverse(StringType str, StringType *res)
+{
+    StringType tmp = str;
+    size_t len = 0;
+    while (*tmp++)
+        ++len;
+
+    size_t strDataLen = (len + 1) * sizeof(str[0]);
+    auto resLocal = (StringType)CoreClrAlloc(strDataLen);
+    if (resLocal == nullptr)
+        return false;
+
+    memcpy(resLocal, str, strDataLen);
+    *res = ReverseInplace(len, resLocal);
+
+    return true;
+}
+
+bool ReverseBSTR(BSTR str, BSTR *res)
+{
+    size_t strDataLen = TP_SysStringByteLen(str);
+    BSTR resLocal = TP_SysAllocStringByteLen(reinterpret_cast<LPCSTR>(str), strDataLen);
+    if (resLocal == nullptr)
+        return false;
+
+    UINT len = TP_SysStringLen(str);
+    *res = ReverseInplace(len, resLocal);
+
+    return true;
+}
+
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseStrings(SAFEARRAY* d)
 {
     VARTYPE elementType;
@@ -158,45 +197,6 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseStrings(SAFEARRAY* d)
     RETURN_FALSE_IF_FAILED(::SafeArrayUnaccessData(d));
     
     return TRUE;
-}
-
-template<typename StringType>
-bool Reverse(StringType str, StringType *res)
-{
-    StringType tmp = str;
-    size_t len = 0;
-    while (*tmp++)
-        ++len;
-
-    size_t strDataLen = (len + 1) * sizeof(str[0]);
-    auto resLocal = (StringType)CoreClrAlloc(strDataLen);
-    if (resLocal == nullptr)
-        return false;
-
-    memcpy(resLocal, str, strDataLen);
-    *res = ReverseInplace(len, resLocal);
-
-    return true;
-}
-
-bool ReverseBSTR(BSTR str, BSTR *res)
-{
-    UINT strDataLen = TP_SysStringByteLen(str);
-    BSTR resLocal = TP_SysAllocStringByteLen(reinterpret_cast<LPSTR>(str), strDataLen);
-    if (resLocal == nullptr)
-        return false;
-
-    UINT len = TP_SysStringLen(str);
-    *res = ReverseInplace(len, resLocal);
-
-    return true;
-}
-
-template <typename StringType>
-StringType ReverseInplace(size_t len, StringType s)
-{
-    std::reverse(s, s + len);
-    return s;
 }
 
 struct BlittableRecord
