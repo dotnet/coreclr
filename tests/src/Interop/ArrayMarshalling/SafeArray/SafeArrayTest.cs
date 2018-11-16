@@ -30,13 +30,13 @@ public class Tester
             var strings = new [] {"ABCDE", "12345", "Microsoft"};
             var reversedStrings = strings.Select(str => Reverse(str)).ToArray();
 
-            // var ansiTest = strings.ToArray();
-            // Assert.IsTrue(SafeArrayNative.ReverseStringsAnsi(ansiTest));
-            // Assert.AreAllEqual(reversedStrings, ansiTest);
+            var ansiTest = strings.ToArray();
+            Assert.IsTrue(SafeArrayNative.ReverseStringsAnsi(ansiTest));
+            Assert.AreAllEqual(reversedStrings, ansiTest);
 
-            // var unicodeTest = strings.ToArray();
-            // Assert.IsTrue(SafeArrayNative.ReverseStringsUnicode(unicodeTest));
-            // Assert.AreAllEqual(reversedStrings, unicodeTest);
+            var unicodeTest = strings.ToArray();
+            Assert.IsTrue(SafeArrayNative.ReverseStringsUnicode(unicodeTest));
+            Assert.AreAllEqual(reversedStrings, unicodeTest);
 
             var bstrTest = strings.ToArray();
             Assert.IsTrue(SafeArrayNative.ReverseStringsBSTR(bstrTest));
@@ -59,10 +59,9 @@ public class Tester
             // Assert.IsTrue(SafeArrayNative.XorNonBlittableBoolRecords(nonBlittableRecords, out var nonBlittableXor));
             // Assert.AreEqual(XorArray(boolArray), nonBlittableXor);
 
-            // var objects = new object[] { new object(), new object(), new object() };
-
-            // Assert.IsTrue(SafeArrayNative.VerifyIUnknownArray(objects));
-            // Assert.IsTrue(SafeArrayNative.VerifyIDispatchArray(objects));
+            var objects = new object[] { new object(), new object(), new object() };
+            Assert.IsTrue(SafeArrayNative.VerifyIUnknownArray(objects));
+            Assert.IsTrue(SafeArrayNative.VerifyIDispatchArray(objects));
 
             var variantInts = new object[] {1, 2, 3, 4, 5, 6, 7, 8, 9};
             
@@ -161,37 +160,36 @@ class SafeArrayNative
 
     [DllImport(nameof(SafeArrayNative))]
     public static extern bool MeanBlittableIntRecords(
-        [MarshalAs(UnmanagedType.SafeArray)] BlittableRecord[] records,
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_RECORD)] BlittableRecord[] records,
         out int result
     );
 
     [DllImport(nameof(SafeArrayNative))]
     public static extern bool XorNonBlittableBoolRecords(
-        [MarshalAs(UnmanagedType.SafeArray)] NonBlittableRecord[] records,
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_RECORD)] NonBlittableRecord[] records,
         out bool result
     );
 
     [DllImport(nameof(SafeArrayNative), EntryPoint = "VerifyInterfaceArray")]
-    private static extern bool VerifyInterfaceArray(
-        [MarshalAs(UnmanagedType.SafeArray)] object[] objects,
+    private static extern bool VerifyInterfaceArrayIUnknown(
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_UNKNOWN)] object[] objects,
+        short expectedVarType
+    );
+
+    [DllImport(nameof(SafeArrayNative), EntryPoint = "VerifyInterfaceArray")]
+    private static extern bool VerifyInterfaceArrayIDispatch(
+        [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_DISPATCH)] object[] objects,
         short expectedVarType
     );
 
     public static bool VerifyIUnknownArray(object[] objects)
     {
-        var wrappers = new object[objects.Length];
-
-        for (int i = 0; i < wrappers.Length; i++)
-        {
-            wrappers[i] = new UnknownWrapper(objects[i]);
-        }
-
-        return VerifyInterfaceArray(wrappers, (short)VarEnum.VT_UNKNOWN);
+        return VerifyInterfaceArrayIUnknown(objects, (short)VarEnum.VT_UNKNOWN);
     }
 
     public static bool VerifyIDispatchArray(object[] objects)
     {
-        return VerifyInterfaceArray(objects, (short)VarEnum.VT_DISPATCH);
+        return VerifyInterfaceArrayIDispatch(objects, (short)VarEnum.VT_DISPATCH);
     }
 
     [DllImport(nameof(SafeArrayNative))]
