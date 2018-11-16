@@ -53,9 +53,8 @@ public class Tester
             };
             Assert.AreAllEqual(blittableRecords, SafeArrayNative.CreateSafeArrayOfRecords(blittableRecords));
 
-            // var nonBlittableRecords = boolArray.Select(b => new SafeArrayNative.NonBlittableRecord{ b = b }).ToArray();
-            // Assert.IsTrue(SafeArrayNative.XorNonBlittableBoolRecords(nonBlittableRecords, out var nonBlittableXor));
-            // Assert.AreEqual(XorArray(boolArray), nonBlittableXor);
+            var nonBlittableRecords = boolArray.Select(b => new SafeArrayNative.NonBlittableRecord{ b = b }).ToArray();
+            Assert.AreAllEqual(nonBlittableRecords, SafeArrayNative.CreateSafeArrayOfRecords(nonBlittableRecords));
 
             var objects = new object[] { new object(), new object(), new object() };
             Assert.IsTrue(SafeArrayNative.VerifyIUnknownArray(objects));
@@ -118,6 +117,11 @@ class SafeArrayNative
         public int a;
     }
 
+    public struct NonBlittableRecord
+    {
+        public bool b;
+    }
+
     [DllImport(nameof(SafeArrayNative))]
     [return: MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_RECORD)]
     private static extern  BlittableRecord[] CreateSafeArrayOfRecords(
@@ -126,6 +130,18 @@ class SafeArrayNative
     );
 
     public static BlittableRecord[] CreateSafeArrayOfRecords(BlittableRecord[] records)
+    {
+        return CreateSafeArrayOfRecords(records, records.Length);
+    }
+
+    [DllImport(nameof(SafeArrayNative), EntryPoint = "CreateSafeArrayOfNonBlittableRecords")]
+    [return: MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_RECORD)]
+    private static extern NonBlittableRecord[] CreateSafeArrayOfRecords(
+        NonBlittableRecord[] records,
+        int numElements
+    );
+
+    public static NonBlittableRecord[] CreateSafeArrayOfRecords(NonBlittableRecord[] records)
     {
         return CreateSafeArrayOfRecords(records, records.Length);
     }
