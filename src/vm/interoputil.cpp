@@ -5094,6 +5094,14 @@ ClassFactoryBase *GetComClassFactory(MethodTable* pClassMT)
 
     if (pClsFac == NULL)
     {
+        //
+        // Collectible types do not support WinRT interop
+        //
+        if (pClassMT->IsExportedToWinRT() || pClassMT->IsProjectedFromWinRT())
+        {
+            COMPlusThrow(kNotSupportedException, W("NotSupported_CollectibleWinRT"));
+        }
+
         NewHolder<ClassFactoryBase> pNewFactory;
 
         if (pClassMT->IsExportedToWinRT())
