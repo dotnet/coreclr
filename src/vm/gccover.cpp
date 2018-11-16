@@ -63,11 +63,10 @@ static MethodDesc* getTargetMethodDesc(PCODE target)
         _ASSERTE(token.IsValid());
         return VirtualCallStubManager::GetInterfaceMethodDescFromToken(token);
     }
-
-    if (RangeSectionStubManager::GetStubKind(target) != STUB_CODE_BLOCK_UNKNOWN)
+    if (RangeSectionStubManager::GetStubKind(target) == STUB_CODE_BLOCK_PRECODE)
     {
         // The address looks like a value stub, try to get the method descriptor.
-        return AsMethodDesc(size_t(MethodDesc::GetMethodDescFromStubAddr(target, TRUE)));
+        return MethodDesc::GetMethodDescFromStubAddr(target, TRUE);
     }
 
     return nullptr;
