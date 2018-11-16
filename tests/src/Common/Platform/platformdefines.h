@@ -145,7 +145,7 @@ void TP_SysFreeString(BSTR bstr);
 size_t TP_SysStringByteLen(BSTR bstr);
 BSTR TP_SysAllocStringLen(LPCWSTR psz, size_t len);
 BSTR TP_SysAllocString(LPCWSTR psz);
-UINT TP_SysStringLen(BSTR bstr);
+DWORD TP_SysStringLen(BSTR bstr);
 
 //
 // Method redirects

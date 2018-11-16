@@ -500,7 +500,7 @@ size_t TP_SysStringByteLen(BSTR bstr)
 #endif    
 }
 
-UINT TP_SysStringLen(BSTR bstr)
+DWORD TP_SysStringLen(BSTR bstr)
 {
 #ifdef WINDOWS
     return SysStringLen(bstr);
