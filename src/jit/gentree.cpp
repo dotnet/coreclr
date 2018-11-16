@@ -11973,13 +11973,14 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         // NOTE: We're potentially passing NO_CLASS_HANDLE, but the runtime knows what to do with it here.
         CorInfoInlineTypeCheck inliningKind =
             info.compCompHnd->canInlineTypeCheck(cls1Hnd, CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN);
-        assert(inliningKind == CORINFO_INLINE_TYPECHECK_PASS || inliningKind == CORINFO_INLINE_TYPECHECK_USE_HELPER);
 
-        // If the first type needs helper, we're done and use helper. Otherwise check the other type.
-        if (inliningKind != CORINFO_INLINE_TYPECHECK_USE_HELPER)
+        // If the first type needs helper, check the other type: it might be okay with a simple compare.
+        if (inliningKind == CORINFO_INLINE_TYPECHECK_USE_HELPER)
         {
             inliningKind = info.compCompHnd->canInlineTypeCheck(cls2Hnd, CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN);
         }
+
+        assert(inliningKind == CORINFO_INLINE_TYPECHECK_PASS || inliningKind == CORINFO_INLINE_TYPECHECK_USE_HELPER);
 
         // If we successfully tunneled through both operands, compare
         // the tunneled values, otherwise compare the original values.
