@@ -4459,6 +4459,7 @@ public:
     void EnumMemoryRegionsWorker(CLRDataEnumMemoryFlags flags);
 #endif
 
+public:
     // Is the current thread currently executing within a constrained execution region?
     static BOOL IsExecutingWithinCer();
 
