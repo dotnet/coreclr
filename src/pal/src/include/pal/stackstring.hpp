@@ -244,12 +244,51 @@ public:
     }
 };
 
+template <SIZE_T STACKCOUNT>
+using CharString = StackString<STACKCOUNT, CHAR>;
+template <SIZE_T STACKCOUNT>
+using WCharString = StackString<STACKCOUNT, WCHAR>;
+
+template <SIZE_T STACKCOUNT>
+BOOL CharStringFromLPCWSTR(CharString<STACKCOUNT>& lpBuffer, LPCWSTR szString)
+{
+    int length = 0;
+
+    if (szString != nullptr)
+    {
+        length = WideCharToMultiByte(CP_ACP, 0, szString, -1, NULL, 0, NULL, NULL);
+
+        char *lpTemp = lpBuffer.OpenStringBuffer(length);
+
+        if (lpTemp != nullptr)
+        {
+            /* Convert to ASCII */
+            length = WideCharToMultiByte(CP_ACP, 0, szString, -1, lpTemp, length, NULL, NULL);
+        }
+        else
+        {
+            length = 0;
+        }
+    }
+
+    if (length > 0)
+    {
+        lpBuffer.CloseBuffer(length - 1);
+        return TRUE;
+    }
+    else
+    {
+        lpBuffer.Clear();
+        return FALSE;
+    }
+}
+
 #if _DEBUG
-typedef StackString<32, CHAR> PathCharString;
-typedef StackString<32, WCHAR> PathWCharString; 
+typedef CharString<32> PathCharString;
+typedef WCharString<32> PathWCharString; 
 #else
-typedef StackString<260, CHAR> PathCharString;
-typedef StackString<260, WCHAR> PathWCharString; 
+typedef CharString<MAX_PATH> PathCharString;
+typedef WCharString<MAX_PATH> PathWCharString; 
 #endif
 #endif
 
