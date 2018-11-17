@@ -5,7 +5,7 @@
 #include <xplatform.h>
 #include <oleauto.h>
 #include <algorithm>
-#include "platformdefines.h"
+#include <platformdefines.h>
 #include "Helpers.h"
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE XorBoolArray(SAFEARRAY* d, BOOL* result)
