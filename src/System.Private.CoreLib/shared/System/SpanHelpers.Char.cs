@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Numerics;
 
 #if !netstandard
+using System.Runtime.Intrinsics.X86;
 using Internal.Runtime.CompilerServices;
 #endif
 
@@ -822,12 +823,21 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundChar(ulong match)
         {
-            unchecked
+#if !netstandard
+            if (Bmi1.IsSupported && IntPtr.Size == 8)
             {
-                // Flag least significant power of two bit
-                var powerOfTwoFlag = match ^ (match - 1);
-                // Shift all powers of two into the high byte and extract
-                return (int)((powerOfTwoFlag * XorPowerOfTwoToHighChar) >> 49);
+                return (int)(Bmi1.TrailingZeroCount(match) >> 4);
+            }
+            else
+#endif
+            {
+                unchecked
+                {
+                    // Flag least significant power of two bit
+                    var powerOfTwoFlag = match ^ (match - 1);
+                    // Shift all powers of two into the high byte and extract
+                    return (int)((powerOfTwoFlag * XorPowerOfTwoToHighChar) >> 49);
+                }
             }
         }
 
