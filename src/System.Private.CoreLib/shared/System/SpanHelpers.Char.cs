@@ -4,10 +4,10 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.Intrinsics.X86;
 using System.Numerics;
 
 #if !netstandard
+using System.Runtime.Intrinsics.X86;
 using Internal.Runtime.CompilerServices;
 #endif
 
@@ -775,11 +775,13 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundChar(ulong match)
         {
+#if !netstandard
             if (Bmi1.IsSupported && IntPtr.Size == 8)
             {
                 return (int)(Bmi1.TrailingZeroCount(match) >> 4);
             }
             else
+#endif
             {
                 unchecked
                 {
