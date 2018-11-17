@@ -5479,10 +5479,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
     const target_size_t pageSize = compiler->eeGetPageSize();
 
-#ifdef _TARGET_ARM_
-    assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
-#endif // _TARGET_ARM_
-
 #ifdef _TARGET_XARCH_
     if (frameSize == REGSIZE_BYTES)
     {
@@ -5503,36 +5499,17 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // Frame size is (0x1000..0x3000)
         CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if CPU_LOAD_STORE_ARCH
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)pageSize);
-        getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
-        regSet.verifyRegUsed(initReg);
-        *pInitRegZeroed = false; // The initReg does not contain zero
-#else
         getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE, -(int)pageSize);
-#endif
 
         if (frameSize >= 0x2000)
         {
-#if CPU_LOAD_STORE_ARCH
-            instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -2 * (ssize_t)pageSize);
-            getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
-            regSet.verifyRegUsed(initReg);
-#else
             getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE, -2 * (int)pageSize);
-#endif
         }
 
 #ifdef _TARGET_ARM64_
         compiler->unwindPadding();
 #else // !_TARGET_ARM64_
-#if CPU_LOAD_STORE_ARCH
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, frameSize);
-        compiler->unwindPadding();
-        getEmitter()->emitIns_R_R_R(INS_sub, EA_4BYTE, REG_SPBASE, REG_SPBASE, initReg);
-#else
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif
 #endif // !_TARGET_ARM64_
     }
     else
@@ -5566,54 +5543,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         //
         genPrologPadForReJit();
 
-#if CPU_LOAD_STORE_ARCH
-
-        // TODO-ARM64-Bug?: set the availMask properly!
-        regMaskTP availMask =
-            (regSet.rsGetModifiedRegsMask() & RBM_ALLINT) | RBM_R12 | RBM_LR; // Set of available registers
-        availMask &= ~maskArgRegsLiveIn;   // Remove all of the incoming argument registers as they are currently live
-        availMask &= ~genRegMask(initReg); // Remove the pre-calculated initReg
-
-        regNumber rOffset = initReg;
-        regNumber rLimit;
-        regNumber rTemp;
-        regMaskTP tempMask;
-
-        // We pick the next lowest register number for rTemp
-        noway_assert(availMask != RBM_NONE);
-        tempMask = genFindLowestBit(availMask);
-        rTemp    = genRegNumFromMask(tempMask);
-        availMask &= ~tempMask;
-
-        // We pick the next lowest register number for rLimit
-        noway_assert(availMask != RBM_NONE);
-        tempMask = genFindLowestBit(availMask);
-        rLimit   = genRegNumFromMask(tempMask);
-        availMask &= ~tempMask;
-
-        // TODO-LdStArch-Bug?: review this. The first time we load from [sp+0] which will always succeed. That doesn't
-        // make sense.
-        // TODO-ARM64-CQ: we could probably use ZR on ARM64 instead of rTemp.
-        //
-        //      mov rLimit, -frameSize
-        // loop:
-        //      ldr rTemp, [sp+rOffset]
-        //      sub rOffset, 0x1000     // Note that 0x1000 on ARM32 uses the funky Thumb immediate encoding
-        //      cmp rOffset, rLimit
-        //      jge loop
-        noway_assert((ssize_t)(int)frameSize == (ssize_t)frameSize); // make sure framesize safely fits within an int
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rLimit, -(int)frameSize);
-        getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, rOffset);
-        regSet.verifyRegUsed(rTemp);
-#if defined(_TARGET_ARM_)
-        getEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, rOffset, pageSize);
-#elif defined(_TARGET_ARM64_)
-        getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, rOffset, rOffset, pageSize);
-#endif // _TARGET_ARM64_
-        getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rOffset, rLimit);
-        getEmitter()->emitIns_J(INS_bhi, NULL, -4);
-
-#else // !CPU_LOAD_STORE_ARCH
 
 #ifndef _TARGET_UNIX_
         // Code size for each instruction. We need this because the
@@ -5709,7 +5638,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, initReg, frameSize); // restore stack pointer
 #endif // _TARGET_UNIX_
 
-#endif // !CPU_LOAD_STORE_ARCH
 
         *pInitRegZeroed = false; // The initReg does not contain zero
 
@@ -5722,18 +5650,8 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         }
 #endif // _TARGET_XARCH_
 
-#if CPU_LOAD_STORE_ARCH
-        compiler->unwindPadding();
-#endif
-
-#if CPU_LOAD_STORE_ARCH
-#ifndef _TARGET_ARM64_
-        inst_RV_RV(INS_add, REG_SPBASE, rLimit, TYP_I_IMPL);
-#endif // !_TARGET_ARM64_
-#else
         //      sub esp, frameSize   6
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif
     }
 
 #ifndef _TARGET_ARM64_
