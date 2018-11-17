@@ -18,22 +18,20 @@ namespace Xunit
 
         public int RunTests()
         {
-            using (var runner = AssemblyRunner.WithoutAppDomain(GetType().Assembly.Location))
-            {
-                runner.OnDiscoveryComplete = OnDiscoveryComplete;
-                runner.OnExecutionComplete = OnExecutionComplete;
-                runner.OnTestFailed = OnTestFailed;
-                runner.OnTestSkipped = OnTestSkipped;
+            var runner = AssemblyRunner.WithoutAppDomain(GetType().Assembly.Location);
+            runner.OnDiscoveryComplete = OnDiscoveryComplete;
+            runner.OnExecutionComplete = OnExecutionComplete;
+            runner.OnTestFailed = OnTestFailed;
+            runner.OnTestSkipped = OnTestSkipped;
 
-                Console.WriteLine("Discovering...");
+            Console.WriteLine("Discovering...");
 
-                runner.Start();
+            runner.Start();
 
-                finished.WaitOne();
-                finished.Dispose();
+            finished.WaitOne();
+            finished.Dispose();
 
-                return result;
-            }
+            return result;
         }
 
         private static void OnDiscoveryComplete(DiscoveryCompleteInfo info)
