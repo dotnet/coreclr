@@ -16,7 +16,7 @@ struct BlittableRecord
 class BlittableRecordInfo : public IRecordInfo
 {
 public:
-    HRESULT GetField(PVOID pvData, LPCOLESTR szFieldName, VARIANT* pvarField)
+    HRESULT __stdcall GetField(PVOID pvData, LPCOLESTR szFieldName, VARIANT* pvarField)
     {
         if (pvData == nullptr || pvarField == nullptr)
         {
@@ -35,7 +35,7 @@ public:
         return E_INVALIDARG;
     }
 
-    HRESULT GetFieldNames(ULONG* pcNames, BSTR* rgBstrNames)
+    HRESULT __stdcall GetFieldNames(ULONG* pcNames, BSTR* rgBstrNames)
     {
         if (pcNames == nullptr)
         {
@@ -62,7 +62,7 @@ public:
         return S_OK;
     }
 
-    HRESULT GetFieldNoCopy(
+    HRESULT __stdcall GetFieldNoCopy(
         PVOID     pvData,
         LPCOLESTR szFieldName,
         VARIANT   *pvarField,
@@ -72,24 +72,24 @@ public:
         return E_FAIL;
     }
 
-    HRESULT GetGuid(GUID *pguid)
+    HRESULT __stdcall GetGuid(GUID *pguid)
     {
         return E_FAIL;
     }
 
-    HRESULT GetName(BSTR* pbstrName)
+    HRESULT __stdcall GetName(BSTR* pbstrName)
     {
         *pbstrName = TP_SysAllocString(W("BlittableRecord"));
         return S_OK;
     }
 
-    HRESULT GetSize(ULONG* pcbSize)
+    HRESULT __stdcall GetSize(ULONG* pcbSize)
     {
         *pcbSize = sizeof(BlittableRecord);
         return S_OK;
     }
 
-    HRESULT GetTypeInfo(ITypeInfo** ppTypeInfo)
+    HRESULT __stdcall GetTypeInfo(ITypeInfo** ppTypeInfo)
     {
         return TYPE_E_INVALIDSTATE;
     }
@@ -99,7 +99,7 @@ public:
         return pRecordInfo == this;
     }
 
-    HRESULT PutField(
+    HRESULT __stdcall PutField(
         ULONG     wFlags,
         PVOID     pvData,
         LPCOLESTR szFieldName,
@@ -109,7 +109,7 @@ public:
         return E_FAIL;
     }
 
-    HRESULT PutFieldNoCopy(
+    HRESULT __stdcall PutFieldNoCopy(
         ULONG     wFlags,
         PVOID     pvData,
         LPCOLESTR szFieldName,
@@ -119,12 +119,12 @@ public:
         return E_FAIL;
     }
 
-    HRESULT RecordClear(PVOID pvExisting)
+    HRESULT __stdcall RecordClear(PVOID pvExisting)
     {
         return S_OK;
     }
 
-    HRESULT RecordCopy(PVOID pvExisting, PVOID pvNew)
+    HRESULT __stdcall RecordCopy(PVOID pvExisting, PVOID pvNew)
     {
         ((BlittableRecord*)pvNew)->a = ((BlittableRecord*)pvExisting)->a;
         return S_OK;
@@ -135,7 +135,7 @@ public:
         return CoreClrAlloc(sizeof(BlittableRecord));
     }
 
-    HRESULT RecordCreateCopy(
+    HRESULT __stdcall RecordCreateCopy(
         PVOID pvSource,
         PVOID *ppvDest
     )
@@ -144,13 +144,13 @@ public:
         return RecordCopy(pvSource, *ppvDest);
     }
 
-    HRESULT RecordDestroy(PVOID pvRecord)
+    HRESULT __stdcall RecordDestroy(PVOID pvRecord)
     {
         CoreClrFree(pvRecord);
         return S_OK;
     }
 
-    HRESULT RecordInit(PVOID pvNew)
+    HRESULT __stdcall RecordInit(PVOID pvNew)
     {
         ((BlittableRecord*)pvNew)->a = 0;
         return S_OK;
@@ -166,7 +166,7 @@ public:
         return --refCount;
     }
 
-    HRESULT QueryInterface(const IID& riid, void** ppvObject)
+    HRESULT __stdcall QueryInterface(const IID& riid, void** ppvObject)
     {
         if (riid == __uuidof(IRecordInfo))
         {
@@ -182,6 +182,7 @@ public:
             return E_NOINTERFACE;
         }
 
+        AddRef();
         return S_OK;
     }
 
@@ -198,7 +199,7 @@ struct NonBlittableRecord
 class NonBlittableRecordInfo : public IRecordInfo
 {
 public:
-    HRESULT GetField(PVOID pvData, LPCOLESTR szFieldName, VARIANT* pvarField)
+    HRESULT __stdcall GetField(PVOID pvData, LPCOLESTR szFieldName, VARIANT* pvarField)
     {
         if (pvData == nullptr || pvarField == nullptr)
         {
@@ -217,7 +218,7 @@ public:
         return E_INVALIDARG;
     }
 
-    HRESULT GetFieldNames(ULONG* pcNames, BSTR* rgBstrNames)
+    HRESULT __stdcall GetFieldNames(ULONG* pcNames, BSTR* rgBstrNames)
     {
         if (pcNames == nullptr)
         {
@@ -244,7 +245,7 @@ public:
         return S_OK;
     }
 
-    HRESULT GetFieldNoCopy(
+    HRESULT __stdcall GetFieldNoCopy(
         PVOID     pvData,
         LPCOLESTR szFieldName,
         VARIANT   *pvarField,
@@ -254,24 +255,24 @@ public:
         return E_FAIL;
     }
 
-    HRESULT GetGuid(GUID *pguid)
+    HRESULT __stdcall GetGuid(GUID *pguid)
     {
         return E_FAIL;
     }
 
-    HRESULT GetName(BSTR* pbstrName)
+    HRESULT __stdcall GetName(BSTR* pbstrName)
     {
         *pbstrName = TP_SysAllocString(W("NonBlittableRecord"));
         return S_OK;
     }
 
-    HRESULT GetSize(ULONG* pcbSize)
+    HRESULT __stdcall GetSize(ULONG* pcbSize)
     {
         *pcbSize = sizeof(BlittableRecord);
         return S_OK;
     }
 
-    HRESULT GetTypeInfo(ITypeInfo** ppTypeInfo)
+    HRESULT __stdcall GetTypeInfo(ITypeInfo** ppTypeInfo)
     {
         return TYPE_E_INVALIDSTATE;
     }
@@ -281,7 +282,7 @@ public:
         return pRecordInfo == this;
     }
 
-    HRESULT PutField(
+    HRESULT __stdcall PutField(
         ULONG     wFlags,
         PVOID     pvData,
         LPCOLESTR szFieldName,
@@ -291,7 +292,7 @@ public:
         return E_FAIL;
     }
 
-    HRESULT PutFieldNoCopy(
+    HRESULT __stdcall PutFieldNoCopy(
         ULONG     wFlags,
         PVOID     pvData,
         LPCOLESTR szFieldName,
@@ -301,12 +302,12 @@ public:
         return E_FAIL;
     }
 
-    HRESULT RecordClear(PVOID pvExisting)
+    HRESULT __stdcall RecordClear(PVOID pvExisting)
     {
         return S_OK;
     }
 
-    HRESULT RecordCopy(PVOID pvExisting, PVOID pvNew)
+    HRESULT __stdcall RecordCopy(PVOID pvExisting, PVOID pvNew)
     {
         ((NonBlittableRecord*)pvNew)->b = ((NonBlittableRecord*)pvExisting)->b;
         return S_OK;
@@ -317,7 +318,7 @@ public:
         return CoreClrAlloc(sizeof(NonBlittableRecord));
     }
 
-    HRESULT RecordCreateCopy(
+    HRESULT __stdcall RecordCreateCopy(
         PVOID pvSource,
         PVOID *ppvDest
     )
@@ -326,13 +327,13 @@ public:
         return RecordCopy(pvSource, *ppvDest);
     }
 
-    HRESULT RecordDestroy(PVOID pvRecord)
+    HRESULT __stdcall RecordDestroy(PVOID pvRecord)
     {
         CoreClrFree(pvRecord);
         return S_OK;
     }
 
-    HRESULT RecordInit(PVOID pvNew)
+    HRESULT __stdcall RecordInit(PVOID pvNew)
     {
         ((NonBlittableRecord*)pvNew)->b = FALSE;
         return S_OK;
@@ -348,7 +349,7 @@ public:
         return --refCount;
     }
 
-    HRESULT QueryInterface(const IID& riid, void** ppvObject)
+    HRESULT __stdcall QueryInterface(const IID& riid, void** ppvObject)
     {
         if (riid == __uuidof(IRecordInfo))
         {
@@ -364,6 +365,7 @@ public:
             return E_NOINTERFACE;
         }
 
+        AddRef();
         return S_OK;
     }
 
