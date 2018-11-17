@@ -5300,14 +5300,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
 #endif // _TARGET_ARM_
 
-#ifdef _TARGET_XARCH_
-    if (frameSize == REGSIZE_BYTES)
-    {
-        // Frame size is the same as register size.
-        inst_RV(INS_push, REG_EAX, TYP_I_IMPL);
-    }
-    else
-#endif // _TARGET_XARCH_
         if (frameSize < pageSize)
     {
 #ifndef _TARGET_ARM64_
@@ -5320,36 +5312,24 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // Frame size is (0x1000..0x3000)
         CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if CPU_LOAD_STORE_ARCH
         instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)pageSize);
         getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
         regSet.verifyRegUsed(initReg);
         *pInitRegZeroed = false; // The initReg does not contain zero
-#else
-        getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE, -(int)pageSize);
-#endif
 
         if (frameSize >= 0x2000)
         {
-#if CPU_LOAD_STORE_ARCH
             instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -2 * (ssize_t)pageSize);
             getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
             regSet.verifyRegUsed(initReg);
-#else
-            getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE, -2 * (int)pageSize);
-#endif
         }
 
 #ifdef _TARGET_ARM64_
         compiler->unwindPadding();
 #else // !_TARGET_ARM64_
-#if CPU_LOAD_STORE_ARCH
         instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, frameSize);
         compiler->unwindPadding();
         getEmitter()->emitIns_R_R_R(INS_sub, EA_4BYTE, REG_SPBASE, REG_SPBASE, initReg);
-#else
-        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif
 #endif // !_TARGET_ARM64_
     }
     else
@@ -5364,26 +5344,12 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // stack pointer needs to be known).
         CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef _TARGET_XARCH_
-        bool pushedStubParam = false;
-        if (compiler->info.compPublishStubParam && (REG_SECRET_STUB_PARAM == initReg))
-        {
-            // push register containing the StubParam
-            inst_RV(INS_push, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
-            pushedStubParam = true;
-        }
-#endif // !_TARGET_XARCH_
-
-#if CPU_LOAD_STORE_ARCH || !defined(_TARGET_UNIX_)
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
-#endif
 
         //
         // Can't have a label inside the ReJIT padding area
         //
         genPrologPadForReJit();
-
-#if CPU_LOAD_STORE_ARCH
 
         // TODO-ARM64-Bug?: set the availMask properly!
         regMaskTP availMask =
@@ -5430,28 +5396,13 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rOffset, rLimit);
         getEmitter()->emitIns_J(INS_bhi, NULL, -4);
 
-#endif // CPU_LOAD_STORE_ARCH
-
         *pInitRegZeroed = false; // The initReg does not contain zero
 
-#ifdef _TARGET_XARCH_
-        if (pushedStubParam)
-        {
-            // pop eax
-            inst_RV(INS_pop, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
-            regSet.verifyRegUsed(REG_SECRET_STUB_PARAM);
-        }
-#endif // _TARGET_XARCH_
-
-#if CPU_LOAD_STORE_ARCH
         compiler->unwindPadding();
-#endif
 
-#if CPU_LOAD_STORE_ARCH
 #ifndef _TARGET_ARM64_
         inst_RV_RV(INS_add, REG_SPBASE, rLimit, TYP_I_IMPL);
 #endif // !_TARGET_ARM64_
-#endif // CPU_LOAD_STORE_ARCH
     }
 
 #ifndef _TARGET_ARM64_
