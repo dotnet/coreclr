@@ -5435,8 +5435,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // Frame size is the same as register size.
         inst_RV(INS_push, REG_EAX, TYP_I_IMPL);
     }
-    else
-        if (frameSize < pageSize)
+    else if (frameSize < pageSize)
     {
         // Frame size is (0x0008..0x1000)
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
@@ -5484,7 +5483,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         //
         genPrologPadForReJit();
 
-
 #ifndef _TARGET_UNIX_
         // Code size for each instruction. We need this because the
         // backward branch is hard-coded with the number of bytes to branch.
@@ -5523,8 +5521,9 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         bytesForBackwardJump = -15;
 #endif // !_TARGET_AMD64_
 
-        inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
-#else  // _TARGET_UNIX_
+        // Branch backwards to start of loop
+        inst_IV(INS_jge, bytesForBackwardJump);
+#else // _TARGET_UNIX_
         // Code size for each instruction. We need this because the
         // backward branch is hard-coded with the number of bytes to branch.
         // The encoding differs based on the architecture and what register is
