@@ -5479,20 +5479,16 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
     const target_size_t pageSize = compiler->eeGetPageSize();
 
-#ifdef _TARGET_XARCH_
     if (frameSize == REGSIZE_BYTES)
     {
         // Frame size is the same as register size.
         inst_RV(INS_push, REG_EAX, TYP_I_IMPL);
     }
     else
-#endif // _TARGET_XARCH_
         if (frameSize < pageSize)
     {
-#ifndef _TARGET_ARM64_
         // Frame size is (0x0008..0x1000)
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif // !_TARGET_ARM64_
     }
     else if (frameSize < compiler->getVeryLargeFrameSize())
     {
@@ -5506,11 +5502,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
             getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE, -2 * (int)pageSize);
         }
 
-#ifdef _TARGET_ARM64_
-        compiler->unwindPadding();
-#else // !_TARGET_ARM64_
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif // !_TARGET_ARM64_
     }
     else
     {
@@ -5524,7 +5516,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // stack pointer needs to be known).
         CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef _TARGET_XARCH_
         bool pushedStubParam = false;
         if (compiler->info.compPublishStubParam && (REG_SECRET_STUB_PARAM == initReg))
         {
@@ -5532,9 +5523,8 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
             inst_RV(INS_push, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
             pushedStubParam = true;
         }
-#endif // !_TARGET_XARCH_
 
-#if CPU_LOAD_STORE_ARCH || !defined(_TARGET_UNIX_)
+#ifndef _TARGET_UNIX_
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
 #endif
 
@@ -5638,30 +5628,25 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, initReg, frameSize); // restore stack pointer
 #endif // _TARGET_UNIX_
 
-
         *pInitRegZeroed = false; // The initReg does not contain zero
 
-#ifdef _TARGET_XARCH_
         if (pushedStubParam)
         {
             // pop eax
             inst_RV(INS_pop, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
             regSet.verifyRegUsed(REG_SECRET_STUB_PARAM);
         }
-#endif // _TARGET_XARCH_
 
         //      sub esp, frameSize   6
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
     }
 
-#ifndef _TARGET_ARM64_
     compiler->unwindAllocStack(frameSize);
 
     if (!doubleAlignOrFramePointerUsed())
     {
         psiAdjustStackLevel(frameSize);
     }
-#endif // !_TARGET_ARM64_
 }
 
 #endif _TARGET_XARCH_
