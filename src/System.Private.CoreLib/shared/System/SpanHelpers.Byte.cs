@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 using System.Numerics;
 
 using Internal.Runtime.CompilerServices;
@@ -1107,10 +1108,17 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundByte(ulong match)
         {
-            // Flag least significant power of two bit
-            var powerOfTwoFlag = match ^ (match - 1);
-            // Shift all powers of two into the high byte and extract
-            return (int)((powerOfTwoFlag * XorPowerOfTwoToHighByte) >> 57);
+            if (Bmi1.IsSupported && IntPtr.Size == 8)
+            {
+                return (int)(Bmi1.TrailingZeroCount(match) >> 3);
+            }
+            else
+            {
+                // Flag least significant power of two bit
+                var powerOfTwoFlag = match ^ (match - 1);
+                // Shift all powers of two into the high byte and extract
+                return (int)((powerOfTwoFlag * XorPowerOfTwoToHighByte) >> 57);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
