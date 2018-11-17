@@ -6,9 +6,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Numerics;
 
-#if !netstandard
 using Internal.Runtime.CompilerServices;
-#endif
 
 #if BIT64
 using nuint = System.UInt64;
