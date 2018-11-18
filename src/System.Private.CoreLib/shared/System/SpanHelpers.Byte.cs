@@ -5,11 +5,9 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Numerics;
-
-#if !netstandard
 using System.Runtime.Intrinsics.X86;
+
 using Internal.Runtime.CompilerServices;
-#endif
 
 #if BIT64
 using nuint = System.UInt64;
@@ -1112,13 +1110,11 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundByte(ulong match)
         {
-#if !netstandard
             if (Bmi1.IsSupported && IntPtr.Size == 8)
             {
                 return (int)(Bmi1.TrailingZeroCount(match) >> 3);
             }
             else
-#endif
             {
                 // Flag least significant power of two bit
                 var powerOfTwoFlag = match ^ (match - 1);
