@@ -255,6 +255,11 @@ namespace System.Runtime.Intrinsics.X86
         /// </summary>
         public static byte Extract(Vector128<byte> value, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
+        /// int _mm_extract_epi8 (__m128i a, const int imm8)
+        ///   PEXTRB reg/m8, xmm, imm8
+        /// </summary>
+        public static byte Extract(Vector128<sbyte> value, byte index) { throw new PlatformNotSupportedException(); }
+        /// <summary>
         /// int _mm_extract_epi32 (__m128i a, const int imm8)
         ///   PEXTRD reg/m32, xmm, imm8
         /// </summary>
