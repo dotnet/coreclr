@@ -74,7 +74,6 @@ HARDWARE_INTRINSIC(NI_ARM64_SIMD_Max,             Simd,     Max,                
 HARDWARE_INTRINSIC(NI_ARM64_SIMD_Min,             Simd,     Min,                            SimdBinaryOp,  INS_fmin,    INS_smin,    INS_umin,     None )
 HARDWARE_INTRINSIC(NI_ARM64_SIMD_Mul,             Simd,     Multiply,                       SimdBinaryOp,  INS_fmul,    INS_mul,     INS_mul,      None )
 HARDWARE_INTRINSIC(NI_ARM64_SIMD_Sqrt,            Simd,     Sqrt,                           SimdUnaryOp,   INS_fsqrt,   INS_invalid, INS_invalid,  None )
-HARDWARE_INTRINSIC(NI_ARM64_SIMD_StaticCast,      Simd,     StaticCast,                     SimdUnaryOp,   INS_mov,     INS_mov,     INS_mov,      None )
 HARDWARE_INTRINSIC(NI_ARM64_SIMD_Sub,             Simd,     Subtract,                       SimdBinaryOp,  INS_fsub,    INS_sub,     INS_sub,      None )
 HARDWARE_INTRINSIC(NI_ARM64_SIMD_GetItem,         Simd,     Extract,                        SimdExtractOp, INS_mov,     INS_mov,     INS_mov,      None )
 HARDWARE_INTRINSIC(NI_ARM64_SIMD_SetItem,         Simd,     Insert,                         SimdInsertOp,  INS_mov,     INS_mov,     INS_mov,      None )
