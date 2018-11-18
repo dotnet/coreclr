@@ -3637,7 +3637,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                     typeHandleHelper = CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL;
                 }
                 assert(op1->gtCall.gtCallArgs->gtOp.gtOp2 == nullptr);
-                op1 = gtNewHelperCallNode(typeHandleHelper, TYP_REF, op1->gtCall.gtCallArgs);
+                op1         = gtNewHelperCallNode(typeHandleHelper, TYP_REF, op1->gtCall.gtCallArgs);
                 op1->gtType = TYP_REF;
                 retNode     = op1;
             }
@@ -8400,9 +8400,8 @@ DONE_CALL:
                 if (call->IsCall())
                 {
                     GenTreeCall* callNode = call->AsCall();
-                    if ((callNode->gtCallType == CT_HELPER) &&
-                        (gtIsTypeHandleToRuntimeTypeHelper(callNode) ||
-                         gtIsTypeHandleToRuntimeTypeHandleHelper(callNode)))
+                    if ((callNode->gtCallType == CT_HELPER) && (gtIsTypeHandleToRuntimeTypeHelper(callNode) ||
+                                                                gtIsTypeHandleToRuntimeTypeHandleHelper(callNode)))
                     {
                         spillStack = false;
                     }
@@ -14721,7 +14720,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 {
                     GenTreeArgList* helperArgs = gtNewArgList(op1);
 
-                    op1 = gtNewHelperCallNode(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL, TYP_STRUCT, helperArgs);
+                    op1 = gtNewHelperCallNode(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL, TYP_STRUCT,
+                                              helperArgs);
 
                     // The handle struct is returned in register
                     op1->gtCall.gtReturnType = GetRuntimeHandleUnderlyingType();
