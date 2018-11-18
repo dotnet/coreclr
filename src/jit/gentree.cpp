@@ -15186,6 +15186,32 @@ bool Compiler::gtIsTypeHandleToRuntimeTypeHelper(GenTreeCall* call)
            call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL);
 }
 
+//------------------------------------------------------------------------
+// gtIsTypeHandleToRuntimeTypeHandleHelperCall -- see if tree is constructing
+//    a RuntimeTypeHandle from a handle
+//
+// Arguments:
+//    tree - tree to examine
+//    pHelper - optional pointer to a variable that receives the type of the helper
+//
+// Return Value:
+//    True if so
+
+bool Compiler::gtIsTypeHandleToRuntimeTypeHandleHelper(GenTreeCall* call, CorInfoHelpFunc* pHelper)
+{
+    CorInfoHelpFunc helper = CORINFO_HELP_UNDEF;
+
+    if (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE))
+        helper = CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE;
+    else if (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL))
+        helper = CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL;
+
+    if (pHelper != nullptr)
+        *pHelper = helper;
+
+    return helper != CORINFO_HELP_UNDEF;
+}
+
 bool Compiler::gtIsActiveCSE_Candidate(GenTree* tree)
 {
     return (optValnumCSE_phase && IS_CSE_INDEX(tree->gtCSEnum));
