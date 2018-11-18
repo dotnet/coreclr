@@ -1539,7 +1539,9 @@ class PAL_RuntimeStartupHelper
     DWORD m_threadId;
     HANDLE m_threadHandle;
     DWORD m_processId;
+#ifdef __APPLE__    
     CharString<MAX_APPLICATION_GROUP_ID_LENGTH> m_applicationGroupId;
+#endif // __APPLE__    
     SemaphoreNameString m_startupSemName;
     SemaphoreNameString m_continueSemName;
 
@@ -1556,7 +1558,11 @@ class PAL_RuntimeStartupHelper
 
     LPCSTR GetApplicationGroupId() const
     {
+#ifdef __APPLE__        
         return m_applicationGroupId.GetCount() == 0 ? nullptr : m_applicationGroupId;
+#else // __APPLE__
+        return nullptr;
+#endif // __APPLE__        
     }
 
 public:
@@ -1571,7 +1577,9 @@ public:
         m_startupSem(SEM_FAILED),
         m_continueSem(SEM_FAILED)
     {
+#ifdef __APPLE__        
         CharStringFromLPCWSTR(m_applicationGroupId, lpApplicationGroupId);
+#endif // __APPLE__        
     }
 
     ~PAL_RuntimeStartupHelper()
@@ -1648,6 +1656,7 @@ public:
         BOOL ret;
         UnambiguousProcessDescriptor unambiguousProcessDescriptor;
 
+#ifdef __APPLE__
         // Verify the length of the application group ID
         if (m_applicationGroupId.GetCount() > MAX_APPLICATION_GROUP_ID_LENGTH)
         {
@@ -1655,6 +1664,7 @@ public:
             pe = ERROR_BAD_LENGTH;
             goto exit;
         }
+#endif // __APPLE__
 
         // See semaphore name format for details about this value. We store it so that
         // it can be used by the cleanup code that removes the semaphore with sem_unlink.
@@ -2271,7 +2281,7 @@ PAL_GetTransportPipeName(
     // to 0. We expect that anyone else making the pipe name will also fail and thus will
     // also try to use 0 as the value.
     _ASSERTE(ret == TRUE || disambiguationKey == 0);
-
+#ifdef __APPLE
     if (nullptr != applicationGroupId)
     {
         // Verify the length of the application group ID
@@ -2299,6 +2309,7 @@ PAL_GetTransportPipeName(
         }
     }
     else
+#endif // __APPLE__    
     {
         // Get a temp file location
         dwRetVal = ::GetTempPathA(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, formatBuffer);
