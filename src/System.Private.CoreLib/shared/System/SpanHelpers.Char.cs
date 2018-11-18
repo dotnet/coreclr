@@ -865,14 +865,21 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundChar(ulong match)
         {
-            // Find the most significant char that has its highest bit set
-            int index = 3;
-            while ((long)match > 0)
+            if (Lzcnt.IsSupported && IntPtr.Size == 8)
             {
-                match = match << 16;
-                index--;
+                return 3 - (int)(Lzcnt.LeadingZeroCount(match) >> 4);
             }
-            return index;
+            else
+            {
+                // Find the most significant char that has its highest bit set
+                int index = 3;
+                while ((long)match > 0)
+                {
+                    match = match << 16;
+                    index--;
+                }
+                return index;
+            }
         }
     }
 }

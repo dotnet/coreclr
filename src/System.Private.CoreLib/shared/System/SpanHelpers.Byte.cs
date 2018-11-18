@@ -1126,14 +1126,21 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundByte(ulong match)
         {
-            // Find the most significant byte that has its highest bit set
-            int index = 7;
-            while ((long)match > 0)
+            if (Lzcnt.IsSupported && IntPtr.Size == 8)
             {
-                match = match << 8;
-                index--;
+                return 7 - (int)(Lzcnt.LeadingZeroCount(match) >> 3);
             }
-            return index;
+            else
+            {
+                // Find the most significant byte that has its highest bit set
+                int index = 7;
+                while ((long)match > 0)
+                {
+                    match = match << 8;
+                    index--;
+                }
+                return index;
+            }
         }
 
         private const ulong XorPowerOfTwoToHighByte = (0x07ul |
