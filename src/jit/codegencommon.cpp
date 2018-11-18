@@ -5298,16 +5298,15 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
 #ifdef _TARGET_ARM_
     assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
-#endif // _TARGET_ARM_
 
     if (frameSize < pageSize)
     {
-#ifndef _TARGET_ARM64_
         // Frame size is (0x0008..0x1000)
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif // !_TARGET_ARM64_
     }
-    else if (frameSize < compiler->getVeryLargeFrameSize())
+    else
+#endif // _TARGET_ARM_
+        if (frameSize < compiler->getVeryLargeFrameSize())
     {
         // Frame size is (0x1000..0x3000)
         CLANG_FORMAT_COMMENT_ANCHOR;
@@ -5400,19 +5399,19 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
         compiler->unwindPadding();
 
-#ifndef _TARGET_ARM64_
+#ifdef _TARGET_ARM_
         inst_RV_RV(INS_add, REG_SPBASE, rLimit, TYP_I_IMPL);
-#endif // !_TARGET_ARM64_
+#endif // _TARGET_ARM_
     }
 
-#ifndef _TARGET_ARM64_
+#ifdef _TARGET_ARM_
     compiler->unwindAllocStack(frameSize);
 
     if (!doubleAlignOrFramePointerUsed())
     {
         psiAdjustStackLevel(frameSize);
     }
-#endif // !_TARGET_ARM64_
+#endif // _TARGET_ARM_
 }
 
 #endif // _TARGET_ARMARCH_
