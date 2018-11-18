@@ -2,19 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
+using System.IO;
+
 namespace System.Reflection.Emit
 {
-    using System;
-    using IList = System.Collections.IList;
-    using System.Collections.Generic;
-    using System.Reflection;
-    using System.Security;
-    using System.Diagnostics;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using System.IO;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.SymbolStore;
-
     /// <summary>
     /// This is a package private class. This class hold all of the managed
     /// data member for AssemblyBuilder. Note that what ever data members added to
@@ -22,27 +14,21 @@ namespace System.Reflection.Emit
     /// </summary>
     internal class AssemblyBuilderData
     {
-        internal AssemblyBuilderData(
-            InternalAssemblyBuilder assembly,
-            string strAssemblyName,
-            AssemblyBuilderAccess access)
+        internal AssemblyBuilderData(InternalAssemblyBuilder assembly, string assemblyName, AssemblyBuilderAccess access)
         {
-            m_assembly = assembly;
-            m_strAssemblyName = strAssemblyName;
-            m_access = access;
-            m_moduleBuilderList = new List<ModuleBuilder>();
-            m_resWriterList = new List<ResWriterData>();
+            _assembly = assembly;
+            _assemblyName = assemblyName;
+            _access = access;
+            _moduleBuilderList = new List<ModuleBuilder>();
+            _resWriterList = new List<ResWriterData>();
 
-            m_peFileKind = PEFileKinds.Dll;
+            _peFileKind = PEFileKinds.Dll;
         }
         
         /// <summary>
         /// Helper to add a dynamic module into the tracking list.
         /// </summary>
-        internal void AddModule(ModuleBuilder dynModule)
-        {
-            m_moduleBuilderList.Add(dynModule);
-        }
+        internal void AddModule(ModuleBuilder dynModule) => _moduleBuilderList.Add(dynModule);
 
         /// <summary>
         /// Helper to track CAs to persist onto disk.
@@ -50,19 +36,19 @@ namespace System.Reflection.Emit
         internal void AddCustomAttribute(CustomAttributeBuilder customBuilder)
         {
             // make sure we have room for this CA
-            if (m_CABuilders == null)
+            if (_customAttributeBuilders == null)
             {
-                m_CABuilders = new CustomAttributeBuilder[m_iInitialSize];
+                _customAttributeBuilders = new CustomAttributeBuilder[InitialSize];
             }
-            if (m_iCABuilder == m_CABuilders.Length)
+            if (_numberOfCustomAttributeBuilders == _customAttributeBuilders.Length)
             {
-                CustomAttributeBuilder[] tempCABuilders = new CustomAttributeBuilder[m_iCABuilder * 2];
-                Array.Copy(m_CABuilders, 0, tempCABuilders, 0, m_iCABuilder);
-                m_CABuilders = tempCABuilders;
+                CustomAttributeBuilder[] tempCABuilders = new CustomAttributeBuilder[_numberOfCustomAttributeBuilders * 2];
+                Array.Copy(_customAttributeBuilders, 0, tempCABuilders, 0, _numberOfCustomAttributeBuilders);
+                _customAttributeBuilders = tempCABuilders;
             }
-            m_CABuilders[m_iCABuilder] = customBuilder;
+            _customAttributeBuilders[_numberOfCustomAttributeBuilders] = customBuilder;
 
-            m_iCABuilder++;
+            _numberOfCustomAttributeBuilders++;
         }
         
         /// <summary>
@@ -71,30 +57,30 @@ namespace System.Reflection.Emit
         internal void AddCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
             // make sure we have room for this CA
-            if (m_CABytes == null)
+            if (_customAttributeBytes == null)
             {
-                m_CABytes = new byte[m_iInitialSize][];
-                m_CACons = new ConstructorInfo[m_iInitialSize];
+                _customAttributeBytes = new byte[InitialSize][];
+                _customAttributeConstructors = new ConstructorInfo[InitialSize];
             }
-            if (m_iCAs == m_CABytes.Length)
+            if (_iCAs == _customAttributeBytes.Length)
             {
                 // enlarge the arrays
-                byte[][] temp = new byte[m_iCAs * 2][];
-                ConstructorInfo[] tempCon = new ConstructorInfo[m_iCAs * 2];
-                for (int i = 0; i < m_iCAs; i++)
+                byte[][] temp = new byte[_iCAs * 2][];
+                ConstructorInfo[] tempCon = new ConstructorInfo[_iCAs * 2];
+                for (int i = 0; i < _iCAs; i++)
                 {
-                    temp[i] = m_CABytes[i];
-                    tempCon[i] = m_CACons[i];
+                    temp[i] = _customAttributeBytes[i];
+                    tempCon[i] = _customAttributeConstructors[i];
                 }
-                m_CABytes = temp;
-                m_CACons = tempCon;
+                _customAttributeBytes = temp;
+                _customAttributeConstructors = tempCon;
             }
 
             byte[] attrs = new byte[binaryAttribute.Length];
             Buffer.BlockCopy(binaryAttribute, 0, attrs, 0, binaryAttribute.Length);
-            m_CABytes[m_iCAs] = attrs;
-            m_CACons[m_iCAs] = con;
-            m_iCAs++;
+            _customAttributeBytes[_iCAs] = attrs;
+            _customAttributeConstructors[_iCAs] = con;
+            _iCAs++;
         }
         
         /// <summary>
@@ -102,9 +88,9 @@ namespace System.Reflection.Emit
         /// </summary>
         internal void CheckTypeNameConflict(string strTypeName, TypeBuilder enclosingType)
         {
-            for (int i = 0; i < m_moduleBuilderList.Count; i++)
+            for (int i = 0; i < _moduleBuilderList.Count; i++)
             {
-                ModuleBuilder curModule = m_moduleBuilderList[i];
+                ModuleBuilder curModule = _moduleBuilderList[i];
                 curModule.CheckTypeNameConflict(strTypeName, enclosingType);
             }
 
@@ -112,44 +98,42 @@ namespace System.Reflection.Emit
             // all modules are dynamic. Otherwise we would also need to check loaded types.
             // We only need to make this test for non-nested types since any
             // duplicates in nested types will be caught at the top level.
-            //      if (enclosingType == null && m_assembly.GetType(strTypeName, false, false) != null)
+            //      if (enclosingType == null && _assembly.GetType(strTypeName, false, false) != null)
             //      {
             //          // Cannot have two types with the same name
             //          throw new ArgumentException(SR.Argument_DuplicateTypeName);
             //      }
         }
 
-        internal List<ModuleBuilder> m_moduleBuilderList;
-        internal List<ResWriterData> m_resWriterList;
-        internal string m_strAssemblyName;
-        internal AssemblyBuilderAccess m_access;
-        private InternalAssemblyBuilder m_assembly;
+        internal List<ModuleBuilder> _moduleBuilderList;
+        internal List<ResWriterData> _resWriterList;
+        internal string _assemblyName;
+        internal AssemblyBuilderAccess _access;
+        private readonly InternalAssemblyBuilder _assembly;
 
-        internal Type[] m_publicComTypeList;
-        internal int m_iPublicComTypeCount;
+        internal Type[] _publicComTypeList;
+        internal int _iPublicComTypeCount;
 
-        internal bool m_isSaved;
-        internal const int m_iInitialSize = 16;
+        internal const int InitialSize = 16;
 
         // hard coding the assembly def token
-        internal const int m_tkAssembly = 0x20000001;
+        internal const int AssemblyDefToken = 0x20000001;
 
         // tracking AssemblyDef's CAs for persistence to disk
-        internal CustomAttributeBuilder[] m_CABuilders;
-        internal int m_iCABuilder;
-        internal byte[][] m_CABytes;
-        internal ConstructorInfo[] m_CACons;
-        internal int m_iCAs;
-        internal PEFileKinds m_peFileKind;           // assembly file kind
-        internal MethodInfo m_entryPointMethod;
-        internal Assembly m_ISymWrapperAssembly;
+        internal CustomAttributeBuilder[] _customAttributeBuilders;
+        internal int _numberOfCustomAttributeBuilders;
+        internal byte[][] _customAttributeBytes;
+        internal ConstructorInfo[] _customAttributeConstructors;
+        internal int _iCAs;
+        internal PEFileKinds _peFileKind;           // assembly file kind
+        internal MethodInfo _entryPointMethod;
+        internal Assembly _iSymWrapperAssembly;
 
         // For unmanaged resources
-        internal string m_strResourceFileName;
-        internal byte[] m_resourceBytes;
-        internal NativeVersionInfo m_nativeVersion;
-        internal bool m_hasUnmanagedVersionInfo;
-        internal bool m_OverrideUnmanagedVersionInfo;
+        internal string _strResourceFileName;
+        internal NativeVersionInfo _nativeVersion;
+        internal bool _hasUnmanagedVersionInfo;
+        internal bool _overrideUnmanagedVersionInfo;
     }
 
     /// <summary>
@@ -158,37 +142,24 @@ namespace System.Reflection.Emit
     /// </summary>
     internal class ResWriterData
     {
-        internal string m_strName;
-        internal string m_strFileName;
-        internal string m_strFullFileName;
-        internal Stream m_memoryStream;
-        internal ResWriterData m_nextResWriter;
-        internal ResourceAttributes m_attribute;
+        internal string _name;
+        internal string _fileName;
+        internal string _fullFileName;
+        internal Stream _memoryStream;
+        internal ResWriterData _nextResWriter;
+        internal ResourceAttributes _attribute;
     }
 
     internal class NativeVersionInfo
     {
-        internal NativeVersionInfo()
-        {
-            m_strDescription = null;
-            m_strCompany = null;
-            m_strTitle = null;
-            m_strCopyright = null;
-            m_strTrademark = null;
-            m_strProduct = null;
-            m_strProductVersion = null;
-            m_strFileVersion = null;
-            m_lcid = -1;
-        }
-
-        internal string m_strDescription;
-        internal string m_strCompany;
-        internal string m_strTitle;
-        internal string m_strCopyright;
-        internal string m_strTrademark;
-        internal string m_strProduct;
-        internal string m_strProductVersion;
-        internal string m_strFileVersion;
-        internal int m_lcid;
+        internal string _description;
+        internal string _company;
+        internal string _title;
+        internal string _copyright;
+        internal string _trademark;
+        internal string _product;
+        internal string _productVersion;
+        internal string _fileVersion;
+        internal int _lcid = -1;
     }
 }
