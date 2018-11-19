@@ -16,7 +16,7 @@ struct BlittableRecord
 class BlittableRecordInfo : public IRecordInfo
 {
 public:
-    HRESULT __stdcall GetField(PVOID pvData, LPCOLESTR szFieldName, VARIANT* pvarField)
+    HRESULT STDMETHODCALLTYPE GetField(PVOID pvData, LPCOLESTR szFieldName, VARIANT* pvarField)
     {
         if (pvData == nullptr || pvarField == nullptr)
         {
@@ -35,7 +35,7 @@ public:
         return E_INVALIDARG;
     }
 
-    HRESULT __stdcall GetFieldNames(ULONG* pcNames, BSTR* rgBstrNames)
+    HRESULT STDMETHODCALLTYPE GetFieldNames(ULONG* pcNames, BSTR* rgBstrNames)
     {
         if (pcNames == nullptr)
         {
@@ -62,7 +62,7 @@ public:
         return S_OK;
     }
 
-    HRESULT __stdcall GetFieldNoCopy(
+    HRESULT STDMETHODCALLTYPE GetFieldNoCopy(
         PVOID     pvData,
         LPCOLESTR szFieldName,
         VARIANT   *pvarField,
@@ -72,24 +72,24 @@ public:
         return E_FAIL;
     }
 
-    HRESULT __stdcall GetGuid(GUID *pguid)
+    HRESULT STDMETHODCALLTYPE GetGuid(GUID *pguid)
     {
         return E_FAIL;
     }
 
-    HRESULT __stdcall GetName(BSTR* pbstrName)
+    HRESULT STDMETHODCALLTYPE GetName(BSTR* pbstrName)
     {
         *pbstrName = TP_SysAllocString(W("BlittableRecord"));
         return S_OK;
     }
 
-    HRESULT __stdcall GetSize(ULONG* pcbSize)
+    HRESULT STDMETHODCALLTYPE GetSize(ULONG* pcbSize)
     {
         *pcbSize = sizeof(BlittableRecord);
         return S_OK;
     }
 
-    HRESULT __stdcall GetTypeInfo(ITypeInfo** ppTypeInfo)
+    HRESULT STDMETHODCALLTYPE GetTypeInfo(ITypeInfo** ppTypeInfo)
     {
         return TYPE_E_INVALIDSTATE;
     }
@@ -99,7 +99,7 @@ public:
         return pRecordInfo == this;
     }
 
-    HRESULT __stdcall PutField(
+    HRESULT STDMETHODCALLTYPE PutField(
         ULONG     wFlags,
         PVOID     pvData,
         LPCOLESTR szFieldName,
@@ -109,7 +109,7 @@ public:
         return E_FAIL;
     }
 
-    HRESULT __stdcall PutFieldNoCopy(
+    HRESULT STDMETHODCALLTYPE PutFieldNoCopy(
         ULONG     wFlags,
         PVOID     pvData,
         LPCOLESTR szFieldName,
@@ -119,12 +119,12 @@ public:
         return E_FAIL;
     }
 
-    HRESULT __stdcall RecordClear(PVOID pvExisting)
+    HRESULT STDMETHODCALLTYPE RecordClear(PVOID pvExisting)
     {
         return S_OK;
     }
 
-    HRESULT __stdcall RecordCopy(PVOID pvExisting, PVOID pvNew)
+    HRESULT STDMETHODCALLTYPE RecordCopy(PVOID pvExisting, PVOID pvNew)
     {
         ((BlittableRecord*)pvNew)->a = ((BlittableRecord*)pvExisting)->a;
         return S_OK;
@@ -135,7 +135,7 @@ public:
         return CoreClrAlloc(sizeof(BlittableRecord));
     }
 
-    HRESULT __stdcall RecordCreateCopy(
+    HRESULT STDMETHODCALLTYPE RecordCreateCopy(
         PVOID pvSource,
         PVOID *ppvDest
     )
@@ -144,13 +144,13 @@ public:
         return RecordCopy(pvSource, *ppvDest);
     }
 
-    HRESULT __stdcall RecordDestroy(PVOID pvRecord)
+    HRESULT STDMETHODCALLTYPE RecordDestroy(PVOID pvRecord)
     {
         CoreClrFree(pvRecord);
         return S_OK;
     }
 
-    HRESULT __stdcall RecordInit(PVOID pvNew)
+    HRESULT STDMETHODCALLTYPE RecordInit(PVOID pvNew)
     {
         ((BlittableRecord*)pvNew)->a = 0;
         return S_OK;
@@ -166,7 +166,7 @@ public:
         return --refCount;
     }
 
-    HRESULT __stdcall QueryInterface(const IID& riid, void** ppvObject)
+    HRESULT STDMETHODCALLTYPE QueryInterface(const IID& riid, void** ppvObject)
     {
         if (riid == __uuidof(IRecordInfo))
         {
@@ -199,7 +199,7 @@ struct NonBlittableRecord
 class NonBlittableRecordInfo : public IRecordInfo
 {
 public:
-    HRESULT __stdcall GetField(PVOID pvData, LPCOLESTR szFieldName, VARIANT* pvarField)
+    HRESULT STDMETHODCALLTYPE GetField(PVOID pvData, LPCOLESTR szFieldName, VARIANT* pvarField)
     {
         if (pvData == nullptr || pvarField == nullptr)
         {
@@ -218,7 +218,7 @@ public:
         return E_INVALIDARG;
     }
 
-    HRESULT __stdcall GetFieldNames(ULONG* pcNames, BSTR* rgBstrNames)
+    HRESULT STDMETHODCALLTYPE GetFieldNames(ULONG* pcNames, BSTR* rgBstrNames)
     {
         if (pcNames == nullptr)
         {
@@ -245,7 +245,7 @@ public:
         return S_OK;
     }
 
-    HRESULT __stdcall GetFieldNoCopy(
+    HRESULT STDMETHODCALLTYPE GetFieldNoCopy(
         PVOID     pvData,
         LPCOLESTR szFieldName,
         VARIANT   *pvarField,
@@ -255,24 +255,24 @@ public:
         return E_FAIL;
     }
 
-    HRESULT __stdcall GetGuid(GUID *pguid)
+    HRESULT STDMETHODCALLTYPE GetGuid(GUID *pguid)
     {
         return E_FAIL;
     }
 
-    HRESULT __stdcall GetName(BSTR* pbstrName)
+    HRESULT STDMETHODCALLTYPE GetName(BSTR* pbstrName)
     {
         *pbstrName = TP_SysAllocString(W("NonBlittableRecord"));
         return S_OK;
     }
 
-    HRESULT __stdcall GetSize(ULONG* pcbSize)
+    HRESULT STDMETHODCALLTYPE GetSize(ULONG* pcbSize)
     {
         *pcbSize = sizeof(BlittableRecord);
         return S_OK;
     }
 
-    HRESULT __stdcall GetTypeInfo(ITypeInfo** ppTypeInfo)
+    HRESULT STDMETHODCALLTYPE GetTypeInfo(ITypeInfo** ppTypeInfo)
     {
         return TYPE_E_INVALIDSTATE;
     }
@@ -282,7 +282,7 @@ public:
         return pRecordInfo == this;
     }
 
-    HRESULT __stdcall PutField(
+    HRESULT STDMETHODCALLTYPE PutField(
         ULONG     wFlags,
         PVOID     pvData,
         LPCOLESTR szFieldName,
@@ -292,7 +292,7 @@ public:
         return E_FAIL;
     }
 
-    HRESULT __stdcall PutFieldNoCopy(
+    HRESULT STDMETHODCALLTYPE PutFieldNoCopy(
         ULONG     wFlags,
         PVOID     pvData,
         LPCOLESTR szFieldName,
@@ -302,12 +302,12 @@ public:
         return E_FAIL;
     }
 
-    HRESULT __stdcall RecordClear(PVOID pvExisting)
+    HRESULT STDMETHODCALLTYPE RecordClear(PVOID pvExisting)
     {
         return S_OK;
     }
 
-    HRESULT __stdcall RecordCopy(PVOID pvExisting, PVOID pvNew)
+    HRESULT STDMETHODCALLTYPE RecordCopy(PVOID pvExisting, PVOID pvNew)
     {
         ((NonBlittableRecord*)pvNew)->b = ((NonBlittableRecord*)pvExisting)->b;
         return S_OK;
@@ -318,7 +318,7 @@ public:
         return CoreClrAlloc(sizeof(NonBlittableRecord));
     }
 
-    HRESULT __stdcall RecordCreateCopy(
+    HRESULT STDMETHODCALLTYPE RecordCreateCopy(
         PVOID pvSource,
         PVOID *ppvDest
     )
@@ -327,13 +327,13 @@ public:
         return RecordCopy(pvSource, *ppvDest);
     }
 
-    HRESULT __stdcall RecordDestroy(PVOID pvRecord)
+    HRESULT STDMETHODCALLTYPE RecordDestroy(PVOID pvRecord)
     {
         CoreClrFree(pvRecord);
         return S_OK;
     }
 
-    HRESULT __stdcall RecordInit(PVOID pvNew)
+    HRESULT STDMETHODCALLTYPE RecordInit(PVOID pvNew)
     {
         ((NonBlittableRecord*)pvNew)->b = FALSE;
         return S_OK;
@@ -349,7 +349,7 @@ public:
         return --refCount;
     }
 
-    HRESULT __stdcall QueryInterface(const IID& riid, void** ppvObject)
+    HRESULT STDMETHODCALLTYPE QueryInterface(const IID& riid, void** ppvObject)
     {
         if (riid == __uuidof(IRecordInfo))
         {
