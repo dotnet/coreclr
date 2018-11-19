@@ -1834,7 +1834,7 @@ protected:
     LocalDesc GetNativeType() override;
     void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
-    virtual BinderFieldID GetStructureFieldID() {LIMITED_METHOD_CONTRACT; return (BinderFieldID)0;}
+    virtual BinderFieldID GetStructureFieldID() { LIMITED_METHOD_CONTRACT; return (BinderFieldID)0; }
     virtual BinderFieldID GetObjectFieldID() = 0;
     virtual BinderClassID GetManagedTypeBinderID() = 0;
 };
@@ -1842,25 +1842,25 @@ protected:
 class ILRuntimeTypeHandleMarshaler : public ILReflectionObjectMarshaler
 {
 protected:
-    virtual BinderFieldID GetStructureFieldID() { LIMITED_METHOD_CONTRACT; return FIELD__RT_TYPE_HANDLE__M_TYPE; }
-    virtual BinderFieldID GetObjectFieldID() { LIMITED_METHOD_CONTRACT; return FIELD__CLASS__TYPEHANDLE; }
-    virtual BinderClassID GetManagedTypeBinderID() { LIMITED_METHOD_CONTRACT; return CLASS__RT_TYPE_HANDLE; }
+    BinderFieldID GetStructureFieldID() override { LIMITED_METHOD_CONTRACT; return FIELD__RT_TYPE_HANDLE__M_TYPE; }
+    BinderFieldID GetObjectFieldID() override { LIMITED_METHOD_CONTRACT; return FIELD__CLASS__TYPEHANDLE; }
+    BinderClassID GetManagedTypeBinderID() override { LIMITED_METHOD_CONTRACT; return CLASS__RT_TYPE_HANDLE; }
 };
 
 class ILRuntimeMethodHandleMarshaler : public ILReflectionObjectMarshaler
 {
 protected:
-    virtual BinderFieldID GetStructureFieldID() { LIMITED_METHOD_CONTRACT; return FIELD__METHOD_HANDLE__METHOD; }
-    virtual BinderFieldID GetObjectFieldID() { LIMITED_METHOD_CONTRACT; return FIELD__STUBMETHODINFO__HANDLE; }
-    virtual BinderClassID GetManagedTypeBinderID() { LIMITED_METHOD_CONTRACT; return CLASS__METHOD_HANDLE; }
+    BinderFieldID GetStructureFieldID() override { LIMITED_METHOD_CONTRACT; return FIELD__METHOD_HANDLE__METHOD; }
+    BinderFieldID GetObjectFieldID() override { LIMITED_METHOD_CONTRACT; return FIELD__STUBMETHODINFO__HANDLE; }
+    BinderClassID GetManagedTypeBinderID() override { LIMITED_METHOD_CONTRACT; return CLASS__METHOD_HANDLE; }
 };
 
 class ILRuntimeFieldHandleMarshaler : public ILReflectionObjectMarshaler
 {
 protected:
-    virtual BinderFieldID GetStructureFieldID() { LIMITED_METHOD_CONTRACT; return FIELD__FIELD_HANDLE__M_FIELD; }
-    virtual BinderFieldID GetObjectFieldID() { LIMITED_METHOD_CONTRACT; return FIELD__RT_FIELD_INFO__HANDLE; }
-    virtual BinderClassID GetManagedTypeBinderID() { LIMITED_METHOD_CONTRACT; return CLASS__FIELD_HANDLE; }
+    BinderFieldID GetStructureFieldID() override { LIMITED_METHOD_CONTRACT; return FIELD__FIELD_HANDLE__M_FIELD; }
+    BinderFieldID GetObjectFieldID() override { LIMITED_METHOD_CONTRACT; return FIELD__RT_FIELD_INFO__HANDLE; }
+    BinderClassID GetManagedTypeBinderID() override { LIMITED_METHOD_CONTRACT; return CLASS__FIELD_HANDLE; }
 };
 
 class ILBoolMarshaler : public ILMarshaler
