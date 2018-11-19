@@ -117,8 +117,10 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleForHWSIMD(var_types simdType, va
         {
             case TYP_FLOAT:
                 return m_simdHandleCache->Vector64FloatHandle;
-            case TYP_UINT:
-                return m_simdHandleCache->Vector64UIntHandle;
+            case TYP_DOUBLE:
+                return m_simdHandleCache->Vector64DoubleHandle;
+            case TYP_INT:
+                return m_simdHandleCache->Vector64IntHandle;
             case TYP_USHORT:
                 return m_simdHandleCache->Vector64UShortHandle;
             case TYP_UBYTE:
@@ -127,8 +129,12 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleForHWSIMD(var_types simdType, va
                 return m_simdHandleCache->Vector64ShortHandle;
             case TYP_BYTE:
                 return m_simdHandleCache->Vector64ByteHandle;
-            case TYP_INT:
-                return m_simdHandleCache->Vector64IntHandle;
+            case TYP_LONG:
+                return m_simdHandleCache->Vector64LongHandle;
+            case TYP_UINT:
+                return m_simdHandleCache->Vector64UIntHandle;
+            case TYP_ULONG:
+                return m_simdHandleCache->Vector64ULongHandle;
             default:
                 assert(!"Didn't find a class handle for simdType");
         }
