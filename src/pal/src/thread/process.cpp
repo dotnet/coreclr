@@ -186,9 +186,9 @@ enum FILETYPE
 };
 
 #pragma pack(push,1)
-// We later on reference this structure as a byte array in order to encode its data into a string.
-// Its important to make sure there is no padding between the fields and also at the end of the buffer. 
-// Hence, this structure is defined inside a pack(1)
+// When creating the semaphore name on Mac running in a sandbox, We reference this structure as a byte array 
+// in order to encode its data into a string. Its important to make sure there is no padding between the fields
+// and also at the end of the buffer. Hence, this structure is defined inside a pack(1)
 struct UnambiguousProcessDescriptor
 {
     UnambiguousProcessDescriptor()
