@@ -24,8 +24,6 @@ class RuntimeHandlesTest
     private static extern bool Marshal_In(RuntimeFieldHandle expected, IntPtr handle);
     [DllImport("RuntimeHandlesNative")]
     private static extern bool Marshal_In(RuntimeTypeHandle expected, IntPtr handle);
-    [DllImport("RuntimeHandlesNative")]
-    private static extern bool Marshal_In(MethodInfo expected, IntPtr handle);
 
     private static void TestRuntimeMethodHandle()
     {
