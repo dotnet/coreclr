@@ -439,7 +439,7 @@ var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, u
         }
         else
 #endif // defined(_TARGET_XARCH)
-        if (typeHnd == m_simdHandleCache->Vector128FloatHandle)
+            if (typeHnd == m_simdHandleCache->Vector128FloatHandle)
         {
             simdBaseType = TYP_FLOAT;
             size         = Vector128SizeBytes;
@@ -501,7 +501,7 @@ var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, u
         }
         else
 #if defined(_TARGET_ARM64_)
-             if (typeHnd == m_simdHandleCache->Vector64FloatHandle)
+            if (typeHnd == m_simdHandleCache->Vector64FloatHandle)
         {
             simdBaseType = TYP_FLOAT;
             size         = Vector64SizeBytes;
