@@ -17,29 +17,29 @@ public class Tester
         try
         {
             var boolArray = new bool[] { true, false, true, false, false, true };
-            Assert.IsTrue(SafeArrayNative.XorBoolArray(boolArray, out var xorResult));
+            SafeArrayNative.XorBoolArray(boolArray, out var xorResult);
             Assert.AreEqual(XorArray(boolArray), xorResult);
 
             var decimalArray = new decimal[] { 1.5M, 30.2M, 6432M, 12.5832M };
-            Assert.IsTrue(SafeArrayNative.MeanDecimalArray(decimalArray, out var meanDecimalValue));
+            SafeArrayNative.MeanDecimalArray(decimalArray, out var meanDecimalValue);
             Assert.AreEqual(decimalArray.Average(), meanDecimalValue);
 
-            Assert.IsTrue(SafeArrayNative.SumCurrencyArray(decimalArray, out var sumCurrencyValue));
+            SafeArrayNative.SumCurrencyArray(decimalArray, out var sumCurrencyValue);
             Assert.AreEqual(decimalArray.Sum(), sumCurrencyValue);
 
             var strings = new [] {"ABCDE", "12345", "Microsoft"};
             var reversedStrings = strings.Select(str => Reverse(str)).ToArray();
 
             var ansiTest = strings.ToArray();
-            Assert.IsTrue(SafeArrayNative.ReverseStringsAnsi(ansiTest));
+            SafeArrayNative.ReverseStringsAnsi(ansiTest);
             Assert.AreAllEqual(reversedStrings, ansiTest);
 
             var unicodeTest = strings.ToArray();
-            Assert.IsTrue(SafeArrayNative.ReverseStringsUnicode(unicodeTest));
+            SafeArrayNative.ReverseStringsUnicode(unicodeTest);
             Assert.AreAllEqual(reversedStrings, unicodeTest);
 
             var bstrTest = strings.ToArray();
-            Assert.IsTrue(SafeArrayNative.ReverseStringsBSTR(bstrTest));
+            SafeArrayNative.ReverseStringsBSTR(bstrTest);
             Assert.AreAllEqual(reversedStrings, bstrTest);
 
             var blittableRecords = new SafeArrayNative.BlittableRecord[]
@@ -57,24 +57,24 @@ public class Tester
             Assert.AreAllEqual(nonBlittableRecords, SafeArrayNative.CreateSafeArrayOfRecords(nonBlittableRecords));
 
             var objects = new object[] { new object(), new object(), new object() };
-            Assert.IsTrue(SafeArrayNative.VerifyIUnknownArray(objects));
-            Assert.IsTrue(SafeArrayNative.VerifyIDispatchArray(objects));
+            SafeArrayNative.VerifyIUnknownArray(objects);
+            SafeArrayNative.VerifyIDispatchArray(objects);
 
             var variantInts = new object[] {1, 2, 3, 4, 5, 6, 7, 8, 9};
             
-            Assert.IsTrue(SafeArrayNative.MeanVariantIntArray(variantInts, out var variantMean));
+            SafeArrayNative.MeanVariantIntArray(variantInts, out var variantMean);
             Assert.AreEqual(variantInts.OfType<int>().Average(), variantMean);
 
             var dates = new DateTime[] { new DateTime(2008, 5, 1), new DateTime(2010, 1, 1) };
-            Assert.IsTrue(SafeArrayNative.DistanceBetweenDates(dates, out var numDays));
+            SafeArrayNative.DistanceBetweenDates(dates, out var numDays);
             Assert.AreEqual((dates[1] - dates[0]).TotalDays, numDays);
 
-            Assert.IsTrue(SafeArrayNative.XorBoolArrayInStruct(
+            SafeArrayNative.XorBoolArrayInStruct(
                 new SafeArrayNative.StructWithSafeArray
                 {
                     values = boolArray
                 },
-                out var structXor));
+                out var structXor);
 
             Assert.AreEqual(XorArray(boolArray), structXor);
         }
@@ -146,74 +146,74 @@ class SafeArrayNative
         return CreateSafeArrayOfRecords(records, records.Length);
     }
 
-    [DllImport(nameof(SafeArrayNative))]
-    public static extern bool XorBoolArray(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false)]
+    public static extern void XorBoolArray(
         [MarshalAs(UnmanagedType.SafeArray)] bool[] values,
         out bool result
     );
 
-    [DllImport(nameof(SafeArrayNative))]
-    public static extern bool MeanDecimalArray(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false)]
+    public static extern void MeanDecimalArray(
         [MarshalAs(UnmanagedType.SafeArray)] decimal[] values,
         out decimal result
     );
 
-    [DllImport(nameof(SafeArrayNative))]
-    public static extern bool SumCurrencyArray(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false)]
+    public static extern void SumCurrencyArray(
         [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_CY)] decimal[] values,
         [MarshalAs(UnmanagedType.Currency)] out decimal result
     );
 
-    [DllImport(nameof(SafeArrayNative), EntryPoint = "ReverseStrings")]
-    public static extern bool ReverseStringsAnsi(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false, EntryPoint = "ReverseStrings")]
+    public static extern void ReverseStringsAnsi(
         [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_LPSTR), In, Out] string[] strings
     );
 
-    [DllImport(nameof(SafeArrayNative), EntryPoint = "ReverseStrings")]
-    public static extern bool ReverseStringsUnicode(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false, EntryPoint = "ReverseStrings")]
+    public static extern void ReverseStringsUnicode(
         [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_LPWSTR), In, Out] string[] strings
     );
 
-    [DllImport(nameof(SafeArrayNative), EntryPoint = "ReverseStrings")]
-    public static extern bool ReverseStringsBSTR(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false, EntryPoint = "ReverseStrings")]
+    public static extern void ReverseStringsBSTR(
         [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_BSTR), In, Out] string[] strings
     );
 
-    [DllImport(nameof(SafeArrayNative), EntryPoint = "VerifyInterfaceArray")]
-    private static extern bool VerifyInterfaceArrayIUnknown(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false, EntryPoint = "VerifyInterfaceArray")]
+    private static extern void VerifyInterfaceArrayIUnknown(
         [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_UNKNOWN)] object[] objects,
         short expectedVarType
     );
 
-    [DllImport(nameof(SafeArrayNative), EntryPoint = "VerifyInterfaceArray")]
-    private static extern bool VerifyInterfaceArrayIDispatch(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false, EntryPoint = "VerifyInterfaceArray")]
+    private static extern void VerifyInterfaceArrayIDispatch(
         [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_DISPATCH)] object[] objects,
         short expectedVarType
     );
 
-    public static bool VerifyIUnknownArray(object[] objects)
+    public static void VerifyIUnknownArray(object[] objects)
     {
-        return VerifyInterfaceArrayIUnknown(objects, (short)VarEnum.VT_UNKNOWN);
+        VerifyInterfaceArrayIUnknown(objects, (short)VarEnum.VT_UNKNOWN);
     }
 
-    public static bool VerifyIDispatchArray(object[] objects)
+    public static void VerifyIDispatchArray(object[] objects)
     {
-        return VerifyInterfaceArrayIDispatch(objects, (short)VarEnum.VT_DISPATCH);
+        VerifyInterfaceArrayIDispatch(objects, (short)VarEnum.VT_DISPATCH);
     }
 
-    [DllImport(nameof(SafeArrayNative))]
-    public static extern bool MeanVariantIntArray(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false)]
+    public static extern void MeanVariantIntArray(
         [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_VARIANT)]
         object[] objects,
         out int result
     );
 
-    [DllImport(nameof(SafeArrayNative))]
-    public static extern bool DistanceBetweenDates(
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false)]
+    public static extern void DistanceBetweenDates(
         [MarshalAs(UnmanagedType.SafeArray)] DateTime[] dates,
         out double result
     );
 
-    [DllImport(nameof(SafeArrayNative))]
-    public static extern bool XorBoolArrayInStruct(StructWithSafeArray str, out bool result);
+    [DllImport(nameof(SafeArrayNative), PreserveSig = false)]
+    public static extern void XorBoolArrayInStruct(StructWithSafeArray str, out bool result);
 }
