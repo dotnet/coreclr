@@ -155,7 +155,7 @@ PathCharString* gSharedFilesPath = nullptr;
 #elif defined(__APPLE__)
 #define CLR_SEM_MAX_NAMELEN PSEMNAMLEN
 #else
-#define CLR_SEM_MAX_NAMELEN NAME_MAX - 4
+#define CLR_SEM_MAX_NAMELEN (NAME_MAX - 4)
 #endif
 
 static_assert_no_msg(CLR_SEM_MAX_NAMELEN <= MAX_PATH);
@@ -232,6 +232,7 @@ static
 void 
 CreateSemaphoreName(
     SemaphoreNameString& semName,
+    LPCSTR semaphoreName,
     const UnambiguousProcessDescriptor& unambiguousProcessDescriptor,
     LPCSTR applicationGroupId);
 
@@ -1512,12 +1513,13 @@ static bool IsCoreClrModule(const char* pModulePath)
 // NetBSD limits semaphore names to 15 characters, including null (at least up to 7.99.25).
 // Keep 31 length for Core 1.0 RC2 compatibility
 #if defined(__NetBSD__)
-static const char* RuntimeStartupSemaphoreName = "/clrst%08llx";
-static const char* RuntimeContinueSemaphoreName = "/clrco%08llx";
+static const char* RuntimeSemaphoreNameFormat = "/clr%s%08llx";
 #else
-static const char* RuntimeStartupSemaphoreName = "/clrst%08x%016llx";
-static const char* RuntimeContinueSspemaphoreName = "/clrco%08x%016llx";
+static const char* RuntimeSemaphoreNameFormat = "/clr%s%08x%016llx";
 #endif
+
+static const char* RuntimeStartupSemaphoreName = "st";
+static const char* RuntimeContinueSemaphoreName = "co";
 
 #if defined(__NetBSD__)
 static uint64_t HashSemaphoreName(uint64_t a, uint64_t b)
@@ -1676,8 +1678,8 @@ public:
         _ASSERTE(ret == TRUE || m_processIdDisambiguationKey == 0);
 
         unambiguousProcessDescriptor.Init(m_processId, m_processIdDisambiguationKey);
-        CreateSemaphoreName(m_startupSemName, unambiguousProcessDescriptor, GetApplicationGroupId());
-        CreateSemaphoreName(m_continueSemName, unambiguousProcessDescriptor, GetApplicationGroupId());
+        CreateSemaphoreName(m_startupSemName, RuntimeStartupSemaphoreName, unambiguousProcessDescriptor, GetApplicationGroupId());
+        CreateSemaphoreName(m_continueSemName, RuntimeContinueSemaphoreName, unambiguousProcessDescriptor, GetApplicationGroupId());
 
         TRACE("PAL_RuntimeStartupHelper.Register creating startup '%s' continue '%s'\n", (const char*)m_startupSemName, (const char*)m_continueSemName);
 
@@ -1989,8 +1991,8 @@ PAL_NotifyRuntimeStarted()
     UnambiguousProcessDescriptor unambiguousProcessDescriptor(gPID, processIdDisambiguationKey);
     LPCSTR applicationGroupId = PAL_GetApplicationGroupId();
 
-    CreateSemaphoreName(startupSemName, unambiguousProcessDescriptor, applicationGroupId);
-    CreateSemaphoreName(continueSemName, unambiguousProcessDescriptor, applicationGroupId);
+    CreateSemaphoreName(startupSemName, RuntimeStartupSemaphoreName, unambiguousProcessDescriptor, applicationGroupId);
+    CreateSemaphoreName(continueSemName, RuntimeContinueSemaphoreName, unambiguousProcessDescriptor, applicationGroupId);
 
     TRACE("PAL_NotifyRuntimeStarted opening continue '%s' startup '%s'\n", (const char*)continueSemName, (const char*)startupSemName);
 
@@ -2094,7 +2096,7 @@ void EncodeSemaphoreName(char *encodedSemName, const UnambiguousProcessDescripto
 }
 #endif
 
-void CreateSemaphoreName(SemaphoreNameString& semNameString, const UnambiguousProcessDescriptor& unambiguousProcessDescriptor, LPCSTR applicationGroupId)
+void CreateSemaphoreName(SemaphoreNameString& semNameString, LPCSTR semaphoreName, const UnambiguousProcessDescriptor& unambiguousProcessDescriptor, LPCSTR applicationGroupId)
 {
     int length = 0;
     char *semName = semNameString.OpenStringBuffer();
@@ -2103,7 +2105,7 @@ void CreateSemaphoreName(SemaphoreNameString& semNameString, const UnambiguousPr
     if (applicationGroupId != nullptr)
     {
         // We assume here that applicationGroupId has been already tested for length and is less than MAX_APPLICATION_GROUP_ID_LENGTH
-        length = sprintf_s(semName, CLR_SEM_MAX_NAMELEN, "%s/DN", applicationGroupId);
+        length = sprintf_s(semName, CLR_SEM_MAX_NAMELEN, "%s/%s", applicationGroupId, semaphoreName);
         _ASSERTE(length > 0 && length < CLR_SEM_MAX_NAMELEN);
 
         EncodeSemaphoreName(semName+length, unambiguousProcessDescriptor);
@@ -2116,7 +2118,8 @@ void CreateSemaphoreName(SemaphoreNameString& semNameString, const UnambiguousPr
         length = sprintf_s(
             semName,
             CLR_SEM_MAX_NAMELEN,
-            RuntimeStartupSemaphoreName,
+            RuntimeSemaphoreNameFormat,
+            semaphoreName,
             HashSemaphoreName(unambiguousProcessDescriptor.m_processId, unambiguousProcessDescriptor.m_disambiguationKey));
     }
 
