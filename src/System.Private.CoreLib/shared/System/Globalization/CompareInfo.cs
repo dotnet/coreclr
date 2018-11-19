@@ -1036,22 +1036,13 @@ namespace System.Globalization
             return IndexOfCore(source, value, startIndex, count, options, null);
         }
 
-        internal int IndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        internal int IndexOfOrdinalIgnoreCase(ReadOnlySpan<char> source, ReadOnlySpan<char> value)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!value.IsEmpty);
 
-            if (!ignoreCase)
-            {
-                return SpanHelpers.IndexOf(
-                    ref MemoryMarshal.GetReference(source),
-                    source.Length,
-                    ref MemoryMarshal.GetReference(value),
-                    value.Length);
-            }
-
-            return IndexOfOrdinalCore(source, value, ignoreCase, fromBeginning: true);
+            return IndexOfOrdinalCore(source, value, ignoreCase: true, fromBeginning: true);
         }
 
         internal int LastIndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
