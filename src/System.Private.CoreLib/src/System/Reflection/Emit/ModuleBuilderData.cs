@@ -9,16 +9,16 @@ namespace System.Reflection.Emit
     // this class cannot be accessed from the EE.
     internal class ModuleBuilderData
     {
-        internal const string MultiByteValueClass = "$ArrayType$";
+        public const string MultiByteValueClass = "$ArrayType$";
+
+        public readonly TypeBuilder _globalTypeBuilder;
+        public readonly string _moduleName;
+        public bool _hasGlobalBeenCreated;
 
         internal ModuleBuilderData(ModuleBuilder module, string moduleName)
         {
             _globalTypeBuilder = new TypeBuilder(module);
             _moduleName = moduleName;
         }
-
-        internal string _moduleName;
-        internal bool _hasGlobalBeenCreated;
-        internal TypeBuilder _globalTypeBuilder;
     }
 }

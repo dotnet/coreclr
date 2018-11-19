@@ -13,22 +13,25 @@ namespace System.Reflection.Emit
     /// </summary>
     internal class AssemblyBuilderData
     {
+        public const int AssemblyDefToken = 0x20000001;
+
+        public readonly List<ModuleBuilder> _moduleBuilderList;
+        public readonly AssemblyBuilderAccess _access;
+        public MethodInfo _entryPointMethod;
+
+        private readonly InternalAssemblyBuilder _assembly;
+
         internal AssemblyBuilderData(InternalAssemblyBuilder assembly, AssemblyBuilderAccess access)
         {
             _assembly = assembly;
             _access = access;
             _moduleBuilderList = new List<ModuleBuilder>();
         }
-        
-        /// <summary>
-        /// Helper to add a dynamic module into the tracking list.
-        /// </summary>
-        internal void AddModule(ModuleBuilder dynModule) => _moduleBuilderList.Add(dynModule);
-        
+
         /// <summary>
         /// Helper to ensure the type name is unique underneath assemblyBuilder.
         /// </summary>
-        internal void CheckTypeNameConflict(string strTypeName, TypeBuilder enclosingType)
+        public void CheckTypeNameConflict(string strTypeName, TypeBuilder enclosingType)
         {
             for (int i = 0; i < _moduleBuilderList.Count; i++)
             {
@@ -36,17 +39,5 @@ namespace System.Reflection.Emit
                 curModule.CheckTypeNameConflict(strTypeName, enclosingType);
             }
         }
-
-        internal List<ModuleBuilder> _moduleBuilderList;
-        internal AssemblyBuilderAccess _access;
-        private readonly InternalAssemblyBuilder _assembly;
-
-        internal const int InitialSize = 16;
-
-        // hard coding the assembly def token
-        internal const int AssemblyDefToken = 0x20000001;
-
-        // tracking AssemblyDef's CAs for persistence to disk
-        internal MethodInfo _entryPointMethod;
     }
 }

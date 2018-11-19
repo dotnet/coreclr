@@ -299,9 +299,7 @@ namespace System.Reflection.Emit
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return DefineDynamicModuleInternal(name, false, ref stackMark);
         }
-        
-        /// <param name = "name" ></ param >
-        /// <param name = "emitSymbolInfo" >Specify if emit symbol info or not.</ param >
+
         [DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public ModuleBuilder DefineDynamicModule(string name, bool emitSymbolInfo)
         {
@@ -346,12 +344,11 @@ namespace System.Reflection.Emit
 
             Debug.Assert(_assemblyData != null, "_assemblyData is null in DefineDynamicModuleInternal");
 
-            ISymbolWriter writer = null;
-
             // Init(...) has already been called on _manifestModuleBuilder in InitManifestModule()
             ModuleBuilder dynModule = _manifestModuleBuilder;
 
             // Create the symbol writer
+            ISymbolWriter writer = null;
             if (emitSymbolInfo)
             {
                 writer = SymWrapperCore.SymWriter.CreateSymWriter();
@@ -363,7 +360,7 @@ namespace System.Reflection.Emit
             }
 
             dynModule.SetSymWriter(writer);
-            _assemblyData.AddModule(dynModule);
+            _assemblyData._moduleBuilderList.Add(dynModule);
 
             if (dynModule == _manifestModuleBuilder)
             {

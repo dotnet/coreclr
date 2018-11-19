@@ -1068,7 +1068,7 @@ namespace System.Reflection.Emit
 
                 if (typeBuilder != null)
                 {
-                    // Of the type is defined in this module, just return the token.
+                    // If the type is defined in this module, just return the token.
                     return typeBuilder.TypeToken;
                 }
                 else if ((paramBuilder = type as GenericTypeParameterBuilder) != null)
