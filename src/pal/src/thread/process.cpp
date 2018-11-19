@@ -1987,8 +1987,10 @@ PAL_NotifyRuntimeStarted()
     _ASSERTE(ret == TRUE || processIdDisambiguationKey == 0);
 
     UnambiguousProcessDescriptor unambiguousProcessDescriptor(gPID, processIdDisambiguationKey);
-    CreateSemaphoreName(startupSemName, unambiguousProcessDescriptor, gApplicationGroupId);
-    CreateSemaphoreName(continueSemName, unambiguousProcessDescriptor, gApplicationGroupId);
+    LPCSTR applicationGroupId = PAL_GetApplicationGroupId();
+
+    CreateSemaphoreName(startupSemName, unambiguousProcessDescriptor, applicationGroupId);
+    CreateSemaphoreName(continueSemName, unambiguousProcessDescriptor, applicationGroupId);
 
     TRACE("PAL_NotifyRuntimeStarted opening continue '%s' startup '%s'\n", (const char*)continueSemName, (const char*)startupSemName);
 
@@ -2040,7 +2042,11 @@ LPCSTR
 PALAPI
 PAL_GetApplicationGroupId()
 {
+#ifdef __APPLE__
     return gApplicationGroupId;
+#else // __APPLE
+    return nullptr;
+#endif
 }
 
 #ifdef __APPLE__
