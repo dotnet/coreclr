@@ -198,7 +198,7 @@ namespace System.Reflection.Emit
                                                                                         ref stackMark,
                                                                                         access);
 
-            _assemblyData = new AssemblyBuilderData(_internalAssemblyBuilder, name.Name, access);
+            _assemblyData = new AssemblyBuilderData(_internalAssemblyBuilder, access);
 
             // Make sure that ManifestModule is properly initialized
             // We need to do this before setting any CustomAttribute
@@ -228,7 +228,7 @@ namespace System.Reflection.Emit
 
             // This name needs to stay in sync with that used in
             // Assembly::Init to call ReflectionModule::Create (in VM)
-            _manifestModuleBuilder.Init(ManifestModuleName, null, 0);
+            _manifestModuleBuilder.Init(ManifestModuleName);
 
             _isManifestModuleUsedAsDefinedModule = false;
         }
@@ -615,13 +615,6 @@ namespace System.Reflection.Emit
                 binaryAttribute,
                 false,
                 typeof(DebuggableAttribute) == con.DeclaringType);
-
-            // Track the CA for persistence
-            if (_assemblyData._access != AssemblyBuilderAccess.Run)
-            {
-                // tracking the CAs for persistence
-                _assemblyData.AddCustomAttribute(con, binaryAttribute);
-            }
         }
         
         /// <summary>
@@ -643,12 +636,6 @@ namespace System.Reflection.Emit
         private void SetCustomAttributeNoLock(CustomAttributeBuilder customBuilder)
         {
             customBuilder.CreateCustomAttribute(_manifestModuleBuilder, AssemblyBuilderData.AssemblyDefToken);
-
-            // Track the CA for persistence
-            if (_assemblyData._access != AssemblyBuilderAccess.Run)
-            {
-                _assemblyData.AddCustomAttribute(customBuilder);
-            }
         }
     }
 }

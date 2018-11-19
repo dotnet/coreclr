@@ -7,12 +7,10 @@ namespace System.Reflection.Emit
     public struct SignatureToken
     {
         public static readonly SignatureToken Empty = new SignatureToken();
-        private readonly ModuleBuilder _moduleBuilder;
 
-        internal SignatureToken(int str, ModuleBuilder mod)
+        internal SignatureToken(int str)
         {
             Token = str;
-            _moduleBuilder = mod;
         }
 
         public int Token { get; }

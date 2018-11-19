@@ -5,7 +5,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.SymbolStore;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -315,9 +314,9 @@ namespace System.Reflection.Emit
             return new MethodToken(mr);
         }
 
-        internal void Init(string strModuleName, string strFileName, int tkFile)
+        internal void Init(string strModuleName)
         {
-            _moduleData = new ModuleBuilderData(this, strModuleName, strFileName, tkFile);
+            _moduleData = new ModuleBuilderData(this, strModuleName);
             _typeBuilderDict = new Dictionary<string, Type>();
         }
 
@@ -671,7 +670,7 @@ namespace System.Reflection.Emit
             return GetType(parameters, baseType);
         }
 
-        public override string FullyQualifiedName => _moduleData._fileName;
+        public override string FullyQualifiedName => _moduleData._moduleName;
 
         public override byte[] ResolveSignature(int metadataToken)
         {
@@ -870,7 +869,6 @@ namespace System.Reflection.Emit
                 CheckContext(returnType);
                 CheckContext(parameterTypes);
 
-                _moduleData._hasGlobalMethod = true;
                 return _moduleData._globalTypeBuilder.DefinePInvokeMethod(name, dllName, entryName, attributes, callingConvention, returnType, parameterTypes, nativeCallConv, nativeCharSet);
             }
         }
@@ -924,8 +922,6 @@ namespace System.Reflection.Emit
             CheckContext(requiredParameterTypeCustomModifiers);
             CheckContext(optionalParameterTypeCustomModifiers);
 
-            _moduleData._hasGlobalMethod = true;
-
             return _moduleData._globalTypeBuilder.DefineMethod(name, attributes, callingConvention,
                 returnType, requiredReturnTypeCustomModifiers, optionalReturnTypeCustomModifiers,
                 parameterTypes, requiredParameterTypeCustomModifiers, optionalParameterTypeCustomModifiers);
@@ -976,7 +972,6 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(SR.InvalidOperation_GlobalsHaveBeenCreated);
             }
 
-            _moduleData._hasGlobalMethod = true;
             return _moduleData._globalTypeBuilder.DefineInitializedData(name, data, attributes);
         }
 
@@ -999,7 +994,6 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(SR.InvalidOperation_GlobalsHaveBeenCreated);
             }
 
-            _moduleData._hasGlobalMethod = true;
             return _moduleData._globalTypeBuilder.DefineUninitializedData(name, size, attributes);
         }
 
@@ -1089,7 +1083,7 @@ namespace System.Reflection.Emit
             // module.
             ModuleBuilder refedModuleBuilder = refedModule as ModuleBuilder;
 
-            string strRefedModuleFileName = string.Empty;
+            string referencedModuleFileName = string.Empty;
             if (refedModule.Assembly.Equals(Assembly))
             {
                 // if the referenced module is in the same assembly, the resolution
@@ -1102,10 +1096,10 @@ namespace System.Reflection.Emit
                 {
                     refedModuleBuilder = ContainingAssemblyBuilder.GetModuleBuilder((InternalModuleBuilder)refedModule);
                 }
-                strRefedModuleFileName = refedModuleBuilder._moduleData._fileName;
+                referencedModuleFileName = refedModuleBuilder._moduleData._moduleName;
             }
 
-            return new TypeToken(GetTypeRefNested(type, refedModule, strRefedModuleFileName));
+            return new TypeToken(GetTypeRefNested(type, refedModule, referencedModuleFileName));
         }
 
         public TypeToken GetTypeToken(string name)
@@ -1496,7 +1490,7 @@ namespace System.Reflection.Emit
 
             // get the signature in byte form
             byte[] sigBytes = sigHelper.InternalGetSignature(out int sigLength);
-            return new SignatureToken(TypeBuilder.GetTokenFromSig(GetNativeHandle(), sigBytes, sigLength), this);
+            return new SignatureToken(TypeBuilder.GetTokenFromSig(GetNativeHandle(), sigBytes, sigLength));
         }
 
         public SignatureToken GetSignatureToken(byte[] sigBytes, int sigLength)
@@ -1509,7 +1503,7 @@ namespace System.Reflection.Emit
             byte[] localSigBytes = new byte[sigBytes.Length];
             Buffer.BlockCopy(sigBytes, 0, localSigBytes, 0, sigBytes.Length);
 
-            return new SignatureToken(TypeBuilder.GetTokenFromSig(GetNativeHandle(), localSigBytes, sigLength), this);
+            return new SignatureToken(TypeBuilder.GetTokenFromSig(GetNativeHandle(), localSigBytes, sigLength));
         }
 
         #endregion
