@@ -219,8 +219,6 @@ protected:
 
     OverrideProcArgs*   m_pargs;
     NDirectStubLinker*  m_pslNDirect;
-    ILCodeStream*       m_pcsMarshal;
-    ILCodeStream*       m_pcsUnmarshal;
     UINT                m_argidx;
 
     DWORD               m_dwMarshalFlags;
@@ -229,6 +227,10 @@ protected:
     ILStubMarshalHome   m_managedHome;
 
     DWORD               m_dwMngdMarshalerLocalNum;
+
+private:
+    ILCodeStream*       m_pcsMarshal;
+    ILCodeStream*       m_pcsUnmarshal;
 
 public:
 
@@ -1085,6 +1087,18 @@ protected:
         }
     }
 
+    void EmitMarshalArgumentAddressCLRToNative()
+    {
+        EmitLoadManagedHomeAddr(m_pcsMarshal);
+        EmitStoreNativeHomeAddr(m_pcsMarshal);
+    }
+
+    void EmitMarshalArgumentAddressNativeToCLR()
+    {
+        EmitLoadNativeHomeAddr(m_pcsMarshal);
+        EmitStoreManagedHomeAddr(m_pcsMarshal);
+    }
+
     // Emits cleanup code that runs only if an exception is thrown during execution of an IL stub (its try
     // block to be precise). The goal is to roll back allocations of native resources that may have already
     // happened to prevent leaks, and also clear output arguments to prevent passing out invalid data - most
@@ -1531,9 +1545,8 @@ class ILCopyMarshalerBase : public ILMarshaler
         //
         // marshal
         //
-        EmitLoadManagedHomeAddr(m_pcsMarshal);
-        EmitStoreNativeHomeAddr(m_pcsMarshal);
-        
+        EmitMarshalArgumentAddressCLRToNative();
+
         //
         // no unmarshaling is necessary since we directly passed the pinned byref to native,
         // the argument is therefore automatically in/out
@@ -1565,8 +1578,7 @@ class ILCopyMarshalerBase : public ILMarshaler
         //
         // marshal
         //
-        EmitLoadNativeHomeAddr(m_pcsMarshal);
-        EmitStoreManagedHomeAddr(m_pcsMarshal);
+        EmitMarshalArgumentAddressNativeToCLR();
         
         //
         // no unmarshaling is necessary since we directly passed the pointer to managed
