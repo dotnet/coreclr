@@ -3829,8 +3829,44 @@ BOOL CEEInfo::isValueClass(CORINFO_CLASS_HANDLE clsHnd)
 }
 
 /*********************************************************************/
+// Decides how the JIT should do the optimization to inline the check for
+//     GetTypeFromHandle(handle) == obj.GetType() (for CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE)
+//     GetTypeFromHandle(X) == GetTypeFromHandle(Y) (for CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+//
+// This will enable to use directly the typehandle instead of going through getClassByHandle
+CorInfoInlineTypeCheck CEEInfo::canInlineTypeCheck(CORINFO_CLASS_HANDLE clsHnd, CorInfoInlineTypeCheckSource source)
+{
+    CONTRACTL {
+        SO_TOLERANT;
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    CorInfoInlineTypeCheck ret;
+
+    JIT_TO_EE_TRANSITION_LEAF();
+
+    if (source == CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+    {
+        // It's always okay to compare type handles coming from IL tokens
+        ret = CORINFO_INLINE_TYPECHECK_PASS;
+    }
+    else
+    {
+        _ASSERTE(source == CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE);
+        ret = canInlineTypeCheckWithObjectVTable(clsHnd) ?
+            CORINFO_INLINE_TYPECHECK_PASS : CORINFO_INLINE_TYPECHECK_NONE;
+    }
+
+    EE_TO_JIT_TRANSITION_LEAF();
+
+    return(ret);
+}
+
+/*********************************************************************/
 // If this method returns true, JIT will do optimization to inline the check for
-//     GetClassFromHandle(handle) == obj.GetType()
+//     GetTypeFromHandle(handle) == obj.GetType()
 //
 // This will enable to use directly the typehandle instead of going through getClassByHandle
 BOOL CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
@@ -5155,6 +5191,8 @@ void CEEInfo::getCallInfo(
 
     INDEBUG(memset(pResult, 0xCC, sizeof(*pResult)));
 
+    pResult->stubLookup.lookupKind.needsRuntimeLookup = false;
+
     MethodDesc* pMD = (MethodDesc *)pResolvedToken->hMethod;
     TypeHandle th(pResolvedToken->hClass);
 
@@ -5460,13 +5498,18 @@ void CEEInfo::getCallInfo(
         pResult->nullInstanceCheck = TRUE;
     }
     // Non-interface dispatches go through the vtable.
-    // We'll special virtual calls to target methods in the corelib assembly when compiling in R2R mode and generate fragile-NI-like callsites for improved performance. We
-    // can do that because today we'll always service the corelib assembly and the runtime in one bundle. Any caller in the corelib version bubble can benefit from this
-    // performance optimization.
-    else if (!pTargetMD->IsInterface() && (!IsReadyToRunCompilation() || CallerAndCalleeInSystemVersionBubble((MethodDesc*)callerHandle, pTargetMD)))
+    else if (!pTargetMD->IsInterface())
     {
         pResult->kind = CORINFO_VIRTUALCALL_VTABLE;
         pResult->nullInstanceCheck = TRUE;
+
+        // We'll special virtual calls to target methods in the corelib assembly when compiling in R2R mode, and generate fragile-NI-like callsites for improved performance. We
+        // can do that because today we'll always service the corelib assembly and the runtime in one bundle. Any caller in the corelib version bubble can benefit from this
+        // performance optimization.
+        if (IsReadyToRunCompilation() && !CallerAndCalleeInSystemVersionBubble((MethodDesc*)callerHandle, pTargetMD))
+        {
+            pResult->kind = CORINFO_VIRTUALCALL_STUB;
+        }
     }
     else
     {
@@ -5504,8 +5547,6 @@ void CEEInfo::getCallInfo(
         }
         else
         {
-            pResult->stubLookup.lookupKind.needsRuntimeLookup = false;
-
             BYTE * indcell = NULL;
 
             if (!(flags & CORINFO_CALLINFO_KINDONLY) && !isVerifyOnly())
@@ -8845,29 +8886,11 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethodHelper(CORINFO_METHOD_HANDLE 
                 pOwnerMT = pOwnerMT->GetCanonicalMethodTable();
             }
 
-            // In a try block because the interface method resolution might end up being
-            // ambiguous (diamond inheritance case of default interface methods).
-            EX_TRY
-            {
-                pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(TypeHandle(pOwnerMT), pBaseMD);
-            }
-            EX_CATCH
-            {
-            }
-            EX_END_CATCH(RethrowTransientExceptions)
+            pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(TypeHandle(pOwnerMT), pBaseMD, FALSE /* throwOnConflict */);
         }
         else if (!pBaseMD->HasClassOrMethodInstantiation())
         {
-            // In a try block because the interface method resolution might end up being
-            // ambiguous (diamond inheritance case of default interface methods).
-            EX_TRY
-            {
-                pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(pBaseMD);
-            }
-            EX_CATCH
-            {
-            }
-            EX_END_CATCH(RethrowTransientExceptions)
+            pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(pBaseMD, FALSE /* throwOnConflict */);
         }
         
         if (pDevirtMD == nullptr)
