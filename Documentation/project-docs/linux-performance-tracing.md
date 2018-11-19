@@ -161,7 +161,7 @@ With that installed download the symbols to a local directory.  if your installe
 2.1.0 the command to do this is 
 ```
     mkdir mySymbols
-    dotnet symbols --symbols --output mySymbols  /usr/share/dotnet/shared/Microsoft.NETCore.App/2.1.0/lib*.so
+    dotnet symbol --symbols --output mySymbols  /usr/share/dotnet/shared/Microsoft.NETCore.App/2.1.0/lib*.so
 ```
 Now all the symbols for those native dlls are in mySymbols.   You then have to copy them (as super user next to the 
 dlls that they are for.
