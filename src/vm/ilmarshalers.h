@@ -220,15 +220,11 @@ protected:
     OverrideProcArgs*   m_pargs;
     NDirectStubLinker*  m_pslNDirect;
     UINT                m_argidx;
-
-    DWORD               m_dwMarshalFlags;
-
-
-    DWORD               m_dwMngdMarshalerLocalNum;
-
-private:
     ILCodeStream*       m_pcsMarshal;
     ILCodeStream*       m_pcsUnmarshal;
+    DWORD               m_dwMarshalFlags;
+    DWORD               m_dwMngdMarshalerLocalNum;
+private:
 
     ILStubMarshalHome   m_nativeHome;
     ILStubMarshalHome   m_managedHome;
