@@ -223,14 +223,15 @@ protected:
 
     DWORD               m_dwMarshalFlags;
 
-    ILStubMarshalHome   m_nativeHome;
-    ILStubMarshalHome   m_managedHome;
 
     DWORD               m_dwMngdMarshalerLocalNum;
 
 private:
     ILCodeStream*       m_pcsMarshal;
     ILCodeStream*       m_pcsUnmarshal;
+
+    ILStubMarshalHome   m_nativeHome;
+    ILStubMarshalHome   m_managedHome;
 
 public:
 
