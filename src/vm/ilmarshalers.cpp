@@ -424,10 +424,7 @@ void ILWSTRMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* p
         pslILEmit->EmitLDFLDA(fieldDef);
         EmitStoreNativeValue(pslILEmit);
 
-        if (g_pConfig->InteropLogArguments())
-        {
-            m_pslNDirect->EmitLogNativeArgument(pslILEmit, dwPinnedLocal);
-        }
+        EmitLogNativeArgumentsIfNeeded(dwPinnedLocal);
 
         pslILEmit->EmitLabel(pNullRefLabel);
 
@@ -2013,10 +2010,7 @@ void ILHSTRINGMarshaler::EmitConvertCLRToHSTRINGReference(ILCodeStream* pslILEmi
     pslILEmit->EmitLDLOCA(dwHStringHeaderLocal);
     pslILEmit->EmitCALL(METHOD__HSTRINGMARSHALER__CONVERT_TO_NATIVE_REFERENCE, 2, 1);
 
-    if (g_pConfig->InteropLogArguments())
-    {
-        m_pslNDirect->EmitLogNativeArgument(pslILEmit, dwPinnedStringLocal);
-    }
+    EmitLogNativeArgumentsIfNeeded(dwPinnedStringLocal);
 
     EmitStoreNativeValue(pslILEmit);
 }
@@ -2491,7 +2485,7 @@ void ILBlittablePtrMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslIL
     pslILEmit->EmitLabel(pNullRefLabel);
 }
 
-void ILBlittablePtrMarshaler::EmitMarshalArgumentCLRToNative()
+void ILBlittablePtrMarshaler::EmitMarshalArgumentContentsCLRToNative()
 {
     CONTRACTL
     {
@@ -2499,8 +2493,6 @@ void ILBlittablePtrMarshaler::EmitMarshalArgumentCLRToNative()
         PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
     }
     CONTRACTL_END;
-
-    EmitSetupSigAndDefaultHomesCLRToNative();
 
     //
     // marshal
@@ -2522,10 +2514,7 @@ void ILBlittablePtrMarshaler::EmitMarshalArgumentCLRToNative()
     m_pcsMarshal->EmitADD();
     m_pcsMarshal->EmitLabel(pSkipAddLabel);
 
-    if (g_pConfig->InteropLogArguments())
-    {
-        m_pslNDirect->EmitLogNativeArgument(m_pcsMarshal, dwPinnedLocal);
-    }
+    EmitLogNativeArgumentsIfNeeded(dwPinnedLocal);
 
     EmitStoreNativeValue(m_pcsMarshal);
 }
@@ -2629,7 +2618,7 @@ void ILSafeHandleMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
     pslILEmit->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_RELEASE, 1, 0);
 }
 
-void ILSafeHandleMarshaler::EmitMarshalArgumentCLRToNative()
+void ILSafeHandleMarshaler::EmitMarshalArgumentContentsCLRToNative()
 {
     CONTRACTL
     {
@@ -2637,8 +2626,6 @@ void ILSafeHandleMarshaler::EmitMarshalArgumentCLRToNative()
         PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
     }
     CONTRACTL_END;
-
-    EmitSetupSigAndDefaultHomesCLRToNative();
 
     // by-value CLR-to-native SafeHandle is always passed in-only regardless of [In], [Out]
     // marshal and cleanup communicate via an extra local and are both emitted in this method
@@ -3406,7 +3393,7 @@ bool ILArgIteratorMarshaler::SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT*
     return true;
 }
 
-void ILArgIteratorMarshaler::EmitMarshalArgumentCLRToNative()
+void ILArgIteratorMarshaler::EmitMarshalArgumentContentsCLRToNative()
 {
     CONTRACTL
     {
@@ -3414,8 +3401,6 @@ void ILArgIteratorMarshaler::EmitMarshalArgumentCLRToNative()
         PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
     }
     CONTRACTL_END;
-
-    EmitSetupSigAndDefaultHomesCLRToNative();
     
     //
     // marshal
@@ -3679,7 +3664,7 @@ bool ILAsAnyMarshalerBase::SupportsReturnMarshal(DWORD dwMarshalFlags, UINT* pEr
     return false;
 }
 
-void ILAsAnyMarshalerBase::EmitMarshalArgumentCLRToNative()
+void ILAsAnyMarshalerBase::EmitMarshalArgumentContentsCLRToNative()
 {
     CONTRACTL
     {
@@ -3688,8 +3673,6 @@ void ILAsAnyMarshalerBase::EmitMarshalArgumentCLRToNative()
         CONSISTENCY_CHECK(LOCAL_NUM_UNUSED == m_dwMarshalerLocalNum);
     }
     CONTRACTL_END;
-
-    EmitSetupSigAndDefaultHomesCLRToNative();
 
     BYTE inout      = (IsIn(m_dwMarshalFlags) ? ML_IN : 0) | (IsOut(m_dwMarshalFlags) ? ML_OUT : 0);
     BYTE fIsAnsi    = IsAnsi() ? 1 : 0;
@@ -3856,7 +3839,7 @@ void ILNativeArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
 }
 
 
-void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
+void ILNativeArrayMarshaler::EmitMarshalArgumentContentsCLRToNative()
 {
     CONTRACTL
     {
@@ -3873,8 +3856,6 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         // the other.  Since there is no enforcement of this, apps blithely depend
         // on it.  
         //
-
-        EmitSetupSigAndDefaultHomesCLRToNative();
 
         LocalDesc managedType = GetManagedType();
         managedType.MakePinned();
@@ -3904,16 +3885,13 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
-        if (g_pConfig->InteropLogArguments())
-        {
-            m_pslNDirect->EmitLogNativeArgument(m_pcsMarshal, dwPinnedLocal);
-        }
+        EmitLogNativeArgumentsIfNeeded(dwPinnedLocal);
 
         m_pcsMarshal->EmitLabel(pNullRefLabel);
     }
     else
     {
-        ILMngdMarshaler::EmitMarshalArgumentCLRToNative();
+        ILMngdMarshaler::EmitMarshalArgumentContentsCLRToNative();
     }
 }
 
@@ -4215,41 +4193,23 @@ void ILNativeArrayMarshaler::EmitClearNativeContents(ILCodeStream* pslILEmit)
     pslILEmit->EmitCALL(pslILEmit->GetToken(GetClearNativeContentsMethod()), 3, 0);
 }
 
-void ILNativeArrayMarshaler::EmitNewSavedSizeArgLocal()
+void ILNativeArrayMarshaler::EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit)
+{
+    if (IsByref(m_dwMarshalFlags))
+    {
+        EmitNewSavedSizeArgLocal(pslILEmit);
+    }
+}
+
+void ILNativeArrayMarshaler::EmitNewSavedSizeArgLocal(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
 
     _ASSERTE(m_dwSavedSizeArg == LOCAL_NUM_UNUSED);
-    ILCodeStream *pcsSetup = m_pslNDirect->GetSetupCodeStream();
-    m_dwSavedSizeArg = pcsSetup->NewLocal(ELEMENT_TYPE_I4);
-    pcsSetup->EmitLDC(0);
-    pcsSetup->EmitSTLOC(m_dwSavedSizeArg);
+    m_dwSavedSizeArg = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
+    pslILEmit->EmitLDC(0);
+    pslILEmit->EmitSTLOC(m_dwSavedSizeArg);
 }
-
-void ILNativeArrayMarshaler::EmitMarshalArgumentNativeToCLRByref()
-{
-    STANDARD_VM_CONTRACT;
-
-    if (IsByref(m_dwMarshalFlags))
-    {
-        EmitNewSavedSizeArgLocal();
-    }
-    
-    ILMngdMarshaler::EmitMarshalArgumentNativeToCLRByref();
-}
-
-void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNativeByref()
-{
-    STANDARD_VM_CONTRACT;
-
-    if (IsByref(m_dwMarshalFlags))
-    {
-        EmitNewSavedSizeArgLocal();
-    }
-    
-    ILMngdMarshaler::EmitMarshalArgumentCLRToNativeByref();
-}
-
 
 #ifndef CROSSGEN_COMPILE
 
@@ -4748,7 +4708,7 @@ void ILHiddenLengthArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEm
     }
 }
 
-void ILHiddenLengthArrayMarshaler::EmitMarshalArgumentCLRToNative()
+void ILHiddenLengthArrayMarshaler::EmitMarshalArgumentContentsCLRToNative()
 {
     STANDARD_VM_CONTRACT;
 
@@ -4756,8 +4716,6 @@ void ILHiddenLengthArrayMarshaler::EmitMarshalArgumentCLRToNative()
     // Otherwise, fall back to doing a full marshal
     if (CanUsePinnedArray())
     {
-        EmitSetupSigAndDefaultHomesCLRToNative();
-
         LocalDesc managedType = GetManagedType();
         managedType.MakePinned();
         DWORD dwPinnedLocal = m_pcsMarshal->NewLocal(managedType);
@@ -4791,17 +4749,14 @@ void ILHiddenLengthArrayMarshaler::EmitMarshalArgumentCLRToNative()
         m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
-        if (g_pConfig->InteropLogArguments())
-        {
-            m_pslNDirect->EmitLogNativeArgument(m_pcsMarshal, dwPinnedLocal);
-        }
+        EmitLogNativeArgumentsIfNeeded(dwPinnedLocal);
 
         // MarshalDone:
         m_pcsMarshal->EmitLabel(pMarshalDoneLabel);
     }
     else
     {
-        ILMngdMarshaler::EmitMarshalArgumentCLRToNative();
+        ILMngdMarshaler::EmitMarshalArgumentContentsCLRToNative();
     }
 
 }

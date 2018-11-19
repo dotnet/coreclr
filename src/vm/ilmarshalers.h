@@ -224,8 +224,8 @@ protected:
     ILCodeStream*       m_pcsUnmarshal;
     DWORD               m_dwMarshalFlags;
     DWORD               m_dwMngdMarshalerLocalNum;
-private:
 
+private:
     ILStubMarshalHome   m_nativeHome;
     ILStubMarshalHome   m_managedHome;
 
@@ -356,6 +356,14 @@ protected:
         m_nativeHome.EmitStoreHomeAddr(pslILEmit);
     }
 
+    void EmitLogNativeArgumentsIfNeeded(DWORD dwPinnedLocal)
+    {
+        if (g_pConfig->InteropLogArguments())
+        {
+            m_pslNDirect->EmitLogNativeArgument(m_pcsMarshal, dwPinnedLocal);
+        }
+    }
+
 public:
 
     virtual bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID)
@@ -404,6 +412,8 @@ public:
         // there's not much we can do about it (we cannot do cleanup if we cannot create the marshaler).
         EmitCreateMngdMarshaler(m_pslNDirect->GetSetupCodeStream());
 
+        EmitSetupArgumentForMarshalling(m_pslNDirect->GetSetupCodeStream());
+
         if (IsCLRToNative(dwMarshalFlags))
         {
             if (IsByref(dwMarshalFlags))
@@ -448,6 +458,8 @@ public:
 
         Init(pcsMarshal, pcsUnmarshal, hiddenArgIndex, dwMarshalFlags, pargs);
         EmitCreateMngdMarshaler(m_pslNDirect->GetSetupCodeStream());
+
+        EmitSetupArgumentForMarshalling(m_pslNDirect->GetSetupCodeStream());
 
         // Create a local to be the home of the length parameter
         DWORD dwManagedLocalHome = m_pcsMarshal->NewLocal(GetManagedType());
@@ -540,7 +552,7 @@ public:
 
 #endif // FEATURE_COMINTEROP
 
-    virtual void EmitSetupArgument(ILCodeStream* pslILEmit)
+    void EmitSetupArgumentForDispatch(ILCodeStream* pslILEmit)
     {
         STANDARD_VM_CONTRACT;
 
@@ -568,7 +580,7 @@ public:
         }
     }
 
-    virtual void EmitMarshalReturnValue(
+    void EmitMarshalReturnValue(
                 ILCodeStream* pcsMarshal, 
                 ILCodeStream* pcsUnmarshal,
                 ILCodeStream* pcsDispatch,
@@ -829,6 +841,11 @@ protected:
         pslILEmit->EmitLDLOC(m_dwMngdMarshalerLocalNum);
     }
 
+    virtual void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+
     void EmitSetupSigAndDefaultHomesCLRToNative()
     {
         CONTRACTL
@@ -888,7 +905,7 @@ protected:
         }
     }
 
-    virtual void EmitMarshalArgumentCLRToNative()
+    void EmitMarshalArgumentCLRToNative()
     {
         CONTRACTL
         {
@@ -901,7 +918,7 @@ protected:
         EmitMarshalArgumentContentsCLRToNative();
     }
 
-    void EmitMarshalArgumentContentsCLRToNative()
+    virtual void EmitMarshalArgumentContentsCLRToNative()
     {
         CONTRACTL
         {
@@ -1387,7 +1404,7 @@ protected:
         EmitConvertSpaceCLRToNative(pslILEmit);
         EmitConvertContentsCLRToNative(pslILEmit);
     }
-        
+
     // Emits marshalling code to allocate space and convert a value from a CLR value to a native value.
     // Usable in situations where temporary (i.e. pinned or stack-allocated) space is usable.
     // For marshalling scenarios that require heap-allocated space, call EmitConvertSpaceAndContentsCLRToNative.
@@ -1454,7 +1471,7 @@ protected:
         EmitStoreNativeValue(pslILEmit);
     }
 
-    virtual bool IsManagedPassedByRef()
+    bool IsManagedPassedByRef()
     {
         LIMITED_METHOD_CONTRACT;
         return IsByref(m_dwMarshalFlags);
@@ -1497,13 +1514,13 @@ public:
         
 class ILCopyMarshalerBase : public ILMarshaler
 {
-    virtual LocalDesc GetManagedType()
+    LocalDesc GetManagedType() override
     {
         WRAPPER_NO_CONTRACT;
         return GetNativeType();
     }
 
-    virtual void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
+    void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override
     {
         STANDARD_VM_CONTRACT;
 
@@ -1511,7 +1528,7 @@ class ILCopyMarshalerBase : public ILMarshaler
         EmitStoreNativeValue(pslILEmit);
     }
 
-    virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
+    void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override
     {
         STANDARD_VM_CONTRACT;
 
@@ -1532,7 +1549,7 @@ class ILCopyMarshalerBase : public ILMarshaler
     // This method was changed to pin instead of copy in Dev10 in order
     // to match the original ML behavior.
     //
-    virtual void EmitMarshalArgumentCLRToNativeByref()
+    void EmitMarshalArgumentCLRToNativeByref() override 
     {
         CONTRACTL
         {
@@ -1565,7 +1582,7 @@ class ILCopyMarshalerBase : public ILMarshaler
     // need to pin the pointer - if it is pointing to GC heap, it must have been
     // pinned on the way to unmanaged.
     //
-    virtual void EmitMarshalArgumentNativeToCLRByref()
+    void EmitMarshalArgumentNativeToCLRByref() override
     {
         CONTRACTL
         {
@@ -2194,7 +2211,7 @@ public:
     bool NeedsClearNative() override;
     void EmitClearNative(ILCodeStream* pslILEmit) override;
 
-    void EmitMarshalArgumentCLRToNative() override;
+    void EmitMarshalArgumentContentsCLRToNative() override;
 
     static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
                                                     BOOL               byref,
@@ -2749,7 +2766,7 @@ public:
     };
             
 protected:    
-    void EmitMarshalArgumentCLRToNative() override;
+    void EmitMarshalArgumentContentsCLRToNative() override;
     void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
 };
@@ -2803,7 +2820,7 @@ protected:
     LocalDesc GetNativeType() override;
     LocalDesc GetManagedType() override;
     bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override;
-    void EmitMarshalArgumentCLRToNative() override;
+    void EmitMarshalArgumentContentsCLRToNative() override;
     void EmitMarshalArgumentNativeToCLR() override;
 };
         
@@ -2864,7 +2881,7 @@ protected:
     LocalDesc GetManagedType() override;
     bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override;
     bool SupportsReturnMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override;
-    void EmitMarshalArgumentCLRToNative() override;
+    void EmitMarshalArgumentContentsCLRToNative() override;
     bool NeedsClearNative() override;
     void EmitClearNativeTemp(ILCodeStream* pslILEmit) override;
 
@@ -3043,13 +3060,12 @@ public:
         m_dwSavedSizeArg = LOCAL_NUM_UNUSED;
     }
 
-    void EmitMarshalArgumentCLRToNative() override;
+    void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit) override;
+    void EmitMarshalArgumentContentsCLRToNative() override;
     void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitClearNative(ILCodeStream* pslILEmit) override;    
     void EmitClearNativeContents(ILCodeStream* pslILEmit) override;
-    void EmitMarshalArgumentNativeToCLRByref() override;
-    void EmitMarshalArgumentCLRToNativeByref() override;
     
 protected:
     
@@ -3063,7 +3079,7 @@ protected:
     void EmitCreateMngdMarshaler(ILCodeStream* pslILEmit) override;
 
     void EmitLoadNativeSize(ILCodeStream* pslILEmit);
-    void EmitNewSavedSizeArgLocal();
+    void EmitNewSavedSizeArgLocal(ILCodeStream* pslILEmit);
     
 private :
     DWORD m_dwSavedSizeArg;                 
@@ -3211,7 +3227,7 @@ protected:
     LocalDesc GetManagedType() override;
 
     void EmitCreateMngdMarshaler(ILCodeStream* pslILEmit) override;
-    void EmitMarshalArgumentCLRToNative() override;
+    void EmitMarshalArgumentContentsCLRToNative() override;
     void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
