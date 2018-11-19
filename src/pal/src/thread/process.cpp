@@ -207,8 +207,6 @@ struct UnambiguousProcessDescriptor
 };
 #pragma pack(pop)
 
-typedef CharString<CLR_SEM_MAX_NAMELEN-1> SemaphoreNameString;
-
 static
 DWORD
 PALAPI
@@ -231,7 +229,7 @@ PROCGetProcessStatus(
 static
 void 
 CreateSemaphoreName(
-    SemaphoreNameString& semName,
+    char semName[CLR_SEM_MAX_NAMELEN],
     LPCSTR semaphoreName,
     const UnambiguousProcessDescriptor& unambiguousProcessDescriptor,
     LPCSTR applicationGroupId);
@@ -1542,10 +1540,10 @@ class PAL_RuntimeStartupHelper
     HANDLE m_threadHandle;
     DWORD m_processId;
 #ifdef __APPLE__    
-    CharString<MAX_APPLICATION_GROUP_ID_LENGTH> m_applicationGroupId;
+    char m_applicationGroupId[MAX_APPLICATION_GROUP_ID_LENGTH+1];
 #endif // __APPLE__    
-    SemaphoreNameString m_startupSemName;
-    SemaphoreNameString m_continueSemName;
+    char m_startupSemName[CLR_SEM_MAX_NAMELEN];
+    char m_continueSemName[CLR_SEM_MAX_NAMELEN];
 
     // A value that, used in conjunction with the process ID, uniquely identifies a process.
     // See the format we use for debugger semaphore names for why this is necessary.
@@ -1561,14 +1559,14 @@ class PAL_RuntimeStartupHelper
     LPCSTR GetApplicationGroupId() const
     {
 #ifdef __APPLE__        
-        return m_applicationGroupId.GetCount() == 0 ? nullptr : m_applicationGroupId;
+        return m_applicationGroupId[0] == '\0' ? nullptr : m_applicationGroupId;
 #else // __APPLE__
         return nullptr;
 #endif // __APPLE__        
     }
 
 public:
-    PAL_RuntimeStartupHelper(DWORD dwProcessId, LPCWSTR lpApplicationGroupId, PPAL_STARTUP_CALLBACK pfnCallback, PVOID parameter) :
+    PAL_RuntimeStartupHelper(DWORD dwProcessId, PPAL_STARTUP_CALLBACK pfnCallback, PVOID parameter) :
         m_ref(1),
         m_canceled(false),
         m_callback(pfnCallback),
@@ -1579,9 +1577,6 @@ public:
         m_startupSem(SEM_FAILED),
         m_continueSem(SEM_FAILED)
     {
-#ifdef __APPLE__        
-        CharStringFromLPCWSTR(m_applicationGroupId, lpApplicationGroupId);
-#endif // __APPLE__        
     }
 
     ~PAL_RuntimeStartupHelper()
@@ -1651,7 +1646,7 @@ public:
         return pe;
     }
 
-    PAL_ERROR Register()
+    PAL_ERROR Register(LPCWSTR lpApplicationGroupId)
     {
         CPalThread *pThread = InternalGetCurrentThread();
         PAL_ERROR pe = NO_ERROR;
@@ -1659,12 +1654,25 @@ public:
         UnambiguousProcessDescriptor unambiguousProcessDescriptor;
 
 #ifdef __APPLE__
-        // Verify the length of the application group ID
-        if (m_applicationGroupId.GetCount() > MAX_APPLICATION_GROUP_ID_LENGTH)
+        if (lpApplicationGroupId != NULL)
         {
-            TRACE("applicationGroupId: (%s) is too long. Maximum allowed length is %u\n", (const char *)m_applicationGroupId, MAX_APPLICATION_GROUP_ID_LENGTH);
-            pe = ERROR_BAD_LENGTH;
-            goto exit;
+            /* Convert to ASCII */
+            int applicationGroupIdLength = WideCharToMultiByte(CP_ACP, 0, lpApplicationGroupId, -1, m_applicationGroupId, sizeof(m_applicationGroupId), NULL, NULL);
+            if (applicationGroupIdLength == 0)
+            {
+                pe = GetLastError();
+                TRACE("applicationGroupId: Failed to convert to multibyte string (%u)\n", pe);
+                if (pe == ERROR_INSUFFICIENT_BUFFER)
+                {
+                    pe = ERROR_BAD_LENGTH;
+                }
+                goto exit;
+            }
+        }
+        else
+        {
+            // Indicate that group ID is not being used
+            m_applicationGroupId[0] = '\0';
         }
 #endif // __APPLE__
 
@@ -1681,7 +1689,7 @@ public:
         CreateSemaphoreName(m_startupSemName, RuntimeStartupSemaphoreName, unambiguousProcessDescriptor, GetApplicationGroupId());
         CreateSemaphoreName(m_continueSemName, RuntimeContinueSemaphoreName, unambiguousProcessDescriptor, GetApplicationGroupId());
 
-        TRACE("PAL_RuntimeStartupHelper.Register creating startup '%s' continue '%s'\n", (const char*)m_startupSemName, (const char*)m_continueSemName);
+        TRACE("PAL_RuntimeStartupHelper.Register creating startup '%s' continue '%s'\n", m_startupSemName, m_continueSemName);
 
         // Create the continue semaphore first so we don't race with PAL_NotifyRuntimeStarted. This open will fail if another 
         // debugger is trying to attach to this process because the name will already exist.
@@ -1916,11 +1924,11 @@ PAL_RegisterForRuntimeStartup(
     _ASSERTE(pfnCallback != NULL);
     _ASSERTE(ppUnregisterToken != NULL);
 
-    PAL_RuntimeStartupHelper *helper = InternalNew<PAL_RuntimeStartupHelper>(dwProcessId, lpApplicationGroupId, pfnCallback, parameter);
+    PAL_RuntimeStartupHelper *helper = InternalNew<PAL_RuntimeStartupHelper>(dwProcessId, pfnCallback, parameter);
 
     // Create the debuggee startup semaphore so the runtime (debuggee) knows to wait for 
     // a debugger connection.
-    PAL_ERROR pe = helper->Register();
+    PAL_ERROR pe = helper->Register(lpApplicationGroupId);
     if (NO_ERROR != pe)
     {
         helper->Release();
@@ -1974,8 +1982,8 @@ BOOL
 PALAPI
 PAL_NotifyRuntimeStarted()
 {
-    SemaphoreNameString startupSemName;
-    SemaphoreNameString continueSemName;
+    char startupSemName[CLR_SEM_MAX_NAMELEN];
+    char continueSemName[CLR_SEM_MAX_NAMELEN];
     sem_t *startupSem = SEM_FAILED;
     sem_t *continueSem = SEM_FAILED;
     BOOL launched = FALSE;
@@ -1994,20 +2002,20 @@ PAL_NotifyRuntimeStarted()
     CreateSemaphoreName(startupSemName, RuntimeStartupSemaphoreName, unambiguousProcessDescriptor, applicationGroupId);
     CreateSemaphoreName(continueSemName, RuntimeContinueSemaphoreName, unambiguousProcessDescriptor, applicationGroupId);
 
-    TRACE("PAL_NotifyRuntimeStarted opening continue '%s' startup '%s'\n", (const char*)continueSemName, (const char*)startupSemName);
+    TRACE("PAL_NotifyRuntimeStarted opening continue '%s' startup '%s'\n", continueSemName, startupSemName);
 
     // Open the debugger startup semaphore. If it doesn't exists, then we do nothing and return
     startupSem = sem_open(startupSemName, 0);
     if (startupSem == SEM_FAILED)
     {
-        TRACE("sem_open(%s) failed: %d (%s)\n", (const char*)startupSemName, errno, strerror(errno));
+        TRACE("sem_open(%s) failed: %d (%s)\n", startupSemName, errno, strerror(errno));
         goto exit;
     }
 
     continueSem = sem_open(continueSemName, 0);
     if (continueSem == SEM_FAILED)
     {
-        ASSERT("sem_open(%s) failed: %d (%s)\n", (const char*)continueSemName, errno, strerror(errno));
+        ASSERT("sem_open(%s) failed: %d (%s)\n", continueSemName, errno, strerror(errno));
         goto exit;
     }
 
@@ -2096,10 +2104,9 @@ void EncodeSemaphoreName(char *encodedSemName, const UnambiguousProcessDescripto
 }
 #endif
 
-void CreateSemaphoreName(SemaphoreNameString& semNameString, LPCSTR semaphoreName, const UnambiguousProcessDescriptor& unambiguousProcessDescriptor, LPCSTR applicationGroupId)
+void CreateSemaphoreName(char semName[CLR_SEM_MAX_NAMELEN], LPCSTR semaphoreName, const UnambiguousProcessDescriptor& unambiguousProcessDescriptor, LPCSTR applicationGroupId)
 {
     int length = 0;
-    char *semName = semNameString.OpenStringBuffer();
 
 #ifdef __APPLE__
     if (applicationGroupId != nullptr)
