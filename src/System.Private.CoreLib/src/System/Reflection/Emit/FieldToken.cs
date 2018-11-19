@@ -13,15 +13,17 @@ namespace System.Reflection.Emit
     public struct FieldToken
     {
         public static readonly FieldToken Empty = new FieldToken();
-        private object _class;
 
-        internal FieldToken(int field, Type fieldClass)
+        private readonly int _token;
+        private readonly object _class;
+
+        internal FieldToken(int fieldToken, Type fieldClass)
         {
-            Token = field;
+            _token = fieldToken;
             _class = fieldClass;
         }
 
-        public int Token { get; }
+        public int Token => _token;
         
         public override int GetHashCode() => Token;
         

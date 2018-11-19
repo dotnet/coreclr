@@ -8,12 +8,14 @@ namespace System.Reflection.Emit
     {
         public static readonly SignatureToken Empty = new SignatureToken();
 
-        internal SignatureToken(int str)
+        private int _token;
+
+        internal SignatureToken(int signatureToken)
         {
-            Token = str;
+            _token = signatureToken;
         }
 
-        public int Token { get; }
+        public int Token => _token;
 
         public override int GetHashCode() => Token;
 

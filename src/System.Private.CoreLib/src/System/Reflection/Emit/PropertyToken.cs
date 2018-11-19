@@ -8,17 +8,17 @@ namespace System.Reflection.Emit
     {
         public static readonly PropertyToken Empty = new PropertyToken();
 
-        internal PropertyToken(int str)
+        private readonly int _token;
+
+        internal PropertyToken(int propertyToken)
         {
-            Token = str;
+            _token = propertyToken;
         }
 
-        public int Token { get; }
+        public int Token => _token;
 
-        // Satisfy value class requirements
         public override int GetHashCode() => Token;
 
-        // Satisfy value class requirements
         public override bool Equals(object obj) => obj is PropertyToken pt && Equals(pt);
 
         public bool Equals(PropertyToken obj) => obj.Token == Token;
