@@ -1041,6 +1041,16 @@ namespace System.Globalization
             Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!value.IsEmpty);
+
+            if (!ignoreCase)
+            {
+                return SpanHelpers.IndexOf(
+                    ref MemoryMarshal.GetReference(source),
+                    source.Length,
+                    ref MemoryMarshal.GetReference(value),
+                    value.Length);
+            }
+
             return IndexOfOrdinalCore(source, value, ignoreCase, fromBeginning: true);
         }
 
@@ -1117,6 +1127,17 @@ namespace System.Globalization
 
         internal int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
         {
+            if (!ignoreCase)
+            {
+                int result = SpanHelpers.IndexOf(
+                    ref Unsafe.Add(ref source.GetRawStringData(), startIndex),
+                    count,
+                    ref value.GetRawStringData(),
+                    value.Length);
+
+                return (result >= 0 ? startIndex : 0) + result;
+            }
+
             if (GlobalizationMode.Invariant)
             {
                 return InvariantIndexOf(source, value, startIndex, count, ignoreCase);

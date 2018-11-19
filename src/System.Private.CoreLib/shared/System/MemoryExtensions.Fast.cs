@@ -141,6 +141,15 @@ namespace System
                 return -1;
             }
 
+            if (comparisonType == StringComparison.Ordinal)
+            {
+                return SpanHelpers.IndexOf(
+                    ref MemoryMarshal.GetReference(span),
+                    span.Length,
+                    ref MemoryMarshal.GetReference(value),
+                    value.Length);
+            }
+
             if (GlobalizationMode.Invariant)
             {
                 return CompareInfo.InvariantIndexOf(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType) != CompareOptions.None);

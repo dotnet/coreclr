@@ -8,6 +8,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
 
+using Internal.Runtime.CompilerServices;
+
 namespace System.Globalization
 {
     public partial class CompareInfo
@@ -252,9 +254,15 @@ namespace System.Globalization
 
             if (options == CompareOptions.Ordinal)
             {
-                index = IndexOfOrdinal(source, target, startIndex, count, ignoreCase: false);
+                index = SpanHelpers.IndexOf(
+                    ref Unsafe.Add(ref source.GetRawStringData(), startIndex),
+                    count,
+                    ref target.GetRawStringData(),
+                    target.Length);
+
                 if (index != -1)
                 {
+                    index += startIndex;
                     if (matchLengthPtr != null)
                         *matchLengthPtr = target.Length;
                 }
