@@ -152,7 +152,7 @@ namespace System
 
             if (GlobalizationMode.Invariant)
             {
-                return CompareInfo.InvariantIndexOf(span, value, ignoreCase: true);
+                return CompareInfo.InvariantIndexOf(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType) != CompareOptions.None);
             }
 
             switch (comparisonType)
