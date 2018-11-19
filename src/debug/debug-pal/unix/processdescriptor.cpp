@@ -13,5 +13,9 @@
 
 ProcessDescriptor ProcessDescriptor::FromCurrentProcess()
 {
+#ifdef __APPLE__
     return Create(GetCurrentProcessId(), PAL_GetApplicationGroupId());
+#else    
+    return Create(GetCurrentProcessId(), nullptr);
+#endif    
 }
