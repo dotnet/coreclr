@@ -222,10 +222,10 @@ protected:
     UINT                m_argidx;
     DWORD               m_dwMarshalFlags;
     DWORD               m_dwMngdMarshalerLocalNum;
-    ILCodeStream*       m_pcsMarshal;
-    ILCodeStream*       m_pcsUnmarshal;
 
 private:
+    ILCodeStream*       m_pcsMarshal;
+    ILCodeStream*       m_pcsUnmarshal;
     ILStubMarshalHome   m_nativeHome;
     ILStubMarshalHome   m_managedHome;
 
@@ -354,14 +354,6 @@ protected:
     {
         WRAPPER_NO_CONTRACT;
         m_nativeHome.EmitStoreHomeAddr(pslILEmit);
-    }
-
-    void EmitLogNativeArgumentsIfNeeded(DWORD dwPinnedLocal)
-    {
-        if (g_pConfig->InteropLogArguments())
-        {
-            m_pslNDirect->EmitLogNativeArgument(m_pcsMarshal, dwPinnedLocal);
-        }
     }
 
     void EmitLogNativeArgumentsIfNeeded(ILCodeStream* pslILEmit, DWORD dwPinnedLocal)
@@ -3288,7 +3280,7 @@ protected:
     LocalDesc GetManagedType() override;
 
     void EmitCreateMngdMarshaler(ILCodeStream* pslILEmit) override;
-    void EmitMarshalArgumentContentsCLRToNative() override;
+    void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
