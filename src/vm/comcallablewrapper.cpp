@@ -3941,7 +3941,7 @@ void ComMethodTable::Cleanup()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
