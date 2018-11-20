@@ -2220,7 +2220,6 @@ public:
     LocalDesc GetNativeType() override;
 
     bool NeedsClearNative() override;
-    void EmitClearNative(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
 
     void EmitMarshalArgumentNativeToCLRByref() override

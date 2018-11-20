@@ -78,17 +78,17 @@ void ILReflectionObjectMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* p
 
     if (IsCLRToNative(m_dwMarshalFlags))
     {
-        // keep the object alive across the call-out to native
+        m_pslNDirect->LoadCleanupWorkList(pslILEmit);
         if (tokStruct__m_object != 0)
         {
-            EmitLoadManagedHomeAddr(m_pcsUnmarshal);
-            m_pcsUnmarshal->EmitLDFLD(tokStruct__m_object);
+            EmitLoadManagedHomeAddr(pslILEmit);
+            pslILEmit->EmitLDFLD(tokStruct__m_object);
         }
         else
         {
-            EmitLoadManagedValue(m_pcsUnmarshal);
+            EmitLoadManagedValue(pslILEmit);
         }
-        m_pcsUnmarshal->EmitCALL(METHOD__GC__KEEP_ALIVE, 1, 0);
+        pslILEmit->EmitCALL(METHOD__STUBHELPERS__KEEP_ALIVE_VIA_CLEANUP_LIST, 2, 0);
     }
 }
 
@@ -128,18 +128,11 @@ void ILDelegateMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit
     EmitLoadManagedValue(pslILEmit);
     pslILEmit->EmitCALL(METHOD__MARSHAL__GET_FUNCTION_POINTER_FOR_DELEGATE, 1, 1);
     EmitStoreNativeValue(pslILEmit);
+    m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitCALL(METHOD__STUBHELPERS__KEEP_ALIVE_VIA_CLEANUP_LIST, 2, 0);
     
     pslILEmit->EmitLabel(pNullLabel);
-
-    //
-    // @TODO: is there a better way to do this?
-    //
-    if (IsCLRToNative(m_dwMarshalFlags))
-    {
-        // keep the delegate ref alive across the call-out to native
-        EmitLoadManagedValue(m_pcsUnmarshal);
-        m_pcsUnmarshal->EmitCALL(METHOD__GC__KEEP_ALIVE, 1, 0);
-    }
 }
 
 void ILDelegateMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
@@ -1395,8 +1388,9 @@ void ILInterfaceMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmi
         //
         // The fix is to extend the lifetime of the argument across the call to native by doing a GC.KeepAlive
         // keep the delegate ref alive across the call-out to native
-        EmitLoadManagedValue(m_pcsUnmarshal);
-        m_pcsUnmarshal->EmitCALL(METHOD__GC__KEEP_ALIVE, 1, 0);
+        m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+        EmitLoadManagedValue(pslILEmit);
+        pslILEmit->EmitCALL(METHOD__STUBHELPERS__KEEP_ALIVE_VIA_CLEANUP_LIST, 2, 0);
     }
 }
 
@@ -2606,17 +2600,6 @@ bool ILSafeHandleMarshaler::NeedsClearNative()
 {
     LIMITED_METHOD_CONTRACT;
     return true;
-}
-
-void ILSafeHandleMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
-{
-    STANDARD_VM_CONTRACT;
-
-    _ASSERTE(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
-
-    // call StubHelpers::SafeHandleRelease
-    EmitLoadManagedValue(pslILEmit);
-    pslILEmit->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_RELEASE, 1, 0);
 }
 
 void ILSafeHandleMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
