@@ -1214,7 +1214,7 @@ protected:
         }
     }
 
-    virtual void EmitMarshalArgumentNativeToCLR()
+    void EmitMarshalArgumentNativeToCLR()
     {
         CONTRACTL
         {
@@ -2239,11 +2239,6 @@ public:
     void EmitMarshalArgumentNativeToCLRByref() override
     {
         UNREACHABLE_MSG("SafeHandle overrides byref marshalling with ArgumentOverride.");
-    }
-
-    void EmitMarshalArgumentNativeToCLR() override
-    {
-        UNREACHABLE_MSG("SafeHandle disallows native->CLR marshalling in ArgumentOverride.");
     }
 
     static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
