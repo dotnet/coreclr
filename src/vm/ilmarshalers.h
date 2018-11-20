@@ -222,10 +222,10 @@ protected:
     UINT                m_argidx;
     DWORD               m_dwMarshalFlags;
     DWORD               m_dwMngdMarshalerLocalNum;
-
-private:
     ILCodeStream*       m_pcsMarshal;
     ILCodeStream*       m_pcsUnmarshal;
+
+private:
     ILStubMarshalHome   m_nativeHome;
     ILStubMarshalHome   m_managedHome;
 
@@ -2234,7 +2234,9 @@ public:
     LocalDesc GetNativeType() override;
 
     bool NeedsClearNative() override;
-    void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
+    void EmitClearNative(ILCodeStream* pslILEmit) override;
+    void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit) override;
+    void EmitMarshalArgumentContentsCLRToNative() override;
 
     void EmitMarshalArgumentNativeToCLRByref() override
     {
