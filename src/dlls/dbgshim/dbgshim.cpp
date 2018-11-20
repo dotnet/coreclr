@@ -260,7 +260,7 @@ class RuntimeStartupHelper
     PVOID m_parameter;
 #ifdef FEATURE_PAL
     PVOID m_unregisterToken;
-    LPCWSTR m_applicationGroupId;
+    LPWSTR m_applicationGroupId;
 #else
     bool m_canceled;
     HANDLE m_startupEvent;
@@ -269,14 +269,14 @@ class RuntimeStartupHelper
 #endif // FEATURE_PAL
 
 public:
-    RuntimeStartupHelper(DWORD dwProcessId, LPCWSTR lpApplicationGroupId, PSTARTUP_CALLBACK pfnCallback, PVOID parameter) :
+    RuntimeStartupHelper(DWORD dwProcessId, PSTARTUP_CALLBACK pfnCallback, PVOID parameter) :
         m_ref(1),
         m_processId(dwProcessId),
         m_callback(pfnCallback),
         m_parameter(parameter),
 #ifdef FEATURE_PAL
         m_unregisterToken(NULL),
-        m_applicationGroupId(lpApplicationGroupId)
+        m_applicationGroupId(NULL)
 #else
         m_canceled(false),
         m_startupEvent(NULL),
@@ -296,6 +296,10 @@ public:
         if (m_threadHandle != NULL)
         {
             CloseHandle(m_threadHandle);
+        }
+        if (m_applicationGroupId != NULL)
+        {
+            delete m_applicationGroupId;
         }
 #endif // FEATURE_PAL
     }
@@ -318,8 +322,19 @@ public:
 
 #ifdef FEATURE_PAL
 
-    HRESULT Register()
+    HRESULT Register(LPCWSTR lpApplicationGroupId)
     {
+        if (lpApplicationGroupId != NULL)
+        {
+            int size = wcslen(lpApplicationGroupId) + 1;
+            m_applicationGroupId = new (nothrow) WCHAR[size];
+            if (m_applicationGroupId == NULL)
+            {
+                return E_OUTOFMEMORY;
+            }
+            wcscpy_s(m_applicationGroupId, size, lpApplicationGroupId);
+        }
+
         DWORD pe = PAL_RegisterForRuntimeStartup(m_processId, m_applicationGroupId, RuntimeStartupHandler, this, &m_unregisterToken);
         if (pe != NO_ERROR)
         {
@@ -733,14 +748,14 @@ RegisterForRuntimeStartupEx(
 
     HRESULT hr = S_OK;
 
-    RuntimeStartupHelper *helper = new (nothrow) RuntimeStartupHelper(dwProcessId, lpApplicationGroupId, pfnCallback, parameter);
+    RuntimeStartupHelper *helper = new (nothrow) RuntimeStartupHelper(dwProcessId, pfnCallback, parameter);
     if (helper == NULL)
     {
         hr = E_OUTOFMEMORY;
     }
     else
     {
-        hr = helper->Register();
+        hr = helper->Register(lpApplicationGroupId);
         if (FAILED(hr))
         {
             helper->Release();
