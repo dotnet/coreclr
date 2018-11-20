@@ -2635,27 +2635,13 @@ void ILSafeHandleMarshaler::EmitMarshalArgumentContentsCLRToNative()
     }
     CONTRACTL_END;
 
-    // by-value CLR-to-native SafeHandle is always passed in-only regardless of [In], [Out]
-    // marshal and cleanup communicate via an extra local (emitted in EmitSetupArgumentForMarshalling)
+    ILCodeStream* marshalStream = m_pslNDirect->GetMarshalCodeStream();
 
-    // <nativeHandle> = StubHelpers::SafeHandleAddRef(<managedSH>, ref <dwHandleAddRefedLocalNum>)
-    EmitLoadManagedValue(m_pcsMarshal);
-    m_pcsMarshal->EmitLDLOCA(m_dwHandleAddRefedLocal);
-    m_pcsMarshal->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_ADD_REF, 2, 1);
-    EmitStoreNativeValue(m_pcsMarshal);
+    m_pslNDirect->LoadCleanupWorkList(marshalStream);
+    EmitLoadManagedValue(marshalStream);
+    marshalStream->EmitCALL(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST_SAFEHANDLE, 2, 1);
 
-    // cleanup:
-    // if (<dwHandleAddRefedLocalNum>) StubHelpers.SafeHandleRelease(<managedSH>)
-    ILCodeStream *pcsCleanup = m_pslNDirect->GetCleanupCodeStream();
-    ILCodeLabel *pSkipClearNativeLabel = pcsCleanup->NewCodeLabel();
-
-    pcsCleanup->EmitLDLOC(m_dwHandleAddRefedLocal);
-    pcsCleanup->EmitBRFALSE(pSkipClearNativeLabel);
-
-    EmitClearNativeTemp(pcsCleanup);
-    m_pslNDirect->SetCleanupNeeded();
-
-    pcsCleanup->EmitLabel(pSkipClearNativeLabel);
+    EmitStoreNativeValue(marshalStream);
 }
 
 MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinker* psl,

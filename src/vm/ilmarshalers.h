@@ -222,10 +222,10 @@ protected:
     UINT                m_argidx;
     DWORD               m_dwMarshalFlags;
     DWORD               m_dwMngdMarshalerLocalNum;
-    ILCodeStream*       m_pcsMarshal;
-    ILCodeStream*       m_pcsUnmarshal;
 
 private:
+    ILCodeStream*       m_pcsMarshal;
+    ILCodeStream*       m_pcsUnmarshal;
     ILStubMarshalHome   m_nativeHome;
     ILStubMarshalHome   m_managedHome;
 
