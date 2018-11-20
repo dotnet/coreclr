@@ -2221,8 +2221,7 @@ public:
 
     bool NeedsClearNative() override;
     void EmitClearNative(ILCodeStream* pslILEmit) override;
-    void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit) override;
-    void EmitMarshalArgumentContentsCLRToNative() override;
+    void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
 
     void EmitMarshalArgumentNativeToCLRByref() override
     {

@@ -2619,16 +2619,7 @@ void ILSafeHandleMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
     pslILEmit->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_RELEASE, 1, 0);
 }
 
-void ILSafeHandleMarshaler::EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit)
-{
-    // bool <dwHandleAddRefedLocalNum> = false
-    m_dwHandleAddRefedLocal = pslILEmit->NewLocal(ELEMENT_TYPE_BOOLEAN);
-
-    pslILEmit->EmitLDC(0);
-    pslILEmit->EmitSTLOC(m_dwHandleAddRefedLocal);
-}
-
-void ILSafeHandleMarshaler::EmitMarshalArgumentContentsCLRToNative()
+void ILSafeHandleMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
 {
     CONTRACTL
     {
@@ -2639,26 +2630,11 @@ void ILSafeHandleMarshaler::EmitMarshalArgumentContentsCLRToNative()
     CONTRACTL_END;
 
     // by-value CLR-to-native SafeHandle is always passed in-only regardless of [In], [Out]
-    // marshal and cleanup communicate via an extra local (emitted in EmitSetupArgumentForMarshalling)
+    // we use the CleanupWorkList since it is now implemented entirely in managed code.
 
-    // <nativeHandle> = StubHelpers::SafeHandleAddRef(<managedSH>, ref <dwHandleAddRefedLocalNum>)
-    EmitLoadManagedValue(m_pcsMarshal);
-    m_pcsMarshal->EmitLDLOCA(m_dwHandleAddRefedLocal);
-    m_pcsMarshal->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_ADD_REF, 2, 1);
-    EmitStoreNativeValue(m_pcsMarshal);
-
-    // cleanup:
-    // if (<dwHandleAddRefedLocalNum>) StubHelpers.SafeHandleRelease(<managedSH>)
-    ILCodeStream *pcsCleanup = m_pslNDirect->GetCleanupCodeStream();
-    ILCodeLabel *pSkipClearNativeLabel = pcsCleanup->NewCodeLabel();
-
-    pcsCleanup->EmitLDLOC(m_dwHandleAddRefedLocal);
-    pcsCleanup->EmitBRFALSE(pSkipClearNativeLabel);
-
-    EmitClearNativeTemp(pcsCleanup);
-    m_pslNDirect->SetCleanupNeeded();
-
-    pcsCleanup->EmitLabel(pSkipClearNativeLabel);
+    m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitCALL(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST_SAFEHANDLE, 2, 1);
 }
 
 MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinker* psl,
@@ -2832,13 +2808,6 @@ MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinke
         }
         else
         {
-            // Avoid using the cleanup list in this common case for perf reasons (cleanup list is
-            // unmanaged and destroying it means excessive managed<->native transitions; in addition,
-            // as X86 IL stubs do not use interop frames, there's nothing protecting the cleanup list
-            // and the SafeHandle references must be GC handles which does not help perf either).
-            //
-            // This code path generates calls to StubHelpers.SafeHandleAddRef and SafeHandleRelease.
-            // NICE: Could SafeHandle.DangerousAddRef and DangerousRelease be implemented in managed?
             return HANDLEASNORMAL;
         }
 
