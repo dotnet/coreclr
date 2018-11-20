@@ -3331,11 +3331,50 @@ INT32 InternalCasingHelper::InvariantToLowerNoThrow(__out_bcount_opt(cMaxBytes) 
     return InvariantToLowerHelper(szOut, cMaxBytes, szIn, FALSE /*fAllowThrow*/);
 }
 
+static LPCUTF8 Utf8DecodeMultibyteChar(__in_z LPCUTF8 szIn, INT32 *pRet)
+{
+    INT32 result = 0;
+    INT32 bytesToRead;
+
+    // First byte indicates the size of the encoding and the first bits of the code point
+    if ((*szIn & 0xF8) == 0xF0)
+    {
+        result = *szIn++ & 0x07;
+        bytesToRead = 3;
+    }
+    else if ((*szIn & 0xF0) == 0xE0)
+    {
+        result = *szIn++ & 0x0F;
+        bytesToRead = 2;
+    }
+    else if ((*szIn & 0xE0) == 0xC0)
+    {
+        result = *szIn++ & 0x1F;
+        bytesToRead = 1;
+    }
+    else
+    {
+        // Invalid encoding
+        return nullptr;
+    }
+
+    for (; bytesToRead > 0; bytesToRead--, szIn++)
+    {
+        if ((*szIn & 0xC0) != 0x80)
+            return nullptr;
+
+        result = (result << 6) | (*szIn & 0x3F);
+    }
+
+    *pRet = result;
+    return szIn;
+}
+
 // Convert szIn to lower case in the Invariant locale.
 INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn, BOOL fAllowThrow)
 {
-
-    CONTRACTL {
+    CONTRACTL
+    {
         // This fcn can trigger a lazy load of the TextInfo class.
         if (fAllowThrow) THROWS; else NOTHROW;
         if (fAllowThrow) GC_TRIGGERS; else GC_NOTRIGGER;
@@ -3344,131 +3383,143 @@ INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) L
 
         PRECONDITION((cMaxBytes == 0) || CheckPointer(szOut));
         PRECONDITION(CheckPointer(szIn));
-    } CONTRACTL_END
+    }
+    CONTRACTL_END
 
-    int inLength = (int)(strlen(szIn)+1);
     INT32 result = 0;
 
-    LPCUTF8 szInSave = szIn;
-    LPUTF8 szOutSave = szOut;
-    BOOL bFoundHighChars=FALSE;
-    //Compute our end point.
-    LPCUTF8 szEnd;
-    INT32 wideCopyLen;
+    LPUTF8 szStart = szOut;
+    LPUTF8 szEnd = szOut + cMaxBytes - 1;
 
-    CQuickBytes qbOut;
-    LPWSTR szWideOut;
+    INT32 c;
 
-    if (cMaxBytes != 0 && szOut == NULL) {
-        if (fAllowThrow) {
+    if (cMaxBytes != 0 && szOut == NULL)
+    {
+        if (fAllowThrow)
+        {
             COMPlusThrowHR(ERROR_INVALID_PARAMETER);
         }
         SetLastError(ERROR_INVALID_PARAMETER);
-        result = 0;
         goto Exit;
     }
 
     if (cMaxBytes) {
-        szEnd = szOut + min(inLength, cMaxBytes);
-        //Walk the string copying the characters.  Change the case on
-        //any character between A-Z.
-        for (; szOut<szEnd; szOut++, szIn++) {
-            if (*szIn>='A' && *szIn<='Z') {
-                *szOut = *szIn | 0x20;
-            }
-            else {
-                if (((UINT32)(*szIn))>((UINT32)0x80)) {
-                    bFoundHighChars = TRUE;
-                    break;
+        //Walk the string copying the characters.
+        while (szOut<szEnd && *szIn != 0) {
+            if (((UINT32)(*szIn)) > ((UINT32)0x80))
+            {
+                //Multi-byte code point
+                szIn = Utf8DecodeMultibyteChar(szIn, &c);
+                if (!szIn)
+                {
+                    RaiseException(ERROR_NO_UNICODE_TRANSLATION, EXCEPTION_NONCONTINUABLE, 0, 0);
                 }
-                *szOut = *szIn;
-            }
-        }
 
-        if (!bFoundHighChars) {
-            //If we copied everything, tell them how many bytes we copied,
-            //and arrange it so that the original position of the string + the returned
-            //length gives us the position of the null (useful if we're appending).
-            if (--inLength > cMaxBytes) {
-                if (fAllowThrow) {
-                    COMPlusThrowHR(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER));
+                // Convert WCHAR character to lower case
+                c = towlower(c);
+
+                // Encode back as UTF-8
+                if (c <= 0x7F)
+                {
+                    *szOut++ = c;
                 }
-                SetLastError(ERROR_INSUFFICIENT_BUFFER);
-                result = 0;
-                goto Exit;
+                else if (c <= 0x7FF && szOut + 1 < szEnd)
+                {
+                    *szOut++ = 0xC0 | (c >> 6);
+                    *szOut++ = 0x80 | (c & 0x3F);
+                }
+                else if (c <= 0xFFFF && szOut + 2 < szEnd)
+                {
+                    *szOut++ = 0xE0 | (c >> 12);
+                    *szOut++ = 0x80 | ((c >> 6) & 0x3F);
+                    *szOut++ = 0x80 | (c & 0x3F);
+                }
+                else if (c <= 0x10FFFF && szOut + 3 < szEnd)
+                {
+                    *szOut++ = 0xF0 | (c >> 18);
+                    *szOut++ = 0x80 | ((c >> 12) & 0x3F);
+                    *szOut++ = 0x80 | ((c >> 6) & 0x3F);
+                    *szOut++ = 0x80 | (c & 0x3F);
+                }
+                else
+                {
+                    assert(c <= 0x10FFFF);
+
+                    // Encoding doesn't fit the provided buffer
+                    szOut = szEnd;
+                }
             }
-
-            result = inLength;
-            goto Exit;
-        }
-    }
-    else {
-        szEnd = szIn + inLength;
-        for (; szIn<szEnd; szIn++) {
-            if (((UINT32)(*szIn))>((UINT32)0x80)) {
-                bFoundHighChars = TRUE;
-                break;
+            else
+            {
+                if (*szIn >= 'A' && *szIn <= 'Z')
+                    *szOut++ = *szIn++ | 0x20;
+                else
+                    *szOut++ = *szIn++;
             }
         }
 
-        if (!bFoundHighChars) {
-            result = inLength;
+        // Check whether we broke out of the loop before reading the last character of output
+        if (*szIn != 0)
+        {
+            if (fAllowThrow) {
+                COMPlusThrowHR(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER));
+            }
+            SetLastError(ERROR_INSUFFICIENT_BUFFER);
             goto Exit;
         }
+
+        // We didn't copy the null terminator, so null-terminate
+        *szOut = 0;
+
+        // Make it so that adding result points to the null terminator
+        result = (INT32)(szEnd - szStart);
+        goto Exit;
     }
+    else
+    {
+        while (*szIn != 0)
+        {
+            if (((UINT32)(*szIn)) > ((UINT32)0x80))
+            {
+                //Multi-byte code point
+                szIn = Utf8DecodeMultibyteChar(szIn, &c);
+                if (!szIn)
+                {
+                    RaiseException(ERROR_NO_UNICODE_TRANSLATION, EXCEPTION_NONCONTINUABLE, 0, 0);
+                }
 
-    szOut = szOutSave;
+                // Convert WCHAR character to lower case
+                c = towlower(c);
 
-#ifndef FEATURE_PAL
-   
-    //convert the UTF8 to Unicode
-    //MAKE_WIDEPTR_FROMUTF8(szInWide, szInSave);
-
-    int __lszInWide;
-    LPWSTR szInWide;
-    __lszInWide = WszMultiByteToWideChar(CP_UTF8, 0, szInSave, -1, 0, 0);
-    if (__lszInWide > MAKE_MAX_LENGTH)
-         RaiseException(EXCEPTION_INT_OVERFLOW, EXCEPTION_NONCONTINUABLE, 0, 0);
-    szInWide = (LPWSTR) alloca(__lszInWide*sizeof(WCHAR));
-    if (szInWide == NULL) {
-        if (fAllowThrow) {
-            COMPlusThrowOM();
-        } else {
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            result = 0;
-            goto Exit;
+                if (c <= 0x7F)
+                {
+                    result += 1;
+                }
+                else if (c <= 0x7FF)
+                {
+                    result += 2;
+                }
+                else if (c <= 0xFFFF)
+                {
+                    result += 3;
+                }
+                else
+                {
+                    assert(c <= 0x10FFFF);
+                    result += 4;
+                }
+            }
+            else
+            {
+                result++;
+                szIn++;
+            }
         }
-    }
-    if (0==WszMultiByteToWideChar(CP_UTF8, 0, szInSave, -1, szInWide, __lszInWide)) {
-        RaiseException(ERROR_NO_UNICODE_TRANSLATION, EXCEPTION_NONCONTINUABLE, 0, 0);
-    }
 
-
-    wideCopyLen = (INT32)wcslen(szInWide)+1;
-    if (fAllowThrow) {
-        szWideOut = (LPWSTR)qbOut.AllocThrows(wideCopyLen * sizeof(WCHAR));
-    }
-    else {
-        szWideOut = (LPWSTR)qbOut.AllocNoThrow(wideCopyLen * sizeof(WCHAR));
-        if (!szWideOut) {
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            result = 0;
-            goto Exit;
-        }
+        // Null terminator
+        result++;
     }
 
-    //Do the casing operation
-    ::LCMapStringEx(W(""), LCMAP_LOWERCASE, szInWide, wideCopyLen, szWideOut, wideCopyLen, NULL, NULL, 0);
-
-    //Convert the Unicode back to UTF8
-    result = WszWideCharToMultiByte(CP_UTF8, 0, szWideOut, wideCopyLen, szOut, cMaxBytes, NULL, NULL);
-
-    if ((result == 0) && fAllowThrow) {
-        COMPlusThrowWin32();
-    }
-
-#endif // !FEATURE_PAL
-    
 Exit:
     return result;
 }
