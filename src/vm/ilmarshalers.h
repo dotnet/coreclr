@@ -2855,8 +2855,7 @@ protected:
     LocalDesc GetNativeType() override;
     LocalDesc GetManagedType() override;
     bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override;
-    void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
-    void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
+    void EmitConvertSpaceAndContentsCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
 
 private:

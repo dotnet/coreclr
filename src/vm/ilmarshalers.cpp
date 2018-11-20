@@ -3394,37 +3394,22 @@ bool ILArgIteratorMarshaler::SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT*
     return true;
 }
 
-void ILArgIteratorMarshaler::EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit)
+void ILArgIteratorMarshaler::EmitConvertSpaceAndContentsCLRToNative(ILCodeStream* pslILEmit)
 {
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        CONSISTENCY_CHECK(LOCAL_NUM_UNUSED == m_dwVaListSizeLocalNum);
-    }
-    CONTRACTL_END;
+    STANDARD_VM_CONTRACT;
 
     // Allocate enough memory for va_list
-    m_dwVaListSizeLocalNum = pslILEmit->NewLocal(LocalDesc(ELEMENT_TYPE_U4));
+    DWORD dwVaListSizeLocal = pslILEmit->NewLocal(LocalDesc(ELEMENT_TYPE_U4));
     EmitLoadManagedHomeAddr(pslILEmit);
     pslILEmit->EmitCALL(METHOD__STUBHELPERS__CALC_VA_LIST_SIZE, 1, 1);
-    pslILEmit->EmitSTLOC(m_dwVaListSizeLocalNum);
-    pslILEmit->EmitLDLOC(m_dwVaListSizeLocalNum);
+    pslILEmit->EmitSTLOC(dwVaListSizeLocal);
+    pslILEmit->EmitLDLOC(dwVaListSizeLocal);
     pslILEmit->EmitLOCALLOC();
     EmitStoreNativeValue(pslILEmit);
-}
-
-void ILArgIteratorMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
-{
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        CONSISTENCY_CHECK(LOCAL_NUM_UNUSED != m_dwVaListSizeLocalNum);
-    }
-    CONTRACTL_END;
 
     // void MarshalToUnmanagedVaListInternal(va_list, uint vaListSize, VARARGS* data)
     EmitLoadNativeValue(pslILEmit);
-    pslILEmit->EmitLDLOC(m_dwVaListSizeLocalNum);
+    pslILEmit->EmitLDLOC(dwVaListSizeLocal);
     EmitLoadManagedHomeAddr(pslILEmit);
     pslILEmit->EmitCALL(METHOD__STUBHELPERS__MARSHAL_TO_UNMANAGED_VA_LIST_INTERNAL, 3, 0);
 }
