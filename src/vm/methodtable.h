@@ -748,7 +748,11 @@ public:
 
 #if defined(FEATURE_TYPEEQUIVALENCE)
     // mark the type as opted into type equivalence
-    void SetHasTypeEquivalence();
+    void SetHasTypeEquivalence()
+    {
+        LIMITED_METHOD_CONTRACT;
+        SetFlag(enum_flag_HasTypeEquivalence);
+    }
 #endif
 
     // Helper to get parent class skipping over COM class in 
@@ -821,20 +825,16 @@ public:
 
     BOOL IsICastable(); // This type implements ICastable interface
 
-#ifdef FEATURE_TYPEEQUIVALENCE
     // type has opted into type equivalence or is instantiated by/derived from a type that is
     BOOL HasTypeEquivalence()
     {
         LIMITED_METHOD_CONTRACT;
+#ifdef FEATURE_TYPEEQUIVALENCE
         return GetFlag(enum_flag_HasTypeEquivalence);
-    }
 #else
-    BOOL HasTypeEquivalence()
-    {
-        LIMITED_METHOD_CONTRACT;
         return FALSE;
-    }
 #endif
+    }
 
     //-------------------------------------------------------------------
     // DYNAMIC ADDITION OF INTERFACES FOR COM INTEROP

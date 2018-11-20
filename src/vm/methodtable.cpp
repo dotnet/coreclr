@@ -56,9 +56,7 @@
 #include "winrttypenameconverter.h"
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_TYPEEQUIVALENCE
 #include "typeequivalencehash.hpp"
-#endif
 
 #include "generics.h"
 #include "genericdict.h"
@@ -603,14 +601,6 @@ void MethodTable::SetComObjectType()
     LIMITED_METHOD_CONTRACT;
     SetFlag(enum_flag_ComObject);
 }
-
-#if defined(FEATURE_TYPEEQUIVALENCE)
-void MethodTable::SetHasTypeEquivalence()
-{
-    LIMITED_METHOD_CONTRACT;
-    SetFlag(enum_flag_HasTypeEquivalence);
-}
-#endif
 
 #ifdef FEATURE_ICASTABLE
 void MethodTable::SetICastable()
@@ -1398,10 +1388,12 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
     }
     CONTRACTL_END;
 
+    TypeEquivalenceHashTable *typeEquTable = nullptr;
     AppDomain *pDomain = GetAppDomain();
     if (pDomain != NULL)
     {
-        TypeEquivalenceHashTable::EquivalenceMatch match = pDomain->GetTypeEquivalenceCache()->CheckEquivalence(TypeHandle(this), TypeHandle(pOtherMT));
+        typeEquTable = pDomain->GetTypeEquivalenceCache();
+        TypeEquivalenceHashTable::EquivalenceMatch match = typeEquTable->CheckEquivalence(TypeHandle(this), TypeHandle(pOtherMT));
         switch (match)
         {
         case TypeEquivalenceHashTable::Match:
@@ -1418,9 +1410,10 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
 
     BOOL fEquivalent = FALSE;
 
+    // Check if type is generic
     if (HasInstantiation())
     {
-        // we limit variance on generics only to interfaces
+        // Limit variance on generics only to interfaces
         if (!IsInterface() || !pOtherMT->IsInterface())
         {
             fEquivalent = FALSE;
@@ -1431,12 +1424,14 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
         Instantiation inst1 = GetInstantiation();
         Instantiation inst2 = pOtherMT->GetInstantiation();
 
+        // Verify generic argument count
         if (inst1.GetNumArgs() != inst2.GetNumArgs())
         {
             fEquivalent = FALSE;
             goto EquivalenceCalculated;
         }
 
+        // Verify each generic argument type
         for (DWORD i = 0; i < inst1.GetNumArgs(); i++)
         {
             if (!inst1[i].IsEquivalentTo(inst2[i] COMMA_INDEBUG(pVisited)))
@@ -1468,22 +1463,23 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
         }
 
         // arrays of structures have their own unshared MTs and will take this path
-        fEquivalent = (GetApproxArrayElementTypeHandle().IsEquivalentTo(pOtherMT->GetApproxArrayElementTypeHandle() COMMA_INDEBUG(pVisited)));
+        TypeHandle elementType1 = GetApproxArrayElementTypeHandle();
+        TypeHandle elementType2 = pOtherMT->GetApproxArrayElementTypeHandle();
+        fEquivalent = elementType1.IsEquivalentTo(elementType2 COMMA_INDEBUG(pVisited));
         goto EquivalenceCalculated;
     }
 
     fEquivalent = CompareTypeDefsForEquivalence(GetCl(), pOtherMT->GetCl(), GetModule(), pOtherMT->GetModule(), NULL);
 
 EquivalenceCalculated:
-    // Only record equivalence matches if we are in an AppDomain
-    if (pDomain != NULL)
+    // Record equivalence matches if a table exists
+    if (typeEquTable != NULL)
     {
         // Collectible type results will not get cached.
-        if ((!this->Collectible() && !pOtherMT->Collectible()))
+        if ((!Collectible() && !pOtherMT->Collectible()))
         {
-            TypeEquivalenceHashTable::EquivalenceMatch match;
-            match = fEquivalent ? TypeEquivalenceHashTable::Match : TypeEquivalenceHashTable::NoMatch;
-            pDomain->GetTypeEquivalenceCache()->RecordEquivalence(TypeHandle(this), TypeHandle(pOtherMT), match);
+            auto match = fEquivalent ? TypeEquivalenceHashTable::Match : TypeEquivalenceHashTable::NoMatch;
+            typeEquTable->RecordEquivalence(TypeHandle(this), TypeHandle(pOtherMT), match);
         }
     }
 

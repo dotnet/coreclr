@@ -205,6 +205,7 @@ endif(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
 add_definitions(-DFEATURE_SVR_GC)
 add_definitions(-DFEATURE_SYMDIFF)
 add_definitions(-DFEATURE_TIERED_COMPILATION)
+add_definitions(-DFEATURE_TYPEEQUIVALENCE)
 if (CLR_CMAKE_PLATFORM_ARCH_AMD64)
   # Enable the AMD64 Unix struct passing JIT-EE interface for all AMD64 platforms, to enable altjit.
   add_definitions(-DUNIX_AMD64_ABI_ITF)
