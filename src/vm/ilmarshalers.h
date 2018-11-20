@@ -2224,18 +2224,11 @@ public:
         c_CLRSize               = sizeof(SAFEHANDLE),
     };
 
-    ILSafeHandleMarshaler()
-        : m_dwHandleAddRefedLocal(LOCAL_NUM_UNUSED)
-    {
-        LIMITED_METHOD_CONTRACT;
-    }
-
     LocalDesc GetManagedType() override;
     LocalDesc GetNativeType() override;
 
     bool NeedsClearNative() override;
     void EmitClearNative(ILCodeStream* pslILEmit) override;
-    void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit) override;
     void EmitMarshalArgumentContentsCLRToNative() override;
 
     void EmitMarshalArgumentNativeToCLRByref() override
@@ -2258,8 +2251,6 @@ public:
                                                   BOOL        fHresultSwap,
                                                   OverrideProcArgs *pargs,
                                                   UINT       *pResID);
-private:
-    DWORD m_dwHandleAddRefedLocal;
 };
 
 

@@ -2616,22 +2616,12 @@ void ILSafeHandleMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
     pslILEmit->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_RELEASE, 1, 0);
 }
 
-void ILSafeHandleMarshaler::EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit)
-{
-    // bool <dwHandleAddRefedLocalNum> = false
-    m_dwHandleAddRefedLocal = pslILEmit->NewLocal(ELEMENT_TYPE_BOOLEAN);
-
-    pslILEmit->EmitLDC(0);
-    pslILEmit->EmitSTLOC(m_dwHandleAddRefedLocal);
-}
-
 void ILSafeHandleMarshaler::EmitMarshalArgumentContentsCLRToNative()
 {
     CONTRACTL
     {
         STANDARD_VM_CHECK;
         PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
-        PRECONDITION(m_dwHandleAddRefedLocal != LOCAL_NUM_UNUSED);
     }
     CONTRACTL_END;
 
