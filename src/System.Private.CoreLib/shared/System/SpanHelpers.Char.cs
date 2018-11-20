@@ -40,9 +40,10 @@ namespace System
                 int relativeIndex = IndexOf(ref Unsafe.Add(ref searchSpace, index), valueHead, remainingSearchSpaceLength);
                 if (relativeIndex == -1)
                     break;
+
+                remainingSearchSpaceLength -= relativeIndex;
                 index += relativeIndex;
 
-                remainingSearchSpaceLength = searchSpaceLength - index - valueTailLength;
                 if (remainingSearchSpaceLength <= 0)
                     break;  // The unsearched portion is now shorter than the sequence we're looking for. So it can't be there.
 
