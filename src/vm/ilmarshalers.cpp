@@ -1596,15 +1596,16 @@ bool ILVBByValStrWMarshaler::IsNativePassedByRef()
     return false;
 }
 
+void ILVBByValStrWMarshaler::EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit)
+{
+    m_dwLocalBuffer = pslILEmit->NewLocal(ELEMENT_TYPE_I);
+    pslILEmit->EmitLoadNullPtr();
+    pslILEmit->EmitSTLOC(m_dwLocalBuffer);
+}
+
 void ILVBByValStrWMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
-
-    ILCodeStream *pcsSetup = m_pslNDirect->GetSetupCodeStream();
-    m_dwLocalBuffer = pcsSetup->NewLocal(ELEMENT_TYPE_I);
-    pcsSetup->EmitLoadNullPtr();
-    pcsSetup->EmitSTLOC(m_dwLocalBuffer);
-
 
     ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
     m_dwCCHLocal = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
@@ -2618,28 +2619,31 @@ void ILSafeHandleMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
     pslILEmit->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_RELEASE, 1, 0);
 }
 
+void ILSafeHandleMarshaler::EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit)
+{
+    // bool <dwHandleAddRefedLocalNum> = false
+    m_dwHandleAddRefedLocal = pslILEmit->NewLocal(ELEMENT_TYPE_BOOLEAN);
+
+    pslILEmit->EmitLDC(0);
+    pslILEmit->EmitSTLOC(m_dwHandleAddRefedLocal);
+}
+
 void ILSafeHandleMarshaler::EmitMarshalArgumentContentsCLRToNative()
 {
     CONTRACTL
     {
         STANDARD_VM_CHECK;
         PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
+        PRECONDITION(m_dwHandleAddRefedLocal != LOCAL_NUM_UNUSED);
     }
     CONTRACTL_END;
 
     // by-value CLR-to-native SafeHandle is always passed in-only regardless of [In], [Out]
-    // marshal and cleanup communicate via an extra local and are both emitted in this method
-
-    // bool <dwHandleAddRefedLocalNum> = false
-    ILCodeStream *pcsSetup = m_pslNDirect->GetSetupCodeStream();
-    DWORD dwHandleAddRefedLocalNum = pcsSetup->NewLocal(ELEMENT_TYPE_BOOLEAN);
-    
-    pcsSetup->EmitLDC(0);
-    pcsSetup->EmitSTLOC(dwHandleAddRefedLocalNum);
+    // marshal and cleanup communicate via an extra local (emitted in EmitSetupArgumentForMarshalling)
 
     // <nativeHandle> = StubHelpers::SafeHandleAddRef(<managedSH>, ref <dwHandleAddRefedLocalNum>)
     EmitLoadManagedValue(m_pcsMarshal);
-    m_pcsMarshal->EmitLDLOCA(dwHandleAddRefedLocalNum);
+    m_pcsMarshal->EmitLDLOCA(m_dwHandleAddRefedLocal);
     m_pcsMarshal->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_ADD_REF, 2, 1);
     EmitStoreNativeValue(m_pcsMarshal);
 
@@ -2648,7 +2652,7 @@ void ILSafeHandleMarshaler::EmitMarshalArgumentContentsCLRToNative()
     ILCodeStream *pcsCleanup = m_pslNDirect->GetCleanupCodeStream();
     ILCodeLabel *pSkipClearNativeLabel = pcsCleanup->NewCodeLabel();
 
-    pcsCleanup->EmitLDLOC(dwHandleAddRefedLocalNum);
+    pcsCleanup->EmitLDLOC(m_dwHandleAddRefedLocal);
     pcsCleanup->EmitBRFALSE(pSkipClearNativeLabel);
 
     EmitClearNativeTemp(pcsCleanup);

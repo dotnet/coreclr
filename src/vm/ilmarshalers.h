@@ -1486,6 +1486,9 @@ protected:
     void EmitInterfaceClearNative(ILCodeStream* pslILEmit);
 
 public:
+    
+    // Extension point to allow a marshaler to conditionally override all of the ILMarshaler logic with its own or block marshalling when marshalling an argument.
+    // See mlinfo.cpp:3523 for the implementation.
     static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
                                                     BOOL               byref,
                                                     BOOL               fin,
@@ -1500,6 +1503,8 @@ public:
         return HANDLEASNORMAL;
     }
 
+    // Extension point to allow a marshaler to conditionally override all of the ILMarshaler logic with its own or block marshalling when marshalling a return value.
+    // See mlinfo.cpp:3543 for the implementation.
     static MarshalerOverrideStatus ReturnOverride(NDirectStubLinker*  psl,
                                                   BOOL                fManagedToNative,
                                                   BOOL                fHresultSwap,
@@ -2205,13 +2210,29 @@ public:
         c_CLRSize               = sizeof(SAFEHANDLE),
     };
 
+    ILSafeHandleMarshaler()
+        : m_dwHandleAddRefedLocal(LOCAL_NUM_UNUSED)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+
     LocalDesc GetManagedType() override;
     LocalDesc GetNativeType() override;
 
     bool NeedsClearNative() override;
     void EmitClearNative(ILCodeStream* pslILEmit) override;
-
+    void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit) override;
     void EmitMarshalArgumentContentsCLRToNative() override;
+
+    void EmitMarshalArgumentNativeToCLRByref() override
+    {
+        UNREACHABLE_MSG("SafeHandle overrides byref marshalling with ArgumentOverride.");
+    }
+
+    void EmitMarshalArgumentNativeToCLR() override
+    {
+        UNREACHABLE_MSG("SafeHandle disallows native->CLR marshalling in ArgumentOverride.");
+    }
 
     static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
                                                     BOOL               byref,
@@ -2228,6 +2249,8 @@ public:
                                                   BOOL        fHresultSwap,
                                                   OverrideProcArgs *pargs,
                                                   UINT       *pResID);
+private:
+    DWORD m_dwHandleAddRefedLocal;
 };
 
 
@@ -2550,6 +2573,7 @@ public:
 protected:
     LocalDesc GetNativeType() override;
     LocalDesc GetManagedType() override;
+    void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
     bool NeedsClearNative() override;
