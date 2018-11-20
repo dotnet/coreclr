@@ -837,15 +837,14 @@ namespace System
         /// </summary>
         private static unsafe string TryGetLocalizedNameByNativeResource(string filePath, int resource)
         {
-            using (SafeLibraryHandle handle =
-                       Interop.Kernel32.LoadLibraryEx(filePath, IntPtr.Zero, Interop.Kernel32.LOAD_LIBRARY_AS_DATAFILE))
+            using (SafeLibraryHandle handle = Interop.Kernel32.LoadLibraryEx(filePath, IntPtr.Zero, Interop.Kernel32.LOAD_LIBRARY_AS_DATAFILE))
             {
                 if (!handle.IsInvalid)
                 {
                     const int LoadStringMaxLength = 500;
                     char* localizedResource = stackalloc char[LoadStringMaxLength];
 
-                    int charsWritten = Interop.User32.LoadString(handle, resource, localizedResource, LoadStringMaxLength);
+                    int charsWritten = Interop.User32.LoadString(handle, (uint)resource, localizedResource, LoadStringMaxLength);
                     if (charsWritten != 0)
                     {
                         return new string(localizedResource, 0, charsWritten);

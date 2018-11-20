@@ -16,40 +16,29 @@ internal static partial class Interop
     /// </summary>
     internal static bool CallStringMethod<TArg1, TArg2, TArg3>(
         SpanFunc<char, TArg1, TArg2, TArg3, Interop.Globalization.ResultCode> interopCall,
-        TArg1 arg1,
-        TArg2 arg2,
-        TArg3 arg3,
+        TArg1 arg1, TArg2 arg2, TArg3 arg3,
         out string result)
     {
-        const int InitialStringSize = 256;
-        const int MaxDoubleAttempts = 3;
+        const int InitialSize = 256; // arbitrary stack allocation size
+        const int MaxHeapSize = 1280; // max from previous version of the code, starting at 80 and doubling four times
 
-        Span<char> buffer = stackalloc char[InitialStringSize];
+        Span<char> buffer = stackalloc char[InitialSize];
+        Interop.Globalization.ResultCode resultCode = interopCall(buffer, arg1, arg2, arg3);
 
-        for (int i = 0; i < MaxDoubleAttempts; i++)
+        if (resultCode == Interop.Globalization.ResultCode.Success)
         {
-            Interop.Globalization.ResultCode resultCode = interopCall(buffer, arg1, arg2, arg3);
+            result = buffer.Slice(0, buffer.IndexOf('\0')).ToString();
+            return true;
+        }
 
-            if (resultCode == Interop.Globalization.ResultCode.Success)
+        if (resultCode == Interop.Globalization.ResultCode.InsufficentBuffer)
+        {
+            // Increase the string size and try again
+            buffer = new char[MaxHeapSize];
+            if (interopCall(buffer, arg1, arg2, arg3) == Interop.Globalization.ResultCode.Success)
             {
-                int length = buffer.IndexOf('\0');
-                Debug.Assert(length >= 0);
-                if (length >= 0)
-                {
-                    buffer = buffer.Slice(0, length);
-                }
-                result = buffer.ToString();
+                result = buffer.Slice(0, buffer.IndexOf('\0')).ToString();
                 return true;
-            }
-            else if (resultCode == Interop.Globalization.ResultCode.InsufficentBuffer && i < MaxDoubleAttempts - 1)
-            {
-                // increase the string size and loop
-                buffer = new char[buffer.Length * 2];
-            }
-            else
-            {
-                // if there is an unknown error (or we're going to exit anyway), don't proceed
-                break;
             }
         }
 

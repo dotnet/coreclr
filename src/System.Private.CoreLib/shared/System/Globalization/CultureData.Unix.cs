@@ -216,13 +216,7 @@ namespace System.Globalization
             }
 
             var span = new ReadOnlySpan<char>(buffer, ICU_ULOC_KEYWORD_AND_VALUES_CAPACITY);
-            int length = span.IndexOf('\0');
-            Debug.Assert(length >= 0);
-            if (length >= 0)
-            {
-                span = span.Slice(0, length);
-            }
-            return ConvertIcuTimeFormatString(span);
+            return ConvertIcuTimeFormatString(span.Slice(0, span.IndexOf('\0')));
         }
 
         private int GetFirstDayOfWeek()
@@ -266,12 +260,15 @@ namespace System.Globalization
 
         private static string ConvertIcuTimeFormatString(ReadOnlySpan<char> icuFormatString)
         {
-            StringBuilder sb = StringBuilderCache.Acquire(ICU_ULOC_FULLNAME_CAPACITY);
+            Debug.Assert(icuFormatString.Length < ICU_ULOC_FULLNAME_CAPACITY);
+            Span<char> result = stackalloc char[ICU_ULOC_FULLNAME_CAPACITY];
+
             bool amPmAdded = false;
+            int resultPos = 0;
 
             for (int i = 0; i < icuFormatString.Length; i++)
             {
-                switch(icuFormatString[i])
+                switch (icuFormatString[i])
                 {
                     case ':':
                     case '.':
@@ -279,27 +276,28 @@ namespace System.Globalization
                     case 'h':
                     case 'm':
                     case 's':
-                        sb.Append(icuFormatString[i]);
+                        result[resultPos++] = icuFormatString[i];
                         break;
 
                     case ' ':
                     case '\u00A0':
                         // Convert nonbreaking spaces into regular spaces
-                        sb.Append(' ');
+                        result[resultPos++] = ' ';
                         break;
 
                     case 'a': // AM/PM
                         if (!amPmAdded)
                         {
                             amPmAdded = true;
-                            sb.Append("tt");
+                            result[resultPos++] = 't';
+                            result[resultPos++] = 't';
                         }
                         break;
 
                 }
             }
 
-            return StringBuilderCache.GetStringAndRelease(sb);
+            return result.Slice(0, resultPos).ToString();
         }
         
         private static string LCIDToLocaleName(int culture)
