@@ -2063,12 +2063,12 @@ PAL_GetApplicationGroupId()
     return gApplicationGroupId;
 }
 
-// We use 7bits from each byte
-constexpr int BitNum2ByteNum(UINT number)
+// We use 7bits from each byte, so this computes the extra size we need to encode a given byte count
+constexpr int GetExtraEncodedAreaSize(UINT rawByteCount)
 {
-    return (number+6)/7;
+    return (rawByteCount+6)/7;
 }
-const int SEMAPHORE_ENCODED_NAME_EXTRA_LENGTH = BitNum2ByteNum(sizeof(UnambiguousProcessDescriptor));
+const int SEMAPHORE_ENCODED_NAME_EXTRA_LENGTH = GetExtraEncodedAreaSize(sizeof(UnambiguousProcessDescriptor));
 const int SEMAPHORE_ENCODED_NAME_LENGTH =
     sizeof(UnambiguousProcessDescriptor) + /* For process ID + disambiguationKey */
     SEMAPHORE_ENCODED_NAME_EXTRA_LENGTH; /* For base 255 extra encoding space */
