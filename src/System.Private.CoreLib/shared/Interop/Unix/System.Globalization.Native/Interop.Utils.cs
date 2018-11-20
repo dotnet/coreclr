@@ -3,6 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Diagnostics;
+using System.Buffers;
 using System.Text;
 
 internal static partial class Interop
@@ -13,39 +15,44 @@ internal static partial class Interop
     /// increasing buffer until the size is big enough.
     /// </summary>
     internal static bool CallStringMethod<TArg1, TArg2, TArg3>(
-        Func<TArg1, TArg2, TArg3, StringBuilder, Interop.Globalization.ResultCode> interopCall,
+        SpanFunc<char, TArg1, TArg2, TArg3, Interop.Globalization.ResultCode> interopCall,
         TArg1 arg1,
         TArg2 arg2,
         TArg3 arg3,
         out string result)
     {
-        const int initialStringSize = 80;
-        const int maxDoubleAttempts = 5;
+        const int InitialStringSize = 256;
+        const int MaxDoubleAttempts = 3;
 
-        StringBuilder stringBuilder = StringBuilderCache.Acquire(initialStringSize);
+        Span<char> buffer = stackalloc char[InitialStringSize];
 
-        for (int i = 0; i < maxDoubleAttempts; i++)
+        for (int i = 0; i < MaxDoubleAttempts; i++)
         {
-            Interop.Globalization.ResultCode resultCode = interopCall(arg1, arg2, arg3, stringBuilder);
+            Interop.Globalization.ResultCode resultCode = interopCall(buffer, arg1, arg2, arg3);
 
             if (resultCode == Interop.Globalization.ResultCode.Success)
             {
-                result = StringBuilderCache.GetStringAndRelease(stringBuilder);
+                int length = buffer.IndexOf('\0');
+                Debug.Assert(length >= 0);
+                if (length >= 0)
+                {
+                    buffer = buffer.Slice(0, length);
+                }
+                result = buffer.ToString();
                 return true;
             }
-            else if (resultCode == Interop.Globalization.ResultCode.InsufficentBuffer)
+            else if (resultCode == Interop.Globalization.ResultCode.InsufficentBuffer && i < MaxDoubleAttempts - 1)
             {
                 // increase the string size and loop
-                stringBuilder.EnsureCapacity(stringBuilder.Capacity * 2);
+                buffer = new char[buffer.Length * 2];
             }
             else
             {
-                // if there is an unknown error, don't proceed
+                // if there is an unknown error (or we're going to exit anyway), don't proceed
                 break;
             }
         }
 
-        StringBuilderCache.Release(stringBuilder);
         result = null;
         return false;
     }
