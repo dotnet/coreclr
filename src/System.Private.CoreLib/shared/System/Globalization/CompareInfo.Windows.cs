@@ -320,7 +320,7 @@ namespace System.Globalization
             }
         }
 
-        internal unsafe int IndexOfPlatform(string source, string target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
+        internal unsafe int IndexOfCore(string source, string target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
 

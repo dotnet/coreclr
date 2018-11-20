@@ -972,20 +972,12 @@ namespace System.Globalization
                 return -1;
             }
 
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
-                return source.IndexOf(value.ToString(), startIndex, count, StringComparison.OrdinalIgnoreCase);
-            }
-
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
             if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
 
-            if (GlobalizationMode.Invariant)
-                return IndexOfOrdinal(source, new string(value, 1), startIndex, count, ignoreCase: (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
-
-            return IndexOfCore(source, new string(value, 1), startIndex, count, options, null);
+            return IndexOf(source, new string(value, 1), startIndex, count, options, null);
         }
 
         public unsafe virtual int IndexOf(string source, string value, int startIndex, int count, CompareOptions options)
@@ -1020,20 +1012,12 @@ namespace System.Globalization
             if (count < 0 || startIndex > source.Length - count)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
-                return IndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
-            }
-
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
             if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
 
-            if (GlobalizationMode.Invariant)
-                return IndexOfOrdinal(source, value, startIndex, count, ignoreCase: (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
-
-            return IndexOfCore(source, value, startIndex, count, options, null);
+            return IndexOf(source, value, startIndex, count, options, null);
         }
 
         internal int IndexOfOrdinalIgnoreCase(ReadOnlySpan<char> source, ReadOnlySpan<char> value)
@@ -1076,8 +1060,11 @@ namespace System.Globalization
             Debug.Assert(source != null);
             Debug.Assert(value != null);
             Debug.Assert(startIndex >= 0);
-            Debug.Assert(matchLengthPtr != null);
-            *matchLengthPtr = 0;
+
+            if (matchLengthPtr != null)
+            {
+                *matchLengthPtr = 0;
+            }
 
             if (source.Length == 0)
             {
@@ -1093,10 +1080,15 @@ namespace System.Globalization
                 return -1;
             }
 
+            if (value.Length == 0)
+            {
+                return startIndex;
+            }
+
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
                 int res = IndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
-                if (res >= 0)
+                if (res >= 0 && matchLengthPtr != null)
                 {
                     *matchLengthPtr = value.Length;
                 }
@@ -1106,34 +1098,11 @@ namespace System.Globalization
             if (GlobalizationMode.Invariant)
             {
                 int res = IndexOfOrdinal(source, value, startIndex, count, ignoreCase: (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
-                if (res >= 0)
+                if (res >= 0 && matchLengthPtr != null)
                 {
                     *matchLengthPtr = value.Length;
                 }
                 return res;
-            }
-
-            return IndexOfCore(source, value, startIndex, count, options, matchLengthPtr);
-        }
-
-        internal unsafe int IndexOfCore(string source, string target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
-        {
-            Debug.Assert(!GlobalizationMode.Invariant);
-
-            Debug.Assert(source != null);
-            Debug.Assert(target != null);
-            Debug.Assert((options & CompareOptions.OrdinalIgnoreCase) == 0);
-
-            if (target.Length == 0)
-            {
-                if (matchLengthPtr != null)
-                    *matchLengthPtr = 0;
-                return startIndex;
-            }
-
-            if (source.Length == 0)
-            {
-                return -1;
             }
 
             if (options == CompareOptions.Ordinal)
@@ -1141,21 +1110,21 @@ namespace System.Globalization
                 int retValue = SpanHelpers.IndexOf(
                     ref Unsafe.Add(ref source.GetRawStringData(), startIndex),
                     count,
-                    ref target.GetRawStringData(),
-                    target.Length);
+                    ref value.GetRawStringData(),
+                    value.Length);
 
                 if (retValue >= 0)
                 {
                     retValue += startIndex;
                     if (matchLengthPtr != null)
-                        *matchLengthPtr = target.Length;
+                        *matchLengthPtr = value.Length;
                 }
 
                 return retValue;
             }
             else
             {
-                return IndexOfPlatform(source, target, startIndex, count, options, matchLengthPtr);
+                return IndexOfCore(source, value, startIndex, count, options, matchLengthPtr);
             }
         }
 
