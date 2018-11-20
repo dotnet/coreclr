@@ -1110,9 +1110,10 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundByte(ulong match)
         {
-            if (Bmi1.IsSupported && IntPtr.Size == 8)
+            // TODO: Arm variants
+            if (Bmi1.X64.IsSupported)
             {
-                return (int)(Bmi1.TrailingZeroCount(match) >> 3);
+                return (int)(Bmi1.X64.TrailingZeroCount(match) >> 3);
             }
             else
             {
@@ -1126,9 +1127,10 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundByte(ulong match)
         {
-            if (Lzcnt.IsSupported && IntPtr.Size == 8)
+            // TODO: Arm variants
+            if (Lzcnt.X64.IsSupported)
             {
-                return 7 - (int)(Lzcnt.LeadingZeroCount(match) >> 3);
+                return 7 - (int)(Lzcnt.X64.LeadingZeroCount(match) >> 3);
             }
             else
             {
