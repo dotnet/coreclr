@@ -827,7 +827,7 @@ protected:
         LIMITED_METHOD_CONTRACT;
     }
 
-    virtual void EmitLoadMngdMarshaler(ILCodeStream* pslILEmit)
+    void EmitLoadMngdMarshaler(ILCodeStream* pslILEmit)
     {
         CONTRACTL
         {
@@ -839,6 +839,20 @@ protected:
 
         CONSISTENCY_CHECK((DWORD)-1 != m_dwMngdMarshalerLocalNum);
         pslILEmit->EmitLDLOC(m_dwMngdMarshalerLocalNum);
+    }
+
+    void EmitLoadMngdMarshalerAddr(ILCodeStream* pslILEmit)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+            MODE_ANY;
+        }
+        CONTRACTL_END;
+
+        CONSISTENCY_CHECK((DWORD)-1 != m_dwMngdMarshalerLocalNum);
+        pslILEmit->EmitLDLOCA(m_dwMngdMarshalerLocalNum);
     }
 
     virtual void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit)
@@ -2888,26 +2902,37 @@ public:
         c_CLRSize               = sizeof(OBJECTREF),
     };
 
-    ILAsAnyMarshalerBase() :
-        m_dwMarshalerLocalNum(-1)
-    {
-        LIMITED_METHOD_CONTRACT;
-    }
-
 protected:
     static const BYTE ML_IN  = 0x10;
     static const BYTE ML_OUT = 0x20;
 
     virtual bool IsAnsi() = 0;
-    LocalDesc GetNativeType() override;
-    LocalDesc GetManagedType() override;
-    bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override;
-    bool SupportsReturnMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override;
-    void EmitMarshalArgumentContentsCLRToNative() override;
-    bool NeedsClearNative() override;
-    void EmitClearNativeTemp(ILCodeStream* pslILEmit) override;
+    LocalDesc GetNativeType() override final;
+    LocalDesc GetManagedType() override final;
+    void EmitCreateMngdMarshaler(ILCodeStream* pslILEmit) override final;
+    bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override final;
+    bool SupportsReturnMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override final;
+    void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override final;
+    void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override final;
+    bool NeedsClearNative() override final;
+    void EmitClearNativeTemp(ILCodeStream* pslILEmit) override final;
 
-    DWORD m_dwMarshalerLocalNum;
+private:
+    DWORD GetAsAnyFlags()
+    {
+        BYTE inout = (IsIn(m_dwMarshalFlags) ? ML_IN : 0) | (IsOut(m_dwMarshalFlags) ? ML_OUT : 0);
+        BYTE fIsAnsi = IsAnsi() ? 1 : 0;
+        BYTE fBestFit = m_pargs->m_pMarshalInfo->GetBestFitMapping();
+        BYTE fThrow = m_pargs->m_pMarshalInfo->GetThrowOnUnmappableChar();
+
+        DWORD dwFlags = 0;
+
+        dwFlags |= inout << 24;
+        dwFlags |= fIsAnsi << 16;
+        dwFlags |= fThrow << 8;
+        dwFlags |= fBestFit << 0;
+        return dwFlags;
+    }
 };
 
 class ILAsAnyWMarshaler : public ILAsAnyMarshalerBase

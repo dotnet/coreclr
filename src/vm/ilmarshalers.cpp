@@ -3620,72 +3620,53 @@ bool ILAsAnyMarshalerBase::SupportsReturnMarshal(DWORD dwMarshalFlags, UINT* pEr
     return false;
 }
 
-void ILAsAnyMarshalerBase::EmitMarshalArgumentContentsCLRToNative()
+void ILAsAnyMarshalerBase::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
 {
     CONTRACTL
     {
-        STANDARD_VM_CHECK;
-        PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
-        CONSISTENCY_CHECK(LOCAL_NUM_UNUSED == m_dwMarshalerLocalNum);
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        CONSISTENCY_CHECK(LOCAL_NUM_UNUSED == m_dwMngdMarshalerLocalNum);
     }
     CONTRACTL_END;
 
-    BYTE inout      = (IsIn(m_dwMarshalFlags) ? ML_IN : 0) | (IsOut(m_dwMarshalFlags) ? ML_OUT : 0);
-    BYTE fIsAnsi    = IsAnsi() ? 1 : 0;
-    BYTE fBestFit   = m_pargs->m_pMarshalInfo->GetBestFitMapping();
-    BYTE fThrow     = m_pargs->m_pMarshalInfo->GetThrowOnUnmappableChar();
-
-    DWORD dwFlags = 0;
-    
-    dwFlags |= inout    << 24;
-    dwFlags |= fIsAnsi  << 16;
-    dwFlags |= fThrow   <<  8;
-    dwFlags |= fBestFit <<  0;
-
-    //
-    // marshal
-    //
-
     LocalDesc marshalerType(MscorlibBinder::GetClass(CLASS__ASANY_MARSHALER));
-    m_dwMarshalerLocalNum = m_pcsMarshal->NewLocal(marshalerType);
-    DWORD dwTmpLocalNum = m_pcsMarshal->NewLocal(ELEMENT_TYPE_I);
+    m_dwMngdMarshalerLocalNum = pslILEmit->NewLocal(marshalerType);
+    DWORD dwTmpLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
 
-    m_pcsMarshal->EmitLDC(sizeof(MngdNativeArrayMarshaler));
-    m_pcsMarshal->EmitLOCALLOC();
-    m_pcsMarshal->EmitSTLOC(dwTmpLocalNum);
+    pslILEmit->EmitLDC(sizeof(MngdNativeArrayMarshaler));
+    pslILEmit->EmitLOCALLOC();
+    pslILEmit->EmitSTLOC(dwTmpLocalNum);
 
     // marshaler = new AsAnyMarshaler(local_buffer)
-    m_pcsMarshal->EmitLDLOCA(m_dwMarshalerLocalNum);
-    m_pcsMarshal->EmitINITOBJ(m_pcsMarshal->GetToken(marshalerType.InternalToken));
+    pslILEmit->EmitLDLOCA(m_dwMngdMarshalerLocalNum);
+    pslILEmit->EmitINITOBJ(pslILEmit->GetToken(marshalerType.InternalToken));
 
-    m_pcsMarshal->EmitLDLOCA(m_dwMarshalerLocalNum);
-    m_pcsMarshal->EmitLDLOC(dwTmpLocalNum);
-    m_pcsMarshal->EmitCALL(METHOD__ASANY_MARSHALER__CTOR, 2, 0);
-
-    // nativeValue = marshaler.ConvertToNative(managedValue, flags);
-    m_pcsMarshal->EmitLDLOCA(m_dwMarshalerLocalNum);
-    EmitLoadManagedValue(m_pcsMarshal);
-    m_pcsMarshal->EmitLDC(dwFlags);
-    m_pcsMarshal->EmitCALL(METHOD__ASANY_MARSHALER__CONVERT_TO_NATIVE, 3, 1);
-    EmitStoreNativeValue(m_pcsMarshal);
-
-    //
-    // unmarshal
-    //
-    if (IsOut(m_dwMarshalFlags))
-    {
-        // marshaler.ConvertToManaged(managedValue, nativeValue)
-        m_pcsUnmarshal->EmitLDLOCA(m_dwMarshalerLocalNum);
-        EmitLoadManagedValue(m_pcsUnmarshal);
-        EmitLoadNativeValue(m_pcsUnmarshal);
-        m_pcsUnmarshal->EmitCALL(METHOD__ASANY_MARSHALER__CONVERT_TO_MANAGED, 3, 0);
-    }
-
-    //
-    // cleanup
-    //
-    EmitCleanupCLRToNativeTemp();
+    pslILEmit->EmitLDLOCA(m_dwMngdMarshalerLocalNum);
+    pslILEmit->EmitLDLOC(dwTmpLocalNum);
+    pslILEmit->EmitCALL(METHOD__ASANY_MARSHALER__CTOR, 2, 0);
 }
+
+void ILAsAnyMarshalerBase::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
+{
+    // nativeValue = marshaler.ConvertToNative(managedValue, flags);
+    EmitLoadMngdMarshalerAddr(pslILEmit);
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitLDC(GetAsAnyFlags());
+    pslILEmit->EmitCALL(METHOD__ASANY_MARSHALER__CONVERT_TO_NATIVE, 3, 1);
+    EmitStoreNativeValue(pslILEmit);
+}
+
+void ILAsAnyMarshalerBase::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
+{
+    // marshaler.ConvertToManaged(managedValue, nativeValue)
+    EmitLoadMngdMarshalerAddr(pslILEmit);
+    EmitLoadManagedValue(pslILEmit);
+    EmitLoadNativeValue(pslILEmit);
+    pslILEmit->EmitCALL(METHOD__ASANY_MARSHALER__CONVERT_TO_MANAGED, 3, 0);
+}
+
 
 bool ILAsAnyMarshalerBase::NeedsClearNative()
 {
@@ -3698,7 +3679,7 @@ void ILAsAnyMarshalerBase::EmitClearNativeTemp(ILCodeStream* pslILEmit)
     STANDARD_VM_CONTRACT;
 
     // marshaler.ClearNative(nativeHome)
-    pslILEmit->EmitLDLOCA(m_dwMarshalerLocalNum);
+    EmitLoadMngdMarshalerAddr(pslILEmit);
     EmitLoadNativeValue(pslILEmit);
     pslILEmit->EmitCALL(METHOD__ASANY_MARSHALER__CLEAR_NATIVE, 2, 0);
 }
