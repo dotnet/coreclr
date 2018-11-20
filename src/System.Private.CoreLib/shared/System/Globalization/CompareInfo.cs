@@ -1066,23 +1066,14 @@ namespace System.Globalization
                 *matchLengthPtr = 0;
             }
 
-            if (source.Length == 0)
+            if (value.Length == 0)
             {
-                if (value.Length == 0)
-                {
-                    return 0;
-                }
-                return -1;
+                return startIndex;
             }
 
             if (startIndex >= source.Length)
             {
                 return -1;
-            }
-
-            if (value.Length == 0)
-            {
-                return startIndex;
             }
 
             if (options == CompareOptions.OrdinalIgnoreCase)
