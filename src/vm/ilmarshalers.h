@@ -220,10 +220,10 @@ protected:
     OverrideProcArgs*   m_pargs;
     NDirectStubLinker*  m_pslNDirect;
     UINT                m_argidx;
-    ILCodeStream*       m_pcsMarshal;
-    ILCodeStream*       m_pcsUnmarshal;
     DWORD               m_dwMarshalFlags;
     DWORD               m_dwMngdMarshalerLocalNum;
+    ILCodeStream*       m_pcsMarshal;
+    ILCodeStream*       m_pcsUnmarshal;
 
 private:
     ILStubMarshalHome   m_nativeHome;
@@ -361,6 +361,14 @@ protected:
         if (g_pConfig->InteropLogArguments())
         {
             m_pslNDirect->EmitLogNativeArgument(m_pcsMarshal, dwPinnedLocal);
+        }
+    }
+
+    void EmitLogNativeArgumentsIfNeeded(ILCodeStream* pslILEmit, DWORD dwPinnedLocal)
+    {
+        if (g_pConfig->InteropLogArguments())
+        {
+            m_pslNDirect->EmitLogNativeArgument(pslILEmit, dwPinnedLocal);
         }
     }
 
@@ -2801,10 +2809,12 @@ public:
         c_fInOnly               = FALSE,
     };
             
-protected:    
-    void EmitMarshalArgumentContentsCLRToNative() override;
+protected:
     void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
+    void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit) override;
+private:
+    bool CanUsePinnedLayoutClass();
 };
 
 class ILBlittableValueClassWithCopyCtorMarshaler : public ILMarshaler

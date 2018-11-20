@@ -2480,38 +2480,41 @@ void ILBlittablePtrMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslIL
     pslILEmit->EmitLabel(pNullRefLabel);
 }
 
-void ILBlittablePtrMarshaler::EmitMarshalArgumentContentsCLRToNative()
+bool ILBlittablePtrMarshaler::CanUsePinnedLayoutClass()
 {
-    CONTRACTL
+    return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags);
+}
+
+void ILBlittablePtrMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit)
+{
+    STANDARD_VM_CONTRACT;
+
+    if (CanUsePinnedLayoutClass())
     {
-        STANDARD_VM_CHECK;
-        PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
+        ILCodeLabel* pSkipAddLabel = pslILEmit->NewCodeLabel();
+        LocalDesc managedTypePinned = GetManagedType();
+        managedTypePinned.MakePinned();
+        DWORD dwPinnedLocal = pslILEmit->NewLocal(managedTypePinned);
+
+        EmitLoadManagedValue(pslILEmit);
+
+        pslILEmit->EmitSTLOC(dwPinnedLocal);
+        pslILEmit->EmitLDLOC(dwPinnedLocal);
+        pslILEmit->EmitCONV_U();
+        pslILEmit->EmitDUP();
+        pslILEmit->EmitBRFALSE(pSkipAddLabel);
+        pslILEmit->EmitLDC(Object::GetOffsetOfFirstField());
+        pslILEmit->EmitADD();
+        pslILEmit->EmitLabel(pSkipAddLabel);
+
+        EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
+
+        EmitStoreNativeValue(pslILEmit);
     }
-    CONTRACTL_END;
-
-    //
-    // marshal
-    //
-
-    ILCodeLabel* pSkipAddLabel = m_pcsMarshal->NewCodeLabel();
-    LocalDesc managedTypePinned = GetManagedType();
-    managedTypePinned.MakePinned();
-    DWORD dwPinnedLocal = m_pcsMarshal->NewLocal(managedTypePinned);
-
-    EmitLoadManagedValue(m_pcsMarshal);
-    
-    m_pcsMarshal->EmitSTLOC(dwPinnedLocal);
-    m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
-    m_pcsMarshal->EmitCONV_U();
-    m_pcsMarshal->EmitDUP();
-    m_pcsMarshal->EmitBRFALSE(pSkipAddLabel);
-    m_pcsMarshal->EmitLDC(Object::GetOffsetOfFirstField());
-    m_pcsMarshal->EmitADD();
-    m_pcsMarshal->EmitLabel(pSkipAddLabel);
-
-    EmitLogNativeArgumentsIfNeeded(dwPinnedLocal);
-
-    EmitStoreNativeValue(m_pcsMarshal);
+    else
+    {
+        ILLayoutClassPtrMarshalerBase::EmitConvertSpaceAndContentsCLRToNativeTemp(pslILEmit);
+    }
 }
 
 
@@ -4719,7 +4722,7 @@ void ILHiddenLengthArrayMarshaler::EmitConvertSpaceCLRToNative(ILCodeStream* psl
     {
         if (IsByref(m_dwMarshalFlags) || IsRetval(m_dwMarshalFlags) || IsOut(m_dwMarshalFlags))
         {
-            ILCodeLabel *pSkipGetLengthLabel = m_pcsMarshal->NewCodeLabel();
+            ILCodeLabel *pSkipGetLengthLabel = pslILEmit->NewCodeLabel();
 
             // nativeLen = 0
             pslILEmit->EmitLDC(0);
