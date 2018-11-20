@@ -1116,6 +1116,49 @@ namespace System.Globalization
             return IndexOfCore(source, value, startIndex, count, options, matchLengthPtr);
         }
 
+        internal unsafe int IndexOfCore(string source, string target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
+        {
+            Debug.Assert(!GlobalizationMode.Invariant);
+
+            Debug.Assert(source != null);
+            Debug.Assert(target != null);
+            Debug.Assert((options & CompareOptions.OrdinalIgnoreCase) == 0);
+
+            if (target.Length == 0)
+            {
+                if (matchLengthPtr != null)
+                    *matchLengthPtr = 0;
+                return startIndex;
+            }
+
+            if (source.Length == 0)
+            {
+                return -1;
+            }
+
+            if (options == CompareOptions.Ordinal)
+            {
+                int retValue = SpanHelpers.IndexOf(
+                    ref Unsafe.Add(ref source.GetRawStringData(), startIndex),
+                    count,
+                    ref target.GetRawStringData(),
+                    target.Length);
+
+                if (retValue >= 0)
+                {
+                    retValue += startIndex;
+                    if (matchLengthPtr != null)
+                        *matchLengthPtr = target.Length;
+                }
+
+                return retValue;
+            }
+            else
+            {
+                return IndexOfPlatform(source, target, startIndex, count, options, matchLengthPtr);
+            }
+        }
+
         internal int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
         {
             if (!ignoreCase)

@@ -320,51 +320,20 @@ namespace System.Globalization
             }
         }
 
-        internal unsafe int IndexOfCore(string source, string target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
+        internal unsafe int IndexOfPlatform(string source, string target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
 
             Debug.Assert(source != null);
             Debug.Assert(target != null);
             Debug.Assert((options & CompareOptions.OrdinalIgnoreCase) == 0);
+            Debug.Assert((options & CompareOptions.Ordinal) == 0);
 
-            if (target.Length == 0)
+            int retValue = FindString(FIND_FROMSTART | (uint)GetNativeCompareFlags(options), source, startIndex, count,
+                                                            target, 0, target.Length, matchLengthPtr);
+            if (retValue >= 0)
             {
-                if (matchLengthPtr != null)
-                    *matchLengthPtr = 0;
-                return startIndex;
-            }
-
-            if (source.Length == 0)
-            {
-                return -1;
-            }
-
-            if ((options & CompareOptions.Ordinal) != 0)
-            {
-                int retValue = SpanHelpers.IndexOf(
-                    ref Unsafe.Add(ref source.GetRawStringData(), startIndex),
-                    count,
-                    ref target.GetRawStringData(),
-                    target.Length);
-
-                if (retValue >= 0)
-                {
-                    retValue += startIndex;
-                    if (matchLengthPtr != null)
-                        *matchLengthPtr = target.Length;
-                }
-
-                return retValue;
-            }
-            else
-            {
-                int retValue = FindString(FIND_FROMSTART | (uint)GetNativeCompareFlags(options), source, startIndex, count,
-                                                               target, 0, target.Length, matchLengthPtr);
-                if (retValue >= 0)
-                {
-                    return retValue + startIndex;
-                }
+                return retValue + startIndex;
             }
 
             return -1;
@@ -480,12 +449,13 @@ namespace System.Globalization
             {
                 char* spSubSource = pSource + sourceStartIndex;
 
-                int startPattern = (sourceCount - 1) - targetCount + 1;
-                if (startPattern < 0)
+                int endPattern = sourceCount - targetCount;
+                if (endPattern < 0)
                     return -1;
 
+                Debug.Assert(target.Length >= 1);
                 char patternChar0 = spTarget[0];
-                for (int ctrSrc = startPattern; ctrSrc >= 0; ctrSrc--)
+                for (int ctrSrc = endPattern; ctrSrc >= 0; ctrSrc--)
                 {
                     if (spSubSource[ctrSrc] != patternChar0)
                         continue;
