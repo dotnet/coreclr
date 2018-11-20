@@ -10378,12 +10378,19 @@ IMDInternalImport *Module::GetNativeAssemblyImport(BOOL loadAllowed)
         if (loadAllowed) THROWS;                         else NOTHROW;
         if (loadAllowed) INJECT_FAULT(COMPlusThrowOM()); else FORBID_FAULT;
         MODE_ANY;
-        PRECONDITION(HasNativeImage());
+        PRECONDITION(HasNativeOrReadyToRunImage());
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END;
     // Check if Image is even R2R?
-    RETURN GetFile()->IsILImageReadyToRun() ? GetFile()->GetOpenedILimage()->GetNativeMDImport(loadAllowed) : GetFile()->GetPersistentNativeImage()->GetNativeMDImport(loadAllowed);
+    if (GetFile()->IsILImageReadyToRun())
+    {
+        RETURN GetFile()->GetOpenedILimage()->GetNativeMDImport(loadAllowed);
+    }
+    else
+    {
+        RETURN GetFile()->GetPersistentNativeImage()->GetNativeMDImport(loadAllowed);
+    }
 }
 
 

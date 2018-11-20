@@ -2479,7 +2479,8 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
     CONTRACT(PTR_CVOID)
     {
         INSTANCE_CHECK;
-        PRECONDITION(CheckNativeHeader());
+        // Check R2R
+        //PRECONDITION(CheckNativeHeader() || true);
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK)); // TBD - may not store metadata for IJW
         NOTHROW;
         GC_NOTRIGGER;
