@@ -6,7 +6,6 @@
 #include <oleauto.h>
 #include <algorithm>
 #include <platformdefines.h>
-#include "Helpers.h"
 
 struct BlittableRecord
 {
