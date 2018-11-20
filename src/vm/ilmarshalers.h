@@ -2856,8 +2856,12 @@ protected:
     LocalDesc GetNativeType() override;
     LocalDesc GetManagedType() override;
     bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override;
-    void EmitMarshalArgumentContentsCLRToNative() override;
-    void EmitMarshalArgumentNativeToCLR() override;
+    void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
+    void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
+    void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
+
+private:
+    DWORD m_dwVaListSizeLocalNum;
 };
         
 class ILArrayWithOffsetMarshaler : public ILMarshaler
@@ -2887,7 +2891,7 @@ protected:
     void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
     void EmitClearNativeTemp(ILCodeStream* pslILEmit) override;
 
-        
+private:
     DWORD m_dwCountLocalNum;
     DWORD m_dwOffsetLocalNum;
     DWORD m_dwPinnedLocalNum;
