@@ -171,6 +171,20 @@
         }
     },
     {
+        "name": "System.Net.Sockets.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Net.Sockets.Tests.KeepAliveTest.Socket_Set_KeepAlive_Interval_Failure",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Net.WebProxy.Tests",
         "enabled": true,
         "exclusions": {
@@ -525,6 +539,30 @@
                     "name": "System.Tests.ConvertToSingleTests.FromString",
                     "reason": "https://github.com/dotnet/coreclr/pull/20707"
                 },
+                {
+                    "name": "System.Tests.MathTests.Max_Double",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathTests.Max_Single",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathTests.Min_Double",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathTests.Min_Single",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathFTests.Max",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathFTests.Min",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
             ]
         }
     },
@@ -647,6 +685,26 @@
             "classes": null,
             "methods": [
                 {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4LerpTest",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4MultiplyTest5",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4MultiplyTest6",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4NegateTest",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4UnaryNegationTest",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
                     "name" : "System.Numerics.Tests.Vector2Tests.Vector2ClampTest",
                     "reason" : "outdated"
                 },
@@ -697,6 +755,10 @@
                 {
                     "name": "System.Tests.DecimalTests+BigIntegerMod.Test",
                     "reason": "https://github.com/dotnet/coreclr/issues/12605"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy",
+                    "reason": "Needs updates for XUnit 2.4"
                 }
             ]
         }
@@ -768,5 +830,19 @@
                 },
             ]
         }
-    },
+    },    
+    {
+        "name": "System.Linq.Expressions.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Linq.Expressions.Tests.BindTests.StaticReadonlyField",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20886 and https://github.com/dotnet/corefx/pull/33413"
+                }
+            ]
+        }
+    }
 ]

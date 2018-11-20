@@ -32,18 +32,6 @@ def static getOSGroup(def os) {
     return osGroupMap[os]
 }
 
-def static getCrossArchitectures(def os, def architecture, def scenario) {
-    switch (architecture) {
-        case 'arm':
-            return ['x86','x64']
-
-        case 'arm64':
-            return ['x64']
-    }
-
-    assert false
-}
-
 // We use this class (vs variables) so that the static functions can access data here.
 class Constants {
 
@@ -464,7 +452,7 @@ class Constants {
                // 'gc_reliability_framework'
                // 'illink'
                // 'corefx_innerloop'
-               // 'crossgen_comparison'
+               'crossgen_comparison',
                'pmi_asm_diffs',
                'r2r_jitstress1',
                'r2r_jitstress2',
@@ -930,7 +918,7 @@ def static isCrossGenComparisonScenario(def scenario) {
 
 def static shouldGenerateCrossGenComparisonJob(def os, def architecture, def configuration, def scenario) {
     assert isCrossGenComparisonScenario(scenario)
-    return (os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release'))
+    return ((os == 'Ubuntu' && architecture == 'arm') || (os == 'Ubuntu16.04' && architecture == 'arm64')) && (configuration == 'Checked' || configuration == 'Release')
 }
 
 def static getFxBranch(def branch) {
@@ -1333,7 +1321,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
     // Check scenario.
     switch (scenario) {
         case 'crossgen_comparison':
-            if (isFlowJob && os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release')) {
+            if (isFlowJob && ((os == 'Ubuntu' && architecture == 'arm') || (os == 'Ubuntu16.04' && architecture == 'arm64')) && (configuration == 'Checked' || configuration == 'Release')) {
                 addPeriodicTriggerHelper(job, '@daily')
             }
             break
@@ -2219,9 +2207,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                             if (architecture == 'x86_arm_altjit') {
                                 buildCommandsStr += envScriptAppendExistingScript(os, "%WORKSPACE%\\tests\\x86_arm_altjit.cmd", envScriptPath)
+                                testOpts += " altjitarch arm"
                             }
                             else if (architecture == 'x64_arm64_altjit') {
                                 buildCommandsStr += envScriptAppendExistingScript(os, "%WORKSPACE%\\tests\\x64_arm64_altjit.cmd", envScriptPath)
+                                testOpts += " altjitarch arm64"
                             }
 
                             envScriptFinalize(os, envScriptPath)
@@ -2233,9 +2223,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         }
                         else if (architecture == 'x86_arm_altjit') {
                             envScriptPath = "%WORKSPACE%\\tests\\x86_arm_altjit.cmd"
+                            testOpts += " altjitarch arm"
                         }
                         else if (architecture == 'x64_arm64_altjit') {
                             envScriptPath = "%WORKSPACE%\\tests\\x64_arm64_altjit.cmd"
+                            testOpts += " altjitarch arm64"
                         }
                         if (envScriptPath != '') {
                             testOpts += " TestEnv ${envScriptPath}"
@@ -2530,7 +2522,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     def dockerImage = getDockerImageName(architecture, os, true)
                     def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${additionalOpts} ${dockerImage} "
 
-                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross crosscomponent"
+                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross"
 
                     if (doCoreFxTesting) {
                         def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
@@ -2564,14 +2556,14 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def workspaceRelativeResultsDir = "_"
                         def workspaceRelativeArtifactsArchive = "${os}.${architecture}.${configuration}.${scenario}.zip"
                         def crossGenComparisonCmd = "python -u \${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript} "
-                        getCrossArchitectures(os, architecture, scenario).each{ crossArch ->
-                            def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeProductBinDir}/${crossArch}/crossgen"
-                            def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
+                        def crossArch = "x64"
+                        def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeProductBinDir}/${crossArch}/crossgen"
+                        def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
 
-                            buildCommands += "${dockerCmd}mkdir -p \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
-                            buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
-                            buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
-                        } // crossArch
+                        buildCommands += "${dockerCmd}mkdir -p \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
+                        buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
+                        buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
+
                         buildCommands += "${dockerCmd}zip -r ${workspaceRelativeArtifactsArchive} ${workspaceRelativeCoreLib} ${workspaceRelativeCoreRootDir} ${workspaceRelativeCrossGenComparisonScript} ${workspaceRelativeResultsDir}"
                         Utilities.addArchival(newJob, "${workspaceRelativeArtifactsArchive}")
                     }
@@ -3521,6 +3513,9 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
     def workspaceRelativeResultsDir = "_"
     def workspaceRelativeNativeArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${architecture}_${architecture}.${configuration}"
 
+    def crossArch = "x64"
+    def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
+
     def jobFolder = getJobFolder(scenario)
     def newJob = dslFactory.job(Utilities.getFullJobName(project, jobName, isPR, jobFolder)) {
         parameters {
@@ -3551,18 +3546,12 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
             shell("${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeNativeArchResultDir}")
             shell("${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeNativeArchResultDir}")
 
-            getCrossArchitectures(os, architecture, scenario).each{ crossArch ->
-                def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
-                shell("${crossGenComparisonCmd}compare --base_dir \${WORKSPACE}/${workspaceRelativeNativeArchResultDir} --diff_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}")
-            } // crossArch
+            shell("${crossGenComparisonCmd}compare --base_dir \${WORKSPACE}/${workspaceRelativeNativeArchResultDir} --diff_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}")
         } // steps
     }  // job
 
     Utilities.addArchival(newJob, "${workspaceRelativeNativeArchResultDir}/**")
-    getCrossArchitectures(os, architecture, scenario).each{ crossArch ->
-        def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
-        Utilities.addArchival(newJob, "${workspaceRelativeCrossArchResultDir}/**")
-    } // crossArch
+    Utilities.addArchival(newJob, "${workspaceRelativeCrossArchResultDir}/**")
 
     return newJob
 }

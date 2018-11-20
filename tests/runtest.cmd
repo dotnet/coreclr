@@ -98,6 +98,7 @@ REM tieredcompilation is on by default now, but setting this environment variabl
 if /i "%1" == "tieredcompilation"     (set COMPLUS_TieredCompilation=1&shift&goto Arg_Loop)
 if /i "%1" == "gcname"                (set COMPlus_GCName=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "timeout"               (set __TestTimeout=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "altjitarch"            (set __AltJitArch=%2&shift&shift&goto Arg_Loop)
 
 REM change it to COMPlus_GCStress when we stop using xunit harness
 if /i "%1" == "gcstresslevel"         (set COMPlus_GCStress=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
@@ -206,6 +207,10 @@ if defined __DoCrossgen (
 
 if defined __PrintLastResultsOnly (
     set __RuntestPyArgs=%__RuntestPyArgs% --analyze_results_only
+)
+
+if defined __AltJitArch (
+    set __RuntestPyArgs=%__RuntestPyArgs% -altjit_arch %__AltJitArch%
 )
 
 REM __ProjectDir is poorly named, it is actually <projectDir>/tests
@@ -706,6 +711,10 @@ echo sequential                - Run tests sequentially (no parallelism).
 echo crossgen                  - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests.
 echo crossgenaltjit ^<altjit^>   - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests, using the given altjit.
 echo link ^<ILlink^>             - Runs the tests after linking via the IL linker ^<ILlink^>.
+echo CoreFXTests               - Runs CoreFX tests
+echo CoreFXTestsAll            - Runs all CoreFX tests ^(no exclusions^)
+echo CoreFXTestList ^<file^>     - Specify a file containing a list of CoreFX tests to run, and runs them.
+echo PerfTests                 - Runs perf tests
 echo RunCrossgenTests          - Runs ReadytoRun tests
 echo jitstress ^<n^>             - Runs the tests with COMPlus_JitStress=n
 echo jitstressregs ^<n^>         - Runs the tests with COMPlus_JitStressRegs=n
@@ -725,9 +734,9 @@ echo tieredcompilation         - Run the tests with COMPlus_TieredCompilation=1
 echo gcname ^<name^>             - Runs the tests with COMPlus_GCName=name
 echo timeout ^<n^>               - Sets the per-test timeout in milliseconds ^(default is 10 minutes = 10 * 60 * 1000 = 600000^).
 echo                             Note: some options override this ^(gcstresslevel, longgc, gcsimulator^).
+echo printlastresultsonly      - Print the last test results without running tests.
 echo msbuildargs ^<args...^>     - Pass all subsequent args directly to msbuild invocations.
 echo ^<CORE_ROOT^>               - Path to the runtime to test ^(if specified^).
-echo printlastresultsonly        - Print the last test results without running tests.
 echo.
 echo Note that arguments are not case-sensitive.
 echo.

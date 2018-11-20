@@ -765,26 +765,7 @@ ClrDataAccess::GetThreadData(CLRDATA_ADDRESS threadAddr, struct DacpThreadData *
     threadData->allocContextPtr = TO_CDADDR(thread->m_alloc_context.alloc_ptr);
     threadData->allocContextLimit = TO_CDADDR(thread->m_alloc_context.alloc_limit);
 
-    // @todo Microsoft: the following assignment is pointless--we're just getting the
-    // target address of the m_pFiberData field of the Thread instance. Then we're going to
-    // compute it again as the argument to ReadVirtual. Ultimately, we want the value of 
-    // that field, not its address. We already have that value as part of thread (the 
-    // marshaled Thread instance).This should just go away and we should simply have:
-    // threadData->fiberData = TO_CDADDR(thread->m_pFiberData );
-    // instead of the next 11 lines. 
-    threadData->fiberData = (CLRDATA_ADDRESS)PTR_HOST_MEMBER_TADDR(Thread, thread, m_pFiberData);
-
-    ULONG32 returned = 0;
-    TADDR Value = NULL;
-    HRESULT hr = m_pTarget->ReadVirtual(PTR_HOST_MEMBER_TADDR(Thread, thread, m_pFiberData),
-                                        (PBYTE)&Value,
-                                        sizeof(TADDR),
-                                        &returned);
-    
-    if ((hr  == S_OK) && (returned == sizeof(TADDR)))
-    {
-        threadData->fiberData = (CLRDATA_ADDRESS) Value;
-    }
+    threadData->fiberData = NULL;
 
     threadData->pFrame = PTR_CDADDR(thread->m_pFrame);
     threadData->context = PTR_CDADDR(thread->m_Context);
@@ -3321,25 +3302,18 @@ ClrDataAccess::GetThreadLocalModuleData(CLRDATA_ADDRESS thread, unsigned int ind
     pLocalModuleData->ModuleIndex = index;
     
     PTR_Thread pThread = PTR_Thread(TO_TADDR(thread));
-    PTR_ThreadLocalBlock pLocalBlock = ThreadStatics::GetCurrentTLBIfExists(pThread, NULL);
-    if (!pLocalBlock)
+    PTR_ThreadLocalBlock pLocalBlock = ThreadStatics::GetCurrentTLB(pThread);
+    PTR_ThreadLocalModule pLocalModule = pLocalBlock->GetTLMIfExists(ModuleIndex(index));
+    if (!pLocalModule)
     {
         hr = E_INVALIDARG;
     }
     else
     {
-        PTR_ThreadLocalModule pLocalModule = pLocalBlock->GetTLMIfExists(ModuleIndex(index));
-        if (!pLocalModule)
-        {
-            hr = E_INVALIDARG;
-        }
-        else
-        {
-            pLocalModuleData->pGCStaticDataStart    = TO_CDADDR(PTR_TO_TADDR(pLocalModule->GetPrecomputedGCStaticsBasePointer()));
-            pLocalModuleData->pNonGCStaticDataStart = TO_CDADDR(pLocalModule->GetPrecomputedNonGCStaticsBasePointer());
-            pLocalModuleData->pDynamicClassTable    = PTR_CDADDR(pLocalModule->m_pDynamicClassTable);
-            pLocalModuleData->pClassData            = (TADDR) (PTR_HOST_MEMBER_TADDR(ThreadLocalModule, pLocalModule, m_pDataBlob));
-        }
+        pLocalModuleData->pGCStaticDataStart    = TO_CDADDR(PTR_TO_TADDR(pLocalModule->GetPrecomputedGCStaticsBasePointer()));
+        pLocalModuleData->pNonGCStaticDataStart = TO_CDADDR(pLocalModule->GetPrecomputedNonGCStaticsBasePointer());
+        pLocalModuleData->pDynamicClassTable    = PTR_CDADDR(pLocalModule->m_pDynamicClassTable);
+        pLocalModuleData->pClassData            = (TADDR) (PTR_HOST_MEMBER_TADDR(ThreadLocalModule, pLocalModule, m_pDataBlob));
     }
 
     SOSDacLeave();

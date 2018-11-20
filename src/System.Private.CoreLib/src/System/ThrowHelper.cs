@@ -35,6 +35,7 @@
 // multiple times for different instantiation.
 //
 
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -73,6 +74,11 @@ namespace System
         internal static void ThrowArgumentException_OverlapAlignmentMismatch()
         {
             throw new ArgumentException(SR.Argument_OverlapAlignmentMismatch);
+        }
+
+        internal static void ThrowArgumentException_CannotExtractScalar(ExceptionArgument argument)
+        {
+            throw GetArgumentException(ExceptionResource.Argument_CannotExtractScalar, argument);
         }
 
         internal static void ThrowArgumentOutOfRange_IndexException()
@@ -295,6 +301,21 @@ namespace System
             throw GetArraySegmentCtorValidationFailedException(array, offset, count);
         }
 
+        internal static void ThrowFormatException_BadFormatSpecifier()
+        {
+            throw new FormatException(SR.Argument_BadFormatSpecifier);
+        }
+
+        internal static void ThrowArgumentOutOfRangeException_PrecisionTooLarge()
+        {
+            throw new ArgumentOutOfRangeException("precision", SR.Format(SR.Argument_PrecisionTooLarge, StandardFormat.MaxPrecision));
+        }
+
+        internal static void ThrowArgumentOutOfRangeException_SymbolDoesNotFit()
+        {
+            throw new ArgumentOutOfRangeException("symbol", SR.Argument_BadFormatSpecifier);
+        }
+
         private static Exception GetArraySegmentCtorValidationFailedException(Array array, int offset, int count)
         {
             if (array == null)
@@ -474,6 +495,7 @@ namespace System
         pHandle,
         values,
         task,
+        ch,
         s,
         input,
         pointer,
@@ -512,6 +534,7 @@ namespace System
         ArgumentOutOfRange_Index,
         Argument_InvalidOffLen,
         Argument_ItemNotExist,
+        Argument_CannotExtractScalar,
         ArgumentOutOfRange_Count,
         ArgumentOutOfRange_InvalidThreshold,
         ArgumentOutOfRange_ListInsert,

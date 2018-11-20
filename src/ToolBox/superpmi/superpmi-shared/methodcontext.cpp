@@ -1738,7 +1738,7 @@ unsigned MethodContext::repGetHeapClassSize(CORINFO_CLASS_HANDLE cls)
 {
     AssertCodeMsg(GetHeapClassSize != nullptr, EXCEPTIONCODE_MC, "Didn't find %016llX", (DWORDLONG)cls);
     AssertCodeMsg(GetHeapClassSize->GetIndex((DWORDLONG)cls) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
-        (DWORDLONG)cls);
+                  (DWORDLONG)cls);
     unsigned result = (unsigned)GetHeapClassSize->Get((DWORDLONG)cls);
     DEBUG_REP(dmpGetHeapClassSize((DWORDLONG)cls, (DWORD)result));
     return result;
@@ -1760,7 +1760,7 @@ BOOL MethodContext::repCanAllocateOnStack(CORINFO_CLASS_HANDLE cls)
 {
     AssertCodeMsg(CanAllocateOnStack != nullptr, EXCEPTIONCODE_MC, "Didn't find %016llX", (DWORDLONG)cls);
     AssertCodeMsg(CanAllocateOnStack->GetIndex((DWORDLONG)cls) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
-        (DWORDLONG)cls);
+                  (DWORDLONG)cls);
     BOOL result = (BOOL)CanAllocateOnStack->Get((DWORDLONG)cls);
     DEBUG_REP(dmpCanAllocateOnStack((DWORDLONG)cls, (DWORD)result));
     return result;
@@ -3466,6 +3466,40 @@ void* MethodContext::repGetFieldAddress(CORINFO_FIELD_HANDLE field, void** ppInd
     return temp;
 }
 
+void MethodContext::recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field,
+                                                  bool                 isSpeculative,
+                                                  CORINFO_CLASS_HANDLE result)
+{
+    if (GetStaticFieldCurrentClass == nullptr)
+        GetStaticFieldCurrentClass = new LightWeightMap<DWORDLONG, Agnostic_GetStaticFieldCurrentClass>();
+
+    Agnostic_GetStaticFieldCurrentClass value;
+
+    value.classHandle   = (DWORDLONG)result;
+    value.isSpeculative = isSpeculative;
+
+    GetStaticFieldCurrentClass->Add((DWORDLONG)field, value);
+    DEBUG_REC(dmpGetFieldAddress((DWORDLONG)field, value));
+}
+void MethodContext::dmpGetStaticFieldCurrentClass(DWORDLONG key, const Agnostic_GetStaticFieldCurrentClass& value)
+{
+    printf("GetStaticFieldCurrentClass key fld-%016llX, value clsHnd-%016llX isSpeculative-%u", key, value.classHandle,
+           value.isSpeculative);
+}
+CORINFO_CLASS_HANDLE MethodContext::repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative)
+{
+    Agnostic_GetStaticFieldCurrentClass value = GetStaticFieldCurrentClass->Get((DWORDLONG)field);
+
+    if (pIsSpeculative != nullptr)
+    {
+        *pIsSpeculative = value.isSpeculative;
+    }
+
+    CORINFO_CLASS_HANDLE result = (CORINFO_CLASS_HANDLE)value.classHandle;
+    DEBUG_REP(dmpGetStaticFieldCurrentValue((DWORDLONG)field, value));
+    return result;
+}
+
 void MethodContext::recGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs, unsigned len, unsigned result)
 {
     if (GetClassGClayout == nullptr)
@@ -4369,6 +4403,41 @@ const char* MethodContext::repGetFieldName(CORINFO_FIELD_HANDLE ftn, const char*
     if (moduleName != nullptr)
         *moduleName = (const char*)GetFieldName->GetBuffer(value.B);
     return (const char*)GetFieldName->GetBuffer(value.A);
+}
+
+void MethodContext::recCanInlineTypeCheck(CORINFO_CLASS_HANDLE         cls,
+                                          CorInfoInlineTypeCheckSource source,
+                                          CorInfoInlineTypeCheck       result)
+{
+    if (CanInlineTypeCheck == nullptr)
+        CanInlineTypeCheck = new LightWeightMap<DLD, DWORD>();
+
+    DLD key;
+    ZeroMemory(&key, sizeof(DLD)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                   // out padding too
+
+    key.A = (DWORDLONG)cls;
+    key.B = (DWORD)source;
+
+    CanInlineTypeCheck->Add(key, (DWORD)result);
+}
+void MethodContext::dmpCanInlineTypeCheck(DLD key, DWORD value)
+{
+    printf("CanInlineTypeCheck key cls-%016llX src-%08X, value res-%u", key.A, key.B, value);
+}
+CorInfoInlineTypeCheck MethodContext::repCanInlineTypeCheck(CORINFO_CLASS_HANDLE         cls,
+                                                            CorInfoInlineTypeCheckSource source)
+{
+    AssertCodeMsg(CanInlineTypeCheck != nullptr, EXCEPTIONCODE_MC, "No map for CanInlineTypeCheck");
+
+    DLD key;
+    ZeroMemory(&key, sizeof(DLD)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                   // out padding too
+
+    key.A = (DWORDLONG)cls;
+    key.B = (DWORD)source;
+
+    return (CorInfoInlineTypeCheck)CanInlineTypeCheck->Get(key);
 }
 
 void MethodContext::recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, BOOL result)

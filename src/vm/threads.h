@@ -162,7 +162,6 @@ struct    HelperMethodFrameCallerList;
 class     ThreadLocalIBCInfo;
 class     EECodeInfo;
 class     DebuggerPatchSkip;
-class     MethodCallGraphPreparer;
 class     FaultingExceptionFrame;
 class     ContextTransitionFrame;
 enum      BinderMethodID : int;
@@ -188,6 +187,79 @@ typedef DPTR(PTR_ThreadLocalBlock) PTR_PTR_ThreadLocalBlock;
 class EventPipeBufferList;
 #endif // FEATURE_PERFTRACING
 
+struct TLMTableEntry;
+
+typedef DPTR(struct TLMTableEntry) PTR_TLMTableEntry;
+typedef DPTR(struct ThreadLocalModule) PTR_ThreadLocalModule;
+
+class ThreadStaticHandleTable;
+struct ThreadLocalModule;
+class Module;
+
+struct ThreadLocalBlock
+{
+    friend class ClrDataAccess;
+
+private:
+    PTR_TLMTableEntry   m_pTLMTable;     // Table of ThreadLocalModules
+    SIZE_T              m_TLMTableSize;  // Current size of table
+    SpinLock            m_TLMTableLock;  // Spinlock used to synchronize growing the table and freeing TLM by other threads
+
+    // Each ThreadLocalBlock has its own ThreadStaticHandleTable. The ThreadStaticHandleTable works
+    // by allocating Object arrays on the GC heap and keeping them alive with pinning handles.
+    //
+    // We use the ThreadStaticHandleTable to allocate space for GC thread statics. A GC thread
+    // static is thread static that is either a reference type or a value type whose layout
+    // contains a pointer to a reference type.
+
+    ThreadStaticHandleTable * m_pThreadStaticHandleTable;
+
+    // Need to keep a list of the pinning handles we've created
+    // so they can be cleaned up when the thread dies
+    ObjectHandleList          m_PinningHandleList;
+
+public: 
+
+#ifndef DACCESS_COMPILE
+    void AddPinningHandleToList(OBJECTHANDLE oh);
+    void FreePinningHandles();
+    void AllocateThreadStaticHandles(Module * pModule, ThreadLocalModule * pThreadLocalModule);
+    OBJECTHANDLE AllocateStaticFieldObjRefPtrs(int nRequested, OBJECTHANDLE* ppLazyAllocate = NULL);
+    void InitThreadStaticHandleTable();
+
+    void AllocateThreadStaticBoxes(MethodTable* pMT);
+#endif
+
+public: // used by code generators
+    static SIZE_T GetOffsetOfModuleSlotsPointer() { return offsetof(ThreadLocalBlock, m_pTLMTable); }
+
+public:
+
+#ifndef DACCESS_COMPILE
+    ThreadLocalBlock()
+      : m_pTLMTable(NULL), m_TLMTableSize(0), m_pThreadStaticHandleTable(NULL) 
+    {
+        m_TLMTableLock.Init(LOCK_TYPE_DEFAULT);
+    }
+
+    void    FreeTLM(SIZE_T i, BOOL isThreadShuttingDown);
+
+    void    FreeTable();
+
+    void    EnsureModuleIndex(ModuleIndex index);
+
+#endif
+
+    void SetModuleSlot(ModuleIndex index, PTR_ThreadLocalModule pLocalModule);
+
+    PTR_ThreadLocalModule GetTLMIfExists(ModuleIndex index);
+    PTR_ThreadLocalModule GetTLMIfExists(MethodTable* pMT);
+
+#ifdef DACCESS_COMPILE
+    void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
+#endif
+};
+
 #ifdef CROSSGEN_COMPILE
 
 #include "asmconstants.h"
@@ -196,7 +268,7 @@ class Thread
 {
     friend class ThreadStatics;
 
-    PTR_ThreadLocalBlock m_pThreadLocalBlock;
+    ThreadLocalBlock m_ThreadLocalBlock;
 
 public:
     BOOL IsAddressInStack (PTR_VOID addr) const { return TRUE; }
@@ -205,22 +277,6 @@ public:
     Frame *IsRunningIn(AppDomain* pDomain, int *count) { return NULL; }
 
     StackingAllocator    m_MarshalAlloc;
-
-private:
-    MethodCallGraphPreparer * m_pCerPreparationState;
-
-public:
-    MethodCallGraphPreparer * GetCerPreparationState()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pCerPreparationState;
-    }
-
-    void SetCerPreparationState(MethodCallGraphPreparer * pCerPreparationState)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pCerPreparationState = pCerPreparationState;
-    }
 
  private:
     LoadLevelLimiter *m_pLoadLimiter;
@@ -1189,7 +1245,7 @@ public:
         TSNC_OSAlertableWait            = 0x00001000, // Preparing abort.  This avoids recursive HandleThreadAbort call.
         TSNC_ADUnloadHelper             = 0x00002000, // This thread is AD Unload helper.
         TSNC_CreatingTypeInitException  = 0x00004000, // Thread is trying to create a TypeInitException
-        TSNC_InTaskSwitch               = 0x00008000, // A task is switching
+        // unused                       = 0x00008000,
         TSNC_AppDomainContainUnhandled  = 0x00010000, // Used to control how unhandled exception reporting occurs.
                                                       // See detailed explanation for this bit in threads.cpp
         TSNC_InRestoringSyncBlock       = 0x00020000, // The thread is restoring its SyncBlock for Object.Wait.
@@ -1246,14 +1302,6 @@ public:
         DAC_EMPTY_RET(0);
     STDMETHODIMP_(ULONG) Release(void)
         DAC_EMPTY_RET(0);
-    STDMETHODIMP SwitchIn(HANDLE threadHandle)
-        DAC_EMPTY_RET(E_FAIL);
-    STDMETHODIMP SwitchOut()
-        DAC_EMPTY_RET(E_FAIL);
-    STDMETHODIMP Reset (BOOL fFull)
-        DAC_EMPTY_RET(E_FAIL);
-    STDMETHODIMP ExitTask()
-        DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP Abort()
         DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP RudeAbort()
@@ -1265,16 +1313,11 @@ public:
         DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP LocksHeld(SIZE_T *pLockCount)
         DAC_EMPTY_RET(E_FAIL);
-    STDMETHODIMP SetTaskIdentifier(TASKID asked)
-        DAC_EMPTY_RET(E_FAIL);
 
     STDMETHODIMP BeginPreventAsyncAbort()
         DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP EndPreventAsyncAbort()
         DAC_EMPTY_RET(E_FAIL);
-
-    STDMETHODIMP SetLocale(LCID lcid);
-    STDMETHODIMP SetUILocale(LCID lcid);
 
     void InternalReset (BOOL fFull, BOOL fNotFinalizerThread=FALSE, BOOL fThreadObjectResetNeeded=TRUE, BOOL fResetAbort=TRUE);
     INT32 ResetManagedThreadObject(INT32 nPriority); 
@@ -1284,8 +1327,6 @@ private:
     //Helpers for reset...
     void FullResetThread();
 public:
-    void InternalSwitchOut();
-
     HRESULT DetachThread(BOOL fDLLThreadDetach);
 
     void SetThreadState(ThreadState ts)
@@ -2722,24 +2763,6 @@ public:
         return m_OSThreadId;
     }
 
-    TASKID      GetTaskId()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_TaskId;
-    }
-    CONNID      GetConnectionId()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwConnectionId;
-    }
-
-
-    void SetConnectionId(CONNID dwConnectionId)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_dwConnectionId = dwConnectionId;
-    }
-
     BOOL        IsThreadPoolThread()
     {
         LIMITED_METHOD_CONTRACT;
@@ -4012,11 +4035,6 @@ private:
     UINT_PTR             m_LastAllowableStackAddress;
 
 private:
-
-    // Save the domain when a task is switched out, and restore it when
-    // the task is switched in.
-    PTR_AppDomain m_pDomainAtTaskSwitch;
-
     //---------------------------------------------------------------
     // m_debuggerFilterContext holds the thread's "filter context" for the
     // debugger.  This filter context is used by the debugger to seed
@@ -4253,7 +4271,7 @@ public:
     bool GetDebugCantStop(void);
     
     static LPVOID GetStaticFieldAddress(FieldDesc *pFD);
-    TADDR GetStaticFieldAddrNoCreate(FieldDesc *pFD, PTR_AppDomain pDomain);
+    TADDR GetStaticFieldAddrNoCreate(FieldDesc *pFD);
  
     void SetLoadingFile(DomainFile *pFile)
     {
@@ -4461,20 +4479,11 @@ public:
 
     void EnsurePreallocatedContext();
     
-    // m_pThreadLocalBLock points to the ThreadLocalBlock that corresponds to the 
-    // AppDomain that the Thread is currently in
-    
-    PTR_ThreadLocalBlock m_pThreadLocalBlock;
+    ThreadLocalBlock m_ThreadLocalBlock;
 
     // Called during AssemblyLoadContext teardown to clean up all structures
     // associated with thread statics for the specific Module
     void DeleteThreadStaticData(ModuleIndex index);
-
-protected:
-    
-    // Called during AD teardown to clean up any references this 
-    // thread may have to the AppDomain
-    void DeleteThreadStaticData(AppDomain *pDomain);
 
 private:
 
@@ -4508,69 +4517,13 @@ public:
     size_t *m_pCleanedStackBase;
 #endif
 
-private:
-    PVOID      m_pFiberData;
-
-    TASKID     m_TaskId;
-    CONNID     m_dwConnectionId;
-
-public:
-    void SetupFiberData();
-
-#ifdef _DEBUG
-public:
-    void AddFiberInfo(DWORD type);
-    enum {
-        ThreadTrackInfo_Lifetime=0x1,   // creation, destruction, ref-count
-        ThreadTrackInfo_Schedule=0x2,   // switch in/out
-        ThreadTrackInfo_UM_M=0x4,       // Unmanaged <-> managed transtion
-        ThreadTrackInfo_Abort=0x8,      // Thread abort
-        ThreadTrackInfo_Affinity=0x10,  // Thread's affinity
-        ThreadTrackInfo_GCMode=0x20,
-        ThreadTrackInfo_Escalation=0x40,// escalation point
-        ThreadTrackInfo_SO=0x80,
-        ThreadTrackInfo_Max=8
-    };
-private:
-    static int MaxThreadRecord;
-    static int MaxStackDepth;
-    static const int MaxThreadTrackInfo;
-    struct FiberSwitchInfo
-    {
-        unsigned __int64 timeStamp;
-        DWORD threadID;
-        size_t callStack[1];
-    };
-    FiberSwitchInfo *m_pFiberInfo[ThreadTrackInfo_Max];
-    DWORD m_FiberInfoIndex[ThreadTrackInfo_Max];
-#endif
-
 #ifdef DACCESS_COMPILE
 public:
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
     void EnumMemoryRegionsWorker(CLRDataEnumMemoryFlags flags);
 #endif
 
-private:
-    // Head of a linked list of opaque records that record if and how the thread is currently preparing a
-    // graph of methods for CER usage. This is used to determine if a re-entrant preparation request should
-    // complete immediately as a no-op (because it would lead to an infinite recursion) or should proceed
-    // recursively.
-    MethodCallGraphPreparer * m_pCerPreparationState;
-
 public:
-    MethodCallGraphPreparer * GetCerPreparationState()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pCerPreparationState;
-    }
-
-    void SetCerPreparationState(MethodCallGraphPreparer * pCerPreparationState)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pCerPreparationState = pCerPreparationState;
-    }
-
     // Is the current thread currently executing within a constrained execution region?
     static BOOL IsExecutingWithinCer();
 
@@ -7277,7 +7230,7 @@ class Compiler;
 struct ThreadLocalInfo
 {
     Thread* m_pThread;
-    AppDomain* m_pAppDomain;
+    AppDomain* m_pAppDomain; // This field is read only by the SOS plugin to get the AppDomain
     void** m_EETlsData; // ClrTlsInfo::data
 };
 

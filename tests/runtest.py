@@ -103,6 +103,7 @@ parser.add_argument("-product_location", dest="product_location", nargs='?', def
 parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 parser.add_argument("-test_env", dest="test_env", default=None)
 parser.add_argument("-crossgen_altjit", dest="crossgen_altjit", default=None)
+parser.add_argument("-altjit_arch", dest="altjit_arch", default=None)
 
 # Optional arguments which change execution.
 
@@ -791,7 +792,7 @@ def run_tests(host_os,
     #  1) git clone https://github.com/echesakovMSFT/xunit.git --branch UseConcurrentDictionaryInDependencyContextAssemblyCache --single-branch
     #  2) cd xunit
     #  3) git submodule update --init
-    #  4) powershell .\build.ps1
+    #  4) powershell .\build.ps1 -target packages -buildAssemblyVersion 2.4.1 -buildSemanticVersion 2.4.1-coreclr
     #
     # Then file "xunit\src\xunit.console\bin\Release\netcoreapp2.0\xunit.console.dll" was archived and uploaded to the clrjit blob storage.
     #
@@ -809,7 +810,7 @@ def run_tests(host_os,
 
     urlretrieve = urllib.urlretrieve if sys.version_info.major < 3 else urllib.request.urlretrieve
     zipfilename = os.path.join(tempfile.gettempdir(), "xunit.console.dll.zip")
-    url = r"https://clrjit.blob.core.windows.net/xunit-console/xunit.console.dll.zip"
+    url = r"https://clrjit.blob.core.windows.net/xunit-console/xunit.console.dll-v2.4.1.zip"
     urlretrieve(url, zipfilename)
 
     with zipfile.ZipFile(zipfilename,"r") as ziparch:
@@ -1466,6 +1467,13 @@ def setup_core_root(host_os,
 
     return True
 
+if sys.version_info.major < 3:
+    def to_unicode(s):
+        return unicode(s, "utf-8")
+else:
+    def to_unicode(s):
+        return str(s, "utf-8")
+
 def delete_existing_wrappers(test_location):
     """ Delete the existing xunit wrappers
 
@@ -1490,7 +1498,8 @@ def build_test_wrappers(host_os,
                         arch, 
                         build_type, 
                         coreclr_repo_location,
-                        test_location):
+                        test_location,
+                        altjit_arch=None):
     """ Build the coreclr test wrappers
 
     Args:
@@ -1509,7 +1518,7 @@ def build_test_wrappers(host_os,
     """
     global g_verbose
 
-    delete_existing_wrappers(test_location)
+    delete_existing_wrappers(to_unicode(test_location))
 
     # Setup the dotnetcli location
     dotnetcli_location = os.path.join(coreclr_repo_location, "Tools", "dotnetcli", "dotnet%s" % (".exe" if host_os == "Windows_NT" else ""))
@@ -1543,6 +1552,9 @@ def build_test_wrappers(host_os,
                 "/p:__BuildArch=%s" % arch,
                 "/p:__BuildType=%s" % build_type,
                 "/p:__LogsDir=%s" % logs_dir]
+
+    if not altjit_arch is None:
+        command += ["/p:__AltJitArch=%s" % altjit_arch]
 
     print("Creating test wrappers...")
     print(" ".join(command))
@@ -2008,12 +2020,18 @@ def do_setup(host_os,
         # Line ending only need to be corrected if this is a cross build.
         correct_line_endings(host_os, test_location)
 
+    # If we are inside altjit scenario, we ought to re-build Xunit test wrappers to consider
+    # ExcludeList items in issues.targets for both build arch and altjit arch
+    is_altjit_scenario = not args.altjit_arch is None
+
     if unprocessed_args.build_test_wrappers:
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
     elif build_info is None:
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
     elif not (is_same_os and is_same_arch and is_same_build_type):
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
+    elif is_altjit_scenario:
+        build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location, args.altjit_arch)
 
     return run_tests(host_os, 
               arch,

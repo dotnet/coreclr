@@ -396,6 +396,15 @@ BOOL interceptor_ICJI::isValueClass(CORINFO_CLASS_HANDLE cls)
     return original_ICorJitInfo->isValueClass(cls);
 }
 
+// Decides how the JIT should do the optimization to inline the check for
+//     GetTypeFromHandle(handle) == obj.GetType() (for CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE)
+//     GetTypeFromHandle(X) == GetTypeFromHandle(Y) (for CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+CorInfoInlineTypeCheck interceptor_ICJI::canInlineTypeCheck(CORINFO_CLASS_HANDLE         cls,
+                                                            CorInfoInlineTypeCheckSource source)
+{
+    return original_ICorJitInfo->canInlineTypeCheck(cls, source);
+}
+
 // If this method returns true, JIT will do optimization to inline the check for
 //     GetTypeFromHandle(handle) == obj.GetType()
 BOOL interceptor_ICJI::canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
@@ -1256,6 +1265,12 @@ unsigned interceptor_ICJI::getClassDomainID(CORINFO_CLASS_HANDLE cls, void** ppI
 void* interceptor_ICJI::getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection)
 {
     return original_ICorJitInfo->getFieldAddress(field, ppIndirection);
+}
+
+// return the class handle for the current value of a static field
+CORINFO_CLASS_HANDLE interceptor_ICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative)
+{
+    return original_ICorJitInfo->getStaticFieldCurrentClass(field, pIsSpeculative);
 }
 
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)
