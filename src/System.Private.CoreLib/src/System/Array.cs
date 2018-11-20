@@ -1341,14 +1341,34 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (startIndex < 0 || startIndex > array.Length)
+            if ((uint)startIndex > (uint)array.Length)
             {
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
-            if (count < 0 || count > array.Length - startIndex)
+            if ((uint)count > (uint)(array.Length - startIndex))
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
+            }
+
+            if (typeof(T) == typeof(byte))
+            {
+                int result = SpanHelpers.IndexOf(
+                    ref Unsafe.Add(ref array.GetRawSzArrayData(), startIndex),
+                    Unsafe.As<T, byte>(ref value),
+                    count);
+
+                return (result >= 0 ? startIndex : 0) + result;
+            }
+
+            if (typeof(T) == typeof(char))
+            {
+                int result = SpanHelpers.IndexOf(
+                    ref Unsafe.Add(ref Unsafe.As<byte, char>(ref array.GetRawSzArrayData()), startIndex),
+                    Unsafe.As<T, char>(ref value),
+                    count);
+
+                return (result >= 0 ? startIndex : 0) + result;
             }
 
             return EqualityComparer<T>.Default.IndexOf(array, value, startIndex, count);
