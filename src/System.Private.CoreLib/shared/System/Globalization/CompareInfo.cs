@@ -974,7 +974,7 @@ namespace System.Globalization
 
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
-            if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
+            if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal && options != CompareOptions.OrdinalIgnoreCase))
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
 
             return IndexOf(source, new string(value, 1), startIndex, count, options, null);
@@ -1014,7 +1014,7 @@ namespace System.Globalization
 
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
-            if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
+            if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal && options != CompareOptions.OrdinalIgnoreCase))
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
 
             return IndexOf(source, value, startIndex, count, options, null);
