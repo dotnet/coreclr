@@ -735,13 +735,13 @@ def run_tests(host_os,
     # Setup the dotnetcli location
     dotnetcli_location = os.path.join(coreclr_repo_location, "Tools", "dotnetcli", "dotnet%s" % (".exe" if host_os == "Windows_NT" else ""))
 
-    # Default timeout for unix is 15 minutes
-    os.environ["__TestTimeout"] = str(15*60*1000) # 900,000 ms
+    # Default timeout for unix is 30 minutes
+    os.environ["__TestTimeout"] = str(30*60*1000) # 1,800,000 ms
 
     # Setup the environment
     if is_long_gc:
-        print("Running Long GC Tests, extending timeout to 20 minutes.")
-        os.environ["__TestTimeout"] = str(20*60*1000) # 1,200,000 ms
+        print("Running Long GC Tests, extending timeout to 30 minutes.")
+        os.environ["__TestTimeout"] = str(30*60*1000) # 1,800,000 ms
         os.environ["RunningLongGCTests"] = "1"
     
     if is_gcsimulator:

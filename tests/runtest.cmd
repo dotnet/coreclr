@@ -595,10 +595,10 @@ REM ============================================================================
 
 :: Long GC tests take about 10 minutes per test on average, so
 :: they often bump up against the default 10 minute timeout.
-:: 20 minutes is more than enough time for a test to complete successfully.
+:: 30 minutes is more than enough time for a test to complete successfully.
 if defined __LongGCTests (
-    echo %__MsgPrefix%Running Long GC tests, extending timeout to 20 minutes
-    set __TestTimeout=1200000
+    echo %__MsgPrefix%Running Long GC tests, extending timeout to 30 minutes
+    set __TestTimeout=1800000
     set RunningLongGCTests=1
 )
 
