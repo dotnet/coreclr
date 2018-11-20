@@ -2075,7 +2075,7 @@ const int SEMAPHORE_ENCODED_NAME_LENGTH =
 
 static_assert_no_msg(MAX_APPLICATION_GROUP_ID_LENGTH
     + 1 /* For / */
-    + 2 /* For DN header */
+    + 2 /* For ST/CO name prefix */
     + SEMAPHORE_ENCODED_NAME_LENGTH /* For encoded name string */
     + 1 /* For null terminator */
     <= CLR_SEM_MAX_NAMELEN);
@@ -2091,13 +2091,13 @@ void EncodeSemaphoreName(char *encodedSemName, const UnambiguousProcessDescripto
     char *extraEncodingBits = encodedSemName + sizeof(UnambiguousProcessDescriptor);
 
     // Reset the extra encoding bit area
-    for (int i=0;i<SEMAPHORE_ENCODED_NAME_EXTRA_LENGTH;i++)
+    for (int i=0; i<SEMAPHORE_ENCODED_NAME_EXTRA_LENGTH; i++)
     {
         extraEncodingBits[i] = 0x80;
     }
 
     // Encode each byte in unambiguousProcessDescriptor
-    for (int i=0;i<sizeof(UnambiguousProcessDescriptor);i++)
+    for (int i=0; i<sizeof(UnambiguousProcessDescriptor); i++)
     {
         unsigned char b = buffer[i];
         encodedSemName[i] = b ? b : 1;
