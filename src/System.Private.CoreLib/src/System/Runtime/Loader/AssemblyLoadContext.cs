@@ -69,6 +69,12 @@ namespace System.Runtime.Loader
             // Initialize the VM side of AssemblyLoadContext if not already done.
             IsCollectible = isCollectible;
 
+            if (!isCollectible)
+            {
+                // For non collectible AssemblyLoadContext, the finalizer should never be called
+                GC.SuppressFinalize(this);
+            }
+
             // Add this instance to the list of alive ALC
             lock (ContextsToUnload)
             {
@@ -94,6 +100,7 @@ namespace System.Runtime.Loader
         ~AssemblyLoadContext()
         {
             // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
+            Debug.Assert(IsCollectible());
             // We get here only in case the explicit Unload was not initiated.
             Debug.Assert(state != InternalState.Unloading);
             InitiateUnload();
