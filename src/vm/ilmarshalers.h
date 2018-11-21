@@ -2227,8 +2227,6 @@ public:
     LocalDesc GetManagedType() override;
     LocalDesc GetNativeType() override;
 
-    bool NeedsClearNative() override;
-    void EmitClearNative(ILCodeStream* pslILEmit) override;
     void EmitMarshalArgumentContentsCLRToNative() override;
 
     void EmitMarshalArgumentNativeToCLRByref() override

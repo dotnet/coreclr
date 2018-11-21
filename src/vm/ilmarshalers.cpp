@@ -2599,23 +2599,6 @@ LocalDesc ILSafeHandleMarshaler::GetNativeType()
     return LocalDesc(ELEMENT_TYPE_I);
 }
 
-bool ILSafeHandleMarshaler::NeedsClearNative()
-{
-    LIMITED_METHOD_CONTRACT;
-    return true;
-}
-
-void ILSafeHandleMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
-{
-    STANDARD_VM_CONTRACT;
-
-    _ASSERTE(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
-
-    // call StubHelpers::SafeHandleRelease
-    EmitLoadManagedValue(pslILEmit);
-    pslILEmit->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_RELEASE, 1, 0);
-}
-
 void ILSafeHandleMarshaler::EmitMarshalArgumentContentsCLRToNative()
 {
     CONTRACTL
