@@ -2548,6 +2548,7 @@ MarshalerOverrideStatus ILHandleRefMarshaler::ArgumentOverride(NDirectStubLinker
 
     ILCodeStream* pcsMarshal    = psl->GetMarshalCodeStream();
     ILCodeStream* pcsDispatch   = psl->GetDispatchCodeStream();
+    ILCodeStream* pcsUnmarshal  = psl->GetUnmarshalCodeStream();
 
     if (fManagedToNative && !byref)
     {
@@ -2560,6 +2561,12 @@ MarshalerOverrideStatus ILHandleRefMarshaler::ArgumentOverride(NDirectStubLinker
         pcsDispatch->EmitLDC(offsetof(HANDLEREF, m_handle));
         pcsDispatch->EmitADD();
         pcsDispatch->EmitLDIND_I();
+
+        mdFieldDef field = pcsUnmarshal->GetToken(MscorlibBinder::GetField(FIELD__HANDLE_REF__WRAPPER));
+        pcsUnmarshal->EmitLDARG(argidx);
+        pcsUnmarshal->EmitLDFLD(field);
+        pcsUnmarshal->EmitCALL(METHOD__GC__KEEP_ALIVE, 1, 0);
+
         return OVERRIDDEN;
     }
     else
