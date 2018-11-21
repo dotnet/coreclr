@@ -35216,16 +35216,12 @@ int GCHeap::GetHomeHeapNumber ()
 {
 #ifdef MULTIPLE_HEAPS
     Thread *pThread = GCToEEInterface::GetThread();
-    for (int i = 0; i < gc_heap::n_heaps; i++)
-    {
-        if (pThread)
-        {
-            gc_alloc_context* ctx = GCToEEInterface::GetAllocContext();
-            GCHeap *hp = static_cast<alloc_context*>(ctx)->get_home_heap();
-            if (hp == gc_heap::g_heaps[i]->vm_heap) return i;
-        }
-    }
-    return 0;
+    if (!pThread)
+        return 0;
+
+    gc_alloc_context* ctx = GCToEEInterface::GetAllocContext();
+    GCHeap *hp = static_cast<alloc_context*>(ctx)->get_home_heap();
+    return (hp ? hp->pGenGCHeap->heap_number : 0);
 #else
     return 0;
 #endif //MULTIPLE_HEAPS
