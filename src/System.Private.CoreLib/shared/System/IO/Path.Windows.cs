@@ -247,25 +247,23 @@ namespace System.IO
             if (root.Length == 0)
                 return root;
 
-            int offset = GetUncRootLength(path);
-            if (offset >= 0)
+            // Cut from "\\?\UNC\Server\Share" to "Server\Share"
+            // Cut from  "\\Server\Share" to "Server\Share"
+            int startOffset = GetUncRootLength(path);
+            if (startOffset == -1)
             {
-                // Cut from "\\?\UNC\Server\Share" to "Server\Share"
-                // Cut from  "\\Server\Share" to "Server\Share"
-                return TrimEndingDirectorySeparatorHelper(root.Slice(offset));
-            }
-            else if (PathInternal.IsDevice(path))
-            {
-                return TrimEndingDirectorySeparatorHelper(root.Slice(4)); // Cut from "\\?\C:\" to "C:"
+                if (PathInternal.IsDevice(path))
+                {
+                    startOffset = 4; // Cut from "\\?\C:\" to "C:"
+                }
+                else
+                {
+                    startOffset = 0; // e.g. "C:"
+                }
             }
 
-            return TrimEndingDirectorySeparatorHelper(root); // e.g. "C:"
-
-            // Trim ending directory separator
-            ReadOnlySpan<char> TrimEndingDirectorySeparatorHelper(ReadOnlySpan<char> pathToTrim) =>
-                PathInternal.EndsInDirectorySeparator(pathToTrim) ?
-                pathToTrim.Slice(0, pathToTrim.Length - 1) :
-                pathToTrim;
+            ReadOnlySpan<char> pathToTrim = root.Slice(startOffset);
+            return PathInternal.EndsInDirectorySeparator(pathToTrim) ? pathToTrim.Slice(0, pathToTrim.Length - 1) : pathToTrim;
         }
 
         /// <summary>
