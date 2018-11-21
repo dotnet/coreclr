@@ -988,15 +988,15 @@ void ZapImportTable::EncodeMethod(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHO
         CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken, BOOL fEncodeUsingResolvedTokenSpecStreams)
 {
     CORINFO_CLASS_HANDLE clsHandle = GetJitInfo()->getMethodClass(handle);
-    CORINFO_MODULE_HANDLE referencingModule = GetJitInfo()->getClassModule(clsHandle);
-    referencingModule = TryEncodeModule(kind, referencingModule, pSigBuilder);
 #ifdef FEATURE_READYTORUN_COMPILER
-    GetCompileInfo()->EncodeMethod(pResolvedToken->tokenScope, handle, pSigBuilder, this, EncodeModuleHelper,
-        pResolvedToken, pConstrainedResolvedToken, fEncodeUsingResolvedTokenSpecStreams);
+    CORINFO_MODULE_HANDLE referencingModule = pResolvedToken->tokenScope;
 #else
+    CORINFO_MODULE_HANDLE referencingModule = GetJitInfo()->getClassModule(clsHandle);
+#endif
+    referencingModule = TryEncodeModule(kind, referencingModule, pSigBuilder);
+
     GetCompileInfo()->EncodeMethod(referencingModule, handle, pSigBuilder, this, EncodeModuleHelper,
         pResolvedToken, pConstrainedResolvedToken, fEncodeUsingResolvedTokenSpecStreams);
-#endif
 }
 
 // ======================================================================================
