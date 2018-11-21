@@ -31,7 +31,7 @@ namespace System
     // operations.
     //
     [Serializable]
-    [ClassInterface(ClassInterfaceType.None)]
+    [ClassInterface(ClassInterfaceType.AutoDispatch)]
     [ComVisible(true)]
     [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class Object
