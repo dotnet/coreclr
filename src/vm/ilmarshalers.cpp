@@ -2585,38 +2585,6 @@ MarshalerOverrideStatus ILHandleRefMarshaler::ReturnOverride(NDirectStubLinker* 
     return DISALLOWED;
 }
 
-LocalDesc ILSafeHandleMarshaler::GetManagedType()
-{
-    STANDARD_VM_CONTRACT;
-
-    return LocalDesc(MscorlibBinder::GetClass(CLASS__SAFE_HANDLE));
-}
-
-LocalDesc ILSafeHandleMarshaler::GetNativeType()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return LocalDesc(ELEMENT_TYPE_I);
-}
-
-void ILSafeHandleMarshaler::EmitMarshalArgumentContentsCLRToNative()
-{
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
-    }
-    CONTRACTL_END;
-
-    ILCodeStream* marshalStream = m_pslNDirect->GetMarshalCodeStream();
-
-    m_pslNDirect->LoadCleanupWorkList(marshalStream);
-    EmitLoadManagedValue(marshalStream);
-    marshalStream->EmitCALL(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST_SAFEHANDLE, 2, 1);
-
-    EmitStoreNativeValue(marshalStream);
-}
-
 MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinker* psl,
                                                 BOOL               byref,
                                                 BOOL               fin,
@@ -2788,14 +2756,13 @@ MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinke
         }
         else
         {
-            // Avoid using the cleanup list in this common case for perf reasons (cleanup list is
-            // unmanaged and destroying it means excessive managed<->native transitions; in addition,
-            // as X86 IL stubs do not use interop frames, there's nothing protecting the cleanup list
-            // and the SafeHandle references must be GC handles which does not help perf either).
-            //
-            // This code path generates calls to StubHelpers.SafeHandleAddRef and SafeHandleRelease.
-            // NICE: Could SafeHandle.DangerousAddRef and DangerousRelease be implemented in managed?
-            return HANDLEASNORMAL;
+            DWORD dwNativeHandle = pslIL->NewLocal(ELEMENT_TYPE_I);
+            psl->LoadCleanupWorkList(pslIL);
+            pslIL->EmitLDARG(argidx);
+            pslIL->EmitCALL(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST_SAFEHANDLE, 2, 1);
+            pslIL->EmitSTLOC(dwNativeHandle);
+
+            pslILDispatch->EmitLDLOC(dwNativeHandle);
         }
 
         return OVERRIDDEN;

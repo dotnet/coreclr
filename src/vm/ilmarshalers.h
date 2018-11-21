@@ -2224,14 +2224,16 @@ public:
         c_CLRSize               = sizeof(SAFEHANDLE),
     };
 
-    LocalDesc GetManagedType() override;
-    LocalDesc GetNativeType() override;
-
-    void EmitMarshalArgumentContentsCLRToNative() override;
-
-    void EmitMarshalArgumentNativeToCLRByref() override
+    LocalDesc GetManagedType() override
     {
-        UNREACHABLE_MSG("SafeHandle overrides byref marshalling with ArgumentOverride.");
+        LIMITED_METHOD_CONTRACT;
+        return LocalDesc();
+    }
+    
+    LocalDesc GetNativeType() override
+    {
+        LIMITED_METHOD_CONTRACT;
+        return LocalDesc();
     }
 
     static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
@@ -2264,13 +2266,13 @@ public:
         
 public:
 
-    LocalDesc GetManagedType()
+    LocalDesc GetManagedType() override
     {
         LIMITED_METHOD_CONTRACT;
         return LocalDesc();
     }
     
-    LocalDesc GetNativeType()
+    LocalDesc GetNativeType() override
     {
         LIMITED_METHOD_CONTRACT;
         return LocalDesc();
