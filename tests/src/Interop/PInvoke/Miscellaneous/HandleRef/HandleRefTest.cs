@@ -55,7 +55,7 @@ class HandleRefTest
             // stay rooted until the end of the method. 
             Console.WriteLine("TestNoGC");
 
-            int* int4Ptr = Marshal.AllocHGlobal(sizeof(int));
+            int* int4Ptr = (int*)Marshal.AllocHGlobal(sizeof(int)); // We don't free this memory so we don't have to worry about a GC run between freeing and return (possible in a GCStress mode).
             Console.WriteLine("2");
             *int4Ptr = intManaged;
             CollectableClass collectableClass = new CollectableClass(int4Ptr);
@@ -63,7 +63,6 @@ class HandleRefTest
             Action gcCallback = () => { Console.WriteLine("GC callback now"); GC.Collect(2, GCCollectionMode.Forced); GC.WaitForPendingFinalizers(); GC.Collect(2, GCCollectionMode.Forced); };
             Assert.AreEqual(intReturn, TestNoGC(hr4, gcCallback), "The return value is wrong");
             Console.WriteLine("Native code finished");
-            Marshal.FreeHGlobal((IntPtr)int4Ptr);
 
             return 100;
         } catch (Exception e){
