@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="**/*.cs" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <CompilerResponseFile>$(IntermediateOutputPath)TypeImpl.rsp</CompilerResponseFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../contracts/TypeContracts.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <EmbedTypes>true</EmbedTypes>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('TypeEquivalence.targets', '$(MSBuildThisFileDirectory)../'))" />
+
+</Project>
