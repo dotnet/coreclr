@@ -77,7 +77,8 @@ class HandleRefTest
             Action gcCallback = () => { Console.WriteLine("GC callback now"); GC.Collect(2, GCCollectionMode.Forced); GC.WaitForPendingFinalizers(); GC.Collect(2, GCCollectionMode.Forced); };
             Assert.AreEqual(intReturn, TestNoGC(hr4, gcCallback), "The return value is wrong");
             Console.WriteLine("Native code finished");
-
+            GC.KeepAlive(boxedInt);
+            
             return 100;
         } catch (Exception e){
             Console.WriteLine($"Test Failure: {e}"); 
