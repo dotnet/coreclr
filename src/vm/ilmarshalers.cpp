@@ -2557,14 +2557,13 @@ MarshalerOverrideStatus ILHandleRefMarshaler::ArgumentOverride(NDirectStubLinker
 
         // HandleRefs are valuetypes, so pinning is not needed.
         // The argument address is on the stack and will not move.
-        pcsDispatch->EmitLDARGA(argidx);
-        pcsDispatch->EmitLDC(offsetof(HANDLEREF, m_handle));
-        pcsDispatch->EmitADD();
-        pcsDispatch->EmitLDIND_I();
+        mdFieldDef handleField = pcsDispatch->GetToken(MscorlibBinder::GetField(FIELD__HANDLE_REF__HANDLE));
+        pcsDispatch->EmitLDARG(argidx);
+        pcsDispatch->EmitLDFLD(handleField);
 
-        mdFieldDef field = pcsUnmarshal->GetToken(MscorlibBinder::GetField(FIELD__HANDLE_REF__WRAPPER));
+        mdFieldDef wrapperField = pcsUnmarshal->GetToken(MscorlibBinder::GetField(FIELD__HANDLE_REF__WRAPPER));
         pcsUnmarshal->EmitLDARG(argidx);
-        pcsUnmarshal->EmitLDFLD(field);
+        pcsUnmarshal->EmitLDFLD(wrapperField);
         pcsUnmarshal->EmitCALL(METHOD__GC__KEEP_ALIVE, 1, 0);
 
         return OVERRIDDEN;
