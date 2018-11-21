@@ -241,7 +241,7 @@ DEFINE_METHOD(CRITICAL_HANDLE,      DISPOSE_BOOL,           Dispose,            
 
 DEFINE_CLASS(HANDLE_REF,            Interop,                HandleRef)
 DEFINE_FIELD(HANDLE_REF,            WRAPPER,                _wrapper)
-DEFINE_FIELD(HANDLE_REF,            HANDLE,                _handle)
+DEFINE_FIELD(HANDLE_REF,            HANDLE,                 _handle)
 
 DEFINE_CLASS(CRITICAL_FINALIZER_OBJECT, ConstrainedExecution, CriticalFinalizerObject)
 DEFINE_METHOD(CRITICAL_FINALIZER_OBJECT, FINALIZE,          Finalize,                   IM_RetVoid)
