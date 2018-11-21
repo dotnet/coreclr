@@ -30,6 +30,7 @@
     <Compile Include="TestInALC.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../NativeServer/CMakeLists.txt" />
     <ProjectReference Include="../../../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
     <ProjectReference Include="NetClientPrimitives.csproj" />
   </ItemGroup>
