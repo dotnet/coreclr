@@ -288,7 +288,12 @@ public:
 
     ~RuntimeStartupHelper()
     {
-#ifndef FEATURE_PAL
+#ifdef FEATURE_PAL
+        if (m_applicationGroupId != NULL)
+        {
+            delete m_applicationGroupId;
+        }
+#else // FEATURE_PAL
         if (m_startupEvent != NULL)
         {
             CloseHandle(m_startupEvent);
@@ -296,10 +301,6 @@ public:
         if (m_threadHandle != NULL)
         {
             CloseHandle(m_threadHandle);
-        }
-        if (m_applicationGroupId != NULL)
-        {
-            delete m_applicationGroupId;
         }
 #endif // FEATURE_PAL
     }
@@ -417,7 +418,7 @@ public:
 
 #else // FEATURE_PAL
 
-    HRESULT Register()
+    HRESULT Register(LPCWSTR lpApplicationGroupId)
     {
         HRESULT hr = GetStartupNotificationEvent(m_processId, &m_startupEvent);
         if (FAILED(hr))
