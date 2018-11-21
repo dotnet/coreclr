@@ -3101,15 +3101,22 @@ public:
     }
 
     void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit) override;
-    void EmitMarshalArgumentContentsCLRToNative() override;
     void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitClearNative(ILCodeStream* pslILEmit) override;    
     void EmitClearNativeContents(ILCodeStream* pslILEmit) override;
+
+    static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
+                                                    BOOL               byref,
+                                                    BOOL               fin,
+                                                    BOOL               fout,
+                                                    BOOL               fManagedToNative,
+                                                    OverrideProcArgs*  pargs,
+                                                    UINT*              pResID,
+                                                    UINT               argidx,
+                                                    UINT               nativeStackOffset);
     
 protected:
-    
-    bool UsePinnedArraySpecialCase();
     
     BOOL CheckSizeParamIndexArg(const CREATE_MARSHALER_CARRAY_OPERANDS &mops, CorElementType *pElementType);
     

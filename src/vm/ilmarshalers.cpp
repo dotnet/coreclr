@@ -3678,24 +3678,9 @@ void ILMngdMarshaler::EmitCallMngdMarshalerMethod(ILCodeStream* pslILEmit, Metho
     }
 }
 
-bool ILNativeArrayMarshaler::UsePinnedArraySpecialCase()
-{
-    if (IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && (NULL == OleVariant::GetMarshalerForVarType(m_pargs->na.m_vt, TRUE)))
-    {
-        return true;
-    }
-
-    return false;
-}
-
 void ILNativeArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
-
-    if (UsePinnedArraySpecialCase())
-    {
-        return;
-    }
             
     m_dwMngdMarshalerLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
         
@@ -3725,63 +3710,6 @@ void ILNativeArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
     pslILEmit->EmitLDC(dwFlags);
     
     pslILEmit->EmitCALL(METHOD__MNGD_NATIVE_ARRAY_MARSHALER__CREATE_MARSHALER, 3, 0);
-}
-
-
-void ILNativeArrayMarshaler::EmitMarshalArgumentContentsCLRToNative()
-{
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
-    }
-    CONTRACTL_END;
-
-    if (UsePinnedArraySpecialCase())
-    {
-        ILCodeStream* pslILEmit = m_pslNDirect->GetMarshalCodeStream();
-        //
-        // Replicate ML_PINNEDISOMORPHICARRAY_C2N_EXPRESS behavior -- note that this
-        // gives in/out semantics "for free" even if the app doesn't specify one or
-        // the other.  Since there is no enforcement of this, apps blithely depend
-        // on it.  
-        //
-
-        LocalDesc managedType = GetManagedType();
-        managedType.MakePinned();
-
-        DWORD dwPinnedLocal = pslILEmit->NewLocal(managedType);
-        ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
-
-        pslILEmit->EmitLoadNullPtr();
-        EmitStoreNativeValue(pslILEmit);
-
-        // COMPAT: We cannot generate the same code that the C# compiler generates for
-        // a fixed() statement on an array since we need to provide a non-null value
-        // for a 0-length array. For compat reasons, we need to preserve old behavior.
-        // Additionally, we need to ensure that we do not pass non-null for a zero-length
-        // array when interacting with GDI/GDI+ since they fail on null arrays but succeed
-        // on 0-length arrays.
-        EmitLoadManagedValue(pslILEmit);
-        pslILEmit->EmitBRFALSE(pNullRefLabel);
-
-        EmitLoadManagedValue(pslILEmit);
-        pslILEmit->EmitSTLOC(dwPinnedLocal);
-        pslILEmit->EmitLDLOC(dwPinnedLocal);
-        pslILEmit->EmitCONV_I();
-        // Optimize marshalling by emitting the data ptr offset directly into the IL stream
-        // instead of doing an FCall to recalulate it each time when possible.
-        pslILEmit->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
-        EmitStoreNativeValue(pslILEmit);
-
-        EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
-
-        pslILEmit->EmitLabel(pNullRefLabel);
-    }
-    else
-    {
-        ILMngdMarshaler::EmitMarshalArgumentContentsCLRToNative();
-    }
 }
 
 //
@@ -4098,6 +4026,65 @@ void ILNativeArrayMarshaler::EmitNewSavedSizeArgLocal(ILCodeStream* pslILEmit)
     m_dwSavedSizeArg = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
     pslILEmit->EmitLDC(0);
     pslILEmit->EmitSTLOC(m_dwSavedSizeArg);
+}
+
+MarshalerOverrideStatus ILNativeArrayMarshaler::ArgumentOverride(NDirectStubLinker* psl,
+                                                    BOOL               byref,
+                                                    BOOL               fin,
+                                                    BOOL               fout,
+                                                    BOOL               fManagedToNative,
+                                                    OverrideProcArgs*  pargs,
+                                                    UINT*              pResID,
+                                                    UINT               argidx,
+                                                    UINT               nativeStackOffset)
+{
+    if (fManagedToNative && !byref && (NULL == OleVariant::GetMarshalerForVarType(pargs->na.m_vt, TRUE)))
+    {
+        ILCodeStream* psILMarshal = psl->GetMarshalCodeStream();
+        //
+        // Replicate ML_PINNEDISOMORPHICARRAY_C2N_EXPRESS behavior -- note that this
+        // gives in/out semantics "for free" even if the app doesn't specify one or
+        // the other.  Since there is no enforcement of this, apps blithely depend
+        // on it.  
+        //
+
+        LocalDesc managedType = LocalDesc(ELEMENT_TYPE_OBJECT);
+        managedType.MakePinned();
+
+        DWORD dwPinnedLocal = psILMarshal->NewLocal(managedType);
+        DWORD dwNativeValue = psILMarshal->NewLocal(ELEMENT_TYPE_I);
+        ILCodeLabel* pNullRefLabel = psILMarshal->NewCodeLabel();
+
+        psILMarshal->EmitLoadNullPtr();
+        psILMarshal->EmitLDLOC(dwNativeValue);
+
+        psILMarshal->EmitLDARG(argidx);
+        psILMarshal->EmitBRFALSE(pNullRefLabel);
+        // COMPAT: We cannot generate the same code that the C# compiler generates for
+        // a fixed() statement on an array since we need to provide a non-null value
+        // for a 0-length array. For compat reasons, we need to preserve old behavior.
+        // Additionally, we need to ensure that we do not pass non-null for a zero-length
+        // array when interacting with GDI/GDI+ since they fail on null arrays but succeed
+        // on 0-length arrays.
+        psILMarshal->EmitLDARG(argidx);
+        psILMarshal->EmitSTLOC(dwPinnedLocal);
+        psILMarshal->EmitLDLOC(dwPinnedLocal);
+        psILMarshal->EmitCONV_I();
+        // Optimize marshalling by emitting the data ptr offset directly into the IL stream
+        // instead of doing an FCall to recalulate it each time when possible.
+        psILMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
+        psILMarshal->EmitADD();
+        psILMarshal->EmitLDLOC(dwNativeValue);
+
+        if (g_pConfig->InteropLogArguments())
+        {
+            psl->EmitLogNativeArgument(psILMarshal, dwPinnedLocal);
+        }
+
+        psILMarshal->EmitLabel(pNullRefLabel);
+        return MarshalerOverrideStatus::OVERRIDDEN;
+    }
+    return MarshalerOverrideStatus::HANDLEASNORMAL;
 }
 
 #ifndef CROSSGEN_COMPILE
