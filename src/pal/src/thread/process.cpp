@@ -2299,7 +2299,7 @@ PAL_GetTransportPipeName(
     // to 0. We expect that anyone else making the pipe name will also fail and thus will
     // also try to use 0 as the value.
     _ASSERTE(ret == TRUE || disambiguationKey == 0);
-#ifdef __APPLE
+#ifdef __APPLE__
     if (nullptr != applicationGroupId)
     {
         // Verify the length of the application group ID
