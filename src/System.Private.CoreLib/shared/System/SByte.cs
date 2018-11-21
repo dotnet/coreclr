@@ -167,7 +167,7 @@ namespace System
 
             if ((style & NumberStyles.AllowHexSpecifier) != 0)
             { // We are parsing a hexadecimal number
-                if ((i < 0) || i > byte.MaxValue)
+                if ((uint)i > byte.MaxValue)
                 {
                     throw new OverflowException(SR.Overflow_SByte);
                 }
@@ -228,7 +228,7 @@ namespace System
 
             if ((style & NumberStyles.AllowHexSpecifier) != 0)
             { // We are parsing a hexadecimal number
-                if ((i < 0) || i > byte.MaxValue)
+                if ((uint)i > byte.MaxValue)
                 {
                     return false;
                 }

@@ -803,15 +803,18 @@ namespace System.Globalization
 
         internal static void ValidateParseStyleInteger(NumberStyles style)
         {
-            // Check for undefined flags
-            if ((style & InvalidNumberStyles) != 0)
+            // Check for undefined flags or invalid hex number flags
+            if ((style & (InvalidNumberStyles | NumberStyles.AllowHexSpecifier)) != 0
+                && (style & ~NumberStyles.HexNumber) != 0)
             {
-                throw new ArgumentException(SR.Argument_InvalidNumberStyles, nameof(style));
-            }
-            if ((style & NumberStyles.AllowHexSpecifier) != 0)
-            { // Check for hex number
-                if ((style & ~NumberStyles.HexNumber) != 0)
+                throwInvalid(style);
+
+                void throwInvalid(NumberStyles value)
                 {
+                    if ((value & InvalidNumberStyles) != 0)
+                    {
+                        throw new ArgumentException(SR.Argument_InvalidNumberStyles, nameof(style));
+                    }
                     throw new ArgumentException(SR.Arg_InvalidHexStyle);
                 }
             }
@@ -819,14 +822,19 @@ namespace System.Globalization
 
         internal static void ValidateParseStyleFloatingPoint(NumberStyles style)
         {
-            // Check for undefined flags
-            if ((style & InvalidNumberStyles) != 0)
+            // Check for undefined flags or hex number
+            if ((style & (InvalidNumberStyles | NumberStyles.AllowHexSpecifier)) != 0)
             {
-                throw new ArgumentException(SR.Argument_InvalidNumberStyles, nameof(style));
-            }
-            if ((style & NumberStyles.AllowHexSpecifier) != 0)
-            { // Check for hex number
-                throw new ArgumentException(SR.Arg_HexStyleNotSupported);
+                throwInvalid(style);
+
+                void throwInvalid(NumberStyles value)
+                {
+                    if ((value & InvalidNumberStyles) != 0)
+                    {
+                        throw new ArgumentException(SR.Argument_InvalidNumberStyles, nameof(style));
+                    }
+                    throw new ArgumentException(SR.Arg_HexStyleNotSupported);
+                }
             }
         }
     } // NumberFormatInfo

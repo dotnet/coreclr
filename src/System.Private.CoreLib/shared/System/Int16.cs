@@ -151,7 +151,7 @@ namespace System
             // for negative numbers
             if ((style & NumberStyles.AllowHexSpecifier) != 0)
             { // We are parsing a hexadecimal number
-                if ((i < 0) || (i > ushort.MaxValue))
+                if ((uint)i > ushort.MaxValue)
                 {
                     throw new OverflowException(SR.Overflow_Int16);
                 }
@@ -210,7 +210,7 @@ namespace System
             // for negative numbers
             if ((style & NumberStyles.AllowHexSpecifier) != 0)
             { // We are parsing a hexadecimal number
-                if ((i < 0) || i > ushort.MaxValue)
+                if ((uint)i > ushort.MaxValue)
                 {
                     return false;
                 }
