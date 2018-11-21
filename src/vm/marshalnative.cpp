@@ -941,7 +941,8 @@ INT_PTR QCALLTYPE MarshalNative::LoadLibraryFromPath(LPCWSTR path, BOOL throwOnE
 
 // static
 INT_PTR QCALLTYPE MarshalNative::LoadLibraryByName(LPCWSTR name, QCall::AssemblyHandle callingAssembly, 
-                                                   DWORD dllImportSearchPathFlag, BOOL throwOnError)
+                                                   BOOL hasDllImportSearchPathFlag, DWORD dllImportSearchPathFlag, 
+                                                   BOOL throwOnError)
 {
     QCALL_CONTRACT;
 
@@ -950,7 +951,7 @@ INT_PTR QCALLTYPE MarshalNative::LoadLibraryByName(LPCWSTR name, QCall::Assembly
 
     BEGIN_QCALL;
 
-    handle = NDirect::LoadLibraryByName(name, pAssembly, dllImportSearchPathFlag, throwOnError);
+    handle = NDirect::LoadLibraryByName(name, pAssembly, hasDllImportSearchPathFlag, dllImportSearchPathFlag, throwOnError);
 
     END_QCALL;
 

@@ -1804,15 +1804,15 @@ namespace System.Runtime.InteropServices
         /// <param name="assembly">The assembly loading the native library</param>
         /// <returns>The handle for the loaded library</returns>  
         /// <exception cref="System.ArgumentNullException">If libraryPath is null</exception>
-        /// <exception cref="System.ArgumentNullException">If assembly is null and dllImportSearchPath includes AssemblyDirectory</exception>
+        /// <exception cref="System.ArgumentNullException">If assembly is null</exception>
         /// <exception cref="System.DllNotFoundException ">Thrown if the library can't be found.</exception>
         /// <exception cref="System.BadImageFormatException">Thrown if the library is not valid.</exception>        
         public static IntPtr LoadLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
         {
-            uint searchPathFlag = (uint) (searchPath.HasValue ? searchPath : DllImportSearchPath.LegacyBehavior);
             RuntimeAssembly runtimeAssembly = (assembly != null) ? ((RuntimeAssembly)assembly).GetNativeHandle() : null;
             bool throwOnError = true;
-            return LoadLibraryByName(libraryName, runtimeAssembly, searchPathFlag, throwOnError);
+            uint searchPathFlag =  searchPath.HasValue ? (uint)searchPath.Value : 0;
+            return LoadLibraryByName(libraryName, runtimeAssembly, searchPath.HasValue, searchPathFlag, throwOnError);
         }
 
         /// <summary>
@@ -1827,10 +1827,10 @@ namespace System.Runtime.InteropServices
         /// <exception cref="System.ArgumentNullException">If assembly is null and dllImportSearchPath includes AssemblyDirectory</exception>
         public static bool TryLoadLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath, out IntPtr handle)
         {
-            uint searchPathFlag = (uint) (searchPath.HasValue ? searchPath : DllImportSearchPath.LegacyBehavior);
             RuntimeAssembly runtimeAssembly = (assembly != null) ? ((RuntimeAssembly)assembly).GetNativeHandle() : null;
             bool throwOnError = false;
-            handle = LoadLibraryByName(libraryName, runtimeAssembly, searchPathFlag, throwOnError);
+            uint searchPathFlag =  searchPath.HasValue ? (uint)searchPath.Value : 0;
+            handle = LoadLibraryByName(libraryName, runtimeAssembly, searchPath.HasValue, searchPathFlag, throwOnError);
             return handle != IntPtr.Zero;
         }
 
@@ -1881,7 +1881,9 @@ namespace System.Runtime.InteropServices
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern IntPtr LoadLibraryFromPath(string libraryName, bool throwOnError);
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern IntPtr LoadLibraryByName(string libraryName, RuntimeAssembly callingAssembly, uint dllImportSearchPathFlag, bool throwOnError);
+        internal static extern IntPtr LoadLibraryByName(string libraryName, RuntimeAssembly callingAssembly, 
+                                                        bool hasDllImportSearchPathFlag, uint dllImportSearchPathFlag, 
+                                                        bool throwOnError);
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void FreeNativeLibrary(IntPtr handle);
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

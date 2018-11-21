@@ -91,7 +91,8 @@ public:
     //====================================================================
     static INT_PTR QCALLTYPE LoadLibraryFromPath(LPCWSTR path, BOOL throwOnError);
     static INT_PTR QCALLTYPE LoadLibraryByName(LPCWSTR name, QCall::AssemblyHandle callingAssembly, 
-                                                              DWORD dllImportSearchPathFlag, BOOL throwOnError);
+                                                             BOOL hasDllImportSearchPathFlag, DWORD dllImportSearchPathFlag, 
+                                                             BOOL throwOnError);
     static void QCALLTYPE FreeNativeLibrary(INT_PTR handle);
     static INT_PTR QCALLTYPE GetNativeLibraryExport(INT_PTR handle, LPCWSTR symbolName, BOOL throwOnError);
 

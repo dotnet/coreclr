@@ -5,9 +5,6 @@
 // File: DllImport.h
 //
 
-//
-
-
 #ifndef __dllimport_h__
 #define __dllimport_h__
 
@@ -79,7 +76,8 @@ public:
     static LPVOID NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod);
     static NATIVE_LIBRARY_HANDLE LoadLibraryFromPath(LPCWSTR libraryPath, BOOL throwOnError);
     static NATIVE_LIBRARY_HANDLE LoadLibraryByName(LPCWSTR name, Assembly *callingAssembly, 
-                                                   DWORD dllImportSearchPathFlag, BOOL throwOnError);
+                                                   BOOL hasDllImportSearchPathFlag, DWORD dllImportSearchPathFlag, 
+                                                   BOOL throwOnError);
     static HINSTANCE LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker *pErrorTracker);
     static void FreeNativeLibrary(NATIVE_LIBRARY_HANDLE handle);
     static INT_PTR GetNativeLibraryExport(NATIVE_LIBRARY_HANDLE handle, LPCWSTR symbolName, BOOL throwOnError);
