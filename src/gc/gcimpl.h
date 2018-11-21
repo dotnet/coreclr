@@ -118,7 +118,6 @@ public:
     static GCHeap* GetHeap (int);
 #endif //MULTIPLE_HEAPS
 
-    int GetHomeHeapNumber ();
     bool IsThreadUsingAllocationContextHeap(gc_alloc_context* acontext, int thread_number);
     int GetNumberOfHeaps ();
     void HideAllocContext(alloc_context*);
