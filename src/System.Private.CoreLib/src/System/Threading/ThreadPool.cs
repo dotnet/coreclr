@@ -1329,16 +1329,6 @@ namespace System.Threading
 
             EnsureVMInitialized();
 
-#if CORECLR
-            if (ReferenceEquals(callBack, ThreadPoolGlobals.s_invokeAsyncStateMachineBox))
-            {
-                Debug.Assert(state is IAsyncStateMachineBox);
-
-                UnsafeQueueUserWorkItemInternal((object)state, preferLocal);
-                return true;
-            }
-#endif
-
             ExecutionContext context = ExecutionContext.Capture();
 
             object tpcallBack = (context == null || context.IsDefault) ?
@@ -1358,6 +1348,16 @@ namespace System.Threading
             }
 
             EnsureVMInitialized();
+
+#if CORECLR
+            if (ReferenceEquals(callBack, ThreadPoolGlobals.s_invokeAsyncStateMachineBox))
+            {
+                Debug.Assert(state is IAsyncStateMachineBox);
+
+                UnsafeQueueUserWorkItemInternal((object)state, preferLocal);
+                return true;
+            }
+#endif
 
             ThreadPoolGlobals.workQueue.Enqueue(
                 new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state), forceGlobal: !preferLocal);
