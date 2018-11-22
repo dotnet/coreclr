@@ -438,10 +438,6 @@ FCFuncStart(gCompatibilitySwitchFuncs)
 FCFuncEnd()
 
 
-FCFuncStart(gAppContextFuncs)
-    QCFuncElement("GetEntryAssembly", AssemblyNative::GetEntryAssembly)
-FCFuncEnd()
-
 FCFuncStart(gAppDomainFuncs)
     FCFuncElement("IsStringInterned", AppDomainNative::IsStringInterned)
 
@@ -507,12 +503,11 @@ FCFuncStart(gManifestBasedResourceGrovelerFuncs)
     QCFuncElement("GetNeutralResourcesLanguageAttribute", AssemblyNative::GetNeutralResourcesLanguageAttribute)
 FCFuncEnd()
 
-FCFuncStart(gAssemblyFuncs)
+FCFuncStart(gRuntimeAssemblyFuncs)
     QCFuncElement("GetFullName", AssemblyNative::GetFullName)
     QCFuncElement("GetLocation", AssemblyNative::GetLocation)
     QCFuncElement("GetResource", AssemblyNative::GetResource)
     QCFuncElement("GetCodeBase", AssemblyNative::GetCodeBase)
-    QCFuncElement("GetExecutingAssembly", AssemblyNative::GetExecutingAssembly)
     QCFuncElement("GetFlags", AssemblyNative::GetFlags)
     QCFuncElement("GetHashAlgorithm", AssemblyNative::GetHashAlgorithm)
     QCFuncElement("GetLocale", AssemblyNative::GetLocale)
@@ -561,6 +556,11 @@ FCFuncEnd()
 
 FCFuncStart(gLoaderAllocatorFuncs)
     QCFuncElement("Destroy", LoaderAllocator::Destroy)
+FCFuncEnd()
+
+FCFuncStart(gAssemblyFuncs)
+    QCFuncElement("GetEntryAssembly", AssemblyNative::GetEntryAssembly)
+    QCFuncElement("GetExecutingAssembly", AssemblyNative::GetExecutingAssembly)
 FCFuncEnd()
 
 FCFuncStart(gAssemblyBuilderFuncs)
@@ -1238,11 +1238,11 @@ FCFuncEnd()
 // Note these have to remain sorted by name:namespace pair (Assert will wack you if you don't)
 // The sorting is case-sensitive
 
-FCClassElement("AppContext", "System", gAppContextFuncs)
 FCClassElement("AppDomain", "System", gAppDomainFuncs)
 FCClassElement("ArgIterator", "System", gVarArgFuncs)
 FCClassElement("Array", "System", gArrayFuncs)
 FCClassElement("ArrayWithOffset", "System.Runtime.InteropServices", gArrayWithOffsetFuncs)
+FCClassElement("Assembly", "System.Reflection", gAssemblyFuncs)
 FCClassElement("AssemblyBuilder", "System.Reflection.Emit", gAssemblyBuilderFuncs)
 
 FCClassElement("AssemblyExtensions", "System.Reflection.Metadata", gAssemblyExtensionsFuncs)
@@ -1325,7 +1325,7 @@ FCClassElement("RegistrationServices", "System.Runtime.InteropServices", gRegist
 #endif // FEATURE_COMINTEROP_MANAGED_ACTIVATION
 #endif // FEATURE_COMINTEROP
 
-FCClassElement("RuntimeAssembly", "System.Reflection", gAssemblyFuncs)
+FCClassElement("RuntimeAssembly", "System.Reflection", gRuntimeAssemblyFuncs)
 #ifdef FEATURE_COMINTEROP    
 FCClassElement("RuntimeClass", "System.Runtime.InteropServices.WindowsRuntime", gRuntimeClassFuncs)
 #endif // FEATURE_COMINTEROP    
