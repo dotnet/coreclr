@@ -162,13 +162,14 @@ namespace System.Threading.Tasks.Sources
                 switch (_capturedContext)
                 {
                     case null:
-                        if (_executionContext != null)
+                        ExecutionContext executionContext = _executionContext;
+                        if (executionContext == null || executionContext.IsDefault)
                         {
-                            ThreadPool.QueueUserWorkItem(continuation, state, preferLocal: true);
+                            ThreadPool.UnsafeQueueUserWorkItem(continuation, state, preferLocal: true);
                         }
                         else
                         {
-                            ThreadPool.UnsafeQueueUserWorkItem(continuation, state, preferLocal: true);
+                            ThreadPool.QueueUserWorkItem(continuation, state, preferLocal: true);
                         }
                         break;
 
@@ -234,13 +235,14 @@ namespace System.Threading.Tasks.Sources
                 case null:
                     if (RunContinuationsAsynchronously)
                     {
-                        if (_executionContext != null)
+                        ExecutionContext executionContext = _executionContext;
+                        if (executionContext == null || executionContext.IsDefault)
                         {
-                            ThreadPool.QueueUserWorkItem(_continuation, _continuationState, preferLocal: true);
+                            ThreadPool.UnsafeQueueUserWorkItem(_continuation, _continuationState, preferLocal: true);
                         }
                         else
                         {
-                            ThreadPool.UnsafeQueueUserWorkItem(_continuation, _continuationState, preferLocal: true);
+                            ThreadPool.QueueUserWorkItem(_continuation, _continuationState, preferLocal: true);
                         }
                     }
                     else
