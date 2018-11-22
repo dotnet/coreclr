@@ -3914,10 +3914,6 @@ public:
     }
 #endif // DACCESS_COMPILE
 
-    static void InitializeDefaultDomain();
-    static void SetupDefaultDomain();
-    static HRESULT SetupDefaultDomainNoThrow();
-
 #if defined(FEATURE_COMINTEROP_APARTMENT_SUPPORT) && !defined(CROSSGEN_COMPILE)
     static Thread::ApartmentState GetEntryPointThreadAptState(IMDInternalImport* pScope, mdMethodDef mdMethod);
     static void SetThreadAptState(Thread::ApartmentState state);
