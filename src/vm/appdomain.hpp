@@ -1950,9 +1950,6 @@ public:
     virtual BOOL IsAppDomain() { LIMITED_METHOD_DAC_CONTRACT; return TRUE; }
     virtual PTR_AppDomain AsAppDomain() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_AppDomain>(this); }
 
-
-    OBJECTREF DoSetup(OBJECTREF* setupInfo);
-
     OBJECTREF GetExposedObject();
     OBJECTREF GetRawExposedObject() {
         CONTRACTL
@@ -2637,8 +2634,6 @@ public:
         return m_tpIndex;
     }
 
-    void InitializeDomainContext(BOOL allowRedirects, LPCWSTR pwszPath, LPCWSTR pwszConfig);
-
     IUnknown *CreateFusionContext();
 
     void OverrideDefaultContextBinder(IUnknown *pOverrideBinder)
@@ -3164,10 +3159,6 @@ private:
 #ifdef FEATURE_COMINTEROP
     DispIDCache* SetupRefDispIDCache();
 #endif // FEATURE_COMINTEROP
-
-    void InitializeDefaultDomainManager ();
-
-public:
 
 protected:
     BOOL PostBindResolveAssembly(AssemblySpec  *pPrePolicySpec,
@@ -3923,9 +3914,7 @@ public:
     }
 #endif // DACCESS_COMPILE
 
-    static void ActivateApplication(int *pReturnValue);
-
-    static void InitializeDefaultDomain(BOOL allowRedirects, ICLRPrivBinder * pBinder = NULL);
+    static void InitializeDefaultDomain();
     static void SetupDefaultDomain();
     static HRESULT SetupDefaultDomainNoThrow();
 

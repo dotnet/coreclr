@@ -222,10 +222,7 @@ namespace System.Reflection
 
         public static Assembly GetEntryAssembly()
         {
-            AppDomainManager domainManager = AppDomain.CurrentDomain.DomainManager;
-            if (domainManager == null)
-                domainManager = new AppDomainManager();
-            return domainManager.EntryAssembly;
+            return AppContext.GetEntryAssembly();
         }
     }
 }

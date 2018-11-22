@@ -155,10 +155,6 @@ FCFuncStart(gEnvironmentFuncs)
     FCFuncElementSig("FailFast", &gsig_SM_Str_Exception_Str_RetVoid, SystemNative::FailFastWithExceptionAndSource)
 FCFuncEnd()
 
-FCFuncStart(gRuntimeEnvironmentFuncs)
-    FCFuncElement("GetModuleFileName", SystemNative::_GetModuleFileName)
-FCFuncEnd()
-
 FCFuncStart(gSerializationFuncs)
     FCFuncElement("nativeGetUninitializedObject", ReflectionSerialization::GetUninitializedObject)
 FCFuncEnd()
@@ -442,7 +438,7 @@ FCFuncStart(gCompatibilitySwitchFuncs)
 FCFuncEnd()
 
 
-FCFuncStart(gAppDomainManagerFuncs)
+FCFuncStart(gAppContextFuncs)
     QCFuncElement("GetEntryAssembly", AssemblyNative::GetEntryAssembly)
 FCFuncEnd()
 
@@ -454,7 +450,6 @@ FCFuncStart(gAppDomainFuncs)
 #endif
     FCFuncElement("nSetupFriendlyName", AppDomainNative::SetupFriendlyName)
     FCFuncElement("nGetAssemblies", AppDomainNative::GetAssemblies)
-    FCFuncElement("nCreateContext", AppDomainNative::CreateContext)
     FCFuncElement("GetId", AppDomainNative::GetId)
     FCFuncElement("GetOrInternString", AppDomainNative::GetOrInternString)
     QCFuncElement("nSetupBindingPaths", AppDomainNative::SetupBindingPaths)
@@ -1243,8 +1238,8 @@ FCFuncEnd()
 // Note these have to remain sorted by name:namespace pair (Assert will wack you if you don't)
 // The sorting is case-sensitive
 
+FCClassElement("AppContext", "System", gAppContextFuncs)
 FCClassElement("AppDomain", "System", gAppDomainFuncs)
-FCClassElement("AppDomainManager", "System", gAppDomainManagerFuncs)
 FCClassElement("ArgIterator", "System", gVarArgFuncs)
 FCClassElement("Array", "System", gArrayFuncs)
 FCClassElement("ArrayWithOffset", "System.Runtime.InteropServices", gArrayWithOffsetFuncs)
@@ -1334,7 +1329,6 @@ FCClassElement("RuntimeAssembly", "System.Reflection", gAssemblyFuncs)
 #ifdef FEATURE_COMINTEROP    
 FCClassElement("RuntimeClass", "System.Runtime.InteropServices.WindowsRuntime", gRuntimeClassFuncs)
 #endif // FEATURE_COMINTEROP    
-FCClassElement("RuntimeEnvironment", "System.Runtime.InteropServices", gRuntimeEnvironmentFuncs)
 FCClassElement("RuntimeFieldHandle", "System", gCOMFieldHandleNewFuncs)
 FCClassElement("RuntimeHelpers", "System.Runtime.CompilerServices", gCompilerFuncs)
 FCClassElement("RuntimeImports", "System.Runtime", gRuntimeImportsFuncs)

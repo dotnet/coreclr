@@ -28,6 +28,8 @@
 #include "utils.hpp"
 #include "variables.hpp"
 #include "ex.h"
+#include "clr/fs/path.h"
+using namespace clr::fs;
 
 namespace BINDER_SPACE
 {
@@ -258,17 +260,20 @@ namespace BINDER_SPACE
                 break;
             }
 
+#ifndef CROSSGEN_COMPILE
+            if (Path::IsRelative(fileName))
+            {
+                // Couldn't find a directory separator.  File must have been specified as a relative path.  Not allowed.
+                GO_WITH_HRESULT(E_INVALIDARG);
+            }
+#endif
+
             // Find the beginning of the simple name
             SString::Iterator iSimpleNameStart = fileName.End();
             
             if (!fileName.FindBack(iSimpleNameStart, DIRECTORY_SEPARATOR_CHAR_W))
             {
-#ifdef CROSSGEN_COMPILE
                 iSimpleNameStart = fileName.Begin();
-#else
-                // Couldn't find a directory separator.  File must have been specified as a relative path.  Not allowed.
-                GO_WITH_HRESULT(E_INVALIDARG);
-#endif
             }
             else
             {
