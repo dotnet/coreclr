@@ -37,6 +37,20 @@ namespace System.Threading
         public static bool enableWorkerTracking;
 
         public static readonly ThreadPoolWorkQueue workQueue = new ThreadPoolWorkQueue();
+
+#if CORECLR
+        /// <summary>Shim used to invoke <see cref="ITaskCompletionAction.Invoke"/> of the supplied <see cref="IAsyncStateMachineBox"/>.</summary>
+        internal static readonly Action<object> s_invokeAsyncStateMachineBox = state =>
+        {
+            if (!(state is IAsyncStateMachineBox box))
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                return;
+            }
+
+            box.MoveNext();
+        };
+#endif
     }
 
     [StructLayout(LayoutKind.Sequential)] // enforce layout so that padding reduces false sharing
@@ -1316,7 +1330,7 @@ namespace System.Threading
             EnsureVMInitialized();
 
 #if CORECLR
-            if (ReferenceEquals(callBack, ValueTaskAwaiter.s_invokeAsyncStateMachineBox))
+            if (ReferenceEquals(callBack, ThreadPoolGlobals.s_invokeAsyncStateMachineBox))
             {
                 Debug.Assert(state is IAsyncStateMachineBox);
 
