@@ -29,7 +29,7 @@ namespace System
         // We need to call the String constructor so that the compiler doesn't mark this as a literal.
         // Marking this as a literal would mean that it doesn't show up as a field which we can access 
         // from native.
-        public static readonly string Empty;
+        [Intrinsic] public static readonly string Empty;
 
         // Gets the character at a specified position.
         //
