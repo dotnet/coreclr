@@ -155,26 +155,16 @@ namespace System
 
         private static sbyte Parse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info)
         {
-            int i = 0;
-            try
+            Number.ParsingStatus status = Number.TryParseInt32(s, style, info, out int i);
+            if (status != Number.ParsingStatus.OK)
             {
-                i = Number.ParseInt32(s, style, info);
-            }
-            catch (OverflowException e)
-            {
-                throw new OverflowException(SR.Overflow_SByte, e);
+                Number.ThrowOverflowOrFormatException(status, TypeCode.SByte);
             }
 
-            if ((style & NumberStyles.AllowHexSpecifier) != 0)
-            { // We are parsing a hexadecimal number
-                if ((uint)i > byte.MaxValue)
-                {
-                    throw new OverflowException(SR.Overflow_SByte);
-                }
-                return (sbyte)i;
+            if ((uint)(i - MinValue - ((int)(style & NumberStyles.AllowHexSpecifier) >> 2)) > byte.MaxValue)
+            {
+                Number.ThrowOverflowException(TypeCode.SByte);
             }
-
-            if (i < MinValue || i > MaxValue) throw new OverflowException(SR.Overflow_SByte);
             return (sbyte)i;
         }
 
@@ -219,25 +209,10 @@ namespace System
 
         private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out sbyte result)
         {
-            result = 0;
-            int i;
-            if (!Number.TryParseInt32(s, style, info, out i, out _))
+            if (Number.TryParseInt32(s, style, info, out int i) != Number.ParsingStatus.OK
+                || (uint)(i - MinValue - ((int)(style & NumberStyles.AllowHexSpecifier) >> 2)) > byte.MaxValue)
             {
-                return false;
-            }
-
-            if ((style & NumberStyles.AllowHexSpecifier) != 0)
-            { // We are parsing a hexadecimal number
-                if ((uint)i > byte.MaxValue)
-                {
-                    return false;
-                }
-                result = (sbyte)i;
-                return true;
-            }
-
-            if (i < MinValue || i > MaxValue)
-            {
+                result = 0;
                 return false;
             }
             result = (sbyte)i;
