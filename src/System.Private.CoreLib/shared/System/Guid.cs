@@ -196,10 +196,8 @@ namespace System
             }
 
             var result = new GuidResult(GuidParseThrowStyle.All);
-            if (!TryParseGuid(g, ref result))
-            {
-                throw result.CreateGuidParseException();
-            }
+            bool success = TryParseGuid(g, ref result);
+            Debug.Assert(success, "GuidParseThrowStyle.All means throw on all failures");
 
             this = result._parsedGuid;
         }
@@ -210,10 +208,8 @@ namespace System
         public static Guid Parse(ReadOnlySpan<char> input)
         {
             var result = new GuidResult(GuidParseThrowStyle.AllButOverflow);
-            if (!TryParseGuid(input, ref result))
-            {
-                throw result.CreateGuidParseException();
-            }
+            bool success = TryParseGuid(input, ref result);
+            Debug.Assert(success, "GuidParseThrowStyle.AllButOverflow means throw on all failures");
 
             return result._parsedGuid;
         }
@@ -287,11 +283,7 @@ namespace System
                     throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
             }
 
-            if (!success)
-            {
-                throw result.CreateGuidParseException();
-            }
-
+            Debug.Assert(success, "GuidParseThrowStyle.AllButOverflow means throw on all failures");
             return result._parsedGuid;
         }
 
