@@ -9186,7 +9186,7 @@ void Compiler::fgValueNumberAddExceptionSetForIndirection(GenTree* tree)
 //               - The tree's gtVNPair is updated to include
 //                 VNF_DivideByZeroExc and VNF_ArithmeticExc,
 //                 We will omit one or both of them when the operation
-//                 has constants argumemts that preclude the exception.
+//                 has constants arguments that preclude the exception.
 //
 void Compiler::fgValueNumberAddExceptionSetForDivision(GenTree* tree)
 {
