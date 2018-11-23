@@ -54,9 +54,6 @@ extern HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadCon
                                                 IAssemblyName *pIAssemblyName, CLRPrivBinderCoreCLR *pTPABinder,
                                                 BINDER_SPACE::AssemblyName *pAssemblyName, ICLRPrivAssembly **ppLoadedAssembly);
 
-// Helper to check if we have a host assembly resolver set
-extern BOOL RuntimeCanUseAppPathAssemblyResolver(DWORD adid);
-
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 namespace BINDER_SPACE
@@ -1403,15 +1400,7 @@ namespace BINDER_SPACE
             }
 
             bool fUseAppPathsBasedResolver = !excludeAppPaths;
-            
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-            // If Host Assembly Resolver is specified, then we will use that as the override for the default resolution mechanism (that uses AppPath probing).
-            if (fUseAppPathsBasedResolver && !RuntimeCanUseAppPathAssemblyResolver(pApplicationContext->GetAppDomainId()))
-            {
-                fUseAppPathsBasedResolver = false;
-            }
-#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-             
+
             // This loop executes twice max.  First time through we probe AppNiPaths, the second time we probe AppPaths
             bool parseNiPaths = true;
             while (fUseAppPathsBasedResolver)
