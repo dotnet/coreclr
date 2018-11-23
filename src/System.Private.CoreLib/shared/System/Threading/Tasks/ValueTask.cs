@@ -62,7 +62,9 @@ namespace System.Threading.Tasks
     [StructLayout(LayoutKind.Auto)]
     public readonly struct ValueTask : IEquatable<ValueTask>
     {
-#if !CORECLR
+#if CORECLR
+        internal static readonly Action<object> s_completionAction = ThreadPoolGlobals.s_invokeAsyncStateMachineBox;
+#else
         internal static readonly Action<object> s_completionAction = state =>
         {
             if (!(state is IAsyncStateMachine sm))
@@ -252,21 +254,12 @@ namespace System.Threading.Tasks
             /// <summary>The token to pass through to operations on <see cref="_source"/></summary>
             private readonly short _token;
 
-#if CORECLR
-            public ValueTaskSourceAsTask(IValueTaskSource source, short token)
-            {
-                _token = token;
-                _source = source;
-                source.OnCompleted(ThreadPoolGlobals.s_invokeAsyncStateMachineBox, this, token, ValueTaskSourceOnCompletedFlags.None);
-            }
-#else
             public ValueTaskSourceAsTask(IValueTaskSource source, short token)
             {
                 _token = token;
                 _source = source;
                 source.OnCompleted(ValueTask.s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
             }
-#endif
 
 #if !netstandard
             /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
@@ -463,7 +456,6 @@ namespace System.Threading.Tasks
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ConfiguredValueTaskAwaitable ConfigureAwait(bool continueOnCapturedContext) =>
             new ConfiguredValueTaskAwaitable(new ValueTask(_obj, _token, continueOnCapturedContext));
-
 
 #if netstandard
         internal static void SetStateMachine(IAsyncStateMachine stateMachine, object source)
@@ -745,21 +737,12 @@ namespace System.Threading.Tasks
             /// <summary>The token to pass through to operations on <see cref="_source"/></summary>
             private readonly short _token;
 
-#if CORECLR
-            public ValueTaskSourceAsTask(IValueTaskSource<TResult> source, short token)
-            {
-                _token = token;
-                _source = source;
-                source.OnCompleted(ThreadPoolGlobals.s_invokeAsyncStateMachineBox, this, token, ValueTaskSourceOnCompletedFlags.None);
-            }
-#else
             public ValueTaskSourceAsTask(IValueTaskSource<TResult> source, short token)
             {
                 _token = token;
                 _source = source;
                 source.OnCompleted(ValueTask.s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
             }
-#endif
 
 #if !netstandard
             /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
