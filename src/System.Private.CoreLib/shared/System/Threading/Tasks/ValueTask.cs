@@ -11,6 +11,9 @@ using System.Threading.Tasks.Sources;
 #if !netstandard
 using Internal.Runtime.CompilerServices;
 #endif
+#if CORERT
+using Thread = Internal.Runtime.Augments.RuntimeThread;
+#endif
 
 namespace System.Threading.Tasks
 {
@@ -59,6 +62,19 @@ namespace System.Threading.Tasks
     [StructLayout(LayoutKind.Auto)]
     public readonly struct ValueTask : IEquatable<ValueTask>
     {
+#if !CORECLR
+        internal static readonly Action<object> s_completionAction = state =>
+        {
+            if (!(state is IAsyncStateMachine sm))
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                return;
+            }
+
+            sm.MoveNext();
+        };
+#endif
+
         /// <summary>A task canceled using `new CancellationToken(true)`.</summary>
         private static readonly Task s_canceledTask =
 #if netstandard
@@ -227,13 +243,85 @@ namespace System.Threading.Tasks
 #if netstandard
             TaskCompletionSource<bool>
 #else
-            Task<VoidTaskResult>
+            Task<VoidTaskResult>, IAsyncStateMachineBox
 #endif
+            , IAsyncStateMachine
         {
-            private static readonly Action<object> s_completionAction = state =>
+            /// <summary>The associated <see cref="IValueTaskSource"/>.</summary>
+            private IValueTaskSource _source;
+            /// <summary>The token to pass through to operations on <see cref="_source"/></summary>
+            private readonly short _token;
+
+#if CORECLR
+            public ValueTaskSourceAsTask(IValueTaskSource source, short token)
             {
-                if (!(state is ValueTaskSourceAsTask vtst) ||
-                    !(vtst._source is IValueTaskSource source))
+                _token = token;
+                _source = source;
+                source.OnCompleted(ThreadPoolGlobals.s_invokeAsyncStateMachineBox, this, token, ValueTaskSourceOnCompletedFlags.None);
+            }
+#else
+            public ValueTaskSourceAsTask(IValueTaskSource source, short token)
+            {
+                _token = token;
+                _source = source;
+                source.OnCompleted(ValueTask.s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
+            }
+#endif
+
+#if netstandard
+            public void SetStateMachine(IAsyncStateMachine stateMachine)
+            {
+                if (stateMachine == null)
+                {
+                    throw new ArgumentNullException(nameof(stateMachine));
+                }
+
+                if (_source == null)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                }
+
+                // SetStateMachine was originally needed in order to store the boxed state machine reference into
+                // the boxed copy.  Now that a normal box is no longer used, SetStateMachine is also legacy.  We need not
+                // do anything here, and thus assert to ensure we're not calling this from our own implementations.
+                Debug.Fail("SetStateMachine should not be used.");
+            }
+#else
+            /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
+            private Action _moveNextAction;
+
+
+            internal sealed override void ExecuteFromThreadPool(Thread threadPoolThread) => MoveNext();
+
+            /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
+            public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
+            /// <summary>Gets the state machine as a boxed object.  This should only be used for debugging purposes.</summary>
+            IAsyncStateMachine IAsyncStateMachineBox.GetStateMachineObject() => this;
+
+            public void SetStateMachine(IAsyncStateMachine stateMachine)
+            {
+                if (stateMachine == null)
+                {
+                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
+                }
+
+                if (_source != null)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                }
+
+                // SetStateMachine was originally needed in order to store the boxed state machine reference into
+                // the boxed copy.  Now that a normal box is no longer used, SetStateMachine is also legacy.  We need not
+                // do anything here, and thus assert to ensure we're not calling this from our own implementations.
+                Debug.Fail("SetStateMachine should not be used.");
+            }
+#endif
+            public void MoveNext()
+            {
+                IValueTaskSource source = _source;
+                _source = null;
+
+                if (source is null)
                 {
                     // This could only happen if the IValueTaskSource passed the wrong state
                     // or if this callback were invoked multiple times such that the state
@@ -242,47 +330,34 @@ namespace System.Threading.Tasks
                     return;
                 }
 
-                vtst._source = null;
-                ValueTaskSourceStatus status = source.GetStatus(vtst._token);
+                ValueTaskSourceStatus status = source.GetStatus(_token);
                 try
                 {
-                    source.GetResult(vtst._token);
-                    vtst.TrySetResult(default);
+                    source.GetResult(_token);
+                    TrySetResult(default);
                 }
                 catch (Exception exc)
                 {
                     if (status == ValueTaskSourceStatus.Canceled)
                     {
 #if netstandard
-                        vtst.TrySetCanceled();
+                        TrySetCanceled();
 #else
                         if (exc is OperationCanceledException oce)
                         {
-                            vtst.TrySetCanceled(oce.CancellationToken, oce);
+                            TrySetCanceled(oce.CancellationToken, oce);
                         }
                         else
                         {
-                            vtst.TrySetCanceled(new CancellationToken(true));
+                            TrySetCanceled(new CancellationToken(true));
                         }
 #endif
                     }
                     else
                     {
-                        vtst.TrySetException(exc);
+                        TrySetException(exc);
                     }
                 }
-            };
-
-            /// <summary>The associated <see cref="IValueTaskSource"/>.</summary>
-            private IValueTaskSource _source;
-            /// <summary>The token to pass through to operations on <see cref="_source"/></summary>
-            private readonly short _token;
-
-            public ValueTaskSourceAsTask(IValueTaskSource source, short token)
-            {
-                _token = token;
-                _source = source;
-                source.OnCompleted(s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
             }
         }
 
@@ -669,61 +744,118 @@ namespace System.Threading.Tasks
 #if netstandard
             TaskCompletionSource<TResult>
 #else
-            Task<TResult>
+            Task<TResult>, IAsyncStateMachineBox
 #endif
+            , IAsyncStateMachine
         {
-            private static readonly Action<object> s_completionAction = state =>
+            /// <summary>The associated <see cref="IValueTaskSource"/>.</summary>
+            private IValueTaskSource<TResult> _source;
+            /// <summary>The token to pass through to operations on <see cref="_source"/></summary>
+            private readonly short _token;
+
+#if CORECLR
+            public ValueTaskSourceAsTask(IValueTaskSource<TResult> source, short token)
             {
-                if (!(state is ValueTaskSourceAsTask vtst) ||
-                    !(vtst._source is IValueTaskSource<TResult> source))
+                _token = token;
+                _source = source;
+                source.OnCompleted(ThreadPoolGlobals.s_invokeAsyncStateMachineBox, this, token, ValueTaskSourceOnCompletedFlags.None);
+            }
+#else
+            public ValueTaskSourceAsTask(IValueTaskSource<TResult> source, short token)
+            {
+                _token = token;
+                _source = source;
+                source.OnCompleted(ValueTask.s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
+            }
+#endif
+
+#if netstandard
+            public void SetStateMachine(IAsyncStateMachine stateMachine)
+            {
+                if (stateMachine == null)
                 {
-                    // This could only happen if the IValueTaskSource<TResult> passed the wrong state
-                    // or if this callback were invoked multiple times such that the state
+                    throw new ArgumentNullException(nameof(stateMachine));
+                }
+
+                if (_source == null)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                }
+
+                // SetStateMachine was originally needed in order to store the boxed state machine reference into
+                // the boxed copy.  Now that a normal box is no longer used, SetStateMachine is also legacy.  We need not
+                // do anything here, and thus assert to ensure we're not calling this from our own implementations.
+                Debug.Fail("SetStateMachine should not be used.");
+            }
+#else
+            /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
+            private Action _moveNextAction;
+
+            internal sealed override void ExecuteFromThreadPool(Thread threadPoolThread) => MoveNext();
+
+            /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
+            public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
+            /// <summary>Gets the state machine as a boxed object.  This should only be used for debugging purposes.</summary>
+            IAsyncStateMachine IAsyncStateMachineBox.GetStateMachineObject() => this;
+
+            public void SetStateMachine(IAsyncStateMachine stateMachine)
+            {
+                if (stateMachine == null)
+                {
+                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
+                }
+
+                if (_source != null)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                }
+
+                // SetStateMachine was originally needed in order to store the boxed state machine reference into
+                // the boxed copy.  Now that a normal box is no longer used, SetStateMachine is also legacy.  We need not
+                // do anything here, and thus assert to ensure we're not calling this from our own implementations.
+                Debug.Fail("SetStateMachine should not be used.");
+            }
+#endif
+            public void MoveNext()
+            {
+                IValueTaskSource<TResult> source = _source;
+                _source = null;
+
+                if (source is null)
+                {
+                    // This could only happen if this callback were invoked multiple times such that the state
                     // was previously nulled out.
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
                     return;
                 }
 
-                vtst._source = null;
-                ValueTaskSourceStatus status = source.GetStatus(vtst._token);
+                ValueTaskSourceStatus status = source.GetStatus(_token);
                 try
                 {
-                    vtst.TrySetResult(source.GetResult(vtst._token));
+                    TrySetResult(source.GetResult(_token));
                 }
                 catch (Exception exc)
                 {
                     if (status == ValueTaskSourceStatus.Canceled)
                     {
 #if netstandard
-                        vtst.TrySetCanceled();
+                        TrySetCanceled();
 #else
                         if (exc is OperationCanceledException oce)
                         {
-                            vtst.TrySetCanceled(oce.CancellationToken, oce);
+                            TrySetCanceled(oce.CancellationToken, oce);
                         }
                         else
                         {
-                            vtst.TrySetCanceled(new CancellationToken(true));
+                            TrySetCanceled(new CancellationToken(true));
                         }
 #endif
                     }
                     else
                     {
-                        vtst.TrySetException(exc);
+                        TrySetException(exc);
                     }
                 }
-            };
-
-            /// <summary>The associated <see cref="IValueTaskSource"/>.</summary>
-            private IValueTaskSource<TResult> _source;
-            /// <summary>The token to pass through to operations on <see cref="_source"/></summary>
-            private readonly short _token;
-
-            public ValueTaskSourceAsTask(IValueTaskSource<TResult> source, short token)
-            {
-                _source = source;
-                _token = token;
-                source.OnCompleted(s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
             }
         }
 
