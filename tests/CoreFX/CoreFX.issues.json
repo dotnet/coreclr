@@ -1,5 +1,19 @@
 ﻿[
     {
+        "name": "System.Diagnostics.TraceSource.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Diagnostics.TraceSourceTests.DefaultTraceListenerClassTests.EntryAssemblyName_Null_NotIncludedInTrace",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Globalization.Tests",
         "enabled": true,
         "exclusions": {
@@ -166,6 +180,20 @@
                 {
                     "name": "System.Net.Tests.HttpResponseStreamTests.Write_NullBuffer_ThrowsArgumentNullException",
                     "reason": "Assert.Throws() Failure Expected: typeof(System.ArgumentNullException) Actual:   typeof(System.NullReferenceException): Object reference not set to an instance of an object."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Net.Sockets.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Net.Sockets.Tests.KeepAliveTest.Socket_Set_KeepAlive_Interval_Failure",
+                    "reason": "outdated"
                 }
             ]
         }
@@ -741,6 +769,10 @@
                 {
                     "name": "System.Tests.DecimalTests+BigIntegerMod.Test",
                     "reason": "https://github.com/dotnet/coreclr/issues/12605"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy",
+                    "reason": "Needs updates for XUnit 2.4"
                 }
             ]
         }

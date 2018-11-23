@@ -4,6 +4,9 @@
 
 
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Runtime.Versioning;
 
 namespace System
 {
@@ -35,7 +38,15 @@ namespace System
             {
                 // The value of APP_CONTEXT_BASE_DIRECTORY key has to be a string and it is not allowed to be any other type. 
                 // Otherwise the caller will get invalid cast exception
-                return (string)AppDomain.CurrentDomain.GetData("APP_CONTEXT_BASE_DIRECTORY") ?? AppDomain.CurrentDomain.BaseDirectory;
+                string baseDirectory = (string)AppDomain.CurrentDomain.GetData("APP_CONTEXT_BASE_DIRECTORY");
+                if (baseDirectory != null)
+                    return baseDirectory;
+
+                // Fallback path for hosts that do not set APP_CONTEXT_BASE_DIRECTORY explicitly
+                string directory = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location);
+                if (directory != null && !PathInternal.EndsInDirectorySeparator(directory))
+                    directory += Path.DirectorySeparatorChar;
+                return directory;
             }
         }
 
@@ -43,8 +54,9 @@ namespace System
         {
             get
             {
-                // Forward the value that is set on the current domain.
-                return AppDomain.CurrentDomain.SetupInformation.TargetFrameworkName;
+                // The Target framework is not the framework that the process is actually running on.
+                // It is the value read from the TargetFrameworkAttribute on the .exe that started the process.
+                return Assembly.GetEntryAssembly()?.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName;
             }
         }
 
