@@ -1352,7 +1352,7 @@ namespace System.Threading
             // then we can queue the Task state directly to the ThreadPool instead of 
             // wrapping it in a QueueUserWorkItemCallback.
             //
-            // This is occurs when user code queues its provided continuation to the ThreadPool;
+            // This occurs when user code queues its provided continuation to the ThreadPool;
             // internally we call UnsafeQueueUserWorkItemInternal directly for Tasks.
             if (ReferenceEquals(callBack, ThreadPoolGlobals.s_invokeAsyncStateMachineBox))
             {

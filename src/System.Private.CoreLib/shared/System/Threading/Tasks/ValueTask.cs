@@ -268,28 +268,9 @@ namespace System.Threading.Tasks
             }
 #endif
 
-#if netstandard
-            public void SetStateMachine(IAsyncStateMachine stateMachine)
-            {
-                if (stateMachine == null)
-                {
-                    throw new ArgumentNullException(nameof(stateMachine));
-                }
-
-                if (_source == null)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
-                }
-
-                // SetStateMachine was originally needed in order to store the boxed state machine reference into
-                // the boxed copy.  Now that a normal box is no longer used, SetStateMachine is also legacy.  We need not
-                // do anything here, and thus assert to ensure we're not calling this from our own implementations.
-                Debug.Fail("SetStateMachine should not be used.");
-            }
-#else
+#if !netstandard
             /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
             private Action _moveNextAction;
-
 
             internal sealed override void ExecuteFromThreadPool(Thread threadPoolThread) => MoveNext();
 
@@ -298,23 +279,6 @@ namespace System.Threading.Tasks
             /// <summary>Gets the state machine as a boxed object.  This should only be used for debugging purposes.</summary>
             IAsyncStateMachine IAsyncStateMachineBox.GetStateMachineObject() => this;
 
-            public void SetStateMachine(IAsyncStateMachine stateMachine)
-            {
-                if (stateMachine == null)
-                {
-                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
-                }
-
-                if (_source != null)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
-                }
-
-                // SetStateMachine was originally needed in order to store the boxed state machine reference into
-                // the boxed copy.  Now that a normal box is no longer used, SetStateMachine is also legacy.  We need not
-                // do anything here, and thus assert to ensure we're not calling this from our own implementations.
-                Debug.Fail("SetStateMachine should not be used.");
-            }
 #endif
             public void MoveNext()
             {
@@ -359,6 +323,9 @@ namespace System.Threading.Tasks
                     }
                 }
             }
+
+            void IAsyncStateMachine.SetStateMachine(IAsyncStateMachine stateMachine)
+                => ValueTask.SetStateMachine(stateMachine, _source);
         }
 
         /// <summary>Gets whether the <see cref="ValueTask"/> represents a completed operation.</summary>
@@ -496,6 +463,31 @@ namespace System.Threading.Tasks
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ConfiguredValueTaskAwaitable ConfigureAwait(bool continueOnCapturedContext) =>
             new ConfiguredValueTaskAwaitable(new ValueTask(_obj, _token, continueOnCapturedContext));
+
+
+#if netstandard
+        internal static void SetStateMachine(IAsyncStateMachine stateMachine, object source)
+        {
+            if (stateMachine == null)
+                throw new ArgumentNullException(nameof(stateMachine));
+            if (source == null)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+
+            // SetStateMachine is legacy, assert to ensure we're not calling this from our own implementations.
+            Debug.Fail("SetStateMachine should not be used.");
+        }
+#else
+        internal static void SetStateMachine(IAsyncStateMachine stateMachine, object source)
+        {
+            if (stateMachine == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
+            if (source != null)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+
+            // SetStateMachine is legacy, assert to ensure we're not calling this from our own implementations.
+            Debug.Fail("SetStateMachine should not be used.");
+        }
+#endif
     }
 
     /// <summary>Provides a value type that can represent a synchronously available value or a task object.</summary>
@@ -769,25 +761,7 @@ namespace System.Threading.Tasks
             }
 #endif
 
-#if netstandard
-            public void SetStateMachine(IAsyncStateMachine stateMachine)
-            {
-                if (stateMachine == null)
-                {
-                    throw new ArgumentNullException(nameof(stateMachine));
-                }
-
-                if (_source == null)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
-                }
-
-                // SetStateMachine was originally needed in order to store the boxed state machine reference into
-                // the boxed copy.  Now that a normal box is no longer used, SetStateMachine is also legacy.  We need not
-                // do anything here, and thus assert to ensure we're not calling this from our own implementations.
-                Debug.Fail("SetStateMachine should not be used.");
-            }
-#else
+#if !netstandard
             /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
             private Action _moveNextAction;
 
@@ -797,24 +771,6 @@ namespace System.Threading.Tasks
             public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
             /// <summary>Gets the state machine as a boxed object.  This should only be used for debugging purposes.</summary>
             IAsyncStateMachine IAsyncStateMachineBox.GetStateMachineObject() => this;
-
-            public void SetStateMachine(IAsyncStateMachine stateMachine)
-            {
-                if (stateMachine == null)
-                {
-                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
-                }
-
-                if (_source != null)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
-                }
-
-                // SetStateMachine was originally needed in order to store the boxed state machine reference into
-                // the boxed copy.  Now that a normal box is no longer used, SetStateMachine is also legacy.  We need not
-                // do anything here, and thus assert to ensure we're not calling this from our own implementations.
-                Debug.Fail("SetStateMachine should not be used.");
-            }
 #endif
             public void MoveNext()
             {
@@ -857,6 +813,9 @@ namespace System.Threading.Tasks
                     }
                 }
             }
+
+            void IAsyncStateMachine.SetStateMachine(IAsyncStateMachine stateMachine)
+                => ValueTask.SetStateMachine(stateMachine, _source);
         }
 
         /// <summary>Gets whether the <see cref="ValueTask{TResult}"/> represents a completed operation.</summary>
