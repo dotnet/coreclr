@@ -1347,17 +1347,26 @@ namespace System.Threading
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
 
-            EnsureVMInitialized();
-
 #if CORECLR
+            // If the callback is the runtime provided invocation of an IAsyncStateMachineBox,
+            // then we can queue the Task state directly to the ThreadPool instead of 
+            // wrapping it in a QueueUserWorkItemCallback.
+            //
+            // This is occurs when user code queues its provided continuation to the ThreadPool;
+            // internally we call UnsafeQueueUserWorkItemInternal directly for Tasks.
             if (ReferenceEquals(callBack, ThreadPoolGlobals.s_invokeAsyncStateMachineBox))
             {
-                Debug.Assert(state is IAsyncStateMachineBox);
+                if (!(state is IAsyncStateMachineBox))
+                {
+                    // The provided state must be the internal IAsyncStateMachineBox (Task) type
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                }
 
                 UnsafeQueueUserWorkItemInternal((object)state, preferLocal);
                 return true;
             }
 #endif
+            EnsureVMInitialized();
 
             ThreadPoolGlobals.workQueue.Enqueue(
                 new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state), forceGlobal: !preferLocal);
