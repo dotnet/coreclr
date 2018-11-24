@@ -146,14 +146,14 @@ what is going on in the NATIVE runtime dlls (typically libcoreclr.so), is intere
 symbols for these when it converts its data, but ONLY if the symbols for these native DLLs are present (and are beside
 the library they are for).   
 
-There is a global command called [dotnet symbols](https://github.com/dotnet/symstore/blob/master/src/dotnet-symbol/README.md#symbol-downloader-dotnet-cli-extension) which does this.   This tool was mostly desiged to download symbols
-for debugging, but it works for perfollect as well.  There are three steps to getting the symbols
+There is a global command called [dotnet symbol](https://github.com/dotnet/symstore/blob/master/src/dotnet-symbol/README.md#symbol-downloader-dotnet-cli-extension) which does this.   This tool was mostly desiged to download symbols
+for debugging, but it works for perfcollect as well.  There are three steps to getting the symbols
 
-   1. Install dotnet symbols
+   1. Install dotnet symbol
    2. Download the symbols.
    3. Copy the symbols to the correct place 
 
-To install dotnet symbols issue the command 
+To install dotnet symbol issue the command 
 ```
      dotnet tool install -g dotnet-symbol
 ```
