@@ -134,16 +134,24 @@ namespace System
             if (switchName.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(switchName));
 
-            if (s_switches == null)
+            if (s_switches != null)
             {
-                isEnabled = false;
-                return false;
+                lock (s_switches)
+                {
+                    if (s_switches.TryGetValue(switchName, out isEnabled))
+                        return true;
+                }
             }
 
-            lock (s_switches)
+            string value = GetData(switchName) as string;
+            if (value != null)
             {
-                return s_switches.TryGetValue(switchName, out isEnabled);
+                if (bool.TryParse(value, out isEnabled))
+                    return true;
             }
+
+            isEnabled = false;
+            return false;
         }
 
         /// <summary>
