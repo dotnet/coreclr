@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
+using System.Runtime.Versioning;
 using Internal.Runtime.CompilerServices;
 
 namespace System
@@ -14,15 +14,12 @@ namespace System
     // Represents a Globally Unique Identifier.
     [StructLayout(LayoutKind.Sequential)]
     [Serializable]
-    [Runtime.Versioning.NonVersionable] // This only applies to field layout
+    [NonVersionable] // This only applies to field layout
     [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public partial struct Guid : IFormattable, IComparable, IComparable<Guid>, IEquatable<Guid>, ISpanFormattable
     {
         public static readonly Guid Empty = new Guid();
 
-        ////////////////////////////////////////////////////////////////////////////////
-        //  Member variables
-        ////////////////////////////////////////////////////////////////////////////////
         private int _a;   // Do not rename (binary serialization)
         private short _b; // Do not rename (binary serialization)
         private short _c; // Do not rename (binary serialization)
@@ -35,10 +32,6 @@ namespace System
         private byte _j;  // Do not rename (binary serialization)
         private byte _k;  // Do not rename (binary serialization)
 
-        ////////////////////////////////////////////////////////////////////////////////
-        //  Constructors
-        ////////////////////////////////////////////////////////////////////////////////
-
         // Creates a new guid from an array of bytes.
         public Guid(byte[] b) :
             this(new ReadOnlySpan<byte>(b ?? throw new ArgumentNullException(nameof(b))))
@@ -49,7 +42,9 @@ namespace System
         public Guid(ReadOnlySpan<byte> b)
         {
             if ((uint)b.Length != 16)
+            {
                 throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "16"), nameof(b));
+            }
 
             if (BitConverter.IsLittleEndian)
             {
@@ -88,14 +83,16 @@ namespace System
         }
 
         // Creates a new GUID initialized to the value represented by the arguments.
-        //
         public Guid(int a, short b, short c, byte[] d)
         {
             if (d == null)
+            {
                 throw new ArgumentNullException(nameof(d));
-            // Check that array is not too big
+            }
             if (d.Length != 8)
+            {
                 throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "8"), nameof(d));
+            }
 
             _a = a;
             _b = b;
@@ -187,7 +184,6 @@ namespace System
         // The string must be of the form dddddddd-dddd-dddd-dddd-dddddddddddd. where
         // d is a hex digit. (That is 8 hex digits, followed by 4, then 4, then 4,
         // then 12) such as: "CA761232-ED42-11CE-BACD-00AA0057B223"
-        //
         public Guid(string g)
         {
             if (g == null)
@@ -814,10 +810,7 @@ namespace System
         }
 
         // Returns the guid in "registry" format.
-        public override string ToString()
-        {
-            return ToString("D", null);
-        }
+        public override string ToString() => ToString("D", null);
 
         public override int GetHashCode()
         {
@@ -851,14 +844,7 @@ namespace System
                 Unsafe.Add(ref g._a, 3) == Unsafe.Add(ref _a, 3);
         }
 
-        private int GetResult(uint me, uint them)
-        {
-            if (me < them)
-            {
-                return -1;
-            }
-            return 1;
-        }
+        private int GetResult(uint me, uint them) => me < them ? -1 : 1;
 
         public int CompareTo(object value)
         {
@@ -1053,12 +1039,16 @@ namespace System
         // We currently ignore provider
         public string ToString(string format, IFormatProvider provider)
         {
-            if (format == null || format.Length == 0)
+            if (string.IsNullOrEmpty(format))
+            {
                 format = "D";
+            }
 
             // all acceptable format strings are of length 1
             if (format.Length != 1)
+            {
                 throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
+            }
 
             int guidSize;
             switch (format[0])
@@ -1098,11 +1088,14 @@ namespace System
         public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default)
         {
             if (format.Length == 0)
+            {
                 format = "D";
-
+            }
             // all acceptable format strings are of length 1
             if (format.Length != 1) 
+            {
                 throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
+            }
 
             bool dash = true;
             bool hex = false;
