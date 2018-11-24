@@ -13,8 +13,8 @@ namespace System
 {
     public static class AppContext
     {
-        private static Dictionary<string, object> s_localStore = new Dictionary<string, object>();
-        private static Dictionary<string, int> s_switches;
+        private static Dictionary<string, object> s_dataStore = new Dictionary<string, object>();
+        private static Dictionary<string, bool> s_switches;
 
         static AppContext()
         {
@@ -57,9 +57,9 @@ namespace System
                 throw new ArgumentNullException(nameof(name));
 
             object data;
-            lock (s_localStore)
+            lock (s_dataStore)
             {
-                s_localStore.TryGetValue(name, out data);
+                s_dataStore.TryGetValue(name, out data);
             }
             return data;
         }
@@ -69,9 +69,9 @@ namespace System
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
-            lock (s_localStore)
+            lock (s_dataStore)
             {
-                s_localStore[name] = data;
+                s_dataStore[name] = data;
             }
         }
 
@@ -140,13 +140,10 @@ namespace System
                 return false;
             }
 
-            int switchValue;
             lock (s_switches)
             {
-                s_switches.TryGetValue(switchName, out switchValue);
+                return s_switches.TryGetValue(switchName, out isEnabled);
             }
-            isEnabled = (switchValue > 0);
-            return (switchValue != 0);
         }
 
         /// <summary>
@@ -164,12 +161,12 @@ namespace System
             if (s_switches == null)
             {
                 // Compatibility switches are rarely used. Initialize the Dictionary lazily
-                Interlocked.CompareExchange(ref s_switches, new Dictionary<string, int>(), null); 
+                Interlocked.CompareExchange(ref s_switches, new Dictionary<string, bool>(), null); 
             }
 
             lock (s_switches)
             {
-                s_switches[switchName] = isEnabled ? 1 /* true */ : -1 /* false */;
+                s_switches[switchName] = isEnabled;
             }
         }
     }
