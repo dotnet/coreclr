@@ -18,4 +18,5 @@ Submit PR to both CoreCLR and CoreFX
 - Both PRs will reviewed together by the project maintainers
 - CoreFX tests run on CoreCLR PRs are using old published build. You may need to disable the outdated tests in https://github.com/dotnet/coreclr/blob/master/tests/CoreFX/CoreFX.issues.json to make your PR green.
 - CoreCLR PR will be merged first
+- If your change is under [System.Private.CoreLib Shared Sources](https://github.com/dotnet/coreclr/tree/master/src/System.Private.CoreLib/shared), it will get mirrored to other repos that are reusing the CoreLib sources.
 - Once updated CoreCLR is consumed by CoreFX repo, CoreFX PR will be merged second.
