@@ -68,6 +68,7 @@ namespace System.Reflection
         public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeFieldInfo>(other);
 
         public override Module Module { get { return GetRuntimeModule(); } }
+        public override bool IsCollectible => ReflectedType?.IsCollectible ?? false;
         #endregion
 
         #region Object Overrides
