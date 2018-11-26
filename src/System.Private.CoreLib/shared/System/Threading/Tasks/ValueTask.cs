@@ -11,9 +11,6 @@ using System.Threading.Tasks.Sources;
 #if !netstandard
 using Internal.Runtime.CompilerServices;
 #endif
-#if CORERT
-using Thread = Internal.Runtime.Augments.RuntimeThread;
-#endif
 
 namespace System.Threading.Tasks
 {
@@ -62,21 +59,6 @@ namespace System.Threading.Tasks
     [StructLayout(LayoutKind.Auto)]
     public readonly struct ValueTask : IEquatable<ValueTask>
     {
-#if CORECLR
-        internal static readonly Action<object> s_completionAction = ThreadPoolGlobals.s_invokeAsyncStateMachineBox;
-#else
-        internal static readonly Action<object> s_completionAction = state =>
-        {
-            if (!(state is IAsyncStateMachine sm))
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
-                return;
-            }
-
-            sm.MoveNext();
-        };
-#endif
-
         /// <summary>A task canceled using `new CancellationToken(true)`.</summary>
         private static readonly Task s_canceledTask =
 #if netstandard
@@ -245,10 +227,52 @@ namespace System.Threading.Tasks
 #if netstandard
             TaskCompletionSource<bool>
 #else
-            Task<VoidTaskResult>, IAsyncStateMachineBox
+            Task<VoidTaskResult>
 #endif
-            , IAsyncStateMachine
         {
+            private static readonly Action<object> s_completionAction = state =>
+            {
+                if (!(state is ValueTaskSourceAsTask vtst) ||
+                    !(vtst._source is IValueTaskSource source))
+                {
+                    // This could only happen if the IValueTaskSource passed the wrong state
+                    // or if this callback were invoked multiple times such that the state
+                    // was previously nulled out.
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                    return;
+                }
+
+                vtst._source = null;
+                ValueTaskSourceStatus status = source.GetStatus(vtst._token);
+                try
+                {
+                    source.GetResult(vtst._token);
+                    vtst.TrySetResult(default);
+                }
+                catch (Exception exc)
+                {
+                    if (status == ValueTaskSourceStatus.Canceled)
+                    {
+#if netstandard
+                        vtst.TrySetCanceled();
+#else
+                        if (exc is OperationCanceledException oce)
+                        {
+                            vtst.TrySetCanceled(oce.CancellationToken, oce);
+                        }
+                        else
+                        {
+                            vtst.TrySetCanceled(new CancellationToken(true));
+                        }
+#endif
+                    }
+                    else
+                    {
+                        vtst.TrySetException(exc);
+                    }
+                }
+            };
+
             /// <summary>The associated <see cref="IValueTaskSource"/>.</summary>
             private IValueTaskSource _source;
             /// <summary>The token to pass through to operations on <see cref="_source"/></summary>
@@ -258,67 +282,8 @@ namespace System.Threading.Tasks
             {
                 _token = token;
                 _source = source;
-                source.OnCompleted(ValueTask.s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
+                source.OnCompleted(s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
             }
-
-#if !netstandard
-            /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
-            private Action _moveNextAction;
-
-            internal sealed override void ExecuteFromThreadPool(Thread threadPoolThread) => MoveNext();
-
-            /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
-            public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
-            /// <summary>Gets the state machine as a boxed object.  This should only be used for debugging purposes.</summary>
-            IAsyncStateMachine IAsyncStateMachineBox.GetStateMachineObject() => this;
-
-#endif
-            public void MoveNext()
-            {
-                IValueTaskSource source = _source;
-                _source = null;
-
-                if (source is null)
-                {
-                    // This could only happen if the IValueTaskSource passed the wrong state
-                    // or if this callback were invoked multiple times such that the state
-                    // was previously nulled out.
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
-                    return;
-                }
-
-                ValueTaskSourceStatus status = source.GetStatus(_token);
-                try
-                {
-                    source.GetResult(_token);
-                    TrySetResult(default);
-                }
-                catch (Exception exc)
-                {
-                    if (status == ValueTaskSourceStatus.Canceled)
-                    {
-#if netstandard
-                        TrySetCanceled();
-#else
-                        if (exc is OperationCanceledException oce)
-                        {
-                            TrySetCanceled(oce.CancellationToken, oce);
-                        }
-                        else
-                        {
-                            TrySetCanceled(new CancellationToken(true));
-                        }
-#endif
-                    }
-                    else
-                    {
-                        TrySetException(exc);
-                    }
-                }
-            }
-
-            void IAsyncStateMachine.SetStateMachine(IAsyncStateMachine stateMachine)
-                => ValueTask.SetStateMachine(stateMachine, _source);
         }
 
         /// <summary>Gets whether the <see cref="ValueTask"/> represents a completed operation.</summary>
@@ -456,30 +421,6 @@ namespace System.Threading.Tasks
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ConfiguredValueTaskAwaitable ConfigureAwait(bool continueOnCapturedContext) =>
             new ConfiguredValueTaskAwaitable(new ValueTask(_obj, _token, continueOnCapturedContext));
-
-#if netstandard
-        internal static void SetStateMachine(IAsyncStateMachine stateMachine, object source)
-        {
-            if (stateMachine == null)
-                throw new ArgumentNullException(nameof(stateMachine));
-            if (source == null)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
-
-            // SetStateMachine is legacy, assert to ensure we're not calling this from our own implementations.
-            Debug.Fail("SetStateMachine should not be used.");
-        }
-#else
-        internal static void SetStateMachine(IAsyncStateMachine stateMachine, object source)
-        {
-            if (stateMachine == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
-            if (source != null)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
-
-            // SetStateMachine is legacy, assert to ensure we're not calling this from our own implementations.
-            Debug.Fail("SetStateMachine should not be used.");
-        }
-#endif
     }
 
     /// <summary>Provides a value type that can represent a synchronously available value or a task object.</summary>
@@ -728,10 +669,51 @@ namespace System.Threading.Tasks
 #if netstandard
             TaskCompletionSource<TResult>
 #else
-            Task<TResult>, IAsyncStateMachineBox
+            Task<TResult>
 #endif
-            , IAsyncStateMachine
         {
+            private static readonly Action<object> s_completionAction = state =>
+            {
+                if (!(state is ValueTaskSourceAsTask vtst) ||
+                    !(vtst._source is IValueTaskSource<TResult> source))
+                {
+                    // This could only happen if the IValueTaskSource<TResult> passed the wrong state
+                    // or if this callback were invoked multiple times such that the state
+                    // was previously nulled out.
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                    return;
+                }
+
+                vtst._source = null;
+                ValueTaskSourceStatus status = source.GetStatus(vtst._token);
+                try
+                {
+                    vtst.TrySetResult(source.GetResult(vtst._token));
+                }
+                catch (Exception exc)
+                {
+                    if (status == ValueTaskSourceStatus.Canceled)
+                    {
+#if netstandard
+                        vtst.TrySetCanceled();
+#else
+                        if (exc is OperationCanceledException oce)
+                        {
+                            vtst.TrySetCanceled(oce.CancellationToken, oce);
+                        }
+                        else
+                        {
+                            vtst.TrySetCanceled(new CancellationToken(true));
+                        }
+#endif
+                    }
+                    else
+                    {
+                        vtst.TrySetException(exc);
+                    }
+                }
+            };
+
             /// <summary>The associated <see cref="IValueTaskSource"/>.</summary>
             private IValueTaskSource<TResult> _source;
             /// <summary>The token to pass through to operations on <see cref="_source"/></summary>
@@ -739,66 +721,10 @@ namespace System.Threading.Tasks
 
             public ValueTaskSourceAsTask(IValueTaskSource<TResult> source, short token)
             {
-                _token = token;
                 _source = source;
-                source.OnCompleted(ValueTask.s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
+                _token = token;
+                source.OnCompleted(s_completionAction, this, token, ValueTaskSourceOnCompletedFlags.None);
             }
-
-#if !netstandard
-            /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
-            private Action _moveNextAction;
-
-            internal sealed override void ExecuteFromThreadPool(Thread threadPoolThread) => MoveNext();
-
-            /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
-            public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
-            /// <summary>Gets the state machine as a boxed object.  This should only be used for debugging purposes.</summary>
-            IAsyncStateMachine IAsyncStateMachineBox.GetStateMachineObject() => this;
-#endif
-            public void MoveNext()
-            {
-                IValueTaskSource<TResult> source = _source;
-                _source = null;
-
-                if (source is null)
-                {
-                    // This could only happen if this callback were invoked multiple times such that the state
-                    // was previously nulled out.
-                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
-                    return;
-                }
-
-                ValueTaskSourceStatus status = source.GetStatus(_token);
-                try
-                {
-                    TrySetResult(source.GetResult(_token));
-                }
-                catch (Exception exc)
-                {
-                    if (status == ValueTaskSourceStatus.Canceled)
-                    {
-#if netstandard
-                        TrySetCanceled();
-#else
-                        if (exc is OperationCanceledException oce)
-                        {
-                            TrySetCanceled(oce.CancellationToken, oce);
-                        }
-                        else
-                        {
-                            TrySetCanceled(new CancellationToken(true));
-                        }
-#endif
-                    }
-                    else
-                    {
-                        TrySetException(exc);
-                    }
-                }
-            }
-
-            void IAsyncStateMachine.SetStateMachine(IAsyncStateMachine stateMachine)
-                => ValueTask.SetStateMachine(stateMachine, _source);
         }
 
         /// <summary>Gets whether the <see cref="ValueTask{TResult}"/> represents a completed operation.</summary>
