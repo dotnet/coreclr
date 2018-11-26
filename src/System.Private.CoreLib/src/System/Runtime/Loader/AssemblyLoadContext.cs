@@ -24,13 +24,13 @@ namespace System.Runtime.Loader
         private static bool _isProcessExiting;
 
         // Id used by contextsToUnload
-        private readonly long id;
+        private readonly long _id;
 
         // synchronization primitive to protect against usage of this instance while unloading
-        private readonly object unloadLock = new object();
+        private readonly object _unloadLock;
 
         // Indicates the state of this ALC (Alive or in Unloading state)
-        private InternalState state;
+        private InternalState _state;
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern bool CanUseAppPathAssemblyLoadContextInCurrentDomain();
@@ -68,6 +68,9 @@ namespace System.Runtime.Loader
         {
             // Initialize the VM side of AssemblyLoadContext if not already done.
             IsCollectible = isCollectible;
+            // The _unloadLock needs to be assigned after the IsCollectible to ensure proper behavior of the finalizer
+            // even in case the following allocation fails or the thread is aborted between these two lines.
+            _unloadLock = new object();
 
             if (!isCollectible)
             {
@@ -93,21 +96,21 @@ namespace System.Runtime.Loader
                 Resolving = null;
                 Unloading = null;
 
-                id = _nextId++;
-                ContextsToUnload.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
+                _id = _nextId++;
+                ContextsToUnload.Add(_id, new WeakReference<AssemblyLoadContext>(this, true));
             }
         }
 
         ~AssemblyLoadContext()
         {
-            // Use the unloadLock as a guard to detect the corner case when the constructor of the AssemblyLoadContext was not executed
+            // Use the _unloadLock as a guard to detect the corner case when the constructor of the AssemblyLoadContext was not executed
             // e.g. due to the JIT failing to JIT it.
-            if (unloadLock != null)
+            if (_unloadLock != null)
             {
                 // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
                 Debug.Assert(IsCollectible);
                 // We get here only in case the explicit Unload was not initiated.
-                Debug.Assert(state != InternalState.Unloading);
+                Debug.Assert(_state != InternalState.Unloading);
                 InitiateUnload();
             }
         }
@@ -120,11 +123,11 @@ namespace System.Runtime.Loader
 
             // When in Unloading state, we are not supposed to be called on the finalizer
             // as the native side is holding a strong reference after calling Unload
-            lock (unloadLock)
+            lock (_unloadLock)
             {
                 if (!_isProcessExiting)
                 {
-                    Debug.Assert(state == InternalState.Alive);
+                    Debug.Assert(_state == InternalState.Alive);
 
                     var thisStrongHandle = GCHandle.Alloc(this, GCHandleType.Normal);
                     var thisStrongHandlePtr = GCHandle.ToIntPtr(thisStrongHandle);
@@ -133,14 +136,14 @@ namespace System.Runtime.Loader
                     PrepareForAssemblyLoadContextRelease(m_pNativeAssemblyLoadContext, thisStrongHandlePtr);
                 }
 
-                state = InternalState.Unloading;
+                _state = InternalState.Unloading;
             }
 
             if (!_isProcessExiting)
             {
                 lock (ContextsToUnload)
                 {
-                    ContextsToUnload.Remove(id);
+                    ContextsToUnload.Remove(_id);
                 }
             }
         }
@@ -164,7 +167,7 @@ namespace System.Runtime.Loader
                 throw new ArgumentNullException(nameof(assemblyPath));
             }
 
-            lock (unloadLock)
+            lock (_unloadLock)
             {
                 VerifyIsAlive();
                 if (PathInternal.IsPartiallyQualified(assemblyPath))
@@ -186,7 +189,7 @@ namespace System.Runtime.Loader
                 throw new ArgumentNullException(nameof(nativeImagePath));
             }
 
-            lock (unloadLock)
+            lock (_unloadLock)
             {
                 VerifyIsAlive();
 
@@ -225,7 +228,7 @@ namespace System.Runtime.Loader
             {
                 throw new BadImageFormatException(SR.BadImageFormat_BadILFormat);
             }
-            lock (unloadLock)
+            lock (_unloadLock)
             {
                 VerifyIsAlive();
 
@@ -274,7 +277,7 @@ namespace System.Runtime.Loader
 
         private void VerifyIsAlive()
         {
-            if (state != InternalState.Alive)
+            if (_state != InternalState.Alive)
             {
                 throw new InvalidOperationException(SR.GetResourceString("AssemblyLoadContext_Verify_NotUnloading"));
             }
