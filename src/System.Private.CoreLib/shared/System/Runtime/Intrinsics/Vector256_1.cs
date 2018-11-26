@@ -26,6 +26,7 @@ namespace System.Runtime.Intrinsics
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
         public static Vector256<T> Zero
         {
+            [Intrinsic]
             get
             {
                 ThrowIfUnsupportedType();

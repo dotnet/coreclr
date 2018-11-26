@@ -3445,6 +3445,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 case NI_Base_Vector128_AsUInt32:
                 case NI_Base_Vector128_AsUInt64:
 #if defined(_TARGET_XARCH_)
+                case NI_Base_Vector128_Zero:
                 case NI_Base_Vector256_As:
                 case NI_Base_Vector256_AsByte:
                 case NI_Base_Vector256_AsDouble:
@@ -3456,6 +3457,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 case NI_Base_Vector256_AsUInt16:
                 case NI_Base_Vector256_AsUInt32:
                 case NI_Base_Vector256_AsUInt64:
+                case NI_Base_Vector256_Zero:
 #endif // _TARGET_XARCH_
                 {
                     return impBaseIntrinsic(ni, method, sig);
@@ -4174,6 +4176,30 @@ GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HAN
             break;
         }
 
+#ifdef _TARGET_XARCH_
+        case NI_Base_Vector128_Zero:
+        {
+            assert(sig->numArgs == 0);
+
+            if (compSupports(InstructionSet_SSE))
+            {
+                retNode = gtNewSimdHWIntrinsicNode(retType, intrinsic, baseType, simdSize);
+            }
+            break;
+        }
+
+        case NI_Base_Vector256_Zero:
+        {
+            assert(sig->numArgs == 0);
+
+            if (compSupports(InstructionSet_AVX))
+            {
+                retNode = gtNewSimdHWIntrinsicNode(retType, intrinsic, baseType, simdSize);
+            }
+            break;
+        }
+#endif // _TARGET_XARCH_
+
         default:
         {
             unreached();
@@ -4433,6 +4459,12 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                                 result = NI_Base_Vector128_AsUInt64;
                             }
                         }
+#if defined(_TARGET_XARCH_)
+                        else if (strcmp(methodName, "get_Zero") == 0)
+                        {
+                            result = NI_Base_Vector128_Zero;
+                        }
+#endif // _TARGET_XARCH_
                     }
                 }
 #if defined(_TARGET_XARCH_)
@@ -4490,6 +4522,10 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                             {
                                 result = NI_Base_Vector256_AsUInt64;
                             }
+                        }
+                        else if (strcmp(methodName, "get_Zero") == 0)
+                        {
+                            result = NI_Base_Vector256_Zero;
                         }
                     }
                 }
