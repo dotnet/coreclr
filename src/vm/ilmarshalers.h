@@ -932,7 +932,7 @@ protected:
         EmitMarshalArgumentContentsCLRToNative();
     }
 
-    virtual void EmitMarshalArgumentContentsCLRToNative()
+    void EmitMarshalArgumentContentsCLRToNative()
     {
         CONTRACTL
         {
