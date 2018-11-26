@@ -71,7 +71,8 @@ namespace System.Runtime.Loader
 
             if (!isCollectible)
             {
-                // For non collectible AssemblyLoadContext, the finalizer should never be called
+                // For non collectible AssemblyLoadContext, the finalizer should never be called and thus the AssemblyLoadContext should not
+                // be on the finalizer queue.
                 GC.SuppressFinalize(this);
             }
 
@@ -100,7 +101,7 @@ namespace System.Runtime.Loader
         ~AssemblyLoadContext()
         {
             // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
-            Debug.Assert(IsCollectible());
+            Debug.Assert(IsCollectible);
             // We get here only in case the explicit Unload was not initiated.
             Debug.Assert(state != InternalState.Unloading);
             InitiateUnload();
