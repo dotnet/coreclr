@@ -100,11 +100,16 @@ namespace System.Runtime.Loader
 
         ~AssemblyLoadContext()
         {
-            // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
-            Debug.Assert(IsCollectible);
-            // We get here only in case the explicit Unload was not initiated.
-            Debug.Assert(state != InternalState.Unloading);
-            InitiateUnload();
+            // Use the unloadLock as a guard to detect the corner case when the constructor of the AssemblyLoadContext was not executed
+            // e.g. due to the JIT failing to JIT it.
+            if (unloadLock != null)
+            {
+                // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
+                Debug.Assert(IsCollectible);
+                // We get here only in case the explicit Unload was not initiated.
+                Debug.Assert(state != InternalState.Unloading);
+                InitiateUnload();
+            }
         }
 
         private void InitiateUnload()
