@@ -38,8 +38,7 @@ namespace System.Threading
 
         public static readonly ThreadPoolWorkQueue workQueue = new ThreadPoolWorkQueue();
 
-#if CORECLR
-        /// <summary>Shim used to invoke <see cref="ITaskCompletionAction.Invoke"/> of the supplied <see cref="IAsyncStateMachineBox"/>.</summary>
+        /// <summary>Shim used to invoke <see cref="IAsyncStateMachineBox.MoveNext"/> of the supplied <see cref="IAsyncStateMachineBox"/>.</summary>
         internal static readonly Action<object> s_invokeAsyncStateMachineBox = state =>
         {
             if (!(state is IAsyncStateMachineBox box))
@@ -50,7 +49,6 @@ namespace System.Threading
 
             box.MoveNext();
         };
-#endif
     }
 
     [StructLayout(LayoutKind.Sequential)] // enforce layout so that padding reduces false sharing
@@ -1347,8 +1345,7 @@ namespace System.Threading
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
 
-#if CORECLR
-            // If the callback is the runtime provided invocation of an IAsyncStateMachineBox,
+            // If the callback is the runtime-provided invocation of an IAsyncStateMachineBox,
             // then we can queue the Task state directly to the ThreadPool instead of 
             // wrapping it in a QueueUserWorkItemCallback.
             //
@@ -1365,7 +1362,7 @@ namespace System.Threading
                 UnsafeQueueUserWorkItemInternal((object)state, preferLocal);
                 return true;
             }
-#endif
+
             EnsureVMInitialized();
 
             ThreadPoolGlobals.workQueue.Enqueue(
