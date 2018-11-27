@@ -312,7 +312,7 @@ public:
         return S_OK;
     }
 
-    PVOID RecordCreate()
+    PVOID STDMETHODCALLTYPE RecordCreate()
     {
         return CoreClrAlloc(sizeof(NonBlittableRecord));
     }
