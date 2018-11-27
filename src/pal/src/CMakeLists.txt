@@ -196,7 +196,6 @@ set(SOURCES
   misc/strutil.cpp
   misc/sysinfo.cpp
   misc/time.cpp
-  misc/tracepointprovider.cpp
   misc/utils.cpp
   numa/numa.cpp
   objmgr/palobjbase.cpp
@@ -259,6 +258,11 @@ add_library(coreclrpal
   ${ARCH_SOURCES}
   ${PLATFORM_SOURCES}
   ${LIBUNWIND_OBJECTS}
+)
+
+add_library(tracepointprovider
+  STATIC
+  misc/tracepointprovider.cpp
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
