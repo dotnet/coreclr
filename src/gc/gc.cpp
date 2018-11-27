@@ -35215,11 +35215,12 @@ int GCHeap::GetNumberOfHeaps ()
 int GCHeap::GetHomeHeapNumber ()
 {
 #ifdef MULTIPLE_HEAPS
-    Thread *pThread = GCToEEInterface::GetThread();
-    if (!pThread)
-        return 0;
-
     gc_alloc_context* ctx = GCToEEInterface::GetAllocContext();
+    if (!ctx)
+    {
+        return 0;
+    }
+
     GCHeap *hp = static_cast<alloc_context*>(ctx)->get_home_heap();
     return (hp ? hp->pGenGCHeap->heap_number : 0);
 #else

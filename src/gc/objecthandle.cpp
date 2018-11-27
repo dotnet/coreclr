@@ -1820,7 +1820,10 @@ int GetCurrentThreadHomeHeapNumber()
     WRAPPER_NO_CONTRACT;
 
     if (g_theGCHeap == nullptr)
+    {
         return 0;
+    }
+
     return g_theGCHeap->GetHomeHeapNumber();
 }
 
