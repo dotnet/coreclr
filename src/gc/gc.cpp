@@ -35208,6 +35208,25 @@ int GCHeap::GetNumberOfHeaps ()
 #endif //MULTIPLE_HEAPS
 }
 
+/*
+  in this way we spend extra time cycling through all the heaps while create the handle
+  it ought to be changed by keeping alloc_context.home_heap as number (equals heap_number)
+*/
+int GCHeap::GetHomeHeapNumber ()
+{
+#ifdef MULTIPLE_HEAPS
+    Thread *pThread = GCToEEInterface::GetThread();
+    if (!pThread)
+        return 0;
+
+    gc_alloc_context* ctx = GCToEEInterface::GetAllocContext();
+    GCHeap *hp = static_cast<alloc_context*>(ctx)->get_home_heap();
+    return (hp ? hp->pGenGCHeap->heap_number : 0);
+#else
+    return 0;
+#endif //MULTIPLE_HEAPS
+}
+
 unsigned int GCHeap::GetCondemnedGeneration()
 { 
     return gc_heap::settings.condemned_generation;

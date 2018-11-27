@@ -237,7 +237,8 @@ public:
 private:
     virtual Object* AllocAlign8Common (void* hp, alloc_context* acontext, size_t size, uint32_t flags) = 0;
 public:
-    virtual int GetNumberOfHeaps () = 0;
+    virtual int GetNumberOfHeaps () = 0; 
+    virtual int GetHomeHeapNumber () = 0;
     virtual size_t GetPromotedBytes(int heap_index) = 0;
 
     unsigned GetMaxGeneration()

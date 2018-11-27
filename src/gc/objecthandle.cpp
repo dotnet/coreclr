@@ -1817,19 +1817,11 @@ void Ref_VerifyHandleTable(uint32_t condemned, uint32_t maxgen, ScanContext* sc)
 
 int GetCurrentThreadHomeHeapNumber()
 {
-    LIMITED_METHOD_CONTRACT;
-    
-#ifdef MULTIPLE_HEAPS
-    Thread *pThread = GCToEEInterface::GetThread();
-    if (!pThread)
-        return 0;
+    WRAPPER_NO_CONTRACT;
 
-    gc_alloc_context* ctx = GCToEEInterface::GetAllocContext();
-    GCHeap *hp = static_cast<alloc_context*>(ctx)->get_home_heap();
-    return (hp ? hp->pGenGCHeap->heap_number : 0);
-#else
-    return 0;
-#endif //MULTIPLE_HEAPS
+    if (g_theGCHeap == nullptr)
+        return 0;
+    return g_theGCHeap->GetHomeHeapNumber();
 }
 
 bool HandleTableBucket::Contains(OBJECTHANDLE handle)
