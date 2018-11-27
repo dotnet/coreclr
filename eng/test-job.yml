@@ -57,7 +57,7 @@ jobs:
     steps:
 
     # Install test build dependencies
-    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+    - ${{ if and(or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')), ne(variables['System.TeamProject'], 'public')) }}:
       - script: sh eng/install-native-dependencies.sh $(osGroup)
         displayName: Install native dependencies
 
