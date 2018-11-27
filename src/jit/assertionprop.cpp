@@ -3109,8 +3109,7 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
         return optAssertionProp_Update(newTree, tree, stmt);
     }
 
-    // Else if we have an equality check involving a local, look for
-    // assertions involving op1 and op2.
+    // Else check if we have an equality check involving a local
     if (!tree->OperIs(GT_EQ, GT_NE))
     {
         return nullptr;
