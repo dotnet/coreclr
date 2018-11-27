@@ -2,14 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Reflection;
-using System.Text;
-using System.Collections;
+using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
-using System.Diagnostics;
+using System.Text;
+using Internal.Runtime.CompilerServices;
 
 // The code below includes partial support for float/double and
 // pointer sized enums.
@@ -42,13 +41,12 @@ namespace System
             {
                 ulong[] values = null;
                 string[] names = null;
-                bool isFlags = enumType.IsDefined(typeof(System.FlagsAttribute), false);
-
                 GetEnumValuesAndNames(
                     enumType.GetTypeHandleInternal(),
                     JitHelpers.GetObjectHandleOnStack(ref values),
                     JitHelpers.GetObjectHandleOnStack(ref names),
                     getNames);
+                bool isFlags = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
 
                 entry = new TypeValuesAndNames(isFlags, values, names);
                 enumType.GenericCache = entry;
@@ -318,262 +316,530 @@ namespace System
         #endregion
 
         #region Public Static Methods
-        private enum ParseFailureKind
-        {
-            None = 0,
-            Argument = 1,
-            ArgumentNull = 2,
-            ArgumentWithParameter = 3,
-            UnhandledException = 4
-        }
-
-        // This will store the result of the parsing.
-        private struct EnumResult
-        {
-            internal object parsedEnum;
-            internal bool canThrow;
-            internal ParseFailureKind m_failure;
-            internal string m_failureMessageID;
-            internal string m_failureParameter;
-            internal object m_failureMessageFormatArgument;
-            internal Exception m_innerException;
-
-            internal void SetFailure(Exception unhandledException)
-            {
-                m_failure = ParseFailureKind.UnhandledException;
-                m_innerException = unhandledException;
-            }
-            internal void SetFailure(ParseFailureKind failure, string failureParameter)
-            {
-                m_failure = failure;
-                m_failureParameter = failureParameter;
-                if (canThrow)
-                    throw GetEnumParseException();
-            }
-            internal void SetFailure(ParseFailureKind failure, string failureMessageID, object failureMessageFormatArgument)
-            {
-                m_failure = failure;
-                m_failureMessageID = failureMessageID;
-                m_failureMessageFormatArgument = failureMessageFormatArgument;
-                if (canThrow)
-                    throw GetEnumParseException();
-            }
-            internal Exception GetEnumParseException()
-            {
-                switch (m_failure)
-                {
-                    case ParseFailureKind.Argument:
-                        return new ArgumentException(SR.GetResourceString(m_failureMessageID));
-
-                    case ParseFailureKind.ArgumentNull:
-                        return new ArgumentNullException(m_failureParameter);
-
-                    case ParseFailureKind.ArgumentWithParameter:
-                        return new ArgumentException(SR.Format(SR.GetResourceString(m_failureMessageID), m_failureMessageFormatArgument));
-
-                    case ParseFailureKind.UnhandledException:
-                        return m_innerException;
-
-                    default:
-                        Debug.Fail("Unknown EnumParseFailure: " + m_failure);
-                        return new ArgumentException(SR.Arg_EnumValueNotFound);
-                }
-            }
-        }
-
-        public static bool TryParse(Type enumType, string value, out object result)
-        {
-            return TryParse(enumType, value, false, out result);
-        }
+        public static bool TryParse(Type enumType, string value, out object result) =>
+            TryParse(enumType, value, false, out result);
 
         public static bool TryParse(Type enumType, string value, bool ignoreCase, out object result)
         {
-            result = null;
-            EnumResult parseResult = new EnumResult();
-            bool retValue;
-
-            if (retValue = TryParseEnum(enumType, value, ignoreCase, ref parseResult))
-                result = parseResult.parsedEnum;
-            return retValue;
-        }
-
-        public static bool TryParse<TEnum>(string value, out TEnum result) where TEnum : struct
-        {
-            return TryParse(value, false, out result);
-        }
-
-        public static bool TryParse<TEnum>(string value, bool ignoreCase, out TEnum result) where TEnum : struct
-        {
-            result = default;
-            EnumResult parseResult = new EnumResult();
-            bool retValue;
-
-            if (retValue = TryParseEnum(typeof(TEnum), value, ignoreCase, ref parseResult))
-                result = (TEnum)parseResult.parsedEnum;
-            return retValue;
-        }
-
-        public static object Parse(Type enumType, string value)
-        {
-            return Parse(enumType, value, false);
-        }
-
-        public static object Parse(Type enumType, string value, bool ignoreCase)
-        {
-            EnumResult parseResult = new EnumResult() { canThrow = true };
-            if (TryParseEnum(enumType, value, ignoreCase, ref parseResult))
-                return parseResult.parsedEnum;
-            else
-                throw parseResult.GetEnumParseException();
-        }
-
-        public static TEnum Parse<TEnum>(string value) where TEnum : struct
-        {
-            return Parse<TEnum>(value, false);
-        }
-
-        public static TEnum Parse<TEnum>(string value, bool ignoreCase) where TEnum : struct
-        {
-            EnumResult parseResult = new EnumResult() { canThrow = true };
-            if (TryParseEnum(typeof(TEnum), value, ignoreCase, ref parseResult))
-                return (TEnum)parseResult.parsedEnum;
-            else
-                throw parseResult.GetEnumParseException();
-        }
-
-        private static bool TryParseEnum(Type enumType, string value, bool ignoreCase, ref EnumResult parseResult)
-        {
             if (enumType == null)
+            {
                 throw new ArgumentNullException(nameof(enumType));
+            }
 
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
+            {
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
+            }
 
-            if (!enumType.IsEnum)
+            if (!rtType.IsEnum)
+            {
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
+            }
+
+            ReadOnlySpan<char> valueSpan = value.AsSpan().TrimStart();
+            if (valueSpan.Length == 0)
+            {
+                result = default;
+                return false;
+            }
+
+            switch (Type.GetTypeCode(rtType))
+            {
+                case TypeCode.SByte: return TryParseSByteEnum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.Byte: return TryParseByteEnum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.Int16: return TryParseInt16Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.UInt16: return TryParseUInt16Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.Int32: return TryParseInt32Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.UInt32: return TryParseUInt32Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.Int64: return TryParseInt64Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.UInt64: return TryParseUInt64Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                default: return TryParseRareEnum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+            }
+        }
+
+        public static bool TryParse<TEnum>(string value, out TEnum result) where TEnum : struct =>
+            TryParse<TEnum>(value, false, out result);
+
+        public static bool TryParse<TEnum>(string value, bool ignoreCase, out TEnum result) where TEnum : struct
+        {
+            if (!typeof(TEnum).IsEnum)
+            {
+                throw new ArgumentException(SR.Arg_MustBeEnum, nameof(TEnum));
+            }
+
+            ReadOnlySpan<char> valueSpan = value.AsSpan().TrimStart();
+            if (valueSpan.Length == 0)
+            {
+                result = default;
+                return false;
+            }
+
+            switch (Type.GetTypeCode(typeof(TEnum)))
+            {
+                case TypeCode.SByte: return TryParseSByteEnum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.Byte: return TryParseByteEnum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.Int16: return TryParseInt16Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.UInt16: return TryParseUInt16Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.Int32: return TryParseInt32Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.UInt32: return TryParseUInt32Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.Int64: return TryParseInt64Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                case TypeCode.UInt64: return TryParseUInt64Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+                default: return TryParseRareEnum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: false, out result);
+            }
+        }
+
+        public static object Parse(Type enumType, string value) =>
+            Parse(enumType, value, false);
+
+        public static object Parse(Type enumType, string value, bool ignoreCase)
+        {
+            if (enumType == null)
+            {
+                throw new ArgumentNullException(nameof(enumType));
+            }
+
+            RuntimeType rtType = enumType as RuntimeType;
+            if (rtType == null)
+            {
+                throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
+            }
+
+            if (!rtType.IsEnum)
+            {
+                throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
+            }
 
             if (value == null)
             {
-                parseResult.SetFailure(ParseFailureKind.ArgumentNull, nameof(value));
-                return false;
+                throw new ArgumentNullException(nameof(value));
             }
 
-            int firstNonWhitespaceIndex = -1;
-            for (int i = 0; i < value.Length; i++)
+            ReadOnlySpan<char> valueSpan = value.AsSpan().TrimStart();
+            if (valueSpan.Length == 0)
             {
-                if (!char.IsWhiteSpace(value[i]))
+                throw new ArgumentException(SR.Arg_MustContainEnumInfo, nameof(value));
+            }
+
+            bool success;
+            object result;
+
+            switch (Type.GetTypeCode(rtType))
+            {
+                case TypeCode.SByte: success = TryParseSByteEnum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.Byte: success = TryParseByteEnum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.Int16: success = TryParseInt16Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.UInt16: success = TryParseUInt16Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.Int32: success = TryParseInt32Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.UInt32: success = TryParseUInt32Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.Int64: success = TryParseInt64Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.UInt64: success = TryParseUInt64Enum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                default: success = TryParseRareEnum<object>(rtType, value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+            }
+
+            Debug.Assert(success);
+            return result;
+        }
+
+        public static TEnum Parse<TEnum>(string value) where TEnum : struct =>
+            Parse<TEnum>(value, false);
+
+        public static TEnum Parse<TEnum>(string value, bool ignoreCase) where TEnum : struct
+        {
+            if (!typeof(TEnum).IsEnum)
+            {
+                throw new ArgumentException(SR.Arg_MustBeEnum, nameof(TEnum));
+            }
+
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            ReadOnlySpan<char> valueSpan = value.AsSpan().TrimStart();
+            if (valueSpan.Length == 0)
+            {
+                throw new ArgumentException(SR.Arg_MustContainEnumInfo, nameof(value));
+            }
+
+            bool success;
+            TEnum result;
+            
+            switch (Type.GetTypeCode(typeof(TEnum)))
+            {
+                case TypeCode.SByte: success = TryParseSByteEnum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.Byte: success = TryParseByteEnum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.Int16: success = TryParseInt16Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.UInt16: success = TryParseUInt16Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.Int32: success = TryParseInt32Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.UInt32: success = TryParseUInt32Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.Int64: success = TryParseInt64Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                case TypeCode.UInt64: success = TryParseUInt64Enum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+                default: success = TryParseRareEnum<TEnum>((RuntimeType)typeof(TEnum), value, valueSpan, ignoreCase, throwOnFailure: true, out result); break;
+            }
+
+            Debug.Assert(success);
+            return result;
+        }
+
+        private static bool TryParseSByteEnum<TResult>(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TResult enumResult)
+        {
+            Debug.Assert(typeof(TResult) == enumType || typeof(TResult) == typeof(object));
+            Debug.Assert(enumType.GetEnumUnderlyingType() == typeof(sbyte));
+
+            bool failureIsOverflow = false;
+            if (StartsNumber(value[0]) && Number.TryParseInt32IntegerStyle(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out int intResult, ref failureIsOverflow))
+            {
+                if ((uint)(intResult - sbyte.MinValue) <= (sbyte.MaxValue - sbyte.MinValue))
                 {
-                    firstNonWhitespaceIndex = i;
-                    break;
+                    sbyte sbyteResult = (sbyte)intResult;
+                    enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, sbyteResult) : Unsafe.As<sbyte, TResult>(ref sbyteResult);
+                    return true;
                 }
+
+                failureIsOverflow = true;
             }
-            if (firstNonWhitespaceIndex == -1)
+
+            if (failureIsOverflow)
             {
-                parseResult.SetFailure(ParseFailureKind.Argument, nameof(SR.Arg_MustContainEnumInfo), null);
-                return false;
+                if (throwOnFailure) throw new OverflowException(SR.Overflow_SByte);
+            }
+            else if (TryParseByName(enumType, originalValueString, value, ignoreCase, throwOnFailure, out ulong ulongResult))
+            {
+                sbyte sbyteResult = (sbyte)ulongResult;
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, sbyteResult) : Unsafe.As<sbyte, TResult>(ref sbyteResult);
+                return true;
             }
 
-            // We have 2 code paths here. One if they are values else if they are Strings.
-            // values will have the first character as as number or a sign.
-            ulong result = 0;
+            enumResult = default;
+            return false;
+        }
 
-            char firstNonWhitespaceChar = value[firstNonWhitespaceIndex];
-            if (char.IsDigit(firstNonWhitespaceChar) || firstNonWhitespaceChar == '-' || firstNonWhitespaceChar == '+')
+        private static bool TryParseByteEnum<TResult>(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TResult enumResult)
+        {
+            Debug.Assert(typeof(TResult) == enumType || typeof(TResult) == typeof(object));
+            Debug.Assert(enumType.GetEnumUnderlyingType() == typeof(byte));
+
+            bool failureIsOverflow = false;
+            if (StartsNumber(value[0]) && Number.TryParseUInt32IntegerStyle(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out uint uintResult, ref failureIsOverflow))
+            {
+                if (uintResult <= byte.MaxValue)
+                {
+                    byte byteResult = (byte)uintResult;
+                    enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, byteResult) : Unsafe.As<byte, TResult>(ref byteResult);
+                    return true;
+                }
+
+                failureIsOverflow = true;
+            }
+
+            if (failureIsOverflow)
+            {
+                if (throwOnFailure) throw new OverflowException(SR.Overflow_Byte);
+            }
+            else if (TryParseByName(enumType, originalValueString, value, ignoreCase, throwOnFailure, out ulong ulongResult))
+            {
+                byte byteResult = (byte)ulongResult;
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, byteResult) : Unsafe.As<byte, TResult>(ref byteResult);
+                return true;
+            }
+
+            enumResult = default;
+            return false;
+        }
+
+        private static bool TryParseInt16Enum<TResult>(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TResult enumResult)
+        {
+            Debug.Assert(typeof(TResult) == enumType || typeof(TResult) == typeof(object));
+            Debug.Assert(enumType.GetEnumUnderlyingType() == typeof(short));
+
+            bool failureIsOverflow = false;
+            if (StartsNumber(value[0]) && Number.TryParseInt32IntegerStyle(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out int intResult, ref failureIsOverflow))
+            {
+                if ((uint)(intResult - short.MinValue) <= (short.MaxValue - short.MinValue))
+                {
+                    short shortResult = (short)intResult;
+                    enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, shortResult) : Unsafe.As<short, TResult>(ref shortResult);
+                    return true;
+                }
+
+                failureIsOverflow = true;
+            }
+
+            if (failureIsOverflow)
+            {
+                if (throwOnFailure) throw new OverflowException(SR.Overflow_Int16);
+            }
+            else if (TryParseByName(enumType, originalValueString, value, ignoreCase, throwOnFailure, out ulong ulongResult))
+            {
+                short shortResult = (short)ulongResult;
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, shortResult) : Unsafe.As<short, TResult>(ref shortResult);
+                return true;
+            }
+
+            enumResult = default;
+            return false;
+        }
+
+        private static bool TryParseUInt16Enum<TResult>(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TResult enumResult)
+        {
+            Debug.Assert(typeof(TResult) == enumType || typeof(TResult) == typeof(object));
+            Debug.Assert(enumType.GetEnumUnderlyingType() == typeof(ushort));
+
+            bool failureIsOverflow = false;
+            if (StartsNumber(value[0]) && Number.TryParseUInt32IntegerStyle(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out uint uintResult, ref failureIsOverflow))
+            {
+                if (uintResult <= ushort.MaxValue)
+                {
+                    ushort ushortResult = (ushort)uintResult;
+                    enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, ushortResult) : Unsafe.As<ushort, TResult>(ref ushortResult);
+                    return true;
+                }
+
+                failureIsOverflow = true;
+            }
+
+            if (failureIsOverflow)
+            {
+                if (throwOnFailure) throw new OverflowException(SR.Overflow_UInt16);
+            }
+            else if (TryParseByName(enumType, originalValueString, value, ignoreCase, throwOnFailure, out ulong ulongResult))
+            {
+                ushort ushortResult = (ushort)ulongResult;
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, ushortResult) : Unsafe.As<ushort, TResult>(ref ushortResult);
+                return true;
+            }
+
+            enumResult = default;
+            return false;
+        }
+
+        private static bool TryParseInt32Enum<TResult>(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TResult enumResult)
+        {
+            Debug.Assert(typeof(TResult) == enumType || typeof(TResult) == typeof(object));
+            Debug.Assert(enumType.GetEnumUnderlyingType() == typeof(int));
+
+            bool failureIsOverflow = false;
+            if (StartsNumber(value[0]) && Number.TryParseInt32IntegerStyle(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out int intResult, ref failureIsOverflow))
+            {
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, intResult) : Unsafe.As<int, TResult>(ref intResult);
+                return true;
+            }
+
+            if (failureIsOverflow)
+            {
+                if (throwOnFailure) throw new OverflowException(SR.Overflow_Int32);
+            }
+            else if (TryParseByName(enumType, originalValueString, value, ignoreCase, throwOnFailure, out ulong ulongResult))
+            {
+                intResult = (int)ulongResult;
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, intResult) : Unsafe.As<int, TResult>(ref intResult);
+                return true;
+            }
+
+            enumResult = default;
+            return false;
+        }
+
+        private static bool TryParseUInt32Enum<TResult>(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TResult enumResult)
+        {
+            Debug.Assert(typeof(TResult) == enumType || typeof(TResult) == typeof(object));
+            Debug.Assert(enumType.GetEnumUnderlyingType() == typeof(uint));
+
+            bool failureIsOverflow = false;
+            if (StartsNumber(value[0]) && Number.TryParseUInt32IntegerStyle(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out uint uintResult, ref failureIsOverflow))
+            {
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, uintResult) : Unsafe.As<uint, TResult>(ref uintResult);
+                return true;
+            }
+
+            if (failureIsOverflow)
+            {
+                if (throwOnFailure) throw new OverflowException(SR.Overflow_UInt32);
+            }
+            else if (TryParseByName(enumType, originalValueString, value, ignoreCase, throwOnFailure, out ulong ulongResult))
+            {
+                uintResult = (uint)ulongResult;
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, uintResult) : Unsafe.As<uint, TResult>(ref uintResult);
+                return true;
+            }
+
+            enumResult = default;
+            return false;
+        }
+
+        private static bool TryParseInt64Enum<TResult>(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TResult enumResult)
+        {
+            Debug.Assert(typeof(TResult) == enumType || typeof(TResult) == typeof(object));
+            Debug.Assert(enumType.GetEnumUnderlyingType() == typeof(long));
+
+            bool failureIsOverflow = false;
+            if (StartsNumber(value[0]) && Number.TryParseInt64IntegerStyle(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out long longResult, ref failureIsOverflow))
+            {
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, longResult) : Unsafe.As<long, TResult>(ref longResult);
+                return true;
+            }
+
+            if (failureIsOverflow)
+            {
+                if (throwOnFailure) throw new OverflowException(SR.Overflow_Int64);
+            }
+            else if (TryParseByName(enumType, originalValueString, value, ignoreCase, throwOnFailure, out ulong ulongResult))
+            {
+                longResult = (long)ulongResult;
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, longResult) : Unsafe.As<long, TResult>(ref longResult);
+                return true;
+            }
+
+            enumResult = default;
+            return false;
+        }
+
+        private static bool TryParseUInt64Enum<TResult>(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TResult enumResult)
+        {
+            Debug.Assert(typeof(TResult) == enumType || typeof(TResult) == typeof(object));
+            Debug.Assert(enumType.GetEnumUnderlyingType() == typeof(uint));
+
+            bool failureIsOverflow = false;
+            if (StartsNumber(value[0]) && Number.TryParseUInt64IntegerStyle(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out ulong ulongResult, ref failureIsOverflow))
+            {
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, (long)ulongResult) : Unsafe.As<ulong, TResult>(ref ulongResult);
+                return true;
+            }
+
+            if (failureIsOverflow)
+            {
+                if (throwOnFailure) throw new OverflowException(SR.Overflow_UInt64);
+            }
+            else if (TryParseByName(enumType, originalValueString, value, ignoreCase, throwOnFailure, out ulongResult))
+            {
+                enumResult = RuntimeHelpers.IsReferenceOrContainsReferences<TResult>() ? (TResult)InternalBoxEnum(enumType, (long)ulongResult) : Unsafe.As<ulong, TResult>(ref ulongResult);
+                return true;
+            }
+
+            enumResult = default;
+            return false;
+        }
+
+        private static bool TryParseRareEnum<TResult>(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TResult enumResult)
+        {
+            if (StartsNumber(value[0]))
             {
                 Type underlyingType = GetUnderlyingType(enumType);
-                object temp;
-
                 try
                 {
-                    value = value.Trim();
-                    temp = Convert.ChangeType(value, underlyingType, CultureInfo.InvariantCulture);
-                    parseResult.parsedEnum = ToObject(enumType, temp);
+                    enumResult = (TResult)ToObject(enumType, Convert.ChangeType(value.ToString(), underlyingType, CultureInfo.InvariantCulture));
                     return true;
                 }
                 catch (FormatException)
-                { // We need to Parse this as a String instead. There are cases
-                  // when you tlbimp enums that can have values of the form "3D".
-                  // Don't fix this code.
-                }
-                catch (Exception ex)
                 {
-                    if (parseResult.canThrow)
-                        throw;
-                    else
-                    {
-                        parseResult.SetFailure(ex);
-                        return false;
-                    }
+                    // We need to Parse this as a String instead. There are cases
+                    // when you tlbimp enums that can have values of the form "3D".
+                }
+                catch when (!throwOnFailure)
+                {
+                    enumResult = default;
+                    return false;
                 }
             }
 
-            // Find the field. Let's assume that these are always static classes 
-            // because the class is an enum.
-            TypeValuesAndNames entry = GetCachedValuesAndNames(rtType, true);
+            if (TryParseByName(enumType, originalValueString, value, ignoreCase, throwOnFailure, out ulong ulongResult))
+            {
+                try
+                {
+                    enumResult = (TResult)ToObject(enumType, ulongResult);
+                    return true;
+                }
+                catch when (!throwOnFailure) { }
+            }
+
+            enumResult = default;
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool StartsNumber(char c) => char.IsInRange(c, '0', '9') || c == '-' || c == '+';
+
+        private static bool TryParseByName(RuntimeType enumType, string originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out ulong ulongResult)
+        {
+            // Find the field. Let's assume that these are always static classes because the class is an enum.
+            TypeValuesAndNames entry = GetCachedValuesAndNames(enumType, getNames: true);
             string[] enumNames = entry.Names;
             ulong[] enumValues = entry.Values;
 
-            StringComparison comparison = ignoreCase ?
-                StringComparison.OrdinalIgnoreCase :
-                StringComparison.Ordinal;
-
-            int valueIndex = firstNonWhitespaceIndex;
-            while (valueIndex <= value.Length) // '=' is to handle invalid case of an ending comma
+            bool parsed = true;
+            ulong result = 0;
+            while (value.Length > 0)
             {
-                // Find the next separator, if there is one, otherwise the end of the string.
-                int endIndex = value.IndexOf(enumSeparatorChar, valueIndex);
+                // Find the next separator.
+                ReadOnlySpan<char> subvalue;
+                int endIndex = value.IndexOf(enumSeparatorChar);
                 if (endIndex == -1)
                 {
-                    endIndex = value.Length;
+                    // No next separator; use the remainder as the next value.
+                    subvalue = value.Trim();
+                    value = default;
                 }
-
-                // Shift the starting and ending indices to eliminate whitespace
-                int endIndexNoWhitespace = endIndex;
-                while (valueIndex < endIndex && char.IsWhiteSpace(value[valueIndex])) valueIndex++;
-                while (endIndexNoWhitespace > valueIndex && char.IsWhiteSpace(value[endIndexNoWhitespace - 1])) endIndexNoWhitespace--;
-                int valueSubstringLength = endIndexNoWhitespace - valueIndex;
+                else if (endIndex != value.Length - 1)
+                {
+                    // Found a separator before the last char.
+                    subvalue = value.Slice(0, endIndex).Trim();
+                    value = value.Slice(endIndex + 1);
+                }
+                else
+                {
+                    // Last char was a separator, which is invalid.
+                    parsed = false;
+                    break;
+                }
 
                 // Try to match this substring against each enum name
                 bool success = false;
-                for (int i = 0; i < enumNames.Length; i++)
+                if (ignoreCase)
                 {
-                    if (enumNames[i].Length == valueSubstringLength &&
-                        string.Compare(enumNames[i], 0, value, valueIndex, valueSubstringLength, comparison) == 0)
+                    for (int i = 0; i < enumNames.Length; i++)
                     {
-                        result |= enumValues[i];
-                        success = true;
-                        break;
+                        if (subvalue.EqualsOrdinalIgnoreCase(enumNames[i]))
+                        {
+                            result |= enumValues[i];
+                            success = true;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < enumNames.Length; i++)
+                    {
+                        if (subvalue.EqualsOrdinal(enumNames[i]))
+                        {
+                            result |= enumValues[i];
+                            success = true;
+                            break;
+                        }
                     }
                 }
 
-                // If we couldn't find a match, throw an argument exception.
                 if (!success)
                 {
-                    // Not found, throw an argument exception.
-                    parseResult.SetFailure(ParseFailureKind.ArgumentWithParameter, nameof(SR.Arg_EnumValueNotFound), value);
-                    return false;
+                    parsed = false;
+                    break;
                 }
-
-                // Move our pointer to the ending index to go again.
-                valueIndex = endIndex + 1;
             }
 
-            try
+            if (parsed)
             {
-                parseResult.parsedEnum = ToObject(enumType, result);
+                ulongResult = result;
                 return true;
             }
-            catch (Exception ex)
+
+            if (throwOnFailure)
             {
-                if (parseResult.canThrow)
-                    throw;
-                else
-                {
-                    parseResult.SetFailure(ex);
-                    return false;
-                }
+                throw new ArgumentException(SR.Format(SR.Arg_EnumValueNotFound, originalValueString));
             }
+
+            ulongResult = default;
+            return false;
         }
 
         public static Type GetUnderlyingType(Type enumType)
@@ -742,17 +1008,17 @@ namespace System
         #region Definitions
         private class TypeValuesAndNames
         {
+            public readonly bool IsFlag;
+            public readonly ulong[] Values;
+            public readonly string[] Names;
+
             // Each entry contains a list of sorted pair of enum field names and values, sorted by values
             public TypeValuesAndNames(bool isFlag, ulong[] values, string[] names)
             {
-                this.IsFlag = isFlag;
-                this.Values = values;
-                this.Names = names;
+                IsFlag = isFlag;
+                Values = values;
+                Names = names;
             }
-
-            public bool IsFlag;
-            public ulong[] Values;
-            public string[] Names;
         }
         #endregion
 
