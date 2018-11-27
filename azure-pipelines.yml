@@ -1,6 +1,31 @@
 variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
+resources:
+  containers:
+  - container: ubuntu_1404_arm_cross_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420
+
+  - container: ubuntu_1604_arm64_cross_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921
+
+  - container: ubuntu_1604_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-c103199-20180628134544
+
+  - container: musl_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-e2521f8-20180716231200
+
+  - container: centos7_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:centos-7-d485f41-20173404063424
+
+  - container: centos6_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:centos-6-376e1a3-20174311014331
+
+trigger:
+ - master
+
+pr:
+ - master
 
 jobs:
 
@@ -64,19 +89,23 @@ jobs:
 # Debug build
 #
 
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: debug
+# Official build is release only.
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: debug
 
 #
 # Checked build
 #
 
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: checked
+# Official build is release only.
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: checked
 
 #
 # Release build
@@ -92,31 +121,37 @@ jobs:
 #
 
 # Pri0
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    jobParameters:
-      priority: 0
+# Official build is release pri1 only.
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 0
 
 # Pri1
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    jobParameters:
-      priority: 1
-      scenarios: 'normal;jitstress2'
+# Official build is release only.
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        scenarios: 'normal;jitstress2'
 
 # Pri1 crossgen
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    jobParameters:
-      priority: 1
-      crossgen: true
-      scenarios: 'normal;jitstress2'
+# Official build is release only.
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        crossgen: true
+        scenarios: 'normal;jitstress2'
 
 #
 # Release test builds
