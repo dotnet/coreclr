@@ -31,8 +31,7 @@ public:
         HomeType_ILLocal         = 1,
         HomeType_ILArgument      = 2,
         HomeType_ILByrefLocal    = 3,
-        HomeType_ILByrefArgument = 4,
-        HomeType_ILField         = 5
+        HomeType_ILByrefArgument = 4
     } MarshalHomeType;
 
 private:
@@ -43,6 +42,7 @@ public:
     void InitHome(MarshalHomeType homeType, DWORD dwHomeIndex)
     {
         LIMITED_METHOD_CONTRACT;
+
         m_homeType = homeType;
         m_dwHomeIndex = dwHomeIndex;
     }
@@ -61,7 +61,6 @@ public:
         {
             case HomeType_ILLocal:      pslILEmit->EmitLDLOC(m_dwHomeIndex); break;
             case HomeType_ILArgument:   pslILEmit->EmitLDARG(m_dwHomeIndex); break;
-            case HomeType_ILField:      pslILEmit->EmitLDFLD(m_dwHomeIndex); break;
         
             default:
                 UNREACHABLE_MSG("unexpected homeType passed to EmitLoadHome");
@@ -83,7 +82,6 @@ public:
         {
             case HomeType_ILLocal:         pslILEmit->EmitLDLOCA(m_dwHomeIndex); break;
             case HomeType_ILArgument:      pslILEmit->EmitLDARGA(m_dwHomeIndex); break;
-            case HomeType_ILField:         pslILEmit->EmitLDFLDA(m_dwHomeIndex); break;
             case HomeType_ILByrefLocal:    pslILEmit->EmitLDLOC(m_dwHomeIndex);  break;
             case HomeType_ILByrefArgument: pslILEmit->EmitLDARG(m_dwHomeIndex);  break;
 
@@ -107,7 +105,6 @@ public:
         {
             case HomeType_ILLocal:      pslILEmit->EmitSTLOC(m_dwHomeIndex); break;
             case HomeType_ILArgument:   pslILEmit->EmitSTARG(m_dwHomeIndex); break;
-            case HomeType_ILField:      pslILEmit->EmitSTFLD(m_dwHomeIndex); break;
 
             default:
                 UNREACHABLE_MSG("unexpected homeType passed to EmitStoreHome");
