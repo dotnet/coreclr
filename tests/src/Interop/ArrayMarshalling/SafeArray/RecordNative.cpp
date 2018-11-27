@@ -94,7 +94,7 @@ public:
         return TYPE_E_INVALIDSTATE;
     }
 
-    BOOL IsMatchingType(IRecordInfo* pRecordInfo)
+    BOOL STDMETHODCALLTYPE IsMatchingType(IRecordInfo* pRecordInfo)
     {
         return pRecordInfo == this;
     }
@@ -130,7 +130,7 @@ public:
         return S_OK;
     }
 
-    PVOID RecordCreate()
+    PVOID STDMETHODCALLTYPE RecordCreate()
     {
         return CoreClrAlloc(sizeof(BlittableRecord));
     }
@@ -156,12 +156,12 @@ public:
         return S_OK;
     }
 
-    ULONG AddRef()
+    ULONG STDMETHODCALLTYPE AddRef()
     {
         return ++refCount;
     }
 
-    ULONG Release()
+    ULONG STDMETHODCALLTYPE Release()
     {
         return --refCount;
     }
@@ -277,7 +277,7 @@ public:
         return TYPE_E_INVALIDSTATE;
     }
 
-    BOOL IsMatchingType(IRecordInfo* pRecordInfo)
+    BOOL STDMETHODCALLTYPE IsMatchingType(IRecordInfo* pRecordInfo)
     {
         return pRecordInfo == this;
     }
@@ -339,12 +339,12 @@ public:
         return S_OK;
     }
 
-    ULONG AddRef()
+    ULONG STDMETHODCALLTYPE AddRef()
     {
         return ++refCount;
     }
 
-    ULONG Release()
+    ULONG STDMETHODCALLTYPE Release()
     {
         return --refCount;
     }
@@ -373,7 +373,7 @@ private:
     ULONG refCount;
 } s_NonBlittableRecordInfo;
 
-extern "C" DLL_EXPORT SAFEARRAY* CreateSafeArrayOfRecords(BlittableRecord records[], int numRecords)
+extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE CreateSafeArrayOfRecords(BlittableRecord records[], int numRecords)
 {
     SAFEARRAYBOUND bounds[1] = {
         {numRecords, 0}
@@ -387,7 +387,7 @@ extern "C" DLL_EXPORT SAFEARRAY* CreateSafeArrayOfRecords(BlittableRecord record
 }
 
 
-extern "C" DLL_EXPORT SAFEARRAY* CreateSafeArrayOfNonBlittableRecords(NonBlittableRecord records[], int numRecords)
+extern "C" DLL_EXPORT SAFEARRAY* STDMETHODCALLTYPE CreateSafeArrayOfNonBlittableRecords(NonBlittableRecord records[], int numRecords)
 {
     SAFEARRAYBOUND bounds[1] = {
         {numRecords, 0}
