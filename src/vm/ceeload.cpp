@@ -10338,7 +10338,7 @@ Module *Module::GetModuleFromIndexIfLoaded(DWORD ix)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(HasNativeImage());
+        PRECONDITION(HasNativeOrReadyToRunImage());
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
     CONTRACT_END;
