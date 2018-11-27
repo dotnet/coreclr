@@ -78,7 +78,7 @@ void ILReflectionObjectMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* p
 
     if (IsCLRToNative(m_dwMarshalFlags))
     {
-        m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+        EmitLoadCleanupWorkList(pslILEmit);
         if (tokStruct__m_object != 0)
         {
             EmitLoadManagedHomeAddr(pslILEmit);
@@ -128,7 +128,7 @@ void ILDelegateMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit
     EmitLoadManagedValue(pslILEmit);
     pslILEmit->EmitCALL(METHOD__MARSHAL__GET_FUNCTION_POINTER_FOR_DELEGATE, 1, 1);
     EmitStoreNativeValue(pslILEmit);
-    m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+    EmitLoadCleanupWorkList(pslILEmit);
     EmitLoadManagedValue(pslILEmit);
     pslILEmit->EmitCALL(METHOD__STUBHELPERS__KEEP_ALIVE_VIA_CLEANUP_LIST, 2, 0);
     
@@ -1120,7 +1120,7 @@ void ILValueClassMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEm
     pslILEmit->EmitLDTOKEN(managedVCToken); // pMT
     pslILEmit->EmitCALL(METHOD__RT_TYPE_HANDLE__GETVALUEINTERNAL, 1, 1); // Convert RTH to IntPtr
 
-    m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+    EmitLoadCleanupWorkList(pslILEmit);
     pslILEmit->EmitCALL(METHOD__VALUECLASSMARSHALER__CONVERT_TO_NATIVE, 4, 0);        // void ConvertToNative(IntPtr dst, IntPtr src, IntPtr pMT, ref CleanupWorkListElement pCleanupWorkList)
 }
 
@@ -1388,7 +1388,7 @@ void ILInterfaceMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmi
         //
         // The fix is to extend the lifetime of the argument across the call to native by doing a GC.KeepAlive
         // keep the delegate ref alive across the call-out to native
-        m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+        EmitLoadCleanupWorkList(pslILEmit);
         EmitLoadManagedValue(pslILEmit);
         pslILEmit->EmitCALL(METHOD__STUBHELPERS__KEEP_ALIVE_VIA_CLEANUP_LIST, 2, 0);
     }
@@ -2396,7 +2396,7 @@ void ILLayoutClassPtrMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* psl
     EmitLoadManagedValue(pslILEmit);
     EmitLoadNativeValue(pslILEmit);
 
-    m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+    EmitLoadCleanupWorkList(pslILEmit);
 
     // static void FmtClassUpdateNativeInternal(object obj, byte* pNative, IntPtr pOptionalCleanupList);
 
@@ -3824,7 +3824,7 @@ void ILNativeArrayMarshaler::EmitLoadElementCount(ILCodeStream* pslILEmit)
         unsigned countParamIdx = mops.countParamIdx;
         if (!IsCLRToNative(m_dwMarshalFlags))
         {
-            int lcidParamIdx = m_pslNDirect->GetLCIDParamIdx();
+            int lcidParamIdx = GetLCIDParamIndex();
     
             if (lcidParamIdx >= 0 && (unsigned)lcidParamIdx <= countParamIdx)
             {

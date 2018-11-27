@@ -215,7 +215,6 @@ protected:
 #endif // _DEBUG
 
     OverrideProcArgs*   m_pargs;
-    NDirectStubLinker*  m_pslNDirect;
     UINT                m_argidx;
     DWORD               m_dwMarshalFlags;
     DWORD               m_dwMngdMarshalerLocalNum;
@@ -225,6 +224,7 @@ private:
     ILCodeStream*       m_pcsUnmarshal;
     ILStubMarshalHome   m_nativeHome;
     ILStubMarshalHome   m_managedHome;
+    NDirectStubLinker*  m_pslNDirect;
 
 public:
 
@@ -852,9 +852,14 @@ protected:
         pslILEmit->EmitLDLOCA(m_dwMngdMarshalerLocalNum);
     }
 
-    virtual void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit)
+    void EmitLoadCleanupWorkList(ILCodeStream* pslILEmit)
     {
-        LIMITED_METHOD_CONTRACT;
+        m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+    }
+
+    int GetLCIDParamIndex()
+    {
+        return m_pslNDirect->GetLCIDParamIdx();
     }
 
     void EmitSetupSigAndDefaultHomesCLRToNative()
@@ -1369,6 +1374,11 @@ protected:
     virtual LocalDesc GetNativeType() = 0;
     virtual LocalDesc GetManagedType() = 0;
 
+    virtual void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+    
     //
     // Native-to-CLR
     //
