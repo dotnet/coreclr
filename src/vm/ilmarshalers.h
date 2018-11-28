@@ -946,7 +946,7 @@ protected:
         //
         // marshal
         //
-        if (IsIn(m_dwMarshalFlags))
+        if (IsIn(m_dwMarshalFlags) || AlwaysConvertByValContentsCLRToNative())
         {
             EmitConvertSpaceAndContentsCLRToNativeTemp(m_pcsMarshal);
         }
@@ -1505,6 +1505,12 @@ protected:
     }
 
     void EmitInterfaceClearNative(ILCodeStream* pslILEmit);
+
+    virtual bool AlwaysConvertByValContentsCLRToNative()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return false;
+    }
 
 public:
     
@@ -2916,6 +2922,11 @@ protected:
     void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override final;
     bool NeedsClearNative() override final;
     void EmitClearNativeTemp(ILCodeStream* pslILEmit) override final;
+    bool AlwaysConvertByValContentsCLRToNative() override final
+    {
+        LIMITED_METHOD_CONTRACT;
+        return true;
+    }
 
 private:
     DWORD GetAsAnyFlags()
