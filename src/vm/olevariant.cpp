@@ -2543,7 +2543,10 @@ void OleVariant::MarshalRecordVariantOleToCom(VARIANT *pOleVariant,
             // Go to the registry to find the value class associated
             // with the record's guid.
             GUID guid;
-            IfFailThrow(pRecInfo->GetGuid(&guid));
+            {
+                GCX_PREEMP();
+                IfFailThrow(pRecInfo->GetGuid(&guid));
+            }
             MethodTable *pValueClass = GetValueTypeForGUID(guid);
             if (!pValueClass)
                 COMPlusThrow(kArgumentException, IDS_EE_CANNOT_MAP_TO_MANAGED_VC);
@@ -5029,12 +5032,15 @@ TypeHandle OleVariant::GetElementTypeForRecordSafeArray(SAFEARRAY* pSafeArray)
     HRESULT hr = S_OK;
     SafeComHolder<IRecordInfo> pRecInfo = NULL;
 
-        GUID guid;
+    GUID guid;
+    {
+        GCX_PREEMP();
         IfFailThrow(SafeArrayGetRecordInfo(pSafeArray, &pRecInfo));
         IfFailThrow(pRecInfo->GetGuid(&guid));
-        MethodTable *pValueClass = GetValueTypeForGUID(guid);
-        if (!pValueClass)
-            COMPlusThrow(kArgumentException, IDS_EE_CANNOT_MAP_TO_MANAGED_VC);
+    }
+    MethodTable *pValueClass = GetValueTypeForGUID(guid);
+    if (!pValueClass)
+        COMPlusThrow(kArgumentException, IDS_EE_CANNOT_MAP_TO_MANAGED_VC);
 
     return TypeHandle(pValueClass);
 }
