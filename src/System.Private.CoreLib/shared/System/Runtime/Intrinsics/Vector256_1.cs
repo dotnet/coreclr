@@ -3,8 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Globalization;
+using System.Numerics.Hashing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.Intrinsics
@@ -13,7 +16,8 @@ namespace System.Runtime.Intrinsics
     [DebuggerDisplay("{DisplayString,nq}")]
     [DebuggerTypeProxy(typeof(Vector256DebugView<>))]
     [StructLayout(LayoutKind.Sequential, Size = Vector256.Size)]
-    public readonly struct Vector256<T> where T : struct
+    public readonly struct Vector256<T> : IEquatable<Vector256<T>>, IFormattable
+        where T : struct
     {
         // These fields exist to ensure the alignment is 8, rather than 1.
         // This also allows the debug view to work https://github.com/dotnet/coreclr/issues/15694)
@@ -51,9 +55,7 @@ namespace System.Runtime.Intrinsics
             {
                 if (IsSupported)
                 {
-                    var items = new T[Count];
-                    Unsafe.WriteUnaligned(ref Unsafe.As<T, byte>(ref items[0]), this);
-                    return $"({string.Join(", ", items)})";
+                    return ToString();
                 }
                 else
                 {
@@ -166,6 +168,34 @@ namespace System.Runtime.Intrinsics
         [CLSCompliant(false)]
         public Vector256<ulong> AsUInt64() => As<ulong>();
 
+        /// <summary>Determines whether the specified <see cref="Vector256{T}" /> is equal to the current instance.</summary>
+        /// <param name="other">The <see cref="Vector256{T}" /> to compare with the current instance.</param>
+        /// <returns><c>true</c> if <paramref name="other" /> is equal to the current instance; otherwise, <c>false</c>.</returns>
+        /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        public bool Equals(Vector256<T> other)
+        {
+            ThrowIfUnsupportedType();
+
+            for (int i = 0; i < Count; i++)
+            {
+                if (!((IEquatable<T>)(GetElement(i))).Equals(other.GetElement(i)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>Determines whether the specified object is equal to the current instance.</summary>
+        /// <param name="obj">The object to compare with the current instance.</param>
+        /// <returns><c>true</c> if <paramref name="obj" /> is a <see cref="Vector256{T}" /> and is equal to the current instance; otherwise, <c>false</c>.</returns>
+        /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        public override bool Equals(object obj)
+        {
+            return (obj is Vector256<T>) && Equals((Vector256<T>)(obj));
+        }
+
         /// <summary>Gets the element at the specified index.</summary>
         /// <param name="index">The index of the element to get.</param>
         /// <returns>The value of the element at <paramref name="index" />.</returns>
@@ -203,6 +233,23 @@ namespace System.Runtime.Intrinsics
             ref T e0 = ref Unsafe.As<Vector256<T>, T>(ref result);
             Unsafe.Add(ref e0, index) = value;
             return result;
+        }
+
+        /// <summary>Gets the hash code for the instance.</summary>
+        /// <returns>The hash code for the instance.</returns>
+        /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        public override int GetHashCode()
+        {
+            ThrowIfUnsupportedType();
+
+            int hashCode = 0;
+
+            for (int i = 0; i < Count; i++)
+            {
+                hashCode = HashHelpers.Combine(hashCode, GetElement(i).GetHashCode());
+            }
+
+            return hashCode;
         }
 
         /// <summary>Gets the value of the lower 128-bits as a new <see cref="Vector128{T}" />.</summary>
@@ -263,6 +310,50 @@ namespace System.Runtime.Intrinsics
         {
             ThrowIfUnsupportedType();
             return Unsafe.As<Vector256<T>, T>(ref Unsafe.AsRef(in this));
+        }
+
+        /// <summary>Converts the current instance to an equivalent string representation.</summary>
+        /// <returns>An equivalent string representation of the current instance.</returns>
+        /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        public override string ToString()
+        {
+            return ToString("G");
+        }
+
+        /// <summary>Converts the current instance to an equivalent string representation using the specified format.</summary>
+        /// <param name="format">The format specifier used to format the individual elements of the current instance.</param>
+        /// <returns>An equivalent string representation of the current instance.</returns>
+        /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        public string ToString(string format)
+        {
+            return ToString("G", CultureInfo.CurrentCulture);
+        }
+
+        /// <summary>Converts the current instance to an equivalent string representation using the specified format.</summary>
+        /// <param name="format">The format specifier used to format the individual elements of the current instance.</param>
+        /// <param name="formatProvider">The format provider used to format the individual elements of the current instance.</param>
+        /// <returns>An equivalent string representation of the current instance.</returns>
+        /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            ThrowIfUnsupportedType();
+
+            string separator = NumberFormatInfo.GetInstance(formatProvider).NumberGroupSeparator;
+            int lastElement = Count - 1;
+
+            var sb = new StringBuilder();
+            sb.Append('<');
+
+            for (int i = 0; i < lastElement; i++)
+            {
+                sb.Append(((IFormattable)(GetElement(lastElement))).ToString(format, formatProvider));
+                sb.Append(separator);
+                sb.Append(' ');
+            }
+            sb.Append(((IFormattable)(GetElement(lastElement))).ToString(format, formatProvider));
+
+            sb.Append('>');
+            return sb.ToString();
         }
     }
 }
