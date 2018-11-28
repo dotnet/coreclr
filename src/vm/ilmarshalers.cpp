@@ -2608,10 +2608,9 @@ MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinke
 
     if (fManagedToNative)
     {
+        pslIL->SetStubTargetArgType(ELEMENT_TYPE_I);
         if (byref)
         {
-            pslIL->SetStubTargetArgType(ELEMENT_TYPE_I);
-
             // The specific SafeHandle subtype we're dealing with here.
             MethodTable *pHandleType = pargs->m_pMT;
 
@@ -4041,6 +4040,9 @@ MarshalerOverrideStatus ILNativeArrayMarshaler::ArgumentOverride(NDirectStubLink
     if (fManagedToNative && !byref && (NULL == OleVariant::GetMarshalerForVarType(pargs->na.m_vt, TRUE)))
     {
         ILCodeStream* psILMarshal = psl->GetMarshalCodeStream();
+        ILCodeStream* psILDispatch = psl->GetDispatchCodeStream();
+
+        psILMarshal->SetStubTargetArgType(ELEMENT_TYPE_I);
         //
         // Replicate ML_PINNEDISOMORPHICARRAY_C2N_EXPRESS behavior -- note that this
         // gives in/out semantics "for free" even if the app doesn't specify one or
@@ -4082,6 +4084,8 @@ MarshalerOverrideStatus ILNativeArrayMarshaler::ArgumentOverride(NDirectStubLink
         }
 
         psILMarshal->EmitLabel(pNullRefLabel);
+
+        psILDispatch->EmitLDLOC(dwNativeValue);
         return MarshalerOverrideStatus::OVERRIDDEN;
     }
     return MarshalerOverrideStatus::HANDLEASNORMAL;
