@@ -4058,7 +4058,7 @@ MarshalerOverrideStatus ILNativeArrayMarshaler::ArgumentOverride(NDirectStubLink
         ILCodeLabel* pNullRefLabel = psILMarshal->NewCodeLabel();
 
         psILMarshal->EmitLoadNullPtr();
-        psILMarshal->EmitLDLOC(dwNativeValue);
+        psILMarshal->EmitSTLOC(dwNativeValue);
 
         psILMarshal->EmitLDARG(argidx);
         psILMarshal->EmitBRFALSE(pNullRefLabel);
@@ -4076,7 +4076,7 @@ MarshalerOverrideStatus ILNativeArrayMarshaler::ArgumentOverride(NDirectStubLink
         // instead of doing an FCall to recalulate it each time when possible.
         psILMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
         psILMarshal->EmitADD();
-        psILMarshal->EmitLDLOC(dwNativeValue);
+        psILMarshal->EmitSTLOC(dwNativeValue);
 
         if (g_pConfig->InteropLogArguments())
         {
