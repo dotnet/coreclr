@@ -985,11 +985,11 @@ void ZapImportTable::EncodeField(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_FIELD_
 }
 
 void ZapImportTable::EncodeMethod(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHOD_HANDLE handle, SigBuilder * pSigBuilder,
-        CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken, BOOL fEncodeUsingResolvedTokenSpecStreams)
+        CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken, BOOL fEncodeUsingResolvedTokenSpecStreams, BOOL isDevirtualizedCall)
 {
     CORINFO_CLASS_HANDLE clsHandle = GetJitInfo()->getMethodClass(handle);
 #ifdef FEATURE_READYTORUN_COMPILER
-    CORINFO_MODULE_HANDLE referencingModule = pResolvedToken->tokenScope;
+    CORINFO_MODULE_HANDLE referencingModule = isDevirtualizedCall ? GetJitInfo()->getClassModule(clsHandle) : pResolvedToken->tokenScope;
 #else
     CORINFO_MODULE_HANDLE referencingModule = GetJitInfo()->getClassModule(clsHandle);
 #endif
@@ -1623,7 +1623,7 @@ ZapImport * ZapImportTable::GetStubDispatchCell(CORINFO_RESOLVED_TOKEN * pResolv
     return GetImportForSignature<ZapStubDispatchCell, ZapNodeType_StubDispatchCell>((PVOID)handle, &sigBuilder);
 }
 
-ZapImport * ZapImportTable::GetExternalMethodCell(CORINFO_METHOD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken)
+ZapImport * ZapImportTable::GetExternalMethodCell(CORINFO_METHOD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken, BOOL isDevirtualizedCall)
 {
     SigBuilder sigBuilder;
 
@@ -1641,7 +1641,7 @@ ZapImport * ZapImportTable::GetExternalMethodCell(CORINFO_METHOD_HANDLE handle, 
     }
     else
     {
-        EncodeMethod(ENCODE_METHOD_ENTRY, handle, &sigBuilder, pResolvedToken, pConstrainedResolvedToken);
+        EncodeMethod(ENCODE_METHOD_ENTRY, handle, &sigBuilder, pResolvedToken, pConstrainedResolvedToken, false, isDevirtualizedCall);
     }
 
     return GetImportForSignature<ZapExternalMethodCell, ZapNodeType_ExternalMethodCell>((PVOID)handle, &sigBuilder);

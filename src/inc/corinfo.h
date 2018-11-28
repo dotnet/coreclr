@@ -1571,6 +1571,7 @@ enum CORINFO_CALLINFO_FLAGS
     CORINFO_CALLINFO_SECURITYCHECKS = 0x0010,   // Perform security checks.
     CORINFO_CALLINFO_LDFTN          = 0x0020,   // Resolving target of LDFTN
     CORINFO_CALLINFO_ATYPICAL_CALLSITE = 0x0040, // Atypical callsite that cannot be disassembled by delay loading helper
+    CORINFO_CALLINFO_DEVIRT_CALLSITE =   0x0080,
 };
 
 enum CorInfoIsAccessAllowedResult

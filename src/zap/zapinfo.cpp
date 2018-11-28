@@ -2198,7 +2198,8 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
             }
             else
             {
-                pImport = m_pImage->GetImportTable()->GetExternalMethodCell(pResult->hMethod, pResolvedToken, pConstrainedResolvedToken);
+                BOOL isDevirtualizedCall = (flags & CORINFO_CALLINFO_DEVIRT_CALLSITE) != 0;
+                pImport = m_pImage->GetImportTable()->GetExternalMethodCell(pResult->hMethod, pResolvedToken, pConstrainedResolvedToken, isDevirtualizedCall);
             }
 
             // READYTORUN: FUTURE: Direct calls if possible

@@ -338,7 +338,7 @@ public:
             CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL, BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE);
     void EncodeMethod(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHOD_HANDLE handle, SigBuilder * pSigBuilder, 
             CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL,
-            BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE);
+            BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE, BOOL isDevirtualizedCall = FALSE);
 
     // Encode module if the reference is within current version bubble. If not, return a suitable module within current version bubble.
     CORINFO_MODULE_HANDLE TryEncodeModule(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_MODULE_HANDLE module, SigBuilder * pSigBuilder);
@@ -426,7 +426,7 @@ public:
     ZapImport * GetCheckFieldOffsetImport(CORINFO_FIELD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken, DWORD offset);
 
     ZapImport * GetStubDispatchCell(CORINFO_RESOLVED_TOKEN * pResolvedToken);
-    ZapImport * GetExternalMethodCell(CORINFO_METHOD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken);
+    ZapImport * GetExternalMethodCell(CORINFO_METHOD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken, BOOL isDevirtualizedCall);
 
     ZapImport * GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_CLASS_HANDLE handle);
     ZapImport * GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHOD_HANDLE handle, CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_CLASS_HANDLE delegateType = NULL);
