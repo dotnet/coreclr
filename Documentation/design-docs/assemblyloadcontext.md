@@ -68,7 +68,7 @@ This method should be overriden in a *Custom LoadContext* if the intent is to ov
 
 ### LoadFromAssemblyName
 
-This method can be used to load an assembly into a load context different from the load context of the currently executing assembly.
+This method can be used to load an assembly into a load context different from the load context of the currently executing assembly. If invoked on *Default LoadContext*, the assembly will not be loaded into a different load context.
 
 ### Resolving
 
