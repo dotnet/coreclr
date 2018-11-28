@@ -2193,11 +2193,11 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // Frame size is (0x1000..0x3000)
         CLANG_FORMAT_COMMENT_ANCHOR;
 
-        getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE, -(int)pageSize);
+        getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, -(int)pageSize);
 
         if (frameSize >= 0x2000)
         {
-            getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE, -2 * (int)pageSize);
+            getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, -2 * (int)pageSize);
         }
 
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
@@ -2256,7 +2256,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         //      cmp rbp, -frameSize         7
         //      jge loop                    2
 
-        getEmitter()->emitIns_R_ARR(INS_TEST, EA_PTRSIZE, initReg, REG_SPBASE, initReg, 0);
+        getEmitter()->emitIns_R_ARR(INS_test, EA_PTRSIZE, initReg, REG_SPBASE, initReg, 0);
         inst_RV_IV(INS_sub, initReg, pageSize, EA_PTRSIZE);
         inst_RV_IV(INS_cmp, initReg, -((ssize_t)frameSize), EA_PTRSIZE);
 
@@ -2309,7 +2309,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, initReg, REG_SPBASE, -((ssize_t)frameSize)); // get frame border
 
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -sPageSize);
-        getEmitter()->emitIns_R_AR(INS_TEST, EA_PTRSIZE, initReg, REG_SPBASE, 0);
+        getEmitter()->emitIns_R_AR(INS_test, EA_PTRSIZE, initReg, REG_SPBASE, 0);
         inst_RV_RV(INS_cmp, REG_SPBASE, initReg);
 
         int bytesForBackwardJump;
