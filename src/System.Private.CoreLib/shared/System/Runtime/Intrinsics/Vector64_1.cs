@@ -19,6 +19,17 @@ namespace System.Runtime.Intrinsics
         // This also allows the debug view to work https://github.com/dotnet/coreclr/issues/15694)
         private readonly ulong _00;
 
+        /// <summary>Gets the number of <typeparamref name="T" /> that are in a <see cref="Vector64{T}" />.</summary>
+        /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        public static int Count
+        {
+            get
+            {
+                ThrowIfUnsupportedType();
+                return Vector64.Size / Unsafe.SizeOf<T>();
+            }
+        }
+
         /// <summary>Gets a new <see cref="Vector64{T}" /> with all elements initialized to zero.</summary>
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
         public static Vector64<T> Zero
@@ -36,7 +47,7 @@ namespace System.Runtime.Intrinsics
             {
                 if (IsSupported)
                 {
-                    var items = new T[ElementCount];
+                    var items = new T[Count];
                     Unsafe.WriteUnaligned(ref Unsafe.As<T, byte>(ref items[0]), this);
                     return $"({string.Join(", ", items)})";
                 }
@@ -44,15 +55,6 @@ namespace System.Runtime.Intrinsics
                 {
                     return SR.NotSupported_Type;
                 }
-            }
-        }
-
-        internal static int ElementCount
-        {
-            get
-            {
-                ThrowIfUnsupportedType();
-                return Vector64.Size / Unsafe.SizeOf<T>();
             }
         }
 
@@ -169,7 +171,7 @@ namespace System.Runtime.Intrinsics
         {
             ThrowIfUnsupportedType();
 
-            if ((uint)(index) >= (uint)(ElementCount))
+            if ((uint)(index) >= (uint)(Count))
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
@@ -188,7 +190,7 @@ namespace System.Runtime.Intrinsics
         {
             ThrowIfUnsupportedType();
 
-            if ((uint)(index) >= (uint)(ElementCount))
+            if ((uint)(index) >= (uint)(Count))
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
