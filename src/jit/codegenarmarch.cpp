@@ -3869,7 +3869,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     else if (frameSize < compiler->getVeryLargeFrameSize())
     {
         // Frame size is (0x1000..0x3000)
-        CLANG_FORMAT_COMMENT_ANCHOR;
 
         instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)pageSize);
         getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
@@ -3901,7 +3900,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // complete since the tickles could cause a stack overflow, and we
         // need to be able to crawl the stack afterward (which means the
         // stack pointer needs to be known).
-        CLANG_FORMAT_COMMENT_ANCHOR;
 
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
 
