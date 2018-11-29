@@ -131,49 +131,35 @@ namespace System
             AllButOverflow = 2
         }
 
-        // This will store the result of the parsing.  And it will eventually be used to construct a Guid instance.
+        // This will store the result of the parsing. And it will eventually be used to construct a Guid instance.
         private struct GuidResult
         {
-            internal readonly GuidParseThrowStyle _throwStyle;
+            private readonly GuidParseThrowStyle _throwStyle;
             internal Guid _parsedGuid;
-
-            private bool _overflow;
-            private string _failureMessageID;
-            private object _failureMessageFormatArgument;
 
             internal GuidResult(GuidParseThrowStyle canThrow) : this()
             {
                 _throwStyle = canThrow;
             }
 
-            internal void SetFailure(bool overflow, string failureMessageID)
+            internal void SetFailure(bool overflow, string failureMessageID, string failureMessageFormatArgument = null)
             {
-                _overflow = overflow;
-                _failureMessageID = failureMessageID;
                 if (_throwStyle != GuidParseThrowStyle.None)
                 {
-                    throw CreateGuidParseException();
+                    return;
                 }
-            }
 
-            internal void SetFailure(bool overflow, string failureMessageID, object failureMessageFormatArgument)
-            {
-                _failureMessageFormatArgument = failureMessageFormatArgument;
-                SetFailure(overflow, failureMessageID);
-            }
-
-            internal Exception CreateGuidParseException()
-            {
-                if (_overflow)
+                if (overflow)
                 {
-                    return _throwStyle == GuidParseThrowStyle.All ?
-                        (Exception)new OverflowException(SR.GetResourceString(_failureMessageID)) :
-                        new FormatException(SR.Format_GuidUnrecognized);
+                    if (_throwStyle == GuidParseThrowStyle.All)
+                    {
+                        throw new OverflowException(SR.GetResourceString(failureMessageID));
+                    }
+                    
+                    throw new FormatException(SR.Format_GuidUnrecognized);
                 }
-                else
-                {
-                    return new FormatException(SR.GetResourceString(_failureMessageID));
-                }
+                
+                throw new FormatException(SR.GetResourceString(failureMessageID));
             }
         }
 
