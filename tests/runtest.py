@@ -47,6 +47,7 @@ import math
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -551,6 +552,7 @@ def get_environment(test_env=None):
 
 def call_msbuild(coreclr_repo_location,
                  dotnetcli_location,
+                 product_location,
                  test_location,
                  host_os,
                  arch,
@@ -631,7 +633,7 @@ def call_msbuild(coreclr_repo_location,
         sys.exit(1)
 
     if limited_core_dumps:
-        inspect_and_delete_coredump_files(host_os, arch, test_location)
+        inspect_and_delete_coredump_files(host_os, arch, product_location, test_location)
 
     return proc.returncode
 
@@ -829,7 +831,35 @@ def print_info_from_coredump_file(host_os, arch, coredump_name, executable_name)
     if proc_failed:
         print("Failed to print coredump: %s" % coredump_name)
 
-def preserve_coredump_file(coredump_name, root_storage_location="/tmp/coredumps_coreclr"):
+def download_dumpling_script(dumpling_script, dumpling_url="https://dumpling.azurewebsites.net/api/client/dumpling.py"):
+    print("Downloading latest version of %s from %s" % (dumpling_script, dumpling_url))
+
+    urlretrieve = urllib.urlretrieve if sys.version_info.major < 3 else urllib.request.urlretrieve
+    urlretrieve(dumpling_url, dumpling_script)
+
+    st = os.stat(dumpling_script)
+    os.chmod(dumpling_script, st.st_mode | stat.S_IEXEC)
+
+def upload_coredump_file_to_dumpling(coredump_name, product_location, dumpling_file="./local_dumplings.txt", dumpling_script="./dumpling.py"):
+    if not os.path.isfile(dumpling_script):
+        download_dumpling_script(dumpling_script)
+
+    paths_to_add=""
+
+    if os.path.isdir(product_location):
+        print("CoreCLR binaries will be uploaded with dump")
+        paths_to_add=product_location
+
+    print("Uploading %s to dumpling service." % coredump_name)
+
+    # The output from this will include a unique ID for this dump.
+    dumpling_output = subprocess.check_output("python %s upload --dumppath %s --incpaths %s --properties Project=CoreCLR --squelch" % (dumpling_script, coredump_name, paths_to_add), shell=True)
+    print(dumpling_output)
+
+    with open(dumpling_file, "a+") as f:
+        f.write(dumpling_output)
+
+def preserve_coredump_file(coredump_name, product_location, root_storage_location="/tmp/coredumps_coreclr"):
     """ Copies the specified coredump to a new randomly named temporary directory under
         root_storage_location to ensure it is accessible after the workspace is cleaned.
 
@@ -853,9 +883,16 @@ def preserve_coredump_file(coredump_name, root_storage_location="/tmp/coredumps_
     if os.path.isfile(coredump_name) and not os.listdir(storage_location):
         print("Copying coredump file %s to %s" % (coredump_name, storage_location))
         shutil.copy2(coredump_name, storage_location)
-        # TODO: Support uploading to dumpling
 
-def inspect_and_delete_coredump_file(host_os, arch, coredump_name):
+        # We only want to upload if we are running in CI
+        if running_in_ci():
+            try:
+                upload_coredump_file_to_dumpling(coredump_name, product_location)
+            except:
+                print("Failed to upload %s to the dumpling service." % coredump_name)
+                print("Exception: %s" % sys.exc_info()[0])
+
+def inspect_and_delete_coredump_file(host_os, arch, coredump_name, product_location):
     """ Prints information from the specified coredump and creates a backup of it
 
     Args:
@@ -864,10 +901,10 @@ def inspect_and_delete_coredump_file(host_os, arch, coredump_name):
         coredump_name (String)   : name of the coredump to print
     """
     print_info_from_coredump_file(host_os, arch, coredump_name, "%s/corerun" % os.environ["CORE_ROOT"])
-    preserve_coredump_file(coredump_name)
+    preserve_coredump_file(coredump_name, product_location)
     os.remove(coredump_name)
 
-def inspect_and_delete_coredump_files(host_os, arch, test_location):
+def inspect_and_delete_coredump_files(host_os, arch, product_location, test_location):
     """ Finds all coredumps under test_location, prints some basic information about them
         to the console, and creates a backup of the dumps for further investigation
 
@@ -913,7 +950,7 @@ def inspect_and_delete_coredump_files(host_os, arch, test_location):
             if re.match(regex_pattern, file_name):
                 print("Found coredump: %s in %s" % (file_name, dir_path))
                 matched_file_count += 1
-                inspect_and_delete_coredump_file(host_os, arch, os.path.join(dir_path, file_name))
+                inspect_and_delete_coredump_file(host_os, arch, os.path.join(dir_path, file_name), product_location)
 
     print("Found %s coredumps." % matched_file_count)
 
@@ -922,6 +959,7 @@ def run_tests(host_os,
               build_type, 
               core_root,
               coreclr_repo_location, 
+              product_location,
               test_location, 
               test_native_bin_location, 
               test_env=None,
@@ -1039,6 +1077,7 @@ def run_tests(host_os,
     # Call msbuild.
     return call_msbuild(coreclr_repo_location,
                         dotnetcli_location,
+                        product_location,
                         test_location,
                         host_os,
                         arch,
@@ -2255,6 +2294,7 @@ def do_setup(host_os,
               build_type,
               core_root, 
               coreclr_repo_location,
+              product_location,
               test_location, 
               test_native_bin_location,
               is_illink=unprocessed_args.il_link, 
