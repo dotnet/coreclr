@@ -9,10 +9,10 @@ namespace Functions
 {
     public static partial class MathTests
     {
-        // Tests MathF.Tan(float) over 5000 iterations for the domain -PI/2, +PI/2
+        // Tests MathF.Tan(float) over 5000 iterations for the domain -1, +1
 
         private const float tanSingleDelta = 0.0004f;
-        private const float tanSingleExpectedResult = 1.66717815f;
+        private const float tanSingleExpectedResult = -1.44759393f;
 
         [Benchmark(InnerIterationCount = TanSingleIterations)]
         public static void TanSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += tanSingleDelta;
                 result += MathF.Tan(value);
+                value += tanSingleDelta;
             }
 
             var diff = MathF.Abs(tanSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {tanSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

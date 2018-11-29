@@ -12,7 +12,7 @@ namespace Functions
         // Tests MathF.Exp(float) over 5000 iterations for the domain -1, +1
 
         private const float expSingleDelta = 0.0004f;
-        private const float expSingleExpectedResult = 5877.28564f;
+        private const float expSingleExpectedResult = 5874.93506f;
 
         [Benchmark(InnerIterationCount = ExpSingleIterations)]
         public static void ExpSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += expSingleDelta;
                 result += MathF.Exp(value);
+                value += expSingleDelta;
             }
 
             var diff = MathF.Abs(expSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {expSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

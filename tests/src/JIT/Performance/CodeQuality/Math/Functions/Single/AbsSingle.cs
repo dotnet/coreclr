@@ -12,7 +12,7 @@ namespace Functions
         // Tests Math.Abs(single) over 5000 iterations for the domain -1, +1
 
         private const float absSingleDelta = 0.0004f;
-        private const float absSingleExpectedResult = 2500.03125f;
+        private const float absSingleExpectedResult = 2500.03101f;
 
         [Benchmark(InnerIterationCount = AbsSingleIterations)]
         public static void AbsSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += absSingleDelta;
                 result += Math.Abs(value);
+                value += absSingleDelta;
             }
 
             var diff = Math.Abs(absSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {absSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

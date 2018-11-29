@@ -12,7 +12,7 @@ namespace Functions
         // Tests Math.Cosh(double) over 5000 iterations for the domain -1, +1
 
         private const double coshDoubleDelta = 0.0004;
-        private const double coshDoubleExpectedResult = 5876.0060465657216;
+        private const double coshDoubleExpectedResult = 5876.0060465657207;
 
         [Benchmark(InnerIterationCount = CoshDoubleIterations)]
         public static void CoshDoubleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += coshDoubleDelta;
                 result += Math.Cosh(value);
+                value += coshDoubleDelta;
             }
 
             var diff = Math.Abs(coshDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {coshDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

@@ -12,7 +12,7 @@ namespace Functions
         // Tests Math.Sinh(double) over 5000 iterations for the domain -1, +1
 
         private const double sinhDoubleDelta = 0.0004;
-        private const double sinhDoubleExpectedResult = 1.17520119337903;
+        private const double sinhDoubleExpectedResult = -1.175201193908832;
 
         [Benchmark(InnerIterationCount = SinhDoubleIterations)]
         public static void SinhDoubleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += sinhDoubleDelta;
                 result += Math.Sinh(value);
+                value += sinhDoubleDelta;
             }
 
             var diff = Math.Abs(sinhDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {sinhDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

@@ -9,10 +9,10 @@ namespace Functions
 {
     public static partial class MathTests
     {
-        // Tests Math.Log(double) over 5000 iterations for the domain -1, +1
+        // Tests Math.Log(double) over 5000 iterations for the domain +1, +3
 
         private const double logDoubleDelta = 0.0004;
-        private const double logDoubleExpectedResult = -1529.0865454048721;
+        private const double logDoubleExpectedResult = 3239.0428366440142;
 
         [Benchmark(InnerIterationCount = LogDoubleIterations)]
         public static void LogDoubleBenchmark()
@@ -31,17 +31,17 @@ namespace Functions
 
         public static void LogDoubleTest()
         {
-            var result = 0.0; var value = 0.0;
+            var result = 0.0; var value = 1.0;
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += logDoubleDelta;
                 result += Math.Log(value);
+                value += logDoubleDelta;
             }
 
             var diff = Math.Abs(logDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {logDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

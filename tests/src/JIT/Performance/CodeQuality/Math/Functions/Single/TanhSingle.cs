@@ -12,7 +12,7 @@ namespace Functions
         // Tests MathF.Tanh(float) over 5000 iterations for the domain -1, +1
 
         private const float tanhSingleDelta = 0.0004f;
-        private const float tanhSingleExpectedResult = 0.816701353f;
+        private const float tanhSingleExpectedResult = -0.706582785f;
 
         [Benchmark(InnerIterationCount = TanhSingleIterations)]
         public static void TanhSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += tanhSingleDelta;
                 result += MathF.Tanh(value);
+                value += tanhSingleDelta;
             }
 
             var diff = MathF.Abs(tanhSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {tanhSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

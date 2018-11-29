@@ -12,7 +12,7 @@ namespace Functions
         // Tests Math.Round(double) over 5000 iterations for the domain -PI/2, +PI/2
 
         private const double roundDoubleDelta = 0.0006283185307180;
-        private const double roundDoubleExpectedResult = 2;
+        private const double roundDoubleExpectedResult = -2.0;
 
         [Benchmark(InnerIterationCount = RoundDoubleIterations)]
         public static void RoundDoubleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += roundDoubleDelta;
                 result += Math.Round(value);
+                value += roundDoubleDelta;
             }
 
             var diff = Math.Abs(roundDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {roundDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

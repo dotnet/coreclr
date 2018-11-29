@@ -12,7 +12,7 @@ namespace Functions
         // Tests MathF.Sin(float) over 5000 iterations for the domain -PI/2, +PI/2
 
         private const float sinSingleDelta = 0.000628318531f;
-        private const float sinSingleExpectedResult = 1.03592682f;
+        private const float sinSingleExpectedResult = -0.96405834f;
 
         [Benchmark(InnerIterationCount = SinSingleIterations)]
         public static void SinSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += sinSingleDelta;
                 result += MathF.Sin(value);
+                value += sinSingleDelta;
             }
 
             var diff = MathF.Abs(sinSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {sinSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

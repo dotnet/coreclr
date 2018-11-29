@@ -9,10 +9,10 @@ namespace Functions
 {
     public static partial class MathTests
     {
-        // Tests MathF.Log(float) over 5000 iterations for the domain -1, +1
+        // Tests MathF.Log(float) over 5000 iterations for the domain +1, +3
 
         private const float logSingleDelta = 0.0004f;
-        private const float logSingleExpectedResult = -1529.14014f;
+        private const float logSingleExpectedResult = 3238.88647f;
 
         [Benchmark(InnerIterationCount = LogSingleIterations)]
         public static void LogSingleBenchmark()
@@ -31,17 +31,17 @@ namespace Functions
 
         public static void LogSingleTest()
         {
-            var result = 0.0f; var value = 0.0f;
+            var result = 0.0f; var value = 1.0f;
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += logSingleDelta;
                 result += MathF.Log(value);
+                value += logSingleDelta;
             }
 
             var diff = MathF.Abs(logSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {logSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

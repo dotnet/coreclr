@@ -13,7 +13,7 @@ namespace Functions
 
         private const float powSingleDeltaX = -0.0004f;
         private const float powSingleDeltaY = 0.0004f;
-        private const float powSingleExpectedResult = 4659.30762f;
+        private const float powSingleExpectedResult = 4658.55664f;
 
         [Benchmark(InnerIterationCount = PowSingleIterations)]
         public static void PowSingleBenchmark()
@@ -36,13 +36,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                valueX += powSingleDeltaX; valueY += powSingleDeltaY;
                 result += MathF.Pow(valueX, valueY);
+                valueX += powSingleDeltaX; valueY += powSingleDeltaY;
             }
 
             var diff = MathF.Abs(powSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {powSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

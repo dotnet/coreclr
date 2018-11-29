@@ -12,7 +12,7 @@ namespace Functions
         // Tests MathF.Floor(float) over 5000 iterations for the domain -1, +1
 
         private const float floorSingleDelta = 0.0004f;
-        private const float floorSingleExpectedResult = -2498.0f;
+        private const float floorSingleExpectedResult = -2500.0f;
 
         [Benchmark(InnerIterationCount = FloorSingleIterations)]
         public static void FloorSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += floorSingleDelta;
                 result += MathF.Floor(value);
+                value += floorSingleDelta;
             }
 
             var diff = MathF.Abs(floorSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {floorSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

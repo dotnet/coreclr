@@ -9,10 +9,10 @@ namespace Functions
 {
     public static partial class MathTests
     {
-        // Tests Math.Sqrt(double) over 5000 iterations for the domain 0, PI
+        // Tests Math.Sqrt(double) over 5000 iterations for the domain +0, +PI
 
         private const double sqrtDoubleDelta = 0.0006283185307180;
-        private const double sqrtDoubleExpectedResult = 5909.0605337797215;
+        private const double sqrtDoubleExpectedResult = 5907.2880799288159;
 
         [Benchmark(InnerIterationCount = SqrtDoubleIterations)]
         public static void SqrtDoubleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += sqrtDoubleDelta;
                 result += Math.Sqrt(value);
+                value += sqrtDoubleDelta;
             }
 
             var diff = Math.Abs(sqrtDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {sqrtDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

@@ -12,7 +12,7 @@ namespace Functions
         // Tests Math.Floor(double) over 5000 iterations for the domain -1, +1
 
         private const double floorDoubleDelta = 0.0004;
-        private const double floorDoubleExpectedResult = -2500;
+        private const double floorDoubleExpectedResult = -2501;
 
         [Benchmark(InnerIterationCount = FloorDoubleIterations)]
         public static void FloorDoubleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += floorDoubleDelta;
                 result += Math.Floor(value);
+                value += floorDoubleDelta;
             }
 
             var diff = Math.Abs(floorDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {floorDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

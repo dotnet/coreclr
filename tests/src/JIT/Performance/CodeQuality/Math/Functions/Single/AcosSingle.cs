@@ -12,7 +12,7 @@ namespace Functions
         // Tests MathF.Acos(float) over 5000 iterations for the domain -1, +1
 
         private const float acosSingleDelta = 0.0004f;
-        private const float acosSingleExpectedResult = 7852.41084f;
+        private const float acosSingleExpectedResult = 7855.43457f;
 
         [Benchmark(InnerIterationCount = AcosSingleIterations)]
         public static void AcosSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += acosSingleDelta;
                 result += MathF.Acos(value);
+                value += acosSingleDelta;
             }
 
             var diff = MathF.Abs(acosSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {acosSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

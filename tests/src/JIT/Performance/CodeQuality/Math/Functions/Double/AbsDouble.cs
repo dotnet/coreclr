@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += absDoubleDelta;
                 result += Math.Abs(value);
+                value += absDoubleDelta;
             }
 
             var diff = Math.Abs(absDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {absDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

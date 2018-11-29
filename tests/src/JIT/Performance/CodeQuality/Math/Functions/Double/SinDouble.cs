@@ -12,7 +12,7 @@ namespace Functions
         // Tests Math.Sin(double) over 5000 iterations for the domain -PI/2, +PI/2
 
         private const double sinDoubleDelta = 0.0006283185307180;
-        private const double sinDoubleExpectedResult = 1.0000000005445053;
+        private const double sinDoubleExpectedResult = -0.99999999945516249;
 
         [Benchmark(InnerIterationCount = SinDoubleIterations)]
         public static void SinDoubleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += sinDoubleDelta;
                 result += Math.Sin(value);
+                value += sinDoubleDelta;
             }
 
             var diff = Math.Abs(sinDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {sinDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

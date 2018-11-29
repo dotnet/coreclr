@@ -13,7 +13,7 @@ namespace Functions
 
         private const double atan2DoubleDeltaX = -0.0004;
         private const double atan2DoubleDeltaY = 0.0004;
-        private const double atan2DoubleExpectedResult = 3926.99081698702;
+        private const double atan2DoubleExpectedResult = 3923.8492243334304;
 
         [Benchmark(InnerIterationCount = Atan2DoubleIterations)]
         public static void Atan2DoubleBenchmark()
@@ -36,13 +36,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                valueX += atan2DoubleDeltaX; valueY += atan2DoubleDeltaY;
                 result += Math.Atan2(valueY, valueX);
+                valueX += atan2DoubleDeltaX; valueY += atan2DoubleDeltaY;
             }
 
             var diff = Math.Abs(atan2DoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {atan2DoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

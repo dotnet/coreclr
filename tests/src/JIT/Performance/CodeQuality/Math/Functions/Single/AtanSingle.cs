@@ -12,7 +12,7 @@ namespace Functions
         // Tests MathF.Atan(float) over 5000 iterations for the domain -1, +1
 
         private const float atanSingleDelta = 0.0004f;
-        private const float atanSingleExpectedResult = 0.841940999f;
+        private const float atanSingleExpectedResult = -0.728811145f;
 
         [Benchmark(InnerIterationCount = AtanSingleIterations)]
         public static void AtanSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += atanSingleDelta;
                 result += MathF.Atan(value);
+                value += atanSingleDelta;
             }
 
             var diff = MathF.Abs(atanSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {atanSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

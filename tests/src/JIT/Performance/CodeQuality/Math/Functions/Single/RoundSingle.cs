@@ -12,7 +12,7 @@ namespace Functions
         // Tests MathF.Round(float) over 5000 iterations for the domain -PI/2, +PI/2
 
         private const float roundSingleDelta = 0.000628318531f;
-        private const float roundSingleExpectedResult = 2.0f;
+        private const float roundSingleExpectedResult = -2.0f;
 
         [Benchmark(InnerIterationCount = RoundSingleIterations)]
         public static void RoundSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += roundSingleDelta;
                 result += MathF.Round(value);
+                value += roundSingleDelta;
             }
 
             var diff = MathF.Abs(roundSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {roundSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

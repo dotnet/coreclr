@@ -9,10 +9,10 @@ namespace Functions
 {
     public static partial class MathTests
     {
-        // Tests MathF.Cos(float) over 5000 iterations for the domain 0, PI
+        // Tests MathF.Cos(float) over 5000 iterations for the domain -1, +1
 
-        private const float cosSingleDelta = 0.000628318531f;
-        private const float cosSingleExpectedResult = -0.993487537f;
+        private const float cosSingleDelta = 0.0004f;
+        private const float cosSingleExpectedResult = 4207.3418f;
 
         [Benchmark(InnerIterationCount = CosSingleIterations)]
         public static void CosSingleBenchmark()
@@ -31,17 +31,17 @@ namespace Functions
 
         public static void CosSingleTest()
         {
-            var result = 0.0f; var value = 0.0f;
+            var result = 0.0f; var value = -1.0f;
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += cosSingleDelta;
                 result += MathF.Cos(value);
+                value += cosSingleDelta;
             }
 
             var diff = MathF.Abs(cosSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {cosSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

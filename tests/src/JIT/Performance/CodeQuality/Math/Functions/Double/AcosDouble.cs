@@ -12,7 +12,7 @@ namespace Functions
         // Tests Math.Acos(double) over 5000 iterations for the domain -1, +1
 
         private const double acosDoubleDelta = 0.0004;
-        private const double acosDoubleExpectedResult = 7852.4108380716079;
+        private const double acosDoubleExpectedResult = 7855.5524303016273;
 
         [Benchmark(InnerIterationCount=AcosDoubleIterations)]
         public static void AcosDoubleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += acosDoubleDelta;
                 result += Math.Acos(value);
+                value += acosDoubleDelta;
             }
 
             var diff = Math.Abs(acosDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {acosDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

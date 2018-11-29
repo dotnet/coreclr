@@ -12,7 +12,7 @@ namespace Functions
         // Tests MathF.Asin(float) over 5000 iterations for the domain -1, +1
 
         private const float asinSingleDelta = 0.0004f;
-        private const float asinSingleExpectedResult = 1.57079590f;
+        private const float asinSingleExpectedResult = -1.45934653f;
 
         [Benchmark(InnerIterationCount = AsinSingleIterations)]
         public static void AsinSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += asinSingleDelta;
                 result += MathF.Asin(value);
+                value += asinSingleDelta;
             }
 
             var diff = MathF.Abs(asinSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {asinSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

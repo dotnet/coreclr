@@ -12,7 +12,7 @@ namespace Functions
         // Tests MathF.Sinh(float) over 5000 iterations for the domain -1, +1
 
         private const float sinhSingleDelta = 0.0004f;
-        private const float sinhSingleExpectedResult = 1.26028216f;
+        private const float sinhSingleExpectedResult = -1.08990037f;
 
         [Benchmark(InnerIterationCount = SinhSingleIterations)]
         public static void SinhSingleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += sinhSingleDelta;
                 result += MathF.Sinh(value);
+                value += sinhSingleDelta;
             }
 
             var diff = MathF.Abs(sinhSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {sinhSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

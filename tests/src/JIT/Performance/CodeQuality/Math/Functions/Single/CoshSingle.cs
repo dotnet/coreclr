@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += coshSingleDelta;
                 result += MathF.Cosh(value);
+                value += coshSingleDelta;
             }
 
             var diff = MathF.Abs(coshSingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {coshSingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }

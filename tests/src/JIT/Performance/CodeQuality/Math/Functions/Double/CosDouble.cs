@@ -9,10 +9,10 @@ namespace Functions
 {
     public static partial class MathTests
     {
-        // Tests Math.Cos(double) over 5000 iterations for the domain 0, PI
+        // Tests Math.Cos(double) over 5000 iterations for the domain -1, +1
 
-        private const double cosDoubleDelta = 0.0006283185307180;
-        private const double cosDoubleExpectedResult = -1.0000000005924159;
+        private const double cosDoubleDelta = 0.0004;
+        private const double cosDoubleExpectedResult = 4207.354867941448;
 
         [Benchmark(InnerIterationCount = CosDoubleIterations)]
         public static void CosDoubleBenchmark()
@@ -31,17 +31,17 @@ namespace Functions
 
         public static void CosDoubleTest()
         {
-            var result = 0.0; var value = 0.0;
+            var result = 0.0; var value = -1.0;
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += cosDoubleDelta;
                 result += Math.Cos(value);
+                value += cosDoubleDelta;
             }
 
             var diff = Math.Abs(cosDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {cosDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

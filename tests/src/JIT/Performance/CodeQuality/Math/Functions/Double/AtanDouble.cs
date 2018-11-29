@@ -12,7 +12,7 @@ namespace Functions
         // Tests Math.Atan(double) over 5000 iterations for the domain -1, +1
 
         private const double atanDoubleDelta = 0.0004;
-        private const double atanDoubleExpectedResult = 0.78539816322061329;
+        private const double atanDoubleExpectedResult = -0.78539816357415937;
 
         [Benchmark(InnerIterationCount = AtanDoubleIterations)]
         public static void AtanDoubleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += atanDoubleDelta;
                 result += Math.Atan(value);
+                value += atanDoubleDelta;
             }
 
             var diff = Math.Abs(atanDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {atanDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

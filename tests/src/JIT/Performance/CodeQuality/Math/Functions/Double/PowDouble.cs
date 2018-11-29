@@ -13,7 +13,7 @@ namespace Functions
 
         private const double powDoubleDeltaX = -0.0004;
         private const double powDoubleDeltaY = 0.0004;
-        private const double powDoubleExpectedResult = 4659.4627376138733;
+        private const double powDoubleExpectedResult = 4658.7127376138687;
 
         [Benchmark(InnerIterationCount = PowDoubleIterations)]
         public static void PowDoubleBenchmark()
@@ -36,13 +36,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                valueX += powDoubleDeltaX; valueY += powDoubleDeltaY;
                 result += Math.Pow(valueX, valueY);
+                valueX += powDoubleDeltaX; valueY += powDoubleDeltaY;
             }
 
             var diff = Math.Abs(powDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {powDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

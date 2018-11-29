@@ -12,7 +12,7 @@ namespace Functions
         // Tests Math.Ceiling(double) over 5000 iterations for the domain -1, +1
 
         private const double ceilingDoubleDelta = 0.0004;
-        private const double ceilingDoubleExpectedResult = 2500;
+        private const double ceilingDoubleExpectedResult = 2498;
 
         [Benchmark(InnerIterationCount = CeilingDoubleIterations)]
         public static void CeilingDoubleBenchmark()
@@ -35,13 +35,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                value += ceilingDoubleDelta;
                 result += Math.Ceiling(value);
+                value += ceilingDoubleDelta;
             }
 
             var diff = Math.Abs(ceilingDoubleExpectedResult - result);
 
-            if (diff > doubleEpsilon)
+            if (double.IsNaN(result) || (diff > doubleEpsilon))
             {
                 throw new Exception($"Expected Result {ceilingDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }

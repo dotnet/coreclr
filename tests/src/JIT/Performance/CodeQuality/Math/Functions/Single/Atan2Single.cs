@@ -13,7 +13,7 @@ namespace Functions
 
         private const float atan2SingleDeltaX = -0.0004f;
         private const float atan2SingleDeltaY = 0.0004f;
-        private const float atan2SingleExpectedResult = 3930.14282f;
+        private const float atan2SingleExpectedResult = 3927.00122f;
 
         [Benchmark(InnerIterationCount = Atan2SingleIterations)]
         public static void Atan2SingleBenchmark()
@@ -36,13 +36,13 @@ namespace Functions
 
             for (var iteration = 0; iteration < iterations; iteration++)
             {
-                valueX += atan2SingleDeltaX; valueY += atan2SingleDeltaY;
                 result += MathF.Atan2(valueY, valueX);
+                valueX += atan2SingleDeltaX; valueY += atan2SingleDeltaY;
             }
 
             var diff = MathF.Abs(atan2SingleExpectedResult - result);
 
-            if (diff > singleEpsilon)
+            if (float.IsNaN(result) || (diff > singleEpsilon))
             {
                 throw new Exception($"Expected Result {atan2SingleExpectedResult,10:g9}; Actual Result {result,10:g9}");
             }
