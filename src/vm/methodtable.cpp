@@ -6684,20 +6684,15 @@ WORD GetEquivalentMethodSlot(MethodTable * pOldMT, MethodTable * pNewMT, WORD wM
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    MethodDesc * pMDRet = NULL;
     *pfFound = FALSE;
 
+    WORD wVTslot = wMTslot;
+
+#ifdef FEATURE_COMINTEROP
     // Get the COM vtable slot corresponding to the given MT slot
-    WORD wVTslot;
     if (pOldMT->IsSparseForCOMInterop())
-    {
         wVTslot = pOldMT->GetClass()->GetSparseCOMInteropVTableMap()->LookupVTSlot(wMTslot);
-    }
-    else
-    {
-        wVTslot = wMTslot;
-    }
-    
+
     // If the other MT is not sparse, we can return the COM slot directly
     if (!pNewMT->IsSparseForCOMInterop()) 
     {
@@ -6719,6 +6714,15 @@ WORD GetEquivalentMethodSlot(MethodTable * pOldMT, MethodTable * pNewMT, WORD wM
 
     _ASSERTE(!*pfFound);
     return 0;
+
+#else
+    // No COM means there is no sparse interface
+    if (wVTslot < pNewMT->GetNumVirtuals())
+        *pfFound = TRUE;
+
+    return wVTslot;
+
+#endif // FEATURE_COMINTEROP
 }
 #endif // #ifdef DACCESS_COMPILE
 #endif // #ifdef FEATURE_TYPEEQUIVALENCE
