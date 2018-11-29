@@ -702,7 +702,7 @@ Module *ZapSig::DecodeModuleFromIndexIfLoaded(Module *fromModule,
         {
             index -= fromModule->GetAssemblyRefMax();
             tkAssemblyRef = RidToToken(index, mdtAssemblyRef);
-            IMDInternalImport *  pMDImportOverride = fromModule->GetNativeAssemblyImport(FALSE);
+            IMDInternalImport *  pMDImportOverride = fromModule->GetNativeAssemblyImportIfLoaded();
             if (pMDImportOverride != NULL)
             {
                 CHAR   szFullName[MAX_CLASS_NAME + 1];
@@ -1140,7 +1140,7 @@ BOOL ZapSig::EncodeMethod(
     TypeHandle ownerType;
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    if (IsReadyToRunCompilation())
+    if (IsReadyToRunCompilation() && !pMethod->GetModule()->IsInCurrentVersionBubble())
     {
         if (pResolvedToken == NULL)
         {
@@ -1199,7 +1199,7 @@ BOOL ZapSig::EncodeMethod(
     }
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    if (IsReadyToRunCompilation())
+    if (IsReadyToRunCompilation() && !pMethod->GetModule()->IsInCurrentVersionBubble())
     {
         if (pConstrainedResolvedToken != NULL)
         {

@@ -10280,34 +10280,6 @@ Module *Module::GetModuleFromIndex(DWORD ix)
     if (HasNativeOrReadyToRunImage())
     {
         RETURN ZapSig::DecodeModuleFromIndex(this, ix);
-        // // CORCOMPILE_IMPORT_TABLE_ENTRY *p;
-        // // if (IsReadyToRun())
-        // // {
-        // //     //PRECONDITION(GetNativeImage()->CheckReadyToRunImportFromIndex(ix));
-        // //     p = GetNativeOrReadyToRunImage()->GetReadyToRunImportFromIndex(ix);
-        // // }
-        // // else 
-        // // {
-        // //     PRECONDITION(GetNativeImage()->CheckNativeImportFromIndex(ix));
-        // //     p = GetNativeImage()->GetNativeImportFromIndex(ix);
-        // // }
-
-        // // RETURN ZapSig::DecodeModuleFromIndexes(this, p->wAssemblyRid, p->wModuleRid);
-        // CORCOMPILE_IMPORT_TABLE_ENTRY *p;
-        // if (IsReadyToRun())
-        // {
-        //     //PRECONDITION(GetNativeImage()->CheckReadyToRunImportFromIndex(ix));
-        //     //GetReadyToRunInfo()->GetReadyToRunImportFromIndex(ix);
-        //     RETURN ZapSig::DecodeModuleFromIndexes(this, ix, 0);
-
-        // }
-        // else 
-        // {
-        //     PRECONDITION(GetNativeImage()->CheckNativeImportFromIndex(ix));
-        //     p = GetNativeImage()->GetNativeImportFromIndex(ix);
-        // }
-
-        // RETURN ZapSig::DecodeModuleFromIndexes(this, p->wAssemblyRid, p->wModuleRid);
     }
     else
     {
@@ -10393,6 +10365,30 @@ IMDInternalImport *Module::GetNativeAssemblyImport(BOOL loadAllowed)
     }
 }
 
+IMDInternalImport *Module::GetNativeAssemblyImportIfLoaded()
+{
+    CONTRACT(IMDInternalImport *)
+    {
+        INSTANCE_CHECK;
+        GC_NOTRIGGER;
+        NOTHROW;
+        FORBID_FAULT;
+        MODE_ANY;
+        PRECONDITION(HasNativeOrReadyToRunImage());
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
+    }
+
+    CONTRACT_END;
+    // Check if Image is even R2R?
+    if (GetFile()->IsILImageReadyToRun())
+    {
+        RETURN GetFile()->GetOpenedILimage()->GetNativeMDImport(false);
+    }
+    else
+    {
+        RETURN GetFile()->GetPersistentNativeImage()->GetNativeMDImport(false);
+    }
+}
 
 /*static*/
 void Module::RestoreMethodTablePointerRaw(MethodTable ** ppMT,
