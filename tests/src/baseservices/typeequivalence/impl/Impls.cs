@@ -9,5 +9,11 @@ using TypeEquivalenceTypes;
 
 public class EmptyType : IEmptyType
 {
-    // Empty
+    /// <summary>
+    /// Create an instance of <see cref="EmptyType" />
+    /// </summary>
+    public static object Create()
+    {
+        return new EmptyType();
+    }
 }

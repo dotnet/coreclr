@@ -12,16 +12,28 @@ public class Simple
 {
     private class EmptyType2 : IEmptyType
     {
-        // Empty
+        /// <summary>
+        /// Create an instance of <see cref="EmptyType" />
+        /// </summary>
+        public static object Create()
+        {
+            return new EmptyType2();
+        }
     }
 
     private static void InterfaceTypesFromDifferentAssembliesAreEqual()
     {
-        Console.WriteLine($"Interfaces are the same");
-        var impl = (IEmptyType)new EmptyType();
-        var test = (IEmptyType)new EmptyType2();
+        Console.WriteLine("Interfaces are the same");
+        var inAsm = EmptyType.Create();
+        DisplayType((IEmptyType)inAsm);
 
-        Assert.AreEqual(impl.GetType(), impl.GetType());
+        var otherAsm = EmptyType2.Create();
+        DisplayType((IEmptyType)otherAsm);
+
+        void DisplayType(IEmptyType i)
+        {
+            Console.WriteLine(i.GetType());
+        }
     }
 
     public static int Main(string[] noArgs)
