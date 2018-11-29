@@ -746,15 +746,6 @@ public:
 
     BOOL            IsExtensibleRCW();
 
-#if defined(FEATURE_TYPEEQUIVALENCE)
-    // mark the type as opted into type equivalence
-    void SetHasTypeEquivalence()
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetFlag(enum_flag_HasTypeEquivalence);
-    }
-#endif
-
     // Helper to get parent class skipping over COM class in 
     // the hierarchy
     MethodTable* GetComPlusParentMethodTable();
@@ -825,6 +816,15 @@ public:
 
     BOOL IsICastable(); // This type implements ICastable interface
 
+#ifdef FEATURE_TYPEEQUIVALENCE
+    // mark the type as opted into type equivalence
+    void SetHasTypeEquivalence()
+    {
+        LIMITED_METHOD_CONTRACT;
+        SetFlag(enum_flag_HasTypeEquivalence);
+    }
+#endif // FEATURE_TYPEEQUIVALENCE
+
     // type has opted into type equivalence or is instantiated by/derived from a type that is
     BOOL HasTypeEquivalence()
     {
@@ -833,7 +833,7 @@ public:
         return GetFlag(enum_flag_HasTypeEquivalence);
 #else
         return FALSE;
-#endif
+#endif // FEATURE_TYPEEQUIVALENCE
     }
 
     //-------------------------------------------------------------------
