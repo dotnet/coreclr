@@ -2798,7 +2798,7 @@ HRESULT TypeIdentifierData::Init(Module *pModule, mdToken tk)
         bool has_eq = !pModule->GetAssembly()->IsDynamic();
 
 #ifdef FEATURE_COMINTEROP
-        has_eq &= pModule->GetAssembly()->IsPIAOrImportedFromTypeLib();
+        has_eq = has_eq && pModule->GetAssembly()->IsPIAOrImportedFromTypeLib();
 #endif // FEATURE_COMINTEROP
 
         if (!has_eq)
@@ -2902,30 +2902,6 @@ BOOL TypeIdentifierData::IsEqual(const TypeIdentifierData & data) const
     return (memcmp(m_pchIdentifierNamespace, data.m_pchIdentifierName, m_cbIdentifierNamespace) == 0) &&
            (data.m_pchIdentifierName[m_cbIdentifierNamespace] == NAMESPACE_SEPARATOR_CHAR) &&
            (memcmp(m_pchIdentifierName, data.m_pchIdentifierName + m_cbIdentifierNamespace + 1, m_cbIdentifierName) == 0);
-}
-
-//---------------------------------------------------------------------------------------
-// 
-static CorElementType GetFieldSigElementType(PCCOR_SIGNATURE pSig, DWORD cbSig)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-
-    SigPointer sigptr(pSig, cbSig);
-    
-    ULONG data;
-    IfFailThrow(sigptr.GetCallingConv(&data));
-    _ASSERTE(data == IMAGE_CEE_CS_CALLCONV_FIELD);
-
-    CorElementType etype;
-    IfFailThrow(sigptr.GetElemType(&etype));
-
-    return etype;
 }
 
 //---------------------------------------------------------------------------------------
@@ -3183,7 +3159,7 @@ BOOL IsTypeDefEquivalent(mdToken tk, Module *pModule)
         bool has_eq = !pModule->GetAssembly()->IsDynamic();
 
 #ifdef FEATURE_COMINTEROP
-        has_eq &= pModule->GetAssembly()->IsPIAOrImportedFromTypeLib();
+        has_eq = has_eq && pModule->GetAssembly()->IsPIAOrImportedFromTypeLib();
 #endif // FEATURE_COMINTEROP
 
         if (!has_eq)
