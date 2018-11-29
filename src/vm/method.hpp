@@ -1742,7 +1742,7 @@ public:
 
     WORD InterlockedUpdateFlags3(WORD wMask, BOOL fSet);
 
-#ifdef FEATURE_COMINTEROP
+#ifdef FEATURE_TYPEEQUIVALENCE
     inline BOOL DoesNotHaveEquivalentValuetypeParameters()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -1754,7 +1754,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         InterlockedUpdateFlags3(enum_flag3_DoesNotHaveEquivalentValuetypeParameters, TRUE);
     }
-#endif //FEATURE_COMINTEROP
+#endif // FEATURE_TYPEEQUIVALENCE
 
     inline BOOL HasForwardedValuetypeParameter()
     {
