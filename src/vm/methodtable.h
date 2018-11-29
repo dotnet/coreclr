@@ -2019,12 +2019,12 @@ public:
 #ifndef DACCESS_COMPILE
     FORCEINLINE BOOL IsEquivalentTo(MethodTable *pOtherMT COMMA_INDEBUG(TypeHandlePairList *pVisited = NULL));
 
-#ifdef FEATURE_COMINTEROP
+#ifdef FEATURE_TYPEEQUIVALENCE
     // This method is public so that TypeHandle has direct access to it
     BOOL IsEquivalentTo_Worker(MethodTable *pOtherMT COMMA_INDEBUG(TypeHandlePairList *pVisited));      // out-of-line part, SO tolerant
 private:
     BOOL IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG(TypeHandlePairList *pVisited)); // out-of-line part, SO intolerant
-#endif // FEATURE_COMINTEROP
+#endif // FEATURE_TYPEEQUIVALENCE
 #endif
 
 public:
