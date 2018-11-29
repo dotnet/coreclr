@@ -4168,9 +4168,9 @@ public:
 #ifndef CROSSBITNESS_COMPILE
 static_assert_no_msg(sizeof(MethodTable) == SIZEOF__MethodTable_);
 #endif
-#if defined(FEATURE_COMINTEROP) && !defined(DACCESS_COMPILE)
+#if defined(FEATURE_TYPEEQUIVALENCE) && !defined(DACCESS_COMPILE)
 WORD GetEquivalentMethodSlot(MethodTable * pOldMT, MethodTable * pNewMT, WORD wMTslot, BOOL *pfFound);
-#endif // defined(FEATURE_COMINTEROP) && !defined(DACCESS_COMPILE)
+#endif // defined(FEATURE_TYPEEQUIVALENCE) && !defined(DACCESS_COMPILE)
 
 MethodTable* CreateMinimalMethodTable(Module* pContainingModule, 
                                       LoaderHeap* pCreationHeap,

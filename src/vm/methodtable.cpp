@@ -1388,12 +1388,12 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
     }
     CONTRACTL_END;
 
-    TypeEquivalenceHashTable *typeEquTable = nullptr;
+    TypeEquivalenceHashTable *typeHashTable = NULL;
     AppDomain *pDomain = GetAppDomain();
     if (pDomain != NULL)
     {
-        typeEquTable = pDomain->GetTypeEquivalenceCache();
-        TypeEquivalenceHashTable::EquivalenceMatch match = typeEquTable->CheckEquivalence(TypeHandle(this), TypeHandle(pOtherMT));
+        typeHashTable = pDomain->GetTypeEquivalenceCache();
+        TypeEquivalenceHashTable::EquivalenceMatch match = typeHashTable->CheckEquivalence(TypeHandle(this), TypeHandle(pOtherMT));
         switch (match)
         {
         case TypeEquivalenceHashTable::Match:
@@ -1473,13 +1473,13 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
 
 EquivalenceCalculated:
     // Record equivalence matches if a table exists
-    if (typeEquTable != NULL)
+    if (typeHashTable != NULL)
     {
         // Collectible type results will not get cached.
         if ((!Collectible() && !pOtherMT->Collectible()))
         {
             auto match = fEquivalent ? TypeEquivalenceHashTable::Match : TypeEquivalenceHashTable::NoMatch;
-            typeEquTable->RecordEquivalence(TypeHandle(this), TypeHandle(pOtherMT), match);
+            typeHashTable->RecordEquivalence(TypeHandle(this), TypeHandle(pOtherMT), match);
         }
     }
 
@@ -5360,12 +5360,12 @@ VOID DoAccessibilityCheckForConstraints(MethodTable *pAskingMT, TypeVarTypeDesc 
 // Used so that we can have one valuetype walking algorithm used for type equivalence walking of the parameters of the method.
 struct DoFullyLoadLocals
 {
-    DoFullyLoadLocals(DFLPendingList *pPendingParam, ClassLoadLevel levelParam, MethodTable *pMT, Generics::RecursionGraph *pVisited) :
-        newVisited(pVisited, TypeHandle(pMT)),
-        pPending(pPendingParam),
-        level(levelParam),
-        fBailed(FALSE)
-#ifdef FEATURE_COMINTEROP
+    DoFullyLoadLocals(DFLPendingList *pPendingParam, ClassLoadLevel levelParam, MethodTable *pMT, Generics::RecursionGraph *pVisited)
+        : newVisited(pVisited, TypeHandle(pMT))
+        , pPending(pPendingParam)
+        , level(levelParam)
+        , fBailed(FALSE)
+#ifdef FEATURE_TYPEEQUIVALENCE
         , fHasEquivalentStructParameter(FALSE)
 #endif
         , fHasTypeForwarderDependentStructParameter(FALSE)
@@ -5378,7 +5378,7 @@ struct DoFullyLoadLocals
     DFLPendingList * const pPending;
     const ClassLoadLevel level;
     BOOL fBailed;
-#ifdef FEATURE_COMINTEROP
+#ifdef FEATURE_TYPEEQUIVALENCE
     BOOL fHasEquivalentStructParameter;
 #endif
     BOOL fHasTypeForwarderDependentStructParameter;
@@ -6674,7 +6674,7 @@ MethodTable *MethodTable::GetDefaultWinRTInterface()
 #endif // !DACCESS_COMPILE
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_COMINTEROP
+#ifdef FEATURE_TYPEEQUIVALENCE
 #ifndef DACCESS_COMPILE
 
 WORD GetEquivalentMethodSlot(MethodTable * pOldMT, MethodTable * pNewMT, WORD wMTslot, BOOL *pfFound)
@@ -6721,7 +6721,7 @@ WORD GetEquivalentMethodSlot(MethodTable * pOldMT, MethodTable * pNewMT, WORD wM
     return 0;
 }
 #endif // #ifdef DACCESS_COMPILE
-#endif // #ifdef FEATURE_COMINTEROP
+#endif // #ifdef FEATURE_TYPEEQUIVALENCE
 
 //==========================================================================================
 BOOL 
