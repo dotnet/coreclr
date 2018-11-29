@@ -345,14 +345,14 @@ namespace System.Runtime.Intrinsics
 
             for (int i = 0; i < lastElement; i++)
             {
-                sb.Append(((IFormattable)(GetElement(lastElement))).ToString(format, formatProvider));
+                sb.Append(((IFormattable)(GetElement(i))).ToString(format, formatProvider));
                 sb.Append(separator);
                 sb.Append(' ');
             }
             sb.Append(((IFormattable)(GetElement(lastElement))).ToString(format, formatProvider));
 
             sb.Append('>');
-            return sb.ToString();
+            return StringBuilderCache.GetStringAndRelease(sb);
         }
     }
 }

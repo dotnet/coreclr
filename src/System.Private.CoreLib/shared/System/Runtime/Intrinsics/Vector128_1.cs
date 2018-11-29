@@ -343,14 +343,14 @@ namespace System.Runtime.Intrinsics
 
             for (int i = 0; i < lastElement; i++)
             {
-                sb.Append(((IFormattable)(GetElement(lastElement))).ToString(format, formatProvider));
+                sb.Append(((IFormattable)(GetElement(i))).ToString(format, formatProvider));
                 sb.Append(separator);
                 sb.Append(' ');
             }
             sb.Append(((IFormattable)(GetElement(lastElement))).ToString(format, formatProvider));
 
             sb.Append('>');
-            return sb.ToString();
+            return StringBuilderCache.GetStringAndRelease(sb);
         }
 
         /// <summary>Converts the current instance to a new <see cref="Vector256{T}" /> with the lower 128-bits set to the value of the current instance and the upper 128-bits initialized to zero.</summary>
