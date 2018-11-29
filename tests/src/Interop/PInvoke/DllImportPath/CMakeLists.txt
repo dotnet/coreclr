@@ -8,7 +8,9 @@ set(SOURCES
 
 # Set CMP0037 to OLD for this directory, so that
 # CMake doesn't complain about the libraries with Unicode characters.
-cmake_policy(SET CMP0037 OLD)
+if(NOT (CMAKE_MAJOR_VERSION LESS 3)) 
+    cmake_policy(SET CMP0037 OLD)
+endif()
   
 # Additional files to reference: 
 # add the executable 
