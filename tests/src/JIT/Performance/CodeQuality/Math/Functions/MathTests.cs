@@ -30,9 +30,13 @@ namespace Functions
         // to meet our siginificance criteria. So each test is repeated many times, using the factors below.
         private const int AbsDoubleIterations = 200000;
         private const int AcosDoubleIterations = 10000;
+        private const int AcoshDoubleIterations = 10000;
         private const int AsinDoubleIterations = 10000;
+        private const int AsinhDoubleIterations = 10000;
         private const int Atan2DoubleIterations = 6500;
         private const int AtanDoubleIterations = 13000;
+        private const int AtanhDoubleIterations = 13000;
+        private const int CbrtDoubleIterations = 40000;
         private const int CeilingDoubleIterations = 80000;
         private const int CosDoubleIterations = 16000;
         private const int CoshDoubleIterations = 8000;
@@ -50,9 +54,13 @@ namespace Functions
 
         private const int AbsSingleIterations = 200000;
         private const int AcosSingleIterations = 15000;
+        private const int AcoshSingleIterations = 15000;
         private const int AsinSingleIterations = 15000;
+        private const int AsinhSingleIterations = 15000;
         private const int Atan2SingleIterations = 9000;
         private const int AtanSingleIterations = 17000;
+        private const int AtanhSingleIterations = 17000;
+        private const int CbrtSingleIterations = 80000;
         private const int CeilingSingleIterations = 80000;
         private const int CosSingleIterations = 20000;
         private const int CoshSingleIterations = 10000;
