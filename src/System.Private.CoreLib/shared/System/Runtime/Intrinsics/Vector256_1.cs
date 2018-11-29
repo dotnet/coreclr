@@ -4,7 +4,6 @@
 
 using System.Diagnostics;
 using System.Globalization;
-using System.Numerics.Hashing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -246,7 +245,7 @@ namespace System.Runtime.Intrinsics
 
             for (int i = 0; i < Count; i++)
             {
-                hashCode = HashHelpers.Combine(hashCode, GetElement(i).GetHashCode());
+                hashCode = HashCode.Combine(hashCode, GetElement(i).GetHashCode());
             }
 
             return hashCode;
@@ -326,7 +325,7 @@ namespace System.Runtime.Intrinsics
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
         public string ToString(string format)
         {
-            return ToString("G", CultureInfo.CurrentCulture);
+            return ToString(format, CultureInfo.CurrentCulture);
         }
 
         /// <summary>Converts the current instance to an equivalent string representation using the specified format.</summary>
@@ -341,7 +340,7 @@ namespace System.Runtime.Intrinsics
             string separator = NumberFormatInfo.GetInstance(formatProvider).NumberGroupSeparator;
             int lastElement = Count - 1;
 
-            var sb = new StringBuilder();
+            var sb = StringBuilderCache.Acquire();
             sb.Append('<');
 
             for (int i = 0; i < lastElement; i++)
