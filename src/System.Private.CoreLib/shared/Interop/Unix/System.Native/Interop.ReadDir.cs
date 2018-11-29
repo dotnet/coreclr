@@ -11,7 +11,7 @@ internal static partial class Interop
 {
     internal static partial class Sys
     {
-        private static readonly int s_readBufferSize = GetReadDirRBufferSize();
+        private static volatile int s_readBufferSize = -1;
 
         internal enum NodeType : int
         {
@@ -58,6 +58,9 @@ internal static partial class Interop
             bool addedRef = false;
             try
             {
+                if (s_readBufferSize == -1)
+                    s_readBufferSize = GetReadDirRBufferSize();
+
                 // We avoid a native string copy into InternalDirectoryEntry.
                 // - If the platform suppors reading into a buffer, the data is read directly into the buffer. The
                 //   data can be read as long as the buffer is valid.
