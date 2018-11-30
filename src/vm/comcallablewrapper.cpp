@@ -2234,9 +2234,6 @@ ComCallWrapper* ComCallWrapper::CopyFromTemplate(ComCallWrapperTemplate* pTempla
     // num interfaces on the object    
     size_t numInterfaces = pTemplate->GetNumInterfaces();
 
-    if (pWrapperCache->IsLoaderAllocatorUnloading())
-        COMPlusThrow(kAppDomainUnloadedException);
-    
     // we have a template, create a wrapper and initialize from the template
     // alloc wrapper, aligned to cache line
     NewCCWHolder pStartWrapper(pWrapperCache);
@@ -3865,17 +3862,6 @@ ComCallWrapperCache *ComCallWrapperCache::Create(LoaderAllocator *pLoaderAllocat
     pWrapperCache.SuppressRelease();
     RETURN pWrapperCache;
 }
-
-
-void ComCallWrapperCache::Neuter()
-{
-    WRAPPER_NO_CONTRACT;
-    
-    LOG((LF_INTEROP, LL_INFO100, "ComCallWrapperCache::Neuter %8.8x in loader allocator [%d] %8.8x\n", 
-        this, GetLoaderAllocator() ? GetLoaderAllocator()->GetCreationNumber() : 0, GetLoaderAllocator()));
-    SetLoaderAllocatorIsUnloading();
-}
-
 
 //-------------------------------------------------------------------
 // ComCallable wrapper manager 

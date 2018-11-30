@@ -665,7 +665,6 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
 #ifdef FEATURE_COMINTEROP
         if (pLoaderAllocator->m_pComCallWrapperCache)
         {
-            pLoaderAllocator->m_pComCallWrapperCache->Neuter();
             pLoaderAllocator->m_pComCallWrapperCache->Release();
 
             // if the above released the wrapper cache, then it will call back and reset our
@@ -1304,24 +1303,6 @@ BYTE *LoaderAllocator::GetCodeHeapInitialBlock(const BYTE * loAddr, const BYTE *
         *pSize = COLLECTIBLE_CODEHEAP_SIZE;
     }
     return buffer;
-}
-
-void LoaderAllocator::PrepareForLoadContextRelease()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-#ifdef FEATURE_COMINTEROP
-    if (m_pComCallWrapperCache)
-    {
-        m_pComCallWrapperCache->SetLoaderAllocatorIsUnloading();
-    }
-#endif // FEATURE_COMINTEROP
 }
 
 // in retail should be called from AppDomain::Terminate

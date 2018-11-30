@@ -548,8 +548,6 @@ public:
         return &m_ILStubCache;
     }
 
-    void PrepareForLoadContextRelease();
-
 #ifdef FEATURE_COMINTEROP
 
     ComCallWrapperCache * GetComCallWrapperCache();

@@ -300,8 +300,6 @@ void CLRPrivBinderAssemblyLoadContext::PrepareForLoadContextRelease(INT_PTR ptrM
     _ASSERTE(m_pAssemblyLoaderAllocator != NULL);
     _ASSERTE(m_loaderAllocatorHandle != NULL);
 
-    m_pAssemblyLoaderAllocator->PrepareForLoadContextRelease();
-
     // We cannot delete the binder here as it is used indirectly when comparing assemblies with the same binder
     // It will be deleted when the LoaderAllocator will be deleted
     // But we can release the LoaderAllocator as we are no longer using it here

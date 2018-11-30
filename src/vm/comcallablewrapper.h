@@ -41,11 +41,6 @@ typedef DPTR(struct SimpleComCallWrapper) PTR_SimpleComCallWrapper;
 
 class ComCallWrapperCache
 {
-    enum
-    {
-        LA_IS_UNLOADING = 0x01,
-    };
-    
 public:
     // Encapsulate a SpinLockHolder, so that clients of our lock don't have to know
     // the details of our implementation.
@@ -64,10 +59,6 @@ public:
 
     // create a new WrapperCache (one per each LoaderAllocator)
     static ComCallWrapperCache* Create(LoaderAllocator *pLoaderAllocator);
-
-    // Called when the domain is going away.  We may have outstanding references to this cache,
-    //  so we keep it around in a neutered state.
-    void    Neuter();
 
     // refcount
     LONG    AddRef();
@@ -98,21 +89,7 @@ public:
         }
         CONTRACT_END;
         
-        RETURN ((LoaderAllocator*)((size_t)m_pLoaderAllocator & ~LA_IS_UNLOADING));
-    }
-
-    void SetLoaderAllocatorIsUnloading()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        m_pLoaderAllocator = (LoaderAllocator *)LA_IS_UNLOADING;
-    }
-
-    BOOL IsLoaderAllocatorUnloading()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        return (m_pLoaderAllocator == (LoaderAllocator *)LA_IS_UNLOADING);
+        RETURN m_pLoaderAllocator;
     }
 
 private:
