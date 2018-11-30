@@ -111,7 +111,7 @@ jobs:
         env:
           ${{ if eq(variables['System.TeamProject'], 'internal') }}:
             # Access token variable for internal project
-            HelixAccessToken: $(HelixApiAccessToken)
+            HelixAccessToken: $(DotNet-HelixApi-Access)
           ${{ if eq(variables['System.TeamProject'], 'public') }}:
             # Access token variable for public project
             HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
@@ -121,7 +121,7 @@ jobs:
         env:
           ${{ if eq(variables['System.TeamProject'], 'internal') }}:
             # Access token variable for internal project
-            HelixAccessToken: $(HelixApiAccessToken)
+            HelixAccessToken: $(DotNet-HelixApi-Access)
           ${{ if eq(variables['System.TeamProject'], 'public') }}:
             # Access token variable for public project
             HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
