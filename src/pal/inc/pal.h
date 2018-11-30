@@ -5094,6 +5094,11 @@ PAL_SetTerminationRequestHandler(
     IN PTERMINATION_REQUEST_HANDLER terminationRequestHandler);
 
 PALIMPORT
+int
+PALAPI
+PAL_GetTerminationExitCode();
+
+PALIMPORT
 VOID
 PALAPI
 PAL_CatchHardwareExceptionHolderEnter();

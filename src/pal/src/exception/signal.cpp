@@ -569,10 +569,9 @@ static void sigterm_handler(int code, siginfo_t *siginfo, void *context)
     }
     else
     {
-        if (g_previous_sigterm.sa_sigaction != NULL)
-        {
-            g_previous_sigterm.sa_sigaction(code, siginfo, context);
-        }
+        // Let the process terminate using the original handler.
+        restore_signal(SIGTERM, &g_previous_sigterm);
+        kill(getpid(), SIGTERM);
     }
 }
 

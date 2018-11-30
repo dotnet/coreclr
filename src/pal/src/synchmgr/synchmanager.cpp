@@ -55,6 +55,15 @@ VOID PALAPI PAL_SetTerminationRequestHandler(
     g_terminationRequestHandler = terminationHandler;
 }
 
+int PALAPI PAL_GetTerminationExitCode()
+{
+    // The process will terminate normally by calling exit.
+    // We use an exit code of '128 + signo'. This is a convention used in popular
+    // shells to calculate an exit code when the process was terminated by a signal.
+    // This is also used by the Process.ExitCode implementation.
+    return 128 + SIGTERM;
+}
+
 namespace CorUnix
 {
     /////////////////////////////////
