@@ -118,15 +118,7 @@ PTR_Module ClassLoader::ComputeLoaderModuleWorker(
     {
         if (pDefinitionModule->IsCollectible())
             goto ComputeCollectibleLoaderModule;
-        if (!pDefinitionModule->GetAssembly()->IsDomainNeutral())
-        {
-            pFirstNonSharedLoaderModule = pDefinitionModule;
-        }
-        else
-        if (!pDefinitionModule->IsSystem())
-        {
-            pFirstNonSystemSharedModule = pDefinitionModule;
-        }
+        pFirstNonSharedLoaderModule = pDefinitionModule;
     }
 
     for (DWORD i = 0; i < classInst.GetNumArgs(); i++)
@@ -136,17 +128,8 @@ PTR_Module ClassLoader::ComputeLoaderModuleWorker(
         Module* pModule = classArg.GetLoaderModule();
         if (pModule->IsCollectible())
             goto ComputeCollectibleLoaderModule;
-        if (!pModule->GetAssembly()->IsDomainNeutral())
-        {
-            if (pFirstNonSharedLoaderModule == NULL)
-                pFirstNonSharedLoaderModule = pModule;
-        }
-        else
-        if (!pModule->IsSystem())
-        {
-            if (pFirstNonSystemSharedModule == NULL)
-                pFirstNonSystemSharedModule = pModule;
-        }
+        if (pFirstNonSharedLoaderModule == NULL)
+            pFirstNonSharedLoaderModule = pModule;
     }
 
     for (DWORD i = 0; i < methodInst.GetNumArgs(); i++)
@@ -156,17 +139,8 @@ PTR_Module ClassLoader::ComputeLoaderModuleWorker(
         Module *pModule = methodArg.GetLoaderModule();
         if (pModule->IsCollectible())
             goto ComputeCollectibleLoaderModule;
-        if (!pModule->GetAssembly()->IsDomainNeutral())
-        {
-            if (pFirstNonSharedLoaderModule == NULL)
-                pFirstNonSharedLoaderModule = pModule;
-        }
-        else
-        if (!pModule->IsSystem())
-        {
-            if (pFirstNonSystemSharedModule == NULL)
-                pFirstNonSystemSharedModule = pModule;
-        }
+        if (pFirstNonSharedLoaderModule == NULL)
+            pFirstNonSharedLoaderModule = pModule;
     }
 
     // RULE: Prefer modules in non-shared assemblies.
