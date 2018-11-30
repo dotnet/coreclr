@@ -129,15 +129,14 @@ jobs:
       scenarios: 'normal;jitstress2'
 
 # Pri1 crossgen (Official Build, TODO: CI Outerloop)
-- ${{ if ne(variables['System.TeamProject'], 'public') }}:
-  - template: eng/platform-matrix.yml
-    parameters:
-      jobTemplate: test-job.yml
-      buildConfig: checked
-      jobParameters:
-        priority: 1
-        crossgen: true
-        scenarios: 'normal;jitstress2'
+- template: eng/platform-matrix.yml
+  parameters:
+    jobTemplate: test-job.yml
+    buildConfig: checked
+    jobParameters:
+      priority: 1
+      crossgen: true
+      scenarios: 'normal;jitstress2'
 
 #
 # Release test builds (Official Build)
