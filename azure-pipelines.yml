@@ -80,31 +80,27 @@ jobs:
 
 
 #
-# Debug build
+# Debug build (CI)
 #
-
-# Official build is release only.
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: build-job.yml
       buildConfig: debug
 
 #
-# Checked build
+# Checked build (CI)
 #
-
-# Official build is release only.
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: build-job.yml
       buildConfig: checked
 
 #
-# Release build
+# Release build (Official Build)
 #
-
+- ${{ if ne(variables['System.TeamProject'], 'public') }}:
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
@@ -114,9 +110,8 @@ jobs:
 # Checked test builds
 #
 
-# Pri0
-# Official build is release pri1 only.
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+# Pri0 (CI)
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
@@ -124,20 +119,17 @@ jobs:
       jobParameters:
         priority: 0
 
-# Pri1
-# Official build is release only.
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-  - template: eng/platform-matrix.yml
-    parameters:
-      jobTemplate: test-job.yml
-      buildConfig: checked
-      jobParameters:
-        priority: 1
-        scenarios: 'normal;jitstress2'
+# Pri1 (Official Build, TODO: CI Outerloop)
+- template: eng/platform-matrix.yml
+  parameters:
+    jobTemplate: test-job.yml
+    buildConfig: checked
+    jobParameters:
+      priority: 1
+      scenarios: 'normal;jitstress2'
 
-# Pri1 crossgen
-# Official build is release only.
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+# Pri1 crossgen (Official Build, TODO: CI Outerloop)
+- ${{ if ne(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
@@ -148,10 +140,11 @@ jobs:
         scenarios: 'normal;jitstress2'
 
 #
-# Release test builds
+# Release test builds (Official Build)
 #
 
 # Pri1
+- ${{ if ne(variables['System.TeamProject'], 'public') }}:
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
@@ -159,7 +152,8 @@ jobs:
     jobParameters:
       priority: 1
 
-# Pri1 crossgen
+# Pri1 crossgen (Official Build)
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
