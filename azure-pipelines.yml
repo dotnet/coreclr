@@ -21,11 +21,11 @@ resources:
   - container: centos6_x64_build_image
     image: microsoft/dotnet-buildtools-prereqs:centos-6-376e1a3-20174311014331
 
--${{ if ne(variables['System.TeamProject'], 'public') }}
+-${{ if ne(variables['System.TeamProject'], 'public') }}:
   trigger:
     - master
 
--${{ if ne(variables['System.TeamProject'], 'public') }}
+-${{ if ne(variables['System.TeamProject'], 'public') }}:
   pr:
   - master
 
