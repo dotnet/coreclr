@@ -57,7 +57,7 @@ namespace System
 
         private string ValueToString()
         {
-            ref byte data = ref JitHelpers.GetPinningHelper(this).m_data;
+            ref byte data = ref this.GetRawData();
             switch (InternalGetCorElementType())
             {
                 case CorElementType.I1:
@@ -96,7 +96,7 @@ namespace System
 
         private string ValueToHexString()
         {
-            ref byte data = ref JitHelpers.GetPinningHelper(this).m_data;
+            ref byte data = ref this.GetRawData();
             switch (InternalGetCorElementType())
             {
                 case CorElementType.I1:
@@ -971,7 +971,7 @@ namespace System
         #region Private Methods
         internal object GetValue()
         {
-            ref byte data = ref JitHelpers.GetPinningHelper(this).m_data;
+            ref byte data = ref this.GetRawData();
             switch (InternalGetCorElementType())
             {
                 case CorElementType.I1:
@@ -1010,7 +1010,7 @@ namespace System
 
         private ulong ToUInt64()
         {
-            ref byte data = ref JitHelpers.GetPinningHelper(this).m_data;
+            ref byte data = ref this.GetRawData();
             switch (InternalGetCorElementType())
             {
                 case CorElementType.I1:
@@ -1035,13 +1035,9 @@ namespace System
                 case CorElementType.R8:
                     return Unsafe.As<byte, ulong>(ref data);
                 case CorElementType.I:
-                    return IntPtr.Size == 8 ?
-                        Unsafe.As<byte, ulong>(ref data) :
-                        (ulong)Unsafe.As<byte, int>(ref data);
+                    return (ulong)Unsafe.As<byte, IntPtr>(ref data);
                 case CorElementType.U:
-                    return IntPtr.Size == 8 ?
-                        Unsafe.As<byte, ulong>(ref data) :
-                        Unsafe.As<byte, uint>(ref data);
+                    return (ulong)Unsafe.As<byte, UIntPtr>(ref data);
                 default:
                     Debug.Fail("Invalid primitive type");
                     return 0;
@@ -1065,7 +1061,7 @@ namespace System
             // CONTRACT with the runtime: GetHashCode of enum types is implemented as GetHashCode of the underlying type.
             // The runtime can bypass calls to Enum::GetHashCode and call the underlying type's GetHashCode directly
             // to avoid boxing the enum.
-            ref byte data = ref JitHelpers.GetPinningHelper(this).m_data;
+            ref byte data = ref this.GetRawData();
             switch (InternalGetCorElementType())
             {
                 case CorElementType.I1:
