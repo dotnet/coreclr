@@ -42,15 +42,6 @@ namespace System.Threading
             _ioCompletionCallback = ioCompletionCallback;
             _executionContext = executionContext;
         }
-        // Context callback: same sig for SendOrPostCallback and ContextCallback
-        internal static ContextCallback _ccb = new ContextCallback(IOCompletionCallback_Context);
-        internal static void IOCompletionCallback_Context(object state)
-        {
-            _IOCompletionCallback helper = (_IOCompletionCallback)state;
-            Debug.Assert(helper != null, "_IOCompletionCallback cannot be null");
-            helper._ioCompletionCallback(helper._errorCode, helper._numBytes, helper._pNativeOverlapped);
-        }
-
 
         // call back helper
         internal static unsafe void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
@@ -85,6 +76,7 @@ namespace System.Threading
 
                     if (!executionContext.IsDefault)
                     {
+                        // Not on default context, restore it
                         ExecutionContext.RestoreNonDefaultFromDefaultContext(currentThread, executionContext);
                     }
 
