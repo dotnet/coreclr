@@ -1777,10 +1777,10 @@ HRESULT DebuggerRCThread::SendIPCEvent()
         NOTHROW;
         GC_NOTRIGGER; // duh, we're in preemptive..
 
-        if (m_debugger->m_isBlockedOnGarbageCollectionEvent)
+        if (m_debugger->m_willBlockOnGarbageCollectionEvent)
         {
             //
-            // If m_debugger->m_isBlockedOnGarbageCollectionEvent is true, then it must be reporting
+            // If m_debugger->m_willBlockOnGarbageCollectionEvent is true, then it must be reporting
             // either the BeforeGarbageCollection event or the AfterGarbageCollection event
             // The thread is in preemptive mode during BeforeGarbageCollection
             // The thread is in cooperative mode during AfterGarbageCollection
