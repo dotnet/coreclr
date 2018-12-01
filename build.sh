@@ -346,11 +346,9 @@ build_cross_architecture_components()
 
     __SkipCrossArchBuild=1
     # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
-    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$__CrossArch" == "x86" ]]; then
+    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && ("$__CrossArch" == "x86" || "$__CrossArch" == "x64") ]]; then
         __SkipCrossArchBuild=0
-    elif [[ ("$__BuildArch" == "arm64") && "$__CrossArch" == "x64" ]]; then
-        __SkipCrossArchBuild=0
-    elif [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$__CrossArch" == "x64" ]]; then
+    elif [[ "$__BuildArch" == "arm64" && "$__CrossArch" == "x64" ]]; then
         __SkipCrossArchBuild=0
     else
         # not supported
