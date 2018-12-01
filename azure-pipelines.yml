@@ -119,24 +119,26 @@ jobs:
       jobParameters:
         priority: 0
 
-# Pri1 (Official Build, TODO: CI Outerloop)
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    jobParameters:
-      priority: 1
-      scenarios: 'normal;jitstress2'
+# Pri1 (Official CI)
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        scenarios: 'normal;jitstress2'
 
-# Pri1 crossgen (Official Build, TODO: CI Outerloop)
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    jobParameters:
-      priority: 1
-      crossgen: true
-      scenarios: 'normal;jitstress2'
+# Pri1 crossgen (CI)
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        crossgen: true
+        scenarios: 'normal;jitstress2'
 
 #
 # Release test builds (Official Build)
