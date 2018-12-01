@@ -55,6 +55,7 @@ namespace System.Threading
         // call back helper
         internal static unsafe void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
         {
+            Thread currentThread = null;
             do
             {
                 OverlappedData overlapped = OverlappedData.GetOverlappedFromNative(pNativeOverlapped);
@@ -66,12 +67,31 @@ namespace System.Threading
                 }
                 else
                 {
+                    if (currentThread == null)
+                    {
+                        // Only lookup the CurrentThread once
+                        currentThread = Thread.CurrentThread;
+                        // Start on clean ExecutionContext and SynchronizationContext
+                        currentThread.ExecutionContext = null;
+                        currentThread.SynchronizationContext = null;
+                    }
+
                     // We got here because of Pack
                     var helper = (_IOCompletionCallback)overlapped._callback;
                     helper._errorCode = errorCode;
                     helper._numBytes = numBytes;
                     helper._pNativeOverlapped = pNativeOverlapped;
-                    ExecutionContext.RunInternal(helper._executionContext, _ccb, helper);
+                    ExecutionContext executionContext = helper._executionContext;
+
+                    if (!executionContext.IsDefault)
+                    {
+                        ExecutionContext.RestoreNonDefaultFromDefaultContext(currentThread, executionContext);
+                    }
+
+                    helper._ioCompletionCallback(helper._errorCode, helper._numBytes, helper._pNativeOverlapped);
+
+                    // Return to clean ExecutionContext and SynchronizationContext
+                    ExecutionContext.ResetThreadPoolThread(currentThread);
                 }
 
                 //Quickly check the VM again, to see if a packet has arrived.

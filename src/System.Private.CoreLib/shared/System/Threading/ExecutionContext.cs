@@ -374,6 +374,21 @@ namespace System.Threading
             // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
         }
 
+        internal static void RestoreNonDefaultFromDefaultContext(Thread currentThread, ExecutionContext executionContext)
+        {
+            Debug.Assert(Thread.CurrentThread == currentThread);
+            Debug.Assert(Thread.CurrentThread.ExecutionContext == null);
+            Debug.Assert(Thread.CurrentThread.SynchronizationContext == null);
+            Debug.Assert(executionContext != null && !executionContext.m_isDefault);
+
+            // Restore Non-Default context
+            currentThread.ExecutionContext = executionContext;
+            if (executionContext.HasChangeNotifications)
+            {
+                OnValuesChanged(previousExecutionCtx: null, executionContext);
+            }
+        }
+
         // Inline as only called in one place and always called
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void ResetThreadPoolThread(Thread currentThread)
