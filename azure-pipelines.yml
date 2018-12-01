@@ -101,10 +101,10 @@ jobs:
 # Release build (Official Build)
 #
 - ${{ if ne(variables['System.TeamProject'], 'public') }}:
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: release
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: release
 
 #
 # Checked test builds
@@ -144,22 +144,22 @@ jobs:
 
 # Pri1
 - ${{ if ne(variables['System.TeamProject'], 'public') }}:
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: release
-    jobParameters:
-      priority: 1
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: release
+      jobParameters:
+        priority: 1
 
 # Pri1 crossgen (Official Build)
 - ${{ if eq(variables['System.TeamProject'], 'public') }}:
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: release
-    jobParameters:
-      priority: 1
-      crossgen: true
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: release
+      jobParameters:
+        priority: 1
+        crossgen: true
 
 
 # Publish build information to Build Assets Registry
