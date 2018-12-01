@@ -425,6 +425,8 @@ namespace System.Threading
                     break;
                 }
                 count = prev;
+                // Missed update, indicate to CPU we are in a spin loop
+                Thread.SpinWait(1);
             }
         }
 
@@ -445,6 +447,8 @@ namespace System.Threading
                     break;
                 }
                 count = prev;
+                // Missed update, indicate to CPU we are in a spin loop
+                Thread.SpinWait(1);
             }
         }
 
