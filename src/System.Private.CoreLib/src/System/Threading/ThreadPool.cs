@@ -415,18 +415,27 @@ namespace System.Threading
             // Note that there is a separate count in the VM which will also be incremented in this case, 
             // which is handled by RequestWorkerThread.
             //
+            int procCount = ThreadPoolGlobals.processorCount;
             int count = numOutstandingThreadRequests;
-            while (count < ThreadPoolGlobals.processorCount)
+            if (count < procCount)
             {
-                int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count + 1, count);
-                if (prev == count)
+                do
                 {
-                    ThreadPool.RequestWorkerThread();
-                    break;
-                }
-                count = prev;
-                // Missed update, indicate to CPU we are in a spin loop
-                Thread.SpinWait(1);
+                    int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count + 1, count);
+                    if (prev == count)
+                    {
+                        ThreadPool.RequestWorkerThread();
+                        break;
+                    }
+                    else if (prev >= procCount)
+                    {
+                        break;
+                    }
+
+                    count = prev;
+                    // Missed update, indicate to CPU we are in a spin loop
+                    Thread.SpinWait(1);
+                } while (true);
             }
         }
 
@@ -439,16 +448,24 @@ namespace System.Threading
             // by the time we reach this point.
             //
             int count = numOutstandingThreadRequests;
-            while (count > 0)
+            if (count > 0)
             {
-                int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count - 1, count);
-                if (prev == count)
+                do
                 {
-                    break;
-                }
-                count = prev;
-                // Missed update, indicate to CPU we are in a spin loop
-                Thread.SpinWait(1);
+                    int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count - 1, count);
+                    if (prev == count)
+                    {
+                        break;
+                    }
+                    else if (prev <= 0)
+                    {
+                        break;
+                    }
+
+                    count = prev;
+                    // Missed update, indicate to CPU we are in a spin loop
+                    Thread.SpinWait(1);
+                } while (true);
             }
         }
 
