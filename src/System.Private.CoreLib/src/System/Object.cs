@@ -82,6 +82,10 @@ namespace System
         // it will technically meet the needs of a hash function, but it's less than ideal.
         // Objects (& especially value classes) should override this method.
         // 
+        // This method receives special treatment in AOT compilation to optimize out
+        // boxing when calling GetHashCode for enum types by internally changing them
+        // to direct calls to GetHashCode on their underlying types.
+        [Intrinsic]
         public virtual int GetHashCode()
         {
             return RuntimeHelpers.GetHashCode(this);
