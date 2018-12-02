@@ -15162,8 +15162,7 @@ Compiler::TypeProducerKind Compiler::gtGetTypeProducerKind(GenTree* tree)
         bool                 isNonNull = false;
         CORINFO_CLASS_HANDLE clsHnd    = gtGetClassHandle(tree, &isExact, &isNonNull);
 
-        if (clsHnd != NO_CLASS_HANDLE &&
-            clsHnd == info.compCompHnd->getBuiltinClass(CLASSID_RUNTIME_TYPE))
+        if (clsHnd != NO_CLASS_HANDLE && clsHnd == info.compCompHnd->getBuiltinClass(CLASSID_RUNTIME_TYPE))
         {
             return TPK_Other;
         }
