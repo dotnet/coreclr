@@ -140,7 +140,7 @@ namespace System.Threading
         [ThreadStatic]
         internal static CultureInfo m_CurrentUICulture;
         [ThreadStatic]
-        private static Thread s_currentThread;
+        private static Thread t_currentThread;
 
         // Adding an empty default ctor for annotation purposes
         internal Thread() { }
@@ -327,12 +327,12 @@ namespace System.Threading
             return YieldInternal();
         }
 
-        public static new Thread CurrentThread => s_currentThread ?? InitializeCurrentThread();
+        public static new Thread CurrentThread => t_currentThread ?? InitializeCurrentThread();
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static Thread InitializeCurrentThread()
         {
-            return (s_currentThread = GetCurrentThreadNative());
+            return (t_currentThread = GetCurrentThreadNative());
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
