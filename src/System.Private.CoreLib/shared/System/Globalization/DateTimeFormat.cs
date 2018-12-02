@@ -630,7 +630,7 @@ namespace System
                             }
                             else
                             {
-                                if ((dtfi.FormatFlags & DateTimeFormatFlags.UseGenitiveMonth) != 0 && tokenLen >= 3)
+                                if ((dtfi.FormatFlags & DateTimeFormatFlags.UseGenitiveMonth) != 0)
                                 {
                                     result.Append(
                                         dtfi.internalGetMonthName(
