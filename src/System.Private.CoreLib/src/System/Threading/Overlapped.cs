@@ -42,8 +42,8 @@ namespace System.Threading
             _ioCompletionCallback = ioCompletionCallback;
             _executionContext = executionContext;
         }
-        // Context callback: same sig for SendOrPostCallback and ContextCallback
-        internal static ContextCallback _ccb = new ContextCallback(IOCompletionCallback_Context);
+
+        internal readonly static Action<object> _ccb = new Action<object>(IOCompletionCallback_Context);
         internal static void IOCompletionCallback_Context(object state)
         {
             _IOCompletionCallback helper = (_IOCompletionCallback)state;
@@ -55,13 +55,19 @@ namespace System.Threading
         // call back helper
         internal static unsafe void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
         {
+            // Only lookup the CurrentThread once
+            Thread currentThread = Thread.CurrentThread;
+            // Start on clean ExecutionContext and SynchronizationContext
+            currentThread.ExecutionContext = null;
+            currentThread.SynchronizationContext = null;
+
             do
             {
                 OverlappedData overlapped = OverlappedData.GetOverlappedFromNative(pNativeOverlapped);
 
                 if (overlapped._callback is IOCompletionCallback iocb)
                 {
-                    // We got here because of UnsafePack (or) Pack with EC flow suppressed
+                    // We got here because of UnsafePack (or) Pack with EC flow suppressed or Default context
                     iocb(errorCode, numBytes, pNativeOverlapped);
                 }
                 else
@@ -72,8 +78,11 @@ namespace System.Threading
                     helper._errorCode = errorCode;
                     helper._numBytes = numBytes;
                     helper._pNativeOverlapped = pNativeOverlapped;
-                    ExecutionContext.RunInternal(helper._executionContext, _ccb, helper);
+                    ExecutionContext.RunForThreadLoopUnsafe(currentThread, helper._executionContext, _ccb, helper);
                 }
+
+                // Return to clean ExecutionContext and SynchronizationContext
+                ExecutionContext.ResetThreadLoopThread(currentThread);
 
                 //Quickly check the VM again, to see if a packet has arrived.
                 OverlappedData.CheckVMForIOPacket(out pNativeOverlapped, out errorCode, out numBytes);

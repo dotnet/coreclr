@@ -272,8 +272,9 @@ namespace System.Threading
 
         internal static void RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, object state)
         {
+            Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
             Debug.Assert(threadPoolThread == Thread.CurrentThread);
-            CheckThreadPoolAndContextsAreDefault();
+            CheckContextsAreDefault();
             // ThreadPool starts on Default Context so we don't need to save the "previous" state as we know it is Default (null)
 
             // Default is a null ExecutionContext internally
@@ -314,12 +315,11 @@ namespace System.Threading
             edi?.Throw();
         }
 
-        internal static void RunForThreadPoolUnsafe<TState>(ExecutionContext executionContext, Action<TState> callback, in TState state)
+        internal static void RunForThreadLoopUnsafe<TState>(Thread currentThread, ExecutionContext executionContext, Action<TState> callback, in TState state)
         {
             // We aren't running in try/catch as if an exception is directly thrown on the ThreadPool either process 
             // will crash or its a ThreadAbortException. 
-
-            CheckThreadPoolAndContextsAreDefault();
+            CheckContextsAreDefault();
             Debug.Assert(executionContext != null && !executionContext.m_isDefault, "ExecutionContext argument is Default.");
 
             // Restore Non-Default context
@@ -351,7 +351,7 @@ namespace System.Threading
 
         // Inline as only called in one place and always called
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void ResetThreadPoolThread(Thread currentThread)
+        internal static void ResetThreadLoopThread(Thread currentThread)
         {
             ExecutionContext? currentExecutionCtx = currentThread._executionContext;
 
@@ -370,11 +370,10 @@ namespace System.Threading
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
-        internal static void CheckThreadPoolAndContextsAreDefault()
+        internal static void CheckContextsAreDefault()
         {
-            Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
-            Debug.Assert(Thread.CurrentThread._executionContext == null, "ThreadPool thread not on Default ExecutionContext.");
-            Debug.Assert(Thread.CurrentThread._synchronizationContext == null, "ThreadPool thread not on Default SynchronizationContext.");
+            Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
+            Debug.Assert(Thread.CurrentThread.SynchronizationContext == null, "ThreadPool thread not on Default SynchronizationContext.");
         }
 
         internal static void OnValuesChanged(ExecutionContext? previousExecutionCtx, ExecutionContext? nextExecutionCtx)

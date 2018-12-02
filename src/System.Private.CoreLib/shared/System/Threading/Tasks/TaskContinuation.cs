@@ -637,8 +637,8 @@ namespace System.Threading.Tasks
             {
                 // We're not inside of a task, so t_currentTask doesn't need to be specially maintained.
                 // We're on a thread pool thread with no higher-level callers, so exceptions can just propagate.
-
-                ExecutionContext.CheckThreadPoolAndContextsAreDefault();
+                Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
+                ExecutionContext.CheckContextsAreDefault();
                 // If there's no execution context or Default, just invoke the delegate as ThreadPool is on Default context.
                 // We don't have to use ExecutionContext.Run for the Default context here as there is no extra processing after the delegate
                 if (context == null || context.IsDefault)
@@ -648,7 +648,7 @@ namespace System.Threading.Tasks
                 // If there is an execution context, get the cached delegate and run the action under the context.
                 else
                 {
-                    ExecutionContext.RunForThreadPoolUnsafe(context, s_invokeAction, m_action);
+                    ExecutionContext.RunForThreadLoopUnsafe(Thread.CurrentThread, context, s_invokeAction, m_action);
                 }
 
                 // ThreadPoolWorkQueue.Dispatch handles notifications and reset context back to default

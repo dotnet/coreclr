@@ -640,7 +640,7 @@ namespace System.Threading
                     outerWorkItem = workItem = null;
 
                     // Return to clean ExecutionContext and SynchronizationContext
-                    ExecutionContext.ResetThreadPoolThread(currentThread);
+                    ExecutionContext.ResetThreadLoopThread(currentThread);
 
                     // 
                     // Notify the VM that we executed this workitem.  This is also our opportunity to ask whether Hill Climbing wants
@@ -796,7 +796,7 @@ namespace System.Threading
         {
             base.Execute();
 
-            ExecutionContext.RunForThreadPoolUnsafe(_context, s_executionContextShim, this);
+            ExecutionContext.RunForThreadLoopUnsafe(Thread.CurrentThread, _context, s_executionContextShim, this);
         }
     }
 
@@ -823,7 +823,7 @@ namespace System.Threading
             Action<TState> callback = _callback;
             _callback = null;
 
-            ExecutionContext.RunForThreadPoolUnsafe(_context, callback, in _state);
+            ExecutionContext.RunForThreadLoopUnsafe(Thread.CurrentThread, _context, callback, in _state);
         }
     }
 
@@ -842,7 +842,8 @@ namespace System.Threading
 
         public override void Execute()
         {
-            ExecutionContext.CheckThreadPoolAndContextsAreDefault();
+            Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
+            ExecutionContext.CheckContextsAreDefault();
             base.Execute();
 
             Debug.Assert(_callback != null);
@@ -870,7 +871,8 @@ namespace System.Threading
 
         public override void Execute()
         {
-            ExecutionContext.CheckThreadPoolAndContextsAreDefault();
+            Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
+            ExecutionContext.CheckContextsAreDefault();
             base.Execute();
 
             Debug.Assert(_callback != null);
