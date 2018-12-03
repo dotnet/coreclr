@@ -51,6 +51,7 @@ namespace System
             if ((uint)b.Length != 16)
                 throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "16"), nameof(b));
 
+            _k = b[15];
             _a = b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0];
             _b = (short)(b[5] << 8 | b[4]);
             _c = (short)(b[7] << 8 | b[6]);
@@ -61,7 +62,6 @@ namespace System
             _h = b[12];
             _i = b[13];
             _j = b[14];
-            _k = b[15];
         }
 
         [CLSCompliant(false)]
@@ -93,6 +93,7 @@ namespace System
             _a = a;
             _b = b;
             _c = c;
+            _k = d[7];
             _d = d[0];
             _e = d[1];
             _f = d[2];
@@ -100,7 +101,6 @@ namespace System
             _h = d[4];
             _i = d[5];
             _j = d[6];
-            _k = d[7];
         }
 
         // Creates a new GUID initialized to the value represented by the
@@ -771,6 +771,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void WriteByteHelper(Span<byte> destination)
         {
+            destination[15] = _k;
             destination[0] = (byte)(_a);
             destination[1] = (byte)(_a >> 8);
             destination[2] = (byte)(_a >> 16);
@@ -786,7 +787,6 @@ namespace System
             destination[12] = _h;
             destination[13] = _i;
             destination[14] = _j;
-            destination[15] = _k;
         }
 
         // Returns an unsigned byte array containing the GUID.
@@ -841,8 +841,12 @@ namespace System
             // Now compare each of the elements
             return g._a == _a &&
                 Unsafe.Add(ref g._a, 1) == Unsafe.Add(ref _a, 1) &&
+#if BIT64
+                Unsafe.Add(ref Unsafe.As<int, ulong>(ref g._a), 1) == Unsafe.Add(ref Unsafe.As<int, ulong>(ref _a), 1);
+#else
                 Unsafe.Add(ref g._a, 2) == Unsafe.Add(ref _a, 2) &&
                 Unsafe.Add(ref g._a, 3) == Unsafe.Add(ref _a, 3);
+#endif
         }
 
         private int GetResult(uint me, uint them)
