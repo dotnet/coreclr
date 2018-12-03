@@ -50,17 +50,17 @@ jobs:
       - name: buildConfig
         value: ${{ parameters.buildConfig }}
         
-      ${{ if eq(parameters.buildConfig, 'checked') }}:
-        - name: buildConfigUpper
-          value: 'Checked'
+      - ${{ if eq(parameters.buildConfig, 'checked') }}:
+          - name: buildConfigUpper
+            value: 'Checked'
 
-      ${{ if eq(parameters.buildConfig, 'debug') }}:
-        - name: buildConfigUpper
-          value: 'Debug'
+      - ${{ if eq(parameters.buildConfig, 'debug') }}:
+          - name: buildConfigUpper
+            value: 'Debug'
 
-      ${{ if eq(parameters.buildConfig, 'release') }}:
-        - name: buildConfigUpper
-          value: 'Release'
+      - ${{ if eq(parameters.buildConfig, 'release') }}:
+          - name: buildConfigUpper
+            value: 'Release'
 
       - name: archType
         value: ${{ parameters.archType }}
@@ -72,16 +72,16 @@ jobs:
         value: ${{ parameters.osGroupName }}
       
       # Crossbuild specific variables.
-      ${{ if eq(parameters.archType, 'arm') }}:
-        - name: rootfsDir
-          value: /crossrootfs/arm
+      - ${{ if eq(parameters.archType, 'arm') }}:
+          - name: rootfsDir
+            value: /crossrootfs/arm
 
-        - name: cacRootfsDir
-          value: /crossrootfs/x86
+          - name: cacRootfsDir
+            value: /crossrootfs/x86
 
-      ${{ if eq(parameters.archType, 'arm64') }}:
-        - name: rootfsDir
-          value: /crossrootfs/arm64
+      - ${{ if eq(parameters.archType, 'arm64') }}:
+          - name: rootfsDir
+            value: /crossrootfs/arm64
 
       ${{insert}}: ${{ parameters.variables }}
 
