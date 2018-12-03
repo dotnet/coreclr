@@ -36,8 +36,8 @@ jobs:
         name: dotnet-external-temp
       timeoutInMinutes: 240
 
-      ${{ if ne(parameters.containerName, '') }}:
-        container: ${{ parameters.containerName }}
+    ${{ if ne(parameters.containerName, '') }}:
+      container: ${{ parameters.containerName }}
 
     ${{ if eq(parameters.osGroup, 'Linux') }}:
       agentOs: Ubuntu
