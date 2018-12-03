@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
 
@@ -771,22 +773,33 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void WriteByteHelper(Span<byte> destination)
         {
-            destination[15] = _k;
-            destination[0] = (byte)(_a);
-            destination[1] = (byte)(_a >> 8);
-            destination[2] = (byte)(_a >> 16);
-            destination[3] = (byte)(_a >> 24);
-            destination[4] = (byte)(_b);
-            destination[5] = (byte)(_b >> 8);
-            destination[6] = (byte)(_c);
-            destination[7] = (byte)(_c >> 8);
-            destination[8] = _d;
-            destination[9] = _e;
-            destination[10] = _f;
-            destination[11] = _g;
-            destination[12] = _h;
-            destination[13] = _i;
-            destination[14] = _j;
+            if (Sse2.IsSupported)
+            {
+                fixed (byte* dstPtr = &destination[0])
+                fixed (int* thisPtr = &_a)
+                {
+                    Sse2.Store((int*) dstPtr, Sse2.LoadVector128(thisPtr));
+                }
+            }
+            else
+            {
+                destination[15] = _k;
+                destination[0] = (byte)(_a);
+                destination[1] = (byte)(_a >> 8);
+                destination[2] = (byte)(_a >> 16);
+                destination[3] = (byte)(_a >> 24);
+                destination[4] = (byte)(_b);
+                destination[5] = (byte)(_b >> 8);
+                destination[6] = (byte)(_c);
+                destination[7] = (byte)(_c >> 8);
+                destination[8] = _d;
+                destination[9] = _e;
+                destination[10] = _f;
+                destination[11] = _g;
+                destination[12] = _h;
+                destination[13] = _i;
+                destination[14] = _j;
+            }
         }
 
         // Returns an unsigned byte array containing the GUID.
