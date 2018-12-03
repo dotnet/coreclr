@@ -256,9 +256,6 @@ namespace System
                 null;
         }
 
-
-        public int Id => GetId();
-
         internal int GetId() => 1;
     }
 }
