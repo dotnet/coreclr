@@ -5910,6 +5910,12 @@ void Compiler::fgFindBasicBlocks()
                         lvaTable[lvaInlineeReturnSpillTemp].lvSingleDef = 1;
                         JITDUMP("Marked return spill temp V%02u as a single def temp\n", lvaInlineeReturnSpillTemp);
                     }
+                    else
+                    {
+                        // We may have co-opted an existing temp for the return spill.
+                        // Make sure it is not marked single-def.
+                        assert(lvaTable[lvaInlineeReturnSpillTemp].lvSingleDef == 0);
+                    }
 
                     CORINFO_CLASS_HANDLE retClassHnd = impInlineInfo->inlineCandidateInfo->methInfo.args.retTypeClass;
                     if (retClassHnd != nullptr)

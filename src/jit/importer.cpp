@@ -20619,10 +20619,25 @@ private:
     {
         GenTree* retExpr = *pRetExpr;
         assert(retExpr->OperGet() == GT_RET_EXPR);
-        JITDUMP("Store return expression %u  as a local var.\n", retExpr->gtTreeID);
-        unsigned tmp = comp->lvaGrabTemp(true DEBUGARG("spilling ret_expr"));
+        const unsigned tmp = comp->lvaGrabTemp(true DEBUGARG("spilling ret_expr"));
+        JITDUMP("Storing return expression [%06u] to a local var V%02u.\n", comp->dspTreeID(retExpr), tmp);
         comp->impAssignTempGen(tmp, retExpr, (unsigned)Compiler::CHECK_SPILL_NONE);
         *pRetExpr = comp->gtNewLclvNode(tmp, retExpr->TypeGet());
+
+        if (retExpr->TypeGet() == TYP_REF)
+        {
+            assert(comp->lvaTable[tmp].lvSingleDef == 0);
+            comp->lvaTable[tmp].lvSingleDef = 1;
+            JITDUMP("Marked V%02u as a single def temp\n", tmp);
+
+            bool                 isExact   = false;
+            bool                 isNonNull = false;
+            CORINFO_CLASS_HANDLE retClsHnd = comp->gtGetClassHandle(retExpr, &isExact, &isNonNull);
+            if (retClsHnd != nullptr)
+            {
+                comp->lvaSetClass(tmp, retClsHnd, isExact);
+            }
+        }
     }
 
 private:
