@@ -768,16 +768,33 @@ namespace System
             str[i] == '0' &&
             (str[i + 1] | 0x20) == 'x';
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void WriteByteHelper(Span<byte> destination)
+        // Returns an unsigned byte array containing the GUID.
+        public byte[] ToByteArray()
         {
+            var g = new byte[16];
+            if (BitConverter.IsLittleEndian)
+            {
+                MemoryMarshal.TryWrite<Guid>(g, ref this);
+            }
+            else
+            {
+                TryWriteBytes(g);
+            }
+            return g;
+        }
+
+        // Returns whether bytes are sucessfully written to given span.
+        public bool TryWriteBytes(Span<byte> destination)
+        {
+            if ((uint)destination.Length < 16)
+                return false;
+
             if (BitConverter.IsLittleEndian)
             {
                 MemoryMarshal.Write(destination, ref this);
             }
             else
             {
-                destination[15] = _k;
                 destination[0] = (byte)(_a);
                 destination[1] = (byte)(_a >> 8);
                 destination[2] = (byte)(_a >> 16);
@@ -793,24 +810,8 @@ namespace System
                 destination[12] = _h;
                 destination[13] = _i;
                 destination[14] = _j;
+                destination[15] = _k;
             }
-        }
-
-        // Returns an unsigned byte array containing the GUID.
-        public byte[] ToByteArray()
-        {
-            var g = new byte[16];
-            WriteByteHelper(g);
-            return g;
-        }
-
-        // Returns whether bytes are sucessfully written to given span.
-        public bool TryWriteBytes(Span<byte> destination)
-        {
-            if (destination.Length < 16)
-                return false;
-
-            WriteByteHelper(destination);
             return true;
         }
 
