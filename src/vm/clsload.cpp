@@ -110,15 +110,13 @@ PTR_Module ClassLoader::ComputeLoaderModuleWorker(
 #endif // FEATURE_PREJIT
 #endif // #ifndef DACCESS_COMPILE
 
-    Module *pFirstNonSharedLoaderModule = NULL;
-    Module *pFirstNonSystemSharedModule = NULL;
     Module *pLoaderModule = NULL;
 
     if (pDefinitionModule)
     {
         if (pDefinitionModule->IsCollectible())
             goto ComputeCollectibleLoaderModule;
-        pFirstNonSharedLoaderModule = pDefinitionModule;
+        pLoaderModule = pDefinitionModule;
     }
 
     for (DWORD i = 0; i < classInst.GetNumArgs(); i++)
@@ -128,8 +126,8 @@ PTR_Module ClassLoader::ComputeLoaderModuleWorker(
         Module* pModule = classArg.GetLoaderModule();
         if (pModule->IsCollectible())
             goto ComputeCollectibleLoaderModule;
-        if (pFirstNonSharedLoaderModule == NULL)
-            pFirstNonSharedLoaderModule = pModule;
+        if (pLoaderModule == NULL)
+            pLoaderModule = pModule;
     }
 
     for (DWORD i = 0; i < methodInst.GetNumArgs(); i++)
@@ -139,23 +137,11 @@ PTR_Module ClassLoader::ComputeLoaderModuleWorker(
         Module *pModule = methodArg.GetLoaderModule();
         if (pModule->IsCollectible())
             goto ComputeCollectibleLoaderModule;
-        if (pFirstNonSharedLoaderModule == NULL)
-            pFirstNonSharedLoaderModule = pModule;
+        if (pLoaderModule == NULL)
+            pLoaderModule = pModule;
     }
 
-    // RULE: Prefer modules in non-shared assemblies.
-    // This ensures safety of app-domain unloading.
-    if (pFirstNonSharedLoaderModule != NULL)
-    {
-        pLoaderModule = pFirstNonSharedLoaderModule;
-    }
-    else if (pFirstNonSystemSharedModule != NULL)
-    {
-        // Use pFirstNonSystemSharedModule just so C<object> ends up in module C - it
-        // shouldn't actually matter at all though.
-        pLoaderModule = pFirstNonSystemSharedModule;
-    }
-    else
+    if (pLoaderModule == NULL)
     {
         CONSISTENCY_CHECK(MscorlibBinder::GetModule() && MscorlibBinder::GetModule()->IsSystem());
 
