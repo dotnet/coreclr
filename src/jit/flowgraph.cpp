@@ -5892,6 +5892,21 @@ void Compiler::fgFindBasicBlocks()
             {
                 // This temp should already have the type of the return value.
                 JITDUMP("\nInliner: re-using pre-existing spill temp V%02u\n", lvaInlineeReturnSpillTemp);
+
+                if (info.compRetType == TYP_REF)
+                {
+                    // We may have co-opted an existing temp for the return spill.
+                    // We likely assumed it was single-def at the time, but now
+                    // we can see it has multiple definitions.
+                    if ((retBlocks > 1) && (lvaTable[lvaInlineeReturnSpillTemp].lvSingleDef == 1))
+                    {
+                        // Make sure it is no longer marked single def. This is only safe
+                        // to do if we haven't ever updated the type.
+                        assert(!lvaTable[lvaInlineeReturnSpillTemp].lvClassInfoUpdated);
+                        JITDUMP("Marked return spill temp V%02u as NOT single def temp\n", lvaInlineeReturnSpillTemp);
+                        lvaTable[lvaInlineeReturnSpillTemp].lvSingleDef = 0;
+                    }
+                }
             }
             else
             {
@@ -5909,12 +5924,6 @@ void Compiler::fgFindBasicBlocks()
                     {
                         lvaTable[lvaInlineeReturnSpillTemp].lvSingleDef = 1;
                         JITDUMP("Marked return spill temp V%02u as a single def temp\n", lvaInlineeReturnSpillTemp);
-                    }
-                    else
-                    {
-                        // We may have co-opted an existing temp for the return spill.
-                        // Make sure it is not marked single-def.
-                        assert(lvaTable[lvaInlineeReturnSpillTemp].lvSingleDef == 0);
                     }
 
                     CORINFO_CLASS_HANDLE retClassHnd = impInlineInfo->inlineCandidateInfo->methInfo.args.retTypeClass;
