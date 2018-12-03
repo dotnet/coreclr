@@ -53,12 +53,12 @@ namespace System
 
             if (BitConverter.IsLittleEndian)
             {
-                this = MemoryMarshal.Read(b);
+                this = MemoryMarshal.Read<Guid>(b);
                 return;
             }
 
             // slower path for BigEndian:
-            _k = b[15];
+            _k = b[15];  // hoist bounds checks
             _a = b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0];
             _b = (short)(b[5] << 8 | b[4]);
             _c = (short)(b[7] << 8 | b[6]);
@@ -100,7 +100,7 @@ namespace System
             _a = a;
             _b = b;
             _c = c;
-            _k = d[7];
+            _k = d[7]; // hoist bounds checks
             _d = d[0];
             _e = d[1];
             _f = d[2];
@@ -802,7 +802,7 @@ namespace System
             if (destination.Length < 16)
                 return false;
 
-            destination[15] = _k;
+            destination[15] = _k; // hoist bounds checks
             destination[0] = (byte)(_a);
             destination[1] = (byte)(_a >> 8);
             destination[2] = (byte)(_a >> 16);
