@@ -11,7 +11,7 @@ parameters:
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
-- template: /eng/common/templates/phases/base.yml
+- template: /eng/common/templates/jobs/jobs.yml
   parameters:
 
     name: ${{ parameters.name }}
@@ -47,23 +47,41 @@ jobs:
       agentOs: Windows_NT
 
     variables:
-      buildConfig: ${{ parameters.buildConfig }}
+      - name: buildConfig
+        value: ${{ parameters.buildConfig }}
+        
       ${{ if eq(parameters.buildConfig, 'checked') }}:
-        buildConfigUpper: 'Checked'
+        - name: buildConfigUpper
+          value: 'Checked'
+
       ${{ if eq(parameters.buildConfig, 'debug') }}:
-        buildConfigUpper: 'Debug'
+        - name: buildConfigUpper
+          value: 'Debug'
+
       ${{ if eq(parameters.buildConfig, 'release') }}:
-        buildConfigUpper: 'Release'
-      archType: ${{ parameters.archType }}
-      osGroup: ${{ parameters.osGroup }}
-      osGroupName: ${{ parameters.osGroupName }}
+        - name: buildConfigUpper
+          value: 'Release'
+
+      - name: archType
+        value: ${{ parameters.archType }}
+
+      - name: osGroup
+        value: ${{ parameters.osGroup }}
+
+      - name: osGroupName
+        value: ${{ parameters.osGroupName }}
       
       # Crossbuild specific variables.
       ${{ if eq(parameters.archType, 'arm') }}:
-        rootfsDir: /crossrootfs/arm
-        cacRootfsDir: /crossrootfs/x86
+        - name: rootfsDir
+          value: /crossrootfs/arm
+
+        - name: cacRootfsDir
+          value: /crossrootfs/x86
+
       ${{ if eq(parameters.archType, 'arm64') }}:
-        rootfsDir: /crossrootfs/arm64
+        - name: rootfsDir
+          value: /crossrootfs/arm64
 
       ${{insert}}: ${{ parameters.variables }}
 
