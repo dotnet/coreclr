@@ -1124,12 +1124,7 @@ void AppDomain::RegisterLoaderAllocatorForDeletion(LoaderAllocator * pLoaderAllo
 
 void AppDomain::SetNativeDllSearchDirectories(LPCWSTR wszNativeDllSearchDirectories)
 {
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(wszNativeDllSearchDirectories));
-    }
-    CONTRACTL_END;
+    STANDARD_VM_CONTRACT;
 
     SString sDirectories(wszNativeDllSearchDirectories);
 
