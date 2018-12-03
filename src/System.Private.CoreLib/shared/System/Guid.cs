@@ -6,8 +6,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics;
-using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
 
@@ -773,13 +771,9 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void WriteByteHelper(Span<byte> destination)
         {
-            if (Sse2.IsSupported)
+            if (BitConverter.IsLittleEndian)
             {
-                fixed (byte* dstPtr = &destination[0])
-                fixed (int* thisPtr = &_a)
-                {
-                    Sse2.Store((int*) dstPtr, Sse2.LoadVector128(thisPtr));
-                }
+                MemoryMarshal.Write(destination, ref this);
             }
             else
             {
