@@ -77,7 +77,8 @@ jobs:
 ##                                            |  (passed-in jobTemplate)  |                    (arcade)
 ##                                            \------> test-job.yml ------/
 
-
+# TODO: simplify logic surrounding official build/ci. See
+# https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
 
 #
 # Debug build (CI)

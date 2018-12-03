@@ -5,6 +5,9 @@ parameters:
 
 jobs:
 
+# TODO: simplify osGroupName by adding osGroup and osSubGroup. See
+# https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
+
 # Linux arm
 - template: ${{ parameters.jobTemplate }}
   parameters:
