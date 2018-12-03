@@ -204,6 +204,7 @@ static inline void UpdatePerformanceMetrics(CrawlFrame *pcfThisFrame, BOOL bIsRe
     ETW::ExceptionLog::ExceptionThrown(pcfThisFrame, bIsRethrownException, bIsNewException);
 }
 
+#ifdef FEATURE_PAL
 static LONG volatile g_termination_triggered = 0;
 
 void HandleTerminationRequest()
@@ -219,6 +220,7 @@ void HandleTerminationRequest()
         ForceEEShutdown(SCA_ExitProcessWhenShutdownComplete);
     }
 }
+#endif
 
 void InitializeExceptionHandling()
 {
