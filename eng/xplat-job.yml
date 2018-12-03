@@ -21,7 +21,7 @@ jobs:
 
     dependsOn: ${{ parameters.dependsOn }}
 
-    queue:
+    pool:
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
         name: Hosted Ubuntu 1604
       ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
