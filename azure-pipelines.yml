@@ -100,11 +100,10 @@ jobs:
 #
 # Release build (Official Build)
 #
-- ${{ if ne(variables['System.TeamProject'], 'public') }}:
-  - template: eng/platform-matrix.yml
-    parameters:
-      jobTemplate: build-job.yml
-      buildConfig: release
+- template: eng/platform-matrix.yml
+  parameters:
+    jobTemplate: build-job.yml
+    buildConfig: release
 
 #
 # Checked test builds
@@ -119,7 +118,7 @@ jobs:
       jobParameters:
         priority: 0
 
-# Pri1 (Official CI)
+# Pri1 (CI)
 - ${{ if eq(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
     parameters:
