@@ -839,11 +839,12 @@ namespace System
         public bool Equals(Guid g)
         {
             // Now compare each of the elements
+#if BIT64
+            return Unsafe.As<int, ulong>(ref g._a) == Unsafe.As<int, ulong>(ref _a) &&
+                   Unsafe.Add(ref Unsafe.As<int, ulong>(ref g._a), 1) == Unsafe.Add(ref Unsafe.As<int, ulong>(ref _a), 1);
+#else
             return g._a == _a &&
                 Unsafe.Add(ref g._a, 1) == Unsafe.Add(ref _a, 1) &&
-#if BIT64
-                Unsafe.Add(ref Unsafe.As<int, ulong>(ref g._a), 1) == Unsafe.Add(ref Unsafe.As<int, ulong>(ref _a), 1);
-#else
                 Unsafe.Add(ref g._a, 2) == Unsafe.Add(ref _a, 2) &&
                 Unsafe.Add(ref g._a, 3) == Unsafe.Add(ref _a, 3);
 #endif
