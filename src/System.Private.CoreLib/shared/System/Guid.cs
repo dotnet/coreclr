@@ -51,6 +51,13 @@ namespace System
             if ((uint)b.Length != 16)
                 throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "16"), nameof(b));
 
+            if (BitConverter.IsLittleEndian)
+            {
+                this = MemoryMarshal.Read(b);
+                return;
+            }
+
+            // slower path for BigEndian:
             _k = b[15];
             _a = b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0];
             _b = (short)(b[5] << 8 | b[4]);
@@ -792,27 +799,26 @@ namespace System
             }
 
             // slower path for BigEndian
-            if ((uint)destination.Length >= 16)
-            {
-                destination[0] = (byte)(_a);
-                destination[1] = (byte)(_a >> 8);
-                destination[2] = (byte)(_a >> 16);
-                destination[3] = (byte)(_a >> 24);
-                destination[4] = (byte)(_b);
-                destination[5] = (byte)(_b >> 8);
-                destination[6] = (byte)(_c);
-                destination[7] = (byte)(_c >> 8);
-                destination[8] = _d;
-                destination[9] = _e;
-                destination[10] = _f;
-                destination[11] = _g;
-                destination[12] = _h;
-                destination[13] = _i;
-                destination[14] = _j;
-                destination[15] = _k;
-                return true;
-            }
-            return false;
+            if (destination.Length < 16)
+                return false;
+
+            destination[15] = _k;
+            destination[0] = (byte)(_a);
+            destination[1] = (byte)(_a >> 8);
+            destination[2] = (byte)(_a >> 16);
+            destination[3] = (byte)(_a >> 24);
+            destination[4] = (byte)(_b);
+            destination[5] = (byte)(_b >> 8);
+            destination[6] = (byte)(_c);
+            destination[7] = (byte)(_c >> 8);
+            destination[8] = _d;
+            destination[9] = _e;
+            destination[10] = _f;
+            destination[11] = _g;
+            destination[12] = _h;
+            destination[13] = _i;
+            destination[14] = _j;
+            return true;
         }
 
         // Returns the guid in "registry" format.
@@ -847,15 +853,10 @@ namespace System
         public bool Equals(Guid g)
         {
             // Now compare each of the elements
-#if BIT64
-            return Unsafe.As<int, ulong>(ref g._a) == Unsafe.As<int, ulong>(ref _a) &&
-                   Unsafe.Add(ref Unsafe.As<int, ulong>(ref g._a), 1) == Unsafe.Add(ref Unsafe.As<int, ulong>(ref _a), 1);
-#else
             return g._a == _a &&
                 Unsafe.Add(ref g._a, 1) == Unsafe.Add(ref _a, 1) &&
                 Unsafe.Add(ref g._a, 2) == Unsafe.Add(ref _a, 2) &&
                 Unsafe.Add(ref g._a, 3) == Unsafe.Add(ref _a, 3);
-#endif
         }
 
         private int GetResult(uint me, uint them)
