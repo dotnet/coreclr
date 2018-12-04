@@ -4,11 +4,11 @@
 
 #include <xplatform.h>
 #include <platformdefines.h>
+#include <ComHelpers.h>
 #include <algorithm>
 
-class IntegerEnumerator : public IEnumVARIANT
+class IntegerEnumerator : public UnknownImpl, public IEnumVARIANT
 {
-    ULONG refCount = 1;
     int start;
     int count;
     int current;
@@ -58,52 +58,17 @@ public:
         return S_OK;
     }
 
-    ULONG STDMETHODCALLTYPE AddRef() override
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        REFIID riid,
+        void** ppvObject)
     {
-        return ++refCount;
+        return DoQueryInterface<IntegerEnumerator, IEnumVARIANT>(this, riid, ppvObject);
     }
 
-    ULONG STDMETHODCALLTYPE Release() override
-    {
-        ULONG newRefCount = --refCount;
-
-        if (newRefCount == 0)
-        {
-            CoreClrFree(this);
-        }
-
-        return newRefCount;
-    }
-
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** ppIntf)
-    {
-        HRESULT hr = E_NOINTERFACE;
-        if (iid == __uuidof(IUnknown))
-        {
-            *ppIntf = dynamic_cast<IUnknown*>(this);
-            hr = S_OK;
-        }
-        else if (iid == __uuidof(IEnumVARIANT))
-        {
-            *ppIntf = dynamic_cast<IEnumVARIANT*>(this);
-            hr = S_OK;
-        }
-
-        if (SUCCEEDED(hr))
-        {
-            AddRef();
-        }
-        
-        else
-        {
-            *ppIntf = nullptr;
-        }
-        
-        return hr;
-    }
+    DEFINE_REF_COUNTING();
 };
 
-class IntegerEnumerable : public IDispatch
+class IntegerEnumerable : public UnknownImpl, public IDispatch
 {
 private:
     ULONG refCount = 1;
@@ -175,48 +140,13 @@ public:
 
         return E_NOTIMPL;
     }
-    
-    ULONG STDMETHODCALLTYPE AddRef() override
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        REFIID riid,
+        void** ppvObject)
     {
-        return ++refCount;
+        return DoQueryInterface<IntegerEnumerable, IDispatch>(this, riid, ppvObject);
     }
 
-    ULONG STDMETHODCALLTYPE Release() override
-    {
-        ULONG newRefCount = --refCount;
-
-        if (newRefCount == 0)
-        {
-            CoreClrFree(this);
-        }
-
-        return newRefCount;
-    }
-
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** ppIntf)
-    {
-        HRESULT hr = E_NOINTERFACE;
-        if (iid == __uuidof(IUnknown))
-        {
-            *ppIntf = dynamic_cast<IUnknown*>(this);
-            hr = S_OK;
-        }
-        else if (iid == __uuidof(IDispatch))
-        {
-            *ppIntf = dynamic_cast<IDispatch*>(this);
-            hr = S_OK;
-        }
-
-        if (SUCCEEDED(hr))
-        {
-            AddRef();
-        }
-        
-        else
-        {
-            *ppIntf = nullptr;
-        }
-        
-        return hr;
-    }
+    DEFINE_REF_COUNTING();
 };
