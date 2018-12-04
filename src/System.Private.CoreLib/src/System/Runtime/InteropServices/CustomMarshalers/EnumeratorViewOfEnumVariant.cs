@@ -65,6 +65,5 @@ namespace System.Runtime.InteropServices.CustomMarshalers
         {
             return _enumVariantObject;
         }
-
     }
 }

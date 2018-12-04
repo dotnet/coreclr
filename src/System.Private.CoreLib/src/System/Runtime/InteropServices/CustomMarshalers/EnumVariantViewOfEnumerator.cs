@@ -26,7 +26,7 @@ namespace System.Runtime.InteropServices.CustomMarshalers
         {
             if (Enumerator is ICloneable clonable)
             {
-                return new EnumVariantViewOfEnumerator(clonable.Clone() as IEnumerator);
+                return new EnumVariantViewOfEnumerator((IEnumerator)clonable.Clone());
             }
             else
             {
