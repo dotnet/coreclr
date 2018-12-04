@@ -99,7 +99,11 @@ extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE VerifyIntegerEnumeration(IDispat
         return hr;
     }
 
-    return VerifyIntegerEnumerator(pEnum, start, count);
+    hr = VerifyIntegerEnumerator(pEnum, start, count);
+
+    pEnum->Release();
+
+    return hr;
 }
 
 extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE PassThroughEnumerator(IEnumVARIANT* in, IEnumVARIANT** out)

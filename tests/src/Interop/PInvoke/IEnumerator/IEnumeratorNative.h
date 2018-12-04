@@ -135,7 +135,7 @@ public:
         if (dispIdMember == DISPID_NEWENUM && (wFlags & INVOKE_PROPERTYGET) == INVOKE_PROPERTYGET)
         {
             V_VT(pVarResult) = VT_UNKNOWN;
-            V_UNKNOWN(pVarResult) = new (CoreClrAlloc(sizeof(IntegerEnumerator))) IntegerEnumerator(start, count);
+            V_UNKNOWN(pVarResult) = new IntegerEnumerator(start, count);
             return S_OK;
         }
 
