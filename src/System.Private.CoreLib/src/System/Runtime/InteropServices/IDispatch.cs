@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#if FEATURE_COMINTEROP
-
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices.ComTypes;
@@ -50,5 +48,3 @@ namespace System.Runtime.InteropServices
         DISPATCH_PROPERTYPUTREF = 8
     }
 }
-
-#endif
