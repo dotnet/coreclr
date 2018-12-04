@@ -45,14 +45,14 @@ namespace PInvokeTests
     {
         private static void TestNativeToManaged()
         {
-            Assert.AreAllEqual(Range(1, 10), EnumeratorAsEnumerable(IEnumeratorNative.GetIntegerEnumerator(1, 10)));
-            Assert.AreAllEqual(Range(1, 10), IEnumeratorNative.GetIntegerEnumeration(1, 10).OfType<int>());
+            Assert.AreAllEqual(Enumerable.Range(1, 10), EnumeratorAsEnumerable(IEnumeratorNative.GetIntegerEnumerator(1, 10)));
+            Assert.AreAllEqual(Enumerable.Range(1, 10), IEnumeratorNative.GetIntegerEnumeration(1, 10).OfType<int>());
         }
 
         private static void TestManagedToNative()
         {
-            IEnumeratorNative.VerifyIntegerEnumerator(Range(1, 10).GetEnumerator(), 1, 10);
-            IEnumeratorNative.VerifyIntegerEnumeration(Range(1, 10), 1, 10);
+            IEnumeratorNative.VerifyIntegerEnumerator(Enumerable.Range(1, 10).GetEnumerator(), 1, 10);
+            IEnumeratorNative.VerifyIntegerEnumeration(Enumerable.Range(1, 10), 1, 10);
         }
 
         private static void TestNativeRoundTrip()
@@ -63,7 +63,7 @@ namespace PInvokeTests
 
         private static void TestManagedRoundTrip()
         {
-            IEnumerator managedEnumerator = Range(1, 10).GetEnumerator();
+            IEnumerator managedEnumerator = Enumerable.Range(1, 10).GetEnumerator();
             Assert.AreEqual(managedEnumerator, IEnumeratorNative.PassThroughEnumerator(managedEnumerator));
         }
 
@@ -85,27 +85,11 @@ namespace PInvokeTests
             return 100;
         }
 
-        private static IEnumerable<int> Range(int start, int count)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                yield return start + i;
-            }
-        }
-
         private static IEnumerable<int> EnumeratorAsEnumerable(IEnumerator enumerator)
         {
             while (enumerator.MoveNext())
             {
                 yield return (int)enumerator.Current;
-            }
-        }
-
-        private static IEnumerable<int> ConvertToInts(IEnumerable enumerable)
-        {
-            foreach (int i in enumerable)
-            {
-                yield return i;
             }
         }
     }
