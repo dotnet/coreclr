@@ -26083,8 +26083,9 @@ private:
 
                 thisTree = compiler->gtNewLclvNode(thisTempNum, TYP_REF);
 
-                // Something of a hack to propagate the new this to the calls
-                origCall->gtCallObjp = thisTree;
+                // Propagate the new this to the call. Must be a new expr as the call
+                // will live on in the else block and thisTree is used below.
+                origCall->gtCallObjp = compiler->gtNewLclvNode(thisTempNum, TYP_REF);
             }
 
             GenTree* methodTable = compiler->gtNewIndir(TYP_I_IMPL, thisTree);
@@ -26182,6 +26183,7 @@ private:
             // Clone call
             GenTreeCall* call = compiler->gtCloneExpr(origCall)->AsCall();
             call->gtCallObjp  = compiler->gtNewLclvNode(thisTemp, TYP_REF);
+            call->SetIsGuarded();
 
             JITDUMP("Direct call [%06u] in block BB%02u\n", compiler->dspTreeID(call), thenBlock->bbNum);
 
@@ -26199,32 +26201,7 @@ private:
             // up here.
             assert(!call->IsVirtual());
 
-            // Now re-examine the call to re-establish if it is an inline
-            // candidate.
-            //
-            // Option (1) is to extract the token from the method handle,
-            // invoke resolve token, then eegetcallinfo, then call impMarkInlineCandidate.
-            //
-            // Option (2) is to fake up the resolved token, call eeGetCallInfo,
-            // then call impMarkInlineCandidate.
-            //
-            // Option (3) is to fake up the call info, then call impMarkInlineCandidate.
-            // (this is more or less what happens for normal devirt. But we've lost
-            // the call info by the time we get here....
-            //
-            // Option (4) is to patch the existing inline info.
-            //
-            // Option (5) is to create a custom sidecar for guarded devirt cases
-            // instead of piggybacking on the inline candidate info.
-            //
-            // While one could argue that guarded devirt without inlining is
-            // no super-interesting, it could be so for interface calls ...
-
-            // Need to think more about how to make sure these are right.
-            // (eg is class the class we checked for, the introducing class, etc)
-            //
-            // Much of this info probably surfaces in impDevirtualizeCall so perhaps
-            // we can pass the inline info in there and get it updated?
+            // Re-establish this call as an inline candidate.
             GenTree* oldRetExpr         = inlineInfo->retExpr;
             inlineInfo->clsHandle       = clsHnd;
             inlineInfo->exactContextHnd = context;
@@ -26234,8 +26211,12 @@ private:
             GenTreeStmt* callStmt = compiler->gtNewStmt(call);
             compiler->fgInsertStmtAtEnd(thenBlock, callStmt);
 
-            // If there is a ret expr for this call, we need to update it
+            // If there was a ret expr for this call, we need to create a new one
             // and append it just after the call.
+            //
+            // Note the original GT_RET_EXPR is sitting at the join point of the
+            // guarded expansion and for non-void calls, and now refers to a temp local;
+            // we set all this up in FixupRetExpr().
             if (oldRetExpr != nullptr)
             {
                 GenTree* retExpr    = compiler->gtNewInlineCandidateReturnExpr(call, call->TypeGet());
@@ -26257,16 +26238,18 @@ private:
         }
 
         //------------------------------------------------------------------------
-        // CreateElse: create else block.This executes the unaltered indirect call.
+        // CreateElse: create else block. This executes the unaltered indirect call.
         //
         virtual void CreateElse()
         {
             elseBlock            = CreateAndInsertBasicBlock(BBJ_NONE, thenBlock);
-            GenTreeStmt* newStmt = compiler->gtCloneExpr(stmt)->AsStmt();
-            GenTreeCall* call    = newStmt->gtStmtExpr->AsCall();
-            call->gtFlags &= ~GTF_CALL_INLINE_CANDIDATE;
+            GenTreeCall* call    = origCall;
+            GenTreeStmt* newStmt = compiler->gtNewStmt(call);
 
-            JITDUMP("Residual call [%06u] in block BB%02u\n", compiler->dspTreeID(call), elseBlock->bbNum);
+            call->gtFlags &= ~GTF_CALL_INLINE_CANDIDATE;
+            call->SetIsGuarded();
+
+            JITDUMP("Residual call [%06u] moved to block BB%02u\n", compiler->dspTreeID(call), elseBlock->bbNum);
 
             if (returnTemp != BAD_VAR_NUM)
             {
@@ -26274,14 +26257,22 @@ private:
                 newStmt->gtStmtExpr = assign;
             }
 
-            // For stub calls, restore the stub address
-            if (origCall->IsVirtualStub())
+            // For stub calls, restore the stub address. For everything else,
+            // null out the candidate info field.
+            if (call->IsVirtualStub())
             {
-                JITDUMP("Restoring stub addr %p from candidate info\n", origCall->gtInlineCandidateInfo->stubAddr);
-                call->gtStubCallStubAddr = origCall->gtInlineCandidateInfo->stubAddr;
+                JITDUMP("Restoring stub addr %p from candidate info\n", call->gtInlineCandidateInfo->stubAddr);
+                call->gtStubCallStubAddr = call->gtInlineCandidateInfo->stubAddr;
+            }
+            else
+            {
+                call->gtInlineCandidateInfo = nullptr;
             }
 
             compiler->fgInsertStmtAtEnd(elseBlock, newStmt);
+
+            // Set the original statement to a nop.
+            stmt->gtStmtExpr = compiler->gtNewNothingNode();
         }
 
     private:

@@ -501,13 +501,14 @@ struct GuardedDevirtualizationCandidateInfo
 {
     CORINFO_CLASS_HANDLE  guardedClassHandle;
     CORINFO_METHOD_HANDLE guardedMethodHandle;
-    void*                 stubAddr; // hack
+    void*                 stubAddr;
 };
 
 // InlineCandidateInfo provides basic information about a particular
 // inline candidate.
 //
-// It is a supserset of GuardedDevirtualizationCandidateInfo
+// It is a superset of GuardedDevirtualizationCandidateInfo: calls
+// can start out as GDv candidates and turn into inline candidates
 
 struct InlineCandidateInfo : public GuardedDevirtualizationCandidateInfo
 {
@@ -696,6 +697,11 @@ public:
         return m_Devirtualized;
     }
 
+    bool IsGuarded() const
+    {
+        return m_Guarded;
+    }
+
     bool IsUnboxed() const
     {
         return m_Unboxed;
@@ -716,6 +722,7 @@ private:
     int               m_CodeSizeEstimate;  // in bytes * 10
     bool              m_Success : 1;       // true if this was a successful inline
     bool              m_Devirtualized : 1; // true if this was a devirtualized call
+    bool              m_Guarded : 1;       // true if this was a guarded call
     bool              m_Unboxed : 1;       // true if this call now invokes the unboxed entry
 
 #if defined(DEBUG) || defined(INLINE_DATA)

@@ -3548,6 +3548,7 @@ struct GenTreeCall final : public GenTree
 #define GTF_CALL_M_DEVIRTUALIZED         0x00040000 // GT_CALL -- this call was devirtualized
 #define GTF_CALL_M_UNBOXED               0x00080000 // GT_CALL -- this call was optimized to use the unboxed entry point
 #define GTF_CALL_M_GUARDED_DEVIRT        0x00100000 // GT_CALL -- this call is a candidate for guarded devirtualization
+#define GTF_CALL_M_GUARDED               0x00200000 // GT_CALL -- this call was transformed by guarded devirtualization
 
     // clang-format on
 
@@ -3764,6 +3765,11 @@ struct GenTreeCall final : public GenTree
         return (gtCallMoreFlags & GTF_CALL_M_DEVIRTUALIZED) != 0;
     }
 
+    bool IsGuarded() const
+    {
+        return (gtCallMoreFlags & GTF_CALL_M_GUARDED) != 0;
+    }
+
     bool IsUnboxed() const
     {
         return (gtCallMoreFlags & GTF_CALL_M_UNBOXED) != 0;
@@ -3777,6 +3783,11 @@ struct GenTreeCall final : public GenTree
     void SetGuardedDevirtualizationCandidate()
     {
         gtCallMoreFlags |= GTF_CALL_M_GUARDED_DEVIRT;
+    }
+
+    void SetIsGuarded()
+    {
+        gtCallMoreFlags |= GTF_CALL_M_GUARDED;
     }
 
     unsigned gtCallMoreFlags; // in addition to gtFlags

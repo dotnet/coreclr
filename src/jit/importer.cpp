@@ -19549,6 +19549,10 @@ void Compiler::impMarkInlineCandidate(GenTree*               callNode,
     // guardedly devirtualize to, we undo the guarded devirtualization,
     // as the benefit from just guarded devirtualization alone is
     // likely not worth the extra jit time and code size.
+    //
+    // Note this is just the preliminary can inline check. The inline
+    // may still fail later on.
+
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if DEBUG
@@ -19565,7 +19569,8 @@ void Compiler::impMarkInlineCandidate(GenTree*               callNode,
 
     call->ClearGuardedDevirtualizationCandidate();
 
-    // Undo the ugly hack we use to save of the stub address.
+    // If we have a stub address, restore it back into the union that it shares
+    // with the candidate info.
     if (call->IsVirtualStub())
     {
         JITDUMP("Restoring stub addr %p from guarded devirt candidate info\n",
@@ -20665,17 +20670,26 @@ void Compiler::addFatPointerCandidate(GenTreeCall* call)
 }
 
 //------------------------------------------------------------------------
-// addGuardedDevirtualizationCandidate: mark the call and the method
-//    as a guarded devirtualization candidate.
+// addGuardedDevirtualizationCandidate: potentially mark the call as a guarded
+//    devirtualization candidate
 //
-// Spill ret_expr in any child tree, because they can't be
-//   cloned, and we need to clone all the trees when we duplicate the
-//   call as part of speculative devirtualization.
+// Notes:
+//
+// We currently do not mark calls as candidates when prejitting. This was done
+// to simplify bringing up the associated transformation. It is worth revisiting
+// if we think we can come up with good guess classes when prejitting.
+//
+// Call sites in rare or unoptimized code, and calls that require cookies are
+// also not marked as candidates.
+//
+// As part of marking the candidate, the code spills GT_RET_EXPRs anywhere in any
+// child tree, because and we need to clone all these trees when we clone the call
+// as part of guarded devirtualization, and these IR nodes can't be cloned.
 //
 // Arguments:
-//    call - speculative devirtialization candidate
-//    methodHandle - method that we want to speculate for
-//    classHandle - class that would invoke that method
+//    call - potentual guarded devirtialization candidate
+//    methodHandle - method that will be invoked if the class test succeeds
+//    classHandle - class that will be tested for at runtime
 //    methodAttr - attributes of the method
 //    classAttr - attributes of the class
 //
@@ -20689,6 +20703,7 @@ void Compiler::addGuardedDevirtualizationCandidate(GenTreeCall*          call,
     assert(call->IsVirtual());
 
     // Bail when prejitting. We only do this for jitted code.
+    // We shoud revisit this if we think we can come up with good class guesses when prejitting.
     if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT))
     {
         JITDUMP("NOT Marking call [%06u] as guarded devirtualization candidate -- prejitting", dspTreeID(call));
@@ -20704,6 +20719,9 @@ void Compiler::addGuardedDevirtualizationCandidate(GenTreeCall*          call,
     }
 
     // CT_INDRECT calls may use the cookie, bail if so...
+    //
+    // If transforming these provides a benefit, we could save this off in the same way
+    // we save the stub address below.
     if ((call->gtCallType == CT_INDIRECT) && (call->gtCall.gtCallCookie != nullptr))
     {
         assert(false);
@@ -20711,6 +20729,7 @@ void Compiler::addGuardedDevirtualizationCandidate(GenTreeCall*          call,
     }
 
 #if DEBUG
+    // Check the master enable/disable flag; if GDv is disabled then we won't mark anything as a candidate.
     if (JitConfig.JitEnableGuardedDevirtualization() == 0)
     {
         JITDUMP("NOT Marking call [%06u] as guarded devirtualization candidate -- disabled by jit config\n",
@@ -20719,22 +20738,24 @@ void Compiler::addGuardedDevirtualizationCandidate(GenTreeCall*          call,
     }
 #endif
 
-    // TODO: make sure we're not otherwise clobbering the fragile union in GenTreeCall
-
+    // We're all set, proceed with candidate creation.
     JITDUMP("Marking call [%06u] as guarded devirtualization candidate; will guess for class %s\n", dspTreeID(call),
             eeGetClassName(classHandle));
     setMethodHasGuardedDevirtualization();
     call->SetGuardedDevirtualizationCandidate();
+
+    // Spill off any GT_RET_EXPR subtrees so we can clone the call.
     SpillRetExprHelper helper(this);
     helper.StoreRetExprResultsInArgs(call);
 
-    // Gather some information for later. Note we actually cons up an InlineCandidateInfo
-    // here. Later on the devirtualized half of this call may become an inline candidate.
+    // Gather some information for later. Note we actually allocate InlineCandidateInfo
+    // here, as the devirtualized half of this call will likely become an inline candidate.
     GuardedDevirtualizationCandidateInfo* pInfo = new (this, CMK_Inlining) InlineCandidateInfo;
 
     pInfo->guardedMethodHandle = methodHandle;
     pInfo->guardedClassHandle  = classHandle;
 
+    // Save off the stub address since it shares a union with the candidate info.
     if (call->IsVirtualStub())
     {
         JITDUMP("Saving stub addr %p in candidate info\n", call->gtStubCallStubAddr);
