@@ -86,6 +86,8 @@ namespace System.Globalization
         // Is this NumberFormatInfo for invariant culture?
         internal bool m_isInvariant = false;
 
+        internal bool HasInvariantNumberSigns { get; private set; } = true;
+
         public NumberFormatInfo() : this(null)
         {
         }
@@ -171,6 +173,11 @@ namespace System.Globalization
             }
         }
 
+        private void UpdateHasInvariantNumberSigns()
+        {
+            HasInvariantNumberSigns = positiveSign == "+" && negativeSign == "-";
+        }
+
         internal NumberFormatInfo(CultureData cultureData)
         {
             if (cultureData != null)
@@ -184,6 +191,7 @@ namespace System.Globalization
                     // For invariant culture
                     this.m_isInvariant = true;
                 }
+                UpdateHasInvariantNumberSigns();
             }
         }
 
@@ -568,6 +576,7 @@ namespace System.Globalization
                 }
                 VerifyWritable();
                 negativeSign = value;
+                UpdateHasInvariantNumberSigns();
             }
         }
 
@@ -669,6 +678,7 @@ namespace System.Globalization
                 }
                 VerifyWritable();
                 positiveSign = value;
+                UpdateHasInvariantNumberSigns();
             }
         }
 
