@@ -52,7 +52,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE Clone(IEnumVARIANT **ppEnum) override
     {
-        IntegerEnumerator* clone = new(CoreClrAlloc(sizeof(IntegerEnumerator))) IntegerEnumerator(start, count);
+        IntegerEnumerator* clone = new IntegerEnumerator(start, count);
         clone->current = current;
         *ppEnum = clone;
 
