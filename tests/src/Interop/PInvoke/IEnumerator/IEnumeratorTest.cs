@@ -34,7 +34,7 @@ namespace PInvokeTests
 
         [DllImport(nameof(IEnumeratorNative), PreserveSig = false)]
         public static extern void VerifyIntegerEnumeration(
-            IEnumerable enumerable,
+            [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(EnumerableToDispatchMarshaler))] IEnumerable enumerable,
             int start,
             int count);
     }
