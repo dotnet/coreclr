@@ -207,7 +207,7 @@ static inline void UpdatePerformanceMetrics(CrawlFrame *pcfThisFrame, BOOL bIsRe
 #ifdef FEATURE_PAL
 static LONG volatile g_termination_triggered = 0;
 
-void HandleTerminationRequest()
+void HandleTerminationRequest(int terminationExitCode)
 {
     // We set a non-zero exit code to indicate the process didn't terminate cleanly.
     // This value can be changed by the user by setting Environment.ExitCode in the
@@ -215,7 +215,7 @@ void HandleTerminationRequest()
     // to ensure we don't overwrite an exit code already set in ProcessExit.
     if (InterlockedCompareExchange(&g_termination_triggered, 1, 0) == 0)
     {
-        SetLatchedExitCode(PAL_GetTerminationExitCode());
+        SetLatchedExitCode(terminationExitCode);
 
         ForceEEShutdown(SCA_ExitProcessWhenShutdownComplete);
     }
