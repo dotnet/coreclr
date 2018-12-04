@@ -11,6 +11,7 @@ using TestLibrary;
 
 namespace PInvokeTests
 {
+    // TODO: Expose the EnumerableToDispatchMarshaler from a reference assembly in CoreFX.
     static class IEnumeratorNative
     {
         [DllImport(nameof(IEnumeratorNative), PreserveSig = false)]
