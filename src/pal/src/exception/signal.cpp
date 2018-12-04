@@ -86,6 +86,7 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
 
 static void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction, int additionalFlags = 0, bool skipIgnored = false);
 static void restore_signal(int signal_id, struct sigaction *previousAction);
+static void restore_signal_and_resend(int code, struct sigaction* action);
 
 /* internal data declarations *********************************************/
 
@@ -236,6 +237,18 @@ void SEHCleanupSignals()
 
 #if !HAVE_MACH_EXCEPTIONS
 
+/*++
+Function :
+    get_action_handler
+
+    returns sa_sigaction or sa_handler depending on SA_SIGINFO flag.
+
+Parameters :
+    action : sigaction struct
+
+Return value :
+    handler as a SAHANDLERFUNC pointer
+--*/
 static SAHANDLERFUNC get_action_handler(struct sigaction* action)
 {
     if (action->sa_flags & SA_SIGINFO)
@@ -248,6 +261,21 @@ static SAHANDLERFUNC get_action_handler(struct sigaction* action)
     }
 }
 
+/*++
+Function :
+    invoke_previous_action
+
+    synchronously invokes the previous action or aborts when that is not possible
+
+Parameters :
+    action  : previous sigaction struct
+    code    : signal code
+    siginfo : signal siginfo
+    context : signal context
+    signalRestarts: BOOL state : TRUE if the process will be signalled again
+
+    (no return value)
+--*/
 static void invoke_previous_action(struct sigaction* action, int code, siginfo_t *siginfo, void *context, bool signalRestarts = true)
 {
     _ASSERTE(action != NULL);
@@ -294,12 +322,6 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
 
     PROCNotifyProcessShutdown();
     PROCCreateCrashDumpIfEnabled();
-}
-
-static void restore_signal_and_resend(int code, struct sigaction* action)
-{
-    restore_signal(code, action);
-    kill(gPID, code);
 }
 
 /*++
@@ -900,4 +922,22 @@ void restore_signal(int signal_id, struct sigaction *previousAction)
         ASSERT("restore_signal: sigaction() call failed with error code %d (%s)\n",
             errno, strerror(errno));
     }
+}
+
+/*++
+Function :
+    restore_signal_and_resend
+
+    restore handler for specified signal and signal the process
+
+Parameters :
+    int signal_id : signal to handle
+    previousAction : previous sigaction struct to restore
+
+    (no return value)
+--*/
+void restore_signal_and_resend(int signal_id, struct sigaction* previousAction)
+{
+    restore_signal(signal_id, previousAction);
+    kill(gPID, signal_id);
 }
