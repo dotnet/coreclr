@@ -62,13 +62,8 @@ using namespace CorUnix;
 
 /* local type definitions *****************************************************/
 
-#if !HAVE_SIGINFO_T
-/* This allows us to compile on platforms that don't have siginfo_t.
- * Exceptions will work poorly on those platforms. */
-#warning Exceptions will work poorly on this platform
-typedef void *siginfo_t;
-#endif  /* !HAVE_SIGINFO_T */
 typedef void (*SIGFUNC)(int, siginfo_t *, void *);
+typedef void (*SAHANDLERFUNC)(int);
 
 /* internal function declarations *********************************************/
 
@@ -241,11 +236,25 @@ void SEHCleanupSignals()
 
 #if !HAVE_MACH_EXCEPTIONS
 
+static SAHANDLERFUNC get_action_handler(struct sigaction* action)
+{
+    if (action->sa_flags & SA_SIGINFO)
+    {
+        return (SAHANDLERFUNC)action->sa_sigaction;
+    }
+    else
+    {
+        return action->sa_handler;
+    }
+}
+
 static void invoke_previous_action(struct sigaction* action, int code, siginfo_t *siginfo, void *context, bool signalRestarts = true)
 {
     _ASSERTE(action != NULL);
 
-    if (action->sa_handler == SIG_IGN)
+    SAHANDLERFUNC handler = get_action_handler(action);
+
+    if (handler == SIG_IGN)
     {
         if (signalRestarts)
         {
@@ -255,11 +264,18 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
         return;
     }
 
-    if (action->sa_sigaction != NULL &&
-        action->sa_handler != SIG_DFL)
+    if (handler != NULL &&
+        handler != SIG_DFL)
     {
         // Directly call the previous handler.
-        action->sa_sigaction(code, siginfo, context);
+        if (action->sa_flags & SA_SIGINFO)
+        {
+            action->sa_sigaction(code, siginfo, context);
+        }
+        else
+        {
+            action->sa_handler(code);
+        }
     }
     else
     {
@@ -597,11 +613,22 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
         }
     }
     // Call the original handler when it is not ignored or default (terminate).
-    else if (g_previous_activation.sa_sigaction != NULL &&
-             g_previous_activation.sa_handler != SIG_IGN &&
-             g_previous_activation.sa_handler != SIG_DFL)
+    else
     {
-        g_previous_activation.sa_sigaction(code, siginfo, context);
+        SAHANDLERFUNC handler = get_action_handler(&g_previous_activation);
+        if (handler != NULL &&
+            handler != SIG_IGN &&
+            handler != SIG_DFL)
+        {
+            if (g_previous_activation.sa_flags & SA_SIGINFO)
+            {
+                g_previous_activation.sa_sigaction(code, siginfo, context);
+            }
+            else
+            {
+                g_previous_activation.sa_handler(code);
+            }
+        }
     }
 }
 #endif
@@ -819,13 +846,9 @@ void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAct
     struct sigaction newAction;
 
     newAction.sa_flags = SA_RESTART | additionalFlags;
-#if HAVE_SIGINFO_T
     newAction.sa_handler = NULL;
     newAction.sa_sigaction = sigfunc;
     newAction.sa_flags |= SA_SIGINFO;
-#else   /* HAVE_SIGINFO_T */
-    newAction.sa_handler = SIG_DFL;
-#endif  /* HAVE_SIGINFO_T */
     sigemptyset(&newAction.sa_mask);
 
 #ifdef INJECT_ACTIVATION_SIGNAL
