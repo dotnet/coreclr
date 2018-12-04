@@ -17,7 +17,7 @@
 namespace Internal
 {
     template<typename C, typename I>
-    typename std::enable_if<std::is_assignable<I, C>::value, HRESULT>::type __QueryInterfaceImpl(
+    HRESULT __QueryInterfaceImpl(
         /* [in] */ C *obj,
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
@@ -40,7 +40,7 @@ namespace Internal
     }
 
     template<typename C, typename I1, typename I2, typename ...R>
-    typename std::enable_if<std::is_assignable<I1, C>::value, HRESULT>::type __QueryInterfaceImpl(
+    HRESULT __QueryInterfaceImpl(
         /* [in] */ C *obj,
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
