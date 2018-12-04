@@ -989,7 +989,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     case ELEMENT_TYPE_VALUETYPE:
     {
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-        MethodTable *pMT = m_argTypeHandle.AsMethodTable();
+        MethodTable *pMT = m_argTypeHandle.GetMethodTable();
         if (pMT->IsRegPassedStruct())
         {
             EEClass* eeClass = pMT->GetClass();
@@ -1034,7 +1034,6 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         // Set the register counts to indicate that this argument will not be passed in registers
         cFPRegs = 0;
         cGenRegs = 0;
-
 #else // FEATURE_UNIX_AMD64_STRUCT_PASSING
         argSize = sizeof(TADDR);        
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING

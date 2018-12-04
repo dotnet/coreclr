@@ -139,6 +139,13 @@ Volatile<LONG> terminator = 0;
 DWORD gPID = (DWORD) -1;
 DWORD gSID = (DWORD) -1;
 
+// Application group ID for this process
+#ifdef __APPLE__
+LPCSTR gApplicationGroupId = nullptr;
+int gApplicationGroupIdLength = 0;
+#endif // __APPLE__
+PathCharString* gSharedFilesPath = nullptr;
+
 // The lowest common supported semaphore length, including null character
 // NetBSD-7.99.25: 15 characters
 // MacOSX 10.11: 31 -- Core 1.0 RC2 compatibility
@@ -1589,9 +1596,12 @@ public:
 
         // See semaphore name format for details about this value. We store it so that
         // it can be used by the cleanup code that removes the semaphore with sem_unlink.
-        INDEBUG(BOOL disambiguationKeyRet = )
-        GetProcessIdDisambiguationKey(m_processId, &m_processIdDisambiguationKey);
-        _ASSERTE(disambiguationKeyRet == TRUE || m_processIdDisambiguationKey == 0);
+        BOOL ret = GetProcessIdDisambiguationKey(m_processId, &m_processIdDisambiguationKey);
+
+        // If GetProcessIdDisambiguationKey failed for some reason, it should set the value 
+        // to 0. We expect that anyone else opening the semaphore name will also fail and thus 
+        // will also try to use 0 as the value.
+        _ASSERTE(ret == TRUE || m_processIdDisambiguationKey == 0);
 
         sprintf_s(startupSemName,
                   sizeof(startupSemName),
@@ -1901,7 +1911,12 @@ PAL_NotifyRuntimeStarted()
     BOOL launched = FALSE;
 
     UINT64 processIdDisambiguationKey = 0;
-    GetProcessIdDisambiguationKey(gPID, &processIdDisambiguationKey);
+    BOOL ret = GetProcessIdDisambiguationKey(gPID, &processIdDisambiguationKey);
+
+    // If GetProcessIdDisambiguationKey failed for some reason, it should set the value 
+    // to 0. We expect that anyone else making the semaphore name will also fail and thus 
+    // will also try to use 0 as the value.
+    _ASSERTE(ret == TRUE || processIdDisambiguationKey == 0);
 
     sprintf_s(startupSemName, sizeof(startupSemName), RuntimeStartupSemaphoreName, HashSemaphoreName(gPID, processIdDisambiguationKey));
     sprintf_s(continueSemName, sizeof(continueSemName), RuntimeContinueSemaphoreName, HashSemaphoreName(gPID, processIdDisambiguationKey));
@@ -1951,6 +1966,15 @@ exit:
     }
     return launched;
 }
+
+#ifdef __APPLE__
+LPCSTR
+PALAPI
+PAL_GetApplicationGroupId()
+{
+    return gApplicationGroupId;
+}
+#endif // __APPLE__
 
 /*++
  Function:
@@ -2040,6 +2064,7 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
     FILE *statFile = fopen(statFileName, "r");
     if (statFile == nullptr) 
     {
+        TRACE("GetProcessIdDisambiguationKey: fopen() FAILED");
         SetLastError(ERROR_INVALID_HANDLE);
         return FALSE;
     }
@@ -2048,7 +2073,8 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
     size_t lineLen = 0;
     if (getline(&line, &lineLen, statFile) == -1)
     {
-        _ASSERTE(!"Failed to getline from the stat file for a process.");
+        TRACE("GetProcessIdDisambiguationKey: getline() FAILED");
+        SetLastError(ERROR_INVALID_HANDLE);
         return FALSE;
     }
 
@@ -2706,6 +2732,9 @@ CreateProcessModules(
     // Stack                  00007fff5a930000-00007fff5b130000 [ 8192K    32K    32K     0K] rw-/rwx SM=PRV          thread 0
     // __TEXT                 00007fffa4a0b000-00007fffa4a0d000 [    8K     8K     0K     0K] r-x/r-x SM=COW          /usr/lib/libSystem.B.dylib
     // __TEXT                 00007fffa4bbe000-00007fffa4c15000 [  348K   348K     0K     0K] r-x/r-x SM=COW          /usr/lib/libc++.1.dylib
+
+    // NOTE: the module path can have spaces in the name
+    // __TEXT                 0000000196220000-00000001965b4000 [ 3664K  2340K     0K     0K] r-x/rwx SM=COW          /Volumes/Builds/builds/devmain/rawproduct/debug/build/out/Applications/Microsoft Excel.app/Contents/SharedSupport/PowerQuery/libcoreclr.dylib
     char *line = NULL;
     size_t lineLen = 0;
     int count = 0;
@@ -2727,7 +2756,7 @@ CreateProcessModules(
         void *startAddress, *endAddress;
         char moduleName[PATH_MAX];
 
-        if (sscanf_s(line, "__TEXT %p-%p [ %*[0-9K ]] %*[-/rwxsp] SM=%*[A-Z] %s\n", &startAddress, &endAddress, moduleName, _countof(moduleName)) == 3)
+        if (sscanf_s(line, "__TEXT %p-%p [ %*[0-9K ]] %*[-/rwxsp] SM=%*[A-Z] %[^\n]", &startAddress, &endAddress, moduleName, _countof(moduleName)) == 3)
         {
             bool dup = false;
             for (ProcessModules *entry = listHead; entry != NULL; entry = entry->Next)
@@ -3908,6 +3937,21 @@ PROCGetProcessStatusExit:
     
     return palError;
 }
+
+#ifdef __APPLE__
+bool GetApplicationContainerFolder(PathCharString& buffer, const char *applicationGroupId, int applicationGroupIdLength)
+{
+    const char *homeDir = getpwuid(getuid())->pw_dir;
+    int homeDirLength = strlen(homeDir);
+
+    // The application group container folder is defined as:
+    // /user/{loginname}/Library/Group Containers/{AppGroupId}/
+    return buffer.Set(homeDir, homeDirLength)
+        && buffer.Append(APPLICATION_CONTAINER_BASE_PATH_SUFFIX)
+        && buffer.Append(applicationGroupId, applicationGroupIdLength)
+        && buffer.Append('/');
+}
+#endif // __APPLE__
 
 #ifdef _DEBUG
 void PROCDumpThreadList()
