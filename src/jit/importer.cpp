@@ -20298,8 +20298,12 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
             return;
         }
 
+        // We will use the class that introduced the method as our guess
+        // for the runtime class of othe object.
+        CORINFO_CLASS_HANDLE derivedClass = info.compCompHnd->getMethodClass(derivedMethod);
+
         // Try guarded devirtualization.
-        addGuardedDevirtualizationCandidate(call, derivedMethod, objClass, derivedMethodAttribs, objClassAttribs);
+        addGuardedDevirtualizationCandidate(call, derivedMethod, derivedClass, derivedMethodAttribs, objClassAttribs);
         return;
     }
 
@@ -20717,7 +20721,8 @@ void Compiler::addGuardedDevirtualizationCandidate(GenTreeCall*          call,
 
     // TODO: make sure we're not otherwise clobbering the fragile union in GenTreeCall
 
-    JITDUMP("Marking call [%06u] as guarded devirtualization candidate\n", dspTreeID(call));
+    JITDUMP("Marking call [%06u] as guarded devirtualization candidate; will guess for class %s\n", dspTreeID(call),
+            eeGetClassName(classHandle));
     setMethodHasGuardedDevirtualization();
     call->SetGuardedDevirtualizationCandidate();
     SpillRetExprHelper helper(this);

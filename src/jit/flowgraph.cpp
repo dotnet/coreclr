@@ -25627,10 +25627,6 @@ private:
                 transformer.Run();
                 count++;
             }
-            else
-            {
-                JITDUMP("No GDv in stmt [%06u]\n", Compiler::dspTreeID(stmt));
-            }
         }
 
         return count;
@@ -26004,7 +26000,7 @@ private:
         {
             origCall = GetCall(stmt);
 
-            JITDUMP("*** %s contemplating [%06u] -- not an inline candidate\n", Name(), compiler->dspTreeID(origCall));
+            JITDUMP("*** %s contemplating [%06u]\n", Name(), compiler->dspTreeID(origCall));
 
             // We currently need inline candidate info to guarded devirt.
             if (!origCall->IsInlineCandidate())
