@@ -12,7 +12,7 @@ extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE GetIntegerEnumerator(int start, 
         return E_INVALIDARG;
     }
 
-    *ppEnum = new(CoreClrAlloc(sizeof(IntegerEnumerator))) IntegerEnumerator(start, count);
+    *ppEnum = new IntegerEnumerator(start, count);
 
     return S_OK;
 }
@@ -60,7 +60,7 @@ extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE GetIntegerEnumeration(int start,
         return E_INVALIDARG;
     }
 
-    *ppDisp = new(CoreClrAlloc(sizeof(IntegerEnumerable))) IntegerEnumerable(start, count);
+    *ppDisp = new IntegerEnumerable(start, count);
 
     return S_OK;
 }
@@ -100,4 +100,9 @@ extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE VerifyIntegerEnumeration(IDispat
     }
 
     return VerifyIntegerEnumerator(pEnum, start, count);
+}
+
+extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE PassThroughEnumerator(IEnumVARIANT* in, IEnumVARIANT** out)
+{
+    return in->QueryInterface(out);
 }

@@ -15,7 +15,8 @@ class IntegerEnumerator : public UnknownImpl, public IEnumVARIANT
 
 public:
     IntegerEnumerator(int start, int count)
-        :start(start),
+        :UnknownImpl(),
+        start(start),
         count(count),
         current(start)
     {
@@ -71,12 +72,12 @@ public:
 class IntegerEnumerable : public UnknownImpl, public IDispatch
 {
 private:
-    ULONG refCount = 1;
     int start;
     int count;
 public:
     IntegerEnumerable(int start, int count)
-        :start(start),
+        :UnknownImpl(),
+        start(start),
         count(count)
     {
     }

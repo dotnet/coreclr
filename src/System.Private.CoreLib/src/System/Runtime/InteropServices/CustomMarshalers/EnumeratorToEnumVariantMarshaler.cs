@@ -42,6 +42,11 @@ namespace System.Runtime.InteropServices.CustomMarshalers
                 throw new ArgumentNullException(nameof(ManagedObj));
             }
 
+            if (ManagedObj is EnumeratorViewOfEnumVariant view)
+            {
+                return Marshal.GetComInterfaceForObject<object, IEnumVARIANT>(view.GetUnderlyingObject());
+            }
+
             EnumVariantViewOfEnumerator nativeView = new EnumVariantViewOfEnumerator((IEnumerator)ManagedObj);
 
             return Marshal.GetComInterfaceForObject<EnumVariantViewOfEnumerator, IEnumVARIANT>(nativeView);

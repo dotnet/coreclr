@@ -13,7 +13,6 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
-    <ReferenceSystemPrivateCoreLib>true</ReferenceSystemPrivateCoreLib>
 
     <!-- IEnumerator/IEnumerable marshalling unsupported outside of windows -->
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
