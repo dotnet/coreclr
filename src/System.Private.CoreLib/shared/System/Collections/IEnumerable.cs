@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace System.Collections
 {
+    [ComVisible(true)]
     public interface IEnumerable
     {
         // Returns an IEnumerator for this enumerable Object.  The enumerator provides

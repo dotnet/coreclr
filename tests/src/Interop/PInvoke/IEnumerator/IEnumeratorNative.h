@@ -1,0 +1,222 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+#include <xplatform.h>
+#include <platformdefines.h>
+#include <algorithm>
+
+class IntegerEnumerator : public IEnumVARIANT
+{
+    ULONG refCount = 1;
+    int start;
+    int count;
+    int current;
+
+public:
+    IntegerEnumerator(int start, int count)
+        :start(start),
+        count(count),
+        current(start)
+    {
+    }
+
+    HRESULT STDMETHODCALLTYPE Next( 
+        ULONG celt,
+        VARIANT *rgVar,
+        ULONG *pCeltFetched) override
+    {
+        for(*pCeltFetched = 0; *pCeltFetched < celt && current < start + count; ++*pCeltFetched, ++current)
+        {
+            VariantClear(&(rgVar[*pCeltFetched]));
+            V_VT(&rgVar[*pCeltFetched]) = VT_I4;
+            V_I4(&(rgVar[*pCeltFetched])) = current;
+        }
+        
+        return celt == *pCeltFetched ? S_OK : S_FALSE;
+    }
+
+    HRESULT STDMETHODCALLTYPE Skip(ULONG celt) override
+    {
+        int original = current;
+        current = std::min(current + (int)celt, start + count);
+        return original + (int)celt <= start + count ? S_OK : S_FALSE;
+    }
+
+    HRESULT STDMETHODCALLTYPE Reset(void) override
+    {
+        current = start;
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE Clone(IEnumVARIANT **ppEnum) override
+    {
+        IntegerEnumerator* clone = new(CoreClrAlloc(sizeof(IntegerEnumerator))) IntegerEnumerator(start, count);
+        clone->current = current;
+        *ppEnum = clone;
+
+        return S_OK;
+    }
+
+    ULONG STDMETHODCALLTYPE AddRef() override
+    {
+        return ++refCount;
+    }
+
+    ULONG STDMETHODCALLTYPE Release() override
+    {
+        ULONG newRefCount = --refCount;
+
+        if (newRefCount == 0)
+        {
+            CoreClrFree(this);
+        }
+
+        return newRefCount;
+    }
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** ppIntf)
+    {
+        HRESULT hr = E_NOINTERFACE;
+        if (iid == __uuidof(IUnknown))
+        {
+            *ppIntf = dynamic_cast<IUnknown*>(this);
+            hr = S_OK;
+        }
+        else if (iid == __uuidof(IEnumVARIANT))
+        {
+            *ppIntf = dynamic_cast<IEnumVARIANT*>(this);
+            hr = S_OK;
+        }
+
+        if (SUCCEEDED(hr))
+        {
+            AddRef();
+        }
+        
+        else
+        {
+            *ppIntf = nullptr;
+        }
+        
+        return hr;
+    }
+};
+
+class IntegerEnumerable : public IDispatch
+{
+private:
+    ULONG refCount = 1;
+    int start;
+    int count;
+public:
+    IntegerEnumerable(int start, int count)
+        :start(start),
+        count(count)
+    {
+    }
+
+    HRESULT STDMETHODCALLTYPE GetTypeInfoCount( 
+        UINT *pctinfo) override
+    {
+        *pctinfo = 0;
+        return S_OK;
+    }
+    
+    HRESULT STDMETHODCALLTYPE GetTypeInfo( 
+        UINT iTInfo,
+        LCID lcid,
+        ITypeInfo **ppTInfo) override
+    {
+        return E_NOTIMPL;
+    }
+    
+    HRESULT STDMETHODCALLTYPE GetIDsOfNames( 
+        REFIID riid,
+        LPOLESTR *rgszNames,
+        UINT cNames,
+        LCID lcid,
+        DISPID *rgDispId) override
+    {
+        bool containsUnknown = false;
+        DISPID *curr = rgDispId;
+        for (UINT i = 0; i < cNames; ++i)
+        {
+            *curr = DISPID_UNKNOWN;
+            LPOLESTR name = rgszNames[i];
+            if(wcscmp(name, W("GetEnumerator")) == 0)
+            {
+                *curr = DISPID_NEWENUM;
+            }
+
+            containsUnknown &= (*curr == DISPID_UNKNOWN);
+            curr++;
+        }
+
+        return (containsUnknown) ? DISP_E_UNKNOWNNAME : S_OK;
+    }
+    
+    HRESULT STDMETHODCALLTYPE Invoke(
+        DISPID dispIdMember,
+        REFIID riid,
+        LCID lcid,
+        WORD wFlags,
+        DISPPARAMS *pDispParams,
+        VARIANT *pVarResult,
+        EXCEPINFO *pExcepInfo,
+        UINT *puArgErr) override
+    {
+        if (dispIdMember == DISPID_NEWENUM && (wFlags & INVOKE_PROPERTYGET) == INVOKE_PROPERTYGET)
+        {
+            V_VT(pVarResult) = VT_UNKNOWN;
+            V_UNKNOWN(pVarResult) = new (CoreClrAlloc(sizeof(IntegerEnumerator))) IntegerEnumerator(start, count);
+            return S_OK;
+        }
+
+        return E_NOTIMPL;
+    }
+    
+    ULONG STDMETHODCALLTYPE AddRef() override
+    {
+        return ++refCount;
+    }
+
+    ULONG STDMETHODCALLTYPE Release() override
+    {
+        ULONG newRefCount = --refCount;
+
+        if (newRefCount == 0)
+        {
+            CoreClrFree(this);
+        }
+
+        return newRefCount;
+    }
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** ppIntf)
+    {
+        HRESULT hr = E_NOINTERFACE;
+        if (iid == __uuidof(IUnknown))
+        {
+            *ppIntf = dynamic_cast<IUnknown*>(this);
+            hr = S_OK;
+        }
+        else if (iid == __uuidof(IDispatch))
+        {
+            *ppIntf = dynamic_cast<IDispatch*>(this);
+            hr = S_OK;
+        }
+
+        if (SUCCEEDED(hr))
+        {
+            AddRef();
+        }
+        
+        else
+        {
+            *ppIntf = nullptr;
+        }
+        
+        return hr;
+    }
+};
