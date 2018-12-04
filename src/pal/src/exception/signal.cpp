@@ -240,6 +240,52 @@ void SEHCleanupSignals()
 /* internal function definitions **********************************************/
 
 #if !HAVE_MACH_EXCEPTIONS
+
+static void invoke_previous_action(struct sigaction* action, int code, siginfo_t *siginfo, void *context, bool signalRestarts = true)
+{
+    _ASSERTE(action != NULL);
+
+    if (action->sa_handler == SIG_IGN)
+    {
+        if (signalRestarts)
+        {
+            // This signal mustn't be ignored because it will be restarted.
+            PROCAbort();
+        }
+        return;
+    }
+
+    if (action->sa_sigaction != NULL &&
+        action->sa_handler != SIG_DFL)
+    {
+        // Directly call the previous handler.
+        action->sa_sigaction(code, siginfo, context);
+    }
+    else
+    {
+        if (signalRestarts)
+        {
+            // Restore the original and restart h/w exception.
+            restore_signal(code, action);
+        }
+        else
+        {
+            // We can't invoke the original handler because returning from the
+            // handler doesn't restart the exception.
+            PROCAbort();
+        }
+    }
+
+    PROCNotifyProcessShutdown();
+    PROCCreateCrashDumpIfEnabled();
+}
+
+static void restore_signal_and_resend(int code, struct sigaction* action)
+{
+    restore_signal(code, action);
+    kill(gPID, code);
+}
+
 /*++
 Function :
     sigill_handler
@@ -261,18 +307,7 @@ static void sigill_handler(int code, siginfo_t *siginfo, void *context)
         }
     }
 
-    if (g_previous_sigill.sa_sigaction != NULL)
-    {
-        g_previous_sigill.sa_sigaction(code, siginfo, context);
-    }
-    else
-    {
-        // Restore the original or default handler and restart h/w exception
-        restore_signal(code, &g_previous_sigill);
-    }
-
-    PROCNotifyProcessShutdown();
-    PROCCreateCrashDumpIfEnabled();
+    invoke_previous_action(&g_previous_sigill, code, siginfo, context);
 }
 
 /*++
@@ -296,18 +331,7 @@ static void sigfpe_handler(int code, siginfo_t *siginfo, void *context)
         }
     }
 
-    if (g_previous_sigfpe.sa_sigaction != NULL)
-    {
-        g_previous_sigfpe.sa_sigaction(code, siginfo, context);
-    }
-    else
-    {
-        // Restore the original or default handler and restart h/w exception
-        restore_signal(code, &g_previous_sigfpe);
-    }
-
-    PROCNotifyProcessShutdown();
-    PROCCreateCrashDumpIfEnabled();
+    invoke_previous_action(&g_previous_sigfpe, code, siginfo, context);
 }
 
 /*++
@@ -418,18 +442,7 @@ static void sigsegv_handler(int code, siginfo_t *siginfo, void *context)
         }
     }
 
-    if (g_previous_sigsegv.sa_sigaction != NULL)
-    {
-        g_previous_sigsegv.sa_sigaction(code, siginfo, context);
-    }
-    else
-    {
-        // Restore the original or default handler and restart h/w exception
-        restore_signal(code, &g_previous_sigsegv);
-    }
-
-    PROCNotifyProcessShutdown();
-    PROCCreateCrashDumpIfEnabled();
+    invoke_previous_action(&g_previous_sigsegv, code, siginfo, context);
 }
 
 /*++
@@ -453,19 +466,8 @@ static void sigtrap_handler(int code, siginfo_t *siginfo, void *context)
         }
     }
 
-    if (g_previous_sigtrap.sa_sigaction != NULL)
-    {
-        g_previous_sigtrap.sa_sigaction(code, siginfo, context);
-    }
-    else
-    {
-        // We abort instead of restore the original or default handler and returning
-        // because returning from a SIGTRAP handler continues execution past the trap.
-        PROCAbort();
-    }
-
-    PROCNotifyProcessShutdown();
-    PROCCreateCrashDumpIfEnabled();
+    // The signal doesn't restart, returning from a SIGTRAP handler continues execution past the trap.
+    invoke_previous_action(&g_previous_sigtrap, code, siginfo, context, /* signalRestarts */ false);
 }
 
 /*++
@@ -492,18 +494,7 @@ static void sigbus_handler(int code, siginfo_t *siginfo, void *context)
         }
     }
 
-    if (g_previous_sigbus.sa_sigaction != NULL)
-    {
-        g_previous_sigbus.sa_sigaction(code, siginfo, context);
-    }
-    else
-    {
-        // Restore the original or default handler and restart h/w exception
-        restore_signal(code, &g_previous_sigbus);
-    }
-
-    PROCNotifyProcessShutdown();
-    PROCCreateCrashDumpIfEnabled();
+    invoke_previous_action(&g_previous_sigbus, code, siginfo, context);
 }
 
 /*++
@@ -521,9 +512,7 @@ static void sigint_handler(int code, siginfo_t *siginfo, void *context)
 {
     PROCNotifyProcessShutdown();
 
-    // Restore the original or default handler and resend signal
-    restore_signal(code, &g_previous_sigint);
-    kill(gPID, code);
+    restore_signal_and_resend(code, &g_previous_sigint);
 }
 
 /*++
@@ -541,9 +530,7 @@ static void sigquit_handler(int code, siginfo_t *siginfo, void *context)
 {
     PROCNotifyProcessShutdown();
 
-    // Restore the original or default handler and resend signal
-    restore_signal(code, &g_previous_sigquit);
-    kill(gPID, code);
+    restore_signal_and_resend(code, &g_previous_sigquit);
 }
 #endif // !HAVE_MACH_EXCEPTIONS
 
@@ -569,9 +556,7 @@ static void sigterm_handler(int code, siginfo_t *siginfo, void *context)
     }
     else
     {
-        // Let the process terminate using the original handler.
-        restore_signal(SIGTERM, &g_previous_sigterm);
-        kill(getpid(), SIGTERM);
+        restore_signal_and_resend(SIGTERM, &g_previous_sigterm);
     }
 }
 
@@ -611,7 +596,10 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
             CONTEXTToNativeContext(&winContext, ucontext);
         }
     }
-    else if (g_previous_activation.sa_sigaction != NULL)
+    // Call the original handler when it is not ignored or default (terminate).
+    else if (g_previous_activation.sa_sigaction != NULL &&
+             g_previous_activation.sa_handler != SIG_IGN &&
+             g_previous_activation.sa_handler != SIG_DFL)
     {
         g_previous_activation.sa_sigaction(code, siginfo, context);
     }
