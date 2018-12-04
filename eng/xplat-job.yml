@@ -36,6 +36,9 @@ jobs:
         name: dotnet-external-temp
       timeoutInMinutes: 240
 
+    workspace:
+      clean: all
+
     ${{ if ne(parameters.containerName, '') }}:
       container: ${{ parameters.containerName }}
 
