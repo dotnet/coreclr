@@ -31,6 +31,7 @@ extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE VerifyIntegerEnumerator(IEnumVAR
     
     for(int i = start; i < start + count; ++i)
     {
+        VariantClear(&element);
         hr = pEnum->Next(1, &element, &numFetched);
         if(FAILED(hr) || numFetched != 1)
         {
