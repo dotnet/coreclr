@@ -21,7 +21,7 @@ namespace PInvokeTests
             int count);
 
         [DllImport(nameof(IEnumeratorNative), PreserveSig = false)]
-        [return: MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(EnumerableToDispatchMarshaler))]
+        [return: MarshalAs(UnmanagedType.CustomMarshaler, MarshalType = "System.Runtime.InteropServices.CustomMarshalers.EnumerableToDispatchMarshaler, System.Private.CoreLib, Culture=neutral, PublicKeyToken=B77A5C561934E089, Version=4.0.0.0")]
         public static extern IEnumerable GetIntegerEnumeration(
             int start,
             int count);
@@ -34,7 +34,8 @@ namespace PInvokeTests
 
         [DllImport(nameof(IEnumeratorNative), PreserveSig = false)]
         public static extern void VerifyIntegerEnumeration(
-            [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(EnumerableToDispatchMarshaler))] IEnumerable enumerable,
+            [MarshalAs(UnmanagedType.CustomMarshaler, MarshalType = "System.Runtime.InteropServices.CustomMarshalers.EnumerableToDispatchMarshaler, System.Private.CoreLib, Culture=neutral, PublicKeyToken=B77A5C561934E089, Version=4.0.0.0")]
+             IEnumerable enumerable,
             int start,
             int count);
     }

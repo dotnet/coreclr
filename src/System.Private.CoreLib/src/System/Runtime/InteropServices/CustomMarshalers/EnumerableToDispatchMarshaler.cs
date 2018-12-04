@@ -9,7 +9,7 @@ using System.Text;
 
 namespace System.Runtime.InteropServices.CustomMarshalers
 {
-    public class EnumerableToDispatchMarshaler : ICustomMarshaler
+    internal class EnumerableToDispatchMarshaler : ICustomMarshaler
     {
         private static readonly EnumerableToDispatchMarshaler s_enumerableToDispatchMarshaler = new EnumerableToDispatchMarshaler();
 

@@ -10,7 +10,7 @@ using System.Text;
 
 namespace System.Runtime.InteropServices.CustomMarshalers
 {
-    public class EnumeratorToEnumVariantMarshaler : ICustomMarshaler
+    internal class EnumeratorToEnumVariantMarshaler : ICustomMarshaler
     {
         private static readonly EnumeratorToEnumVariantMarshaler s_enumeratorToEnumVariantMarshaler = new EnumeratorToEnumVariantMarshaler();
 
