@@ -95,18 +95,18 @@ jobs:
 
     # Prepare tests for helix
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType) /p:UsePython=true
+      - script: ./.dotnet/dotnet msbuild tests/helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType) /p:UsePython=true
         # TODO: remove UsePython argument once we've removed generated wrappers in helixprep.proj
         displayName: Prepare test archives for Helix
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
         # TODO: remove UsePython argument once we've removed generated wrappers in helixprep.proj
-      - script: .\Tools\dotnetcli\dotnet.exe msbuild tests\helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)\tests\core_root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType) /p:UsePython=true
+      - script: .\.dotnet\dotnet.exe msbuild tests\helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)\tests\core_root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType) /p:UsePython=true
         displayName: Prepare test archives for Helix
 
 
     # Send tests to helix
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixpublishwitharcade.proj /t:Test $(scenariosArg)
+      - script: ./.dotnet/dotnet msbuild tests/helixpublishwitharcade.proj /t:Test $(scenariosArg)
         displayName: Send test jobs to Helix
         env:
           ${{ if eq(variables['System.TeamProject'], 'internal') }}:
@@ -116,7 +116,7 @@ jobs:
             # Access token variable for public project
             HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: .\Tools\dotnetcli\dotnet msbuild tests\helixpublishwitharcade.proj /t:Test $(scenariosArg)
+      - script: .\.dotnet\dotnet msbuild tests\helixpublishwitharcade.proj /t:Test $(scenariosArg)
         displayName: Send test jobs to Helix
         env:
           ${{ if eq(variables['System.TeamProject'], 'internal') }}:

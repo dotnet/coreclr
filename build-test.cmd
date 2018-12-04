@@ -33,7 +33,7 @@ if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__TestDir=%__ProjectDir%\tests"
 set "__ProjectFilesDir=%__TestDir%"
 set "__SourceDir=%__ProjectDir%\src"
-set "__PackagesDir=%__ProjectDir%\packages"
+set "__PackagesDir=%__ProjectDir%\.packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 
@@ -177,7 +177,7 @@ call "%__ProjectDir%\init-tools.cmd"
 @if defined _echo @echo on
 
 set "__ToolsDir=%__ProjectDir%\Tools"
-set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
+set "DotNetCli=%__ProjectDir%\.dotnet\dotnet.exe"
 if not exist "%DotNetCli%" (
     echo %__MsgPrefix%"%DotNetCli%" not found after init-tools.
     exit /b 1

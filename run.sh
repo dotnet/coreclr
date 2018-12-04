@@ -6,7 +6,7 @@ echo "Running init-tools.sh"
 source $working_tree_root/init-tools.sh
 
 toolRuntime=$working_tree_root/Tools
-dotnet=$toolRuntime/dotnetcli/dotnet
+dotnet=$working_tree_root/.dotnet/dotnet
 
 echo "Running: $dotnet $toolRuntime/run.exe $working_tree_root/config.json $*"
 $dotnet $toolRuntime/run.exe $working_tree_root/config.json "$@"

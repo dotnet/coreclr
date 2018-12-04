@@ -25,6 +25,11 @@ bld/
 [Oo]bj/
 msbuild.log
 
+# Arcade files
+artifacts/
+.dotnet/
+**/.packages/*
+
 # add back architecture directories ignored in 'Build results'
 !tests/x86
 !src/mscorlib/src/System/Runtime/Intrinsics/X86

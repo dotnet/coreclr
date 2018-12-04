@@ -6,7 +6,7 @@
 
   <PropertyGroup>
     <CoreclrDir>$(MSBuildThisFileDirectory)</CoreclrDir>
-    <PackagesDir>$(CoreclrDir)/packages</PackagesDir>
+    <PackagesDir>$(CoreclrDir)/.packages</PackagesDir>
   </PropertyGroup>
 
   <!-- Set default Configuration and Platform -->

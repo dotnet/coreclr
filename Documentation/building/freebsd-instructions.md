@@ -140,8 +140,8 @@ The rest of the assemblies you need to run are presently just facades that point
 Create a folder for the packages:
 
 ```sh
-janhenke@freebsd-frankfurt:~/git/coreclr % mkdir ~/coreclr-demo/packages
-janhenke@freebsd-frankfurt:~/git/coreclr % cd ~/coreclr-demo/packages
+janhenke@freebsd-frankfurt:~/git/coreclr % mkdir ~/coreclr-demo/.packages
+janhenke@freebsd-frankfurt:~/git/coreclr % cd ~/coreclr-demo/.packages
 ```
 
 Install Mono
@@ -150,7 +150,7 @@ Install Mono
 If you don't already have Mono installed on your system, use the pkg tool again:
 
 ```sh
-janhenke@freebsd-frankfurt:~/coreclr-demo/packages % sudo pkg install mono
+janhenke@freebsd-frankfurt:~/coreclr-demo/.packages % sudo pkg install mono
 ```
 
 Download the NuGet Client
@@ -159,7 +159,7 @@ Download the NuGet Client
 Grab NuGet (if you don't have it already)
 
 ```sh
-janhenke@freebsd-frankfurt:~/coreclr-demo/packages % curl -L -O https://nuget.org/nuget.exe
+janhenke@freebsd-frankfurt:~/coreclr-demo/.packages % curl -L -O https://nuget.org/nuget.exe
 ```
 Download NuGet Packages
 -----------------------
@@ -195,19 +195,19 @@ Make a `packages.config` file with the following text. These are the required de
 And restore your packages.config file:
 
 ```sh
-janhenke@freebsd-frankfurt:~/coreclr-demo/packages % mono nuget.exe restore -Source https://www.myget.org/F/dotnet-corefx/ -PackagesDirectory .
+janhenke@freebsd-frankfurt:~/coreclr-demo/.packages % mono nuget.exe restore -Source https://www.myget.org/F/dotnet-corefx/ -PackagesDirectory .
 ```
 
 NOTE: This assumes you already installed the default CA certs. If you have problems downloading the packages please see [Issue #602](https://github.com/dotnet/coreclr/issues/602#issuecomment-88203778). The command for FreeBSD is:
 
 ```sh
-janhenke@freebsd-frankfurt:~/coreclr-demo/packages % mozroots --import --sync
+janhenke@freebsd-frankfurt:~/coreclr-demo/.packages % mozroots --import --sync
 ```
 
 Finally, you need to copy over the assemblies to the runtime folder.  You don't want to copy over System.Console.dll or System.Diagnostics.Debug however, since the version from NuGet is the Windows version.  The easiest way to do this is with a little find magic:
 
 ```sh
-janhenke@freebsd-frankfurt:~/coreclr-demo/packages % find . -wholename '*/aspnetcore50/*.dll' -exec cp -n {} ~/coreclr-demo/runtime \;
+janhenke@freebsd-frankfurt:~/coreclr-demo/.packages % find . -wholename '*/aspnetcore50/*.dll' -exec cp -n {} ~/coreclr-demo/runtime \;
 ```
 
 Compile an App
@@ -216,14 +216,14 @@ Compile an App
 Now you need a Hello World application to run.  You can write your own, if you'd like.  Personally, I'm partial to the one on corefxlab which will draw Tux for us.
 
 ```sh
-janhenke@freebsd-frankfurt:~/coreclr-demo/packages % cd ~/coreclr-demo/runtime
+janhenke@freebsd-frankfurt:~/coreclr-demo/.packages % cd ~/coreclr-demo/runtime
 janhenke@freebsd-frankfurt:~/coreclr-demo/runtime % curl -O https://raw.githubusercontent.com/dotnet/corefxlab/master/demos/CoreClrConsoleApplications/HelloWorld/HelloWorld.cs
 ```
 
 Then you just need to build it, with `mcs`, the Mono C# compiler. FYI: The Roslyn C# compiler will soon be available on FreeBSD.  Because you need to compile the app against the .NET Core surface area, you need to pass references to the contract assemblies you restored using NuGet:
 
 ```sh
-janhenke@freebsd-frankfurt:~/coreclr-demo/runtime % mcs /nostdlib /noconfig /r:../packages/System.Console.4.0.0-beta-22703/lib/contract/System.Console.dll /r:../packages/System.Runtime.4.0.20-beta-22703/lib/contract/System.Runtime.dll HelloWorld.cs
+janhenke@freebsd-frankfurt:~/coreclr-demo/runtime % mcs /nostdlib /noconfig /r:../.packages/System.Console.4.0.0-beta-22703/lib/contract/System.Console.dll /r:../.packages/System.Runtime.4.0.20-beta-22703/lib/contract/System.Runtime.dll HelloWorld.cs
 ```
 
 Run your App

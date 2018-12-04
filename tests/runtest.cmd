@@ -407,7 +407,7 @@ REM ============================================================================
 
 set _CoreFXTestHost=%XunitTestBinBase%\testhost
 set __ToolsDir=%__ProjectDir%\..\Tools
-set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
+set "DotNetCli=%__ProjectDir%\..\.dotnet\dotnet.exe"
 
 set _RootCoreFXTestPath=%__TestWorkingDir%\CoreFX
 set _CoreFXTestUtilitiesOutputPath=%_RootCoreFXTestPath%\CoreFXTestUtilities

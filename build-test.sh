@@ -630,10 +630,10 @@ __IncludeTests=INCLUDE_TESTS
 # Set the various build properties here so that CMake and MSBuild can pick them up
 export __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="$__ProjectDir/packages"
+__PackagesDir="$__ProjectDir/.packages"
 __RootBinDir="$__ProjectDir/bin"
 __BuildToolsDir="$__ProjectDir/Tools"
-__DotNetCli="${__BuildToolsDir}/dotnetcli/dotnet"
+__DotNetCli="${__ProjectDir}/.dotnet/dotnet"
 __UnprocessedBuildArgs=
 __RunArgs=
 __MSBCleanBuildArgs=
@@ -934,7 +934,7 @@ initTargetDistroRid
 # Override tool directory
 
 __CoreClrVersion=1.1.0
-__sharedFxDir=$__BuildToolsDir/dotnetcli/shared/Microsoft.NETCore.App/$__CoreClrVersion/
+__sharedFxDir=${__ProjectDir}/.dotnet/shared/Microsoft.NETCore.App/$__CoreClrVersion/
 
 if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") && (-z "$__BuildTestWrappersOnly") ]]; then
     build_Tests

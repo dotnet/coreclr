@@ -46,10 +46,10 @@ jobs:
 
     # Sync
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./Tools/dotnetcli/dotnet msbuild build.proj /p:RestoreDuringBuild=true /t:Sync
+      - script: ./.dotnet/dotnet msbuild build.proj /p:RestoreDuringBuild=true /t:Sync
         displayName: Sync
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: .\Tools\dotnetcli\dotnet.exe msbuild build.proj /p:RestoreDuringBuild=true /t:Sync
+      - script: .\.dotnet\dotnet.exe msbuild build.proj /p:RestoreDuringBuild=true /t:Sync
         displayName: Sync
 
 

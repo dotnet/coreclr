@@ -599,7 +599,7 @@
       "allowOverride": true
     },
     "AzureContainerPackageDirectory": {
-      "value": "$(Pipeline.SourcesDirectory)\\packages\\AzureTransfer\\$(ConfigurationGroup)\\",
+      "value": "$(Pipeline.SourcesDirectory)\\.packages\\AzureTransfer\\$(ConfigurationGroup)\\",
       "allowOverride": true
     },
     "AzureContainerPackageGlob": {

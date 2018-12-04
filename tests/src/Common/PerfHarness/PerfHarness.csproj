@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="..\..\..\..\dependencies.props" />
+  <Import Project="..\..\..\..\eng\dependencies.props" />
 
   <PropertyGroup>
     <OutputType>exe</OutputType>

@@ -57,7 +57,7 @@
                 "scriptName": "",
                 "arguments": "$(Build.SourcesDirectory)",
                 "workingFolder": "$(Build.SourcesDirectory)",
-                "inlineScript": "param($SrcDir)\n$secDir = Join-Path \"$SrcDir\" \"security\"\n$pkgDir = \"$SrcDir\\packages\\AzureTransfer\\Release\\symbolpkg\"\ngci \"$pkgDir\\*.nupkg\" | rename-item -newname { [io.path]::ChangeExtension($_.name, \"zip\") }\ngci \"$pkgDir\\*.zip\" | % {\n$dstDir = Join-Path \"$secDir\" $($_.BaseName)\nExpand-Archive -Path $($_.FullName) -DestinationPath \"$dstDir\" -Force\n}\n",
+                "inlineScript": "param($SrcDir)\n$secDir = Join-Path \"$SrcDir\" \"security\"\n$pkgDir = \"$SrcDir\\.packages\\AzureTransfer\\Release\\symbolpkg\"\ngci \"$pkgDir\\*.nupkg\" | rename-item -newname { [io.path]::ChangeExtension($_.name, \"zip\") }\ngci \"$pkgDir\\*.zip\" | % {\n$dstDir = Join-Path \"$secDir\" $($_.BaseName)\nExpand-Archive -Path $($_.FullName) -DestinationPath \"$dstDir\" -Force\n}\n",
                 "failOnStandardError": "true"
             }
         },

@@ -20,7 +20,7 @@ if NOT [%ERRORLEVEL%]==[0] (
 )
 
 set _toolRuntime=%~dp0Tools
-set _dotnet=%_toolRuntime%\dotnetcli\dotnet.exe
+set _dotnet=%~dp0.dotnet\dotnet.exe
 set _json=%~dp0config.json
 
 :: run.exe depends on running in the root directory, notably because the config.json specifies

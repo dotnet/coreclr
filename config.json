@@ -785,12 +785,12 @@
     "msbuild": {
       "osSpecific": {
         "windows": {
-          "defaultParameters": "/nologo /verbosity:minimal /clp:Summary /nodeReuse:false",
-          "path": "Tools/msbuild.cmd"
+          "defaultParameters": "msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false",
+          "path": ".dotnet/dotnet.exe"
         },
         "unix": {
-          "defaultParameters": "/nologo /verbosity:minimal /clp:Summary",
-          "path": "Tools/msbuild.sh"
+          "defaultParameters": "msbuild /nologo /verbosity:minimal /clp:Summary",
+          "path": ".dotnet/dotnet.exe"
         }
       },
       "valueTypes": {

@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\..\..\..\dependencies.props" />
+  <Import Project="..\..\..\..\..\eng\dependencies.props" />
   <PropertyGroup>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <SystemCommandLineVersion>0.1.0-e160909-1</SystemCommandLineVersion>

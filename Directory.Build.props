@@ -1,4 +1,16 @@
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Build Properties needed from repo -->
+  <!-- TODO: Combine with dir.common.props -->
+  <PropertyGroup>
+    <RepositoryUrl>git://github.com/dotnet/coreclr</RepositoryUrl>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+    <RepositoryEngineeringDir>$(RepoRoot)eng\</RepositoryEngineeringDir>
+    <!-- Prevent our non-SDK projects from getting this file twice -->
+    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
+    <ImportNetSdkFromRepoToolset>false</ImportNetSdkFromRepoToolset>
+  </PropertyGroup>
+
+
   <PropertyGroup>
     <CL_MPCount>$(NumberOfCores)</CL_MPCount>
   </PropertyGroup>
@@ -6,4 +18,7 @@
     <!-- Enables Strict mode for Roslyn compiler -->
     <Features>strict</Features>
   </PropertyGroup>
+
+  <Import Project="$(RepositoryEngineeringDir)dependencies.props" Condition="'$(BuildWithArcade)' == 'True'"/>
+  <Import Project="Sdk.props" Sdk="Microsoft.DotNet.Arcade.Sdk" Condition="'$(BuildWithArcade)' == 'True'"/>
 </Project>
