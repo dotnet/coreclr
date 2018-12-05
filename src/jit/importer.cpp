@@ -19544,25 +19544,13 @@ void Compiler::impMarkInlineCandidate(GenTree*               callNode,
         return;
     }
 
-    // The default policy is that if we can't inline the call we'd
-    // guardedly devirtualize to, we undo the guarded devirtualization,
-    // as the benefit from just guarded devirtualization alone is
-    // likely not worth the extra jit time and code size.
+    // If we can't inline the call we'd guardedly devirtualize to,
+    // we undo the guarded devirtualization, as the benefit from
+    // just guarded devirtualization alone is likely not worth the
+    // extra jit time and code size.
     //
-    // Note this is just the preliminary can inline check. The inline
-    // may still fail later on.
-
-    CLANG_FORMAT_COMMENT_ANCHOR;
-
-#if DEBUG
-    // Allow this policy to be overridden...
-    if (JitConfig.JitGuardedDevirtualizationEvenIfNoInline() > 0)
-    {
-        JITDUMP("For call [%06u]: Method is noinline, but we'll still try guarded devirtualization\n", dspTreeID(call));
-        return;
-    }
-#endif // DEBUG
-
+    // TODO: it is possibly interesting to allow this, but requires
+    // fixes elsewhere too...
     JITDUMP("Revoking guarded devirtualization candidacy for call [%06u]: target method can't be inlined\n",
             dspTreeID(call));
 

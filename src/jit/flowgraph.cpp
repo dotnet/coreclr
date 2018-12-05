@@ -21874,44 +21874,58 @@ void Compiler::fgInline()
 
     do
     {
-        /* Make the current basic block address available globally */
-
+        // Make the current basic block address available globally
         compCurBB = block;
 
-        GenTreeStmt* stmt;
-        GenTree*     expr;
-
-        for (stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
         {
-            expr = stmt->gtStmtExpr;
 
-            // See if we can expand the inline candidate
-            if (expr->IsCall() && (((expr->gtFlags & GTF_CALL_INLINE_CANDIDATE) != 0) ||
-                                   ((expr->gtCall.gtCallMoreFlags & GTF_CALL_M_GUARDED_DEVIRT) != 0)))
+#ifdef DEBUG
+            // In debug builds we want the inline tree to show all failed
+            // inlines. Some inlines may fail very early and never make it to
+            // candidate stage. So scan the tree looking for those early failures.
+            fgWalkTreePre(&stmt->gtStmtExpr, fgFindNonInlineCandidate, stmt);
+#endif
+
+            GenTree* expr = stmt->gtStmtExpr;
+
+            // The importer ensures that all inline candidates are
+            // statement expressions.  So see if we have a call.
+            if (expr->IsCall())
             {
                 GenTreeCall* call = expr->AsCall();
-                InlineResult inlineResult(this, call, stmt, "fgInline");
 
-                fgMorphStmt = stmt;
-
-                fgMorphCallInline(call, &inlineResult);
-
-                if (stmt->gtStmtExpr->IsNothingNode())
+                // We do. Is it an inline candidate?
+                //
+                // Note we also process GuardeDevirtualizationCandidates here as we've
+                // split off GT_RET_EXPRs for them even when they are not inline candidates
+                // as we need similar processing to ensure they get patched back to where
+                // they belong.
+                if (call->IsInlineCandidate() || call->IsGuardedDevirtualizationCandidate())
                 {
-                    fgRemoveStmt(block, stmt);
-                    continue;
+                    InlineResult inlineResult(this, call, stmt, "fgInline");
+
+                    fgMorphStmt = stmt;
+
+                    fgMorphCallInline(call, &inlineResult);
+
+                    // fgMorphCallInline may have updated the
+                    // statement expression to a GT_NOP if the
+                    // call returned a value, regardless of
+                    // whether the inline succeeded or failed.
+                    //
+                    // If so, remove the GT_NOP and continue
+                    // on with the next statement.
+                    if (stmt->gtStmtExpr->IsNothingNode())
+                    {
+                        fgRemoveStmt(block, stmt);
+                        continue;
+                    }
                 }
             }
-            else
-            {
-#ifdef DEBUG
-                // Look for non-candidates.
-                fgWalkTreePre(&stmt->gtStmtExpr, fgFindNonInlineCandidate, stmt);
-#endif
-            }
 
-            // See if we need to replace the return value place holder.
-            // Also, see if this update enables further devirtualization.
+            // See if we need to replace some return value place holders.
+            // Also, see if this replacement enables further devirtualization.
             //
             // Note we have both preorder and postorder callbacks here.
             //
@@ -22024,6 +22038,11 @@ Compiler::fgWalkResult Compiler::fgFindNonInlineCandidate(GenTree** pTree, fgWal
 
 void Compiler::fgNoteNonInlineCandidate(GenTreeStmt* stmt, GenTreeCall* call)
 {
+    if (call->IsInlineCandidate() || call->IsGuardedDevirtualizationCandidate())
+    {
+        return;
+    }
+
     InlineResult      inlineResult(this, call, nullptr, "fgNotInlineCandidate");
     InlineObservation currentObservation = InlineObservation::CALLSITE_NOT_CANDIDATE;
 
@@ -25785,7 +25804,7 @@ private:
         const int HIGH_PROBABILITY = 80;
     };
 
-    class FatPointerCallTransformer : public Transformer
+    class FatPointerCallTransformer final : public Transformer
     {
     public:
         FatPointerCallTransformer(Compiler* compiler, BasicBlock* block, GenTreeStmt* stmt)
@@ -25985,7 +26004,7 @@ private:
         bool      doesReturnValue;
     };
 
-    class GuardedDevirtualizationTransformer : public Transformer
+    class GuardedDevirtualizationTransformer final : public Transformer
     {
     public:
         GuardedDevirtualizationTransformer(Compiler* compiler, BasicBlock* block, GenTreeStmt* stmt)

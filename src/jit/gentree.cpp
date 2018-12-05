@@ -9335,9 +9335,9 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                 goto DASH;
 
             case GT_CALL:
-                if (tree->gtFlags & GTF_CALL_INLINE_CANDIDATE)
+                if (tree->gtCall.IsInlineCandidate())
                 {
-                    if (tree->gtCall.gtCallMoreFlags & GTF_CALL_M_GUARDED_DEVIRT)
+                    if (tree->gtCall.IsGuardedDevirtualizationCandidate())
                     {
                         printf("&");
                     }
@@ -9348,7 +9348,7 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                     --msgLength;
                     break;
                 }
-                else if (tree->gtCall.gtCallMoreFlags & GTF_CALL_M_GUARDED_DEVIRT)
+                else if (tree->gtCall.IsGuardedDevirtualizationCandidate())
                 {
                     printf("G");
                     --msgLength;
