@@ -1294,8 +1294,8 @@ INT_PTR QCALLTYPE AssemblyNative::GetLoadContextForAssembly(QCall::AssemblyHandl
     PTR_PEAssembly pPEAssembly = pPEFile->AsAssembly();
     _ASSERTE(pAssembly != NULL);
    
-    // Platform assemblies are semantically bound against the "Default" binder which could be the TPA Binder or
-    // the overridden binder. In either case, the reference to the same will be returned when this QCall returns.
+    // Platform assemblies are semantically bound against the "Default" binder. 
+    // The reference to the same will be returned when this QCall returns.
 
     // Get the binding context for the assembly.
     //
