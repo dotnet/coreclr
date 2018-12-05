@@ -254,9 +254,9 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
 {
     _ASSERTE(action != NULL);
 
-    bool isSigInfo = action->sa_flags & SA_SIGINFO;
+    bool hasSigInfo = action->sa_flags & SA_SIGINFO;
 
-    if (!isSigInfo && action->sa_handler == SIG_IGN)
+    if (!hasSigInfo && action->sa_handler == SIG_IGN)
     {
         if (signalRestarts)
         {
@@ -265,7 +265,7 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
         }
         return;
     }
-    else if (!isSigInfo && action->sa_handler == SIG_DFL)
+    else if (!hasSigInfo && action->sa_handler == SIG_DFL)
     {
         if (signalRestarts)
         {
@@ -282,7 +282,7 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
     else
     {
         // Directly call the previous handler.
-        if (isSigInfo)
+        if (hasSigInfo)
         {
             _ASSERTE(action->sa_sigaction != NULL);
             action->sa_sigaction(code, siginfo, context);
@@ -612,7 +612,7 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
     else
     {
         if ((g_previous_activation.sa_flags & SA_SIGINFO) ||
-            !(g_previous_activation.sa_handler == SIG_IGN || g_previous_activation.sa_handler != SIG_DFL))
+            !(g_previous_activation.sa_handler == SIG_IGN || g_previous_activation.sa_handler == SIG_DFL))
         {
             if (g_previous_activation.sa_flags & SA_SIGINFO)
             {
