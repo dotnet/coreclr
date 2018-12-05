@@ -170,7 +170,7 @@ error_t TP_putenv_s(LPWSTR name, LPWSTR value)
         return 0;
 #else
     int retVal = 0;
-    char *assignment = (char*) malloc(sizeof(car) * (strlen(name) + strlen(value) + 1));
+    char *assignment = (char*) malloc(sizeof(char) * (strlen(name) + strlen(value) + 1));
     sprintf(assignment, "%s=%s", HackyConvertToSTR(name), HackyConvertToSTR(value));
 
     if (0 != putenv(assignment))
