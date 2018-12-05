@@ -571,7 +571,7 @@ int TP_wcsncpy_s(LPWSTR strDestination, size_t size1, LPCWSTR strSource, size_t 
     // copy sizeInBytes bytes of strSource into strDestination
     if (NULL == strDestination || NULL == strSource) return 1;
 
-    int cnt = 0;
+    size_t cnt = 0;
     while (cnt < size1 && '\0' != strSource[cnt])
     {
         strDestination[cnt] = strSource[cnt];
