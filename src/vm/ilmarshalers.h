@@ -1515,7 +1515,7 @@ protected:
 public:
     
     // Extension point to allow a marshaler to conditionally override all of the ILMarshaler logic with its own or block marshalling when marshalling an argument.
-    // See mlinfo.cpp:3523 for the implementation.
+    // See MarshalInfo::GetArgumentOverrideProc for the implementation.
     static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
                                                     BOOL               byref,
                                                     BOOL               fin,
@@ -1531,7 +1531,7 @@ public:
     }
 
     // Extension point to allow a marshaler to conditionally override all of the ILMarshaler logic with its own or block marshalling when marshalling a return value.
-    // See mlinfo.cpp:3543 for the implementation.
+    // See MarshalInfo::GetReturnOverrideProc for the implementation.
     static MarshalerOverrideStatus ReturnOverride(NDirectStubLinker*  psl,
                                                   BOOL                fManagedToNative,
                                                   BOOL                fHresultSwap,
@@ -1917,7 +1917,7 @@ class ILBoolMarshaler : public ILMarshaler
 public:
 
     virtual CorElementType GetNativeBoolElementType() = 0;
-    virtual int GetNativeTrueValue() = 0 ;
+    virtual int GetNativeTrueValue() = 0;
     virtual int GetNativeFalseValue() = 0;
 
 protected:
