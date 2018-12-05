@@ -374,6 +374,59 @@ void CodeGen::genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, reg
     }
 }
 
+void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP maskSaveRegsInt,
+                                             int&      spDelta,
+                                             int& spOffset DEBUGARG(bool isRegsToSaveCountOdd))
+{
+    unsigned intRegsToSaveCount = genCountBits(maskSaveRegsInt);
+    bool     lastSavedWasPair   = false;
+    while (maskSaveRegsInt != RBM_NONE)
+    {
+        // If this is the first store that needs to change SP (spDelta != 0),
+        // then the offset must be 8 to account for alignment for the odd count
+        // or it must be 0 for the even count.
+        assert((spDelta == 0) || (isRegsToSaveCountOdd && spOffset == REGSIZE_BYTES) ||
+               (!isRegsToSaveCountOdd && spOffset == 0));
+
+        bool      isPairSave = (intRegsToSaveCount >= 2);
+        regMaskTP reg1Mask   = genFindLowestBit(maskSaveRegsInt);
+        regNumber reg1       = genRegNumFromMask(reg1Mask);
+        maskSaveRegsInt &= ~reg1Mask;
+        intRegsToSaveCount -= 1;
+
+        if (isPairSave)
+        {
+            // We can use a STP instruction.
+
+            regMaskTP reg2Mask = genFindLowestBit(maskSaveRegsInt);
+            regNumber reg2     = genRegNumFromMask(reg2Mask);
+            assert(reg2 == REG_NEXT(reg1));
+            maskSaveRegsInt &= ~reg2Mask;
+            intRegsToSaveCount -= 1;
+
+            genPrologSaveRegPair(reg1, reg2, spOffset, spDelta, lastSavedWasPair, REG_IP0, nullptr);
+
+            // TODO-ARM64-CQ: this code works in the prolog, but it's a bit weird to think about "next" when generating
+            // this epilog, to get the codes to match. Turn this off until that is better understood.
+            // lastSavedWasPair = true;
+
+            spOffset += 2 * REGSIZE_BYTES;
+        }
+        else
+        {
+            // No register pair; we use a STR instruction.
+
+            genPrologSaveReg(reg1, spOffset, spDelta, REG_IP0, nullptr);
+
+            lastSavedWasPair = false;
+            spOffset += REGSIZE_BYTES;
+        }
+
+        spDelta = 0; // We've now changed SP already, if necessary; don't do it again.
+    }
+    assert(intRegsToSaveCount == 0);
+}
+
 //------------------------------------------------------------------------
 // genSaveCalleeSavedRegistersHelp: Save the callee-saved registers in 'regsToSaveMask' to the stack frame
 // in the function or funclet prolog. The save set does not contain FP, since that is
@@ -431,7 +484,6 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
 
     unsigned intRegsToSaveCount   = genCountBits(maskSaveRegsInt);
     unsigned floatRegsToSaveCount = genCountBits(maskSaveRegsFloat);
-    bool     isPairSave           = false;
 #ifdef DEBUG
     bool isRegsToSaveCountOdd = ((intRegsToSaveCount + floatRegsToSaveCount) % 2 != 0);
 #endif
@@ -440,52 +492,7 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
 
     bool lastSavedWasPair = false;
 
-    while (maskSaveRegsInt != RBM_NONE)
-    {
-        // If this is the first store that needs to change SP (spDelta != 0),
-        // then the offset must be 8 to account for alignment for the odd count
-        // or it must be 0 for the even count.
-        assert((spDelta == 0) || (isRegsToSaveCountOdd && spOffset == REGSIZE_BYTES) ||
-               (!isRegsToSaveCountOdd && spOffset == 0));
-
-        isPairSave         = (intRegsToSaveCount >= 2);
-        regMaskTP reg1Mask = genFindLowestBit(maskSaveRegsInt);
-        regNumber reg1     = genRegNumFromMask(reg1Mask);
-        maskSaveRegsInt &= ~reg1Mask;
-        intRegsToSaveCount -= 1;
-
-        if (isPairSave)
-        {
-            // We can use a STP instruction.
-
-            regMaskTP reg2Mask = genFindLowestBit(maskSaveRegsInt);
-            regNumber reg2     = genRegNumFromMask(reg2Mask);
-            assert(reg2 == REG_NEXT(reg1));
-            maskSaveRegsInt &= ~reg2Mask;
-            intRegsToSaveCount -= 1;
-
-            genPrologSaveRegPair(reg1, reg2, spOffset, spDelta, lastSavedWasPair, REG_IP0, nullptr);
-
-            // TODO-ARM64-CQ: this code works in the prolog, but it's a bit weird to think about "next" when generating
-            // this epilog, to get the codes to match. Turn this off until that is better understood.
-            // lastSavedWasPair = true;
-
-            spOffset += 2 * REGSIZE_BYTES;
-        }
-        else
-        {
-            // No register pair; we use a STR instruction.
-
-            genPrologSaveReg(reg1, spOffset, spDelta, REG_IP0, nullptr);
-
-            lastSavedWasPair = false;
-            spOffset += REGSIZE_BYTES;
-        }
-
-        spDelta = 0; // We've now changed SP already, if necessary; don't do it again.
-    }
-
-    assert(intRegsToSaveCount == 0);
+    genSaveCaleeSavedRegisterGroup(maskSaveRegsInt, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
 
     // Save the floating-point/SIMD registers
 
@@ -499,9 +506,9 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
         assert((spDelta == 0) || (isRegsToSaveCountOdd && spOffset == REGSIZE_BYTES) ||
                (!isRegsToSaveCountOdd && spOffset == 0));
 
-        isPairSave         = (floatRegsToSaveCount >= 2);
-        regMaskTP reg1Mask = genFindLowestBit(maskSaveRegsFloat);
-        regNumber reg1     = genRegNumFromMask(reg1Mask);
+        bool      isPairSave = (floatRegsToSaveCount >= 2);
+        regMaskTP reg1Mask   = genFindLowestBit(maskSaveRegsFloat);
+        regNumber reg1       = genRegNumFromMask(reg1Mask);
         maskSaveRegsFloat &= ~reg1Mask;
         floatRegsToSaveCount -= 1;
 
