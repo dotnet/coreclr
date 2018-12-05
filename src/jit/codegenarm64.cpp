@@ -419,9 +419,10 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
     }
 
     assert((spDelta % 16) == 0);
-    assert((regsToSaveMask & RBM_FP) == 0);                             // we never save FP here
-    assert(regsToSaveCount <= genCountBits(RBM_CALLEE_SAVED | RBM_LR)); // We also save LR, even though it is not in
-                                                                        // RBM_CALLEE_SAVED.
+    assert((regsToSaveMask & RBM_FP) == 0);                    // We never save FP here.
+    assert((regsToSaveMask & RBM_LR) == 0);                    // We currently never save LR here.
+    assert(regsToSaveCount <= genCountBits(RBM_CALLEE_SAVED)); // We also save LR, even though it is not in
+                                                               // RBM_CALLEE_SAVED.
 
     regMaskTP maskSaveRegsFloat = regsToSaveMask & RBM_ALLFLOAT;
     regMaskTP maskSaveRegsInt   = regsToSaveMask & ~maskSaveRegsFloat;
@@ -459,7 +460,7 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
 
             regMaskTP reg2Mask = genFindLowestBit(maskSaveRegsInt);
             regNumber reg2     = genRegNumFromMask(reg2Mask);
-            assert((reg2 == REG_NEXT(reg1)) || (reg2 == REG_LR));
+            assert(reg2 == REG_NEXT(reg1));
             maskSaveRegsInt &= ~reg2Mask;
             intRegsToSaveCount -= 1;
 
