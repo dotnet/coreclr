@@ -7738,8 +7738,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                 }
                 else
                 {
-                    // The stub address is known available at compile time
-
+                    // The stub address is known at compile time
                     call = gtNewCallNode(CT_USER_FUNC, callInfo->hMethod, callRetTyp, nullptr, ilOffset);
                     call->gtCall.gtStubCallStubAddr = callInfo->stubLookup.constLookup.addr;
                     call->gtFlags |= GTF_CALL_VIRT_STUB;
@@ -8728,7 +8727,7 @@ DONE_CALL:
                 call = impFixupCallStructReturn(call->AsCall(), sig->retTypeClass);
             }
 
-            // Seems like we could handle fatcalli cases this way too...?
+            // TODO: consider handling fatcalli cases this way too...?
             if (isInlineCandidate || isGuardedDevirtualizationCandidate)
             {
                 // We should not have made any adjustments in impFixupCallStructReturn
@@ -19663,11 +19662,9 @@ void Compiler::impMarkInlineCandidateHelper(GenTreeCall*           call,
 
     if (call->IsVirtual())
     {
-        if (call->IsGuardedDevirtualizationCandidate())
-        {
-            // Allow guarded devirt calls to be treated as inline candidates.
-        }
-        else
+        // Allow guarded devirt calls to be treated as inline candidates,
+        // but reject all other virtual calls.
+        if (!call->IsGuardedDevirtualizationCandidate())
         {
             inlineResult.NoteFatal(InlineObservation::CALLSITE_IS_NOT_DIRECT);
             return;
@@ -20271,16 +20268,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     }
 #endif // defined(DEBUG)
 
-    bool canDevirtualize = true;
-
-    if (isInterface)
-    {
-        canDevirtualize = isExact || objClassIsFinal;
-    }
-    else
-    {
-        canDevirtualize = isExact || objClassIsFinal || derivedMethodIsFinal;
-    }
+    const bool canDevirtualize = isExact || objClassIsFinal || (!isInterface && derivedMethodIsFinal);
 
     if (!canDevirtualize)
     {
@@ -20677,7 +20665,7 @@ void Compiler::addFatPointerCandidate(GenTreeCall* call)
 //
 // We currently do not mark calls as candidates when prejitting. This was done
 // to simplify bringing up the associated transformation. It is worth revisiting
-// if we think we can come up with good guess classes when prejitting.
+// if we think we can come up with a good guess for the class when prejitting.
 //
 // Call sites in rare or unoptimized code, and calls that require cookies are
 // also not marked as candidates.
