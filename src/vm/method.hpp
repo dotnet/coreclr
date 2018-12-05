@@ -1277,7 +1277,8 @@ public:
         //
         // Typical slot value transitions:
         //   - Initially, the slot contains the method's temporary entry point, which always points to the prestub (see above)
-        //   - After the tier 0 JIT completes, the slot is transitioned to the tier 0 entry point
+        //   - After the tier 0 JIT completes, the slot is transitioned to the tier 0 entry point, and the slot is recorded for
+        //     backpatching
         //   - When tiered compilation decides to begin counting calls for the method, the slot is transitioned to the temporary
         //     entry point (call counting currently happens in the prestub)
         //   - When the call count reaches the tier 1 threshold, the slot is transitioned to the tier 0 entry point and a tier 1
