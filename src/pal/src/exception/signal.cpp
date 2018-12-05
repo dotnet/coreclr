@@ -23,6 +23,7 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do
 
 #include "pal/corunix.hpp"
 #include "pal/handleapi.hpp"
+#include "pal/process.h"
 #include "pal/thread.hpp"
 #include "pal/threadinfo.hpp"
 #include "pal/threadsusp.hpp"
@@ -36,7 +37,6 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do
 
 #if !HAVE_MACH_EXCEPTIONS
 #include "pal/init.h"
-#include "pal/process.h"
 #include "pal/debug.h"
 #include "pal/virtual.h"
 #include "pal/utils.h"
