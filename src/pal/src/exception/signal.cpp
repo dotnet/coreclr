@@ -254,41 +254,39 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
 {
     _ASSERTE(action != NULL);
 
-    bool hasSigInfo = action->sa_flags & SA_SIGINFO;
-
-    if (!hasSigInfo && action->sa_handler == SIG_IGN)
+    if (action->sa_flags & SA_SIGINFO)
     {
-        if (signalRestarts)
-        {
-            // This signal mustn't be ignored because it will be restarted.
-            PROCAbort();
-        }
-        return;
-    }
-    else if (!hasSigInfo && action->sa_handler == SIG_DFL)
-    {
-        if (signalRestarts)
-        {
-            // Restore the original and restart h/w exception.
-            restore_signal(code, action);
-        }
-        else
-        {
-            // We can't invoke the original handler because returning from the
-            // handler doesn't restart the exception.
-            PROCAbort();
-        }
+        _ASSERTE(action->sa_sigaction != NULL);
+        action->sa_sigaction(code, siginfo, context);
     }
     else
     {
-        // Directly call the previous handler.
-        if (hasSigInfo)
+        if (action->sa_handler == SIG_IGN)
         {
-            _ASSERTE(action->sa_sigaction != NULL);
-            action->sa_sigaction(code, siginfo, context);
+            if (signalRestarts)
+            {
+                // This signal mustn't be ignored because it will be restarted.
+                PROCAbort();
+            }
+            return;
+        }
+        else if (action->sa_handler == SIG_DFL)
+        {
+            if (signalRestarts)
+            {
+                // Restore the original and restart h/w exception.
+                restore_signal(code, action);
+            }
+            else
+            {
+                // We can't invoke the original handler because returning from the
+                // handler doesn't restart the exception.
+                PROCAbort();
+            }
         }
         else
         {
+            // Directly call the previous handler.
             _ASSERTE(action->sa_handler != NULL);
             action->sa_handler(code);
         }
@@ -608,18 +606,18 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
             CONTEXTToNativeContext(&winContext, ucontext);
         }
     }
-    // Call the original handler when it is not ignored or default (terminate).
     else
     {
-        if ((g_previous_activation.sa_flags & SA_SIGINFO) ||
-            !(g_previous_activation.sa_handler == SIG_IGN || g_previous_activation.sa_handler == SIG_DFL))
+        // Call the original handler when it is not ignored or default (terminate).
+        if (g_previous_activation.sa_flags & SA_SIGINFO)
         {
-            if (g_previous_activation.sa_flags & SA_SIGINFO)
-            {
-                _ASSERTE(g_previous_activation.sa_sigaction != NULL);
-                g_previous_activation.sa_sigaction(code, siginfo, context);
-            }
-            else
+            _ASSERTE(g_previous_activation.sa_sigaction != NULL);
+            g_previous_activation.sa_sigaction(code, siginfo, context);
+        }
+        else
+        {
+            if (g_previous_activation.sa_handler != SIG_IGN &&
+                g_previous_activation.sa_handler != SIG_DFL)
             {
                 _ASSERTE(g_previous_activation.sa_handler != NULL);
                 g_previous_activation.sa_handler(code);
