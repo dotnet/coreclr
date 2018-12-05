@@ -545,7 +545,7 @@
           "settings": {
             "Project": "./build.proj",
             "RestoreOptData": "default",
-            "MsBuildEventLogging": " ",
+            "MsBuildEventLogging": " "
           }
         }
       },
@@ -555,7 +555,7 @@
           "MsBuildLog": "default",
           "MsBuildWrn": "default",
           "MsBuildErr": "default",
-          "MsBuildEventLogging": "default",
+          "MsBuildEventLogging": " ",
           "RestoreDefaultOptimizationDataPackage": "false",
           "PortableBuild": "true",
           "UsePartialNGENOptimization": "false",
