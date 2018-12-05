@@ -256,6 +256,7 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
 
     if (action->sa_flags & SA_SIGINFO)
     {
+        // Directly call the previous handler.
         _ASSERTE(action->sa_sigaction != NULL);
         action->sa_sigaction(code, siginfo, context);
     }
