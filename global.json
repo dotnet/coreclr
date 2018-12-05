@@ -1,13 +1,28 @@
 {
-  "tools": {
-    "dotnet": "2.1.401"
-  },
-  "native-tools": {
-    "cmake": "3.11.1",
-    "python": "2.7.15"
-  },
-  "msbuild-sdks": {
-    "Microsoft.DotNet.Arcade.Sdk": "1.0.0-beta.18580.13",
-    "Microsoft.DotNet.Helix.Sdk": "1.0.0-beta.18580.13"
-  }
+    "tools": {
+        "dotnet": "2.1.401",
+        "vs": {
+            "version": "15.9",
+            "components": [
+                "Microsoft.Net.Component.4.6.TargetingPack",
+                "Microsoft.VisualStudio.Component.PortableLibrary",
+                "Microsoft.VisualStudio.Component.Static.Analysis.Tools",
+                "Microsoft.VisualStudio.Component.Roslyn.Compiler",
+                "Microsoft.VisualStudio.Component.VC.140",
+                "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                "Microsoft.Component.VC.Runtime.UCRTSDK",
+                "Microsoft.VisualStudio.Component.VC.CoreIde",
+                "Microsoft.VisualStudio.Component.Windows10SDK.17134",
+                "Microsoft.VisualStudio.Component.VC.Tools.ARM"
+            ]
+        }
+    },
+    "native-tools": {
+        "cmake": "3.11.1",
+        "python": "2.7.15"
+    },
+    "msbuild-sdks": {
+        "Microsoft.DotNet.Arcade.Sdk": "1.0.0-beta.18580.13",
+        "Microsoft.DotNet.Helix.Sdk": "1.0.0-beta.18580.13"
+    }
 }
