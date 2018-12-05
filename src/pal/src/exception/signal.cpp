@@ -63,7 +63,6 @@ using namespace CorUnix;
 /* local type definitions *****************************************************/
 
 typedef void (*SIGFUNC)(int, siginfo_t *, void *);
-typedef void (*SAHANDLERFUNC)(int);
 
 /* internal function declarations *********************************************/
 
@@ -236,31 +235,6 @@ void SEHCleanupSignals()
 /* internal function definitions **********************************************/
 
 #if !HAVE_MACH_EXCEPTIONS
-
-/*++
-Function :
-    get_action_handler
-
-    returns sa_sigaction or sa_handler depending on SA_SIGINFO flag.
-
-Parameters :
-    action : sigaction struct
-
-Return value :
-    handler as a SAHANDLERFUNC pointer
---*/
-static SAHANDLERFUNC get_action_handler(struct sigaction* action)
-{
-    if (action->sa_flags & SA_SIGINFO)
-    {
-        return (SAHANDLERFUNC)action->sa_sigaction;
-    }
-    else
-    {
-        return action->sa_handler;
-    }
-}
-
 /*++
 Function :
     invoke_previous_action
@@ -280,9 +254,7 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
 {
     _ASSERTE(action != NULL);
 
-    SAHANDLERFUNC handler = get_action_handler(action);
-
-    if (handler == SIG_IGN)
+    if (action->sa_handler == SIG_IGN)
     {
         if (signalRestarts)
         {
@@ -291,21 +263,7 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
         }
         return;
     }
-
-    if (handler != NULL &&
-        handler != SIG_DFL)
-    {
-        // Directly call the previous handler.
-        if (action->sa_flags & SA_SIGINFO)
-        {
-            action->sa_sigaction(code, siginfo, context);
-        }
-        else
-        {
-            action->sa_handler(code);
-        }
-    }
-    else
+    else if (action->sa_handler == SIG_DFL)
     {
         if (signalRestarts)
         {
@@ -317,6 +275,20 @@ static void invoke_previous_action(struct sigaction* action, int code, siginfo_t
             // We can't invoke the original handler because returning from the
             // handler doesn't restart the exception.
             PROCAbort();
+        }
+    }
+    else
+    {
+        // Directly call the previous handler.
+        if (action->sa_flags & SA_SIGINFO)
+        {
+            _ASSERTE(action->sa_sigaction != NULL);
+            action->sa_sigaction(code, siginfo, context);
+        }
+        else
+        {
+            _ASSERTE(action->sa_handler != NULL);
+            action->sa_handler(code);
         }
     }
 
@@ -637,17 +609,17 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
     // Call the original handler when it is not ignored or default (terminate).
     else
     {
-        SAHANDLERFUNC handler = get_action_handler(&g_previous_activation);
-        if (handler != NULL &&
-            handler != SIG_IGN &&
-            handler != SIG_DFL)
+        if (g_previous_activation.sa_handler != SIG_IGN &&
+            g_previous_activation.sa_handler != SIG_DFL)
         {
             if (g_previous_activation.sa_flags & SA_SIGINFO)
             {
+                _ASSERTE(g_previous_activation.sa_sigaction != NULL);
                 g_previous_activation.sa_sigaction(code, siginfo, context);
             }
             else
             {
+                _ASSERTE(g_previous_activation.sa_handler != NULL);
                 g_previous_activation.sa_handler(code);
             }
         }
