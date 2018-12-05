@@ -3,10 +3,22 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.Intrinsics
 {
+    // We mark certain methods with AggressiveInlining to ensure that the JIT will
+    // inline them. The JIT would otherwise not inline the method since it, at the
+    // point it tries to determine inline profability, currently cannot determine
+    // that most of the code-paths will be optimized away as "dead code".
+    //
+    // We then manually inline cases (such as certain intrinsic code-paths) that
+    // will generate code small enough to make the AgressiveInlining profitable. The
+    // other cases (such as the software fallback) are placed in their own method.
+    // This ensures we get good codegen for the "fast-path" and allows the JIT to
+    // determine inline profitability of the other paths as it would normally.
+
     public static class Vector128
     {
         internal const int Size = 16;
@@ -604,41 +616,85 @@ namespace System.Runtime.Intrinsics
         /// <summary>Creates a new <see cref="Vector128{Byte}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
         /// <param name="value">The value that element 0 will be initialized to.</param>
         /// <returns>A new <see cref="Vector128{Byte}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector128<byte> CreateScalar(byte value)
         {
-            var result = Vector128<byte>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<byte>, byte>(ref result), value);
-            return result;
+            if (Sse2.IsSupported)
+            {
+                return Sse2.ConvertScalarToVector128UInt32(value).AsByte();
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<byte> CreateScalarSoftware(byte x)
+            {
+                var result = Vector128<byte>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<byte>, byte>(ref result), x);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{Double}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
         /// <param name="value">The value that element 0 will be initialized to.</param>
         /// <returns>A new <see cref="Vector128{Double}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector128<double> CreateScalar(double value)
         {
-            var result = Vector128<double>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<double>, byte>(ref result), value);
-            return result;
+            if (Sse2.IsSupported)
+            {
+                return Sse2.MoveScalar(Vector128<double>.Zero, CreateScalarUnsafe(value));
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<double> CreateScalarSoftware(double x)
+            {
+                var result = Vector128<double>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<double>, byte>(ref result), x);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{Int16}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
         /// <param name="value">The value that element 0 will be initialized to.</param>
         /// <returns>A new <see cref="Vector128{Int16}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector128<short> CreateScalar(short value)
         {
-            var result = Vector128<short>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<short>, byte>(ref result), value);
-            return result;
+            if (Sse2.IsSupported)
+            {
+                return Sse2.ConvertScalarToVector128UInt32((ushort)(value)).AsInt16();
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<short> CreateScalarSoftware(short x)
+            {
+                var result = Vector128<short>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<short>, byte>(ref result), value);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{Int32}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
         /// <param name="value">The value that element 0 will be initialized to.</param>
         /// <returns>A new <see cref="Vector128{Int32}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector128<int> CreateScalar(int value)
         {
-            var result = Vector128<int>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<int>, byte>(ref result), value);
-            return result;
+            if (Sse2.IsSupported)
+            {
+                return Sse2.ConvertScalarToVector128Int32(value);
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<int> CreateScalarSoftware(int x)
+            {
+                var result = Vector128<int>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<int>, byte>(ref result), value);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{Int64}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
@@ -646,63 +702,129 @@ namespace System.Runtime.Intrinsics
         /// <returns>A new <see cref="Vector128{Int64}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
         public static unsafe Vector128<long> CreateScalar(long value)
         {
-            var result = Vector128<long>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<long>, byte>(ref result), value);
-            return result;
+            if (Sse2.X64.IsSupported)
+            {
+                return Sse2.X64.ConvertScalarToVector128Int64(value);
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<long> CreateScalarSoftware(long x)
+            {
+                var result = Vector128<long>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<long>, byte>(ref result), value);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{SByte}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
         /// <param name="value">The value that element 0 will be initialized to.</param>
         /// <returns>A new <see cref="Vector128{SByte}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector128<sbyte> CreateScalar(sbyte value)
         {
-            var result = Vector128<sbyte>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<sbyte>, byte>(ref result), value);
-            return result;
+            if (Sse2.IsSupported)
+            {
+                // Convert to byte so that we zero-extend, rather than sign-extend
+                return Sse2.ConvertScalarToVector128UInt32((byte)(value)).AsSByte();
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<sbyte> CreateScalarSoftware(sbyte x)
+            {
+                var result = Vector128<sbyte>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<sbyte>, byte>(ref result), value);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{Single}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
         /// <param name="value">The value that element 0 will be initialized to.</param>
         /// <returns>A new <see cref="Vector128{Single}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector128<float> CreateScalar(float value)
         {
-            var result = Vector128<float>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<float>, byte>(ref result), value);
-            return result;
+            if (Sse.IsSupported)
+            {
+                return Sse.MoveScalar(Vector128<float>.Zero, CreateScalarUnsafe(value));
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<float> CreateScalarSoftware(float x)
+            {
+                var result = Vector128<float>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<float>, byte>(ref result), value);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{UInt16}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
         /// <param name="value">The value that element 0 will be initialized to.</param>
         /// <returns>A new <see cref="Vector128{UInt16}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector128<ushort> CreateScalar(ushort value)
         {
-            var result = Vector128<ushort>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<ushort>, byte>(ref result), value);
-            return result;
+            if (Sse2.IsSupported)
+            {
+                return Sse2.ConvertScalarToVector128UInt32(value).AsUInt16();
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<ushort> CreateScalarSoftware(ushort x)
+            {
+                var result = Vector128<ushort>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<ushort>, byte>(ref result), value);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{UInt32}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
         /// <param name="value">The value that element 0 will be initialized to.</param>
         /// <returns>A new <see cref="Vector128{UInt32}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector128<uint> CreateScalar(uint value)
         {
-            var result = Vector128<uint>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<uint>, byte>(ref result), value);
-            return result;
+            if (Sse2.IsSupported)
+            {
+                return Sse2.ConvertScalarToVector128UInt32(value);
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<uint> CreateScalarSoftware(uint x)
+            {
+                var result = Vector128<uint>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<uint>, byte>(ref result), value);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{UInt64}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
         /// <param name="value">The value that element 0 will be initialized to.</param>
         /// <returns>A new <see cref="Vector128{UInt64}" /> instance with the first element initialized to <paramref name="value" /> and the remaining elements initialized to zero.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector128<ulong> CreateScalar(ulong value)
         {
-            var result = Vector128<ulong>.Zero;
-            Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<ulong>, byte>(ref result), value);
-            return result;
+            if (Sse2.X64.IsSupported)
+            {
+                return Sse2.X64.ConvertScalarToVector128UInt64(value);
+            }
+
+            return CreateScalarSoftware(value);
+
+            Vector128<ulong> CreateScalarSoftware(ulong x)
+            {
+                var result = Vector128<ulong>.Zero;
+                Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<ulong>, byte>(ref result), value);
+                return result;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector128{Byte}" /> instance with the first element initialized to the specified value and the remaining elements left uninitialized.</summary>
