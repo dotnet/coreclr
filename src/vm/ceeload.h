@@ -2599,7 +2599,7 @@ public:
     { 
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
-        return m_file->HasNativeImage() && !IsCollectible();
+        return m_file->HasNativeImage();
     }
     
     PEImageLayout *GetNativeImage()
