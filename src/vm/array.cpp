@@ -546,10 +546,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
             MethodTable::MethodDataWrapper hParentMTData(MethodTable::GetMethodData(pParentClass, FALSE));
             for (UINT32 i = 0; i < numVirtuals; i++)
             {
-                MethodDesc *pMD = hParentMTData->GetImplMethodDesc(i);
-                _ASSERTE(CheckPointer(pMD));
-                _ASSERTE(pMD == pParentClass->GetMethodDescForSlot(i));
-                pMT->SetSlot(i, pMD->GetInitialEntryPointForCopiedSlot());
+                pMT->CopySlotFrom(i, hParentMTData, pParentClass);
             }
         }
 

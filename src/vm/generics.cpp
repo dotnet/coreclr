@@ -448,10 +448,7 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
         MethodTable::MethodDataWrapper hOldMTData(MethodTable::GetMethodData(pOldMT, FALSE));
         for (DWORD i = 0; i < cSlots; i++)
         {
-            MethodDesc *pMD = hOldMTData->GetImplMethodDesc(i);
-            CONSISTENCY_CHECK(CheckPointer(pMD));
-            CONSISTENCY_CHECK(pMD == pOldMT->GetMethodDescForSlot(i));
-            pMT->SetSlot(i, pMD->GetInitialEntryPointForCopiedSlot());
+            pMT->CopySlotFrom(i, hOldMTData, pOldMT);
         }
     }
 

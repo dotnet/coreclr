@@ -6954,7 +6954,7 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
 
 
 #ifdef FEATURE_TIERED_COMPILATION
-    // Keep in-sync with MethodDesc::IsEligibleForTieredCompilation()
+    // Keep in-sync with MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
     if (g_pConfig->TieredCompilation() &&
         (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
     {
@@ -8840,10 +8840,7 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
             MethodTable::MethodDataWrapper hCanonMTData(MethodTable::GetMethodData(pCanonMT, FALSE));
             for (DWORD i = 0; i < nParentVirtuals; i++)
             {
-                MethodDesc *pMD = hCanonMTData->GetImplMethodDesc(i);
-                CONSISTENCY_CHECK(CheckPointer(pMD));
-                CONSISTENCY_CHECK(pMD == pCanonMT->GetMethodDescForSlot(i));
-                pMT->SetSlot(i, pMD->GetInitialEntryPointForCopiedSlot());
+                pMT->CopySlotFrom(i, hCanonMTData, pCanonMT);
             }
         }
     }
@@ -8885,10 +8882,7 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
             }
 
             // The slot lives in an unshared chunk. We need to update the slot contents
-            pMD = hParentMTData->GetImplMethodDesc(i);
-            CONSISTENCY_CHECK(CheckPointer(pMD));
-            CONSISTENCY_CHECK(pMD == pParentMT->GetMethodDescForSlot(i));
-            pMT->SetSlot(i, pMD->GetInitialEntryPointForCopiedSlot());
+            pMT->CopySlotFrom(i, hParentMTData, pParentMT);
         }
     }
 } // MethodTableBuilder::CopyExactParentSlots
