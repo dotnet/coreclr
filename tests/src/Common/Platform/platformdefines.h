@@ -185,7 +185,7 @@ inline void *CoreClrBStrAlloc(size_t cb)
     if (cb >= sizeof(OLECHAR))
         cb -= sizeof(OLECHAR);
 
-    return CoreClrBStrAlloc((LPCSTR)nullptr, static_cast<UINT>(cb));
+    return CoreClrBStrAlloc((LPCSTR)nullptr, cb);
 }
 
 void CoreClrBStrFree(BSTR bstr);
