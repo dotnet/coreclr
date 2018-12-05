@@ -2,15 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Runtime.InteropServices.ComTypes;
-using System.Text;
 
 namespace System.Runtime.InteropServices.CustomMarshalers
 {
-    internal class EnumerableViewOfDispatch : ICustomAdapter, IEnumerable
+    internal class EnumerableViewOfDispatch : ICustomAdapter, System.Collections.IEnumerable
     {
         // Reserved DISPID slot for getting an enumerator from an IDispatch-implementing COM interface.
         private const int DISPID_NEWENUM = -4;
