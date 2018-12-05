@@ -761,6 +761,7 @@ BOOL DomainFile::IsZapRequired()
     if (!m_pFile->HasMetadata() || !g_pConfig->RequireZap(GetSimpleName()))
         return FALSE;
 
+#if defined(_DEBUG)
     // If we're intentionally treating NIs as if they were MSIL assemblies, and the test
     // is flexible enough to accept that (e.g., complus_zaprequired=2), then zaps are not
     // required (i.e., it's ok for m_pFile->m_nativeImage to be NULL), but only if we
@@ -780,6 +781,7 @@ BOOL DomainFile::IsZapRequired()
             return FALSE;
         }
     }
+#endif // defined(_DEBUG)
 
     // Does this look like a resource-only assembly?  We assume an assembly is resource-only
     // if it contains no TypeDef (other than the <Module> TypeDef) and no MethodDef.
