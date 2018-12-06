@@ -6,11 +6,23 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.Intrinsics
 {
+    // We mark certain methods with AggressiveInlining to ensure that the JIT will
+    // inline them. The JIT would otherwise not inline the method since it, at the
+    // point it tries to determine inline profability, currently cannot determine
+    // that most of the code-paths will be optimized away as "dead code".
+    //
+    // We then manually inline cases (such as certain intrinsic code-paths) that
+    // will generate code small enough to make the AgressiveInlining profitable. The
+    // other cases (such as the software fallback) are placed in their own method.
+    // This ensures we get good codegen for the "fast-path" and allows the JIT to
+    // determine inline profitability of the other paths as it would normally.
+
     [Intrinsic]
     [DebuggerDisplay("{DisplayString,nq}")]
     [DebuggerTypeProxy(typeof(Vector256DebugView<>))]
@@ -173,17 +185,46 @@ namespace System.Runtime.Intrinsics
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
         public bool Equals(Vector256<T> other)
         {
-            ThrowIfUnsupportedType();
-
-            for (int i = 0; i < Count; i++)
+            if (Avx.IsSupported)
             {
-                if (!((IEquatable<T>)(GetElement(i))).Equals(other.GetElement(i)))
+                if (typeof(T) == typeof(float))
                 {
-                    return false;
+                    Vector256<float> result = Avx.Compare(AsSingle(), other.AsSingle(), FloatComparisonMode.EqualOrderedNonSignaling);
+                    return Avx.MoveMask(result) == 0b1111_1111;
+                }
+
+                if (typeof(T) == typeof(double))
+                {
+                    Vector256<double> result = Avx.Compare(AsDouble(), other.AsDouble(), FloatComparisonMode.EqualOrderedNonSignaling);
+                    return Avx.MoveMask(result) == 0b1111;
                 }
             }
 
-            return true;
+            if (Avx2.IsSupported)
+            {
+                // Unlike float/double, there are no special values to consider
+                // for integral types and we can just do a comparison that all
+                // bytes are exactly the same.
+
+                Debug.Assert((typeof(T) != typeof(float)) && (typeof(T) != typeof(double)));
+                Vector256<byte> result = Avx2.CompareEqual(AsByte(), other.AsByte());
+                return Avx2.MoveMask(result) == unchecked((int)(0b1111_1111_1111_1111_1111_1111_1111_1111));
+            }
+
+            return EqualsSoftware(in this, other);
+
+            bool EqualsSoftware(in Vector256<T> x, Vector256<T> y)
+            {
+                for (int i = 0; i < Count; i++)
+                {
+                    if (!((IEquatable<T>)(x.GetElement(i))).Equals(y.GetElement(i)))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
         }
 
         /// <summary>Determines whether the specified object is equal to the current instance.</summary>
