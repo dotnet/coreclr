@@ -32,20 +32,27 @@ jobs:
       # Map template parameters to command line arguments
       ${{ if eq(parameters.priority, '1') }}:
         ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-          priorityArg: 'priority1'
+          - name: priorityArg
+            value: 'priority1'
         ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-          priorityArg: '-priority=1'
+          - name: priorityArg
+            value: '-priority=1'
       ${{ if eq(parameters.priority, '0') }}:
-        priorityArg: ''
+        - name: priorityArg
+          value: ''
 
       ${{ if eq(parameters.crossgen, 'true') }}:
-        crossgenArg: 'crossgen'
+        - name: crossgenArg
+          value: 'crossgen'
       ${{ if eq(parameters.crossgen, 'false') }}:
-        crossgenArg: ''
+        - name: crossgenArg
+          value: ''
       ${{ if ne(parameters.scenarios, '') }}:
-        scenariosArg: ${{ format('/p:Scenarios=\"{0}\"', parameters.scenarios) }}
+        - name: scenariosArg
+          value: ${{ format('/p:Scenarios=\"{0}\"', parameters.scenarios) }}
       ${{ if eq(parameters.scenarios, '') }}:
-        scenariosArg: ''
+        - name: scenariosArg
+          value: ''
 
     # TODO: Enable crossgen in build-test.sh. It currently doesn't
     # accept a crossgen arg, so disable the macos/linux crossgen test
