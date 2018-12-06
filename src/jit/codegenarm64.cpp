@@ -506,56 +506,11 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
         genSaveCaleeSavedRegisterGroup(maskSaveRegsInt, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
     }
 
-    // Save the floating-point/SIMD registers
-
-    bool lastSavedWasPair = false;
-
-    while (maskSaveRegsFloat != RBM_NONE)
+    if (maskSaveRegsFloat != 0)
     {
-        // If this is the first store that needs to change SP (spDelta != 0),
-        // then the offset must be 8 to account for alignment for the odd count
-        // or it must be 0 for the even count.
-        assert((spDelta == 0) || (isRegsToSaveCountOdd && spOffset == REGSIZE_BYTES) ||
-               (!isRegsToSaveCountOdd && spOffset == 0));
-
-        bool      isPairSave = (floatRegsToSaveCount >= 2);
-        regMaskTP reg1Mask   = genFindLowestBit(maskSaveRegsFloat);
-        regNumber reg1       = genRegNumFromMask(reg1Mask);
-        maskSaveRegsFloat &= ~reg1Mask;
-        floatRegsToSaveCount -= 1;
-
-        if (isPairSave)
-        {
-            // We can use a STP instruction.
-
-            regMaskTP reg2Mask = genFindLowestBit(maskSaveRegsFloat);
-            regNumber reg2     = genRegNumFromMask(reg2Mask);
-            assert(reg2 == REG_NEXT(reg1));
-            maskSaveRegsFloat &= ~reg2Mask;
-            floatRegsToSaveCount -= 1;
-
-            genPrologSaveRegPair(reg1, reg2, spOffset, spDelta, lastSavedWasPair, REG_IP0, nullptr);
-
-            // TODO-ARM64-CQ: this code works in the prolog, but it's a bit weird to think about "next" when generating
-            // this epilog, to get the codes to match. Turn this off until that is better understood.
-            // lastSavedWasPair = true;
-
-            spOffset += 2 * FPSAVE_REGSIZE_BYTES;
-        }
-        else
-        {
-            // No register pair; we use a STR instruction.
-
-            genPrologSaveReg(reg1, spOffset, spDelta, REG_IP0, nullptr);
-
-            lastSavedWasPair = false;
-            spOffset += FPSAVE_REGSIZE_BYTES;
-        }
-
-        spDelta = 0; // We've now changed SP already, if necessary; don't do it again.
+        // Save the floating-point/SIMD registers
+        genSaveCaleeSavedRegisterGroup(maskSaveRegsFloat, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
     }
-
-    assert(floatRegsToSaveCount == 0);
 }
 
 //------------------------------------------------------------------------
