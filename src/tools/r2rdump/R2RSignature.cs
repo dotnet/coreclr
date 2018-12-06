@@ -97,14 +97,31 @@ namespace R2RDump
         /// <param name="memberRefHandle">Member reference handle</param>
         private string EmitMemberReferenceName(MemberReferenceHandle memberRefHandle, string owningTypeOverride)
         {
-            MemberReference methodRef = _metadataReader.GetMemberReference(memberRefHandle);
+            MemberReference memberRef = _metadataReader.GetMemberReference(memberRefHandle);
             StringBuilder builder = new StringBuilder();
             DisassemblingGenericContext genericContext = new DisassemblingGenericContext(Array.Empty<string>(), Array.Empty<string>());
-            MethodSignature<String> methodSig = methodRef.DecodeMethodSignature<string, DisassemblingGenericContext>(this, genericContext);
-            builder.Append(methodSig.ReturnType);
-            builder.Append(" ");
-            builder.Append(EmitContainingTypeAndMethodName(methodRef, owningTypeOverride));
-            builder.Append(EmitMethodSignature(methodSig));
+            switch (memberRef.GetKind())
+            {
+                case MemberReferenceKind.Field:
+                    {
+                        String fieldSig = memberRef.DecodeFieldSignature<string, DisassemblingGenericContext>(this, genericContext);
+                        builder.Append(fieldSig);
+                        builder.Append(EmitContainingTypeAndMemberName(memberRef, owningTypeOverride));
+                        break;
+                    }
+
+                case MemberReferenceKind.Method:
+                    {
+                        MethodSignature<String> methodSig = memberRef.DecodeMethodSignature<string, DisassemblingGenericContext>(this, genericContext);
+                        builder.Append(methodSig.ReturnType);
+                        builder.Append(" ");
+                        builder.Append(EmitContainingTypeAndMemberName(memberRef, owningTypeOverride));
+                        builder.Append(EmitMethodSignature(methodSig));
+                        break;
+                    }
+                default:
+                    throw new NotImplementedException();
+            }
             return builder.ToString();
         }
 
@@ -180,7 +197,7 @@ namespace R2RDump
         /// </summary>
         /// <param name="methodRef">Method reference to format</param>
         /// <param name="methodSignature">Output method signature</param>
-        private string EmitContainingTypeAndMethodName(MemberReference methodRef, string owningTypeOverride)
+        private string EmitContainingTypeAndMemberName(MemberReference methodRef, string owningTypeOverride)
         {
             if (owningTypeOverride == null)
             {
@@ -550,8 +567,8 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_FieldAddress:
-                    builder.Append("FIELD_ADDRESS");
-                    // TODO
+                    ParseField(builder);
+                    builder.Append(" (FIELD_ADDRESS)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_CctorTrigger:
@@ -933,6 +950,26 @@ namespace R2RDump
         {
             uint methodRefToken = ReadUInt() | (uint)CorTokenType.mdtMemberRef;
             builder.Append(MetadataNameFormatter.FormatHandle(_metadataReader, MetadataTokens.Handle((int)methodRefToken), namespaceQualified: false, owningTypeOverride: owningTypeOverride));
+        }
+
+        private void ParseField(StringBuilder builder)
+        {
+            byte flags = ReadByte();
+            StringBuilder ownerTypeBuilder = new StringBuilder();
+            if ((flags & (byte)ReadyToRunFieldSigFlags.READYTORUN_FIELD_SIG_OwnerType) != 0)
+            {
+                ParseType(ownerTypeBuilder);
+            }
+            uint fieldToken;
+            if ((flags & (byte)ReadyToRunFieldSigFlags.READYTORUN_FIELD_SIG_MemberRefToken) != 0)
+            {
+                fieldToken = ReadUInt() | (uint)CorTokenType.mdtMemberRef;
+            }
+            else
+            {
+                fieldToken = ReadUInt() | (uint)CorTokenType.mdtFieldDef;
+            }
+            builder.Append(MetadataNameFormatter.FormatHandle(_metadataReader, MetadataTokens.Handle((int)fieldToken), namespaceQualified: false, owningTypeOverride: ownerTypeBuilder.ToString()));
         }
 
         /// <summary>
