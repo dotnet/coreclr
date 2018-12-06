@@ -651,7 +651,7 @@ namespace System.IO
             // This method requires bytes of length 8 and chars of length 12.
             Debug.Assert(bytes != null);
             Debug.Assert(byteCount == 8, $"Unexpected {nameof(byteCount)}");
-            Debug.Assert(chars.Length == 12, $"Unexpected {nameof(chars)}");
+            Debug.Assert(chars.Length == 12, $"Unexpected {nameof(chars)}.Length");
 
             byte b0 = bytes[0];
             byte b1 = bytes[1];
