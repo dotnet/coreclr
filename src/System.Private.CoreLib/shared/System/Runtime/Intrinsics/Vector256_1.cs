@@ -307,41 +307,89 @@ namespace System.Runtime.Intrinsics
         /// <param name="value">The value of the lower 128-bits as a <see cref="Vector128{T}" />.</param>
         /// <returns>A new <see cref="Vector256{T}" /> with the lower 128-bits set to the specified value and the lower 128-bits set to the same value as that in the current instance.</returns>
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<T> WithLower(Vector128<T> value)
         {
             ThrowIfUnsupportedType();
             Vector128<T>.ThrowIfUnsupportedType();
 
-            Vector256<T> result = this;
-            Unsafe.As<Vector256<T>, Vector128<T>>(ref result) = value;
-            return result;
+            if (Avx2.IsSupported && ((typeof(T) != typeof(float)) && (typeof(T) != typeof(double))))
+            {
+                return Avx2.InsertVector128(AsByte(), value.AsByte(), 0).As<T>();
+            }
+
+            if (Avx.IsSupported)
+            {
+                return Avx.InsertVector128(AsSingle(), value.AsSingle(), 0).As<T>();
+            }
+
+            return WithLowerSoftware(in this, value);
+
+            Vector256<T> WithLowerSoftware(in Vector256<T> t, Vector128<T> x)
+            {
+                Vector256<T> result = t;
+                Unsafe.As<Vector256<T>, Vector128<T>>(ref result) = x;
+                return result;
+            }
         }
 
         /// <summary>Gets the value of the upper 128-bits as a new <see cref="Vector128{T}" />.</summary>
         /// <returns>The value of the upper 128-bits as a new <see cref="Vector128{T}" />.</returns>
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector128<T> GetUpper()
         {
             ThrowIfUnsupportedType();
             Vector128<T>.ThrowIfUnsupportedType();
 
-            ref Vector128<T> lower = ref Unsafe.As<Vector256<T>, Vector128<T>>(ref Unsafe.AsRef(in this));
-            return Unsafe.Add(ref lower, 1);
+            if (Avx2.IsSupported && ((typeof(T) != typeof(float)) && (typeof(T) != typeof(double))))
+            {
+                return Avx2.ExtractVector128(AsByte(), 1).As<T>();
+            }
+
+            if (Avx.IsSupported)
+            {
+                return Avx.ExtractVector128(AsSingle(), 1).As<T>();
+            }
+
+            return GetUpperSoftware(in this);
+
+            Vector128<T> GetUpperSoftware(in Vector256<T> t)
+            {
+                ref Vector128<T> lower = ref Unsafe.As<Vector256<T>, Vector128<T>>(ref Unsafe.AsRef(in t));
+                return Unsafe.Add(ref lower, 1);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{T}" /> with the upper 128-bits set to the specified value and the upper 128-bits set to the same value as that in the current instance.</summary>
         /// <param name="value">The value of the upper 128-bits as a <see cref="Vector128{T}" />.</param>
         /// <returns>A new <see cref="Vector256{T}" /> with the upper 128-bits set to the specified value and the upper 128-bits set to the same value as that in the current instance.</returns>
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<T> WithUpper(Vector128<T> value)
         {
             ThrowIfUnsupportedType();
             Vector128<T>.ThrowIfUnsupportedType();
 
-            Vector256<T> result = this;
-            ref Vector128<T> lower = ref Unsafe.As<Vector256<T>, Vector128<T>>(ref result);
-            Unsafe.Add(ref lower, 1) = value;
-            return result;
+            if (Avx2.IsSupported && ((typeof(T) != typeof(float)) && (typeof(T) != typeof(double))))
+            {
+                return Avx2.InsertVector128(AsByte(), value.AsByte(), 1).As<T>();
+            }
+
+            if (Avx.IsSupported)
+            {
+                return Avx.InsertVector128(AsSingle(), value.AsSingle(), 1).As<T>();
+            }
+
+            return WithUpperSoftware(in this, value);
+
+            Vector256<T> WithUpperSoftware(in Vector256<T> t, Vector128<T> x)
+            {
+                Vector256<T> result = t;
+                ref Vector128<T> lower = ref Unsafe.As<Vector256<T>, Vector128<T>>(ref result);
+                Unsafe.Add(ref lower, 1) = x;
+                return result;
+            }
         }
 
         /// <summary>Converts the current instance to a scalar containing the value of the first element.</summary>
