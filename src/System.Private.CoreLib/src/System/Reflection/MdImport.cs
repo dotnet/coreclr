@@ -397,17 +397,16 @@ namespace System.Reflection
             if (name == null)
                 return null;
 
+#if ALIGN_ACCESS
             char[] c = new char[length];
             for (int i = 0; i < c.Length; i++)
             {
-#if ALIGN_ACCESS
                 c[i] = (char)Marshal.ReadInt16( (IntPtr) (((char*)name) + i) );
-#else
-                c[i] = ((char*)name)[i];
-#endif
             }
-
             return new string(c);
+#else
+            return new string(new ReadOnlySpan<char>(name, length));
+#endif
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
