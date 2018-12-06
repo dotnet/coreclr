@@ -26,257 +26,441 @@ namespace System.Runtime.Intrinsics
         /// <summary>Creates a new <see cref="Vector256{Byte}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Byte}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<byte> Create(byte value)
         {
-            var pResult = stackalloc byte[32]
+            if (Avx2.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-            };
+                Vector128<byte> result = Vector128.CreateScalarUnsafe(value);           // < v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
+                return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
+            }
 
-            return Unsafe.AsRef<Vector256<byte>>(pResult);
+            if (Avx.IsSupported)
+            {
+                Vector128<byte> result = Vector128.Create(value);                       // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
+                return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
+            }
+
+            return CreateSoftware(value);
+
+            Vector256<byte> CreateSoftware(byte x)
+            {
+                var pResult = stackalloc byte[32]
+                {
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<byte>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Double}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Double}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<double> Create(double value)
         {
-            var pResult = stackalloc double[4]
+            if (Avx2.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-            };
+                Vector128<double> result = Vector128.CreateScalarUnsafe(value);         // < v, ?, ?, ? >
+                return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v >
+            }
 
-            return Unsafe.AsRef<Vector256<double>>(pResult);
+            if (Avx.IsSupported)
+            {
+                Vector128<double> result = Vector128.Create(value);                     // < v, v, ?, ? >
+                return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v >
+            }
+
+            return CreateSoftware(value);
+
+            Vector256<double> CreateSoftware(double x)
+            {
+                var pResult = stackalloc double[4]
+                {
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<double>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Int16}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Int16}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<short> Create(short value)
         {
-            var pResult = stackalloc short[16]
+            if (Avx2.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-            };
+                Vector128<short> result = Vector128.CreateScalarUnsafe(value);          // < v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
+                return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
+            }
 
-            return Unsafe.AsRef<Vector256<short>>(pResult);
+            if (Avx.IsSupported)
+            {
+                Vector128<short> result = Vector128.Create(value);                      // < v, v, v, v, v, v, v, v, ?, ?, ?, ?, ?, ?, ?, ? >
+                return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
+            }
+
+            return CreateSoftware(value);
+
+            Vector256<short> CreateSoftware(short x)
+            {
+                var pResult = stackalloc short[16]
+                {
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<short>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Int32}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Int32}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<int> Create(int value)
         {
-            var pResult = stackalloc int[8]
+            if (Avx2.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-            };
+                Vector128<int> result = Vector128.CreateScalarUnsafe(value);            // < v, ?, ?, ?, ?, ?, ?, ? >
+                return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v, v, v, v, v >
+            }
 
-            return Unsafe.AsRef<Vector256<int>>(pResult);
+            if (Avx.IsSupported)
+            {
+                Vector128<int> result = Vector128.Create(value);                        // < v, v, v, v, ?, ?, ?, ? >
+                return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v >
+            }
+
+            return CreateSoftware(value);
+
+            Vector256<int> CreateSoftware(int x)
+            {
+                var pResult = stackalloc int[8]
+                {
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<int>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Int64}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Int64}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<long> Create(long value)
         {
-            var pResult = stackalloc long[4]
+            if (Sse2.X64.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-            };
+                if (Avx2.IsSupported)
+                {
+                    Vector128<long> result = Vector128.CreateScalarUnsafe(value);           // < v, ?, ?, ? >
+                    return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v >
+                }
+                else if (Avx.IsSupported)
+                {
+                    Vector128<long> result = Vector128.Create(value);                       // < v, v, ?, ? >
+                    return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v >
+                }
+            }
 
-            return Unsafe.AsRef<Vector256<long>>(pResult);
+            return CreateSoftware(value);
+
+            Vector256<long> CreateSoftware(long x)
+            {
+                var pResult = stackalloc long[4]
+                {
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<long>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{SByte}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{SByte}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector256<sbyte> Create(sbyte value)
         {
-            var pResult = stackalloc sbyte[32]
+            if (Avx2.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-            };
+                Vector128<sbyte> result = Vector128.CreateScalarUnsafe(value);          // < v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
+                return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
+            }
 
-            return Unsafe.AsRef<Vector256<sbyte>>(pResult);
+            if (Avx.IsSupported)
+            {
+                Vector128<sbyte> result = Vector128.Create(value);                      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
+                return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
+            }
+
+            return CreateSoftware(value);
+
+            Vector256<sbyte> CreateSoftware(sbyte x)
+            {
+                var pResult = stackalloc sbyte[32]
+                {
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<sbyte>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Single}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Single}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<float> Create(float value)
         {
-            var pResult = stackalloc float[8]
+            if (Avx2.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-            };
+                Vector128<float> result = Vector128.CreateScalarUnsafe(value);          // < v, ?, ?, ?, ?, ?, ?, ? >
+                return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v, v, v, v, v >
+            }
 
-            return Unsafe.AsRef<Vector256<float>>(pResult);
+            if (Avx.IsSupported)
+            {
+                Vector128<float> result = Vector128.Create(value);                      // < v, v, v, v, ?, ?, ?, ? >   
+                return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v >
+            }
+
+            return CreateSoftware(value);
+
+            Vector256<float> CreateSoftware(float x)
+            {
+                var pResult = stackalloc float[8]
+                {
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<float>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{UInt16}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{UInt16}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector256<ushort> Create(ushort value)
         {
-            var pResult = stackalloc ushort[16]
+            if (Avx2.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-            };
+                Vector128<ushort> result = Vector128.CreateScalarUnsafe(value);         // < v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
+                return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
+            }
 
-            return Unsafe.AsRef<Vector256<ushort>>(pResult);
+            if (Avx.IsSupported)
+            {
+                Vector128<ushort> result = Vector128.Create(value);                     // < v, v, v, v, v, v, v, v, ?, ?, ?, ?, ?, ?, ?, ? >
+                return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
+            }
+
+            return CreateSoftware(value);
+
+            Vector256<ushort> CreateSoftware(ushort x)
+            {
+                var pResult = stackalloc ushort[16]
+                {
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<ushort>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{UInt32}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{UInt32}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector256<uint> Create(uint value)
         {
-            var pResult = stackalloc uint[8]
+            if (Avx2.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-                value,
-            };
+                Vector128<uint> result = Vector128.CreateScalarUnsafe(value);           // < v, ?, ?, ?, ?, ?, ?, ? >
+                return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v, v, v, v, v >
+            }
 
-            return Unsafe.AsRef<Vector256<uint>>(pResult);
+            if (Avx.IsSupported)
+            {
+                Vector128<uint> result = Vector128.Create(value);                       // < v, v, v, v, ?, ?, ?, ? >
+                return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v >
+            }
+
+            return CreateSoftware(value);
+
+            Vector256<uint> CreateSoftware(uint x)
+            {
+                var pResult = stackalloc uint[8]
+                {
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<uint>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{UInt64}" /> instance with all elements initialized to the specified value.</summary>
         /// <param name="value">The value that all elements will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{UInt64}" /> with all elements initialized to <paramref name="value" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector256<ulong> Create(ulong value)
         {
-            var pResult = stackalloc ulong[4]
+            if (Sse2.X64.IsSupported)
             {
-                value,
-                value,
-                value,
-                value,
-            };
+                if (Avx2.IsSupported)
+                {
+                    Vector128<ulong> result = Vector128.CreateScalarUnsafe(value);          // < v, ?, ?, ? >
+                    return Avx2.BroadcastScalarToVector256(result);                         // < v, v, v, v >
+                }
+                else if (Avx.IsSupported)
+                {
+                    Vector128<ulong> result = Vector128.Create(value);                      // < v, v, ?, ? >
+                    return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v >
+                }
+            }
 
-            return Unsafe.AsRef<Vector256<ulong>>(pResult);
+            return CreateSoftware(value);
+
+            Vector256<ulong> CreateSoftware(ulong x)
+            {
+                var pResult = stackalloc ulong[4]
+            {
+                    x,
+                    x,
+                    x,
+                    x,
+                };
+
+                return Unsafe.AsRef<Vector256<ulong>>(pResult);
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Byte}" /> instance with each element initialized to the corresponding specified value.</summary>
