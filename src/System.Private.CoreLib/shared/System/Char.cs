@@ -931,19 +931,16 @@ namespace System
             if (utf32 < UNICODE_PLANE01_START)
             {
                 // This is a BMP character.
-                return (char.ToString((char)utf32));
+                return ToString((char)utf32);
             }
 
-            unsafe
+            // This is a supplementary character.  Convert it to a surrogate pair in UTF-16.
+            utf32 -= UNICODE_PLANE01_START;
+            return string.Create(2, utf32, (span, value) =>
             {
-                // This is a supplementary character.  Convert it to a surrogate pair in UTF-16.
-                utf32 -= UNICODE_PLANE01_START;
-                uint surrogate = 0; // allocate 2 chars worth of stack space
-                char* address = (char*)&surrogate;
-                address[0] = (char)((utf32 / 0x400) + (int)CharUnicodeInfo.HIGH_SURROGATE_START);
-                address[1] = (char)((utf32 % 0x400) + (int)CharUnicodeInfo.LOW_SURROGATE_START);
-                return new string(address, 0, 2);
-            }
+                span[1] = (char)((value % 0x400) + CharUnicodeInfo.LOW_SURROGATE_START);
+                span[0] = (char)((value / 0x400) + CharUnicodeInfo.HIGH_SURROGATE_START);
+            });
         }
 
 
