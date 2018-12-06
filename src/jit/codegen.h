@@ -301,9 +301,11 @@ protected:
     void genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
                                         int&      spDelta,
                                         int& spOffset DEBUGARG(bool isRegsToSaveCountOdd));
+    void genRestoreCaleeSavedRegisterGroup(regMaskTP maskRestoreRegsInt,
+                                           int       spDelta,
+                                           int& spOffset DEBUGARG(bool isRegsToRestoreCountOdd));
 
     void genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowestCalleeSavedOffset, int spDelta);
-
     void genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, int lowestCalleeSavedOffset, int spDelta);
 
     void genPushCalleeSavedRegisters(regNumber initReg, bool* pInitRegZeroed);

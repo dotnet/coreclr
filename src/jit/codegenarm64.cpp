@@ -513,6 +513,59 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
     }
 }
 
+void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP maskRestoreRegsInt,
+                                                int       spDelta,
+                                                int& spOffset DEBUGARG(bool isRegsToRestoreCountOdd))
+{
+    unsigned intRegsToRestoreCount = genCountBits(maskRestoreRegsInt);
+    while (maskRestoreRegsInt != RBM_NONE)
+    {
+        bool thisIsTheLastRestoreInstruction = (intRegsToRestoreCount <= 2);
+        bool isPairRestore                   = (intRegsToRestoreCount % 2) == 0;
+
+        // Update stack delta only if it is the last restore (the first save).
+        int stackDelta = 0;
+        if (thisIsTheLastRestoreInstruction)
+        {
+            stackDelta = spDelta;
+        }
+
+        // Update stack offset.
+        spOffset -= REGSIZE_BYTES;
+        if (isPairRestore)
+        {
+            spOffset -= REGSIZE_BYTES;
+        }
+
+        // If this is the last restore (the first save) that needs to change SP (stackDelta != 0),
+        // then the offset must be 8 to account for alignment for the odd count
+        // or it must be 0 for the even count.
+        assert((stackDelta == 0) || (isRegsToRestoreCountOdd && spOffset == REGSIZE_BYTES) ||
+               (!isRegsToRestoreCountOdd && spOffset == 0));
+
+        regMaskTP reg2Mask = genFindHighestBit(maskRestoreRegsInt);
+        regNumber reg2     = genRegNumFromMask(reg2Mask);
+        maskRestoreRegsInt &= ~reg2Mask;
+        intRegsToRestoreCount -= 1;
+
+        if (isPairRestore)
+        {
+            regMaskTP reg1Mask = genFindHighestBit(maskRestoreRegsInt);
+            regNumber reg1     = genRegNumFromMask(reg1Mask);
+            maskRestoreRegsInt &= ~reg1Mask;
+            intRegsToRestoreCount -= 1;
+
+            genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP1, nullptr);
+        }
+        else
+        {
+            genEpilogRestoreReg(reg2, spOffset, stackDelta, REG_IP1, nullptr);
+        }
+    }
+
+    assert(intRegsToRestoreCount == 0);
+}
+
 //------------------------------------------------------------------------
 // genRestoreCalleeSavedRegistersHelp: Restore the callee-saved registers in 'regsToRestoreMask' from the stack frame
 // in the function or funclet epilog. This exactly reverses the actions of genSaveCalleeSavedRegistersHelp().
@@ -636,54 +689,11 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
 
     assert(floatRegsToRestoreCount == 0);
 
-    // Restore the integer registers
-
-    while (maskRestoreRegsInt != RBM_NONE)
+    if (maskRestoreRegsInt != 0)
     {
-        thisIsTheLastRestoreInstruction = (intRegsToRestoreCount <= 2);
-        isPairRestore                   = (intRegsToRestoreCount % 2) == 0;
-
-        // Update stack delta only if it is the last restore (the first save).
-        if (thisIsTheLastRestoreInstruction)
-        {
-            assert(stackDelta == 0);
-            stackDelta = spDelta;
-        }
-
-        // Update stack offset.
-        spOffset -= REGSIZE_BYTES;
-        if (isPairRestore)
-        {
-            spOffset -= REGSIZE_BYTES;
-        }
-
-        // If this is the last restore (the first save) that needs to change SP (stackDelta != 0),
-        // then the offset must be 8 to account for alignment for the odd count
-        // or it must be 0 for the even count.
-        assert((stackDelta == 0) || (isRegsToRestoreCountOdd && spOffset == REGSIZE_BYTES) ||
-               (!isRegsToRestoreCountOdd && spOffset == 0));
-
-        regMaskTP reg2Mask = genFindHighestBit(maskRestoreRegsInt);
-        regNumber reg2     = genRegNumFromMask(reg2Mask);
-        maskRestoreRegsInt &= ~reg2Mask;
-        intRegsToRestoreCount -= 1;
-
-        if (isPairRestore)
-        {
-            regMaskTP reg1Mask = genFindHighestBit(maskRestoreRegsInt);
-            regNumber reg1     = genRegNumFromMask(reg1Mask);
-            maskRestoreRegsInt &= ~reg1Mask;
-            intRegsToRestoreCount -= 1;
-
-            genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP1, nullptr);
-        }
-        else
-        {
-            genEpilogRestoreReg(reg2, spOffset, stackDelta, REG_IP1, nullptr);
-        }
+        // Restore the integer registers
+        genRestoreCaleeSavedRegisterGroup(maskRestoreRegsInt, spDelta, spOffset DEBUGARG(isRegsToRestoreCountOdd));
     }
-
-    assert(intRegsToRestoreCount == 0);
 }
 
 // clang-format off
