@@ -489,7 +489,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
 
     // Record the parent domain
     parentDomain        = pDomain;
-    isCollectible       = !!pLoaderAllocator->IsCollectible();
+    m_loaderAllocator   = pLoaderAllocator;
 
     //
     // Init critical sections
@@ -628,7 +628,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
 
     BYTE * initReservedMem = NULL;
 
-    if (!isCollectible)
+    if (!m_loaderAllocator->IsCollectible())
     {
         DWORD dwTotalReserveMemSizeCalc  = indcell_heap_reserve_size     +
                                            cache_entry_heap_reserve_size +
@@ -833,7 +833,7 @@ void VirtualCallStubManager::Uninit()
 {
     WRAPPER_NO_CONTRACT;
 
-    if (isCollectible)
+    if (m_loaderAllocator->IsCollectible())
     {
         parentDomain->GetCollectibleVSDRanges()->RemoveRanges(this);
     }
@@ -891,7 +891,7 @@ VirtualCallStubManager::~VirtualCallStubManager()
 
     // This was the block reserved by Init for the heaps.
     // For the collectible case, the VSD logic does not allocate the memory.
-    if (m_initialReservedMemForHeaps && !isCollectible)
+    if (m_initialReservedMemForHeaps && !m_loaderAllocator->IsCollectible())
         ClrVirtualFree (m_initialReservedMemForHeaps, 0, MEM_RELEASE);
 
     // Free critical section
@@ -2797,7 +2797,7 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            ad
     {
         EntryPointSlotsToBackpatch::SlotType slotType;
         TADDR slot = holder->stub()->implTargetSlot(&slotType);
-        pMD->RecordAndBackpatchEntryPointSlot(((MethodTable *)pMTExpected)->GetLoaderAllocator(), slot, slotType);
+        pMD->RecordAndBackpatchEntryPointSlot(m_loaderAllocator, slot, slotType);
     }
 #endif
 
@@ -2853,7 +2853,7 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStubLong(PCODE          
     {
         EntryPointSlotsToBackpatch::SlotType slotType;
         TADDR slot = holder->stub()->implTargetSlot(&slotType);
-        pMD->RecordAndBackpatchEntryPointSlot(((MethodTable *)pMTExpected)->GetLoaderAllocator(), slot, slotType);
+        pMD->RecordAndBackpatchEntryPointSlot(m_loaderAllocator, slot, slotType);
     }
 #endif
 
@@ -3030,7 +3030,7 @@ ResolveCacheElem *VirtualCallStubManager::GenerateResolveCacheElem(void *addrOfC
     if (pMD->IsTieredVtableMethod())
     {
         pMD->RecordAndBackpatchEntryPointSlot(
-            ((MethodTable *)pMTExpected)->GetLoaderAllocator(),
+            m_loaderAllocator,
             (TADDR)&e->target,
             EntryPointSlotsToBackpatch::SlotType_Normal);
     }

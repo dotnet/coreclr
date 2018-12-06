@@ -4848,9 +4848,9 @@ void MethodDesc::RecordAndBackpatchEntryPointSlot(
     RecordAndBackpatchEntryPointSlot_Locked(mdLoaderAllocator, slotLoaderAllocator, slot, slotType, currentEntryPoint);
 }
 
-// This function tries to record a slot that would contain an entry point for the method. Once recorded, changes to the entry
-// point due to tiering will backpatch the slot as necessary. If the slot is recorded, the funtion returns null, otherwise it
-// returns the stable entry point that should be used for the slot because the slot will not be backpatched.
+// This function tries to record a slot that would contain an entry point for the method, and backpatches the slot to contain
+// method's current entry point. Once recorded, changes to the entry point due to tiering will cause the slot to be backpatched
+// as necessary.
 void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
     LoaderAllocator *mdLoaderAllocator,
     LoaderAllocator *slotLoaderAllocator,
@@ -4938,13 +4938,13 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isTemporaryEntr
 
     // Backpatch slots from dependent loader allocators
     virtualInfo->ForEachDependentLoaderAllocatorWithSlotsToBackpatch_Locked(
-        [&](LoaderAllocator *dependentLoaderAllocator)
+        [&](LoaderAllocator *slotLoaderAllocator)
     {
-        _ASSERTE(dependentLoaderAllocator != nullptr);
-        _ASSERTE(dependentLoaderAllocator != GetLoaderAllocator());
+        _ASSERTE(slotLoaderAllocator != nullptr);
+        _ASSERTE(slotLoaderAllocator != mdLoaderAllocator);
 
         EntryPointSlotsToBackpatch *slotsToBackpatch =
-            dependentLoaderAllocator->GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(this);
+            slotLoaderAllocator->GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(this);
         if (slotsToBackpatch != nullptr)
         {
             slotsToBackpatch->Backpatch_Locked(entryPoint);

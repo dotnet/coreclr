@@ -160,7 +160,7 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
             return pTarget;
     }
 
-    auto RecordAndBackpatchSlot = [&](MethodTable *patchedMT, DWORD slotIndex, PCODE entryPoint)
+    auto RecordAndBackpatchSlot = [&](MethodTable *patchedMT, DWORD slotIndex)
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(isTieredVtableMethod);
@@ -177,22 +177,22 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
 
     BOOL fBackpatched = FALSE;
 
-#define BACKPATCH(pPatchedMT)                                           \
-    do                                                                  \
-    {                                                                   \
-        if (pPatchedMT->GetSlot(dwSlot) == pExpected)                   \
-        {                                                               \
-            if (isTieredVtableMethod)                                   \
-            {                                                           \
-                RecordAndBackpatchSlot(pPatchedMT, dwSlot, pTarget);    \
-            }                                                           \
-            else                                                        \
-            {                                                           \
-                pPatchedMT->SetSlot(dwSlot, pTarget);                   \
-            }                                                           \
-            fBackpatched = TRUE;                                        \
-        }                                                               \
-    }                                                                   \
+#define BACKPATCH(pPatchedMT)                                   \
+    do                                                          \
+    {                                                           \
+        if (pPatchedMT->GetSlot(dwSlot) == pExpected)           \
+        {                                                       \
+            if (isTieredVtableMethod)                           \
+            {                                                   \
+                RecordAndBackpatchSlot(pPatchedMT, dwSlot);     \
+            }                                                   \
+            else                                                \
+            {                                                   \
+                pPatchedMT->SetSlot(dwSlot, pTarget);           \
+            }                                                   \
+            fBackpatched = TRUE;                                \
+        }                                                       \
+    }                                                           \
     while(0)
 
     // The owning slot has been updated already, so there is no need to backpatch it
@@ -1935,12 +1935,14 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     if (pCode != NULL)
     {
-        if (IsEligibleForTieredCompilation())
+#ifdef FEATURE_TIERED_COMPILATION
+        if (fIsEligibleForTieredCompilation)
         {
             // Tiered methods should not get here unless there was a failure. There may have been a failure to update the code
             // versions above for some reason. Don't backpatch this time and try again next time.
             return pCode;
         }
+#endif
 
         if (HasPrecode())
         {
