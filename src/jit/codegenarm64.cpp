@@ -375,6 +375,16 @@ void CodeGen::genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, reg
 }
 
 #ifdef DEBUG
+//------------------------------------------------------------------------
+// CheckSPOffset: Check Stack Pointer(SP) offset value,
+// it must be 8 to account for alignment for the odd count
+// or it must be 0 for the even count.
+//
+// Arguments:
+//   isRegsCountOdd - true if number of registers to save/restor is odd;
+//   spOffset       - stack pointer offset value;
+//   slotSize       - stack slot size in bytes.
+//
 void CheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize)
 {
     if (isRegsCountOdd)
@@ -390,6 +400,7 @@ void CheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize)
 }
 #endif // DEBUG
 
+// A simple struct to keep register pairs for prolog and epilog.
 struct RegPair
 {
     regNumber reg1;
@@ -409,6 +420,16 @@ struct RegPair
     }
 };
 
+//------------------------------------------------------------------------
+// buildRegPairsStack: Build a stack of register pair for prolog/epilog save/restor for the given mask.
+//
+// Arguments:
+//   compiler - the compiler instance;
+//   regsMask - a mask of registers for prolog/epilog generation.
+//
+// Return value:
+//   an array stack of register pairs.
+//
 ArrayStack<RegPair> buildRegPairsStack(Compiler* compiler, regMaskTP regsMask)
 {
     ArrayStack<RegPair> regStack(compiler->getAllocator(CMK_Codegen));
@@ -445,6 +466,15 @@ ArrayStack<RegPair> buildRegPairsStack(Compiler* compiler, regMaskTP regsMask)
     return regStack;
 }
 
+//------------------------------------------------------------------------
+// GetSlotSizeForRegsInMask: Get the stack slot size appropriate for the register type from the mask.
+//
+// Arguments:
+//   regsMask - a mask of registers for prolog/epilog generation.
+//
+// Return value:
+//   stack slot size in bytes.
+//
 int GetSlotSizeForRegsInMask(regMaskTP regsMask)
 {
     assert((regsMask & RBM_CALLEE_SAVED) == regsMask); // Do not expect anything else.
@@ -460,6 +490,16 @@ int GetSlotSizeForRegsInMask(regMaskTP regsMask)
     return slotSize;
 }
 
+//------------------------------------------------------------------------
+// genSaveCaleeSavedRegisterGroup: Saves the group of registers described by the mask.
+// All registers in the mask must be the same type (int or float).
+//
+// Arguments:
+//   regsMask             - a mask of registers for prolog generation;
+//   spDelta              - if non-zero, the amount to add to SP before the register saves;
+//   spOffset             - the offset from SP that is the beginning of the callee-saved register area;
+//   isRegsToSaveCountOdd - (DEBUG only) true if number of registers to save is odd.
+//
 void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
                                              int&      spDelta,
                                              int& spOffset DEBUGARG(bool isRegsToSaveCountOdd))
@@ -576,6 +616,16 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
     }
 }
 
+//------------------------------------------------------------------------
+// genRestoreCaleeSavedRegisterGroup: Saves the group of registers described by the mask.
+// All registers in the mask must be the same type (int or float).
+//
+// Arguments:
+//   regsMask             - a mask of registers for epilog generation;
+//   spDelta              - if non-zero, the amount to add to SP after the register restores;
+//   spOffset             - the offset from SP that is the beginning of the callee-saved register area;
+//   isRegsToSaveCountOdd - (DEBUG only) true if number of registers to restore is odd.
+//
 void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
                                                 int       spDelta,
                                                 int&      spOffset,
