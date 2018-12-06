@@ -441,9 +441,7 @@ ArrayStack<RegPair> buildRegPairsStack(Compiler* compiler, regMaskTP regsMask)
     return regStack;
 }
 
-void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
-                                             int&      spDelta,
-                                             int& spOffset DEBUGARG(bool isRegsToSaveCountOdd))
+int GetSlotSizeForRegsInMask(regMaskTP regsMask)
 {
     assert((regsMask & RBM_CALLEE_SAVED) == regsMask); // Do not expect anything else.
 
@@ -454,7 +452,15 @@ void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
     assert(isIntMask != isFloatMask);
 #endif // DEBUG
 
-    const int slotSize = isIntMask ? REGSIZE_BYTES : FPSAVE_REGSIZE_BYTES;
+    int slotSize = isIntMask ? REGSIZE_BYTES : FPSAVE_REGSIZE_BYTES;
+    return slotSize;
+}
+
+void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
+                                             int&      spDelta,
+                                             int& spOffset DEBUGARG(bool isRegsToSaveCountOdd))
+{
+    const int slotSize = GetSlotSizeForRegsInMask(regsMask);
 
 #ifdef DEBUG
     if (spDelta != 0) // The first store change SP offset, check its value before.
@@ -571,15 +577,7 @@ void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
                                                 int&      spOffset,
                                                 bool lastRegGroup DEBUGARG(bool isRegsToRestoreCountOdd))
 {
-    assert((regsMask & RBM_CALLEE_SAVED) == regsMask); // Do not expect anything else.
-
-    bool isIntMask = ((regsMask & RBM_ALLFLOAT) == 0);
-#ifdef DEBUG
-    bool isFloatMask = ((regsMask & RBM_ALLFLOAT) == regsMask);
-    assert(isIntMask != isFloatMask); // Has to be either int or float.
-#endif
-
-    const int slotSize = isIntMask ? REGSIZE_BYTES : FPSAVE_REGSIZE_BYTES;
+    const int slotSize = GetSlotSizeForRegsInMask(regsMask);
 
     ArrayStack<RegPair> regStack   = buildRegPairsStack(compiler, regsMask);
     int                 stackDelta = 0;
