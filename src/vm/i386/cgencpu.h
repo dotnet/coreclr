@@ -112,7 +112,7 @@ EXTERN_C void SinglecastDelegateInvokeStub();
 // as large as the largest FieldMarshaler subclass. This requirement
 // is guarded by an assert.
 //=======================================================================
-#define MAXFIELDMARSHALERSIZE               24
+#define MAXFIELDMARSHALERSIZE               28
 
 //**********************************************************************
 // Parameter size

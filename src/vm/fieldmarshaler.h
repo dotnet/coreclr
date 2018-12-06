@@ -650,7 +650,10 @@ class FieldMarshaler_NestedType : public FieldMarshaler
 public:
     MethodTable* GetNestedMethodTable() const;
     
-    UNUSED_METHOD_IMPL(MethodTable* GetNestedMethodTableImpl() const)
+    MethodTable* GetNestedMethodTableImpl() const
+    {
+        return nullptr;
+    }
 };
 
 //=======================================================================
