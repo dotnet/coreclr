@@ -2381,13 +2381,21 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
                 if (varTypeIsFloating(baseType))
                 {
-                    // We will either be in memory and need to be moved
-                    // into a register of the appropriate size or we
-                    // are already in an XMM/YMM register and can stay
-                    // where we are.
+                    if (op1->isContained())
+                    {
+                        srcCount += BuildOperandUses(op1);
+                    }
+                    else
+                    {
+                        // We will either be in memory and need to be moved
+                        // into a register of the appropriate size or we
+                        // are already in an XMM/YMM register and can stay
+                        // where we are.
 
-                    tgtPrefUse = BuildUse(op1);
-                    srcCount += 1;
+                        tgtPrefUse = BuildUse(op1);
+                        srcCount += 1;
+                    }
+
                     buildUses = false;
                 }
                 break;
@@ -2399,15 +2407,22 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
             {
                 assert(numArgs == 1);
 
-                // We will either be in memory and need to be moved
-                // into a register of the appropriate size or we
-                // are already in an XMM/YMM register and can stay
-                // where we are.
+                if (op1->isContained())
+                {
+                    srcCount += BuildOperandUses(op1);
+                }
+                else
+                {
+                    // We will either be in memory and need to be moved
+                    // into a register of the appropriate size or we
+                    // are already in an XMM/YMM register and can stay
+                    // where we are.
 
-                tgtPrefUse = BuildUse(op1);
-                srcCount += 1;
+                    tgtPrefUse = BuildUse(op1);
+                    srcCount += 1;
+                }
+
                 buildUses = false;
-
                 break;
             }
 

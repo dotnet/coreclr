@@ -1280,14 +1280,23 @@ void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
         {
             if (varTypeIsIntegral(baseType))
             {
-                emit->emitIns_R_R(ins, emitActualTypeSize(baseType), targetReg, op1Reg);
+                genHWIntrinsic_R_RM(node, ins, emitActualTypeSize(baseType));
             }
-            else if (targetReg != op1Reg)
+            else
             {
                 assert(varTypeIsFloating(baseType));
 
-                // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
-                emit->emitIns_R_R(INS_movaps, emitTypeSize(baseType), targetReg, op1Reg);
+                attr = emitTypeSize(baseType);
+
+                if (op1->isContained() || op1->isUsedFromSpillTemp())
+                {
+                    genHWIntrinsic_R_RM(node, ins, attr);
+                }
+                else if (targetReg != op1Reg)
+                {
+                    // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
+                    emit->emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+                }
             }
             break;
         }
@@ -1297,10 +1306,16 @@ void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
         {
             assert(varTypeIsFloating(baseType));
 
-            if (targetReg != op1Reg)
+            attr = emitTypeSize(TYP_SIMD16);
+
+            if (op1->isContained() || op1->isUsedFromSpillTemp())
+            {
+                genHWIntrinsic_R_RM(node, ins, attr);
+            }
+            else if (targetReg != op1Reg)
             {
                 // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
-                emit->emitIns_R_R(INS_movaps, emitTypeSize(TYP_SIMD16), targetReg, op1Reg);
+                emit->emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
             }
             break;
         }
@@ -1309,17 +1324,30 @@ void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
         {
             // ToVector256 has zero-extend semantics in order to ensure it is deterministic
             // We always emit a move to the target register, even when op1Reg == targetReg,
-            // in order	 to ensure that Bits MAXVL-1:128 are zeroed.
+            // in order to ensure that Bits MAXVL-1:128 are zeroed.
 
-            // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
-            emit->emitIns_R_R(INS_movaps, emitTypeSize(TYP_SIMD16), targetReg, op1Reg);
+            attr = emitTypeSize(TYP_SIMD16);
+
+            if (op1->isContained() || op1->isUsedFromSpillTemp())
+            {
+                genHWIntrinsic_R_RM(node, ins, attr);
+            }
+            else
+            {
+                // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
+                emit->emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+            }
             break;
         }
 
         case NI_Base_Vector128_ToVector256Unsafe:
         case NI_Base_Vector256_GetLower:
         {
-            if (targetReg != op1Reg)
+            if (op1->isContained() || op1->isUsedFromSpillTemp())
+            {
+                genHWIntrinsic_R_RM(node, ins, attr);
+            }
+            else if (targetReg != op1Reg)
             {
                 // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
                 emit->emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
