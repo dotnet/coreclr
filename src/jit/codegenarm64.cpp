@@ -561,13 +561,6 @@ void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
             stackDelta = spDelta;
         }
 
-        // Update stack offset.
-        spOffset -= slotSize;
-        if (isPairRestore)
-        {
-            spOffset -= slotSize;
-        }
-
         regMaskTP reg2Mask = genFindHighestBit(regsMask);
         regNumber reg2     = genRegNumFromMask(reg2Mask);
         regsMask &= ~reg2Mask;
@@ -580,10 +573,12 @@ void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
             regsMask &= ~reg1Mask;
             regsCount -= 1;
 
+            spOffset -= 2 * slotSize;
             genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP1, nullptr);
         }
         else
         {
+            spOffset -= slotSize;
             genEpilogRestoreReg(reg2, spOffset, stackDelta, REG_IP1, nullptr);
         }
     }
