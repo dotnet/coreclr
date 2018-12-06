@@ -1499,7 +1499,7 @@
     <value>The DaylightTransitionStart property must not equal the DaylightTransitionEnd property.</value>
   </data>
   <data name="Argument_TypedReferenceInvalidField" xml:space="preserve">
-    <value>Field '{0}' in TypedReferences cannot be static or init only.</value>
+    <value>Field '{0}' in TypedReferences cannot be static.</value>
   </data>
   <data name="Argument_TypeIsWinRTType" xml:space="preserve">
     <value>The type must not be a Windows Runtime type.</value>
@@ -2611,9 +2611,6 @@
   <data name="InvalidOperation_ShouldNotHaveMethodBody" xml:space="preserve">
     <value>Method body should not exist.</value>
   </data>
-  <data name="InvalidOperation_StrongNameKeyPairRequired" xml:space="preserve">
-    <value>A strong name key pair is required to emit a strong-named dynamic assembly.</value>
-  </data>
   <data name="InvalidOperation_ThreadWrongThreadStart" xml:space="preserve">
     <value>The thread was created with a ThreadStart delegate that does not accept a parameter.</value>
   </data>
@@ -2884,8 +2881,8 @@
   <data name="NotSupported_CollectibleBoundNonCollectible" xml:space="preserve">
     <value>A non-collectible assembly may not reference a collectible assembly.</value>
   </data>
-  <data name="NotSupported_CollectibleCOM" xml:space="preserve">
-    <value>COM Interop is not supported for collectible types.</value>
+  <data name="NotSupported_CollectibleWinRT" xml:space="preserve">
+    <value>WinRT Interop is not supported for collectible types.</value>
   </data>
   <data name="NotSupported_CreateInstanceWithTypeBuilder" xml:space="preserve">
     <value>CreateInstance cannot be used with an object of type TypeBuilder.</value>

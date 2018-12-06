@@ -2,14 +2,16 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
+  osGroupName: ''
   name: ''
   displayName: ''
   condition: ''
   dependsOn: ''
+  containerName: ''
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
-- template: /eng/common/templates/phases/base.yml@arcade
+- template: /eng/common/templates/job/job.yml
   parameters:
 
     name: ${{ parameters.name }}
@@ -19,18 +21,26 @@ jobs:
 
     dependsOn: ${{ parameters.dependsOn }}
 
-    queue:
-      ${{ if eq(parameters.osGroup, 'Linux') }}:
+    pool:
+      ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
         name: Hosted Ubuntu 1604
-      ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
+      ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
+        name: dnceng-linux-internal-temp
+      ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:
         name: Hosted Mac Internal
-      ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
+      ${{ if and(eq(parameters.osGroup, 'OSX'), eq(variables['System.TeamProject'], 'public')) }}:
         name: Hosted MacOS
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
         name: dotnet-internal-temp
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
         name: dotnet-external-temp
       timeoutInMinutes: 240
+
+    workspace:
+      clean: all
+
+    ${{ if ne(parameters.containerName, '') }}:
+      container: ${{ parameters.containerName }}
 
     ${{ if eq(parameters.osGroup, 'Linux') }}:
       agentOs: Ubuntu
@@ -40,15 +50,43 @@ jobs:
       agentOs: Windows_NT
 
     variables:
-      buildConfig: ${{ parameters.buildConfig }}
-      ${{ if eq(parameters.buildConfig, 'checked') }}:
-        buildConfigUpper: 'Checked'
-      ${{ if eq(parameters.buildConfig, 'debug') }}:
-        buildConfigUpper: 'Debug'
-      ${{ if eq(parameters.buildConfig, 'release') }}:
-        buildConfigUpper: 'Release'
-      archType: ${{ parameters.archType }}
-      osGroup: ${{ parameters.osGroup }}
-      ${{insert}}: ${{ parameters.variables }}
+      - name: buildConfig
+        value: ${{ parameters.buildConfig }}
+        
+      - ${{ if eq(parameters.buildConfig, 'checked') }}:
+          - name: buildConfigUpper
+            value: 'Checked'
+
+      - ${{ if eq(parameters.buildConfig, 'debug') }}:
+          - name: buildConfigUpper
+            value: 'Debug'
+
+      - ${{ if eq(parameters.buildConfig, 'release') }}:
+          - name: buildConfigUpper
+            value: 'Release'
+
+      - name: archType
+        value: ${{ parameters.archType }}
+
+      - name: osGroup
+        value: ${{ parameters.osGroup }}
+
+      - name: osGroupName
+        value: ${{ parameters.osGroupName }}
+      
+      # Crossbuild specific variables.
+      - ${{ if eq(parameters.archType, 'arm') }}:
+          - name: rootfsDir
+            value: /crossrootfs/arm
+
+          - name: cacRootfsDir
+            value: /crossrootfs/x86
+
+      - ${{ if eq(parameters.archType, 'arm64') }}:
+          - name: rootfsDir
+            value: /crossrootfs/arm64
+
+      - ${{ each variable in parameters.variables }}:
+        - ${{insert}}: ${{ variable }}
 
     steps: ${{ parameters.steps }}

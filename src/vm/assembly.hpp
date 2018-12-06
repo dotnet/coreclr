@@ -57,7 +57,6 @@ class FriendAssemblyDescriptor;
 
 struct CreateDynamicAssemblyArgsGC
 {
-    APPDOMAINREF    refThis;
     ASSEMBLYNAMEREF assemblyName;
     LOADERALLOCATORREF loaderAllocator;
 };
@@ -449,11 +448,6 @@ public:
     OBJECTHANDLE GetLoaderAllocatorObjectHandle() { WRAPPER_NO_CONTRACT; return GetLoaderAllocator()->GetLoaderAllocatorObjectHandle(); }
 #endif // FEATURE_COLLECTIBLE_TYPES
 
-    BOOL CanBeShared(DomainAssembly *pAsAssembly);
-
-    void SetDomainNeutral() { LIMITED_METHOD_CONTRACT; m_fIsDomainNeutral = TRUE; }
-    BOOL IsDomainNeutral() { LIMITED_METHOD_DAC_CONTRACT; return m_fIsDomainNeutral; }
-
     BOOL IsSIMDVectorAssembly() { LIMITED_METHOD_DAC_CONTRACT; return m_fIsSIMDVectorAssembly; }
 
 #ifdef FEATURE_PREJIT
@@ -615,8 +609,6 @@ private:
     WinMDStatus            m_winMDStatus;
     IWinMDImport          *m_pManifestWinMDImport;
 #endif // FEATURE_COMINTEROP
-
-    BOOL                   m_fIsDomainNeutral;
 
     DebuggerAssemblyControlFlags m_debuggerFlags;
 

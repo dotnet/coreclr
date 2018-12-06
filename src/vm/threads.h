@@ -2482,19 +2482,6 @@ public:
     // ClearContext are to be called only during shutdown
     void ClearContext();
 
-    // Used by security to prevent recursive stackwalking.
-    BOOL IsSecurityStackwalkInProgess()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_fSecurityStackwalk;
-    }
-
-    void SetSecurityStackwalkInProgress(BOOL fSecurityStackwalk)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_fSecurityStackwalk = fSecurityStackwalk;
-    }
-
 private:
     void ReturnToContextAndThrow(ContextTransitionFrame* pFrame, EEException* pEx, BOOL* pContextSwitched);
     void ReturnToContextAndOOM(ContextTransitionFrame* pFrame);
@@ -2503,45 +2490,16 @@ private:
     // don't ever call these except when creating thread!!!!!
     void InitContext();
 
-    BOOL m_fSecurityStackwalk;
-
 public:
     PTR_AppDomain GetDomain(INDEBUG(BOOL fMidContextTransitionOK = FALSE))
     {
         LIMITED_METHOD_DAC_CONTRACT;
-
-        // if another thread is asking about our thread, we could be in the middle of an AD transition so
-        // the context and AD may not match if have set one but not the other. Can live without checking when
-        // another thread is asking it as this method is mostly called on our own thread so will mostly get the
-        // checking. If are int the middle of a transition, this could return either the old or the new AD.
-        // But no matter what we do, such as lock on the transition, by the time are done could still have
-        // changed right after we asked, so really no point.
-#ifdef _DEBUG_IMPL
-        BEGIN_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;
-        if (!g_fEEShutDown && this == GetThread())
-        {
-            if (!fMidContextTransitionOK)
-            {
-                // We also want to suppress the "domain on context == domain on thread" check if this might
-                // be called during a context or AD transition (in which case fMidContextTransitionOK is nonzero).
-                // A profiler stackwalk can occur at arbitrary times, including during these transitions, but
-                // the stackwalk is still safe to do at this point, so we don't want to trigger this assert.
-                _ASSERTE((m_Context == NULL && m_pDomain == NULL) || m_Context->GetDomain() == m_pDomain);
-            }
-            AppDomain* valueInTLSSlot = GetAppDomain();
-            _ASSERTE(valueInTLSSlot == 0 || valueInTLSSlot == m_pDomain);
-        }
-        END_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;
-#endif
 
         return m_pDomain;
     }
 
     Frame *IsRunningIn(AppDomain* pDomain, int *count);
     Frame *GetFirstTransitionInto(AppDomain *pDomain, int *count);
-
-    // Get outermost (oldest) AppDomain for this thread.
-    AppDomain *GetInitialDomain();
 
     //---------------------------------------------------------------
     // Track use of the thread block.  See the general comments on

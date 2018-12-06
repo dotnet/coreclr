@@ -630,13 +630,13 @@ namespace System
                             }
                             else
                             {
-                                if ((dtfi.FormatFlags & DateTimeFormatFlags.UseGenitiveMonth) != 0 && tokenLen >= 4)
+                                if ((dtfi.FormatFlags & DateTimeFormatFlags.UseGenitiveMonth) != 0)
                                 {
                                     result.Append(
                                         dtfi.internalGetMonthName(
                                             month,
                                             IsUseGenitiveForm(format, i, tokenLen, 'd') ? MonthNameStyles.Genitive : MonthNameStyles.Regular,
-                                            false));
+                                            tokenLen == 3));
                                 }
                                 else
                                 {
@@ -655,7 +655,7 @@ namespace System
                         int year = cal.GetYear(dateTime);
                         tokenLen = ParseRepeatPattern(format, i, ch);
                         if (isJapaneseCalendar &&
-                            !AppContextSwitches.FormatJapaneseFirstYearAsANumber &&
+                            !LocalAppContextSwitches.FormatJapaneseFirstYearAsANumber &&
                             year == 1 &&
                             ((i + tokenLen < format.Length && format[i + tokenLen] == DateTimeFormatInfoScanner.CJKYearSuff[0]) ||
                             (i + tokenLen < format.Length - 1 && format[i + tokenLen] == '\'' && format[i + tokenLen + 1] == DateTimeFormatInfoScanner.CJKYearSuff[0])))

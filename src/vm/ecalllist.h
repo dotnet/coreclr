@@ -112,6 +112,8 @@ FCFuncStart(gStringFuncs)
     FCFuncElement("IsAscii", COMString::IsAscii)
     FCFuncElement("SetTrailByte", COMString::FCSetTrailByte)
     FCFuncElement("TryGetTrailByte", COMString::FCTryGetTrailByte)
+    FCFuncElement("IsInterned", AppDomainNative::IsStringInterned)
+    FCFuncElement("Intern", AppDomainNative::GetOrInternString)
 FCFuncEnd()
 
 FCFuncStart(gValueTypeFuncs)
@@ -315,6 +317,7 @@ FCFuncStart(gRuntimeMethodHandle)
     FCFuncElement("_GetCurrentMethod", RuntimeMethodHandle::GetCurrentMethod)
     FCFuncElement("InvokeMethod", RuntimeMethodHandle::InvokeMethod)
     QCFuncElement("GetFunctionPointer", RuntimeMethodHandle::GetFunctionPointer)
+    QCFuncElement("GetIsCollectible", RuntimeMethodHandle::GetIsCollectible)
     FCFuncElement("GetImplAttributes", RuntimeMethodHandle::GetImplAttributes)
     FCFuncElement("GetAttributes", RuntimeMethodHandle::GetAttributes)
     FCFuncElement("GetDeclaringType", RuntimeMethodHandle::GetDeclaringType)
@@ -432,36 +435,15 @@ FCFuncStart(gCOMClassWriter)
     QCFuncElement("DefineCustomAttribute", COMDynamicWrite::DefineCustomAttribute)
 FCFuncEnd()
 
-
 FCFuncStart(gCompatibilitySwitchFuncs)
     FCFuncElement("GetValueInternalCall", CompatibilitySwitch::GetValue)
 FCFuncEnd()
 
-
-FCFuncStart(gAppDomainFuncs)
-    FCFuncElement("IsStringInterned", AppDomainNative::IsStringInterned)
-
 #ifdef FEATURE_APPX
-    QCFuncElement("nGetAppXFlags", AppDomainNative::GetAppXFlags)
-#endif
-    FCFuncElement("nSetupFriendlyName", AppDomainNative::SetupFriendlyName)
-    FCFuncElement("nGetAssemblies", AppDomainNative::GetAssemblies)
-    FCFuncElement("GetId", AppDomainNative::GetId)
-    FCFuncElement("GetOrInternString", AppDomainNative::GetOrInternString)
-    QCFuncElement("nSetupBindingPaths", AppDomainNative::SetupBindingPaths)
-    QCFuncElement("nSetNativeDllSearchDirectories", AppDomainNative::SetNativeDllSearchDirectories)
-    FCFuncElement("PublishAnonymouslyHostedDynamicMethodsAssembly", AppDomainNative::PublishAnonymouslyHostedDynamicMethodsAssembly)
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    FCFuncElement("nEnableMonitoring", AppDomainNative::EnableMonitoring)
-    FCFuncElement("nMonitoringIsEnabled", AppDomainNative::MonitoringIsEnabled)
-    FCFuncElement("nGetTotalProcessorTime", AppDomainNative::GetTotalProcessorTime)
-    FCFuncElement("nGetTotalAllocatedMemorySize", AppDomainNative::GetTotalAllocatedMemorySize)
-    FCFuncElement("nGetLastSurvivedMemorySize", AppDomainNative::GetLastSurvivedMemorySize)
-    FCFuncElement("nGetLastSurvivedProcessMemorySize", AppDomainNative::GetLastSurvivedProcessMemorySize)
-
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
+FCFuncStart(gApplicationModelFuncs)
+    QCFuncElement("IsAppXProcess", AppDomainNative::IsAppXProcess)
 FCFuncEnd()
-
+#endif
 
 FCFuncStart(gMdUtf8String)
     FCFuncElement("EqualsCaseSensitive", MdUtf8String::EqualsCaseSensitive)
@@ -542,6 +524,7 @@ FCFuncStart(gAssemblyLoadContextFuncs)
     QCFuncElement("InternalLoadUnmanagedDllFromPath", AssemblyNative::InternalLoadUnmanagedDllFromPath)
     QCFuncElement("LoadFromStream", AssemblyNative::LoadFromStream)
     QCFuncElement("GetLoadContextForAssembly", AssemblyNative::GetLoadContextForAssembly)
+    FCFuncElement("GetLoadedAssemblies", AppDomainNative::GetLoadedAssemblies)
 #if defined(FEATURE_MULTICOREJIT)
     QCFuncElement("InternalSetProfileRoot", MultiCoreJITNative::InternalSetProfileRoot)
     QCFuncElement("InternalStartProfile",   MultiCoreJITNative::InternalStartProfile)
@@ -1238,7 +1221,9 @@ FCFuncEnd()
 // Note these have to remain sorted by name:namespace pair (Assert will wack you if you don't)
 // The sorting is case-sensitive
 
-FCClassElement("AppDomain", "System", gAppDomainFuncs)
+#ifdef FEATURE_APPX
+FCClassElement("ApplicationModel", "System", gApplicationModelFuncs)
+#endif
 FCClassElement("ArgIterator", "System", gVarArgFuncs)
 FCClassElement("Array", "System", gArrayFuncs)
 FCClassElement("ArrayWithOffset", "System.Runtime.InteropServices", gArrayWithOffsetFuncs)

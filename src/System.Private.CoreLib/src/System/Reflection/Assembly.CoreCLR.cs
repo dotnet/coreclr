@@ -84,7 +84,7 @@ namespace System.Reflection
                 {
                     if (!s_LoadFromResolveHandlerSetup)
                     {
-                        AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(LoadFromResolveHandler);
+                        AssemblyLoadContext.AssemblyResolve += LoadFromResolveHandler;
                         s_LoadFromResolveHandlerSetup = true;
                     }
                 }
@@ -165,10 +165,14 @@ namespace System.Reflection
         public static Assembly Load(byte[] rawAssembly,
                                     byte[] rawSymbolStore)
         {
-            AppDomain.CheckLoadByteArraySupported();
-
             if (rawAssembly == null)
                 throw new ArgumentNullException(nameof(rawAssembly));
+
+#if FEATURE_APPX
+            if (ApplicationModel.IsUap)
+                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.Load(byte[], ...)"));
+#endif
+
             AssemblyLoadContext alc = new IndividualAssemblyLoadContext();
             MemoryStream assemblyStream = new MemoryStream(rawAssembly);
             MemoryStream symbolStream = (rawSymbolStore != null) ? new MemoryStream(rawSymbolStore) : null;
@@ -179,11 +183,13 @@ namespace System.Reflection
 
         public static Assembly LoadFile(string path)
         {
-            AppDomain.CheckLoadFileSupported();
-
-            Assembly result = null;
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
+
+#if FEATURE_APPX
+            if (ApplicationModel.IsUap)
+                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFile"));
+#endif
 
             if (PathInternal.IsPartiallyQualified(path))
             {
@@ -192,6 +198,7 @@ namespace System.Reflection
 
             string normalizedPath = Path.GetFullPath(path);
 
+            Assembly result = null;
             lock (s_loadfile)
             {
                 if (s_loadfile.TryGetValue(normalizedPath, out result))

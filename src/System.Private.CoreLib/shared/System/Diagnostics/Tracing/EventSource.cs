@@ -1919,9 +1919,9 @@ namespace System.Diagnostics.Tracing
 #endif // FEATURE_MANAGED_ETW
                             if (m_Dispatchers != null && m_eventData[eventId].EnabledForAnyListener)
                     {
-#if (!ES_BUILD_STANDALONE && !ES_BUILD_PN)
+#if !ES_BUILD_STANDALONE
                         // Maintain old behavior - object identity is preserved
-                        if (AppContextSwitches.PreserveEventListnerObjectIdentity)
+                        if (LocalAppContextSwitches.PreserveEventListnerObjectIdentity)
                         {
                             WriteToAllListeners(
                                 eventId: eventId,
@@ -4092,7 +4092,7 @@ namespace System.Diagnostics.Tracing
                 if (!s_EventSourceShutdownRegistered)
                 {
                     s_EventSourceShutdownRegistered = true;
-#if ES_BUILD_PN
+#if CORECLR || ES_BUILD_PN
                     AppContext.ProcessExit += DisposeOnShutdown;
 #else
                     AppDomain.CurrentDomain.ProcessExit += DisposeOnShutdown;

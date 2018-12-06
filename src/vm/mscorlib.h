@@ -66,8 +66,10 @@ DEFINE_FIELD(ACCESS_VIOLATION_EXCEPTION, IP,                _ip)
 DEFINE_FIELD(ACCESS_VIOLATION_EXCEPTION, TARGET,            _target)
 DEFINE_FIELD(ACCESS_VIOLATION_EXCEPTION, ACCESSTYPE,        _accessType)
 
+DEFINE_CLASS(APPCONTEXT,            System,                 AppContext)
+DEFINE_METHOD(APPCONTEXT,   SETUP,  Setup,    SM_PtrPtrChar_PtrPtrChar_Int_RetVoid)
+
 DEFINE_CLASS_U(System,                 AppDomain,      AppDomainBaseObject)
-DEFINE_FIELD_U(_LocalStore,                AppDomainBaseObject, m_LocalStore)
 DEFINE_FIELD_U(AssemblyLoad,               AppDomainBaseObject, m_pAssemblyEventHandler)
 DEFINE_FIELD_U(_TypeResolve,               AppDomainBaseObject, m_pTypeEventHandler)
 DEFINE_FIELD_U(_ResourceResolve,           AppDomainBaseObject, m_pResourceEventHandler)
@@ -79,7 +81,6 @@ DEFINE_FIELD_U(_firstChanceException,      AppDomainBaseObject, m_pFirstChanceEx
 DEFINE_FIELD_U(_pDomain,                   AppDomainBaseObject, m_pDomain)
 
 DEFINE_CLASS(APP_DOMAIN,            System,                 AppDomain)
-DEFINE_METHOD(APP_DOMAIN,           SETUP,Setup,SM_Str_ArrStr_ArrStr_RetVoid)
 DEFINE_METHOD(APP_DOMAIN,           ON_ASSEMBLY_LOAD,       OnAssemblyLoadEvent,        IM_Assembly_RetVoid)
 DEFINE_METHOD(APP_DOMAIN,           ON_RESOURCE_RESOLVE,    OnResourceResolveEvent,     IM_Assembly_Str_RetAssembly)
 DEFINE_METHOD(APP_DOMAIN,           ON_TYPE_RESOLVE,        OnTypeResolveEvent,         IM_Assembly_Str_RetAssembly)
@@ -87,19 +88,6 @@ DEFINE_METHOD(APP_DOMAIN,           ON_ASSEMBLY_RESOLVE,    OnAssemblyResolveEve
 #ifdef FEATURE_COMINTEROP
 DEFINE_METHOD(APP_DOMAIN,           ON_DESIGNER_NAMESPACE_RESOLVE, OnDesignerNamespaceResolveEvent, IM_Str_RetArrStr)
 #endif //FEATURE_COMINTEROP
-
-DEFINE_CLASS(CLEANUP_WORK_LIST_ELEMENT,     StubHelpers,            CleanupWorkListElement)
-
-#ifdef FEATURE_COMINTEROP
-// Define earlier in mscorlib.h to avoid BinderClassID to const BYTE truncation warning
-DEFINE_CLASS(DATETIMENATIVE,   StubHelpers,        DateTimeNative)
-DEFINE_CLASS(TYPENAMENATIVE,   StubHelpers,        TypeNameNative)
-
-DEFINE_CLASS_U(StubHelpers,     TypeNameNative,             TypeNameNative)
-DEFINE_FIELD_U(typeName,        TypeNameNative,             typeName)
-DEFINE_FIELD_U(typeKind,        TypeNameNative,             typeKind)
-
-#endif
 
 DEFINE_CLASS(ARG_ITERATOR,          System,                 ArgIterator)
 DEFINE_CLASS_U(System,              ArgIterator,            VARARGS)  // Includes a SigPointer.
@@ -225,6 +213,10 @@ DEFINE_METHOD(CRITICAL_HANDLE,      RELEASE_HANDLE,         ReleaseHandle,      
 DEFINE_METHOD(CRITICAL_HANDLE,      GET_IS_INVALID,         get_IsInvalid,              IM_RetBool)
 DEFINE_METHOD(CRITICAL_HANDLE,      DISPOSE,                Dispose,                    IM_RetVoid)
 DEFINE_METHOD(CRITICAL_HANDLE,      DISPOSE_BOOL,           Dispose,                    IM_Bool_RetVoid)
+
+DEFINE_CLASS(HANDLE_REF,            Interop,                HandleRef)
+DEFINE_FIELD(HANDLE_REF,            WRAPPER,                _wrapper)
+DEFINE_FIELD(HANDLE_REF,            HANDLE,                 _handle)
 
 DEFINE_CLASS(CRITICAL_FINALIZER_OBJECT, ConstrainedExecution, CriticalFinalizerObject)
 DEFINE_METHOD(CRITICAL_FINALIZER_OBJECT, FINALIZE,          Finalize,                   IM_RetVoid)
@@ -593,38 +585,6 @@ DEFINE_CLASS(SPAN,                  System,                 Span`1)
 DEFINE_METHOD(SPAN,                 GET_ITEM,               get_Item, IM_Int_RetRefT)
 DEFINE_CLASS(READONLY_SPAN,         System,                 ReadOnlySpan`1)
 DEFINE_METHOD(READONLY_SPAN,        GET_ITEM,               get_Item, IM_Int_RetReadOnlyRefT)
-
-// Keep this in sync with System.Globalization.NumberFormatInfo
-DEFINE_CLASS_U(Globalization,       NumberFormatInfo,   NumberFormatInfo)
-DEFINE_FIELD_U(numberGroupSizes,       NumberFormatInfo,   cNumberGroup)
-DEFINE_FIELD_U(currencyGroupSizes,     NumberFormatInfo,   cCurrencyGroup)
-DEFINE_FIELD_U(percentGroupSizes,      NumberFormatInfo,   cPercentGroup)
-DEFINE_FIELD_U(positiveSign,           NumberFormatInfo,   sPositive)
-DEFINE_FIELD_U(negativeSign,           NumberFormatInfo,   sNegative)
-DEFINE_FIELD_U(numberDecimalSeparator, NumberFormatInfo,   sNumberDecimal)
-DEFINE_FIELD_U(numberGroupSeparator,   NumberFormatInfo,   sNumberGroup)
-DEFINE_FIELD_U(currencyGroupSeparator, NumberFormatInfo,   sCurrencyGroup)
-DEFINE_FIELD_U(currencyDecimalSeparator,NumberFormatInfo,   sCurrencyDecimal)
-DEFINE_FIELD_U(currencySymbol,         NumberFormatInfo,   sCurrency)
-DEFINE_FIELD_U(nanSymbol,              NumberFormatInfo,   sNaN)
-DEFINE_FIELD_U(positiveInfinitySymbol, NumberFormatInfo,   sPositiveInfinity)
-DEFINE_FIELD_U(negativeInfinitySymbol, NumberFormatInfo,   sNegativeInfinity)
-DEFINE_FIELD_U(percentDecimalSeparator,NumberFormatInfo,   sPercentDecimal)
-DEFINE_FIELD_U(percentGroupSeparator,  NumberFormatInfo,   sPercentGroup)
-DEFINE_FIELD_U(percentSymbol,          NumberFormatInfo,   sPercent)
-DEFINE_FIELD_U(perMilleSymbol,         NumberFormatInfo,   sPerMille)
-DEFINE_FIELD_U(nativeDigits,           NumberFormatInfo,   sNativeDigits)
-DEFINE_FIELD_U(numberDecimalDigits,    NumberFormatInfo,   cNumberDecimals)
-DEFINE_FIELD_U(currencyDecimalDigits, NumberFormatInfo,   cCurrencyDecimals)
-DEFINE_FIELD_U(currencyPositivePattern,NumberFormatInfo,   cPosCurrencyFormat)
-DEFINE_FIELD_U(currencyNegativePattern,NumberFormatInfo,   cNegCurrencyFormat)
-DEFINE_FIELD_U(numberNegativePattern,  NumberFormatInfo,   cNegativeNumberFormat)
-DEFINE_FIELD_U(percentPositivePattern, NumberFormatInfo,   cPositivePercentFormat)
-DEFINE_FIELD_U(percentNegativePattern, NumberFormatInfo,   cNegativePercentFormat)
-DEFINE_FIELD_U(percentDecimalDigits,   NumberFormatInfo,   cPercentDecimals)
-DEFINE_FIELD_U(digitSubstitution,      NumberFormatInfo,   iDigitSubstitution)
-DEFINE_FIELD_U(isReadOnly,             NumberFormatInfo,   bIsReadOnly)
-DEFINE_FIELD_U(m_isInvariant,          NumberFormatInfo,   bIsInvariant)
 
 // Defined as element type alias
 // DEFINE_CLASS(OBJECT,                System,                 Object)
@@ -1037,6 +997,17 @@ DEFINE_METHOD(STUBHELPERS,          ARRAY_TYPE_CHECK,    ArrayTypeCheck,        
 
 #ifdef FEATURE_MULTICASTSTUB_AS_IL
 DEFINE_METHOD(STUBHELPERS,          MULTICAST_DEBUGGER_TRACE_HELPER,    MulticastDebuggerTraceHelper,    SM_Obj_Int_RetVoid)
+#endif
+
+DEFINE_CLASS(CLEANUP_WORK_LIST_ELEMENT,     StubHelpers,            CleanupWorkListElement)
+
+#ifdef FEATURE_COMINTEROP
+DEFINE_CLASS(DATETIMENATIVE,   StubHelpers,        DateTimeNative)
+DEFINE_CLASS(TYPENAMENATIVE,   StubHelpers,        TypeNameNative)
+
+DEFINE_CLASS_U(StubHelpers,     TypeNameNative,             TypeNameNative)
+DEFINE_FIELD_U(typeName,        TypeNameNative,             typeName)
+DEFINE_FIELD_U(typeKind,        TypeNameNative,             typeKind)
 #endif
 
 DEFINE_CLASS(ANSICHARMARSHALER,     StubHelpers,            AnsiCharMarshaler)

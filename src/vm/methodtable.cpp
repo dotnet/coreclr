@@ -56,9 +56,7 @@
 #include "winrttypenameconverter.h"
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_TYPEEQUIVALENCE
 #include "typeequivalencehash.hpp"
-#endif
 
 #include "generics.h"
 #include "genericdict.h"
@@ -604,14 +602,6 @@ void MethodTable::SetComObjectType()
     SetFlag(enum_flag_ComObject);
 }
 
-#if defined(FEATURE_TYPEEQUIVALENCE)
-void MethodTable::SetHasTypeEquivalence()
-{
-    LIMITED_METHOD_CONTRACT;
-    SetFlag(enum_flag_HasTypeEquivalence);
-}
-#endif
-
 #ifdef FEATURE_ICASTABLE
 void MethodTable::SetICastable()
 {
@@ -644,25 +634,7 @@ WORD MethodTable::GetNumMethods()
 PTR_BaseDomain MethodTable::GetDomain()
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    g_IBCLogger.LogMethodTableAccess(this);
-    return GetLoaderModule()->GetDomain();
-}
-
-//==========================================================================================
-BOOL MethodTable::IsDomainNeutral()
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
-    STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SUPPORTS_DAC;
-
-    BOOL ret = GetLoaderModule()->GetAssembly()->IsDomainNeutral();
-#ifndef DACCESS_COMPILE
-    _ASSERTE(!ret == !GetLoaderAllocator()->IsDomainNeutral());
-#endif
-
-    return ret;
+    return dac_cast<PTR_BaseDomain>(AppDomain::GetCurrentDomain());
 }
 
 //==========================================================================================
@@ -1415,10 +1387,12 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
     }
     CONTRACTL_END;
 
+    TypeEquivalenceHashTable *typeHashTable = NULL;
     AppDomain *pDomain = GetAppDomain();
     if (pDomain != NULL)
     {
-        TypeEquivalenceHashTable::EquivalenceMatch match = pDomain->GetTypeEquivalenceCache()->CheckEquivalence(TypeHandle(this), TypeHandle(pOtherMT));
+        typeHashTable = pDomain->GetTypeEquivalenceCache();
+        TypeEquivalenceHashTable::EquivalenceMatch match = typeHashTable->CheckEquivalence(TypeHandle(this), TypeHandle(pOtherMT));
         switch (match)
         {
         case TypeEquivalenceHashTable::Match:
@@ -1435,9 +1409,10 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
 
     BOOL fEquivalent = FALSE;
 
+    // Check if type is generic
     if (HasInstantiation())
     {
-        // we limit variance on generics only to interfaces
+        // Limit variance on generics only to interfaces
         if (!IsInterface() || !pOtherMT->IsInterface())
         {
             fEquivalent = FALSE;
@@ -1448,12 +1423,14 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
         Instantiation inst1 = GetInstantiation();
         Instantiation inst2 = pOtherMT->GetInstantiation();
 
+        // Verify generic argument count
         if (inst1.GetNumArgs() != inst2.GetNumArgs())
         {
             fEquivalent = FALSE;
             goto EquivalenceCalculated;
         }
 
+        // Verify each generic argument type
         for (DWORD i = 0; i < inst1.GetNumArgs(); i++)
         {
             if (!inst1[i].IsEquivalentTo(inst2[i] COMMA_INDEBUG(pVisited)))
@@ -1485,22 +1462,23 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
         }
 
         // arrays of structures have their own unshared MTs and will take this path
-        fEquivalent = (GetApproxArrayElementTypeHandle().IsEquivalentTo(pOtherMT->GetApproxArrayElementTypeHandle() COMMA_INDEBUG(pVisited)));
+        TypeHandle elementType1 = GetApproxArrayElementTypeHandle();
+        TypeHandle elementType2 = pOtherMT->GetApproxArrayElementTypeHandle();
+        fEquivalent = elementType1.IsEquivalentTo(elementType2 COMMA_INDEBUG(pVisited));
         goto EquivalenceCalculated;
     }
 
     fEquivalent = CompareTypeDefsForEquivalence(GetCl(), pOtherMT->GetCl(), GetModule(), pOtherMT->GetModule(), NULL);
 
 EquivalenceCalculated:
-    // Only record equivalence matches if we are in an AppDomain
-    if (pDomain != NULL)
+    // Record equivalence matches if a table exists
+    if (typeHashTable != NULL)
     {
         // Collectible type results will not get cached.
-        if ((!this->Collectible() && !pOtherMT->Collectible()))
+        if ((!Collectible() && !pOtherMT->Collectible()))
         {
-            TypeEquivalenceHashTable::EquivalenceMatch match;
-            match = fEquivalent ? TypeEquivalenceHashTable::Match : TypeEquivalenceHashTable::NoMatch;
-            pDomain->GetTypeEquivalenceCache()->RecordEquivalence(TypeHandle(this), TypeHandle(pOtherMT), match);
+            auto match = fEquivalent ? TypeEquivalenceHashTable::Match : TypeEquivalenceHashTable::NoMatch;
+            typeHashTable->RecordEquivalence(TypeHandle(this), TypeHandle(pOtherMT), match);
         }
     }
 
@@ -5381,12 +5359,12 @@ VOID DoAccessibilityCheckForConstraints(MethodTable *pAskingMT, TypeVarTypeDesc 
 // Used so that we can have one valuetype walking algorithm used for type equivalence walking of the parameters of the method.
 struct DoFullyLoadLocals
 {
-    DoFullyLoadLocals(DFLPendingList *pPendingParam, ClassLoadLevel levelParam, MethodTable *pMT, Generics::RecursionGraph *pVisited) :
-        newVisited(pVisited, TypeHandle(pMT)),
-        pPending(pPendingParam),
-        level(levelParam),
-        fBailed(FALSE)
-#ifdef FEATURE_COMINTEROP
+    DoFullyLoadLocals(DFLPendingList *pPendingParam, ClassLoadLevel levelParam, MethodTable *pMT, Generics::RecursionGraph *pVisited)
+        : newVisited(pVisited, TypeHandle(pMT))
+        , pPending(pPendingParam)
+        , level(levelParam)
+        , fBailed(FALSE)
+#ifdef FEATURE_TYPEEQUIVALENCE
         , fHasEquivalentStructParameter(FALSE)
 #endif
         , fHasTypeForwarderDependentStructParameter(FALSE)
@@ -5399,7 +5377,7 @@ struct DoFullyLoadLocals
     DFLPendingList * const pPending;
     const ClassLoadLevel level;
     BOOL fBailed;
-#ifdef FEATURE_COMINTEROP
+#ifdef FEATURE_TYPEEQUIVALENCE
     BOOL fHasEquivalentStructParameter;
 #endif
     BOOL fHasTypeForwarderDependentStructParameter;
@@ -6155,20 +6133,7 @@ void MethodTable::Restore()
 
         EnsureWritablePages(pWriteableData, sizeof(MethodTableWriteableData) + sizeof(CrossModuleGenericsStaticsInfo));
 
-        if (IsDomainNeutral())
-        {
-            // If we are domain neutral, we have to use constituent of the instantiation to store
-            // statics. We need to ensure that we can create DomainModule in all domains
-            // that this instantiations may get activated in. PZM is good approximation of such constituent.
-            Module * pModuleForStatics = Module::GetPreferredZapModuleForMethodTable(this);
-
-            pInfo->m_pModuleForStatics = pModuleForStatics;
-            pInfo->m_DynamicTypeID = pModuleForStatics->AllocateDynamicEntry(this);
-        }
-        else
-        {
-            pInfo->m_pModuleForStatics = GetLoaderModule();
-        }
+        pInfo->m_pModuleForStatics = GetLoaderModule();
     }
 
     LOG((LF_ZAP, LL_INFO10000,
@@ -6695,7 +6660,7 @@ MethodTable *MethodTable::GetDefaultWinRTInterface()
 #endif // !DACCESS_COMPILE
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_COMINTEROP
+#ifdef FEATURE_TYPEEQUIVALENCE
 #ifndef DACCESS_COMPILE
 
 WORD GetEquivalentMethodSlot(MethodTable * pOldMT, MethodTable * pNewMT, WORD wMTslot, BOOL *pfFound)
@@ -6705,20 +6670,15 @@ WORD GetEquivalentMethodSlot(MethodTable * pOldMT, MethodTable * pNewMT, WORD wM
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    MethodDesc * pMDRet = NULL;
     *pfFound = FALSE;
 
+    WORD wVTslot = wMTslot;
+
+#ifdef FEATURE_COMINTEROP
     // Get the COM vtable slot corresponding to the given MT slot
-    WORD wVTslot;
     if (pOldMT->IsSparseForCOMInterop())
-    {
         wVTslot = pOldMT->GetClass()->GetSparseCOMInteropVTableMap()->LookupVTSlot(wMTslot);
-    }
-    else
-    {
-        wVTslot = wMTslot;
-    }
-    
+
     // If the other MT is not sparse, we can return the COM slot directly
     if (!pNewMT->IsSparseForCOMInterop()) 
     {
@@ -6740,9 +6700,18 @@ WORD GetEquivalentMethodSlot(MethodTable * pOldMT, MethodTable * pNewMT, WORD wM
 
     _ASSERTE(!*pfFound);
     return 0;
+
+#else
+    // No COM means there is no sparse interface
+    if (wVTslot < pNewMT->GetNumVirtuals())
+        *pfFound = TRUE;
+
+    return wVTslot;
+
+#endif // FEATURE_COMINTEROP
 }
 #endif // #ifdef DACCESS_COMPILE
-#endif // #ifdef FEATURE_COMINTEROP
+#endif // #ifdef FEATURE_TYPEEQUIVALENCE
 
 //==========================================================================================
 BOOL 
@@ -8331,7 +8300,8 @@ Instantiation MethodTable::GetInstantiationOfParentClass(MethodTable *pWhichPare
 InteropMethodTableData *MethodTable::LookupComInteropData()
 {
     WRAPPER_NO_CONTRACT;
-    return GetDomain()->LookupComInteropData(this);
+
+    return GetLoaderAllocator()->LookupComInteropData(this);
 }
 
 //==========================================================================================
@@ -8339,7 +8309,8 @@ InteropMethodTableData *MethodTable::LookupComInteropData()
 BOOL MethodTable::InsertComInteropData(InteropMethodTableData *pData)
 {
     WRAPPER_NO_CONTRACT;
-    return GetDomain()->InsertComInteropData(this, pData);
+
+    return GetLoaderAllocator()->InsertComInteropData(this, pData);
 }
 
 //==========================================================================================

@@ -2366,7 +2366,13 @@ static bool configEnableISA(InstructionSet isa)
             }
             __fallthrough;
         case InstructionSet_SSE:
-            return JitConfig.EnableSSE() != 0;
+            if (JitConfig.EnableSSE() == 0)
+            {
+                return false;
+            }
+            __fallthrough;
+        case InstructionSet_Base:
+            return (JitConfig.EnableHWIntrinsic() != 0);
 
         // TODO:  BMI1/BMI2 actually don't depend on AVX, they depend on the VEX encoding; which is currently controlled
         // by InstructionSet_AVX
@@ -2434,19 +2440,32 @@ void Compiler::compSetProcessor()
 
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT))
     {
+        if (configEnableISA(InstructionSet_Base))
+        {
+            opts.setSupportedISA(InstructionSet_Base);
+        }
         if (configEnableISA(InstructionSet_SSE))
         {
             opts.setSupportedISA(InstructionSet_SSE);
+#ifdef _TARGET_AMD64_
+            opts.setSupportedISA(InstructionSet_SSE_X64);
+#endif
         }
         if (configEnableISA(InstructionSet_SSE2))
         {
             opts.setSupportedISA(InstructionSet_SSE2);
+#ifdef _TARGET_AMD64_
+            opts.setSupportedISA(InstructionSet_SSE2_X64);
+#endif
         }
         if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT))
         {
             if (configEnableISA(InstructionSet_LZCNT))
             {
                 opts.setSupportedISA(InstructionSet_LZCNT);
+#ifdef _TARGET_AMD64_
+                opts.setSupportedISA(InstructionSet_LZCNT_X64);
+#endif
             }
         }
         if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT))
@@ -2454,6 +2473,9 @@ void Compiler::compSetProcessor()
             if (configEnableISA(InstructionSet_POPCNT))
             {
                 opts.setSupportedISA(InstructionSet_POPCNT);
+#ifdef _TARGET_AMD64_
+                opts.setSupportedISA(InstructionSet_POPCNT_X64);
+#endif
             }
         }
 
@@ -2474,6 +2496,9 @@ void Compiler::compSetProcessor()
                 if (configEnableISA(InstructionSet_SSE41))
                 {
                     opts.setSupportedISA(InstructionSet_SSE41);
+#ifdef _TARGET_AMD64_
+                    opts.setSupportedISA(InstructionSet_SSE41_X64);
+#endif
                 }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42))
@@ -2481,6 +2506,9 @@ void Compiler::compSetProcessor()
                 if (configEnableISA(InstructionSet_SSE42))
                 {
                     opts.setSupportedISA(InstructionSet_SSE42);
+#ifdef _TARGET_AMD64_
+                    opts.setSupportedISA(InstructionSet_SSE42_X64);
+#endif
                 }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3))
@@ -4550,14 +4578,21 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
 
             fgRemoveEmptyBlocks();
 
-            // Update type of return spill temp if we have gathered better info
-            // when importing the inlinee.
+            // Update type of return spill temp if we have gathered
+            // better info when importing the inlinee, and the return
+            // spill temp is single def.
             if (fgNeedReturnSpillTemp())
             {
                 CORINFO_CLASS_HANDLE retExprClassHnd = impInlineInfo->retExprClassHnd;
                 if (retExprClassHnd != nullptr)
                 {
-                    lvaUpdateClass(lvaInlineeReturnSpillTemp, retExprClassHnd, impInlineInfo->retExprClassHndIsExact);
+                    LclVarDsc* returnSpillVarDsc = lvaGetDesc(lvaInlineeReturnSpillTemp);
+
+                    if (returnSpillVarDsc->lvSingleDef)
+                    {
+                        lvaUpdateClass(lvaInlineeReturnSpillTemp, retExprClassHnd,
+                                       impInlineInfo->retExprClassHndIsExact);
+                    }
                 }
             }
         }

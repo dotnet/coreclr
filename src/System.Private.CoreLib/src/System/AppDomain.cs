@@ -28,7 +28,6 @@ namespace System
         // of these fields cannot be changed without changing the layout in
         // the EE- AppDomainBaseObject in this case)
 
-        private Dictionary<string, object> _LocalStore;
         public event AssemblyLoadEventHandler AssemblyLoad;
 
         private ResolveEventHandler _TypeResolve;
@@ -105,141 +104,7 @@ namespace System
 
         private IntPtr _pDomain;                      // this is an unmanaged pointer (AppDomain * m_pDomain)` used from the VM.
 
-#if FEATURE_APPX
-        private static APPX_FLAGS s_flags;
-
-        //
-        // Keep in async with vm\appdomainnative.cpp
-        //
-        [Flags]
-        private enum APPX_FLAGS
-        {
-            APPX_FLAGS_INITIALIZED = 0x01,
-
-            APPX_FLAGS_APPX_MODEL = 0x02,
-        }
-
-        private static APPX_FLAGS Flags
-        {
-            get
-            {
-                if (s_flags == 0)
-                    s_flags = nGetAppXFlags();
-
-                Debug.Assert(s_flags != 0);
-                return s_flags;
-            }
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.I4)]
-        private static extern APPX_FLAGS nGetAppXFlags();
-#endif
-
-        /// <summary>
-        ///     If this AppDomain is configured to have an AppDomain manager then create the instance of it.
-        ///     This method is also called from the VM to create the domain manager in the default domain.
-        /// </summary>
-        private void CreateAppDomainManager()
-        {
-            string trustedPlatformAssemblies = (string)GetData("TRUSTED_PLATFORM_ASSEMBLIES");
-            if (trustedPlatformAssemblies != null)
-            {
-                string platformResourceRoots = (string)GetData("PLATFORM_RESOURCE_ROOTS") ?? string.Empty;
-                string appPaths = (string)GetData("APP_PATHS") ?? string.Empty;
-                string appNiPaths = (string)GetData("APP_NI_PATHS") ?? string.Empty;
-                string appLocalWinMD = (string)GetData("APP_LOCAL_WINMETADATA") ?? string.Empty;
-                SetupBindingPaths(trustedPlatformAssemblies, platformResourceRoots, appPaths, appNiPaths, appLocalWinMD);
-            }
-        }
-
-        /// <summary>
-        ///     Returns whether the current AppDomain follows the AppX rules.
-        /// </summary>
-        [Pure]
-        internal static bool IsAppXModel()
-        {
-#if FEATURE_APPX
-            return (Flags & APPX_FLAGS.APPX_FLAGS_APPX_MODEL) != 0;
-#else
-            return false;
-#endif
-        }
-
-        /// <summary>
-        ///     Checks (and throws on failure) if the domain supports Assembly.LoadFrom.
-        /// </summary>
-        [Pure]
-        internal static void CheckLoadFromSupported()
-        {
-#if FEATURE_APPX
-            if (IsAppXModel())
-                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFrom"));
-#endif
-        }
-
-        /// <summary>
-        ///     Checks (and throws on failure) if the domain supports Assembly.LoadFile.
-        /// </summary>
-        [Pure]
-        internal static void CheckLoadFileSupported()
-        {
-#if FEATURE_APPX
-            if (IsAppXModel())
-                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFile"));
-#endif
-        }
-
-        /// <summary>
-        ///     Checks (and throws on failure) if the domain supports Assembly.Load(byte[] ...).
-        /// </summary>
-        [Pure]
-        internal static void CheckLoadByteArraySupported()
-        {
-#if FEATURE_APPX
-            if (IsAppXModel())
-                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.Load(byte[], ...)"));
-#endif
-        }
-
         public static AppDomain CurrentDomain => Thread.GetDomain();
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private extern Assembly[] nGetAssemblies(bool forIntrospection);
-
-        internal Assembly[] GetAssemblies(bool forIntrospection)
-        {
-            return nGetAssemblies(forIntrospection);
-        }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern void PublishAnonymouslyHostedDynamicMethodsAssembly(RuntimeAssembly assemblyHandle);
-
-        public void SetData(string name, object data)
-        {
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
-
-            lock (((ICollection)LocalStore).SyncRoot)
-            {
-                LocalStore[name] = data;
-            }
-        }
-
-        [Pure]
-        public object GetData(string name)
-        {
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
-
-            object data;
-            lock (((ICollection)LocalStore).SyncRoot)
-            {
-                LocalStore.TryGetValue(name, out data);
-            }
-
-            return data;
-        }
 
         [Obsolete("AppDomain.GetCurrentThreadId has been deprecated because it does not provide a stable Id when managed threads are running on fibers (aka lightweight threads). To get a stable identifier for a managed thread, use the ManagedThreadId property on Thread.  http://go.microsoft.com/fwlink/?linkid=14202", false)]
         [DllImport(Interop.Libraries.Kernel32)]
@@ -248,14 +113,6 @@ namespace System
         private AppDomain()
         {
             Debug.Fail("Object cannot be created through this constructor.");
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void nSetupBindingPaths(string trustedPlatformAssemblies, string platformResourceRoots, string appPath, string appNiPaths, string appLocalWinMD);
-
-        internal void SetupBindingPaths(string trustedPlatformAssemblies, string platformResourceRoots, string appPath, string appNiPaths, string appLocalWinMD)
-        {
-            nSetupBindingPaths(trustedPlatformAssemblies, platformResourceRoots, appPath, appNiPaths, appLocalWinMD);
         }
 
         // support reliability for certain event handlers, if the target
@@ -399,69 +256,6 @@ namespace System
                 null;
         }
 
-        private Dictionary<string, object> LocalStore
-        {
-            get
-            {
-                return _LocalStore ?? (_LocalStore = new Dictionary<string, object>());
-            }
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void nSetNativeDllSearchDirectories(string paths);
-
-        private static void Setup(string friendlyName,
-                                    string[] propertyNames,
-                                    string[] propertyValues)
-        {
-            AppDomain ad = CurrentDomain;
-
-            if (propertyNames != null && propertyValues != null)
-            {
-                for (int i = 0; i < propertyNames.Length; i++)
-                {
-                    // We want to set native dll probing directories before any P/Invokes have a
-                    // chance to fire. The Path class, for one, has P/Invokes.
-                    if (propertyNames[i] == "NATIVE_DLL_SEARCH_DIRECTORIES")
-                    {
-                        if (propertyValues[i] == null)
-                            throw new ArgumentNullException("NATIVE_DLL_SEARCH_DIRECTORIES");
-
-                        string paths = propertyValues[i];
-                        if (paths.Length == 0)
-                            break;
-
-                        nSetNativeDllSearchDirectories(paths);
-                    }
-                }
-
-                for (int i = 0; i < propertyNames.Length; i++)
-                {
-                    if (propertyNames[i] != null)
-                    {
-                        ad.SetData(propertyNames[i], propertyValues[i]);
-                    }
-                }
-            }
-
-            // set up the friendly name
-            ad.nSetupFriendlyName(friendlyName);
-
-            ad.CreateAppDomainManager(); // could modify FusionStore's object
-        }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private extern void nSetupFriendlyName(string friendlyName);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal extern string IsStringInterned(string str);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal extern string GetOrInternString(string str);
-
-        public int Id => GetId();
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal extern int GetId();
+        internal int GetId() => 1;
     }
 }

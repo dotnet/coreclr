@@ -121,7 +121,6 @@ Assembly::Assembly(BaseDomain *pDomain, PEAssembly* pFile, DebuggerAssemblyContr
     m_winMDStatus(WinMDStatus_Unknown),
     m_pManifestWinMDImport(NULL),
 #endif // FEATURE_COMINTEROP
-    m_fIsDomainNeutral(pDomain == SharedDomain::GetDomain()),
     m_debuggerFlags(debuggerFlags),
     m_fTerminated(FALSE)
 #ifdef FEATURE_COMINTEROP
@@ -155,26 +154,17 @@ void Assembly::Init(AllocMemTracker *pamTracker, LoaderAllocator *pLoaderAllocat
     }
     else
     {
-        if (!IsDomainNeutral())
+        if (!IsCollectible())
         {
-            if (!IsCollectible())
-            {
-                // pLoaderAllocator will only be non-null for reflection emit assemblies
-                _ASSERTE((pLoaderAllocator == NULL) || (pLoaderAllocator == GetDomain()->AsAppDomain()->GetLoaderAllocator()));
-                m_pLoaderAllocator = GetDomain()->AsAppDomain()->GetLoaderAllocator();
-            }
-            else
-            {
-                _ASSERTE(pLoaderAllocator != NULL); // ppLoaderAllocator must be non-null for collectible assemblies
-
-                m_pLoaderAllocator = pLoaderAllocator;
-            }
+            // pLoaderAllocator will only be non-null for reflection emit assemblies
+            _ASSERTE((pLoaderAllocator == NULL) || (pLoaderAllocator == GetDomain()->AsAppDomain()->GetLoaderAllocator()));
+            m_pLoaderAllocator = GetDomain()->AsAppDomain()->GetLoaderAllocator();
         }
         else
         {
-            _ASSERTE(pLoaderAllocator == NULL); // pLoaderAllocator may only be non-null for collectible types
-            // use global loader heaps
-            m_pLoaderAllocator = SystemDomain::GetGlobalLoaderAllocator();
+            _ASSERTE(pLoaderAllocator != NULL); // ppLoaderAllocator must be non-null for collectible assemblies
+
+            m_pLoaderAllocator = pLoaderAllocator;
         }
     }
     _ASSERTE(m_pLoaderAllocator != NULL);
@@ -674,24 +664,6 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         }
 
         pAssem->m_isDynamic = true;
-
-        if (publicKey.GetSize() > 0)
-        {
-            // Since we have no way to validate the public key of a dynamic assembly we don't allow 
-            // partial trust code to emit a dynamic assembly with an arbitrary public key.
-            // Ideally we shouldn't allow anyone to emit a dynamic assembly with only a public key,
-            // but we allow a couple of exceptions to reduce the compat risk: full trust, caller's own key.
-            // As usual we treat anonymously hosted dynamic methods as partial trust code.
-            DomainAssembly* pCallerDomainAssembly = pCallerAssembly->GetDomainAssembly(pCallersDomain);
-            if (pCallerDomainAssembly == pCallersDomain->GetAnonymouslyHostedDynamicMethodsAssembly())
-            {
-                DWORD cbKey = 0;
-                const void* pKey = pCallerAssembly->GetPublicKey(&cbKey);
-
-                if (!publicKey.Equals((const BYTE *)pKey, cbKey))
-                    COMPlusThrow(kInvalidOperationException, W("InvalidOperation_StrongNameKeyPairRequired"));
-            }
-        }
 
         //we need to suppress release for pAssem to avoid double release
         pAssem.SuppressRelease ();
@@ -2130,39 +2102,6 @@ GetAssembliesByName(LPCWSTR  szAppBase,
 
     return hr;
 }// Used by the IMetadata API's to access an assemblies metadata.
-
-#ifdef FEATURE_LOADER_OPTIMIZATION
-
-BOOL Assembly::CanBeShared(DomainAssembly *pDomainAssembly)
-{
-    PTR_PEAssembly pFile=pDomainAssembly->GetFile();
-
-    if(pFile == NULL)
-        return FALSE;
-
-    if(pFile->IsDynamic())
-        return FALSE;
-
-    if(IsSystem() && pFile->IsSystem())
-        return TRUE;
-
-    if ((pDomainAssembly->GetDebuggerInfoBits()&~(DACF_PDBS_COPIED|DACF_IGNORE_PDBS|DACF_OBSOLETE_TRACK_JIT_INFO))
-        != (m_debuggerFlags&~(DACF_PDBS_COPIED|DACF_IGNORE_PDBS|DACF_OBSOLETE_TRACK_JIT_INFO)))
-    {
-        LOG((LF_CODESHARING,
-             LL_INFO100,
-             "We can't share it, desired debugging flags %x are different than %x\n",
-             pDomainAssembly->GetDebuggerInfoBits(), (m_debuggerFlags&~(DACF_PDBS_COPIED|DACF_IGNORE_PDBS|DACF_OBSOLETE_TRACK_JIT_INFO))));
-        STRESS_LOG2(LF_CODESHARING, LL_INFO100,"Flags diff= %08x [%08x/%08x]",pDomainAssembly->GetDebuggerInfoBits(),
-                    m_debuggerFlags);
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-
-#endif // FEATURE_LOADER_OPTIMIZATION
 
 void DECLSPEC_NORETURN Assembly::ThrowTypeLoadException(LPCUTF8 pszFullName, UINT resIDWhy)
 {

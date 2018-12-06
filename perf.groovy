@@ -41,7 +41,7 @@ def static getOSGroup(def os) {
                         def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
                             // Set the label.
                             if (isSmoketest) {
-                                label('Windows.Amd64.ClientRS4.DevEx.15.8.Perf')
+                                label('Windows.10.Amd64.ClientRS4.DevEx.15.8.Open')
                                 python = "C:\\python3.7.0\\python.exe"
                             }
                             else {
@@ -457,20 +457,21 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
         
         def crossCompile = ""
         def python = "python3.5"
+        def tgzFile = "bin-Product-Linux.${architecture}.${configuration}.tgz"
 
         if (architecture == "arm") {
             python = "python3.6"
             def buildCommands = []
             def newBuildJob = job(fullBuildJobName) {
-                def additionalOpts = "-e CAC_ROOTFS_DIR=/crossrootfs/x86"
                 def dockerImage = getDockerImageName(architecture, 'Ubuntu', true)
-                def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${additionalOpts} ${dockerImage} "
+                def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${dockerImage} "
 
                 buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh release ${architecture} cross"
 
                 steps {
                     buildCommands.each { buildCommand ->
                         shell(buildCommand)
+                        shell("tar -czf ${tgzFile} bin/Product/Linux.${architecture}.${configuration}")
                     }
                 }
 
@@ -482,7 +483,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
             }
             Utilities.setMachineAffinity(newBuildJob, "Ubuntu16.04", 'latest-or-auto')
             Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
-            Utilities.addArchival(newBuildJob, "bin/Product/**")
+            Utilities.addArchival(newBuildJob, "${tgzFile}")
         }
         else {
             // Build has to happen on RHEL7.2 (that's where we produce the bits we ship)
@@ -547,10 +548,18 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
                     steps {
                         shell("bash ./tests/scripts/perf-prep.sh --throughput${archString}")
                         copyArtifacts(fullBuildJobName) {
-                            includePatterns("bin/Product/**")
+                            if (architecture == 'arm') {
+                                includePatterns("${tgzFile}")
+                            }
+                            else {
+                                includePatterns("bin/Product/**")
+                            }
                             buildSelector {
                                 buildNumber('\${PRODUCT_BUILD}')
                             }
+                        }
+                        if (architecture == 'arm') {
+                            shell("tar -xzf ./${tgzFile} || exit 0")
                         }
                         shell("GIT_BRANCH_WITHOUT_ORIGIN=\$(echo \$GIT_BRANCH | sed \"s/[^/]*\\/\\(.*\\)/\\1 /\")\n" +
                         "${python} \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools/submission-metadata.py\" --name \" ${benchViewName} \" --user-email \"dotnet-bot@microsoft.com\"\n" +
@@ -758,7 +767,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
     ['x64', 'x86'].each { arch ->
         def architecture = arch
         def newJob = job(Utilities.getFullJobName(project, "sizeondisk_${arch}", false)) {
-            label('Windows.Amd64.ClientRS4.DevEx.15.8.Perf')
+            label('Windows.10.Amd64.ClientRS4.DevEx.15.8.Open')
 
             wrappers {
                 credentialsBinding {
@@ -844,7 +853,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
                 ['full_opt'].each { opt_level ->
                     def architecture = arch
                     def newJob = job(Utilities.getFullJobName(project, "perf_illink_${os}_${arch}_${opt_level}_${jit}", isPR)) {
-                        label('Windows.Amd64.ClientRS4.DevEx.15.8.Perf')
+                        label('Windows.10.Amd64.ClientRS4.DevEx.15.8.Open')
 
                         def testEnv = ""
                         def python = "C:\\python3.7.0\\python.exe"
