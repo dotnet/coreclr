@@ -374,35 +374,47 @@ void CodeGen::genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, reg
     }
 }
 
-void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP maskSaveRegsInt,
+void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
                                              int&      spDelta,
                                              int& spOffset DEBUGARG(bool isRegsToSaveCountOdd))
 {
-    unsigned intRegsToSaveCount = genCountBits(maskSaveRegsInt);
-    bool     lastSavedWasPair   = false;
-    while (maskSaveRegsInt != RBM_NONE)
+    unsigned regsCount        = genCountBits(regsMask);
+    bool     lastSavedWasPair = false;
+
+    assert((regsMask & RBM_CALLEE_SAVED) == regsMask); // Do not expect anything else.
+
+    bool isIntMask = ((regsMask & RBM_ALLFLOAT) == 0);
+#ifdef DEBUG
+    bool isFloatMask = ((regsMask & RBM_ALLFLOAT) == regsMask);
+    // Has to be either int or float.
+    assert(isIntMask != isFloatMask);
+#endif // DEBUG
+
+    const int slotSize = isIntMask ? REGSIZE_BYTES : FPSAVE_REGSIZE_BYTES;
+
+    while (regsMask != RBM_NONE)
     {
         // If this is the first store that needs to change SP (spDelta != 0),
         // then the offset must be 8 to account for alignment for the odd count
         // or it must be 0 for the even count.
-        assert((spDelta == 0) || (isRegsToSaveCountOdd && spOffset == REGSIZE_BYTES) ||
+        assert((spDelta == 0) || (isRegsToSaveCountOdd && spOffset == slotSize) ||
                (!isRegsToSaveCountOdd && spOffset == 0));
 
-        bool      isPairSave = (intRegsToSaveCount >= 2);
-        regMaskTP reg1Mask   = genFindLowestBit(maskSaveRegsInt);
+        bool      isPairSave = (regsCount >= 2);
+        regMaskTP reg1Mask   = genFindLowestBit(regsMask);
         regNumber reg1       = genRegNumFromMask(reg1Mask);
-        maskSaveRegsInt &= ~reg1Mask;
-        intRegsToSaveCount -= 1;
+        regsMask &= ~reg1Mask;
+        regsCount -= 1;
 
         if (isPairSave)
         {
             // We can use a STP instruction.
 
-            regMaskTP reg2Mask = genFindLowestBit(maskSaveRegsInt);
+            regMaskTP reg2Mask = genFindLowestBit(regsMask);
             regNumber reg2     = genRegNumFromMask(reg2Mask);
             assert(reg2 == REG_NEXT(reg1));
-            maskSaveRegsInt &= ~reg2Mask;
-            intRegsToSaveCount -= 1;
+            regsMask &= ~reg2Mask;
+            regsCount -= 1;
 
             genPrologSaveRegPair(reg1, reg2, spOffset, spDelta, lastSavedWasPair, REG_IP0, nullptr);
 
@@ -410,7 +422,7 @@ void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP maskSaveRegsInt,
             // this epilog, to get the codes to match. Turn this off until that is better understood.
             // lastSavedWasPair = true;
 
-            spOffset += 2 * REGSIZE_BYTES;
+            spOffset += 2 * slotSize;
         }
         else
         {
@@ -419,12 +431,12 @@ void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP maskSaveRegsInt,
             genPrologSaveReg(reg1, spOffset, spDelta, REG_IP0, nullptr);
 
             lastSavedWasPair = false;
-            spOffset += REGSIZE_BYTES;
+            spOffset += slotSize;
         }
 
         spDelta = 0; // We've now changed SP already, if necessary; don't do it again.
     }
-    assert(intRegsToSaveCount == 0);
+    assert(regsCount == 0);
 }
 
 //------------------------------------------------------------------------
@@ -488,15 +500,15 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
     bool isRegsToSaveCountOdd = ((intRegsToSaveCount + floatRegsToSaveCount) % 2 != 0);
 #endif
 
-    // Save the integer registers
-
-    bool lastSavedWasPair = false;
-
-    genSaveCaleeSavedRegisterGroup(maskSaveRegsInt, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
+    if (maskSaveRegsInt != 0)
+    {
+        // Save the integer registers.
+        genSaveCaleeSavedRegisterGroup(maskSaveRegsInt, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
+    }
 
     // Save the floating-point/SIMD registers
 
-    lastSavedWasPair = false;
+    bool lastSavedWasPair = false;
 
     while (maskSaveRegsFloat != RBM_NONE)
     {

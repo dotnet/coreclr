@@ -298,7 +298,7 @@ protected:
 
     void genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, regNumber tmpReg, bool* pTmpRegIsZero);
 
-    void genSaveCaleeSavedRegisterGroup(regMaskTP maskSaveRegsInt,
+    void genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
                                         int&      spDelta,
                                         int& spOffset DEBUGARG(bool isRegsToSaveCountOdd));
 
