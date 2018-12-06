@@ -301,7 +301,7 @@ protected:
     void genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
                                         int&      spDelta,
                                         int& spOffset DEBUGARG(bool isRegsToSaveCountOdd));
-    void genRestoreCaleeSavedRegisterGroup(regMaskTP maskRestoreRegsInt,
+    void genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
                                            int       spDelta,
                                            int& spOffset DEBUGARG(bool isRegsToRestoreCountOdd));
 

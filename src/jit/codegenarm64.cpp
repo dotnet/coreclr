@@ -513,15 +513,26 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
     }
 }
 
-void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP maskRestoreRegsInt,
+void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
                                                 int       spDelta,
                                                 int& spOffset DEBUGARG(bool isRegsToRestoreCountOdd))
 {
-    unsigned intRegsToRestoreCount = genCountBits(maskRestoreRegsInt);
-    while (maskRestoreRegsInt != RBM_NONE)
+    unsigned regsCount = genCountBits(regsMask);
+
+    assert((regsMask & RBM_CALLEE_SAVED) == regsMask); // Do not expect anything else.
+
+    bool isIntMask = ((regsMask & RBM_ALLFLOAT) == 0);
+#ifdef DEBUG
+    bool isFloatMask = ((regsMask & RBM_ALLFLOAT) == regsMask);
+    assert(isIntMask != isFloatMask); // Has to be either int or float.
+#endif
+
+    const int slotSize = isIntMask ? REGSIZE_BYTES : FPSAVE_REGSIZE_BYTES;
+
+    while (regsMask != RBM_NONE)
     {
-        bool thisIsTheLastRestoreInstruction = (intRegsToRestoreCount <= 2);
-        bool isPairRestore                   = (intRegsToRestoreCount % 2) == 0;
+        bool thisIsTheLastRestoreInstruction = (regsCount <= 2);
+        bool isPairRestore                   = (regsCount % 2) == 0;
 
         // Update stack delta only if it is the last restore (the first save).
         int stackDelta = 0;
@@ -531,29 +542,29 @@ void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP maskRestoreRegsInt,
         }
 
         // Update stack offset.
-        spOffset -= REGSIZE_BYTES;
+        spOffset -= slotSize;
         if (isPairRestore)
         {
-            spOffset -= REGSIZE_BYTES;
+            spOffset -= slotSize;
         }
 
         // If this is the last restore (the first save) that needs to change SP (stackDelta != 0),
         // then the offset must be 8 to account for alignment for the odd count
         // or it must be 0 for the even count.
-        assert((stackDelta == 0) || (isRegsToRestoreCountOdd && spOffset == REGSIZE_BYTES) ||
+        assert((stackDelta == 0) || (isRegsToRestoreCountOdd && spOffset == slotSize) ||
                (!isRegsToRestoreCountOdd && spOffset == 0));
 
-        regMaskTP reg2Mask = genFindHighestBit(maskRestoreRegsInt);
+        regMaskTP reg2Mask = genFindHighestBit(regsMask);
         regNumber reg2     = genRegNumFromMask(reg2Mask);
-        maskRestoreRegsInt &= ~reg2Mask;
-        intRegsToRestoreCount -= 1;
+        regsMask &= ~reg2Mask;
+        regsCount -= 1;
 
         if (isPairRestore)
         {
-            regMaskTP reg1Mask = genFindHighestBit(maskRestoreRegsInt);
+            regMaskTP reg1Mask = genFindHighestBit(regsMask);
             regNumber reg1     = genRegNumFromMask(reg1Mask);
-            maskRestoreRegsInt &= ~reg1Mask;
-            intRegsToRestoreCount -= 1;
+            regsMask &= ~reg1Mask;
+            regsCount -= 1;
 
             genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP1, nullptr);
         }
@@ -563,7 +574,7 @@ void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP maskRestoreRegsInt,
         }
     }
 
-    assert(intRegsToRestoreCount == 0);
+    assert(regsCount == 0);
 }
 
 //------------------------------------------------------------------------
