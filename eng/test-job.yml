@@ -130,6 +130,7 @@ jobs:
           ${{ if eq(variables['System.TeamProject'], 'public') }}:
             # Access token variable for public project
             HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: .\Tools\dotnetcli\dotnet msbuild tests\helixpublishwitharcade.proj /maxcpucount $(scenariosArg) $(helixTargetQueuesArg)
         displayName: Send test jobs to Helix
@@ -140,3 +141,4 @@ jobs:
           ${{ if eq(variables['System.TeamProject'], 'public') }}:
             # Access token variable for public project
             HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)

@@ -12,7 +12,7 @@
     <HelixType>test/stuff</HelixType>
     <HelixBuild>$(BUILD_BUILDNUMBER)</HelixBuild>
 
-    <EnableXUnitReporter>true</EnableXUnitReporter>
+    <EnableAzurePipelinesReporter Condition=" '$(EnableAzurePipelinesReporter)' != 'false' ">true</EnableAzurePipelinesReporter>
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
     <SourceDirectory>$(MSBuildProjectDirectory)/..</SourceDirectory>
   </PropertyGroup>
@@ -48,12 +48,12 @@
            job names will not have a scenario prefix and the runtest
            script doesn't have to define a "normal" scenario. -->
       <Scenario Condition=" '$(Scenario)' == 'normal' "></Scenario>
-      <ScenarioPrefix Condition=" '$(Scenario)' == '' " />
-      <ScenarioPrefix Condition=" '$(Scenario)' != '' ">$(Scenario) </ScenarioPrefix>
+      <TestRunNamePrefix Condition=" '$(Scenario)' == '' ">$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
+      <TestRunNamePrefix Condition=" '$(Scenario)' != '' ">$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
     </PropertyGroup>
     <ItemGroup>
       <TestZipFiles Include="$(SourceDirectory)\bin\tests\*\archive\tests\*.zip" />
-      <HelixWorkItem Include="@(TestZipFiles->'$(ScenarioPrefix)%(FileName)')" >
+      <HelixWorkItem Include="@(TestZipFiles->'%(FileName)')" >
         <PayloadArchive>%(Identity)</PayloadArchive>
         <Command Condition=" '$(Scenario)' == '' ">python runtest_helix.py -wrapper %(FileName).dll</Command>
         <Command Condition=" '$(Scenario)' != '' ">python runtest_helix.py -scenario $(Scenario) -wrapper %(FileName).dll</Command>
