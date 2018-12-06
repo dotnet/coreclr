@@ -15,6 +15,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace System
 {
@@ -921,26 +922,12 @@ namespace System
 
         public static string ConvertFromUtf32(int utf32)
         {
-            // For UTF32 values from U+00D800 ~ U+00DFFF, we should throw.  They
-            // are considered as irregular code unit sequence, but they are not illegal.
-            if (((uint)utf32 > UNICODE_PLANE16_END) || (utf32 >= CharUnicodeInfo.HIGH_SURROGATE_START && utf32 <= CharUnicodeInfo.LOW_SURROGATE_END))
+            if (!UnicodeUtility.IsValidUnicodeScalar((uint)utf32))
             {
                 throw new ArgumentOutOfRangeException(nameof(utf32), SR.ArgumentOutOfRange_InvalidUTF32);
             }
 
-            if (utf32 < UNICODE_PLANE01_START)
-            {
-                // This is a BMP character.
-                return ToString((char)utf32);
-            }
-
-            // This is a supplementary character.  Convert it to a surrogate pair in UTF-16.
-            utf32 -= UNICODE_PLANE01_START;
-            return string.Create(2, utf32, (span, value) =>
-            {
-                span[1] = (char)((value % 0x400) + CharUnicodeInfo.LOW_SURROGATE_START);
-                span[0] = (char)((value / 0x400) + CharUnicodeInfo.HIGH_SURROGATE_START);
-            });
+            return Rune.UnsafeCreate((uint)utf32).ToString();
         }
 
 
