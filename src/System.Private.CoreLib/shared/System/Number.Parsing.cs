@@ -636,6 +636,7 @@ namespace System
                 }
                 goto HasTrailingChars;
             }
+            goto FalseExit;
 
         DoneAtEndButPotentialOverflow:
             if (overflow)
@@ -805,6 +806,7 @@ namespace System
                 }
                 goto HasTrailingChars;
             }
+            goto FalseExit;
 
         DoneAtEndButPotentialOverflow:
             if (overflow)
@@ -945,7 +947,7 @@ namespace System
             }
 
             // Parse leading sign.
-            int sign = 0;
+            bool overflow = false;
             if ((styles & NumberStyles.AllowLeadingSign) != 0)
             {
                 if (info.HasInvariantNumberSigns)
@@ -959,7 +961,7 @@ namespace System
                     }
                     else if (num == '-')
                     {
-                        sign = -1;
+                        overflow = true;
                         index++;
                         if ((uint)index >= (uint)value.Length)
                             goto FalseExit;
@@ -979,7 +981,7 @@ namespace System
                     }
                     else if (info.NegativeSign is string negativeSign && negativeSign.Length > 0 && value.StartsWith(negativeSign))
                     {
-                        sign = -1;
+                        overflow = true;
                         index += negativeSign.Length;
                         if ((uint)index >= (uint)value.Length)
                             goto FalseExit;
@@ -988,7 +990,6 @@ namespace System
                 }
             }
 
-            bool overflow = false;
             int answer = 0;
 
             if (IsDigit(num))
@@ -1004,7 +1005,7 @@ namespace System
                         num = value[index];
                     } while (num == '0');
                     if (!IsDigit(num))
-                        goto HasTrailingChars;
+                        goto HasTrailingCharsZero;
                 }
 
                 // Parse most digits, up to the potential for overflow, which can't happen until after 9 digits.
@@ -1013,7 +1014,7 @@ namespace System
                 for (int i = 0; i < 8; i++) // next 8 digits can't overflow
                 {
                     if ((uint)index >= (uint)value.Length)
-                        goto DoneAtEnd;
+                        goto DoneAtEndButPotentialOverflow;
                     num = value[index];
                     if (!IsDigit(num))
                         goto HasTrailingChars;
@@ -1023,12 +1024,12 @@ namespace System
 
                 // Potential overflow now processing the 10th digit.
                 if ((uint)index >= (uint)value.Length)
-                    goto DoneAtEnd;
+                    goto DoneAtEndButPotentialOverflow;
                 num = value[index];
                 if (!IsDigit(num))
                     goto HasTrailingChars;
                 index++;
-                overflow = (uint)answer > uint.MaxValue / 10 || ((uint)answer == uint.MaxValue / 10 && num > '5');
+                overflow |= (uint)answer > uint.MaxValue / 10 || ((uint)answer == uint.MaxValue / 10 && num > '5');
                 answer = answer * 10 + num - '0';
                 if ((uint)index >= (uint)value.Length)
                     goto DoneAtEndButPotentialOverflow;
@@ -1046,9 +1047,10 @@ namespace System
                 }
                 goto HasTrailingChars;
             }
+            goto FalseExit;
 
         DoneAtEndButPotentialOverflow:
-            if (overflow || (sign & answer) != 0)
+            if (overflow)
             {
                 goto OverflowExit;
             }
@@ -1067,6 +1069,8 @@ namespace System
             status = ParsingStatus.Overflow;
             goto Exit;
 
+        HasTrailingCharsZero:
+            overflow = false;
         HasTrailingChars: // we've successfully parsed, but there are still remaining characters in the span
             // Skip past trailing whitespace, then past trailing zeros, and if anything else remains, fail.
             if (IsWhite(num))
@@ -1270,7 +1274,7 @@ namespace System
             }
 
             // Parse leading sign.
-            int sign = 0;
+            bool overflow = false;
             if ((styles & NumberStyles.AllowLeadingSign) != 0)
             {
                 if (info.HasInvariantNumberSigns)
@@ -1284,7 +1288,7 @@ namespace System
                     }
                     else if (num == '-')
                     {
-                        sign = -1;
+                        overflow = true;
                         index++;
                         if ((uint)index >= (uint)value.Length)
                             goto FalseExit;
@@ -1304,7 +1308,7 @@ namespace System
                     }
                     else if (info.NegativeSign is string negativeSign && negativeSign.Length > 0 && value.StartsWith(negativeSign))
                     {
-                        sign = -1;
+                        overflow = true;
                         index += negativeSign.Length;
                         if ((uint)index >= (uint)value.Length)
                             goto FalseExit;
@@ -1313,7 +1317,6 @@ namespace System
                 }
             }
 
-            bool overflow = false;
             long answer = 0;
 
             if (IsDigit(num))
@@ -1329,7 +1332,7 @@ namespace System
                         num = value[index];
                     } while (num == '0');
                     if (!IsDigit(num))
-                        goto HasTrailingChars;
+                        goto HasTrailingCharsZero;
                 }
 
                 // Parse most digits, up to the potential for overflow, which can't happen until after 19 digits.
@@ -1338,7 +1341,7 @@ namespace System
                 for (int i = 0; i < 18; i++) // next 18 digits can't overflow
                 {
                     if ((uint)index >= (uint)value.Length)
-                        goto DoneAtEnd;
+                        goto DoneAtEndButPotentialOverflow;
                     num = value[index];
                     if (!IsDigit(num))
                         goto HasTrailingChars;
@@ -1348,12 +1351,12 @@ namespace System
 
                 // Potential overflow now processing the 20th digit.
                 if ((uint)index >= (uint)value.Length)
-                    goto DoneAtEnd;
+                    goto DoneAtEndButPotentialOverflow;
                 num = value[index];
                 if (!IsDigit(num))
                     goto HasTrailingChars;
                 index++;
-                overflow = (ulong)answer > ulong.MaxValue / 10 || ((ulong)answer == ulong.MaxValue / 10 && num > '5');
+                overflow |= (ulong)answer > ulong.MaxValue / 10 || ((ulong)answer == ulong.MaxValue / 10 && num > '5');
                 answer = answer * 10 + num - '0';
                 if ((uint)index >= (uint)value.Length)
                     goto DoneAtEndButPotentialOverflow;
@@ -1371,9 +1374,10 @@ namespace System
                 }
                 goto HasTrailingChars;
             }
+            goto FalseExit;
 
         DoneAtEndButPotentialOverflow:
-            if (overflow || (sign & answer) != 0)
+            if (overflow)
             {
                 goto OverflowExit;
             }
@@ -1392,6 +1396,8 @@ namespace System
             status = ParsingStatus.Overflow;
             goto Exit;
 
+        HasTrailingCharsZero:
+            overflow = false;
         HasTrailingChars: // we've successfully parsed, but there are still remaining characters in the span
             // Skip past trailing whitespace, then past trailing zeros, and if anything else remains, fail.
             if (IsWhite(num))
