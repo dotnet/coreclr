@@ -390,13 +390,61 @@ void CheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize)
 }
 #endif // DEBUG
 
+struct RegPair
+{
+    regNumber reg1;
+    regNumber reg2;
+
+    RegPair() : reg1(REG_NA), reg2(REG_NA)
+    {
+    }
+
+    RegPair(regNumber reg1) : reg1(reg1), reg2(REG_NA)
+    {
+    }
+
+    RegPair(regNumber reg1, regNumber reg2) : reg1(reg1), reg2(reg2)
+    {
+        assert(reg2 == REG_NEXT(reg1));
+    }
+};
+
+ArrayStack<RegPair> buildRegPairsStack(Compiler* compiler, regMaskTP regsMask)
+{
+    ArrayStack<RegPair> regStack(compiler->getAllocator(CMK_Codegen));
+    unsigned            regsCount = genCountBits(regsMask);
+
+    while (regsMask != RBM_NONE)
+    {
+        bool      isPairSave = (regsCount >= 2);
+        regMaskTP reg1Mask   = genFindLowestBit(regsMask);
+        regNumber reg1       = genRegNumFromMask(reg1Mask);
+        regsMask &= ~reg1Mask;
+        regsCount -= 1;
+
+        if (isPairSave)
+        {
+            regMaskTP reg2Mask = genFindLowestBit(regsMask);
+            regNumber reg2     = genRegNumFromMask(reg2Mask);
+            assert(reg2 == REG_NEXT(reg1));
+            regsMask &= ~reg2Mask;
+            regsCount -= 1;
+
+            regStack.Push(RegPair(reg1, reg2));
+        }
+        else
+        {
+            regStack.Push(RegPair(reg1));
+        }
+    }
+    assert(regsCount == 0 && regsMask == RBM_NONE);
+    return regStack;
+}
+
 void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
                                              int&      spDelta,
                                              int& spOffset DEBUGARG(bool isRegsToSaveCountOdd))
 {
-    unsigned regsCount        = genCountBits(regsMask);
-    bool     lastSavedWasPair = false;
-
     assert((regsMask & RBM_CALLEE_SAVED) == regsMask); // Do not expect anything else.
 
     bool isIntMask = ((regsMask & RBM_ALLFLOAT) == 0);
@@ -409,31 +457,21 @@ void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
     const int slotSize = isIntMask ? REGSIZE_BYTES : FPSAVE_REGSIZE_BYTES;
 
 #ifdef DEBUG
-    if (spDelta != 0) // This is the first store that needs to change SP.
+    if (spDelta != 0) // The first store change SP offset, check its value before.
     {
         CheckSPOffset(isRegsToSaveCountOdd, spOffset, slotSize);
     }
 #endif // DEBUG
 
-    while (regsMask != RBM_NONE)
+    ArrayStack<RegPair> regStack         = buildRegPairsStack(compiler, regsMask);
+    bool                lastSavedWasPair = false; // currently unused, see the comment below.
+    for (int i = 0; i < regStack.Height(); ++i)
     {
-        bool      isPairSave = (regsCount >= 2);
-        regMaskTP reg1Mask   = genFindLowestBit(regsMask);
-        regNumber reg1       = genRegNumFromMask(reg1Mask);
-        regsMask &= ~reg1Mask;
-        regsCount -= 1;
-
-        if (isPairSave)
+        RegPair regPair = regStack.Bottom(i);
+        if (regPair.reg2 != REG_NA)
         {
             // We can use a STP instruction.
-
-            regMaskTP reg2Mask = genFindLowestBit(regsMask);
-            regNumber reg2     = genRegNumFromMask(reg2Mask);
-            assert(reg2 == REG_NEXT(reg1));
-            regsMask &= ~reg2Mask;
-            regsCount -= 1;
-
-            genPrologSaveRegPair(reg1, reg2, spOffset, spDelta, lastSavedWasPair, REG_IP0, nullptr);
+            genPrologSaveRegPair(regPair.reg1, regPair.reg2, spOffset, spDelta, lastSavedWasPair, REG_IP0, nullptr);
 
             // TODO-ARM64-CQ: this code works in the prolog, but it's a bit weird to think about "next" when generating
             // this epilog, to get the codes to match. Turn this off until that is better understood.
@@ -444,8 +482,7 @@ void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
         else
         {
             // No register pair; we use a STR instruction.
-
-            genPrologSaveReg(reg1, spOffset, spDelta, REG_IP0, nullptr);
+            genPrologSaveReg(regPair.reg1, spOffset, spDelta, REG_IP0, nullptr);
 
             lastSavedWasPair = false;
             spOffset += slotSize;
@@ -453,7 +490,6 @@ void CodeGen::genSaveCaleeSavedRegisterGroup(regMaskTP regsMask,
 
         spDelta = 0; // We've now changed SP already, if necessary; don't do it again.
     }
-    assert(regsCount == 0);
 }
 
 //------------------------------------------------------------------------
@@ -535,8 +571,6 @@ void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
                                                 int&      spOffset,
                                                 bool lastRegGroup DEBUGARG(bool isRegsToRestoreCountOdd))
 {
-    unsigned regsCount = genCountBits(regsMask);
-
     assert((regsMask & RBM_CALLEE_SAVED) == regsMask); // Do not expect anything else.
 
     bool isIntMask = ((regsMask & RBM_ALLFLOAT) == 0);
@@ -547,50 +581,39 @@ void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
 
     const int slotSize = isIntMask ? REGSIZE_BYTES : FPSAVE_REGSIZE_BYTES;
 
-    int stackDelta = 0;
-
-    while (regsMask != RBM_NONE)
+    ArrayStack<RegPair> regStack   = buildRegPairsStack(compiler, regsMask);
+    int                 stackDelta = 0;
+    for (int i = 0; i < regStack.Height(); ++i)
     {
-        bool thisIsTheLastRestoreInstruction = lastRegGroup && (regsCount <= 2);
-        bool isPairRestore                   = (regsCount % 2) == 0;
-
-        // Update stack delta only if it is the last restore (the first save).
+        bool lastRestoreInTheGroup           = (i == regStack.Height() - 1);
+        bool thisIsTheLastRestoreInstruction = lastRegGroup && lastRestoreInTheGroup;
         if (thisIsTheLastRestoreInstruction)
         {
+            // Update stack delta only if it is the last restore (the first save).
             assert(stackDelta == 0);
             stackDelta = spDelta;
         }
 
-        regMaskTP reg2Mask = genFindHighestBit(regsMask);
-        regNumber reg2     = genRegNumFromMask(reg2Mask);
-        regsMask &= ~reg2Mask;
-        regsCount -= 1;
-
-        if (isPairRestore)
+        RegPair regPair = regStack.Index(i);
+        if (regPair.reg2 != REG_NA)
         {
-            regMaskTP reg1Mask = genFindHighestBit(regsMask);
-            regNumber reg1     = genRegNumFromMask(reg1Mask);
-            regsMask &= ~reg1Mask;
-            regsCount -= 1;
-
             spOffset -= 2 * slotSize;
-            genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP1, nullptr);
+
+            genEpilogRestoreRegPair(regPair.reg1, regPair.reg2, spOffset, stackDelta, REG_IP1, nullptr);
         }
         else
         {
             spOffset -= slotSize;
-            genEpilogRestoreReg(reg2, spOffset, stackDelta, REG_IP1, nullptr);
+            genEpilogRestoreReg(regPair.reg1, spOffset, stackDelta, REG_IP1, nullptr);
         }
     }
 
 #ifdef DEBUG
-    if (stackDelta != 0) // This is the last restore (the first save) that needs to change SP.
+    if (stackDelta != 0) // The last restore (the first save) changes SP offset, check its value after.
     {
         CheckSPOffset(isRegsToRestoreCountOdd, spOffset, slotSize);
     }
 #endif // DEBUG
-
-    assert(regsCount == 0);
 }
 
 //------------------------------------------------------------------------
