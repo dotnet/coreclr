@@ -2487,6 +2487,15 @@ public:
         return gtCloneExpr(tree, addFlags, varNum, varVal, varNum, varVal);
     }
 
+    // Internal helper for cloning a call
+    GenTreeCall* gtCloneExprCallHelper(GenTreeCall* call,
+                                       unsigned     addFlags   = 0,
+                                       unsigned     deepVarNum = (unsigned)-1,
+                                       int          deepVarVal = 0);
+
+    // Create copy of an inline or guarded devirtualization candidate tree.
+    GenTreeCall* gtCloneCandidateCall(GenTreeCall* call);
+
     GenTree* gtReplaceTree(GenTree* stmt, GenTree* tree, GenTree* replacementTree);
 
     void gtUpdateSideEffects(GenTree* stmt, GenTree* tree);
