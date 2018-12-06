@@ -416,23 +416,27 @@ ArrayStack<RegPair> buildRegPairsStack(Compiler* compiler, regMaskTP regsMask)
 
     while (regsMask != RBM_NONE)
     {
-        bool      isPairSave = (regsCount >= 2);
-        regMaskTP reg1Mask   = genFindLowestBit(regsMask);
-        regNumber reg1       = genRegNumFromMask(reg1Mask);
+        regMaskTP reg1Mask = genFindLowestBit(regsMask);
+        regNumber reg1     = genRegNumFromMask(reg1Mask);
         regsMask &= ~reg1Mask;
         regsCount -= 1;
 
-        if (isPairSave)
+        bool isPairSave = false;
+        if (regsCount > 0)
         {
             regMaskTP reg2Mask = genFindLowestBit(regsMask);
             regNumber reg2     = genRegNumFromMask(reg2Mask);
-            assert(reg2 == REG_NEXT(reg1));
-            regsMask &= ~reg2Mask;
-            regsCount -= 1;
+            if (reg2 == REG_NEXT(reg1))
+            {
+                isPairSave = true;
 
-            regStack.Push(RegPair(reg1, reg2));
+                regsMask &= ~reg2Mask;
+                regsCount -= 1;
+
+                regStack.Push(RegPair(reg1, reg2));
+            }
         }
-        else
+        if (!isPairSave)
         {
             regStack.Push(RegPair(reg1));
         }
