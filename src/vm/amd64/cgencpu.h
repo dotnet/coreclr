@@ -110,7 +110,7 @@ EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 // as large as the largest FieldMarshaler subclass. This requirement
 // is guarded by an assert.
 //=======================================================================
-#define MAXFIELDMARSHALERSIZE                   40
+#define MAXFIELDMARSHALERSIZE                   48
 
 
 // Why is the return value ARG_SLOT? On 64-bit systems, that is 64-bits

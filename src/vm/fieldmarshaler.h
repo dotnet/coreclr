@@ -22,6 +22,7 @@
 #include "mlinfo.h"
 #include "eeconfig.h"
 #include "olevariant.h"
+#include "nativefieldcategory.h"
 
 #ifdef FEATURE_COMINTEROP
 #endif  // FEATURE_COMINTEROP
@@ -30,10 +31,12 @@
 #include "compile.h"
 #endif // FEATURE_PREJIT
 
-// Forward refernces
+// Forward references
+class EEClassLayoutInfo;
 class FieldDesc;
 class MethodTable;
 
+class FieldMarshaler_NestedType;
 class FieldMarshaler_NestedLayoutClass;
 class FieldMarshaler_NestedValueClass;
 class FieldMarshaler_StringUni;
@@ -351,6 +354,18 @@ public:
         m_nft = nft;
     }
 
+    NativeFieldCategory GetNativeFieldCategory() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_nfc;
+    }
+
+    void SetNativeFieldCategory(NativeFieldCategory nfc)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_nfc = nfc;
+    }
+
 #ifdef FEATURE_PREJIT
     void SaveImpl(DataImage *image)
     {
@@ -389,6 +404,7 @@ public:
         pDestFieldMarshaller->SetFieldDesc(GetFieldDesc());
         pDestFieldMarshaller->SetExternalOffset(GetExternalOffset());
         pDestFieldMarshaller->SetNStructFieldType(GetNStructFieldType());
+        pDestFieldMarshaller->SetNativeFieldCategory(GetNativeFieldCategory());
     }
 
     void SetFieldDesc(FieldDesc* pFD)
@@ -469,6 +485,7 @@ protected:
     RelativeFixupPointer<PTR_FieldDesc> m_pFD;      // FieldDesc
     UINT32           m_dwExternalOffset;    // offset of field in the fixed portion
     NStructFieldType m_nft;
+    NativeFieldCategory m_nfc;
 };
 
 
@@ -628,12 +645,18 @@ public:
 
 #endif // FEATURE_COMINTEROP
 
-
+class FieldMarshaler_NestedType : public FieldMarshaler
+{
+public:
+    MethodTable* GetNestedMethodTable() const;
+    
+    UNUSED_METHOD_IMPL(MethodTable* GetNestedMethodTableImpl() const)
+};
 
 //=======================================================================
 // Embedded struct <--> LayoutClass
 //=======================================================================
-class FieldMarshaler_NestedLayoutClass : public FieldMarshaler
+class FieldMarshaler_NestedLayoutClass : public FieldMarshaler_NestedType
 {
 public:
     FieldMarshaler_NestedLayoutClass(MethodTable *pMT)
@@ -704,6 +727,11 @@ public:
         return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
+    MethodTable* GetNestedMethodTableImpl() const
+    {
+        return GetMethodTable();
+    }
+
 private:
     // MethodTable of nested FieldMarshaler.
     RelativeFixupPointer<PTR_MethodTable> m_pNestedMethodTable;
@@ -713,7 +741,7 @@ private:
 //=======================================================================
 // Embedded struct <--> ValueClass
 //=======================================================================
-class FieldMarshaler_NestedValueClass : public FieldMarshaler
+class FieldMarshaler_NestedValueClass : public FieldMarshaler_NestedType
 {
 public:
 #ifndef _DEBUG
@@ -807,6 +835,11 @@ public:
         CONTRACTL_END;
 
         return m_pNestedMethodTable.GetValueMaybeNull();
+    }
+
+    MethodTable* GetNestedMethodTableImpl() const
+    {
+        return GetMethodTable();
     }
 
 #ifdef _DEBUG
@@ -1021,7 +1054,7 @@ private:
 //=======================================================================
 // Embedded arrays
 //=======================================================================
-class FieldMarshaler_FixedArray : public FieldMarshaler
+class FieldMarshaler_FixedArray : public FieldMarshaler_NestedType
 {
 public:
     FieldMarshaler_FixedArray(IMDInternalImport *pMDImport, mdTypeDef cl, UINT32 numElems, VARTYPE vt, MethodTable* pElementMT);
@@ -1055,6 +1088,11 @@ public:
         CONTRACTL_END;
         
         return m_arrayType.GetValue().AsArray()->GetArrayElementTypeHandle();
+    }
+
+    MethodTable* GetNestedMethodTableImpl() const
+    {
+        return GetElementTypeHandle().GetMethodTable();
     }
     
     VARTYPE GetElementVT() const

@@ -1346,33 +1346,30 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
     {
         CorElementType fieldType = ELEMENT_TYPE_END;
 
-        switch (pFieldMarshaler->GetNStructFieldType())
+        NativeFieldCategory category = pFieldMarshaler->GetNativeFieldCategory();
+
+        if ((category & NativeFieldSubcategory::FLOAT_TYPE) == NativeFieldSubcategory::FLOAT_TYPE)
         {
-        case NFT_COPY4:
-        case NFT_COPY8:
-            fieldType = pFieldMarshaler->GetFieldDesc()->GetFieldType();
-            if (fieldType != ELEMENT_TYPE_R4 && fieldType != ELEMENT_TYPE_R8)
-                return ELEMENT_TYPE_END;
-            break;
-
-        case NFT_NESTEDLAYOUTCLASS:
-            fieldType = ((FieldMarshaler_NestedLayoutClass *)pFieldMarshaler)->GetMethodTable()->GetNativeHFAType();
-            break;
-
-        case NFT_NESTEDVALUECLASS:
-            fieldType = ((FieldMarshaler_NestedValueClass *)pFieldMarshaler)->GetMethodTable()->GetNativeHFAType();
-            break;
-
-        case NFT_FIXEDARRAY:
-            fieldType = ((FieldMarshaler_FixedArray *)pFieldMarshaler)->GetElementTypeHandle().GetMethodTable()->GetNativeHFAType();
-            break;
-
-        case NFT_DATE:
-            fieldType = ELEMENT_TYPE_R8;
-            break;
-
-        default:
-            // Not HFA
+            if ((category & NativeFieldCategory::R4_TYPE) == NativeFieldCategory::R4_TYPE)
+            {
+                fieldType = ELEMENT_TYPE_R4;
+            }
+            else if ((category & NativeFieldCategory::R8_TYPE) == NativeFieldCategory::R8_TYPE)
+            {
+                fieldType = ELEMENT_TYPE_R8;
+            }
+            else
+            {
+                UNREACHABLE_MSG("Invalid NativeFieldCategory.");
+                fieldType = ELEMENT_TYPE_END;
+            }
+        }
+        else if ((category & NativeFieldSubcategory::NESTED) == NativeFieldSubcategory::NESTED)
+        {
+            fieldType = ((FieldMarshaler_NestedType*)pFieldMarshaler)->GetNestedMethodTable()->GetNativeHFAType();
+        }
+        else
+        {
             return ELEMENT_TYPE_END;
         }
 
