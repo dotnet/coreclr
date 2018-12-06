@@ -625,9 +625,9 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
     }
 
     assert((spDelta % 16) == 0);
-    assert((regsToRestoreMask & RBM_FP) == 0); // we never restore FP here
-    assert(regsToRestoreCount <=
-           genCountBits(RBM_CALLEE_SAVED | RBM_LR)); // We also save LR, even though it is not in RBM_CALLEE_SAVED.
+    assert((regsToRestoreMask & RBM_FP) == 0); // We never restore FP here.
+    assert((regsToRestoreMask & RBM_LR) == 0); // we never restore LR here.
+    assert(regsToRestoreCount <= genCountBits(RBM_CALLEE_SAVED));
 
     regMaskTP maskRestoreRegsFloat = regsToRestoreMask & RBM_ALLFLOAT;
     regMaskTP maskRestoreRegsInt   = regsToRestoreMask & ~maskRestoreRegsFloat;
