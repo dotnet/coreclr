@@ -394,19 +394,9 @@ namespace System.Reflection
             int length;
             _GetUserString(m_metadataImport2, mdToken, &name, out length);
 
-            if (name == null)
-                return null;
-
-#if ALIGN_ACCESS
-            char[] c = new char[length];
-            for (int i = 0; i < c.Length; i++)
-            {
-                c[i] = (char)Marshal.ReadInt16( (IntPtr) (((char*)name) + i) );
-            }
-            return new string(c);
-#else
-            return new string(new ReadOnlySpan<char>(name, length));
-#endif
+            return name != null ?
+                new string((char*)name, 0, length) :
+                null;
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
