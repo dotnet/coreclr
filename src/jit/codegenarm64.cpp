@@ -515,7 +515,8 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
 
 void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
                                                 int       spDelta,
-                                                int& spOffset DEBUGARG(bool isRegsToRestoreCountOdd))
+                                                int&      spOffset,
+                                                bool lastRegGroup DEBUGARG(bool isRegsToRestoreCountOdd))
 {
     unsigned regsCount = genCountBits(regsMask);
 
@@ -531,7 +532,7 @@ void CodeGen::genRestoreCaleeSavedRegisterGroup(regMaskTP regsMask,
 
     while (regsMask != RBM_NONE)
     {
-        bool thisIsTheLastRestoreInstruction = (regsCount <= 2);
+        bool thisIsTheLastRestoreInstruction = lastRegGroup && (regsCount <= 2);
         bool isPairRestore                   = (regsCount % 2) == 0;
 
         // Update stack delta only if it is the last restore (the first save).
@@ -650,60 +651,19 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
 
     // Restore the floating-point/SIMD registers
 
-    while (maskRestoreRegsFloat != RBM_NONE)
+    if (maskRestoreRegsFloat != 0)
     {
-        thisIsTheLastRestoreInstruction = (floatRegsToRestoreCount <= 2) && (maskRestoreRegsInt == RBM_NONE);
-        isPairRestore                   = (floatRegsToRestoreCount % 2) == 0;
-
-        // Update stack delta only if it is the last restore (the first save).
-        if (thisIsTheLastRestoreInstruction)
-        {
-            assert(stackDelta == 0);
-            stackDelta = spDelta;
-        }
-
-        // Update stack offset.
-        if (isPairRestore)
-        {
-            spOffset -= 2 * FPSAVE_REGSIZE_BYTES;
-        }
-        else
-        {
-            spOffset -= FPSAVE_REGSIZE_BYTES;
-        }
-
-        // If this is the last restore (the first save) that needs to change SP (stackDelta != 0),
-        // then the offset must be 8 to account for alignment for the odd count
-        // or it must be 0 for the even count.
-        assert((stackDelta == 0) || (isRegsToRestoreCountOdd && spOffset == FPSAVE_REGSIZE_BYTES) ||
-               (!isRegsToRestoreCountOdd && spOffset == 0));
-
-        regMaskTP reg2Mask = genFindHighestBit(maskRestoreRegsFloat);
-        regNumber reg2     = genRegNumFromMask(reg2Mask);
-        maskRestoreRegsFloat &= ~reg2Mask;
-        floatRegsToRestoreCount -= 1;
-
-        if (isPairRestore)
-        {
-            regMaskTP reg1Mask = genFindHighestBit(maskRestoreRegsFloat);
-            regNumber reg1     = genRegNumFromMask(reg1Mask);
-            maskRestoreRegsFloat &= ~reg1Mask;
-            floatRegsToRestoreCount -= 1;
-
-            genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP1, nullptr);
-        }
-        else
-        {
-            genEpilogRestoreReg(reg2, spOffset, stackDelta, REG_IP1, nullptr);
-        }
+        bool lastRegGroup = (maskRestoreRegsInt == 0);
+        // Restore the integer registers
+        genRestoreCaleeSavedRegisterGroup(maskRestoreRegsFloat, spDelta, spOffset,
+                                          lastRegGroup DEBUGARG(isRegsToRestoreCountOdd));
     }
-
-    assert(floatRegsToRestoreCount == 0);
 
     if (maskRestoreRegsInt != 0)
     {
         // Restore the integer registers
-        genRestoreCaleeSavedRegisterGroup(maskRestoreRegsInt, spDelta, spOffset DEBUGARG(isRegsToRestoreCountOdd));
+        genRestoreCaleeSavedRegisterGroup(maskRestoreRegsInt, spDelta, spOffset,
+                                          true DEBUGARG(isRegsToRestoreCountOdd));
     }
 }
 
