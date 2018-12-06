@@ -20678,6 +20678,16 @@ void Compiler::addGuardedDevirtualizationCandidate(GenTreeCall*          call,
     // This transformation only makes sense for virtual calls
     assert(call->IsVirtual());
 
+    // Only mark calls if the feature is enabled.
+    const bool isEnabled = JitConfig.JitEnableGuardedDevirtualization() > 0;
+
+    if (!isEnabled)
+    {
+        JITDUMP("NOT Marking call [%06u] as guarded devirtualization candidate -- disabled by jit config\n",
+                dspTreeID(call));
+        return;
+    }
+
     // Bail when prejitting. We only do this for jitted code.
     // We shoud revisit this if we think we can come up with good class guesses when prejitting.
     if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT))
@@ -20700,19 +20710,8 @@ void Compiler::addGuardedDevirtualizationCandidate(GenTreeCall*          call,
     // we save the stub address below.
     if ((call->gtCallType == CT_INDIRECT) && (call->gtCall.gtCallCookie != nullptr))
     {
-        assert(false);
         return;
     }
-
-#if DEBUG
-    // Check the master enable/disable flag; if GDv is disabled then we won't mark anything as a candidate.
-    if (JitConfig.JitEnableGuardedDevirtualization() == 0)
-    {
-        JITDUMP("NOT Marking call [%06u] as guarded devirtualization candidate -- disabled by jit config\n",
-                dspTreeID(call));
-        return;
-    }
-#endif
 
     // We're all set, proceed with candidate creation.
     JITDUMP("Marking call [%06u] as guarded devirtualization candidate; will guess for class %s\n", dspTreeID(call),
