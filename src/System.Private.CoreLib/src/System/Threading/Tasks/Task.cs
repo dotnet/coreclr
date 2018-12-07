@@ -721,7 +721,6 @@ namespace System.Threading.Tasks
 
         private bool AtomicStateUpdateSlow(int newBits, int illegalBits)
         {
-            var sw = new SpinWait();
             do
             {
                 int oldFlags = m_stateFlags;
@@ -730,13 +729,11 @@ namespace System.Threading.Tasks
                 {
                     return true;
                 }
-                sw.SpinOnce();
             } while (true);
         }
 
         internal bool AtomicStateUpdate(int newBits, int illegalBits, ref int oldFlags)
         {
-            SpinWait sw = new SpinWait();
             do
             {
                 oldFlags = m_stateFlags;
@@ -745,7 +742,6 @@ namespace System.Threading.Tasks
                 {
                     return true;
                 }
-                sw.SpinOnce();
             } while (true);
         }
 
@@ -772,13 +768,11 @@ namespace System.Threading.Tasks
             else
             {
                 // Atomically clear the END_AWAIT_NOTIFICATION bit
-                SpinWait sw = new SpinWait();
                 while (true)
                 {
                     int oldFlags = m_stateFlags;
                     int newFlags = oldFlags & (~TASK_STATE_WAIT_COMPLETION_NOTIFICATION);
                     if (Interlocked.CompareExchange(ref m_stateFlags, newFlags, oldFlags) == oldFlags) break;
-                    sw.SpinOnce();
                 }
             }
         }

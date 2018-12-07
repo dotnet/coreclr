@@ -112,7 +112,6 @@ namespace System.Collections.Concurrent
                 _frozenForEnqueues = true;
 
                 // Increase the tail by FreezeOffset, spinning until we're successful in doing so.
-                var spinner = new SpinWait();
                 while (true)
                 {
                     int tail = Volatile.Read(ref _headAndTail.Tail);
@@ -120,7 +119,6 @@ namespace System.Collections.Concurrent
                     {
                         break;
                     }
-                    spinner.SpinOnce();
                 }
             }
         }
