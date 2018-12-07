@@ -657,7 +657,6 @@ HRESULT GetITypeLibForAssembly(_In_ Assembly *pAssembly, _Outptr_ ITypeLib **ppT
 
     *ppTlb = pTlb;
     return S_OK;
-
 } // HRESULT GetITypeLibForAssembly()
 
 
