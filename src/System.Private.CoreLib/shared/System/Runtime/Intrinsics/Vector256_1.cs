@@ -211,9 +211,9 @@ namespace System.Runtime.Intrinsics
                 return Avx2.MoveMask(result) == unchecked((int)(0b1111_1111_1111_1111_1111_1111_1111_1111)); // We have one bit per element
             }
 
-            return EqualsSoftware(in this, other);
+            return SoftwareFallback(in this, other);
 
-            bool EqualsSoftware(in Vector256<T> x, Vector256<T> y)
+            bool SoftwareFallback(in Vector256<T> x, Vector256<T> y)
             {
                 for (int i = 0; i < Count; i++)
                 {
@@ -323,9 +323,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(AsSingle(), value.AsSingle(), 0).As<T>();
             }
 
-            return WithLowerSoftware(in this, value);
+            return SoftwareFallback(in this, value);
 
-            Vector256<T> WithLowerSoftware(in Vector256<T> t, Vector128<T> x)
+            Vector256<T> SoftwareFallback(in Vector256<T> t, Vector128<T> x)
             {
                 Vector256<T> result = t;
                 Unsafe.As<Vector256<T>, Vector128<T>>(ref result) = x;
@@ -352,9 +352,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.ExtractVector128(AsSingle(), 1).As<T>();
             }
 
-            return GetUpperSoftware(in this);
+            return SoftwareFallback(in this);
 
-            Vector128<T> GetUpperSoftware(in Vector256<T> t)
+            Vector128<T> SoftwareFallback(in Vector256<T> t)
             {
                 ref Vector128<T> lower = ref Unsafe.As<Vector256<T>, Vector128<T>>(ref Unsafe.AsRef(in t));
                 return Unsafe.Add(ref lower, 1);
@@ -381,9 +381,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(AsSingle(), value.AsSingle(), 1).As<T>();
             }
 
-            return WithUpperSoftware(in this, value);
+            return SoftwareFallback(in this, value);
 
-            Vector256<T> WithUpperSoftware(in Vector256<T> t, Vector128<T> x)
+            Vector256<T> SoftwareFallback(in Vector256<T> t, Vector128<T> x)
             {
                 Vector256<T> result = t;
                 ref Vector128<T> lower = ref Unsafe.As<Vector256<T>, Vector128<T>>(ref result);

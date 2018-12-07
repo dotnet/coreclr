@@ -49,9 +49,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.Shuffle(result.AsUInt32(), 0x00).AsByte();                      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<byte> CreateSoftware(byte x)
+            Vector128<byte> SoftwareFallback(byte x)
             {
                 var pResult = stackalloc byte[16]
                 {
@@ -95,9 +95,9 @@ namespace System.Runtime.Intrinsics
                 return Sse.MoveLowToHigh(result.AsSingle(), result.AsSingle()).AsDouble();  // < v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<double> CreateSoftware(double x)
+            Vector128<double> SoftwareFallback(double x)
             {
                 var pResult = stackalloc double[2]
                 {
@@ -128,9 +128,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.Shuffle(result.AsInt32(), 0x00).AsInt16();                      // < v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<short> CreateSoftware(short x)
+            Vector128<short> SoftwareFallback(short x)
             {
                 var pResult = stackalloc short[8]
                 {
@@ -166,9 +166,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.Shuffle(result, 0x00);                                          // < v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<int> CreateSoftware(int x)
+            Vector128<int> SoftwareFallback(int x)
             {
                 var pResult = stackalloc int[4]
                 {
@@ -202,9 +202,9 @@ namespace System.Runtime.Intrinsics
                 }
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<long> CreateSoftware(long x)
+            Vector128<long> SoftwareFallback(long x)
             {
                 var pResult = stackalloc long[2]
                 {
@@ -243,9 +243,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.Shuffle(result.AsInt32(), 0x00).AsSByte();                      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<sbyte> CreateSoftware(sbyte x)
+            Vector128<sbyte> SoftwareFallback(sbyte x)
             {
                 var pResult = stackalloc sbyte[16]
                 {
@@ -295,9 +295,9 @@ namespace System.Runtime.Intrinsics
                 return Sse.Shuffle(result, result, 0x00);                                   // < v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<float> CreateSoftware(float x)
+            Vector128<float> SoftwareFallback(float x)
             {
                 var pResult = stackalloc float[4]
                 {
@@ -331,9 +331,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.Shuffle(result.AsUInt32(), 0x00).AsUInt16();                    // < v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<ushort> CreateSoftware(ushort x)
+            Vector128<ushort> SoftwareFallback(ushort x)
             {
                 var pResult = stackalloc ushort[8]
                 {
@@ -370,9 +370,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.Shuffle(result, 0x00);                                          // < v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<uint> CreateSoftware(uint x)
+            Vector128<uint> SoftwareFallback(uint x)
             {
                 var pResult = stackalloc uint[4]
                 {
@@ -407,9 +407,9 @@ namespace System.Runtime.Intrinsics
                 }
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<ulong> CreateSoftware(ulong x)
+            Vector128<ulong> SoftwareFallback(ulong x)
             {
                 var pResult = stackalloc ulong[2]
                 {
@@ -832,9 +832,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.ConvertScalarToVector128UInt32(value).AsByte();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<byte> CreateScalarSoftware(byte x)
+            Vector128<byte> SoftwareFallback(byte x)
             {
                 var result = Vector128<byte>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<byte>, byte>(ref result), x);
@@ -853,9 +853,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.MoveScalar(Vector128<double>.Zero, CreateScalarUnsafe(value));
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<double> CreateScalarSoftware(double x)
+            Vector128<double> SoftwareFallback(double x)
             {
                 var result = Vector128<double>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<double>, byte>(ref result), x);
@@ -874,9 +874,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.ConvertScalarToVector128UInt32((ushort)(value)).AsInt16();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<short> CreateScalarSoftware(short x)
+            Vector128<short> SoftwareFallback(short x)
             {
                 var result = Vector128<short>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<short>, byte>(ref result), value);
@@ -895,9 +895,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.ConvertScalarToVector128Int32(value);
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<int> CreateScalarSoftware(int x)
+            Vector128<int> SoftwareFallback(int x)
             {
                 var result = Vector128<int>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<int>, byte>(ref result), value);
@@ -915,9 +915,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.X64.ConvertScalarToVector128Int64(value);
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<long> CreateScalarSoftware(long x)
+            Vector128<long> SoftwareFallback(long x)
             {
                 var result = Vector128<long>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<long>, byte>(ref result), value);
@@ -938,9 +938,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.ConvertScalarToVector128UInt32((byte)(value)).AsSByte();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<sbyte> CreateScalarSoftware(sbyte x)
+            Vector128<sbyte> SoftwareFallback(sbyte x)
             {
                 var result = Vector128<sbyte>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<sbyte>, byte>(ref result), value);
@@ -959,9 +959,9 @@ namespace System.Runtime.Intrinsics
                 return Sse.MoveScalar(Vector128<float>.Zero, CreateScalarUnsafe(value));
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<float> CreateScalarSoftware(float x)
+            Vector128<float> SoftwareFallback(float x)
             {
                 var result = Vector128<float>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<float>, byte>(ref result), value);
@@ -981,9 +981,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.ConvertScalarToVector128UInt32(value).AsUInt16();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<ushort> CreateScalarSoftware(ushort x)
+            Vector128<ushort> SoftwareFallback(ushort x)
             {
                 var result = Vector128<ushort>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<ushort>, byte>(ref result), value);
@@ -1003,9 +1003,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.ConvertScalarToVector128UInt32(value);
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<uint> CreateScalarSoftware(uint x)
+            Vector128<uint> SoftwareFallback(uint x)
             {
                 var result = Vector128<uint>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<uint>, byte>(ref result), value);
@@ -1025,9 +1025,9 @@ namespace System.Runtime.Intrinsics
                 return Sse2.X64.ConvertScalarToVector128UInt64(value);
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector128<ulong> CreateScalarSoftware(ulong x)
+            Vector128<ulong> SoftwareFallback(ulong x)
             {
                 var result = Vector128<ulong>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector128<ulong>, byte>(ref result), value);

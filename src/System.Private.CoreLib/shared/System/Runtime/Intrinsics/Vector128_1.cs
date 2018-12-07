@@ -211,9 +211,9 @@ namespace System.Runtime.Intrinsics
                 }
             }
 
-            return EqualsSoftware(in this, other);
+            return SoftwareFallback(in this, other);
 
-            bool EqualsSoftware(in Vector128<T> x, Vector128<T> y)
+            bool SoftwareFallback(in Vector128<T> x, Vector128<T> y)
             {
                 for (int i = 0; i < Count; i++)
                 {

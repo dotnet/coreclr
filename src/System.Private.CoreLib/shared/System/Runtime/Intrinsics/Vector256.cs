@@ -41,9 +41,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<byte> CreateSoftware(byte x)
+            Vector256<byte> SoftwareFallback(byte x)
             {
                 var pResult = stackalloc byte[32]
                 {
@@ -103,9 +103,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<double> CreateSoftware(double x)
+            Vector256<double> SoftwareFallback(double x)
             {
                 var pResult = stackalloc double[4]
                 {
@@ -137,9 +137,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<short> CreateSoftware(short x)
+            Vector256<short> SoftwareFallback(short x)
             {
                 var pResult = stackalloc short[16]
                 {
@@ -183,9 +183,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<int> CreateSoftware(int x)
+            Vector256<int> SoftwareFallback(int x)
             {
                 var pResult = stackalloc int[8]
                 {
@@ -223,9 +223,9 @@ namespace System.Runtime.Intrinsics
                 }
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<long> CreateSoftware(long x)
+            Vector256<long> SoftwareFallback(long x)
             {
                 var pResult = stackalloc long[4]
                 {
@@ -258,9 +258,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<sbyte> CreateSoftware(sbyte x)
+            Vector256<sbyte> SoftwareFallback(sbyte x)
             {
                 var pResult = stackalloc sbyte[32]
                 {
@@ -320,9 +320,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<float> CreateSoftware(float x)
+            Vector256<float> SoftwareFallback(float x)
             {
                 var pResult = stackalloc float[8]
                 {
@@ -359,9 +359,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v, v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<ushort> CreateSoftware(ushort x)
+            Vector256<ushort> SoftwareFallback(ushort x)
             {
                 var pResult = stackalloc ushort[16]
                 {
@@ -406,9 +406,9 @@ namespace System.Runtime.Intrinsics
                 return Avx.InsertVector128(result.ToVector256Unsafe(), result, 1);      // < v, v, v, v, v, v, v, v >
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<uint> CreateSoftware(uint x)
+            Vector256<uint> SoftwareFallback(uint x)
             {
                 var pResult = stackalloc uint[8]
                 {
@@ -447,9 +447,9 @@ namespace System.Runtime.Intrinsics
                 }
             }
 
-            return CreateSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<ulong> CreateSoftware(ulong x)
+            Vector256<ulong> SoftwareFallback(ulong x)
             {
                 var pResult = stackalloc ulong[4]
             {
@@ -1006,9 +1006,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<byte> CreateScalarSoftware(byte x)
+            Vector256<byte> SoftwareFallback(byte x)
             {
                 var result = Vector256<byte>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<byte>, byte>(ref result), value);
@@ -1027,9 +1027,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<double> CreateScalarSoftware(double x)
+            Vector256<double> SoftwareFallback(double x)
             {
                 var result = Vector256<double>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<double>, byte>(ref result), value);
@@ -1048,9 +1048,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<short> CreateScalarSoftware(short x)
+            Vector256<short> SoftwareFallback(short x)
             {
                 var result = Vector256<short>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<short>, byte>(ref result), value);
@@ -1069,9 +1069,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<int> CreateScalarSoftware(int x)
+            Vector256<int> SoftwareFallback(int x)
             {
                 var result = Vector256<int>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<int>, byte>(ref result), value);
@@ -1090,9 +1090,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<long> CreateScalarSoftware(long x)
+            Vector256<long> SoftwareFallback(long x)
             {
                 var result = Vector256<long>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<long>, byte>(ref result), value);
@@ -1112,9 +1112,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<sbyte> CreateScalarSoftware(sbyte x)
+            Vector256<sbyte> SoftwareFallback(sbyte x)
             {
                 var result = Vector256<sbyte>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<sbyte>, byte>(ref result), value);
@@ -1133,9 +1133,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<float> CreateScalarSoftware(float x)
+            Vector256<float> SoftwareFallback(float x)
             {
                 var result = Vector256<float>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<float>, byte>(ref result), value);
@@ -1155,9 +1155,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<ushort> CreateScalarSoftware(ushort x)
+            Vector256<ushort> SoftwareFallback(ushort x)
             {
                 var result = Vector256<ushort>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<ushort>, byte>(ref result), value);
@@ -1177,9 +1177,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<uint> CreateScalarSoftware(uint x)
+            Vector256<uint> SoftwareFallback(uint x)
             {
                 var result = Vector256<uint>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<uint>, byte>(ref result), value);
@@ -1199,9 +1199,9 @@ namespace System.Runtime.Intrinsics
                 return Vector128.CreateScalar(value).ToVector256();
             }
 
-            return CreateScalarSoftware(value);
+            return SoftwareFallback(value);
 
-            Vector256<ulong> CreateScalarSoftware(ulong x)
+            Vector256<ulong> SoftwareFallback(ulong x)
             {
                 var result = Vector256<ulong>.Zero;
                 Unsafe.WriteUnaligned(ref Unsafe.As<Vector256<ulong>, byte>(ref result), value);
