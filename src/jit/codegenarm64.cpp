@@ -600,16 +600,14 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
     // We also save LR, even though it is not in RBM_CALLEE_SAVED.
     assert(regsToSaveCount <= genCountBits(RBM_CALLEE_SAVED | RBM_LR));
 
-    regMaskTP maskSaveRegsFloat = regsToSaveMask & RBM_ALLFLOAT;
-    regMaskTP maskSaveRegsInt   = regsToSaveMask & ~maskSaveRegsFloat;
+#ifdef DEBUG
+    bool isRegsToSaveCountOdd = ((regsToSaveCount % 2) != 0);
+#endif // DEBUG
 
     int spOffset = lowestCalleeSavedOffset; // this is the offset *after* we change SP.
 
-    unsigned intRegsToSaveCount   = genCountBits(maskSaveRegsInt);
-    unsigned floatRegsToSaveCount = genCountBits(maskSaveRegsFloat);
-#ifdef DEBUG
-    bool isRegsToSaveCountOdd = ((intRegsToSaveCount + floatRegsToSaveCount) % 2 != 0);
-#endif
+    regMaskTP maskSaveRegsFloat = regsToSaveMask & RBM_ALLFLOAT;
+    regMaskTP maskSaveRegsInt   = regsToSaveMask & ~maskSaveRegsFloat;
 
     bool floatSavesSp = (maskSaveRegsInt == 0);
 
@@ -740,25 +738,20 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
     // We also restore LR, even though it is not in RBM_CALLEE_SAVED.
     assert(regsToRestoreCount <= genCountBits(RBM_CALLEE_SAVED | RBM_LR));
 
-    regMaskTP maskRestoreRegsFloat = regsToRestoreMask & RBM_ALLFLOAT;
-    regMaskTP maskRestoreRegsInt   = regsToRestoreMask & ~maskRestoreRegsFloat;
+#ifdef DEBUG
+    bool isRegsToRestoreCountOdd = ((regsToRestoreCount % 2) != 0);
+#endif // DEBUG
 
     assert(REGSIZE_BYTES == FPSAVE_REGSIZE_BYTES);
     int spOffset = lowestCalleeSavedOffset + regsToRestoreCount * REGSIZE_BYTES; // Point past the end, to start. We
                                                                                  // predecrement to find the offset to
                                                                                  // load from.
 
-    unsigned floatRegsToRestoreCount         = genCountBits(maskRestoreRegsFloat);
-    unsigned intRegsToRestoreCount           = genCountBits(maskRestoreRegsInt);
-    int      stackDelta                      = 0;
-    bool     isPairRestore                   = false;
-    bool     thisIsTheLastRestoreInstruction = false;
-#ifdef DEBUG
-    bool isRegsToRestoreCountOdd = ((floatRegsToRestoreCount + intRegsToRestoreCount) % 2 != 0);
-#endif
-
     // We want to restore in the opposite order we saved, so the unwind codes match. Be careful to handle odd numbers of
     // callee-saved registers properly.
+
+    regMaskTP maskRestoreRegsFloat = regsToRestoreMask & RBM_ALLFLOAT;
+    regMaskTP maskRestoreRegsInt   = regsToRestoreMask & ~maskRestoreRegsFloat;
 
     bool floatRestoresSp = (maskRestoreRegsInt == 0);
 
