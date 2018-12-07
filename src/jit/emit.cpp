@@ -4461,33 +4461,31 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     CorJitAllocMemFlag allocMemFlag = CORJIT_ALLOCMEM_DEFAULT_CODE_ALIGN;
 
-#ifdef _TARGET_X86_
-    //
+#ifdef _TARGET_XARCH_
+
     // These are the heuristics we use to decide whether or not to force the
     // code to be 16-byte aligned.
     //
-    // 1. For ngen code with IBC data, use 16-byte alignment if the method
-    //    has been called more than BB_VERY_HOT_WEIGHT times.
-    // 2. For JITed code and ngen code without IBC data, use 16-byte alignment
-    //    when the code is 16 bytes or smaller. We align small getters/setters
-    //    because of they are penalized heavily on certain hardware when not 16-byte
-    //    aligned (VSWhidbey #373938). To minimize size impact of this optimization,
-    //    we do not align large methods because of the penalty is amortized for them.
+    // 1. Methods jitted at Tier1.
+    // 2. Methods with small hot code size.
+    // 3. IBC profiled methods which are frequently called.
     //
-    if (emitComp->fgHaveProfileData())
+    if (emitComp->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
+    {
+        allocMemFlag = CORJIT_ALLOCMEM_FLG_16BYTE_ALIGN;
+    }
+    else if (emitTotalHotCodeSize <= 16)
+    {
+        allocMemFlag = CORJIT_ALLOCMEM_FLG_16BYTE_ALIGN;
+    }
+    else if (emitComp->fgHaveProfileData())
     {
         if (emitComp->fgCalledCount > (BB_VERY_HOT_WEIGHT * emitComp->fgProfileRunsCount()))
         {
             allocMemFlag = CORJIT_ALLOCMEM_FLG_16BYTE_ALIGN;
         }
     }
-    else
-    {
-        if (emitTotalHotCodeSize <= 16)
-        {
-            allocMemFlag = CORJIT_ALLOCMEM_FLG_16BYTE_ALIGN;
-        }
-    }
+
 #endif
 
 #ifdef _TARGET_ARM64_
