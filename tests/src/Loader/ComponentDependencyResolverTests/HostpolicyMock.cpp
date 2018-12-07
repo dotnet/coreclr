@@ -10,16 +10,16 @@
 // dllexport
 #if defined _WIN32
 
-#define DLL_EXPORT __declspec(dllexport)
+#define SHARED_API extern "C" __declspec(dllexport)
 typedef wchar_t char_t;
 typedef std::wstring string_t;
 
 #else //!_Win32
 
 #if __GNUC__ >= 4
-#define DLL_EXPORT __attribute__ ((visibility ("default")))
+#define SHARED_API extern "C" __attribute__ ((visibility ("default")))
 #else
-#define DLL_EXPORT
+#define SHARED_API extern "C"
 #endif
 
 typedef char char_t;
@@ -32,15 +32,23 @@ string_t g_corehost_resolve_component_dependencies_assemblyPaths;
 string_t g_corehost_resolve_component_dependencies_nativeSearchPaths;
 string_t g_corehost_resolve_component_dependencies_resourceSearchPaths;
 
+typedef void(*Callback_corehost_resolve_component_dependencies)(const char_t *component_main_assembly_path);
+Callback_corehost_resolve_component_dependencies g_corehost_resolve_component_dependencies_Callback;
+
 typedef void(*corehost_resolve_component_dependencies_result_fn)(
     const char_t* assembly_paths,
     const char_t* native_search_paths,
     const char_t* resource_search_paths);
 
-extern "C" DLL_EXPORT int corehost_resolve_component_dependencies(
+SHARED_API int corehost_resolve_component_dependencies(
     const char_t *component_main_assembly_path,
     corehost_resolve_component_dependencies_result_fn result)
 {
+    if (g_corehost_resolve_component_dependencies_Callback != NULL)
+    {
+        g_corehost_resolve_component_dependencies_Callback(component_main_assembly_path);
+    }
+
     if (g_corehost_resolve_component_dependencies_returnValue == 0)
     {
         result(
@@ -52,7 +60,7 @@ extern "C" DLL_EXPORT int corehost_resolve_component_dependencies(
     return g_corehost_resolve_component_dependencies_returnValue;
 }
 
-extern "C" DLL_EXPORT void Set_corehost_resolve_component_dependencies_Values(
+SHARED_API void Set_corehost_resolve_component_dependencies_Values(
     int returnValue,
     const char_t *assemblyPaths,
     const char_t *nativeSearchPaths,
@@ -62,4 +70,31 @@ extern "C" DLL_EXPORT void Set_corehost_resolve_component_dependencies_Values(
     g_corehost_resolve_component_dependencies_assemblyPaths.assign(assemblyPaths);
     g_corehost_resolve_component_dependencies_nativeSearchPaths.assign(nativeSearchPaths);
     g_corehost_resolve_component_dependencies_resourceSearchPaths.assign(resourceSearchPaths);
+}
+
+SHARED_API void Set_corehost_resolve_component_dependencies_Callback(
+    Callback_corehost_resolve_component_dependencies callback)
+{
+    g_corehost_resolve_component_dependencies_Callback = callback;
+}
+
+
+typedef void(*corehost_error_writer_fn)(const char_t* message);
+corehost_error_writer_fn g_corehost_set_error_writer_lastSet_error_writer;
+corehost_error_writer_fn g_corehost_set_error_writer_returnValue;
+
+SHARED_API corehost_error_writer_fn corehost_set_error_writer(corehost_error_writer_fn error_writer)
+{
+    g_corehost_set_error_writer_lastSet_error_writer = error_writer;
+    return g_corehost_set_error_writer_returnValue;
+}
+
+SHARED_API void Set_corehost_set_error_writer_returnValue(corehost_error_writer_fn error_writer)
+{
+    g_corehost_set_error_writer_returnValue = error_writer;
+}
+
+SHARED_API corehost_error_writer_fn Get_corehost_set_error_writer_lastSet_error_writer()
+{
+    return g_corehost_set_error_writer_lastSet_error_writer;
 }

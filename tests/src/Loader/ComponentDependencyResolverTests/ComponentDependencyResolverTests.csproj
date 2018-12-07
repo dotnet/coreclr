@@ -1,15 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="16.0">
-  <PropertyGroup>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />  <PropertyGroup>
     <OutputType>Exe</OutputType>
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
-    <Platform>$(__BuildArch)</Platform>
     <ProjectGuid>{ABB86728-A3E0-4489-BD97-A0BAB00B322F}</ProjectGuid>
-  </PropertyGroup>
-  <PropertyGroup>
-    <DefineConstants Condition="$(OSGroup) == 'Windows_NT'">WINDOWS</DefineConstants>
-    <DefineConstants Condition="$(OSGroup) == 'OSX'">OSX</DefineConstants>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
   </PropertyGroup>
@@ -25,17 +23,5 @@
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
-  <!-- These are "hacks" to make the project build and launch from VS which makes it really easy to debug it. -->
-  <PropertyGroup Condition="'$(BuildingInsideVisualStudio)'=='true'">
-    <Platforms>x64</Platforms>
-    <StartAction>Program</StartAction>
-    <StartProgram>$(CoreclrDir)/bin/tests/$(OSPlatformConfig)/Tests/Core_Root/CoreRun.exe</StartProgram>
-    <StartArguments>$(CoreclrDir)/bin/tests/$(OSPlatformConfig)/Loader/ComponentDependencyResolverTests/ComponentDependencyResolverTests/ComponentDependencyResolverTests.exe</StartArguments>
-    <StartWorkingDirectory>$(CoreclrDir)/bin/tests/$(OSPlatformConfig)/Tests/Core_Root</StartWorkingDirectory>
-  </PropertyGroup>
-  <ItemGroup Condition="'$(BuildingInsideVisualStudio)'=='true'">
-    <Reference Include="$(TargetingPackPath)/*.dll">
-      <Private>false</Private>
-    </Reference>
-  </ItemGroup>
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

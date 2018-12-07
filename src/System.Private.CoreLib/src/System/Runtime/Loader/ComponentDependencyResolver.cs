@@ -2,6 +2,7 @@
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using Internal.IO;
 
 namespace System.Runtime.Loader
@@ -18,7 +19,6 @@ namespace System.Runtime.Loader
         /// </summary>
         private const string ResourceAssemblyExtension = ".dll";
 
-        private readonly string _componentAssemblyPath;
         private readonly Dictionary<string, string> _assemblyPaths;
         private readonly string[] _nativeSearchPaths;
         private readonly string[] _resourceSearchPaths;
@@ -26,23 +26,42 @@ namespace System.Runtime.Loader
 
         public ComponentDependencyResolver(string componentAssemblyPath)
         {
-            _componentAssemblyPath = componentAssemblyPath;
-
             string assemblyPathsList = null;
             string nativeSearchPathsList = null;
             string resourceSearchPathsList = null;
             int returnCode = 0;
 
+            StringBuilder errorMessage = new StringBuilder();
             try
             {
-                returnCode = corehost_resolve_component_dependencies(
-                    componentAssemblyPath,
-                    (assembly_paths, native_search_paths, resource_search_paths) =>
-                    {
-                        assemblyPathsList = assembly_paths;
-                        nativeSearchPathsList = native_search_paths;
-                        resourceSearchPathsList = resource_search_paths;
-                    });
+                // Setup error writer for this thread. This makes the hostpolicy redirect all error output
+                // to the writer specified. Have to store the previous writer to set it back once this is done.
+                corehost_error_writer_fn errorWriter = new corehost_error_writer_fn(message =>
+                {
+                    errorMessage.AppendLine(message);
+                });
+
+                IntPtr errorWriterPtr = Marshal.GetFunctionPointerForDelegate(errorWriter);
+                IntPtr previousErrorWriterPtr = corehost_set_error_writer(errorWriterPtr);
+
+                try
+                {
+                    // Call hostpolicy to do the actual work of finding .deps.json, parsing it and extracting
+                    // information from it.
+                    returnCode = corehost_resolve_component_dependencies(
+                        componentAssemblyPath,
+                        (assembly_paths, native_search_paths, resource_search_paths) =>
+                        {
+                            assemblyPathsList = assembly_paths;
+                            nativeSearchPathsList = native_search_paths;
+                            resourceSearchPathsList = resource_search_paths;
+                        });
+                }
+                finally
+                {
+                    // Reset the error write to the one used before
+                    corehost_set_error_writer(previousErrorWriterPtr);
+                }
             }
             catch (EntryPointNotFoundException entryPointNotFoundException)
             {
@@ -56,9 +75,11 @@ namespace System.Runtime.Loader
             if (returnCode != 0)
             {
                 // Something went wrong - report a failure
-                // TODO - once we have the ability to capture detailed error messages from the hostpolicy
-                // use it here to make the exception more actionable.
-                throw new InvalidOperationException(SR.Format(SR.ComponentDependencyResolver_FailedToResolveDependencies, componentAssemblyPath, returnCode));
+                throw new InvalidOperationException(SR.Format(
+                    SR.ComponentDependencyResolver_FailedToResolveDependencies,
+                    componentAssemblyPath,
+                    returnCode,
+                    errorMessage.ToString()));
             }
 
             string[] assemblyPaths = SplitPathsList(assemblyPathsList);
@@ -86,7 +107,7 @@ namespace System.Runtime.Loader
             //     (CoreCLR gets this and stores it as the culture name in the internal assembly name)
             //     AssemblyName.CultureName is just a shortcut to AssemblyName.Culture.Name.
             if (!string.IsNullOrEmpty(assemblyName.CultureName) && 
-                !string.Equals(assemblyName.CultureName, "neutral", StringComparison.OrdinalIgnoreCase))
+                !string.Equals(assemblyName.CultureName, NeutralCultureName, StringComparison.OrdinalIgnoreCase))
             {
                 // Load satellite assembly
                 // Search resource search paths by appending the culture name and the expected assembly file name.
@@ -181,7 +202,6 @@ namespace System.Runtime.Loader
 
 #if PLATFORM_WINDOWS
         private const CharSet HostpolicyCharSet = CharSet.Unicode;
-        private const string LibraryNamePrefix = "";
         private const string LibraryNameSuffix = ".dll";
 
         private IEnumerable<LibraryNameVariation> DetermineLibraryNameVariations(string libName, bool isRelativePath)
@@ -272,11 +292,18 @@ namespace System.Runtime.Loader
             string native_search_paths,
             string resource_search_paths);
 
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
+        internal delegate void corehost_error_writer_fn(
+            string message);
+
 #pragma warning disable BCL0015 // Disable Pinvoke analyzer errors.
         [DllImport("hostpolicy", CharSet = HostpolicyCharSet)]
         private static extern int corehost_resolve_component_dependencies(
             string component_main_assembly_path,
             corehost_resolve_component_dependencies_result_fn result);
+
+        [DllImport("hostpolicy", CharSet = HostpolicyCharSet)]
+        private static extern IntPtr corehost_set_error_writer(IntPtr error_writer);
 #pragma warning restore
     }
 }

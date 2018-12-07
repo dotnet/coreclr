@@ -29,7 +29,7 @@ namespace ComponentDependencyResolverTests
             }
         }
 
-        public string ResolveAssemblyPath(System.Reflection.AssemblyName assemblyName)
+        public string ResolveAssemblyPath(AssemblyName assemblyName)
         {
             try
             {

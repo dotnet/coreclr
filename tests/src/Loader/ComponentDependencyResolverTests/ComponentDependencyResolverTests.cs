@@ -28,37 +28,98 @@ namespace ComponentDependencyResolverTests
 
         public void TestComponentLoadFailure()
         {
-            using (HostPolicyMock.Mock_corehost_resolve_componet_dependencies(
-                134,
-                "",
-                "",
-                ""))
-            {
-                string message = Assert.Throws<InvalidOperationException>(() =>
-                {
-                    ComponentDependencyResolver resolver = new ComponentDependencyResolver(
-                        Path.Combine(TestBasePath, _componentAssemblyPath));
-                }).Message;
+            const string errorMessageFirstLine = "First line: failure";
+            const string errorMessageSecondLine = "Second line: value";
 
-                Assert.Contains("134", message);
+            using (HostPolicyMock.MockValues_corehost_set_error_writer errorWriterMock = 
+                HostPolicyMock.Mock_corehost_set_error_writer())
+            {
+                using (HostPolicyMock.MockValues_corehost_resolve_componet_dependencies resolverMock = 
+                    HostPolicyMock.Mock_corehost_resolve_componet_dependencies(
+                        134,
+                        "",
+                        "",
+                        ""))
+                {
+                    // When the resolver is called, emulate error behavior
+                    // which is to write to the error writer some error message.
+                    resolverMock.Callback = (string componentAssemblyPath) =>
+                    {
+                        Assert.NotNull(errorWriterMock.LastSetErrorWriter);
+                        errorWriterMock.LastSetErrorWriter(errorMessageFirstLine);
+                        errorWriterMock.LastSetErrorWriter(errorMessageSecondLine);
+                    };
+
+                    string message = Assert.Throws<InvalidOperationException>(() =>
+                    {
+                        ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                            Path.Combine(TestBasePath, _componentAssemblyPath));
+                    }).Message;
+
+                    Assert.Contains("134", message);
+                    Assert.Contains(
+                        errorMessageFirstLine + Environment.NewLine + errorMessageSecondLine,
+                        message);
+
+                    // After everything is done, the error writer should be reset.
+                    Assert.Null(errorWriterMock.LastSetErrorWriter);
+                }
+            }
+        }
+
+        public void TestComponentLoadFailureWithPreviousErrorWriter()
+        {
+            IntPtr previousWriter = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(
+                (HostPolicyMock.ErrorWriterDelegate)((string _) => { Assert.True(false, "Should never get here"); }));
+
+            using (HostPolicyMock.MockValues_corehost_set_error_writer errorWriterMock =
+                HostPolicyMock.Mock_corehost_set_error_writer(previousWriter))
+            {
+                using (HostPolicyMock.MockValues_corehost_resolve_componet_dependencies resolverMock =
+                    HostPolicyMock.Mock_corehost_resolve_componet_dependencies(
+                        134,
+                        "",
+                        "",
+                        ""))
+                {
+                    Assert.Throws<InvalidOperationException>(() =>
+                    {
+                        ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                            Path.Combine(TestBasePath, _componentAssemblyPath));
+                    });
+
+                    // After everything is done, the error writer should be reset to the original value.
+                    Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
+                }
             }
         }
 
         public void TestAssembly()
         {
             string assemblyDependencyPath = CreateMockAssembly("AssemblyDependency.dll");
-            using (HostPolicyMock.Mock_corehost_resolve_componet_dependencies(
-                0,
-                assemblyDependencyPath,
-                "",
-                ""))
-            {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
-                    Path.Combine(TestBasePath, _componentAssemblyPath));
 
-                Assert.Equal(
+            IntPtr previousWriter = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(
+                (HostPolicyMock.ErrorWriterDelegate)((string _) => { Assert.True(false, "Should never get here"); }));
+
+            using (HostPolicyMock.MockValues_corehost_set_error_writer errorWriterMock =
+                HostPolicyMock.Mock_corehost_set_error_writer(previousWriter))
+            {
+                using (HostPolicyMock.Mock_corehost_resolve_componet_dependencies(
+                    0,
                     assemblyDependencyPath,
-                    resolver.ResolveAssemblyPath(new AssemblyName("AssemblyDependency")));
+                    "",
+                    ""))
+                {
+                    ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                        Path.Combine(TestBasePath, _componentAssemblyPath));
+
+                    Assert.Equal(
+                        assemblyDependencyPath,
+                        resolver.ResolveAssemblyPath(new AssemblyName("AssemblyDependency")));
+
+                    // After everything is done, the error writer should be reset to the original value.
+                    Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
+                }
             }
         }
 

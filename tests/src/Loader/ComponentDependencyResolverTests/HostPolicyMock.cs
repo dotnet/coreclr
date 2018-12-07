@@ -19,6 +19,26 @@ namespace ComponentDependencyResolverTests
             string nativeSearchPaths,
             string resourceSearchPaths);
 
+        [DllImport("hostpolicy", CharSet = HostpolicyCharSet)]
+        private static extern void Set_corehost_set_error_writer_returnValue(IntPtr error_writer);
+
+        [DllImport("hostpolicy", CharSet = HostpolicyCharSet)]
+        private static extern IntPtr Get_corehost_set_error_writer_lastSet_error_writer();
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
+        internal delegate void Callback_corehost_resolve_component_dependencies(
+            string component_main_assembly_path);
+
+        [DllImport("hostpolicy", CharSet = HostpolicyCharSet)]
+        private static extern void Set_corehost_resolve_component_dependencies_Callback(
+            IntPtr callback);
+
+        private static Type _componentDependencyResolverType;
+        private static Type _corehost_error_writer_fnType;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
+        public delegate void ErrorWriterDelegate(string message);
+
         public static string DeleteExistingHostpolicy(string coreRoot)
         {
             string hostPolicyFileName = XPlatformUtils.GetStandardNativeLibraryFileName("hostpolicy");
@@ -39,9 +59,16 @@ namespace ComponentDependencyResolverTests
             File.Copy(
                 Path.Combine(testBasePath, hostPolicyFileName),
                 destinationPath);
+
+            _componentDependencyResolverType = typeof(object).Assembly.GetType("System.Runtime.Loader.ComponentDependencyResolver");
+
+            // This is needed for marshalling of function pointers to work - requires private access to the CDR unfortunately
+            // Delegate marshalling doesn't support casting delegates to anything but the original type
+            // so we need to use the original type.
+            _corehost_error_writer_fnType = _componentDependencyResolverType.GetNestedType("corehost_error_writer_fn", System.Reflection.BindingFlags.NonPublic);
         }
 
-        public static IDisposable Mock_corehost_resolve_componet_dependencies(
+        public static MockValues_corehost_resolve_componet_dependencies Mock_corehost_resolve_componet_dependencies(
             int returnValue,
             string assemblyPaths,
             string nativeSearchPaths,
@@ -53,11 +80,28 @@ namespace ComponentDependencyResolverTests
                 nativeSearchPaths,
                 resourceSearchPaths);
 
-            return new ResetMockValues_corehost_resolve_componet_dependencies();
+            return new MockValues_corehost_resolve_componet_dependencies();
         }
 
-        private class ResetMockValues_corehost_resolve_componet_dependencies : IDisposable
+        internal class MockValues_corehost_resolve_componet_dependencies : IDisposable
         {
+            public Action<string> Callback
+            {
+                set
+                {
+                    var callback = new Callback_corehost_resolve_component_dependencies(value);
+                    if (callback != null)
+                    {
+                        Set_corehost_resolve_component_dependencies_Callback(
+                            Marshal.GetFunctionPointerForDelegate(callback));
+                    }
+                    else
+                    {
+                        Set_corehost_resolve_component_dependencies_Callback(IntPtr.Zero);
+                    }
+                }
+            }
+
             public void Dispose()
             {
                 Set_corehost_resolve_component_dependencies_Values(
@@ -65,6 +109,52 @@ namespace ComponentDependencyResolverTests
                     string.Empty,
                     string.Empty,
                     string.Empty);
+                Set_corehost_resolve_component_dependencies_Callback(IntPtr.Zero);
+            }
+        }
+
+        public static MockValues_corehost_set_error_writer Mock_corehost_set_error_writer()
+        {
+            return Mock_corehost_set_error_writer(IntPtr.Zero);
+        }
+
+        public static MockValues_corehost_set_error_writer Mock_corehost_set_error_writer(IntPtr existingErrorWriter)
+        {
+            Set_corehost_set_error_writer_returnValue(existingErrorWriter);
+
+            return new MockValues_corehost_set_error_writer();
+        }
+
+        internal class MockValues_corehost_set_error_writer : IDisposable
+        {
+            public IntPtr LastSetErrorWriterPtr
+            {
+                get
+                {
+                    return Get_corehost_set_error_writer_lastSet_error_writer();
+                }
+            }
+
+            public Action<string> LastSetErrorWriter
+            {
+                get
+                {
+                    IntPtr errorWriterPtr = LastSetErrorWriterPtr;
+                    if (errorWriterPtr == IntPtr.Zero)
+                    {
+                        return null;
+                    }
+                    else
+                    {
+                        Delegate d = Marshal.GetDelegateForFunctionPointer(errorWriterPtr, _corehost_error_writer_fnType);
+                        return (string message) => { d.DynamicInvoke(message); };
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                Set_corehost_set_error_writer_returnValue(IntPtr.Zero);
             }
         }
     }

@@ -3656,6 +3656,6 @@
     <value>Cannot load hostpolicy library. ComponentDependencyResolver is currently only supported if the runtime is hosted through hostpolicy library.</value>
   </data>
   <data name="ComponentDependencyResolver_FailedToResolveDependencies" xml:space="preserve">
-    <value>Dependency resolution failed for component {0} with error code {1}.</value>
+    <value>Dependency resolution failed for component {0} with error code {1}. Detailed error: {2}</value>
   </data>
 </root>
