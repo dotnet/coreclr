@@ -2013,6 +2013,8 @@ BOOL Assembly::IsInstrumentedHelper()
 
 #ifdef FEATURE_COMINTEROP
 
+ITypeLib *Assembly::InvalidTypeLib = (ITypeLib *)-1;
+
 ITypeLib* Assembly::GetTypeLib()
 {
     CONTRACTL
@@ -2024,7 +2026,7 @@ ITypeLib* Assembly::GetTypeLib()
     CONTRACTL_END
 
     ITypeLib *pTlb = m_pITypeLib;
-    if (pTlb != nullptr && pTlb != (ITypeLib*)-1)
+    if (pTlb != nullptr && pTlb != Assembly::InvalidTypeLib)
         pTlb->AddRef();
 
     return pTlb;
@@ -2040,15 +2042,20 @@ void Assembly::SetTypeLib(ITypeLib *pNew)
     }
     CONTRACTL_END
 
-    ITypeLib *pOld = InterlockedExchangeT(&m_pITypeLib, pNew);
+    ITypeLib *pOld;
+    do
+    {
+        pOld = m_pITypeLib;
+    }
+    while (pOld != InterlockedCompareExchangeT(&m_pITypeLib, pNew, pOld));
 
     // TypeLibs are refcounted pointers.
     if (pNew != pOld)
     {
-        if (pNew != nullptr && pNew != (ITypeLib*)-1)
+        if (pNew != nullptr && pNew != Assembly::InvalidTypeLib)
             pNew->AddRef();
 
-        if (pOld != nullptr && pOld != (ITypeLib*)-1)
+        if (pOld != nullptr && pOld != Assembly::InvalidTypeLib)
             pOld->Release();
     }
 } // void Assembly::SetTypeLib()

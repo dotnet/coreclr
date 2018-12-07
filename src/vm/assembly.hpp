@@ -456,6 +456,8 @@ public:
 #endif // FEATURE_PREJIT
 
 #ifdef FEATURE_COMINTEROP
+    static ITypeLib *InvalidTypeLib;
+
     // Get any cached ITypeLib* for the assembly.
     ITypeLib *GetTypeLib();
 

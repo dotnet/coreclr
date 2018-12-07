@@ -596,19 +596,19 @@ HRESULT GetITypeLibForAssembly(_In_ Assembly *pAssembly, _Outptr_ ITypeLib **ppT
     }
     CONTRACTL_END;
 
-    HRESULT hr;
-
     // If the module wasn't imported from COM, fail. In .NET Framework the runtime
     // would generate a ITypeLib instance, but .NET Core doesn't support that.
     if (!pAssembly->IsImportedFromTypeLib())
         return COR_E_NOTSUPPORTED;
 
+    HRESULT hr;
+
     // Check for cached copy.
     ITypeLib *pTlb = pAssembly->GetTypeLib();
     if (pTlb != nullptr)
     {
-        // If the cached value is -1, an attempt was already made but failed.
-        if (pTlb == (ITypeLib*)-1)
+        // If the cached value is the invalid sentinal, an attempt was already made but failed.
+        if (pTlb == Assembly::InvalidTypeLib)
             return TLBX_E_LIBNOTREGISTERED;
 
         // Return cached copy.
@@ -625,29 +625,33 @@ HRESULT GetITypeLibForAssembly(_In_ Assembly *pAssembly, _Outptr_ ITypeLib **ppT
     USHORT wMinor;
     IfFailRet(GetTypeLibVersionForAssembly(pAssembly, &wMajor, &wMinor));
 
-    hr = LoadRegTypeLib(assemblyGuid, wMajor, wMinor, ppTlb);
-    if (SUCCEEDED(hr))
-        return S_OK;
+    // Attempt to load the exact TypeLib
+    hr = LoadRegTypeLib(assemblyGuid, wMajor, wMinor, &pTlb);
+    if (FAILED(hr))
+    {
+        // Try just the Assembly version
+        IfFailRet(pAssembly->GetVersion(&wMajor, &wMinor, nullptr, nullptr));
+        hr = LoadRegTypeLib(assemblyGuid, wMajor, wMinor, &pTlb);
+        if (FAILED(hr))
+        {
+            // Try loading the highest registered version.
+            hr = LoadRegTypeLib(assemblyGuid, -1, -1, &pTlb);
+        }
+    }
 
-    // Try just the Assembly version
-    IfFailRet(pAssembly->GetVersion(&wMajor, &wMinor, nullptr, nullptr));
-    hr = LoadRegTypeLib(assemblyGuid, wMajor, wMinor, ppTlb);
-    if (SUCCEEDED(hr))
-        return S_OK;
+    if (FAILED(hr))
+    {
+        pAssembly->SetTypeLib(Assembly::InvalidTypeLib);
 
-    // Try loading the highest registered version.
-    hr = LoadRegTypeLib(assemblyGuid, -1, -1, ppTlb);
-    if (SUCCEEDED(hr))
-        return S_OK;
+        // If any error other than TLB not registered is returned, pass it on.
+        return (hr == TYPE_E_LIBNOTREGISTERED) ? TLBX_E_LIBNOTREGISTERED : hr;
+    }
 
-    // If any error other than not registered is returned, pass it on.
-    if (hr != TYPE_E_LIBNOTREGISTERED)
-        return hr;
+    _ASSERTE(pTlb != nullptr && pTlb != Assembly::InvalidTypeLib);
+    pAssembly->SetTypeLib(pTlb);
+    *ppTlb = pTlb;
+    return S_OK;
 
-    // Cache the lookup failure
-    pAssembly->SetTypeLib((ITypeLib*)-1);
-
-    return TLBX_E_LIBNOTREGISTERED;
 } // HRESULT GetITypeLibForAssembly()
 
 
