@@ -281,6 +281,7 @@ private:
             : Transformer(compiler, block, stmt)
         {
             doesReturnValue = stmt->gtStmtExpr->OperIs(GT_ASG);
+            origCall        = GetCall(stmt);
             fptrAddress     = origCall->gtCallAddr;
             pointerType     = fptrAddress->TypeGet();
         }
