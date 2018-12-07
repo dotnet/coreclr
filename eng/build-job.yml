@@ -13,6 +13,7 @@ jobs:
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osGroupName: ${{ parameters.osGroupName }}
+    enableMicrobuild: true
 
     # Compute job name from template parameters
     name: ${{ format('build_{0}_{1}_{2}', parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
@@ -66,10 +67,11 @@ jobs:
           targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
 
 
-    # TODO: Sign
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-      - script: echo Sign!
-        displayName: Sign Binaries (empty for now)
+    # Sign on Windows
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(parameters.osGroup, 'Windows_NT')) }}:
+    # TODO: Replace this with arcade's built-in signing when we build with arcade
+      - script: .\Tools\dotnetcli\dotnet.exe msbuild src\sign_azdo.proj /p:BuildOS=$(parameters.osGroup) /p:BuildArch=$(parameters.archType) /p:BuildType=$(parameters.buildConfig) /p:SignType=$(variables['_SignType']) /p:OfficialBuild=true
+        displayName: Sign Binaries
 
 
     # Get key vault secrets for publishing
