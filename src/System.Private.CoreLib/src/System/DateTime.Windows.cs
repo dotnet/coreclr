@@ -9,24 +9,20 @@ namespace System
 {
     public readonly partial struct DateTime
     {
-        internal static readonly bool s_isLeapSecondsSupportedSystem = IsLeapSecondsSupportedSystem();
+        internal static readonly bool s_systemSupportsLeapSeconds = SystemSupportsLeapSeconds();
 
         public static DateTime UtcNow
         {
             get
             {
-                // following code is tuned for speed. Don't change it without running benchmark.
-                long ticks = 0;
-
-                if (s_isLeapSecondsSupportedSystem)
+                if (s_systemSupportsLeapSeconds)
                 {
-                    FullSystemTime time = new FullSystemTime();
-                    GetSystemTimeWithLeapSecondsHandling(ref time);
-                    return CreateDateTimeFromSystemTime(ref time);
+                    FullSystemTime time;
+                    GetSystemTimeWithLeapSecondsHandling(out time);
+                    return CreateDateTimeFromSystemTime(in time);
                 }
 
-                ticks = GetSystemTimeAsFileTime();
-                return new DateTime(((ulong)(ticks + FileTimeOffset)) | KindUtc);
+                return new DateTime(((ulong)(GetSystemTimeAsFileTime() + FileTimeOffset)) | KindUtc);
             }
         }
 
@@ -37,7 +33,7 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(fileTime), SR.ArgumentOutOfRange_FileTimeInvalid);
             }
 
-            if (s_isLeapSecondsSupportedSystem)
+            if (s_systemSupportsLeapSeconds)
             {
                 return InternalFromFileTime(fileTime);
             }
@@ -51,7 +47,7 @@ namespace System
             // Treats the input as universal if it is not specified
             long ticks = ((InternalKind & LocalMask) != 0) ? ToUniversalTime().InternalTicks : this.InternalTicks;
 
-            if (s_isLeapSecondsSupportedSystem)
+            if (s_systemSupportsLeapSeconds)
             {
                 return InternalToFileTime(ticks);
             }
@@ -71,20 +67,20 @@ namespace System
 
             switch (kind)
             {
-                case DateTimeKind.Local: return ValidateSystemTime(ref time, localTime: true);
-                case DateTimeKind.Utc:   return ValidateSystemTime(ref time, localTime: false);
+                case DateTimeKind.Local: return ValidateSystemTime(ref time.systemTime, localTime: true);
+                case DateTimeKind.Utc:   return ValidateSystemTime(ref time.systemTime, localTime: false);
                 default:
-                    return ValidateSystemTime(ref time, localTime: true) || ValidateSystemTime(ref time, localTime: false);
+                    return ValidateSystemTime(ref time.systemTime, localTime: true) || ValidateSystemTime(ref time.systemTime, localTime: false);
             }
         }
 
         internal static DateTime InternalFromFileTime(long fileTime)
         {
-            FullSystemTime time = new FullSystemTime();
-            if (SystemFileTimeToSystemTime(fileTime, ref time))
+            FullSystemTime time;
+            if (SystemFileTimeToSystemTime(fileTime, out time))
             {
                 time.hundredNanoSecond = fileTime % TicksPerMillisecond;
-                return CreateDateTimeFromSystemTime(ref time);
+                return CreateDateTimeFromSystemTime(in time);
             }
 
             throw new ArgumentOutOfRangeException("fileTime", SR.ArgumentOutOfRange_DateTimeBadTicks);
@@ -92,9 +88,9 @@ namespace System
 
         internal static long InternalToFileTime(long ticks)
         {
-            long fileTime = 0;
+            long fileTime;
             FullSystemTime time = new FullSystemTime(ticks);
-            if (SystemTimeToSystemFileTime(ref time, ref fileTime))
+            if (SystemTimeToSystemFileTime(ref time.systemTime, out fileTime))
             {
                 return fileTime + ticks % TicksPerMillisecond;
             }
@@ -102,33 +98,40 @@ namespace System
             throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_FileTimeInvalid);
         }
 
-        // Just in case for any reason CreateDateTimeFromSystemTime not get inlined,
-        // we are passing time by ref to avoid copying the structure while calling the method.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static DateTime CreateDateTimeFromSystemTime(ref FullSystemTime time)
+        internal static DateTime CreateDateTimeFromSystemTime(in FullSystemTime time)
         {
-            long ticks  = DateToTicks(time.wYear, time.wMonth, time.wDay);
-            ticks += TimeToTicks(time.wHour, time.wMinute, time.wSecond);
-            ticks += time.wMillisecond * TicksPerMillisecond;
+            long ticks  = DateToTicks(time.systemTime.Year, time.systemTime.Month, time.systemTime.Day);
+            ticks += TimeToTicks(time.systemTime.Hour, time.systemTime.Minute, time.systemTime.Second);
+            ticks += time.systemTime.Milliseconds * TicksPerMillisecond;
             ticks += time.hundredNanoSecond;
             return new DateTime( ((UInt64)(ticks)) | KindUtc);
         }
 
-        // FullSystemTime struct matches Windows SYSTEMTIME struct, except we added the extra nanoSeconds field to store
-        // more precise time.
+        private static unsafe bool SystemSupportsLeapSeconds()
+        {
+            Interop.NtDll.SYSTEM_LEAP_SECOND_INFORMATION slsi = new Interop.NtDll.SYSTEM_LEAP_SECOND_INFORMATION();
+            return Interop.NtDll.NtQuerySystemInformation(
+                                    Interop.NtDll.SystemLeapSecondInformation,
+                                    (void *) &slsi,
+                                    sizeof(Interop.NtDll.SYSTEM_LEAP_SECOND_INFORMATION),
+                                    null) == 0 && slsi.Enabled;
+        }
+
+        // FullSystemTime struct is the SYSTEMTIME struct with extra hundredNanoSecond field to store more precise time.
         [StructLayout(LayoutKind.Sequential)]
         internal struct FullSystemTime
         {
             internal FullSystemTime(int year, int month, DayOfWeek dayOfWeek, int day, int hour, int minute, int second)
             {
-                wYear = (ushort) year;
-                wMonth = (ushort) month;
-                wDayOfWeek = (ushort) dayOfWeek;
-                wDay = (ushort) day;
-                wHour = (ushort) hour;
-                wMinute = (ushort) minute;
-                wSecond = (ushort) second;
-                wMillisecond = 0;
+                systemTime.Year = (ushort) year;
+                systemTime.Month = (ushort) month;
+                systemTime.DayOfWeek = (ushort) dayOfWeek;
+                systemTime.Day = (ushort) day;
+                systemTime.Hour = (ushort) hour;
+                systemTime.Minute = (ushort) minute;
+                systemTime.Second = (ushort) second;
+                systemTime.Milliseconds = 0;
                 hundredNanoSecond = 0;
             }
 
@@ -139,42 +142,32 @@ namespace System
                 int year, month, day;
                 dt.GetDatePart(out year, out month, out day);
 
-                wYear = (ushort) year;
-                wMonth = (ushort) month;
-                wDayOfWeek = (ushort) dt.DayOfWeek;
-                wDay = (ushort) day;
-                wHour = (ushort) dt.Hour;
-                wMinute = (ushort) dt.Minute;
-                wSecond = (ushort) dt.Second;
-                wMillisecond = (ushort) dt.Millisecond;
+                systemTime.Year = (ushort) year;
+                systemTime.Month = (ushort) month;
+                systemTime.DayOfWeek = (ushort) dt.DayOfWeek;
+                systemTime.Day = (ushort) day;
+                systemTime.Hour = (ushort) dt.Hour;
+                systemTime.Minute = (ushort) dt.Minute;
+                systemTime.Second = (ushort) dt.Second;
+                systemTime.Milliseconds = (ushort) dt.Millisecond;
                 hundredNanoSecond = 0;
             }
 
-            internal ushort wYear;
-            internal ushort wMonth;
-            internal ushort wDayOfWeek;
-            internal ushort wDay;
-            internal ushort wHour;
-            internal ushort wMinute;
-            internal ushort wSecond;
-            internal ushort wMillisecond;
+            internal Interop.Kernel32.SYSTEMTIME systemTime;
             internal long   hundredNanoSecond;
         };
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern bool ValidateSystemTime(ref FullSystemTime time, bool localTime);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern bool IsLeapSecondsSupportedSystem();
+        internal static extern bool ValidateSystemTime(ref Interop.Kernel32.SYSTEMTIME time, bool localTime);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern bool SystemFileTimeToSystemTime(long fileTime, ref FullSystemTime time);
+        internal static extern bool SystemFileTimeToSystemTime(long fileTime, out FullSystemTime time);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void GetSystemTimeWithLeapSecondsHandling(ref FullSystemTime time);
+        internal static extern void GetSystemTimeWithLeapSecondsHandling(out FullSystemTime time);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern bool SystemTimeToSystemFileTime(ref FullSystemTime time, ref long fileTime);
+        internal static extern bool SystemTimeToSystemFileTime(ref Interop.Kernel32.SYSTEMTIME time, out long fileTime);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern long GetSystemTimeAsFileTime();

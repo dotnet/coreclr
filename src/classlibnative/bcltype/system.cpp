@@ -100,42 +100,6 @@ FCIMPLEND;
 
 
 #ifndef FEATURE_PAL
-typedef int (WINAPI *NtQuerySystemInformationProc) (int SystemInformationClass, PVOID SystemInformation, ULONG SystemInformationLength, PULONG ReturnLength OPTIONAL);
-typedef struct _SYSTEM_LEAP_SECOND_INFORMATION {
-    BOOLEAN Enabled;
-    ULONG Flags;
-} SYSTEM_LEAP_SECOND_INFORMATION, *PSYSTEM_LEAP_SECOND_INFORMATION;
-
-#define SystemLeapSecondInformation 206
-
-
-BOOL QCALLTYPE SystemNative::IsLeapSecondsSupportedSystem()
-{
-    QCALL_CONTRACT;
-
-    BOOL ret = FALSE;
-
-    BEGIN_QCALL;
-
-    SYSTEM_LEAP_SECOND_INFORMATION slsi;
-    HINSTANCE hNtDll = CLRLoadLibrary(W("ntdll.dll"));
-
-    if (hNtDll != NULL)
-    {
-        NtQuerySystemInformationProc pfnNtQuerySystemInformation = (NtQuerySystemInformationProc) GetProcAddress(hNtDll,"NtQuerySystemInformation");
-        if (pfnNtQuerySystemInformation != NULL)
-        {
-            if (pfnNtQuerySystemInformation(SystemLeapSecondInformation, &slsi, sizeof(SYSTEM_LEAP_SECOND_INFORMATION), NULL) == 0)
-            {
-                ret = slsi.Enabled;
-            }
-        }
-    }
-
-    END_QCALL;
-
-    return ret;
-}
 
 FCIMPL1(VOID, SystemNative::GetSystemTimeWithLeapSecondsHandling, FullSystemTime *time)
 {
@@ -144,26 +108,23 @@ FCIMPL1(VOID, SystemNative::GetSystemTimeWithLeapSecondsHandling, FullSystemTime
 
     g_pfnGetSystemTimeAsFileTime((FILETIME*)&timestamp);
 
-    if (::FileTimeToSystemTime((FILETIME*)&timestamp, (LPSYSTEMTIME) time))
+    if (::FileTimeToSystemTime((FILETIME*)&timestamp, &(time->systemTime)))
     {
-#if BIGENDIAN
-        timestamp = (INT64)(((UINT64)timestamp >> 32) | ((UINT64)timestamp << 32));
-#endif
         // to keep the time precision
         time->hundredNanoSecond = timestamp % 10000; // 10000 is the number of 100-nano seconds per Millisecond
     }
     else
     {
-        ::GetSystemTime((LPSYSTEMTIME) time);
+        ::GetSystemTime(&(time->systemTime));
         time->hundredNanoSecond = 0;
     }
 
-    if (time->wSecond > 59)
+    if (time->systemTime.wSecond > 59)
     {
         // we have a leap second, force it to last second in the minute as DateTime doesn't account for leap seconds in its calculation.
         // we use the maxvalue from the milliseconds and the 100-nano seconds to avoid reporting two out of order 59 seconds
-        time->wSecond = 59;
-        time->wMillisecond = 999;
+        time->systemTime.wSecond = 59;
+        time->systemTime.wMilliseconds = 999;
         time->hundredNanoSecond = 9999;
     }
 }
@@ -176,18 +137,14 @@ FCIMPL2(FC_BOOL_RET, SystemNative::SystemFileTimeToSystemTime, INT64 fileTime, F
 
     if (::FileTimeToSystemTime((FILETIME*)&fileTime, (LPSYSTEMTIME) time))
     {
-
-#if BIGENDIAN
-        timestamp = (INT64)(((UINT64)timestamp >> 32) | ((UINT64)timestamp << 32));
-#endif
         // to keep the time precision
         time->hundredNanoSecond = timestamp % 10000; // 10000 is the number of 100-nano seconds per Millisecond
-        if (time->wSecond > 59)
+        if (time->systemTime.wSecond > 59)
         {
             // we have a leap second, force it to last second in the minute as DateTime doesn't account for leap seconds in its calculation.
             // we use the maxvalue from the milliseconds and the 100-nano seconds to avoid reporting two out of order 59 seconds
-            time->wSecond = 59;
-            time->wMillisecond = 999;
+            time->systemTime.wSecond = 59;
+            time->systemTime.wMilliseconds = 999;
             time->hundredNanoSecond = 9999;
         }
         FC_RETURN_BOOL(TRUE);
@@ -196,32 +153,29 @@ FCIMPL2(FC_BOOL_RET, SystemNative::SystemFileTimeToSystemTime, INT64 fileTime, F
 }
 FCIMPLEND;
 
-FCIMPL2(FC_BOOL_RET, SystemNative::ValidateSystemTime, FullSystemTime *time, CLR_BOOL localTime)
+FCIMPL2(FC_BOOL_RET, SystemNative::ValidateSystemTime, SYSTEMTIME *time, CLR_BOOL localTime)
 {
     FCALL_CONTRACT;
 
     if (localTime)
     {
         SYSTEMTIME st;
-        FC_RETURN_BOOL(::TzSpecificLocalTimeToSystemTime(NULL, (LPSYSTEMTIME)time, &st));
+        FC_RETURN_BOOL(::TzSpecificLocalTimeToSystemTime(NULL, time, &st));
     }
     else
     {
         FILETIME timestamp;
-        FC_RETURN_BOOL(::SystemTimeToFileTime((LPSYSTEMTIME)time, &timestamp));
+        FC_RETURN_BOOL(::SystemTimeToFileTime(time, &timestamp));
     }
 }
 FCIMPLEND;
 
-FCIMPL2(FC_BOOL_RET, SystemNative::SystemTimeToSystemFileTime, FullSystemTime *time, INT64 *pFileTime)
+FCIMPL2(FC_BOOL_RET, SystemNative::SystemTimeToSystemFileTime, SYSTEMTIME *time, INT64 *pFileTime)
 {
     FCALL_CONTRACT;
 
-    if (::SystemTimeToFileTime((LPSYSTEMTIME) time, (LPFILETIME) pFileTime))
+    if (::SystemTimeToFileTime(time, (LPFILETIME) pFileTime))
     {
-#if BIGENDIAN
-        *pFileTime = (INT64)(((UINT64)(*pFileTime) >> 32) | ((UINT64)(*pFileTime) << 32));
-#endif
         FC_RETURN_BOOL(TRUE);
     }
 

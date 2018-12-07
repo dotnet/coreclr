@@ -138,7 +138,6 @@ FCFuncEnd()
 
 FCFuncStart(gDateTimeFuncs)
 #if !defined(FEATURE_PAL)
-    QCFuncElement("IsLeapSecondsSupportedSystem", SystemNative::IsLeapSecondsSupportedSystem)
     FCFuncElement("GetSystemTimeWithLeapSecondsHandling", SystemNative::GetSystemTimeWithLeapSecondsHandling)
     FCFuncElement("ValidateSystemTime", SystemNative::ValidateSystemTime)
     FCFuncElement("SystemFileTimeToSystemTime", SystemNative::SystemFileTimeToSystemTime)

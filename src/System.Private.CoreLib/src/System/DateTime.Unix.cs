@@ -8,17 +8,13 @@ namespace System
 {
     public readonly partial struct DateTime
     {
-        internal static readonly bool s_isLeapSecondsSupportedSystem = false;
+        internal const bool s_systemSupportsLeapSeconds = false;
 
         public static DateTime UtcNow
         {
             get
             {
-                // following code is tuned for speed. Don't change it without running benchmark.
-                long ticks = 0;
-                ticks = GetSystemTimeAsFileTime();
-
-                return new DateTime(((ulong)(ticks + FileTimeOffset)) | KindUtc);
+                return new DateTime(((ulong)(GetSystemTimeAsFileTime() + FileTimeOffset)) | KindUtc);
             }
         }
 

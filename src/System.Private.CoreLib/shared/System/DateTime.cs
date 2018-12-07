@@ -196,7 +196,7 @@ namespace System
         //
         public DateTime(int year, int month, int day, int hour, int minute, int second)
         {
-            if (second == 60 && s_isLeapSecondsSupportedSystem && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, DateTimeKind.Unspecified))
+            if (second == 60 && s_systemSupportsLeapSeconds && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, DateTimeKind.Unspecified))
             {
                 // if we have leap second (second = 60) then we'll need to check if it is valid time.
                 // if it is valid, then we adjust the second to 59 so DateTime will consider this second is last second
@@ -214,7 +214,7 @@ namespace System
                 throw new ArgumentException(SR.Argument_InvalidDateTimeKind, nameof(kind));
             }
 
-            if (second == 60 && s_isLeapSecondsSupportedSystem && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, kind))
+            if (second == 60 && s_systemSupportsLeapSeconds && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, kind))
             {
                 // if we have leap second (second = 60) then we'll need to check if it is valid time.
                 // if it is valid, then we adjust the second to 59 so DateTime will consider this second is last second
@@ -236,7 +236,7 @@ namespace System
                 throw new ArgumentNullException(nameof(calendar));
 
             int originalSecond = second;
-            if (second == 60 && s_isLeapSecondsSupportedSystem)
+            if (second == 60 && s_systemSupportsLeapSeconds)
             {
                 // Reset the second value now and then we'll validate it later when we get the final Gregorian date.
                 second = 59;
@@ -264,7 +264,7 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(millisecond), SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
             }
 
-            if (second == 60 && s_isLeapSecondsSupportedSystem && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, DateTimeKind.Unspecified))
+            if (second == 60 && s_systemSupportsLeapSeconds && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, DateTimeKind.Unspecified))
             {
                 // if we have leap second (second = 60) then we'll need to check if it is valid time.
                 // if it is valid, then we adjust the second to 59 so DateTime will consider this second is last second
@@ -291,7 +291,7 @@ namespace System
                 throw new ArgumentException(SR.Argument_InvalidDateTimeKind, nameof(kind));
             }
 
-            if (second == 60 && s_isLeapSecondsSupportedSystem && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, kind))
+            if (second == 60 && s_systemSupportsLeapSeconds && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, kind))
             {
                 // if we have leap second (second = 60) then we'll need to check if it is valid time.
                 // if it is valid, then we adjust the second to 59 so DateTime will consider this second is last second
@@ -320,7 +320,7 @@ namespace System
             }
 
             int originalSecond = second;
-            if (second == 60 && s_isLeapSecondsSupportedSystem)
+            if (second == 60 && s_systemSupportsLeapSeconds)
             {
                 // Reset the second value now and then we'll validate it later when we get the final Gregorian date.
                 second = 59;
@@ -356,7 +356,7 @@ namespace System
             }
 
             int originalSecond = second;
-            if (second == 60 && s_isLeapSecondsSupportedSystem)
+            if (second == 60 && s_systemSupportsLeapSeconds)
             {
                 // Reset the second value now and then we'll validate it later when we get the final Gregorian date.
                 second = 59;
@@ -1650,7 +1650,7 @@ namespace System
 
             if (second == 60)
             {
-                if (s_isLeapSecondsSupportedSystem && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, DateTimeKind.Unspecified))
+                if (s_systemSupportsLeapSeconds && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, DateTimeKind.Unspecified))
                 {
                     // if we have leap second (second = 60) then we'll need to check if it is valid time.
                     // if it is valid, then we adjust the second to 59 so DateTime will consider this second is last second
