@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
@@ -31,8 +32,8 @@ namespace System
         private const int Int64Precision = 19;
         private const int UInt64Precision = 20;
 
-        /// <summary>256-element map from an ASCII char to its hex value, e.g. arr['b'] == 11. 0xFF means it's not a hex digit.</summary>
-        internal static readonly int[] s_charToHexLookup =
+        /// <summary>128-element map from an ASCII char to its hex value, e.g. arr['b'] == 11. 0xFF means it's not a hex digit.</summary>
+        internal static readonly byte[] s_charToHexLookup =
         {
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 15
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 31
@@ -41,16 +42,46 @@ namespace System
             0xFF, 0xA,  0xB,  0xC,  0xD,  0xE,  0xF,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 79
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 95
             0xFF, 0xa,  0xb,  0xc,  0xd,  0xe,  0xf,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 111
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 127
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 143
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 159
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 175
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 191
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 207
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 223
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 239
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 255
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 127
         };
+
+        /// <summary>128-element map from an ASCII char to its hex value, e.g. arr['F'] == {0xF0, 0x0F}. {0xFF, 0xFF} means it's not a hex digit.</summary>
+        internal static readonly HiLowByte[] s_charToHiLowHexLookup =
+        {
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 15
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 31
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 47
+            0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,  0x7,  0x8,  0x9,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 63
+            0xFF, 0xA,  0xB,  0xC,  0xD,  0xE,  0xF,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 79
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 95
+            0xFF, 0xa,  0xb,  0xc,  0xd,  0xe,  0xf,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 111
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 127
+        };
+
+        /// <summary>Special struct to parse hex to byte. Contains high 4 bits in <see cref="High"/> and low 4 bits in <see cref="Low"/>.</summary>
+        internal struct HiLowByte
+        {
+            public byte High;
+            public byte Low;
+
+            public HiLowByte(byte low)
+            {
+                High = (byte)(low << 4);
+                Low = low;
+            }
+
+            public static implicit operator HiLowByte(byte value)
+            {
+                if (value == 0xFF)
+                {
+                    return new HiLowByte { High = 0xFF, Low = 0xFF };
+                }
+
+                Debug.Assert(value < 16, "Value should be less than 16 or equals to 255");
+
+                return new HiLowByte { High = (byte)(value << 4), Low = value };
+            }
+        }
 
         private static unsafe bool TryNumberToInt32(ref NumberBuffer number, ref int value)
         {
@@ -1115,7 +1146,7 @@ namespace System
             }
 
             int answer = 0;
-            int[] charToHexLookup = s_charToHexLookup;
+            byte[] charToHexLookup = s_charToHexLookup;
 
             if ((uint)num < (uint)charToHexLookup.Length && charToHexLookup[num] != 0xFF)
             {
@@ -1436,7 +1467,7 @@ namespace System
             }
 
             long answer = 0;
-            int[] charToHexLookup = s_charToHexLookup;
+            byte[] charToHexLookup = s_charToHexLookup;
 
             if ((uint)num < (uint)charToHexLookup.Length && charToHexLookup[num] != 0xFF)
             {
@@ -1909,6 +1940,89 @@ namespace System
             uint bits = (uint)(NumberToFloatingPointBits(ref number, in FloatingPointInfo.Single));
             float result = BitConverter.Int32BitsToSingle((int)(bits));
             return number.IsNegative ? -result : result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool IsHexPrefix(ReadOnlySpan<char> str, int i) =>
+            i + 1 < str.Length &&
+            str[i] == '0' &&
+            (str[i + 1] | 0x20) == 'x';
+
+        /// <summary>Tries to parse two characters with hex digits into <paramref name="currentByte"/>.</summary>
+        /// <remarks>Allows only hex digits (0-9, a-f, A-F).
+        /// If you want to parse plus sign and hex prefixes see <see cref="TryParseHexForTwoBytes(ReadOnlySpan{char}, int, ref byte, ref byte)"/>.</remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool TryParseHexStrict(ushort firstChar, ushort secondChar, ref byte currentByte)
+        {
+            const int maxLowBits = 15;
+            const int maxHighBits = 15 << 4;
+
+            HiLowByte[] charToHexLookup = s_charToHiLowHexLookup;
+            unchecked
+            {
+
+                if (firstChar >= charToHexLookup.Length || secondChar >= charToHexLookup.Length)
+                    return false;
+
+                firstChar = charToHexLookup[firstChar].High;
+                secondChar = charToHexLookup[secondChar].Low;
+
+                int value = firstChar + secondChar;
+
+                // for 255 we need to distinguish Bits overflow (from 255 + 0) and normal 255 value (from 240 + 15)
+                if (value >= byte.MaxValue)
+                {
+                    if (value == byte.MaxValue && firstChar == maxHighBits && secondChar == maxLowBits)
+                    {
+                        currentByte = byte.MaxValue;
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                currentByte = (byte)value;
+                return true;
+            }
+        }
+
+        /// <summary>Tries to parse (not strict) two bytes from <paramref name="str"/>.</summary>
+        /// <remarks>Called after <see cref="TryParseHexStrict(ushort, ushort, ref byte)"/> returns false. Allows staring from plus sign and hex prefixes.</remarks>
+        internal static unsafe bool TryParseHexForTwoBytes(ReadOnlySpan<char> str, int startIndex, ref byte currentByte, ref byte nextByte)
+        {
+            // This method called for rarely used input and performance is not a goal.
+            // Character at startIndex should be first character of special prefix like "+", "0x" or "+0X".
+
+            HiLowByte[] charToHexLookup = s_charToHiLowHexLookup;
+            currentByte = 0;
+            if (startIndex + 3 >= str.Length)
+                return false;
+            char first = str[startIndex];
+
+            if (first == '+')
+            {
+                if (IsHexPrefix(str, startIndex + 1))
+                {
+                    if (!TryParseHexStrict('0', str[startIndex + 3], ref nextByte))
+                        return false;
+                }
+                else
+                {
+                    ushort secondChar = str[startIndex + 1];
+                    if (!TryParseHexStrict('0', secondChar, ref currentByte))
+                        return false;
+
+                    if (!TryParseHexStrict(str[startIndex + 2], str[startIndex + 3], ref nextByte))
+                        return false;
+                }
+
+                return true;
+            }
+
+            if (!IsHexPrefix(str, startIndex))
+                return false;
+
+            return TryParseHexStrict(str[startIndex + 2], str[startIndex + 3], ref nextByte);
         }
     }
 }
