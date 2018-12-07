@@ -2651,18 +2651,18 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
         NativeFieldCategory nfc = pFieldMarshaler->GetNativeFieldCategory();
 
-        if ((nfc & NativeFieldSubcategory::COM_LIKE) == NativeFieldSubcategory::COM_LIKE)
+        if ((nfc & NATIVE_FIELD_CATEGORY_COM_TYPE) == NATIVE_FIELD_CATEGORY_COM_TYPE)
         {
             return false;
         }
 #ifdef FEATURE_COMINTEROP
-        else if ((nfc & NativeFieldSubcategory::COM_TYPE) == NativeFieldSubcategory::COM_TYPE)
+        else if ((nfc & NATIVE_FIELD_CATEGORY_COM_ONLY) == NATIVE_FIELD_CATEGORY_COM_ONLY)
         {
             _ASSERTE(false && "COMInterop not supported for CoreCLR on Unix.");
             return false;
         }
 #endif // FEATURE_COMINTEROP
-        else if ((nfc & NativeFieldSubcategory::ARRAY) == NativeFieldSubcategory::ARRAY)
+        else if ((nfc & NATIVE_FIELD_SUBCATEGORY_ARRAY) == NATIVE_FIELD_SUBCATEGORY_ARRAY)
         {
             VARTYPE vtElement = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementVT();
             switch (vtElement)
@@ -2730,7 +2730,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                 return false;
             }
         }
-        else if ((nfc & NativeFieldSubcategory::NESTED) == NativeFieldSubcategory::NESTED)
+        else if ((nfc & NATIVE_FIELD_SUBCATEGORY_NESTED) == NATIVE_FIELD_SUBCATEGORY_NESTED)
         {
             MethodTable* pFieldMT = ((FieldMarshaler_NestedType*)pFieldMarshaler)->GetNestedMethodTable();
 
@@ -2747,15 +2747,15 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
             continue;
         }
-        else if ((nfc & NativeFieldSubcategory::FLOAT_TYPE) == NativeFieldSubcategory::FLOAT_TYPE)
+        else if ((nfc & NATIVE_FIELD_CATEGORY_FLOAT) == NATIVE_FIELD_CATEGORY_FLOAT)
         {
             fieldClassificationType = SystemVClassificationTypeSSE;
         }
-        else if ((nfc & NativeFieldSubcategory::INTEGER) == NativeFieldSubcategory::INTEGER)
+        else if ((nfc & NATIVE_FIELD_SUBCATEGORY_INTEGER) == NATIVE_FIELD_SUBCATEGORY_INTEGER)
         {
             fieldClassificationType = SystemVClassificationTypeInteger;
         }
-        else if (nfc == NativeFieldCategory::OTHER)
+        else if (nfc == NATIVE_FIELD_CATEGORY_OTHER)
         {
             return false;
         }
