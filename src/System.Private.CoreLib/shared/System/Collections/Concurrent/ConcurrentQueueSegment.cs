@@ -112,7 +112,7 @@ namespace System.Collections.Concurrent
                 _frozenForEnqueues = true;
 
                 // Increase the tail by FreezeOffset, spinning until we're successful in doing so.
-                int tail = Volatile.Read(ref _headAndTail.Tail);
+                int tail = _headAndTail.Tail;
                 while (true)
                 {
                     int oldTail = Interlocked.CompareExchange(ref _headAndTail.Tail, tail + FreezeOffset, tail);
