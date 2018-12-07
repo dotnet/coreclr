@@ -8,7 +8,8 @@
 #endif
 
 // The IndirectCallTransformer transforms indirect calls that involve fat function
-// pointers or guarded devirtualization candidates.
+// pointers or guarded devirtualization candidates. These transformations introduce
+// control flow and so can't easily be done in the importer.
 //
 // A fat function pointer is a pointer with the second least significant bit
 // (aka FAT_POINTER_MASK) set. If the bit is set, the pointer (after clearing the bit)
@@ -18,8 +19,8 @@
 // Fat pointers are used in CoreRT as a replacement for instantiating stubs,
 // because CoreRT can't generate stubs in runtime.
 //
-// The JIT is responsible emitting code to check the bit at runtime, branching to one
-// of two call sites.
+// The JIT is responsible for emitting code to check the bit at runtime, branching
+// to one of two call sites.
 //
 // When the bit is not set, the code should execute the original indirect call.
 //

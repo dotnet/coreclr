@@ -7425,12 +7425,10 @@ DONE:
 //    Do not invoke this method directly, instead call either gtCloneExpr
 //    or gtCloneCandidateCall, as appropriate.
 //
-//    See notes on gtCloneExpr for use other arguments.
-//
 // Arguments:
 //    tree - the call to clone
 //    addFlags - GTF_* flags to add to the copied tree nodes
-//    deepVarNum - lclNum to replace uses of beyond the root, or ~0 for no replacement
+//    deepVarNum - lclNum to replace uses of beyond the root, or BAD_VAR_NUM for no replacement
 //    deepVarVal - If replacing beyond root, replace `deepVarNum` with IntCns `deepVarVal`
 //
 // Returns:
