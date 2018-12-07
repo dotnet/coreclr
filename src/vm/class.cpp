@@ -26,7 +26,6 @@
 #ifndef DACCESS_COMPILE 
 #include "methodtablebuilder.h"
 #endif
-#include "nsenumhandleallcases.h"
 
 #ifndef DACCESS_COMPILE 
 
