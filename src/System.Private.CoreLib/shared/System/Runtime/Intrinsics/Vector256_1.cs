@@ -190,13 +190,13 @@ namespace System.Runtime.Intrinsics
                 if (typeof(T) == typeof(float))
                 {
                     Vector256<float> result = Avx.Compare(AsSingle(), other.AsSingle(), FloatComparisonMode.EqualOrderedNonSignaling);
-                    return Avx.MoveMask(result) == 0b1111_1111;
+                    return Avx.MoveMask(result) == 0b1111_1111; // We have one bit per element
                 }
 
                 if (typeof(T) == typeof(double))
                 {
                     Vector256<double> result = Avx.Compare(AsDouble(), other.AsDouble(), FloatComparisonMode.EqualOrderedNonSignaling);
-                    return Avx.MoveMask(result) == 0b1111;
+                    return Avx.MoveMask(result) == 0b1111; // We have one bit per element
                 }
             }
 
@@ -208,7 +208,7 @@ namespace System.Runtime.Intrinsics
 
                 Debug.Assert((typeof(T) != typeof(float)) && (typeof(T) != typeof(double)));
                 Vector256<byte> result = Avx2.CompareEqual(AsByte(), other.AsByte());
-                return Avx2.MoveMask(result) == unchecked((int)(0b1111_1111_1111_1111_1111_1111_1111_1111));
+                return Avx2.MoveMask(result) == unchecked((int)(0b1111_1111_1111_1111_1111_1111_1111_1111)); // We have one bit per element
             }
 
             return EqualsSoftware(in this, other);

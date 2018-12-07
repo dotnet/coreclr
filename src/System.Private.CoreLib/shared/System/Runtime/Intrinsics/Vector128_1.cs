@@ -189,7 +189,7 @@ namespace System.Runtime.Intrinsics
             if (Sse.IsSupported && (typeof(T) == typeof(float)))
             {
                 Vector128<float> result = Sse.CompareEqual(AsSingle(), other.AsSingle());
-                return Sse.MoveMask(result) == 0b1111;
+                return Sse.MoveMask(result) == 0b1111; // We have one bit per element
             }
 
             if (Sse2.IsSupported)
@@ -197,7 +197,7 @@ namespace System.Runtime.Intrinsics
                 if (typeof(T) == typeof(double))
                 {
                     Vector128<double> result = Sse2.CompareEqual(AsDouble(), other.AsDouble());
-                    return Sse2.MoveMask(result) == 0b11;
+                    return Sse2.MoveMask(result) == 0b11; // We have one bit per element
                 }
                 else
                 {
@@ -207,7 +207,7 @@ namespace System.Runtime.Intrinsics
 
                     Debug.Assert((typeof(T) != typeof(float)) && (typeof(T) != typeof(double)));
                     Vector128<byte> result = Sse2.CompareEqual(AsByte(), other.AsByte());
-                    return Sse2.MoveMask(result) == 0b1111_1111_1111_1111;
+                    return Sse2.MoveMask(result) == 0b1111_1111_1111_1111; // We have one bit per element
                 }
             }
 
