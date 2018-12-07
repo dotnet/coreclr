@@ -845,154 +845,274 @@ namespace System.Runtime.Intrinsics
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Byte}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<byte> Create(Vector128<byte> lower, Vector128<byte> upper)
         {
-            Vector256<byte> result256 = Vector256<byte>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<byte> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<byte> result128 = ref Unsafe.As<Vector256<byte>, Vector128<byte>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<byte> SoftwareFallback(Vector128<byte> x, Vector128<byte> y)
+            {
+                Vector256<byte> result256 = Vector256<byte>.Zero;
+
+                ref Vector128<byte> result128 = ref Unsafe.As<Vector256<byte>, Vector128<byte>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Double}" /> instance from two <see cref="Vector128{Double}" /> instances.</summary>
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Double}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<double> Create(Vector128<double> lower, Vector128<double> upper)
         {
-            Vector256<double> result256 = Vector256<double>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<double> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<double> result128 = ref Unsafe.As<Vector256<double>, Vector128<double>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<double> SoftwareFallback(Vector128<double> x, Vector128<double> y)
+            {
+                Vector256<double> result256 = Vector256<double>.Zero;
+
+                ref Vector128<double> result128 = ref Unsafe.As<Vector256<double>, Vector128<double>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Int16}" /> instance from two <see cref="Vector128{Int16}" /> instances.</summary>
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Int16}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<short> Create(Vector128<short> lower, Vector128<short> upper)
         {
-            Vector256<short> result256 = Vector256<short>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<short> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<short> result128 = ref Unsafe.As<Vector256<short>, Vector128<short>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<short> SoftwareFallback(Vector128<short> x, Vector128<short> y)
+            {
+                Vector256<short> result256 = Vector256<short>.Zero;
+
+                ref Vector128<short> result128 = ref Unsafe.As<Vector256<short>, Vector128<short>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Int32}" /> instance from two <see cref="Vector128{Int32}" /> instances.</summary>
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Int32}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<int> Create(Vector128<int> lower, Vector128<int> upper)
         {
-            Vector256<int> result256 = Vector256<int>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<int> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<int> result128 = ref Unsafe.As<Vector256<int>, Vector128<int>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<int> SoftwareFallback(Vector128<int> x, Vector128<int> y)
+            {
+                Vector256<int> result256 = Vector256<int>.Zero;
+
+                ref Vector128<int> result128 = ref Unsafe.As<Vector256<int>, Vector128<int>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Int64}" /> instance from two <see cref="Vector128{Int64}" /> instances.</summary>
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Int64}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<long> Create(Vector128<long> lower, Vector128<long> upper)
         {
-            Vector256<long> result256 = Vector256<long>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<long> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<long> result128 = ref Unsafe.As<Vector256<long>, Vector128<long>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<long> SoftwareFallback(Vector128<long> x, Vector128<long> y)
+            {
+                Vector256<long> result256 = Vector256<long>.Zero;
+
+                ref Vector128<long> result128 = ref Unsafe.As<Vector256<long>, Vector128<long>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{SByte}" /> instance from two <see cref="Vector128{SByte}" /> instances.</summary>
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{SByte}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector256<sbyte> Create(Vector128<sbyte> lower, Vector128<sbyte> upper)
         {
-            Vector256<sbyte> result256 = Vector256<sbyte>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<sbyte> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<sbyte> result128 = ref Unsafe.As<Vector256<sbyte>, Vector128<sbyte>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<sbyte> SoftwareFallback(Vector128<sbyte> x, Vector128<sbyte> y)
+            {
+                Vector256<sbyte> result256 = Vector256<sbyte>.Zero;
+
+                ref Vector128<sbyte> result128 = ref Unsafe.As<Vector256<sbyte>, Vector128<sbyte>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Single}" /> instance from two <see cref="Vector128{Single}" /> instances.</summary>
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{Single}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe Vector256<float> Create(Vector128<float> lower, Vector128<float> upper)
         {
-            Vector256<float> result256 = Vector256<float>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<float> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<float> result128 = ref Unsafe.As<Vector256<float>, Vector128<float>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<float> SoftwareFallback(Vector128<float> x, Vector128<float> y)
+            {
+                Vector256<float> result256 = Vector256<float>.Zero;
+
+                ref Vector128<float> result128 = ref Unsafe.As<Vector256<float>, Vector128<float>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{UInt16}" /> instance from two <see cref="Vector128{UInt16}" /> instances.</summary>
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{UInt16}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector256<ushort> Create(Vector128<ushort> lower, Vector128<ushort> upper)
         {
-            Vector256<ushort> result256 = Vector256<ushort>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<ushort> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<ushort> result128 = ref Unsafe.As<Vector256<ushort>, Vector128<ushort>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<ushort> SoftwareFallback(Vector128<ushort> x, Vector128<ushort> y)
+            {
+                Vector256<ushort> result256 = Vector256<ushort>.Zero;
+
+                ref Vector128<ushort> result128 = ref Unsafe.As<Vector256<ushort>, Vector128<ushort>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{UInt32}" /> instance from two <see cref="Vector128{UInt32}" /> instances.</summary>
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{UInt32}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector256<uint> Create(Vector128<uint> lower, Vector128<uint> upper)
         {
-            Vector256<uint> result256 = Vector256<uint>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<uint> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<uint> result128 = ref Unsafe.As<Vector256<uint>, Vector128<uint>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<uint> SoftwareFallback(Vector128<uint> x, Vector128<uint> y)
+            {
+                Vector256<uint> result256 = Vector256<uint>.Zero;
+
+                ref Vector128<uint> result128 = ref Unsafe.As<Vector256<uint>, Vector128<uint>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{UInt64}" /> instance from two <see cref="Vector128{UInt64}" /> instances.</summary>
         /// <param name="lower">The value that the lower 128-bits will be initialized to.</param>
         /// <param name="upper">The value that the upper 128-bits will be initialized to.</param>
         /// <returns>A new <see cref="Vector256{UInt64}" /> initialized from <paramref name="lower" /> and <paramref name="upper" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe Vector256<ulong> Create(Vector128<ulong> lower, Vector128<ulong> upper)
         {
-            Vector256<ulong> result256 = Vector256<ulong>.Zero;
+            if (Avx.IsSupported)
+            {
+                Vector256<ulong> result = lower.ToVector256Unsafe();
+                return result.WithUpper(upper);
+            }
 
-            ref Vector128<ulong> result128 = ref Unsafe.As<Vector256<ulong>, Vector128<ulong>>(ref result256);
-            result128 = lower;
-            Unsafe.Add(ref result128, 1) = upper;
+            return SoftwareFallback(lower, upper);
 
-            return result256;
+            Vector256<ulong> SoftwareFallback(Vector128<ulong> x, Vector128<ulong> y)
+            {
+                Vector256<ulong> result256 = Vector256<ulong>.Zero;
+
+                ref Vector128<ulong> result128 = ref Unsafe.As<Vector256<ulong>, Vector128<ulong>>(ref result256);
+                result128 = x;
+                Unsafe.Add(ref result128, 1) = y;
+
+                return result256;
+            }
         }
 
         /// <summary>Creates a new <see cref="Vector256{Byte}" /> instance with the first element initialized to the specified value and the remaining elements initialized to zero.</summary>
