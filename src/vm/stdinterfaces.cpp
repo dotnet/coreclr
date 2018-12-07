@@ -611,7 +611,6 @@ HRESULT GetITypeLibForAssembly(_In_ Assembly *pAssembly, _Outptr_ ITypeLib **ppT
         if (pTlb == Assembly::InvalidTypeLib)
             return TLBX_E_LIBNOTREGISTERED;
 
-        // Return cached copy.
         *ppTlb = pTlb;
         return S_OK;
     }
@@ -644,6 +643,10 @@ HRESULT GetITypeLibForAssembly(_In_ Assembly *pAssembly, _Outptr_ ITypeLib **ppT
     bool setCache = pAssembly->TrySetTypeLib(pTlb);
     if (!setCache)
     {
+        // Release the TypeLib that isn't going to be used
+        if (pTlb != Assembly::InvalidTypeLib)
+            pTlb->Release();
+
         // This call lost the race to set the TypeLib so recusively call
         // this function again to get the one that is set.
         return GetITypeLibForAssembly(pAssembly, ppTlb);
@@ -651,7 +654,7 @@ HRESULT GetITypeLibForAssembly(_In_ Assembly *pAssembly, _Outptr_ ITypeLib **ppT
 
     if (FAILED(hr))
     {
-        // If any error other than TLB not registered is returned, pass it on.
+        // Pass the HRESULT on if it is any error other than "TypeLib not registered".
         return (hr == TYPE_E_LIBNOTREGISTERED) ? TLBX_E_LIBNOTREGISTERED : hr;
     }
 
