@@ -427,16 +427,17 @@ struct RegPair
 // odd number of regs) then the second element of that RegPair will be REG_NA.
 //
 // Arguments:
-//   compiler - the compiler instance;
-//   regsMask - a mask of registers for prolog/epilog generation.
+//   regsMask - a mask of registers for prolog/epilog generation;
+//   regStack - a regStack instance to build the stack in, used to save temp copyings.
 //
 // Return value:
-//   an array stack of register pairs.
+//   the result is returned in the second argument.
 //
-ArrayStack<RegPair> buildRegPairsStack(Compiler* compiler, regMaskTP regsMask)
+void buildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack)
 {
-    ArrayStack<RegPair> regStack(compiler->getAllocator(CMK_Codegen));
-    unsigned            regsCount = genCountBits(regsMask);
+    assert(regStack != nullptr);
+
+    unsigned regsCount = genCountBits(regsMask);
 
     while (regsMask != RBM_NONE)
     {
@@ -457,16 +458,15 @@ ArrayStack<RegPair> buildRegPairsStack(Compiler* compiler, regMaskTP regsMask)
                 regsMask &= ~reg2Mask;
                 regsCount -= 1;
 
-                regStack.Push(RegPair(reg1, reg2));
+                regStack->Push(RegPair(reg1, reg2));
             }
         }
         if (!isPairSave)
         {
-            regStack.Push(RegPair(reg1));
+            regStack->Push(RegPair(reg1));
         }
     }
     assert(regsCount == 0 && regsMask == RBM_NONE);
-    return regStack;
 }
 
 //------------------------------------------------------------------------
@@ -519,8 +519,10 @@ int CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
     }
 #endif // DEBUG
 
-    ArrayStack<RegPair> regStack         = buildRegPairsStack(compiler, regsMask);
-    bool                lastSavedWasPair = false; // currently unused, see the comment below.
+    ArrayStack<RegPair> regStack(compiler->getAllocator(CMK_Codegen));
+    buildRegPairsStack(regsMask, &regStack);
+
+    bool lastSavedWasPair = false; // currently unused, see the comment below.
     for (int i = 0; i < regStack.Height(); ++i)
     {
         RegPair regPair = regStack.Bottom(i);
@@ -649,8 +651,10 @@ int CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
 {
     const int slotSize = GetSlotSizeForRegsInMask(regsMask);
 
-    ArrayStack<RegPair> regStack   = buildRegPairsStack(compiler, regsMask);
-    int                 stackDelta = 0;
+    ArrayStack<RegPair> regStack(compiler->getAllocator(CMK_Codegen));
+    buildRegPairsStack(regsMask, &regStack);
+
+    int stackDelta = 0;
     for (int i = 0; i < regStack.Height(); ++i)
     {
         bool lastRestoreInTheGroup = (i == regStack.Height() - 1);
