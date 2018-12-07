@@ -496,13 +496,16 @@ int GetSlotSizeForRegsInMask(regMaskTP regsMask)
 //
 // Arguments:
 //   regsMask             - a mask of registers for prolog generation;
-//   spDelta              - if non-zero, the amount to add to SP before the register saves;
+//   spDelta              - if non-zero, the amount to add to SP before the first register save (or together with it);
 //   spOffset             - the offset from SP that is the beginning of the callee-saved register area;
 //   isRegsToSaveCountOdd - (DEBUG only) true if number of registers to save is odd.
 //
-void CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
-                                             int&      spDelta,
-                                             int& spOffset DEBUGARG(bool isRegsToSaveCountOdd))
+// Return Value:
+//   SP offset after saving registers from this group.
+//
+int CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
+                                             int       spDelta,
+                                             int spOffset DEBUGARG(bool isRegsToSaveCountOdd))
 {
     const int slotSize = GetSlotSizeForRegsInMask(regsMask);
 
@@ -540,6 +543,7 @@ void CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
 
         spDelta = 0; // We've now changed SP already, if necessary; don't do it again.
     }
+    return spOffset;
 }
 
 //------------------------------------------------------------------------
@@ -603,16 +607,24 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
     bool isRegsToSaveCountOdd = ((intRegsToSaveCount + floatRegsToSaveCount) % 2 != 0);
 #endif
 
+    bool floatSavesSp = (maskSaveRegsInt == 0);
+
     if (maskSaveRegsInt != 0)
     {
+        assert(!floatSavesSp); // We always change SP only once with the first save/last load.
+
         // Save the integer registers.
-        genSaveCalleeSavedRegisterGroup(maskSaveRegsInt, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
+        spOffset = genSaveCalleeSavedRegisterGroup(maskSaveRegsInt, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
     }
 
     if (maskSaveRegsFloat != 0)
     {
+        int floatSpDelta = floatSavesSp ? spDelta : 0;
+
         // Save the floating-point/SIMD registers
-        genSaveCalleeSavedRegisterGroup(maskSaveRegsFloat, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
+        spOffset =
+            genSaveCalleeSavedRegisterGroup(maskSaveRegsFloat, floatSpDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
+        spDelta = 0;
     }
 }
 
@@ -622,14 +634,15 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
 //
 // Arguments:
 //   regsMask             - a mask of registers for epilog generation;
-//   spDelta              - if non-zero, the amount to add to SP after the register restores;
+//   spDelta              - if non-zero, the amount to add to SP after the last register restore (or together with it);
 //   spOffset             - the offset from SP that is the beginning of the callee-saved register area;
-//   isRegsToSaveCountOdd - (DEBUG only) true if number of registers to restore is odd.
 //
-void CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
+// Return Value:
+//   SP offset after restoring registers from this group.
+//
+int CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
                                                 int       spDelta,
-                                                int&      spOffset,
-                                                bool lastRegGroup DEBUGARG(bool isRegsToRestoreCountOdd))
+                                                int spOffset DEBUGARG(bool isRegsToRestoreCountOdd))
 {
     const int slotSize = GetSlotSizeForRegsInMask(regsMask);
 
@@ -637,9 +650,9 @@ void CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
     int                 stackDelta = 0;
     for (int i = 0; i < regStack.Height(); ++i)
     {
-        bool lastRestoreInTheGroup           = (i == regStack.Height() - 1);
-        bool thisIsTheLastRestoreInstruction = lastRegGroup && lastRestoreInTheGroup;
-        if (thisIsTheLastRestoreInstruction)
+        bool lastRestoreInTheGroup = (i == regStack.Height() - 1);
+        bool updateStackDelta      = lastRestoreInTheGroup && (spDelta != 0);
+        if (updateStackDelta)
         {
             // Update stack delta only if it is the last restore (the first save).
             assert(stackDelta == 0);
@@ -666,6 +679,7 @@ void CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
         CheckSPOffset(isRegsToRestoreCountOdd, spOffset, slotSize);
     }
 #endif // DEBUG
+    return spOffset;
 }
 
 //------------------------------------------------------------------------
@@ -739,21 +753,23 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
     // We want to restore in the opposite order we saved, so the unwind codes match. Be careful to handle odd numbers of
     // callee-saved registers properly.
 
-    // Restore the floating-point/SIMD registers
+    bool floatRestoresSp = (maskRestoreRegsInt == 0);
 
     if (maskRestoreRegsFloat != 0)
     {
-        bool lastRegGroup = (maskRestoreRegsInt == 0);
-        // Restore the integer registers
-        genRestoreCalleeSavedRegisterGroup(maskRestoreRegsFloat, spDelta, spOffset,
-                                          lastRegGroup DEBUGARG(isRegsToRestoreCountOdd));
+        int floatSpDelta = floatRestoresSp ? spDelta : 0;
+        // Restore the floating-point/SIMD registers
+        spOffset = genRestoreCalleeSavedRegisterGroup(maskRestoreRegsFloat, floatSpDelta,
+                                                      spOffset DEBUGARG(isRegsToRestoreCountOdd));
     }
 
     if (maskRestoreRegsInt != 0)
     {
+        assert(!floatRestoresSp); // We always change SP only once with the first save/last load.
+
         // Restore the integer registers
-        genRestoreCalleeSavedRegisterGroup(maskRestoreRegsInt, spDelta, spOffset,
-                                          true DEBUGARG(isRegsToRestoreCountOdd));
+        spOffset =
+            genRestoreCalleeSavedRegisterGroup(maskRestoreRegsInt, spDelta, spOffset DEBUGARG(isRegsToRestoreCountOdd));
     }
 }
 
