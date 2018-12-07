@@ -61,6 +61,8 @@ jobs:
       - ${{ if ne(variables['System.TeamProject'], 'public') }}:
         - name: helixTargetQueuesArg
           value: ${{ format('/p:HelixTargetQueues=\"{0}\"', parameters.helixQueuesInternal) }}
+      - name: commonMSBuildArgs
+        value: ${{ format('/maxcpucount /p:__BuildOS={0} /p:__BuildArch={1} /p:__BuildType={2}', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
 
     # TODO: Enable crossgen in build-test.sh. It currently doesn't
     # accept a crossgen arg, so disable the macos/linux crossgen test
@@ -110,18 +112,17 @@ jobs:
 
     # Prepare tests for helix
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType) /p:UsePython=true
+      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests/Core_Root $(commonMSBuildArgs) /p:UsePython=true
         # TODO: remove UsePython argument once we've removed generated wrappers in helixprep.proj
         displayName: Prepare test archives for Helix
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
         # TODO: remove UsePython argument once we've removed generated wrappers in helixprep.proj
-      - script: .\Tools\dotnetcli\dotnet.exe msbuild tests\helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)\tests\core_root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType) /p:UsePython=true
+      - script: .\Tools\dotnetcli\dotnet.exe msbuild tests\helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)\tests\core_root $(commonMSBuildArgs) /p:UsePython=true
         displayName: Prepare test archives for Helix
-
 
     # Send tests to helix
     - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixpublishwitharcade.proj /maxcpucount $(scenariosArg) $(helixTargetQueuesArg)
+      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixpublishwitharcade.proj $(commonMSBuildArgs) $(scenariosArg) $(helixTargetQueuesArg)
         displayName: Send test jobs to Helix
         env:
           ${{ if eq(variables['System.TeamProject'], 'internal') }}:
@@ -132,7 +133,7 @@ jobs:
             HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: .\Tools\dotnetcli\dotnet msbuild tests\helixpublishwitharcade.proj /maxcpucount $(scenariosArg) $(helixTargetQueuesArg)
+      - script: .\Tools\dotnetcli\dotnet msbuild tests\helixpublishwitharcade.proj $(commonMSBuildArgs) $(scenariosArg) $(helixTargetQueuesArg)
         displayName: Send test jobs to Helix
         env:
           ${{ if eq(variables['System.TeamProject'], 'internal') }}:
