@@ -480,7 +480,7 @@ void buildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack)
 //
 int GetSlotSizeForRegsInMask(regMaskTP regsMask)
 {
-    assert((regsMask & RBM_CALLEE_SAVED) == regsMask); // Do not expect anything else.
+    assert((regsMask & (RBM_CALLEE_SAVED | RBM_LR)) == regsMask); // Do not expect anything else.
 
     bool isIntMask = ((regsMask & RBM_ALLFLOAT) == 0);
 #ifdef DEBUG
@@ -556,13 +556,11 @@ int CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
 // in the function or funclet prolog. The save set does not contain FP, since that is
 // guaranteed to be saved separately, so we can set up chaining. We can only use the instructions
 // that are allowed by the unwind codes. Integer registers are stored at lower addresses,
-// FP/SIMD registers are stored at higher addresses. There are no gaps. The caller ensures that
+// FP/SIMD registers are stored at higher addresses. The caller ensures that
 // there is enough space on the frame to store these registers, and that the store instructions
 // we need to use (STR or STP) are encodable with the stack-pointer immediate offsets we need to
-// use. Note that the save set can contain LR if this is a frame without a frame pointer, in
-// which case LR is saved along with the other callee-saved registers. The caller can tell us
-// to fold in a stack pointer adjustment, which we will do with the first instruction. Note that
-// the stack pointer adjustment must be by a multiple of 16 to preserve the invariant that the
+// use. The caller can tell us to fold in a stack pointer adjustment, which we will do with the first instruction. Note
+// that the stack pointer adjustment must be by a multiple of 16 to preserve the invariant that the
 // stack pointer is always 16 byte aligned. If we are saving an odd number of callee-saved
 // registers, though, we will have an empty aligment slot somewhere. It turns out we will put
 // it below (at a lower address) the callee-saved registers, as that is currently how we
@@ -577,9 +575,10 @@ int CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
 //    spDelta                 - If non-zero, the amount to add to SP before the register saves (must be negative or
 //                              zero).
 //
-// Return Value:
-//    None.
-
+// Notes:
+//    the save set can contain LR in which case LR is saved along with the other callee-saved registers.
+//    But currently Jit doesn't use frames without frame pointer on arm64.
+//
 void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowestCalleeSavedOffset, int spDelta)
 {
     assert(spDelta <= 0);
@@ -596,10 +595,10 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
     }
 
     assert((spDelta % 16) == 0);
-    assert((regsToSaveMask & RBM_FP) == 0);                    // We never save FP here.
-    assert((regsToSaveMask & RBM_LR) == 0);                    // We currently never save LR here.
-    assert(regsToSaveCount <= genCountBits(RBM_CALLEE_SAVED)); // We also save LR, even though it is not in
-                                                               // RBM_CALLEE_SAVED.
+    assert((regsToSaveMask & RBM_FP) == 0); // We never save FP here.
+
+    // We also save LR, even though it is not in RBM_CALLEE_SAVED.
+    assert(regsToSaveCount <= genCountBits(RBM_CALLEE_SAVED | RBM_LR));
 
     regMaskTP maskSaveRegsFloat = regsToSaveMask & RBM_ALLFLOAT;
     regMaskTP maskSaveRegsInt   = regsToSaveMask & ~maskSaveRegsFloat;
@@ -737,8 +736,9 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
 
     assert((spDelta % 16) == 0);
     assert((regsToRestoreMask & RBM_FP) == 0); // We never restore FP here.
-    assert((regsToRestoreMask & RBM_LR) == 0); // we never restore LR here.
-    assert(regsToRestoreCount <= genCountBits(RBM_CALLEE_SAVED));
+
+    // We also restore LR, even though it is not in RBM_CALLEE_SAVED.
+    assert(regsToRestoreCount <= genCountBits(RBM_CALLEE_SAVED | RBM_LR));
 
     regMaskTP maskRestoreRegsFloat = regsToRestoreMask & RBM_ALLFLOAT;
     regMaskTP maskRestoreRegsInt   = regsToRestoreMask & ~maskRestoreRegsFloat;
