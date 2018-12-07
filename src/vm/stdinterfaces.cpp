@@ -636,19 +636,25 @@ HRESULT GetITypeLibForAssembly(_In_ Assembly *pAssembly, _Outptr_ ITypeLib **ppT
         {
             // Try loading the highest registered version.
             hr = LoadRegTypeLib(assemblyGuid, -1, -1, &pTlb);
+            if (FAILED(hr))
+                pTlb = Assembly::InvalidTypeLib;
         }
+    }
+
+    bool setCache = pAssembly->TrySetTypeLib(pTlb);
+    if (!setCache)
+    {
+        // This call lost the race to set the TypeLib so recusively call
+        // this function again to get the one that is set.
+        return GetITypeLibForAssembly(pAssembly, ppTlb);
     }
 
     if (FAILED(hr))
     {
-        pAssembly->SetTypeLib(Assembly::InvalidTypeLib);
-
         // If any error other than TLB not registered is returned, pass it on.
         return (hr == TYPE_E_LIBNOTREGISTERED) ? TLBX_E_LIBNOTREGISTERED : hr;
     }
 
-    _ASSERTE(pTlb != nullptr && pTlb != Assembly::InvalidTypeLib);
-    pAssembly->SetTypeLib(pTlb);
     *ppTlb = pTlb;
     return S_OK;
 

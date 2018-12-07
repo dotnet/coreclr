@@ -277,7 +277,7 @@ Assembly::~Assembly()
         m_pManifestWinMDImport->Release();
     }
 
-    if (m_pITypeLib != nullptr && m_pITypeLib != (ITypeLib*)-1)
+    if (m_pITypeLib != nullptr && m_pITypeLib != Assembly::InvalidTypeLib)
     {
         m_pITypeLib->Release();
     }
@@ -337,27 +337,6 @@ void Assembly::StartUnload()
         ProfilerCallAssemblyUnloadStarted(this);
     }
 #endif
-
-#ifdef FEATURE_COMINTEROP
-    // Release tlb files eagerly
-    if (g_fProcessDetach == FALSE)
-    {
-        DefaultCatchFilterParam param;
-        param.pv = COMPLUS_EXCEPTION_EXECUTE_HANDLER;
-        PAL_TRY(Assembly *, pThis, this)
-        {
-            if (pThis->m_pITypeLib != nullptr && pThis->m_pITypeLib != (ITypeLib*)-1)
-            {
-                pThis->m_pITypeLib->Release();
-                pThis->m_pITypeLib = nullptr;
-            }
-        }
-        PAL_EXCEPT_FILTER(DefaultCatchFilter)
-        {
-        }
-        PAL_ENDTRY
-    }
-#endif // FEATURE_COMINTEROP
 }
 
 void Assembly::Terminate( BOOL signalProfiler )
@@ -2013,7 +1992,7 @@ BOOL Assembly::IsInstrumentedHelper()
 
 #ifdef FEATURE_COMINTEROP
 
-ITypeLib *Assembly::InvalidTypeLib = (ITypeLib *)-1;
+ITypeLib * const Assembly::InvalidTypeLib = (ITypeLib *)-1;
 
 ITypeLib* Assembly::GetTypeLib()
 {
@@ -2032,32 +2011,25 @@ ITypeLib* Assembly::GetTypeLib()
     return pTlb;
 } // ITypeLib* Assembly::GetTypeLib()
 
-void Assembly::SetTypeLib(ITypeLib *pNew)
+bool Assembly::TrySetTypeLib(_In_ ITypeLib *pNew)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_TRIGGERS;
         FORBID_FAULT;
+        PRECONDITION(CheckPointer(pNew));
     }
     CONTRACTL_END
 
-    ITypeLib *pOld;
-    do
-    {
-        pOld = m_pITypeLib;
-    }
-    while (pOld != InterlockedCompareExchangeT(&m_pITypeLib, pNew, pOld));
+    ITypeLib *pOld = InterlockedCompareExchangeT(&m_pITypeLib, pNew, nullptr);
+    if (pOld != nullptr)
+        return false;
 
-    // TypeLibs are refcounted pointers.
-    if (pNew != pOld)
-    {
-        if (pNew != nullptr && pNew != Assembly::InvalidTypeLib)
-            pNew->AddRef();
+    if (pNew != Assembly::InvalidTypeLib)
+        pNew->AddRef();
 
-        if (pOld != nullptr && pOld != Assembly::InvalidTypeLib)
-            pOld->Release();
-    }
+    return true;
 } // void Assembly::SetTypeLib()
 
 #endif // FEATURE_COMINTEROP

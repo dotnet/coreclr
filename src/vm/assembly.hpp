@@ -456,13 +456,13 @@ public:
 #endif // FEATURE_PREJIT
 
 #ifdef FEATURE_COMINTEROP
-    static ITypeLib *InvalidTypeLib;
+    static ITypeLib * const InvalidTypeLib;
 
     // Get any cached ITypeLib* for the assembly.
     ITypeLib *GetTypeLib();
 
-    // Cache the ITypeLib*, if one is not already cached.
-    void SetTypeLib(ITypeLib *pTlb);
+    // Try to set the ITypeLib*, if one is not already cached.
+    bool TrySetTypeLib(_In_ ITypeLib *pTlb);
 #endif // FEATURE_COMINTEROP
 
 #ifndef DACCESS_COMPILE
