@@ -118,6 +118,7 @@ Assembly::Assembly(BaseDomain *pDomain, PEAssembly* pFile, DebuggerAssemblyContr
     m_pLoaderAllocator(NULL),
     m_isDisabledPrivateReflection(0),
 #ifdef FEATURE_COMINTEROP
+    m_pITypeLib(NULL),
     m_winMDStatus(WinMDStatus_Unknown),
     m_pManifestWinMDImport(NULL),
 #endif // FEATURE_COMINTEROP
@@ -275,6 +276,11 @@ Assembly::~Assembly()
     {
         m_pManifestWinMDImport->Release();
     }
+
+    if (m_pITypeLib != nullptr && m_pITypeLib != (ITypeLib*)-1)
+    {
+        m_pITypeLib->Release();
+    }
 #endif // FEATURE_COMINTEROP
 }
 
@@ -331,6 +337,27 @@ void Assembly::StartUnload()
         ProfilerCallAssemblyUnloadStarted(this);
     }
 #endif
+
+#ifdef FEATURE_COMINTEROP
+    // Release tlb files eagerly
+    if (g_fProcessDetach == FALSE)
+    {
+        DefaultCatchFilterParam param;
+        param.pv = COMPLUS_EXCEPTION_EXECUTE_HANDLER;
+        PAL_TRY(Assembly *, pThis, this)
+        {
+            if (pThis->m_pITypeLib != nullptr && pThis->m_pITypeLib != (ITypeLib*)-1)
+            {
+                pThis->m_pITypeLib->Release();
+                pThis->m_pITypeLib = nullptr;
+            }
+        }
+        PAL_EXCEPT_FILTER(DefaultCatchFilter)
+        {
+        }
+        PAL_ENDTRY
+    }
+#endif // FEATURE_COMINTEROP
 }
 
 void Assembly::Terminate( BOOL signalProfiler )
@@ -1982,6 +2009,51 @@ BOOL Assembly::IsInstrumentedHelper()
     return false;    
 }
 #endif // FEATURE_PREJIT
+
+
+#ifdef FEATURE_COMINTEROP
+
+ITypeLib* Assembly::GetTypeLib()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END
+
+    ITypeLib *pTlb = m_pITypeLib;
+    if (pTlb != nullptr && pTlb != (ITypeLib*)-1)
+        pTlb->AddRef();
+
+    return pTlb;
+} // ITypeLib* Assembly::GetTypeLib()
+
+void Assembly::SetTypeLib(ITypeLib *pNew)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END
+
+    ITypeLib *pOld = InterlockedExchangeT(&m_pITypeLib, pNew);
+
+    // TypeLibs are refcounted pointers.
+    if (pNew != pOld)
+    {
+        if (pNew != nullptr && pNew != (ITypeLib*)-1)
+            pNew->AddRef();
+
+        if (pOld != nullptr && pOld != (ITypeLib*)-1)
+            pOld->Release();
+    }
+} // void Assembly::SetTypeLib()
+
+#endif // FEATURE_COMINTEROP
 
 //***********************************************************
 // Add an assembly to the assemblyref list. pAssemEmitter specifies where

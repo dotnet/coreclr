@@ -575,7 +575,7 @@ ClassInfo_GetClassInfo(IUnknown* pUnk, ITypeInfo** ppTI)
         }
 
         MethodTable* pClass = pWrap->GetMethodTable();
-        IfFailThrow(GetITypeInfoForEEClass(pClass, ppTI, true/*bClassInfo*/));
+        IfFailThrow(GetITypeInfoForEEClass(pClass, ppTI, true /* bClassInfo */));
     }
     END_EXTERNAL_ENTRYPOINT;
 
@@ -583,22 +583,75 @@ ClassInfo_GetClassInfo(IUnknown* pUnk, ITypeInfo** ppTI)
 }
 
 //------------------------------------------------------------------------------------------
-// Helper to get the ITypeInfo* for a type.
-HRESULT GetITypeLibForEEClass(MethodTable *pClass, ITypeLib **ppTLB, int bAutoCreate, int flags)
+// Helper to get the ITypeLib* for a Assembly.
+HRESULT GetITypeLibForAssembly(_In_ Assembly *pAssembly, _Outptr_ ITypeLib **ppTlb)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION(CheckPointer(pAssembly));
+        PRECONDITION(CheckPointer(ppTlb));
     }
     CONTRACTL_END;
 
-    return COR_E_NOTSUPPORTED;
-} // HRESULT GetITypeLibForEEClass()
+    HRESULT hr;
+
+    // If the module wasn't imported from COM, fail. In .NET Framework the runtime
+    // would generate a ITypeLib instance, but .NET Core doesn't support that.
+    if (!pAssembly->IsImportedFromTypeLib())
+        return COR_E_NOTSUPPORTED;
+
+    // Check for cached copy.
+    ITypeLib *pTlb = pAssembly->GetTypeLib();
+    if (pTlb != nullptr)
+    {
+        // If the cached value is -1, an attempt was already made but failed.
+        if (pTlb == (ITypeLib*)-1)
+            return TLBX_E_LIBNOTREGISTERED;
+
+        // Return cached copy.
+        *ppTlb = pTlb;
+        return S_OK;
+    }
+
+    // Retrieve the guid for the assembly.
+    GUID assemblyGuid;
+    IfFailRet(GetTypeLibGuidForAssembly(pAssembly, &assemblyGuid));
+
+    // Retrieve the major and minor version number.
+    USHORT wMajor;
+    USHORT wMinor;
+    IfFailRet(GetTypeLibVersionForAssembly(pAssembly, &wMajor, &wMinor));
+
+    hr = LoadRegTypeLib(assemblyGuid, wMajor, wMinor, ppTlb);
+    if (SUCCEEDED(hr))
+        return S_OK;
+
+    // Try just the Assembly version
+    IfFailRet(pAssembly->GetVersion(&wMajor, &wMinor, nullptr, nullptr));
+    hr = LoadRegTypeLib(assemblyGuid, wMajor, wMinor, ppTlb);
+    if (SUCCEEDED(hr))
+        return S_OK;
+
+    // Try loading the highest registered version.
+    hr = LoadRegTypeLib(assemblyGuid, -1, -1, ppTlb);
+    if (SUCCEEDED(hr))
+        return S_OK;
+
+    // If any error other than not registered is returned, pass it on.
+    if (hr != TYPE_E_LIBNOTREGISTERED)
+        return hr;
+
+    // Cache the lookup failure
+    pAssembly->SetTypeLib((ITypeLib*)-1);
+
+    return TLBX_E_LIBNOTREGISTERED;
+} // HRESULT GetITypeLibForAssembly()
 
 
-HRESULT GetITypeInfoForEEClass(MethodTable *pClass, ITypeInfo **ppTI, int bClassInfo/*=false*/, int bAutoCreate/*=true*/, int flags)
+HRESULT GetITypeInfoForEEClass(MethodTable *pClass, ITypeInfo **ppTI, bool bClassInfo)
 {
     CONTRACTL
     {
@@ -681,7 +734,7 @@ HRESULT GetITypeInfoForEEClass(MethodTable *pClass, ITypeInfo **ppTI, int bClass
         }
 
         // Retrieve the ITypeLib for the assembly containing the type.
-        IfFailGo(GetITypeLibForEEClass(pClass, &pITLB, bAutoCreate, flags));
+        IfFailGo(GetITypeLibForAssembly(pClass->GetAssembly(), &pITLB));
 
         // Get the GUID of the desired TypeRef.
         IfFailGo(TryGetGuid(pClass, &clsid, TRUE));
@@ -692,8 +745,8 @@ HRESULT GetITypeInfoForEEClass(MethodTable *pClass, ITypeInfo **ppTI, int bClass
     else if (pClass->IsComImport())
     {   
         // This is a COM imported class, with no IClassX.  Get default interface.
-        IfFailGo(GetITypeLibForEEClass(pClass, &pITLB, bAutoCreate, flags));
-        IfFailGo(TryGetGuid(pClass, &clsid, TRUE));       
+        IfFailGo(GetITypeLibForAssembly(pClass->GetAssembly(), &pITLB));
+        IfFailGo(TryGetGuid(pClass, &clsid, TRUE));
         IfFailGo(pITLB->GetTypeInfoOfGuid(clsid, &pTI));
         IfFailGo(GetDefaultInterfaceForCoclass(pTI, &pTIDef));
 
@@ -717,7 +770,7 @@ HRESULT GetITypeInfoForEEClass(MethodTable *pClass, ITypeInfo **ppTI, int bClass
             {
                 _ASSERTE(!hndDefItfClass.IsNull());
                 _ASSERTE(hndDefItfClass.IsInterface());
-                hr = GetITypeInfoForEEClass(hndDefItfClass.GetMethodTable(), ppTI, FALSE, bAutoCreate, flags);
+                hr = GetITypeInfoForEEClass(hndDefItfClass.GetMethodTable(), ppTI, false /* bClassInfo */);
                 break;
             }
 
@@ -728,7 +781,7 @@ HRESULT GetITypeInfoForEEClass(MethodTable *pClass, ITypeInfo **ppTI, int bClass
                 _ASSERTE(!hndDefItfClass.IsInterface());
 
                 // Retrieve the ITypeLib for the assembly containing the type.
-                IfFailGo(GetITypeLibForEEClass(hndDefItfClass.GetMethodTable(), &pITLB, bAutoCreate, flags));
+                IfFailGo(GetITypeLibForAssembly(hndDefItfClass.GetMethodTable()->GetAssembly(), &pITLB));
 
                 // Get the GUID of the desired TypeRef.
                 IfFailGo(TryGetGuid(hndDefItfClass.GetMethodTable(), &clsid, TRUE));
@@ -757,16 +810,6 @@ HRESULT GetITypeInfoForEEClass(MethodTable *pClass, ITypeInfo **ppTI, int bClass
                 break;
             }
         }
-    }
-
-    if (bAutoCreate && SUCCEEDED(hr))
-    {
-        EX_TRY
-        {
-            // Make sure that marshaling recognizes CLSIDs of types with autogenerated ITypeInfo.
-            GetAppDomain()->InsertClassForCLSID(pClass, TRUE);
-        }
-        EX_CATCH_HRESULT(hr)
     }
 
 ErrExit:

@@ -455,6 +455,14 @@ public:
     BOOL IsInstrumentedHelper();
 #endif // FEATURE_PREJIT
 
+#ifdef FEATURE_COMINTEROP
+    // Get any cached ITypeLib* for the assembly.
+    ITypeLib *GetTypeLib();
+
+    // Cache the ITypeLib*, if one is not already cached.
+    void SetTypeLib(ITypeLib *pTlb);
+#endif // FEATURE_COMINTEROP
+
 #ifndef DACCESS_COMPILE
 
     void DECLSPEC_NORETURN ThrowTypeLoadException(LPCUTF8 pszFullName, UINT resIDWhy);
@@ -604,6 +612,8 @@ private:
     DWORD                 m_isDisabledPrivateReflection;
 
 #ifdef FEATURE_COMINTEROP
+    // If a TypeLib is ever required for this module, cache the pointer here.
+    ITypeLib              *m_pITypeLib;
     InteropAttributeStatus m_InteropAttributeStatus;
 
     WinMDStatus            m_winMDStatus;
