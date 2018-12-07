@@ -422,6 +422,9 @@ struct RegPair
 
 //------------------------------------------------------------------------
 // buildRegPairsStack: Build a stack of register pair for prolog/epilog save/restore for the given mask.
+// The first register pair will contain the lowest register. Register pairs will combine neighbor
+// registers in pairs. If it can't be done (for example if we have a hole or this is the last reg in a mask with
+// odd number of regs) then the second element of that RegPair will be REG_NA.
 //
 // Arguments:
 //   compiler - the compiler instance;
