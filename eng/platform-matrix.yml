@@ -17,7 +17,7 @@ jobs:
     osGroupName: Linux
     containerName: ubuntu_1404_arm_cross_build_image
     helixQueuesPublic: 'Ubuntu.1404.Arm32.Open'
-    # Currently we don't have Arm32 internal Helix queues
+    # Currently we don't have Linux/arm32 internal Helix queues
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux arm64
