@@ -45,19 +45,6 @@ namespace System
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 127
         };
 
-        /// <summary>128-element map from an ASCII char to its hex value * 16, e.g. arr['F'] == 0xF0. 0xFF means it's not a hex digit.</summary>
-        internal static readonly byte[] s_charToHexLookupHi =
-        {
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 15
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 31
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 47
-            0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 63
-            0xFF, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 79
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 95
-            0xFF, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 111
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 127
-        };
-
         private static unsafe bool TryNumberToInt32(ref NumberBuffer number, ref int value)
         {
             number.CheckConsistency();
@@ -1932,16 +1919,14 @@ namespace System
             const int maxLowBits = 15;
             const int maxHighBits = 15 << 4;
 
-            byte[] charToHexLookupHi = s_charToHexLookupHi;
             byte[] charToHexLookup = s_charToHexLookup;
 
             unchecked
             {
-
-                if (firstChar >= charToHexLookupHi.Length || secondChar >= charToHexLookup.Length)
+                if (firstChar >= charToHexLookup.Length || secondChar >= charToHexLookup.Length)
                     return false;
 
-                firstChar = charToHexLookupHi[firstChar];
+                firstChar = (ushort)(charToHexLookup[firstChar] << 4);
                 secondChar = charToHexLookup[secondChar];
 
                 int value = firstChar + secondChar;
@@ -1965,7 +1950,7 @@ namespace System
 
         /// <summary>Tries to parse (not strict) two bytes from <paramref name="str"/>.</summary>
         /// <remarks>Called after <see cref="TryParseHexStrict(ushort, ushort, ref byte)"/> returns false. Allows staring from plus sign and hex prefixes.</remarks>
-        internal static unsafe bool TryParseHexForTwoBytes(ReadOnlySpan<char> str, int startIndex, ref byte currentByte, ref byte nextByte)
+        internal static bool TryParseHexForTwoBytes(ReadOnlySpan<char> str, int startIndex, ref byte currentByte, ref byte nextByte)
         {
             // This method called for rarely used input and performance is not a goal.
             // Character at startIndex should be first character of special prefix like "+", "0x" or "+0X".
