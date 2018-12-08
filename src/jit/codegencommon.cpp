@@ -3246,9 +3246,7 @@ void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
         if (lcl != NULL)
         {
             wbKind          = CWBKind_OtherByRefLocal; // Unclassified local variable.
-            unsigned lclNum = 0;
-            if (lcl->gtOper == GT_LCL_VAR)
-                lclNum = lcl->gtLclVarCommon.gtLclNum;
+            unsigned lclNum = lcl->AsLclVar()->GetLclNum();
             if (lclNum == compiler->info.compRetBuffArg)
             {
                 wbKind = CWBKind_RetBuf; // Ret buff.  Can happen if the struct exceeds the size limit.

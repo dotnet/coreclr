@@ -1946,16 +1946,20 @@ public:
 
     bool IsRegVarDeath() const
     {
+        unreached();
         return (gtFlags & GTF_VAR_DEATH) ? true : false;
     }
     bool IsRegVarBirth() const
     {
+        unreached();
         return (gtFlags & GTF_REG_BIRTH) ? true : false;
     }
+
     bool IsReverseOp() const
     {
         return (gtFlags & GTF_REVERSE_OPS) ? true : false;
     }
+
     bool IsUnsigned() const
     {
         return ((gtFlags & GTF_UNSIGNED) != 0);

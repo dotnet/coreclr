@@ -714,11 +714,7 @@ GCInfo::WriteBarrierForm GCInfo::gcWriteBarrierFormFromTargetAddress(GenTree* tg
     }
     if (tgtAddr->OperGet() == GT_LCL_VAR)
     {
-        unsigned lclNum = 0;
-        if (tgtAddr->gtOper == GT_LCL_VAR)
-        {
-            lclNum = tgtAddr->gtLclVar.gtLclNum;
-        }
+        unsigned lclNum = tgtAddr->AsLclVar()->GetLclNum();
 
         LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
 
