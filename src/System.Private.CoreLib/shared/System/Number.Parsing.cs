@@ -45,43 +45,18 @@ namespace System
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 127
         };
 
-        /// <summary>128-element map from an ASCII char to its hex value, e.g. arr['F'] == {0xF0, 0x0F}. {0xFF, 0xFF} means it's not a hex digit.</summary>
-        internal static readonly HiLowByte[] s_charToHiLowHexLookup =
+        /// <summary>128-element map from an ASCII char to its hex value * 16, e.g. arr['F'] == 0xF0. 0xFF means it's not a hex digit.</summary>
+        internal static readonly byte[] s_charToHexLookupHi =
         {
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 15
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 31
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 47
-            0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,  0x7,  0x8,  0x9,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 63
-            0xFF, 0xA,  0xB,  0xC,  0xD,  0xE,  0xF,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 79
+            0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 63
+            0xFF, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 79
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 95
-            0xFF, 0xa,  0xb,  0xc,  0xd,  0xe,  0xf,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 111
+            0xFF, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 111
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 127
         };
-
-        /// <summary>Special struct to parse hex to byte. Contains high 4 bits in <see cref="High"/> and low 4 bits in <see cref="Low"/>.</summary>
-        internal struct HiLowByte
-        {
-            public byte High;
-            public byte Low;
-
-            public HiLowByte(byte low)
-            {
-                High = (byte)(low << 4);
-                Low = low;
-            }
-
-            public static implicit operator HiLowByte(byte value)
-            {
-                if (value == 0xFF)
-                {
-                    return new HiLowByte { High = 0xFF, Low = 0xFF };
-                }
-
-                Debug.Assert(value < 16, "Value should be less than 16 or equals to 255");
-
-                return new HiLowByte { High = (byte)(value << 4), Low = value };
-            }
-        }
 
         private static unsafe bool TryNumberToInt32(ref NumberBuffer number, ref int value)
         {
@@ -1957,15 +1932,17 @@ namespace System
             const int maxLowBits = 15;
             const int maxHighBits = 15 << 4;
 
-            HiLowByte[] charToHexLookup = s_charToHiLowHexLookup;
+            byte[] charToHexLookupHi = s_charToHexLookupHi;
+            byte[] charToHexLookup = s_charToHexLookup;
+
             unchecked
             {
 
-                if (firstChar >= charToHexLookup.Length || secondChar >= charToHexLookup.Length)
+                if (firstChar >= charToHexLookupHi.Length || secondChar >= charToHexLookup.Length)
                     return false;
 
-                firstChar = charToHexLookup[firstChar].High;
-                secondChar = charToHexLookup[secondChar].Low;
+                firstChar = charToHexLookupHi[firstChar];
+                secondChar = charToHexLookup[secondChar];
 
                 int value = firstChar + secondChar;
 
@@ -1993,7 +1970,6 @@ namespace System
             // This method called for rarely used input and performance is not a goal.
             // Character at startIndex should be first character of special prefix like "+", "0x" or "+0X".
 
-            HiLowByte[] charToHexLookup = s_charToHiLowHexLookup;
             currentByte = 0;
             if (startIndex + 3 >= str.Length)
                 return false;
