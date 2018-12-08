@@ -1916,34 +1916,18 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool TryParseHexStrict(ushort firstChar, ushort secondChar, ref byte currentByte)
         {
-            const int maxLowBits = 15;
-            const int maxHighBits = 15 << 4;
-
-            byte[] charToHexLookup = s_charToHexLookup;
-
             unchecked
             {
-                if (firstChar >= charToHexLookup.Length || secondChar >= charToHexLookup.Length)
+                if (firstChar >= s_charToHexLookup.Length || secondChar >= s_charToHexLookup.Length)
                     return false;
 
-                firstChar = (ushort)(charToHexLookup[firstChar] << 4);
-                secondChar = charToHexLookup[secondChar];
+                firstChar = s_charToHexLookup[firstChar];
+                secondChar = s_charToHexLookup[secondChar];
 
-                int value = firstChar + secondChar;
-
-                // for 255 we need to distinguish Bits overflow (from 255 + 0) and normal 255 value (from 240 + 15)
-                if (value >= byte.MaxValue)
-                {
-                    if (firstChar == maxHighBits && secondChar == maxLowBits)
-                    {
-                        currentByte = byte.MaxValue;
-                        return true;
-                    }
-
+                if ((firstChar | secondChar) == 0xFF)
                     return false;
-                }
 
-                currentByte = (byte)value;
+                currentByte = (byte)((firstChar << 4) + secondChar);
                 return true;
             }
         }
