@@ -47,8 +47,8 @@ public:
 #ifndef FEATURE_PAL
     static FCDECL1(VOID, GetSystemTimeWithLeapSecondsHandling, FullSystemTime *time);
     static FCDECL2(FC_BOOL_RET, ValidateSystemTime, SYSTEMTIME *time, CLR_BOOL localTime);
-    static FCDECL2(FC_BOOL_RET, SystemFileTimeToSystemTime, INT64 fileTime, FullSystemTime *time);
-    static FCDECL2(FC_BOOL_RET, SystemTimeToSystemFileTime, SYSTEMTIME *time, INT64 *pFileTime);
+    static FCDECL2(FC_BOOL_RET, FileTimeToSystemTime, INT64 fileTime, FullSystemTime *time);
+    static FCDECL2(FC_BOOL_RET, SystemTimeToFileTime, SYSTEMTIME *time, INT64 *pFileTime);
 #endif // FEATURE_PAL
     static FCDECL0(INT64, __GetSystemTimeAsFileTime);
     static FCDECL0(UINT32, GetTickCount);

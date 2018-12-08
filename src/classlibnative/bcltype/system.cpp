@@ -130,15 +130,13 @@ FCIMPL1(VOID, SystemNative::GetSystemTimeWithLeapSecondsHandling, FullSystemTime
 }
 FCIMPLEND;
 
-FCIMPL2(FC_BOOL_RET, SystemNative::SystemFileTimeToSystemTime, INT64 fileTime, FullSystemTime *time)
+FCIMPL2(FC_BOOL_RET, SystemNative::FileTimeToSystemTime, INT64 fileTime, FullSystemTime *time)
 {
     FCALL_CONTRACT;
-    INT64 timestamp = 0;
-
     if (::FileTimeToSystemTime((FILETIME*)&fileTime, (LPSYSTEMTIME) time))
     {
         // to keep the time precision
-        time->hundredNanoSecond = timestamp % 10000; // 10000 is the number of 100-nano seconds per Millisecond
+        time->hundredNanoSecond = fileTime % 10000; // 10000 is the number of 100-nano seconds per Millisecond
         if (time->systemTime.wSecond > 59)
         {
             // we have a leap second, force it to last second in the minute as DateTime doesn't account for leap seconds in its calculation.
@@ -170,16 +168,12 @@ FCIMPL2(FC_BOOL_RET, SystemNative::ValidateSystemTime, SYSTEMTIME *time, CLR_BOO
 }
 FCIMPLEND;
 
-FCIMPL2(FC_BOOL_RET, SystemNative::SystemTimeToSystemFileTime, SYSTEMTIME *time, INT64 *pFileTime)
+FCIMPL2(FC_BOOL_RET, SystemNative::SystemTimeToFileTime, SYSTEMTIME *time, INT64 *pFileTime)
 {
     FCALL_CONTRACT;
 
-    if (::SystemTimeToFileTime(time, (LPFILETIME) pFileTime))
-    {
-        FC_RETURN_BOOL(TRUE);
-    }
-
-    FC_RETURN_BOOL(FALSE);
+    BOOL ret = ::SystemTimeToFileTime(time, (LPFILETIME) pFileTime);
+    FC_RETURN_BOOL(ret);
 }
 FCIMPLEND;
 #endif // FEATURE_PAL

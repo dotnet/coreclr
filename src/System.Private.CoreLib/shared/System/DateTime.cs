@@ -427,8 +427,6 @@ namespace System
             }
         }
 
-
-
         internal long InternalTicks
         {
             get
@@ -802,6 +800,23 @@ namespace System
         public static DateTime FromFileTime(long fileTime)
         {
             return FromFileTimeUtc(fileTime).ToLocalTime();
+        }
+
+        public static DateTime FromFileTimeUtc(long fileTime)
+        {
+            if (fileTime < 0 || fileTime > MaxTicks - FileTimeOffset)
+            {
+                throw new ArgumentOutOfRangeException(nameof(fileTime), SR.ArgumentOutOfRange_FileTimeInvalid);
+            }
+
+            if (s_systemSupportsLeapSeconds)
+            {
+                return FromFileTimeLeapSecondsAware(fileTime);
+            }
+
+            // This is the ticks in Universal time for this fileTime.
+            long universalTicks = fileTime + FileTimeOffset;
+            return new DateTime(universalTicks, DateTimeKind.Utc);
         }
 
         // Creates a DateTime from an OLE Automation Date.
@@ -1294,6 +1309,25 @@ namespace System
         {
             // Treats the input as local if it is not specified
             return ToUniversalTime().ToFileTimeUtc();
+        }
+
+        public long ToFileTimeUtc()
+        {
+            // Treats the input as universal if it is not specified
+            long ticks = ((InternalKind & LocalMask) != 0) ? ToUniversalTime().InternalTicks : this.InternalTicks;
+
+            if (s_systemSupportsLeapSeconds)
+            {
+                return ToFileTimeLeapSecondsAware(ticks);
+            }
+
+            ticks -= FileTimeOffset;
+            if (ticks < 0)
+            {
+                throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_FileTimeInvalid);
+            }
+
+            return ticks;
         }
 
         public DateTime ToLocalTime()
