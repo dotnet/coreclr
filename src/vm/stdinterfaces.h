@@ -521,12 +521,4 @@ IErrorInfo *GetSupportedErrorInfo(IUnknown *iface, REFIID riid, BOOL checkForIRe
 // Helpers to get the ITypeInfo* for a type.
 HRESULT GetITypeInfoForEEClass(MethodTable *pMT, ITypeInfo **ppTI, bool bClassInfo = false);
 
-//-------------------------------------------------------------------------------------
-// Helper to get the GUID of the typelib that is created from an assembly.
-HRESULT GetTypeLibGuidForAssembly(Assembly *pAssembly, GUID *pGuid);
-
-//-------------------------------------------------------------------------------------
-// Helper for IInspectable's GetRuntimeClassName on an IReference<T> or IReferenceArray<T>.
-void GetRuntimeClassNameForIReferenceOrIReferenceArray(MethodTable* pInstantiatedType, BOOL fIsIReferenceArray, SString& className);
-
 #endif
