@@ -1934,7 +1934,7 @@ namespace System
                 // for 255 we need to distinguish Bits overflow (from 255 + 0) and normal 255 value (from 240 + 15)
                 if (value >= byte.MaxValue)
                 {
-                    if (value == byte.MaxValue && firstChar == maxHighBits && secondChar == maxLowBits)
+                    if (firstChar == maxHighBits && secondChar == maxLowBits)
                     {
                         currentByte = byte.MaxValue;
                         return true;
