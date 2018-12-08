@@ -712,8 +712,9 @@ HRESULT GetITypeInfoForEEClass(MethodTable *pClass, ITypeInfo **ppTI, bool bClas
                         {
                             // Find the first COM visible IClassX starting at ComMethodTable passed in and
                             // walking up the hierarchy.
-                            for (pComMT = pTemplate->GetClassComMT(); pComMT && !pComMT->IsComVisible();
-                                pComMT = pComMT->GetParentClassComMT());
+                            pComMT = pTemplate->GetClassComMT();
+                            while (pComMT && !pComMT->IsComVisible())
+                                pComMT = pComMT->GetParentClassComMT();
                         }
                     } 
                     EX_CATCH
