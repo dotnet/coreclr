@@ -172,7 +172,6 @@ private:
         //
         virtual void Run()
         {
-            origCall = GetCall(stmt);
             Transform();
         }
 
