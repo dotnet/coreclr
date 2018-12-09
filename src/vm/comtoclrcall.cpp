@@ -745,17 +745,7 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
 
             // Obtain the managed 'this' for the call
             ComCallWrapper *pWrap = ComCallWrapper::GetWrapperFromIP(pUnk);
-            _ASSERTE(pWrap != NULL);
-            if (pWrap->NeedToSwitchDomains(pThread))
-            {
-                COMToCLRWorkerBodyWithADTransition(pThread, pFrame, pWrap, &retVal);
-            }
-            else
-            {
-                // This is the common case that needs to be fast: we are in the right domain and
-                // all we have to do is marshal the parameters and deliver the call. 
-                COMToCLRWorkerBody(pThread, pFrame, pWrap, &retVal);
-            }
+            COMToCLRWorkerBody(pThread, pFrame, pWrap, &retVal);
         }
     }
 
@@ -852,93 +842,21 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
     OBJECTREF pThrowable = NULL;
     GCPROTECT_BEGIN(pThrowable);
     {
-        if (!pWrap->NeedToSwitchDomains(pThread))
+        EX_TRY
         {
-            // This is the common case that needs to be fast: we are in the right domain and
-            // all we have to do is marshal the parameters and deliver the call. We still have to
-            // set up an EX_TRY/EX_CATCH to transform any exceptions that were thrown into 
-            // HRESULTs.       
-            EX_TRY
-            {
-                FieldCallWorkerDebuggerWrapper(pThread, pFrame);
-            }
-            EX_CATCH
-            {
-                pThrowable = GET_THROWABLE();
-            }
-            EX_END_CATCH(SwallowAllExceptions);
-
-            if (pThrowable != NULL)
-            {
-                // Transform the exception into an HRESULT. This also sets up
-                // an IErrorInfo on the current thread for the exception.
-                hrRetVal = SetupErrorInfo(pThrowable, pFrame->GetComCallMethodDesc());
-                pThrowable = NULL;
-            }
+            FieldCallWorkerDebuggerWrapper(pThread, pFrame);
         }
-        else
+        EX_CATCH
         {
-            ADID pTgtDomain = pWrap->GetDomainID();
-            if (!pTgtDomain.m_dwId)
-            {
-                hrRetVal = COR_E_APPDOMAINUNLOADED;
-            }
-            else
-            {
-                // We need a try/catch around the code to enter the domain since entering
-                // an AppDomain can throw an exception. 
-                EX_TRY
-                {
-                    ENTER_DOMAIN_ID(pTgtDomain)
-                    {
-                        // Set up a new GC protection frame for any exceptions thrown inside the AppDomain. Do
-                        // this so we can be sure we don't leak an AppDomain-specific object outside the
-                        // lifetime of the AppDomain (which can happen if an AppDomain unload causes us to
-                        // unwind out via a ThreadAbortException).
-                        OBJECTREF pAppDomainThrowable = NULL;
-                        GCPROTECT_BEGIN(pAppDomainThrowable);
-                        {
-                            // We need a try/catch around the call to the worker since we need
-                            // to transform any exceptions into HRESULTs. We want to do this
-                            // inside the AppDomain of the CCW.
-                            EX_TRY
-                            {
-                                FieldCallWorkerDebuggerWrapper(pThread, pFrame);
-                            }
-                            EX_CATCH
-                            {
-                                pAppDomainThrowable = GET_THROWABLE();
-                            }
-                            EX_END_CATCH(RethrowTerminalExceptions);
+            pThrowable = GET_THROWABLE();
+        }
+        EX_END_CATCH(SwallowAllExceptions);
 
-                            if (pAppDomainThrowable != NULL)
-                            {
-                                // Transform the exception into an HRESULT. This also sets up
-                                // an IErrorInfo on the current thread for the exception.
-                                hrRetVal = SetupErrorInfo(pAppDomainThrowable, pFrame->GetComCallMethodDesc());
-                                pAppDomainThrowable = NULL;
-                            }
-                        }
-                        GCPROTECT_END();
-                    }
-                    END_DOMAIN_TRANSITION;        
-                }
-                EX_CATCH
-                {
-                    // Transform the exception into an HRESULT. This also sets up
-                    // an IErrorInfo on the current thread for the exception.
-                    pThrowable = GET_THROWABLE();
-                }
-                EX_END_CATCH(SwallowAllExceptions);
-
-                if (pThrowable != NULL)
-                {
-                    // Transform the exception into an HRESULT. This also sets up
-                    // an IErrorInfo on the current thread for the exception.
-                    hrRetVal = SetupErrorInfo(pThrowable, pFrame->GetComCallMethodDesc());
-                    pThrowable = NULL;
-                }
-            }
+        if (pThrowable != NULL)
+        {
+            // Transform the exception into an HRESULT. This also sets up
+            // an IErrorInfo on the current thread for the exception.
+            hrRetVal = SetupErrorInfo(pThrowable, pFrame->GetComCallMethodDesc());
         }
     }
 
