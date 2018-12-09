@@ -245,7 +245,7 @@ int SharedMemoryHelpers::CreateOrOpenFile(LPCSTR path, bool createIfNotExist, bo
     _ASSERTE(!createIfNotExist || SharedMemoryManager::IsCreationDeletionFileLockAcquired());
 
     // Try to open the file
-    int openFlags = O_RDWR;
+    int openFlags = O_RDWR | O_CLOEXEC;
     int fileDescriptor = Open(path, openFlags);
     if (fileDescriptor != -1)
     {
