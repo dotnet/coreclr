@@ -712,16 +712,27 @@ unsigned emitter::emitOutputRexOrVexPrefixIfNeeded(instruction ins, BYTE* dst, c
         //
         // Now output VEX prefix leaving the 4-byte opcode
 
+        // The 2-byte VEX encoding, requires that the X and B-bits are set (these
+        // bits are inverted from the REX values so set means off), the W-bit is
+        // not set (this bit is not inverted), and that the m-mmmm bits are 0-0001
+        // (the 2-byte VEX encoding only supports the 0x0F leading byte). When these
+        // conditions are met, we can change byte-0 from 0xC4 to 0xC5 and then
+        // byte-1 is the logical-or of bit 7 from byte-1 and bits 0-6 from byte 2
+        // from the 3-byte VEX encoding.
+        //
+        // Given the above, the check can be reduced to a simple mask and comparison.
+        // * 0xFFFF7F80 is a mask that ignores any bits whose value we don't care about:
+        //   * R can be set or unset              (0x7F ignores bit 7)
+        //   * vvvv can be any value              (0x80 ignores bits 3-6)
+        //   * L can be set or unset              (0x80 ignores bit 2)
+        //   * pp can be any value                (0x80 ignores bits 0-1)
+        // * 0x00C46100 is a value that signifies the requirements listed above were met:
+        //   * We must be a three-byte VEX opcode (0x00C4)
+        //   * X and B must be set                (0x61 validates bits 5-6)
+        //   * m-mmmm must be 0-00001             (0x61 validates bits 0-4)
+        //   * W must be unset                    (0x00 validates bit 7)
         if ((vexPrefix & 0xFFFF7F80) == 0x00C46100)
         {
-            // The 2-byte VEX encoding, requires that the X and B-bits are set (these
-            // bits are inverted from the REX values so set means off), the W-bit is
-            // not set (this bit is not inverted), and that the m-mmmm bits are 0-0001
-            // (the 2-byte VEX encoding only supports the 0x0F leading byte). When these
-            // conditions are met, we can change byte-0 from 0xC4 to 0xC5 and then
-            // byte-1 is the logical-or of bit 7 from byte-1 and bits 0-6 from byte 2
-            // from the 3-byte VEX encoding.
-
             emitOutputByte(dst, 0xC5);
             emitOutputByte(dst + 1, ((vexPrefix >> 8) & 0x80) | (vexPrefix & 0x7F));
             return 2;
