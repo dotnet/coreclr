@@ -344,6 +344,14 @@ namespace R2RDump
         }
 
         /// <summary>
+        /// Read a single byte from the signature stream without advancing the current offset.
+        /// </summary>
+        public byte PeekByte()
+        {
+            return _image[_offset];
+        }
+
+        /// <summary>
         /// Read a single unsigned 32-bit in from the signature stream. Adapted from CorSigUncompressData,
         /// <a href="">https://github.com/dotnet/coreclr/blob/master/src/inc/cor.h</a>.
         /// </summary>
@@ -460,7 +468,23 @@ namespace R2RDump
         /// <param name="builder"></param>
         private void ParseSignature(StringBuilder builder)
         {
-            uint fixupType = ReadUInt();
+            uint fixupType = PeekByte();
+            bool moduleOverride = (fixupType & (uint)CORCOMPILE_FIXUP_BLOB_KIND.ENCODE_MODULE_OVERRIDE) != 0;
+            // Check first byte for a module override being encoded
+            if (moduleOverride)
+            {
+                builder.Append("ENCODE_MODULE_OVERRIDE @ ");
+                fixupType &= ~(uint)CORCOMPILE_FIXUP_BLOB_KIND.ENCODE_MODULE_OVERRIDE;
+                ReadByte();
+                uint moduleIndex = ReadByte();
+                builder.Append(string.Format(" Index:  {0:X2}", moduleIndex));
+            }
+            // If the most significant bit has not been set, 
+            else
+            {
+                fixupType = ReadUInt();
+            }
+
             switch ((ReadyToRunFixupKind)fixupType)
             {
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_ThisObjDictionaryLookup:
@@ -502,7 +526,10 @@ namespace R2RDump
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodEntry_DefToken:
-                    ParseMethodDefToken(builder, owningTypeOverride: null);
+                    if (!moduleOverride)
+                    {
+                        ParseMethodDefToken(builder, owningTypeOverride: null);
+                    }
                     builder.Append(" (METHOD_ENTRY_DEF_TOKEN)");
                     break;
 
@@ -513,7 +540,10 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry:
-                    ParseMethod(builder);
+                    if(!moduleOverride)
+                    {
+                        ParseMethod(builder);
+                    }
                     builder.Append(" (VIRTUAL_ENTRY)");
                     break;
 
@@ -530,7 +560,11 @@ namespace R2RDump
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry_Slot:
                     {
                         uint slot = ReadUInt();
-                        ParseType(builder);
+                        if (!moduleOverride)
+                        {
+                            ParseType(builder);
+                        }
+
                         builder.Append($@" #{slot} (VIRTUAL_ENTRY_SLOT)");
                     }
                     break;
