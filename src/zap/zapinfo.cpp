@@ -1715,6 +1715,9 @@ ReadyToRunHelper MapReadyToRunHelper(CorInfoHelpFunc func, bool * pfOptimizeForS
     case corInfoHelpFunc: flags return readyToRunHelper;
 #include "readytorunhelpers.h"
 
+    case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE:
+        return READYTORUN_HELPER_GetRuntimeTypeHandle;
+
     case CORINFO_HELP_STRCNS_CURRENT_MODULE:
         *pfOptimizeForSize = true;
         return READYTORUN_HELPER_GetString;
