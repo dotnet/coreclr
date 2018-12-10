@@ -779,9 +779,6 @@ private:
 #if defined(DACCESS_COMPILE)
     friend class DacDbiInterfaceImpl;
 #endif // DACCESS_COMPILE
-#ifdef FEATURE_COMINTEROP
-    friend void COMToCLRWorkerBodyWithADTransition(Thread *pThread, ComMethodFrame *pFrame, ComCallWrapper *pWrap, UINT64 *pRetValOut);
-#endif // FEATURE_COMINTEROP
 
     PTR_Frame  Next()
     {
