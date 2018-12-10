@@ -3644,7 +3644,6 @@ VOID FieldMarshaler_Variant::DestroyNativeImpl(LPVOID pNativeValue) const
 
 #endif // FEATURE_COMINTEROP
 
-
 #define IMPLEMENT_FieldMarshaler_METHOD(ret, name, argsdecl, rettype, args) \
     ret FieldMarshaler::name argsdecl { \
         WRAPPER_NO_CONTRACT; \
