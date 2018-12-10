@@ -25,7 +25,7 @@
 
   <Target Name="SubmitTestsToHelix">
     <ItemGroup>
-      <Scenarios Include="$(Scenarios)" />
+      <Scenarios Include="$(Scenarios.Split(','))" />
       <ProjectsToBuild Include="$(MSBuildProjectFile)">
         <Properties>Scenario=%(Scenarios.Identity)</Properties>
       </ProjectsToBuild>
