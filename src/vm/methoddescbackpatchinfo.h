@@ -128,15 +128,16 @@ class MethodDescBackpatchInfo
 private:
     MethodDesc *m_methodDesc;
 
-    // This field and its data is protected by MethodDescBackpatchInfoTracker's lock. Entry point slots that need to be
-    // backpatched when the method's entry point changes. This may include vtable slots, and slots from virtual stub dispatch
-    // for interface methods (slots from dispatch stubs and resolve cache entries). This collection only contains slots
-    // associated with this MethodDesc's LoaderAllocator.
+    // Entry point slots that need to be backpatched when the method's entry point changes. This may include vtable slots, slots
+    // from virtual stub dispatch for interface methods (slots from dispatch stubs and resolve cache entries), etc. This
+    // collection only contains slots associated with this MethodDesc's LoaderAllocator. This field and its data is protected by
+    // MethodDescBackpatchInfoTracker's lock.
     EntryPointSlotsToBackpatch m_slotsToBackpatch;
 
-    // This field is protected by MethodDescBackpatchInfoTracker's lock. This is a set of LoaderAllocators that are dependent on
-    // this MethodDesc's LoaderAllocator, which have inherited this MethodDesc and have slots that need to be backpatched when
-    // the method's entry point changes.
+    // A set of LoaderAllocators from which slots associated with the dependency MethodDesc have been recorded for backpatching.
+    // For example, a derived type in a shorter-lifetime LoaderAllocator that inherits a MethodDesc from a longer-lifetime base
+    // type, would have its slot recorded in the slot's LoaderAllocator, and that LoaderAllocator would be recorded here in the
+    // MethodDesc's LoaderAllocator. This field is protected by MethodDescBackpatchInfoTracker's lock.
     LoaderAllocatorSet *m_dependentLoaderAllocatorsWithSlotsToBackpatch;
 
 public:
@@ -224,8 +225,13 @@ class MethodDescBackpatchInfoTracker
 private:
     static CrstStatic s_lock;
 
-    // This field and some of its data is protected by s_lock
+    // Contains information about slots associated with the MethodDesc that were recorded for backpatching. This field and some
+    // of its data is protected by s_lock.
     MethodDescBackpatchInfoHash m_backpatchInfoHash;
+
+    // Contains slots associated with a MethodDesc from a dependency LoaderAllocator, which are recorded for backpatching when
+    // the MethodDesc's entry point changes. This field and some of its data is protected by s_lock.
+    MethodDescEntryPointSlotsToBackpatchHash m_dependencyMethodDescEntryPointSlotsToBackpatchHash;
 
 #ifndef DACCESS_COMPILE
 public:
@@ -294,6 +300,17 @@ public:
 
 private:
     MethodDescBackpatchInfo *AddBackpatchInfo_Locked(MethodDesc *methodDesc);
+
+public:
+    bool HasDependencyMethodDescEntryPointSlotsToBackpatch() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_dependencyMethodDescEntryPointSlotsToBackpatchHash.GetCount() != 0;
+    }
+
+    EntryPointSlotsToBackpatch *GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc);
+    EntryPointSlotsToBackpatch *GetOrAddDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc);
+    void ClearDependencyMethodDescEntryPointSlotsToBackpatchHash();
 #endif
 
     friend class ConditionalLockHolder;

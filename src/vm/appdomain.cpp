@@ -3906,7 +3906,7 @@ void AppDomain::Terminate()
 
 #ifdef FEATURE_TIERED_COMPILATION
     // Recorded entry point slots may point into the virtual call stub manager's heaps, so clear it first
-    GetLoaderAllocator()->ClearDependencyMethodDescEntryPointSlotsToBackpatchHash();
+    GetLoaderAllocator()->GetMethodDescBackpatchInfoTracker()->ClearDependencyMethodDescEntryPointSlotsToBackpatchHash();
 #endif
 
     if (!IsAtProcessExit())

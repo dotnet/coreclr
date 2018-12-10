@@ -268,9 +268,7 @@ private:
 
 #ifdef FEATURE_TIERED_COMPILATION
     CallCounter m_callCounter;
-
     MethodDescBackpatchInfoTracker m_methodDescBackpatchInfoTracker;
-    MethodDescEntryPointSlotsToBackpatchHash m_dependencyMethodDescEntryPointSlotsToBackpatchHash;
 #endif
 
 #ifndef DACCESS_COMPILE
@@ -579,7 +577,6 @@ public:
 #endif // FEATURE_COMINTEROP
 
 #ifdef FEATURE_TIERED_COMPILATION
-
 public:
     CallCounter* GetCallCounter()
     {
@@ -592,14 +589,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return &m_methodDescBackpatchInfoTracker;
     }
-
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-public:
-    EntryPointSlotsToBackpatch *GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc);
-    EntryPointSlotsToBackpatch *GetOrAddDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc);
-    void ClearDependencyMethodDescEntryPointSlotsToBackpatchHash();
-#endif
-
 #endif // FEATURE_TIERED_COMPILATION
 };  // class LoaderAllocator
 

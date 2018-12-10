@@ -1267,7 +1267,7 @@ public:
         //     MethodDesc's LoaderAllocator, see
         //     MethodDescBackpatchInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked()
         //   - At the end of a LoaderAllocator's lifetime, the LoaderAllocator is unregistered from dependency LoaderAllocators,
-        //     see LoaderAllocator::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash()
+        //     see MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash()
         //   - When a MethodDesc's entry point changes, backpatching also includes iterating over recorded dependent
         //     LoaderAllocators to backpatch the relevant slots recorded there, see BackpatchEntryPointSlots()
         //
