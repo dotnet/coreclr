@@ -1615,8 +1615,15 @@ namespace System.Reflection
 
             if (ctorHasParameters)
             {
-                // Resolve method ctor token found in decorated decoratedModule scope
-                ctor = decoratedModule.ResolveMethod(caRecord.tkCtor, attributeType.GenericTypeArguments, null).MethodHandle.GetMethodInfo();
+                if (attributeType.IsGenericType)
+                {
+                    // Resolve method ctor token found in decorated decoratedModule scope
+                    ctor = decoratedModule.ResolveMethod(caRecord.tkCtor, attributeType.GenericTypeArguments, null).MethodHandle.GetMethodInfo();
+                }
+                else
+                {
+                    ctor = ModuleHandle.ResolveMethodHandleInternal(decoratedModule.GetNativeHandle(), caRecord.tkCtor);
+                }
             }
             else
             {
