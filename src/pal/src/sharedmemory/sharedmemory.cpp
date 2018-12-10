@@ -197,6 +197,8 @@ bool SharedMemoryHelpers::EnsureDirectoryExists(
 int SharedMemoryHelpers::Open(LPCSTR path, int flags, mode_t mode)
 {
     int openErrorCode;
+
+    flags |= O_CLOEXEC;
     do
     {
         int fileDescriptor = InternalOpen(path, flags, mode);
@@ -245,7 +247,7 @@ int SharedMemoryHelpers::CreateOrOpenFile(LPCSTR path, bool createIfNotExist, bo
     _ASSERTE(!createIfNotExist || SharedMemoryManager::IsCreationDeletionFileLockAcquired());
 
     // Try to open the file
-    int openFlags = O_RDWR | O_CLOEXEC;
+    int openFlags = O_RDWR;
     int fileDescriptor = Open(path, openFlags);
     if (fileDescriptor != -1)
     {
