@@ -75,7 +75,7 @@ class FieldMarshaler_Nullable;
 //=======================================================================
 #undef DEFINE_NFT
 #define DEFINE_NFT(name, nativesize, fWinRTSupported) name,
-enum NStructFieldType
+enum NStructFieldType : short
 {
 #include "nsenums.h"
     NFT_COUNT
@@ -363,6 +363,7 @@ public:
     void SetNativeFieldCategory(NativeFieldCategory nfc)
     {
         LIMITED_METHOD_CONTRACT;
+        _ASSERTE(m_nfc == 0);
         m_nfc = nfc;
     }
 

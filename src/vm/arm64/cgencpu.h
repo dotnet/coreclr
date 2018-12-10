@@ -69,7 +69,7 @@ extern PCODE GetPreStubEntryPoint();
 // as large as the largest FieldMarshaler subclass. This requirement
 // is guarded by an assert.
 //=======================================================================
-#define MAXFIELDMARSHALERSIZE               48
+#define MAXFIELDMARSHALERSIZE               40
 
 //**********************************************************************
 // Parameter size

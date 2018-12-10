@@ -103,9 +103,9 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 // is guarded by an assert.
 //=======================================================================
 #ifdef _WIN64
-#define MAXFIELDMARSHALERSIZE               48
+#define MAXFIELDMARSHALERSIZE               40
 #else
-#define MAXFIELDMARSHALERSIZE               28
+#define MAXFIELDMARSHALERSIZE               24
 #endif
 
 //**********************************************************************

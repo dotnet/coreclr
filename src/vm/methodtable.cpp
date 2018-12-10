@@ -2651,18 +2651,18 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
         NativeFieldCategory nfc = pFieldMarshaler->GetNativeFieldCategory();
 
-        if ((nfc & NATIVE_FIELD_CATEGORY_COM_TYPE) == NATIVE_FIELD_CATEGORY_COM_TYPE)
+        if (nfc & NATIVE_FIELD_CATEGORY_COM_TYPE)
         {
             return false;
         }
 #ifdef FEATURE_COMINTEROP
-        else if ((nfc & NATIVE_FIELD_CATEGORY_COM_ONLY) == NATIVE_FIELD_CATEGORY_COM_ONLY)
+        else if (nfc & NATIVE_FIELD_CATEGORY_COM_ONLY)
         {
             _ASSERTE(false && "COMInterop not supported for CoreCLR on Unix.");
             return false;
         }
 #endif // FEATURE_COMINTEROP
-        else if ((nfc & NATIVE_FIELD_SUBCATEGORY_ARRAY) == NATIVE_FIELD_SUBCATEGORY_ARRAY)
+        else if (nfc & NATIVE_FIELD_SUBCATEGORY_ARRAY)
         {
             VARTYPE vtElement = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementVT();
             switch (vtElement)
@@ -2730,7 +2730,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                 return false;
             }
         }
-        else if ((nfc & NATIVE_FIELD_SUBCATEGORY_NESTED) == NATIVE_FIELD_SUBCATEGORY_NESTED)
+        else if (nfc & NATIVE_FIELD_SUBCATEGORY_NESTED)
         {
             MethodTable* pFieldMT = ((FieldMarshaler_NestedType*)pFieldMarshaler)->GetNestedMethodTable();
 
@@ -2747,11 +2747,11 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
             continue;
         }
-        else if ((nfc & NATIVE_FIELD_CATEGORY_FLOAT) == NATIVE_FIELD_CATEGORY_FLOAT)
+        else if (nfc & NATIVE_FIELD_CATEGORY_FLOAT)
         {
             fieldClassificationType = SystemVClassificationTypeSSE;
         }
-        else if ((nfc & NATIVE_FIELD_SUBCATEGORY_INTEGER) == NATIVE_FIELD_SUBCATEGORY_INTEGER)
+        else if (nfc & NATIVE_FIELD_SUBCATEGORY_INTEGER)
         {
             fieldClassificationType = SystemVClassificationTypeInteger;
         }

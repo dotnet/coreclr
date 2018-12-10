@@ -1347,13 +1347,13 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
 
         NativeFieldCategory category = pFieldMarshaler->GetNativeFieldCategory();
 
-        if ((category & NATIVE_FIELD_CATEGORY_FLOAT) == NATIVE_FIELD_CATEGORY_FLOAT)
+        if (category & NATIVE_FIELD_CATEGORY_FLOAT)
         {
-            if ((category & NATIVE_FIELD_CATEGORY_R4) == NATIVE_FIELD_CATEGORY_R4)
+            if (category & NATIVE_FIELD_CATEGORY_R4)
             {
                 fieldType = ELEMENT_TYPE_R4;
             }
-            else if ((category & NATIVE_FIELD_CATEGORY_R8) == NATIVE_FIELD_CATEGORY_R8)
+            else if (category & NATIVE_FIELD_CATEGORY_R8)
             {
                 fieldType = ELEMENT_TYPE_R8;
             }
@@ -1363,7 +1363,7 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
                 fieldType = ELEMENT_TYPE_END;
             }
         }
-        else if ((category & NATIVE_FIELD_SUBCATEGORY_NESTED) == NATIVE_FIELD_SUBCATEGORY_NESTED)
+        else if (category & NATIVE_FIELD_SUBCATEGORY_NESTED)
         {
             fieldType = ((FieldMarshaler_NestedType*)pFieldMarshaler)->GetNestedMethodTable()->GetNativeHFAType();
         }
