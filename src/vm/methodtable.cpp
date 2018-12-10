@@ -2651,12 +2651,12 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
         NativeFieldCategory nfc = pFieldMarshaler->GetNativeFieldCategory();
 
-        if (nfc & NATIVE_FIELD_CATEGORY_COM_TYPE)
+        if (nfc & NATIVE_FIELD_SUBCATEGORY_COM_TYPE)
         {
             return false;
         }
 #ifdef FEATURE_COMINTEROP
-        else if (nfc & NATIVE_FIELD_CATEGORY_COM_ONLY)
+        else if (nfc & NATIVE_FIELD_SUBCATEGORY_COM_ONLY)
         {
             _ASSERTE(false && "COMInterop not supported for CoreCLR on Unix.");
             return false;
@@ -2747,7 +2747,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
             continue;
         }
-        else if (nfc & NATIVE_FIELD_CATEGORY_FLOAT)
+        else if (nfc & NATIVE_FIELD_SUBCATEGORY_FLOAT)
         {
             fieldClassificationType = SystemVClassificationTypeSSE;
         }
