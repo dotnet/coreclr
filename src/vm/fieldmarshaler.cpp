@@ -96,7 +96,7 @@ do                                                      \
     pfwalk->m_nft = (nfttype);                          \
     new ( &(pfwalk->m_FieldMarshaler) ) fmtype args;    \
     ((FieldMarshaler*)&(pfwalk->m_FieldMarshaler))->SetNStructFieldType(nfttype); \
-    ((FieldMarshaler*)&(pfwalk->m_FieldMarshaler))->SetNativeFieldCategory(nfctype); \
+    ((FieldMarshaler*)&(pfwalk->m_FieldMarshaler))->SetNativeFieldFlags(nfctype); \
 } while(0)
 
     BOOL                fAnsi               = (flags == ParseNativeTypeFlags::IsAnsi);

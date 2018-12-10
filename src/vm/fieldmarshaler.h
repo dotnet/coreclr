@@ -22,7 +22,7 @@
 #include "mlinfo.h"
 #include "eeconfig.h"
 #include "olevariant.h"
-#include "nativefieldcategory.h"
+#include "nativefieldflags.h"
 
 #ifdef FEATURE_COMINTEROP
 #endif  // FEATURE_COMINTEROP
@@ -354,17 +354,17 @@ public:
         m_nft = nft;
     }
 
-    NativeFieldCategory GetNativeFieldCategory() const
+    NativeFieldFlags GetNativeFieldFlags() const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_nfc;
+        return m_nff;
     }
 
-    void SetNativeFieldCategory(NativeFieldCategory nfc)
+    void SetNativeFieldFlags(NativeFieldFlags nff)
     {
         LIMITED_METHOD_CONTRACT;
-        _ASSERTE(m_nfc == 0);
-        m_nfc = nfc;
+        _ASSERTE(m_nff == 0);
+        m_nff = nff;
     }
 
 #ifdef FEATURE_PREJIT
@@ -405,7 +405,7 @@ public:
         pDestFieldMarshaller->SetFieldDesc(GetFieldDesc());
         pDestFieldMarshaller->SetExternalOffset(GetExternalOffset());
         pDestFieldMarshaller->SetNStructFieldType(GetNStructFieldType());
-        pDestFieldMarshaller->SetNativeFieldCategory(GetNativeFieldCategory());
+        pDestFieldMarshaller->SetNativeFieldFlags(GetNativeFieldFlags());
     }
 
     void SetFieldDesc(FieldDesc* pFD)
@@ -486,7 +486,7 @@ protected:
     RelativeFixupPointer<PTR_FieldDesc> m_pFD;      // FieldDesc
     UINT32           m_dwExternalOffset;    // offset of field in the fixed portion
     NStructFieldType m_nft;
-    NativeFieldCategory m_nfc;
+    NativeFieldFlags m_nff = (NativeFieldFlags)0;
 };
 
 

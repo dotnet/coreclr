@@ -1345,7 +1345,7 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
     {
         CorElementType fieldType = ELEMENT_TYPE_END;
 
-        NativeFieldCategory category = pFieldMarshaler->GetNativeFieldCategory();
+        NativeFieldFlags category = pFieldMarshaler->GetNativeFieldFlags();
 
         if (category & NATIVE_FIELD_SUBCATEGORY_FLOAT)
         {
