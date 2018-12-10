@@ -129,7 +129,7 @@ do                                                      \
     if (fIsWinRT && !fDefault)
     {
         // Do not allow any MarshalAs in WinRT scenarios - marshaling is fully described by the field type.
-        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_MARSHAL_AS));
+        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_MARSHAL_AS));
     }
 #endif // FEATURE_COMINTEROP
 
@@ -209,7 +209,7 @@ do                                                      \
     IfFailThrow(fsig.GetArgProps().PeekElemType(&sigElemType));
     if ((sigElemType == ELEMENT_TYPE_GENERICINST || sigElemType == ELEMENT_TYPE_VAR) && corElemType == ELEMENT_TYPE_CLASS)
     {
-        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_GENERICS_RESTRICTION));
+        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_GENERICS_RESTRICTION));
     }
     else switch (corElemType)
     {
@@ -237,7 +237,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_CHAR));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_CHAR));
             }
             break;
 
@@ -271,7 +271,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BOOLEAN));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BOOLEAN));
             }
             break;
 
@@ -283,7 +283,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I1));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I1));
             }
             break;
 
@@ -294,7 +294,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I1));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I1));
             }
             break;
 
@@ -305,7 +305,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I2));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I2));
             }
             break;
 
@@ -316,7 +316,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I2));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I2));
             }
             break;
 
@@ -327,7 +327,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I4));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I4));
             }
             break;
             
@@ -338,7 +338,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I4));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I4));
             }
             break;
 
@@ -349,7 +349,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I8));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I8));
             }
             break;
 
@@ -360,7 +360,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I8));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I8));
             }
             break;
 
@@ -369,7 +369,7 @@ do                                                      \
 #ifdef FEATURE_COMINTEROP
             if (fIsWinRT)
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
             }
             else
 #endif // FEATURE_COMINTEROP
@@ -383,7 +383,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_I));
             }
             break;
 
@@ -394,7 +394,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_R4));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_R4));
             }
             break;
             
@@ -405,7 +405,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_R8));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_R8));
             }
             break;
 
@@ -413,7 +413,7 @@ do                                                      \
 #ifdef FEATURE_COMINTEROP
             if (fIsWinRT)
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
             }
             else
 #endif // FEATURE_COMINTEROP
@@ -427,7 +427,7 @@ do                                                      \
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_PTR));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_PTR));
             }
             break;
 
@@ -457,11 +457,11 @@ do                                                      \
                     if (!typeArgMT->IsLegalNonArrayWinRTType())
                     {
                         // Type is not a valid WinRT value type.
-                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_NULLABLE_RESTRICTION));
+                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_NULLABLE_RESTRICTION));
                     }
                     else
                     {
-                        INITFIELDMARSHALER(NFT_WINDOWSFOUNDATIONIREFERENCE, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Nullable, (genType.GetMethodTable()));
+                        INITFIELDMARSHALER(NFT_WINDOWSFOUNDATIONIREFERENCE, NATIVE_FIELD_CATEGORY_WELL_KNOWN, FieldMarshaler_Nullable, (genType.GetMethodTable()));
                     }
                     break;
                 }
@@ -475,14 +475,14 @@ do                                                      \
                 }
                 else
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DATETIME));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DATETIME));
                 }
             }
             else if (fsig.IsClass(g_DecimalClassName))
             {
                 if (fDefault || ntype == NATIVE_TYPE_STRUCT)
                 {
-                    INITFIELDMARSHALER(NFT_DECIMAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Decimal, ());
+                    INITFIELDMARSHALER(NFT_DECIMAL, NATIVE_FIELD_CATEGORY_WELL_KNOWN, FieldMarshaler_Decimal, ());
                 }
 #ifdef FEATURE_COMINTEROP
                 else if (ntype == NATIVE_TYPE_CURRENCY)
@@ -492,7 +492,7 @@ do                                                      \
 #endif // FEATURE_COMINTEROP
                 else
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_DECIMAL));                    
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_DECIMAL));                    
                 }
             }
 #ifdef FEATURE_COMINTEROP
@@ -500,16 +500,16 @@ do                                                      \
             {
                 if (fDefault || ntype == NATIVE_TYPE_STRUCT)
                 {
-                    INITFIELDMARSHALER(NFT_DATETIMEOFFSET, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_DateTimeOffset, ());
+                    INITFIELDMARSHALER(NFT_DATETIMEOFFSET, NATIVE_FIELD_CATEGORY_WELL_KNOWN, FieldMarshaler_DateTimeOffset, ());
                 }
                 else
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DATETIMEOFFSET));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DATETIMEOFFSET));
                 }
             }
             else if (fIsWinRT && !thNestedType.GetMethodTable()->IsLegalNonArrayWinRTType())
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
             }
 #endif // FEATURE_COMINTEROP
             else if (thNestedType.GetMethodTable()->HasLayout())
@@ -526,17 +526,17 @@ do                                                      \
                     }
                     else
                     {
-                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_NOTMARSHALABLE));
+                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_NOTMARSHALABLE));
                     }
                 }
                 else
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_VALUETYPE));                                        
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_VALUETYPE));                                        
                 }
             }
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_NOTMARSHALABLE));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_NOTMARSHALABLE));
             }
             break;
         }
@@ -570,16 +570,16 @@ do                                                      \
 #else // FEATURE_COMINTEROP
                 if (fDefault || ntype == NATIVE_TYPE_IUNKNOWN || ntype == NATIVE_TYPE_IDISPATCH || ntype == NATIVE_TYPE_INTF)
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_OBJECT_TO_ITF_NOT_SUPPORTED));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_OBJECT_TO_ITF_NOT_SUPPORTED));
                 }
                 else if (ntype == NATIVE_TYPE_STRUCT)
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_OBJECT_TO_VARIANT_NOT_SUPPORTED));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_OBJECT_TO_VARIANT_NOT_SUPPORTED));
                 }
 #endif // FEATURE_COMINTEROP
                 else
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_OBJECT));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_OBJECT));
                 }
             }
 #ifdef FEATURE_COMINTEROP                
@@ -587,7 +587,7 @@ do                                                      \
             {
                 if (fIsWinRT && !thNestedType.GetMethodTable()->IsLegalNonArrayWinRTType())
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
                 }
                 else
                 {
@@ -601,12 +601,12 @@ do                                                      \
 #else  // FEATURE_COMINTEROP
             else if (ntype == NATIVE_TYPE_INTF || thNestedType.IsInterface())
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_OBJECT_TO_ITF_NOT_SUPPORTED));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_OBJECT_TO_ITF_NOT_SUPPORTED));
             }
 #endif // FEATURE_COMINTEROP
             else if (ntype == NATIVE_TYPE_CUSTOMMARSHALER)
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_NOCUSTOMMARSH));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_NOCUSTOMMARSH));
             }
             else if (thNestedType == TypeHandle(g_pStringClass))
             {
@@ -673,7 +673,7 @@ do                                                      \
 
                                 if (nchars == 0)
                                 {
-                                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_ZEROLENGTHFIXEDSTRING));
+                                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_ZEROLENGTHFIXEDSTRING));
                                     break;  
                                 }
 
@@ -690,7 +690,7 @@ do                                                      \
                         break;
 
                         default:
-                            INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_STRING));
+                            INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_STRING));
                             break;
                     }
                 }
@@ -698,11 +698,11 @@ do                                                      \
 #ifdef FEATURE_COMINTEROP
             else if (fIsWinRT && fsig.IsClass(g_TypeClassName))
             {   // Note: If the System.Type field is in non-WinRT struct, do not change the previously shipped behavior
-                INITFIELDMARSHALER(NFT_SYSTEMTYPE, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_SystemType, ());
+                INITFIELDMARSHALER(NFT_SYSTEMTYPE, NATIVE_FIELD_CATEGORY_WELL_KNOWN, FieldMarshaler_SystemType, ());
             }
             else if (fIsWinRT && fsig.IsClass(g_ExceptionClassName))  // Marshal Windows.Foundation.HResult as System.Exception for WinRT.
             {
-                INITFIELDMARSHALER(NFT_WINDOWSFOUNDATIONHRESULT, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Exception, ());
+                INITFIELDMARSHALER(NFT_WINDOWSFOUNDATIONHRESULT, NATIVE_FIELD_CATEGORY_WELL_KNOWN, FieldMarshaler_Exception, ());
             }
 #endif //FEATURE_COMINTEROP
 #ifdef FEATURE_CLASSIC_COMINTEROP
@@ -721,7 +721,7 @@ do                                                      \
                     // If we have no native type data, assume default behavior
                     if (S_OK != CheckForCompressedData(pNativeTypeStart, pNativeType, cbNativeTypeStart))
                     {
-                        INITFIELDMARSHALER(NFT_SAFEARRAY, NATIVE_FIELD_CATEGORY_SAFE_ARRAY, FieldMarshaler_SafeArray, (VT_EMPTY, NULL));
+                        INITFIELDMARSHALER(NFT_SAFEARRAY, NATIVE_FIELD_CATEGORY_COM_STRUCT, FieldMarshaler_SafeArray, (VT_EMPTY, NULL));
                         break;
                     }
       
@@ -733,7 +733,7 @@ do                                                      \
                         ULONG strLen;
                         if (FAILED(CPackedLen::SafeGetData(pNativeType, pNativeTypeStart + cbNativeTypeStart, &strLen, &pNativeType)))
                         {
-                            INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BADMETADATA)); 
+                            INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BADMETADATA)); 
                             break;
                         }
                         if (strLen > 0)
@@ -757,18 +757,18 @@ do                                                      \
 
                     if (!arrayMarshalInfo.IsValid())
                     {
-                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (arrayMarshalInfo.GetErrorResourceId())); 
+                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (arrayMarshalInfo.GetErrorResourceId())); 
                         break;
                     }
 
-                    INITFIELDMARSHALER(NFT_SAFEARRAY, NATIVE_FIELD_CATEGORY_SAFE_ARRAY, FieldMarshaler_SafeArray, (arrayMarshalInfo.GetElementVT(), arrayMarshalInfo.GetElementTypeHandle().GetMethodTable()));
+                    INITFIELDMARSHALER(NFT_SAFEARRAY, NATIVE_FIELD_CATEGORY_COM_STRUCT, FieldMarshaler_SafeArray, (arrayMarshalInfo.GetElementVT(), arrayMarshalInfo.GetElementTypeHandle().GetMethodTable()));
                 }
                 else if (ntype == NATIVE_TYPE_FIXEDARRAY)
                 {
                     // Check for the number of elements. This is required, if not present fail.
                     if (S_OK != CheckForCompressedData(pNativeTypeStart, pNativeType, cbNativeTypeStart))
                     {
-                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_FIXEDARRAY_NOSIZE));                            
+                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_FIXEDARRAY_NOSIZE));                            
                         break;
                     }
                             
@@ -776,7 +776,7 @@ do                                                      \
 
                     if (numElements == 0)
                     {
-                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_FIXEDARRAY_ZEROSIZE));                            
+                        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_FIXEDARRAY_ZEROSIZE));                            
                         break;
                     }
                            
@@ -795,7 +795,7 @@ do                                                      \
                 }
                 else
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DELEGATE));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DELEGATE));
                 }
             } 
             else if (thNestedType.CanCastTo(TypeHandle(MscorlibBinder::GetClass(CLASS__SAFE_HANDLE))))
@@ -806,7 +806,7 @@ do                                                      \
                 }
                 else 
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_SAFEHANDLE));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_SAFEHANDLE));
                 }
             }
             else if (thNestedType.CanCastTo(TypeHandle(MscorlibBinder::GetClass(CLASS__CRITICAL_HANDLE))))
@@ -817,12 +817,12 @@ do                                                      \
                 }
                 else 
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_CRITICALHANDLE));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_CRITICALHANDLE));
                 }
             }
             else if (fsig.IsClass(g_StringBufferClassName))
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_NOSTRINGBUILDER));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_NOSTRINGBUILDER));
             }
             else if (IsStructMarshalable(thNestedType))
             {
@@ -832,21 +832,21 @@ do                                                      \
                 }
                 else
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_LAYOUTCLASS));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_LAYOUTCLASS));
                 }
             }
 #ifdef FEATURE_COMINTEROP
             else if (fIsWinRT)
             {
                 // no other reference types are allowed as field types in WinRT
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
             }
             else if (fDefault)
             {
                 ItfMarshalInfo itfInfo;
                 if (FAILED(MarshalInfo::TryGetItfMarshalInfo(thNestedType, FALSE, FALSE, &itfInfo)))
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BADMANAGED));
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BADMANAGED));
                 }
                 else
                 {
@@ -863,7 +863,7 @@ do                                                      \
 #ifdef FEATURE_COMINTEROP
             if (fIsWinRT)
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
                 break;
             }
 #endif // FEATURE_COMINTEROP
@@ -886,7 +886,7 @@ do                                                      \
                 // The size constant must be specified, if it isn't then the struct can't be marshalled.
                 if (S_OK != CheckForCompressedData(pNativeTypeStart, pNativeType, cbNativeTypeStart))
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_FIXEDARRAY_NOSIZE));                            
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_FIXEDARRAY_NOSIZE));                            
                     break;
                 }
 
@@ -894,7 +894,7 @@ do                                                      \
                 ULONG numElements = CorSigUncompressData(pNativeType);            
                 if (numElements == 0)
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_FIXEDARRAY_ZEROSIZE));                            
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_FIXEDARRAY_ZEROSIZE));                            
                     break;
                 }
 
@@ -907,7 +907,7 @@ do                                                      \
 
                 if (!arrayMarshalInfo.IsValid())
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (arrayMarshalInfo.GetErrorResourceId())); 
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (arrayMarshalInfo.GetErrorResourceId())); 
                     break;
                 }
 
@@ -942,16 +942,16 @@ do                                                      \
 
                 if (!arrayMarshalInfo.IsValid())
                 {
-                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (arrayMarshalInfo.GetErrorResourceId())); 
+                    INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (arrayMarshalInfo.GetErrorResourceId())); 
                     break;
                 }
                     
-                INITFIELDMARSHALER(NFT_SAFEARRAY, NATIVE_FIELD_CATEGORY_SAFE_ARRAY, FieldMarshaler_SafeArray, (arrayMarshalInfo.GetElementVT(), arrayMarshalInfo.GetElementTypeHandle().GetMethodTable()));
+                INITFIELDMARSHALER(NFT_SAFEARRAY, NATIVE_FIELD_CATEGORY_COM_STRUCT, FieldMarshaler_SafeArray, (arrayMarshalInfo.GetElementVT(), arrayMarshalInfo.GetElementTypeHandle().GetMethodTable()));
             }
 #endif //FEATURE_CLASSIC_COMINTEROP
             else
             {
-                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_ARRAY));                     
+                INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHALFIELD_ARRAY));                     
             }
             break;
         }            
@@ -967,14 +967,14 @@ do                                                      \
 
     if (pfwalk->m_nft == NFT_NONE)
     {
-        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BADMANAGED));
+        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BADMANAGED));
     }
 #ifdef FEATURE_COMINTEROP
     else if (fIsWinRT && !NFTDataBase[pfwalk->m_nft].m_fWinRTSupported)
     {
         // the field marshaler we came up with is not supported in WinRT scenarios
         ZeroMemory(&pfwalk->m_FieldMarshaler, MAXFIELDMARSHALERSIZE);
-        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_OTHER, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
+        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
     }
 #endif // FEATURE_COMINTEROP
 #undef INITFIELDMARSHALER

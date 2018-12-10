@@ -2755,7 +2755,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         {
             fieldClassificationType = SystemVClassificationTypeInteger;
         }
-        else if (nfc == NATIVE_FIELD_CATEGORY_OTHER)
+        else if (nfc & NATIVE_FIELD_SUBCATEGORY_OTHER)
         {
             return false;
         }
