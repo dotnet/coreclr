@@ -223,7 +223,7 @@ do                                                      \
                 }
                 else
                 {
-                    INITFIELDMARSHALER(NFT_COPY2, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy2, ());
+                    INITFIELDMARSHALER(NFT_COPY2, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy2, ());
                 }
             }
             else if (ntype == NATIVE_TYPE_I1 || ntype == NATIVE_TYPE_U1)
@@ -233,7 +233,7 @@ do                                                      \
             }
             else if (ntype == NATIVE_TYPE_I2 || ntype == NATIVE_TYPE_U2)
             {
-                INITFIELDMARSHALER(NFT_COPY2, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy2, ());
+                INITFIELDMARSHALER(NFT_COPY2, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy2, ());
             }
             else
             {
@@ -279,7 +279,7 @@ do                                                      \
         case ELEMENT_TYPE_I1:
             if (fDefault || ntype == NATIVE_TYPE_I1 || ntype == NATIVE_TYPE_U1)
             {
-                INITFIELDMARSHALER(NFT_COPY1, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy1, ());
+                INITFIELDMARSHALER(NFT_COPY1, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy1, ());
             }
             else
             {
@@ -290,7 +290,7 @@ do                                                      \
         case ELEMENT_TYPE_U1:
             if (fDefault || ntype == NATIVE_TYPE_U1 || ntype == NATIVE_TYPE_I1)
             {
-                INITFIELDMARSHALER(NFT_COPY1, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy1, ());
+                INITFIELDMARSHALER(NFT_COPY1, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy1, ());
             }
             else
             {
@@ -301,7 +301,7 @@ do                                                      \
         case ELEMENT_TYPE_I2:
             if (fDefault || ntype == NATIVE_TYPE_I2 || ntype == NATIVE_TYPE_U2)
             {
-                INITFIELDMARSHALER(NFT_COPY2, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy2, ());
+                INITFIELDMARSHALER(NFT_COPY2, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy2, ());
             }
             else
             {
@@ -312,7 +312,7 @@ do                                                      \
         case ELEMENT_TYPE_U2:
             if (fDefault || ntype == NATIVE_TYPE_U2 || ntype == NATIVE_TYPE_I2)
             {
-                INITFIELDMARSHALER(NFT_COPY2, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy2, ());
+                INITFIELDMARSHALER(NFT_COPY2, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy2, ());
             }
             else
             {
@@ -323,7 +323,7 @@ do                                                      \
         case ELEMENT_TYPE_I4:
             if (fDefault || ntype == NATIVE_TYPE_I4 || ntype == NATIVE_TYPE_U4 || ntype == NATIVE_TYPE_ERROR)
             {
-                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy4, ());
+                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy4, ());
             }
             else
             {
@@ -334,7 +334,7 @@ do                                                      \
         case ELEMENT_TYPE_U4:
             if (fDefault || ntype == NATIVE_TYPE_U4 || ntype == NATIVE_TYPE_I4 || ntype == NATIVE_TYPE_ERROR)
             {
-                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy4, ());
+                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy4, ());
             }
             else
             {
@@ -345,7 +345,7 @@ do                                                      \
         case ELEMENT_TYPE_I8:
             if (fDefault || ntype == NATIVE_TYPE_I8 || ntype == NATIVE_TYPE_U8)
             {
-                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy8, ());
+                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy8, ());
             }
             else
             {
@@ -356,7 +356,7 @@ do                                                      \
         case ELEMENT_TYPE_U8:
             if (fDefault || ntype == NATIVE_TYPE_U8 || ntype == NATIVE_TYPE_I8)
             {
-                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy8, ());
+                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy8, ());
             }
             else
             {
@@ -376,9 +376,9 @@ do                                                      \
             if (fDefault || ntype == NATIVE_TYPE_INT || ntype == NATIVE_TYPE_UINT)
             {
 #ifdef _TARGET_64BIT_
-                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy8, ());
+                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy8, ());
 #else // !_TARGET_64BIT_
-                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy4, ());
+                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy4, ());
 #endif // !_TARGET_64BIT_
             }
             else
@@ -390,7 +390,7 @@ do                                                      \
         case ELEMENT_TYPE_R4:
             if (fDefault || ntype == NATIVE_TYPE_R4)
             {
-                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_R4, FieldMarshaler_Copy4, ());
+                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy4, ());
             }
             else
             {
@@ -401,7 +401,7 @@ do                                                      \
         case ELEMENT_TYPE_R8:
             if (fDefault || ntype == NATIVE_TYPE_R8)
             {
-                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_R8, FieldMarshaler_Copy8, ());
+                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy8, ());
             }
             else
             {
@@ -420,9 +420,9 @@ do                                                      \
             if (fDefault)
             {
 #ifdef _TARGET_64BIT_
-                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy8, ());
+                INITFIELDMARSHALER(NFT_COPY8, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy8, ());
 #else // !_TARGET_64BIT_
-                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, FieldMarshaler_Copy4, ());
+                INITFIELDMARSHALER(NFT_COPY4, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER, FieldMarshaler_Copy4, ());
 #endif // !_TARGET_64BIT_
             }
             else
@@ -519,9 +519,9 @@ do                                                      \
                     if (IsStructMarshalable(thNestedType))
                     {
 #ifdef _DEBUG
-                        INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, NATIVE_FIELD_CATEGORY_NESTED_TYPE, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable(), IsFixedBuffer(pfwalk->m_MD, pInternalImport)));
+                        INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable(), IsFixedBuffer(pfwalk->m_MD, pInternalImport)));
 #else
-                        INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, NATIVE_FIELD_CATEGORY_NESTED_TYPE, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable()));
+                        INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable()));
 #endif
                     }
                     else
@@ -828,7 +828,7 @@ do                                                      \
             {
                 if (fDefault || ntype == NATIVE_TYPE_STRUCT)
                 {
-                    INITFIELDMARSHALER(NFT_NESTEDLAYOUTCLASS, NATIVE_FIELD_CATEGORY_NESTED_TYPE, FieldMarshaler_NestedLayoutClass, (thNestedType.GetMethodTable()));
+                    INITFIELDMARSHALER(NFT_NESTEDLAYOUTCLASS, NATIVE_FIELD_CATEGORY_NESTED_LAYOUT_CLASS, FieldMarshaler_NestedLayoutClass, (thNestedType.GetMethodTable()));
                 }
                 else
                 {
@@ -1093,24 +1093,25 @@ BOOL IsStructMarshalable(TypeHandle th)
 
 BOOL IsFieldBlittable(FieldMarshaler* pFM)
 {
-    // if it's a simple copy...
-    if (pFM->GetNStructFieldType() == NFT_COPY1    ||
-        pFM->GetNStructFieldType() == NFT_COPY2    ||
-        pFM->GetNStructFieldType() == NFT_COPY4    ||
-        pFM->GetNStructFieldType() == NFT_COPY8)
+    if (pFM->GetNativeFieldFlags() & NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE)
     {
-        return TRUE;
-    }
-
-    // Or if it's a nested value class that is itself blittable...
-    if (pFM->GetNStructFieldType() == NFT_NESTEDVALUECLASS)
-    {
-        _ASSERTE(pFM->IsNestedValueClassMarshaler());
-
-        if (((FieldMarshaler_NestedValueClass *) pFM)->IsBlittable())
+        if (pFM->GetNativeFieldFlags() & NATIVE_FIELD_SUBCATEGORY_FLOAT)
+        {
             return TRUE;
+        }
+        else if (pFM->GetNativeFieldFlags() & NATIVE_FIELD_SUBCATEGORY_INTEGER)
+        {
+            return TRUE;
+        }
+        else if (pFM->GetNativeFieldFlags() & NATIVE_FIELD_SUBCATEGORY_NESTED)
+        {
+            FieldMarshaler_NestedType *pNestedFM = (FieldMarshaler_NestedType*)pFM;
+            if (pNestedFM->GetNestedMethodTable()->IsBlittable())
+            {
+                return TRUE;
+            }
+        }
     }
-
     return FALSE;
 }
 

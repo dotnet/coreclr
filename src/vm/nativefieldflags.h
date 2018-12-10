@@ -5,6 +5,8 @@
 // Describes specific categories/subcategories of native fields.
 enum NativeFieldFlags : short
 {
+    // The field may be blittable. The other subcategories determine if the field is blittable.
+    NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE = 1 << 7,
     // The native representation of the field is a floating point field.
     NATIVE_FIELD_SUBCATEGORY_FLOAT = 1 << 8,
     // The field has a nested MethodTable* (i.e. a field of a struct, class, or array)
@@ -20,17 +22,21 @@ enum NativeFieldFlags : short
     // The native representation of the field has so special properties.
     NATIVE_FIELD_SUBCATEGORY_OTHER = 1 << 14,
     // The field is a 4-byte floating point.
-    NATIVE_FIELD_CATEGORY_R4 = NATIVE_FIELD_SUBCATEGORY_FLOAT,
+    NATIVE_FIELD_CATEGORY_R4 = NATIVE_FIELD_SUBCATEGORY_FLOAT | NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE,
     // The field is an 8-byte floating point
-    NATIVE_FIELD_CATEGORY_R8 = NATIVE_FIELD_SUBCATEGORY_FLOAT | 0x1,
-    // The field is a user-defined type (value class or layout class)
-    NATIVE_FIELD_CATEGORY_NESTED_TYPE = NATIVE_FIELD_SUBCATEGORY_NESTED,
+    NATIVE_FIELD_CATEGORY_R8 = NATIVE_FIELD_SUBCATEGORY_FLOAT | NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE | 0x1,
+    // The field is a layout class type (reference type with LayoutKind != LayoutKind.Auto)
+    NATIVE_FIELD_CATEGORY_NESTED_LAYOUT_CLASS = NATIVE_FIELD_SUBCATEGORY_NESTED,
+    // The field is a value class type
+    NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS = NATIVE_FIELD_SUBCATEGORY_NESTED & NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE,
     // The field is a System.DateTime (marshals to a double on Windows)
-    NATIVE_FIELD_CATEGORY_DATE = NATIVE_FIELD_CATEGORY_R8 | NATIVE_FIELD_SUBCATEGORY_COM_TYPE,
+    NATIVE_FIELD_CATEGORY_DATE = NATIVE_FIELD_SUBCATEGORY_FLOAT | NATIVE_FIELD_SUBCATEGORY_COM_TYPE,
     // The field is marshalled as an in-place (by-value) array.
     NATIVE_FIELD_CATEGORY_IN_PLACE_ARRAY = NATIVE_FIELD_SUBCATEGORY_ARRAY | NATIVE_FIELD_SUBCATEGORY_NESTED,
     // The field should be treated like an integer for the purposes of ABIs.
     NATIVE_FIELD_CATEGORY_INTEGER_LIKE = NATIVE_FIELD_SUBCATEGORY_INTEGER,
+    // The field is a blittable integer type.
+    NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER = NATIVE_FIELD_SUBCATEGORY_INTEGER | NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE,
     // The field is being marshaled to a COM interface pointer.
     NATIVE_FIELD_CATEGORY_INTERFACE_TYPE = NATIVE_FIELD_SUBCATEGORY_COM_ONLY,
     // The field is a structure that is only valid in COM scenarios.
