@@ -509,7 +509,7 @@ public:
 #endif
 #ifdef FEATURE_TIERED_COMPILATION
     CallCounter* GetCallCounter();
-    MethodDescVirtualInfoTracker* GetVirtualInfoTracker();
+    MethodDescBackpatchInfoTracker* GetBackpatchInfoTracker();
 #endif
 
     PTR_LoaderAllocator GetLoaderAllocator();
@@ -1265,7 +1265,7 @@ public:
         //   - An inherited slot that has a shorter lifetime than the MethodDesc, when recorded, needs to be accessible by the
         //     MethodDesc for backpatching, so the dependent LoaderAllocator with the slot to backpatch is also recorded in the
         //     MethodDesc's LoaderAllocator, see
-        //     MethodDescVirtualInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked()
+        //     MethodDescBackpatchInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked()
         //   - At the end of a LoaderAllocator's lifetime, the LoaderAllocator is unregistered from dependency LoaderAllocators,
         //     see LoaderAllocator::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash()
         //   - When a MethodDesc's entry point changes, backpatching also includes iterating over recorded dependent

@@ -89,7 +89,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     loaderallocator.cpp
     memberload.cpp
     method.cpp
-    methoddescvirtualinfo.cpp
+    methoddescbackpatchinfo.cpp
     methodimpl.cpp
     methoditer.cpp
     methodtable.cpp
@@ -189,7 +189,7 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     memberload.h
     method.hpp
     method.inl
-    methoddescvirtualinfo.h
+    methoddescbackpatchinfo.h
     methodimpl.h
     methoditer.h
     methodtable.h

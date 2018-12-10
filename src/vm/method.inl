@@ -185,10 +185,10 @@ inline CallCounter * MethodDesc::GetCallCounter()
     return GetLoaderAllocator()->GetCallCounter();
 }
 
-inline MethodDescVirtualInfoTracker * MethodDesc::GetVirtualInfoTracker()
+inline MethodDescBackpatchInfoTracker * MethodDesc::GetBackpatchInfoTracker()
 {
     LIMITED_METHOD_CONTRACT;
-    return GetLoaderAllocator()->GetMethodDescVirtualInfoTracker();
+    return GetLoaderAllocator()->GetMethodDescBackpatchInfoTracker();
 }
 #endif
 

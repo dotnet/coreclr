@@ -96,7 +96,7 @@ enum CrstType
     CrstLoaderHeap = 77,
     CrstMda = 78,
     CrstMetadataTracker = 79,
-    CrstMethodDescVirtualInfoTracker = 80,
+    CrstMethodDescBackpatchInfoTracker = 80,
     CrstModIntPairList = 81,
     CrstModule = 82,
     CrstModuleFixup = 83,
@@ -259,7 +259,7 @@ int g_rgCrstLevelMap[] =
     0,			// CrstLoaderHeap
     0,			// CrstMda
     -1,			// CrstMetadataTracker
-    9,			// CrstMethodDescVirtualInfoTracker
+    9,			// CrstMethodDescBackpatchInfoTracker
     0,			// CrstModIntPairList
     4,			// CrstModule
     15,			// CrstModuleFixup
@@ -416,7 +416,7 @@ LPCSTR g_rgCrstNameMap[] =
     "CrstLoaderHeap",
     "CrstMda",
     "CrstMetadataTracker",
-    "CrstMethodDescVirtualInfoTracker",
+    "CrstMethodDescBackpatchInfoTracker",
     "CrstModIntPairList",
     "CrstModule",
     "CrstModuleFixup",

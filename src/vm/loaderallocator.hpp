@@ -21,7 +21,7 @@ class FuncPtrStubs;
 #include "ilstubcache.h"
 
 #include "callcounter.h"
-#include "methoddescvirtualinfo.h"
+#include "methoddescbackpatchinfo.h"
 
 #define VPTRU_LoaderAllocator 0x3200
 
@@ -269,7 +269,7 @@ private:
 #ifdef FEATURE_TIERED_COMPILATION
     CallCounter m_callCounter;
 
-    MethodDescVirtualInfoTracker m_methodDescVirtualInfoTracker;
+    MethodDescBackpatchInfoTracker m_methodDescBackpatchInfoTracker;
     MethodDescEntryPointSlotsToBackpatchHash m_dependencyMethodDescEntryPointSlotsToBackpatchHash;
 #endif
 
@@ -587,10 +587,10 @@ public:
         return &m_callCounter;
     }
 
-    MethodDescVirtualInfoTracker *GetMethodDescVirtualInfoTracker()
+    MethodDescBackpatchInfoTracker *GetMethodDescBackpatchInfoTracker()
     {
         LIMITED_METHOD_CONTRACT;
-        return &m_methodDescVirtualInfoTracker;
+        return &m_methodDescBackpatchInfoTracker;
     }
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)

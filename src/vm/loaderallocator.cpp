@@ -1635,7 +1635,7 @@ void LoaderAllocator::UninitVirtualCallStubManager()
 EntryPointSlotsToBackpatch *LoaderAllocator::GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(methodDesc != nullptr);
     _ASSERTE(methodDesc->IsTieredVtableMethod());
 
@@ -1647,7 +1647,7 @@ EntryPointSlotsToBackpatch *LoaderAllocator::GetDependencyMethodDescEntryPointSl
 EntryPointSlotsToBackpatch *LoaderAllocator::GetOrAddDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(methodDesc != nullptr);
     _ASSERTE(methodDesc->IsTieredVtableMethod());
 
@@ -1668,7 +1668,7 @@ void LoaderAllocator::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash()
 {
     WRAPPER_NO_CONTRACT;
 
-    MethodDescVirtualInfoTracker::ConditionalLockHolder lockHolder;
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
 
     for (MethodDescEntryPointSlotsToBackpatchHash::Iterator
             it = m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Begin(),
@@ -1677,10 +1677,10 @@ void LoaderAllocator::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash()
         ++it)
     {
         MethodDesc *methodDesc = (*it)->GetMethodDesc();
-        MethodDescVirtualInfo *virtualInfo = methodDesc->GetVirtualInfoTracker()->GetVirtualInfo_Locked(methodDesc);
-        if (virtualInfo != nullptr)
+        MethodDescBackpatchInfo *backpatchInfo = methodDesc->GetBackpatchInfoTracker()->GetBackpatchInfo_Locked(methodDesc);
+        if (backpatchInfo != nullptr)
         {
-            virtualInfo->RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(this);
+            backpatchInfo->RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(this);
         }
     }
 

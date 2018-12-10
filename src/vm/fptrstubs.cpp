@@ -156,7 +156,7 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
         _ASSERTE(pMD->IsTieredVtableMethod());
 
         PCODE temporaryEntryPoint = pMD->GetTemporaryEntryPoint();
-        MethodDescVirtualInfoTracker::ConditionalLockHolder lockHolder;
+        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
 
         // For tiered vtable methods, set the funcptr stub's entry point to the current entry point inside the lock and after
         // the funcptr stub is added to the hash table, to synchronize with backpatching in

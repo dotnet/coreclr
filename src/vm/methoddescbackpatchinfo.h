@@ -121,30 +121,30 @@ public:
 typedef SHash<MethodDescEntryPointSlotsToBackpatchHashTraits> MethodDescEntryPointSlotsToBackpatchHash;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MethodDescVirtualInfo
+// MethodDescBackpatchInfo
 
-class MethodDescVirtualInfo
+class MethodDescBackpatchInfo
 {
 private:
     MethodDesc *m_methodDesc;
 
-    // This field and its data is protected by MethodDescVirtualInfoTracker's lock. Entry point slots that need to be
+    // This field and its data is protected by MethodDescBackpatchInfoTracker's lock. Entry point slots that need to be
     // backpatched when the method's entry point changes. This may include vtable slots, and slots from virtual stub dispatch
     // for interface methods (slots from dispatch stubs and resolve cache entries). This collection only contains slots
     // associated with this MethodDesc's LoaderAllocator.
     EntryPointSlotsToBackpatch m_slotsToBackpatch;
 
-    // This field is protected by MethodDescVirtualInfoTracker's lock. This is a set of LoaderAllocators that are dependent on
+    // This field is protected by MethodDescBackpatchInfoTracker's lock. This is a set of LoaderAllocators that are dependent on
     // this MethodDesc's LoaderAllocator, which have inherited this MethodDesc and have slots that need to be backpatched when
     // the method's entry point changes.
     LoaderAllocatorSet *m_dependentLoaderAllocatorsWithSlotsToBackpatch;
 
 public:
-    MethodDescVirtualInfo(MethodDesc *methodDesc = nullptr);
+    MethodDescBackpatchInfo(MethodDesc *methodDesc = nullptr);
 
 #ifndef DACCESS_COMPILE
 public:
-    ~MethodDescVirtualInfo()
+    ~MethodDescBackpatchInfo()
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -179,14 +179,14 @@ public:
     void RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(LoaderAllocator *dependentLoaderAllocator);
 #endif
 
-    DISABLE_COPY(MethodDescVirtualInfo);
+    DISABLE_COPY(MethodDescBackpatchInfo);
 };
 
-class MethodDescVirtualInfoHashTraits
-    : public DeleteElementsOnDestructSHashTraits<NoRemoveSHashTraits<DefaultSHashTraits<MethodDescVirtualInfo *>>>
+class MethodDescBackpatchInfoHashTraits
+    : public DeleteElementsOnDestructSHashTraits<NoRemoveSHashTraits<DefaultSHashTraits<MethodDescBackpatchInfo *>>>
 {
 public:
-    typedef DeleteElementsOnDestructSHashTraits<NoRemoveSHashTraits<DefaultSHashTraits<MethodDescVirtualInfo *>>> Base;
+    typedef DeleteElementsOnDestructSHashTraits<NoRemoveSHashTraits<DefaultSHashTraits<MethodDescBackpatchInfo *>>> Base;
     typedef Base::element_t element_t;
     typedef Base::count_t count_t;
 
@@ -214,18 +214,18 @@ public:
     static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e == nullptr; }
 };
 
-typedef SHash<MethodDescVirtualInfoHashTraits> MethodDescVirtualInfoHash;
+typedef SHash<MethodDescBackpatchInfoHashTraits> MethodDescBackpatchInfoHash;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MethodDescVirtualInfoTracker
+// MethodDescBackpatchInfoTracker
 
-class MethodDescVirtualInfoTracker
+class MethodDescBackpatchInfoTracker
 {
 private:
     static CrstStatic s_lock;
 
     // This field and some of its data is protected by s_lock
-    MethodDescVirtualInfoHash m_virtualInfoHash;
+    MethodDescBackpatchInfoHash m_backpatchInfoHash;
 
 #ifndef DACCESS_COMPILE
 public:
@@ -244,7 +244,7 @@ public:
         ConditionalLockHolder(bool acquireLock = true)
             : CrstHolderWithState(
 #ifndef DACCESS_COMPILE
-                acquireLock ? &MethodDescVirtualInfoTracker::s_lock : nullptr
+                acquireLock ? &MethodDescBackpatchInfoTracker::s_lock : nullptr
 #else
                 nullptr
 #endif
@@ -255,7 +255,7 @@ public:
     };
 
 public:
-    MethodDescVirtualInfoTracker()
+    MethodDescBackpatchInfoTracker()
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -267,38 +267,38 @@ public:
 
 #ifndef DACCESS_COMPILE
 public:
-    MethodDescVirtualInfo *GetVirtualInfo_Locked(MethodDesc *methodDesc) const
+    MethodDescBackpatchInfo *GetBackpatchInfo_Locked(MethodDesc *methodDesc) const
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(IsLockedByCurrentThread());
         _ASSERTE(methodDesc != nullptr);
         _ASSERTE(IsTieredVtableMethod(methodDesc));
 
-        return m_virtualInfoHash.Lookup(methodDesc);
+        return m_backpatchInfoHash.Lookup(methodDesc);
     }
 
-    MethodDescVirtualInfo *GetOrAddVirtualInfo_Locked(MethodDesc *methodDesc)
+    MethodDescBackpatchInfo *GetOrAddBackpatchInfo_Locked(MethodDesc *methodDesc)
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(IsLockedByCurrentThread());
         _ASSERTE(methodDesc != nullptr);
         _ASSERTE(IsTieredVtableMethod(methodDesc));
 
-        MethodDescVirtualInfo *virtualInfo = m_virtualInfoHash.Lookup(methodDesc);
-        if (virtualInfo != nullptr)
+        MethodDescBackpatchInfo *backpatchInfo = m_backpatchInfoHash.Lookup(methodDesc);
+        if (backpatchInfo != nullptr)
         {
-            return virtualInfo;
+            return backpatchInfo;
         }
-        return AddVirtualInfo_Locked(methodDesc);
+        return AddBackpatchInfo_Locked(methodDesc);
     }
 
 private:
-    MethodDescVirtualInfo *AddVirtualInfo_Locked(MethodDesc *methodDesc);
+    MethodDescBackpatchInfo *AddBackpatchInfo_Locked(MethodDesc *methodDesc);
 #endif
 
     friend class ConditionalLockHolder;
 
-    DISABLE_COPY(MethodDescVirtualInfoTracker);
+    DISABLE_COPY(MethodDescBackpatchInfoTracker);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -309,7 +309,7 @@ private:
 inline void EntryPointSlotsToBackpatch::AddSlot_Locked(TADDR slot, SlotType slotType)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(slot != NULL);
     _ASSERTE(IS_ALIGNED((SIZE_T)slot, sizeof(void *)));
     _ASSERTE(!(slot & SlotType_Mask));
@@ -320,20 +320,20 @@ inline void EntryPointSlotsToBackpatch::AddSlot_Locked(TADDR slot, SlotType slot
 
 #endif // DACCESS_COMPILE
 
-inline MethodDescVirtualInfo::MethodDescVirtualInfo(MethodDesc *methodDesc)
+inline MethodDescBackpatchInfo::MethodDescBackpatchInfo(MethodDesc *methodDesc)
     : m_methodDesc(methodDesc), m_dependentLoaderAllocatorsWithSlotsToBackpatch(nullptr)
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(methodDesc == nullptr || MethodDescVirtualInfoTracker::IsTieredVtableMethod(PTR_MethodDesc(methodDesc)));
+    _ASSERTE(methodDesc == nullptr || MethodDescBackpatchInfoTracker::IsTieredVtableMethod(PTR_MethodDesc(methodDesc)));
 }
 
 #ifndef DACCESS_COMPILE
 
 template<class Visit>
-inline void MethodDescVirtualInfo::ForEachDependentLoaderAllocatorWithSlotsToBackpatch_Locked(Visit visit)
+inline void MethodDescBackpatchInfo::ForEachDependentLoaderAllocatorWithSlotsToBackpatch_Locked(Visit visit)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(m_methodDesc != nullptr);
 
     LoaderAllocatorSet *set = m_dependentLoaderAllocatorsWithSlotsToBackpatch;

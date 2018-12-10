@@ -48,7 +48,7 @@
 
 #ifdef FEATURE_TIERED_COMPILATION
 #include "callcounter.h"
-#include "methoddescvirtualinfo.h"
+#include "methoddescbackpatchinfo.h"
 #endif
 
 #if defined(FEATURE_GDBJIT)
@@ -93,7 +93,7 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
     LoaderAllocator *mdLoaderAllocator = isTieredVtableMethod ? GetLoaderAllocator() : nullptr;
 
     // Only take the lock if it's a tiered virtual method, for recording slots and synchronizing with backpatching slots
-    MethodDescVirtualInfoTracker::ConditionalLockHolder lockHolder(isTieredVtableMethod);
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(isTieredVtableMethod);
 #endif
 
     // For tiered vtable methods, get the method entry point inside the lock above to synchronize with backpatching in

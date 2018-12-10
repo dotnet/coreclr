@@ -4840,7 +4840,7 @@ void MethodDesc::RecordAndBackpatchEntryPointSlot(
     WRAPPER_NO_CONTRACT;
 
     LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
-    MethodDescVirtualInfoTracker::ConditionalLockHolder lockHolder;
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
 
     // This must be done inside the lock, see asserts and comments in RecordAndBackpatchEntryPointSlot_Locked()
     PCODE currentEntryPoint = GetMethodEntryPoint();
@@ -4859,7 +4859,7 @@ void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
     PCODE currentEntryPoint)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(mdLoaderAllocator != nullptr);
     _ASSERTE(mdLoaderAllocator == GetLoaderAllocator());
     _ASSERTE(slotLoaderAllocator != nullptr);
@@ -4874,17 +4874,18 @@ void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
     // current, entry point until another entry point change, which may never happen.
     _ASSERTE(currentEntryPoint == GetMethodEntryPoint());
 
-    MethodDescVirtualInfo *virtualInfo = mdLoaderAllocator->GetMethodDescVirtualInfoTracker()->GetOrAddVirtualInfo_Locked(this);
+    MethodDescBackpatchInfo *backpatchInfo =
+        mdLoaderAllocator->GetMethodDescBackpatchInfoTracker()->GetOrAddBackpatchInfo_Locked(this);
     if (slotLoaderAllocator == mdLoaderAllocator)
     {
         // Entry point slots to backpatch are recorded in the virtual info
-        virtualInfo->GetSlotsToBackpatch()->AddSlot_Locked(slot, slotType);
+        backpatchInfo->GetSlotsToBackpatch()->AddSlot_Locked(slot, slotType);
     }
     else
     {
         // Register the slot's loader allocator with the MethodDesc's virtual info. Entry point slots to backpatch are recorded
         // in the slot's LoaderAllocator.
-        virtualInfo->AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(slotLoaderAllocator);
+        backpatchInfo->AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(slotLoaderAllocator);
         slotLoaderAllocator->GetOrAddDependencyMethodDescEntryPointSlotsToBackpatch_Locked(this)->AddSlot_Locked(slot, slotType);
     }
 
@@ -4899,8 +4900,8 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isTemporaryEntr
     _ASSERTE(isTemporaryEntryPoint == (entryPoint == GetTemporaryEntryPoint()));
 
     LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
-    MethodDescVirtualInfoTracker *virtualInfoTracker = mdLoaderAllocator->GetMethodDescVirtualInfoTracker();
-    MethodDescVirtualInfoTracker::ConditionalLockHolder lockHolder;
+    MethodDescBackpatchInfoTracker *backpatchInfoTracker = mdLoaderAllocator->GetMethodDescBackpatchInfoTracker();
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
 
     // Get and set the method's entry point inside the lock to synchronize with backpatching in MethodDesc::DoBackpatch()
     if (GetMethodEntryPoint() == entryPoint)
@@ -4927,17 +4928,17 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isTemporaryEntr
         }
     }
 
-    MethodDescVirtualInfo *virtualInfo = virtualInfoTracker->GetVirtualInfo_Locked(this);
-    if (virtualInfo == nullptr)
+    MethodDescBackpatchInfo *backpatchInfo = backpatchInfoTracker->GetBackpatchInfo_Locked(this);
+    if (backpatchInfo == nullptr)
     {
         return;
     }
 
     // Backpatch slots from the same loader allocator
-    virtualInfo->GetSlotsToBackpatch()->Backpatch_Locked(entryPoint);
+    backpatchInfo->GetSlotsToBackpatch()->Backpatch_Locked(entryPoint);
 
     // Backpatch slots from dependent loader allocators
-    virtualInfo->ForEachDependentLoaderAllocatorWithSlotsToBackpatch_Locked(
+    backpatchInfo->ForEachDependentLoaderAllocatorWithSlotsToBackpatch_Locked(
         [&](LoaderAllocator *slotLoaderAllocator)
     {
         _ASSERTE(slotLoaderAllocator != nullptr);

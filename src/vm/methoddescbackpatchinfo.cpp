@@ -6,7 +6,7 @@
 #include "excep.h"
 #include "log.h"
 #include "tieredcompilation.h"
-#include "methoddescvirtualinfo.h"
+#include "methoddescbackpatchinfo.h"
 
 #ifdef FEATURE_TIERED_COMPILATION
 
@@ -18,7 +18,7 @@
 void EntryPointSlotsToBackpatch::Backpatch_Locked(PCODE entryPoint)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(entryPoint != NULL);
 
     TADDR *slots = m_slots.GetElements();
@@ -35,7 +35,7 @@ void EntryPointSlotsToBackpatch::Backpatch_Locked(PCODE entryPoint)
 void EntryPointSlotsToBackpatch::Backpatch_Locked(TADDR slot, SlotType slotType, PCODE entryPoint)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(slot != NULL);
     _ASSERTE(IS_ALIGNED((SIZE_T)slot, sizeof(void *)));
     _ASSERTE(!(slot & SlotType_Mask));
@@ -73,14 +73,14 @@ void EntryPointSlotsToBackpatch::Backpatch_Locked(TADDR slot, SlotType slotType,
 #endif // !DACCESS_COMPILE
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MethodDescVirtualInfo
+// MethodDescBackpatchInfo
 
 #ifndef DACCESS_COMPILE
 
-void MethodDescVirtualInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(LoaderAllocator *dependentLoaderAllocator)
+void MethodDescBackpatchInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(LoaderAllocator *dependentLoaderAllocator)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(m_methodDesc != nullptr);
     _ASSERTE(dependentLoaderAllocator != nullptr);
     _ASSERTE(dependentLoaderAllocator != m_methodDesc->GetLoaderAllocator());
@@ -101,11 +101,11 @@ void MethodDescVirtualInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_Loc
     m_dependentLoaderAllocatorsWithSlotsToBackpatch = setHolder.Extract();
 }
 
-void MethodDescVirtualInfo::RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(
+void MethodDescBackpatchInfo::RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(
     LoaderAllocator *dependentLoaderAllocator)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(m_methodDesc != nullptr);
     _ASSERTE(dependentLoaderAllocator != nullptr);
     _ASSERTE(dependentLoaderAllocator != m_methodDesc->GetLoaderAllocator());
@@ -118,23 +118,23 @@ void MethodDescVirtualInfo::RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_
 #endif // !DACCESS_COMPILE
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MethodDescVirtualInfoTracker
+// MethodDescBackpatchInfoTracker
 
-CrstStatic MethodDescVirtualInfoTracker::s_lock;
+CrstStatic MethodDescBackpatchInfoTracker::s_lock;
 
 #ifndef DACCESS_COMPILE
 
-void MethodDescVirtualInfoTracker::StaticInitialize()
+void MethodDescBackpatchInfoTracker::StaticInitialize()
 {
     WRAPPER_NO_CONTRACT;
-    s_lock.Init(CrstMethodDescVirtualInfoTracker);
+    s_lock.Init(CrstMethodDescBackpatchInfoTracker);
 }
 
 #endif // DACCESS_COMPILE
 
 #ifdef _DEBUG
 
-bool MethodDescVirtualInfoTracker::IsLockedByCurrentThread()
+bool MethodDescBackpatchInfoTracker::IsLockedByCurrentThread()
 {
     WRAPPER_NO_CONTRACT;
 
@@ -145,7 +145,7 @@ bool MethodDescVirtualInfoTracker::IsLockedByCurrentThread()
 #endif
 }
 
-bool MethodDescVirtualInfoTracker::IsTieredVtableMethod(PTR_MethodDesc methodDesc)
+bool MethodDescBackpatchInfoTracker::IsTieredVtableMethod(PTR_MethodDesc methodDesc)
 {
     // The only purpose of this method is to allow asserts in inline functions defined in the .h file, by which time MethodDesc
     // is not fully defined
@@ -158,17 +158,17 @@ bool MethodDescVirtualInfoTracker::IsTieredVtableMethod(PTR_MethodDesc methodDes
 
 #ifndef DACCESS_COMPILE
 
-MethodDescVirtualInfo *MethodDescVirtualInfoTracker::AddVirtualInfo_Locked(MethodDesc *methodDesc)
+MethodDescBackpatchInfo *MethodDescBackpatchInfoTracker::AddBackpatchInfo_Locked(MethodDesc *methodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsLockedByCurrentThread());
     _ASSERTE(methodDesc != nullptr);
     _ASSERTE(methodDesc->IsTieredVtableMethod());
-    _ASSERTE(m_virtualInfoHash.Lookup(methodDesc) == nullptr);
+    _ASSERTE(m_backpatchInfoHash.Lookup(methodDesc) == nullptr);
 
-    NewHolder<MethodDescVirtualInfo> virtualInfoHolder = new MethodDescVirtualInfo(methodDesc);
-    m_virtualInfoHash.Add(virtualInfoHolder);
-    return virtualInfoHolder.Extract();
+    NewHolder<MethodDescBackpatchInfo> backpatchInfoHolder = new MethodDescBackpatchInfo(methodDesc);
+    m_backpatchInfoHash.Add(backpatchInfoHolder);
+    return backpatchInfoHolder.Extract();
 }
 
 #endif // DACCESS_COMPILE
