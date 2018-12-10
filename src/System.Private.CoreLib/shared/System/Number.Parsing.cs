@@ -559,14 +559,15 @@ namespace System
                 {
                     value = value.Slice(index);
                     index = 0;
-                    if (info.PositiveSign is string positiveSign && positiveSign.Length > 0 && value.StartsWith(positiveSign))
+                    string positiveSign = info.PositiveSign, negativeSign = info.NegativeSign;
+                    if (!string.IsNullOrEmpty(positiveSign) && value.StartsWith(positiveSign))
                     {
                         index += positiveSign.Length;
                         if ((uint)index >= (uint)value.Length)
                             goto FalseExit;
                         num = value[index];
                     }
-                    else if (info.NegativeSign is string negativeSign && negativeSign.Length > 0 && value.StartsWith(negativeSign))
+                    else if (!string.IsNullOrEmpty(negativeSign) && value.StartsWith(negativeSign))
                     {
                         sign = -1;
                         index += negativeSign.Length;
@@ -610,13 +611,13 @@ namespace System
                     answer = 10 * answer + num - '0';
                 }
 
-                // Potential overflow now processing the 10th digit.
                 if ((uint)index >= (uint)value.Length)
                     goto DoneAtEnd;
                 num = value[index];
                 if (!IsDigit(num))
                     goto HasTrailingChars;
                 index++;
+                // Potential overflow now processing the 10th digit.
                 overflow = answer > int.MaxValue / 10;
                 answer = answer * 10 + num - '0';
                 overflow |= (uint)answer > int.MaxValue + (((uint)sign) >> 31);
@@ -729,14 +730,15 @@ namespace System
                 {
                     value = value.Slice(index);
                     index = 0;
-                    if (info.PositiveSign is string positiveSign && positiveSign.Length > 0 && value.StartsWith(positiveSign))
+                    string positiveSign = info.PositiveSign, negativeSign = info.NegativeSign;
+                    if (!string.IsNullOrEmpty(positiveSign) && value.StartsWith(positiveSign))
                     {
                         index += positiveSign.Length;
                         if ((uint)index >= (uint)value.Length)
                             goto FalseExit;
                         num = value[index];
                     }
-                    else if (info.NegativeSign is string negativeSign && negativeSign.Length > 0 && value.StartsWith(negativeSign))
+                    else if (!string.IsNullOrEmpty(negativeSign) && value.StartsWith(negativeSign))
                     {
                         sign = -1;
                         index += negativeSign.Length;
@@ -780,13 +782,13 @@ namespace System
                     answer = 10 * answer + num - '0';
                 }
 
-                // Potential overflow now processing the 19th digit.
                 if ((uint)index >= (uint)value.Length)
                     goto DoneAtEnd;
                 num = value[index];
                 if (!IsDigit(num))
                     goto HasTrailingChars;
                 index++;
+                // Potential overflow now processing the 19th digit.
                 overflow = answer > long.MaxValue / 10;
                 answer = answer * 10 + num - '0';
                 overflow |= (ulong)answer > (ulong)long.MaxValue + (((uint)sign) >> 31);
@@ -972,14 +974,15 @@ namespace System
                 {
                     value = value.Slice(index);
                     index = 0;
-                    if (info.PositiveSign is string positiveSign && positiveSign.Length > 0 && value.StartsWith(positiveSign))
+                    string positiveSign = info.PositiveSign, negativeSign = info.NegativeSign;
+                    if (!string.IsNullOrEmpty(positiveSign) && value.StartsWith(positiveSign))
                     {
                         index += positiveSign.Length;
                         if ((uint)index >= (uint)value.Length)
                             goto FalseExit;
                         num = value[index];
                     }
-                    else if (info.NegativeSign is string negativeSign && negativeSign.Length > 0 && value.StartsWith(negativeSign))
+                    else if (!string.IsNullOrEmpty(negativeSign) && value.StartsWith(negativeSign))
                     {
                         overflow = true;
                         index += negativeSign.Length;
@@ -1022,13 +1025,13 @@ namespace System
                     answer = 10 * answer + num - '0';
                 }
 
-                // Potential overflow now processing the 10th digit.
                 if ((uint)index >= (uint)value.Length)
                     goto DoneAtEndButPotentialOverflow;
                 num = value[index];
                 if (!IsDigit(num))
                     goto HasTrailingChars;
                 index++;
+                // Potential overflow now processing the 10th digit.
                 overflow |= (uint)answer > uint.MaxValue / 10 || ((uint)answer == uint.MaxValue / 10 && num > '5');
                 answer = answer * 10 + num - '0';
                 if ((uint)index >= (uint)value.Length)
@@ -1299,14 +1302,15 @@ namespace System
                 {
                     value = value.Slice(index);
                     index = 0;
-                    if (info.PositiveSign is string positiveSign && positiveSign.Length > 0 && value.StartsWith(positiveSign))
+                    string positiveSign = info.PositiveSign, negativeSign = info.NegativeSign;
+                    if (!string.IsNullOrEmpty(positiveSign) && value.StartsWith(positiveSign))
                     {
                         index += positiveSign.Length;
                         if ((uint)index >= (uint)value.Length)
                             goto FalseExit;
                         num = value[index];
                     }
-                    else if (info.NegativeSign is string negativeSign && negativeSign.Length > 0 && value.StartsWith(negativeSign))
+                    else if (!string.IsNullOrEmpty(negativeSign) && value.StartsWith(negativeSign))
                     {
                         overflow = true;
                         index += negativeSign.Length;
@@ -1349,13 +1353,13 @@ namespace System
                     answer = 10 * answer + num - '0';
                 }
 
-                // Potential overflow now processing the 20th digit.
                 if ((uint)index >= (uint)value.Length)
                     goto DoneAtEndButPotentialOverflow;
                 num = value[index];
                 if (!IsDigit(num))
                     goto HasTrailingChars;
                 index++;
+                // Potential overflow now processing the 20th digit.
                 overflow |= (ulong)answer > ulong.MaxValue / 10 || ((ulong)answer == ulong.MaxValue / 10 && num > '5');
                 answer = answer * 10 + num - '0';
                 if ((uint)index >= (uint)value.Length)
@@ -1886,6 +1890,7 @@ namespace System
             return null;
         }
 
+        // Ternary op is a workaround for https://github.com/dotnet/coreclr/issues/914
         private static bool IsWhite(int ch) => ch == 0x20 || (uint)(ch - 0x09) <= (0x0D - 0x09) ? true : false;
 
         private static bool IsDigit(int ch) => ((uint)ch - '0') <= 9;

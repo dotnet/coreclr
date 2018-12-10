@@ -161,6 +161,8 @@ namespace System
                 Number.ThrowOverflowOrFormatException(status, TypeCode.SByte);
             }
 
+            // For hex number styles AllowHexSpecifier >> 2 == 0x80 and cancels out MinValue so the check is effectively: (uint)i > byte.MaxValue
+            // For integer styles it's zero and the effective check is (uint)(i - MinValue) > byte.MaxValue
             if ((uint)(i - MinValue - ((int)(style & NumberStyles.AllowHexSpecifier) >> 2)) > byte.MaxValue)
             {
                 Number.ThrowOverflowException(TypeCode.SByte);
@@ -209,6 +211,8 @@ namespace System
 
         private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out sbyte result)
         {
+            // For hex number styles AllowHexSpecifier >> 2 == 0x80 and cancels out MinValue so the check is effectively: (uint)i > byte.MaxValue
+            // For integer styles it's zero and the effective check is (uint)(i - MinValue) > byte.MaxValue
             if (Number.TryParseInt32(s, style, info, out int i) != Number.ParsingStatus.OK
                 || (uint)(i - MinValue - ((int)(style & NumberStyles.AllowHexSpecifier) >> 2)) > byte.MaxValue)
             {

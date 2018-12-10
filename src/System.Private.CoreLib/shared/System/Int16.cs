@@ -143,6 +143,8 @@ namespace System
                 Number.ThrowOverflowOrFormatException(status, TypeCode.Int16);
             }
 
+            // For hex number styles AllowHexSpecifier << 6 == 0x8000 and cancels out MinValue so the check is effectively: (uint)i > ushort.MaxValue
+            // For integer styles it's zero and the effective check is (uint)(i - MinValue) > ushort.MaxValue
             if ((uint)(i - MinValue - ((int)(style & NumberStyles.AllowHexSpecifier) << 6)) > ushort.MaxValue)
             {
                 Number.ThrowOverflowException(TypeCode.Int16);
@@ -187,6 +189,8 @@ namespace System
 
         private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out short result)
         {
+            // For hex number styles AllowHexSpecifier << 6 == 0x8000 and cancels out MinValue so the check is effectively: (uint)i > ushort.MaxValue
+            // For integer styles it's zero and the effective check is (uint)(i - MinValue) > ushort.MaxValue
             if (Number.TryParseInt32(s, style, info, out int i) != Number.ParsingStatus.OK
                 || (uint)(i - MinValue - ((int)(style & NumberStyles.AllowHexSpecifier) << 6)) > ushort.MaxValue)
             {
