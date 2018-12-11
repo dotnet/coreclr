@@ -31,6 +31,11 @@ jobs:
         name: ${{ format('testbuild_pri{0}_r2r_{1}_{2}_{3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
         displayName: ${{ format('Test Pri{0} R2R {1} {2} {3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
 
+    ${{ if eq(parameters.crossgen, 'false') }}:
+        helixType: ${{ format('test/functional/cli/pri{0}', parameters.priority) }}
+    ${{ if eq(parameters.crossgen, 'true') }}:
+        helixType: ${{ format('test/functional/r2r/cli/pri{0}', parameters.priority) }}
+
     variables:
       # Map template parameters to command line arguments
       - ${{ if eq(parameters.priority, '1') }}:

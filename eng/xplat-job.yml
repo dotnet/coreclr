@@ -9,6 +9,7 @@ parameters:
   dependsOn: ''
   containerName: ''
   timeoutInMinutes: ''
+  helixType: ''
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
@@ -21,6 +22,9 @@ jobs:
     condition: ${{ parameters.condition }}
     dependsOn: ${{ parameters.dependsOn }}
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+
+    helixRepo: 'dotnet/coreclr'
+    helixType: ${{ parameters.helixType }}
 
     pool:
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:

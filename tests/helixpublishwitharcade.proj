@@ -7,9 +7,8 @@
   <Import Project="..\dir.props" />
 
   <PropertyGroup>
-    <!-- TODO: pick appropriate helix source and type. -->
-    <HelixSource>pr/coreclr/master</HelixSource>
-    <HelixType>test/stuff</HelixType>
+    <HelixSource>$(_HelixSource)</HelixSource>
+    <HelixType>$(_HelixType)</HelixType>
     <HelixBuild>$(BUILD_BUILDNUMBER)</HelixBuild>
 
     <EnableAzurePipelinesReporter Condition=" '$(EnableAzurePipelinesReporter)' != 'false' ">true</EnableAzurePipelinesReporter>
