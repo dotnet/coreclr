@@ -19,7 +19,9 @@ enum NativeFieldFlags : short
     NATIVE_FIELD_SUBCATEGORY_INTEGER = 1 << 12,
     // The native representation of the field can be treated as an array.
     NATIVE_FIELD_SUBCATEGORY_ARRAY = 1 << 13,
-    // The native representation of the field has so special properties.
+    // The native representation of the field has no conditional rules in calling convention ABIs.
+    // Many of the subcategories here are designed to enable checking if types are HFA types or can be enregistered on certain ABIs.
+    // This subcategory is used for well-known runtime types that aren't specially marshalled in ABIs and fields that cannot be marshalled.
     NATIVE_FIELD_SUBCATEGORY_OTHER = 1 << 14,
     // The field is a 4-byte floating point.
     NATIVE_FIELD_CATEGORY_R4 = NATIVE_FIELD_SUBCATEGORY_FLOAT | NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE,
