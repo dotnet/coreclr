@@ -636,7 +636,7 @@ namespace System.Runtime.Intrinsics
 
                 Vector128<long> lo64, hi64;
                 lo64 = Sse2.UnpackLow(CreateScalarUnsafe(e0), CreateScalarUnsafe(e1)).AsInt64();    // < 0, 1, ?, ? >
-                hi64 = Sse2.UnpackLow(CreateScalarUnsafe(e0), CreateScalarUnsafe(e1)).AsInt64();    // < 2, 3, ?, ? >
+                hi64 = Sse2.UnpackLow(CreateScalarUnsafe(e2), CreateScalarUnsafe(e3)).AsInt64();    // < 2, 3, ?, ? >
                 return Sse2.UnpackLow(lo64, hi64).AsInt32();                                        // < 0, 1, 2, 3 >
             }
 
@@ -903,7 +903,7 @@ namespace System.Runtime.Intrinsics
 
                 Vector128<ulong> lo64, hi64;
                 lo64 = Sse2.UnpackLow(CreateScalarUnsafe(e0), CreateScalarUnsafe(e1)).AsUInt64();   // < 0, 1, ?, ? >
-                hi64 = Sse2.UnpackLow(CreateScalarUnsafe(e0), CreateScalarUnsafe(e1)).AsUInt64();   // < 2, 3, ?, ? >
+                hi64 = Sse2.UnpackLow(CreateScalarUnsafe(e2), CreateScalarUnsafe(e3)).AsUInt64();   // < 2, 3, ?, ? >
                 return Sse2.UnpackLow(lo64, hi64).AsUInt32();                                       // < 0, 1, 2, 3 >
             }
 
