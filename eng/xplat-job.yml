@@ -8,6 +8,7 @@ parameters:
   condition: ''
   dependsOn: ''
   containerName: ''
+  timeoutInMinutes: ''
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
@@ -18,8 +19,8 @@ jobs:
     displayName: ${{ parameters.displayName }}
 
     condition: ${{ parameters.condition }}
-
     dependsOn: ${{ parameters.dependsOn }}
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
 
     pool:
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
@@ -34,7 +35,6 @@ jobs:
         name: dotnet-internal-temp
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
         name: dotnet-external-temp
-      timeoutInMinutes: 240
 
     workspace:
       clean: all

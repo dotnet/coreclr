@@ -8,6 +8,7 @@ parameters:
   scenarios: ''
   helixQueuesPublic: ''
   helixQueuesInternal: ''
+  timeoutInMinutes: ''
 
 ### Test job
 
@@ -76,6 +77,8 @@ jobs:
     # Run all steps in the container.
     # Note that the containers are resources defined in azure-pipelines.yml
     containerName: ${{ parameters.containerName }}
+
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
 
     steps:
 
