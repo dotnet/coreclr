@@ -197,7 +197,7 @@ jobs:
       - build_Linux_rhel7_x64_release
       - build_Linux_x64_release
       - build_OSX_x64_release
-      - build_Windows_NT_x64_relaese
+      - build_Windows_NT_x64_release
       - build_Windows_NT_x86_release
       - build_Windows_NT_arm_release
       - build_Windows_NT_arm64_release
