@@ -43,6 +43,9 @@ namespace System.Runtime.Intrinsics
 
             if (Sse2.IsSupported)
             {
+                // We first unpack as bytes to duplicate value into the lower 2 bytes, then we treat it as a ushort and unpack again to duplicate those
+                // bits into the lower 2 words, we can finally treat it as a uint and shuffle the lower dword to duplicate value across the entire result
+
                 Vector128<byte> result = CreateScalarUnsafe(value);                         // < v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
                 result = Sse2.UnpackLow(result, result);                                    // < v, v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
                 result = Sse2.UnpackLow(result.AsUInt16(), result.AsUInt16()).AsByte();     // < v, v, v, v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
@@ -91,6 +94,9 @@ namespace System.Runtime.Intrinsics
 
             if (Sse2.IsSupported)
             {
+                // Treating the value as a set of singles and emitting MoveLowToHigh is more efficient than dealing with the elements directly as double
+                // However, we still need to check if Sse2 is supported since CreateScalarUnsafe needs it to for movsd, when value is not already in register
+
                 Vector128<double> result = CreateScalarUnsafe(value);                       // < v, ? >
                 return Sse.MoveLowToHigh(result.AsSingle(), result.AsSingle()).AsDouble();  // < v, v >
             }
@@ -123,6 +129,9 @@ namespace System.Runtime.Intrinsics
 
             if (Sse2.IsSupported)
             {
+                // We first unpack as ushort to duplicate value into the lower 2 words, then we can treat it as a uint and shuffle the lower dword to
+                // duplicate value across the entire result
+
                 Vector128<short> result = CreateScalarUnsafe(value);                        // < v, ?, ?, ?, ?, ?, ?, ? >
                 result = Sse2.UnpackLow(result, result);                                    // < v, v, ?, ?, ?, ?, ?, ? >
                 return Sse2.Shuffle(result.AsInt32(), 0x00).AsInt16();                      // < v, v, v, v, v, v, v, v >
@@ -237,6 +246,9 @@ namespace System.Runtime.Intrinsics
 
             if (Sse2.IsSupported)
             {
+                // We first unpack as bytes to duplicate value into the lower 2 bytes, then we treat it as a ushort and unpack again to duplicate those
+                // bits into the lower 2 words, we can finally treat it as a uint and shuffle the lower dword to duplicate value across the entire result
+
                 Vector128<sbyte> result = CreateScalarUnsafe(value);                        // < v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
                 result = Sse2.UnpackLow(result, result);                                    // < v, v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
                 result = Sse2.UnpackLow(result.AsInt16(), result.AsInt16()).AsSByte();      // < v, v, v, v, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? >
@@ -326,6 +338,9 @@ namespace System.Runtime.Intrinsics
 
             if (Sse2.IsSupported)
             {
+                // We first unpack as ushort to duplicate value into the lower 2 words, then we can treat it as a uint and shuffle the lower dword to
+                // duplicate value across the entire result
+
                 Vector128<ushort> result = CreateScalarUnsafe(value);                       // < v, ?, ?, ?, ?, ?, ?, ? >
                 result = Sse2.UnpackLow(result, result);                                    // < v, v, ?, ?, ?, ?, ?, ? >
                 return Sse2.Shuffle(result.AsUInt32(), 0x00).AsUInt16();                    // < v, v, v, v, v, v, v, v >
@@ -464,6 +479,10 @@ namespace System.Runtime.Intrinsics
 
             if (Sse2.IsSupported)
             {
+                // We deal with the elements in order, unpacking the ordered pairs of bytes into vectors. We then treat those vectors as ushort and
+                // unpack them again, then again treating those results as uint, and a final time treating them as ulong. This efficiently gets all
+                // bytes ordered into the result.
+
                 Vector128<ushort> lo16, hi16;
                 Vector128<uint> lo32, hi32;
                 Vector128<ulong> lo64, hi64;
@@ -528,6 +547,9 @@ namespace System.Runtime.Intrinsics
         {
             if (Sse2.IsSupported)
             {
+                // Treating the value as a set of singles and emitting MoveLowToHigh is more efficient than dealing with the elements directly as double
+                // However, we still need to check if Sse2 is supported since CreateScalarUnsafe needs it to for movsd, when value is not already in register
+
                 return Sse.MoveLowToHigh(CreateScalarUnsafe(e0).AsSingle(), CreateScalarUnsafe(e1).AsSingle()).AsDouble();
             }
 
@@ -609,6 +631,9 @@ namespace System.Runtime.Intrinsics
 
             if (Sse2.IsSupported)
             {
+                // We deal with the elements in order, unpacking the ordered pairs of int into vectors. We then treat those vectors as ulong and
+                // unpack them again. This efficiently gets all ints ordered into the result.
+
                 Vector128<long> lo64, hi64;
                 lo64 = Sse2.UnpackLow(CreateScalarUnsafe(e0), CreateScalarUnsafe(e1)).AsInt64();    // < 0, 1, ?, ? >
                 hi64 = Sse2.UnpackLow(CreateScalarUnsafe(e0), CreateScalarUnsafe(e1)).AsInt64();    // < 2, 3, ?, ? >
@@ -707,6 +732,10 @@ namespace System.Runtime.Intrinsics
 
             if (Sse2.IsSupported)
             {
+                // We deal with the elements in order, unpacking the ordered pairs of bytes into vectors. We then treat those vectors as ushort and
+                // unpack them again, then again treating those results as uint, and a final time treating them as ulong. This efficiently gets all
+                // bytes ordered into the result.
+
                 Vector128<short> lo16, hi16;
                 Vector128<int> lo32, hi32;
                 Vector128<long> lo64, hi64;
@@ -869,6 +898,9 @@ namespace System.Runtime.Intrinsics
 
             if (Sse2.IsSupported)
             {
+                // We deal with the elements in order, unpacking the ordered pairs of int into vectors. We then treat those vectors as ulong and
+                // unpack them again. This efficiently gets all ints ordered into the result.
+
                 Vector128<ulong> lo64, hi64;
                 lo64 = Sse2.UnpackLow(CreateScalarUnsafe(e0), CreateScalarUnsafe(e1)).AsUInt64();   // < 0, 1, ?, ? >
                 hi64 = Sse2.UnpackLow(CreateScalarUnsafe(e0), CreateScalarUnsafe(e1)).AsUInt64();   // < 2, 3, ?, ? >
@@ -1086,6 +1118,8 @@ namespace System.Runtime.Intrinsics
         {
             if (Sse2.IsSupported)
             {
+                // ConvertScalarToVector128 only deals with 32/64-bit inputs and we need to ensure all upper-bits are zeroed, so we call
+                // the UInt32 overload to ensure zero extension. We can then just treat the result as byte and return.
                 return Sse2.ConvertScalarToVector128UInt32(value).AsByte();
             }
 
@@ -1128,6 +1162,8 @@ namespace System.Runtime.Intrinsics
         {
             if (Sse2.IsSupported)
             {
+                // ConvertScalarToVector128 only deals with 32/64-bit inputs and we need to ensure all upper-bits are zeroed, so we cast
+                // to ushort and call the UInt32 overload to ensure zero extension. We can then just treat the result as short and return.
                 return Sse2.ConvertScalarToVector128UInt32((ushort)(value)).AsInt16();
             }
 
@@ -1191,7 +1227,8 @@ namespace System.Runtime.Intrinsics
         {
             if (Sse2.IsSupported)
             {
-                // Convert to byte so that we zero-extend, rather than sign-extend
+                // ConvertScalarToVector128 only deals with 32/64-bit inputs and we need to ensure all upper-bits are zeroed, so we cast
+                // to byte and call the UInt32 overload to ensure zero extension. We can then just treat the result as sbyte and return.
                 return Sse2.ConvertScalarToVector128UInt32((byte)(value)).AsSByte();
             }
 
@@ -1235,6 +1272,8 @@ namespace System.Runtime.Intrinsics
         {
             if (Sse2.IsSupported)
             {
+                // ConvertScalarToVector128 only deals with 32/64-bit inputs and we need to ensure all upper-bits are zeroed, so we call
+                // the UInt32 overload to ensure zero extension. We can then just treat the result as ushort and return.
                 return Sse2.ConvertScalarToVector128UInt32(value).AsUInt16();
             }
 

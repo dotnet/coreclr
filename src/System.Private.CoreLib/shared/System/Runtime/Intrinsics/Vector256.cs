@@ -507,9 +507,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31);
+            return SoftwareFallback(e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31);
 
-            Vector256<byte> CreateSoftware(byte i0, byte i1, byte i2, byte i3, byte i4, byte i5, byte i6, byte i7, byte i8, byte i9, byte i10, byte i11, byte i12, byte i13, byte i14, byte i15, byte i16, byte i17, byte i18, byte i19, byte i20, byte i21, byte i22, byte i23, byte i24, byte i25, byte i26, byte i27, byte i28, byte i29, byte i30, byte i31)
+            Vector256<byte> SoftwareFallback(byte i0, byte i1, byte i2, byte i3, byte i4, byte i5, byte i6, byte i7, byte i8, byte i9, byte i10, byte i11, byte i12, byte i13, byte i14, byte i15, byte i16, byte i17, byte i18, byte i19, byte i20, byte i21, byte i22, byte i23, byte i24, byte i25, byte i26, byte i27, byte i28, byte i29, byte i30, byte i31)
             {
                 var pResult = stackalloc byte[32]
                 {
@@ -567,9 +567,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3);
+            return SoftwareFallback(e0, e1, e2, e3);
 
-            Vector256<double> CreateSoftware(double i0, double i1, double i2, double i3)
+            Vector256<double> SoftwareFallback(double i0, double i1, double i2, double i3)
             {
                 var pResult = stackalloc double[4]
                 {
@@ -611,9 +611,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15);
+            return SoftwareFallback(e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15);
 
-            Vector256<short> CreateSoftware(short i0, short i1, short i2, short i3, short i4, short i5, short i6, short i7, short i8, short i9, short i10, short i11, short i12, short i13, short i14, short i15)
+            Vector256<short> SoftwareFallback(short i0, short i1, short i2, short i3, short i4, short i5, short i6, short i7, short i8, short i9, short i10, short i11, short i12, short i13, short i14, short i15)
             {
                 var pResult = stackalloc short[16]
                 {
@@ -659,9 +659,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3, e4, e5, e6, e7);
+            return SoftwareFallback(e0, e1, e2, e3, e4, e5, e6, e7);
 
-            Vector256<int> CreateSoftware(int i0, int i1, int i2, int i3, int i4, int i5, int i6, int i7)
+            Vector256<int> SoftwareFallback(int i0, int i1, int i2, int i3, int i4, int i5, int i6, int i7)
             {
                 var pResult = stackalloc int[8]
                 {
@@ -695,9 +695,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3);
+            return SoftwareFallback(e0, e1, e2, e3);
 
-            Vector256<long> CreateSoftware(long i0, long i1, long i2, long i3)
+            Vector256<long> SoftwareFallback(long i0, long i1, long i2, long i3)
             {
                 var pResult = stackalloc long[4]
                 {
@@ -756,9 +756,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31);
+            return SoftwareFallback(e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31);
 
-            Vector256<sbyte> CreateSoftware(sbyte i0, sbyte i1, sbyte i2, sbyte i3, sbyte i4, sbyte i5, sbyte i6, sbyte i7, sbyte i8, sbyte i9, sbyte i10, sbyte i11, sbyte i12, sbyte i13, sbyte i14, sbyte i15, sbyte i16, sbyte i17, sbyte i18, sbyte i19, sbyte i20, sbyte i21, sbyte i22, sbyte i23, sbyte i24, sbyte i25, sbyte i26, sbyte i27, sbyte i28, sbyte i29, sbyte i30, sbyte i31)
+            Vector256<sbyte> SoftwareFallback(sbyte i0, sbyte i1, sbyte i2, sbyte i3, sbyte i4, sbyte i5, sbyte i6, sbyte i7, sbyte i8, sbyte i9, sbyte i10, sbyte i11, sbyte i12, sbyte i13, sbyte i14, sbyte i15, sbyte i16, sbyte i17, sbyte i18, sbyte i19, sbyte i20, sbyte i21, sbyte i22, sbyte i23, sbyte i24, sbyte i25, sbyte i26, sbyte i27, sbyte i28, sbyte i29, sbyte i30, sbyte i31)
             {
                 var pResult = stackalloc sbyte[32]
                 {
@@ -820,9 +820,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3, e4, e5, e6, e7);
+            return SoftwareFallback(e0, e1, e2, e3, e4, e5, e6, e7);
 
-            Vector256<float> CreateSoftware(float i0, float i1, float i2, float i3, float i4, float i5, float i6, float i7)
+            Vector256<float> SoftwareFallback(float i0, float i1, float i2, float i3, float i4, float i5, float i6, float i7)
             {
                 var pResult = stackalloc float[8]
                 {
@@ -869,9 +869,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15);
+            return SoftwareFallback(e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15);
 
-            Vector256<ushort> CreateSoftware(ushort i0, ushort i1, ushort i2, ushort i3, ushort i4, ushort i5, ushort i6, ushort i7, ushort i8, ushort i9, ushort i10, ushort i11, ushort i12, ushort i13, ushort i14, ushort i15)
+            Vector256<ushort> SoftwareFallback(ushort i0, ushort i1, ushort i2, ushort i3, ushort i4, ushort i5, ushort i6, ushort i7, ushort i8, ushort i9, ushort i10, ushort i11, ushort i12, ushort i13, ushort i14, ushort i15)
             {
                 var pResult = stackalloc ushort[16]
                 {
@@ -918,9 +918,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3, e4, e5, e6, e7);
+            return SoftwareFallback(e0, e1, e2, e3, e4, e5, e6, e7);
 
-            Vector256<uint> CreateSoftware(uint i0, uint i1, uint i2, uint i3, uint i4, uint i5, uint i6, uint i7)
+            Vector256<uint> SoftwareFallback(uint i0, uint i1, uint i2, uint i3, uint i4, uint i5, uint i6, uint i7)
             {
                 var pResult = stackalloc uint[8]
                 {
@@ -955,9 +955,9 @@ namespace System.Runtime.Intrinsics
                 return Create(lo128, hi128);
             }
 
-            return CreateSoftware(e0, e1, e2, e3);
+            return SoftwareFallback(e0, e1, e2, e3);
 
-            Vector256<ulong> CreateSoftware(ulong i0, ulong i1, ulong i2, ulong i3)
+            Vector256<ulong> SoftwareFallback(ulong i0, ulong i1, ulong i2, ulong i3)
             {
                 var pResult = stackalloc ulong[4]
                 {
