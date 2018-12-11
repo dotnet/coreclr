@@ -40,7 +40,7 @@
                     ManifestRepoUri="$(BUILD_REPOSITORY_URI)"
                     ManifestBranch="$(BUILD_SOURCEBRANCH)"
                     ManifestBuildId="$(BUILD_BUILDNUMBER)"
-                    ManifestCommit="$(BUILD_SOURCEVERSION)" />
+                    ManifestCommit="$(BUILD_SOURCEVERSION)"
                     AssetManifestPath="$(AssetManifestFilePath)" />
   </Target>
 
