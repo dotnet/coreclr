@@ -93,9 +93,9 @@ jobs:
           # TODO: pass publish feed url and access token in from the internal pipeline
           - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
             displayName: Build packages
-          - script: eng\common\build.cmd /p:DotNetPublishToBlobFeed=true --ci --restore
+          - script: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci --restore
             displayName: Restore blob feed tasks
-          - script: eng\common\msbuild.cmd --ci src\publishwitharcade.proj
+          - script: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj
             displayName: Publish packages to blob feed
     #      - script: .dotnet\dotnet.exe msbuild src\publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)
 
