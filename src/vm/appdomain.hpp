@@ -57,7 +57,6 @@ class CompilationDomain;
 class AppDomainEnum;
 class AssemblySink;
 class EEMarshalingData;
-class Context;
 class GlobalStringLiteralMap;
 class StringLiteralMap;
 class MngStdInterfacesInfo;
@@ -1811,7 +1810,6 @@ public:
 #endif
 
     DomainAssembly* FindDomainAssembly(Assembly*);
-    void EnterContext(Thread* pThread, Context* pCtx,ContextTransitionFrame *pFrame);
 
     //-----------------------------------------------------------------------------------------------------------------
     // Convenience wrapper for ::GetAppDomain to provide better encapsulation.
@@ -1858,25 +1856,8 @@ public:
     virtual BOOL IsAppDomain() { LIMITED_METHOD_DAC_CONTRACT; return TRUE; }
     virtual PTR_AppDomain AsAppDomain() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_AppDomain>(this); }
 
-    OBJECTREF GetExposedObject();
-    OBJECTREF GetRawExposedObject() {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            SO_TOLERANT;
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-        if (m_ExposedObject) {
-            return ObjectFromHandle(m_ExposedObject);
-        }
-        else {
-            return NULL;
-        }
-    }
-
-    OBJECTHANDLE GetRawExposedObjectHandleForDebugger() { LIMITED_METHOD_DAC_CONTRACT; return m_ExposedObject; }
+    OBJECTREF GetRawExposedObject() { LIMITED_METHOD_CONTRACT; return NULL; }
+    OBJECTHANDLE GetRawExposedObjectHandleForDebugger() { LIMITED_METHOD_DAC_CONTRACT; return NULL; }
 
 #ifdef FEATURE_COMINTEROP
     MethodTable *GetRedirectedType(WinMDAdapter::RedirectedTypeIndex index);
@@ -2612,18 +2593,6 @@ public:
         return m_dwThreadEnterCount==1 || m_dwThreadsStillInAppDomain ==1;
     }
 
-    Context *GetDefaultContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pDefaultContext;
-    }
-
-    BOOL CanLoadCode()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_Stage >= STAGE_READYFORMANAGEDCODE;
-    }
-
     static void RefTakerAcquire(AppDomain* pDomain)
     {
         WRAPPER_NO_CONTRACT;
@@ -2899,8 +2868,6 @@ public:
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
 private:
-    static void RaiseOneExitProcessEvent_Wrapper(AppDomainIterator* pi);
-    static void RaiseOneExitProcessEvent();
     size_t EstimateSize();
     EEClassFactoryInfoHashTable* SetupClassFactHash();
 #ifdef FEATURE_COMINTEROP
@@ -2927,21 +2894,7 @@ private:
     friend class DomainAssembly;
 
 private:
-
-    BOOL RaiseUnhandledExceptionEvent(OBJECTREF *pSender, OBJECTREF *pThrowable, BOOL isTerminating);
-    BOOL HasUnhandledExceptionEventHandler();
-    BOOL RaiseUnhandledExceptionEventNoThrow(OBJECTREF *pSender, OBJECTREF *pThrowable, BOOL isTerminating);
-    
-    struct RaiseUnhandled_Args
-    {
-        AppDomain *pExceptionDomain;
-        AppDomain *pTargetDomain;
-        OBJECTREF *pSender;
-        OBJECTREF *pThrowable;
-        BOOL isTerminating;
-        BOOL *pResult;
-    };
-
+    BOOL RaiseUnhandledExceptionEvent(OBJECTREF *pThrowable, BOOL isTerminating);
 
     enum Stage {
         STAGE_CREATING,
@@ -3045,8 +2998,6 @@ private:
     // by one. For it to hit zero an explicit close must have happened.
     LONG        m_cRef;                    // Ref count.
 
-    OBJECTHANDLE    m_ExposedObject;
-
     // Hash table that maps a clsid to a type
     PtrHashMap          m_clsidHash;
 
@@ -3100,9 +3051,6 @@ private:
     ULONG m_dwThreadsStillInAppDomain;
 
     Volatile<Stage> m_Stage;
-
-    // The default context for this domain
-    Context *m_pDefaultContext;
 
     ArrayList        m_failedAssemblies;
 

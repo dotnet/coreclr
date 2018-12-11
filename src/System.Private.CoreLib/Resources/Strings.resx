@@ -175,9 +175,6 @@
   <data name="Arg_AmbiguousMatchException" xml:space="preserve">
     <value>Ambiguous match found.</value>
   </data>
-  <data name="Arg_AppDomainUnloadedException" xml:space="preserve">
-    <value>Attempted to access an unloaded AppDomain.</value>
-  </data>
   <data name="Arg_ApplicationException" xml:space="preserve">
     <value>Error in the application.</value>
   </data>
@@ -3163,6 +3160,12 @@
   <data name="PlatformNotSupported_OverlappedIO" xml:space="preserve">
     <value>This API is specific to the way in which Windows handles asynchronous I/O, and is not supported on this platform.</value>
   </data>
+  <data name="PlatformNotSupported_ITypeInfo" xml:space="preserve">
+    <value>Marshalling a System.Type to an unmanaged ITypeInfo or marshalling an ITypeInfo to a System.Type is not supported on this platform.</value>
+  </data>
+  <data name="PlatformNotSupported_IExpando" xml:space="preserve">
+    <value>Marshalling an IDispatchEx to an IReflect or IExpando is not supported on this platform.</value>
+  </data>
   <data name="Policy_CannotLoadSemiTrustAssembliesDuringInit" xml:space="preserve">
     <value>All assemblies loaded as part of AppDomain initialization must be fully trusted.</value>
   </data>
@@ -3192,9 +3195,6 @@
   </data>
   <data name="ReflectionTypeLoad_LoadFailed" xml:space="preserve">
     <value>Unable to load one or more of the requested types.</value>
-  </data>
-  <data name="Remoting_AppDomainUnloaded_ThreadUnwound" xml:space="preserve">
-    <value>The application domain in which the thread was running has been unloaded.</value>
   </data>
   <data name="ResourceReaderIsClosed" xml:space="preserve">
     <value>ResourceReader is closed.</value>
