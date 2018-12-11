@@ -1,0 +1,35 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.Sdk.FSharp.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup>
+
+  <!-- ***************************************************************************************************************
+       Shim to select the correct Microsoft.FSharp.Overrides.NetSdk.targets file when not running 
+       under Cross-targeting build and not under FSharp.Sdk
+       If running under desktop select Microsoft.FSharp.targets file from VS deployment, 
+       if running core msbuild select Microsoft.FSharp.targets from dotnet cli deployment
+       *************************************************************************************************************** -->
+  <PropertyGroup Condition=" '$(IsCrossTargetingBuild)' != 'true' " >
+     <FSharpOverridesTargetsShim Condition = " '$(FSharpOverridesTargetsShim)' == '' and Exists('$(MSBuildToolsPath)\FSharp\Microsoft.FSharp.Overrides.NetSdk.targets') ">$(MSBuildToolsPath)\FSharp\Microsoft.FSharp.Overrides.NetSdk.targets</FSharpOverridesTargetsShim>
+     <FSharpOverridesTargetsShim Condition = " '$(FSharpOverridesTargetsShim)' == '' and Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Overrides.NetSdk.targets') ">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.NetSdk.targets</FSharpOverridesTargetsShim>
+  </PropertyGroup>
+  <Import Condition=" '$(UseBundledFSharpTargets)' == 'true' and  '$(IsCrossTargetingBuild)' != 'true' and Exists('$(FSharpOverridesTargetsShim)') " Project="$(FSharpOverridesTargetsShim)" />
+
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);$(VersionlessImplicitFrameworkDefine);$(ImplicitFrameworkDefine)</DefineConstants>
+  </PropertyGroup>
+
+</Project>

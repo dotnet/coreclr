@@ -1,0 +1,35 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.Sdk.FSharp.props
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup> 
+
+  <!-- If any of these variables are set then we are building under the FSharp.NET.Sdk so use their logic -->
+  <PropertyGroup Condition = "'$(UseBundledFSharpTargets)' == '' ">
+    <!-- If any of these variables are set then we are building under the FSharp.NET.Sdk so use their logic -->
+    <UseBundledFSharpTargets Condition = " '$(_FscTaskAssemblyPath_net)' != '' or '$(_FscTaskAssemblyPath_netcoreapp1_0)' != '' or '$(_FscToolFullPath_net)' != '' or '$(_FscToolFullPath_netcoreapp1_0)' != '' ">false</UseBundledFSharpTargets>
+    <UseBundledFSharpTargets Condition = "'$(UseBundledFSharpTargets)' == '' ">true</UseBundledFSharpTargets>
+  </PropertyGroup>
+
+  <!-- Shim to select the correct Microsoft.NET.Sdk.FSharp.props file.   
+       If running under desktop select Microsoft.NET.Sdk.FSharp.props file from VS deployment, 
+       if running core msbuild select Microsoft.NET.Sdk.FSharp.props from dotnet cli deployment -->
+  <PropertyGroup>
+     <FSharpPropsShim Condition = " '$(FSharpPropsShim)' == '' and Exists('$(MSBuildToolsPath)\FSharp\Microsoft.FSharp.NetSdk.props') ">$(MSBuildToolsPath)\FSharp\Microsoft.FSharp.NetSdk.props</FSharpPropsShim>
+     <FSharpPropsShim Condition = " '$(FSharpPropsShim)' == '' and Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.NetSdk.props') ">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.NetSdk.props</FSharpPropsShim>
+  </PropertyGroup>
+  <Import Condition=" '$(UseBundledFSharpTargets)' == 'true' and Exists('$(FSharpPropsShim)') " Project="$(FSharpPropsShim)" />
+
+</Project>

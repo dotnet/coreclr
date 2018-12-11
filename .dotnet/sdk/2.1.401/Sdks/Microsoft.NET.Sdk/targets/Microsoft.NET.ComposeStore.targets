@@ -1,0 +1,459 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.ComposeStore.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!--
+    ============================================================
+                                        ComposeStore
+ 
+    The main store entry point.
+    ============================================================
+    -->
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup>
+
+  <Target Name="ComposeStore"
+          DependsOnTargets="PrepareForComposeStore;
+                            PrepOptimizer;
+                            StoreWorkerMain;
+                            _CopyResolvedUnOptimizedFiles;
+                            StoreFinalizer;"/>
+
+  <!--
+    ============================================================
+                                        StoreWorkerMain
+
+   Processes the store project files
+    ============================================================
+    -->
+  
+  <Target Name="StoreWorkerMain">
+    
+    <ItemGroup>
+      <_AllProjects Include="$(AdditionalProjects.Split('%3B'))"/>
+      <_AllProjects Include ="$(MSBuildProjectFullPath)"/>
+    </ItemGroup>
+
+    <MSBuild Projects="%(_AllProjects.Identity)"
+                 Targets="StoreWorkerMapper"
+                 BuildinParallel="$(BuildinParallel)"
+                 Properties="ComposeWorkingDir=$(ComposeWorkingDir);
+                             PublishDir=$(PublishDir);
+                             StoreStagingDir=$(StoreStagingDir);
+                             TargetFramework=$(_TFM);
+                             JitPath=$(JitPath);
+                             Crossgen=$(Crossgen);
+                             DisableImplicitFrameworkReferences=true;
+                             SkipUnchangedFiles=$(SkipUnchangedFiles);
+                             PreserveStoreLayout=$(PreserveStoreLayout);
+                             CreateProfilingSymbols=$(CreateProfilingSymbols);
+                             StoreSymbolsStagingDir=$(StoreSymbolsStagingDir)"
+                 ContinueOnError="WarnAndContinue">
+      <Output ItemName="AllResolvedPackagesPublished" TaskParameter="TargetOutputs" />
+    </MSBuild>
+  </Target>
+  <!--
+    ============================================================
+                                        StoreWorkerMapper
+
+   Processes each package specified in a store project file
+    ============================================================
+    -->
+
+  <Target Name="StoreWorkerMapper"
+          Returns ="@(ResolvedPackagesFromMapper)">
+
+    <ItemGroup>
+      <PackageReferencesToStore Include="$(MSBuildProjectFullPath)">
+        <AdditionalProperties>
+          StorePackageName=%(PackageReference.Identity);
+          StorePackageVersion=%(PackageReference.Version);
+          ComposeWorkingDir=$(ComposeWorkingDir);
+          PublishDir=$(PublishDir);
+          StoreStagingDir=$(StoreStagingDir);
+          TargetFramework=$(TargetFramework);
+          RuntimeIdentifier=$(RuntimeIdentifier);
+          JitPath=$(JitPath);
+          Crossgen=$(Crossgen);
+          SkipUnchangedFiles=$(SkipUnchangedFiles);
+          PreserveStoreLayout=$(PreserveStoreLayout);
+          CreateProfilingSymbols=$(CreateProfilingSymbols);
+          StoreSymbolsStagingDir=$(StoreSymbolsStagingDir);
+          DisableImplicitFrameworkReferences=false;
+        </AdditionalProperties>
+      </PackageReferencesToStore>
+    </ItemGroup>
+
+<!-- Restore phase -->
+    <MSBuild Projects="@(PackageReferencesToStore)"
+                 Targets="RestoreForComposeStore"
+                 BuildInParallel="$(BuildInParallel)"
+                 ContinueOnError="WarnAndContinue">
+    </MSBuild>
+    
+    
+<!-- Resolve phase-->
+    <MSBuild Projects="@(PackageReferencesToStore)"
+                 Targets="StoreResolver"
+                 Properties="MSBuildProjectExtensionsPath=$(ComposeWorkingDir)\%(PackageReference.Identity)_$([System.String]::Copy('%(PackageReference.Version)').Replace('*','-'))\;"
+                 BuildInParallel="$(BuildInParallel)"
+                 ContinueOnError="WarnAndContinue">
+      <Output ItemName="ResolvedPackagesFromMapper" TaskParameter="TargetOutputs" />
+    </MSBuild>
+  </Target>
+
+  <Target Name="StoreResolver"
+          Returns="@(ResolvedPackagesPublished)"
+          DependsOnTargets="PrepforRestoreForComposeStore;
+                            StoreWorkerPerformWork"/>
+  
+  <Target Name="StoreWorkerPerformWork"
+          DependsOnTargets="ComputeAndCopyFilesToStoreDirectory;"
+          Condition="Exists($(StoreWorkerWorkingDir))" />
+
+<!--
+    ============================================================
+                                        StoreFinalizer
+
+   Cleans up and produces artifacts after completion of store
+    ============================================================
+    -->
+  <UsingTask TaskName="RemoveDuplicatePackageReferences" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
+  <Target Name="StoreFinalizer"
+          DependsOnTargets="StoreWorkerMain;
+                            _CopyResolvedOptimizedFiles">
+
+    <RemoveDuplicatePackageReferences
+         InputPackageReferences="@(AllResolvedPackagesPublished)">
+      <Output TaskParameter="UniquePackageReferences"  ItemName="AllResolvedPackagesPublishedAfterFilter"/>
+    </RemoveDuplicatePackageReferences>
+    
+    <ItemGroup>
+      <ListOfPackageReference Include="@(AllResolvedPackagesPublishedAfterFilter -> '%20%20&lt;Package Id=&quot;%(Identity)&quot; Version=&quot;%(Version)&quot; /&gt;')"/>
+    </ItemGroup>
+    <PropertyGroup>
+      <_StoreArtifactContent>
+      <![CDATA[
+<StoreArtifacts>
+@(ListOfPackageReference)
+</StoreArtifacts>
+]]>
+       </_StoreArtifactContent>
+      </PropertyGroup>
+    <WriteLinesToFile
+             File="$(StoreArtifactXml)"
+             Lines="$(_StoreArtifactContent)"
+             Overwrite="true" />
+
+    <Message Text="Files were composed in $(PublishDir)"
+                 Importance="high"/>
+    <Message Text="The list of packages stored is in $(StoreArtifactXml) "
+                 Importance="high"/>
+    <RemoveDir
+        Condition="'$(PreserveComposeWorkingDir)' != 'true'"
+        Directories="$(ComposeWorkingDir)"
+        ContinueOnError="WarnAndContinue"/>
+  </Target>
+
+  <!--
+    ============================================================
+                                        _CopyResolvedUnOptimizedFiles
+
+    Copy OptimizedResolvedFileToPublish items to the publish directory.
+    ============================================================
+    -->
+
+  <Target Name="_CopyResolvedOptimizedFiles"
+          DependsOnTargets="StoreWorkerMain;">
+    <ItemGroup>
+      <_OptimizedResolvedFileToPublish Include="$(StoreStagingDir)\**\*.*" />
+      <_OptimizedSymbolFileToPublish Include="$(StoreSymbolsStagingDir)\**\*.*" />
+    </ItemGroup>
+
+    <Copy SourceFiles = "@(_OptimizedResolvedFileToPublish)"
+          DestinationFolder="$(PublishDir)%(RecursiveDir)"
+          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+          Retries="$(CopyRetryCount)"
+          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+          Condition ="'@(_OptimizedResolvedFileToPublish)' != ''"
+          SkipUnchangedFiles="$(SkipUnchangedFiles)">
+
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
+
+    </Copy>
+
+    <Copy SourceFiles="@(_OptimizedSymbolFileToPublish)"
+          DestinationFolder="$(ProfilingSymbolsDir)%(RecursiveDir)"
+          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+          Retries="$(CopyRetryCount)"
+          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+          Condition="'@(_OptimizedSymbolFileToPublish)' != ''"
+          SkipUnchangedFiles="$(SkipUnchangedFiles)">
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
+    </Copy>
+  </Target>
+  
+  <!--
+    ============================================================
+                                        PrepareForComposeStore
+
+    Prepare the prerequisites for ComposeStore.
+    ============================================================
+    -->
+  
+  <Target Name="PrepareForComposeStore">
+
+    <PropertyGroup>
+      <PreserveStoreLayout Condition="'$(PreserveStoreLayout)' == ''">true</PreserveStoreLayout>
+      <SkipOptimization Condition="'$(RuntimeIdentifier)' == ''">true</SkipOptimization>
+      <_TFM Condition="'$(_TFM)' == ''">$(TargetFramework)</_TFM>
+      <SkipUnchangedFiles Condition="'$(SkipUnchangedFiles)' == ''">true</SkipUnchangedFiles>
+    </PropertyGroup>
+
+    <NETSdkError Condition="'2.0' > '$(_TargetFrameworkVersionWithoutV)'"
+                 ResourceName="UnuspportedFramework"
+                 FormatArguments="$(TargetFrameworkMoniker)"/>
+
+    <NETSdkError Condition="'$(RuntimeIdentifier)' =='' and '$(_PureManagedAssets)' == ''"
+                 ResourceName="RuntimeIdentifierWasNotSpecified"/>
+
+    <NETSdkError Condition="'$(_TFM)' ==''"
+                 ResourceName="AtLeastOneTargetFrameworkMustBeSpecified"/>
+      
+    <PropertyGroup>
+      <DefaultComposeDir>$(UserProfileRuntimeStorePath)</DefaultComposeDir>
+
+      <_ProfilingSymbolsDirectoryName>symbols</_ProfilingSymbolsDirectoryName>
+      <DefaultProfilingSymbolsDir>$([System.IO.Path]::Combine($(DefaultComposeDir), $(_ProfilingSymbolsDirectoryName)))</DefaultProfilingSymbolsDir>
+      <ProfilingSymbolsDir Condition="'$(ProfilingSymbolsDir)' == '' and '$(ComposeDir)' != ''">$([System.IO.Path]::Combine($(ComposeDir), $(_ProfilingSymbolsDirectoryName)))</ProfilingSymbolsDir>
+      <ProfilingSymbolsDir Condition="'$(ProfilingSymbolsDir)' != '' and '$(DoNotDecorateComposeDir)' != 'true'">$([System.IO.Path]::Combine($(ProfilingSymbolsDir), $(PlatformTarget)))</ProfilingSymbolsDir>
+      <ProfilingSymbolsDir Condition="'$(ProfilingSymbolsDir)' == ''">$(DefaultProfilingSymbolsDir)</ProfilingSymbolsDir>
+      <ProfilingSymbolsDir Condition="'$(DoNotDecorateComposeDir)' != 'true'">$([System.IO.Path]::Combine($(ProfilingSymbolsDir), $(_TFM)))</ProfilingSymbolsDir>
+      <ProfilingSymbolsDir Condition="!HasTrailingSlash('$(ProfilingSymbolsDir)')">$(ProfilingSymbolsDir)\</ProfilingSymbolsDir>
+
+      <ComposeDir Condition="'$(ComposeDir)' == ''">$(DefaultComposeDir)</ComposeDir>
+      <ComposeDir Condition="'$(DoNotDecorateComposeDir)' != 'true'">$([System.IO.Path]::Combine($(ComposeDir), $(PlatformTarget)))</ComposeDir>
+      <ComposeDir Condition="'$(DoNotDecorateComposeDir)' != 'true'">$([System.IO.Path]::Combine($(ComposeDir), $(_TFM)))</ComposeDir>
+      <StoreArtifactXml>$([System.IO.Path]::Combine($(ComposeDir),"artifact.xml"))</StoreArtifactXml>
+      <PublishDir>$([System.IO.Path]::GetFullPath($(ComposeDir)))</PublishDir>
+      <_RandomFileName>$([System.IO.Path]::GetRandomFileName())</_RandomFileName>
+      <TEMP Condition="'$(TEMP)' == ''">$([System.IO.Path]::GetTempPath())</TEMP>
+      <ComposeWorkingDir Condition="'$(ComposeWorkingDir)' == ''">$([System.IO.Path]::Combine($(TEMP), $(_RandomFileName)))</ComposeWorkingDir>
+      <ComposeWorkingDir>$([System.IO.Path]::GetFullPath($(ComposeWorkingDir)))</ComposeWorkingDir>
+      <StoreStagingDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"StagingDir"))</StoreStagingDir>      <!-- Will contain optimized managed assemblies in nuget cache layout -->
+      <StoreSymbolsStagingDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"SymbolsStagingDir"))</StoreSymbolsStagingDir>
+      <!-- Ensure any PublishDir has a trailing slash, so it can be concatenated -->
+      <PublishDir Condition="!HasTrailingSlash('$(PublishDir)')">$(PublishDir)\</PublishDir>
+    </PropertyGroup>
+    
+    <PropertyGroup Condition="'$(CreateProfilingSymbols)' == ''">
+      <!-- There is no support for profiling symbols on OSX -->
+      <CreateProfilingSymbols Condition="$(RuntimeIdentifier.StartsWith('osx'))">false</CreateProfilingSymbols>
+      <CreateProfilingSymbols Condition="'$(CreateProfilingSymbols)' == ''">true</CreateProfilingSymbols>
+    </PropertyGroup>
+
+    <NETSdkError Condition="Exists($(ComposeWorkingDir))"
+                 ResourceName="FolderAlreadyExists"
+                 FormatArguments="$(ComposeWorkingDir)" />
+
+    <MakeDir Directories="$(PublishDir)" />
+    <MakeDir  Directories="$(StoreStagingDir)"/>
+
+  </Target>
+
+  <Target Name="PrepforRestoreForComposeStore"
+          DependsOnTargets="_DefaultMicrosoftNETPlatformLibrary">
+
+    <PropertyGroup>
+      <StorePackageVersionForFolderName>$(StorePackageVersion.Replace('*','-'))</StorePackageVersionForFolderName>
+      <StoreWorkerWorkingDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"$(StorePackageName)_$(StorePackageVersionForFolderName)"))</StoreWorkerWorkingDir>
+      <_PackageProjFile>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "Restore.csproj"))</_PackageProjFile>
+      <BaseIntermediateOutputPath>$(StoreWorkerWorkingDir)\</BaseIntermediateOutputPath>
+      <ProjectAssetsFile>$(BaseIntermediateOutputPath)\project.assets.json</ProjectAssetsFile>
+    </PropertyGroup>
+    
+    <PropertyGroup>
+      <PackagesToPrune>$(MicrosoftNETPlatformLibrary)</PackagesToPrune>
+      <SelfContained Condition="'$(SelfContained)' == ''">true</SelfContained>
+    </PropertyGroup>
+  </Target>
+  
+  <!--
+    ============================================================
+                                        RestoreForComposeStore
+
+    Restores the package
+    ============================================================
+    -->
+  
+  <Target Name="RestoreForComposeStore"
+          DependsOnTargets="PrepforRestoreForComposeStore;"
+          Condition="!Exists($(StoreWorkerWorkingDir))">
+    
+    <MakeDir Directories="$(StoreWorkerWorkingDir)" />
+    
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+                 Targets="Restore"
+                 Properties="RestoreGraphProjectInput=$(MSBuildProjectFullPath);
+                             RestoreOutputPath=$(BaseIntermediateOutputPath);
+                             StorePackageName=$(StorePackageName);
+                             StorePackageVersion=$(StorePackageVersion);
+                             RuntimeIdentifier=$(RuntimeIdentifier);
+                             TargetFramework=$(TargetFramework);"/>
+  </Target>
+
+  <!--
+    ============================================================
+                                        ComputeAndCopyFilesToStoreDirectory
+
+    Computes the list of all files to copy to the publish directory and then publishes them.
+    ============================================================
+    -->
+  
+  <Target Name="ComputeAndCopyFilesToStoreDirectory"
+          DependsOnTargets="ComputeFilesToStore;
+                            CopyFilesToStoreDirectory" />
+
+  <!--
+    ============================================================
+                                        CopyFilesToStoreDirectory
+
+    Copy all build outputs, satellites and other necessary files to the publish directory.
+    ============================================================
+    -->
+  
+  <Target Name="CopyFilesToStoreDirectory"
+          DependsOnTargets="_CopyResolvedUnOptimizedFiles"/>
+  
+  
+  <!--
+    ============================================================
+                                        _CopyResolvedUnOptimizedFiles
+
+    Copy _UnOptimizedResolvedFileToPublish items to the publish directory.
+    ============================================================
+    -->
+  
+  <Target Name="_CopyResolvedUnOptimizedFiles"
+          DependsOnTargets="_ComputeResolvedFilesToStoreTypes;
+                            _RunOptimizer">
+
+    <Copy SourceFiles = "@(_UnOptimizedResolvedFileToPublish)"
+          DestinationFiles="$(PublishDir)%(_UnOptimizedResolvedFileToPublish.DestinationSubPath)"
+          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+          Retries="$(CopyRetryCount)"
+          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+          SkipUnchangedFiles="$(SkipUnchangedFiles)">
+
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
+
+    </Copy>
+  </Target>
+
+  <!--
+    ============================================================
+                                        _ComputeResolvedFilesToStoreTypes
+    ============================================================
+    -->
+  
+  <Target Name="_ComputeResolvedFilesToStoreTypes"
+           DependsOnTargets="_GetResolvedFilesToStore;_SplitResolvedFiles;" />
+
+  <!--
+    ============================================================
+                                        _SplitResolvedFiles
+
+    Splits ResolvedFileToPublish items into 'managed' and 'unmanaged' buckets.
+    ============================================================
+    -->
+  
+  <Target Name="_SplitResolvedFiles"
+           Condition="$(SkipOptimization) !='true' "
+           DependsOnTargets="_GetResolvedFilesToStore">
+    <ItemGroup>
+      <_ManagedResolvedFileToPublishCandidates Include="@(ResolvedFileToPublish)"
+                                             Condition="'%(ResolvedFileToPublish.AssetType)'=='runtime'" />
+
+      <_UnOptimizedResolvedFileToPublish Include="@(ResolvedFileToPublish)"
+                                     Condition="'%(ResolvedFileToPublish.AssetType)'!='runtime'" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <SkipOptimization Condition="'@(_ManagedResolvedFileToPublishCandidates)'==''">true</SkipOptimization>
+    </PropertyGroup>
+  </Target>
+
+  <!--
+    ============================================================
+                                        _GetResolvedFilesToStore
+    ============================================================
+    -->
+  
+  <Target Name="_GetResolvedFilesToStore"
+           Condition="$(SkipOptimization) == 'true' ">
+    <ItemGroup>
+            <_UnOptimizedResolvedFileToPublish Include="@(ResolvedFileToPublish)" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    ============================================================
+                                        ComputeFilesToStore
+
+    Gathers all the files that need to be copied to the publish directory.
+    ============================================================
+    -->
+  <UsingTask TaskName="FilterResolvedFiles" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
+  <Target Name="ComputeFilesToStore"
+          DependsOnTargets="_ComputeNetPublishAssets;
+                            _ComputeCopyToPublishDirectoryItems">
+
+    <PropertyGroup>
+      <CopyBuildOutputToPublishDirectory Condition="'$(CopyBuildOutputToPublishDirectory)'==''">true</CopyBuildOutputToPublishDirectory>
+      <CopyOutputSymbolsToPublishDirectory Condition="'$(CopyOutputSymbolsToPublishDirectory)'==''">true</CopyOutputSymbolsToPublishDirectory>
+    </PropertyGroup>
+
+    <FilterResolvedFiles  AssetsFilePath="$(ProjectAssetsFile)"
+                           ResolvedFiles ="@(ResolvedAssembliesToPublish)"
+                           PackagesToPrune="$(PackagesToPrune)"
+                           TargetFramework="$(TargetFrameworkMoniker)"
+                           RuntimeIdentifier="$(RuntimeIdentifier)"
+                           IsSelfContained="$(SelfContained)" >
+      <Output TaskParameter="AssembliesToPublish" ItemName="ResolvedFileToPublish" />
+      <Output TaskParameter="PublishedPackges" ItemName="PackagesThatWereResolved" />
+    </FilterResolvedFiles>
+
+    <ItemGroup>
+      <ResolvedPackagesPublished Include="@(PackagesThatWereResolved)"
+                                    Condition="$(DoNotTrackPackageAsResolved) !='true'"/>
+    </ItemGroup>
+    
+  </Target>
+
+  <!--
+    ============================================================
+                                       PrepRestoreForStoreProjects 
+
+    Removes specified PackageReference for store and inserts the specified StorePackageName
+    ============================================================
+    -->
+  <Target Name="PrepRestoreForStoreProjects"
+          BeforeTargets="_GenerateProjectRestoreGraphPerFramework;"
+          Condition="'$(StorePackageName)' != ''" >
+    
+    <ItemGroup>
+      <PackageReference Remove="@(PackageReference)" Condition="'%(PackageReference.IsImplicitlyDefined)' != 'true'"/>
+      <PackageReference Include="$(StorePackageName)" Version="$(StorePackageVersion)"/>
+    </ItemGroup>
+  </Target>
+</Project>

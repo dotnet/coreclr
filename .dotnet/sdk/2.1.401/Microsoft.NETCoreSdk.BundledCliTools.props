@@ -1,0 +1,19 @@
+<!--
+***********************************************************************************************
+Microsoft.NETCoreSdk.BundledCliTools.props
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved.
+***********************************************************************************************
+-->
+<Project>
+  <ItemGroup>
+    <BundledDotNetCliToolReference Include="Microsoft.EntityFrameworkCore.Tools.DotNet" />
+    <BundledDotNetCliToolReference Include="Microsoft.Extensions.Caching.SqlConfig.Tools" />
+    <BundledDotNetCliToolReference Include="Microsoft.Extensions.SecretManager.Tools" />
+    <BundledDotNetCliToolReference Include="Microsoft.DotNet.Watcher.Tools" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,178 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.RuntimeIdentifierInference.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup>
+
+  <!--
+    .NETFramework cannot load native package dependencies dynamically
+    based on the current architecture.  We have must have a RID to
+    resolve and copy native dependencies to the output directory.
+
+     When building a .NETFramework exe on Windows and not given a RID,
+     we'll pick either win7-x64 or win7-x86 (based on PlatformTarget)
+     if we're not given an explicit RID. However, if after resolving
+     NuGet assets we find no copy-local native dependencies, we will
+     emit the binary as AnyCPU.
+
+     Note that we must set the RID here early (to be seen during NuGet
+     restore) in order for the project.assets.json to include the
+     native dependencies that will let us make the final call on
+     AnyCPU or platform-specific.
+
+     This allows these common cases to work without requiring mention
+     of RuntimeIdentifier in the user project PlatformTarget:
+
+      1. Building an AnyCPU .NETFramework application on any host OS
+         with no native NuGet dependencies. (*)
+
+      2. Building an x86 or x64 NETFramework application on and for
+         Windows with native NuGet dependencies that do not require
+         greater than win7.
+
+     However, any other combination of host operating system, CPU
+     architecture, and minimum Windows version will require some
+     manual intervention in the project file to set up the right
+     RID. (**)
+
+     (*) Building NET4x from non-Windows is still not fully supported:
+         https://github.com/dotnet/sdk/issues/335) The point above is
+         that this code would not have to change to make the first
+         scenario work on non-Windows hosts.
+
+     (**) https://github.com/dotnet/sdk/issues/840 tracks improving
+          the default RID selection here to make more non-AnyCPU scenarios
+          work without user intervention. The current static evaluation
+          requirement limits us.
+   -->
+  <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework' and 
+                            '$(HasRuntimeOutput)' == 'true' and 
+                            '$(OS)' == 'Windows_NT' and
+                            '$(RuntimeIdentifier)' == ''">
+    <_UsingDefaultRuntimeIdentifier>true</_UsingDefaultRuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(PlatformTarget)' == 'x64'">win7-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(PlatformTarget)' == 'x86' or '$(PlatformTarget)' == ''">win7-x86</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(PlatformTarget)' == ''">
+    <_UsingDefaultPlatformTarget>true</_UsingDefaultPlatformTarget>
+  </PropertyGroup>
+
+  <!-- Determine PlatformTarget (if not already set) from runtime identifier. -->
+  <Choose>
+    <When Condition="'$(PlatformTarget)' != '' or '$(RuntimeIdentifier)' == ''" />
+
+    <When Condition="$(RuntimeIdentifier.EndsWith('-x86')) or $(RuntimeIdentifier.Contains('-x86-'))">
+      <PropertyGroup>
+        <PlatformTarget>x86</PlatformTarget>
+      </PropertyGroup>
+    </When>
+
+    <When Condition="$(RuntimeIdentifier.EndsWith('-x64')) or $(RuntimeIdentifier.Contains('-x64-'))">
+      <PropertyGroup>
+        <PlatformTarget>x64</PlatformTarget>
+      </PropertyGroup>
+    </When>
+
+    <When Condition="$(RuntimeIdentifier.EndsWith('-arm')) or $(RuntimeIdentifier.Contains('-arm-'))">
+      <PropertyGroup>
+        <PlatformTarget>arm</PlatformTarget>
+      </PropertyGroup>
+    </When>
+
+    <!-- NOTE: PlatformTarget=arm64 is not currently supported and therefore no inference of that here. -->
+    <Otherwise>
+      <PropertyGroup>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <!--
+    SelfContained was not an option in .NET Core SDK 1.0. 
+    Default SelfContained based on the RuntimeIdentifier, so projects don't have to explicitly set SelfContained.
+    This avoids a breaking change from 1.0 behavior.
+    -->
+  <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETCoreApp' and '$(HasRuntimeOutput)' == 'true' and '$(RuntimeIdentifier)' != ''">
+    <SelfContained Condition="'$(SelfContained)' == ''">true</SelfContained>
+    <UseAppHost Condition="'$(UseAppHost)' == '' and '$(SelfContained)' == 'true'">true</UseAppHost>
+  </PropertyGroup>
+
+  <Target Name="_CheckForUnsupportedAppHostUsage"
+          BeforeTargets="_CheckForInvalidConfigurationAndPlatform"
+          Condition="'$(TargetFrameworkIdentifier)' == '.NETCoreApp' and '$(HasRuntimeOutput)' == 'true'">
+
+    <NETSdkError Condition="'$(SelfContained)' == 'true' and '$(RuntimeIdentifier)' == ''"
+                 ResourceName="CannotHaveSelfContainedWithoutRuntimeIdentifier" />
+
+    <NETSdkError Condition="'$(UseAppHost)' == 'true' and '$(RuntimeIdentifier)' == ''"
+                 ResourceName="CannotUseAppHostWithoutRuntimeIdentifier" />
+
+    <NETSdkError Condition="'$(SelfContained)' == 'true' and '$(UseAppHost)' != 'true'"
+                 ResourceName="CannotUseSelfContainedWithoutAppHost" />
+
+    <NETSdkError Condition="'$(SelfContained)' != 'true' and '$(UseAppHost)' == 'true' and '$(_TargetFrameworkVersionWithoutV)' &lt; '2.1'"
+                 ResourceName="FrameworkDependentAppHostRequiresVersion21" />
+
+  </Target>
+
+  <Target Name="_CheckForMismatchingPlatform"
+          BeforeTargets="_CheckForInvalidConfigurationAndPlatform"
+          Condition="'$(RuntimeIdentifier)' != '' and '$(PlatformTarget)' != ''">
+
+    <NETSdkError Condition="'$(PlatformTarget)' != 'AnyCPU' and !$(RuntimeIdentifier.ToUpper().Contains($(PlatformTarget.ToUpper())))"
+                 ResourceName="CannotHaveRuntimeIdentifierPlatformMismatchPlatformTarget"
+                 FormatArguments="$(RuntimeIdentifier);$(PlatformTarget)" />
+
+  </Target>
+
+  <Target Name="_CheckForNETCoreSdkIsPreview"
+          BeforeTargets="_CheckForInvalidConfigurationAndPlatform"
+          Condition=" '$(_NETCoreSdkIsPreview)' == 'true' AND '$(SuppressNETCoreSdkPreviewMessage)' != 'true' ">
+    <ShowPreviewMessage />
+  </Target>
+
+  <PropertyGroup>
+    <!-- Projects can opt out of having the RID appended to the output path by setting this to false. -->
+    <AppendRuntimeIdentifierToOutputPath Condition="'$(AppendRuntimeIdentifierToOutputPath)' == ''">true</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!--
+    Append $(RuntimeIdentifier) directory to output and intermediate paths to prevent bin clashes between
+    targets. 
+
+    But do not append the implicit default runtime identifier for .NET Framework apps as that would 
+    append a RID the user never mentioned in the path and do so even in the AnyCPU case.
+   -->
+  <PropertyGroup Condition="'$(AppendRuntimeIdentifierToOutputPath)' == 'true' and '$(RuntimeIdentifier)' != '' and '$(_UsingDefaultRuntimeIdentifier)' != 'true'">
+    <IntermediateOutputPath>$(IntermediateOutputPath)$(RuntimeIdentifier)\</IntermediateOutputPath>
+    <OutputPath>$(OutputPath)$(RuntimeIdentifier)\</OutputPath>
+  </PropertyGroup>
+
+  <!-- 
+    Switch our default .NETFramework CPU architecture choice back to AnyCPU before 
+    compiling the exe if no copy-local native dependencies were resolved from NuGet 
+  -->
+  <Target Name="AdjustDefaultPlatformTargetForNetFrameworkExeWithNoNativeCopyLocalItems"
+          AfterTargets="ResolvePackageAssets"
+          BeforeTargets="CoreCompile"
+          Condition="'$(_UsingDefaultPlatformTarget)' == 'true' and
+                     '$(_UsingDefaultRuntimeIdentifier)' == 'true' and 
+                     '@(NativeCopyLocalItems)' == ''">
+    <PropertyGroup>
+      <PlatformTarget>AnyCPU</PlatformTarget>
+    </PropertyGroup>
+  </Target>
+
+</Project>

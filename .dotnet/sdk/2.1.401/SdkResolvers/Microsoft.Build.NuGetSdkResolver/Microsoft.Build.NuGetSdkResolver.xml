@@ -1,0 +1,8 @@
+<!-- 
+  For serialization contract see:
+  https://github.com/Microsoft/msbuild/blob/0cbd6daa4346e4109d3b0d7f2ebfabddda0edf5d/src/Build/BackEnd/Components/SdkResolution/SdkResolverManifest.cs
+-->
+
+<SdkResolver>
+  <Path>..\..\Microsoft.Build.NuGetSdkResolver.dll</Path>
+</SdkResolver>

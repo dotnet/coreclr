@@ -1,0 +1,39 @@
+<!--
+***********************************************************************************************
+Sdk.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup>
+
+  <Target Name="CreateManifestResourceNames">
+    <!-- the CreateManifestResourceNames target is required.
+         Will be overriden in restored FSharp.NET.Sdk  -->
+    <Warning Text="The 'CreateManifestResourceNames' target should be overriden in 'FSharp.NET.Sdk' package. Maybe you need to add 'FSharp.NET.Sdk' package to fsproj or run restore" />
+  </Target>
+
+  <Target Name="CoreCompile">
+    <!-- the CoreCompile target is required.
+         Will be overriden in restored FSharp.NET.Sdk  -->
+    <Warning Text="The 'CoreCompile' target should be overriden in 'FSharp.NET.Sdk' package. Maybe you need to add 'FSharp.NET.Sdk' package to fsproj or run restore" />
+  </Target>
+
+  <PropertyGroup Condition=" '$(LanguageTargets)' == '' and '$(MSBuildProjectExtension)' == '.fsproj' ">
+
+    <!-- On restore -->
+    <LanguageTargets Condition=" '$(FSharpLanguageTargets)' == '' ">$(MSBuildThisFileDirectory)Sdk.OnRestore.targets</LanguageTargets>
+
+    <!-- Normal commands -->
+    <LanguageTargets Condition=" '$(FSharpLanguageTargets)' != '' ">$(FSharpLanguageTargets)</LanguageTargets>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,165 @@
+﻿<!--
+***********************************************************************************************
+Microsoft.Common.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+This file defines the steps in the standard build process for .NET projects.  It
+contains all the steps that are common among the different .NET languages, such as
+Visual Basic, and Visual C#.
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+***********************************************************************************************
+-->
+
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- 
+       In VS 2010 SP1 and VS 2012, both supported for asset compatibility, the MSBuild installed 
+       as part of them did not enforce using the local ToolsVersion (4.0) in all cases, but instead 
+       just used whatever ToolsVersion was in the project file if it existed on the machine, and 
+       only forced 4.0 if that ToolsVersion did not exist.  
+
+       Moving forward, we do want to enforce a single acting ToolsVersion per version of Visual Studio, 
+       but in order to approximate this behavior on VS 2010 SP1 and VS 2012 as well, we've redirected 
+       the targets:  If we're building using 4.X MSBuild (which doesn't define the new reserved 
+       property, MSBuildAssemblyVersion), we'll point right back at the 4.0 targets, which still exist 
+       as part of the .NET Framework.  Only if we're using the new MSBuild will we point to the current
+       targets. 
+   -->
+
+  <Choose>
+    <When Condition="'$(MSBuildAssemblyVersion)' == ''">
+      <PropertyGroup>
+        <CommonTargetsPath>$(MSBuildFrameworkToolsPath)\Microsoft.Common.targets</CommonTargetsPath>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <CommonTargetsPath>$(MSBuildToolsPath)\Microsoft.Common.CurrentVersion.targets</CommonTargetsPath>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <PropertyGroup Condition="'$(MSBuildAssemblyVersion)' == ''">
+     <!-- 
+          Overrides for the Microsoft.Common.targets extension targets. Used to make sure that only the imports we specify 
+          (hard-coded to 4.0 locations) are used, not the 12.0 locations that would be used by default. 
+
+          NOTE: This logic is duplicated in Microsoft.VisualBasic.targets and in Microsoft.CSharp.targets because those two files 
+          import Microsoft.Common.targets from the current directory and thus don't get the benefit of the redirections, so for 
+          any changes to this logic in this file, please also edit the other two. 
+      -->
+    <ImportByWildcardBefore40MicrosoftCommonTargets Condition="'$(ImportByWildcardBefore40MicrosoftCommonTargets)' == ''">$(ImportByWildcardBeforeMicrosoftCommonTargets)</ImportByWildcardBefore40MicrosoftCommonTargets>
+    <ImportByWildcardBefore40MicrosoftCommonTargets Condition="'$(ImportByWildcardBefore40MicrosoftCommonTargets)' == ''">true</ImportByWildcardBefore40MicrosoftCommonTargets>
+
+    <ImportByWildcardAfter40MicrosoftCommonTargets Condition="'$(ImportByWildcardAfter40MicrosoftCommonTargets)' == ''">$(ImportByWildcardAfterMicrosoftCommonTargets)</ImportByWildcardAfter40MicrosoftCommonTargets>
+    <ImportByWildcardAfter40MicrosoftCommonTargets Condition="'$(ImportByWildcardAfter40MicrosoftCommonTargets)' == ''">true</ImportByWildcardAfter40MicrosoftCommonTargets>
+
+    <ImportUserLocationsByWildcardBefore40MicrosoftCommonTargets Condition="'$(ImportUserLocationsByWildcardBefore40MicrosoftCommonTargets)' == ''">$(ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets)</ImportUserLocationsByWildcardBefore40MicrosoftCommonTargets>
+    <ImportUserLocationsByWildcardBefore40MicrosoftCommonTargets Condition="'$(ImportUserLocationsByWildcardBefore40MicrosoftCommonTargets)' == ''">true</ImportUserLocationsByWildcardBefore40MicrosoftCommonTargets>
+
+    <ImportUserLocationsByWildcardAfter40MicrosoftCommonTargets Condition="'$(ImportUserLocationsByWildcardAfter40MicrosoftCommonTargets)' == ''">$(ImportUserLocationsByWildcardAfterMicrosoftCommonTargets)</ImportUserLocationsByWildcardAfter40MicrosoftCommonTargets>
+    <ImportUserLocationsByWildcardAfter40MicrosoftCommonTargets Condition="'$(ImportUserLocationsByWildcardAfter40MicrosoftCommonTargets)' == ''">true</ImportUserLocationsByWildcardAfter40MicrosoftCommonTargets>
+
+    <ImportByWildcardBeforeMicrosoftCommonTargets>false</ImportByWildcardBeforeMicrosoftCommonTargets>
+    <ImportByWildcardAfterMicrosoftCommonTargets>false</ImportByWildcardAfterMicrosoftCommonTargets>
+    <ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets>false</ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets>
+    <ImportUserLocationsByWildcardAfterMicrosoftCommonTargets>false</ImportUserLocationsByWildcardAfterMicrosoftCommonTargets>
+
+    <CustomBeforeMicrosoftCommonTargets Condition="'$(CustomBeforeMicrosoftCommonTargets)' == ''">$(MSBuildExtensionsPath)\v4.0\Custom.Before.Microsoft.Common.targets</CustomBeforeMicrosoftCommonTargets>
+    <CustomAfterMicrosoftCommonTargets Condition="'$(CustomAfterMicrosoftCommonTargets)' == ''">$(MSBuildExtensionsPath)\v4.0\Custom.After.Microsoft.Common.targets</CustomAfterMicrosoftCommonTargets>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildAssemblyVersion)' == '' and ('$(TargetFrameworkIdentifier)' == '.NETFramework' or '$(TargetFrameworkIdentifier)' == 'Silverlight' or ('$(TargetFrameworkIdentifier)' == '' and ('$(TargetRuntime)' == 'Managed' or '$(TargetRuntime)' == '')))">
+     <!-- 
+          Overrides for the Microsoft.NETFramework.props extension targets. Used to make sure that only the imports we specify 
+          (hard-coded to 4.0 locations) are used, not the 12.0 locations that would be used by default. Required because 
+          Microsoft.Common.targets imports it from the current directory, so we don't get a chance to redirect these in its 
+          own redirection targets. 
+
+          NOTE: This logic is duplicated in Microsoft.VisualBasic.targets and in Microsoft.CSharp.targets because those two files 
+          import Microsoft.Common.targets from the current directory and thus don't get the benefit of these redirections either, 
+          so for any changes to this logic in this file, please also edit the other two. 
+      -->
+    <ImportByWildcardBefore40MicrosoftNetFrameworkProps Condition="'$(ImportByWildcardBefore40MicrosoftNetFrameworkProps)' == ''">$(ImportByWildcardBeforeMicrosoftNetFrameworkProps)</ImportByWildcardBefore40MicrosoftNetFrameworkProps>
+    <ImportByWildcardBefore40MicrosoftNetFrameworkProps Condition="'$(ImportByWildcardBefore40MicrosoftNetFrameworkProps)' == ''">true</ImportByWildcardBefore40MicrosoftNetFrameworkProps>
+
+    <ImportByWildcardAfter40MicrosoftNetFrameworkProps Condition="'$(ImportByWildcardAfter40MicrosoftNetFrameworkProps)' == ''">$(ImportByWildcardAfterMicrosoftNetFrameworkProps)</ImportByWildcardAfter40MicrosoftNetFrameworkProps>
+    <ImportByWildcardAfter40MicrosoftNetFrameworkProps Condition="'$(ImportByWildcardAfter40MicrosoftNetFrameworkProps)' == ''">true</ImportByWildcardAfter40MicrosoftNetFrameworkProps>
+
+    <ImportUserLocationsByWildcardBefore40MicrosoftNetFrameworkProps Condition="'$(ImportUserLocationsByWildcardBefore40MicrosoftNetFrameworkProps)' == ''">$(ImportUserLocationsByWildcardBeforeMicrosoftNetFrameworkProps)</ImportUserLocationsByWildcardBefore40MicrosoftNetFrameworkProps>
+    <ImportUserLocationsByWildcardBefore40MicrosoftNetFrameworkProps Condition="'$(ImportUserLocationsByWildcardBefore40MicrosoftNetFrameworkProps)' == ''">true</ImportUserLocationsByWildcardBefore40MicrosoftNetFrameworkProps>
+
+    <ImportUserLocationsByWildcardAfter40MicrosoftNetFrameworkProps Condition="'$(ImportUserLocationsByWildcardAfter40MicrosoftNetFrameworkProps)' == ''">$(ImportUserLocationsByWildcardAfterMicrosoftNetFrameworkProps)</ImportUserLocationsByWildcardAfter40MicrosoftNetFrameworkProps>
+    <ImportUserLocationsByWildcardAfter40MicrosoftNetFrameworkProps Condition="'$(ImportUserLocationsByWildcardAfter40MicrosoftNetFrameworkProps)' == ''">true</ImportUserLocationsByWildcardAfter40MicrosoftNetFrameworkProps>
+
+    <ImportByWildcardBeforeMicrosoftNetFrameworkProps>false</ImportByWildcardBeforeMicrosoftNetFrameworkProps>
+    <ImportByWildcardAfterMicrosoftNetFrameworkProps>false</ImportByWildcardAfterMicrosoftNetFrameworkProps>
+    <ImportUserLocationsByWildcardBeforeMicrosoftNetFrameworkProps>false</ImportUserLocationsByWildcardBeforeMicrosoftNetFrameworkProps>
+    <ImportUserLocationsByWildcardAfterMicrosoftNetFrameworkProps>false</ImportUserLocationsByWildcardAfterMicrosoftNetFrameworkProps>
+  </PropertyGroup>
+
+  <ImportGroup Condition="'$(MSBuildAssemblyVersion)' == ''">
+    <Import Project="$(MSBuildUserExtensionsPath)\4.0\Microsoft.Common.targets\ImportBefore\*" Condition="'$(ImportUserLocationsByWildcardBefore40MicrosoftCommonTargets)' == 'true' and exists('$(MSBuildUserExtensionsPath)\4.0\Microsoft.Common.targets\ImportBefore')"/>
+    <Import Project="$(MSBuildExtensionsPath)\4.0\Microsoft.Common.targets\ImportBefore\*" Condition="'$(ImportByWildcardBefore40MicrosoftCommonTargets)' == 'true' and exists('$(MSBuildExtensionsPath)\4.0\Microsoft.Common.targets\ImportBefore')"/>
+  </ImportGroup> 
+
+  <ImportGroup Condition="'$(MSBuildAssemblyVersion)' == ''">
+    <Import Project="$(MSBuildUserExtensionsPath)\4.0\Microsoft.NETFramework.props\ImportBefore\*" Condition="'$(ImportUserLocationsByWildcardBefore40MicrosoftNetFrameworkProps)' == 'true' and exists('$(MSBuildUserExtensionsPath)\4.0\Microsoft.NETFramework.props\ImportBefore')"/>
+    <Import Project="$(MSBuildExtensionsPath)\4.0\Microsoft.NETFramework.props\ImportBefore\*" Condition="'$(ImportByWildcardBefore40MicrosoftNetFrameworkProps)' == 'true' and exists('$(MSBuildExtensionsPath)\4.0\Microsoft.NETFramework.props\ImportBefore')"/>
+  </ImportGroup>
+
+  <Import Project="$(CommonTargetsPath)" />
+
+  <!--
+      Prepare to import project extensions which usually come from packages.  Package management systems will create a file at:
+          $(MSBuildProjectExtensionsPath)\$(MSBuildProjectFile).<SomethingUnique>.targets
+          
+        Each package management system should use a unique moniker to avoid collisions.  It is a wild-card import so the package
+        management system can write out multiple files but the order of the import is alphabetic because MSBuild sorts the list.
+    -->
+  <PropertyGroup>
+    <ImportProjectExtensionTargets Condition="'$(ImportProjectExtensionTargets)' == ''">true</ImportProjectExtensionTargets>
+  </PropertyGroup>
+
+  <Import Project="$(MSBuildProjectExtensionsPath)$(MSBuildProjectFile).*.targets" Condition="'$(ImportProjectExtensionTargets)' == 'true' and exists('$(MSBuildProjectExtensionsPath)')" />
+
+  <PropertyGroup>
+    <ImportDirectoryBuildTargets Condition="'$(ImportDirectoryBuildTargets)' == ''">true</ImportDirectoryBuildTargets>
+  </PropertyGroup>
+
+  <!-- 
+        Determine the path to the directory build targets file if the user did not disable $(ImportDirectoryBuildTargets) and
+        they did not already specify an absolute path to use via $(DirectoryBuildTargetsPath)
+    -->
+  <PropertyGroup Condition="'$(ImportDirectoryBuildTargets)' == 'true' and '$(DirectoryBuildTargetsPath)' == ''">
+    <_DirectoryBuildTargetsFile Condition="'$(_DirectoryBuildTargetsFile)' == ''">Directory.Build.targets</_DirectoryBuildTargetsFile>
+    <_DirectoryBuildTargetsBasePath Condition="'$(_DirectoryBuildTargetsBasePath)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), '$(_DirectoryBuildTargetsFile)'))</_DirectoryBuildTargetsBasePath>
+    <DirectoryBuildTargetsPath Condition="'$(_DirectoryBuildTargetsBasePath)' != '' and '$(_DirectoryBuildTargetsFile)' != ''">$([System.IO.Path]::Combine('$(_DirectoryBuildTargetsBasePath)', '$(_DirectoryBuildTargetsFile)'))</DirectoryBuildTargetsPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ImportDirectoryBuildTargets)' == 'true' and exists('$(DirectoryBuildTargetsPath)')">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(DirectoryBuildTargetsPath)</MSBuildAllProjects>
+  </PropertyGroup>
+
+  <Import Project="$(DirectoryBuildTargetsPath)" Condition="'$(ImportDirectoryBuildTargets)' == 'true' and exists('$(DirectoryBuildTargetsPath)')"/>
+
+  <ImportGroup Condition="'$(MSBuildAssemblyVersion)' == ''">
+    <Import Project="$(MSBuildExtensionsPath)\4.0\Microsoft.NETFramework.props\ImportAfter\*" Condition="'$(ImportByWildcardAfter40MicrosoftNetFrameworkProps)' == 'true' and exists('$(MSBuildExtensionsPath)\4.0\Microsoft.NETFramework.props\ImportAfter')"/>
+    <Import Project="$(MSBuildUserExtensionsPath)\4.0\Microsoft.NETFramework.props\ImportAfter\*" Condition="'$(ImportUserLocationsByWildcardAfter40MicrosoftNetFrameworkProps)' == 'true' and exists('$(MSBuildUserExtensionsPath)\4.0\Microsoft.NETFramework.props\ImportAfter')"/>
+  </ImportGroup> 
+
+  <ImportGroup Condition="'$(MSBuildAssemblyVersion)' == ''">
+    <Import Project="$(MSBuildExtensionsPath)\4.0\Microsoft.Common.targets\ImportAfter\*" Condition="'$(ImportByWildcardAfter40MicrosoftCommonTargets)' == 'true' and exists('$(MSBuildExtensionsPath)\4.0\Microsoft.Common.targets\ImportAfter')"/>
+    <Import Project="$(MSBuildUserExtensionsPath)\4.0\Microsoft.Common.targets\ImportAfter\*" Condition="'$(ImportUserLocationsByWildcardAfter40MicrosoftCommonTargets)' == 'true' and exists('$(MSBuildUserExtensionsPath)\4.0\Microsoft.Common.targets\ImportAfter')"/>
+  </ImportGroup>
+
+   <!-- Fix up FrameworkPathOverride, which is primarily used to determine the location of mscorlib.dll in the 
+        (relatively uncommon) situation where the reference assemblies, in which it's usually found, are not 
+        installed.  -->
+   <PropertyGroup Condition="'$(MSBuildAssemblyVersion)' == ''">
+      <FrameworkPathOverride Condition="!Exists('$(FrameworkPathOverride)\mscorlib.dll')">$(MSBuildFrameworkToolsPath)</FrameworkPathOverride>
+   </PropertyGroup>
+</Project>

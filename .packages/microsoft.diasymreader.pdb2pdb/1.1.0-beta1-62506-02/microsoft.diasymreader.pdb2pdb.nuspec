@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/10/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.DiaSymReader.Pdb2Pdb</id>
+    <version>1.1.0-beta1-62506-02</version>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <developmentDependency>true</developmentDependency>
+    <licenseUrl>http://go.microsoft.com/fwlink/?LinkId=529443</licenseUrl>
+    <projectUrl>https://github.com/dotnet/symreader-converter</projectUrl>
+    <description>Converter between Windows PDB and Portable PDB (standalone or embedded) file formats.</description>
+    <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+    <language>en-US</language>
+    <tags>DiaSymReader ISymUnmanagedReader Portable PDB debugging conversion tool</tags>
+    <serviceable>true</serviceable>
+  </metadata>
+</package>

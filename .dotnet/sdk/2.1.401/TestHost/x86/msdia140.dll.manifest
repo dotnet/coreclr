@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity type="win32" processorArchitecture="x86" name="ComComponents\x86\msdia140.dll" version="1.0.0.0" />
+  <file name="msdia140.dll" hashalg="SHA1">
+    <comClass clsid="{E6756135-1E65-4D17-8576-610761398C3C}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" threadingModel="Both" description="DiaSource Class"></comClass>
+    <comClass clsid="{91904831-49CA-4766-B95C-25397E2DD6DC}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" threadingModel="Both" description="Local Heap DiaSource Class"></comClass>
+    <comClass clsid="{CE4A85DB-5768-475B-A4E1-C0BCA2112A6B}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" threadingModel="Both" description="General Stackwalk Class"></comClass>
+    <typelib tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" resourceid="1" version="2.0" helpdir="" flags="HASDISKIMAGE"></typelib>
+  </file>
+  <comInterfaceExternalProxyStub name="IDiaDataSource" iid="{79F1BB5F-B66E-48E5-B6A9-1545C323CA3D}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{79F1BB5F-B66E-48E5-B6A9-1545C323CA3D}"></comInterfaceExternalProxyStub>
+  <!-- Problem: standard COM intercace -->
+  <!--<comInterfaceExternalProxyStub name="IStream" iid="{0000000C-0000-0000-C000-000000000046}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{0000000C-0000-0000-C000-000000000046}"></comInterfaceExternalProxyStub>-->
+  <!-- Problem: standard Ole32 interface -->
+  <!--<comInterfaceExternalProxyStub name="ISequentialStream" iid="{0C733A30-2A1C-11CE-ADE5-00AA0044773D}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{0C733A30-2A1C-11CE-ADE5-00AA0044773D}"></comInterfaceExternalProxyStub>-->
+  <comInterfaceExternalProxyStub name="IDiaSession" iid="{2F609EE1-D1C8-4E24-8288-3326BADCD211}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{2F609EE1-D1C8-4E24-8288-3326BADCD211}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaSymbol" iid="{CB787B2F-BD6C-4635-BA52-933126BD2DCD}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{CB787B2F-BD6C-4635-BA52-933126BD2DCD}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaEnumSymbols" iid="{CAB72C48-443B-48F5-9B0B-42F0820AB29A}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{CAB72C48-443B-48F5-9B0B-42F0820AB29A}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaEnumLineNumbers" iid="{FE30E878-54AC-44F1-81BA-39DE940F6052}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{FE30E878-54AC-44F1-81BA-39DE940F6052}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaLineNumber" iid="{B388EB14-BE4D-421D-A8A1-6CF7AB057086}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{B388EB14-BE4D-421D-A8A1-6CF7AB057086}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaSourceFile" iid="{A2EF5353-F5A8-4EB3-90D2-CB526ACB3CDD}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{A2EF5353-F5A8-4EB3-90D2-CB526ACB3CDD}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaInputAssemblyFile" iid="{3BFE56B0-390C-4863-9430-1F3D083B7684}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{3BFE56B0-390C-4863-9430-1F3D083B7684}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaEnumTables" iid="{C65C2B0A-1150-4D7A-AFCC-E05BF3DEE81E}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{C65C2B0A-1150-4D7A-AFCC-E05BF3DEE81E}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaTable" iid="{4A59FB77-ABAC-469B-A30B-9ECC85BFEF14}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{4A59FB77-ABAC-469B-A30B-9ECC85BFEF14}"></comInterfaceExternalProxyStub>
+  <!-- Problem: standard COM intercace -->
+  <!--<comInterfaceExternalProxyStub name="IEnumUnknown" iid="{00000100-0000-0000-C000-000000000046}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{00000100-0000-0000-C000-000000000046}"></comInterfaceExternalProxyStub>-->
+  <comInterfaceExternalProxyStub name="IDiaEnumSymbolsByAddr" iid="{624B7D9C-24EA-4421-9D06-3B577471C1FA}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{624B7D9C-24EA-4421-9D06-3B577471C1FA}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaEnumSourceFiles" iid="{10F3DBD9-664F-4469-B808-9471C7A50538}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{10F3DBD9-664F-4469-B808-9471C7A50538}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaEnumInjectedSources" iid="{D5612573-6925-4468-8883-98CDEC8C384A}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{D5612573-6925-4468-8883-98CDEC8C384A}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaInjectedSource" iid="{AE605CDC-8105-4A23-B710-3259F1E26112}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{AE605CDC-8105-4A23-B710-3259F1E26112}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaEnumDebugStreams" iid="{08CBB41E-47A6-4F87-92F1-1C9C87CED044}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{08CBB41E-47A6-4F87-92F1-1C9C87CED044}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaEnumDebugStreamData" iid="{486943E8-D187-4A6B-A3C4-291259FFF60D}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{486943E8-D187-4A6B-A3C4-291259FFF60D}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaEnumInputAssemblyFiles" iid="{1C7FF653-51F7-457E-8419-B20F57EF7E4D}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{1C7FF653-51F7-457E-8419-B20F57EF7E4D}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaStackWalker" iid="{5485216B-A54C-469F-9670-52B24D5229BB}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{5485216B-A54C-469F-9670-52B24D5229BB}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaStackWalkHelper" iid="{21F81B1B-C5BB-42A3-BC4F-CCBAA75B9F19}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{21F81B1B-C5BB-42A3-BC4F-CCBAA75B9F19}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaFrameData" iid="{A39184B7-6A36-42DE-8EEC-7DF9F3F59F33}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{A39184B7-6A36-42DE-8EEC-7DF9F3F59F33}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaStackWalkFrame" iid="{07C590C1-438D-4F47-BDCD-4397BC81AD75}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{07C590C1-438D-4F47-BDCD-4397BC81AD75}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaEnumStackFrames" iid="{EC9D461D-CE74-4711-A020-7D8F9A1DD255}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{EC9D461D-CE74-4711-A020-7D8F9A1DD255}"></comInterfaceExternalProxyStub>
+  <comInterfaceExternalProxyStub name="IDiaStackFrame" iid="{5EDBC96D-CDD6-4792-AFBE-CC89007D9610}" tlbid="{106173A0-0173-4E5C-84E7-E915422BE997}" proxyStubClsid32="{5EDBC96D-CDD6-4792-AFBE-CC89007D9610}"></comInterfaceExternalProxyStub>
+</assembly>

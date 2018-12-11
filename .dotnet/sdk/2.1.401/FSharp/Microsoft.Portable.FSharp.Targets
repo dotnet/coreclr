@@ -1,0 +1,23 @@
+<!-- Copyright (c) Microsoft Corporation.  All Rights Reserved.  See License.txt in the project root for license information. -->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup>
+
+  <!-- On Mono, we must import in a different order than on MSBuild/Windows -->
+  <!-- We detect the difference by looking for $(MSBuildExtensionsPath32)\Microsoft\Portable\Microsoft.Portable.Core.props -->
+  <!-- On .NET Framework we use Microsoft\Portable\Microsoft.Portable.Core.props + Microsoft.FSharp.Targets + Microsoft.Portable.Core.targets -->
+  <!-- On .NET Mono we use Microsoft\Portable\v4.0\Microsoft.Portable.Common.targets + Microsoft.FSharp.Targets -->
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\Microsoft.Portable.Core.props" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\Portable\Microsoft.Portable.Core.props')"/>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\v4.0\Microsoft.Portable.Common.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\Portable\v4.0\Microsoft.Portable.Common.targets') AND !Exists('$(MSBuildExtensionsPath32)\Microsoft\Portable\Microsoft.Portable.Core.props')"/>
+
+  <!-- Cope with both .targets and .Targets on case-sensitive file-systems -->
+  <!-- .targets is used by F# .NET Core SDKs, .Targets is used by F# .NET Framework SDKs -->
+  <Import Project="$(MSBuildThisFileDirectory)Microsoft.FSharp.Targets" Condition="Exists('$(MSBuildThisFileDirectory)Microsoft.FSharp.Targets') AND !Exists('$(MSBuildThisFileDirectory)Microsoft.FSharp.targets')"/>
+  <Import Project="$(MSBuildThisFileDirectory)Microsoft.FSharp.targets" Condition="Exists('$(MSBuildThisFileDirectory)Microsoft.FSharp.targets')"/>
+
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\Microsoft.Portable.Core.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\Portable\Microsoft.Portable.Core.props')"/>
+  
+</Project>

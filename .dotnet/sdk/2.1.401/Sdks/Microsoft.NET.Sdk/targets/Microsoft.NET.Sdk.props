@@ -1,0 +1,126 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.Sdk.props
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+
+    <!-- This property disables the conflict resolution logic from the Microsoft.Packaging.Tools package, which is superceded by the logic here in the SDK -->
+    <DisableHandlePackageFileConflicts>true</DisableHandlePackageFileConflicts>
+  </PropertyGroup>
+
+  <!-- Default configuration and platform to Debug|AnyCPU--> 
+  <PropertyGroup>
+    <Configurations Condition=" '$(Configurations)' == '' ">Debug;Release</Configurations>
+    <Platforms Condition=" '$(Platforms)' == '' ">AnyCPU</Platforms>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+  </PropertyGroup>
+
+  <!-- User-facing configuration-agnostic defaults -->
+  <PropertyGroup>
+    <OutputType Condition=" '$(OutputType)' == '' ">Library</OutputType>
+    <FileAlignment Condition=" '$(FileAlignment)' == '' ">512</FileAlignment>
+    <ErrorReport Condition=" '$(ErrorReport)' == '' ">prompt</ErrorReport>
+    <AssemblyName Condition=" '$(AssemblyName)' == '' ">$(MSBuildProjectName)</AssemblyName>
+    <RootNamespace Condition=" '$(RootNamespace)' == '' ">$(MSBuildProjectName)</RootNamespace>
+    <Deterministic Condition=" '$(Deterministic)' == '' ">true</Deterministic>
+  </PropertyGroup>
+
+  <!-- User-facing configuration-specific defaults -->
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols Condition=" '$(DebugSymbols)' == '' ">true</DebugSymbols>
+    <Optimize Condition=" '$(Optimize)' == '' ">false</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <Optimize Condition=" '$(Optimize)' == '' ">true</Optimize>
+  </PropertyGroup>
+
+  <!-- User-facing platform-specific defaults -->
+
+  <!-- 
+    NOTE:
+    
+     * We cannot compare against $(Platform) directly as that will give VS cause to instantiate extra 
+       configurations, for each combination, which leads to performance problems and clutter in the sln
+       in the common AnyCPU-only case.
+
+     * We cannot just set $(PlatformTarget) to $(Platform) here because $(Platform) can be set to anything
+       at the solution level, but there are a fixed set valid $(PlatformTarget) values that can be passed
+       to the compiler. It is up to the user to explicitly set PlatformTarget to non-AnyCPU (if desired)
+       outside the 1:1 defaults below.
+  -->
+  <PropertyGroup>
+    <_PlatformWithoutConfigurationInference>$(Platform)</_PlatformWithoutConfigurationInference>
+  </PropertyGroup>  
+  <PropertyGroup Condition=" '$(_PlatformWithoutConfigurationInference)' == 'x64' ">
+    <PlatformTarget Condition=" '$(PlatformTarget)' == '' ">x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(_PlatformWithoutConfigurationInference)' == 'x86' ">
+    <PlatformTarget Condition=" '$(PlatformTarget)' == '' ">x86</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(_PlatformWithoutConfigurationInference)' == 'ARM' ">
+    <PlatformTarget Condition=" '$(PlatformTarget)' == '' ">ARM</PlatformTarget>
+  </PropertyGroup>
+
+  <!-- Default settings for all projects built with this Sdk package -->
+  <PropertyGroup>
+    <DebugType Condition=" '$(DebugType)' == '' ">portable</DebugType>
+
+    <!-- This will turn off the base UWP-specific 'ResolveNuGetPackages' target -->
+    <ResolveNuGetPackages>false</ResolveNuGetPackages>
+
+    <!-- Skip import of Microsoft.NuGet.props and Microsoft.NuGet.targets -->
+    <SkipImportNuGetProps>true</SkipImportNuGetProps>
+    <SkipImportNuGetBuildTargets>true</SkipImportNuGetBuildTargets>
+    
+    <!-- NuGet should always restore .NET SDK projects with "PackageReference" style restore.  Setting this property will
+         cause the right thing to happen even if there aren't any PackageReference items in the project, such as when
+         a project targets .NET Framework and doesn't have any direct package dependencies. -->
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    
+    <!-- Exclude GAC, registry, output directory from search paths. -->
+    <AssemblySearchPaths Condition=" '$(AssemblySearchPaths)' == '' ">{CandidateAssemblyFiles};{HintPathFromItem};{TargetFrameworkDirectory};{RawFileName}</AssemblySearchPaths>
+    <DesignTimeAssemblySearchPaths Condition=" '$(DesignTimeAssemblySearchPaths)' == '' ">$(AssemblySearchPaths)</DesignTimeAssemblySearchPaths>
+
+    <AllowUnsafeBlocks Condition="'$(AllowUnsafeBlocks)'==''">false</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors Condition="'$(TreatWarningsAsErrors)'==''">false</TreatWarningsAsErrors>
+    <Prefer32Bit Condition="'$(Prefer32Bit)'==''">false</Prefer32Bit>
+    <SignAssembly Condition="'$(SignAssembly)'==''">false</SignAssembly>
+    <DelaySign Condition="'$(DelaySign)'==''">false</DelaySign>
+    <GeneratePackageOnBuild Condition="'$(GeneratePackageOnBuild)'==''">false</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance Condition="'$(PackageRequireLicenseAcceptance)'==''">false</PackageRequireLicenseAcceptance>
+    <DebugSymbols Condition="'$(DebugSymbols)'==''">false</DebugSymbols>
+    <CheckForOverflowUnderflow Condition="'$(CheckForOverflowUnderflow)'==''">false</CheckForOverflowUnderflow>
+
+    <!-- Uncomment this once https://github.com/Microsoft/visualfsharp/issues/3207 gets fixed -->
+    <!-- <WarningsAsErrors Condition=" '$(WarningsAsErrors)' == '' ">NU1605</WarningsAsErrors> -->
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Path to project that the .NET CLI will build in order to generate deps.json files for .NET CLI tools -->
+    <ToolDepsJsonGeneratorProject>$(MSBuildThisFileDirectory)GenerateDeps\GenerateDeps.proj</ToolDepsJsonGeneratorProject>
+  </PropertyGroup>
+  
+  <!-- Default item includes (globs and implicit references) -->
+  <Import Project="Microsoft.NET.Sdk.DefaultItems.props" />
+  
+  <!-- List of supported .NET Core and .NET Standard TFMs -->
+  <Import Project="Microsoft.NET.SupportedTargetFrameworks.props" />
+
+  <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.Sdk.CSharp.props" Condition="'$(MSBuildProjectExtension)' == '.csproj'" />
+  <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.Sdk.VisualBasic.props" Condition="'$(MSBuildProjectExtension)' == '.vbproj'" />
+  <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.Sdk.FSharp.props" Condition="'$(MSBuildProjectExtension)' == '.fsproj'" />
+
+  <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.PackTool.props" />
+</Project>

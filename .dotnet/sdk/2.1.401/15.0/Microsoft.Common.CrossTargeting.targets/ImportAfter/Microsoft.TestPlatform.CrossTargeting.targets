@@ -1,0 +1,84 @@
+<!--
+***********************************************************************************************
+Microsoft.TestPlatform.CrossTargeting.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <VSTestTaskAssemblyFile Condition="$(VSTestTaskAssemblyFile) == ''">$(MSBuildExtensionsPath)\Microsoft.TestPlatform.Build.dll</VSTestTaskAssemblyFile>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup>
+  <UsingTask TaskName="Microsoft.TestPlatform.Build.Tasks.BuildLogTask" AssemblyFile="$(VSTestTaskAssemblyFile)" />
+  <!--
+  ===================================================================================
+               DispatchToInnerBuildsWithVSTestTarget
+                                       
+     Builds this project with /t:$(InnerVSTestTargets) /p:TargetFramework=X for each
+     value X in $(TargetFrameworks)
+
+     [IN]
+     $(TargetFrameworks) - Semicolon delimited list of target frameworks.
+     $(InnerVSTestTargets) - The targets to build for each target framework
+
+     [OUT]
+     @(InnerOutput) - The combined output items of inner targets across
+                      all target frameworks..
+
+  ===================================================================================
+  -->
+
+  <Target Name="DispatchToInnerBuildsWithVSTestTarget" Returns="@(InnerOutput)">
+    <ItemGroup>
+      <_TargetFramework Include="$(TargetFrameworks)" />
+    </ItemGroup>
+    <MSBuild Projects="$(MSBuildProjectFile)"
+             Condition="'$(TargetFrameworks)' != '' "
+             Targets="$(InnerVSTestTargets)"
+             Properties="TargetFramework=%(_TargetFramework.Identity);VSTestNoBuild=true"
+             ContinueOnError="ErrorAndContinue">
+      <Output ItemName="InnerOutput" TaskParameter="TargetOutputs" />
+    </MSBuild>
+  </Target>
+
+  <!--
+  ==================================================================================
+                                   VSTest
+
+   Cross-targeting version of VSTest.
+
+   [IN]
+   $(TargetFrameworks) - Semicolon delimited list of target frameworks.
+   $(InnerVSTestTargets) - The targets to build for each target framework. Defaults
+                         to 'VSTest' if unset, but allows override to support
+                         `msbuild /p:InnerTargets=X;Y;Z` which will build X, Y,
+                         and Z targets for each target framework.
+
+   [OUT]
+   @(InnerOutput) - The combined output items of the inner targets across
+                    all builds.
+  =================================================================================
+  -->
+  <Target Name="VSTest" >
+    <CallTarget Condition="'$(VSTestNoBuild)' != 'true'" Targets="BuildProject" />
+    <CallTarget Targets="SetVSTestInnerTarget" />
+    <CallTarget Targets="DispatchToInnerBuildsWithVSTestTarget" />
+  </Target>
+
+  <Target Name="BuildProject">
+    <Microsoft.TestPlatform.Build.Tasks.BuildLogTask BuildStarted="True" />
+    <CallTarget Targets="Build" />
+    <Microsoft.TestPlatform.Build.Tasks.BuildLogTask />
+  </Target>
+
+  <Target Name="SetVSTestInnerTarget" Returns="@(InnerOutput)">
+    <PropertyGroup  Condition="'$(InnerVSTestTargets)' == ''">
+      <InnerVSTestTargets>VSTest</InnerVSTestTargets>
+    </PropertyGroup>
+  </Target>
+</Project>

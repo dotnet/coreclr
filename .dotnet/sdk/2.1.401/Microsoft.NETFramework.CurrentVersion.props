@@ -1,0 +1,141 @@
+﻿<!--
+***********************************************************************************************
+Microsoft.NETFramework.CurrentVersion.props
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+This file contains .net framework specific properties, items and targets. They are factored into a Microsoft.NETFramework.targets and Microsoft.NetFramework.props
+these two files are used to encapsulate the multi-targeting and framework specific build process.
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+     <ImportByWildcardBeforeMicrosoftNetFrameworkProps Condition="'$(ImportByWildcardBeforeMicrosoftNetFrameworkProps)' == ''">true</ImportByWildcardBeforeMicrosoftNetFrameworkProps>
+     <ImportByWildcardAfterMicrosoftNetFrameworkProps Condition="'$(ImportByWildcardAfterMicrosoftNetFrameworkProps)' == ''">true</ImportByWildcardAfterMicrosoftNetFrameworkProps>
+     <ImportUserLocationsByWildcardBeforeMicrosoftNetFrameworkProps Condition="'$(ImportUserLocationsByWildcardBeforeMicrosoftNetFrameworkProps)' == ''">true</ImportUserLocationsByWildcardBeforeMicrosoftNetFrameworkProps>
+     <ImportUserLocationsByWildcardAfterMicrosoftNetFrameworkProps Condition="'$(ImportUserLocationsByWildcardAfterMicrosoftNetFrameworkProps)' == ''">true</ImportUserLocationsByWildcardAfterMicrosoftNetFrameworkProps>
+  </PropertyGroup>
+
+  <Import Project="$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.NETFramework.props\ImportBefore\*" Condition="'$(ImportUserLocationsByWildcardBeforeMicrosoftNetFrameworkProps)' == 'true' and exists('$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.NETFramework.props\ImportBefore')"/>
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.NETFramework.props\ImportBefore\*" Condition="'$(ImportByWildcardBeforeMicrosoftNetFrameworkProps)' == 'true' and exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.NETFramework.props\ImportBefore')"/>
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+
+    <!-- By default we want to replace subsets with profiles, but we do need a way to turning off this "upgrade" in case a user needs to target a subset-->
+    <UpgradeSubsetToProfile Condition="'$(UpgradeSubsetToProfile)' == '' ">true</UpgradeSubsetToProfile>
+
+    <TargetFrameworkProfile Condition="'$(UpgradeSubsetToProfile)' == 'true' and '$(TargetFrameworkSubset)' != '' and '$(TargetFrameworkProfile)' == ''">$(TargetFrameworkSubset)</TargetFrameworkProfile>
+
+    <!-- If we are not upgrading the Subset to a profile this means we want to target a subset, do not wipe out the subset name-->
+    <TargetFrameworkSubset Condition="'$(UpgradeTargetFrameworkSubsetToProfile)' == 'true'"></TargetFrameworkSubset>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(FrameworkPathOverride)' != ''">
+    <_FullFrameworkReferenceAssemblyPaths>$(FrameworkPathOverride)</_FullFrameworkReferenceAssemblyPaths>
+    <_TargetFrameworkDirectories>$(FrameworkPathOverride)</_TargetFrameworkDirectories>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework' and '$(TargetFrameworkVersion)' == 'v4.0' and '$(FrameworkPathOverride)' == ''">
+
+    <!-- The FrameworkPathOverride property is required for the IDE Visual Basic compiler to initialize.
+             This location contains reference assemblies for mscorlib.dll and other key VB assemblies.
+             This property is required during project evaluation, since the IDE compilers need to initialize before
+             any targets have had a chance to run, hence the use of a function to retrieve the location.
+     -->
+    <!-- Hard code for the most common TargetFrameworkVersion of v4.0 with no profile: this enables us to avoid calling the GetReferenceAssemblyPaths task -->
+    <_FullFrameworkReferenceAssemblyPaths Condition="Exists('$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0\RedistList\FrameworkList.xml')">$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0</_FullFrameworkReferenceAssemblyPaths>
+    <_TargetFrameworkDirectories Condition="'$(TargetFrameworkProfile)' == ''">$(_FullFrameworkReferenceAssemblyPaths)</_TargetFrameworkDirectories>
+    <FrameworkPathOverride Condition="'$(TargetFrameworkProfile)' == ''">$(_TargetFrameworkDirectories)</FrameworkPathOverride>
+
+    <!-- Hard code for the most common TargetFrameworkVersion of v4.0 with Client profile: this enables us to avoid calling the GetReferenceAssemblyPaths task -->
+    <_TargetFrameworkDirectories Condition="'$(TargetFrameworkProfile)' == 'Client' and Exists('$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0\Profile\$(TargetFrameworkProfile)\RedistList\FrameworkList.xml')">$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0\Profile\$(TargetFrameworkProfile)</_TargetFrameworkDirectories>
+    <FrameworkPathOverride Condition="'$(TargetFrameworkProfile)' == 'Client'">$(_TargetFrameworkDirectories)</FrameworkPathOverride>
+    <TargetFrameworkMonikerDisplayName Condition="'$(TargetFrameworkMonikerDisplayName)' == '' and '$(TargetFrameworkProfile)' == ''">.NET Framework 4</TargetFrameworkMonikerDisplayName>
+    <TargetFrameworkMonikerDisplayName Condition="'$(TargetFrameworkMonikerDisplayName)' == '' and '$(TargetFrameworkProfile)' == 'Client'">.NET Framework 4 Client Profile</TargetFrameworkMonikerDisplayName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <MSBuildFrameworkToolsRoot Condition="'$(MSBuildFrameworkToolsRoot)' == '' and '$(MSBuildRuntimeType)' != 'Core'">$(Registry:HKEY_LOCAL_MACHINE\Software\Microsoft\.NETFramework@InstallRoot)</MSBuildFrameworkToolsRoot>
+    <_DeploymentSignClickOnceManifests Condition="'$(TargetFrameworkVersion)' == 'v2.0' or '$(TargetFrameworkVersion)' == 'v3.0' or '$(SignManifests)' == 'true'">true</_DeploymentSignClickOnceManifests>
+
+    <!-- Assembly names added to the AdditionalExplicitAssemblyReferences property will be added as references to the resolve assembly reference call by default this is done because when upgrading from
+         a project targeting 2.0 to 3.5 the system.core reference is not added, therefore we need to add it automatically -->
+    <AddAdditionalExplicitAssemblyReferences Condition="'$(AddAdditionalExplicitAssemblyReferences)' == ''">true</AddAdditionalExplicitAssemblyReferences>
+    <AdditionalExplicitAssemblyReferences Condition="'$(AddAdditionalExplicitAssemblyReferences)' == 'true' and '$(TargetCompactFramework)' != 'true' and ('$(TargetFrameworkVersion)' != 'v2.0' and '$(TargetFrameworkVersion)' != 'v3.0')">System.Core;$(AdditionalExplicitAssemblyReferences)</AdditionalExplicitAssemblyReferences>
+  </PropertyGroup>
+
+  <!--
+    ============================================================
+                                        GetToolPaths
+    Get the paths for the .NET Framework tools and sdk tools directories.
+    This does not need to be a target since all of the values are availiable at project evaluation time.
+    ============================================================
+    -->
+
+  <PropertyGroup>
+    <TargetingClr2Framework Condition="'$(TargetFrameworkVersion)' == 'v2.0' or '$(TargetFrameworkVersion)' == 'v3.0' or '$(TargetFrameworkVersion)' == 'v3.5'">true</TargetingClr2Framework>
+
+    <MSBuildManagedCompilerPath Condition="'$(TargetingClr2Framework)' == 'true'">$(MSBuildFrameworkToolsRoot)\v3.5</MSBuildManagedCompilerPath >
+
+    <TargetFrameworkSDKToolsDirectory Condition="'$(TargetingClr2Framework)' == 'true'">$(SDK35ToolsPath)</TargetFrameworkSDKToolsDirectory>
+    <!-- If the sdk path is not 3.5 or lower set it to the 40 sdk tools path. This will allow future target framework versions to use the 4.0 sdk tool set
+             When a new windows SDK revs they will inplace update the location pointed to by this property. When a new sdk is release this target will have to be
+             revised along with another toolsversion. -->
+
+    <TargetFrameworkSDKToolsDirectory Condition=" '$(TargetFrameworkSDKToolsDirectory)' == '' ">$(SDK40ToolsPath)</TargetFrameworkSDKToolsDirectory>
+
+    <TargetedRuntimeVersion Condition="'$(TargetedRuntimeVersion)' == '' and ('$(TargetingClr2Framework)' == 'true')">v2.0.50727</TargetedRuntimeVersion>
+    <TargetedRuntimeVersion Condition="'$(TargetedRuntimeVersion)' == ''">v$(MSBuildRuntimeVersion)</TargetedRuntimeVersion>
+
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework' and '$(TargetingClr2Framework)' != 'true' and '$(TargetFrameworkVersion)' != 'v4.0' and ('$(OutputType)' == 'exe' or '$(OutputType)' == 'winexe' or '$(OutputType)' == 'appcontainerexe' or '$(OutputType)' == '')">
+    <Prefer32Bit Condition="'$(Prefer32Bit)' == ''">true</Prefer32Bit>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Prefer32Bit Condition="'$(Prefer32Bit)' == ''">false</Prefer32Bit>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="('$(TargetFrameworkIdentifier)' == '.NETFramework' and '$(TargetingClr2Framework)' != 'true' and '$(TargetFrameworkVersion)' != 'v4.0') or '$(TargetFrameworkIdentifier)' == '.NETCoreApp' or '$(TargetFrameworkIdentifier)' == '.NETStandard'">
+    <HighEntropyVA Condition="'$(HighEntropyVA)' == ''">true</HighEntropyVA>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <HighEntropyVA Condition="'$(HighEntropyVA)' == ''">false</HighEntropyVA>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- ARM and AppContainerExe require subsystem version >= 6.02 (Windows 8) -->
+    <SubsystemVersion Condition="'$(SubsystemVersion)' == '' and ('$(PlatformTarget)' == 'ARM' or '$(OutputType)' == 'appcontainerexe' or '$(OutputType)' == 'winmdobj')">6.02</SubsystemVersion>
+    <!-- Starting with .Net 4.5 projects use subsystem 6.00 (Vista) as default -->
+    <SubsystemVersion Condition="'$(SubsystemVersion)' == '' and ('$(TargetFrameworkIdentifier)' == '.NETFramework' and '$(TargetingClr2Framework)' != 'true' and '$(TargetFrameworkVersion)' != 'v4.0')">6.00</SubsystemVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ComReferenceExecuteAsTool Condition="'$(ExecuteAsTool)'!=''">$(ExecuteAsTool)</ComReferenceExecuteAsTool>
+    <ComReferenceExecuteAsTool Condition="'$(ExecuteAsTool)'=='' and '$(TargetingClr2Framework)' == 'true'">true</ComReferenceExecuteAsTool>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ResGenExecuteAsTool Condition="'$(ExecuteAsTool)'!=''">$(ExecuteAsTool)</ResGenExecuteAsTool>
+    <ResGenExecuteAsTool Condition="'$(ExecuteAsTool)'=='' and '$(TargetingClr2Framework)' == 'true'">true</ResGenExecuteAsTool>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Starting with .NET 4.5 projects we implictly reference all portable design-time facades -->
+    <ImplicitlyExpandDesignTimeFacades Condition="'$(ImplicitlyExpandDesignTimeFacades)' == '' and ('$(TargetFrameworkIdentifier)' == '.NETFramework' and '$(TargetingClr2Framework)' != 'true' and '$(TargetFrameworkVersion)' != 'v4.0')">true</ImplicitlyExpandDesignTimeFacades>
+  </PropertyGroup>
+
+
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.NETFramework.props\ImportAfter\*" Condition="'$(ImportByWildcardAfterMicrosoftNetFrameworkProps)' == 'true' and exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.NETFramework.props\ImportAfter')"/>
+  <Import Project="$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.NETFramework.props\ImportAfter\*" Condition="'$(ImportUserLocationsByWildcardAfterMicrosoftNetFrameworkProps)' == 'true' and exists('$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.NETFramework.props\ImportAfter')"/>
+
+</Project>

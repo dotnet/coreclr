@@ -1,0 +1,145 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.Build.Extensions.NETFramework.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved.
+***********************************************************************************************
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+
+    <!-- Add NETStandard references if targetframeworkversion supports netstandard2.0 (net461 or later) -->
+    <ImplicitlyExpandNETStandardFacades Condition="'$(ImplicitlyExpandNETStandardFacades)' == '' AND '$(_TargetFrameworkVersionWithoutV)' &gt;= '4.6.1'">true</ImplicitlyExpandNETStandardFacades>
+  </PropertyGroup>
+
+  <UsingTask TaskName="GetDependsOnNETStandard" AssemblyFile="$(MicrosoftNETBuildExtensionsTasksAssembly)" />
+  <UsingTask TaskName="NETBuildExtensionsError" AssemblyFile="$(MicrosoftNETBuildExtensionsTasksAssembly)" />
+  <UsingTask TaskName="NETBuildExtensionsWarning" AssemblyFile="$(MicrosoftNETBuildExtensionsTasksAssembly)" />
+
+  <Target Name="ImplicitlyExpandNETStandardFacades"
+          Condition="'$(ImplicitlyExpandNETStandardFacades)' == 'true'"
+          BeforeTargets="_HandlePackageFileConflicts;ResolveAssemblyReferences">
+
+    <ItemGroup>
+      <_CandidateNETStandardReferences Include="@(Reference);@(_ResolvedProjectReferencePaths)" />
+      <_InboxNETStandardFolders Include="$(TargetFrameworkDirectory)" />
+    </ItemGroup>
+
+    <!-- determine if NETStandard.dll is supported inbox for this TargetFramework -->
+    <PropertyGroup Condition="'$(NETStandardInbox)' == ''">
+      <NETStandardInbox Condition="Exists('%(_InboxNETStandardFolders.Identity)\netstandard.dll')">true</NETStandardInbox>
+    </PropertyGroup>
+
+    <!-- determine if any references depend on NETStandard -->
+
+    <!-- Check metadata of _ResolvedProjectReferencePaths items.  This handles the case where we are doing a design-time build and a referenced project
+         hasn't been built yet, so there is no corresponding assembly on disk for the GetDependsOnNETStandard task to examine.
+
+         More context: https://github.com/dotnet/sdk/issues/1403
+         -->
+    <PropertyGroup Condition="'$(DependsOnNETStandard)' == '' AND '$(NETStandardInbox)' != 'true'">
+      <DependsOnNETStandard Condition="('%(_ResolvedProjectReferencePaths.TargetFrameworkIdentifier)' == '.NETStandard') And ('%(_ResolvedProjectReferencePaths.TargetFrameworkVersion)' >= '1.5')">true</DependsOnNETStandard>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'@(_CandidateNETStandardReferences)' != ''">
+      <!-- Use an intermediate property to simplify condition.  Run GetDependsOnNETStandard if either: -->
+      <!-- 1. The .NET Standard 2.0 support need to be injected -->
+      <_RunGetDependsOnNETStandard Condition="'$(DependsOnNETStandard)' == '' AND '$(NETStandardInbox)' != 'true'">true</_RunGetDependsOnNETStandard>
+      <!-- 2. The target framework is .NET 4.7.1, which needs to special case some shims -->
+      <_RunGetDependsOnNETStandard Condition="'$(DependsOnNETStandard)' == '' AND '$(_TargetFrameworkVersionWithoutV)' == '4.7.1'">true</_RunGetDependsOnNETStandard>
+    </PropertyGroup>
+
+    <GetDependsOnNETStandard Condition="'$(_RunGetDependsOnNETStandard)' == 'true'"
+                             References="@(_CandidateNETStandardReferences)">
+      <Output TaskParameter="DependsOnNETStandard" PropertyName="DependsOnNETStandard" />
+    </GetDependsOnNETStandard>
+
+    <!-- prevent using an older SDK version with NETStandard2.0 references -->
+    <PropertyGroup>
+      <_UsingOldSDK Condition="'$(UsingMicrosoftNETSdk)' != 'true' AND ('$(TargetFramework)' != '' OR '$(TargetFrameworks)' != '')">true</_UsingOldSDK>
+    </PropertyGroup>
+    <NETBuildExtensionsError Condition="'$(DependsOnNETStandard)' == 'true' AND '$(NETStandardInbox)' != 'true' AND '$(_UsingOldSDK)' == 'true'"
+                             ResourceName="UnsupportedSDKVersionForNetStandard20"/>
+
+    <!--
+      .NET 4.7.1 has support for .NET Standard 2.0 built-in, so most of the facades aren't necessary.  However, the assembly versions of a few set of assemblies
+      do not yet match the ones shipped in the support package for .NET Standard 2.0 on .NET 4.7 and below. This means that .NET 4.7 or lower libraries might have
+      references to higher versions of these assemblies than are available in-box in .NET 4.7, leading to assembly loading errors. So if there is a dependency on
+      netstandard.dll, we include DLLs for .NET 4.7.1 from the support package to avoid these errors.
+      -->
+    <ItemGroup Condition="'$(_TargetFrameworkVersionWithoutV)' == '4.7.1'">
+      <_NETStandardLibraryNETFrameworkLib Include="$(MSBuildThisFileDirectory)\net471\lib\*.dll" Condition="'$(DependsOnNETStandard)' == 'true'"/>
+    </ItemGroup>
+
+    <!-- if any reference depends on netstandard and it is not inbox, add references and implementation assemblies for netstandard2.0  -->
+    <ItemGroup Condition="'$(DependsOnNETStandard)' == 'true' AND '$(NETStandardInbox)' != 'true' AND '$(_TargetFrameworkVersionWithoutV)' &lt; '4.7.1'">
+      <_NETStandardLibraryNETFrameworkLib Condition="'$(_TargetFrameworkVersionWithoutV)' &gt;= '4.7'"
+                                          Include="$(MSBuildThisFileDirectory)net47\lib\*.dll" />
+      <_NETStandardLibraryNETFrameworkLib Condition="'$(_TargetFrameworkVersionWithoutV)' &gt;= '4.6.2'"
+                                          Include="$(MSBuildThisFileDirectory)net462\lib\*.dll"
+                                          Exclude="@(_NETStandardLibraryNETFrameworkLib->'$(MSBuildThisFileDirectory)net462\lib\%(FileName).dll')" />
+      <_NETStandardLibraryNETFrameworkLib Condition="'$(_TargetFrameworkVersionWithoutV)' &gt;= '4.6.1'"
+                                          Include="$(MSBuildThisFileDirectory)net461\lib\*.dll"
+                                          Exclude="@(_NETStandardLibraryNETFrameworkLib->'$(MSBuildThisFileDirectory)net461\lib\%(FileName).dll')" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'@(_NETStandardLibraryNETFrameworkLib)' != ''">
+      <!-- Remove simple name references if we're directly providing a reference assembly to the compiler. For example,
+           consider a project with a Reference Include="System.Net.Http" or "System.IO.Compression", which are both in
+           _NETStandardLibraryNETFrameworkReference.
+           Simple references can also come from NuGet framework assemblies, hence this statement should occur after
+           including all computed references, thus this target is scheduled after references have been raised by NuGet
+           targets. -->
+      <Reference Remove="%(_NETStandardLibraryNETFrameworkLib.FileName)" />
+
+      <!-- Put each facade assembly in two separate items: Reference with Private set to false, which means it won't be
+           copied locally, and ReferenceCopyLocalPaths, which will be copied locally.  The reason for this split is to
+           workaround https://github.com/dotnet/core-setup/issues/2981 by ensuring that the facades are written
+           to the deps.json with a type of "referenceassembly" instead of "reference".
+
+           The exception is netfx.force.conflicts.dll, which shouldn't be copied local.  So it isn't included in
+           ReferenceCopyLocalPaths.
+
+           When we add the Reference items, we use the simple name as the ItemSpec, and refer to the full path
+           to the DLL via the HintPath metadata.  This is so that if we're replacing a simple Reference,
+           the OriginalItemSpec of the resolved reference will match to the Reference that was replaced,
+           and VS won't show a warning icon on the reference.  See https://github.com/dotnet/sdk/issues/1499
+           -->
+
+      <Reference Include="%(_NETStandardLibraryNETFrameworkLib.FileName)">
+        <HintPath>%(_NETStandardLibraryNETFrameworkLib.Identity)</HintPath>
+        <Private>false</Private>
+      </Reference>
+
+      <ReferenceCopyLocalPaths Include="@(_NETStandardLibraryNETFrameworkLib)" Condition="'%(FileName)' != 'netfx.force.conflicts'">
+        <Private>false</Private>
+      </ReferenceCopyLocalPaths>
+    </ItemGroup>
+  </Target>
+
+  <!-- There was issue in .NET 4.7.1 where System.IO.Compression.ZipFile was not correctly in the unification table.
+       A workaround to issues that caused was to add a binding redirect for the assembly from version 4.0.3.0 down to
+       4.0.0.0.  However, with the fix to dotnet/sdk#2221, ResolveAssemblyReference now sees a conflicting version for
+       the assembly, and suggests a redirect to 4.0.3.0.  With automatic binding redirection, this overrides the redirect
+       to 4.0.0.0, which causes a runtime failure.
+       
+       So here we disable any suggested binding redirect for System.IO.Compression.ZipFile.  Assemblies in the unification
+       table generally should not need binding redirects, so it should be OK to do this for 4.7.2 and forward, and on 4.7.1
+       the assembly isn't in the unification table so this allows the original workaround redirect to be preserved. -->
+  <Target Name="_RemoveZipFileSuggestedRedirect"
+          BeforeTargets="GenerateBindingRedirects"
+          DependsOnTargets="ResolveAssemblyReferences"
+          Condition="'$(_TargetFrameworkVersionWithoutV)' &gt;= '4.7.1' And '$(AllowZipFileRedirect)' != 'true'">
+    <ItemGroup>
+      <SuggestedBindingRedirects Remove="System.IO.Compression.ZipFile, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+    </ItemGroup>
+    
+  </Target>
+  
+</Project>

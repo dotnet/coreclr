@@ -1,0 +1,45 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.Sdk.VisualBasic.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <AppDesignerFolder Condition="'$(AppDesignerFolder)' == ''">My Project</AppDesignerFolder>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants),$(VersionlessImplicitFrameworkDefine),$(ImplicitFrameworkDefine)</DefineConstants>
+    <DisableImplicitNamespaceImports Condition="'$(DisableImplicitNamespaceImports)'==''">$(DisableImplicitFrameworkReferences)</DisableImplicitNamespaceImports>
+  </PropertyGroup>
+  <ItemGroup Condition=" '$(DisableImplicitNamespaceImports)' != 'true' and '$(TargetFrameworkIdentifier)' == '.NETFramework'">
+    <!-- These namespaces are present in 2.0 Framework assemblies -->
+    <Import Include="Microsoft.VisualBasic" />
+    <Import Include="System" />
+    <Import Include="System.Collections" />
+    <Import Include="System.Collections.Generic" />
+    <Import Include="System.Data" />
+    <Import Include="System.Diagnostics" />
+    <!-- These namespaces are introduced in 3.5 Framework assemblies -->
+    <Import Include="System.Linq" Condition=" '$(_TargetFrameworkVersionWithoutV)' >= '3.5' "/>
+    <Import Include="System.Xml.Linq" Condition=" '$(_TargetFrameworkVersionWithoutV)' >= '3.5' "/>
+    <!-- This namespace is introduced in 4.0 Framework assemblies -->
+    <Import Include="System.Threading.Tasks" Condition=" '$(_TargetFrameworkVersionWithoutV)' >= '4.0' "/>
+  </ItemGroup>
+  <ItemGroup Condition=" '$(DisableImplicitNamespaceImports)' != 'true' and '$(_IsNETCoreOrNETStandard)' == 'true'">
+    <Import Include="Microsoft.VisualBasic" />
+    <Import Include="System" />
+    <Import Include="System.Collections" />
+    <Import Include="System.Collections.Generic" />
+    <Import Include="System.Diagnostics" />
+    <Import Include="System.Linq" />
+    <Import Include="System.Xml.Linq" />
+    <Import Include="System.Threading.Tasks" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,507 @@
+
+<!--
+***********************************************************************************************
+NuGet.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved.
+***********************************************************************************************
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Load NuGet.Build.Tasks.Pack.dll, this can be overridden to use a different version with $(NuGetPackTaskAssemblyFile) -->
+  <PropertyGroup Condition="$(NuGetPackTaskAssemblyFile) == ''">
+    <NuGetPackTaskAssemblyFile Condition="'$(MSBuildRuntimeType)' == 'Core'">..\CoreCLR\NuGet.Build.Tasks.Pack.dll</NuGetPackTaskAssemblyFile>
+    <NuGetPackTaskAssemblyFile Condition="'$(MSBuildRuntimeType)' != 'Core'">..\Desktop\NuGet.Build.Tasks.Pack.dll</NuGetPackTaskAssemblyFile>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup>
+  <UsingTask TaskName="NuGet.Build.Tasks.Pack.PackTask" AssemblyFile="$(NuGetPackTaskAssemblyFile)" />
+  <UsingTask TaskName="NuGet.Build.Tasks.Pack.GetPackOutputItemsTask" AssemblyFile="$(NuGetPackTaskAssemblyFile)" />
+  <UsingTask TaskName="NuGet.Build.Tasks.GetProjectTargetFrameworksTask" AssemblyFile="$(NuGetPackTaskAssemblyFile)" />
+  <UsingTask TaskName="NuGet.Build.Tasks.Pack.GetProjectReferencesFromAssetsFileTask" AssemblyFile="$(NuGetPackTaskAssemblyFile)" />
+  <UsingTask TaskName="NuGet.Build.Tasks.Pack.IsPackableFalseWarningTask" AssemblyFile="$(NuGetPackTaskAssemblyFile)" />
+
+  <PropertyGroup>
+    <PackageId Condition=" '$(PackageId)' == '' ">$(AssemblyName)</PackageId>
+    <PackageVersion Condition=" '$(PackageVersion)' == '' ">$(Version)</PackageVersion>
+    <IncludeContentInPack Condition="'$(IncludeContentInPack)'==''">true</IncludeContentInPack>
+    <GenerateNuspecDependsOn>_LoadPackInputItems; _GetTargetFrameworksOutput; _WalkEachTargetPerFramework; _GetPackageFiles; $(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
+    <PackageDescription Condition="'$(PackageDescription)'==''">$(Description)</PackageDescription>
+    <PackageDescription Condition="'$(PackageDescription)'==''">Package Description</PackageDescription>
+    <IsPackable Condition="'$(IsPackable)'=='' AND '$(IsTestProject)'=='true'">false</IsPackable>
+    <IsPackable Condition="'$(IsPackable)'==''">true</IsPackable>
+    <IncludeBuildOutput Condition="'$(IncludeBuildOutput)'==''">true</IncludeBuildOutput>
+    <BuildOutputTargetFolder Condition="'$(BuildOutputTargetFolder)' == '' AND '$(IsTool)' == 'true'">tools</BuildOutputTargetFolder>
+    <BuildOutputTargetFolder Condition="'$(BuildOutputTargetFolder)' == ''">lib</BuildOutputTargetFolder>
+    <ContentTargetFolders Condition="'$(ContentTargetFolders)' == ''">content;contentFiles</ContentTargetFolders>
+    <PackDependsOn>$(BeforePack); _IntermediatePack; GenerateNuspec; $(PackDependsOn)</PackDependsOn>
+    <IsInnerBuild Condition="'$(TargetFramework)' != '' AND '$(TargetFrameworks)' != ''">true</IsInnerBuild>
+    <NoBuild Condition="'$(GeneratePackageOnBuild)' == 'true'">true</NoBuild>
+    <AddPriFileDependsOn Condition="'$(MicrosoftPortableCurrentVersionPropsHasBeenImported)' == 'true'">DeterminePortableBuildCapabilities</AddPriFileDependsOn>
+    <NuspecOutputPath Condition="'$(NuspecOutputPath)' == ''">$(BaseIntermediateOutputPath)$(Configuration)\</NuspecOutputPath>
+    <WarnOnPackingNonPackableProject Condition="'$(WarnOnPackingNonPackableProject)' == ''">false</WarnOnPackingNonPackableProject>
+    <ImportNuGetBuildTasksPackTargetsFromSdk Condition="'$(ImportNuGetBuildTasksPackTargetsFromSdk)' == ''">false</ImportNuGetBuildTasksPackTargetsFromSdk>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>.dll; .exe; .winmd; .json; .pri; .xml; $(AllowedOutputExtensionsInPackageBuildOutputFolder)</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>.pdb; .mdb; $(AllowedOutputExtensionsInPackageBuildOutputFolder); $(AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder)</AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>
+    <SuppressDependenciesWhenPacking Condition="'$(SuppressDependenciesWhenPacking)' == ''">false</SuppressDependenciesWhenPacking>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(NoBuild)' == 'true' ">
+    <GenerateNuspecDependsOn>$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(NoBuild)' != 'true' ">
+    <GenerateNuspecDependsOn>Build;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectCapability Include="Pack"/>
+  </ItemGroup>
+  <ItemDefinitionGroup>
+    <BuildOutputInPackage>
+      <TargetFramework>$(TargetFramework)</TargetFramework>
+    </BuildOutputInPackage>
+    <TfmSpecificPackageFile>
+      <BuildAction>None</BuildAction>
+    </TfmSpecificPackageFile>
+  </ItemDefinitionGroup>
+
+  <Target Name="_GetOutputItemsFromPack"
+          Returns="@(_OutputPackItems)">
+
+    <ConvertToAbsolutePath Paths="$(PackageOutputPath)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="PackageOutputAbsolutePath" />
+    </ConvertToAbsolutePath>
+
+    <ConvertToAbsolutePath Paths="$(NuspecOutputPath)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="NuspecOutputAbsolutePath" />
+    </ConvertToAbsolutePath>
+
+    <GetPackOutputItemsTask
+        PackageOutputPath="$(PackageOutputAbsolutePath)"
+        NuspecOutputPath="$(NuspecOutputAbsolutePath)"
+        PackageId="$(PackageId)"
+        PackageVersion="$(PackageVersion)"
+        IncludeSymbols="$(IncludeSymbols)"
+        IncludeSource="$(IncludeSource)">
+
+      <Output
+        TaskParameter="OutputPackItems"
+        ItemName="_OutputPackItems" />
+    </GetPackOutputItemsTask>
+  </Target>
+
+  <!--
+    ============================================================
+    _GetTargetFrameworksOutput
+    Read target frameworks from the project.
+    ============================================================
+  -->
+  <Target Name="_GetTargetFrameworksOutput"
+    Returns="@(_TargetFrameworks)">
+
+    <PropertyGroup>
+      <_ProjectFrameworks></_ProjectFrameworks>
+    </PropertyGroup>
+
+      <GetProjectTargetFrameworksTask
+      ProjectPath="$(MSBuildProjectFullPath)"
+      TargetFrameworks="$(TargetFrameworks)"
+      TargetFramework="$(TargetFramework)"
+      TargetFrameworkMoniker="$(TargetFrameworkMoniker)"
+      TargetPlatformIdentifier="$(TargetPlatformIdentifier)"
+      TargetPlatformVersion="$(TargetPlatformVersion)"
+      TargetPlatformMinVersion="$(TargetPlatformMinVersion)">
+      <Output
+        TaskParameter="ProjectTargetFrameworks"
+        PropertyName="_ProjectFrameworks" />
+    </GetProjectTargetFrameworksTask>
+
+    <ItemGroup Condition=" '$(_ProjectFrameworks)' != '' ">
+      <_TargetFrameworks Include="$(_ProjectFrameworks.Split(';'))" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    ============================================================
+    Pack
+    Post Build Target
+    ============================================================
+  -->
+  <Target Name="_PackAsBuildAfterTarget"
+          AfterTargets="Build"
+          Condition="'$(GeneratePackageOnBuild)' == 'true' AND '$(IsInnerBuild)' != 'true'"
+          DependsOnTargets="Pack">
+  </Target>
+
+  <Target Name="_CleanPackageFiles"
+          DependsOnTargets="_GetOutputItemsFromPack"
+          AfterTargets="Clean"
+          Condition="'$(GeneratePackageOnBuild)' == 'true'">
+    <ItemGroup>
+      <_PackageFilesToDelete Include="@(_OutputPackItems)"/>
+    </ItemGroup>
+    <Delete Files="@(_PackageFilesToDelete)"/>
+  </Target>
+
+  <Target Name="_CalculateInputsOutputsForPack" DependsOnTargets="_GetOutputItemsFromPack">
+    <PropertyGroup Condition="$(ContinuePackingAfterGeneratingNuspec) == '' ">
+      <ContinuePackingAfterGeneratingNuspec>false</ContinuePackingAfterGeneratingNuspec>
+    </PropertyGroup>
+    <PropertyGroup>
+      <PackageOutputPath Condition=" '$(PackageOutputPath)' == '' ">$(OutputPath)</PackageOutputPath>
+      <RestoreOutputPath Condition=" '$(RestoreOutputPath)' == '' " >$(MSBuildProjectExtensionsPath)</RestoreOutputPath>
+    </PropertyGroup>
+
+    <ConvertToAbsolutePath Paths="$(NuspecOutputPath)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="NuspecOutputAbsolutePath" />
+    </ConvertToAbsolutePath>
+    <ConvertToAbsolutePath Paths="$(RestoreOutputPath)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="RestoreOutputAbsolutePath" />
+    </ConvertToAbsolutePath>
+    <ConvertToAbsolutePath Paths="$(PackageOutputPath)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="PackageOutputAbsolutePath" />
+    </ConvertToAbsolutePath>
+    <ConvertToAbsolutePath Condition="$(NuspecFile) != ''" Paths="$(NuspecFile)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="NuspecFileAbsolutePath" />
+    </ConvertToAbsolutePath>
+
+    <ItemGroup>
+      <!--This catches changes to properties-->
+      <NuGetPackInput Include="$(MSBuildAllProjects)"/>
+      <NuGetPackInput Include="@(_PackageFiles)"/>
+      <NuGetPackInput Include="@(_PackageFilesToExclude)"/>
+      <NuGetPackInput Include="@(_BuildOutputInPackage->'%(FinalOutputPath)')"/>
+      <NuGetPackInput Include="@(_TargetPathsToSymbols->'%(FinalOutputPath)')"/>
+      <NuGetPackInput Include="@(_SourceFiles)"/>
+      <NuGetPackInput Include="@(_References)"/>
+      <NuGetPackOutput Include="@(_OutputPackItems)" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    ============================================================
+    Pack
+    Main entry point for packing packages
+    ============================================================
+  -->
+  <Target Name="Pack" DependsOnTargets="$(PackDependsOn)">
+     <IsPackableFalseWarningTask Condition="'$(IsPackable)' == 'false' AND '$(WarnOnPackingNonPackableProject)' == 'true'"/>
+  </Target>
+  <Target Name="_IntermediatePack">
+    <PropertyGroup>
+      <ContinuePackingAfterGeneratingNuspec>true</ContinuePackingAfterGeneratingNuspec>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="GenerateNuspec" DependsOnTargets="$(GenerateNuspecDependsOn);_CalculateInputsOutputsForPack;_GetProjectReferenceVersions;_InitializeNuspecRepositoryInformationProperties" Condition="$(IsPackable) == 'true'"
+          Inputs="@(NuGetPackInput)" Outputs="@(NuGetPackOutput)">
+    <!-- Call Pack -->
+    <PackTask PackItem="$(PackProjectInputFile)"
+              PackageFiles="@(_PackageFiles)"
+              PackageFilesToExclude="@(_PackageFilesToExclude)"
+              PackageVersion="$(PackageVersion)"
+              PackageId="$(PackageId)"
+              Title="$(Title)"
+              Authors="$(Authors)"
+              Description="$(PackageDescription)"
+              Copyright="$(Copyright)"
+              RequireLicenseAcceptance="$(PackageRequireLicenseAcceptance)"
+              LicenseUrl="$(PackageLicenseUrl)"
+              ProjectUrl="$(PackageProjectUrl)"
+              IconUrl="$(PackageIconUrl)"
+              ReleaseNotes="$(PackageReleaseNotes)"
+              Tags="$(PackageTags)"
+              DevelopmentDependency="$(DevelopmentDependency)"
+              BuildOutputInPackage="@(_BuildOutputInPackage)"
+              ProjectReferencesWithVersions="@(_ProjectReferencesWithVersions)"
+              TargetPathsToSymbols="@(_TargetPathsToSymbols)"
+              TargetFrameworks="@(_TargetFrameworks)"
+              FrameworksWithSuppressedDependencies="@(_FrameworksWithSuppressedDependencies)"
+              AssemblyName="$(AssemblyName)"
+              PackageOutputPath="$(PackageOutputAbsolutePath)"
+              IncludeSymbols="$(IncludeSymbols)"
+              IncludeSource="$(IncludeSource)"
+              PackageTypes="$(PackageType)"
+              IsTool="$(IsTool)"
+              RepositoryUrl="$(RepositoryUrl)"
+              RepositoryType="$(RepositoryType)"
+              RepositoryBranch="$(RepositoryBranch)"
+              RepositoryCommit="$(RepositoryCommit)"
+              SourceFiles="@(_SourceFiles->Distinct())"
+              NoPackageAnalysis="$(NoPackageAnalysis)"
+              NoDefaultExcludes="$(NoDefaultExcludes)"
+              MinClientVersion="$(MinClientVersion)"
+              Serviceable="$(Serviceable)"
+              FrameworkAssemblyReferences="@(_FrameworkAssemblyReferences)"
+              ContinuePackingAfterGeneratingNuspec="$(ContinuePackingAfterGeneratingNuspec)"
+              NuspecOutputPath="$(NuspecOutputAbsolutePath)"
+              IncludeBuildOutput="$(IncludeBuildOutput)"
+              BuildOutputFolder="$(BuildOutputTargetFolder)"
+              ContentTargetFolders="$(ContentTargetFolders)"
+              RestoreOutputPath="$(RestoreOutputAbsolutePath)"
+              NuspecFile="$(NuspecFileAbsolutePath)"
+              NuspecBasePath="$(NuspecBasePath)"
+              NuspecProperties="$(NuspecProperties)"
+              AllowedOutputExtensionsInPackageBuildOutputFolder="$(AllowedOutputExtensionsInPackageBuildOutputFolder)"
+              AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder="$(AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder)"
+              NoWarn="$(NoWarn)"
+              WarningsAsErrors="$(WarningsAsErrors)"
+              TreatWarningsAsErrors="$(TreatWarningsAsErrors)"
+              OutputFileNamesWithoutVersion="$(OutputFileNamesWithoutVersion)"
+              InstallPackageToOutputPath="$(InstallPackageToOutputPath)"/>
+  </Target>
+
+  <!--
+    Initialize Repository* properties from properties set by a source control package, if available in the project.
+  -->
+  <Target Name="_InitializeNuspecRepositoryInformationProperties"
+          DependsOnTargets="InitializeSourceControlInformation"
+          Condition="'$(SourceControlInformationFeatureSupported)' == 'true'">
+    <PropertyGroup>
+      <!-- The project must specify PublishRepositoryUrl=true in order to publish the URL, in order to prevent inadvertent leak of internal URL. -->
+      <RepositoryUrl Condition="'$(RepositoryUrl)' == '' and '$(PublishRepositoryUrl)' == 'true'">$(PrivateRepositoryUrl)</RepositoryUrl>
+      <RepositoryCommit Condition="'$(RepositoryCommit)' == ''">$(SourceRevisionId)</RepositoryCommit>
+    </PropertyGroup>
+  </Target>
+
+  <!--
+    ============================================================
+    _LoadPackGraphEntryPoints
+    Find project entry point and load them into items.
+    ============================================================
+  -->
+  <Target Name="_LoadPackInputItems">
+    <!-- Allow overriding items with PackProjectInputFile -->
+    <PropertyGroup Condition="'$(PackProjectInputFile)' == ''">
+      <PackProjectInputFile>$(MSBuildProjectFullPath)</PackProjectInputFile>
+    </PropertyGroup>
+  </Target>
+  
+  <Target Name="_GetProjectReferenceVersions" 
+          Condition="'$(NuspecFile)' == ''"
+          DependsOnTargets="_CalculateInputsOutputsForPack;$(GetPackageVersionDependsOn)">
+    <ConvertToAbsolutePath Paths="$(RestoreOutputPath)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="RestoreOutputAbsolutePath" />
+    </ConvertToAbsolutePath>
+
+    <ConvertToAbsolutePath Condition="'$(ProjectAssetsFile)' != ''" Paths="$(ProjectAssetsFile)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="ProjectAssetsFileAbsolutePath" />
+    </ConvertToAbsolutePath>
+
+    <GetProjectReferencesFromAssetsFileTask
+        RestoreOutputAbsolutePath="$(RestoreOutputAbsolutePath)"
+        ProjectAssetsFileAbsolutePath="$(ProjectAssetsFileAbsolutePath)">
+      <Output
+        TaskParameter="ProjectReferences"
+        ItemName="_ProjectReferencesFromAssetsFile" />
+    </GetProjectReferencesFromAssetsFileTask>
+
+    <Msbuild
+      Projects="@(_ProjectReferencesFromAssetsFile)"
+      Targets="_GetProjectVersion"
+      SkipNonexistentTargets="true"
+      SkipNonexistentProjects="true"
+      Properties="BuildProjectReferences=false;">
+      <Output
+        TaskParameter="TargetOutputs"
+        ItemName="_ProjectReferencesWithVersions"/>
+    </Msbuild>
+  </Target>
+
+  <Target Name="_GetProjectVersion" DependsOnTargets="$(GetPackageVersionDependsOn)"
+          Returns="@(_ProjectPathWithVersion)">
+    <ItemGroup>
+      <_ProjectPathWithVersion Include="$(MSBuildProjectFullPath)">
+        <ProjectVersion Condition="'$(PackageVersion)' != ''">$(PackageVersion)</ProjectVersion>
+        <ProjectVersion Condition="'$(PackageVersion)' == ''">1.0.0</ProjectVersion>
+      </_ProjectPathWithVersion>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_WalkEachTargetPerFramework">
+    <MSBuild
+      Condition="'$(IncludeBuildOutput)' == 'true'"
+      Projects="$(MSBuildProjectFullPath)"
+      Targets="_GetBuildOutputFilesWithTfm"
+      Properties="TargetFramework=%(_TargetFrameworks.Identity);">
+
+      <Output
+          TaskParameter="TargetOutputs"
+          ItemName="_BuildOutputInPackage" />
+    </MSBuild>
+
+    <MSBuild
+      Condition="'$(TargetsForTfmSpecificContentInPackage)' != ''"
+      Projects="$(MSBuildProjectFullPath)"
+      Targets="_GetTfmSpecificContentForPackage"
+      Properties="TargetFramework=%(_TargetFrameworks.Identity);">
+
+      <Output
+          TaskParameter="TargetOutputs"
+          ItemName="_PackageFiles"/>
+    </MSBuild>
+
+    <MSBuild
+      Condition="'$(IncludeBuildOutput)' == 'true'"
+      Projects="$(MSBuildProjectFullPath)"
+      Targets="_GetDebugSymbolsWithTfm"
+      Properties="TargetFramework=%(_TargetFrameworks.Identity);">
+
+      <Output
+          TaskParameter="TargetOutputs"
+          ItemName="_TargetPathsToSymbols" />
+    </MSBuild>
+
+    <MSBuild
+      Condition="'$(IncludeSource)' == 'true'"
+      Projects="$(MSBuildProjectFullPath)"
+      Targets="SourceFilesProjectOutputGroup"
+      Properties="TargetFramework=%(_TargetFrameworks.Identity);
+                  BuildProjectReferences=false;">
+
+      <Output
+          TaskParameter="TargetOutputs"
+          ItemName="_SourceFiles" />
+    </MSBuild>
+
+    <MSBuild
+      Projects="$(MSBuildProjectFullPath)"
+      Targets="_GetFrameworkAssemblyReferences"
+      Properties="TargetFramework=%(_TargetFrameworks.Identity);
+                  BuildProjectReferences=false;">
+
+      <Output
+          TaskParameter="TargetOutputs"
+          ItemName="_FrameworkAssemblyReferences" />
+    </MSBuild>
+
+    <MSBuild
+      Projects="$(MSBuildProjectFullPath)"
+      Targets="_GetFrameworksWithSuppressedDependencies"
+      Properties="TargetFramework=%(_TargetFrameworks.Identity);
+                  BuildProjectReferences=false;">
+
+      <Output
+          TaskParameter="TargetOutputs"
+          ItemName="_FrameworksWithSuppressedDependencies" />
+    </MSBuild>
+  </Target>
+
+  <Target Name ="_GetFrameworksWithSuppressedDependencies" Returns="@(_TfmWithDependenciesSuppressed)">
+    <ItemGroup>
+      <_TfmWithDependenciesSuppressed Include="$(TargetFramework)" Condition="'$(SuppressDependenciesWhenPacking)' == 'true'"/>
+    </ItemGroup>
+  </Target>
+
+  <Target Name ="_GetFrameworkAssemblyReferences" DependsOnTargets="ResolveReferences" Returns="@(TfmSpecificFrameworkAssemblyReferences)">
+    <ItemGroup>
+      <TfmSpecificFrameworkAssemblyReferences Include="@(ReferencePath->'%(OriginalItemSpec)')"
+      Condition="'%(ReferencePath.Pack)' != 'false' AND '%(ReferencePath.ResolvedFrom)' == '{TargetFrameworkDirectory}'">
+        <TargetFramework>$(TargetFramework)</TargetFramework>
+      </TfmSpecificFrameworkAssemblyReferences>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_GetBuildOutputFilesWithTfm"
+          DependsOnTargets="BuiltProjectOutputGroup;DocumentationProjectOutputGroup;SatelliteDllsProjectOutputGroup;_AddPriFileToPackBuildOutput;$(TargetsForTfmSpecificBuildOutput)"
+          Returns="@(BuildOutputInPackage)">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(SatelliteDllsProjectOutputGroupOutput);
+                            @(BuiltProjectOutputGroupOutput);
+                            @(DocumentationProjectOutputGroupOutput);
+                            @(_PathToPriFile)"/>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_GetTfmSpecificContentForPackage"
+          DependsOnTargets="$(TargetsForTfmSpecificContentInPackage)"
+          Returns="@(TfmSpecificPackageFileWithRecursiveDir)">
+    <!-- The below workaround needs to be done due to msbuild bug https://github.com/Microsoft/msbuild/issues/3121 -->
+    <ItemGroup>
+      <TfmSpecificPackageFileWithRecursiveDir Include="@(TfmSpecificPackageFile)">
+        <NuGetRecursiveDir>%(TfmSpecificPackageFile.RecursiveDir)</NuGetRecursiveDir>
+      </TfmSpecificPackageFileWithRecursiveDir>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_GetDebugSymbolsWithTfm"
+          DependsOnTargets="DebugSymbolsProjectOutputGroup"
+          Returns="@(_TargetPathsToSymbolsWithTfm)">
+    <ItemGroup>
+      <_TargetPathsToSymbolsWithTfm Include="@(DebugSymbolsProjectOutputGroupOutput)">
+        <TargetFramework>$(TargetFramework)</TargetFramework>
+      </_TargetPathsToSymbolsWithTfm>
+    </ItemGroup>
+  </Target>
+
+  <!--Projects with target framework like UWP, Win8, wpa81 produce a Pri file
+    in their bin dir. This Pri file is not included in the BuiltProjectGroupOutput, and
+    has to be added manually here.-->
+  <Target Name="_AddPriFileToPackBuildOutput"
+          Returns="@(_PathToPriFile)"
+          DependsOnTargets="$(AddPriFileDependsOn)">
+    <ItemGroup Condition="'$(IncludeProjectPriFile)' == 'true'">
+      <_PathToPriFile Include="$(ProjectPriFullPath)">
+        <FinalOutputPath>$(ProjectPriFullPath)</FinalOutputPath>
+        <TargetPath>$(ProjectPriFileName)</TargetPath>
+      </_PathToPriFile>
+    </ItemGroup>
+  </Target>
+
+  <!--
+    ============================================================
+    _GetPackageFiles
+    Entry point for generating the project to project references.
+    ============================================================
+  -->
+  <Target Name="_GetPackageFiles" Condition="$(IncludeContentInPack) == 'true'">
+    <ItemGroup>
+      <_PackageFilesToExclude Include="@(Content)" Condition="'%(Content.Pack)' == 'false'"/>
+    </ItemGroup>
+    <!-- Include PackageFiles and Content of the project being packed -->
+    <ItemGroup>
+      <_PackageFiles Include="@(Content)" Condition=" %(Content.Pack) != 'false' ">
+        <BuildAction Condition = "'%(Content.BuildAction)' == ''">Content</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(Compile)" Condition=" %(Compile.Pack) == 'true' ">
+        <BuildAction Condition = "'%(Compile.BuildAction)' == ''">Compile</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(None)" Condition=" %(None.Pack) == 'true' ">
+        <BuildAction Condition = "'%(None.BuildAction)' == ''">None</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(EmbeddedResource)" Condition=" %(EmbeddedResource.Pack) == 'true' ">
+        <BuildAction Condition = "'%(EmbeddedResource.BuildAction)' == ''">EmbeddedResource</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(ApplicationDefinition)" Condition=" %(ApplicationDefinition.Pack) == 'true' ">
+        <BuildAction Condition = "'%(ApplicationDefinition.BuildAction)' == ''">ApplicationDefinition</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(Page)" Condition=" %(Page.Pack) == 'true' ">
+        <BuildAction Condition = "'%(Page.BuildAction)' == ''">Page</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(Resource)" Condition=" %(Resource.Pack) == 'true' ">
+        <BuildAction Condition = "'%(Resource.BuildAction)' == ''">Resource</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(SplashScreen)" Condition=" %(SplashScreen.Pack) == 'true' ">
+        <BuildAction Condition = "'%(SplashScreen.BuildAction)' == ''">SplashScreen</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(DesignData)" Condition=" %(DesignData.Pack) == 'true' ">
+        <BuildAction Condition = "'%(DesignData.BuildAction)' == ''">DesignData</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(DesignDataWithDesignTimeCreatableTypes)" Condition=" %(DesignDataWithDesignTimeCreatableTypes.Pack) == 'true' ">
+        <BuildAction Condition = "'%(DesignDataWithDesignTimeCreatableTypes.BuildAction)' == ''">DesignDataWithDesignTimeCreatableTypes</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(CodeAnalysisDictionary)" Condition=" %(CodeAnalysisDictionary.Pack) == 'true' ">
+        <BuildAction Condition = "'%(CodeAnalysisDictionary.BuildAction)' == ''">CodeAnalysisDictionary</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(AndroidAsset)" Condition=" %(AndroidAsset.Pack) == 'true' ">
+        <BuildAction Condition = "'%(AndroidAsset.BuildAction)' == ''">AndroidAsset</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(AndroidResource)" Condition=" %(AndroidResource.Pack) == 'true' ">
+        <BuildAction Condition = "'%(AndroidResource.BuildAction)' == ''">AndroidResource</BuildAction>
+      </_PackageFiles>
+      <_PackageFiles Include="@(BundleResource)" Condition=" %(BundleResource.Pack) == 'true' ">
+        <BuildAction Condition = "'%(BundleResource.BuildAction)' == ''">BundleResource</BuildAction>
+      </_PackageFiles>
+    </ItemGroup>
+  </Target>
+</Project>

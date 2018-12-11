@@ -1,0 +1,54 @@
+﻿<Project Sdk="Microsoft.NET.Sdk" DefaultTargets="BuildDepsJson">
+  <!--
+***********************************************************************************************
+GenerateDeps.proj
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+  
+  <!--
+    This project is built by the .NET CLI in order to create .deps.json files for .NET CLI tools.
+    Properties to be passed in by the .NET CLI:
+      - ProjectAssetsFile: Full path to the project.assets.json file for the tool under the NuGet .tools folder
+      - ToolName: The simple name of the tool DLL, for example, "dotnet-mytool"
+      - AdditionalImport: The full path to the .props file from the platform package which will be imported, which
+        should include the PackageConflictPlatformManifests file.      
+        This is a workaround until NuGet can generate .props and .targets files for imports from packages referenced
+        by tools, which is tracked by https://github.com/NuGet/Home/issues/5037.
+  -->
+
+  <Import Project="$(AdditionalImport)"
+          Condition=" '$(AdditionalImport)' != '' And Exists($(AdditionalImport))" />
+  
+  <PropertyGroup>
+    <ToolFolder>$([System.IO.Path]::GetDirectoryName($(ProjectAssetsFile)))</ToolFolder>
+    <ProjectDepsFilePath Condition="'$(ProjectDepsFilePath)' == ''">$(ToolFolder)\$(ToolName).deps.json</ProjectDepsFilePath>
+    <OutputType>Exe</OutputType>
+    <IncludeMainProjectInDepsFile>false</IncludeMainProjectInDepsFile>
+
+    <!-- This project must not write to intermediate directory as it is inside the SDK directory and not in a user path. -->
+    <DisablePackageAssetsCache>true</DisablePackageAssetsCache>
+    <DisableRarCache>true</DisableRarCache>
+
+    <!-- The tool asets file is restored as a separate graph and doesn't get an implicit reference to Microsoft.NETCore.App.  So
+         the version of that package will be determined by the version the tool package references.  However, when building
+         GenerateDeps.proj, the CLI sets the TargetFramework to match the target it finds in the assets file, which is
+         based on what the project with the DotNetCliToolReference was targeting, not what the tool itself was targeting.
+         
+         So we need to disable the logic which checks that the version of Microsoft.NETCore.App from the assets file
+         matches the one that would be resolved based on the TargetFramework that was passed in. -->
+    <VerifyMatchingImplicitPackageVersion>false</VerifyMatchingImplicitPackageVersion>
+  </PropertyGroup>
+
+  <Target Name="BuildDepsJson" DependsOnTargets="$(ResolvePackageDependenciesForBuildDependsOn);GenerateBuildDependencyFile" />
+
+  <Target Name="DontRestore" BeforeTargets="Restore">
+    <Error Text="This project should not be restored" />
+  </Target>
+
+</Project>

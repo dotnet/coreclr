@@ -1,0 +1,27 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.Sdk.CSharp.props
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <WarningLevel Condition=" '$(WarningLevel)' == '' ">4</WarningLevel>
+    <NoWarn Condition=" '$(NoWarn)' == '' ">1701;1702</NoWarn>
+
+    <!-- Remove the line below once https://github.com/Microsoft/visualfsharp/issues/3207 gets fixed -->
+    <WarningsAsErrors Condition=" '$(WarningsAsErrors)' == '' ">NU1605</WarningsAsErrors>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DefineConstants Condition=" '$(DefineConstants)' != '' ">$(DefineConstants);</DefineConstants>
+    <DefineConstants>$(DefineConstants)TRACE</DefineConstants>
+  </PropertyGroup>
+
+</Project>

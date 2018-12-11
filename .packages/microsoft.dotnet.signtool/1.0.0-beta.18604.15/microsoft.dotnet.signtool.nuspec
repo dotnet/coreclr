@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.DotNet.SignTool</id>
+    <version>1.0.0-beta.18604.15</version>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <developmentDependency>true</developmentDependency>
+    <licenseUrl>http://go.microsoft.com/fwlink/?LinkId=529443</licenseUrl>
+    <projectUrl>https://github.com//</projectUrl>
+    <description>Build artifact signing tool</description>
+    <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+    <tags>Arcade Build Tool Signing</tags>
+    <serviceable>true</serviceable>
+    <repository type="git" url="https://github.com//" commit="f14da17c737c4f2b5408c4c0801d7e913a95766f" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.6.1" />
+      <group targetFramework=".NETCoreApp2.0" />
+    </dependencies>
+  </metadata>
+</package>

@@ -1,0 +1,103 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.Sdk.Common.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved.
+***********************************************************************************************
+-->
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- This file is imported by both cross-targeting and inner builds. Set properties that need to be available to both here. -->
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <MicrosoftNETBuildTasksDirectoryRoot>$(MSBuildThisFileDirectory)..\tools\</MicrosoftNETBuildTasksDirectoryRoot>
+    <MicrosoftNETBuildTasksTFM Condition=" '$(MSBuildRuntimeType)' == 'Core'">netcoreapp2.0</MicrosoftNETBuildTasksTFM>
+    <MicrosoftNETBuildTasksTFM Condition=" '$(MicrosoftNETBuildTasksTFM)' == ''">net46</MicrosoftNETBuildTasksTFM>
+    <MicrosoftNETBuildTasksDirectory>$(MicrosoftNETBuildTasksDirectoryRoot)$(MicrosoftNETBuildTasksTFM)/</MicrosoftNETBuildTasksDirectory>
+    <MicrosoftNETBuildTasksAssembly>$(MicrosoftNETBuildTasksDirectory)Microsoft.NET.Build.Tasks.dll</MicrosoftNETBuildTasksAssembly>
+
+    <!--
+          Hardcoded list of known implicit packges that are added to project from default SDK targets implicitly.
+          Should be re-visited when multiple TFM support is added to Dependencies logic.
+    -->
+    <DefaultImplicitPackages>Microsoft.NETCore.App;NETStandard.Library</DefaultImplicitPackages>
+  </PropertyGroup>
+
+  <!--
+     Some versions of Microsoft.NET.Test.Sdk.targets change the OutputType after we've set _IsExecutable and
+     HasRuntimeOutput default in Microsfot.NET.Sdk.BeforeCommon.targets. Refresh these value here for backwards
+     compatibilty with that.
+   -->
+  <PropertyGroup>
+    <_IsExecutable Condition="'$(OutputType)' == 'Exe' or '$(OutputType)'=='WinExe'">true</_IsExecutable>
+    <HasRuntimeOutput Condition="'$(_UsingDefaultForHasRuntimeOutput)' == 'true'">$(_IsExecutable)</HasRuntimeOutput>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(DotnetCliToolTargetFramework)' == '' And '$(BundledNETCoreAppTargetFrameworkVersion)' != ''">
+    <!-- Set the TFM used to restore .NET CLI tools to match the version of .NET Core bundled in the CLI -->
+    <DotnetCliToolTargetFramework>netcoreapp$(BundledNETCoreAppTargetFrameworkVersion)</DotnetCliToolTargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IncludeBuildOutput Condition=" '$(PackAsTool)' == 'true' ">false</IncludeBuildOutput>
+    <PackageType Condition=" '$(PackAsTool)' == 'true' ">DotnetTool</PackageType>
+    <RuntimeIdentifiers Condition=" '$(PackAsTool)' == 'true' ">$(RuntimeIdentifiers);$(PackAsToolShimRuntimeIdentifiers)</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <UsingTask TaskName="GetNearestTargetFramework" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
+  <UsingTask TaskName="NETSdkError" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
+  <UsingTask TaskName="NETSdkWarning" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
+  <UsingTask TaskName="ShowPreviewMessage" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
+
+  <!--
+  ============================================================
+                              GetTargetFrameworkProperties
+
+    Invoked by common targets to return the set of properties
+    (in the form  "key1=value1;...keyN=valueN") needed to build
+    against the target framework that best matches the referring
+    project's target framework.
+
+    The referring project's $(TargetFrameworkMoniker) is passed
+    in as $(ReferringTargetFramework).
+
+    This is in the common targets so that it will apply to both
+    cross-targeted and single-targeted projects.  It is run
+    for single-targeted projects so that an error will be
+    generated if the referenced project is not compatible
+    with the referencing project's target framework.
+  ============================================================
+   -->
+  <Target Name="GetTargetFrameworkProperties" Returns="TargetFramework=$(NearestTargetFramework);ProjectHasSingleTargetFramework=$(_HasSingleTargetFramework);ProjectIsRidAgnostic=$(_IsRidAgnostic)">
+
+    <PropertyGroup>
+      <!-- indicate to caller that project is RID agnostic so that a global property RuntimeIdentifier value can be removed -->
+      <_IsRidAgnostic>false</_IsRidAgnostic>
+      <_IsRidAgnostic Condition=" '$(RuntimeIdentifier)' == '' and '$(RuntimeIdentifiers)' == '' ">true</_IsRidAgnostic>
+
+      <!-- If a ReferringTargetFramework was not specified, and we only have one TargetFramework, then don't try to check compatibility -->
+      <_SkipNearestTargetFrameworkResolution Condition="'$(TargetFramework)' != '' and '$(ReferringTargetFramework)' == ''">true</_SkipNearestTargetFrameworkResolution>
+      <NearestTargetFramework Condition="'$(_SkipNearestTargetFrameworkResolution)' == 'true'">$(TargetFramework)</NearestTargetFramework>
+
+      <!-- A project can only have more than one output if the current global properties are such that the current build is a cross-targeting one. -->
+      <_HasSingleTargetFramework Condition="'$(IsCrossTargetingBuild)' != 'true'">true</_HasSingleTargetFramework>
+      <_HasSingleTargetFramework Condition="'$(_HasSingleTargetFramework)' == ''">false</_HasSingleTargetFramework>
+
+      <_PossibleTargetFrameworks Condition="'$(TargetFramework)' != ''">$(TargetFramework)</_PossibleTargetFrameworks>
+      <_PossibleTargetFrameworks Condition="'$(TargetFramework)' == ''">$(TargetFrameworks)</_PossibleTargetFrameworks>
+    </PropertyGroup>
+
+    <GetNearestTargetFramework ReferringTargetFramework="$(ReferringTargetFramework)"
+                               PossibleTargetFrameworks="$(_PossibleTargetFrameworks)"
+                               ProjectFilePath="$(MSBuildProjectFullPath)"
+                               Condition="'$(_SkipNearestTargetFrameworkResolution)' != 'true'">
+      <Output PropertyName="NearestTargetFramework" TaskParameter="NearestTargetFramework" />
+    </GetNearestTargetFramework>
+  </Target>
+
+</Project>

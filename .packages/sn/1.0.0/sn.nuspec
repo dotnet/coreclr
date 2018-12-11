@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>sn</id>
+    <version>1.0.0</version>
+    <title></title>
+    <authors>.NET Core Engineering Team</authors>
+    <owners></owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Contains one version of Microsoft SDK 'sn.exe' binary and dependencies.</description>
+  </metadata>
+</package>

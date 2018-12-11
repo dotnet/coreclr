@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>MicroBuild.Core</id>
+    <version>0.2.0</version>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <licenseUrl>http://microsoft.mit-license.org/</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <developmentDependency>true</developmentDependency>
+    <description>MicroBuild bootstrapper package which wires up build targets that load and execute other MicroBuild plugins during the build</description>
+    <releaseNotes>Add Nuget v3 global cache folder to the search path for MicroBuild plugin packages</releaseNotes>
+    <copyright>Copyright Microsoft 2015</copyright>
+    <tags>MicroBuild</tags>
+  </metadata>
+</package>

@@ -1,0 +1,377 @@
+﻿<!--
+***********************************************************************************************
+Microsoft.CSharp.CurrentVersion.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+This file defines the steps in the standard build process specific for C# .NET projects.
+For example, it contains the step that actually calls the C# compiler.  The remainder
+of the build process is defined in Microsoft.Common.targets, which is imported by 
+this file.
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <PropertyGroup>
+       <ImportByWildcardBeforeMicrosoftCSharpTargets Condition="'$(ImportByWildcardBeforeMicrosoftCSharpTargets)' == ''">true</ImportByWildcardBeforeMicrosoftCSharpTargets>
+       <ImportByWildcardAfterMicrosoftCSharpTargets Condition="'$(ImportByWildcardAfterMicrosoftCSharpTargets)' == ''">true</ImportByWildcardAfterMicrosoftCSharpTargets>
+       <ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets Condition="'$(ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets)' == ''">true</ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets>
+       <ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets Condition="'$(ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets)' == ''">true</ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets>
+    </PropertyGroup>
+
+    <Import Project="$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.CSharp.targets\ImportBefore\*" Condition="'$(ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets)' == 'true' and exists('$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.CSharp.targets\ImportBefore')"/>
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.CSharp.targets\ImportBefore\*" Condition="'$(ImportByWildcardBeforeMicrosoftCSharpTargets)' == 'true' and exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.CSharp.targets\ImportBefore')"/>
+
+    <PropertyGroup>
+       <CustomBeforeMicrosoftCSharpTargets Condition="'$(CustomBeforeMicrosoftCSharpTargets)'==''">$(MSBuildExtensionsPath)\v$(MSBuildToolsVersion)\Custom.Before.Microsoft.CSharp.targets</CustomBeforeMicrosoftCSharpTargets>
+       <CustomAfterMicrosoftCSharpTargets Condition="'$(CustomAfterMicrosoftCSharpTargets)'==''">$(MSBuildExtensionsPath)\v$(MSBuildToolsVersion)\Custom.After.Microsoft.CSharp.targets</CustomAfterMicrosoftCSharpTargets>
+    </PropertyGroup>
+
+    <Import Project="$(CustomBeforeMicrosoftCSharpTargets)" Condition="'$(CustomBeforeMicrosoftCSharpTargets)' != '' and Exists('$(CustomBeforeMicrosoftCSharpTargets)')" />
+
+    <PropertyGroup>
+        <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+        <DefaultLanguageSourceExtension>.cs</DefaultLanguageSourceExtension>
+        <Language>C#</Language>
+        <TargetRuntime>Managed</TargetRuntime>
+        <AlwaysUseNumericalSuffixInItemNames>true</AlwaysUseNumericalSuffixInItemNames>
+        <DefineCommonItemSchemas Condition=" '$(DefineCommonItemSchemas)' == '' ">true</DefineCommonItemSchemas>
+        <DefineCommonReferenceSchemas Condition=" '$(DefineCommonReferenceSchemas)' == '' ">true</DefineCommonReferenceSchemas>
+        <DefineCommonCapabilities Condition=" '$(DefineCommonCapabilities)' == '' ">true</DefineCommonCapabilities>
+        <SynthesizeLinkMetadata Condition=" '$(SynthesizeLinkMetadata)' == '' and '$(HasSharedItems)' == 'true' ">true</SynthesizeLinkMetadata>
+        <DefaultProjectTypeGuid Condition=" '$(DefaultProjectTypeGuid)' == '' ">{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</DefaultProjectTypeGuid>
+        <AppDesignerFolder Condition="'$(AppDesignerFolder)' == ''">Properties</AppDesignerFolder>
+    </PropertyGroup>
+
+    <ItemGroup Condition=" '$(DefineCSharpItemSchemas)' != 'false' ">
+        <PropertyPageSchema Include="$(CommonXamlResourcesDirectory)CSharp.ProjectItemsSchema.xaml;"/>
+        <PropertyPageSchema Include="$(CommonXamlResourcesDirectory)CSharp.xaml;">
+            <Context>File</Context>
+        </PropertyPageSchema>
+        <PropertyPageSchema Include="$(CommonXamlResourcesDirectory)CSharp.BrowseObject.xaml;">
+            <Context>BrowseObject</Context>
+        </PropertyPageSchema>
+
+        <ProjectCapability Include="CSharp;Managed"/>
+    </ItemGroup>
+
+    <ItemGroup Condition=" '$(DefineCommonCapabilities)' == 'true' ">
+      <ProjectCapability Include="ReferencesFolder;LanguageService" />
+    </ItemGroup>
+
+    <!--
+    The CreateManifestResourceNames target create the manifest resource names from the .RESX
+    files.
+    
+        [IN]
+        @(EmbeddedResource) - The list of EmbeddedResource items that have been pre-processed to add metadata about resource type
+                              Expected Metadata "Type" can either be "Resx" or "Non-Resx"
+
+        [OUT]
+        @(EmbeddedResource) - EmbeddedResource items with metadata         
+        
+    For C# applications the transformation is like:
+
+        Resources1.resx => RootNamespace.Resources1 => Build into main assembly
+        SubFolder\Resources1.resx => RootNamespace.SubFolder.Resources1 => Build into main assembly
+        Resources1.fr.resx => RootNamespace.Resources1.fr => Build into satellite assembly
+        Resources1.notaculture.resx => RootNamespace.Resources1.notaculture => Build into main assembly
+
+    For other project systems, this transformation may be different.
+    -->
+    <PropertyGroup>
+        <CreateManifestResourceNamesDependsOn></CreateManifestResourceNamesDependsOn>
+    </PropertyGroup>
+    <Target
+        Name="CreateManifestResourceNames"
+        Condition="'@(EmbeddedResource)' != ''"
+        DependsOnTargets="$(CreateManifestResourceNamesDependsOn)"
+        >
+
+        <ItemGroup>
+            <_Temporary Remove="@(_Temporary)" />
+        </ItemGroup>
+        
+        <!-- Create manifest names for culture and non-culture Resx files, and for non-culture Non-Resx resources -->
+        <CreateCSharpManifestResourceName
+              ResourceFiles="@(EmbeddedResource)"
+              RootNamespace="$(RootNamespace)"              
+              Condition="'%(EmbeddedResource.ManifestResourceName)' == '' and ('%(EmbeddedResource.WithCulture)' == 'false' or '%(EmbeddedResource.Type)' == 'Resx')">
+
+            <Output TaskParameter="ResourceFilesWithManifestResourceNames" ItemName="_Temporary" />
+
+        </CreateCSharpManifestResourceName>
+        
+        <!-- Create manifest names for all culture non-resx resources -->
+        <CreateCSharpManifestResourceName
+              ResourceFiles="@(EmbeddedResource)"
+              RootNamespace="$(RootNamespace)"
+              PrependCultureAsDirectory="false"
+              Condition="'%(EmbeddedResource.ManifestResourceName)' == '' and '%(EmbeddedResource.WithCulture)' == 'true' and '%(EmbeddedResource.Type)' == 'Non-Resx'">
+
+            <Output TaskParameter="ResourceFilesWithManifestResourceNames" ItemName="_Temporary" />
+
+        </CreateCSharpManifestResourceName>
+
+        <ItemGroup>
+            <EmbeddedResource Remove="@(EmbeddedResource)" Condition="'%(EmbeddedResource.ManifestResourceName)' == ''"/>
+            <EmbeddedResource Include="@(_Temporary)" />
+            <_Temporary Remove="@(_Temporary)" />
+        </ItemGroup>
+              
+    </Target>
+
+    <Target
+        Name="ResolveCodeAnalysisRuleSet"
+        Condition="'$(CodeAnalysisRuleSet)' != ''"
+        >
+
+        <ResolveCodeAnalysisRuleSet
+            CodeAnalysisRuleSet="$(CodeAnalysisRuleSet)"
+            CodeAnalysisRuleSetDirectories="$(CodeAnalysisRuleSetDirectories)"
+            MSBuildProjectDirectory="$(MSBuildProjectDirectory)">
+
+            <Output TaskParameter="ResolvedCodeAnalysisRuleSet" PropertyName="ResolvedCodeAnalysisRuleSet" />
+
+        </ResolveCodeAnalysisRuleSet>
+
+    </Target>
+
+    <ItemGroup>
+        <!-- Activate CPS projects to track folder names in namespace. -->
+        <ProjectCapability Include="RelativePathDerivedDefaultNamespace"/>
+    </ItemGroup>
+
+    <PropertyGroup>
+        <!-- Provide a facility to override UseHostCompilerIfAvailable-->
+        <UseHostCompilerIfAvailable Condition=" '$(UseHostCompilerIfAvailable)' == ''">true</UseHostCompilerIfAvailable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <DocFileItem Include="$(DocumentationFile)" Condition="'$(DocumentationFile)'!=''"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(_DebugSymbolsProduced)' == 'true' and '$(PdbFile)' != ''">
+        <_DebugSymbolsIntermediatePathTemporary Include="$(PdbFile)"/>
+        <!-- Add any missing .pdb extension, as the compiler does -->
+        <_DebugSymbolsIntermediatePath Include="@(_DebugSymbolsIntermediatePathTemporary->'%(RootDir)%(Directory)%(Filename).pdb')"/>
+    </ItemGroup>
+
+    <PropertyGroup>
+        <CoreCompileDependsOn>_ComputeNonExistentFileProperty;ResolveCodeAnalysisRuleSet</CoreCompileDependsOn>
+        <ExportWinMDFile Condition="'$(ExportWinMDFile)' == '' and '$(OutputType)' == 'WinMDObj'">true</ExportWinMDFile>
+    </PropertyGroup>
+ 
+<!--
+      The XamlPreCompile target must remain identical to
+      the CoreCompile target in Microsoft.CSharp.Core.targets.
+      Any updates to one must be made to the other.
+-->
+     <Target
+        Name="XamlPreCompile"
+        Inputs="$(MSBuildAllProjects);
+                @(Compile);
+                @(_CoreCompileResourceInputs);
+                $(ApplicationIcon);
+                $(AssemblyOriginatorKeyFile);
+                @(ReferencePath);
+                @(CompiledLicenseFile);
+                @(LinkResource);
+                @(EmbeddedDocumentation); 
+                $(Win32Resource);
+                $(Win32Manifest);
+                @(CustomAdditionalCompileInputs);
+                @(Page);
+                @(ApplicationDefinition);
+                $(ResolvedCodeAnalysisRuleSet)"
+                  
+        Outputs="@(DocFileItem);
+                 @(XamlIntermediateAssembly);
+                 @(_DebugSymbolsIntermediatePath);
+                 $(NonExistentFile);
+                 @(CustomAdditionalCompileOutputs)"
+        Condition="'@(Page)' != '' Or '@(ApplicationDefinition)' != ''"
+        Returns=""
+        DependsOnTargets="$(CoreCompileDependsOn)"
+    >
+       <!-- These two compiler warnings are raised when a reference is bound to a different version
+             than specified in the assembly reference version number.  MSBuild raises the same warning in this case,
+             so the compiler warning would be redundant. -->
+        <PropertyGroup Condition="('$(TargetFrameworkVersion)' != 'v1.0') and ('$(TargetFrameworkVersion)' != 'v1.1')">
+            <NoWarn>$(NoWarn);1701;1702</NoWarn>
+        </PropertyGroup>
+
+        <PropertyGroup>
+            <!-- To match historical behavior, when inside VS11+ disable the warning from csc.exe indicating that no sources were passed in-->
+            <NoWarn Condition=" '$(BuildingInsideVisualStudio)' == 'true' and '$(VisualStudioVersion)' != '' and '$(VisualStudioVersion)' > '10.0' ">$(NoWarn);2008</NoWarn>
+        </PropertyGroup>
+
+        <ItemGroup Condition="'$(TargetingClr2Framework)'=='true'">
+            <ReferencePath>
+                <EmbedInteropTypes/>
+            </ReferencePath>
+        </ItemGroup>
+        
+        <PropertyGroup>
+            <!-- If the user has specified AppConfigForCompiler, we'll use it. If they have not, but they set UseAppConfigForCompiler,
+                 then we'll use AppConfig -->
+            <AppConfigForCompiler Condition="'$(AppConfigForCompiler)' == '' and '$(UseAppConfigForCompiler)' == 'true'">$(AppConfig)</AppConfigForCompiler>
+            
+            <!-- If we are targeting winmdobj we want to specifically the pdbFile property since we do not want it to collide with the output of winmdexp--> 
+            <PdbFile Condition="'$(PdbFile)' == '' and '$(OutputType)' == 'winmdobj' and '$(_DebugSymbolsProduced)' == 'true'">$(IntermediateOutputPath)$(TargetName).compile.pdb</PdbFile>
+        </PropertyGroup>
+
+        <!-- Prefer32Bit was introduced in .NET 4.5. Set it to false if we are targeting 4.0 -->
+        <PropertyGroup Condition="('$(TargetFrameworkVersion)' == 'v4.0')">
+            <Prefer32Bit>false</Prefer32Bit>
+        </PropertyGroup>
+       
+        <ItemGroup Condition="('$(AdditionalFileItemNames)' != '')">
+          <AdditionalFileItems Include="$(AdditionalFileItemNames)" />
+          <AdditionalFiles Include="@(%(AdditionalFileItems.Identity))" />
+        </ItemGroup>
+        
+       <!-- Don't run analyzers for Csc task on XamlPrecompile pass, we only want to run them on core compile. -->
+       <!-- Analyzers="@(Analyzer)" -->
+
+       <PropertyGroup Condition="'$(UseSharedCompilation)' == ''">
+         <UseSharedCompilation>true</UseSharedCompilation>
+       </PropertyGroup>
+
+       <!-- Condition is to filter out the _CoreCompileResourceInputs so that it doesn't pass in culture resources to the compiler -->
+        <Csc  Condition=" '%(_CoreCompileResourceInputs.WithCulture)' != 'true' "
+              AdditionalLibPaths="$(AdditionalLibPaths)"
+              AddModules="@(AddModules)"
+              AdditionalFiles="@(AdditionalFiles)"
+              AllowUnsafeBlocks="$(AllowUnsafeBlocks)"
+              ApplicationConfiguration="$(AppConfigForCompiler)"
+              BaseAddress="$(BaseAddress)"
+              CheckForOverflowUnderflow="$(CheckForOverflowUnderflow)"
+              CodeAnalysisRuleSet="$(ResolvedCodeAnalysisRuleSet)"
+              CodePage="$(CodePage)"
+              DebugType="$(DebugType)"
+              DefineConstants="$(DefineConstants)"
+              DelaySign="$(DelaySign)"
+              DisabledWarnings="$(NoWarn)"
+              DocumentationFile="@(DocFileItem)"
+              EmitDebugInformation="$(DebugSymbols)"
+              EnvironmentVariables="$(CscEnvironment)"              
+              ErrorEndLocation="$(ErrorEndLocation)"
+              ErrorLog="$(ErrorLog)"
+              ErrorReport="$(ErrorReport)"
+              FileAlignment="$(FileAlignment)"
+              GenerateFullPaths="$(GenerateFullPaths)"
+              HighEntropyVA="$(HighEntropyVA)"
+              KeyContainer="$(KeyContainerName)"
+              KeyFile="$(KeyOriginatorFile)"
+              LangVersion="$(LangVersion)"
+              LinkResources="@(LinkResource)"
+              MainEntryPoint="$(StartupObject)"
+              ModuleAssemblyName="$(ModuleAssemblyName)"
+              NoConfig="true"
+              NoLogo="$(NoLogo)"
+              NoStandardLib="$(NoCompilerStandardLib)"
+              NoWin32Manifest="$(NoWin32Manifest)"
+              Optimize="$(Optimize)"
+              OutputAssembly="@(XamlIntermediateAssembly)"
+              PdbFile="$(PdbFile)" 
+              Platform="$(PlatformTarget)"
+              Prefer32Bit="$(Prefer32Bit)"
+              PreferredUILang="$(PreferredUILang)"
+              References="@(ReferencePath)"
+              ReportAnalyzer="$(ReportAnalyzer)"
+              Resources="@(_CoreCompileResourceInputs);@(CompiledLicenseFile)"
+              ResponseFiles="$(CompilerResponseFile)"
+              Sources="@(Compile)"
+              SubsystemVersion="$(SubsystemVersion)"
+              TargetType="$(OutputType)"
+              ToolExe="$(CscToolExe)"
+              ToolPath="$(CscToolPath)"
+              TreatWarningsAsErrors="$(TreatWarningsAsErrors)"
+              UseHostCompilerIfAvailable="$(UseHostCompilerIfAvailable)"
+              UseSharedCompilation="$(UseSharedCompilation)"
+              Utf8Output="$(Utf8Output)"
+              VsSessionGuid="$(VsSessionGuid)"
+              WarningLevel="$(WarningLevel)"
+              WarningsAsErrors="$(WarningsAsErrors)"
+              WarningsNotAsErrors="$(WarningsNotAsErrors)"
+              Win32Icon="$(ApplicationIcon)"
+              Win32Manifest="$(Win32Manifest)"
+              Win32Resource="$(Win32Resource)"
+              />
+
+<!-- Only Applicable to the regular CoreCompile:
+              <ItemGroup>
+                  <_CoreCompileResourceInputs Remove="@(_CoreCompileResourceInputs)" />
+              </ItemGroup>
+
+              <CallTarget Targets="$(TargetsTriggeredByCompilation)" Condition="'$(TargetsTriggeredByCompilation)' != ''"/>
+-->
+        <OnError Condition="'$(OnXamlPreCompileErrorTarget)' != ''" ExecuteTargets="$(OnXamlPreCompileErrorTarget)" />
+    </Target>
+
+    <PropertyGroup>
+        <CSharpCoreTargetsPath Condition="'$(CSharpCoreTargetsPath)' == ''">$(RoslynTargetsPath)\Microsoft.CSharp.Core.targets</CSharpCoreTargetsPath>
+    </PropertyGroup>
+
+    <Import Project="$(CSharpCoreTargetsPath)" />
+    
+    <!-- Import design time targets for Roslyn Project System. These are only available if Visual Studio is installed. -->
+    <!-- Import design time targets before the common targets, which import targets from Nuget. -->
+    <PropertyGroup>
+       <CSharpDesignTimeTargetsPath Condition="'$(CSharpDesignTimeTargetsPath)'==''">$(MSBuildExtensionsPath)\Microsoft\VisualStudio\Managed\Microsoft.CSharp.DesignTime.targets</CSharpDesignTimeTargetsPath>
+    </PropertyGroup>
+    <Import Project="$(CSharpDesignTimeTargetsPath)" Condition="'$(CSharpDesignTimeTargetsPath)' != '' and Exists('$(CSharpDesignTimeTargetsPath)')" />
+
+    <Import Project="Microsoft.Common.targets" />
+    <Import Project="$(MSBuildToolsPath)\Microsoft.ServiceModel.targets" Condition="('$(TargetFrameworkVersion)' != 'v2.0' and '$(TargetFrameworkVersion)' != 'v3.0' and '$(TargetFrameworkVersion)' != 'v3.5') and Exists('$(MSBuildToolsPath)\Microsoft.ServiceModel.targets')"/>
+
+    <Target Name="_SetTargetFrameworkMonikerAttribute" BeforeTargets="GenerateTargetFrameworkMonikerAttribute">
+       <PropertyGroup>
+       <TargetFrameworkMonikerAssemblyAttributeText Condition="'$(TargetFrameworkMoniker)' != '' and '$(TargetingClr2Framework)' != 'true'">
+// &lt;autogenerated /&gt;
+using System%3b
+using System.Reflection%3b
+[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(&quot;$(TargetFrameworkMoniker)&quot;, FrameworkDisplayName = &quot;$(TargetFrameworkMonikerDisplayName)&quot;)]
+        </TargetFrameworkMonikerAssemblyAttributeText>
+        </PropertyGroup>
+    </Target>
+
+    <PropertyGroup>
+       <Utf8Output Condition="'$(Utf8Output)' == ''">true</Utf8Output>
+
+      <!-- NoCompilerStandardLib maps to the compiler's /nostdlib option. By default we always
+           want that switch to be passed to the compiler so that either we or the user
+           provides the references
+           NoStdLib on the other hand indicates that the user doesn't want standard references
+           so only if NoStdLib isn't set to true, will we provide the standard references
+      -->
+      <NoCompilerStandardLib Condition=" '$(NoCompilerStandardLib)' == '' ">true</NoCompilerStandardLib>
+
+      <ErrorEndLocation Condition="'$(BuildingInsideVisualStudio)' == 'true' and '$(ErrorEndLocation)' == ''">true</ErrorEndLocation>
+
+       <!-- When building inside VS, by default use the same language for compiler messages as VS itself does. -->
+       <PreferredUILang Condition="'$(BuildingInsideVisualStudio)' == 'true' and '$(PreferredUILang)' == ''">$([System.Globalization.CultureInfo]::CurrentUICulture.Name)</PreferredUILang>
+    </PropertyGroup>
+    
+    <!-- Add any "automatic" compiler references that need to be resolved when NoCompilerStandardLib is set
+         but the user hasn't told us to not include standard references -->
+    <ItemGroup Condition=" '$(NoCompilerStandardLib)' == 'true' and '$(NoStdLib)' != 'true' ">
+      <!-- Note that unlike VB, C# does not automatically locate System.dll as a "standard library"
+           instead the reference is always passed from the project. Also, for mscorlib.dll 
+           we need to provide the explicit location in order to maintain the correct behaviour
+      -->
+        <_ExplicitReference Include="$(FrameworkPathOverride)\mscorlib.dll" />
+    </ItemGroup>
+
+    <Import Project="$(CustomAfterMicrosoftCSharpTargets)" Condition="'$(CustomAfterMicrosoftCSharpTargets)' != '' and Exists('$(CustomAfterMicrosoftCSharpTargets)')" />
+
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.CSharp.targets\ImportAfter\*" Condition="'$(ImportByWildcardAfterMicrosoftCSharpTargets)' == 'true' and exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.CSharp.targets\ImportAfter')"/>
+    <Import Project="$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.CSharp.targets\ImportAfter\*" Condition="'$(ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets)' == 'true' and exists('$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.CSharp.targets\ImportAfter')"/>
+
+</Project>

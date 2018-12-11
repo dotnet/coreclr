@@ -1,0 +1,296 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.CrossGen.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup>
+  
+  <!--
+    ============================================================
+                                        PrepOptimizer
+
+    Sets up the common infrastructure for the optimization phase
+    Outputs:
+        JitPath
+        Crossgen
+    ============================================================
+    -->
+  
+  <Target Name="PrepOptimizer"
+          DependsOnTargets="_RestoreCrossgen;"
+          Condition="$(SkipOptimization) != 'true' ">
+    <!-- Get the coreclr path -->
+    <ItemGroup>
+      <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
+                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='coreclr'" />
+      <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
+                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='libcoreclr'" />
+      <_JitResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
+                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='clrjit'" />
+      <_JitResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
+                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='libclrjit'" />
+    </ItemGroup>
+
+    <NETSdkError Condition="'@(_CoreclrResolvedPath->Count())' &gt; 1"
+                 ResourceName="MultipleFilesResolved"
+                 FormatArguments="coreclr" />
+
+    <NETSdkError Condition="'@(_CoreclrResolvedPath)'== ''"
+                 ResourceName="UnableToFindResolvedPath"
+                 FormatArguments="coreclr" />
+
+    <NETSdkError Condition="'@(_JitResolvedPath->Count())' &gt; 1"
+                 ResourceName="MultipleFilesResolved"
+                 FormatArguments="jit" />
+
+    <NETSdkError Condition="'@(_JitResolvedPath)'== ''"
+                 ResourceName="UnableToFindResolvedPath"
+                 FormatArguments="jit" />
+
+    <!-- Get the crossgen and jit path-->
+    <PropertyGroup>
+      <_CoreclrPath>@(_CoreclrResolvedPath)</_CoreclrPath>
+      <JitPath>@(_JitResolvedPath)</JitPath>
+      <_CoreclrDir>$([System.IO.Path]::GetDirectoryName($(_CoreclrPath)))</_CoreclrDir>
+      <_CoreclrPkgDir>$([System.IO.Path]::Combine($(_CoreclrDir),"..\..\..\"))</_CoreclrPkgDir>
+      <CrossgenDir>$([System.IO.Path]::Combine($(_CoreclrPkgDir),"tools"))</CrossgenDir>
+      <!-- TODO override with rid specific tools path for x-arch -->
+      <Crossgen>$([System.IO.Path]::Combine($(CrossgenDir),"crossgen"))</Crossgen>
+      <Crossgen Condition="'$(OS)' == 'Windows_NT'">$([System.IO.Path]::Combine($(CrossgenDir),"crossgen.exe"))</Crossgen>
+    </PropertyGroup>
+
+    <NETSdkError Condition="!Exists($(Crossgen))"
+                 ResourceName="UnableToFindResolvedPath"
+                 FormatArguments="$(Crossgen)" />
+
+    <!-- Copy crossgen into the netcoreapp folder to ensure it can load Microsoft.DiaSymReader.Native when creating PDBs -->
+    <Copy SourceFiles="$(Crossgen)"
+          DestinationFolder="$(_NetCoreRefDir)"
+          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+          Retries="$(CopyRetryCount)"
+          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+          UseHardlinksIfPossible="$(CreateHardLinksForPublishFilesIfPossible)"
+          UseSymboliclinksIfPossible="$(CreateSymbolicLinksForPublishFilesIfPossible)">
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
+    </Copy>
+    
+    <PropertyGroup>
+      <Crossgen>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine($(_NetCoreRefDir), $([System.IO.Path]::GetFileName($(Crossgen)))))))</Crossgen>
+    </PropertyGroup>
+  </Target>
+  
+  <!--
+    ============================================================
+                                        _RunOptimizer
+
+    Start the optimization phase
+    ============================================================
+    -->
+  
+  <Target Name="_RunOptimizer"
+          DependsOnTargets="_InitializeBasicProps;
+                            _ComputeResolvedFilesToStoreTypes;
+                            _SetupStageForCrossgen"
+          Condition="$(SkipOptimization) != 'true' ">
+    <ItemGroup>
+      <AssembliestoCrossgen Include="$(MSBuildProjectFullPath)">
+        <Properties>
+          CrossgenExe=$(Crossgen);
+          CrossgenJit=$(JitPath);
+          CrossgenInputAssembly=%(_ManagedResolvedFilesToOptimize.Fullpath);
+          CrossgenOutputAssembly=$(_RuntimeOptimizedDir)$(DirectorySeparatorChar)%(FileName)%(Extension);
+          CrossgenSubOutputPath=%(DestinationSubPath);
+          _RuntimeOptimizedDir=$(_RuntimeOptimizedDir);
+          PublishDir=$(StoreStagingDir);
+          CrossgenPlatformAssembliesPath=$(_RuntimeRefDir)$(PathSeparator)$(_NetCoreRefDir);
+          CreateProfilingSymbols=$(CreateProfilingSymbols);
+          StoreSymbolsStagingDir=$(StoreSymbolsStagingDir);
+          _RuntimeSymbolsDir=$(_RuntimeSymbolsDir)
+        </Properties>
+      </AssembliestoCrossgen>
+    </ItemGroup>
+    
+    <!-- CrossGen the assemblies  -->
+    <MSBuild Projects="@(AssembliestoCrossgen)"
+                 Targets="RunCrossGen"
+                 BuildInParallel="$(BuildInParallel)"
+                 Condition="'@(_ManagedResolvedFilesToOptimize)' != ''"/>
+
+  </Target>
+
+  <!--
+    ============================================================
+                                        RunCrossGen
+    Target Encapsulating the crossgen command  
+    ============================================================
+    -->
+
+  <Target Name="RunCrossGen"
+           DependsOnTargets="_InitializeBasicProps;">
+
+    <PropertyGroup>
+      <CrossgenProfilingSymbolsOutputDirectory>$([System.IO.Path]::GetDirectoryName($(_RuntimeSymbolsDir)\$(CrossgenSubOutputPath)))</CrossgenProfilingSymbolsOutputDirectory>
+      <CrossgenSymbolsStagingDirectory>$([System.IO.Path]::GetDirectoryName($(StoreSymbolsStagingDir)\$(CrossgenSubOutputPath)))</CrossgenSymbolsStagingDirectory>
+      <CrossgenCommandline>$(CrossgenExe) -nologo -readytorun -in "$(CrossgenInputAssembly)" -out "$(CrossgenOutputAssembly)" -jitpath "$(CrossgenJit)" -platform_assemblies_paths "$(CrossgenPlatformAssembliesPath)"</CrossgenCommandline>
+      <CreateProfilingSymbolsOptionName Condition="'$(OS)' == 'Windows_NT'">CreatePDB</CreateProfilingSymbolsOptionName>
+      <CreateProfilingSymbolsOptionName Condition="'$(CreateProfilingSymbolsOptionName)' == ''">CreatePerfMap</CreateProfilingSymbolsOptionName>
+    </PropertyGroup>
+
+    <Message Text="CrossgenCommandline: $(CrossgenCommandline)"/>
+
+    <!--Optimization skip if the assembly is already present in the final output directory-->
+    <Exec
+     Command="$(CrossgenCommandline)"
+     Condition="!Exists($([System.IO.Path]::Combine($(PublishDir),$(CrossgenSubOutputPath))))" />
+
+    <Copy SourceFiles = "$(CrossgenOutputAssembly)"
+          DestinationFiles="$(PublishDir)\$(CrossgenSubOutputPath)"
+          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+          Retries="$(CopyRetryCount)"
+          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+          Condition="!Exists($([System.IO.Path]::Combine($(PublishDir),$(CrossgenSubOutputPath))))">
+
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
+    </Copy>
+
+    <!-- Create profiling symbols if requested -->
+    <MakeDir Directories="$(CrossgenProfilingSymbolsOutputDirectory)"
+             Condition="'$(CreateProfilingSymbols)' == 'true' and Exists($(CrossgenOutputAssembly))" />
+    <Exec Command="$(CrossgenExe) -nologo -readytorun -platform_assemblies_paths $(CrossgenPlatformAssembliesPath) -$(CreateProfilingSymbolsOptionName) $(CrossgenProfilingSymbolsOutputDirectory) $(CrossgenOutputAssembly)"
+          Condition="'$(CreateProfilingSymbols)' == 'true' and Exists($(CrossgenOutputAssembly))" />
+
+    <ItemGroup>
+      <_ProfilingSymbols Include="$(CrossgenProfilingSymbolsOutputDirectory)\*"
+                         Condition="'$(CreateProfilingSymbols)' == 'true'" />
+    </ItemGroup>
+    
+    <Copy SourceFiles="@(_ProfilingSymbols)"
+          DestinationFolder="$(CrossgenSymbolsStagingDirectory)"
+          Condition="'$(CreateProfilingSymbols)' == 'true'"
+          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+          Retries="$(CopyRetryCount)"
+          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)">
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
+    </Copy>
+  </Target>
+
+  <Target Name="_InitializeBasicProps">
+    <PropertyGroup>
+      <PathSeparator>$([System.IO.Path]::PathSeparator)</PathSeparator>
+      <DirectorySeparatorChar>$([System.IO.Path]::DirectorySeparatorChar)</DirectorySeparatorChar>
+    </PropertyGroup>
+  </Target>
+  
+  <!--
+    ============================================================
+                                       _GetCrossgenProps
+    Generates props used by Crossgen
+    ============================================================
+    -->
+  
+  <Target Name="_GetCrossgenProps"
+    Condition="$(SkipOptimization) != 'true' ">
+
+    <PropertyGroup>
+      <_CrossProjFileDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"Optimize"))</_CrossProjFileDir>
+      <_NetCoreRefDir>$([System.IO.Path]::Combine($(_CrossProjFileDir), "netcoreapp"))</_NetCoreRefDir>              <!-- flat netcore app assemblies-->
+    </PropertyGroup>
+     <MakeDir  Directories="$(_CrossProjFileDir)"/>
+    <PropertyGroup>
+      <_CrossProjAssetsFile>$([System.IO.Path]::Combine($(_CrossProjFileDir),  project.assets.json))</_CrossProjAssetsFile>
+    </PropertyGroup>
+
+    
+  </Target>
+
+  <!--
+    ============================================================
+                                        _SetupStageForCrossgen
+    ============================================================
+    -->
+  
+  <Target Name="_SetupStageForCrossgen"
+          DependsOnTargets="_GetCrossgenProps;">
+    <PropertyGroup>
+      <_RuntimeRefDir>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "runtimeref"))</_RuntimeRefDir>  <!-- flat app managed assemblies -->
+      <_RuntimeOptimizedDir>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "runtimopt"))</_RuntimeOptimizedDir>      <!-- optimized app managed assemblies in nuget cache layout -->
+      <_RuntimeSymbolsDir>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "runtimesymbols"))</_RuntimeSymbolsDir>
+    </PropertyGroup>
+    
+    <ItemGroup>
+      <_ManagedResolvedFilesToOptimize Include="@(_ManagedResolvedFileToPublishCandidates)" />
+    </ItemGroup>
+    
+    <MakeDir Directories="$(_RuntimeOptimizedDir)"/>
+    <MakeDir Directories="$(_RuntimeSymbolsDir)"
+             Condition="'$(CreateProfilingSymbols)' == 'true'" />
+    
+    <!-- Copy managed files to  a flat temp directory for passing it as ref -->
+    <Copy SourceFiles = "@(_ManagedResolvedFilesToOptimize)"
+          DestinationFolder="$(_RuntimeRefDir)"
+          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+          Retries="$(CopyRetryCount)"
+          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+          UseHardlinksIfPossible="$(CreateHardLinksForPublishFilesIfPossible)"
+          UseSymboliclinksIfPossible="$(CreateSymbolicLinksForPublishFilesIfPossible)">
+
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
+    </Copy>
+
+  </Target>
+
+  <!--
+    ============================================================
+                                        _RestoreCrossgen
+Restores netcoreapp and publishes it to a temp directory
+    ============================================================
+    -->
+  
+  <Target Name="_RestoreCrossgen"
+          DependsOnTargets="PrepforRestoreForComposeStore;
+                           _SetupStageForCrossgen;"
+          Condition="$(SkipOptimization) != 'true' ">
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+                 Targets="Restore"
+                 Properties="RestoreGraphProjectInput=$(MSBuildProjectFullPath);
+                             DisableImplicitFrameworkReferences=true;
+                             RestoreOutputPath=$(_CrossProjFileDir);
+                             StorePackageName=$(MicrosoftNETPlatformLibrary);
+                             StorePackageVersion=$(RuntimeFrameworkVersion);"/>
+
+    <ResolvePublishAssemblies ProjectPath="$(MSBuildProjectFullPath)"
+                              AssetsFilePath="$(_CrossProjAssetsFile)"
+                              TargetFramework="$(_TFM)"
+                              RuntimeIdentifier="$(RuntimeIdentifier)"
+                              PlatformLibraryName="$(MicrosoftNETPlatformLibrary)"
+                              ExcludeFromPublishPackageReferences="@(_ExcludeFromPublishPackageReference)"
+                              IsSelfContained="$(SelfContained)"
+                              PreserveStoreLayout="false">
+
+      <Output TaskParameter="AssembliesToPublish" ItemName="CrossgenResolvedAssembliesToPublish" />
+    </ResolvePublishAssemblies>
+
+    <!-- Copy managed files to  a flat temp directory for passing it as ref for crossgen -->
+    <Copy SourceFiles = "@(CrossgenResolvedAssembliesToPublish)"
+          DestinationFolder="$(_NetCoreRefDir)"
+          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+          Retries="$(CopyRetryCount)"
+          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+          UseHardlinksIfPossible="$(CreateHardLinksForPublishFilesIfPossible)"
+          UseSymboliclinksIfPossible="$(CreateSymbolicLinksForPublishFilesIfPossible)">
+
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
+    </Copy>
+  </Target>
+ 
+</Project>

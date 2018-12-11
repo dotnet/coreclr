@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>vswhere</id>
+    <version>2.5.2</version>
+    <title>Visual Studio Locator</title>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <licenseUrl>https://github.com/Microsoft/vswhere/tree/ebb9f26a3d3355598a9e5c97deec05a3717ead41/LICENSE.txt</licenseUrl>
+    <projectUrl>https://github.com/Microsoft/vswhere</projectUrl>
+    <iconUrl>https://go.microsoft.com/fwlink/?linkid=839265</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <developmentDependency>true</developmentDependency>
+    <description>Locate Visual Studio 2017 and newer installations</description>
+    <summary>Locate Visual Studio 2017 and newer installations</summary>
+    <releaseNotes>https://github.com/Microsoft/vswhere/releases/tag/2.5.2</releaseNotes>
+    <copyright>Copyright (C) Microsoft Corporation. All rights reserved.</copyright>
+    <tags>vs vs2017 visualstudio</tags>
+    <projectSourceUrl>https://github.com/Microsoft/vswhere/tree/ebb9f26a3d3355598a9e5c97deec05a3717ead41</projectSourceUrl>
+    <packageSourceUrl>https://github.com/Microsoft/vswhere/tree/ebb9f26a3d3355598a9e5c97deec05a3717ead41/pkg/vswhere</packageSourceUrl>
+    <docsUrl>https://github.com/Microsoft/vswhere/wiki</docsUrl>
+    <bugTrackerUrl>https://github.com/Microsoft/vswhere/issues</bugTrackerUrl>
+  </metadata>
+</package>

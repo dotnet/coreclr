@@ -1,0 +1,104 @@
+<!--
+***********************************************************************************************
+Microsoft.NET.PreserveCompilationContext.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+Copyright (c) .NET Foundation. All rights reserved. 
+***********************************************************************************************
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+
+    <RefAssembliesFolderName Condition="'$(RefAssembliesFolderName)' == ''">refs</RefAssembliesFolderName>
+  </PropertyGroup>
+
+  <Target Name="ComputeDependencyFileCompilerOptions"
+          Condition="'$(PreserveCompilationContext)' == 'true'"
+          BeforeTargets="GenerateBuildDependencyFile;
+                         GeneratePublishDependencyFile">
+
+    <ItemGroup>
+      <DependencyFileCompilerOptions Include="CompilerOptions">
+        <DefineConstants>$(DefineConstants)</DefineConstants>
+        <LangVersion>$(LangVersion)</LangVersion>
+        <PlatformTarget>$(PlatformTarget)</PlatformTarget>
+        <AllowUnsafeBlocks>$(AllowUnsafeBlocks)</AllowUnsafeBlocks>
+        <TreatWarningsAsErrors>$(TreatWarningsAsErrors)</TreatWarningsAsErrors>
+        <Optimize>$(Optimize)</Optimize>
+        <AssemblyOriginatorKeyFile>$(AssemblyOriginatorKeyFile)</AssemblyOriginatorKeyFile>
+        <DelaySign>$(DelaySign)</DelaySign>
+        <PublicSign>$(DelaySign)</PublicSign>
+        <DebugType>$(DebugType)</DebugType>
+        <OutputType>$(OutputType)</OutputType>
+        <GenerateDocumentationFile>$(GenerateDocumentationFile)</GenerateDocumentationFile>
+      </DependencyFileCompilerOptions>
+    </ItemGroup>
+
+  </Target>
+
+  <UsingTask TaskName="FindItemsFromPackages" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
+  <Target Name="ComputeRefAssembliesToPublish"
+          Condition="'$(PreserveCompilationContext)' == 'true'"
+          DependsOnTargets="ResolvePackageAssets;
+                            _ParseTargetManifestFiles"
+          AfterTargets="ComputeFilesToPublish"
+          BeforeTargets="CopyFilesToPublishDirectory">
+
+    <FindItemsFromPackages Items="@(RuntimeCopyLocalItems)"
+                           Packages="@(RuntimeStorePackages)">
+      <Output TaskParameter="ItemsFromPackages" ItemName="_RuntimeItemsInRuntimeStore"/>
+    </FindItemsFromPackages>
+
+    <ItemGroup>
+      <!--
+      Don't copy a compilation assembly if it's also a runtime assembly. There is no need to copy the same
+      assembly to the 'refs' folder, if it is already in the publish directory.
+      -->
+      <_RefAssembliesToExclude Include="@(ResolvedAssembliesToPublish->'%(FullPath)')" />
+      <!--
+      Similarly, don't copy a compilation assembly if it's also a runtime assembly that is in a runtime store.
+      It will be resolved from the runtime store directory at runtime.
+      -->
+      <_RefAssembliesToExclude Include="@(_RuntimeItemsInRuntimeStore)" />
+
+      <ResolvedFileToPublish Include="@(ReferencePath)" Exclude="@(_RefAssembliesToExclude)">
+        <RelativePath>$(RefAssembliesFolderName)\%(Filename)%(Extension)</RelativePath>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+
+  </Target>
+
+  <!--
+    ============================================================
+                                        _CopyReferenceOnlyAssembliesForBuild
+
+    Copies reference assemblies that normally can't be resolved at runtime to the 'refs' folder in the build output.
+    This is necessary in order for the running app to resolve these reference assemblies.
+    ============================================================
+    -->
+  <Target Name="_CopyReferenceOnlyAssembliesForBuild"
+          Condition="'$(PreserveCompilationContext)' == 'true'"
+          DependsOnTargets="_ComputeReferenceAssemblies"
+          AfterTargets="CopyFilesToOutputDirectory">
+
+    <Copy SourceFiles="@(_ReferenceOnlyAssemblies)"
+          DestinationFolder="$(OutDir)$(RefAssembliesFolderName)"
+          SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
+          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+          Retries="$(CopyRetryCount)"
+          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+          UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)"
+          UseSymboliclinksIfPossible="$(CreateSymbolicLinksForCopyFilesToOutputDirectoryIfPossible)">
+
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
+
+    </Copy>
+
+  </Target>
+
+</Project>

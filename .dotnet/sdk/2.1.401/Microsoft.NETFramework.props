@@ -1,0 +1,46 @@
+﻿<!--
+***********************************************************************************************
+Microsoft.NetFramework.props
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build your projects from the command-line or the IDE.
+
+This file contains .net framework specific properties, items and targets. They are factored into a Microsoft.NETFramework.targets and Microsoft.NetFramework.props
+these two files are used to encapsulate the multi-targeting and framework specific build process.
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+***********************************************************************************************
+-->
+
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <!-- 
+        In VS 2010 SP1 and VS 2012, both supported for asset compatibility, the MSBuild installed 
+        as part of them did not enforce using the local ToolsVersion (4.0) in all cases, but instead 
+        just used whatever ToolsVersion was in the project file if it existed on the machine, and 
+        only forced 4.0 if that ToolsVersion did not exist.  
+
+        Moving forward, we do want to enforce a single acting ToolsVersion per version of Visual Studio, 
+        but in order to approximate this behavior on VS 2010 SP1 and VS 2012 as well, we've redirected 
+        the targets:  If we're building using 4.X MSBuild (which doesn't define the new reserved 
+        property, MSBuildAssemblyVersion), we'll point right back at the 4.0 targets, which still exist 
+        as part of the .NET Framework.  Only if we're using the new MSBuild will we point to the current
+        targets. 
+   -->
+
+   <Choose>
+      <When Condition="'$(MSBuildAssemblyVersion)' == ''">
+         <PropertyGroup>
+            <NetFrameworkPropsPath>$(MSBuildFrameworkToolsPath)\Microsoft.NETFramework.props</NetFrameworkPropsPath>
+         </PropertyGroup>
+      </When>
+      <Otherwise>
+         <PropertyGroup>
+            <NetFrameworkPropsPath>$(MSBuildToolsPath)\Microsoft.NETFramework.CurrentVersion.props</NetFrameworkPropsPath>
+         </PropertyGroup>
+      </Otherwise>
+   </Choose>
+
+   <Import Project="$(NetFrameworkPropsPath)" />
+
+</Project>
