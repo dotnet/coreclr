@@ -498,7 +498,7 @@ if %__BuildNative% EQU 1 (
     set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-    set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+    set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
     call %__ProjectDir%\run.cmd build -Project=%__IntermediatesDir%\install.vcxproj !__Logging! -configuration=%__BuildType% -platform=%__BuildArch% %__RunArgs% -MSBuildNodeCount="/m:2" %__UnprocessedBuildArgs%
 
@@ -514,6 +514,8 @@ if %__BuildNative% EQU 1 (
     REM } Scope environment changes end
     endlocal
 )
+
+pause
 
 REM =========================================================================================
 REM ===
@@ -561,7 +563,7 @@ if %__BuildCrossArchNative% EQU 1 (
     set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-    set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+    set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
     call %__ProjectDir%\run.cmd build -Project=%__CrossCompIntermediatesDir%\install.vcxproj !__Logging! -configuration=%__BuildType% -platform=%__CrossArch% %__RunArgs% -MSBuildNodeCount="/m:2" %__UnprocessedBuildArgs%
 
@@ -616,7 +618,7 @@ if %__BuildCoreLib% EQU 1 (
         set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
         set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
         set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-        set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+        set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
         call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\build.proj !__Logging! %__RunArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
 
@@ -813,7 +815,7 @@ if %__BuildPackages% EQU 1 (
     set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-    set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+    set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
     REM The conditions as to what to build are captured in the builds file.
     call %__ProjectDir%\run.cmd build -Project=%__SourceDir%\.nuget\packages.builds !__Logging! -platform=%__BuildArch% %__RunArgs% %__UnprocessedBuildArgs%
@@ -985,7 +987,7 @@ echo -skipnative: skip building native components ^(default: native components a
 echo -skiptests: skip building tests ^(default: tests are built^).
 echo -skipbuildpackages: skip building nuget packages ^(default: packages are built^).
 echo -skiprestoreoptdata: skip restoring optimization data used by profile-based optimizations.
-echo -skiprestore: skip restoring packages ^(default: packages are restored during build^).
+echo -skiprestore: skip restoring packages ^(default: \s are restored during build^).
 echo -disableoss: Disable Open Source Signing for System.Private.CoreLib.
 echo -priority=^<N^> : specify a set of test that will be built and run, with priority N.
 echo -officialbuildid=^<ID^>: specify the official build ID to be used by this build.

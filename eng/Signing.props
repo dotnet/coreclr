@@ -2,7 +2,7 @@
   <ItemGroup>
     <!-- List of container files that will be opened and checked for files that need to be signed. -->
     <!-- TODO: Make it architecture specific -->
-    <ItemsToSign Include="$(RepoRoot)bin\product\**\*.nupkg" />
+    <ItemsToSign Include="$(RepoRoot)bin\product\.nuget\**\*.nupkg" />
   </ItemGroup>
    <Target Name="ValidateSignFileListIsNotEmpty" BeforeTargets="Sign">
     <Error Condition="'@(ItemsToSign)' == ''" Text="List of files to sign is empty" />

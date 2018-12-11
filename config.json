@@ -76,7 +76,7 @@
       "description": "MsBuild logging options.",
       "valueType": "passThrough",
       "values": [],
-      "defaultValue": "/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"
+      "defaultValue": "'/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log'"
     },
     "FilterToOSGroup": {
       "description": "Specifies the OSGroup.",
@@ -555,7 +555,7 @@
           "MsBuildLog": "default",
           "MsBuildWrn": "default",
           "MsBuildErr": "default",
-          "MsBuildEventLogging": " ",
+          "MsBuildEventLogging": "default",
           "RestoreDefaultOptimizationDataPackage": "false",
           "PortableBuild": "true",
           "UsePartialNGENOptimization": "false",
@@ -587,7 +587,7 @@
       "defaultValues": {
         "toolName": "msbuild",
         "settings": {
-          "MsBuildLog":"/flp:v=normal;LogFile=clean.log"
+          "MsBuildLog":"'/flp:v=normal;LogFile=clean.log'"
         }
       }
     },
@@ -647,7 +647,7 @@
         "verbose": {
           "description": "Passes /flp:v=diag to the msbuild command or the value passed by the user.",
           "settings": {
-            "MsBuildFileLogging": "/flp:v=diag;LogFile=sync.log"
+            "MsBuildFileLogging": "'/flp:v=diag;LogFile=sync.log'"
           }
         },
         "buildMajor": {
@@ -672,7 +672,7 @@
       "defaultValues": {
         "toolName": "msbuild",
         "settings": {
-          "MsBuildFileLogging": "/flp:v=detailed;LogFile=sync.log"
+          "MsBuildFileLogging": "'/flp:v=detailed;LogFile=sync.log'"
         }
       }
     },
@@ -744,7 +744,7 @@
         "settings": {
           "__BuildOS": "default",
           "Project": "./src/publish.proj",
-          "MsBuildFileLogging": "/flp:v=detailed;LogFile=publish-packages.log /clp:v=detailed"
+          "MsBuildFileLogging": "'/flp:v=detailed;LogFile=publish-packages.log' /clp:v=detailed"
         }
       }
     },
@@ -773,7 +773,7 @@
         "toolName": "msbuild",
         "settings": {
           "__BuildOS": "default",
-          "MsBuildFileLogging": "/flp:v=detailed;Append;LogFile=build-packages.log",
+          "MsBuildFileLogging": "'/flp:v=detailed;Append;LogFile=build-packages.log'",
           "MsBuildEventLogging": "default",
           "PortableBuild": "true",
           "Project": "src/.nuget/packages.builds"
@@ -786,7 +786,7 @@
       "osSpecific": {
         "windows": {
           "defaultParameters": "/nologo /verbosity:minimal /clp:Summary /nodeReuse:false",
-          "path": "./eng/common/msbuild.ps1"
+          "path": "eng/msbuild.cmd"
         },
         "unix": {
           "defaultParameters": "/nologo /verbosity:minimal /clp:Summary",

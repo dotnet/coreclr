@@ -235,7 +235,7 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
 call "%__ProjectDir%\run.cmd" build -Project="%__NativeTestIntermediatesDir%\install.vcxproj" !__Logging! -configuration=%__BuildType% -platform=%__BuildArch% %__RunArgs% %__PriorityArg% %__PassThroughArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
@@ -268,7 +268,7 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
 call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -BatchRestorePackages !__Logging! %__RunArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__PassThroughArg% %__UnprocessedBuildArgs%
 
@@ -283,7 +283,7 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
 call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\runtest.proj -BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct -RuntimeId="%__RuntimeId%" !__Logging! %__RunArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__PassThroughArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
@@ -416,7 +416,7 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
 call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -testOverlay !__Logging! %__RunArgs% %RuntimeIdArg% %__PriorityArg% %__PassThroughArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
@@ -445,7 +445,7 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
 call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -testHost !__Logging! %__RunArgs% %RuntimeIdArg% %__PriorityArg% %__PassThroughArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
@@ -525,7 +525,7 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
+set __Logging=-MsBuildLog='!__MsbuildLog!' -MsBuildWrn='!__MsbuildWrn!' -MsBuildErr='!__MsbuildErr!'
 
 call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\helixprep.proj !__Logging! %__RunArgs% %RuntimeIdArg% %TargetsWindowsArg% %__CrossgenArg% %__PriorityArg% %__PassThroughArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (

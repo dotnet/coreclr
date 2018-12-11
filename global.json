@@ -13,7 +13,9 @@
                 "Microsoft.Component.VC.Runtime.UCRTSDK",
                 "Microsoft.VisualStudio.Component.VC.CoreIde",
                 "Microsoft.VisualStudio.Component.Windows10SDK.17134",
-                "Microsoft.VisualStudio.Component.VC.Tools.ARM"
+                "Microsoft.VisualStudio.Component.Windows10SDK.16299.Desktop.arm",
+                "Microsoft.VisualStudio.Component.VC.Tools.ARM",
+                "Microsoft.VisualStudio.Component.VC.Tools.ARM64"
             ]
         }
     },
