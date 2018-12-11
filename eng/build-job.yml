@@ -50,7 +50,12 @@ jobs:
       # TODO: IBCOptimize? EnforcePGO? pass an OfficialBuildId? SignType? file logging parameters?
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipnative -windowsmscorlib
         displayName: Build product
-
+        
+    # Sign on Windows
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(parameters.osGroup, 'Windows_NT')) }}:
+    # TODO: Replace this with arcade's built-in signing when we build with arcade
+      - script: powershell eng\common\build.ps1 -ci -restore -build src\sign_azdo.proj /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:SignType=$(_SignType) /p:OfficialBuild=true
+        displayName: Sign Binaries
 
     # Upload build as pipeline artifact
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
@@ -65,14 +70,6 @@ jobs:
         inputs:
           artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
           targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
-
-
-    # Sign on Windows
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(parameters.osGroup, 'Windows_NT')) }}:
-    # TODO: Replace this with arcade's built-in signing when we build with arcade
-      - script: powershell eng\common\build.ps1 -ci -restore -build src\sign_azdo.proj /p:BuildOS=$(parameters.osGroup) /p:BuildArch=$(parameters.archType) /p:BuildType=$(parameters.buildConfig) /p:SignType=$(variables['_SignType']) /p:OfficialBuild=true
-        displayName: Sign Binaries
-
 
     # Get key vault secrets for publishing
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
