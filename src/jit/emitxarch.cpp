@@ -352,9 +352,11 @@ bool TakesRexWPrefix(instruction ins, emitAttr attr)
         switch (ins)
         {
             case INS_andn:
+            case INS_bextr:
             case INS_blsi:
             case INS_blsmsk:
             case INS_blsr:
+            case INS_bzhi:
             case INS_cvttsd2si:
             case INS_cvttss2si:
             case INS_cvtsd2si:
@@ -364,6 +366,7 @@ bool TakesRexWPrefix(instruction ins, emitAttr attr)
             case INS_mov_xmm2i:
             case INS_mov_i2xmm:
             case INS_movnti:
+            case INS_mulx:
             case INS_pdep:
             case INS_pext:
                 return true;
@@ -601,6 +604,7 @@ unsigned emitter::emitOutputRexOrVexPrefixIfNeeded(instruction ins, BYTE* dst, c
                             switch (ins)
                             {
                                 case INS_pdep:
+                                case INS_mulx:
                                 {
                                     vexPrefix |= 0x03;
                                     break;
@@ -1027,9 +1031,11 @@ bool emitter::emitInsCanOnlyWriteSSE2OrAVXReg(instrDesc* id)
     switch (ins)
     {
         case INS_andn:
+        case INS_bextr:
         case INS_blsi:
         case INS_blsmsk:
         case INS_blsr:
+        case INS_bzhi:
         case INS_cvttsd2si:
         case INS_cvttss2si:
         case INS_cvtsd2si:
@@ -1038,6 +1044,7 @@ bool emitter::emitInsCanOnlyWriteSSE2OrAVXReg(instrDesc* id)
         case INS_mov_xmm2i:
         case INS_movmskpd:
         case INS_movmskps:
+        case INS_mulx:
         case INS_pdep:
         case INS_pext:
         case INS_pmovmskb:
