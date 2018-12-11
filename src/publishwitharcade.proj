@@ -1,37 +1,47 @@
-<Project DefaultTargets="PublishProductPackages" Sdk="Microsoft.DotNet.Arcade.Sdk">
+<Project DefaultTargets="PublishPackages" Sdk="Microsoft.DotNet.Arcade.Sdk">
 
   <!-- TODO: move properties imported from here into a common props file -->
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
 
   <Import Project="$(NuGetPackageRoot)microsoft.dotnet.build.tasks.feed\$(MicrosoftDotNetBuildTasksFeedVersion)\build\Microsoft.DotNet.Build.Tasks.Feed.targets" />
 
+  <PropertyGroup>
+    <!-- Set the TargetFramework just to make the SDK happy -->
+    <TargetFramework>net462</TargetFramework>
+  </PropertyGroup>
+
   <Target Name="PublishPackages">
 
     <ItemGroup>
-      <ItemsToPush Remove="*.nupkg" />
-      <ItemsToPush Include="$(PackagesBinDir)pkg\*.nupkg">
-        <ManifestArtifactData>NonShipping=true</ManifestArtifactData> <!-- TODO: how is this metadata used? -->
-      </ItemsToPush>
+      <PackagesToPublish Include="$(PackagesBinDir)pkg\*.nupkg" IsShipping="true" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ItemsToPushToBlobFeed Include="@(PackagesToPublish)">
+        <ManifestArtifactData Condition="!%(IsShipping)">NonShipping=true</ManifestArtifactData> <!-- TODO: how is this metadata used? -->
+      </ItemsToPushToBlobFeed>
     </ItemGroup>
 
     <Error Condition=" '$(AzureFeedUrl)' == '' " Text="AzureFeedUrl must be set" />
-    <Error Condition=" '$(AccountKey)' == '' " Text="AccountKey must be set" />
+    <Error Condition=" '$(AzureAccountKey)' == '' " Text="AzureAccountKey must be set" />
     <Error Condition=" '$(BUILD_REPOSITORY_URI)' == '' " Text="BUILD_REPOSITORY_URI must be set" />
     <Error Condition=" '$(BUILD_SOURCEBRANCH)' == '' " Text="BUILD_SOURCEBRANCH must be set" />
     <Error Condition=" '$(BUILD_BUILDNUMBER)' == '' " Text="BUILD_BUILDNUMBER must be set" />
     <Error Condition=" '$(BUILD_SOURCEVERSION)' == '' " Text="BUILD_SOURCEVERSION must be set" />
 
+
+    <PropertyGroup>
+      <AssetManifestFilePath>$(ArtifactsLogDir)AssetManifest\$(BuildOS)-$(BuildArch)</AssetManifestFilePath>
+    </PropertyGroup>
     <PushToBlobFeed ExpectedFeedUrl="$(AzureFeedUrl)"
-                    AccountKey="$(AccountKey)"
-                    ItemsToPush="@(ItemsToPush)"
+                    AccountKey="$(AzureAccountKey)"
+                    ItemsToPush="@(ItemsToPushToBlobFeed)"
                     ManifestBuildData="Location=$(AzureFeedUrl)"
                     ManifestRepoUri="$(BUILD_REPOSITORY_URI)"
                     ManifestBranch="$(BUILD_SOURCEBRANCH)"
                     ManifestBuildId="$(BUILD_BUILDNUMBER)"
                     ManifestCommit="$(BUILD_SOURCEVERSION)" />
-                    <!-- TODO: The arcade sample publishes an asset manifest. Do we want this?
-                    AssetManifestPath="" />
-                    -->
+                    AssetManifestPath="$(AssetManifestFilePath)" />
   </Target>
 
 </Project>

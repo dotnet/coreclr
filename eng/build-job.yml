@@ -77,18 +77,26 @@ jobs:
           SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
 
 
-    # TODO: Build packages and publish official build
-    #- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-    #    ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-    #      # TODO: ensure that NUGET_PACKAGES path is correctly set
-    #      - script: .dotnet/dotnet msbuild src/restorearcadepublishtasks.proj /t:Restore
-    #        displayName: Restore tasks used to publish the build
-    #      - script: .dotnet/dotnet msbuild src/publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)
-    #        displayName: Publish official build
-    #    ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-    #      # TODO: pass publish feed url and access token in from the internal pipeline
-    #      - script: .dotnet\dotnet.exe msbuild src\restorearcadepublishtasks.proj /t:Restore
-    #        displayName: Restore tasks used to publish the build
+    # Build packages and publish official build
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+        ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+          - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
+            displayName: Build packages
+          # TODO: Bootstrap arcade earlier once we have onboarded the repo build
+          # This bootstraps the cli and arcade, and restores the blob feed package
+          - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore
+          # TODO: ensure this is only done for official/release, etc...
+            displayName: Restore blob feed tasks
+          - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj
+            displayName: Publish packages to blob feed
+        ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+          # TODO: pass publish feed url and access token in from the internal pipeline
+          - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
+            displayName: Build packages
+          - script: eng\common\build.cmd /p:DotNetPublishToBlobFeed=true --ci --restore
+            displayName: Restore blob feed tasks
+          - script: eng\common\msbuild.cmd --ci src\publishwitharcade.proj
+            displayName: Publish packages to blob feed
     #      - script: .dotnet\dotnet.exe msbuild src\publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)
 
     # Kill tasks that hold onto files on Windows. Otherwise git clean
