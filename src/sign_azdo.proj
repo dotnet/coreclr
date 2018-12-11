@@ -4,10 +4,10 @@
   <Import Project="..\dir.props"/>
   <Import Project="..\dir.targets" />
 
-  <PropertyGroup>
+  <!-- <PropertyGroup>
     <NuGetPackageRoot>$(MSBuildThisFileDirectory)..\packages\</NuGetPackageRoot>
-  </PropertyGroup>
-  <Import Project="$(NuGetPackageRoot)\microsoft.dotnet.signtool\$(MicrosoftDotNetSignToolVersion)\build\Microsoft.DotNet.SignTool.props" />
+  </PropertyGroup> -->
+  <Import Project="$(NUGET_PACKAGES)\microsoft.dotnet.signtool\$(MicrosoftDotNetSignToolVersion)\build\Microsoft.DotNet.SignTool.props" />
 
   <ItemGroup>
     <!--
@@ -86,6 +86,9 @@
 
   </Target>
 
+  <!-- No-op target to make the arcade build script happy -->
+  <Target Name="Restore" />
+
   <Target Name="Build"
           Condition="'$(SkipSigning)' != 'true'"
           DependsOnTargets="GetFilesToSignItems">
@@ -124,8 +127,8 @@
             TempDir="$(IntermediateOutputRootPath)"
             LogDir="$(IntermediateOutputRootPath)"
             MSBuildPath="$(_DesktopMSBuildPath)"
-            SNBinaryPath="$(NuGetPackageRoot)sn\$(SNVersion)\sn.exe"
-            MicroBuildCorePath="$(NuGetPackageRoot)microbuild.core\$(MicroBuildCoreVersion)"/>
+            SNBinaryPath="$(NUGET_PACKAGES)sn\$(SNVersion)\sn.exe"
+            MicroBuildCorePath="$(NUGET_PACKAGES)microbuild.core\$(MicroBuildCoreVersion)"/>
     <!-- now that the files have been signed delete the marker files -->
     <Delete Files="@(SignMarkerFile)" />
   </Target>
