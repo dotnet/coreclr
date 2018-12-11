@@ -14,6 +14,7 @@
     <EnableAzurePipelinesReporter Condition=" '$(EnableAzurePipelinesReporter)' != 'false' ">true</EnableAzurePipelinesReporter>
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
     <SourceDirectory>$(MSBuildProjectDirectory)/..</SourceDirectory>
+    <TimeoutInSeconds Condition=" '$(TimeoutInSeconds)' == '' ">1000</TimeoutInSeconds>
   </PropertyGroup>
 
   <ItemGroup>
@@ -56,6 +57,7 @@
         <PayloadArchive>%(Identity)</PayloadArchive>
         <Command Condition=" '$(Scenario)' == '' ">python runtest_helix.py -wrapper %(FileName).dll</Command>
         <Command Condition=" '$(Scenario)' != '' ">python runtest_helix.py -scenario $(Scenario) -wrapper %(FileName).dll</Command>
+        <Timeout>$([System.TimeSpan]::FromSeconds($(TimeoutInSeconds)))</Timeout>
       </HelixWorkItem>
     </ItemGroup>
 
