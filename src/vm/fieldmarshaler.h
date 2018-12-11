@@ -142,7 +142,6 @@ BOOL IsStructMarshalable(TypeHandle th);
 struct LayoutRawFieldInfo
 {
     mdFieldDef  m_MD;             // mdMemberDefNil for end of array
-    UINT8       m_nft;            // NFT_* value
     UINT32      m_offset;         // native offset of field
     UINT32      m_cbNativeSize;   // native size of field in bytes
     ULONG       m_sequence;       // sequence # from metadata

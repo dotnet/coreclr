@@ -86,18 +86,10 @@ VOID ParseNativeType(Module*                     pModule,
     }
     CONTRACTL_END;
 
+
     // Make sure that there is no junk in the unused part of the field marshaler space (ngen image determinism)
     ZeroMemory(&pfwalk->m_FieldMarshaler, MAXFIELDMARSHALERSIZE);
 
-#define INITFIELDMARSHALER(nfttype, nfctype, fmtype, args)       \
-do                                                      \
-{                                                       \
-    static_assert_no_msg(sizeof(fmtype) <= MAXFIELDMARSHALERSIZE);  \
-    pfwalk->m_nft = (nfttype);                          \
-    new ( &(pfwalk->m_FieldMarshaler) ) fmtype args;    \
-    ((FieldMarshaler*)&(pfwalk->m_FieldMarshaler))->SetNStructFieldType(nfttype); \
-    ((FieldMarshaler*)&(pfwalk->m_FieldMarshaler))->SetNativeFieldFlags(nfctype); \
-} while(0)
 
     BOOL                fAnsi               = (flags == ParseNativeTypeFlags::IsAnsi);
 #ifdef FEATURE_COMINTEROP
@@ -110,8 +102,6 @@ do                                                      \
     BOOL                fDefault;
     BOOL                BestFit;
     BOOL                ThrowOnUnmappableChar;
-    
-    pfwalk->m_nft = NFT_NONE;
 
     if (cbNativeType == 0)
     {
@@ -124,14 +114,6 @@ do                                                      \
         cbNativeType--;
         fDefault = (ntype == NATIVE_TYPE_DEFAULT);
     }
-
-#ifdef FEATURE_COMINTEROP
-    if (fIsWinRT && !fDefault)
-    {
-        // Do not allow any MarshalAs in WinRT scenarios - marshaling is fully described by the field type.
-        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_MARSHAL_AS));
-    }
-#endif // FEATURE_COMINTEROP
 
     // Setup the signature and normalize
     MetaSig fsig(pCOMSignature, cbCOMSignature, pModule, pTypeContext, MetaSig::sigField);
@@ -194,6 +176,27 @@ do                                                      \
             *pfDisqualifyFromManagedSequential = TRUE;
         }
     }
+
+    NStructFieldType selectedNft = NFT_NONE;
+
+#define INITFIELDMARSHALER(nfttype, nfctype, fmtype, args)       \
+do                                                      \
+{                                                       \
+    static_assert_no_msg(sizeof(fmtype) <= MAXFIELDMARSHALERSIZE);  \
+    selectedNft = (nfttype);                          \
+    new ( &(pfwalk->m_FieldMarshaler) ) fmtype args;    \
+    ((FieldMarshaler*)&(pfwalk->m_FieldMarshaler))->SetNStructFieldType(nfttype); \
+    ((FieldMarshaler*)&(pfwalk->m_FieldMarshaler))->SetNativeFieldFlags(nfctype); \
+} while(0)
+
+
+#ifdef FEATURE_COMINTEROP
+    if (fIsWinRT && !fDefault)
+    {
+        // Do not allow any MarshalAs in WinRT scenarios - marshaling is fully described by the field type.
+        INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_MARSHAL_AS));
+    }
+#endif // FEATURE_COMINTEROP
 
 #ifdef _TARGET_X86_
     // Normalization might have put corElementType and ntype out of sync which can
@@ -965,12 +968,12 @@ do                                                      \
             break;
     }
 
-    if (pfwalk->m_nft == NFT_NONE)
+    if (selectedNft == NFT_NONE)
     {
         INITFIELDMARSHALER(NFT_ILLEGAL, NATIVE_FIELD_CATEGORY_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BADMANAGED));
     }
 #ifdef FEATURE_COMINTEROP
-    else if (fIsWinRT && !NFTDataBase[pfwalk->m_nft].m_fWinRTSupported)
+    else if (fIsWinRT && !NFTDataBase[(UINT16)selectedNft].m_fWinRTSupported)
     {
         // the field marshaler we came up with is not supported in WinRT scenarios
         ZeroMemory(&pfwalk->m_FieldMarshaler, MAXFIELDMARSHALERSIZE);
