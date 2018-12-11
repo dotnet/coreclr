@@ -186,17 +186,18 @@ jobs:
 # TODO: Enable publish to BAR
 - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
   - template: /eng/common/templates/job/publish-build-assets.yml
-    pool:
-      name: dotnet-internal-temp
-    dependsOn:
-    - build_Linux_arm_release
-    - build_Linux_arm64_release
-    - build_Linux_musl_x64_release
-    - build_Linux_rhel6_x64_release
-    - build_Linux_rhel7_x64_release
-    - build_Linux_x64_release
-    - build_OSX_x64_release
-    - build_Windows_NT_x64_relaese
-    - build_Windows_NT_x86_release
-    - build_Windows_NT_arm_release
-    - build_Windows_NT_arm64_release
+    parameters:
+      pool:
+        name: dotnet-internal-temp
+        dependsOn:
+        - build_Linux_arm_release
+        - build_Linux_arm64_release
+        - build_Linux_musl_x64_release
+        - build_Linux_rhel6_x64_release
+        - build_Linux_rhel7_x64_release
+        - build_Linux_x64_release
+        - build_OSX_x64_release
+        - build_Windows_NT_x64_relaese
+        - build_Windows_NT_x86_release
+        - build_Windows_NT_arm_release
+        - build_Windows_NT_arm64_release
