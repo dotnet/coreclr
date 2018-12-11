@@ -2686,6 +2686,7 @@ GetProcessModulesFromHandle(
     if (hPseudoCurrentProcess == hProcess)
     {
         pobjProcess = g_pobjProcess;
+        pobjProcess->AddReference();
     }
     else
     {
