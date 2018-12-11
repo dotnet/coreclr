@@ -79,7 +79,7 @@ jobs:
 
     # Build packages and publish official build
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-        ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+        - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
           - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
             displayName: Build packages
           # TODO: Bootstrap arcade earlier once we have onboarded the repo build
@@ -89,7 +89,7 @@ jobs:
             displayName: Restore blob feed tasks
           - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj
             displayName: Publish packages to blob feed
-        ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
           # TODO: pass publish feed url and access token in from the internal pipeline
           - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
             displayName: Build packages
