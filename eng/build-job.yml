@@ -24,6 +24,8 @@ jobs:
     containerName: ${{ parameters.containerName }}
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
+    gatherAssetManifests: true
+
     steps:
 
     # Install native dependencies

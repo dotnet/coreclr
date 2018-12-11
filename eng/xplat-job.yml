@@ -11,6 +11,10 @@ parameters:
   timeoutInMinutes: ''
   helixType: ''
   crossrootfsDir: ''
+
+  # arcade-specific parameters
+  gatherAssetManifests: false
+
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
@@ -53,6 +57,11 @@ jobs:
       agentOs: MacOS
     ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       agentOs: Windows_NT
+
+    # Setting this results in the arcade job template including a step
+    # that gathers asset manifests and publishes them to pipeline
+    # storage.
+    enablePublishBuildAssets: ${{ parameters.gatherAssetManifests }}
 
     variables:
       - name: buildConfig
