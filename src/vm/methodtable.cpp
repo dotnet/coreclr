@@ -2759,6 +2759,10 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         {
             return false;
         }
+        else
+        {
+            UNREACHABLE_MSG("Invalid native field subcategory.");
+        }
 
         if ((normalizedFieldOffset % fieldNativeSize) != 0)
         {

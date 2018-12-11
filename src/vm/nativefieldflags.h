@@ -30,7 +30,7 @@ enum NativeFieldFlags : short
     // The field is a layout class type (reference type with LayoutKind != LayoutKind.Auto)
     NATIVE_FIELD_CATEGORY_NESTED_LAYOUT_CLASS = NATIVE_FIELD_SUBCATEGORY_NESTED,
     // The field is a value class type
-    NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS = NATIVE_FIELD_SUBCATEGORY_NESTED & NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE,
+    NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS = NATIVE_FIELD_SUBCATEGORY_NESTED | NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE,
     // The field is a System.DateTime (marshals to a double on Windows)
     NATIVE_FIELD_CATEGORY_DATE = NATIVE_FIELD_SUBCATEGORY_FLOAT | NATIVE_FIELD_SUBCATEGORY_COM_TYPE,
     // The field is marshalled as an in-place (by-value) array.
