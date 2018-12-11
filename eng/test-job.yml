@@ -25,7 +25,7 @@ jobs:
     # Compute job name from template parameters
     ${{ if eq(parameters.crossgen, 'false') }}:
         name: ${{ format('testbuild_pri{0}_{1}_{2}_{3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
-        displayName: ${{ format('Test pri{0} {1} {2} {3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
+        displayName: ${{ format('Test Pri{0} {1} {2} {3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
     ${{ if eq(parameters.crossgen, 'true') }}:
         name: ${{ format('testbuild_pri{0}_r2r_{1}_{2}_{3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
         displayName: ${{ format('Test Pri{0} R2R {1} {2} {3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
