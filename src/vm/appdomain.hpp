@@ -43,10 +43,7 @@
 
 #include "appxutil.h"
 
-#ifdef FEATURE_TIERED_COMPILATION
 #include "tieredcompilation.h"
-#include "callcounter.h"
-#endif
 
 #include "codeversion.h"
 

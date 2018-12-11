@@ -184,7 +184,9 @@ inline CallCounter * MethodDesc::GetCallCounter()
     LIMITED_METHOD_CONTRACT;
     return GetLoaderAllocator()->GetCallCounter();
 }
+#endif
 
+#ifndef CROSSGEN_COMPILE
 inline MethodDescBackpatchInfoTracker * MethodDesc::GetBackpatchInfoTracker()
 {
     LIMITED_METHOD_CONTRACT;

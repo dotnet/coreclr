@@ -142,7 +142,7 @@ struct DispatchStub
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(slotTypeRef != nullptr);
 
-        *slotTypeRef = EntryPointSlotsToBackpatch::SlotType_IsExecutable_IsRelativeToEndOfSlot;
+        *slotTypeRef = EntryPointSlotsToBackpatch::SlotType_IsExecutable_IsRel32;
         return (TADDR)&_implDispl;
     }
 

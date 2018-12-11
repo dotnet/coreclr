@@ -509,6 +509,9 @@ public:
 #endif
 #ifdef FEATURE_TIERED_COMPILATION
     CallCounter* GetCallCounter();
+#endif
+
+#ifndef CROSSGEN_COMPILE
     MethodDescBackpatchInfoTracker* GetBackpatchInfoTracker();
 #endif
 
@@ -1285,12 +1288,13 @@ public:
         //     JIT is scheduled
         //   - After the tier 1 JIT completes, the slot is transitioned to the tier 1 entry point
 
-#ifdef FEATURE_TIERED_COMPILATION
+#if defined(FEATURE_TIERED_COMPILATION) && !defined(CROSSGEN_COMPILE)
         return
-            g_pConfig->TieredCompilation_PatchVtableSlots() &&
+            g_pConfig->BackpatchEntryPointSlots() &&
             IsVtableSlot() &&
             !(IsInterface() && !IsStatic()); // true interface methods are not backpatched, see DoBackpatch()
 #else
+        // Entry point slot backpatch is disabled for CrossGen
         return false;
 #endif
     }
@@ -1301,7 +1305,87 @@ public:
         return IsEligibleForTieredCompilation() && IsTieredMethodVersionableWithVtableSlotBackpatch();
     }
 
-#ifdef FEATURE_TIERED_COMPILATION
+    bool IsEligibleForEntryPointSlotBackpatch()
+    {
+        WRAPPER_NO_CONTRACT;
+
+#ifndef CROSSGEN_COMPILE
+        return
+            IsEligibleForTieredCompilation()
+                ? IsTieredMethodEligibleForEntryPointSlotBackpatch()
+                : IsUntieredMethodEligibleForEntryPointSlotBackpatch();
+#else
+        // Entry point slot backpatch is disabled for CrossGen
+        return false;
+#endif
+    }
+
+    bool IsTieredMethodEligibleForEntryPointSlotBackpatch()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(IsEligibleForTieredCompilation());
+
+#ifndef CROSSGEN_COMPILE
+        return IsTieredMethodVersionableWithVtableSlotBackpatch();
+#else
+        // Entry point slot backpatch is disabled for CrossGen
+        return false;
+#endif
+    }
+
+    bool IsUntieredMethodEligibleForEntryPointSlotBackpatch()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(!IsEligibleForTieredCompilation());
+
+#ifndef CROSSGEN_COMPILE
+        // Untiered methods are currently not eligible for entry point slot backpatch, but may be in some cases in the future
+        return false;
+#else
+        // Entry point slot backpatch is disabled for CrossGen
+        return false;
+#endif
+    }
+
+#ifndef CROSSGEN_COMPILE
+
+private:
+    // Gets the prestub entry point to use for backpatching. Entry point slot backpatching uses this entry point as an oracle to
+    // determine if the entry point actually changed and warrants backpatching.
+    PCODE GetPrestubEntryPointToBackpatch()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
+
+        _ASSERTE(IsTieredVtableMethod()); // at the moment this is the only case, see IsEligibleForEntryPointSlotBackpatch()
+        return GetTemporaryEntryPoint();
+    }
+
+    // Gets the entry point stored in the primary storage location for backpatching. Entry point slot backpatching uses this
+    // entry point as an oracle to determine if the entry point actually changed and warrants backpatching.
+    PCODE GetEntryPointToBackpatch_Locked()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
+        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
+
+        _ASSERTE(IsTieredVtableMethod()); // at the moment this is the only case, see IsEligibleForEntryPointSlotBackpatch()
+        return GetMethodEntryPoint();
+    }
+
+    // Sets the entry point stored in the primary storage location for backpatching. Entry point slot backpatching uses this
+    // entry point as an oracle to determine if the entry point actually changed and warrants backpatching.
+    void SetEntryPointToBackpatch_Locked(PCODE entryPoint, bool isPrestubEntryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
+        _ASSERTE(entryPoint != NULL);
+        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
+
+        _ASSERTE(IsTieredVtableMethod()); // at the moment this is the only case, see IsEligibleForEntryPointSlotBackpatch()
+        SetMethodEntryPoint(entryPoint);
+    }
+
 public:
     void RecordAndBackpatchEntryPointSlot(LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlotsToBackpatch::SlotType slotType);
 private:
@@ -1311,23 +1395,30 @@ public:
     void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint)
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsTieredVtableMethod());
-        _ASSERTE(entryPoint != GetTemporaryEntryPoint());
+        _ASSERTE(entryPoint != GetPrestubEntryPointToBackpatch());
+        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
 
-        BackpatchEntryPointSlots(entryPoint, false /* isTemporaryEntryPoint */);
+        BackpatchEntryPointSlots(entryPoint, false /* isPrestubEntryPoint */);
     }
 
     void MethodDesc::BackpatchToResetEntryPointSlots()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsTieredVtableMethod());
+        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
 
-        BackpatchEntryPointSlots(GetTemporaryEntryPoint(), true /* isTemporaryEntryPoint */);
+        BackpatchEntryPointSlots(GetPrestubEntryPointToBackpatch(), true /* isPrestubEntryPoint */);
     }
 
 private:
-    void BackpatchEntryPointSlots(PCODE entryPoint, bool isTemporaryEntryPoint);
-#endif
+    void BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint);
+
+private:
+    void SetUntieredMethodEntryPoint(PCODE entryPoint);
+public:
+    void SetTieredMethodEntryPoint(PCODE entryPoint);
+    void ResetTieredMethodEntryPoint();
+
+#endif // !CROSSGEN_COMPILE
 
 public:
     bool RequestedAggressiveOptimization()
@@ -1356,11 +1447,7 @@ public:
             return false;
 #endif
 
-        return 
-#ifdef FEATURE_TIERED_COMPILATION
-            !IsEligibleForTieredCompilation() &&
-#endif
-            !IsEnCMethod();
+        return !IsEligibleForTieredCompilation() && !IsEnCMethod();
     }
 
     //Is this method currently pointing to native code that will never change?

@@ -268,6 +268,9 @@ private:
 
 #ifdef FEATURE_TIERED_COMPILATION
     CallCounter m_callCounter;
+#endif
+
+#ifndef CROSSGEN_COMPILE
     MethodDescBackpatchInfoTracker m_methodDescBackpatchInfoTracker;
 #endif
 
@@ -583,13 +586,15 @@ public:
         LIMITED_METHOD_CONTRACT;
         return &m_callCounter;
     }
+#endif // FEATURE_TIERED_COMPILATION
 
+#ifndef CROSSGEN_COMPILE
     MethodDescBackpatchInfoTracker *GetMethodDescBackpatchInfoTracker()
     {
         LIMITED_METHOD_CONTRACT;
         return &m_methodDescBackpatchInfoTracker;
     }
-#endif // FEATURE_TIERED_COMPILATION
+#endif
 };  // class LoaderAllocator
 
 typedef VPTR(LoaderAllocator) PTR_LoaderAllocator;

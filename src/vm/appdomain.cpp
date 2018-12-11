@@ -3904,9 +3904,11 @@ void AppDomain::Terminate()
     }
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_TIERED_COMPILATION
+#ifndef CROSSGEN_COMPILE
     // Recorded entry point slots may point into the virtual call stub manager's heaps, so clear it first
-    GetLoaderAllocator()->GetMethodDescBackpatchInfoTracker()->ClearDependencyMethodDescEntryPointSlotsToBackpatchHash();
+    GetLoaderAllocator()
+        ->GetMethodDescBackpatchInfoTracker()
+        ->ClearDependencyMethodDescEntryPointSlotsToBackpatchHash(GetLoaderAllocator());
 #endif
 
     if (!IsAtProcessExit())

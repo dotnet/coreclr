@@ -3,12 +3,14 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
+
 #include "excep.h"
 #include "log.h"
-#include "tieredcompilation.h"
 #include "methoddescbackpatchinfo.h"
 
-#ifdef FEATURE_TIERED_COMPILATION
+#ifdef CROSSGEN_COMPILE
+    #error This file is not expected to be included into CrossGen
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EntryPointSlotsToBackpatch
@@ -37,10 +39,11 @@ void EntryPointSlotsToBackpatch::Backpatch_Locked(TADDR slot, SlotType slotType,
     WRAPPER_NO_CONTRACT;
     _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(slot != NULL);
-    _ASSERTE(IS_ALIGNED((SIZE_T)slot, sizeof(void *)));
     _ASSERTE(!(slot & SlotType_Mask));
+    _ASSERTE(slotType >= SlotType_Normal);
     _ASSERTE(slotType < SlotType_Count);
     _ASSERTE(entryPoint != NULL);
+    _ASSERTE(IS_ALIGNED((SIZE_T)slot, GetRequiredSlotAlignment(slotType)));
 
     switch (slotType)
     {
@@ -56,7 +59,10 @@ void EntryPointSlotsToBackpatch::Backpatch_Locked(TADDR slot, SlotType slotType,
             *(PCODE *)slot = entryPoint;
             goto Flush;
 
-        case SlotType_IsExecutable_IsRelativeToEndOfSlot:
+        case SlotType_IsExecutable_IsRel32:
+            // A rel32 may require a jump stub on some architectures, and is currently not supported
+            _ASSERTE(sizeof(void *) <= 4);
+
             *(PCODE *)slot = entryPoint - ((PCODE)slot + sizeof(PCODE));
             // fall through
 
@@ -145,13 +151,13 @@ bool MethodDescBackpatchInfoTracker::IsLockedByCurrentThread()
 #endif
 }
 
-bool MethodDescBackpatchInfoTracker::IsTieredVtableMethod(PTR_MethodDesc methodDesc)
+bool MethodDescBackpatchInfoTracker::IsEligibleForEntryPointSlotBackpatch(PTR_MethodDesc methodDesc)
 {
     // The only purpose of this method is to allow asserts in inline functions defined in the .h file, by which time MethodDesc
     // is not fully defined
 
     WRAPPER_NO_CONTRACT;
-    return methodDesc->IsTieredVtableMethod();
+    return methodDesc->IsEligibleForEntryPointSlotBackpatch();
 }
 
 #endif // _DEBUG
@@ -163,7 +169,7 @@ MethodDescBackpatchInfo *MethodDescBackpatchInfoTracker::AddBackpatchInfo_Locked
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsLockedByCurrentThread());
     _ASSERTE(methodDesc != nullptr);
-    _ASSERTE(methodDesc->IsTieredVtableMethod());
+    _ASSERTE(methodDesc->IsEligibleForEntryPointSlotBackpatch());
     _ASSERTE(m_backpatchInfoHash.Lookup(methodDesc) == nullptr);
 
     NewHolder<MethodDescBackpatchInfo> backpatchInfoHolder = new MethodDescBackpatchInfo(methodDesc);
@@ -177,7 +183,7 @@ EntryPointSlotsToBackpatch *MethodDescBackpatchInfoTracker::GetDependencyMethodD
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsLockedByCurrentThread());
     _ASSERTE(methodDesc != nullptr);
-    _ASSERTE(methodDesc->IsTieredVtableMethod());
+    _ASSERTE(methodDesc->IsEligibleForEntryPointSlotBackpatch());
 
     MethodDescEntryPointSlotsToBackpatch *methodDescSlots =
         m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Lookup(methodDesc);
@@ -190,7 +196,7 @@ EntryPointSlotsToBackpatch *MethodDescBackpatchInfoTracker::GetOrAddDependencyMe
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsLockedByCurrentThread());
     _ASSERTE(methodDesc != nullptr);
-    _ASSERTE(methodDesc->IsTieredVtableMethod());
+    _ASSERTE(methodDesc->IsEligibleForEntryPointSlotBackpatch());
 
     MethodDescEntryPointSlotsToBackpatch *methodDescSlots =
         m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Lookup(methodDesc);
@@ -205,9 +211,11 @@ EntryPointSlotsToBackpatch *MethodDescBackpatchInfoTracker::GetOrAddDependencyMe
     return methodDescSlotsHolder.Extract()->GetSlots();
 }
 
-void MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash()
+void MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash(LoaderAllocator *loaderAllocator)
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(loaderAllocator != nullptr);
+    _ASSERTE(loaderAllocator->GetMethodDescBackpatchInfoTracker() == this);
 
     ConditionalLockHolder lockHolder;
 
@@ -221,7 +229,7 @@ void MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlotsToB
         MethodDescBackpatchInfo *backpatchInfo = methodDesc->GetBackpatchInfoTracker()->GetBackpatchInfo_Locked(methodDesc);
         if (backpatchInfo != nullptr)
         {
-            backpatchInfo->RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(this);
+            backpatchInfo->RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(loaderAllocator);
         }
     }
 
@@ -231,5 +239,3 @@ void MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlotsToB
 #endif // DACCESS_COMPILE
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#endif // FEATURE_TIERED_COMPILATION

@@ -2246,46 +2246,12 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
     PCODE pCode = nativeCodeVersion.IsNull() ? NULL : nativeCodeVersion.GetNativeCode();
     if (pMethod->IsEligibleForTieredCompilation())
     {
-        if (pMethod->IsTieredMethodVersionableWithPrecode())
+        EX_TRY
         {
-            Precode* pPrecode = pMethod->GetOrCreatePrecode();
-            if (pCode == NULL)
-            {
-                EX_TRY
-                {
-                    pPrecode->Reset();
-                }
-                EX_CATCH_HRESULT(hr);
-                return hr;
-            }
-            else
-            {
-                EX_TRY
-                {
-                    pPrecode->SetTargetInterlocked(pCode, FALSE);
-
-                    // SetTargetInterlocked() would return false if it lost the race with another thread. That is fine, this thread
-                    // can continue assuming it was successful, similarly to it successfully updating the target and another thread
-                    // updating the target again shortly afterwards.
-                    hr = S_OK;
-                }
-                EX_CATCH_HRESULT(hr);
-                return hr;
-            }
+            pMethod->SetTieredMethodEntryPoint(pCode);
         }
-        else
-        {
-            _ASSERTE(pMethod->IsTieredMethodVersionableWithVtableSlotBackpatch());
-            if (pCode == NULL)
-            {
-                pMethod->BackpatchToResetEntryPointSlots();
-            }
-            else
-            {
-                pMethod->BackpatchEntryPointSlots(pCode);
-            }
-            return S_OK;
-        }
+        EX_CATCH_HRESULT(hr);
+        return hr;
     }
     else
     {

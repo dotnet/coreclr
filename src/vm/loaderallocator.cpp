@@ -598,12 +598,10 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
 
         pDomainLoaderAllocatorDestroyIterator->ReleaseManagedAssemblyLoadContext();
 
-    #ifdef FEATURE_TIERED_COMPILATION
         // Recorded entry point slots may point into the virtual call stub manager's heaps, so clear it first
         pDomainLoaderAllocatorDestroyIterator
             ->GetMethodDescBackpatchInfoTracker()
-            ->ClearDependencyMethodDescEntryPointSlotsToBackpatchHash();
-    #endif
+            ->ClearDependencyMethodDescEntryPointSlotsToBackpatchHash(pDomainLoaderAllocatorDestroyIterator);
 
         // The following code was previously happening on delete ~DomainAssembly->Terminate
         // We are moving this part here in order to make sure that we can unload a LoaderAllocator

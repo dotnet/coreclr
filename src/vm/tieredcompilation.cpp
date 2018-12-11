@@ -497,17 +497,8 @@ void TieredCompilationManager::ResumeCountingCalls(MethodDesc* pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
-    _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
 
-    if (pMethodDesc->IsTieredMethodVersionableWithPrecode())
-    {
-        pMethodDesc->GetPrecode()->ResetTargetInterlocked();
-    }
-    else
-    {
-        _ASSERTE(pMethodDesc->IsTieredMethodVersionableWithVtableSlotBackpatch());
-        pMethodDesc->BackpatchToResetEntryPointSlots();
-    }
+    pMethodDesc->ResetTieredMethodEntryPoint();
 }
 
 bool TieredCompilationManager::TryAsyncOptimizeMethods()

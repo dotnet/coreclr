@@ -46,10 +46,8 @@
 #include "perfmap.h"
 #endif
 
-#ifdef FEATURE_TIERED_COMPILATION
 #include "callcounter.h"
 #include "methoddescbackpatchinfo.h"
-#endif
 
 #if defined(FEATURE_GDBJIT)
 #include "gdbjit.h"
@@ -89,12 +87,10 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
     CONTRACTL_END;
 
     bool isTieredVtableMethod = IsTieredVtableMethod();
-#ifdef FEATURE_TIERED_COMPILATION
     LoaderAllocator *mdLoaderAllocator = isTieredVtableMethod ? GetLoaderAllocator() : nullptr;
 
     // Only take the lock if it's a tiered virtual method, for recording slots and synchronizing with backpatching slots
     MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(isTieredVtableMethod);
-#endif
 
     // For tiered vtable methods, get the method entry point inside the lock above to synchronize with backpatching in
     // MethodDesc::BackpatchEntryPointSlots()
@@ -103,6 +99,8 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
     PCODE pExpected;
     if (isTieredVtableMethod)
     {
+        _ASSERTE(pTarget == GetEntryPointToBackpatch_Locked());
+
         pExpected = GetTemporaryEntryPoint();
         if (pExpected == pTarget)
             return pTarget;
@@ -165,14 +163,12 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
         WRAPPER_NO_CONTRACT;
         _ASSERTE(isTieredVtableMethod);
 
-#ifdef FEATURE_TIERED_COMPILATION
         RecordAndBackpatchEntryPointSlot_Locked(
             mdLoaderAllocator,
             patchedMT->GetLoaderAllocator(),
             patchedMT->GetSlotPtr(slotIndex),
             EntryPointSlotsToBackpatch::SlotType_IsVtableSlot,
             pTarget);
-#endif
     };
 
     BOOL fBackpatched = FALSE;
@@ -1944,14 +1940,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         }
 #endif
 
-        if (HasPrecode())
-        {
-            GetPrecode()->SetTargetInterlocked(pCode);
-        }
-        else if (!HasStableEntryPoint())
-        {
-            SetStableEntryPointInterlocked(pCode);
-        }
+        SetUntieredMethodEntryPoint(pCode);
     }
     else
     {

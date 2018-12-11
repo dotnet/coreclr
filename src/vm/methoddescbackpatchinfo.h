@@ -8,7 +8,7 @@
 
 typedef SHash<PtrSetSHashTraits<LoaderAllocator *>> LoaderAllocatorSet;
 
-#ifdef FEATURE_TIERED_COMPILATION
+#ifndef CROSSGEN_COMPILE
 
 #define DISABLE_COPY(T) \
     T(const T &) = delete; \
@@ -25,10 +25,10 @@ public:
         SlotType_Normal,
         SlotType_IsVtableSlot,
         SlotType_IsExecutable,
-        SlotType_IsExecutable_IsRelativeToEndOfSlot,
+        SlotType_IsExecutable_IsRel32, // 32-bit value relative to the end of the slot
 
         SlotType_Count,
-        SlotType_Mask = SlotType_IsVtableSlot | SlotType_IsExecutable | SlotType_IsExecutable_IsRelativeToEndOfSlot
+        SlotType_Mask = SlotType_IsVtableSlot | SlotType_IsExecutable | SlotType_IsExecutable_IsRel32
     };
 
 private:
@@ -44,6 +44,16 @@ public:
     }
 
 #ifndef DACCESS_COMPILE
+private:
+    static SIZE_T GetRequiredSlotAlignment(SlotType slotType)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(slotType >= SlotType_Normal);
+        _ASSERTE(slotType < SlotType_Count);
+
+        return slotType == SlotType_IsExecutable_IsRel32 ? sizeof(INT32) : sizeof(void *);
+    }
+
 public:
     void AddSlot_Locked(TADDR slot, SlotType slotType);
     void Backpatch_Locked(PCODE entryPoint);
@@ -268,7 +278,7 @@ public:
 
 #ifdef _DEBUG
 public:
-    static bool IsTieredVtableMethod(PTR_MethodDesc methodDesc);
+    static bool IsEligibleForEntryPointSlotBackpatch(PTR_MethodDesc methodDesc);
 #endif
 
 #ifndef DACCESS_COMPILE
@@ -278,7 +288,7 @@ public:
         WRAPPER_NO_CONTRACT;
         _ASSERTE(IsLockedByCurrentThread());
         _ASSERTE(methodDesc != nullptr);
-        _ASSERTE(IsTieredVtableMethod(methodDesc));
+        _ASSERTE(IsEligibleForEntryPointSlotBackpatch(methodDesc));
 
         return m_backpatchInfoHash.Lookup(methodDesc);
     }
@@ -288,7 +298,7 @@ public:
         WRAPPER_NO_CONTRACT;
         _ASSERTE(IsLockedByCurrentThread());
         _ASSERTE(methodDesc != nullptr);
-        _ASSERTE(IsTieredVtableMethod(methodDesc));
+        _ASSERTE(IsEligibleForEntryPointSlotBackpatch(methodDesc));
 
         MethodDescBackpatchInfo *backpatchInfo = m_backpatchInfoHash.Lookup(methodDesc);
         if (backpatchInfo != nullptr)
@@ -310,7 +320,7 @@ public:
 
     EntryPointSlotsToBackpatch *GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc);
     EntryPointSlotsToBackpatch *GetOrAddDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc);
-    void ClearDependencyMethodDescEntryPointSlotsToBackpatchHash();
+    void ClearDependencyMethodDescEntryPointSlotsToBackpatchHash(LoaderAllocator *loaderAllocator);
 #endif
 
     friend class ConditionalLockHolder;
@@ -328,9 +338,10 @@ inline void EntryPointSlotsToBackpatch::AddSlot_Locked(TADDR slot, SlotType slot
     WRAPPER_NO_CONTRACT;
     _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(slot != NULL);
-    _ASSERTE(IS_ALIGNED((SIZE_T)slot, sizeof(void *)));
     _ASSERTE(!(slot & SlotType_Mask));
+    _ASSERTE(slotType >= SlotType_Normal);
     _ASSERTE(slotType < SlotType_Count);
+    _ASSERTE(IS_ALIGNED((SIZE_T)slot, GetRequiredSlotAlignment(slotType)));
 
     m_slots.Append(slot | slotType);
 }
@@ -341,7 +352,9 @@ inline MethodDescBackpatchInfo::MethodDescBackpatchInfo(MethodDesc *methodDesc)
     : m_methodDesc(methodDesc), m_dependentLoaderAllocatorsWithSlotsToBackpatch(nullptr)
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(methodDesc == nullptr || MethodDescBackpatchInfoTracker::IsTieredVtableMethod(PTR_MethodDesc(methodDesc)));
+    _ASSERTE(
+        methodDesc == nullptr ||
+        MethodDescBackpatchInfoTracker::IsEligibleForEntryPointSlotBackpatch(PTR_MethodDesc(methodDesc)));
 }
 
 #ifndef DACCESS_COMPILE
@@ -371,4 +384,4 @@ inline void MethodDescBackpatchInfo::ForEachDependentLoaderAllocatorWithSlotsToB
 
 #undef DISABLE_COPY
 
-#endif // FEATURE_TIERED_COMPILATION
+#endif // !CROSSGEN_COMPILE

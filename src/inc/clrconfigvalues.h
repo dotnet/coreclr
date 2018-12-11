@@ -651,10 +651,16 @@ RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TieredCompilation, W("TieredCompilation"), 1, 
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1CallCountThreshold, W("TieredCompilation_Tier1CallCountThreshold"), 30, "Number of times a method must be called after which it is promoted to tier 1.")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1CallCountingDelayMs, W("TieredCompilation_Tier1CallCountingDelayMs"), 100, "A perpetual delay in milliseconds that is applied to tier 1 call counting and jitting, while there is tier 0 activity.")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1DelaySingleProcMultiplier, W("TieredCompilation_Tier1DelaySingleProcMultiplier"), 10, "Multiplier for TieredCompilation_Tier1CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor.")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_PatchVtableSlots, W("TieredCompilation_PatchVtableSlots"), 1, "Indicates whether to avoid making virtual calls through a precode and instead to patch virtual slots for a method when its entry point changes.")
 
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Test_CallCounting, W("TieredCompilation_Test_CallCounting"), 1, "Enabled by default (only activates when TieredCompilation is also enabled). If disabled immediately backpatches prestub, and likely prevents any tier1 promotion")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Test_OptimizeTier0, W("TieredCompilation_Test_OptimizeTier0"), 0, "Use optimized codegen (normally used by tier1) in tier0")
+#endif
+
+///
+/// Entry point slot backpatch
+///
+#ifndef CROSSGEN_COMPILE
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_BackpatchEntryPointSlots, W("BackpatchEntryPointSlots"), 1, "Indicates whether to enable entry point slot backpatching, for instance to avoid making virtual calls through a precode and instead to patch virtual slots for a method when its entry point changes.")
 #endif
 
 ///
