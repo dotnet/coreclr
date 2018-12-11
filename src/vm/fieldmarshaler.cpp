@@ -34,6 +34,7 @@
 // forward declaration
 BOOL CheckForPrimitiveType(CorElementType elemType, CQuickArray<WCHAR> *pStrPrimitiveType);
 TypeHandle ArraySubTypeLoadWorker(const SString &strUserDefTypeName, Assembly* pAssembly);
+BOOL CheckIfDisqualifiedFromManagedSequential(CorElementType corElemType, LayoutRawFieldInfo * pfwalk, MetaSig &fsig);
 TypeHandle GetFieldTypeHandleWorker(MetaSig *pFieldSig);
 #ifdef _DEBUG
 BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport);
@@ -122,59 +123,7 @@ VOID ParseNativeType(Module*                     pModule,
 
     if (!(*pfDisqualifyFromManagedSequential))
     {
-        // This type may qualify for ManagedSequential. Collect managed size and alignment info.
-        if (CorTypeInfo::IsPrimitiveType(corElemType))
-        {
-            pfwalk->m_managedSize = ((UINT32)CorTypeInfo::Size(corElemType)); // Safe cast - no primitive type is larger than 4gb!
-#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
-            switch (corElemType)
-            {
-                // The System V ABI for i386 defines different packing for these types.
-                case ELEMENT_TYPE_I8:
-                case ELEMENT_TYPE_U8:
-                case ELEMENT_TYPE_R8:
-                {
-                    pfwalk->m_managedAlignmentReq = 4;
-                    break;
-                }
-
-                default:
-                {
-                    pfwalk->m_managedAlignmentReq = pfwalk->m_managedSize;
-                    break;
-                }
-            }
-#else // _TARGET_X86_ && UNIX_X86_ABI
-            pfwalk->m_managedAlignmentReq = pfwalk->m_managedSize;
-#endif
-        }
-        else if (corElemType == ELEMENT_TYPE_PTR)
-        {
-            pfwalk->m_managedSize = TARGET_POINTER_SIZE;
-            pfwalk->m_managedAlignmentReq = TARGET_POINTER_SIZE;
-        }
-        else if (corElemType == ELEMENT_TYPE_VALUETYPE)
-        {
-            TypeHandle pNestedType = fsig.GetLastTypeHandleThrowing(ClassLoader::LoadTypes,
-                                                                    CLASS_LOAD_APPROXPARENTS,
-                                                                    TRUE);
-            if (pNestedType.GetMethodTable()->IsManagedSequential())
-            {
-                pfwalk->m_managedSize = (pNestedType.GetMethodTable()->GetNumInstanceFieldBytes());
-
-                _ASSERTE(pNestedType.GetMethodTable()->HasLayout()); // If it is ManagedSequential(), it also has Layout but doesn't hurt to check before we do a cast!
-                pfwalk->m_managedAlignmentReq = pNestedType.GetMethodTable()->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
-            }
-            else
-            {
-                *pfDisqualifyFromManagedSequential = TRUE;
-            }
-        }
-        else
-        {
-            // No other type permitted for ManagedSequential.
-            *pfDisqualifyFromManagedSequential = TRUE;
-        }
+        *pfDisqualifyFromManagedSequential = CheckIfDisqualifiedFromManagedSequential(corElemType, pfwalk, fsig);
     }
 
     NStructFieldType selectedNft = NFT_NONE;
@@ -982,9 +931,68 @@ do                                                      \
 #endif // FEATURE_COMINTEROP
 #undef INITFIELDMARSHALER
 }
+
 #ifdef _PREFAST_
 #pragma warning(pop)
 #endif
+
+BOOL CheckIfDisqualifiedFromManagedSequential(CorElementType corElemType, LayoutRawFieldInfo * pRawFieldInfo, MetaSig &fsig)
+{
+    // This type may qualify for ManagedSequential. Collect managed size and alignment info.
+    if (CorTypeInfo::IsPrimitiveType(corElemType))
+    {
+        pRawFieldInfo->m_managedSize = ((UINT32)CorTypeInfo::Size(corElemType)); // Safe cast - no primitive type is larger than 4gb!
+#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
+        switch (corElemType)
+        {
+            // The System V ABI for i386 defines different packing for these types.
+        case ELEMENT_TYPE_I8:
+        case ELEMENT_TYPE_U8:
+        case ELEMENT_TYPE_R8:
+        {
+            pRawFieldInfo->m_managedAlignmentReq = 4;
+            break;
+        }
+
+        default:
+        {
+            pRawFieldInfo->m_managedAlignmentReq = pRawFieldInfo->m_managedSize;
+            break;
+        }
+        }
+#else // _TARGET_X86_ && UNIX_X86_ABI
+        pRawFieldInfo->m_managedAlignmentReq = pRawFieldInfo->m_managedSize;
+#endif
+    }
+    else if (corElemType == ELEMENT_TYPE_PTR)
+    {
+        pRawFieldInfo->m_managedSize = TARGET_POINTER_SIZE;
+        pRawFieldInfo->m_managedAlignmentReq = TARGET_POINTER_SIZE;
+    }
+    else if (corElemType == ELEMENT_TYPE_VALUETYPE)
+    {
+        TypeHandle pNestedType = fsig.GetLastTypeHandleThrowing(ClassLoader::LoadTypes,
+            CLASS_LOAD_APPROXPARENTS,
+            TRUE);
+        if (pNestedType.GetMethodTable()->IsManagedSequential())
+        {
+            pRawFieldInfo->m_managedSize = (pNestedType.GetMethodTable()->GetNumInstanceFieldBytes());
+
+            _ASSERTE(pNestedType.GetMethodTable()->HasLayout()); // If it is ManagedSequential(), it also has Layout but doesn't hurt to check before we do a cast!
+            pRawFieldInfo->m_managedAlignmentReq = pNestedType.GetMethodTable()->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
+        }
+        else
+        {
+            return TRUE;
+        }
+    }
+    else
+    {
+        // No other type permitted for ManagedSequential.
+        return TRUE;
+    }
+    return FALSE;
+}
 
 
 TypeHandle ArraySubTypeLoadWorker(const SString &strUserDefTypeName, Assembly* pAssembly)
@@ -1085,7 +1093,7 @@ BOOL IsStructMarshalable(TypeHandle th)
 
     while (numReferenceFields--)
     {
-        if (pFieldMarshaler->GetNStructFieldType() == NFT_ILLEGAL)
+        if (pFieldMarshaler->IsIllegalMarshaler())
             return FALSE;
 
         ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;

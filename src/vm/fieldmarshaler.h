@@ -352,6 +352,11 @@ public:
         m_nft = nft;
     }
 
+    BOOL IsIllegalMarshaler() const
+    {
+        return m_nft == NFT_ILLEGAL ? TRUE : FALSE;
+    }
+
     NativeFieldFlags GetNativeFieldFlags() const
     {
         LIMITED_METHOD_CONTRACT;
