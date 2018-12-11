@@ -185,7 +185,7 @@ jobs:
 
 # TODO: Enable publish to BAR
 - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-  - template: /eng/common/templates/phases/publish-build-assets.yml
+  - template: /eng/common/templates/job/publish-build-assets.yml
     pool:
       name: dotnet-internal-temp
     dependsOn:
