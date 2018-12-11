@@ -15,4 +15,5 @@ EXPORTS
 	CreateVersionStringFromModule
 	CreateDebuggingInterfaceFromVersion
 	CreateDebuggingInterfaceFromVersionEx
+	CreateDebuggingInterfaceFromVersion2
 	CLRCreateInstance
