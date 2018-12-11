@@ -16,6 +16,9 @@
       <PackagesToPublish Include="$(PackagesBinDir)pkg\*.nupkg" IsShipping="true" />
     </ItemGroup>
 
+    <Message Importance="High" Text="PackagesToPublish: @(PackagesToPublish)" />
+    <Message Importance="High" Text="PackagesToPublish metadata: @(PackagesToPublish->'%(IsShipping)')" />
+
     <ItemGroup>
       <ItemsToPushToBlobFeed Include="@(PackagesToPublish)">
         <ManifestArtifactData Condition="!%(IsShipping)">NonShipping=true</ManifestArtifactData> <!-- TODO: how is this metadata used? -->
