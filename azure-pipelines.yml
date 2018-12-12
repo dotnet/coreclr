@@ -1,3 +1,8 @@
+
+# Temporary: set a build number format that includes a large revision
+# number that won't conflict with buildpipeline official builds.
+name: $(Date:yyyyMMdd)7$(Rev:.r)
+
 variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 

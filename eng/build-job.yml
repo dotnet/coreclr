@@ -112,7 +112,7 @@ jobs:
         # TODO: pass publish feed url and access token in from the internal pipeline
         - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
           displayName: Build packages
-        - powershell: powershell eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
+        - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
           displayName: Restore blob feed tasks
         - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper)
           displayName: Publish packages to blob feed
