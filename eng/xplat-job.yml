@@ -83,9 +83,6 @@ jobs:
           - name: rootfsDir
             value: /crossrootfs/arm
 
-          - name: cacRootfsDir
-            value: /crossrootfs/x86
-
       - ${{ if eq(parameters.archType, 'arm64') }}:
           - name: rootfsDir
             value: /crossrootfs/arm64
