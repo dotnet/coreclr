@@ -26,8 +26,16 @@ jobs:
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     gatherAssetManifests: true
-    # Variables used by arcade to gather asset manifests
     variables:
+    - name: portableBuildArg
+      value: ''
+    # Ensure that we produce os-specific packages for the following distros:
+    - ${{ if or(eq(parameters.osIdentifier, 'Linux_rhel6'),
+                eq(parameters.osIdentifier, 'Linux_rhel7'),
+                eq(parameters.osIdentifier, 'Linux_musl')) }}:
+      - name: portableBuildArg
+        value: '-portablebuild=false'
+    # Variables used by arcade to gather asset manifests
     - name: _DotNetPublishToBlobFeed
       value: true
     - name: _BuildConfig
@@ -97,7 +105,7 @@ jobs:
             echo sourcesdirectory: $(Build.SourcesDirectory)
             echo binariesdirectory: $(Build.BinariesDirectory)
             echo builddirectory: $(Agent.BuildDirectory)
-        - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
+        - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
           displayName: Build packages
         - script: find .
           displayName: Run "find"

@@ -2,7 +2,7 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osGroupName: ''
+  osIdentifier: ''
   name: ''
   displayName: ''
   condition: ''
