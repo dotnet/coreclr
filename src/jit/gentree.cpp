@@ -15901,7 +15901,7 @@ bool GenTreeIntConCommon::ImmedValCanBeFolded(Compiler* comp, genTreeOps op)
     // In general, immediate values that need relocations can't be folded.
     // There are cases where we do want to allow folding of handle comparisons
     // (e.g., typeof(T) == typeof(int)).
-    return !ImmedValNeedsReloc(comp) || (op == GT_EQ) || (op == GT_NE);
+    return !ImmedValNeedsReloc(comp) || OperIsCompare(op);
 }
 
 #ifdef _TARGET_AMD64_
