@@ -10,6 +10,7 @@ parameters:
   containerName: ''
   timeoutInMinutes: ''
   helixType: ''
+  rootfsDir: ''
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
@@ -78,14 +79,9 @@ jobs:
       - name: osGroupName
         value: ${{ parameters.osGroupName }}
       
-      # Crossbuild specific variables.
-      - ${{ if eq(parameters.archType, 'arm') }}:
+      - ${{ if ne(parameters.rootfsDir, '') }}:
           - name: rootfsDir
-            value: /crossrootfs/arm
-
-      - ${{ if eq(parameters.archType, 'arm64') }}:
-          - name: rootfsDir
-            value: /crossrootfs/arm64
+            value: ${{ parameters.rootfsDir }}
 
       - ${{ each variable in parameters.variables }}:
         - ${{insert}}: ${{ variable }}
