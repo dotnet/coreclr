@@ -80,8 +80,14 @@ jobs:
         value: ${{ parameters.osGroupName }}
       
       - ${{ if ne(parameters.crossrootfsDir, '') }}:
-          - name: rootfsDir
+          - name: crossArg
+            value: 'cross'
+          # This is only required for cross builds.
+          - name: ROOTFS_DIR
             value: ${{ parameters.crossrootfsDir }}
+      - ${{ if eq(parameters.crossrootfsDir, '') }}:
+          - name: crossArg
+            value: ''
 
       - ${{ each variable in parameters.variables }}:
         - ${{insert}}: ${{ variable }}

@@ -113,11 +113,8 @@ jobs:
       
     # Build tests
     # TODO: enable crossgen in build-test.sh
-    - ${{ if and(ne(parameters.osGroup, 'Windows_NT'), notIn(parameters.archType, 'arm', 'arm64')) }}:
-      - script: ./build-test.sh $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
-        displayName: Build tests
-    - ${{ if and(ne(parameters.osGroup, 'Windows_NT'), in(parameters.archType, 'arm', 'arm64')) }}:
-      - script: ROOTFS_DIR=$(rootfsDir) ./build-test.sh $(buildConfig) $(archType) cross $(priorityArg) $(crossgenArg)
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg)
         displayName: Build tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
