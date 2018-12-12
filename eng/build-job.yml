@@ -86,7 +86,7 @@ jobs:
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
       - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
         - script: |
-            ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
+            ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
             find .
           displayName: Build packages
           # TODO: Bootstrap arcade earlier once we have onboarded the repo build
@@ -98,7 +98,7 @@ jobs:
           displayName: Publish packages to blob feed
       - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
         # TODO: pass publish feed url and access token in from the internal pipeline
-        - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
+        - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
           displayName: Build packages
         - powershell: powershell eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
           displayName: Restore blob feed tasks
