@@ -5008,7 +5008,7 @@ void MethodDesc::SetTieredMethodCodeEntryPoint(PCODE entryPoint)
     Precode* pPrecode = GetOrCreatePrecode();
     if (entryPoint == NULL)
     {
-        pPrecode->Reset();
+        pPrecode->ResetTargetInterlocked();
     }
     else
     {
