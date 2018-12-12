@@ -85,6 +85,12 @@ jobs:
     # Build packages and publish official build
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
       - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+        - script: find .
+          displayName: Run "find ."
+        - script: |
+            echo sourcesdirectory: $(Build.SourcesDirectory)
+            echo binariesdirectory: $(Build.BinariesDirectory)
+            echo builddirectory: $(Agent.BuildDirectory)
         - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
           displayName: Build packages
         - script: find .
