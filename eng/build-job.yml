@@ -25,6 +25,9 @@ jobs:
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     gatherAssetManifests: true
+    variables:
+      name: _DotNetPublishToBlobFeed
+      value: true
 
     steps:
 
