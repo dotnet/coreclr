@@ -1,23 +1,24 @@
 parameters:
   buildConfig: ''
   archType: ''
-  osGroup: ''
-  osGroupName: ''
+  osGroup: ''       # Linux/OSX/Windows_NT.
+  osIdentifier: ''  # linux/rhel.6/rhel.7/linux-musl/osx/freebsd/linux/win
   containerName: ''
   crossrootfsDir: ''
 
 ### Product build
 jobs:
+
 - template: xplat-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
-    osGroupName: ${{ parameters.osGroupName }}
+    osIdentifier: ${{ parameters.osIdentifier }}
 
     # Compute job name from template parameters
-    name: ${{ format('build_{0}_{1}_{2}', parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
-    displayName: ${{ format('Build {0} {1} {2}', parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
+    name: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('Build {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Run all steps in the container.
     # Note that the containers are resources defined in azure-pipelines.yml
@@ -62,14 +63,14 @@ jobs:
       - task: PublishPipelineArtifact@0
         displayName: Save product build as pipeline artifact
         inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
           targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - task: PublishPipelineArtifact@0
         displayName: Save product build as pipeline artifact
         inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
-          targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          targetPath: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)
 
 
     # TODO: Sign

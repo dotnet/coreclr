@@ -85,8 +85,8 @@ jobs:
     - name: osGroup
       value: ${{ parameters.osGroup }}
 
-    - name: osGroupName
-      value: ${{ parameters.osGroupName }}
+    - name: osIdentifier
+      value: ${{ parameters.osIdentifier }}
       
     - ${{ if ne(parameters.crossrootfsDir, '') }}:
       - name: crossArg
