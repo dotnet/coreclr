@@ -1947,7 +1947,7 @@ class ILWSTRMarshaler : public ILMarshaler
 public:
     enum
     {
-        c_fInOnly               = TRUE,
+        c_fInOnly               = FALSE,
         c_nativeSize            = sizeof(void *),
         c_CLRSize               = sizeof(OBJECTREF),
     };
@@ -1961,6 +1961,18 @@ public:
         m_fCoMemoryAllocated = false;
     }
 #endif // _DEBUG
+
+    
+    bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override
+    {
+        if (IsOut(dwMarshalFlags) && !IsByref(dwMarshalFlags))
+        {
+            *pErrorResID = IDS_EE_BADMARSHAL_STRING_OUT;
+            return false;
+        }
+
+        return true;
+    }
 
 protected:
     virtual LocalDesc GetNativeType();
