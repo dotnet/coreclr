@@ -36,6 +36,7 @@ jobs:
         displayName: Install native dependencies
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # Necessary to install python
+      - script: powershell eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
       - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
         displayName: Install native dependencies
 
