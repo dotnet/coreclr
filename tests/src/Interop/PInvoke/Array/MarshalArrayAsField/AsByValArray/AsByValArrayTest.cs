@@ -616,8 +616,8 @@ class Test
 
     //for RunTest5
     //get struct on C++ side as sequential class
-    [DllImport("MarshalArrayByValueArrayNative", CallingConvention = CallingConvention.Cdecl, EntryPoint = "S_INTArray_Ret")]
-    static extern S_INTArray_Seq S_INTArray_Ret_Struct();
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern S_INTArray_Seq S_INTArray_Ret_ByValue();
 
     [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
     static extern C_INTArray_Seq S_INTArray_Ret();
@@ -1029,7 +1029,7 @@ class Test
     {
         Console.WriteLine(report);
 
-        Assert.Throws<MarshalDirectiveException>(() => S_INTArray_Ret_Struct());
+        Assert.Throws<MarshalDirectiveException>(() => S_INTArray_Ret_ByValue());
 
         C_INTArray_Seq retval1 = S_INTArray_Ret();
         Assert.IsTrue(Equals(InitArray<int>(ARRAY_SIZE), retval1.arr));
