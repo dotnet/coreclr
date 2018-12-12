@@ -1028,8 +1028,9 @@ class Test
     static void RunTest5(string report)
     {
         Console.WriteLine(report);
-
-        Assert.Throws<MarshalDirectiveException>(() => S_INTArray_Ret_ByValue());
+        
+        S_INTArray_Seq retval = S_INTArray_Ret_ByValue();
+        Assert.IsTrue(Equals(InitArray<int>(ARRAY_SIZE), retval.arr));
 
         C_INTArray_Seq retval1 = S_INTArray_Ret();
         Assert.IsTrue(Equals(InitArray<int>(ARRAY_SIZE), retval1.arr));

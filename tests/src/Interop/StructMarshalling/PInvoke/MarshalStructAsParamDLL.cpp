@@ -1120,3 +1120,20 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByRefOutL
 	return TRUE;
 }
 
+extern "C" DLL_EXPORT HFA STDMETHODCALLTYPE GetHFA(float f1, float f2, float f3, float f4)
+{
+    return {f1, f2, f3, f4};
+}
+
+extern "C" DLL_EXPORT ManyInts STDMETHODCALLTYPE GetMultiplesOf(int value)
+{
+    int multiples[20];
+
+    for(int i = 0; i < 20; ++i)
+    {
+        multiples[i] = value * (i + 1);
+    }
+
+    ManyInts returnValue = *reinterpret_cast<ManyInts*>(&multiples);
+    return returnValue;
+}

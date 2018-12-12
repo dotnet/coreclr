@@ -5156,7 +5156,7 @@ bool IsUnsupportedValueTypeReturn(MetaSig& msig)
     
     CorElementType type = msig.GetReturnTypeNormalized();
     
-    if (type == ELEMENT_TYPE_VALUETYPE || type == ELEMENT_TYPE_TYPEDBYREF)
+    if (type == ELEMENT_TYPE_TYPEDBYREF)
     {
 #ifdef _TARGET_X86_
         // On x86, the internal CorElementType for value types is normalized by the type loader

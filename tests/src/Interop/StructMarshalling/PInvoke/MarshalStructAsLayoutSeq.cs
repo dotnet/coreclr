@@ -55,6 +55,7 @@ public class Managed
         RunMarshalSeqStructAsParamByRefOut();
         RunMarshalSeqStructAsParamByValInOut();
         RunMarshalSeqStructAsParamByRefInOut();
+        RunMarshalSeqStructAsReturn();
         
         if (failures > 0)
         {
@@ -302,6 +303,12 @@ public class Managed
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByRef14")]
     static extern bool MarshalStructAsParam_AsSeqByRefInOut14([In, Out] ref S11 str1);
     #endregion
+
+    [DllImport("MarshalStructAsParam")]
+    static extern HFA GetHFA(float f1, float f2, float f3, float f4);
+
+    [DllImport("MarshalStructAsParam")]
+    static extern ManyInts GetMultiplesOf(int i);
 
     #region Marshal struct method in PInvoke
     [SecuritySafeCritical]
@@ -2296,6 +2303,29 @@ public class Managed
         MarshalStructAsParam_AsSeqByRefInOut(StructID.S9Id);
         MarshalStructAsParam_AsSeqByRefInOut(StructID.IncludeOuterIntergerStructSequentialId);
         MarshalStructAsParam_AsSeqByRefInOut(StructID.S11Id);
+    }
+
+    private static void RunMarshalSeqStructAsReturn()
+    {
+        Console.WriteLine("\nVerify marshalsequential layout struct as return.");
+
+        HFA hfa = GetHFA(12.34f, 52.12f, 64.124f, 675.452351322f);
+        if (hfa.f1 != 12.34f || hfa.f2 != 52.12f || hfa.f3 != 64.124f || hfa.f4 != 675.452351322f)
+        {
+            Console.WriteLine("4-float structure returned from native to managed failed.");
+        }
+
+        ManyInts multiples = GetMultiplesOf(2);
+
+        int i = 1;
+        foreach (int multiple in multiples)
+        {
+            if (multiple != 2 * i)
+            {
+                Console.WriteLine("Structure of 20 ints returned from native to managed failed.");
+            }
+            i++;
+        }
     }
 }
 

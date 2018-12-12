@@ -3719,30 +3719,24 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
         else
 #endif // FEATURE_COMINTEROP
         {
-            if (marshalType > MarshalInfo::MARSHAL_TYPE_DOUBLE && IsUnsupportedValueTypeReturn(msig))
-            {
-                if (marshalType == MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASS
-                        || marshalType == MarshalInfo::MARSHAL_TYPE_GUID
-                        || marshalType == MarshalInfo::MARSHAL_TYPE_DECIMAL
+            if (marshalType == MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASS
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_VALUECLASS
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_GUID
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_DECIMAL
 #ifdef FEATURE_COMINTEROP                    
-                        || marshalType == MarshalInfo::MARSHAL_TYPE_DATETIME
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_DATETIME
 #endif // FEATURE_COMINTEROP
-                   )
+                )
+            {
+                if (SF_IsHRESULTSwapping(dwStubFlags))
                 {
-                    if (SF_IsHRESULTSwapping(dwStubFlags))
-                    {
-                        // V1 restriction: we could implement this but it's late in the game to do so.
-                        COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
-                    }
-                }
-                else if (marshalType == MarshalInfo::MARSHAL_TYPE_HANDLEREF)
-                {
-                    COMPlusThrow(kMarshalDirectiveException, IDS_EE_BADMARSHAL_HANDLEREFRESTRICTION);
-                }
-                else
-                {
+                    // V1 restriction: we could implement this but it's late in the game to do so.
                     COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
                 }
+            }
+            else if (IsUnsupportedValueTypeReturn(msig))
+            {
+                COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
             }
 
 #ifdef FEATURE_COMINTEROP
