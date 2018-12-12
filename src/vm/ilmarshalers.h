@@ -1963,7 +1963,7 @@ public:
 #endif // _DEBUG
 
     
-    bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override
+    virtual bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID)
     {
         if (IsOut(dwMarshalFlags) && !IsByref(dwMarshalFlags))
         {
