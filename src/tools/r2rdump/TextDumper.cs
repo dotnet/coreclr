@@ -71,7 +71,7 @@ namespace R2RDump
 
                 foreach (R2RSection section in NormalizedSections())
                 {
-                    DumpSection(section);
+                    section.WriteTo(_writer, _options);
                 }
             }
             SkipLine();

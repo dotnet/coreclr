@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Xml.Serialization;
 
@@ -52,13 +53,20 @@ namespace R2RDump
             Size = size;
         }
 
-        public override string ToString()
+        public void WriteTo(TextWriter writer, DumpOptions options)
         {
             StringBuilder sb = new StringBuilder();
             sb.AppendLine($"Type:  {Enum.GetName(typeof(SectionType), Type)} ({Type:D})");
-            sb.AppendLine($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}");
+            if (!options.Naked)
+            {
+                sb.AppendLine($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}");
+            }
             sb.AppendLine($"Size: {Size} bytes");
-            return sb.ToString();
+        }
+
+        public override string ToString()
+        {
+            throw new NotImplementedException();
         }
     }
 }

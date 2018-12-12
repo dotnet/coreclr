@@ -218,7 +218,6 @@ namespace R2RDump
                         break;
 
                     case Machine.Amd64:
-                    case Machine.IA64:
                         Architecture = Architecture.X64;
                         PointerSize = 8;
                         break;
@@ -600,7 +599,6 @@ namespace R2RDump
                             break;
 
                         case Machine.Amd64:
-                        case Machine.IA64:
                         case Machine.Arm64:
                             entrySize = 8;
                             break;

@@ -37,17 +37,21 @@ namespace R2RDump
 
         public abstract int PointerSize { get; }
 
-        public abstract int NumArgumentRegisters { get;  }
-
-        public abstract int NumPointersInReturnBlock { get; }
-
-        public int SizeOfReturnBlock => NumPointersInReturnBlock * PointerSize;
+        public abstract int NumArgumentRegisters { get; }
 
         public int SizeOfArgumentRegisters => NumArgumentRegisters * PointerSize;
 
-        public abstract int SizeOfTransitionBlock { get;  }
+        public abstract int NumCalleeSavedRegisters { get; }
 
-        public abstract int OffsetOfArgumentRegisters { get; }
+        public int SizeOfCalleeSavedRegisters => NumCalleeSavedRegisters * PointerSize;
+
+        public abstract int SizeOfTransitionBlock { get; }
+
+        /// <summary>
+        /// Offset of argument registers is 0 for all targets except for Windows X64 ABI
+        /// where we override this method to return the transition block size instead.
+        /// </summary>
+        public virtual int OffsetOfArgumentRegisters => 0;
 
         /// <summary>
         /// Recalculate pos in GC ref map to actual offset. This is the default implementation for all architectures
@@ -72,10 +76,9 @@ namespace R2RDump
 
             public override int PointerSize => 4;
             public override int NumArgumentRegisters => 2;
-            public override int NumPointersInReturnBlock => 2;
-            // Two extra pointers for EBP and return address
-            public override int SizeOfTransitionBlock => SizeOfArgumentRegisters + SizeOfReturnBlock + 2 * PointerSize;
-            public override int OffsetOfArgumentRegisters => 0;
+            public override int NumCalleeSavedRegisters => 4;
+            // Argument registers, callee-save registers, return address
+            public override int SizeOfTransitionBlock => SizeOfArgumentRegisters + SizeOfCalleeSavedRegisters + PointerSize;
 
             public override int OffsetFromGCRefMapPos(int pos)
             {
@@ -95,10 +98,12 @@ namespace R2RDump
             public static readonly TransitionBlock Instance = new X64WindowsTransitionBlock();
 
             public override int PointerSize => 8;
+            // RCX, RDX, R8, R9
             public override int NumArgumentRegisters => 4;
-            public override int NumPointersInReturnBlock => 1;
-            // return block padding, return block, alignment padding, return address
-            public override int SizeOfTransitionBlock => SizeOfReturnBlock + 3 * PointerSize;
+            // RDI, RSI, RBX, RBP, R12, R13, R14, R15
+            public override int NumCalleeSavedRegisters => 8;
+            // Callee-saved registers, return address
+            public override int SizeOfTransitionBlock => SizeOfCalleeSavedRegisters + PointerSize;
             public override int OffsetOfArgumentRegisters => SizeOfTransitionBlock;
         }
 
@@ -107,11 +112,12 @@ namespace R2RDump
             public static readonly TransitionBlock Instance = new X64UnixTransitionBlock();
 
             public override int PointerSize => 8;
+            // RDI, RSI, RDX, RCX, R8, R9
             public override int NumArgumentRegisters => 6;
-            public override int NumPointersInReturnBlock => 2;
-            // Two extra pointers for alignment padding and return address
-            public override int SizeOfTransitionBlock => SizeOfReturnBlock + SizeOfArgumentRegisters + 2 * PointerSize;
-            public override int OffsetOfArgumentRegisters => SizeOfReturnBlock;
+            // R12, R13, R14, R15, RBX, RBP
+            public override int NumCalleeSavedRegisters => 6;
+            // Argument registers, callee-saved registers, return address
+            public override int SizeOfTransitionBlock => SizeOfArgumentRegisters + SizeOfCalleeSavedRegisters + PointerSize;
         }
 
         private sealed class ArmTransitionBlock : TransitionBlock
@@ -119,10 +125,12 @@ namespace R2RDump
             public static readonly TransitionBlock Instance = new ArmTransitionBlock();
 
             public override int PointerSize => 4;
+            // R0, R1, R2, R3
             public override int NumArgumentRegisters => 4;
-            public override int NumPointersInReturnBlock => 8;
-            public override int SizeOfTransitionBlock => SizeOfReturnBlock + SizeOfArgumentRegisters;
-            public override int OffsetOfArgumentRegisters => SizeOfReturnBlock;
+            // R4, R5, R6, R7, R8, R9, R10, R11, R14
+            public override int NumCalleeSavedRegisters => 9;
+            // Callee-saves, argument registers
+            public override int SizeOfTransitionBlock => SizeOfCalleeSavedRegisters + SizeOfArgumentRegisters;
         }
 
         private sealed class Arm64TransitionBlock : TransitionBlock
@@ -130,11 +138,13 @@ namespace R2RDump
             public static readonly TransitionBlock Instance = new Arm64TransitionBlock();
 
             public override int PointerSize => 8;
+            // X0 .. X7
             public override int NumArgumentRegisters => 8;
-            public override int NumPointersInReturnBlock => 4;
-            // Extra pointer for alignment padding
-            public override int SizeOfTransitionBlock => SizeOfReturnBlock + SizeOfArgumentRegisters + PointerSize;
-            public override int OffsetOfArgumentRegisters => SizeOfReturnBlock;
+            // X29, X30, X19, X20, X21, X22, X23, X24, X25, X26, X27, X28
+            public override int NumCalleeSavedRegisters => 12;
+            // Callee-saves, padding, m_x8RetBuffReg, argument registers
+            public override int SizeOfTransitionBlock => SizeOfCalleeSavedRegisters + 2 * PointerSize + SizeOfArgumentRegisters;
+            public override int OffsetOfArgumentRegisters => 0;
         }
     }
 

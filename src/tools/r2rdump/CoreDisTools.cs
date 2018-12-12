@@ -157,7 +157,9 @@ namespace R2RDump
                         {
                             colon += 3;
                         }
-                        nakedInstruction.Append(new string(' ', 32) + line.Substring(colon).TrimStart());
+                        nakedInstruction.Append($"{(rtfOffset - rtf.CodeOffset),8:x4}:");
+                        nakedInstruction.Append(' ', 32 - 9);
+                        nakedInstruction.Append(line.Substring(colon).TrimStart());
                         nakedInstruction.Append('\n');
                     }
                     else
@@ -172,7 +174,6 @@ namespace R2RDump
             switch (_reader.Machine)
             {
                 case Machine.Amd64:
-                case Machine.IA64:
                     ProbeX64Quirks(rtf, imageOffset, rtfOffset, instrSize, ref instruction);
                     break;
 
@@ -312,19 +313,19 @@ namespace R2RDump
             {
                 sbyte offset = (sbyte)_reader.Image[imageOffset + rtfOffset + 1];
                 int target = rtf.StartAddress + rtfOffset + instrSize + offset;
-                ReplaceRelativeOffset(ref instruction, target);
+                ReplaceRelativeOffset(ref instruction, target, rtf);
             }
             else if (instrSize == 5 && IsIntel1ByteJumpInstructionWithIntOffset(imageOffset + rtfOffset))
             {
                 int offset = BitConverter.ToInt32(_reader.Image, imageOffset + rtfOffset + 1);
                 int target = rtf.StartAddress + rtfOffset + instrSize + offset;
-                ReplaceRelativeOffset(ref instruction, target);
+                ReplaceRelativeOffset(ref instruction, target, rtf);
             }
             else if (instrSize == 6 && IsIntel2ByteJumpInstructionWithIntOffset(imageOffset + rtfOffset))
             {
                 int offset = BitConverter.ToInt32(_reader.Image, imageOffset + rtfOffset + 2);
                 int target = rtf.StartAddress + rtfOffset + instrSize + offset;
-                ReplaceRelativeOffset(ref instruction, target);
+                ReplaceRelativeOffset(ref instruction, target, rtf);
             }
         }
 
@@ -401,7 +402,7 @@ namespace R2RDump
         /// </summary>
         /// <param name="instruction"></param>
         /// <param name="target"></param>
-        private void ReplaceRelativeOffset(ref string instruction, int target)
+        private void ReplaceRelativeOffset(ref string instruction, int target, RuntimeFunction rtf)
         {
             int numberEnd = instruction.IndexOf('\n');
             int number = numberEnd;
@@ -417,7 +418,12 @@ namespace R2RDump
 
             StringBuilder translated = new StringBuilder();
             translated.Append(instruction, 0, number);
-            translated.AppendFormat("0x{0:x4}", target);
+            int outputOffset = target;
+            if (_options.Naked)
+            {
+                outputOffset -= rtf.StartAddress;
+            }
+            translated.AppendFormat("0x{0:x4}", outputOffset);
             translated.Append(instruction, numberEnd, instruction.Length - numberEnd);
             instruction = translated.ToString();
         }
