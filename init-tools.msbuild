@@ -23,6 +23,7 @@
     <PackageReference Include="$(ILLinkTasksPackage)">
       <Version>$(ILLinkTasksPackageVersion)</Version>
     </PackageReference>
+    <!--
     <PackageReference Include="microsoft.dotnet.signtool">
       <Version>$(MicrosoftDotNetSignToolVersion)</Version>
     </PackageReference>
@@ -34,6 +35,6 @@
     </PackageReference>
     <PackageReference Include="sn" IsImplicitlyDefined="true">
       <Version>$(SNVersion)</Version>
-    </PackageReference>
+    </PackageReference>-->
   </ItemGroup>
 </Project>
