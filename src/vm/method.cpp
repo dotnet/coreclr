@@ -4965,15 +4965,23 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryP
     SetEntryPointToBackpatch_Locked(entryPoint, isPrestubEntryPoint);
 }
 
-void MethodDesc::SetUntieredMethodCodeEntryPoint(PCODE entryPoint)
+void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(entryPoint != NULL);
-    _ASSERTE(!IsEligibleForTieredCompilation());
 
-    if (IsUntieredMethodEligibleForEntryPointSlotBackpatch())
+    if (IsEligibleForEntryPointSlotBackpatch())
     {
         BackpatchEntryPointSlots(entryPoint);
+    }
+    else if (IsEligibleForTieredCompilation())
+    {
+        _ASSERTE(IsTieredMethodVersionableWithPrecode());
+        GetOrCreatePrecode()->SetTargetInterlocked(entryPoint, FALSE /* fOnlyRedirectFromPrestub */);
+
+        // SetTargetInterlocked() would return false if it lost the race with another thread. That is fine, this thread
+        // can continue assuming it was successful, similarly to it successfully updating the target and another thread
+        // updating the target again shortly afterwards.
     }
     else if (HasPrecode())
     {
@@ -4985,49 +4993,13 @@ void MethodDesc::SetUntieredMethodCodeEntryPoint(PCODE entryPoint)
     }
 }
 
-void MethodDesc::SetTieredMethodCodeEntryPoint(PCODE entryPoint)
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE(IsEligibleForTieredCompilation());
-
-#ifdef FEATURE_TIERED_COMPILATION
-    if (IsTieredMethodEligibleForEntryPointSlotBackpatch())
-    {
-        if (entryPoint == NULL)
-        {
-            BackpatchToResetEntryPointSlots();
-        }
-        else
-        {
-            BackpatchEntryPointSlots(entryPoint);
-        }
-        return;
-    }
-
-    _ASSERTE(IsTieredMethodVersionableWithPrecode());
-    Precode* pPrecode = GetOrCreatePrecode();
-    if (entryPoint == NULL)
-    {
-        pPrecode->ResetTargetInterlocked();
-    }
-    else
-    {
-        pPrecode->SetTargetInterlocked(entryPoint, FALSE /* fOnlyRedirectFromPrestub */);
-
-        // SetTargetInterlocked() would return false if it lost the race with another thread. That is fine, this thread
-        // can continue assuming it was successful, similarly to it successfully updating the target and another thread
-        // updating the target again shortly afterwards.
-    }
-#endif
-}
-
 void MethodDesc::ResetTieredMethodCodeEntryPoint()
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsEligibleForTieredCompilation());
 
 #ifdef FEATURE_TIERED_COMPILATION
-    if (IsTieredMethodEligibleForEntryPointSlotBackpatch())
+    if (IsEligibleForEntryPointSlotBackpatch())
     {
         BackpatchToResetEntryPointSlots();
         return;

@@ -1310,37 +1310,7 @@ public:
         WRAPPER_NO_CONTRACT;
 
 #ifndef CROSSGEN_COMPILE
-        return
-            IsEligibleForTieredCompilation()
-                ? IsTieredMethodEligibleForEntryPointSlotBackpatch()
-                : IsUntieredMethodEligibleForEntryPointSlotBackpatch();
-#else
-        // Entry point slot backpatch is disabled for CrossGen
-        return false;
-#endif
-    }
-
-    bool IsTieredMethodEligibleForEntryPointSlotBackpatch()
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsEligibleForTieredCompilation());
-
-#ifndef CROSSGEN_COMPILE
-        return IsTieredMethodVersionableWithVtableSlotBackpatch();
-#else
-        // Entry point slot backpatch is disabled for CrossGen
-        return false;
-#endif
-    }
-
-    bool IsUntieredMethodEligibleForEntryPointSlotBackpatch()
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(!IsEligibleForTieredCompilation());
-
-#ifndef CROSSGEN_COMPILE
-        // Untiered methods are currently not eligible for entry point slot backpatch, but may be in some cases in the future
-        return false;
+        return IsTieredVtableMethod();
 #else
         // Entry point slot backpatch is disabled for CrossGen
         return false;
@@ -1412,10 +1382,8 @@ public:
 private:
     void BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint);
 
-private:
-    void SetUntieredMethodCodeEntryPoint(PCODE entryPoint);
 public:
-    void SetTieredMethodCodeEntryPoint(PCODE entryPoint);
+    void SetCodeEntryPoint(PCODE entryPoint);
     void ResetTieredMethodCodeEntryPoint();
 
 #endif // !CROSSGEN_COMPILE

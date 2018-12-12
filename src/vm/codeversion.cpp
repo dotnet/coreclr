@@ -2248,7 +2248,14 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
     {
         EX_TRY
         {
-            pMethod->SetTieredMethodCodeEntryPoint(pCode);
+            if (pCode == NULL)
+            {
+                pMethod->ResetTieredMethodCodeEntryPoint();
+            }
+            else
+            {
+                pMethod->SetCodeEntryPoint(pCode);
+            }
         }
         EX_CATCH_HRESULT(hr);
         return hr;
