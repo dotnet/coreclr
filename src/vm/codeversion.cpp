@@ -2248,7 +2248,7 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
     {
         EX_TRY
         {
-            pMethod->SetTieredMethodEntryPoint(pCode);
+            pMethod->SetTieredMethodCodeEntryPoint(pCode);
         }
         EX_CATCH_HRESULT(hr);
         return hr;

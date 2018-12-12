@@ -1940,7 +1940,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         }
 #endif
 
-        SetUntieredMethodEntryPoint(pCode);
+        SetUntieredMethodCodeEntryPoint(pCode);
     }
     else
     {

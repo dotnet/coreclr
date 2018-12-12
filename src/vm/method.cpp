@@ -4965,7 +4965,7 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryP
     SetEntryPointToBackpatch_Locked(entryPoint, isPrestubEntryPoint);
 }
 
-void MethodDesc::SetUntieredMethodEntryPoint(PCODE entryPoint)
+void MethodDesc::SetUntieredMethodCodeEntryPoint(PCODE entryPoint)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(entryPoint != NULL);
@@ -4985,7 +4985,7 @@ void MethodDesc::SetUntieredMethodEntryPoint(PCODE entryPoint)
     }
 }
 
-void MethodDesc::SetTieredMethodEntryPoint(PCODE entryPoint)
+void MethodDesc::SetTieredMethodCodeEntryPoint(PCODE entryPoint)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsEligibleForTieredCompilation());
@@ -5021,7 +5021,7 @@ void MethodDesc::SetTieredMethodEntryPoint(PCODE entryPoint)
 #endif
 }
 
-void MethodDesc::ResetTieredMethodEntryPoint()
+void MethodDesc::ResetTieredMethodCodeEntryPoint()
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsEligibleForTieredCompilation());

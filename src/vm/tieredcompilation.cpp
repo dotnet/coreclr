@@ -498,7 +498,7 @@ void TieredCompilationManager::ResumeCountingCalls(MethodDesc* pMethodDesc)
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
 
-    pMethodDesc->ResetTieredMethodEntryPoint();
+    pMethodDesc->ResetTieredMethodCodeEntryPoint();
 }
 
 bool TieredCompilationManager::TryAsyncOptimizeMethods()

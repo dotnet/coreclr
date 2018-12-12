@@ -1413,10 +1413,10 @@ private:
     void BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint);
 
 private:
-    void SetUntieredMethodEntryPoint(PCODE entryPoint);
+    void SetUntieredMethodCodeEntryPoint(PCODE entryPoint);
 public:
-    void SetTieredMethodEntryPoint(PCODE entryPoint);
-    void ResetTieredMethodEntryPoint();
+    void SetTieredMethodCodeEntryPoint(PCODE entryPoint);
+    void ResetTieredMethodCodeEntryPoint();
 
 #endif // !CROSSGEN_COMPILE
 
