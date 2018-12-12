@@ -45,9 +45,10 @@
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
     <CommandLineParserVersion>2.2.0</CommandLineParserVersion>
     <VCRuntimeVersion>2.0.0</VCRuntimeVersion>
+    <!--
     <MicrosoftDotNetSignToolVersion>1.0.0-beta.18604.15</MicrosoftDotNetSignToolVersion>
     <MicroBuildCoreVersion Condition="'$(MicroBuildCoreVersion)' == ''">0.2.0</MicroBuildCoreVersion>
-    <SNVersion>1.0.0</SNVersion>
+    <SNVersion>1.0.0</SNVersion>-->
     
     <!-- Scenario tests install this version of Microsoft.NetCore.App, then patch coreclr binaries via xcopy. At the moment it is
          updated manually whenever breaking changes require it to move forward, but it would be nice if we could update it automatically
