@@ -9,7 +9,7 @@ parameters:
   helixQueuesPublic: ''
   helixQueuesInternal: ''
   timeoutInMinutes: ''
-  rootfsDir: ''
+  crossrootfsDir: ''
 
 ### Test job
 

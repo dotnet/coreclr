@@ -10,7 +10,7 @@ parameters:
   containerName: ''
   timeoutInMinutes: ''
   helixType: ''
-  rootfsDir: ''
+  crossrootfsDir: ''
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
@@ -79,9 +79,9 @@ jobs:
       - name: osGroupName
         value: ${{ parameters.osGroupName }}
       
-      - ${{ if ne(parameters.rootfsDir, '') }}:
+      - ${{ if ne(parameters.crossrootfsDir, '') }}:
           - name: rootfsDir
-            value: ${{ parameters.rootfsDir }}
+            value: ${{ parameters.crossrootfsDir }}
 
       - ${{ each variable in parameters.variables }}:
         - ${{insert}}: ${{ variable }}

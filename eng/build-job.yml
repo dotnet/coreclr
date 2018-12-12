@@ -4,7 +4,7 @@ parameters:
   osGroup: ''
   osGroupName: ''
   containerName: ''
-  rootfsDir: ''
+  crossrootfsDir: ''
 
 ### Product build
 jobs:
