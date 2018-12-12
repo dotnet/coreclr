@@ -25,9 +25,12 @@ jobs:
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     gatherAssetManifests: true
+    # Variables used by arcade to gather asset manifests
     variables:
     - name: _DotNetPublishToBlobFeed
       value: true
+    - name: _BuildConfig
+      value: $(buildConfigUpper)
 
     steps:
 
