@@ -12,12 +12,15 @@
 
   <Target Name="PublishPackages">
 
+    <Message Importance="High" Text="PackagesBinDir: $(PackagesBinDir)" />
+
     <ItemGroup>
       <PackagesToPublish Include="$(PackagesBinDir)pkg\*.nupkg" IsShipping="true" />
     </ItemGroup>
 
     <Message Importance="High" Text="PackagesToPublish: @(PackagesToPublish)" />
     <Message Importance="High" Text="PackagesToPublish metadata: @(PackagesToPublish->'%(IsShipping)')" />
+    <Message Importance="High" Text="nugetroot: @(NuGetPackageRoot)" />
 
     <ItemGroup>
       <ItemsToPushToBlobFeed Include="@(PackagesToPublish)">
