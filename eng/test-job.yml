@@ -9,6 +9,7 @@ parameters:
   helixQueuesPublic: ''
   helixQueuesInternal: ''
   timeoutInMinutes: ''
+  rootfsDir: ''
 
 ### Test job
 
@@ -35,6 +36,8 @@ jobs:
         helixType: ${{ format('test/functional/cli/pri{0}', parameters.priority) }}
     ${{ if eq(parameters.crossgen, 'true') }}:
         helixType: ${{ format('test/functional/r2r/cli/pri{0}', parameters.priority) }}
+
+    rootfsDir: ${{ parameters.rootfsDir }}
 
     variables:
       # Map template parameters to command line arguments
