@@ -84,20 +84,10 @@ public class CMain
             return false;
         }
 
-        bool exceptionThrown = false;
-        try
+        dec = RetDec();
+        if (dec != decimal.MaxValue)
         {
-            RetDec();
-        }
-        catch (MarshalDirectiveException)
-        {
-            exceptionThrown = true;
-        }
-
-        if (!exceptionThrown)
-        {
-            Console.WriteLine("Expected MarshalDirectiveException is not thrown");
-            return false;
+            Console.WriteLine($"Test Failed. Expected 'decimal.MaxValue'. Got {dec}");
         }
 
         Console.WriteLine("MarshalAsLPStruct end.");
@@ -132,20 +122,10 @@ public class CMain
             return false;
         }
 
-
-        bool exceptionThrown = false;
-        try
+        cy = RetCY();
+        if (cy != CY_MIN_VALUE)
         {
-            RetCY();
-        }
-        catch (MarshalDirectiveException)
-        {
-            exceptionThrown = true;
-        }
-
-        if (!exceptionThrown)
-        {
-            Console.WriteLine("Expected MarshalDirectiveException is not thrown");
+            Console.WriteLine($"Test Failed. Expected 'CY_MIN_VALUE'. Got {cy}");
             return false;
         }
 
