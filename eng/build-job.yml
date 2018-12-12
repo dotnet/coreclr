@@ -22,7 +22,7 @@ jobs:
     # Run all steps in the container.
     # Note that the containers are resources defined in azure-pipelines.yml
     containerName: ${{ parameters.containerName }}
-    rootfsDir: ${{ parameters.rootfsDir }}
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     steps:
 

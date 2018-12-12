@@ -37,7 +37,7 @@ jobs:
     ${{ if eq(parameters.crossgen, 'true') }}:
         helixType: ${{ format('test/functional/r2r/cli/pri{0}', parameters.priority) }}
 
-    rootfsDir: ${{ parameters.rootfsDir }}
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     variables:
       # Map template parameters to command line arguments
