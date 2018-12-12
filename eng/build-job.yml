@@ -85,7 +85,7 @@ jobs:
       - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
         - script: |
             ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
-            tree ./
+            find .
           displayName: Build packages
           # TODO: Bootstrap arcade earlier once we have onboarded the repo build
           # This bootstraps the cli and arcade, and restores the blob feed package
