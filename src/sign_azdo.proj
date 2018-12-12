@@ -4,10 +4,10 @@
   <Import Project="..\dir.props"/>
   <Import Project="..\dir.targets" />
 
-  <!-- <PropertyGroup>
-    <NuGetPackageRoot>$(MSBuildThisFileDirectory)..\packages\</NuGetPackageRoot>
-  </PropertyGroup> -->
-  <Import Project="$(NUGET_PACKAGES)\microsoft.dotnet.signtool\$(MicrosoftDotNetSignToolVersion)\build\Microsoft.DotNet.SignTool.props" />
+  <PropertyGroup>
+    <NuGetPackageRoot>$(MSBuildThisFileDirectory)..\.packages\</NuGetPackageRoot>
+  </PropertyGroup>
+  <Import Project="$(NuGetPackageRoot)\microsoft.dotnet.signtool\$(MicrosoftDotNetSignToolVersion)\build\Microsoft.DotNet.SignTool.props" />
 
   <ItemGroup>
     <!--
@@ -18,10 +18,10 @@
     <CertificatesSignInfo Include="3PartyDual" DualSigningAllowed="true" />
     <CertificatesSignInfo Include="3PartySHA2" DualSigningAllowed="true" />
     <!-- Default certificate/strong-name to be used for all files with PKT=="31bf3856ad364e35". -->
-    <StrongNameSignInfo Include="MsSharedLib72" PublicKeyToken="31bf3856ad364e35" CertificateName="Microsoft400" />
-    <StrongNameSignInfo Include="SilverlightCert121" PublicKeyToken="7cec85d7bea7798e" CertificateName="Microsoft400" />
-    <StrongNameSignInfo Include="StrongName" PublicKeyToken="b77a5c561934e089" CertificateName="Microsoft400" />
-    <StrongNameSignInfo Include="StrongName" PublicKeyToken="b03f5f7f11d50a3a" CertificateName="Microsoft400" />
+    <StrongNameSignInfo Include="MsSharedLib72" PublicKeyToken="31bf3856ad364e35" CertificateName="Microsoft401" />
+    <StrongNameSignInfo Include="SilverlightCert121" PublicKeyToken="7cec85d7bea7798e" CertificateName="Microsoft401" />
+    <StrongNameSignInfo Include="StrongName" PublicKeyToken="b77a5c561934e089" CertificateName="Microsoft401" />
+    <StrongNameSignInfo Include="StrongName" PublicKeyToken="b03f5f7f11d50a3a" CertificateName="Microsoft401" />
     <!-- <StrongNameSignInfo Include="$(MSBuildThisFileDirectory)snk\Open.snk" PublicKeyToken="cc7b13ffcd2ddd51" CertificateName="Microsoft400" /> -->
 
     <!--
@@ -32,7 +32,7 @@
     -->
     <FileExtensionSignInfo Include=".jar" CertificateName="MicrosoftJAR" />
     <FileExtensionSignInfo Include=".js;.ps1;.psd1;.psm1;.psc1;.py" CertificateName="Microsoft400" />
-    <FileExtensionSignInfo Include=".dll;.exe" CertificateName="Microsoft400" />
+    <FileExtensionSignInfo Include=".dll;.exe" CertificateName="Microsoft401" />
     <FileExtensionSignInfo Include=".nupkg" CertificateName="NuGet" />
     <FileExtensionSignInfo Include=".vsix" CertificateName="VsixSHA2" />
     <FileExtensionSignInfo Include=".zip" CertificateName="None" />
@@ -127,8 +127,8 @@
             TempDir="$(IntermediateOutputRootPath)"
             LogDir="$(IntermediateOutputRootPath)"
             MSBuildPath="$(_DesktopMSBuildPath)"
-            SNBinaryPath="$(NUGET_PACKAGES)sn\$(SNVersion)\sn.exe"
-            MicroBuildCorePath="$(NUGET_PACKAGES)microbuild.core\$(MicroBuildCoreVersion)"/>
+            SNBinaryPath="$(NuGetPackageRoot)sn\$(SNVersion)\sn.exe"
+            MicroBuildCorePath="$(NuGetPackageRoot)microbuild.core\$(MicroBuildCoreVersion)"/>
     <!-- now that the files have been signed delete the marker files -->
     <Delete Files="@(SignMarkerFile)" />
   </Target>
