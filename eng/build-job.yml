@@ -35,6 +35,8 @@ jobs:
     #
     # This is only required for non-docker builds.
     - ${{ if eq(parameters.osGroup, 'OSX') }}:
+      - script: find .
+        displayName: run "find ."
       - script: sh eng/install-native-dependencies.sh $(osGroup)
         displayName: Install native dependencies
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
