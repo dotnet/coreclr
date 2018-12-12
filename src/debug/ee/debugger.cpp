@@ -10740,7 +10740,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
         (pEvent->type & DB_IPCE_TYPE_MASK) == DB_IPCE_ATTACHING ||
         this->m_isBlockedOnGarbageCollectionEvent)
     {
-        if (!this->m_isBlockedOnGarbageCollectionEvent)
+        if (!this->m_isBlockedOnGarbageCollectionEvent && !this->m_stopped)
         {
             lockedThreadStore = true;
             ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_FOR_DEBUGGER);
