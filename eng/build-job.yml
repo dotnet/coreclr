@@ -78,13 +78,13 @@ jobs:
 #        displayName: Sign Binaries
 
       - task: PublishBuildArtifacts@1
-            displayName: Publish Logs to VSTS
-            inputs:
-              PathtoPublish: '$(Build.SourcesDirectory)/artifacts/log/$(buildConfig)'
-              PublishLocation: Container
-              ArtifactName: $(Agent.Os)_$(Agent.JobName)
-            continueOnError: true
-            condition: always()
+        displayName: Publish Logs to VSTS
+        inputs:
+            PathtoPublish: '$(Build.SourcesDirectory)/artifacts/log/$(buildConfig)'
+            PublishLocation: Container
+            ArtifactName: $(Agent.Os)_$(Agent.JobName)
+        continueOnError: true
+        condition: always()
 
     # Upload build as pipeline artifact
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
