@@ -54,10 +54,10 @@ jobs:
     # Sign on Windows
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(parameters.osGroup, 'Windows_NT')) }}:
     # TODO: Replace this with arcade's built-in signing when we build with arcade
-      - script: powershell eng\common\build.ps1 -ci -restore -warnaserror 0
-        displayName: Restore for sign binaries
-      - script: .\Tools\dotnetcli\dotnet.exe msbuild $(Build.SourcesDirectory)\src\sign_azdo.proj /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:SignType=$(_SignType) /p:OfficialBuild=true
+      - script: powershell eng\common\build.ps1 -ci -sign -restore -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:DotNetSignType=$(_SignType)
         displayName: Sign Binaries
+#      - script: .\Tools\dotnetcli\dotnet.exe msbuild $(Build.SourcesDirectory)\src\sign_azdo.proj /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:SignType=$(_SignType) /p:OfficialBuild=true
+#        displayName: Sign Binaries
 
     # Upload build as pipeline artifact
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
