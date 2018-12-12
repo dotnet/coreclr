@@ -265,20 +265,9 @@ public class CMain
             return false;
         }
 
-        bool exceptionThrown = false;
-
-        try
+        if (!ReverseCall_CYRet(new Dele_CYRet(CYRet)))
         {
-            ReverseCall_CYRet(new Dele_CYRet(CYRet));
-        }
-        catch (MarshalDirectiveException)
-        {
-            exceptionThrown = true;
-        }
-        if (!exceptionThrown)
-        {
-            Console.WriteLine("Expected MarshalDirectiveException from TakeDecAsInOutParamAsLPStructByRef(ref dec) not thrown");
-            return false;
+            Console.WriteLine("Test Failed: (ReverseCall_CYRet(new Dele_CYRet(CYRet))");
         }
 
         if (!(ReverseCall_TakeStru_Exp_DecAsCYAsFldByOutRef(new Dele_Stru_Exp_DecAsCYAsFldOutRef(ReverseCall_TakeStru_Exp_DecAsCYAsFldByOutRef))))
