@@ -36,7 +36,7 @@ jobs:
         displayName: Install native dependencies
 
     # Build
-    - ${{ if and(and(ne(parameters.archType, 'arm'), ne(parameters.archType, 'arm64')), ne(parameters.osGroup, 'Windows_NT')) }}:
+    - ${{ if and(ne(parameters.osGroup, 'Windows_NT'), notIn(parameters.archType, 'arm', 'arm64')) }}:
       - script: ./build.sh $(buildConfig) $(archType) -skiptests
         displayName: Build product
     - ${{ if and(ne(parameters.osGroup, 'Windows_NT'), in(parameters.archType, 'arm', 'arm64')) }}:
