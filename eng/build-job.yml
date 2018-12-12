@@ -82,7 +82,9 @@ jobs:
     # Build packages and publish official build
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
       - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-        - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
+        - script: |
+            ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
+            tree ./
           displayName: Build packages
           # TODO: Bootstrap arcade earlier once we have onboarded the repo build
           # This bootstraps the cli and arcade, and restores the blob feed package
@@ -95,9 +97,9 @@ jobs:
         # TODO: pass publish feed url and access token in from the internal pipeline
         - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper)
           displayName: Build packages
-        - script: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
+        - powershell: powershell eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
           displayName: Restore blob feed tasks
-        - script: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj
+        - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj
           displayName: Publish packages to blob feed
     #      - script: .dotnet\dotnet.exe msbuild src\publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)    
 
