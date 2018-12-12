@@ -339,15 +339,16 @@ namespace R2RDump
                                     _writer.WriteLine("Signature Bytes:");
                                     DumpBytes(importSection.SignatureRVA, (uint)importSection.Entries.Count * sizeof(int));
                                 }
-                                if (importSection.AuxiliaryDataRVA != 0 && importSection.AuxiliaryData != null)
+                                if (importSection.AuxiliaryDataRVA != 0 && importSection.AuxiliaryDataSize != 0)
                                 {
                                     _writer.WriteLine("AuxiliaryData Bytes:");
-                                    DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryData.Size);
+                                    DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryDataSize);
                                 }
                             }
                             foreach (R2RImportSection.ImportSectionEntry entry in importSection.Entries)
                             {
-                                _writer.WriteLine(entry.ToString());
+                                entry.WriteTo(_writer, _options);
+                                _writer.WriteLine();
                             }
                             _writer.WriteLine();
                         }
@@ -358,18 +359,16 @@ namespace R2RDump
 
         private void DumpNakedImportSections()
         {
-            List<string> importSignatures = new List<string>();
+            List<R2RImportSection.ImportSectionEntry> entries = new List<R2RImportSection.ImportSectionEntry>();
             foreach (R2RImportSection importSection in _r2r.ImportSections)
             {
-                foreach (R2RImportSection.ImportSectionEntry entry in importSection.Entries)
-                {
-                    importSignatures.Add(entry.Signature);
-                }
+                entries.AddRange(importSection.Entries);
             }
-            importSignatures.Sort();
-            foreach (string sig in importSignatures)
+            entries.Sort((e1, e2) => e1.Signature.CompareTo(e2.Signature));
+            foreach (R2RImportSection.ImportSectionEntry entry in entries)
             {
-                _writer.WriteLine(sig);
+                entry.WriteTo(_writer, _options);
+                _writer.WriteLine();
             }
         }
 
