@@ -77,6 +77,15 @@ jobs:
 #      - script: .\Tools\dotnetcli\dotnet.exe msbuild $(Build.SourcesDirectory)\src\sign_azdo.proj /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:SignType=$(_SignType) /p:OfficialBuild=true
 #        displayName: Sign Binaries
 
+      - task: PublishBuildArtifacts@1
+            displayName: Publish Logs to VSTS
+            inputs:
+              PathtoPublish: '$(Build.SourcesDirectory)/artifacts/log/$(buildConfig)'
+              PublishLocation: Container
+              ArtifactName: $(Agent.Os)_$(Agent.JobName)
+            continueOnError: true
+            condition: always()
+
     # Upload build as pipeline artifact
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - task: PublishPipelineArtifact@0
