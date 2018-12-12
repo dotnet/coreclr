@@ -26,7 +26,7 @@ jobs:
 
     gatherAssetManifests: true
     variables:
-      name: _DotNetPublishToBlobFeed
+    - name: _DotNetPublishToBlobFeed
       value: true
 
     steps:
