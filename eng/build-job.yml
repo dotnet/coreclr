@@ -112,7 +112,7 @@ jobs:
         - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore
           # TODO: ensure this is only done for official/release, etc...
           displayName: Restore blob feed tasks
-        - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper)
+        - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType)
           displayName: Publish packages to blob feed
       - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
         # TODO: pass publish feed url and access token in from the internal pipeline
@@ -120,7 +120,7 @@ jobs:
           displayName: Build packages
         - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
           displayName: Restore blob feed tasks
-        - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper)
+        - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType)
           displayName: Publish packages to blob feed
     #      - script: .dotnet\dotnet.exe msbuild src\publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)    
 
