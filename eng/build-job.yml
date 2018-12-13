@@ -96,8 +96,6 @@ jobs:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
         - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
           displayName: Build packages
-        - script: find .
-          displayName: Run "find"
           # TODO: Bootstrap arcade earlier once we have onboarded the repo build
           # This bootstraps the cli and arcade, and restores the blob feed package
         - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore

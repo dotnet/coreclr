@@ -188,7 +188,6 @@ jobs:
 # registry. Its dependencies should be updated to include all of the
 # official builds if we add more platform/arch combinations.
 
-# TODO: Enable publish to BAR
 - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
   - template: /eng/common/templates/job/publish-build-assets.yml
     parameters:
@@ -198,7 +197,9 @@ jobs:
       dependsOn:
       - build_Linux_arm_release
       - build_Linux_arm64_release
-      - build_Linux_musl_x64_release
+      # TODO: depend on musl job once the glibc container issue is fixed
+      # https://dnceng.visualstudio.com/internal/_workitems/edit/109
+      # - build_Linux_musl_x64_release
       - build_Linux_rhel6_x64_release
       - build_Linux_rhel7_x64_release
       - build_Linux_x64_release
