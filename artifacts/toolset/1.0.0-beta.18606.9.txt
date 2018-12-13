@@ -1,1 +1,0 @@
-C:\Users\morganb\.nuget\packages\microsoft.dotnet.arcade.sdk\1.0.0-beta.18606.9\tools\Build.proj
