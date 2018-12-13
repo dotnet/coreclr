@@ -29,8 +29,10 @@ jobs:
     osGroup: Linux
     osGroupName: Linux
     containerName: ubuntu_1604_arm64_cross_build_image
-    helixQueuesPublic: 'Debian.9.Arm64.Open,Ubuntu.1604.Arm64.Open,Ubuntu.1804.Arm64.Open'
-    helixQueuesInternal: 'Debian.9.Arm64,Ubuntu.1604.Arm64,Ubuntu.1804.Arm64'
+    # TODO: enable Debian.9.Arm64.Open and Debian.9.Arm64 queues
+    # when https://github.com/dotnet/core-eng/issues/4805 is resolved
+    helixQueuesPublic: 'Ubuntu.1604.Arm64.Open,Ubuntu.1804.Arm64.Open'
+    helixQueuesInternal: 'Ubuntu.1604.Arm64,Ubuntu.1804.Arm64'
     crossrootfsDir: '/crossrootfs/arm64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
