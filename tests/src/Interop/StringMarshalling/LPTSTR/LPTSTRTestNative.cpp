@@ -33,15 +33,14 @@ extern "C" LPWSTR ReturnErrString()
 }
 
 //Test Method1
-extern "C" DLL_EXPORT LPWSTR Marshal_In(/*[In,Out]*/LPWSTR s)
+extern "C" DLL_EXPORT LPWSTR Marshal_In(/*[In]*/LPWSTR s)
 {
-
     //Check the Input
 	size_t len = wcslen(s);
 
     if((len != lenstrManaged)||(wmemcmp(s,(WCHAR*)strManaged,len)!=0))
     {
-        printf("Error in Function Marshal_InOut(Native Client)\n");
+        printf("Error in Function Marshal_In(Native Client)\n");
         return ReturnErrString();
     }
     
