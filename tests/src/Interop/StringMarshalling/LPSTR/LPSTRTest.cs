@@ -192,10 +192,19 @@ class Test
         }
 
         #region ReversePinvoke
-        DelMarshal_InOut d1 = new DelMarshal_InOut(Call_DelMarshal_InOut);
-        if (!PInvokeDef.RPinvoke_DelMarshal_InOut(d1, "ň"))
+        bool inOutByValueThrows = false;
+        try
         {
-            ReportFailure("Method RPinvoke_DelMarshal_InOut[Managed Side],Return value is false");
+            DelMarshal_InOut d1 = new DelMarshal_InOut(Call_DelMarshal_InOut);
+            PInvokeDef.RPinvoke_DelMarshal_InOut(d1, "ň");
+        }
+        catch (MarshalDirectiveException)
+        {
+            inOutByValueThrows = true;
+        }
+        if (!inOutByValueThrows)
+        {
+            ReportFailure("Method RPinvoke_DelMarshal_InOut didn't throw a MarshalDirectiveException.");
         }
 
         DelMarshalPointer_Out d2 = new DelMarshalPointer_Out(Call_DelMarshalPointer_Out);
