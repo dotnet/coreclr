@@ -3734,8 +3734,7 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
                     COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
                 }
             }
-            else if (marshalType == MarshalInfo::MARSHAL_TYPE_DATE
-                    || marshalType == MarshalInfo::MARSHAL_TYPE_CURRENCY
+            else if (marshalType == MarshalInfo::MARSHAL_TYPE_CURRENCY
                     || marshalType == MarshalInfo::MARSHAL_TYPE_ARRAYWITHOFFSET
                     || marshalType == MarshalInfo::MARSHAL_TYPE_ARGITERATOR
 #ifdef FEATURE_COMINTEROP
