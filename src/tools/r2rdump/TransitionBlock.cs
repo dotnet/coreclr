@@ -47,11 +47,7 @@ namespace R2RDump
 
         public abstract int SizeOfTransitionBlock { get; }
 
-        /// <summary>
-        /// Offset of argument registers is 0 for all targets except for Windows X64 ABI
-        /// where we override this method to return the transition block size instead.
-        /// </summary>
-        public virtual int OffsetOfArgumentRegisters => 0;
+        public abstract int OffsetOfArgumentRegisters { get; }
 
         /// <summary>
         /// Recalculate pos in GC ref map to actual offset. This is the default implementation for all architectures
@@ -79,6 +75,7 @@ namespace R2RDump
             public override int NumCalleeSavedRegisters => 4;
             // Argument registers, callee-save registers, return address
             public override int SizeOfTransitionBlock => SizeOfArgumentRegisters + SizeOfCalleeSavedRegisters + PointerSize;
+            public override int OffsetOfArgumentRegisters => 0;
 
             public override int OffsetFromGCRefMapPos(int pos)
             {
@@ -118,6 +115,7 @@ namespace R2RDump
             public override int NumCalleeSavedRegisters => 6;
             // Argument registers, callee-saved registers, return address
             public override int SizeOfTransitionBlock => SizeOfArgumentRegisters + SizeOfCalleeSavedRegisters + PointerSize;
+            public override int OffsetOfArgumentRegisters => 0;
         }
 
         private sealed class ArmTransitionBlock : TransitionBlock
@@ -131,6 +129,7 @@ namespace R2RDump
             public override int NumCalleeSavedRegisters => 9;
             // Callee-saves, argument registers
             public override int SizeOfTransitionBlock => SizeOfCalleeSavedRegisters + SizeOfArgumentRegisters;
+            public override int OffsetOfArgumentRegisters => SizeOfCalleeSavedRegisters;
         }
 
         private sealed class Arm64TransitionBlock : TransitionBlock
@@ -144,7 +143,7 @@ namespace R2RDump
             public override int NumCalleeSavedRegisters => 12;
             // Callee-saves, padding, m_x8RetBuffReg, argument registers
             public override int SizeOfTransitionBlock => SizeOfCalleeSavedRegisters + 2 * PointerSize + SizeOfArgumentRegisters;
-            public override int OffsetOfArgumentRegisters => 0;
+            public override int OffsetOfArgumentRegisters => SizeOfCalleeSavedRegisters + 2 * PointerSize;
         }
     }
 
