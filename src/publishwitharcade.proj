@@ -55,6 +55,7 @@
            OSX, causing the manifests to have different headers, which
            makes publishing to BAR fail later when it tries to merge
            the manifests. -->
+      <_HackedBuildRepositoryUri>$(BUILD_REPOSITORY_URI)</_HackedBuildRepositoryUri>
       <_HackedBuildRepositoryUri Condition="'$(BUILD_REPOSITORY_URI)' == 'https://dnceng.visualstudio.com/internal/_git/dotnet-coreclr'" >https://dnceng@dev.azure.com/dnceng/internal/_git/dotnet-coreclr</_HackedBuildRepositoryUri>
     </PropertyGroup>
 
