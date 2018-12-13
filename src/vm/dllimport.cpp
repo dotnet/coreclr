@@ -3734,6 +3734,20 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
                     COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
                 }
             }
+            else if (marshalType == MarshalInfo::MARSHAL_TYPE_DATE
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_CURRENCY
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_ARRAYWITHOFFSET
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_ARGITERATOR
+#ifdef FEATURE_COMINTEROP
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_OLECOLOR
+#endif // FEATURE_COMINTEROP
+            )
+            {
+                // Each of these types is non-blittable and according to its managed size should be returned in a return buffer on x86 in stdcall.
+                // However, it's native size is small enough to be returned by-value.
+                // We don't know the native type representation early enough to get this correct, so we throw an exception here.
+                COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
+            }
             else if (IsUnsupportedValueTypeReturn(msig))
             {
                 COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);

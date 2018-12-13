@@ -122,10 +122,19 @@ public class CMain
             return false;
         }
 
-        cy = RetCY();
-        if (cy != CY_MIN_VALUE)
+        bool exceptionThrown = false;
+
+        try
         {
-            Console.WriteLine($"Test Failed. Expected 'CY_MIN_VALUE'. Got {cy}");
+            RetCY();
+        }
+        catch (MarshalDirectiveException)
+        {
+            exceptionThrown = true;
+        }
+        if (!exceptionThrown)
+        {
+            Console.WriteLine("Expected MarshalDirectiveException from RetCY() not thrown");
             return false;
         }
 

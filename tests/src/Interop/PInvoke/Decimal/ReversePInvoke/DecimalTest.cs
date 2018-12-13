@@ -265,9 +265,20 @@ public class CMain
             return false;
         }
 
-        if (!ReverseCall_CYRet(new Dele_CYRet(CYRet)))
+        bool exceptionThrown = false;
+
+        try
         {
-            Console.WriteLine("Test Failed: (ReverseCall_CYRet(new Dele_CYRet(CYRet))");
+            ReverseCall_CYRet(new Dele_CYRet(CYRet));
+        }
+        catch (MarshalDirectiveException)
+        {
+            exceptionThrown = true;
+        }
+        if (!exceptionThrown)
+        {
+            Console.WriteLine("Expected MarshalDirectiveException from ReverseCall_CYRet(new Dele_CYRet(CYRet)) not thrown");
+            return false;
         }
 
         if (!(ReverseCall_TakeStru_Exp_DecAsCYAsFldByOutRef(new Dele_Stru_Exp_DecAsCYAsFldOutRef(ReverseCall_TakeStru_Exp_DecAsCYAsFldByOutRef))))
