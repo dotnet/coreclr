@@ -46,10 +46,18 @@ jobs:
     - ${{ if eq(parameters.osGroup, 'OSX') }}:
       - script: sh eng/install-native-dependencies.sh $(osGroup)
         displayName: Install native dependencies
+      - script: echo $NUGET_PACKAGES
+        displayName: test
+        env:
+          NUGET_PACKAGES: testvar
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # Necessary to install python
       - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
         displayName: Install native dependencies
+      - powershell: echo $env:NUGET_PACKAGES
+        displayName: test
+        env:
+          NUGET_PACKAGES: testvar
 
     # Build
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
@@ -103,6 +111,9 @@ jobs:
           displayName: Restore blob feed tasks
         - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType)
           displayName: Publish packages to blob feed
+          env:
+            # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+            NUGET_PACKAGES: $(Build.SourcesDirectory)/.packages 
       - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
         # TODO: pass publish feed url and access token in from the internal pipeline
         - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
@@ -111,7 +122,10 @@ jobs:
           displayName: Restore blob feed tasks
         - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType)
           displayName: Publish packages to blob feed
-    #      - script: .dotnet\dotnet.exe msbuild src\publishwitharcade.proj /t:PublishPackages /p:AzureFeedUrl=$(AzureFeedUrl) /p:AccountKey=$(AccountKey)    
+          env:
+            # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+            NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages 
+
 
     # Kill tasks that hold onto files on Windows. Otherwise git clean
     # may fail for later jobs on the same agent.
