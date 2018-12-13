@@ -2958,6 +2958,7 @@ public:
     virtual void SuspendForGarbageCollectionCompleted();
     virtual void ResumeForGarbageCollectionStarted();
 #endif
+    BOOL m_isBlockedOnGarbageCollectionEvent;
     BOOL m_willBlockOnGarbageCollectionEvent;
     BOOL m_isGarbageCollectionEventsEnabled;
     // this latches m_isGarbageCollectionEventsEnabled in BeforeGarbageCollection so we can 

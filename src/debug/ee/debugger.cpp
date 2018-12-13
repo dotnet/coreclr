@@ -952,6 +952,7 @@ Debugger::Debugger()
     m_forceNonInterceptable(FALSE),
     m_pLazyData(NULL),
     m_defines(_defines),
+    m_isBlockedOnGarbageCollectionEvent(FALSE),
     m_willBlockOnGarbageCollectionEvent(FALSE),
     m_isGarbageCollectionEventsEnabled(FALSE),
     m_isGarbageCollectionEventsEnabledLatch(FALSE)
@@ -6025,6 +6026,7 @@ void Debugger::SuspendForGarbageCollectionCompleted()
     {
         return;
     }
+    this->m_isBlockedOnGarbageCollectionEvent = TRUE; 
 
     Thread* pThread = GetThread();
 
@@ -6082,7 +6084,8 @@ void Debugger::ResumeForGarbageCollectionStarted()
 
     WaitForSingleObject(this->GetGarbageCollectionBlockerEvent(), INFINITE);
     ResetEvent(this->GetGarbageCollectionBlockerEvent());
-    this->m_willBlockOnGarbageCollectionEvent = false;
+    this->m_isBlockedOnGarbageCollectionEvent = FALSE;
+    this->m_willBlockOnGarbageCollectionEvent = FALSE;
 }
 
 #ifdef FEATURE_DATABREAKPOINT
@@ -10766,7 +10769,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
         (pEvent->type & DB_IPCE_TYPE_MASK) == DB_IPCE_ATTACHING ||
         this->m_willBlockOnGarbageCollectionEvent)
     {
-        if (!this->m_willBlockOnGarbageCollectionEvent)
+        if (!this->m_willBlockOnGarbageCollectionEvent && !this->m_stopped)
         {
             lockedThreadStore = true;
             ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_FOR_DEBUGGER);
@@ -10845,7 +10848,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
     case DB_IPCE_CONTINUE:
         {
-            if (this->m_willBlockOnGarbageCollectionEvent)
+            if (this->m_isBlockedOnGarbageCollectionEvent)
             {
                 this->m_stopped = false;
                 SetEvent(this->GetGarbageCollectionBlockerEvent());
