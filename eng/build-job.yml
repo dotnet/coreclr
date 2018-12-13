@@ -48,18 +48,10 @@ jobs:
     - ${{ if eq(parameters.osGroup, 'OSX') }}:
       - script: sh eng/install-native-dependencies.sh $(osGroup)
         displayName: Install native dependencies
-      - script: echo $NUGET_PACKAGES
-        displayName: test
-        env:
-          NUGET_PACKAGES: testvar
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # Necessary to install python
       - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
         displayName: Install native dependencies
-      - powershell: echo $env:NUGET_PACKAGES
-        displayName: test
-        env:
-          NUGET_PACKAGES: testvar
 
     # Build
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
@@ -106,10 +98,7 @@ jobs:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
         - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
           displayName: Build packages
-          # TODO: Bootstrap arcade earlier once we have onboarded the repo build
-          # This bootstraps the cli and arcade, and restores the blob feed package
         - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore
-          # TODO: ensure this is only done for official/release, etc...
           displayName: Restore blob feed tasks
         - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier)
           displayName: Publish packages to blob feed
