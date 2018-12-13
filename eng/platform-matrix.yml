@@ -115,8 +115,9 @@ jobs:
     archType: x86
     osGroup: Windows_NT
     osGroupName: Windows_NT
-    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.10.Nano.Amd64.Open,Windows.7.Amd64.Open,Windows.81.Amd64.Open'
-    helixQueuesInternal: 'Windows.10.Amd64,Windows.10.Nano.Amd64,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64'
+    # TODO: enable Windows.10.Nano.Amd64.Open and Windows.10.Nano.Amd64 queues
+    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.7.Amd64.Open,Windows.81.Amd64.Open'
+    helixQueuesInternal: 'Windows.10.Amd64,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 - template: ${{ parameters.jobTemplate }}
