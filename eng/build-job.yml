@@ -26,6 +26,8 @@ jobs:
 
     gatherAssetManifests: true
     variables:
+    - name: osIdentifier
+      value: ${{ parameters.osIdentifier }}
     - name: portableBuildArg
       value: ''
     # Ensure that we produce os-specific packages for the following distros:
@@ -109,7 +111,7 @@ jobs:
         - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore
           # TODO: ensure this is only done for official/release, etc...
           displayName: Restore blob feed tasks
-        - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType)
+        - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier)
           displayName: Publish packages to blob feed
           env:
             # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
@@ -120,7 +122,7 @@ jobs:
           displayName: Build packages
         - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
           displayName: Restore blob feed tasks
-        - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType)
+        - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier)
           displayName: Publish packages to blob feed
           env:
             # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
