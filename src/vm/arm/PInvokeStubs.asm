@@ -16,7 +16,13 @@
 
     IMPORT VarargPInvokeStubWorker
     IMPORT GenericPInvokeCalliStubWorker
+    IMPORT RareDisablePreemptiveGCHelper
 
+    IMPORT s_gsCookie
+    IMPORT g_TrapReturningThreads
+
+    SETALIAS InlinedCallFrame_vftable, ??_7InlinedCallFrame@@6B@
+    IMPORT $InlinedCallFrame_vftable
 
 ; ------------------------------------------------------------------
 ; Macro to generate PInvoke Stubs.
@@ -106,6 +112,105 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
 
 
     TEXTAREA
+; ------------------------------------------------------------------
+; JIT_PInvokeBegin helper
+;
+; in:
+; r0 = InlinedCallFrame*: pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right 
+;                         before actual InlinedCallFrame data)
+; 
+        NESTED_ENTRY JIT_PInvokeBegin
+
+            PROLOG_PUSH         {r4,r5,r7,lr}
+            PROLOG_STACK_SAVE   r7
+            
+            ldr     r1, =s_gsCookie
+            ldr     r1, [r1]
+            str     r1, [r0]
+            add     r4, r0, SIZEOF__GSCookie
+                        
+            ;; r4 = pFrame
+            
+            ;; set first slot to the value of InlinedCallFrame::`vftable' (checked by runtime code)
+            ldr     r1, =$InlinedCallFrame_vftable
+            str     r1, [r4]
+
+            mov     r1, 0
+            str     r1, [r4, #InlinedCallFrame__m_Datum]
+        
+            add     r1, sp, 0x10
+            str     r1, [r4, #InlinedCallFrame__m_pCallSiteSP]
+            str     r11, [r4, #InlinedCallFrame__m_pCalleeSavedFP]
+            str     lr, [r4, #InlinedCallFrame__m_pCallerReturnAddress]
+
+            ;; r0 = GetThread(), TRASHES r1
+            INLINE_GETTHREAD r0, r1
+
+            ;; pFrame->m_Next = pThread->m_pFrame;
+            ldr     r1, [r0, #Thread_m_pFrame]
+            str     r1, [r4, #Frame__m_Next]
+
+            ;; pThread->m_pFrame = pFrame;
+            str     r4, [r0, #Thread_m_pFrame]
+
+            ;; pThread->m_fPreemptiveGCDisabled = 0
+            mov     r1, 0
+            str     r1, [r0, #Thread_m_fPreemptiveGCDisabled]
+
+            EPILOG_STACK_RESTORE    r7
+            EPILOG_POP              {r4,r5,r7,lr}
+            EPILOG_RETURN
+            
+        NESTED_END
+
+; ------------------------------------------------------------------
+; JIT_PInvokeEnd helper
+;
+; in:
+; r0 = InlinedCallFrame*
+; 
+        NESTED_ENTRY JIT_PInvokeEnd
+
+            PROLOG_PUSH         {r4,r5,r7,lr}
+            PROLOG_STACK_SAVE   r7
+            
+            add     r4, r0, SIZEOF__GSCookie
+
+            ;; r5 = GetThread(), TRASHES r1
+            INLINE_GETTHREAD r5, r1
+
+            ;; r4 = pFrame
+            ;; r5 = pThread
+            
+            ;; pThread->m_fPreemptiveGCDisabled = 1
+            mov     r1, 1
+            str     r1, [r5, #Thread_m_fPreemptiveGCDisabled]
+
+            ;;         ;; Check return trap
+            ldr     r1, =g_TrapReturningThreads
+            ldr     r1, [r1]
+            cbz     r1, DoNothing
+
+            ; Call GC helper - r0 still contains pThread
+            bl      RareDisablePreemptiveGCHelper
+            
+DoNothing
+
+            ;; pThread->m_pFrame = pFrame->m_Next;
+            ldr     r0, [r4, #Frame__m_Next]
+            str     r0, [r5, #Thread_m_pFrame]
+
+            mov     r0, 0
+            str     r0, [r4, #InlinedCallFrame__m_pCallerReturnAddress]
+        
+            EPILOG_STACK_RESTORE    r7
+            EPILOG_POP              {r4,r5,r7,lr}
+            EPILOG_RETURN
+            
+        NESTED_END
+        
+        INLINE_GETTHREAD_CONSTANT_POOL
+
 ; ------------------------------------------------------------------
 ; VarargPInvokeStub & VarargPInvokeGenILStub
 ; There is a separate stub when the method has a hidden return buffer arg.

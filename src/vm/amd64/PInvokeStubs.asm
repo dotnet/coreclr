@@ -13,6 +13,14 @@ include AsmConstants.inc
 
 extern GenericPInvokeCalliStubWorker:proc
 extern VarargPInvokeStubWorker:proc
+extern RareDisablePreemptiveGCHelper:proc
+
+extern s_gsCookie:QWORD
+extern ??_7InlinedCallFrame@@6B@:QWORD
+extern g_TrapReturningThreads:DWORD
+
+; Min amount of stack space that a nested function should allocate.
+MIN_SIZE equ 28h
 
 ;
 ; in:
@@ -134,5 +142,92 @@ NESTED_ENTRY VarargPInvokeGenILStub, _TEXT
         jmp             VarargPInvokeStubHelper
 
 NESTED_END VarargPInvokeGenILStub, _TEXT
+
+;
+; in:
+; InlinedCallFrame (rcx) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right 
+;                          before actual InlinedCallFrame data)
+;
+;
+LEAF_ENTRY JIT_PInvokeBegin, _TEXT
+        
+        mov             rax, qword ptr [s_gsCookie]
+        mov             qword ptr [rcx], rax
+        add             rcx, SIZEOF_GSCookie
+
+        ;; set first slot to the value of InlinedCallFrame::`vftable' (checked by runtime code)
+        lea             rax,[??_7InlinedCallFrame@@6B@]
+        mov             qword ptr [rcx], rax
+
+        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_Datum], 0
+
+        mov             rax, rsp
+        add             rax, 8
+        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_pCallSiteSP], rax
+        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP], rbp
+
+        mov             rax, [rsp]
+        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], rax
+
+        INLINE_GETTHREAD rax 
+        ;; pFrame->m_Next = pThread->m_pFrame;
+        mov             rdx, qword ptr [rax + OFFSETOF__Thread__m_pFrame]
+        mov             qword ptr [rcx + OFFSETOF__Frame__m_Next], rdx
+
+        ;; pThread->m_pFrame = pFrame;
+        mov             qword ptr [rax + OFFSETOF__Thread__m_pFrame], rcx
+
+        ;; pThread->m_fPreemptiveGCDisabled = 0
+        mov             dword ptr [rax + OFFSETOF__Thread__m_fPreemptiveGCDisabled], 0
+
+        ret
+
+LEAF_END JIT_PInvokeBegin, _TEXT
+
+;
+; in:
+; InlinedCallFrame (rcx) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right 
+;                          before actual InlinedCallFrame data)
+;
+;
+NESTED_ENTRY JIT_PInvokeEnd, _TEXT
+
+        alloc_stack         MIN_SIZE
+        save_reg_postrsp    r14, MIN_SIZE + 08h
+        save_reg_postrsp    r15, MIN_SIZE + 10h 
+        END_PROLOGUE
+
+        add             rcx, SIZEOF_GSCookie
+        mov             r14, rcx
+
+        INLINE_GETTHREAD r15 
+
+        ;; r14 = pFrame
+        ;; r15 = pThread
+
+        ;; pThread->m_fPreemptiveGCDisabled = 1
+        mov             dword ptr [r15 + OFFSETOF__Thread__m_fPreemptiveGCDisabled], 1
+
+        ;; Check return trap
+        cmp             [g_TrapReturningThreads], 0
+        jz              DoNothing
+
+        mov             rcx, r15
+        call            RareDisablePreemptiveGCHelper
+
+DoNothing:
+
+        ;; pThread->m_pFrame = pFrame->m_Next;
+        mov             rax, qword ptr [r14 + OFFSETOF__Frame__m_Next]
+        mov             qword ptr [r15 + OFFSETOF__Thread__m_pFrame], rax
+
+        mov             qword ptr [r14 + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], 0
+
+        mov             r14, qword ptr [rsp + MIN_SIZE + 08h]
+        mov             r15, qword ptr [rsp + MIN_SIZE + 10h]
+        add             rsp, MIN_SIZE
+        ret
+
+NESTED_END JIT_PInvokeEnd, _TEXT
 
         end
