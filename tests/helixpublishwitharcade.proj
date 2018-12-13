@@ -32,6 +32,10 @@
     <XUnitWrapperDlls Include="$(TestWorkingDir)\**\*.XUnitWrapper.dll" />
   </ItemGroup>
 
+  <Target Name="CopyRunnerScript" BeforeTargets="SubmitTestsToHelix">
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)\runtest_helix.py" DestinationFolder="$(CoreRootDirectory)" />
+  </Target>
+
   <Target Name="SubmitTestsToHelix">
     <ItemGroup>
       <Scenarios Include="$(Scenarios.Split(','))" />
@@ -46,10 +50,6 @@
     </PropertyGroup>
 
     <MSBuild Projects="@(ProjectsToBuild)" Targets="Test" BuildInParallel="$(BuildInParallel)" StopOnFirstFailure="false" UnloadProjectsOnCompletion="true" />
-  </Target>
-
-  <Target Name="CopyRunnerScript" BeforeTargets="BuildHelixWorkItem">
-    <Copy SourceFiles="$(MSBuildThisFileDirectory)\runtest_helix.py" DestinationFolder="$(CoreRootDirectory)" />
   </Target>
 
   <Target Name="BuildHelixWorkItem" BeforeTargets="Test">
