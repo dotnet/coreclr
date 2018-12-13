@@ -135,17 +135,20 @@ namespace R2RDump
             }
         }
 
+        public void WriteTo(TextWriter writer)
+        {
+            writer.WriteLine($"SectionRVA: 0x{SectionRVA:X8} ({SectionRVA})");
+            writer.WriteLine($"SectionSize: {SectionSize} bytes");
+            writer.WriteLine($"Flags: {Flags}");
+            writer.WriteLine($"Type: {Type}");
+            writer.WriteLine($"EntrySize: {EntrySize}");
+            writer.WriteLine($"SignatureRVA: 0x{SignatureRVA:X8} ({SignatureRVA})");
+            writer.WriteLine($"AuxiliaryDataRVA: 0x{AuxiliaryDataRVA:X8} ({AuxiliaryDataRVA})");
+        }
+
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"SectionRVA: 0x{SectionRVA:X8} ({SectionRVA})");
-            sb.AppendLine($"SectionSize: {SectionSize} bytes");
-            sb.AppendLine($"Flags: {Flags}");
-            sb.AppendLine($"Type: {Type}");
-            sb.AppendLine($"EntrySize: {EntrySize}");
-            sb.AppendLine($"SignatureRVA: 0x{SignatureRVA:X8} ({SignatureRVA})");
-            sb.AppendLine($"AuxiliaryDataRVA: 0x{AuxiliaryDataRVA:X8} ({AuxiliaryDataRVA})");
-            return sb.ToString();
+            throw new NotImplementedException();
         }
     }
 }

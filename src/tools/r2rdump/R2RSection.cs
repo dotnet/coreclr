@@ -55,13 +55,12 @@ namespace R2RDump
 
         public void WriteTo(TextWriter writer, DumpOptions options)
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"Type:  {Enum.GetName(typeof(SectionType), Type)} ({Type:D})");
+            writer.WriteLine($"Type:  {Enum.GetName(typeof(SectionType), Type)} ({Type:D})");
             if (!options.Naked)
             {
-                sb.AppendLine($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}");
+                writer.WriteLine($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}");
             }
-            sb.AppendLine($"Size: {Size} bytes");
+            writer.WriteLine($"Size: {Size} bytes");
         }
 
         public override string ToString()

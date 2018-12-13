@@ -71,7 +71,7 @@ namespace R2RDump
 
                 foreach (R2RSection section in NormalizedSections())
                 {
-                    section.WriteTo(_writer, _options);
+                    DumpSection(section, parentNode: null);
                 }
             }
             SkipLine();
@@ -83,7 +83,7 @@ namespace R2RDump
         internal override void DumpSection(R2RSection section, XmlNode parentNode = null)
         {
             WriteSubDivider();
-            _writer.WriteLine(section.ToString());
+            section.WriteTo(_writer, _options);
 
             if (_options.Raw)
             {
@@ -92,7 +92,7 @@ namespace R2RDump
             }
             if (_options.SectionContents)
             {
-                DumpSectionContents(section);
+                DumpSectionContents(section, parentNode);
                 SkipLine();
             }
         }
