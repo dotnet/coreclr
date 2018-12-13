@@ -326,7 +326,7 @@ namespace R2RDump
                     {
                         foreach (R2RImportSection importSection in _r2r.ImportSections)
                         {
-                            _writer.Write(importSection.ToString());
+                            importSection.WriteTo(_writer);
                             if (_options.Raw && importSection.Entries.Count != 0)
                             {
                                 if (importSection.SectionRVA != 0)

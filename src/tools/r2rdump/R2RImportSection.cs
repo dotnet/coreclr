@@ -41,10 +41,10 @@ namespace R2RDump
             {
                 if (!options.Naked)
                 {
-                    writer.Write($"+{0:X4}", StartOffset);
-                    writer.Write($" ({0:X4})", StartRVA);
-                    writer.Write($"  Section: 0x{0:X8}", Section);
-                    writer.Write($"  SignatureRVA: 0x{0:X8}", SignatureRVA);
+                    writer.Write($"+{StartOffset:X4}");
+                    writer.Write($" ({StartRVA:X4})");
+                    writer.Write($"  Section: 0x{Section:X8}");
+                    writer.Write($"  SignatureRVA: 0x{SignatureRVA:X8}");
                     writer.Write("   ");
                 }
                 writer.Write(Signature);
