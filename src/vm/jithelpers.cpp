@@ -5723,6 +5723,14 @@ Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubS
 
 #endif // _WIN64
 
+EXTERN_C void JIT_PInvokeBegin(InlinedCallFrame* pFrame);
+EXTERN_C void JIT_PInvokeEnd(InlinedCallFrame* pFrame);
+
+EXTERN_C void STDCALL RareDisablePreemptiveGCHelper(Thread* pThread)
+{
+    pThread->RareDisablePreemptiveGC();
+}
+
 //========================================================================
 //
 //      JIT HELPERS IMPLEMENTED AS FCALLS

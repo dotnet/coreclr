@@ -3570,15 +3570,24 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
         GenTree* frameAddr =
             new (comp, GT_LCL_VAR_ADDR) GenTreeLclVar(GT_LCL_VAR_ADDR, TYP_BYREF, comp->lvaInlinedPInvokeFrameVar);
 
-        // Insert call to CORINFO_HELP_JIT_PINVOKE_BEGIN
-        GenTree* helperCall =
+// Insert call to CORINFO_HELP_JIT_PINVOKE_BEGIN
+#ifdef FEATURE_READYTORUN_COMPILER
+        GenTree* helperCall = comp->gtNewReadyToRunHelperCallNode(CORINFO_HELP_JIT_PINVOKE_BEGIN, TYP_VOID,
+                                                                  comp->gtNewArgList(frameAddr));
+#else
+        GenTree*       helperCall =
             comp->gtNewHelperCallNode(CORINFO_HELP_JIT_PINVOKE_BEGIN, TYP_VOID, comp->gtNewArgList(frameAddr));
+#endif
 
         comp->fgMorphTree(helperCall);
         BlockRange().InsertBefore(insertBefore, LIR::SeqTree(comp, helperCall));
         LowerNode(helperCall); // helper call is inserted before current node and should be lowered here.
         return;
     }
+
+#ifndef FEATURE_READYTORUN_COMPILER
+    assert(!"unreachable: ReadyToRun must use PInvoke helpers");
+#endif
 
     // Emit the following sequence:
     //
@@ -3697,7 +3706,6 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
     GenTree* storeGCState = SetGCState(0);
     BlockRange().InsertBefore(insertBefore, LIR::SeqTree(comp, storeGCState));
     ContainCheckStoreIndir(storeGCState->AsIndir());
-
     // Indicate that codegen has switched this thread to preemptive GC.
     // This tree node doesn't generate any code, but impacts LSRA and gc reporting.
     // This tree node is simple so doesn't require sequencing.
@@ -3727,15 +3735,24 @@ void Lowering::InsertPInvokeCallEpilog(GenTreeCall* call)
             new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, TYP_BYREF, comp->lvaInlinedPInvokeFrameVar);
         frameAddr->SetOperRaw(GT_LCL_VAR_ADDR);
 
-        // Insert call to CORINFO_HELP_JIT_PINVOKE_END
+// Insert call to CORINFO_HELP_JIT_PINVOKE_END
+#ifdef FEATURE_READYTORUN_COMPILER
+        GenTreeCall* helperCall =
+            comp->gtNewReadyToRunHelperCallNode(CORINFO_HELP_JIT_PINVOKE_END, TYP_VOID, comp->gtNewArgList(frameAddr));
+#else
         GenTreeCall* helperCall =
             comp->gtNewHelperCallNode(CORINFO_HELP_JIT_PINVOKE_END, TYP_VOID, comp->gtNewArgList(frameAddr));
+#endif
 
         comp->fgMorphTree(helperCall);
         BlockRange().InsertAfter(call, LIR::SeqTree(comp, helperCall));
         ContainCheckCallOperands(helperCall);
         return;
     }
+
+#ifndef FEATURE_READYTORUN_COMPILER
+    assert(!"unreachable: ReadyToRun must use PInvoke helpers");
+#endif
 
     // gcstate = 1
     GenTree* insertionPoint = call->gtNext;

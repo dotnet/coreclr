@@ -1129,6 +1129,38 @@ inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types typ
     return result;
 }
 
+//------------------------------------------------------------------------------
+// gtNewReadyToRunHelperCallNode : Helper to create a call helper node ReadyToRun
+//
+// Arguments:
+//    helper    - Call helper. Has to have a valid R2R mapping (see:readytorunhelpers.h)
+//    type      - Type of the node
+//    args      - Call args
+//
+// Return Value:
+//    New CT_HELPER node
+#ifdef FEATURE_READYTORUN_COMPILER
+inline GenTreeCall* Compiler::gtNewReadyToRunHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args)
+{
+    GenTreeCall* result = gtNewHelperCallNode(helper, type, args);
+
+    void*                pAddr;
+    CORINFO_CONST_LOOKUP lookup;
+    lookup.accessType = IAT_VALUE;
+    lookup.addr       = info.compCompHnd->getHelperFtn((CorInfoHelpFunc)helper, (void**)&pAddr);
+
+    if (lookup.addr == nullptr)
+    {
+        assert(pAddr != nullptr);
+        lookup.accessType = IAT_PVALUE;
+        lookup.addr       = pAddr;
+    }
+
+    result->setEntryPoint(lookup);
+    return result;
+}
+#endif
+
 //------------------------------------------------------------------------
 // gtNewAllocObjNode: A little helper to create an object allocation node.
 //
