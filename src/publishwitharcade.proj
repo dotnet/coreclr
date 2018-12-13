@@ -30,6 +30,13 @@
       <PackagesToPublish Remove="$(PackagesBinDir)pkg\Microsoft.TargetingPack.Private.CoreCLR*.nupkg" />
     </ItemGroup>
 
+    <!-- TODO: Investigate whether we can get rid of the transport
+         packages entirely. For now, just exclude them from
+         publishing. -->
+    <ItemGroup>
+      <PackagesToPublish Remove="$(PackagesBinDir)pkg\transport*.nupkg" />
+    </ItemGroup>
+
     <Message Importance="High" Text="PackagesToPublish: @(PackagesToPublish)" />
     <Message Importance="High" Text="PackagesToPublish metadata: @(PackagesToPublish->'%(IsShipping)')" />
     <Message Importance="High" Text="nugetroot: @(NuGetPackageRoot)" />
