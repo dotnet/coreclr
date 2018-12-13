@@ -5726,7 +5726,7 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
         }
         else
         {
-            index = gtNewCastNode(TYP_I_IMPL, index, false, TYP_I_IMPL);
+            index = gtNewCastNode(TYP_I_IMPL, index, true, TYP_U_IMPL);
         }
     }
 #endif // _TARGET_64BIT_
