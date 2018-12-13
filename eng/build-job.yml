@@ -49,6 +49,23 @@ jobs:
 
     steps:
 
+      # Sign on Windows
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(parameters.osGroup, 'Windows_NT')) }}:
+      # TODO: Replace this with arcade's built-in signing when we build with arcade
+      - script: powershell eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:DotNetSignType=$(_SignType)
+        displayName: Sign Binaries
+#      - script: .\Tools\dotnetcli\dotnet.exe msbuild $(Build.SourcesDirectory)\src\sign_azdo.proj /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:SignType=$(_SignType) /p:OfficialBuild=true
+#        displayName: Sign Binaries
+
+      - task: PublishBuildArtifacts@1
+        displayName: Publish Logs to VSTS
+        inputs:
+            PathtoPublish: '$(Build.SourcesDirectory)/artifacts/'
+            PublishLocation: Container
+            ArtifactName: $(Agent.Os)_$(Agent.JobName)
+        continueOnError: true
+        condition: always()
+
     # Install native dependencies
     #
     # This is only required for non-docker builds.
@@ -69,22 +86,7 @@ jobs:
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages
         displayName: Build product
         
-    # Sign on Windows
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(parameters.osGroup, 'Windows_NT')) }}:
-    # TODO: Replace this with arcade's built-in signing when we build with arcade
-      - script: powershell eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:DotNetSignType=$(_SignType)
-        displayName: Sign Binaries
-#      - script: .\Tools\dotnetcli\dotnet.exe msbuild $(Build.SourcesDirectory)\src\sign_azdo.proj /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:SignType=$(_SignType) /p:OfficialBuild=true
-#        displayName: Sign Binaries
 
-      - task: PublishBuildArtifacts@1
-        displayName: Publish Logs to VSTS
-        inputs:
-            PathtoPublish: '$(Build.SourcesDirectory)/artifacts/log/$(buildConfig)'
-            PublishLocation: Container
-            ArtifactName: $(Agent.Os)_$(Agent.JobName)
-        continueOnError: true
-        condition: always()
 
     # Upload build as pipeline artifact
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
