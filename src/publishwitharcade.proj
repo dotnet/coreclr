@@ -20,11 +20,14 @@
 
     <ItemGroup>
       <PackagesToPublish Include="$(PackagesBinDir)pkg\*.nupkg" IsShipping="true" />
-      <!-- Managed-only packages are built on each windows leg, but we
-           only want to upload them once. Let's arbitrarily upload
-           these only from the x64 windows leg. -->
-      <PackagesToPublish Remove="$(PackagesBinDir)pkg\Microsoft.NET.Sdk.IL*.nupkg" Condition=" '$(BuildArch)' != 'x64' " />
-      <PackagesToPublish Remove="$(PackagesBinDir)pkg\Microsoft.TargetingPack.Private.CoreCLR*.nupkg" Condition=" '$(BuildArch)' != 'x64' " />
+    </ItemGroup>
+
+    <!-- Managed-only packages are built on each windows leg, but we
+         only want to upload them once. Let's arbitrarily upload these
+         only from the x64 leg. -->
+    <ItemGroup Condition=" '$(BuildArch)' != 'x64' ">
+      <PackagesToPublish Remove="$(PackagesBinDir)pkg\Microsoft.NET.Sdk.IL*.nupkg" />
+      <PackagesToPublish Remove="$(PackagesBinDir)pkg\Microsoft.TargetingPack.Private.CoreCLR*.nupkg" />
     </ItemGroup>
 
     <Message Importance="High" Text="PackagesToPublish: @(PackagesToPublish)" />

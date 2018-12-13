@@ -1,14 +1,13 @@
 parameters:
   buildConfig: ''
   archType: ''
-  osGroup: ''       # Linux/OSX/Windows_NT.
-  osIdentifier: ''  # linux/rhel.6/rhel.7/linux-musl/osx/freebsd/linux/win
+  osGroup: ''
+  osIdentifier: ''
   containerName: ''
   crossrootfsDir: ''
 
 ### Product build
 jobs:
-
 - template: xplat-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
@@ -45,8 +44,6 @@ jobs:
     #
     # This is only required for non-docker builds.
     - ${{ if eq(parameters.osGroup, 'OSX') }}:
-      - script: find .
-        displayName: run "find ."
       - script: sh eng/install-native-dependencies.sh $(osGroup)
         displayName: Install native dependencies
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
@@ -96,13 +93,7 @@ jobs:
 
     # Build packages and publish official build
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-      - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-        - script: find .
-          displayName: Run "find ."
-        - script: |
-            echo sourcesdirectory: $(Build.SourcesDirectory)
-            echo binariesdirectory: $(Build.BinariesDirectory)
-            echo builddirectory: $(Agent.BuildDirectory)
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
         - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
           displayName: Build packages
         - script: find .

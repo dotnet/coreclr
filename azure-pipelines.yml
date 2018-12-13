@@ -1,5 +1,5 @@
 
-# Temporary: set a build number format that includes a large revision
+# Temporarily set a build number format that includes a large revision
 # number that won't conflict with buildpipeline official builds.
 name: $(Date:yyyyMMdd)$(Rev:.7r)
 
