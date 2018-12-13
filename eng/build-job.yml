@@ -48,7 +48,7 @@ jobs:
         displayName: Build product
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # TODO: IBCOptimize? EnforcePGO? pass an OfficialBuildId? SignType? file logging parameters?
-      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipnative -windowsmscorlib
+      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests
         displayName: Build product
 
     # Sign on Windows
