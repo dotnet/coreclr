@@ -23,7 +23,7 @@
       <!-- Managed-only packages are built on each windows leg, but we
            only want to upload them once. Let's arbitrarily upload
            these only from the x64 windows leg. -->
-      <PackagesToPublish Remove="*Microsoft.NET.Sdk.IL*.nupkg" Condition=" '$(BuildArch)' != 'x64' " />
+      <PackagesToPublish Remove="$(PackagesBinDir)pkg\Microsoft.NET.Sdk.IL*.nupkg" Condition=" '$(BuildArch)' != 'x64' " />
     </ItemGroup>
 
     <Message Importance="High" Text="PackagesToPublish: @(PackagesToPublish)" />
