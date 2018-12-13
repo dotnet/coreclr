@@ -146,7 +146,7 @@ namespace Server.Contract
 
         void Reverse_LPWStr_Out([MarshalAs(UnmanagedType.LPWStr)] string a, [MarshalAs(UnmanagedType.LPWStr)] out string b);
 
-        void Reverse_LPWStr_OutAttr([MarshalAs(UnmanagedType.LPWStr)] string a, [MarshalAs(UnmanagedType.LPWStr)] string b);
+        void Reverse_LPWStr_OutAttr([MarshalAs(UnmanagedType.LPWStr)] string a, [Out][MarshalAs(UnmanagedType.LPWStr)] string b);
 
         [return: MarshalAs(UnmanagedType.LPWStr)]
         StringBuilder Reverse_SB_LPWStr([MarshalAs(UnmanagedType.LPWStr)] StringBuilder a);
