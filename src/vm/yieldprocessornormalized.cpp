@@ -4,10 +4,7 @@
 
 #include "common.h"
 
-// Defaults are for when InitializeYieldProcessorNormalized has not yet been called or when no measurement is done, and are
-// tuned for Skylake processors
-unsigned int g_yieldsPerNormalizedYield = 1; // current value is for Skylake processors, this is expected to be ~9 for pre-Skylake
-unsigned int g_optimalMaxNormalizedYieldsPerSpinIteration = 7;
+#include "yieldprocessornormalized.h"
 
 static Volatile<bool> s_isYieldProcessorNormalizedInitialized = false;
 static CrstStatic s_initializeYieldProcessorNormalizedCrst;

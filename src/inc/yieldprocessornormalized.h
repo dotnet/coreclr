@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "contract.h"
+
 const unsigned int MinNsPerNormalizedYield = 37; // measured typically 37-46 on post-Skylake
 const unsigned int NsPerOptimalMaxSpinIterationDuration = 272; // approx. 900 cycles, measured 281 on pre-Skylake, 263 on post-Skylake
 
@@ -30,6 +32,7 @@ public:
 
     friend void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &);
     friend void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &, unsigned int);
+    friend void YieldProcessorNormalizedForPreSkylakeCount(const YieldProcessorNormalizationInfo &, unsigned int);
     friend void YieldProcessorWithBackOffNormalized(const YieldProcessorNormalizationInfo &, unsigned int);
 };
 
@@ -43,6 +46,12 @@ FORCEINLINE void YieldProcessorNormalized(const YieldProcessorNormalizationInfo 
     {
         YieldProcessor();
     } while (--n != 0);
+}
+
+FORCEINLINE void YieldProcessorNormalized()
+{
+    WRAPPER_NO_CONTRACT;
+    YieldProcessorNormalized(YieldProcessorNormalizationInfo());
 }
 
 FORCEINLINE void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &normalizationInfo, unsigned int count)
@@ -67,6 +76,50 @@ FORCEINLINE void YieldProcessorNormalized(const YieldProcessorNormalizationInfo 
     {
         YieldProcessor();
     } while (--n != 0);
+}
+
+FORCEINLINE void YieldProcessorNormalized(unsigned int count)
+{
+    WRAPPER_NO_CONTRACT;
+    YieldProcessorNormalized(YieldProcessorNormalizationInfo(), count);
+}
+
+// To be used for spin-wait loops that have not been retuned for recent processors, and where the yield count may be
+// unreasonably high
+FORCEINLINE void YieldProcessorNormalizedForPreSkylakeCount(
+    const YieldProcessorNormalizationInfo &normalizationInfo,
+    unsigned int preSkylakeCount)
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(preSkylakeCount != 0);
+
+    if (sizeof(SIZE_T) <= sizeof(unsigned int))
+    {
+        // On platforms with a small SIZE_T, prevent overflow on the multiply below. normalizationInfo.yieldsPerNormalizedYield
+        // is limited to MinNsPerNormalizedYield by InitializeYieldProcessorNormalized().
+        const unsigned int MaxCount = (unsigned int)SIZE_T_MAX / MinNsPerNormalizedYield;
+        if (preSkylakeCount > MaxCount)
+        {
+            preSkylakeCount = MaxCount;
+        }
+    }
+
+    const unsigned int PreSkylakeCountToSkylakeCountDivisor = 8;
+    SIZE_T n = (SIZE_T)preSkylakeCount * normalizationInfo.yieldsPerNormalizedYield / PreSkylakeCountToSkylakeCountDivisor;
+    if (n == 0)
+    {
+        n = 1;
+    }
+    do
+    {
+        YieldProcessor();
+    } while (--n != 0);
+}
+
+FORCEINLINE void YieldProcessorNormalizedForPreSkylakeCount(unsigned int preSkylakeCount)
+{
+    WRAPPER_NO_CONTRACT;
+    YieldProcessorNormalizedForPreSkylakeCount(YieldProcessorNormalizationInfo(), preSkylakeCount);
 }
 
 FORCEINLINE void YieldProcessorWithBackOffNormalized(
