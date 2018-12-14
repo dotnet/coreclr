@@ -5144,7 +5144,7 @@ LExit:;
     RETURN;
 }
 
-bool IsUnsupportedValueTypeReturn(MetaSig& msig)
+bool IsUnsupportedTypedrefReturn(MetaSig& msig)
 {
     CONTRACTL
     {

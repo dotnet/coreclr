@@ -3747,7 +3747,7 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
                 // We don't know the native type representation early enough to get this correct, so we throw an exception here.
                 COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
             }
-            else if (IsUnsupportedValueTypeReturn(msig))
+            else if (IsUnsupportedTypedrefReturn(msig))
             {
                 COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
             }
