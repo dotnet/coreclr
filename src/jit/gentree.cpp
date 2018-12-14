@@ -12995,7 +12995,12 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             case TYP_INT:
 
                 /* Fold constant INT unary operator */
-                assert(op1->gtIntCon.ImmedValCanBeFolded(this, tree->OperGet()));
+
+                if (!op1->gtIntCon.ImmedValCanBeFolded(this, tree->OperGet()))
+                {
+                    return tree;
+                }
+
                 i1 = (int)op1->gtIntCon.gtIconVal;
 
                 // If we fold a unary oper, then the folded constant
@@ -13148,7 +13153,11 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
 
                 /* Fold constant LONG unary operator */
 
-                assert(op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
+                if (!op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+                {
+                    return tree;
+                }
+
                 lval1 = op1->gtIntConCommon.LngValue();
 
                 switch (tree->gtOper)
@@ -13489,8 +13498,15 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             //
             assert(!varTypeIsGC(op1->gtType) && !varTypeIsGC(op2->gtType));
 
-            assert(op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
-            assert(op2->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
+            if (!op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+            {
+                return tree;
+            }
+
+            if (!op2->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+            {
+                return tree;
+            }
 
             i1 = op1->gtIntConCommon.IconValue();
             i2 = op2->gtIntConCommon.IconValue();
@@ -13851,8 +13867,15 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             //
             assert((op2->gtType == TYP_LONG) || (op2->gtType == TYP_INT));
 
-            assert(op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
-            assert(op2->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
+            if (!op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+            {
+                return tree;
+            }
+
+            if (!op2->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+            {
+                return tree;
+            }
 
             lval1 = op1->gtIntConCommon.LngValue();
 
@@ -16357,7 +16380,7 @@ GenTree* Compiler::gtGetSIMDZero(var_types simdType, var_types baseType, CORINFO
     unsigned size = genTypeSize(simdType);
     if (isHWSIMD)
     {
-#ifdef _TARGET_XARCH_
+#if defined(_TARGET_XARCH_) && defined(FEATURE_HW_INTRINSICS)
         switch (simdType)
         {
             case TYP_SIMD16:
@@ -16367,7 +16390,7 @@ GenTree* Compiler::gtGetSIMDZero(var_types simdType, var_types baseType, CORINFO
             default:
                 break;
         }
-#endif // _TARGET_XARCH_
+#endif // _TARGET_XARCH_ && FEATURE_HW_INTRINSICS
         JITDUMP("Coudn't find the matching HW intrinsic SIMD type for %s<%s> in gtGetSIMDZero\n", varTypeName(simdType),
                 varTypeName(baseType));
     }
