@@ -156,16 +156,17 @@ namespace R2RDump
                             line[colon + 2] == ' ')
                         {
                             colon += 3;
-                        }
+                        }   
 
                         nakedInstruction.Append($"{(rtfOffset + rtf.CodeOffset),8:x4}:");
-                        nakedInstruction.Append(' ', 32 - 9);
+                        nakedInstruction.Append("  ");
                         nakedInstruction.Append(line.Substring(colon).TrimStart());
                         nakedInstruction.Append('\n');
                     }
                     else
                     {
-                        nakedInstruction.Append(line);
+                        nakedInstruction.Append(' ', 7);
+                        nakedInstruction.Append(line.TrimStart());
                         nakedInstruction.Append('\n');
                     }
                 }

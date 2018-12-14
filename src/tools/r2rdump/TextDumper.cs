@@ -178,6 +178,8 @@ namespace R2RDump
         /// </summary>
         internal override void DumpDisasm(RuntimeFunction rtf, int imageOffset, XmlNode parentNode = null)
         {
+            int indent = (_options.Naked ? 11 : 32);
+            string indentString = new string(' ', indent);
             int rtfOffset = 0;
             int codeOffset = rtf.CodeOffset;
             while (rtfOffset < rtf.Size)
@@ -190,10 +192,10 @@ namespace R2RDump
                     List<Amd64.UnwindCode> codes = ((Amd64.UnwindInfo)rtf.UnwindInfo).UnwindCodes[codeOffset];
                     foreach (Amd64.UnwindCode code in codes)
                     {
-                        _writer.Write($"                                {code.UnwindOp} {code.OpInfoStr}");
+                        _writer.Write($"{indentString}{code.UnwindOp} {code.OpInfoStr}");
                         if (code.NextFrameOffset != -1)
                         {
-                            _writer.WriteLine($"                                {code.NextFrameOffset}");
+                            _writer.WriteLine($"{indentString}{code.NextFrameOffset}");
                         }
                         _writer.WriteLine();
                     }
@@ -203,7 +205,7 @@ namespace R2RDump
                 {
                     foreach (BaseGcTransition transition in rtf.Method.GcInfo.Transitions[codeOffset])
                     {
-                        _writer.WriteLine($"                                {transition.ToString()}");
+                        _writer.WriteLine($"{indentString}{transition}");
                     }
                 }
 
