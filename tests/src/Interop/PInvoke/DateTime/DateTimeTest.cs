@@ -49,9 +49,6 @@ class DatetimeTest
     [DllImport("NativeDateTime.dll")]
     private static extern DateTime PassThroughDate(DateTime d);
 
-    [DllImport("NativeDateTime.dll")]
-    private static extern DateTimeOffset GetDateTimeOffset();
-
     [DllImport("NativeDateTime.dll", CallingConvention = CallingConvention.Cdecl)]
     private static extern bool MarshalSeqStruct_InOut_cdecl([In, Out][MarshalAs(UnmanagedType.Struct)] ref Stru_Seq_DateAsStructAsFld t);
 
