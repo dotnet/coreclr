@@ -8,6 +8,7 @@ parameters:
   condition: ''
   dependsOn: ''
   containerName: ''
+  enableMicrobuild: ''
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
@@ -20,6 +21,8 @@ jobs:
     condition: ${{ parameters.condition }}
 
     dependsOn: ${{ parameters.dependsOn }}
+
+    enableMicrobuild: ${{ parameters.enableMicrobuild }}
 
     pool:
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
