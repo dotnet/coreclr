@@ -157,7 +157,8 @@ namespace R2RDump
                         {
                             colon += 3;
                         }
-                        nakedInstruction.Append($"{(rtfOffset - rtf.CodeOffset),8:x4}:");
+
+                        nakedInstruction.Append($"{(rtfOffset + rtf.CodeOffset),8:x4}:");
                         nakedInstruction.Append(' ', 32 - 9);
                         nakedInstruction.Append(line.Substring(colon).TrimStart());
                         nakedInstruction.Append('\n');
