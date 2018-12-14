@@ -102,7 +102,7 @@ jobs:
     # Build packages and publish official build
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-        - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
+        - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(crossPackagesArg) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
           displayName: Build packages
         - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore
           displayName: Restore blob feed tasks
