@@ -188,7 +188,7 @@ jobs:
 # registry. Its dependencies should be updated to include all of the
 # official builds if we add more platform/arch combinations.
 
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
   - template: /eng/common/templates/job/publish-build-assets.yml
     parameters:
       configuration: Release
