@@ -317,7 +317,7 @@ def static getFullPerfJobName(def project, def os, def arch, def isPR) {
         perfOSList.each { os ->
             def newJob = job(getFullPerfJobName(project, os, architecture, isPR)) {
 
-                def machineLabel = 'ubuntu_1604_clr_perf'
+                def machineLabel = 'Ubuntu.1604.Amd64.Perf'
 
                 label(machineLabel)
                 wrappers {
