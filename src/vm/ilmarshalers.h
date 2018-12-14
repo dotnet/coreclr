@@ -1965,7 +1965,7 @@ public:
     
     virtual bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID)
     {
-        if (IsOut(dwMarshalFlags) && !IsByref(dwMarshalFlags))
+        if (IsOut(dwMarshalFlags) && !IsByref(dwMarshalFlags) && IsCLRToNative(dwMarshalFlags))
         {
             *pErrorResID = IDS_EE_BADMARSHAL_STRING_OUT;
             return false;
