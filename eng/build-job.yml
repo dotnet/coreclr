@@ -34,7 +34,7 @@ jobs:
     - ${{ if in(parameters.osIdentifier, 'Linux_rhel6', 'Linux_rhel7', 'Linux_musl')) }}:
       - name: portableBuildArg
         value: '-portablebuild=false'
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
       # Variables used to publish packages to blob feed
       - name: dotnetfeedUrl
         value: https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json
@@ -85,13 +85,13 @@ jobs:
 
 
     # TODO: Sign
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
       - script: echo Sign!
         displayName: Sign Binaries (empty for now)
 
 
     # Get key vault secrets for publishing
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
       - task: AzureKeyVault@1
         inputs:
           azureSubscription: 'DotNet-Engineering-Services_KeyVault'
@@ -100,7 +100,7 @@ jobs:
 
 
     # Build packages and publish official build
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
         - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(crossPackagesArg) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
           displayName: Build packages
