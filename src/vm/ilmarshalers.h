@@ -1985,7 +1985,6 @@ protected:
 
     virtual void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit);
     virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit);
-    virtual void EmitConvertSpaceAndContentsNativeToCLR(ILCodeStream* pslILEmit);
 
     virtual bool NeedsClearNative();
     virtual void EmitClearNative(ILCodeStream* pslILEmit);
