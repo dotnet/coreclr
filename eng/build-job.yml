@@ -34,11 +34,17 @@ jobs:
     - ${{ if or(eq(parameters.osIdentifier, 'Linux_rhel6'), eq(parameters.osIdentifier, 'Linux_rhel7'), eq(parameters.osIdentifier, 'Linux_musl')) }}:
       - name: portableBuildArg
         value: '-portablebuild=false'
-    # Variables used by arcade to gather asset manifests
-    - name: _DotNetPublishToBlobFeed
-      value: true
-    - name: _BuildConfig
-      value: $(buildConfigUpper)
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+      # Variables used to publish packages to blob feed
+      - name: dotnetfeedUrl
+        value: https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json
+      - name: dotnetfeedPAT
+        value: $(dotnetfeed-storage-access-key-1)
+      # Variables used by arcade to gather asset manifests
+      - name: _DotNetPublishToBlobFeed
+        value: true
+      - name: _BuildConfig
+        value: $(buildConfigUpper)
 
     steps:
 
@@ -100,7 +106,7 @@ jobs:
           displayName: Build packages
         - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore
           displayName: Restore blob feed tasks
-        - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier)
+        - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier) /p:AzureFeedUrl=$(dotnetfeedUrl) /p:AzureAccountKey=$(dotnetfeedPAT)
           displayName: Publish packages to blob feed
           env:
             # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
@@ -111,7 +117,7 @@ jobs:
           displayName: Build packages
         - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
           displayName: Restore blob feed tasks
-        - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier)
+        - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier) /p:AzureFeedUrl=$(dotnetfeedUrl) /p:AzureAccountKey=$(dotnetfeedPAT)
           displayName: Publish packages to blob feed
           env:
             # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
