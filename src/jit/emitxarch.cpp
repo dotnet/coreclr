@@ -8202,7 +8202,7 @@ void emitter::emitDispIns(
 
     sstr = codeGen->genInsName(ins);
 
-    if (IsAVXInstruction(ins))
+    if (IsAVXInstruction(ins) && !IsBMIInstruction(ins))
     {
         printf(" v%-8s", sstr);
     }
@@ -8734,12 +8734,25 @@ void emitter::emitDispIns(
             break;
 
         case IF_RWR_RRD_RRD:
+        {
             assert(IsAVXInstruction(ins));
             assert(IsThreeOperandAVXInstruction(ins));
+            regNumber reg2 = id->idReg2();
+            regNumber reg3 = id->idReg3();
+            if (ins == INS_bextr || ins == INS_bzhi)
+            {
+                // BMI bextr and bzhi encodes the reg2 in VEX.vvvv and reg3 in modRM,
+                // which is different from most of other instructions
+                regNumber tmp = reg2;
+                reg2          = reg3;
+                reg3          = tmp;
+            }
             printf("%s, ", emitRegName(id->idReg1(), attr));
-            printf("%s, ", emitRegName(id->idReg2(), attr));
-            printf("%s", emitRegName(id->idReg3(), attr));
+            printf("%s, ", emitRegName(reg2, attr));
+            printf("%s", emitRegName(reg3, attr));
             break;
+        }
+
         case IF_RWR_RRD_RRD_CNS:
             assert(IsAVXInstruction(ins));
             assert(IsThreeOperandAVXInstruction(ins));
