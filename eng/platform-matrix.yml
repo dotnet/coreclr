@@ -44,8 +44,7 @@ jobs:
     osGroup: Linux
     osGroupName: Linux_musl
     containerName: musl_x64_build_image
-    helixQueuesPublic: 'Alpine.3.Arm64.Open'
-    helixQueuesInternal: 'Alpine.3.Arm64'
+    # TODO: add Alpine.Amd64 queues
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # RHEL 6
