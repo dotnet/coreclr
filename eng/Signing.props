@@ -1,6 +1,6 @@
 <Project>
-    <Import Project="..\dir.props"/>
-    <Import Project="..\dir.targets" />
+  <Import Project="..\dir.props"/>
+  <Import Project="..\dir.targets" />
 
   <PropertyGroup>
     <!-- The SignFiles target needs OutDir to be defined -->
@@ -35,7 +35,7 @@
                           Condition="!Exists('%(WindowsNativeLocation.Identity).requires_signing')" />
   </Target>
 
-    <!-- populates item group ItemsToSign with the list of files to sign -->
+  <!-- populates item group ItemsToSign with the list of files to sign -->
   <Target Name="GetFilesToSignItems"
           DependsOnTargets="GenerateSignForWindowsNative"
           BeforeTargets="ValidateSignFileListIsNotEmpty">
@@ -49,13 +49,13 @@
 
     <!-- Temporarily disable signing CoreLib due to https://github.com/dotnet/arcade/issues/1582 -->
     <ItemGroup>
-        <ItemsToSign Remove="$(BinDir)System.Private.CoreLib.dll" />
+      <ItemsToSign Remove="$(BinDir)System.Private.CoreLib.dll" />
     </ItemGroup>
 
     <Message Importance="High" Text="Attempting to sign %(ItemsToSign.Identity) with authenticode='%(ItemsToSign.Authenticode)' and strongname='%(ItemsToSign.StrongName)'" />
   </Target>
 
-   <Target Name="ValidateSignFileListIsNotEmpty" BeforeTargets="Sign">
+  <Target Name="ValidateSignFileListIsNotEmpty" BeforeTargets="Sign">
     <Error Condition="'@(ItemsToSign)' == ''" Text="List of files to sign is empty" />
   </Target>
 </Project>
