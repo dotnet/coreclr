@@ -281,17 +281,21 @@ void ILWSTRMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
 
 void ILWSTRMarshaler::EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit)
 {
-    LIMITED_METHOD_CONTRACT;
+    STANDARD_VM_CONTRACT;
+    // We currently don't marshal strings from the native to the CLR side in a Reverse-PInvoke unless
+    // the parameter is explicitly annotated as an [In] parameter.
+    pslILEmit->EmitLDNULL();
+    EmitStoreManagedValue(pslILEmit);
 }    
 
 void ILWSTRMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
     
-    ILCodeLabel* pIsNullLabelByref = pslILEmit->NewCodeLabel();
+    ILCodeLabel* pIsNullLabel = pslILEmit->NewCodeLabel();
         
     EmitLoadNativeValue(pslILEmit);
-    pslILEmit->EmitBRFALSE(pIsNullLabelByref);
+    pslILEmit->EmitBRFALSE(pIsNullLabel);
 
     EmitLoadNativeValue(pslILEmit);
     pslILEmit->EmitDUP();
@@ -301,7 +305,7 @@ void ILWSTRMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
     pslILEmit->EmitNEWOBJ(METHOD__STRING__CTOR_CHARPTR, 1);
     EmitStoreManagedValue(pslILEmit);
     
-    pslILEmit->EmitLabel(pIsNullLabelByref);
+    pslILEmit->EmitLabel(pIsNullLabel);
 }    
 
 bool ILWSTRMarshaler::NeedsClearNative()
