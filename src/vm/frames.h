@@ -2276,7 +2276,7 @@ public:
 
     Interception GetInterception();
 
-    virtual BOOL SuppressParamTypeArg() override
+    virtual BOOL SuppressParamTypeArg()
     {
         MethodDesc *pMD = GetFunction();
 
