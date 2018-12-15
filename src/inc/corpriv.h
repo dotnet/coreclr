@@ -92,14 +92,11 @@ enum MDInternalImportFlags
 {
     MDInternalImport_Default            = 0,
     MDInternalImport_NoCache            = 1, // Do not share/cached the results of opening the image
-#ifdef FEATURE_PREJIT
+// #ifdef FEATURE_PREJIT
     MDInternalImport_TrustedNativeImage = 2, // The image is a native image, and so its format can be trusted
     MDInternalImport_ILMetaData         = 4, // Open the IL metadata, even if this is a native image
     MDInternalImport_TrustedNativeImage_and_IL = MDInternalImport_TrustedNativeImage | MDInternalImport_ILMetaData,
-    MDInternalImport_NativeImageInstall = 0x100, // The image is a native image that is being installed into NIC
-#endif
-    MDInternalImport_CheckLongPath   =8,	// also check long version of the path		
-    MDInternalImport_CheckShortPath   =0x10,    // also check long version of the path		
+// #endif
     MDInternalImport_OnlyLookInCache    =0x20, // Only look in the cache. (If the cache does not have the image already loaded, return NULL)
 };  // enum MDInternalImportFlags
 

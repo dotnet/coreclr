@@ -261,10 +261,11 @@ void QCALLTYPE AssemblyNative::LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext
         }
     }
     
+#ifdef FEATURE_PREJIT
     // Form the PEImage for the NI assembly, if specified
     if (pwzNIPath != NULL)
     {
-        pNIImage = PEImage::OpenImage(pwzNIPath, MDInternalImport_TrustedNativeImage);
+        pNIImage = PEImage::OpenImage(pwzNIPath, gMDInternalImport_TrustedNativeImage);
 
         if (pNIImage->HasReadyToRunHeader())
         {
@@ -281,6 +282,7 @@ void QCALLTYPE AssemblyNative::LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext
                 ThrowHR(COR_E_BADIMAGEFORMAT);
         }
     }
+#endif // FEATURE_PREJIT
     
     Assembly *pLoadedAssembly = AssemblyNative::LoadFromPEImage(pBinderContext, pILImage, pNIImage);
     
