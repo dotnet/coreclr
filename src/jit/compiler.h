@@ -7518,10 +7518,7 @@ private:
             return SIMD_AVX2_Supported;
         }
 
-        // SIMD_SSE4_Supported actually requires all of SSE3, SSSE3, SSE4.1, and SSE4.2
-        // to be supported. We can only enable it if all four are enabled in the compiler
-        if (compSupports(InstructionSet_SSE42) && compSupports(InstructionSet_SSE41) &&
-            compSupports(InstructionSet_SSSE3) && compSupports(InstructionSet_SSE3))
+        if (compSupports(InstructionSet_SSE42))
         {
             return SIMD_SSE4_Supported;
         }
@@ -7619,6 +7616,9 @@ private:
 
     SIMDHandlesCache* m_simdHandleCache;
 
+    // Get an appropriate "zero" for the given type and class handle.
+    GenTree* gtGetSIMDZero(var_types simdType, var_types baseType, CORINFO_CLASS_HANDLE simdHandle);
+
     // Get the handle for a SIMD type.
     CORINFO_CLASS_HANDLE gtGetStructHandleForSIMD(var_types simdType, var_types simdBaseType)
     {
@@ -7650,7 +7650,7 @@ private:
                     unreached();
             }
         }
-        assert(simdType == getSIMDVectorType());
+        assert(emitTypeSize(simdType) <= maxSIMDStructBytes());
         switch (simdBaseType)
         {
             case TYP_FLOAT:

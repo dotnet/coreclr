@@ -404,7 +404,7 @@ namespace System
             // e.g. "d85b1407-351d-4694-9392-03acc5870eb1"
 
             // Compat notes due to the previous implementation's implementation details.
-            // - Components may begin with "0x" or "+0x", but the expected length of each component
+            // - Components may begin with "0x" or "0x+", but the expected length of each component
             //   needs to include those prefixes, e.g. a four digit component could be "1234" or
             //   "0x34" or "+0x4" or "+234", but not "0x1234" nor "+1234" nor "+0x1234".
             // - "0X" is valid instead of "0x"
@@ -423,95 +423,40 @@ namespace System
 
             ref Guid g = ref result._parsedGuid;
 
-            unsafe
+            uint uintTmp;
+            if (TryParseHex(guidString.Slice(0, 8), out Unsafe.As<int, uint>(ref g._a)) && // _a
+                TryParseHex(guidString.Slice(9, 4), out uintTmp)) // _b
             {
-                byte* bytes = stackalloc byte[4];
-                unchecked
+                g._b = (short)uintTmp;
+
+                if (TryParseHex(guidString.Slice(14, 4), out uintTmp)) // _c
                 {
-                    var buffer = guidString;
-                    if (!Number.TryParseHexStrict(buffer[0], buffer[1], ref bytes[3]))
-                    {
-                        if (!Number.TryParseHexForTwoBytes(buffer, 0, ref bytes[3], ref bytes[2]))
-                            goto FalseExit;
-                    }
-                    else
-                    {
-                        if (!Number.TryParseHexStrict(buffer[2], buffer[3], ref bytes[2]))
-                            goto FalseExit;
-                    }
+                    g._c = (short)uintTmp;
 
-                    if (!Number.TryParseHexStrict(buffer[4], buffer[5], ref bytes[1]))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[6], buffer[7], ref bytes[0]))
-                        goto FalseExit;
+                    if (TryParseHex(guidString.Slice(19, 4), out uintTmp)) // _d, _e
+                    {
+                        g._d = (byte)(uintTmp >> 8);
+                        g._e = (byte)uintTmp;
 
-                    g._a = Unsafe.ReadUnaligned<int>(bytes);
+                        if (TryParseHex(guidString.Slice(24, 4), out uintTmp)) // _f, _g
+                        {
+                            g._f = (byte)(uintTmp >> 8);
+                            g._g = (byte)uintTmp;
 
-                    // - 8
-                    if (!Number.TryParseHexStrict(buffer[9], buffer[10], ref bytes[3]))
-                    {
-                        if (!Number.TryParseHexForTwoBytes(buffer, 9, ref bytes[3], ref bytes[2]))
-                            goto FalseExit;
-                    }
-                    else
-                    {
-                        if (!Number.TryParseHexStrict(buffer[11], buffer[12], ref bytes[2]))
-                            goto FalseExit;
-                    }
+                            if (uint.TryParse(guidString.Slice(28, 8), NumberStyles.AllowHexSpecifier, null, out uintTmp)) // _h, _i, _j, _k
+                            {
+                                g._h = (byte)(uintTmp >> 24);
+                                g._i = (byte)(uintTmp >> 16);
+                                g._j = (byte)(uintTmp >> 8);
+                                g._k = (byte)uintTmp;
 
-                    // - 13
-                    if (!Number.TryParseHexStrict(buffer[14], buffer[15], ref bytes[1]))
-                    {
-                        if (!Number.TryParseHexForTwoBytes(buffer, 14, ref bytes[1], ref bytes[0]))
-                            goto FalseExit;
+                                return true;
+                            }
+                        }
                     }
-                    else
-                    {
-                        if (!Number.TryParseHexStrict(buffer[16], buffer[17], ref bytes[0]))
-                            goto FalseExit;
-                    }
-
-                    g._b = Unsafe.ReadUnaligned<short>(ref bytes[2]);
-                    g._c = Unsafe.ReadUnaligned<short>(ref bytes[0]);
-
-                    // - 18
-                    if (!Number.TryParseHexStrict( buffer[19], buffer[20], ref g._d))
-                    {
-                        if (!Number.TryParseHexForTwoBytes(buffer, 19,  ref g._d, ref g._e))
-                            goto FalseExit;
-                    }
-                    else
-                    {
-                        if (!Number.TryParseHexStrict( buffer[21], buffer[22], ref g._e))
-                            goto FalseExit;
-                    }
-
-                    // - 23
-                    if (!Number.TryParseHexStrict( buffer[24], buffer[25], ref g._f))
-                    {
-                        if (!Number.TryParseHexForTwoBytes(buffer, 24,  ref g._f, ref g._g))
-                            goto FalseExit;
-                    }
-                    else
-                    {
-                        if (!Number.TryParseHexStrict( buffer[26], buffer[27], ref g._g))
-                            goto FalseExit;
-                    }
-
-                    if (!Number.TryParseHexStrict( buffer[28], buffer[29], ref g._h))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict( buffer[30], buffer[31], ref g._i))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict( buffer[32], buffer[33], ref g._j))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict( buffer[34], buffer[35], ref g._k))
-                        goto FalseExit;
                 }
-
-                return true;
             }
 
-        FalseExit:
             result.SetFailure(overflow: false, nameof(SR.Format_GuidInvalidChar));
             return false;
         }
@@ -528,58 +473,32 @@ namespace System
 
             ref Guid g = ref result._parsedGuid;
 
-            unsafe
+            uint uintTmp;
+            if (uint.TryParse(guidString.Slice(0, 8), NumberStyles.AllowHexSpecifier, null, out Unsafe.As<int, uint>(ref g._a)) && // _a
+                uint.TryParse(guidString.Slice(8, 8), NumberStyles.AllowHexSpecifier, null, out uintTmp)) // _b, _c
             {
-                byte* bytes = stackalloc byte[4];
-                unchecked
+                g._b = (short)(uintTmp >> 16);
+                g._c = (short)uintTmp;
+
+                if (uint.TryParse(guidString.Slice(16, 8), NumberStyles.AllowHexSpecifier, null, out uintTmp)) // _d, _e, _f, _g
                 {
-                    var buffer = guidString;
-                    if (!Number.TryParseHexStrict(buffer[0], buffer[1], ref bytes[3]))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[2], buffer[3], ref bytes[2]))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[4], buffer[5], ref bytes[1]))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[6], buffer[7], ref bytes[0]))
-                        goto FalseExit;
+                    g._d = (byte)(uintTmp >> 24);
+                    g._e = (byte)(uintTmp >> 16);
+                    g._f = (byte)(uintTmp >> 8);
+                    g._g = (byte)uintTmp;
 
-                    g._a = Unsafe.ReadUnaligned<int>(bytes);
+                    if (uint.TryParse(guidString.Slice(24, 8), NumberStyles.AllowHexSpecifier, null, out uintTmp)) // _h, _i, _j, _k
+                    {
+                        g._h = (byte)(uintTmp >> 24);
+                        g._i = (byte)(uintTmp >> 16);
+                        g._j = (byte)(uintTmp >> 8);
+                        g._k = (byte)uintTmp;
 
-                    if (!Number.TryParseHexStrict(buffer[8], buffer[9], ref bytes[3]))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[10], buffer[11], ref bytes[2]))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[12], buffer[13], ref bytes[1]))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[14], buffer[15], ref bytes[0]))
-                        goto FalseExit;
-
-                    g._b = Unsafe.ReadUnaligned<short>(ref bytes[2]);
-                    g._c = Unsafe.ReadUnaligned<short>(ref bytes[0]);
-
-                    if (!Number.TryParseHexStrict(buffer[16], buffer[17], ref g._d))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[18], buffer[19], ref g._e))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[20], buffer[21], ref g._f))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[22], buffer[23], ref g._g))
-                        goto FalseExit;
-                    
-                    if (!Number.TryParseHexStrict(buffer[24], buffer[25], ref g._h))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[26], buffer[27], ref g._i))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[28], buffer[29], ref g._j))
-                        goto FalseExit;
-                    if (!Number.TryParseHexStrict(buffer[30], buffer[31], ref g._k))
-                        goto FalseExit;
+                        return true;
+                    }
                 }
-
-                return true;
             }
 
-        FalseExit:
             result.SetFailure(overflow: false, nameof(SR.Format_GuidInvalidChar));
             return false;
         }
@@ -622,7 +541,7 @@ namespace System
             }
 
             // Check for '0x'
-            if (!Number.IsHexPrefix(guidString, 1))
+            if (!IsHexPrefix(guidString, 1))
             {
                 result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix), "{0xdddddddd, etc}");
                 return false;
@@ -645,7 +564,7 @@ namespace System
             }
 
             // Check for '0x'
-            if (!Number.IsHexPrefix(guidString, numStart + numLen + 1))
+            if (!IsHexPrefix(guidString, numStart + numLen + 1))
             {
                 result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix), "{0xdddddddd, 0xdddd, etc}");
                 return false;
@@ -667,7 +586,7 @@ namespace System
             }
 
             // Check for '0x'
-            if (!Number.IsHexPrefix(guidString, numStart + numLen + 1))
+            if (!IsHexPrefix(guidString, numStart + numLen + 1))
             {
                 result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix), "{0xdddddddd, 0xdddd, 0xdddd, etc}");
                 return false;
@@ -700,7 +619,7 @@ namespace System
             for (int i = 0; i < 8; i++)
             {
                 // Check for '0x'
-                if (!Number.IsHexPrefix(guidString, numStart + numLen + 1))
+                if (!IsHexPrefix(guidString, numStart + numLen + 1))
                 {
                     result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix), "{... { ... 0xdd, ...}}");
                     return false;
@@ -771,6 +690,12 @@ namespace System
             return success;
         }
 
+        private static bool TryParseHex(ReadOnlySpan<char> guidString, out uint result)
+        {
+            bool overflowIgnored = false;
+            return TryParseHex(guidString, out result, ref overflowIgnored);
+        }
+
         private static bool TryParseHex(ReadOnlySpan<char> guidString, out uint result, ref bool overflow)
         {
             if ((uint)guidString.Length > 0)
@@ -791,12 +716,13 @@ namespace System
             for (; i < guidString.Length && guidString[i] == '0'; i++);
 
             int processedDigits = 0;
+            ReadOnlySpan<byte> charToHexLookup = Number.CharToHexLookup;
             uint tmp = 0;
             for (; i < guidString.Length; i++)
             {
                 int numValue;
                 char c = guidString[i];
-                if (c >= Number.s_charToHexLookup.Length || (numValue = Number.s_charToHexLookup[c]) == 0xFF)
+                if (c >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[c]) == 0xFF)
                 {
                     if (processedDigits > 8) overflow = true;
                     result = 0;
@@ -843,6 +769,11 @@ namespace System
             // Return the string with the whitespace removed.
             return new ReadOnlySpan<char>(chArr, 0, newLength);
         }
+
+        private static bool IsHexPrefix(ReadOnlySpan<char> str, int i) =>
+            i + 1 < str.Length &&
+            str[i] == '0' &&
+            (str[i + 1] | 0x20) == 'x';
 
         // Returns an unsigned byte array containing the GUID.
         public byte[] ToByteArray()
