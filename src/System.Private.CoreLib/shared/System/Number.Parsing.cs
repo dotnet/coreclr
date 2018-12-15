@@ -33,8 +33,7 @@ namespace System
         private const int UInt64Precision = 20;
 
         /// <summary>128-element map from an ASCII char to its hex value, e.g. arr['b'] == 11. 0xFF means it's not a hex digit.</summary>
-        internal static readonly byte[] s_charToHexLookup =
-        {
+        internal static ReadOnlySpan<byte> s_charToHexLookup => new byte[] { // uses C# compiler's optimization for static byte[] data
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 15
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 31
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 47
@@ -1108,9 +1107,8 @@ namespace System
             }
 
             int answer = 0;
-            byte[] charToHexLookup = s_charToHexLookup;
-
-            if ((uint)num < (uint)charToHexLookup.Length && charToHexLookup[num] != 0xFF)
+            
+            if ((uint)num < (uint)s_charToHexLookup.Length && s_charToHexLookup[num] != 0xFF)
             {
                 // Skip past leading zeros.
                 if (num == '0')
@@ -1122,19 +1120,19 @@ namespace System
                             goto DoneAtEnd;
                         num = value[index];
                     } while (num == '0');
-                    if ((uint)num >= (uint)charToHexLookup.Length || charToHexLookup[num] == 0xFF)
+                    if ((uint)num >= (uint)s_charToHexLookup.Length || s_charToHexLookup[num] == 0xFF)
                         goto HasTrailingChars;
                 }
 
                 // Parse up through 8 digits, as no overflow is possible
-                answer = charToHexLookup[num]; // first digit
+                answer = s_charToHexLookup[num]; // first digit
                 index++;
                 for (int i = 0; i < 7; i++) // next 7 digits can't overflow
                 {
                     if ((uint)index >= (uint)value.Length)
                         goto DoneAtEnd;
                     num = value[index];
-                    if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                    if ((uint)num >= (uint)s_charToHexLookup.Length || (numValue = s_charToHexLookup[num]) == 0xFF)
                         goto HasTrailingChars;
                     index++;
                     answer = 16 * answer + numValue;
@@ -1144,7 +1142,7 @@ namespace System
                 if ((uint)index >= (uint)value.Length)
                     goto DoneAtEnd;
                 num = value[index];
-                if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                if ((uint)num >= (uint)s_charToHexLookup.Length || (numValue = s_charToHexLookup[num]) == 0xFF)
                     goto HasTrailingChars;
                 index++;
                 overflow = true;
@@ -1154,7 +1152,7 @@ namespace System
                 // At this point, we're either overflowing or hitting a formatting error.
                 // Format errors take precedence for compatibility. Read through any remaining digits.
                 num = value[index];
-                while ((uint)num < (uint)charToHexLookup.Length && charToHexLookup[num] != 0xFF)
+                while ((uint)num < (uint)s_charToHexLookup.Length && s_charToHexLookup[num] != 0xFF)
                 {
                     index++;
                     if ((uint)index >= (uint)value.Length)
@@ -1429,9 +1427,8 @@ namespace System
             }
 
             long answer = 0;
-            byte[] charToHexLookup = s_charToHexLookup;
-
-            if ((uint)num < (uint)charToHexLookup.Length && charToHexLookup[num] != 0xFF)
+            
+            if ((uint)num < (uint)s_charToHexLookup.Length && s_charToHexLookup[num] != 0xFF)
             {
                 // Skip past leading zeros.
                 if (num == '0')
@@ -1443,19 +1440,19 @@ namespace System
                             goto DoneAtEnd;
                         num = value[index];
                     } while (num == '0');
-                    if ((uint)num >= (uint)charToHexLookup.Length || charToHexLookup[num] == 0xFF)
+                    if ((uint)num >= (uint)s_charToHexLookup.Length || s_charToHexLookup[num] == 0xFF)
                         goto HasTrailingChars;
                 }
 
                 // Parse up through 16 digits, as no overflow is possible
-                answer = charToHexLookup[num]; // first digit
+                answer = s_charToHexLookup[num]; // first digit
                 index++;
                 for (int i = 0; i < 15; i++) // next 15 digits can't overflow
                 {
                     if ((uint)index >= (uint)value.Length)
                         goto DoneAtEnd;
                     num = value[index];
-                    if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                    if ((uint)num >= (uint)s_charToHexLookup.Length || (numValue = s_charToHexLookup[num]) == 0xFF)
                         goto HasTrailingChars;
                     index++;
                     answer = 16 * answer + numValue;
@@ -1465,7 +1462,7 @@ namespace System
                 if ((uint)index >= (uint)value.Length)
                     goto DoneAtEnd;
                 num = value[index];
-                if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                if ((uint)num >= (uint)s_charToHexLookup.Length || (numValue = s_charToHexLookup[num]) == 0xFF)
                     goto HasTrailingChars;
                 index++;
                 overflow = true;
@@ -1475,7 +1472,7 @@ namespace System
                 // At this point, we're either overflowing or hitting a formatting error.
                 // Format errors take precedence for compatibility. Read through any remaining digits.
                 num = value[index];
-                while ((uint)num < (uint)charToHexLookup.Length && charToHexLookup[num] != 0xFF)
+                while ((uint)num < (uint)s_charToHexLookup.Length && s_charToHexLookup[num] != 0xFF)
                 {
                     index++;
                     if ((uint)index >= (uint)value.Length)

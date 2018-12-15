@@ -791,13 +791,12 @@ namespace System
             for (; i < guidString.Length && guidString[i] == '0'; i++);
 
             int processedDigits = 0;
-            byte[] charToHexLookup = Number.s_charToHexLookup;
             uint tmp = 0;
             for (; i < guidString.Length; i++)
             {
                 int numValue;
                 char c = guidString[i];
-                if (c >= charToHexLookup.Length || (numValue = charToHexLookup[c]) == 0xFF)
+                if (c >= Number.s_charToHexLookup.Length || (numValue = Number.s_charToHexLookup[c]) == 0xFF)
                 {
                     if (processedDigits > 8) overflow = true;
                     result = 0;
