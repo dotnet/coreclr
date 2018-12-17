@@ -440,25 +440,21 @@ namespace System
                 g._b = (short)uintTmp;
                 g._c = (short)uintTmp2;
 
-                if (!TryParseHexD(guidString.Slice(19, 4), out uintTmp))
+                if (!TryParseHexD(guidString.Slice(19, 4), out uintTmp) ||
+                    !TryParseHexD(guidString.Slice(24, 4), out uintTmp2))
                     goto FalseExit;
                 g._d = (byte)(uintTmp >> 8);
                 g._e = (byte)uintTmp;
+                g._f = (byte)(uintTmp2 >> 8);
+                g._g = (byte)uintTmp2;
 
-                if (!TryParseHexD(guidString.Slice(24, 4), out uintTmp))
-                    goto FalseExit;
-                g._f = (byte)(uintTmp >> 8);
-                g._g = (byte)uintTmp;
-
-                if (!TryParseHexD(guidString.Slice(28, 4), out uintTmp))
+                if (!TryParseHexD(guidString.Slice(28, 4), out uintTmp) ||
+                    !TryParseHexD(guidString.Slice(32, 4), out uintTmp2))
                     goto FalseExit;
                 g._h = (byte)(uintTmp >> 8);
                 g._i = (byte)uintTmp;
-
-                if (!TryParseHexD(guidString.Slice(32, 4), out uintTmp))
-                    goto FalseExit;
-                g._j = (byte)(uintTmp >> 8);
-                g._k = (byte)uintTmp;
+                g._j = (byte)(uintTmp2 >> 8);
+                g._k = (byte)uintTmp2;
             }
 
             return true;
@@ -496,25 +492,21 @@ namespace System
                 g._b = (short)uintTmp;
                 g._c = (short)uintTmp2;
 
-                if (!TryParseHexN(guidString.Slice(16, 4), out uintTmp))
+                if (!TryParseHexN(guidString.Slice(16, 4), out uintTmp) ||
+                    !TryParseHexN(guidString.Slice(20, 4), out uintTmp2))
                     goto FalseExit;
                 g._d = (byte)(uintTmp >> 8);
                 g._e = (byte)uintTmp;
+                g._f = (byte)(uintTmp2 >> 8);
+                g._g = (byte)uintTmp2;
 
-                if (!TryParseHexN(guidString.Slice(20, 4), out uintTmp))
-                    goto FalseExit;
-                g._f = (byte)(uintTmp >> 8);
-                g._g = (byte)uintTmp;
-
-                if (!TryParseHexN(guidString.Slice(24, 4), out uintTmp))
+                if (!TryParseHexN(guidString.Slice(24, 4), out uintTmp) ||
+                    !TryParseHexN(guidString.Slice(28, 4), out uintTmp2))
                     goto FalseExit;
                 g._h = (byte)(uintTmp >> 8);
                 g._i = (byte)uintTmp;
-
-                if (!TryParseHexN(guidString.Slice(28, 4), out uintTmp))
-                    goto FalseExit;
-                g._j = (byte)(uintTmp >> 8);
-                g._k = (byte)uintTmp;
+                g._j = (byte)(uintTmp2 >> 8);
+                g._k = (byte)uintTmp2;
             }
 
             return true;
@@ -722,75 +714,40 @@ namespace System
             Debug.Assert(value.Length == 4, "Expects exact 4 (guaranteed, because called only from TryParseExactD)");
 
             ReadOnlySpan<byte> charToHexLookup = Number.CharToHexLookup;
-            int num = value[0];
             uint numValue;
             result = 0;
 
-            // can start only with hex digit or "+" (43 < charToHexLookup.Length); "0x" means '0' for num
+            // First char
+            int num = value[0];
+            
+            // Can start only with hex digit or "+" (43 < charToHexLookup.Length); "0x" means '0' for num
             if ((uint)num >= (uint)charToHexLookup.Length)
                 goto FalseExit;
 
             if ((numValue = charToHexLookup[num]) == 0xFF)
-            {
-                // valid strings can be like "+123..." or "+0x1..."
-                if (num == '+')
-                {
-                    num = value[1];
-                    if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                        goto FalseExit;
-                }
-                else
-                {
-                    goto FalseExit;
-                }
-                
-                // if "+0", can be "+0x"
-                if (numValue == 0)
-                {
-                    num = value[2];
-                    if ((num | 0x20) == 'x')
-                        goto FourthDigit;
-
-                    if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                        goto FalseExit;
-
-                    result = numValue;
-                    goto FourthDigit;
-                }
-
-                result = numValue;
-                goto ThirdDigit;
-            }
-
-            // check leading zero or hex prefix (no bounds checking because value.Length equals to 4)
-            if (numValue == 0)
-            {
-                num = value[1];
-
-                if ((num | 0x20) == 'x')
-                    goto ThirdDigit;
-
-                if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                    goto FalseExit;
-
-                result = numValue;
-                goto ThirdDigit;
-            }
+                goto FirstCharNotHex;
 
             result = numValue;
-        // SecondDigit:
+            
+            // Second char
             num = value[1];
             if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                goto FalseExit;
+            {
+                // Check for "0x", cannot use numValue for previous '0' check, so use the result
+                if ((num | 0x20) == 'x' && result == 0)
+                    goto ThirdChar;
 
+                goto FalseExit;
+            }
+                
             result = 16 * result + numValue;
-        ThirdDigit:
+        ThirdChar:
             num = value[2];
             if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
                 goto FalseExit;
 
             result = 16 * result + numValue;
-        FourthDigit:
+        FourthChar:
             num = value[3];
             if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
                 goto FalseExit;
@@ -798,6 +755,35 @@ namespace System
             result = 16 * result + numValue;
 
             return true;
+        FirstCharNotHex:
+            // Valid strings can be like "+123..." or "+0x1..."
+            if (num == '+')
+            {
+                num = value[1];
+                if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                    goto FalseExit;
+            }
+            else
+            {
+                goto FalseExit;
+            }
+
+            // If "+0", can be "+0x"
+            if (numValue == 0)
+            {
+                num = value[2];
+                if ((num | 0x20) == 'x')
+                    goto FourthChar;
+
+                if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                    goto FalseExit;
+
+                result = numValue;
+                goto FourthChar;
+            }
+
+            result = numValue;
+            goto ThirdChar;
         FalseExit:
             result = 0;
             return false;
