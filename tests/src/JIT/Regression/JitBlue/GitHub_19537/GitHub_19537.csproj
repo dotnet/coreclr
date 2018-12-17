@@ -4,52 +4,31 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{95DFC527-4DC1-495E-97D7-E94EE1F7140D}</ProjectGuid>
+    <ProjectGuid>{2649FAFE-07BF-4F93-8120-BA9A69285ABB}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
+    <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' "></PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' "></PropertyGroup>
+  <PropertyGroup>
+    <DebugType>None</DebugType>
+    <Optimize>True</Optimize>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>            
+  </PropertyGroup>
   <ItemGroup>
     <CodeAnalysisDependentAssemblyPaths Condition=" '$(VS100COMNTOOLS)' != '' " Include="$(VS100COMNTOOLS)..\IDE\PrivateAssemblies">
       <Visible>False</Visible>
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
-  <PropertyGroup>
-    <DebugType>None</DebugType>
-    <Optimize>True</Optimize>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="$(MSBuildProjectName).cs" />
-  </ItemGroup>
-  <PropertyGroup>
-    <CLRTestBatchPreCommands>
-      <![CDATA[
-$(CLRTestBatchPreCommands)
-set COMPlus_TieredCompilation=0
-set COMPlus_JITMinOpts=0
-set COMPlus_JitDebuggable=0
-set COMPlus_JitStressModeNamesNot=STRESS_RANDOM_INLINE
-set COMPlus_JitObjectStackAllocation=1
-]]>
-    </CLRTestBatchPreCommands>
-    <BashCLRTestPreCommands>
-      <![CDATA[
-$(BashCLRTestPreCommands)
-export COMPlus_TieredCompilation=0
-export COMPlus_JITMinOpts=0
-export COMPlus_JitDebuggable=0
-export COMPlus_JitStressModeNamesNot=STRESS_RANDOM_INLINE
-export COMPlus_JitObjectStackAllocation=1
-]]>
-    </BashCLRTestPreCommands>
-  </PropertyGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
