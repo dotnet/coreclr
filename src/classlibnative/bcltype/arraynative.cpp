@@ -467,22 +467,23 @@ void ArrayNative::CastCheckEachElement(const BASEARRAYREF pSrcUnsafe, const unsi
     gc.pDest = pDestUnsafe;
     gc.pSrc = pSrcUnsafe;
 
-    GCPROTECT_BEGIN(gc);
-    
-    for(unsigned int i=srcIndex; i<srcIndex + len; ++i)
-    {
-        gc.obj = ObjectToOBJECTREF(*((Object**) gc.pSrc->GetDataPtr() + i));
+    GCProtect(gc)(
+        [&]()
+        {
+            for(unsigned int i=srcIndex; i<srcIndex + len; ++i)
+            {
+                gc.obj = ObjectToOBJECTREF(*((Object**) gc.pSrc->GetDataPtr() + i));
 
-        // Now that we have grabbed obj, we are no longer subject to races from another
-        // mutator thread.
-        if (gc.obj != NULL && !ObjIsInstanceOf(OBJECTREFToObject(gc.obj), destTH))
-            COMPlusThrow(kInvalidCastException, W("InvalidCast_DownCastArrayElement"));
+                // Now that we have grabbed obj, we are no longer subject to races from another
+                // mutator thread.
+                if (gc.obj != NULL && !ObjIsInstanceOf(OBJECTREFToObject(gc.obj), destTH))
+                    COMPlusThrow(kInvalidCastException, W("InvalidCast_DownCastArrayElement"));
 
-        OBJECTREF * destData = (OBJECTREF*)(gc.pDest->GetDataPtr()) + i - srcIndex + destIndex;
-        SetObjectReference(destData, gc.obj, gc.pDest->GetAppDomain());
-    }
-
-    GCPROTECT_END();
+                OBJECTREF * destData = (OBJECTREF*)(gc.pDest->GetDataPtr()) + i - srcIndex + destIndex;
+                SetObjectReference(destData, gc.obj, gc.pDest->GetAppDomain());
+            }
+        }
+    );
 
     return;
 }
@@ -520,13 +521,14 @@ void ArrayNative::BoxEachElement(BASEARRAYREF pSrc, unsigned int srcIndex, BASEA
     {
         BASEARRAYREF pSrcTmp = pSrc;
         BASEARRAYREF pDestTmp = pDest;
-        GCPROTECT_BEGIN (pSrcTmp);
-        GCPROTECT_BEGIN (pDestTmp);
-        pSrcMT->CheckRunClassInitThrowing();
-        pSrc = pSrcTmp;
-        pDest = pDestTmp;
-        GCPROTECT_END ();
-        GCPROTECT_END ();
+        GCProtect(pSrcTmp, pDestTmp)(
+            [&]()
+            {
+                pSrcMT->CheckRunClassInitThrowing();
+                pSrc = pSrcTmp;
+                pDest = pDestTmp;
+            }
+        );
     }
 
     const unsigned int srcSize = pSrcMT->GetNumInstanceFieldBytes();
@@ -544,18 +546,23 @@ void ArrayNative::BoxEachElement(BASEARRAYREF pSrc, unsigned int srcIndex, BASEA
     gc.obj = NULL;
 
     void* srcPtr = 0;
-    GCPROTECT_BEGIN(gc);
-    GCPROTECT_BEGININTERIOR(srcPtr);
-    for (unsigned int i=destIndex; i < destIndex+length; i++, srcArrayOffset += srcSize)
-    {
-        srcPtr = (BYTE*)gc.src->GetDataPtr() + srcArrayOffset;
-        gc.obj = pSrcMT->FastBox(&srcPtr);
+    GCProtect(gc)(
+        [&]()
+        {
+            GCProtectInterior(srcPtr)(
+                [&]()
+                {
+                    for (unsigned int i = destIndex; i < destIndex + length; i++, srcArrayOffset += srcSize)
+                    {
+                        srcPtr = (BYTE*)gc.src->GetDataPtr() + srcArrayOffset;
+                        gc.obj = pSrcMT->FastBox(&srcPtr);
 
-        OBJECTREF * destData = (OBJECTREF*)((gc.dest)->GetDataPtr()) + i;
-        SetObjectReference(destData, gc.obj, gc.dest->GetAppDomain());
-    }
-    GCPROTECT_END();
-    GCPROTECT_END();
+                        OBJECTREF * destData = (OBJECTREF*)((gc.dest)->GetDataPtr()) + i;
+                        SetObjectReference(destData, gc.obj, gc.dest->GetAppDomain());
+                    }
+                }
+            );
+        });
 }
 
 

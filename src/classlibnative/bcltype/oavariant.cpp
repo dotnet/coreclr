@@ -211,17 +211,18 @@ bool COMOAVariant::ToOAVariant(const VariantData * const var, VARIANT * oa)
         case CV_OBJECT:
         {
             OBJECTREF obj = var->GetObjRef();
-            GCPROTECT_BEGIN(obj)
-            {
-                IUnknown *pUnk = NULL;
+            GCProtect(obj)(
+                [&]()
+                {
+                    IUnknown *pUnk = NULL;
 
-                // Convert the object to an IDispatch/IUnknown pointer.
-                ComIpType FetchedIpType = ComIpType_None;
-                pUnk = GetComIPFromObjectRef(&obj, ComIpType_Both, &FetchedIpType);
-                V_UNKNOWN(oa) = pUnk;
-                V_VT(oa) = static_cast<VARTYPE>(FetchedIpType == ComIpType_Dispatch ? VT_DISPATCH : VT_UNKNOWN);
-            }
-            GCPROTECT_END();
+                    // Convert the object to an IDispatch/IUnknown pointer.
+                    ComIpType FetchedIpType = ComIpType_None;
+                    pUnk = GetComIPFromObjectRef(&obj, ComIpType_Both, &FetchedIpType);
+                    V_UNKNOWN(oa) = pUnk;
+                    V_VT(oa) = static_cast<VARTYPE>(FetchedIpType == ComIpType_Dispatch ? VT_DISPATCH : VT_UNKNOWN);
+                }
+            );
             return true;
         }
         
@@ -317,10 +318,13 @@ void COMOAVariant::FromOAVariant(const VARIANT * const oa, VariantData * const& 
         {
             // Convert the IUnknown pointer to an OBJECTREF.
             OBJECTREF oref = NULL;
-            GCPROTECT_BEGIN(oref);
-            GetObjectRefFromComIP(&oref, V_UNKNOWN(oa));
-            var->SetObjRef(oref);
-            GCPROTECT_END();
+            GCProtect(oref)(
+                [&]()
+                {
+                    GetObjectRefFromComIP(&oref, V_UNKNOWN(oa));
+                    var->SetObjRef(oref);
+                }
+            );
             break;
         }
         default:
@@ -378,51 +382,55 @@ FCIMPL6(void, COMOAVariant::ChangeTypeEx, VariantData *result, VariantData *op, 
     CONTRACTL_END;
 
     HELPER_METHOD_FRAME_BEGIN_0();
-    GCPROTECT_BEGININTERIOR (result);
 
-    BOOL fConverted = FALSE;
-
-    TypeHandle thTarget = TypeHandle::FromPtr(targetType);
-    if (cvType == CV_OBJECT && IsTypeRefOrDef(g_ColorClassName, thTarget.GetModule(), thTarget.GetCl()))
-    {
-        if (op->GetType() == CV_I4 || op->GetType() == CV_U4)
+    GCProtectInterior(result)
+    (
+        [&]()
         {
-            // Int32/UInt32 can be converted to System.Drawing.Color
-            SYSTEMCOLOR SystemColor;
-            ConvertOleColorToSystemColor(op->GetDataAsUInt32(), &SystemColor);
+            BOOL fConverted = FALSE;
 
-            result->SetObjRef(thTarget.AsMethodTable()->Box(&SystemColor));
-            result->SetType(CV_OBJECT);
+            TypeHandle thTarget = TypeHandle::FromPtr(targetType);
+            if (cvType == CV_OBJECT && IsTypeRefOrDef(g_ColorClassName, thTarget.GetModule(), thTarget.GetCl()))
+            {
+                if (op->GetType() == CV_I4 || op->GetType() == CV_U4)
+                {
+                    // Int32/UInt32 can be converted to System.Drawing.Color
+                    SYSTEMCOLOR SystemColor;
+                    ConvertOleColorToSystemColor(op->GetDataAsUInt32(), &SystemColor);
 
-            fConverted = TRUE;
+                    result->SetObjRef(thTarget.AsMethodTable()->Box(&SystemColor));
+                    result->SetType(CV_OBJECT);
+
+                    fConverted = TRUE;
+                }
+            }
+
+            if (!fConverted)
+            {
+                VariantHolder ret;
+                VariantHolder vOp;
+
+                VARENUM vt = CVtoVT((CVTypes)cvType);
+                ToOAVariant(op, &vOp);
+
+                HRESULT hr = SafeVariantChangeTypeEx(&ret, &vOp, lcid, flags, static_cast<VARTYPE>(vt));
+
+                if (FAILED(hr))
+                    OAFailed(hr);
+
+                if ((CVTypes)cvType == CV_CHAR)
+                {
+                    result->SetType(CV_CHAR);
+                    result->SetDataAsUInt16(V_UI2(&ret));
+                }
+                else
+                {
+                    FromOAVariant(&ret, result);
+                }
+            }
         }
-    }
+    );
 
-    if (!fConverted)
-    {
-        VariantHolder ret;
-        VariantHolder vOp;
-
-        VARENUM vt = CVtoVT((CVTypes) cvType);
-        ToOAVariant(op, &vOp);
-
-        HRESULT hr = SafeVariantChangeTypeEx(&ret, &vOp, lcid, flags, static_cast<VARTYPE>(vt));
-
-        if (FAILED(hr))
-            OAFailed(hr);
-
-        if ((CVTypes) cvType == CV_CHAR)
-        {
-            result->SetType(CV_CHAR);
-            result->SetDataAsUInt16(V_UI2(&ret));
-        }
-        else
-        {
-            FromOAVariant(&ret, result);
-        }
-    }
-    
-    GCPROTECT_END ();
     HELPER_METHOD_FRAME_END();
 }
 FCIMPLEND
