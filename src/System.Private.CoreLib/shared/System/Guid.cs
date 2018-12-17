@@ -415,51 +415,54 @@ namespace System
                 return false;
             }
 
-            if (guidString[8] != '-' || guidString[13] != '-' || guidString[18] != '-' || guidString[23] != '-')
-            {
-                result.SetFailure(overflow: false, nameof(SR.Format_GuidDashes));
-                return false;
-            }
-
             unchecked
             {
+                if (guidString[8] != '-' || guidString[13] != '-' || guidString[18] != '-' || guidString[23] != '-')
+                {
+                    result.SetFailure(overflow: false, nameof(SR.Format_GuidDashes));
+                    return false;
+                }
+
                 ref Guid g = ref result._parsedGuid;
 
                 uint uintTmp;
-                if (TryParseHexStrict(guidString.Slice(0, 8), out Unsafe.As<int, uint>(ref g._a)) && // _a
-                    TryParseHexStrict(guidString.Slice(9, 4), out uintTmp)) // _b
-                {
-                    g._b = (short)uintTmp;
+                uint uintTmp2;
 
-                    if (TryParseHexStrict(guidString.Slice(14, 4), out uintTmp)) // _c
-                    {
-                        g._c = (short)uintTmp;
+                if (!TryParseHexStrictD(guidString.Slice(0, 4), out uintTmp) ||
+                    !TryParseHexStrictD(guidString.Slice(4, 4), out uintTmp2))
+                    goto FalseExit;
+                g._a = (int)((uintTmp << 16) + uintTmp2);
 
-                        if (TryParseHexStrict(guidString.Slice(19, 4), out uintTmp)) // _d, _e
-                        {
-                            g._d = (byte)(uintTmp >> 8);
-                            g._e = (byte)uintTmp;
+                if (!TryParseHexStrictD(guidString.Slice(9, 4), out uintTmp) ||
+                    !TryParseHexStrictD(guidString.Slice(14, 4), out uintTmp2))
+                    goto FalseExit;
 
-                            if (TryParseHexStrict(guidString.Slice(24, 4), out uintTmp)) // _f, _g
-                            {
-                                g._f = (byte)(uintTmp >> 8);
-                                g._g = (byte)uintTmp;
+                g._b = (short)uintTmp;
+                g._c = (short)uintTmp2;
 
-                                if (TryParseHexStrict(guidString.Slice(28, 8), out uintTmp)) // _h, _i, _j, _k
-                                {
-                                    g._h = (byte)(uintTmp >> 24);
-                                    g._i = (byte)(uintTmp >> 16);
-                                    g._j = (byte)(uintTmp >> 8);
-                                    g._k = (byte)uintTmp;
+                if (!TryParseHexStrictD(guidString.Slice(19, 4), out uintTmp))
+                    goto FalseExit;
+                g._d = (byte)(uintTmp >> 8);
+                g._e = (byte)uintTmp;
 
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
+                if (!TryParseHexStrictD(guidString.Slice(24, 4), out uintTmp))
+                    goto FalseExit;
+                g._f = (byte)(uintTmp >> 8);
+                g._g = (byte)uintTmp;
+
+                if (!TryParseHexStrictD(guidString.Slice(28, 4), out uintTmp))
+                    goto FalseExit;
+                g._h = (byte)(uintTmp >> 8);
+                g._i = (byte)uintTmp;
+
+                if (!TryParseHexStrictD(guidString.Slice(32, 4), out uintTmp))
+                    goto FalseExit;
+                g._j = (byte)(uintTmp >> 8);
+                g._k = (byte)uintTmp;
             }
 
+            return true;
+        FalseExit:
             result.SetFailure(overflow: false, nameof(SR.Format_GuidInvalidChar));
             return false;
         }
@@ -703,19 +706,18 @@ namespace System
         }
 
         /// <summary>
-        /// Tries to parse 4 or 8 characters (no other length expected).
+        /// Tries to parse 4 characters (no other length expected).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool TryParseHexStrict(ReadOnlySpan<char> value, out uint result)
+        private static bool TryParseHexStrictD(ReadOnlySpan<char> value, out uint result)
         {
-            Debug.Assert(value.Length == 4 || value.Length == 8,
-                "Expects exact 4 or 8 characters (guaranteed, because TryParseExactX calls other method)");
+            Debug.Assert(value.Length == 4 ,
+                "Expects exact 4 (guaranteed, because called only from TryParseExactD)");
 
             ReadOnlySpan<byte> charToHexLookup = Number.CharToHexLookup;
             int num = value[0];
             uint numValue;
-            int index = 0;
-            uint answer = 0;
+            result = 0;
 
             // can start only with hex digit or "+" (43 < charToHexLookup.Length); "0x" means '0' for num
             if ((uint)num >= (uint)charToHexLookup.Length)
@@ -726,68 +728,68 @@ namespace System
                 // valid strings can be like "+123..." or "+0x1..."
                 if (num == '+')
                 {
-                    num = value[++index];
-                    if ((uint)num < (uint)charToHexLookup.Length && (numValue = charToHexLookup[num]) != 0xFF)
-                        goto DigitsOrHexPrefix;
+                    num = value[1];
+                    if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                        goto FalseExit;
+                }
+                else
+                {
+                    goto FalseExit;
+                }
+                
+                // if "+0", can be "+0x"
+                if (numValue == 0)
+                {
+                    num = value[2];
+                    if ((num | 0x20) == 'x')
+                        goto FourthDigit;
+
+                    if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                        goto FalseExit;
+
+                    result = numValue;
+                    goto FourthDigit;
                 }
 
-                goto FalseExit;
+                result = numValue;
+                goto ThirdDigit;
             }
 
-        DigitsOrHexPrefix:
-            // check leading zero or hex prefix (no bounds checking because value.Length no less than 4)
+            // check leading zero or hex prefix (no bounds checking because value.Length equals to 4)
             if (numValue == 0)
             {
-                num = value[++index];
+                num = value[1];
 
-                // valid strings can be like "0012", "0x01" or "0x12"
-                if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                {
-                    if ((num | 0x20) == 'x')
-                    {
-                        num = value[++index];
-                        if ((uint)num < (uint)charToHexLookup.Length && (numValue = charToHexLookup[num]) != 0xFF)
-                        {
-                            if (numValue != 0)
-                                goto DigitsOnlyAndNoLeadingZero;
-                            goto DigitsOnly;
-                        }
-                    }
-
-                    goto FalseExit;
-                }
-
-                if (numValue != 0)
-                    goto DigitsOnlyAndNoLeadingZero;
-
-                DigitsOnly:
-                do
-                {
-                    index++;
-                    if ((uint)index >= (uint)value.Length)
-                        goto DoneAtEnd;
-
-                    num = value[index];
-                } while (num == '0');
+                if ((num | 0x20) == 'x')
+                    goto ThirdDigit;
 
                 if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
                     goto FalseExit;
+
+                result = numValue;
+                goto ThirdDigit;
             }
 
-        DigitsOnlyAndNoLeadingZero:
-            answer = numValue;
+            result = numValue;
+        // SecondDigit:
+            num = value[1];
+            if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                goto FalseExit;
 
-            while ((uint)++index < (uint)value.Length)
-            {
-                num = value[index];
-                if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                    goto FalseExit;
+            result = 16 * result + numValue;
+        ThirdDigit:
+            num = value[2];
+            if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                goto FalseExit;
 
-                answer = 16 * answer + numValue;
-            }
+            result = 16 * result + numValue;
+        FourthDigit:
+            num = value[3];
+            if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
+                goto FalseExit;
 
-        DoneAtEnd:
-            result = answer;
+            result = 16 * result + numValue;
+
             return true;
         FalseExit:
             result = 0;
