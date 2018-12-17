@@ -104,12 +104,9 @@ typedef DPTR(CONNID)   PTR_CONNID;
 
 // *** ICorRuntimeHost methods ***
 
-CorHost2::CorHost2()
+CorHost2::CorHost2() : m_fFirstToLoadCLR(FALSE), m_fStarted(FALSE), m_fAppDomainCreated(FALSE)
 {
     LIMITED_METHOD_CONTRACT;
-
-    m_fFirstToLoadCLR = FALSE;
-    m_fAppDomainCreated = FALSE;
 }
 
 static DangerousNonHostedSpinLock lockOnlyOneToInvokeStart;
