@@ -3661,6 +3661,33 @@ auto GCProtectInterior(TRefs&... refs)
 #define GCPROTECT_BEGININTERIOR(ObjRefStruct)
 #define GCPROTECT_END()
 
+template<typename... TRefs>
+auto GCProtect(TRefs&... refs)
+{
+    return [](auto callback)
+    {
+        callback();
+    };
+}
+
+template<typename... TRefs>
+auto GCProtectThread(Thread* pThread, TRefs&... refs)
+{
+    return [](auto callback)
+    {
+        callback();
+    };
+}
+
+template<typename... TRefs>
+auto GCProtectInterior(TRefs&... refs)
+{
+    return [](auto callback)
+    {
+        callback();
+    };
+}
+
 #endif // #ifndef DACCESS_COMPILE
 
 
