@@ -694,106 +694,127 @@ HRESULT CorHost2::_CreateAppDomain(
     EMPTY_STRING_TO_NULL(wszAppDomainManagerAssemblyName);
     EMPTY_STRING_TO_NULL(wszAppDomainManagerTypeName);
 
-    if(pAppDomainID==NULL)
+    if (pAppDomainID==NULL)
         return E_POINTER;
 
     if (!m_fStarted)
         return HOST_E_INVALIDOPERATION;
 
-    if(wszFriendlyName == NULL)
+    if (wszFriendlyName == NULL)
         return E_INVALIDARG;
 
-    if((wszAppDomainManagerAssemblyName == NULL) != (wszAppDomainManagerTypeName == NULL))
+    if ((wszAppDomainManagerAssemblyName != NULL) || (wszAppDomainManagerTypeName != NULL))
         return E_INVALIDARG;
 
     BEGIN_ENTRYPOINT_NOTHROW;
 
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
-    GCX_COOP_THREAD_EXISTS(GET_THREAD());
 
-    AppDomainCreationHolder<AppDomain> pDomain;
+    AppDomain* pDomain = SystemDomain::System()->DefaultDomain();
 
-    pDomain.Assign(SystemDomain::System()->DefaultDomain());
+    pDomain->SetFriendlyName(wszFriendlyName);
 
     ETW::LoaderLog::DomainLoad(pDomain, (LPWSTR)wszFriendlyName);
 
     if (dwFlags & APPDOMAIN_IGNORE_UNHANDLED_EXCEPTIONS)
-    {
         pDomain->SetIgnoreUnhandledExceptions();
-    }
-
-    if (dwFlags & APPDOMAIN_SECURITY_FORBID_CROSSAD_REVERSE_PINVOKE)
-        pDomain->SetReversePInvokeCannotEnter();
 
     if (dwFlags & APPDOMAIN_FORCE_TRIVIAL_WAIT_OPERATIONS)
         pDomain->SetForceTrivialWaitOperations();
 
+    pDomain->CreateFusionContext();
+
     {
         GCX_COOP();
-    
-        struct 
-        {
-            STRINGREF friendlyName;
-            PTRARRAYREF propertyNames;
-            PTRARRAYREF propertyValues;
-            OBJECTREF setupInfo;
-            OBJECTREF adSetup;
-        } _gc;
 
-        ZeroMemory(&_gc,sizeof(_gc));
+        MethodDescCallSite setup(METHOD__APPCONTEXT__SETUP);
 
-        GCPROTECT_BEGIN(_gc)
-        _gc.friendlyName=StringObject::NewString(wszFriendlyName);
-        
-        if(nProperties>0)
-        {
-            _gc.propertyNames = (PTRARRAYREF) AllocateObjectArray(nProperties, g_pStringClass);
-            _gc.propertyValues= (PTRARRAYREF) AllocateObjectArray(nProperties, g_pStringClass);
-            for (int i=0;i< nProperties;i++)
-            {
-                STRINGREF obj = StringObject::NewString(pPropertyNames[i]);
-                _gc.propertyNames->SetAt(i, obj);
-                
-                obj = StringObject::NewString(pPropertyValues[i]);
-                _gc.propertyValues->SetAt(i, obj);
-            }
-        }
+        ARG_SLOT args[3];
+        args[0] = PtrToArgSlot(pPropertyNames);
+        args[1] = PtrToArgSlot(pPropertyValues);
+        args[2] = PtrToArgSlot(nProperties);
 
-        MethodDescCallSite prepareDataForSetup(METHOD__APP_DOMAIN__PREPARE_DATA_FOR_SETUP);
-
-        ARG_SLOT args[4];
-        args[0]=ObjToArgSlot(_gc.friendlyName);
-        args[1]=ObjToArgSlot(NULL);
-        args[2]=ObjToArgSlot(_gc.propertyNames);
-        args[3]=ObjToArgSlot(_gc.propertyValues);
-
-        _gc.setupInfo=prepareDataForSetup.Call_RetOBJECTREF(args);
-
-        //
-        // Get the new flag values and set it to the domain
-        //
-        PTRARRAYREF handleArrayObj = (PTRARRAYREF) ObjectToOBJECTREF(_gc.setupInfo);
-        _gc.adSetup = ObjectToOBJECTREF(handleArrayObj->GetAt(1));
-
-
-        pDomain->DoSetup(&_gc.setupInfo);
-        
-        GCPROTECT_END();
-
-        *pAppDomainID=pDomain->GetId().m_dwId;
-
-        m_fAppDomainCreated = TRUE;
+        setup.Call(args);
     }
-    // DoneCreating releases ownership of AppDomain.  After this call, there should be no access to pDomain.
-    pDomain.DoneCreating();
+
+    LPCWSTR pwzNativeDllSearchDirectories = NULL;
+    LPCWSTR pwzTrustedPlatformAssemblies = NULL;
+    LPCWSTR pwzPlatformResourceRoots = NULL;
+    LPCWSTR pwzAppPaths = NULL;
+    LPCWSTR pwzAppNiPaths = NULL;
+#ifdef FEATURE_COMINTEROP
+    LPCWSTR pwzAppLocalWinMD = NULL;
+#endif
+
+    for (int i = 0; i < nProperties; i++)
+    {
+        if (wcscmp(pPropertyNames[i], W("NATIVE_DLL_SEARCH_DIRECTORIES")) == 0)
+        {
+            pwzNativeDllSearchDirectories = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("TRUSTED_PLATFORM_ASSEMBLIES")) == 0)
+        {
+            pwzTrustedPlatformAssemblies = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("PLATFORM_RESOURCE_ROOTS")) == 0)
+        {
+            pwzPlatformResourceRoots = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("APP_PATHS")) == 0)
+        {
+            pwzAppPaths = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("APP_NI_PATHS")) == 0)
+        {
+            pwzAppNiPaths = pPropertyValues[i];
+        }
+#ifdef FEATURE_COMINTEROP
+        else
+        if (wcscmp(pPropertyNames[i], W("APP_LOCAL_WINMETADATA")) == 0)
+        {
+            pwzAppLocalWinMD = pPropertyValues[i];
+        }
+#endif
+    }
+
+    pDomain->SetNativeDllSearchDirectories(pwzNativeDllSearchDirectories);
+
+    {
+        SString sTrustedPlatformAssemblies(pwzTrustedPlatformAssemblies);
+        SString sPlatformResourceRoots(pwzPlatformResourceRoots);
+        SString sAppPaths(pwzAppPaths);
+        SString sAppNiPaths(pwzAppNiPaths);
+
+        CLRPrivBinderCoreCLR *pBinder = pDomain->GetTPABinderContext();
+        _ASSERTE(pBinder != NULL);
+        IfFailThrow(pBinder->SetupBindingPaths(
+            sTrustedPlatformAssemblies,
+            sPlatformResourceRoots,
+            sAppPaths,
+            sAppNiPaths));
+    }
+
+#ifdef FEATURE_COMINTEROP
+    if (WinRTSupported())
+    {
+        pDomain->SetWinrtApplicationContext(pwzAppLocalWinMD);
+    }
+#endif
+
+    *pAppDomainID=pDomain->GetId().m_dwId;
+
+    m_fAppDomainCreated = TRUE;
 
     END_EXTERNAL_ENTRYPOINT;
 
     END_ENTRYPOINT_NOTHROW;
 
     return hr;
-
-};
+}
 
 HRESULT CorHost2::_CreateDelegate(
     DWORD appDomainID,
@@ -2719,64 +2740,9 @@ ULONG STDMETHODCALLTYPE CExecutionEngine::Release()
 struct ClrTlsInfo
 {
     void* data[MAX_PREDEFINED_TLS_SLOT];
-    // When hosted, we may not be able to delete memory in DLL_THREAD_DETACH.
-    // We will chain this into a side list, and free these on Finalizer thread.
-    ClrTlsInfo *next;
 };
 
-#define DataToClrTlsInfo(a) (a)?(ClrTlsInfo*)((BYTE*)a - offsetof(ClrTlsInfo, data)):NULL
-
-
-#ifdef HAS_FLS_SUPPORT
-
-static BOOL fHasFlsSupport = FALSE;
-
-typedef DWORD (*Func_FlsAlloc)(PFLS_CALLBACK_FUNCTION lpCallback);
-typedef BOOL (*Func_FlsFree)(DWORD dwFlsIndex);
-typedef BOOL (*Func_FlsSetValue)(DWORD dwFlsIndex,PVOID lpFlsData);
-typedef PVOID (*Func_FlsGetValue)(DWORD dwFlsIndex);
-
-static DWORD FlsIndex = FLS_OUT_OF_INDEXES;
-static Func_FlsAlloc pFlsAlloc;
-static Func_FlsSetValue pFlsSetValue;
-static Func_FlsFree pFlsFree;
-static Func_FlsGetValue pFlsGetValue;
-static Volatile<BOOL> fFlsSetupDone = FALSE;
-
-VOID WINAPI FlsCallback(
-  PVOID lpFlsData
-)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    _ASSERTE (pFlsGetValue);
-    if (pFlsGetValue(FlsIndex) != lpFlsData)
-    {
-        // The current running fiber is being destroyed.  We can not destroy the memory yet,
-        // because our DllMain function may still need the memory.
-        CExecutionEngine::ThreadDetaching((void **)lpFlsData);        
-    }
-    else
-    {
-        // The thread is being wound down.
-        // In hosting scenarios the host will have already called ICLRTask::ExitTask, which 
-        // ends up calling CExecutionEngine::SwitchOut, which will have reset the TLS at TlsIndex.
-        // 
-        // Unfortunately different OSes have different ordering of destroying FLS data and sending
-        // the DLL_THREAD_DETACH notification (pre-Vista FlsCallback is called after DllMain, while 
-        // in Vista and up, FlsCallback is called before DllMain).  Additionally, starting with 
-        // Vista SP1 and Win2k8, the OS will set the FLS slot to 0 after the call to FlsCallback, 
-        // effectively removing our last reference to this data. Since in EEDllMain we need to be 
-        // able to access the FLS data, we save lpFlsData in the TLS slot at TlsIndex, if needed.
-        if (CExecutionEngine::GetTlsData() == NULL)
-        {
-            CExecutionEngine::SetTlsData((void **)lpFlsData);
-        }
-    }
-}
-
-#endif // HAS_FLS_SUPPORT
-
+#define DataToClrTlsInfo(a) ((ClrTlsInfo*)a)
 
 void** CExecutionEngine::GetTlsData()
 {
@@ -2821,10 +2787,6 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
     STATIC_CONTRACT_SO_TOLERANT;
 
-    // !!! This function is called during Thread::SwitchIn and SwitchOut
-    // !!! It is extremely important that while executing this function, we will not
-    // !!! cause fiber switch.  This means we can not allocate memory, lock, etc...
-
     //<TODO> @TODO: Decide on an exception strategy for all the DLLs of the CLR, and then
     // enable all the exceptions out of this method.</TODO>
 
@@ -2833,67 +2795,8 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
 //    if (slot >= MAX_PREDEFINED_TLS_SLOT)
 //        COMPlusThrow(kArgumentOutOfRangeException);
 
-#ifdef HAS_FLS_SUPPORT
-    if (!fFlsSetupDone)
-    {
-        // Contract depends on Fls support.  Don't use contract here.
-        HMODULE hmod = GetModuleHandleA(WINDOWS_KERNEL32_DLLNAME_A);
-        if (hmod)
-        {
-            pFlsSetValue = (Func_FlsSetValue) GetProcAddress(hmod, "FlsSetValue");
-            pFlsGetValue = (Func_FlsGetValue) GetProcAddress(hmod, "FlsGetValue");
-            pFlsAlloc = (Func_FlsAlloc) GetProcAddress(hmod, "FlsAlloc");
-            pFlsFree = (Func_FlsFree) GetProcAddress(hmod, "FlsFree");
-
-            if (pFlsSetValue && pFlsGetValue && pFlsAlloc && pFlsFree )
-            {
-                fHasFlsSupport = TRUE;
-            }
-            else
-            {
-                // Since we didn't find them all, we shouldn't have found any
-                _ASSERTE( pFlsSetValue == NULL && pFlsGetValue == NULL && pFlsAlloc == NULL && pFlsFree == NULL);
-            }
-            fFlsSetupDone = TRUE;
-        }
-    }
-
-    if (fHasFlsSupport && FlsIndex == FLS_OUT_OF_INDEXES)
-    {
-        // PREFIX_ASSUME needs TLS.  If we use it here, we will loop forever
-#if defined(_PREFAST_) || defined(_PREFIX_) 
-        if (pFlsAlloc == NULL) __UNREACHABLE();
-#else
-        _ASSERTE(pFlsAlloc != NULL);
-#endif // _PREFAST_ || _PREFIX_
-
-        DWORD tryFlsIndex = pFlsAlloc(FlsCallback);
-        if (tryFlsIndex != FLS_OUT_OF_INDEXES)
-        {
-            if (FastInterlockCompareExchange((LONG*)&FlsIndex, tryFlsIndex, FLS_OUT_OF_INDEXES) != FLS_OUT_OF_INDEXES)
-            {
-                pFlsFree(tryFlsIndex);
-            }
-        }
-        if (FlsIndex == FLS_OUT_OF_INDEXES)
-        {
-            COMPlusThrowOM();
-        }
-    }
-#endif // HAS_FLS_SUPPORT
-
     void** pTlsData = CExecutionEngine::GetTlsData();
     BOOL fInTls = (pTlsData != NULL);
-
-#ifdef HAS_FLS_SUPPORT
-    if (fHasFlsSupport)
-    {
-        if (pTlsData == NULL)
-        {
-            pTlsData = (void **)pFlsGetValue(FlsIndex);
-        }
-    }
-#endif
 
     ClrTlsInfo *pTlsInfo = DataToClrTlsInfo(pTlsData);
     if (pTlsInfo == 0 && force)
@@ -2910,12 +2813,6 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
             goto LError;
         }
         memset (pTlsInfo, 0, sizeof(ClrTlsInfo));
-#ifdef HAS_FLS_SUPPORT
-        if (fHasFlsSupport && !pFlsSetValue(FlsIndex, pTlsInfo))
-        {
-            goto LError;
-        }
-#endif
         // We save the last intolerant marker on stack in this slot.  
         // -1 is the larget unsigned number, and therefore our marker is always smaller than it.
         pTlsInfo->data[TlsIdx_SOIntolerantTransitionHandler] = (void*)(-1);
@@ -2923,31 +2820,10 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
 
     if (!fInTls && pTlsInfo)
     {
-#ifdef HAS_FLS_SUPPORT
-        // If we have a thread object or are on a non-fiber thread, we are safe for fiber switching.
-        if (!fHasFlsSupport ||
-            GetThread() ||
-            (g_fEEStarted || g_fEEInit) ||
-            (((size_t)pTlsInfo->data[TlsIdx_ThreadType]) & (ThreadType_GC | ThreadType_Gate | ThreadType_Timer | ThreadType_DbgHelper)))
-        {
-#ifdef _DEBUG
-            Thread *pThread = GetThread();
-            if (pThread)
-            {
-                pThread->AddFiberInfo(Thread::ThreadTrackInfo_Lifetime);
-            }
-#endif
-            if (!CExecutionEngine::SetTlsData(pTlsInfo->data) && !fHasFlsSupport)
-            {
-                goto LError;
-            }
-        }
-#else
         if (!CExecutionEngine::SetTlsData(pTlsInfo->data))
         {
             goto LError;
         }
-#endif
     }
 
     return pTlsInfo?pTlsInfo->data:NULL;
@@ -2991,16 +2867,6 @@ void **CExecutionEngine::CheckThreadStateNoCreate(DWORD slot
 
     void **pTlsData = CExecutionEngine::GetTlsData();
 
-#ifdef HAS_FLS_SUPPORT
-    if (fHasFlsSupport)
-    {
-        if (pTlsData == NULL)
-        {
-            pTlsData = (void **)pFlsGetValue(FlsIndex);
-        }
-    }
-#endif
-
     ClrTlsInfo *pTlsInfo = DataToClrTlsInfo(pTlsData);
 
     return pTlsInfo?pTlsInfo->data:NULL;
@@ -3016,10 +2882,6 @@ void CExecutionEngine::SetupTLSForThread(Thread *pThread)
     STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_ANY;
 
-#ifdef _DEBUG
-    if (pThread)
-        pThread->AddFiberInfo(Thread::ThreadTrackInfo_Lifetime);
-#endif
 #ifdef STRESS_LOG
     if (StressLog::StressLogOn(~0u, 0))
     {
@@ -3041,57 +2903,6 @@ void CExecutionEngine::SetupTLSForThread(Thread *pThread)
 #endif
 }
 
-void CExecutionEngine::SwitchIn()
-{
-    // No real contracts here.  This function is called by Thread::SwitchIn.
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_ENTRY_POINT;
-
-    // @TODO - doesn't look like we can probe here....
-
-#ifdef HAS_FLS_SUPPORT
-    if (fHasFlsSupport)
-    {
-        void **pTlsData = (void **)pFlsGetValue(FlsIndex);
-
-        BOOL fResult = CExecutionEngine::SetTlsData(pTlsData);
-        if (fResult)
-        {
-#ifdef STRESS_LOG
-            // We are in task transition period.  We can not call into host to create stress log.
-            if (ClrTlsGetValue(TlsIdx_StressLog) != NULL)
-            {
-                STRESS_LOG1(LF_SYNC, LL_INFO100, ThreadStressLog::TaskSwitchMsg(), ::GetCurrentThreadId());
-            }
-#endif
-        }
-        // It is OK for UnsafeTlsSetValue to fail here, since we can always go back to Fls to get value.
-    }
-#endif
-}
-
-void CExecutionEngine::SwitchOut()
-{
-    // No real contracts here.  This function is called by Thread::SwitchOut
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_ENTRY_POINT;
-
-#ifdef HAS_FLS_SUPPORT
-    // @TODO - doesn't look like we can probe here.
-    if (fHasFlsSupport && pFlsGetValue != NULL  && (void **)pFlsGetValue(FlsIndex) != NULL)
-    {
-        // Clear out TLS unless we're in the process of ThreadDetach 
-        // We establish that we're in ThreadDetach because fHasFlsSupport will
-        // be TRUE, but the FLS will not exist.
-        CExecutionEngine::SetTlsData(NULL);
-    }
-#endif // HAS_FLS_SUPPORT
-}
-
 static void ThreadDetachingHelper(PTLS_CALLBACK_FUNCTION callback, void* pData)
 {
     // Do not use contract.  We are freeing TLS blocks.
@@ -3099,8 +2910,8 @@ static void ThreadDetachingHelper(PTLS_CALLBACK_FUNCTION callback, void* pData)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
 
-        callback(pData);
-    }
+    callback(pData);
+}
 
 // Called here from a thread detach or from destruction of a Thread object.  In
 // the detach case, we get our info from TLS.  In the destruct case, it comes from
@@ -3178,14 +2989,6 @@ void CExecutionEngine::DeleteTLS(void ** pTlsData)
         ThreadDetachingHelper(Callbacks[TlsIdx_ClrDebugState], pData);
     }
 
-#ifdef _DEBUG
-    Thread *pThread = GetThread();
-    if (pThread)
-    {
-        pThread->AddFiberInfo(Thread::ThreadTrackInfo_Lifetime);
-    }
-#endif
-
     // NULL TLS and FLS entry so that we don't double free.
     // We may get two callback here on thread death
     // 1. From EEDllMain
@@ -3194,13 +2997,6 @@ void CExecutionEngine::DeleteTLS(void ** pTlsData)
     {
         CExecutionEngine::SetTlsData(0);
     }
-
-#ifdef HAS_FLS_SUPPORT
-    if (fHasFlsSupport && pFlsGetValue(FlsIndex) == pTlsData)
-    {
-        pFlsSetValue(FlsIndex, NULL);
-    }
-#endif
 
 #undef HeapFree
 #undef GetProcessHeap

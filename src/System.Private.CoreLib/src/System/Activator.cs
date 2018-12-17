@@ -59,7 +59,7 @@ namespace System
                 throw new ArgumentNullException(nameof(type));
 
             if (type.UnderlyingSystemType is RuntimeType rt)
-                return rt.CreateInstanceDefaultCtor(!nonPublic, false, true, wrapExceptions);
+                return rt.CreateInstanceDefaultCtor(publicOnly: !nonPublic, skipCheckThis: false, fillCache: true, wrapExceptions: wrapExceptions);
 
             throw new ArgumentException(SR.Arg_MustBeType, nameof(type));
         }
@@ -123,7 +123,7 @@ namespace System
             Assembly assembly = null;
             if (assemblyString == null)
             {
-                assembly = RuntimeAssembly.GetExecutingAssembly(ref stackMark);
+                assembly = Assembly.GetExecutingAssembly(ref stackMark);
             }
             else
             {

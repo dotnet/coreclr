@@ -449,7 +449,7 @@ extern CrstStatic g_StubUnwindInfoHeapSegmentsCrst;
     STANDARD_VM_CONTRACT;
     {
         // CodeHeapIterator holds the m_CodeHeapCritSec, which insures code heaps don't get deallocated while being walked
-        EEJitManager::CodeHeapIterator heapIterator(NULL, NULL);
+        EEJitManager::CodeHeapIterator heapIterator(NULL);
 
         // Currently m_CodeHeapCritSec is given the CRST_UNSAFE_ANYMODE flag which allows it to be taken in a GC_NOTRIGGER
         // region but also disallows GC_TRIGGERS.  We need GC_TRIGGERS because we take another lock.   Ideally we would
@@ -571,7 +571,7 @@ DeleteJitHeapCache
 
 
 #if !defined(DACCESS_COMPILE)
-EEJitManager::CodeHeapIterator::CodeHeapIterator(BaseDomain *pDomainFilter, LoaderAllocator *pLoaderAllocatorFilter)
+EEJitManager::CodeHeapIterator::CodeHeapIterator(LoaderAllocator *pLoaderAllocatorFilter)
     : m_lockHolder(&(ExecutionManager::GetEEJitManager()->m_CodeHeapCritSec)), m_Iterator(NULL, 0, NULL, 0)
 {
     CONTRACTL
@@ -583,7 +583,6 @@ EEJitManager::CodeHeapIterator::CodeHeapIterator(BaseDomain *pDomainFilter, Load
     CONTRACTL_END;
 
     m_pHeapList = NULL;
-    m_pDomain = pDomainFilter;
     m_pLoaderAllocator = pLoaderAllocatorFilter;
     m_pHeapList = ExecutionManager::GetEEJitManager()->GetCodeHeapList();
     if(m_pHeapList)
@@ -628,12 +627,6 @@ BOOL EEJitManager::CodeHeapIterator::Next()
             BYTE * code = m_Iterator.GetMethodCode();
             CodeHeader * pHdr = (CodeHeader *)(code - sizeof(CodeHeader));
             m_pCurrent = !pHdr->IsStubCodeBlock() ? pHdr->GetMethodDesc() : NULL;
-            if (m_pDomain && m_pCurrent)
-            {
-                BaseDomain *pCurrentBaseDomain = m_pCurrent->GetDomain();
-                if(pCurrentBaseDomain != m_pDomain)
-                    continue;
-            }
 
             // LoaderAllocator filter
             if (m_pLoaderAllocator && m_pCurrent)
@@ -1270,6 +1263,7 @@ void EEJitManager::SetCpuInfo()
 
     //
     // NOTE: This function needs to be kept in sync with Zapper::CompileAssembly()
+    // NOTE: This function needs to be kept in sync with compSetProcesor() in jit\compiler.cpp
     //
 
     CORJIT_FLAGS CPUCompileFlags;
@@ -1475,17 +1469,32 @@ void EEJitManager::SetCpuInfo()
     }
 #endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-#if defined(_TARGET_ARM64_) && defined(FEATURE_PAL)
-    PAL_GetJitCpuCapabilityFlags(&CPUCompileFlags);
-#endif
-
 #if defined(_TARGET_ARM64_)
     static ConfigDWORD fFeatureSIMD;
     if (fFeatureSIMD.val(CLRConfig::EXTERNAL_FeatureSIMD) != 0)
     {
         CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FEATURE_SIMD);
     }
-#endif
+#if defined(FEATURE_PAL)
+    PAL_GetJitCpuCapabilityFlags(&CPUCompileFlags);
+#elif defined(_WIN64)
+    // FP and SIMD support are enabled by default
+    CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_SIMD);
+    CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_FP);
+    // PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE (30)
+    if (IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE))
+    {
+        CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_AES);
+        CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_SHA1);
+        CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_SHA256);
+    }
+    // PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE (31)
+    if (IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE))
+    {
+        CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_CRC32);
+    }
+#endif // _WIN64
+#endif // _TARGET_ARM64_
 
     m_CPUCompileFlags = CPUCompileFlags;
 }
@@ -2296,11 +2305,6 @@ extern "C" PT_RUNTIME_FUNCTION GetRuntimeFunctionCallback(IN ULONG     ControlPc
     BEGIN_PRESERVE_LAST_ERROR;
 
 #ifdef ENABLE_CONTRACTS
-    // See comment in code:Thread::SwitchIn and SwitchOut.
-    Thread *pThread = GetThread();
-    if (!(pThread && pThread->HasThreadStateNC(Thread::TSNC_InTaskSwitch)))
-    {
-
     // Some 64-bit OOM tests use the hosting interface to re-enter the CLR via
     // RtlVirtualUnwind to track unique stacks at each failure point. RtlVirtualUnwind can
     // result in the EEJitManager taking a reader lock. This, in turn, results in a
@@ -2320,10 +2324,6 @@ extern "C" PT_RUNTIME_FUNCTION GetRuntimeFunctionCallback(IN ULONG     ControlPc
         prf = codeInfo.GetFunctionEntry();
 
     LOG((LF_EH, LL_INFO1000000, "GetRuntimeFunctionCallback(%p) returned %p\n", ControlPc, prf));
-
-#ifdef ENABLE_CONTRACTS
-    }
-#endif // ENABLE_CONTRACTS
 
     END_PRESERVE_LAST_ERROR;
 

@@ -1715,6 +1715,9 @@ ReadyToRunHelper MapReadyToRunHelper(CorInfoHelpFunc func, bool * pfOptimizeForS
     case corInfoHelpFunc: flags return readyToRunHelper;
 #include "readytorunhelpers.h"
 
+    case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE:
+        return READYTORUN_HELPER_GetRuntimeTypeHandle;
+
     case CORINFO_HELP_STRCNS_CURRENT_MODULE:
         *pfOptimizeForSize = true;
         return READYTORUN_HELPER_GetString;
@@ -2145,29 +2148,28 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
                 return;
             }
 
-#ifdef FEATURE_READYTORUN_COMPILER
             if (IsReadyToRunCompilation())
             {
                 ZapImport * pImport = m_pImage->GetImportTable()->GetStubDispatchCell(pResolvedToken);
 
                 pResult->stubLookup.constLookup.accessType   = IAT_PVALUE;
                 pResult->stubLookup.constLookup.addr         = pImport;
-                break;
             }
-#endif
+            else
+            {
 
-            CORINFO_CLASS_HANDLE calleeOwner = pResolvedToken->hClass;
-            CORINFO_METHOD_HANDLE callee = pResolvedToken->hMethod;
-            _ASSERTE(callee == pResult->hMethod);
+                CORINFO_CLASS_HANDLE calleeOwner = pResolvedToken->hClass;
+                CORINFO_METHOD_HANDLE callee = pResolvedToken->hMethod;
+                _ASSERTE(callee == pResult->hMethod);
 
-            //
-            // Create the indirection cell
-            //
-            pTarget = m_pImage->GetImportTable()->GetStubDispatchCell(calleeOwner, callee);
+                //
+                // Create the indirection cell
+                //
+                pTarget = m_pImage->GetImportTable()->GetStubDispatchCell(calleeOwner, callee);
 
-            pResult->stubLookup.constLookup.accessType = IAT_PVALUE;
-
-            pResult->stubLookup.constLookup.addr = pTarget;
+                pResult->stubLookup.constLookup.accessType = IAT_PVALUE;
+                pResult->stubLookup.constLookup.addr = pTarget;
+            }
         }
         break;
 
@@ -2183,7 +2185,6 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
         return;
 
     case CORINFO_CALL:
-#ifdef FEATURE_READYTORUN_COMPILER
         if (IsReadyToRunCompilation())
         {
             // Constrained token is not interesting with this transforms
@@ -2207,12 +2208,11 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
             pResult->codePointerLookup.constLookup.accessType   = IAT_PVALUE;
             pResult->codePointerLookup.constLookup.addr         = pImport;
         }
-#endif
         break;
 
     case CORINFO_VIRTUALCALL_VTABLE:
-        // READYTORUN: FUTURE: support for vtable-based calls (currently, only calls within the CoreLib version bubble is supported, and the codegen we generate
-        // is the same as the fragile NI (because CoreLib and the runtime will always be updated together anyways - this is a special case)
+        // Only calls within the CoreLib version bubble support fragile NI codegen with vtable based calls, for better performance (because 
+        // CoreLib and the runtime will always be updated together anyways - this is a special case)
         break;
 
     case CORINFO_VIRTUALCALL_LDVIRTFTN:
@@ -2240,7 +2240,6 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
         break;
     }
 
-#ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation() && pResult->sig.hasTypeArg())
     {
         if (pResult->exactContextNeedsRuntimeLookup)
@@ -2272,8 +2271,8 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
             AppendConditionalImport(pImport);
         }
     }
-#endif
 }
+
 BOOL ZapInfo::canAccessFamily(CORINFO_METHOD_HANDLE hCaller,
                               CORINFO_CLASS_HANDLE hInstanceType)
 {
@@ -2284,7 +2283,6 @@ BOOL ZapInfo::isRIDClassDomainID (CORINFO_CLASS_HANDLE cls)
 {
     return m_pEEJitInfo->isRIDClassDomainID(cls);
 }
-
 
 unsigned ZapInfo::getClassDomainID (CORINFO_CLASS_HANDLE cls, void **ppIndirection)
 {
@@ -2324,6 +2322,13 @@ unsigned ZapInfo::getClassDomainID (CORINFO_CLASS_HANDLE cls, void **ppIndirecti
 
 void * ZapInfo::getFieldAddress(CORINFO_FIELD_HANDLE field, void **ppIndirection)
 {
+    if (IsReadyToRunCompilation())
+    {
+        void * pAddress = m_pEEJitInfo->getFieldAddress(field, ppIndirection);
+
+        return m_pImage->m_pILMetaData->GetRVAField(pAddress);
+    }
+
     _ASSERTE(ppIndirection != NULL);
 
     CORINFO_CLASS_HANDLE hClass = m_pEEJitInfo->getFieldClass(field);
@@ -2335,6 +2340,16 @@ void * ZapInfo::getFieldAddress(CORINFO_FIELD_HANDLE field, void **ppIndirection
 
     // Field address is not aligned thus we can not store it in the same location as token.
     *ppIndirection = m_pImage->GetInnerPtr(pImport, TARGET_POINTER_SIZE);
+
+    return NULL;
+}
+
+CORINFO_CLASS_HANDLE ZapInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative)
+{
+    if (pIsSpeculative != NULL)
+    {
+        *pIsSpeculative = true;
+    }
 
     return NULL;
 }
@@ -3000,8 +3015,15 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 		}
             break;
 
-        case CORINFO_FIELD_STATIC_ADDRESS:           // field at given address
         case CORINFO_FIELD_STATIC_RVA_ADDRESS:       // RVA field at given address
+            if (m_pEEJitInfo->getClassModule(pResolvedToken->hClass) != m_pImage->m_hModule)
+            {
+                m_zapper->Warning(W("ReadyToRun: Cross-module RVA static fields not supported\n"));
+                ThrowHR(E_NOTIMPL);
+            }
+            break;
+
+        case CORINFO_FIELD_STATIC_ADDRESS:           // field at given address
         case CORINFO_FIELD_STATIC_ADDR_HELPER:       // static field accessed using address-of helper (argument is FieldDesc *)
         case CORINFO_FIELD_STATIC_TLS:
             m_zapper->Warning(W("ReadyToRun: Rare kinds of static fields not supported\n"));
@@ -3066,6 +3088,11 @@ int ZapInfo::appendClassName(__deref_inout_ecount(*pnBufLen) WCHAR** ppBuf, int*
 BOOL ZapInfo::isValueClass(CORINFO_CLASS_HANDLE cls)
 {
     return m_pEEJitInfo->isValueClass(cls);
+}
+
+CorInfoInlineTypeCheck ZapInfo::canInlineTypeCheck (CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source)
+{
+    return m_pEEJitInfo->canInlineTypeCheck(cls, source);
 }
 
 BOOL ZapInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE cls)
@@ -3595,9 +3622,9 @@ const char* ZapInfo::getMethodName(CORINFO_METHOD_HANDLE ftn, const char **modul
     return m_pEEJitInfo->getMethodName(ftn, moduleName);
 }
 
-const char* ZapInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn, const char **className, const char** namespaceName)
+const char* ZapInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn, const char **className, const char** namespaceName, const char **enclosingClassName)
 {
-    return m_pEEJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName);
+    return m_pEEJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName, enclosingClassName);
 }
 
 unsigned ZapInfo::getMethodHash(CORINFO_METHOD_HANDLE ftn)

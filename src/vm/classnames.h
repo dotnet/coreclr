@@ -27,6 +27,7 @@
 #ifdef FEATURE_COMINTEROP
 #define g_ECMAKeyToken "B77A5C561934E089"       // The ECMA key used by some framework assemblies: mscorlib, system, etc.
 #define g_FXKeyToken "b03f5f7f11d50a3a"         // The FX key used by other framework assemblies: System.Web, System.Drawing, etc.
+#define g_CorelibAsmName "System.Private.CoreLib"
 #define g_SystemAsmName "System"
 #define g_SystemRuntimeAsmName "System.Runtime"
 #define g_DrawingAsmName "System.Drawing"
@@ -93,18 +94,12 @@
 #define g_ExceptionClassName "System.Exception"
 #define g_ExecutionEngineExceptionClassName "System.ExecutionEngineException"
 
-#define g_MarshalByRefObjectClassName "System.MarshalByRefObject"
-
 #define g_ThreadStaticAttributeClassName "System.ThreadStaticAttribute"
-#define g_StringFreezingAttributeClassName "System.Runtime.CompilerServices.StringFreezingAttribute"
 #define g_TypeIdentifierAttributeClassName "System.Runtime.InteropServices.TypeIdentifierAttribute"
 
 #define g_ObjectClassName "System.Object"
 #define g_ObjectName "Object"
 #define g_OutOfMemoryExceptionClassName "System.OutOfMemoryException"
-
-#define g_PermissionTokenFactoryName "System.Security.PermissionTokenFactory"
-#define g_PolicyExceptionClassName "System.Security.Policy.PolicyException"
 
 #define g_ReflectionClassName "System.RuntimeType"
 #define g_ReflectionConstructorName "System.Reflection.RuntimeConstructorInfo"
@@ -134,7 +129,6 @@
 #define g_RuntimeMethodHandleInternalName        "RuntimeMethodHandleInternal"
 #define g_RuntimeTypeHandleClassName     "System.RuntimeTypeHandle"
 
-#define g_SecurityPermissionClassName "System.Security.Permissions.SecurityPermission"
 #define g_StackOverflowExceptionClassName "System.StackOverflowException"
 #define g_StringBufferClassName "System.Text.StringBuilder"
 #define g_StringBufferName "StringBuilder"
@@ -143,7 +137,6 @@
 #define g_SharedStaticsClassName "System.SharedStatics"
 
 #define g_ThreadClassName "System.Threading.Thread"
-#define g_TransparentProxyName "__TransparentProxy"
 #define g_TypeClassName   "System.Type"
 
 #define g_VariantClassName "System.Variant"
@@ -160,21 +153,8 @@
 
 #define g_CompilerServicesTypeDependencyAttribute "System.Runtime.CompilerServices.TypeDependencyAttribute"
 
-#define g_SecurityCriticalAttribute "System.Security.SecurityCriticalAttribute"
-#define g_SecurityTransparentAttribute "System.Security.SecurityTransparentAttribute"
-
-#define g_SecuritySafeCriticalAttribute "System.Security.SecuritySafeCriticalAttribute"
-
-#if defined(FEATURE_CORESYSTEM)
-#define g_SecurityAPTCA "System.Security.AllowPartiallyTrustedCallersAttribute"
-#define g_SecurityPartialTrustVisibilityLevel "System.Security.PartialTrustVisibilityLevel"
-#define g_PartialTrustVisibilityLevel "PartialTrustVisibilityLevel"
-#endif // defined(FEATURE_CORESYSTEM)
-
 #define g_ReferenceAssemblyAttribute "System.Runtime.CompilerServices.ReferenceAssemblyAttribute"
 
 #define g_CriticalFinalizerObjectName "CriticalFinalizerObject"
-
-#define g_AssemblySignatureKeyAttribute "System.Reflection.AssemblySignatureKeyAttribute"
 
 #endif //!__CLASSNAMES_H__

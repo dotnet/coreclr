@@ -1582,8 +1582,7 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
                 fieldAccessor = intrinsicAccessor;
             }
             else
-            if (// Domain neutral access.
-                m_pMethodBeingCompiled->IsDomainNeutral() || m_pMethodBeingCompiled->IsZapped() || IsCompilingForNGen() ||
+            if (m_pMethodBeingCompiled->IsZapped() || IsCompilingForNGen() ||
                 // Static fields are not pinned in collectible types. We will always access 
                 // them using a helper since the address cannot be embeded into the code.
                 pFieldMT->Collectible() ||
@@ -1961,6 +1960,10 @@ CEEInfo::getHeapClassSize(
     MethodTable* pMT = VMClsHnd.GetMethodTable();
     _ASSERTE(pMT);
     _ASSERTE(!pMT->IsValueType());
+    _ASSERTE(!pMT->HasComponentSize());
+#ifdef FEATURE_READYTORUN_COMPILER
+    _ASSERTE(!IsReadyToRunCompilation() || pMT->IsInheritanceChainLayoutFixedInCurrentVersionBubble());
+#endif
 
     // Add OBJECT_SIZE to account for method table pointer.
     result = pMT->GetNumInstanceFieldBytes() + OBJECT_SIZE;
@@ -2280,13 +2283,20 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
     }
     else
     {
-        _ASSERTE(pMT->IsValueType());
         _ASSERTE(sizeof(BYTE) == 1);
+
+        BOOL isValueClass = pMT->IsValueType();
+
+#ifdef FEATURE_READYTORUN_COMPILER
+        _ASSERTE(isValueClass || !IsReadyToRunCompilation() || pMT->IsInheritanceChainLayoutFixedInCurrentVersionBubble());
+#endif
+
+        unsigned int size = isValueClass ? VMClsHnd.GetSize() : pMT->GetNumInstanceFieldBytes() + OBJECT_SIZE;
 
         // assume no GC pointers at first
         result = 0;
         memset(gcPtrs, TYPE_GC_NONE,
-               (VMClsHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
+               (size + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
 
         // walk the GC descriptors, turning on the correct bits
         if (pMT->ContainsPointers())
@@ -2298,7 +2308,8 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
             {
                 // Get offset into the value class of the first pointer field (includes a +Object)
                 size_t cbSeriesSize = pByValueSeries->GetSeriesSize() + pMT->GetBaseSize();
-                size_t cbOffset = pByValueSeries->GetSeriesOffset() - OBJECT_SIZE;
+                size_t cbSeriesOffset = pByValueSeries->GetSeriesOffset();
+                size_t cbOffset = isValueClass ? cbSeriesOffset - OBJECT_SIZE : cbSeriesOffset;
 
                 _ASSERTE (cbOffset % TARGET_POINTER_SIZE == 0);
                 _ASSERTE (cbSeriesSize % TARGET_POINTER_SIZE == 0);
@@ -3817,8 +3828,44 @@ BOOL CEEInfo::isValueClass(CORINFO_CLASS_HANDLE clsHnd)
 }
 
 /*********************************************************************/
+// Decides how the JIT should do the optimization to inline the check for
+//     GetTypeFromHandle(handle) == obj.GetType() (for CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE)
+//     GetTypeFromHandle(X) == GetTypeFromHandle(Y) (for CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+//
+// This will enable to use directly the typehandle instead of going through getClassByHandle
+CorInfoInlineTypeCheck CEEInfo::canInlineTypeCheck(CORINFO_CLASS_HANDLE clsHnd, CorInfoInlineTypeCheckSource source)
+{
+    CONTRACTL {
+        SO_TOLERANT;
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    CorInfoInlineTypeCheck ret;
+
+    JIT_TO_EE_TRANSITION_LEAF();
+
+    if (source == CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+    {
+        // It's always okay to compare type handles coming from IL tokens
+        ret = CORINFO_INLINE_TYPECHECK_PASS;
+    }
+    else
+    {
+        _ASSERTE(source == CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE);
+        ret = canInlineTypeCheckWithObjectVTable(clsHnd) ?
+            CORINFO_INLINE_TYPECHECK_PASS : CORINFO_INLINE_TYPECHECK_NONE;
+    }
+
+    EE_TO_JIT_TRANSITION_LEAF();
+
+    return(ret);
+}
+
+/*********************************************************************/
 // If this method returns true, JIT will do optimization to inline the check for
-//     GetClassFromHandle(handle) == obj.GetType()
+//     GetTypeFromHandle(handle) == obj.GetType()
 //
 // This will enable to use directly the typehandle instead of going through getClassByHandle
 BOOL CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
@@ -4072,12 +4119,12 @@ CorInfoInitClassResult CEEInfo::initClass(
 
     MethodDesc *methodBeingCompiled = m_pMethodBeingCompiled;
 
-    BOOL fMethodDomainNeutral = methodBeingCompiled->IsDomainNeutral() || methodBeingCompiled->IsZapped() || IsCompilingForNGen();
+    BOOL fMethodZappedOrNGen = methodBeingCompiled->IsZapped() || IsCompilingForNGen();
 
     MethodTable *pTypeToInitMT = typeToInitTH.AsMethodTable();
 
     // This should be the most common early-out case.
-    if (fMethodDomainNeutral)
+    if (fMethodZappedOrNGen)
     {
         if (pTypeToInitMT->IsClassPreInited())
         {
@@ -4194,7 +4241,7 @@ CorInfoInitClassResult CEEInfo::initClass(
         }
     }
 
-    if (fMethodDomainNeutral)
+    if (fMethodZappedOrNGen)
     {
         // Well, because of code sharing we can't do anything at coge generation time.
         // We have to do it at runtime.
@@ -4217,80 +4264,9 @@ CorInfoInitClassResult CEEInfo::initClass(
         result = CORINFO_INITCLASS_INITIALIZED;
         goto exit;
     }
-
-#ifdef FEATURE_MULTICOREJIT
-    // Once multicore JIT is enabled in an AppDomain by calling SetProfileRoot, always use helper function to call class init, for consistency
-    if (! GetAppDomain()->GetMulticoreJitManager().AllowCCtorsToRunDuringJITing())
-    {
-        result = CORINFO_INITCLASS_USE_HELPER;
-
-        goto exit;
-    }
-#endif
-
-    // To preserve consistent behavior between ngen and not-ngenned states, do not eagerly
-    // run class constructors for autongennable code.
-    if (pTypeToInitMT->RunCCTorAsIfNGenImageExists())
-    {
-        result = CORINFO_INITCLASS_USE_HELPER;
-        goto exit;
-    }
-
-    if (!pTypeToInitMT->GetClass()->IsBeforeFieldInit())
-    {
-        // Do not inline the access if we cannot initialize the class. Chances are that the class will get
-        // initialized by the time the access is jitted.
-        result = CORINFO_INITCLASS_USE_HELPER | CORINFO_INITCLASS_DONT_INLINE;
-        goto exit;
-    }
-
-    if (speculative)
-    {
-        // Tell the JIT that we may be able to initialize the class when asked to.
-        result = CORINFO_INITCLASS_SPECULATIVE;
-        goto exit;
-    }
-
-    //
-    // We cannot run the class constructor without first activating the
-    // module containing the class.  However, since the current module
-    // we are compiling inside is not active, we don't want to do this.
-    //
-    // This should be an unusal case since normally the method's module should
-    // be active during jitting.
-    //
-    // @TODO: We should check IsActivating() instead of IsActive() since we may
-    // be running the Module::.cctor(). The assembly is not marked as active
-    // until then.
-    if (!methodBeingCompiled->GetLoaderModule()->GetDomainFile()->IsActive())
-    {
-        result = CORINFO_INITCLASS_USE_HELPER;
-        goto exit;
-    }
-
-    //
-    // Run the .cctor
-    //
-
-    EX_TRY
-    {
-        pTypeToInitMT->CheckRunClassInitThrowing();
-    }
-    EX_CATCH
-    {
-    } EX_END_CATCH(SwallowAllExceptions);
-
-    if (pTypeToInitMT->IsClassInited())
-    {
-        result = CORINFO_INITCLASS_INITIALIZED;
-        goto exit;
-    }
 #endif // CROSSGEN_COMPILE
 
-    // Do not inline the access if we were unable to initialize the class. Chances are that the class will get
-    // initialized by the time the access is jitted.
-    result = (CORINFO_INITCLASS_USE_HELPER | CORINFO_INITCLASS_DONT_INLINE);
-
+    result = CORINFO_INITCLASS_USE_HELPER;
     }
 exit: ;
     EE_TO_JIT_TRANSITION();
@@ -5214,6 +5190,8 @@ void CEEInfo::getCallInfo(
 
     INDEBUG(memset(pResult, 0xCC, sizeof(*pResult)));
 
+    pResult->stubLookup.lookupKind.needsRuntimeLookup = false;
+
     MethodDesc* pMD = (MethodDesc *)pResolvedToken->hMethod;
     TypeHandle th(pResolvedToken->hClass);
 
@@ -5519,13 +5497,18 @@ void CEEInfo::getCallInfo(
         pResult->nullInstanceCheck = TRUE;
     }
     // Non-interface dispatches go through the vtable.
-    // We'll special virtual calls to target methods in the corelib assembly when compiling in R2R mode and generate fragile-NI-like callsites for improved performance. We
-    // can do that because today we'll always service the corelib assembly and the runtime in one bundle. Any caller in the corelib version bubble can benefit from this
-    // performance optimization.
-    else if (!pTargetMD->IsInterface() && (!IsReadyToRunCompilation() || CallerAndCalleeInSystemVersionBubble((MethodDesc*)callerHandle, pTargetMD)))
+    else if (!pTargetMD->IsInterface())
     {
         pResult->kind = CORINFO_VIRTUALCALL_VTABLE;
         pResult->nullInstanceCheck = TRUE;
+
+        // We'll special virtual calls to target methods in the corelib assembly when compiling in R2R mode, and generate fragile-NI-like callsites for improved performance. We
+        // can do that because today we'll always service the corelib assembly and the runtime in one bundle. Any caller in the corelib version bubble can benefit from this
+        // performance optimization.
+        if (IsReadyToRunCompilation() && !CallerAndCalleeInSystemVersionBubble((MethodDesc*)callerHandle, pTargetMD))
+        {
+            pResult->kind = CORINFO_VIRTUALCALL_STUB;
+        }
     }
     else
     {
@@ -5563,8 +5546,6 @@ void CEEInfo::getCallInfo(
         }
         else
         {
-            pResult->stubLookup.lookupKind.needsRuntimeLookup = false;
-
             BYTE * indcell = NULL;
 
             if (!(flags & CORINFO_CALLINFO_KINDONLY) && !isVerifyOnly())
@@ -6625,7 +6606,7 @@ const char* CEEInfo::getMethodName (CORINFO_METHOD_HANDLE ftnHnd, const char** s
     return result;
 }
 
-const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, const char** className, const char** namespaceName)
+const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, const char** className, const char** namespaceName, const char **enclosingClassName)
 {
     CONTRACTL {
         SO_TOLERANT;
@@ -6637,6 +6618,7 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
     const char* result = NULL;
     const char* classResult = NULL;
     const char* namespaceResult = NULL;
+    const char* enclosingResult = NULL;
 
     JIT_TO_EE_TRANSITION();
 
@@ -6645,10 +6627,16 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
 
     if (!IsNilToken(token))
     {
-        if (!FAILED(ftn->GetMDImport()->GetNameOfMethodDef(token, &result)))
+        MethodTable* pMT = ftn->GetMethodTable();
+        IMDInternalImport* pMDImport = pMT->GetMDImport();
+
+        IfFailThrow(pMDImport->GetNameOfMethodDef(token, &result));
+        IfFailThrow(pMDImport->GetNameOfTypeDef(pMT->GetCl(), &classResult, &namespaceResult));
+        // Query enclosingClassName when the method is in a nested class
+        // and get the namespace of enclosing classes (nested class's namespace is empty)
+        if (pMT->GetClass()->IsNested())
         {
-            MethodTable* pMT = ftn->GetMethodTable();
-            classResult = pMT->GetFullyQualifiedNameInfo(&namespaceResult);
+            IfFailThrow(pMDImport->GetNameOfTypeDef(pMT->GetEnclosingCl(), &enclosingResult, &namespaceResult));
         }
     }
 
@@ -6661,6 +6649,11 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
     {
         *namespaceName = namespaceResult;
     }
+
+    if (enclosingClassName != NULL)
+    {
+        *enclosingClassName = enclosingResult;
+    } 
 
     EE_TO_JIT_TRANSITION();
     
@@ -8904,29 +8897,11 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethodHelper(CORINFO_METHOD_HANDLE 
                 pOwnerMT = pOwnerMT->GetCanonicalMethodTable();
             }
 
-            // In a try block because the interface method resolution might end up being
-            // ambiguous (diamond inheritance case of default interface methods).
-            EX_TRY
-            {
-                pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(TypeHandle(pOwnerMT), pBaseMD);
-            }
-            EX_CATCH
-            {
-            }
-            EX_END_CATCH(RethrowTransientExceptions)
+            pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(TypeHandle(pOwnerMT), pBaseMD, FALSE /* throwOnConflict */);
         }
         else if (!pBaseMD->HasClassOrMethodInstantiation())
         {
-            // In a try block because the interface method resolution might end up being
-            // ambiguous (diamond inheritance case of default interface methods).
-            EX_TRY
-            {
-                pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(pBaseMD);
-            }
-            EX_CATCH
-            {
-            }
-            EX_END_CATCH(RethrowTransientExceptions)
+            pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(pBaseMD, FALSE /* throwOnConflict */);
         }
         
         if (pDevirtMD == nullptr)
@@ -10993,23 +10968,7 @@ void CEEJitInfo::addActiveDependency(CORINFO_MODULE_HANDLE moduleFrom,CORINFO_MO
     Module *dependency = (Module *)moduleTo;
     _ASSERTE(!dependency->IsSystem());
 
-    if (m_pMethodBeingCompiled->IsLCGMethod())
-    {
-        // The context module of the m_pMethodBeingCompiled is irrelevant.  Rather than tracking
-        // the dependency, we just do immediate activation.
-        dependency->EnsureActive();
-    }
-    else
-    {
-#ifdef FEATURE_LOADER_OPTIMIZATION
-        Module *context = (Module *)moduleFrom;
-
-        // Record active dependency for loader.
-        context->AddActiveDependency(dependency, FALSE);
-#else
-        dependency->EnsureActive();
-#endif
-    }
+    dependency->EnsureActive();
 
     // EE_TO_JIT_TRANSITION();
 }
@@ -11815,6 +11774,94 @@ void* CEEJitInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
     return result;
 }
 
+/*********************************************************************/
+CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
+                                                            bool* pIsSpeculative)
+{
+    CONTRACTL {
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    CORINFO_CLASS_HANDLE result = NULL;
+
+    if (pIsSpeculative != NULL)
+    {
+        *pIsSpeculative = true;
+    }
+
+    // Only examine the field's value if we are producing jitted code.
+    if (isVerifyOnly() || IsCompilingForNGen() || IsReadyToRunCompilation())
+    {
+        return result;
+    }
+
+    JIT_TO_EE_TRANSITION();
+
+    FieldDesc* field = (FieldDesc*) fieldHnd;
+    bool isClassInitialized = false;
+
+    // We're only interested in ref class typed static fields
+    // where the field handle specifies a unique location.
+    if (field->IsStatic() && field->IsObjRef() && !field->IsThreadStatic())
+    {
+        MethodTable* pEnclosingMT = field->GetEnclosingMethodTable();
+
+        if (!pEnclosingMT->IsSharedByGenericInstantiations())
+        {
+            // Allocate space for the local class if necessary, but don't trigger
+            // class construction.
+            DomainLocalModule *pLocalModule = pEnclosingMT->GetDomainLocalModule();
+            pLocalModule->PopulateClass(pEnclosingMT);
+            
+            GCX_COOP();
+            
+            OBJECTREF fieldObj = field->GetStaticOBJECTREF();
+            VALIDATEOBJECTREF(fieldObj);
+
+            // Check for initialization before looking at the value
+            isClassInitialized = !!pEnclosingMT->IsClassInited();
+
+            if (fieldObj != NULL)
+            {
+                MethodTable *pObjMT = fieldObj->GetMethodTable();
+                
+                // TODO: Check if the jit is allowed to embed this handle in jitted code.
+                // Note for the initonly cases it probably won't embed.
+                result = (CORINFO_CLASS_HANDLE) pObjMT;
+            }
+        }
+    }
+
+    // Did we find a class?
+    if (result != NULL)
+    {
+        // Figure out what to report back.
+        bool isResultImmutable = isClassInitialized && IsFdInitOnly(field->GetAttributes());
+
+        if (pIsSpeculative != NULL)
+        {
+            // Caller is ok with potentially mutable results.
+            *pIsSpeculative = !isResultImmutable;
+        }
+        else
+        {
+            // Caller only wants to see immutable results.
+            if (!isResultImmutable)
+            {
+                result = NULL;
+            }
+        }
+    }
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
+}
+
+/*********************************************************************/
 static void *GetClassSync(MethodTable *pMT)
 {
     STANDARD_VM_CONTRACT;
@@ -13917,11 +13964,45 @@ InfoAccessType CEEInfo::emptyStringLiteral(void ** ppValue)
 void* CEEInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
                                   void **ppIndirection)
 {
-    LIMITED_METHOD_CONTRACT;
-    _ASSERTE(isVerifyOnly());
+    CONTRACTL{
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    void *result = NULL;
+
     if (ppIndirection != NULL)
         *ppIndirection = NULL;
-    return (void *)0x10;
+
+    // Do not bother with initialization if we are only verifying the method.
+    if (isVerifyOnly())
+    {
+        return (void *)0x10;
+    }
+
+    JIT_TO_EE_TRANSITION();
+
+    FieldDesc* field = (FieldDesc*)fieldHnd;
+
+    _ASSERTE(field->IsRVA());
+
+    result = field->GetStaticAddressHandle(NULL);
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
+}
+
+CORINFO_CLASS_HANDLE CEEInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
+                                                         bool* pIsSpeculative)
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(isVerifyOnly());
+    if (pIsSpeculative != NULL)
+        *pIsSpeculative = true;
+    return NULL;
 }
 
 void* CEEInfo::getMethodSync(CORINFO_METHOD_HANDLE ftnHnd,

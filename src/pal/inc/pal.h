@@ -41,6 +41,7 @@ Abstract:
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -67,6 +68,11 @@ extern "C" {
 #include <pal_char16.h>
 #include <pal_error.h>
 #include <pal_mstypes.h>
+
+// Native system libray handle.
+// On Unix systems, NATIVE_LIBRARY_HANDLE type represents a library handle not registered with the PAL.
+// To get a HMODULE on Unix, call PAL_RegisterLibraryDirect() on a NATIVE_LIBRARY_HANDLE.
+typedef void * NATIVE_LIBRARY_HANDLE;
 
 /******************* Processor-specific glue  *****************************/
 
@@ -427,6 +433,7 @@ DWORD
 PALAPI
 PAL_RegisterForRuntimeStartup(
     IN DWORD dwProcessId,
+    IN LPCWSTR lpApplicationGroupId,
     IN PPAL_STARTUP_CALLBACK pfnCallback,
     IN PVOID parameter,
     OUT PVOID *ppUnregisterToken);
@@ -442,6 +449,13 @@ BOOL
 PALAPI
 PAL_NotifyRuntimeStarted(VOID);
 
+#ifdef __APPLE__
+PALIMPORT
+LPCSTR
+PALAPI
+PAL_GetApplicationGroupId();
+#endif
+
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
 
 PALIMPORT
@@ -450,6 +464,7 @@ PALAPI
 PAL_GetTransportPipeName(
     OUT char *name,
     IN DWORD id,
+    IN const char *applicationGroupId, 
     IN const char *suffix);
 
 PALIMPORT
@@ -2540,6 +2555,8 @@ OpenFileMappingW(
 #define OpenFileMapping OpenFileMappingA
 #endif
 
+typedef INT_PTR (PALAPI *FARPROC)();
+
 PALIMPORT
 LPVOID
 PALAPI
@@ -2583,7 +2600,7 @@ LoadLibraryExW(
         IN DWORD dwFlags);
 
 PALIMPORT
-void *
+NATIVE_LIBRARY_HANDLE
 PALAPI
 PAL_LoadLibraryDirect(
         IN LPCWSTR lpLibFileName);
@@ -2592,8 +2609,21 @@ PALIMPORT
 HMODULE
 PALAPI
 PAL_RegisterLibraryDirect(
-        IN void *dl_handle,
+        IN NATIVE_LIBRARY_HANDLE dl_handle,
         IN LPCWSTR lpLibFileName);
+
+PALIMPORT
+BOOL
+PALAPI
+PAL_FreeLibraryDirect(
+        IN NATIVE_LIBRARY_HANDLE dl_handle);
+
+PALIMPORT
+FARPROC
+PALAPI
+PAL_GetProcAddressDirect(
+        IN NATIVE_LIBRARY_HANDLE dl_handle,
+        IN LPCSTR lpProcName);
 
 /*++
 Function:
@@ -2637,8 +2667,6 @@ PAL_LOADUnloadPEFile(void * ptr);
 #define LoadLibrary LoadLibraryA
 #define LoadLibraryEx LoadLibraryExA
 #endif
-
-typedef INT_PTR (PALAPI *FARPROC)();
 
 PALIMPORT
 FARPROC
@@ -3293,6 +3321,55 @@ BitScanForward64(
     // Both GCC and Clang generate better, smaller code if we check whether the
     // mask was/is zero rather than the equivalent check that iIndex is zero.
     return qwMask != 0 ? TRUE : FALSE;
+}
+
+// Define BitScanReverse64 and BitScanReverse
+// Per MSDN, BitScanReverse64 will search the mask data from MSB to LSB for a set bit.
+// If one is found, its bit position is stored in the out PDWORD argument and 1 is returned.
+// Otherwise, an undefined value is stored in the out PDWORD argument and 0 is returned.
+//
+// GCC/clang don't have a directly equivalent intrinsic; they do provide the __builtin_clzll
+// intrinsic, which returns the number of leading 0-bits in x starting at the most significant
+// bit position (the result is undefined when x = 0).
+//
+// The same is true for BitScanReverse, except that the GCC function is __builtin_clzl.
+
+EXTERN_C
+PALIMPORT
+inline
+unsigned char
+PALAPI
+BitScanReverse(
+    IN OUT PDWORD Index,
+    IN UINT qwMask)
+{
+    // The result of __builtin_clzl is undefined when qwMask is zero,
+    // but it's still OK to call the intrinsic in that case (just don't use the output).
+    // Unconditionally calling the intrinsic in this way allows the compiler to
+    // emit branchless code for this function when possible (depending on how the
+    // intrinsic is implemented for the target platform).
+    int lzcount = __builtin_clzl(qwMask);
+    *Index = (DWORD)(31 - lzcount);
+    return qwMask != 0;
+}
+
+EXTERN_C
+PALIMPORT
+inline
+unsigned char
+PALAPI
+BitScanReverse64(
+    IN OUT PDWORD Index,
+    IN UINT64 qwMask)
+{
+    // The result of __builtin_clzll is undefined when qwMask is zero,
+    // but it's still OK to call the intrinsic in that case (just don't use the output).
+    // Unconditionally calling the intrinsic in this way allows the compiler to
+    // emit branchless code for this function when possible (depending on how the
+    // intrinsic is implemented for the target platform).
+    int lzcount = __builtin_clzll(qwMask);
+    *Index = (DWORD)(63 - lzcount);
+    return qwMask != 0;
 }
 
 FORCEINLINE void PAL_ArmInterlockedOperationBarrier()
@@ -4158,18 +4235,26 @@ SetThreadIdealProcessorEx(
 #define asinh         PAL_asinh
 #define atan2         PAL_atan2
 #define exp           PAL_exp
+#define fma           PAL_fma
+#define ilogb         PAL_ilogb
 #define log           PAL_log
+#define log2          PAL_log2
 #define log10         PAL_log10
 #define pow           PAL_pow
+#define scalbn        PAL_scalbn
 #define acosf         PAL_acosf
 #define acoshf        PAL_acoshf
 #define asinf         PAL_asinf
 #define asinhf        PAL_asinhf
 #define atan2f        PAL_atan2f
 #define expf          PAL_expf
+#define fmaf          PAL_fmaf
+#define ilogbf        PAL_ilogbf
 #define logf          PAL_logf
+#define log2f         PAL_log2f
 #define log10f        PAL_log10f
 #define powf          PAL_powf
+#define scalbnf       PAL_scalbnf
 #define malloc        PAL_malloc
 #define free          PAL_free
 #define mkstemp       PAL_mkstemp
@@ -4399,11 +4484,10 @@ unsigned int __cdecl _rotr(unsigned int value, int shift)
 #endif // !__has_builtin(_rotr)
 
 PALIMPORT int __cdecl abs(int);
-#ifndef PAL_STDCPP_COMPAT
-PALIMPORT LONG __cdecl labs(LONG);
-#endif // !PAL_STDCPP_COMPAT
 // clang complains if this is declared with __int64
 PALIMPORT long long __cdecl llabs(long long);
+#ifndef PAL_STDCPP_COMPAT
+PALIMPORT LONG __cdecl labs(LONG);
 
 PALIMPORT int __cdecl _signbit(double);
 PALIMPORT int __cdecl _finite(double);
@@ -4424,10 +4508,14 @@ PALIMPORT double __cdecl exp(double);
 PALIMPORT double __cdecl fabs(double);
 PALIMPORT double __cdecl floor(double);
 PALIMPORT double __cdecl fmod(double, double); 
+PALIMPORT double __cdecl fma(double, double, double);
+PALIMPORT int __cdecl ilogb(double);
 PALIMPORT double __cdecl log(double);
+PALIMPORT double __cdecl log2(double);
 PALIMPORT double __cdecl log10(double);
 PALIMPORT double __cdecl modf(double, double*);
 PALIMPORT double __cdecl pow(double, double);
+PALIMPORT double __cdecl scalbn(double, int);
 PALIMPORT double __cdecl sin(double);
 PALIMPORT double __cdecl sinh(double);
 PALIMPORT double __cdecl sqrt(double);
@@ -4452,16 +4540,21 @@ PALIMPORT float __cdecl coshf(float);
 PALIMPORT float __cdecl expf(float);
 PALIMPORT float __cdecl fabsf(float);
 PALIMPORT float __cdecl floorf(float);
-PALIMPORT float __cdecl fmodf(float, float); 
+PALIMPORT float __cdecl fmodf(float, float);
+PALIMPORT float __cdecl fmaf(float, float, float);
+PALIMPORT int __cdecl ilogbf(float);
 PALIMPORT float __cdecl logf(float);
+PALIMPORT float __cdecl log2f(float);
 PALIMPORT float __cdecl log10f(float);
 PALIMPORT float __cdecl modff(float, float*);
 PALIMPORT float __cdecl powf(float, float);
+PALIMPORT float __cdecl scalbnf(float, int);
 PALIMPORT float __cdecl sinf(float);
 PALIMPORT float __cdecl sinhf(float);
 PALIMPORT float __cdecl sqrtf(float);
 PALIMPORT float __cdecl tanf(float);
 PALIMPORT float __cdecl tanhf(float);
+#endif // !PAL_STDCPP_COMPAT
 
 #ifndef PAL_STDCPP_COMPAT
 

@@ -1,0 +1,146 @@
+parameters:
+  buildConfig: ''
+  archType: ''
+  osGroup: ''
+  osIdentifier: ''
+  priority: 0
+  crossgen: false
+  scenarios: ''
+  helixQueuesPublic: ''
+  helixQueuesInternal: ''
+  timeoutInMinutes: ''
+  crossrootfsDir: ''
+
+### Test job
+
+### Each test job depends on a corresponding build job with the same
+### buildConfig and archType.
+
+jobs:
+- template: xplat-job.yml
+  parameters:
+    buildConfig: ${{ parameters.buildConfig }}
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}
+    osIdentifier: ${{ parameters.osIdentifier }}
+
+    # Compute job name from template parameters
+    ${{ if eq(parameters.crossgen, 'false') }}:
+      name: ${{ format('testbuild_pri{0}_{1}_{2}_{3}', parameters.priority, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test Pri{0} {1} {2} {3}', parameters.priority, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if eq(parameters.crossgen, 'true') }}:
+      name: ${{ format('testbuild_pri{0}_r2r_{1}_{2}_{3}', parameters.priority, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test Pri{0} R2R {1} {2} {3}', parameters.priority, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    ${{ if eq(parameters.crossgen, 'false') }}:
+      helixType: ${{ format('test/functional/cli/pri{0}', parameters.priority) }}
+    ${{ if eq(parameters.crossgen, 'true') }}:
+      helixType: ${{ format('test/functional/r2r/cli/pri{0}', parameters.priority) }}
+
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
+
+    variables:
+    # Map template parameters to command line arguments
+    - ${{ if eq(parameters.priority, '1') }}:
+      - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+        - name: priorityArg
+          value: 'priority1'
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - name: priorityArg
+          value: '-priority=1'
+    - ${{ if eq(parameters.priority, '0') }}:
+      - name: priorityArg
+        value: ''
+
+    - ${{ if eq(parameters.crossgen, 'true') }}:
+      - name: crossgenArg
+        value: 'crossgen'
+    - ${{ if eq(parameters.crossgen, 'false') }}:
+      - name: crossgenArg
+        value: ''
+    - ${{ if ne(parameters.scenarios, '') }}:
+      - name: scenariosArg
+        value: ${{ format('/p:Scenarios=\"{0}\"', parameters.scenarios) }}
+    - ${{ if eq(parameters.scenarios, '') }}:
+      - name: scenariosArg
+        value: ''
+    - ${{ if eq(variables['System.TeamProject'], 'public') }}:
+      - name: helixTargetQueuesArg
+        value: ${{ format('/p:HelixTargetQueues=\"{0}\"', parameters.helixQueuesPublic) }}
+    - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+      - name: helixTargetQueuesArg
+        value: ${{ format('/p:HelixTargetQueues=\"{0}\"', parameters.helixQueuesInternal) }}
+    - name: commonMSBuildArgs
+      value: ${{ format('/maxcpucount /p:__BuildOS={0} /p:__BuildArch={1} /p:__BuildType={2}', parameters.osGroup, parameters.archType, parameters.buildConfig) }}
+
+    # TODO: Enable crossgen in build-test.sh. It currently doesn't
+    # accept a crossgen arg, so disable the macos/linux crossgen test
+    # build jobs.
+    ${{ if and(eq(parameters.crossgen, 'true'), or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX'))) }}:
+      condition: false
+
+    # Test job depends on the corresponding build job
+    dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    # Run all steps in the container.
+    # Note that the containers are resources defined in azure-pipelines.yml
+    containerName: ${{ parameters.containerName }}
+
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+
+    steps:
+
+    # Install test build dependencies
+    - ${{ if eq(parameters.osGroup, 'OSX') }}:
+      - script: sh eng/install-native-dependencies.sh $(osGroup)
+        displayName: Install native dependencies
+
+
+    # Download product build from pipeline artifact storage
+    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+      - task: DownloadPipelineArtifact@0
+        displayName: Download product build pipeline artifact
+        inputs:
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - task: DownloadPipelineArtifact@0
+        displayName: Download product build pipeline artifact
+        inputs:
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
+
+      
+    # Build tests
+    # TODO: enable crossgen in build-test.sh
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg)
+        displayName: Build tests
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
+        displayName: Build tests
+
+
+    # Send tests to helix
+    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixpublishwitharcade.proj $(commonMSBuildArgs) $(scenariosArg) $(helixTargetQueuesArg)
+        displayName: Send test jobs to Helix
+        env:
+          ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+            # Access token variable for internal project
+            HelixAccessToken: $(DotNet-HelixApi-Access)
+          ${{ if eq(variables['System.TeamProject'], 'public') }}:
+            # Access token variable for public project
+            HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: .\Tools\dotnetcli\dotnet msbuild tests\helixpublishwitharcade.proj $(commonMSBuildArgs) $(scenariosArg) $(helixTargetQueuesArg)
+        displayName: Send test jobs to Helix
+        env:
+          ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+            # Access token variable for internal project
+            HelixAccessToken: $(DotNet-HelixApi-Access)
+          ${{ if eq(variables['System.TeamProject'], 'public') }}:
+            # Access token variable for public project
+            HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)

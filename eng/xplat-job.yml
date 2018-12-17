@@ -1,0 +1,111 @@
+parameters:
+  buildConfig: ''
+  archType: ''
+  osGroup: ''
+  osIdentifier: ''
+  name: ''
+  displayName: ''
+  condition: ''
+  dependsOn: ''
+  containerName: ''
+  timeoutInMinutes: ''
+  helixType: ''
+  crossrootfsDir: ''
+  enableMicrobuild: ''
+
+  # arcade-specific parameters
+  gatherAssetManifests: false
+
+  variables: {} ## any extra variables to add to the defaults defined below
+
+jobs:
+- template: /eng/common/templates/job/job.yml
+  parameters:
+
+    name: ${{ parameters.name }}
+    displayName: ${{ parameters.displayName }}
+
+    condition: ${{ parameters.condition }}
+    dependsOn: ${{ parameters.dependsOn }}
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+
+    helixRepo: 'dotnet/coreclr'
+    helixType: ${{ parameters.helixType }}
+
+    enableMicrobuild: ${{ parameters.enableMicrobuild }}
+
+    pool:
+      ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
+        name: Hosted Ubuntu 1604
+      ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
+        name: dnceng-linux-internal-temp
+      ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:
+        name: Hosted Mac Internal
+      ${{ if and(eq(parameters.osGroup, 'OSX'), eq(variables['System.TeamProject'], 'public')) }}:
+        name: Hosted MacOS
+      ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
+        name: dotnet-internal-temp
+      ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
+        name: dotnet-external-temp
+
+    workspace:
+      clean: all
+
+    ${{ if ne(parameters.containerName, '') }}:
+      container: ${{ parameters.containerName }}
+
+    ${{ if eq(parameters.osGroup, 'Linux') }}:
+      agentOs: Ubuntu
+    ${{ if eq(parameters.osGroup, 'OSX') }}:
+      agentOs: MacOS
+    ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      agentOs: Windows_NT
+
+    # Setting this results in the arcade job template including a step
+    # that gathers asset manifests and publishes them to pipeline
+    # storage. Only relevant for build jobs.
+    enablePublishBuildAssets: ${{ parameters.gatherAssetManifests }}
+
+    variables:
+    - name: buildConfig
+      value: ${{ parameters.buildConfig }}
+        
+    - ${{ if eq(parameters.buildConfig, 'checked') }}:
+      - name: buildConfigUpper
+        value: 'Checked'
+
+    - ${{ if eq(parameters.buildConfig, 'debug') }}:
+      - name: buildConfigUpper
+        value: 'Debug'
+
+    - ${{ if eq(parameters.buildConfig, 'release') }}:
+      - name: buildConfigUpper
+        value: 'Release'
+
+    - name: archType
+      value: ${{ parameters.archType }}
+
+    - name: osGroup
+      value: ${{ parameters.osGroup }}
+
+    - name: osIdentifier
+      value: ${{ parameters.osIdentifier }}
+      
+    - ${{ if ne(parameters.crossrootfsDir, '') }}:
+      - name: crossArg
+        value: 'cross'
+      - name: crossPackagesArg
+        value: '-__DoCrossArchBuild=1'
+      # This is only required for cross builds.
+      - name: ROOTFS_DIR
+        value: ${{ parameters.crossrootfsDir }}
+    - ${{ if eq(parameters.crossrootfsDir, '') }}:
+      - name: crossArg
+        value: ''
+      - name: crossPackagesArg
+        value: ''
+
+    - ${{ each variable in parameters.variables }}:
+      - ${{insert}}: ${{ variable }}
+
+    steps: ${{ parameters.steps }}

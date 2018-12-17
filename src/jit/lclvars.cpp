@@ -387,11 +387,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
     if (!info.compIsStatic)
     {
         varDsc->lvIsParam = 1;
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
-
-        varDsc->lvIsPtr = 1;
+        varDsc->lvIsPtr   = 1;
 
         lvaArg0Var = info.compThisArg = varDscInfo->varNum;
         noway_assert(info.compThisArg == 0);
@@ -474,9 +470,7 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
         varDsc->lvType      = TYP_BYREF;
         varDsc->lvIsParam   = 1;
         varDsc->lvIsRegArg  = 1;
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
+
         if (hasFixedRetBuffReg())
         {
             varDsc->lvArgReg = theFixedRetBuffReg();
@@ -564,9 +558,6 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
         CorInfoTypeWithMod corInfoType = info.compCompHnd->getArgType(&info.compMethodInfo->args, argLst, &typeHnd);
         varDsc->lvIsParam              = 1;
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
 
         lvaInitVarDsc(varDsc, varDscInfo->varNum, strip(corInfoType), typeHnd, argLst, &info.compMethodInfo->args);
 
@@ -1046,11 +1037,7 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
 
         LclVarDsc* varDsc = varDscInfo->varDsc;
         varDsc->lvIsParam = 1;
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
-
-        varDsc->lvType = TYP_I_IMPL;
+        varDsc->lvType    = TYP_I_IMPL;
 
         if (varDscInfo->canEnreg(TYP_I_IMPL))
         {
@@ -1111,10 +1098,6 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
         // hammer.  But I think it should be possible to switch; it may just work now
         // that other problems are fixed.
         lvaSetVarAddrExposed(varDscInfo->varNum);
-
-#if ASSERTION_PROP
-        varDsc->lvSingleDef = 1;
-#endif
 
         if (varDscInfo->canEnreg(TYP_I_IMPL))
         {
@@ -1588,7 +1571,12 @@ void Compiler::StructPromotionHelper::CheckRetypedAsScalar(CORINFO_FIELD_HANDLE 
 //
 bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd)
 {
-    assert(compiler->eeIsValueClass(typeHnd));
+    if (!compiler->eeIsValueClass(typeHnd))
+    {
+        // TODO-ObjectStackAllocation: Enable promotion of fields of stack-allocated objects.
+        return false;
+    }
+
     if (structPromotionInfo.typeHnd == typeHnd)
     {
         // Asking for the same type of struct as the last time.
@@ -2460,7 +2448,16 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
     }
     if (varDsc->lvExactSize == 0)
     {
-        varDsc->lvExactSize = info.compCompHnd->getClassSize(typeHnd);
+        BOOL isValueClass = info.compCompHnd->isValueClass(typeHnd);
+
+        if (isValueClass)
+        {
+            varDsc->lvExactSize = info.compCompHnd->getClassSize(typeHnd);
+        }
+        else
+        {
+            varDsc->lvExactSize = info.compCompHnd->getHeapClassSize(typeHnd);
+        }
 
         size_t lvSize = varDsc->lvSize();
         assert((lvSize % TARGET_POINTER_SIZE) ==
@@ -2468,7 +2465,14 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
         varDsc->lvGcLayout = getAllocator(CMK_LvaTable).allocate<BYTE>(lvSize / TARGET_POINTER_SIZE);
         unsigned  numGCVars;
         var_types simdBaseType = TYP_UNKNOWN;
-        varDsc->lvType         = impNormStructType(typeHnd, varDsc->lvGcLayout, &numGCVars, &simdBaseType);
+        if (isValueClass)
+        {
+            varDsc->lvType = impNormStructType(typeHnd, varDsc->lvGcLayout, &numGCVars, &simdBaseType);
+        }
+        else
+        {
+            numGCVars = info.compCompHnd->getClassGClayout(typeHnd, varDsc->lvGcLayout);
+        }
 
         // We only save the count of GC vars in a struct up to 7.
         if (numGCVars >= 8)
@@ -2476,33 +2480,37 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
             numGCVars = 7;
         }
         varDsc->lvStructGcCount = numGCVars;
-#if FEATURE_SIMD
-        if (simdBaseType != TYP_UNKNOWN)
+
+        if (isValueClass)
         {
-            assert(varTypeIsSIMD(varDsc));
-            varDsc->lvSIMDType = true;
-            varDsc->lvBaseType = simdBaseType;
-        }
+#if FEATURE_SIMD
+            if (simdBaseType != TYP_UNKNOWN)
+            {
+                assert(varTypeIsSIMD(varDsc));
+                varDsc->lvSIMDType = true;
+                varDsc->lvBaseType = simdBaseType;
+            }
 #endif // FEATURE_SIMD
 #ifdef FEATURE_HFA
-        // for structs that are small enough, we check and set lvIsHfa and lvHfaTypeIsFloat
-        if (varDsc->lvExactSize <= MAX_PASS_MULTIREG_BYTES)
-        {
-            var_types hfaType = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-            if (varTypeIsFloating(hfaType))
+            // for structs that are small enough, we check and set lvIsHfa and lvHfaTypeIsFloat
+            if (varDsc->lvExactSize <= MAX_PASS_MULTIREG_BYTES)
             {
-                varDsc->_lvIsHfa = true;
-                varDsc->lvSetHfaTypeIsFloat(hfaType == TYP_FLOAT);
+                var_types hfaType = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
+                if (varTypeIsFloating(hfaType))
+                {
+                    varDsc->_lvIsHfa = true;
+                    varDsc->lvSetHfaTypeIsFloat(hfaType == TYP_FLOAT);
 
-                // hfa variables can never contain GC pointers
-                assert(varDsc->lvStructGcCount == 0);
-                // The size of this struct should be evenly divisible by 4 or 8
-                assert((varDsc->lvExactSize % genTypeSize(hfaType)) == 0);
-                // The number of elements in the HFA should fit into our MAX_ARG_REG_COUNT limit
-                assert((varDsc->lvExactSize / genTypeSize(hfaType)) <= MAX_ARG_REG_COUNT);
+                    // hfa variables can never contain GC pointers
+                    assert(varDsc->lvStructGcCount == 0);
+                    // The size of this struct should be evenly divisible by 4 or 8
+                    assert((varDsc->lvExactSize % genTypeSize(hfaType)) == 0);
+                    // The number of elements in the HFA should fit into our MAX_ARG_REG_COUNT limit
+                    assert((varDsc->lvExactSize / genTypeSize(hfaType)) <= MAX_ARG_REG_COUNT);
+                }
             }
-        }
 #endif // FEATURE_HFA
+        }
     }
     else
     {
@@ -2681,54 +2689,70 @@ void Compiler::lvaUpdateClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool
     // We should already have a class
     assert(varDsc->lvClassHnd != nullptr);
 
-#if defined(DEBUG)
+    // We should only be updating classes for single-def locals.
+    assert(varDsc->lvSingleDef);
 
-    // In general we only expect one update per local var. However if
-    // a block is re-imported and that block has the only STLOC for
-    // the var, we may see multiple updates. All subsequent updates
-    // should agree on the type, since reimportation is triggered by
-    // type mismatches for things other than ref types.
-    if (varDsc->lvClassInfoUpdated)
+    // Now see if we should update.
+    //
+    // New information may not always be "better" so do some
+    // simple analysis to decide if the update is worthwhile.
+    const bool isNewClass   = (clsHnd != varDsc->lvClassHnd);
+    bool       shouldUpdate = false;
+
+    // Are we attempting to update the class? Only check this when we have
+    // an new type and the existing class is inexact... we should not be
+    // updating exact classes.
+    if (!varDsc->lvClassIsExact && isNewClass)
     {
-        assert(varDsc->lvClassHnd == clsHnd);
-        assert(varDsc->lvClassIsExact == isExact);
+        // Todo: improve this analysis by adding a new jit interface method
+        DWORD newAttrs = info.compCompHnd->getClassAttribs(clsHnd);
+        DWORD oldAttrs = info.compCompHnd->getClassAttribs(varDsc->lvClassHnd);
+
+        // Avoid funny things with __Canon by only merging if both shared or both unshared
+        if ((newAttrs & CORINFO_FLG_SHAREDINST) == (oldAttrs & CORINFO_FLG_SHAREDINST))
+        {
+            // If we merge types and we get back the old class, the new class is more
+            // specific and we should update to it.
+            CORINFO_CLASS_HANDLE mergeClass = info.compCompHnd->mergeClasses(clsHnd, varDsc->lvClassHnd);
+
+            if (mergeClass == varDsc->lvClassHnd)
+            {
+                shouldUpdate = true;
+            }
+        }
+        else if ((newAttrs & CORINFO_FLG_SHAREDINST) == 0)
+        {
+            // Update if we go from shared to unshared
+            shouldUpdate = true;
+        }
+    }
+    // Else are we attempting to update exactness?
+    else if (isExact && !varDsc->lvClassIsExact && !isNewClass)
+    {
+        shouldUpdate = true;
     }
 
-    // This counts as an update, even if nothing changes.
-    varDsc->lvClassInfoUpdated = true;
-
-#endif // defined(DEBUG)
-
-    // If previous type was exact, there is nothing to update.  Would
-    // like to verify new type is compatible but can't do this yet.
-    if (varDsc->lvClassIsExact)
+#if DEBUG
+    if (isNewClass || (isExact != varDsc->lvClassIsExact))
     {
-        return;
+        JITDUMP("\nlvaUpdateClass:%s Updating class for V%02u", shouldUpdate ? "" : " NOT", varNum);
+        JITDUMP(" from(%p) %s%s", dspPtr(varDsc->lvClassHnd), info.compCompHnd->getClassName(varDsc->lvClassHnd),
+                varDsc->lvClassIsExact ? " [exact]" : "");
+        JITDUMP(" to(%p) %s%s\n", dspPtr(clsHnd), info.compCompHnd->getClassName(clsHnd), isExact ? " [exact]" : "");
     }
+#endif // DEBUG
 
-    // Are we updating the type?
-    if (varDsc->lvClassHnd != clsHnd)
+    if (shouldUpdate)
     {
-        JITDUMP("\nlvaUpdateClass: Updating class for V%02i from (%p) %s to (%p) %s %s\n", varNum,
-                dspPtr(varDsc->lvClassHnd), info.compCompHnd->getClassName(varDsc->lvClassHnd), dspPtr(clsHnd),
-                info.compCompHnd->getClassName(clsHnd), isExact ? " [exact]" : "");
-
         varDsc->lvClassHnd     = clsHnd;
         varDsc->lvClassIsExact = isExact;
-        return;
+
+#if DEBUG
+        // Note we've modified the type...
+        varDsc->lvClassInfoUpdated = true;
+#endif // DEBUG
     }
 
-    // Class info matched. Are we updating exactness?
-    if (isExact)
-    {
-        JITDUMP("\nlvaUpdateClass: Updating class for V%02i (%p) %s to be exact\n", varNum, dspPtr(varDsc->lvClassHnd),
-                info.compCompHnd->getClassName(varDsc->lvClassHnd));
-
-        varDsc->lvClassIsExact = isExact;
-        return;
-    }
-
-    // Else we have the same handle and (in)exactness as before. Do nothing.
     return;
 }
 
@@ -4130,6 +4154,10 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
         {
             varDsc->lvSlotNum = lclNum;
         }
+
+        // Set initial value for lvSingleDef for explicit and implicit
+        // argument locals as they are "defined" on entry.
+        varDsc->lvSingleDef = varDsc->lvIsParam;
     }
 
     JITDUMP("\n*** lvaComputeRefCounts -- explicit counts ***\n");
@@ -6694,7 +6722,7 @@ void Compiler::lvaDumpFrameLocation(unsigned lclNum)
     regNumber baseReg;
 
 #ifdef _TARGET_ARM_
-    offset = lvaFrameAddress(lclNum, compLocallocUsed, &baseReg, 0);
+    offset = lvaFrameAddress(lclNum, compLocallocUsed, &baseReg, 0, /* isFloatUsage */ false);
 #else
     bool EBPbased;
     offset  = lvaFrameAddress(lclNum, &EBPbased);

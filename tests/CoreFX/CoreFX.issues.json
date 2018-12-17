@@ -1,5 +1,19 @@
 ﻿[
     {
+        "name": "System.Diagnostics.TraceSource.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Diagnostics.TraceSourceTests.DefaultTraceListenerClassTests.EntryAssemblyName_Null_NotIncludedInTrace",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Globalization.Tests",
         "enabled": true,
         "exclusions": {
@@ -59,8 +73,65 @@
                 {
                     "name": "System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.ValidateAgainstBlobs",
                     "reason": "The stored blob for type System.CodeDom.MemberAttributes is outdated and needs to be updated."
+                },
+                {
+                    "name": "System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.ValidateEqualityComparersAgainstBlobs",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.ValidateBasicObjectsRoundtrip",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.RoundtripManyObjectsInOneStream",
+                    "reason": "outdated"
                 }
             ]
+        }
+    },
+    {
+        "name": "System.Collections.Immutable.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
+        }
+    },
+    {
+        "name": "System.Reflection.Metadata.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
+        }
+    },
+    {
+        "name": "System.Text.Encodings.Web.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
+        }
+    },
+    {
+        "name": "System.IO.Pipelines.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
+        }
+    },
+    {
+        "name": "System.Data.Common.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
         }
     },
     {
@@ -109,6 +180,34 @@
                 {
                     "name": "System.Net.Tests.HttpResponseStreamTests.Write_NullBuffer_ThrowsArgumentNullException",
                     "reason": "Assert.Throws() Failure Expected: typeof(System.ArgumentNullException) Actual:   typeof(System.NullReferenceException): Object reference not set to an instance of an object."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Net.Sockets.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Net.Sockets.Tests.KeepAliveTest.Socket_Set_KeepAlive_Interval_Failure",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Net.WebProxy.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name" : "System.Net.Tests.WebProxyTest.WebProxy_BypassOnLocal_SpecialCases",
+                    "reason" : "outdated"
                 }
             ]
         }
@@ -415,7 +514,23 @@
                 {
                     "name": "System.Buffers.Text.Tests.FormatterTests.TestFormatterDecimal",
                     "reason": "https://github.com/dotnet/coreclr/pull/19775"
-                }
+                },
+                {
+                    "name": "System.SpanTests.MemoryMarshalTests.CreateFromPinnedArrayIntSliceRemainsPinned",
+                    "reason": "https://github.com/dotnet/corefx/pull/32994"
+                },
+                {
+                    "name": "System.SpanTests.MemoryMarshalTests.CreateFromPinnedArrayIntReadOnlyMemorySliceRemainsPinned",
+                    "reason": "https://github.com/dotnet/corefx/pull/32994"
+                },
+                {
+                    "name": "System.Buffers.Text.Tests.ParserTests.TestParserSingle",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+                {
+                    "name": "System.Buffers.Text.Tests.ParserTests.TestParserDouble",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
             ]
         }
     },
@@ -429,7 +544,39 @@
                 {
                     "name": "System.Tests.ConvertToStringTests.FromBoxedObject",
                     "reason": "https://github.com/dotnet/coreclr/pull/19775"
-                }
+                },
+                {
+                    "name": "System.Tests.ConvertToDoubleTests.FromString",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+                {
+                    "name": "System.Tests.ConvertToSingleTests.FromString",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+                {
+                    "name": "System.Tests.MathTests.Max_Double",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathTests.Max_Single",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathTests.Min_Double",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathTests.Min_Single",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathFTests.Max",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
+                {
+                    "name": "System.Tests.MathFTests.Min",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20912"
+                },
             ]
         }
     },
@@ -450,6 +597,26 @@
                 },
                 {
                     "name" : "System.Runtime.InteropServices.Tests.GetFunctionPointerForDelegateTests.GetFunctionPointerForDelegate_DelegateCollectible_ThrowsNotSupportedException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.GetComInterfaceForObjectTests.GetComInterfaceForObject_ObjectNotCollectible_ThrowsNotSupportedException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.ChangeWrapperHandleStrengthTests.ChangeWrapperHandleStrength_ObjectNotCollectible_ThrowsNotSupportedException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.CreateAggregatedObjectTests.CreateAggregatedObject_ObjectNotCollectible_ReturnsExpected",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.GetNativeVariantForObjectTests.GetNativeVariantForObject_ObjectNotCollectible_ThrowsNotSupportedException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.GetIUnknownForObjectTests.GetIUnknownForObject_ObjectNotCollectible_ThrowsNotSupportedException",
                     "reason" : "outdated"
                 }
             ]
@@ -552,6 +719,26 @@
             "classes": null,
             "methods": [
                 {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4LerpTest",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4MultiplyTest5",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4MultiplyTest6",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4NegateTest",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Matrix4x4Tests.Matrix4x4UnaryNegationTest",
+                    "reason" : "https://github.com/dotnet/coreclr/pull/20994"
+                },
+                {
                     "name" : "System.Numerics.Tests.Vector2Tests.Vector2ClampTest",
                     "reason" : "outdated"
                 },
@@ -602,6 +789,92 @@
                 {
                     "name": "System.Tests.DecimalTests+BigIntegerMod.Test",
                     "reason": "https://github.com/dotnet/coreclr/issues/12605"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy",
+                    "reason": "Needs updates for XUnit 2.4"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Xml.Linq.SDMSample.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "XDocumentTests.SDMSample.SDM_Attribute.AttributeExplicitToDouble",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+                {
+                    "name": "XDocumentTests.SDMSample.SDM_Attribute.AttributeExplicitToFloat",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+                {
+                    "name": "XDocumentTests.SDMSample.SDM_Element.ElementExplicitToFloat",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+                {
+                    "name": "XDocumentTests.SDMSample.SDM_Element.ElementExplicitToDouble",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+            ]
+        }
+    },
+    {
+        "name": "System.Json.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Json.Tests.JsonValueTests.Parse_DoubleTooLarge_ThrowsOverflowException",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+            ]
+        }
+    },
+    {
+        "name": "System.Xml.RW.XmlWriterApi.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Xml.Tests.TCFullEndElement+TCWriteValue.writeValue_27",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+            ]
+        }
+    },
+    {
+        "name": "System.ComponentModel.Annotations.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.ComponentModel.DataAnnotations.Tests.RangeAttributeTests.Validate_DoubleConversionOverflows_ThrowsOverflowException",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+            ]
+        }
+    },    
+    {
+        "name": "System.Linq.Expressions.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Linq.Expressions.Tests.BindTests.StaticReadonlyField",
+                    "reason": "https://github.com/dotnet/coreclr/pull/20886 and https://github.com/dotnet/corefx/pull/33413"
                 }
             ]
         }

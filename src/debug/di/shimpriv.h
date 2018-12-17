@@ -3,9 +3,9 @@
 // See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // shimprivate.h
-// 
+//
 
-// 
+//
 // private header for RS shim which bridges from V2 to V3.
 //*****************************************************************************
 
@@ -58,13 +58,14 @@ typedef SHash<DuplicateCreationEventsHashTableTraits> DuplicateCreationEventsHas
 //
 // Callback that shim provides, which then queues up the events.
 //
-class ShimProxyCallback : 
+class ShimProxyCallback :
     public ICorDebugManagedCallback,
-    public ICorDebugManagedCallback2, 
-    public ICorDebugManagedCallback3
+    public ICorDebugManagedCallback2,
+    public ICorDebugManagedCallback3,
+    public ICorDebugManagedCallback4
 {
     ShimProcess * m_pShim; // weak reference
-    LONG m_cRef; 
+    LONG m_cRef;
 
 public:
     ShimProxyCallback(ShimProcess * pShim);
@@ -82,7 +83,7 @@ public:
     COM_METHOD Breakpoint( ICorDebugAppDomain *pAppDomain,
         ICorDebugThread *pThread,
         ICorDebugBreakpoint *pBreakpoint);
-    
+
     COM_METHOD StepComplete( ICorDebugAppDomain *pAppDomain,
         ICorDebugThread *pThread,
         ICorDebugStepper *pStepper,
@@ -142,7 +143,7 @@ public:
         ICorDebugAppDomain *pAppDomain);
 
     COM_METHOD ExitAppDomain(ICorDebugProcess *pProcess,
-        ICorDebugAppDomain *pAppDomain); 
+        ICorDebugAppDomain *pAppDomain);
 
     COM_METHOD LoadAssembly(ICorDebugAppDomain *pAppDomain,
         ICorDebugAssembly *pAssembly);
@@ -210,6 +211,18 @@ public:
     // Implementation of ICorDebugManagedCallback3::CustomNotification
     COM_METHOD CustomNotification(ICorDebugThread * pThread, ICorDebugAppDomain * pAppDomain);
 
+    ///
+    /// Implementation of ICorDebugManagedCallback4
+    ///
+
+    // Implementation of ICorDebugManagedCallback4::BeforeGarbageCollection
+    COM_METHOD ShimProxyCallback::BeforeGarbageCollection(ICorDebugProcess* pProcess);
+
+    // Implementation of ICorDebugManagedCallback4::AfterGarbageCollection
+    COM_METHOD ShimProxyCallback::AfterGarbageCollection(ICorDebugProcess* pProcess);
+
+    // Implementation of ICorDebugManagedCallback4::DataBreakpoint
+    COM_METHOD ShimProxyCallback::DataBreakpoint(ICorDebugProcess* pProcess, ICorDebugThread* pThread, BYTE* pContext, ULONG32 contextSize);
 };
 
 
@@ -233,17 +246,19 @@ public:
     class DispatchArgs
     {
     public:
-        DispatchArgs(ICorDebugManagedCallback * pCallback1, ICorDebugManagedCallback2 * pCallback2, ICorDebugManagedCallback3 * pCallback3);
+        DispatchArgs(ICorDebugManagedCallback * pCallback1, ICorDebugManagedCallback2 * pCallback2, ICorDebugManagedCallback3 * pCallback3, ICorDebugManagedCallback4 * pCallback4);
 
         ICorDebugManagedCallback * GetCallback1();
         ICorDebugManagedCallback2 * GetCallback2();
         ICorDebugManagedCallback3 * GetCallback3();
+        ICorDebugManagedCallback4 * GetCallback4();
 
 
     protected:
         ICorDebugManagedCallback * m_pCallback1;
         ICorDebugManagedCallback2 * m_pCallback2;
         ICorDebugManagedCallback3 * m_pCallback3;
+        ICorDebugManagedCallback4 * m_pCallback4;
     };
 
     // Returns: value of callback from end-user
@@ -259,7 +274,7 @@ protected:
 
     // Ctor for events without thread affinity.
     ManagedEvent();
-    
+
     friend class ManagedEventQueue;
     ManagedEvent * m_pNext;
 
@@ -276,9 +291,9 @@ class ManagedEventQueue
 public:
     ManagedEventQueue();
 
-    
+
     void Init(RSLock * pLock);
-    
+
     // Remove event from the top. Caller then takes ownership of Event and will call Delete on it.
     // Caller checks IsEmpty() first.
     ManagedEvent * Dequeue();
@@ -302,7 +317,7 @@ public:
     void RestoreSuspendedQueue();
 
 protected:
-    // The lock to be used for synchronizing all access to the queue 
+    // The lock to be used for synchronizing all access to the queue
     RSLock * m_pLock;
 
     // If empty,  First + Last are both NULL.
@@ -323,10 +338,10 @@ protected:
 class ShimProcess
 {
     // Delete via Ref count semantics.
-    ~ShimProcess();  
+    ~ShimProcess();
 public:
     // Initialize ref count is 0.
-    ShimProcess();    
+    ShimProcess();
 
     // Lifetime semantics handled by reference counting.
     void AddRef();
@@ -337,13 +352,13 @@ public:
 
     // Initialization phases.
     // 1. allocate new ShimProcess(). This lets us spin up a Win32 EventThread, which can then
-    //    be used to 
+    //    be used to
     // 2. Call ShimProcess::CreateProcess/DebugActiveProcess. This will call CreateAndStartWin32ET to
     //     craete the w32et.
     // 3. Create OS-debugging pipeline. This establishes the physical OS process and gets us a pid/handle
     // 4. pShim->InitializeDataTarget - this creates a reader/writer abstraction around the OS process.
     // 5. pShim->SetProcess() - this connects the Shim to the ICDProcess object.
-    HRESULT InitializeDataTarget(DWORD processId);
+    HRESULT InitializeDataTarget(const ProcessDescriptor * pProcessDescriptor);
     void SetProcess(ICorDebugProcess * pProcess);
 
     //-----------------------------------------------------------
@@ -369,7 +384,7 @@ public:
     static HRESULT DebugActiveProcess(
         Cordb * pCordb,
         ICorDebugRemoteTarget * pRemoteTarget,
-        DWORD pid,
+        const ProcessDescriptor * pProcessDescriptor,
         BOOL win32Attach
 
     );
@@ -379,7 +394,7 @@ public:
 
     //
     // Functions used by CordbProcess
-    // 
+    //
 
     // Determine if the calling thread is the win32 event thread.
     bool IsWin32EventThread();
@@ -391,7 +406,7 @@ public:
     // Accessor wrapper to mark whether we're interop-debugging.
     void SetIsInteropDebugging(bool fIsInteropDebugging);
 
-    // Handle a debug event. 
+    // Handle a debug event.
     HRESULT HandleWin32DebugEvent(const DEBUG_EVENT * pEvent);
 
     ManagedEventQueue * GetManagedEventQueue();
@@ -423,18 +438,18 @@ public:
     // Expose m_attached to CordbProcess.
     bool GetAttached();
 
-    // We need to know whether we are in the CreateProcess callback to be able to 
-    // return the v2.0 hresults from code:CordbProcess::SetDesiredNGENCompilerFlags 
+    // We need to know whether we are in the CreateProcess callback to be able to
+    // return the v2.0 hresults from code:CordbProcess::SetDesiredNGENCompilerFlags
     // when we are using the shim.
-    // 
+    //
     // Expose m_fInCreateProcess
     bool GetInCreateProcess();
     void SetInCreateProcess(bool value);
 
-    // We need to know whether we are in the FakeLoadModule callback to be able to 
+    // We need to know whether we are in the FakeLoadModule callback to be able to
     // return the v2.0 hresults from code:CordbModule::SetJITCompilerFlags when
     // we are using the shim.
-    // 
+    //
     // Expose m_fInLoadModule
     bool GetInLoadModule();
     void SetInLoadModule(bool value);
@@ -460,7 +475,7 @@ public:
     // Clear all ShimStackWalks and flush all the caches.
     void            ClearAllShimStackWalk();
 
-    // Get the corresponding ICDProcess object. 
+    // Get the corresponding ICDProcess object.
     ICorDebugProcess * GetProcess();
 
     // Get the data target to access the debuggee.
@@ -478,7 +493,7 @@ public:
     void PreDispatchEvent(bool fRealCreateProcessEvent = false);
 
     // Look for a CLR in the process and if found, return it's instance ID
-    HRESULT FindLoadedCLR(CORDB_ADDRESS * pClrInstanceId);    
+    HRESULT FindLoadedCLR(CORDB_ADDRESS * pClrInstanceId);
 
     // Retrieve the IP address and the port number of the debugger proxy.
     MachineInfo GetMachineInfo();
@@ -486,7 +501,7 @@ public:
     // Add an entry in the duplicate creation event hash table for the specified key.
     void AddDuplicateCreationEvent(void * pKey);
 
-    // Check if a duplicate creation event entry exists for the specified key.  If so, remove it.  
+    // Check if a duplicate creation event entry exists for the specified key.  If so, remove it.
     bool RemoveDuplicateCreationEventIfPresent(void * pKey);
 
     void SetMarkAttachPendingEvent();
@@ -506,13 +521,13 @@ protected:
     HRESULT CreateAndStartWin32ET(Cordb * pCordb);
 
     //
-    // Synchronization events to ensure that AttachPending bit is marked before DebugActiveProcess 
+    // Synchronization events to ensure that AttachPending bit is marked before DebugActiveProcess
     // returns or debugger is detaching
-    // 
+    //
     HANDLE  m_markAttachPendingEvent;
     HANDLE  m_terminatingEvent;
 
-    // Finds the base address of [core]clr.dll 
+    // Finds the base address of [core]clr.dll
     CORDB_ADDRESS GetCLRInstanceBaseAddress();
 
     //
@@ -520,12 +535,12 @@ protected:
     //
 
     // Shim maintains event queue to emulate V2 semantics.
-    // In V2, IcorDebug internally queued debug events and dispatched them 
-    // once the debuggee was synchronized. In V3, ICorDebug dispatches events immediately. 
+    // In V2, IcorDebug internally queued debug events and dispatched them
+    // once the debuggee was synchronized. In V3, ICorDebug dispatches events immediately.
     // The event queue is moved into the shim to build V2 semantics of V3 behavior.
     ManagedEventQueue m_eventQueue;
-    
-    // Lock to protect Shim data structures. This is currently a small lock that 
+
+    // Lock to protect Shim data structures. This is currently a small lock that
     // protects leaf-level structures, but it may grow to protect larger things.
     RSLock m_ShimLock;
 
@@ -550,21 +565,21 @@ protected:
 
     // True iff we are in the shim's CreateProcess callback. This is used to determine which hresult to
     // return from code:CordbProcess::SetDesiredNGENCompilerFlags so we correctly emulate the behavior of v2.0.
-    // This is set at the beginning of the callback and cleared in code:CordbProcess::ContinueInternal. 
+    // This is set at the beginning of the callback and cleared in code:CordbProcess::ContinueInternal.
     bool m_fInCreateProcess;
 
     // True iff we are in the shim's FakeLoadModule callback. This is used to determine which hresult to
     // return from code:CordbModule::SetJITCompilerFlags so we correctly emulate the behavior of v2.0.
-    // This is set at the beginning of the callback and cleared in code:CordbProcess::ContinueInternal. 
+    // This is set at the beginning of the callback and cleared in code:CordbProcess::ContinueInternal.
     bool m_fInLoadModule;
     //
     // Data
     //
 
-    // Pointer to CordbProcess. 
+    // Pointer to CordbProcess.
     // @dbgtodo shim: We'd like this to eventually go through public interfaces (ICorDebugProcess)
     IProcessShimHooks * m_pProcess; // Reference is kept by m_pIProcess;
-    RSExtSmartPtr<ICorDebugProcess> m_pIProcess; 
+    RSExtSmartPtr<ICorDebugProcess> m_pIProcess;
 
     // Win32EvenThread, which is the thread that uses the native debug API.
     CordbWin32EventThread * m_pWin32EventThread;
@@ -595,10 +610,10 @@ protected:
     void DefaultEventHandler(const DEBUG_EVENT * pEvent, DWORD * pdwContinueStatus);
 
     // Given a debug event, track the file handles.
-    void TrackFileHandleForDebugEvent(const DEBUG_EVENT * pEvent);   
+    void TrackFileHandleForDebugEvent(const DEBUG_EVENT * pEvent);
 
     // Have we gotten the loader breakpoint yet?
-    // A Debugger needs to do special work to skip the loader breakpoint, 
+    // A Debugger needs to do special work to skip the loader breakpoint,
     // and that's also when it should dispatch the faked managed attach events.
     bool m_loaderBPReceived;
 
@@ -607,7 +622,7 @@ protected:
 
     // Real worker to update ContinueStatusChangedData
     HRESULT ContinueStatusChangedWorker(DWORD dwThreadId, CORDB_CONTINUE_STATUS dwContinueStatus);
-    
+
     struct ContinueStatusChangedData
     {
         void Clear();
@@ -631,8 +646,8 @@ protected:
 
 //---------------------------------------------------------------------------------------
 //
-// This is the container class of ShimChains, ICorDebugFrames, ShimChainEnums, and ShimFrameEnums.   
-// It has a 1:1 relationship  with ICorDebugThreads.  Upon creation, this class walks the entire stack and 
+// This is the container class of ShimChains, ICorDebugFrames, ShimChainEnums, and ShimFrameEnums.
+// It has a 1:1 relationship  with ICorDebugThreads.  Upon creation, this class walks the entire stack and
 // caches all the stack frames and chains.  The enumerators are created on demand.
 //
 
@@ -684,7 +699,7 @@ private:
     //
     // This is a helper class used to store the information of a chain during a stackwalk.  A chain is marked
     // by the CONTEXT on the leaf boundary and a FramePointer on the root boundary.  Also, notice that we
-    // are keeping two CONTEXTs.  This is because some chain types may cancel a previous unmanaged chain.  
+    // are keeping two CONTEXTs.  This is because some chain types may cancel a previous unmanaged chain.
     // For example, a CHAIN_FUNC_EVAL chain cancels any CHAIN_ENTER_UNMANAGED chain immediately preceding
     // it.  In this case, the leaf boundary of the CHAIN_FUNC_EVAL chain is marked by the CONTEXT of the
     // previous CHAIN_ENTER_MANAGED, not the previous CHAIN_ENTER_UNMANAGED.
@@ -737,7 +752,7 @@ private:
         // Check whether we are skipping frames because of a child frame.
         BOOL IsSkippingFrame();
 
-        // Indicates whether we are dealing with a converted frame.  
+        // Indicates whether we are dealing with a converted frame.
         // See code:CordbThread::ConvertFrameForILMethodWithoutMetadata.
         BOOL HasConvertedFrame();
 
@@ -748,7 +763,7 @@ private:
         // Store the converted frame, if any.
         RSExtSmartPtr<ICorDebugInternalFrame2> m_pConvertedInternalFrame2;
 
-        // Store the array of internal frames.  This is an array of RSExtSmartPtrs, and so each element 
+        // Store the array of internal frames.  This is an array of RSExtSmartPtrs, and so each element
         // is protected, and we only need to call Clear() to release each element and free all the memory.
         RSExtPtrArray<ICorDebugInternalFrame2> m_ppInternalFrame2;
 
@@ -763,10 +778,10 @@ private:
         bool m_fExhaustedAllStackFrames;
 
         // Indicate whether we are processing an internal frame or a stack frame.
-        bool m_fProcessingInternalFrame;    
+        bool m_fProcessingInternalFrame;
 
-        // Indicate whether we should skip the current chain because it's a chain derived from a leaf frame 
-        // of type TYPE_INTERNAL.  This is the behaviour in V2.  
+        // Indicate whether we should skip the current chain because it's a chain derived from a leaf frame
+        // of type TYPE_INTERNAL.  This is the behaviour in V2.
         // See code:DebuggerWalkStackProc.
         bool m_fSkipChain;
 
@@ -829,7 +844,7 @@ private:
     BOOL IsILFrameWithoutMetadata(ICorDebugFrame * pFrame);
 
     CDynArray<ShimChain *>      m_stackChains;  // growable ordered array of chains and frames
-    CDynArray<ICorDebugFrame *> m_stackFrames; 
+    CDynArray<ICorDebugFrame *> m_stackFrames;
 
     ShimChainEnum * m_pChainEnumList;           // linked list of ShimChainEnum and ShimFrameEnum
     ShimFrameEnum * m_pFrameEnumList;
@@ -909,16 +924,16 @@ private:
     FramePointer        m_fpRoot;           // the root end of the chain
 
     ShimStackWalk *     m_pStackWalk;       // the owning ShimStackWalk
-    Volatile<ULONG>     m_refCount; 
+    Volatile<ULONG>     m_refCount;
 
     // The 0-based index of this chain in the ShimStackWalk's chain array (m_pStackWalk->m_stackChains).
     UINT32              m_chainIndex;
 
-    // The 0-based index of the first frame owned by this chain in the ShimStackWalk's frame array 
+    // The 0-based index of the first frame owned by this chain in the ShimStackWalk's frame array
     // (m_pStackWalk->m_stackFrames).  See code::ShimChain::GetFirstFrameIndex().
     UINT32              m_frameStartIndex;
 
-    // The 0-based index of the last frame owned by this chain in the ShimStackWalk's frame array 
+    // The 0-based index of the last frame owned by this chain in the ShimStackWalk's frame array
     // (m_pStackWalk->m_stackFrames).  This index is exlusive.  See code::ShimChain::GetLastFrameIndex().
     UINT32              m_frameEndIndex;
 
@@ -969,7 +984,7 @@ public:
 
     //
     // accessors
-    // 
+    //
 
     // used to link ShimChainEnums in a list
     ShimChainEnum * GetNext();
@@ -985,7 +1000,7 @@ private:
     UINT32          m_currentChainIndex;    // the index of the current ShimChain being enumerated
     Volatile<ULONG> m_refCount;
     BOOL            m_fIsNeutered;
-    
+
     RSLock *        m_pShimLock;            // shim lock from ShimProcess to protect neuteredness checks
 };
 
@@ -1029,7 +1044,7 @@ public:
 
     //
     // accessors
-    // 
+    //
 
     // used to link ShimChainEnums in a list
     ShimFrameEnum * GetNext();

@@ -73,7 +73,7 @@ DbgTransportSession::~DbgTransportSession()
 // addresses of a couple of runtime data structures to service certain debugger requests that may be delivered
 // once the session is established.
 #ifdef RIGHT_SIDE_COMPILE
-HRESULT DbgTransportSession::Init(DWORD pid, HANDLE hProcessExited)
+HRESULT DbgTransportSession::Init(const ProcessDescriptor& pd, HANDLE hProcessExited)
 #else // RIGHT_SIDE_COMPILE
 HRESULT DbgTransportSession::Init(DebuggerIPCControlBlock *pDCB, AppDomainEnumerationIPCBlock *pADB)
 #endif // RIGHT_SIDE_COMPILE
@@ -104,7 +104,7 @@ HRESULT DbgTransportSession::Init(DebuggerIPCControlBlock *pDCB, AppDomainEnumer
 
 
 #ifdef RIGHT_SIDE_COMPILE
-    m_pid = pid;    
+    m_pd = pd;    
 
     if (!DuplicateHandle(GetCurrentProcess(), 
                          hProcessExited,
@@ -131,8 +131,8 @@ HRESULT DbgTransportSession::Init(DebuggerIPCControlBlock *pDCB, AppDomainEnumer
     if (m_hSessionOpenEvent == NULL)
         return E_OUTOFMEMORY;
 #else // RIGHT_SIDE_COMPILE
-    DWORD pid = GetCurrentProcessId(); 
-    if (!m_pipe.CreateServer(pid)) {
+    ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
+    if (!m_pipe.CreateServer(pd)) {
         return E_OUTOFMEMORY;
     }
 #endif // RIGHT_SIDE_COMPILE
@@ -1289,7 +1289,7 @@ void DbgTransportSession::TransportWorker()
             eStatus = SCS_NetworkFailure;
         else
         {
-            if (m_pipe.Connect(m_pid))
+            if (m_pipe.Connect(m_pd))
             {
                 eStatus = SCS_Success;
             }
@@ -1315,8 +1315,8 @@ void DbgTransportSession::TransportWorker()
             eStatus = SCS_NetworkFailure;
         else
         {
-            DWORD pid = GetCurrentProcessId(); 
-            if ((m_pipe.GetState() == TwoWayPipe::Created || m_pipe.CreateServer(pid)) && 
+            ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
+            if ((m_pipe.GetState() == TwoWayPipe::Created || m_pipe.CreateServer(pd)) && 
                  m_pipe.WaitForConnection())
             {
                 eStatus = SCS_Success;
@@ -2201,8 +2201,11 @@ DWORD DbgTransportSession::GetEventSize(DebuggerIPCEvent *pEvent)
     case DB_IPCE_ATTACHING:
     case DB_IPCE_GET_NGEN_COMPILER_FLAGS:
     case DB_IPCE_DETACH_FROM_PROCESS:
-    case DB_IPCE_CONTROL_C_EVENT_RESULT:
+    case DB_IPCE_CONTROL_C_EVENT_RESULT:    
         cbAdditionalSize = 0;
+        break;
+    case DB_IPCE_DATA_BREAKPOINT:
+        cbAdditionalSize = sizeof(pEvent->DataBreakpointData);
         break;
 
     case DB_IPCE_BREAKPOINT:

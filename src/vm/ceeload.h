@@ -1448,12 +1448,6 @@ private:
     // Format the above stream is in (if any)
     ESymbolFormat           m_symbolFormat;
 
-    // Active dependencies
-    ArrayList               m_activeDependencies;
-
-    SynchronizedBitMask     m_unconditionalDependencies;
-    ULONG                   m_dwNumberOfActivations;
-
     // For protecting additions to the heap
     CrstExplicitInit        m_LookupTableCrst;
 
@@ -1913,8 +1907,6 @@ protected:
 #endif
 
     CHECK CheckActivated();
-    ULONG GetNumberOfActivations();
-    ULONG IncrementNumberOfActivations();
 
     IMDInternalImport *GetMDImport() const
     {
@@ -2556,13 +2548,6 @@ public:
 public:
     void NotifyEtwLoadFinished(HRESULT hr);
 
-    // Get any cached ITypeLib* for the module.
-    ITypeLib *GetTypeLib();
-    // Cache the ITypeLib*, if one is not already cached.
-    void SetTypeLib(ITypeLib *pITLB);
-    ITypeLib *GetTypeLibTCE();
-    void SetTypeLibTCE(ITypeLib *pITLB);
-
     // Enregisters a VASig.
     VASigCookie *GetVASigCookie(Signature vaSignature);
 
@@ -2577,9 +2562,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         m_pDllMain = pMD;
     }
-
-    BOOL CanExecuteCode();
-
 
     // This data is only valid for NGEN'd modules, and for modules we're creating at NGEN time.
     ModuleCtorInfo* GetZapModuleCtorInfo()
@@ -2612,14 +2594,12 @@ public:
     LPCWSTR GetDebugName() { WRAPPER_NO_CONTRACT; return m_file->GetDebugName(); }
 #endif
 
-    BOOL IsILOnly() { WRAPPER_NO_CONTRACT; return m_file->IsILOnly(); }
-
 #ifdef FEATURE_PREJIT
     BOOL HasNativeImage() 
     { 
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
-        return m_file->HasNativeImage(); 
+        return m_file->HasNativeImage();
     }
     
     PEImageLayout *GetNativeImage()
@@ -2636,6 +2616,7 @@ public:
         }
         CONTRACT_END;
 
+        _ASSERTE(!IsCollectible());
         RETURN m_file->GetLoadedNative();
     }
 #else
@@ -2707,69 +2688,6 @@ public:
     // execute.
 
     void AddActiveDependency(Module *pModule, BOOL unconditional);
-
-    // Active dependency iterator
-    class DependencyIterator
-    {
-      protected:
-        ArrayList::Iterator m_i;
-        COUNT_T             m_index;
-        SynchronizedBitMask* m_unconditionalFlags;
-
-        friend class Module;
-
-        DependencyIterator(ArrayList *list, SynchronizedBitMask *unconditionalFlags)
-          : m_index((COUNT_T)-1),
-            m_unconditionalFlags(unconditionalFlags)
-        {
-            WRAPPER_NO_CONTRACT;
-            m_i = list->Iterate();
-        }
-
-      public:
-        Module *GetDependency()
-        {
-            return ((FixupPointer<PTR_Module> *)m_i.GetElementPtr())->GetValue();
-        }
-
-        BOOL Next()
-        {
-            LIMITED_METHOD_CONTRACT;
-            while (m_i.Next())
-            {
-                ++m_index;
-
-#ifdef FEATURE_PREJIT
-                // When iterating all dependencies, we do not restore any tokens
-                // as we want to be lazy.
-                PTR_Module pModule = ((FixupPointer<PTR_Module> *)m_i.GetElementPtr())->GetValue();
-                if (!CORCOMPILE_IS_POINTER_TAGGED(dac_cast<TADDR>(pModule)))
-                    return TRUE;
-
-#else
-                return TRUE;
-#endif
-
-            }
-            return FALSE;
-        }
-        BOOL IsUnconditional()
-        {
-            if (m_unconditionalFlags == NULL)
-                return TRUE;
-            else
-                return m_unconditionalFlags->TestBit(m_index);
-        }
-    };
-
-    DependencyIterator IterateActiveDependencies()
-    {
-        WRAPPER_NO_CONTRACT;
-        return DependencyIterator(&m_activeDependencies, &m_unconditionalDependencies);
-    }
-
-    BOOL HasActiveDependency(Module *pModule);
-    BOOL HasUnconditionalActiveDependency(Module *pModule);
 
     // Turn triggers from this module into runtime checks
     void EnableModuleFailureTriggers(Module *pModule, AppDomain *pDomain);
@@ -3557,11 +3475,5 @@ struct VASigCookieEx : public VASigCookie
 {
     const BYTE *m_pArgs;        // pointer to first unfixed unmanaged arg
 };
-
-inline bool IsSingleAppDomain()
-{
-    // CoreCLR always runs as single AppDomain
-    return true;
-}
 
 #endif // !CEELOAD_H_

@@ -320,16 +320,23 @@ REM Set the remaining variables based upon the determined build configuration
 
 echo %__MsgPrefix%Checking prerequisites
 
-REM Eval the output from probe-win1.ps1
-for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\probe-win.ps1"""') do %%a
+set __CMakeNeeded=1
+if %__BuildNative%==0 if %__BuildNativeCoreLib%==0 if %__BuildTests%==0 set __CMakeNeeded=0
+if %__CMakeNeeded%==1 (
+    REM Eval the output from set-cmake-path.ps1
+    for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\set-cmake-path.ps1"""') do %%a
+    REM echo Using CMake from %CMakePath%
+)
 
 REM NumberOfCores is an WMI property providing number of physical cores on machine
 REM processor(s). It is used to set optimal level of CL parallelism during native build step
 if not defined NumberOfCores (
     REM Determine number of physical processor cores available on machine
+    set TotalNumberOfCores=0
     for /f "tokens=*" %%I in (
         'wmic cpu get NumberOfCores /value ^| find "=" 2^>NUL'
-    ) do set %%I
+    ) do set %%I & set /a TotalNumberOfCores=TotalNumberOfCores+NumberOfCores
+    set NumberOfCores=!TotalNumberOfCores!
 )
 echo %__MsgPrefix%Number of processor cores %NumberOfCores%
 

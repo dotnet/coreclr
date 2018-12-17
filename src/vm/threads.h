@@ -138,7 +138,6 @@
 #include "util.hpp"
 #include "eventstore.hpp"
 #include "argslot.h"
-#include "context.h"
 #include "regdisp.h"
 #include "mscoree.h"
 #include "gcheaputilities.h"
@@ -162,7 +161,6 @@ struct    HelperMethodFrameCallerList;
 class     ThreadLocalIBCInfo;
 class     EECodeInfo;
 class     DebuggerPatchSkip;
-class     MethodCallGraphPreparer;
 class     FaultingExceptionFrame;
 class     ContextTransitionFrame;
 enum      BinderMethodID : int;
@@ -173,6 +171,8 @@ class     PendingTypeLoadHolder;
 struct    ThreadLocalBlock;
 typedef DPTR(struct ThreadLocalBlock) PTR_ThreadLocalBlock;
 typedef DPTR(PTR_ThreadLocalBlock) PTR_PTR_ThreadLocalBlock;
+
+typedef void(*ADCallBackFcnType)(LPVOID);
 
 #include "stackwalktypes.h"
 #include "log.h"
@@ -188,6 +188,79 @@ typedef DPTR(PTR_ThreadLocalBlock) PTR_PTR_ThreadLocalBlock;
 class EventPipeBufferList;
 #endif // FEATURE_PERFTRACING
 
+struct TLMTableEntry;
+
+typedef DPTR(struct TLMTableEntry) PTR_TLMTableEntry;
+typedef DPTR(struct ThreadLocalModule) PTR_ThreadLocalModule;
+
+class ThreadStaticHandleTable;
+struct ThreadLocalModule;
+class Module;
+
+struct ThreadLocalBlock
+{
+    friend class ClrDataAccess;
+
+private:
+    PTR_TLMTableEntry   m_pTLMTable;     // Table of ThreadLocalModules
+    SIZE_T              m_TLMTableSize;  // Current size of table
+    SpinLock            m_TLMTableLock;  // Spinlock used to synchronize growing the table and freeing TLM by other threads
+
+    // Each ThreadLocalBlock has its own ThreadStaticHandleTable. The ThreadStaticHandleTable works
+    // by allocating Object arrays on the GC heap and keeping them alive with pinning handles.
+    //
+    // We use the ThreadStaticHandleTable to allocate space for GC thread statics. A GC thread
+    // static is thread static that is either a reference type or a value type whose layout
+    // contains a pointer to a reference type.
+
+    ThreadStaticHandleTable * m_pThreadStaticHandleTable;
+
+    // Need to keep a list of the pinning handles we've created
+    // so they can be cleaned up when the thread dies
+    ObjectHandleList          m_PinningHandleList;
+
+public: 
+
+#ifndef DACCESS_COMPILE
+    void AddPinningHandleToList(OBJECTHANDLE oh);
+    void FreePinningHandles();
+    void AllocateThreadStaticHandles(Module * pModule, ThreadLocalModule * pThreadLocalModule);
+    OBJECTHANDLE AllocateStaticFieldObjRefPtrs(int nRequested, OBJECTHANDLE* ppLazyAllocate = NULL);
+    void InitThreadStaticHandleTable();
+
+    void AllocateThreadStaticBoxes(MethodTable* pMT);
+#endif
+
+public: // used by code generators
+    static SIZE_T GetOffsetOfModuleSlotsPointer() { return offsetof(ThreadLocalBlock, m_pTLMTable); }
+
+public:
+
+#ifndef DACCESS_COMPILE
+    ThreadLocalBlock()
+      : m_pTLMTable(NULL), m_TLMTableSize(0), m_pThreadStaticHandleTable(NULL) 
+    {
+        m_TLMTableLock.Init(LOCK_TYPE_DEFAULT);
+    }
+
+    void    FreeTLM(SIZE_T i, BOOL isThreadShuttingDown);
+
+    void    FreeTable();
+
+    void    EnsureModuleIndex(ModuleIndex index);
+
+#endif
+
+    void SetModuleSlot(ModuleIndex index, PTR_ThreadLocalModule pLocalModule);
+
+    PTR_ThreadLocalModule GetTLMIfExists(ModuleIndex index);
+    PTR_ThreadLocalModule GetTLMIfExists(MethodTable* pMT);
+
+#ifdef DACCESS_COMPILE
+    void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
+#endif
+};
+
 #ifdef CROSSGEN_COMPILE
 
 #include "asmconstants.h"
@@ -196,7 +269,7 @@ class Thread
 {
     friend class ThreadStatics;
 
-    PTR_ThreadLocalBlock m_pThreadLocalBlock;
+    ThreadLocalBlock m_ThreadLocalBlock;
 
 public:
     BOOL IsAddressInStack (PTR_VOID addr) const { return TRUE; }
@@ -205,22 +278,6 @@ public:
     Frame *IsRunningIn(AppDomain* pDomain, int *count) { return NULL; }
 
     StackingAllocator    m_MarshalAlloc;
-
-private:
-    MethodCallGraphPreparer * m_pCerPreparationState;
-
-public:
-    MethodCallGraphPreparer * GetCerPreparationState()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pCerPreparationState;
-    }
-
-    void SetCerPreparationState(MethodCallGraphPreparer * pCerPreparationState)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pCerPreparationState = pCerPreparationState;
-    }
 
  private:
     LoadLevelLimiter *m_pLoadLimiter;
@@ -251,8 +308,6 @@ public:
 
     inline void IncLockCount() { }
     inline void DecLockCount() { }
-
-    void EnterContextRestricted(Context* c, ContextTransitionFrame* pFrame) { }
 
     static LPVOID GetStaticFieldAddress(FieldDesc *pFD) { return NULL; }
 
@@ -994,7 +1049,6 @@ class Thread: public IUnknown
     friend class  ThreadStore;
     friend class  ThreadSuspend;
     friend class  SyncBlock;
-    friend class  Context;
     friend struct PendingSync;
     friend class  AppDomain;
     friend class  ThreadNative;
@@ -1189,7 +1243,7 @@ public:
         TSNC_OSAlertableWait            = 0x00001000, // Preparing abort.  This avoids recursive HandleThreadAbort call.
         TSNC_ADUnloadHelper             = 0x00002000, // This thread is AD Unload helper.
         TSNC_CreatingTypeInitException  = 0x00004000, // Thread is trying to create a TypeInitException
-        TSNC_InTaskSwitch               = 0x00008000, // A task is switching
+        // unused                       = 0x00008000,
         TSNC_AppDomainContainUnhandled  = 0x00010000, // Used to control how unhandled exception reporting occurs.
                                                       // See detailed explanation for this bit in threads.cpp
         TSNC_InRestoringSyncBlock       = 0x00020000, // The thread is restoring its SyncBlock for Object.Wait.
@@ -1227,7 +1281,7 @@ public:
         TSNC_WinRTInitialized           = 0x08000000, // the thread has initialized WinRT
 #endif // FEATURE_COMINTEROP
 
-        TSNC_ForceStackCommit           = 0x10000000, // Commit the whole stack, even if disableCommitThreadStack is set
+        // TSNC_Unused                  = 0x10000000,
 
         TSNC_CallingManagedCodeDisabled = 0x20000000, // Use by multicore JIT feature to asert on calling managed code/loading module in background thread
                                                       // Exception, system module is allowed, security demand is allowed
@@ -1246,14 +1300,6 @@ public:
         DAC_EMPTY_RET(0);
     STDMETHODIMP_(ULONG) Release(void)
         DAC_EMPTY_RET(0);
-    STDMETHODIMP SwitchIn(HANDLE threadHandle)
-        DAC_EMPTY_RET(E_FAIL);
-    STDMETHODIMP SwitchOut()
-        DAC_EMPTY_RET(E_FAIL);
-    STDMETHODIMP Reset (BOOL fFull)
-        DAC_EMPTY_RET(E_FAIL);
-    STDMETHODIMP ExitTask()
-        DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP Abort()
         DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP RudeAbort()
@@ -1265,16 +1311,11 @@ public:
         DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP LocksHeld(SIZE_T *pLockCount)
         DAC_EMPTY_RET(E_FAIL);
-    STDMETHODIMP SetTaskIdentifier(TASKID asked)
-        DAC_EMPTY_RET(E_FAIL);
 
     STDMETHODIMP BeginPreventAsyncAbort()
         DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP EndPreventAsyncAbort()
         DAC_EMPTY_RET(E_FAIL);
-
-    STDMETHODIMP SetLocale(LCID lcid);
-    STDMETHODIMP SetUILocale(LCID lcid);
 
     void InternalReset (BOOL fFull, BOOL fNotFinalizerThread=FALSE, BOOL fThreadObjectResetNeeded=TRUE, BOOL fResetAbort=TRUE);
     INT32 ResetManagedThreadObject(INT32 nPriority); 
@@ -1284,8 +1325,6 @@ private:
     //Helpers for reset...
     void FullResetThread();
 public:
-    void InternalSwitchOut();
-
     HRESULT DetachThread(BOOL fDLLThreadDetach);
 
     void SetThreadState(ThreadState ts)
@@ -1676,13 +1715,8 @@ public:
     }
 #endif // FEATURE_COMINTEROP && !DACCESS_COMPILE
 
-    // The context within which this thread is executing.  As the thread crosses
-    // context boundaries, the context mechanism adjusts this so it's always
-    // current.
-    // <TODO>@TODO cwb: When we add COM+ 1.0 Context Interop, this should get moved out
-    // of the Thread object and into its own slot in the TLS.</TODO>
-    // The address of the context object is also used as the ContextID!
-    PTR_Context          m_Context;
+    // Lock thread is trying to acquire
+    VolatilePtr<DeadlockAwareLock> m_pBlockingLock;
 
 public:
 
@@ -1820,9 +1854,6 @@ private:
     // Per thread counter to dispense hash code - kept in the thread so we don't need a lock
     // or interlocked operations to get a new hash code;
     DWORD m_dwHashCodeSeed;
-
-    // Lock thread is trying to acquire
-    VolatilePtr<DeadlockAwareLock> m_pBlockingLock;
 
 public:
 
@@ -2407,33 +2438,6 @@ public:
         return PTR_ThreadExceptionState(PTR_HOST_MEMBER_TADDR(Thread, this, m_ExceptionState));
     }
 
-    // Access to the Context this thread is executing in.
-    Context *GetContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-        SUPPORTS_DAC;
-#ifndef DACCESS_COMPILE
-
-        // if another thread is asking about our thread, we could be in the middle of an AD transition so
-        // the context and AD may not match if have set one but not the other. Can live without checking when
-        // another thread is asking it as this method is mostly called on our own thread so will mostly get the
-        // checking. If are int the middle of a transition, this could return either the old or the new AD.
-        // But no matter what we do, such as lock on the transition, by the time are done could still have
-        // changed right after we asked, so really no point.
-        _ASSERTE((this != GetThreadNULLOk()) || (m_Context == NULL && m_pDomain == NULL) || (m_Context->GetDomain() == m_pDomain) || g_fEEShutDown);
-#endif // DACCESS_COMPILE
-        return m_Context;
-    }
-
-    void DoContextCallBack(ADID appDomain, Context* c , Context::ADCallBackFcnType pTarget, LPVOID args);
-
-    // Except for security and the call in from the remoting code in mscorlib, you should never do an
-    // AppDomain transition directly through these functions. Rather, you should use DoADCallBack above
-    // to call into managed code to perform the transition for you so that the correct policy code etc
-    // is run on the transition,
-    void EnterContextRestricted(Context* c, ContextTransitionFrame* pFrame);
-    void ReturnToContext(ContextTransitionFrame *pFrame);
-
 public:
 
     void DECLSPEC_NORETURN RaiseCrossContextException(Exception* pEx, ContextTransitionFrame* pFrame);
@@ -2441,66 +2445,20 @@ public:
     // ClearContext are to be called only during shutdown
     void ClearContext();
 
-    // Used by security to prevent recursive stackwalking.
-    BOOL IsSecurityStackwalkInProgess()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_fSecurityStackwalk;
-    }
-
-    void SetSecurityStackwalkInProgress(BOOL fSecurityStackwalk)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_fSecurityStackwalk = fSecurityStackwalk;
-    }
-
-private:
-    void ReturnToContextAndThrow(ContextTransitionFrame* pFrame, EEException* pEx, BOOL* pContextSwitched);
-    void ReturnToContextAndOOM(ContextTransitionFrame* pFrame);
-
 private:
     // don't ever call these except when creating thread!!!!!
     void InitContext();
-
-    BOOL m_fSecurityStackwalk;
 
 public:
     PTR_AppDomain GetDomain(INDEBUG(BOOL fMidContextTransitionOK = FALSE))
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
-        // if another thread is asking about our thread, we could be in the middle of an AD transition so
-        // the context and AD may not match if have set one but not the other. Can live without checking when
-        // another thread is asking it as this method is mostly called on our own thread so will mostly get the
-        // checking. If are int the middle of a transition, this could return either the old or the new AD.
-        // But no matter what we do, such as lock on the transition, by the time are done could still have
-        // changed right after we asked, so really no point.
-#ifdef _DEBUG_IMPL
-        BEGIN_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;
-        if (!g_fEEShutDown && this == GetThread())
-        {
-            if (!fMidContextTransitionOK)
-            {
-                // We also want to suppress the "domain on context == domain on thread" check if this might
-                // be called during a context or AD transition (in which case fMidContextTransitionOK is nonzero).
-                // A profiler stackwalk can occur at arbitrary times, including during these transitions, but
-                // the stackwalk is still safe to do at this point, so we don't want to trigger this assert.
-                _ASSERTE((m_Context == NULL && m_pDomain == NULL) || m_Context->GetDomain() == m_pDomain);
-            }
-            AppDomain* valueInTLSSlot = GetAppDomain();
-            _ASSERTE(valueInTLSSlot == 0 || valueInTLSSlot == m_pDomain);
-        }
-        END_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;
-#endif
-
         return m_pDomain;
     }
 
     Frame *IsRunningIn(AppDomain* pDomain, int *count);
     Frame *GetFirstTransitionInto(AppDomain *pDomain, int *count);
-
-    // Get outermost (oldest) AppDomain for this thread.
-    AppDomain *GetInitialDomain();
 
     //---------------------------------------------------------------
     // Track use of the thread block.  See the general comments on
@@ -2720,24 +2678,6 @@ public:
         SUPPORTS_DAC;
         LIMITED_METHOD_CONTRACT;
         return m_OSThreadId;
-    }
-
-    TASKID      GetTaskId()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_TaskId;
-    }
-    CONNID      GetConnectionId()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwConnectionId;
-    }
-
-
-    void SetConnectionId(CONNID dwConnectionId)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_dwConnectionId = dwConnectionId;
     }
 
     BOOL        IsThreadPoolThread()
@@ -4012,11 +3952,6 @@ private:
     UINT_PTR             m_LastAllowableStackAddress;
 
 private:
-
-    // Save the domain when a task is switched out, and restore it when
-    // the task is switched in.
-    PTR_AppDomain m_pDomainAtTaskSwitch;
-
     //---------------------------------------------------------------
     // m_debuggerFilterContext holds the thread's "filter context" for the
     // debugger.  This filter context is used by the debugger to seed
@@ -4253,7 +4188,7 @@ public:
     bool GetDebugCantStop(void);
     
     static LPVOID GetStaticFieldAddress(FieldDesc *pFD);
-    TADDR GetStaticFieldAddrNoCreate(FieldDesc *pFD, PTR_AppDomain pDomain);
+    TADDR GetStaticFieldAddrNoCreate(FieldDesc *pFD);
  
     void SetLoadingFile(DomainFile *pFile)
     {
@@ -4461,20 +4396,11 @@ public:
 
     void EnsurePreallocatedContext();
     
-    // m_pThreadLocalBLock points to the ThreadLocalBlock that corresponds to the 
-    // AppDomain that the Thread is currently in
-    
-    PTR_ThreadLocalBlock m_pThreadLocalBlock;
+    ThreadLocalBlock m_ThreadLocalBlock;
 
     // Called during AssemblyLoadContext teardown to clean up all structures
     // associated with thread statics for the specific Module
     void DeleteThreadStaticData(ModuleIndex index);
-
-protected:
-    
-    // Called during AD teardown to clean up any references this 
-    // thread may have to the AppDomain
-    void DeleteThreadStaticData(AppDomain *pDomain);
 
 private:
 
@@ -4508,69 +4434,13 @@ public:
     size_t *m_pCleanedStackBase;
 #endif
 
-private:
-    PVOID      m_pFiberData;
-
-    TASKID     m_TaskId;
-    CONNID     m_dwConnectionId;
-
-public:
-    void SetupFiberData();
-
-#ifdef _DEBUG
-public:
-    void AddFiberInfo(DWORD type);
-    enum {
-        ThreadTrackInfo_Lifetime=0x1,   // creation, destruction, ref-count
-        ThreadTrackInfo_Schedule=0x2,   // switch in/out
-        ThreadTrackInfo_UM_M=0x4,       // Unmanaged <-> managed transtion
-        ThreadTrackInfo_Abort=0x8,      // Thread abort
-        ThreadTrackInfo_Affinity=0x10,  // Thread's affinity
-        ThreadTrackInfo_GCMode=0x20,
-        ThreadTrackInfo_Escalation=0x40,// escalation point
-        ThreadTrackInfo_SO=0x80,
-        ThreadTrackInfo_Max=8
-    };
-private:
-    static int MaxThreadRecord;
-    static int MaxStackDepth;
-    static const int MaxThreadTrackInfo;
-    struct FiberSwitchInfo
-    {
-        unsigned __int64 timeStamp;
-        DWORD threadID;
-        size_t callStack[1];
-    };
-    FiberSwitchInfo *m_pFiberInfo[ThreadTrackInfo_Max];
-    DWORD m_FiberInfoIndex[ThreadTrackInfo_Max];
-#endif
-
 #ifdef DACCESS_COMPILE
 public:
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
     void EnumMemoryRegionsWorker(CLRDataEnumMemoryFlags flags);
 #endif
 
-private:
-    // Head of a linked list of opaque records that record if and how the thread is currently preparing a
-    // graph of methods for CER usage. This is used to determine if a re-entrant preparation request should
-    // complete immediately as a no-op (because it would lead to an infinite recursion) or should proceed
-    // recursively.
-    MethodCallGraphPreparer * m_pCerPreparationState;
-
 public:
-    MethodCallGraphPreparer * GetCerPreparationState()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pCerPreparationState;
-    }
-
-    void SetCerPreparationState(MethodCallGraphPreparer * pCerPreparationState)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pCerPreparationState = pCerPreparationState;
-    }
-
     // Is the current thread currently executing within a constrained execution region?
     static BOOL IsExecutingWithinCer();
 
@@ -6886,12 +6756,6 @@ private:
         (_ctx_trans_pCurrDomain==NULL ||                                                        \
             (_ctx_trans_pCurrDomain->GetId() != _ctx_trans_pDestDomainId)))                     \
     {                                                                                           \
-        AppDomain* _ctx_trans_ad = SystemDomain::GetAppDomainFromId(_ctx_trans_pDestDomainId, ADV_CURRENTAD); \
-                                                                                                \
-        _ctx_trans_ad->EnterContext(_ctx_trans_pThread,                                         \
-            _ctx_trans_ad->GetDefaultContext(),                                                 \
-            _ctx_trans_pFrame);                                                                 \
-                                                                                                \
         _ctx_trans_fTransitioned = true;                                                        \
     }
 
@@ -6904,10 +6768,6 @@ private:
     {                                                                                           \
         TESTHOOKCALL(AppDomainCanBeUnloaded(_ctx_trans_pDestDomain->GetId().m_dwId,FALSE));        \
         GCX_FORBID();                                                                           \
-                                                                                                \
-        _ctx_trans_pThread->EnterContextRestricted(                                             \
-            _ctx_trans_pDestDomain->GetDefaultContext(),                                                                 \
-            _ctx_trans_pFrame);                                                                 \
                                                                                                 \
         _ctx_trans_fTransitioned = true;                                                        \
     }
@@ -6969,11 +6829,6 @@ private:
     LOG((LF_APPDOMAIN, LL_INFO1000, "LEAVE_DOMAIN(%s, %s, %d)\n",                                      \
             __FUNCTION__, __FILE__, __LINE__));                                                 \
                                                                                                 \
-    if (_ctx_trans_fTransitioned)                                                               \
-    {                                                                                           \
-        GCX_FORBID();                                                                           \
-        _ctx_trans_pThread->ReturnToContext(_ctx_trans_pFrame);                                 \
-    }                                                                                           \
     TESTHOOKCALL(LeftAppDomain(_ctx_trans_pDestDomainId.m_dwId));                                           \
     DEBUG_ASSURE_NO_RETURN_END(DOMAIN)                                                          \
 }
@@ -7037,15 +6892,13 @@ void CheckADValidity(AppDomain* pDomain, DWORD ADValidityKind);
     CheckADValidity(_pDestDomain,ADValidityKind);      \
     ENTER_DOMAIN_SETUPVARS(GetThread(), true) \
     ENTER_DOMAIN_SWITCH_CTX_BY_ADPTR(_ctx_trans_pThread->GetDomain(), _pDestDomain) \
-    TESTHOOKCALL(EnteredAppDomain((_pDestDomain)->GetId().m_dwId)); \
-    ReturnToPreviousAppDomainHolder __returnToPreviousAppDomainHolder;
+    TESTHOOKCALL(EnteredAppDomain((_pDestDomain)->GetId().m_dwId));
 
 #define ENTER_DOMAIN_ID_NO_EH_AT_TRANSITION_PREDICATED(_pDestDomain,_predicate_expr) \
     TESTHOOKCALL(EnteringAppDomain(_pDestDomain.m_dwId))    ;    \
     ENTER_DOMAIN_SETUPVARS(GetThread(), _predicate_expr) \
     ENTER_DOMAIN_SWITCH_CTX_BY_ADID(_ctx_trans_pThread->GetDomain(), _pDestDomain, FALSE) \
-    TESTHOOKCALL(EnteredAppDomain(_pDestDomain.m_dwId)); \
-    ReturnToPreviousAppDomainHolder __returnToPreviousAppDomainHolder;
+    TESTHOOKCALL(EnteredAppDomain(_pDestDomain.m_dwId));
 
 #define ENTER_DOMAIN_ID_NO_EH_AT_TRANSITION(_pDestDomain) \
     ENTER_DOMAIN_ID_NO_EH_AT_TRANSITION_PREDICATED(_pDestDomain,true)
@@ -7055,11 +6908,6 @@ void CheckADValidity(AppDomain* pDomain, DWORD ADValidityKind);
         LOG((LF_APPDOMAIN, LL_INFO1000, "LEAVE_DOMAIN(%s, %s, %d)\n",               \
                 __FUNCTION__, __FILE__, __LINE__));                                 \
                                                                                     \
-        if (_ctx_trans_fTransitioned)                                               \
-        {                                                                           \
-            GCX_FORBID();                                                           \
-            _ctx_trans_pThread->ReturnToContext(_ctx_trans_pFrame);                 \
-        }                                                                           \
         __returnToPreviousAppDomainHolder.SuppressRelease();                        \
         TESTHOOKCALL(LeftAppDomain(_ctx_trans_pDestDomainId.m_dwId));               \
         DEBUG_ASSURE_NO_RETURN_END(DOMAIN)                                          \
@@ -7179,12 +7027,12 @@ struct ManagedThreadBase
 {
     // The 'new Thread(...).Start()' case from COMSynchronizable kickoff thread worker
     static void KickOff(ADID pAppDomain,
-                        Context::ADCallBackFcnType pTarget,
+                        ADCallBackFcnType pTarget,
                         LPVOID args);
 
     // The IOCompletion, QueueUserWorkItem, AddTimer, RegisterWaitForSingleObject cases in
     // the ThreadPool
-    static void ThreadPool(ADID pAppDomain, Context::ADCallBackFcnType pTarget, LPVOID args);
+    static void ThreadPool(ADID pAppDomain, ADCallBackFcnType pTarget, LPVOID args);
 
     // The Finalizer thread separates the tasks of establishing exception handling at its
     // base and transitioning into AppDomains.  The turnaround structure that ties the 2 calls together
@@ -7194,9 +7042,9 @@ struct ManagedThreadBase
     // For the case (like Finalization) where the base transition and the AppDomain transition are
     // separated, an opaque structure is used to tie together the two calls.
 
-    static void FinalizerBase(Context::ADCallBackFcnType pTarget);
+    static void FinalizerBase(ADCallBackFcnType pTarget);
     static void FinalizerAppDomain(AppDomain* pAppDomain,
-                                   Context::ADCallBackFcnType pTarget,
+                                   ADCallBackFcnType pTarget,
                                    LPVOID args,
                                    ManagedThreadCallState *pTurnAround);
 };
@@ -7245,18 +7093,6 @@ public:
     typedef StateHolder<DoNothing,DeadlockAwareLock::ReleaseBlockingLock> BlockingLockHolder;
 };
 
-inline Context* GetCurrentContext()
-{
-    CONTRACTL {
-        SO_TOLERANT;
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return GetThread()->GetContext();
-}
-
 inline void SetTypeHandleOnThreadForAlloc(TypeHandle th)
 {
     // We are doing this unconditionally even though th is only used by ETW events in GC. When the ETW
@@ -7277,7 +7113,7 @@ class Compiler;
 struct ThreadLocalInfo
 {
     Thread* m_pThread;
-    AppDomain* m_pAppDomain;
+    AppDomain* m_pAppDomain; // This field is read only by the SOS plugin to get the AppDomain
     void** m_EETlsData; // ClrTlsInfo::data
 };
 

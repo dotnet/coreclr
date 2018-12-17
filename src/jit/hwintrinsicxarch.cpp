@@ -39,14 +39,15 @@ const HWIntrinsicInfo& HWIntrinsicInfo::lookup(NamedIntrinsic id)
 // Arguments:
 //    className  -- The name of the class associated with the HWIntrinsic to lookup
 //    methodName -- The name of the method associated with the HWIntrinsic to lookup
+//    enclosingClassName -- The name of the enclosing class of X64 classes
 //
 // Return Value:
 //    The NamedIntrinsic associated with methodName and isa
-NamedIntrinsic HWIntrinsicInfo::lookupId(const char* className, const char* methodName)
+NamedIntrinsic HWIntrinsicInfo::lookupId(const char* className, const char* methodName, const char* enclosingClassName)
 {
     // TODO-Throughput: replace sequential search by binary search
 
-    InstructionSet isa = lookupIsa(className);
+    InstructionSet isa = lookupIsa(className, enclosingClassName);
     assert(isa != InstructionSet_ILLEGAL);
 
     assert(methodName != nullptr);
@@ -70,17 +71,50 @@ NamedIntrinsic HWIntrinsicInfo::lookupId(const char* className, const char* meth
 }
 
 //------------------------------------------------------------------------
-// lookupIsa: Gets the InstructionSet for a given class name
+// X64VersionOfIsa: Gets the corresponding 64-bit only InstructionSet for a given InstructionSet
+//
+// Arguments:
+//    isa -- The InstructionSet ID
+//
+// Return Value:
+//    The 64-bit only InstructionSet associated with isa
+static InstructionSet X64VersionOfIsa(InstructionSet isa)
+{
+    switch (isa)
+    {
+        case InstructionSet_SSE:
+            return InstructionSet_SSE_X64;
+        case InstructionSet_SSE2:
+            return InstructionSet_SSE2_X64;
+        case InstructionSet_SSE41:
+            return InstructionSet_SSE41_X64;
+        case InstructionSet_SSE42:
+            return InstructionSet_SSE42_X64;
+        case InstructionSet_BMI1:
+            return InstructionSet_BMI1_X64;
+        case InstructionSet_BMI2:
+            return InstructionSet_BMI2_X64;
+        case InstructionSet_LZCNT:
+            return InstructionSet_LZCNT_X64;
+        case InstructionSet_POPCNT:
+            return InstructionSet_POPCNT_X64;
+        default:
+            unreached();
+            return InstructionSet_ILLEGAL;
+    }
+}
+
+//------------------------------------------------------------------------
+// lookupInstructionSet: Gets the InstructionSet for a given class name
 //
 // Arguments:
 //    className -- The name of the class associated with the InstructionSet to lookup
 //
 // Return Value:
 //    The InstructionSet associated with className
-InstructionSet HWIntrinsicInfo::lookupIsa(const char* className)
+static InstructionSet lookupInstructionSet(const char* className)
 {
     assert(className != nullptr);
-
     if (className[0] == 'A')
     {
         if (strcmp(className, "Aes") == 0)
@@ -156,6 +190,30 @@ InstructionSet HWIntrinsicInfo::lookupIsa(const char* className)
 
     unreached();
     return InstructionSet_ILLEGAL;
+}
+
+//------------------------------------------------------------------------
+// lookupIsa: Gets the InstructionSet for a given class name and enclsoing class name
+//
+// Arguments:
+//    className -- The name of the class associated with the InstructionSet to lookup
+//    enclosingClassName -- The name of the enclosing class of X64 classes
+//
+// Return Value:
+//    The InstructionSet associated with className and enclosingClassName
+InstructionSet HWIntrinsicInfo::lookupIsa(const char* className, const char* enclosingClassName)
+{
+    assert(className != nullptr);
+
+    if (strcmp(className, "X64") == 0)
+    {
+        assert(enclosingClassName != nullptr);
+        return X64VersionOfIsa(lookupInstructionSet(enclosingClassName));
+    }
+    else
+    {
+        return lookupInstructionSet(className);
+    }
 }
 
 //------------------------------------------------------------------------
@@ -442,27 +500,30 @@ bool HWIntrinsicInfo::isFullyImplementedIsa(InstructionSet isa)
 {
     switch (isa)
     {
-        // These ISAs are partially implemented
-        case InstructionSet_BMI1:
-        case InstructionSet_BMI2:
-        case InstructionSet_SSE42:
-        {
-            return true;
-        }
-
         // These ISAs are fully implemented
         case InstructionSet_AES:
         case InstructionSet_AVX:
         case InstructionSet_AVX2:
+        case InstructionSet_BMI1:
+        case InstructionSet_BMI2:
+        case InstructionSet_BMI1_X64:
+        case InstructionSet_BMI2_X64:
         case InstructionSet_FMA:
         case InstructionSet_LZCNT:
+        case InstructionSet_LZCNT_X64:
         case InstructionSet_PCLMULQDQ:
         case InstructionSet_POPCNT:
+        case InstructionSet_POPCNT_X64:
         case InstructionSet_SSE:
+        case InstructionSet_SSE_X64:
         case InstructionSet_SSE2:
+        case InstructionSet_SSE2_X64:
         case InstructionSet_SSE3:
         case InstructionSet_SSSE3:
         case InstructionSet_SSE41:
+        case InstructionSet_SSE41_X64:
+        case InstructionSet_SSE42:
+        case InstructionSet_SSE42_X64:
         {
             return true;
         }
@@ -488,8 +549,12 @@ bool HWIntrinsicInfo::isScalarIsa(InstructionSet isa)
     {
         case InstructionSet_BMI1:
         case InstructionSet_BMI2:
+        case InstructionSet_BMI1_X64:
+        case InstructionSet_BMI2_X64:
         case InstructionSet_LZCNT:
+        case InstructionSet_LZCNT_X64:
         case InstructionSet_POPCNT:
+        case InstructionSet_POPCNT_X64:
         {
             return true;
         }
@@ -635,41 +700,6 @@ bool Compiler::compSupportsHWIntrinsic(InstructionSet isa)
 }
 
 //------------------------------------------------------------------------
-// hwIntrinsicSignatureTypeSupported: platform support of hardware intrinsics
-//
-// Arguments:
-//    retType - return type
-//    sig     - intrinsic signature
-//
-// Return Value:
-//    Returns true iff the given type signature is supported
-// Notes:
-//    - This is only used on 32-bit systems to determine whether the signature uses no 64-bit registers.
-//    - The `retType` is passed to avoid another call to the type system, as it has already been retrieved.
-bool Compiler::hwIntrinsicSignatureTypeSupported(var_types retType, CORINFO_SIG_INFO* sig, NamedIntrinsic intrinsic)
-{
-#ifdef _TARGET_X86_
-    CORINFO_CLASS_HANDLE argClass;
-
-    if (HWIntrinsicInfo::Is64BitOnly(intrinsic))
-    {
-        return false;
-    }
-    else if (HWIntrinsicInfo::SecondArgMaybe64Bit(intrinsic))
-    {
-        assert(sig->numArgs >= 2);
-        CorInfoType corType =
-            strip(info.compCompHnd->getArgType(sig, info.compCompHnd->getArgNext(sig->args), &argClass));
-        return !varTypeIsLong(JITtype2varType(corType));
-    }
-
-    return !varTypeIsLong(retType);
-#else
-    return true;
-#endif
-}
-
-//------------------------------------------------------------------------
 // impIsTableDrivenHWIntrinsic:
 //
 // Arguments:
@@ -718,10 +748,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     // This intrinsic is supported if
     // - the ISA is available on the underlying hardware (compSupports returns true)
     // - the compiler supports this hardware intrinsics (compSupportsHWIntrinsic returns true)
-    // - intrinsics do not require 64-bit registers (r64) on 32-bit platforms (signatureTypeSupproted returns
-    // true)
-    bool issupported =
-        compSupports(isa) && compSupportsHWIntrinsic(isa) && hwIntrinsicSignatureTypeSupported(retType, sig, intrinsic);
+    bool issupported = compSupports(isa) && compSupportsHWIntrinsic(isa);
 
     if (category == HW_Category_IsSupportedProperty)
     {
@@ -788,23 +815,11 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         }
     }
 
-    if ((HWIntrinsicInfo::IsOneTypeGeneric(intrinsic) || HWIntrinsicInfo::IsTwoTypeGeneric(intrinsic)) &&
-        !HWIntrinsicInfo::HasSpecialImport(intrinsic))
+    if (HWIntrinsicInfo::IsOneTypeGeneric(intrinsic) && !HWIntrinsicInfo::HasSpecialImport(intrinsic))
     {
         if (!varTypeIsArithmetic(baseType))
         {
             return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED, method, sig, mustExpand);
-        }
-
-        if (HWIntrinsicInfo::IsTwoTypeGeneric(intrinsic))
-        {
-            // StaticCast<T, U> has two type parameters.
-            assert(numArgs == 1);
-            var_types srcType = getBaseTypeOfSIMDType(info.compCompHnd->getArgClass(sig, sig->args));
-            if (!varTypeIsArithmetic(srcType))
-            {
-                return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED, method, sig, mustExpand);
-            }
         }
     }
 
@@ -916,6 +931,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         case InstructionSet_SSE2:
             return impSSE2Intrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_SSE42:
+        case InstructionSet_SSE42_X64:
             return impSSE42Intrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_AVX:
         case InstructionSet_AVX2:
@@ -924,16 +940,20 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         case InstructionSet_AES:
             return impAESIntrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_BMI1:
+        case InstructionSet_BMI1_X64:
             return impBMI1Intrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_BMI2:
+        case InstructionSet_BMI2_X64:
             return impBMI2Intrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_FMA:
             return impFMAIntrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_LZCNT:
+        case InstructionSet_LZCNT_X64:
             return impLZCNTIntrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_PCLMULQDQ:
             return impPCLMULQDQIntrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_POPCNT:
+        case InstructionSet_POPCNT_X64:
             return impPOPCNTIntrinsic(intrinsic, method, sig, mustExpand);
         default:
             return nullptr;
@@ -975,18 +995,6 @@ GenTree* Compiler::impSSEIntrinsic(NamedIntrinsic        intrinsic,
             assert(JITtype2varType(sig->retType) == TYP_VOID);
             op1     = impPopStack().val;
             retNode = gtNewSimdHWIntrinsicNode(TYP_VOID, op1, intrinsic, TYP_UBYTE, 0);
-            break;
-        }
-
-        case NI_SSE_StaticCast:
-        {
-            // We fold away the static cast here, as it only exists to satisfy
-            // the type system. It is safe to do this here since the retNode type
-            // and the signature return type are both TYP_SIMD16.
-            assert(sig->numArgs == 1);
-            retNode = impSIMDPopStack(TYP_SIMD16, false, sig->retTypeClass);
-            SetOpLclRelatedToSIMDIntrinsic(retNode);
-            assert(retNode->gtType == getSIMDTypeForSize(getSIMDTypeSizeInBytes(sig->retTypeSigClass)));
             break;
         }
 
@@ -1097,13 +1105,14 @@ GenTree* Compiler::impSSE42Intrinsic(NamedIntrinsic        intrinsic,
     switch (intrinsic)
     {
         case NI_SSE42_Crc32:
+        case NI_SSE42_X64_Crc32:
             assert(sig->numArgs == 2);
             op2     = impPopStack().val;
             op1     = impPopStack().val;
             argList = info.compCompHnd->getArgNext(argList);                        // the second argument
             corType = strip(info.compCompHnd->getArgType(sig, argList, &argClass)); // type of the second argument
 
-            retNode = gtNewScalarHWIntrinsicNode(callType, op1, op2, NI_SSE42_Crc32);
+            retNode = gtNewScalarHWIntrinsicNode(callType, op1, op2, intrinsic);
 
             // TODO - currently we use the BaseType to bring the type of the second argument
             // to the code generator. May encode the overload info in other way.
@@ -1115,26 +1124,6 @@ GenTree* Compiler::impSSE42Intrinsic(NamedIntrinsic        intrinsic,
             break;
     }
     return retNode;
-}
-
-//------------------------------------------------------------------------
-// normalizeAndGetHalfIndex: compute the half index of a Vector256<baseType>
-//                           and normalize the index to the specific range
-//
-// Arguments:
-//    indexPtr   -- OUT paramter, the pointer to the original index value
-//    baseType   -- the base type of the Vector256<T>
-//
-// Return Value:
-//    retuen the middle index of a Vector256<baseType>
-//    return the normalized index via indexPtr
-//
-static int normalizeAndGetHalfIndex(int* indexPtr, var_types baseType)
-{
-    assert(varTypeIsArithmetic(baseType));
-    // clear the unused bits to normalize the index into the range of [0, length of Vector256<baseType>)
-    *indexPtr = (*indexPtr) & (32 / genTypeSize(baseType) - 1);
-    return (16 / genTypeSize(baseType));
 }
 
 GenTree* Compiler::impAvxOrAvx2Intrinsic(NamedIntrinsic        intrinsic,
@@ -1150,174 +1139,6 @@ GenTree* Compiler::impAvxOrAvx2Intrinsic(NamedIntrinsic        intrinsic,
 
     switch (intrinsic)
     {
-        case NI_AVX_Extract:
-        {
-            // Avx.Extract executes software implementation when the imm8 argument is not compile-time constant
-            assert(!mustExpand);
-
-            GenTree* lastOp   = impPopStack().val;
-            GenTree* vectorOp = impSIMDPopStack(TYP_SIMD32);
-            assert(lastOp->IsCnsIntOrI());
-            int ival          = (int)lastOp->AsIntCon()->IconValue();
-            baseType          = getBaseTypeOfSIMDType(info.compCompHnd->getArgClass(sig, sig->args));
-            var_types retType = JITtype2varType(sig->retType);
-            assert(varTypeIsArithmetic(baseType));
-
-            int            midIndex         = normalizeAndGetHalfIndex(&ival, baseType);
-            NamedIntrinsic extractIntrinsic = varTypeIsShort(baseType) ? NI_SSE2_Extract : NI_SSE41_Extract;
-            GenTree*       half             = nullptr;
-
-            if (ival >= midIndex)
-            {
-                half = gtNewSimdHWIntrinsicNode(TYP_SIMD16, vectorOp, gtNewIconNode(1), NI_AVX_ExtractVector128,
-                                                baseType, 32);
-                ival -= midIndex;
-            }
-            else
-            {
-                half = gtNewSimdHWIntrinsicNode(TYP_SIMD16, vectorOp, NI_AVX_GetLowerHalf, baseType, 32);
-            }
-
-            retNode = gtNewSimdHWIntrinsicNode(retType, half, gtNewIconNode(ival), extractIntrinsic, baseType, 16);
-            break;
-        }
-
-        case NI_AVX_Insert:
-        {
-            // Avx.Extract executes software implementation when the imm8 argument is not compile-time constant
-            assert(!mustExpand);
-
-            GenTree* lastOp   = impPopStack().val;
-            GenTree* dataOp   = impPopStack().val;
-            GenTree* vectorOp = impSIMDPopStack(TYP_SIMD32);
-            assert(lastOp->IsCnsIntOrI());
-            int ival = (int)lastOp->AsIntCon()->IconValue();
-            baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
-            assert(varTypeIsArithmetic(baseType));
-
-            int            midIndex        = normalizeAndGetHalfIndex(&ival, baseType);
-            NamedIntrinsic insertIntrinsic = varTypeIsShort(baseType) ? NI_SSE2_Insert : NI_SSE41_Insert;
-
-            GenTree* clonedVectorOp;
-            vectorOp =
-                impCloneExpr(vectorOp, &clonedVectorOp, info.compCompHnd->getArgClass(sig, sig->args),
-                             (unsigned)CHECK_SPILL_ALL, nullptr DEBUGARG("AVX Insert clones the vector operand"));
-
-            if (ival >= midIndex)
-            {
-                GenTree* halfVector = gtNewSimdHWIntrinsicNode(TYP_SIMD16, vectorOp, gtNewIconNode(1),
-                                                               NI_AVX_ExtractVector128, baseType, 32);
-                GenTree* ModifiedHalfVector =
-                    gtNewSimdHWIntrinsicNode(TYP_SIMD16, halfVector, dataOp, gtNewIconNode(ival - midIndex),
-                                             insertIntrinsic, baseType, 16);
-                retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD32, clonedVectorOp, ModifiedHalfVector, gtNewIconNode(1),
-                                                   NI_AVX_InsertVector128, baseType, 32);
-            }
-            else
-            {
-                GenTree* halfVector = gtNewSimdHWIntrinsicNode(TYP_SIMD16, vectorOp, NI_AVX_GetLowerHalf, baseType, 32);
-                GenTree* ModifiedHalfVector =
-                    gtNewSimdHWIntrinsicNode(TYP_SIMD32, halfVector, dataOp, gtNewIconNode(ival), insertIntrinsic,
-                                             baseType, 16);
-                retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD32, clonedVectorOp, ModifiedHalfVector, gtNewIconNode(15),
-                                                   NI_AVX_Blend, TYP_FLOAT, 32);
-            }
-            break;
-        }
-
-        case NI_AVX_SetVector256:
-        {
-            // TODO-XARCH: support long/ulong on 32-bit platfroms (remove HW_Flag_SecondArgMaybe64Bit)
-            int numArgs = sig->numArgs;
-            assert(numArgs >= 4);
-            assert(numArgs <= 32);
-            baseType                  = getBaseTypeOfSIMDType(sig->retTypeSigClass);
-            GenTree* higherHalfVector = gtNewSimdHWIntrinsicNode(TYP_SIMD16, NI_SSE_SetZeroVector128, TYP_FLOAT, 16);
-            GenTree* lowerHalfVector  = gtNewSimdHWIntrinsicNode(TYP_SIMD16, NI_SSE_SetZeroVector128, TYP_FLOAT, 16);
-            NamedIntrinsic insertIntrinsic = varTypeIsShort(baseType) ? NI_SSE2_Insert : NI_SSE41_Insert;
-            int            ival            = 0;
-
-            if (baseType != TYP_DOUBLE)
-            {
-                assert(varTypeIsIntegral(baseType) || baseType == TYP_FLOAT);
-
-                for (int i = 0; i < numArgs / 2; i++)
-                {
-                    GenTree* arg = impPopStack().val;
-                    // SSE4.1 insertps has different semantics from integral insert
-                    ival            = baseType == TYP_FLOAT ? i * 16 : i;
-                    lowerHalfVector = gtNewSimdHWIntrinsicNode(TYP_SIMD16, lowerHalfVector, arg, gtNewIconNode(ival),
-                                                               insertIntrinsic, baseType, 16);
-                }
-
-                for (int i = 0; i < numArgs / 2; i++)
-                {
-                    GenTree* arg = impPopStack().val;
-                    // SSE4.1 insertps has different semantics from integral insert
-                    ival             = baseType == TYP_FLOAT ? i * 16 : i;
-                    higherHalfVector = gtNewSimdHWIntrinsicNode(TYP_SIMD16, higherHalfVector, arg, gtNewIconNode(ival),
-                                                                insertIntrinsic, baseType, 16);
-                }
-            }
-            else
-            {
-                GenTree* op4     = impPopStack().val;
-                GenTree* op3     = impPopStack().val;
-                GenTree* op2     = impPopStack().val;
-                GenTree* op1     = impPopStack().val;
-                lowerHalfVector  = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op4, op3, NI_SSE2_UnpackLow, TYP_DOUBLE, 16);
-                higherHalfVector = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op2, op1, NI_SSE2_UnpackLow, TYP_DOUBLE, 16);
-            }
-
-            retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD32, lowerHalfVector, higherHalfVector, gtNewIconNode(1),
-                                               NI_AVX_InsertVector128, baseType, 32);
-            break;
-        }
-
-        case NI_AVX_SetAllVector256:
-        {
-            baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
-            if (!varTypeIsArithmetic(baseType))
-            {
-                retNode = impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED, method, sig, mustExpand);
-            }
-#ifdef _TARGET_X86_
-            // TODO-XARCH: support long/ulong on 32-bit platfroms
-            else if (varTypeIsLong(baseType))
-            {
-                return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED, method, sig, mustExpand);
-            }
-#endif
-            else
-            {
-                GenTree* arg = impPopStack().val;
-                retNode      = gtNewSimdHWIntrinsicNode(TYP_SIMD32, arg, NI_AVX_SetAllVector256, baseType, 32);
-            }
-            break;
-        }
-
-        case NI_AVX_SetHighLow:
-        {
-            baseType              = getBaseTypeOfSIMDType(sig->retTypeSigClass);
-            GenTree* lowerVector  = impSIMDPopStack(TYP_SIMD16);
-            GenTree* higherVector = impSIMDPopStack(TYP_SIMD16);
-            retNode               = gtNewSimdHWIntrinsicNode(TYP_SIMD32, lowerVector, higherVector, gtNewIconNode(1),
-                                               NI_AVX_InsertVector128, baseType, 32);
-            break;
-        }
-
-        case NI_AVX_StaticCast:
-        {
-            // We fold away the static cast here, as it only exists to satisfy
-            // the type system. It is safe to do this here since the retNode type
-            // and the signature return type are both TYP_SIMD32.
-            assert(sig->numArgs == 1);
-            retNode = impSIMDPopStack(TYP_SIMD32, false, sig->retTypeClass);
-            SetOpLclRelatedToSIMDIntrinsic(retNode);
-            assert(retNode->gtType == getSIMDTypeForSize(getSIMDTypeSizeInBytes(sig->retTypeSigClass)));
-            break;
-        }
-
         case NI_AVX_ExtractVector128:
         case NI_AVX2_ExtractVector128:
         {
@@ -1427,6 +1248,7 @@ GenTree* Compiler::impBMI1Intrinsic(NamedIntrinsic        intrinsic,
     switch (intrinsic)
     {
         case NI_BMI1_AndNot:
+        case NI_BMI1_X64_AndNot:
         {
             assert(sig->numArgs == 2);
 
@@ -1440,6 +1262,10 @@ GenTree* Compiler::impBMI1Intrinsic(NamedIntrinsic        intrinsic,
         case NI_BMI1_GetMaskUpToLowestSetBit:
         case NI_BMI1_ResetLowestSetBit:
         case NI_BMI1_TrailingZeroCount:
+        case NI_BMI1_X64_ExtractLowestSetBit:
+        case NI_BMI1_X64_GetMaskUpToLowestSetBit:
+        case NI_BMI1_X64_ResetLowestSetBit:
+        case NI_BMI1_X64_TrailingZeroCount:
         {
             assert(sig->numArgs == 1);
             GenTree* op1 = impPopStack().val;
@@ -1465,6 +1291,8 @@ GenTree* Compiler::impBMI2Intrinsic(NamedIntrinsic        intrinsic,
     {
         case NI_BMI2_ParallelBitDeposit:
         case NI_BMI2_ParallelBitExtract:
+        case NI_BMI2_X64_ParallelBitDeposit:
+        case NI_BMI2_X64_ParallelBitExtract:
         {
             assert(sig->numArgs == 2);
 
@@ -1497,7 +1325,7 @@ GenTree* Compiler::impLZCNTIntrinsic(NamedIntrinsic        intrinsic,
 {
     assert(sig->numArgs == 1);
     var_types callType = JITtype2varType(sig->retType);
-    return gtNewScalarHWIntrinsicNode(callType, impPopStack().val, NI_LZCNT_LeadingZeroCount);
+    return gtNewScalarHWIntrinsicNode(callType, impPopStack().val, intrinsic);
 }
 
 GenTree* Compiler::impPCLMULQDQIntrinsic(NamedIntrinsic        intrinsic,
@@ -1515,7 +1343,7 @@ GenTree* Compiler::impPOPCNTIntrinsic(NamedIntrinsic        intrinsic,
 {
     assert(sig->numArgs == 1);
     var_types callType = JITtype2varType(sig->retType);
-    return gtNewScalarHWIntrinsicNode(callType, impPopStack().val, NI_POPCNT_PopCount);
+    return gtNewScalarHWIntrinsicNode(callType, impPopStack().val, intrinsic);
 }
 
 #endif // FEATURE_HW_INTRINSICS

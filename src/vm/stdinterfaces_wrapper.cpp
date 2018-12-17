@@ -43,7 +43,6 @@
 
 
 interface IEnumConnectionPoints;
-interface IManagedObject;
 
 // IUnknown is part of IDispatch
 // Common vtables for well-known COM interfaces
@@ -128,19 +127,6 @@ const StdInterfaceDesc<8> g_IErrorInfo =
     }
 };
 
-// global IManagedObject vtable
-const StdInterfaceDesc<5> g_IManagedObject =
-{
-    enum_IManagedObject,
-    {
-        (UINT_PTR*)Unknown_QueryInterface,
-        (UINT_PTR*)Unknown_AddRefSpecial,
-        (UINT_PTR*)Unknown_ReleaseSpecial,                                
-        (UINT_PTR*)ManagedObject_GetSerializedBuffer_Wrapper,                                    
-        (UINT_PTR*)ManagedObject_GetObjectIdentity_Wrapper
-    }
-};
-            
 // global IConnectionPointContainer vtable
 const StdInterfaceDesc<5> g_IConnectionPointContainer =
 {
@@ -284,7 +270,7 @@ inline BOOL IsCurrentDomainValid(ComCallWrapper* pWrap, Thread* pThread)
     if ((g_fEEShutDown & ShutDown_Finalize2) || g_fForbidEnterEE)
         return FALSE;
 
-    return (!pWrap->NeedToSwitchDomains(pThread));        
+    return TRUE;
 }
 
 BOOL IsCurrentDomainValid(ComCallWrapper* pWrap)
@@ -296,7 +282,7 @@ BOOL IsCurrentDomainValid(ComCallWrapper* pWrap)
 
 struct AppDomainSwitchToPreemptiveHelperArgs
 {
-    Context::ADCallBackFcnType pRealCallback;
+    ADCallBackFcnType pRealCallback;
     void* pRealArgs;
 };
 
@@ -319,7 +305,7 @@ VOID __stdcall AppDomainSwitchToPreemptiveHelper(LPVOID pv)
     pArgs->pRealCallback(pArgs->pRealArgs);
 }
 
-VOID AppDomainDoCallBack(ComCallWrapper* pWrap, Context::ADCallBackFcnType pTarget, LPVOID pArgs, HRESULT* phr)
+VOID AppDomainDoCallBack(ComCallWrapper* pWrap, ADCallBackFcnType pTarget, LPVOID pArgs, HRESULT* phr)
 { 
     CONTRACTL
     {
@@ -344,25 +330,9 @@ VOID AppDomainDoCallBack(ComCallWrapper* pWrap, Context::ADCallBackFcnType pTarg
 
     BEGIN_EXTERNAL_ENTRYPOINT(phr)
     {
-        GCX_COOP_THREAD_EXISTS(GET_THREAD());
-        Thread *pThread = GET_THREAD();
-
-        ADID targetADID;
-        Context *pTargetContext;
-        if (pWrap->NeedToSwitchDomains(pThread, &targetADID, &pTargetContext))
-        {
-            // call ourselves again through DoCallBack with a domain transition.
-            // We need to switch back to preemptive GC mode before we call the 
-            // real target method.
-            AppDomainSwitchToPreemptiveHelperArgs args = {(Context::ADCallBackFcnType)pTarget, pArgs};
-            pThread->DoContextCallBack(targetADID, pTargetContext, AppDomainSwitchToPreemptiveHelper, &args);
-        }
-        else
-        {
-            // make the call directly not forgetting to switch to preemptive GC mode
-            GCX_PREEMP();
-            ((Context::ADCallBackFcnType)pTarget)(pArgs);
-        }
+        // make the call directly not forgetting to switch to preemptive GC mode
+        GCX_PREEMP();
+        ((ADCallBackFcnType)pTarget)(pArgs);
     }
     END_EXTERNAL_ENTRYPOINT;
 }
@@ -2630,118 +2600,6 @@ HRESULT __stdcall Marshal_DisconnectObject_Wrapper(IMarshal* pMarsh, ULONG dwRes
     Marshal_DisconnectObject_CallBack(&args);       
     return hr;
 }
-
-
-// ---------------------------------------------------------------------------
-//  Interface IManagedObject
-
-struct GetObjectIdentityArgs
-{
-    IManagedObject *pUnk; 
-    BSTR* pBSTRGUID; 
-    DWORD* pAppDomainID;
-    void** pCCW;
-    HRESULT* hr;
-};
-
-VOID __stdcall ManagedObject_GetObjectIdentity_CallBack(LPVOID ptr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        PRECONDITION(CheckPointer(ptr));
-    }
-    CONTRACTL_END;
-
-    GetObjectIdentityArgs* pArgs = (GetObjectIdentityArgs*)ptr;
-    ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
-    if (IsCurrentDomainValid(pWrap))
-    {
-        *(pArgs->hr) = ManagedObject_GetObjectIdentity(pArgs->pUnk, pArgs->pBSTRGUID, pArgs->pAppDomainID,
-                                                       pArgs->pCCW);
-    }
-    else
-    {       
-        AppDomainDoCallBack(pWrap, ManagedObject_GetObjectIdentity_CallBack, pArgs, pArgs->hr);
-    }
-}
-
-HRESULT __stdcall ManagedObject_GetObjectIdentity_Wrapper(IManagedObject *pUnk, BSTR* pBSTRGUID, DWORD* pAppDomainID, void** pCCW) 
-{
-    SetupForComCallHR();
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(pUnk));
-        PRECONDITION(CheckPointer(pBSTRGUID, NULL_OK));
-        PRECONDITION(CheckPointer(pAppDomainID, NULL_OK));
-        PRECONDITION(CheckPointer(pCCW, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    GetObjectIdentityArgs args = {pUnk, pBSTRGUID, pAppDomainID, pCCW, &hr};
-    ManagedObject_GetObjectIdentity_CallBack(&args);        
-    return hr;
-}
-
-struct GetSerializedBufferArgs
-{
-    IManagedObject *pUnk; 
-    BSTR* pBStr;    
-    HRESULT* hr;
-};
-
-VOID __stdcall ManagedObject_GetSerializedBuffer_CallBack(LPVOID ptr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        PRECONDITION(CheckPointer(ptr));
-    }
-    CONTRACTL_END;
-
-    GetSerializedBufferArgs* pArgs = (GetSerializedBufferArgs*)ptr;
-    ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
-    if (IsCurrentDomainValid(pWrap))
-    {
-        *(pArgs->hr) = ManagedObject_GetSerializedBuffer(pArgs->pUnk, pArgs->pBStr);
-    }
-    else
-    {       
-        AppDomainDoCallBack(pWrap, ManagedObject_GetSerializedBuffer_CallBack, pArgs, pArgs->hr);
-    }
-}
-
-HRESULT __stdcall ManagedObject_GetSerializedBuffer_Wrapper(IManagedObject *pUnk, BSTR* pBStr)
-{
-    SetupForComCallHR();
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(pUnk));
-        PRECONDITION(CheckPointer(pBStr, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    GetSerializedBufferArgs args = {pUnk, pBStr, &hr};
-    ManagedObject_GetSerializedBuffer_CallBack(&args);
-    return hr;
-}
-
 
 // ---------------------------------------------------------------------------
 //  Interface IConnectionPointContainer

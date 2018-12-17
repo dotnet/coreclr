@@ -115,38 +115,32 @@ namespace System
 
 #if FEATURE_WIN32_REGISTRY
         // This is only used by RegistryKey on Windows.
-        public static string ExpandEnvironmentVariables(string name)
+        internal static string ExpandEnvironmentVariables(string name)
         {
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
+            Debug.Assert(name != null);
 
             if (name.Length == 0)
             {
                 return name;
             }
 
-            int currentSize = 100;
-            StringBuilder blob = new StringBuilder(currentSize); // A somewhat reasonable default size
+            Span<char> initialBuffer = stackalloc char[128];
+            var builder = new ValueStringBuilder(initialBuffer);
 
-            int size;
-
-            blob.Length = 0;
-            size = Win32Native.ExpandEnvironmentStrings(name, blob, currentSize);
-            if (size == 0)
-                Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
-
-            while (size > currentSize)
+            uint length;
+            while ((length = Win32Native.ExpandEnvironmentStringsW(name, ref builder.GetPinnableReference(), (uint)builder.Capacity)) > builder.Capacity)
             {
-                currentSize = size;
-                blob.Capacity = currentSize;
-                blob.Length = 0;
-
-                size = Win32Native.ExpandEnvironmentStrings(name, blob, currentSize);
-                if (size == 0)
-                    Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
+                builder.EnsureCapacity((int)length);
             }
 
-            return blob.ToString();
+            if (length == 0)
+            {
+                Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
+            }
+
+            // length includes the null terminator
+            builder.Length = (int)length - 1;
+            return builder.ToString();
         }
 #endif // FEATURE_WIN32_REGISTRY
 
@@ -482,7 +476,7 @@ namespace System
                 return GetEnvironmentVariableCore(variable);
 
 #if FEATURE_WIN32_REGISTRY
-            if (AppDomain.IsAppXModel())
+            if (ApplicationModel.IsUap)
 #endif
             {
                 return null;
@@ -570,7 +564,7 @@ namespace System
         internal static IEnumerable<KeyValuePair<string, string>> EnumerateEnvironmentVariablesFromRegistry(EnvironmentVariableTarget target)
         {
 #if FEATURE_WIN32_REGISTRY
-            if (AppDomain.IsAppXModel())
+            if (ApplicationModel.IsUap)
 #endif
             {
                 // Without registry support we have nothing to return
@@ -646,7 +640,7 @@ namespace System
             }
 
 #if FEATURE_WIN32_REGISTRY
-            if (AppDomain.IsAppXModel())
+            if (ApplicationModel.IsUap)
 #endif
             {
                 // other targets ignored

@@ -39,7 +39,7 @@ typedef const WCHAR *LPCWSTR, *PCWSTR;
 typedef int HRESULT;
 #define LONGLONG long long
 #define ULONGLONG unsigned LONGLONG
-typedef unsigned long ULONG, *PULONG;
+typedef unsigned int ULONG, *PULONG;
 #define S_OK                    0x0
 #define SUCCEEDED(_hr)          ((HRESULT)(_hr) >= 0)
 #define FAILED(_hr)             ((HRESULT)(_hr) < 0)
@@ -58,6 +58,8 @@ typedef unsigned long ULONG, *PULONG;
 #endif // RC_INVOKED
 #define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
 #define UInt32x32To64(a, b) ((unsigned __int64)((ULONG)(a)) * (unsigned __int64)((ULONG)(b)))
+
+#define ARRAYSIZE(x) (sizeof(x)/sizeof(*x))
 
 #ifndef TRUE
 #define TRUE 1
@@ -112,7 +114,7 @@ typedef const TCHAR* LPCTSTR;
 typedef void* FARPROC;
 typedef void* HMODULE;
 typedef void* ULONG_PTR;
-typedef unsigned error_t;
+typedef int error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
@@ -132,6 +134,7 @@ error_t TP_getenv_s(size_t* pReturnValue, LPWSTR buffer, size_t sizeInWords, LPC
 error_t TP_putenv_s(LPTSTR name, LPTSTR value);
 void TP_ZeroMemory(LPVOID buffer, size_t sizeInBytes);
 error_t TP_itow_s(int num, LPWSTR buffer, size_t sizeInCharacters, int radix);
+error_t TP_itoa_s(int num, LPSTR buffer, size_t sizeInCharacters, int radix);
 LPWSTR TP_sstr(LPWSTR str, LPWSTR searchStr);
 LPSTR  HackyConvertToSTR(LPWSTR pwszInput);
 DWORD TP_CreateThread(THREAD_ID* tThread, LPTHREAD_START_ROUTINE worker,  LPVOID lpParameter);
@@ -140,11 +143,12 @@ void TP_DebugBreak();
 DWORD TP_GetFullPathName(LPWSTR fileName, DWORD nBufferLength, LPWSTR lpBuffer);
 
 typedef WCHAR* BSTR;
-BSTR TP_SysAllocStringByteLen(LPSTR psz, size_t len);
+BSTR TP_SysAllocStringByteLen(LPCSTR psz, size_t len);
 void TP_SysFreeString(BSTR bstr);
 size_t TP_SysStringByteLen(BSTR bstr);
-BSTR TP_SysAllocStringLen(LPWSTR psz, size_t len);
-BSTR TP_SysAllocString(LPWSTR psz);
+BSTR TP_SysAllocStringLen(LPCWSTR psz, size_t len);
+BSTR TP_SysAllocString(LPCWSTR psz);
+DWORD TP_SysStringLen(BSTR bstr);
 
 //
 // Method redirects
@@ -184,6 +188,7 @@ BSTR TP_SysAllocString(LPWSTR psz);
 #define _putenv_s TP_putenv_s
 #define ZeroMemory TP_ZeroMemory
 #define _itow_s TP_itow_s
+#define _itoa_s TP_itoa_s
 #define wcsstr TP_sstr
 #define strcmp TP_scmp_s
 #define wcscmp TP_wcmp_s

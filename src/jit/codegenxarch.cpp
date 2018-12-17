@@ -420,7 +420,13 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
     {
         if (genDataIndirAddrCanBeEncodedAsPCRelOffset(imm))
         {
-            getEmitter()->emitIns_R_AI(INS_lea, EA_PTR_DSP_RELOC, reg, imm);
+            emitAttr newSize = EA_PTR_DSP_RELOC;
+            if (EA_IS_BYREF(size))
+            {
+                newSize = EA_SET_FLG(newSize, EA_BYREF_FLG);
+            }
+
+            getEmitter()->emitIns_R_AI(INS_lea, newSize, reg, imm);
         }
         else
         {
@@ -449,7 +455,14 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
 
             if (con->ImmedValNeedsReloc(compiler))
             {
-                instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, targetReg, cnsVal);
+                emitAttr size = EA_HANDLE_CNS_RELOC;
+
+                if (targetType == TYP_BYREF)
+                {
+                    size = EA_SET_FLG(size, EA_BYREF_FLG);
+                }
+
+                instGen_Set_Reg_To_Imm(size, targetReg, cnsVal);
                 regSet.verifyRegUsed(targetReg);
             }
             else
@@ -515,6 +528,46 @@ void CodeGen::genCodeForNegNot(GenTree* tree)
 
         instruction ins = genGetInsForOper(tree->OperGet(), targetType);
         inst_RV(ins, targetReg, targetType);
+    }
+
+    genProduceReg(tree);
+}
+
+//------------------------------------------------------------------------
+// genCodeForBswap: Produce code for a GT_BSWAP / GT_BSWAP16 node.
+//
+// Arguments:
+//    tree - the node
+//
+void CodeGen::genCodeForBswap(GenTree* tree)
+{
+    // TODO: If we're swapping immediately after a read from memory or immediately before
+    // a write to memory, use the MOVBE instruction instead of the BSWAP instruction if
+    // the platform supports it.
+
+    assert(tree->OperIs(GT_BSWAP, GT_BSWAP16));
+
+    regNumber targetReg  = tree->gtRegNum;
+    var_types targetType = tree->TypeGet();
+
+    GenTree* operand = tree->gtGetOp1();
+    assert(operand->isUsedFromReg());
+    regNumber operandReg = genConsumeReg(operand);
+
+    if (operandReg != targetReg)
+    {
+        inst_RV_RV(INS_mov, targetReg, operandReg, targetType);
+    }
+
+    if (tree->OperIs(GT_BSWAP))
+    {
+        // 32-bit and 64-bit byte swaps use "bswap reg"
+        inst_RV(INS_bswap, targetReg, targetType);
+    }
+    else
+    {
+        // 16-bit byte swaps use "ror reg.16, 8"
+        inst_RV_IV(INS_ror_N, targetReg, 8 /* val */, emitAttr::EA_2BYTE);
     }
 
     genProduceReg(tree);
@@ -1562,6 +1615,11 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             genCodeForNegNot(treeNode);
             break;
 
+        case GT_BSWAP:
+        case GT_BSWAP16:
+            genCodeForBswap(treeNode);
+            break;
+
         case GT_DIV:
             if (varTypeIsFloating(treeNode->TypeGet()))
             {
@@ -2113,10 +2171,191 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
         offset += genTypeSize(type);
     }
 
-    varDsc->lvRegNum            = REG_STK;
+    varDsc->lvRegNum = REG_STK;
 #else  // !UNIX_AMD64_ABI && !_TARGET_X86_
     assert(!"Unreached");
 #endif // !UNIX_AMD64_ABI && !_TARGET_X86_
+}
+
+//------------------------------------------------------------------------
+// genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
+//
+void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
+{
+    assert(compiler->compGeneratingProlog);
+
+    if (frameSize == 0)
+    {
+        return;
+    }
+
+    const target_size_t pageSize = compiler->eeGetPageSize();
+
+    if (frameSize == REGSIZE_BYTES)
+    {
+        // Frame size is the same as register size.
+        inst_RV(INS_push, REG_EAX, TYP_I_IMPL);
+    }
+    else if (frameSize < pageSize)
+    {
+        // Frame size is (0x0008..0x1000)
+        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
+    }
+    else if (frameSize < compiler->getVeryLargeFrameSize())
+    {
+        // Frame size is (0x1000..0x3000)
+
+        getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, -(int)pageSize);
+
+        if (frameSize >= 0x2000)
+        {
+            getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, -2 * (int)pageSize);
+        }
+
+        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
+    }
+    else
+    {
+        // Frame size >= 0x3000
+        assert(frameSize >= compiler->getVeryLargeFrameSize());
+
+        // Emit the following sequence to 'tickle' the pages.
+        // Note it is important that stack pointer not change until this is
+        // complete since the tickles could cause a stack overflow, and we
+        // need to be able to crawl the stack afterward (which means the
+        // stack pointer needs to be known).
+
+        bool pushedStubParam = false;
+        if (compiler->info.compPublishStubParam && (REG_SECRET_STUB_PARAM == initReg))
+        {
+            // push register containing the StubParam
+            inst_RV(INS_push, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
+            pushedStubParam = true;
+        }
+
+#ifndef _TARGET_UNIX_
+        instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
+#endif
+
+        //
+        // Can't have a label inside the ReJIT padding area
+        //
+        genPrologPadForReJit();
+
+#ifndef _TARGET_UNIX_
+        // Code size for each instruction. We need this because the
+        // backward branch is hard-coded with the number of bytes to branch.
+        // The encoding differs based on the architecture and what register is
+        // used (namely, using RAX has a smaller encoding).
+        //
+        // loop:
+        // For x86
+        //      test [esp + eax], eax       3
+        //      sub eax, 0x1000             5
+        //      cmp EAX, -frameSize         5
+        //      jge loop                    2
+        //
+        // For AMD64 using RAX
+        //      test [rsp + rax], rax       4
+        //      sub rax, 0x1000             6
+        //      cmp rax, -frameSize         6
+        //      jge loop                    2
+        //
+        // For AMD64 using RBP
+        //      test [rsp + rbp], rbp       4
+        //      sub rbp, 0x1000             7
+        //      cmp rbp, -frameSize         7
+        //      jge loop                    2
+
+        getEmitter()->emitIns_R_ARR(INS_test, EA_PTRSIZE, initReg, REG_SPBASE, initReg, 0);
+        inst_RV_IV(INS_sub, initReg, pageSize, EA_PTRSIZE);
+        inst_RV_IV(INS_cmp, initReg, -((ssize_t)frameSize), EA_PTRSIZE);
+
+        int bytesForBackwardJump;
+#ifdef _TARGET_AMD64_
+        assert((initReg == REG_EAX) || (initReg == REG_EBP)); // We use RBP as initReg for EH funclets.
+        bytesForBackwardJump = ((initReg == REG_EAX) ? -18 : -20);
+#else  // !_TARGET_AMD64_
+        assert(initReg == REG_EAX);
+        bytesForBackwardJump = -15;
+#endif // !_TARGET_AMD64_
+
+        // Branch backwards to start of loop
+        inst_IV(INS_jge, bytesForBackwardJump);
+#else // _TARGET_UNIX_
+        // Code size for each instruction. We need this because the
+        // backward branch is hard-coded with the number of bytes to branch.
+        // The encoding differs based on the architecture and what register is
+        // used (namely, using RAX has a smaller encoding).
+        //
+        // For x86
+        //      lea eax, [esp - frameSize]
+        // loop:
+        //      lea esp, [esp - pageSize]   7
+        //      test [esp], eax             3
+        //      cmp esp, eax                2
+        //      jge loop                    2
+        //      lea rsp, [rbp + frameSize]
+        //
+        // For AMD64 using RAX
+        //      lea rax, [rsp - frameSize]
+        // loop:
+        //      lea rsp, [rsp - pageSize]   8
+        //      test [rsp], rax             4
+        //      cmp rsp, rax                3
+        //      jge loop                    2
+        //      lea rsp, [rax + frameSize]
+        //
+        // For AMD64 using RBP
+        //      lea rbp, [rsp - frameSize]
+        // loop:
+        //      lea rsp, [rsp - pageSize]   8
+        //      test [rsp], rbp             4
+        //      cmp rsp, rbp                3
+        //      jge loop                    2
+        //      lea rsp, [rbp + frameSize]
+
+        int sPageSize = (int)pageSize;
+
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, initReg, REG_SPBASE, -((ssize_t)frameSize)); // get frame border
+
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -sPageSize);
+        getEmitter()->emitIns_R_AR(INS_test, EA_PTRSIZE, initReg, REG_SPBASE, 0);
+        inst_RV_RV(INS_cmp, REG_SPBASE, initReg);
+
+        int bytesForBackwardJump;
+#ifdef _TARGET_AMD64_
+        assert((initReg == REG_EAX) || (initReg == REG_EBP)); // We use RBP as initReg for EH funclets.
+        bytesForBackwardJump = -17;
+#else  // !_TARGET_AMD64_
+        assert(initReg == REG_EAX);
+        bytesForBackwardJump = -14;
+#endif // !_TARGET_AMD64_
+
+        inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
+
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, initReg, frameSize); // restore stack pointer
+#endif // _TARGET_UNIX_
+
+        *pInitRegZeroed = false; // The initReg does not contain zero
+
+        if (pushedStubParam)
+        {
+            // pop eax
+            inst_RV(INS_pop, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
+            regSet.verifyRegUsed(REG_SECRET_STUB_PARAM);
+        }
+
+        //      sub esp, frameSize   6
+        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
+    }
+
+    compiler->unwindAllocStack(frameSize);
+
+    if (!doubleAlignOrFramePointerUsed())
+    {
+        psiAdjustStackLevel(frameSize);
+    }
 }
 
 //------------------------------------------------------------------------
@@ -2152,20 +2391,7 @@ void CodeGen::genLclHeap(GenTree* tree)
     BasicBlock* endLabel  = nullptr;
 
 #ifdef DEBUG
-    // Verify ESP
-    if (compiler->opts.compStackCheckOnRet)
-    {
-        noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
-        getEmitter()->emitIns_S_R(INS_cmp, EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnEspCheck, 0);
-
-        BasicBlock*  esp_check = genCreateTempLabel();
-        emitJumpKind jmpEqual  = genJumpKindForOper(GT_EQ, CK_SIGNED);
-        inst_JMP(jmpEqual, esp_check);
-        getEmitter()->emitIns(INS_BREAKPOINT);
-        genDefineTempLabel(esp_check);
-    }
+    genStackPointerCheck(compiler->opts.compStackCheckOnRet, compiler->lvaReturnSpCheck);
 #endif
 
     noway_assert(isFramePointerUsed()); // localloc requires Frame Pointer to be established since SP changes
@@ -2473,13 +2699,13 @@ BAILOUT:
 #endif
 
 #ifdef DEBUG
-    // Update new ESP
+    // Update local variable to reflect the new stack pointer.
     if (compiler->opts.compStackCheckOnRet)
     {
-        noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnEspCheck, 0);
+        noway_assert(compiler->lvaReturnSpCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaReturnSpCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaReturnSpCheck].lvOnFrame);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnSpCheck, 0);
     }
 #endif
 
@@ -5167,6 +5393,17 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         }
     }
 
+#if defined(DEBUG) && defined(_TARGET_X86_)
+    // Store the stack pointer so we can check it after the call.
+    if (compiler->opts.compStackCheckOnCall && call->gtCallType == CT_USER_FUNC)
+    {
+        noway_assert(compiler->lvaCallSpCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaCallSpCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaCallSpCheck].lvOnFrame);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaCallSpCheck, 0);
+    }
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
+
     bool            fPossibleSyncHelperCall = false;
     CorInfoHelpFunc helperNum               = CORINFO_HELP_UNDEF;
 
@@ -5480,6 +5717,33 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     {
         gcInfo.gcMarkRegSetNpt(RBM_INTRET);
     }
+
+#if defined(DEBUG) && defined(_TARGET_X86_)
+    if (compiler->opts.compStackCheckOnCall && call->gtCallType == CT_USER_FUNC)
+    {
+        noway_assert(compiler->lvaCallSpCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaCallSpCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaCallSpCheck].lvOnFrame);
+        if (!fCallerPop && (stackArgBytes != 0))
+        {
+            // ECX is trashed, so can be used to compute the expected SP. We saved the value of SP
+            // after pushing all the stack arguments, but the caller popped the arguments, so we need
+            // to do some math to figure a good comparison.
+            getEmitter()->emitIns_R_R(INS_mov, EA_4BYTE, REG_ARG_0, REG_SPBASE);
+            getEmitter()->emitIns_R_I(INS_sub, EA_4BYTE, REG_ARG_0, stackArgBytes);
+            getEmitter()->emitIns_S_R(INS_cmp, EA_4BYTE, REG_ARG_0, compiler->lvaCallSpCheck, 0);
+        }
+        else
+        {
+            getEmitter()->emitIns_S_R(INS_cmp, EA_4BYTE, REG_SPBASE, compiler->lvaCallSpCheck, 0);
+        }
+
+        BasicBlock* sp_check = genCreateTempLabel();
+        getEmitter()->emitIns_J(INS_je, sp_check);
+        instGen(INS_BREAKPOINT);
+        genDefineTempLabel(sp_check);
+    }
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
 
 #if !FEATURE_EH_FUNCLETS
     //-------------------------------------------------------------------------

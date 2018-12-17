@@ -6734,7 +6734,8 @@ target_ssize_t emitter::emitGetInsSC(instrDesc* id)
         regNumber baseReg;
         int       offs = id->idAddr()->iiaLclVar.lvaOffset();
 #if defined(_TARGET_ARM_)
-        int adr = emitComp->lvaFrameAddress(varNum, id->idIsLclFPBase(), &baseReg, offs);
+        int adr =
+            emitComp->lvaFrameAddress(varNum, id->idIsLclFPBase(), &baseReg, offs, CodeGen::instIsFP(id->idIns()));
         int dsp = adr + offs;
         if ((id->idIns() == INS_sub) || (id->idIns() == INS_subw))
             dsp = -dsp;
@@ -7265,7 +7266,9 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 
     for (insGroup* ig = emitIGlist; ig != nullptr; ig = ig->igNext)
     {
-        assert(nextof == ig->igOffs);
+        // There is an eventual unused space after the last actual hot block
+        // before the first allocated cold block.
+        assert((nextof == ig->igOffs) || (ig == emitFirstColdIG));
 
         if (ig->igOffs == offs)
         {

@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: RsMain.cpp
-// 
+//
 
 // Random RS utility stuff, plus root ICorCordbug implementation
 //
@@ -102,7 +102,7 @@ void DbgRSThread::NotifyTakeLock(RSLock * pLock)
     {
         return;
     }
-    
+
     int iLevel = pLock->GetLevel();
 
     // Is it safe to take this lock?
@@ -132,7 +132,7 @@ void DbgRSThread::NotifyReleaseLock(RSLock * pLock)
     {
         return;
     }
-    
+
     int iLevel = pLock->GetLevel();
     m_cLocks[iLevel]--;
     _ASSERTE(m_cLocks[iLevel] == 0);
@@ -207,9 +207,9 @@ LONG Cordb::s_DbgMemOutstandingObjectMax = 0;
 
 // Default implementation for neutering left-side resources.
 void CordbBase::NeuterLeftSideResources()
-{ 
-    LIMITED_METHOD_CONTRACT;   
-    
+{
+    LIMITED_METHOD_CONTRACT;
+
     RSLockHolder lockHolder(GetProcess()->GetProcessLock());
     Neuter();
 }
@@ -221,14 +221,14 @@ void CordbBase::Neuter()
     // Neutering occurs under the process lock. Neuter can be called twice
     // and so locking protects against races in double-delete.
     // @dbgtodo - , some CordbBase objects (Cordb, CordbProcessEnum),
-    // don't have process affinity these should eventually be hoisted to the shim, 
+    // don't have process affinity these should eventually be hoisted to the shim,
     // and then we can enforce.
     CordbProcess * pProcess = GetProcess();
     if (pProcess != NULL)
     {
         _ASSERTE(pProcess->ThreadHoldsProcessLock());
     }
-    CordbCommonBase::Neuter(); 
+    CordbCommonBase::Neuter();
 }
 
 //-----------------------------------------------------------------------------
@@ -247,7 +247,7 @@ NeuterList::~NeuterList()
     CONSISTENCY_CHECK_MSGF(m_pHead == NULL, ("NeuterList not empty on shutdown. this=0x%p", this));
 }
 
-// Wrapper around code:NeuterList::UnsafeAdd 
+// Wrapper around code:NeuterList::UnsafeAdd
 void NeuterList::Add(CordbProcess * pProcess, CordbBase * pObject)
 {
     CONTRACTL
@@ -268,7 +268,7 @@ void NeuterList::Add(CordbProcess * pProcess, CordbBase * pObject)
 //
 // Returns:
 //     Throws on error.
-//  
+//
 // Notes:
 //     This will add it to the list and maintain an internal reference to it.
 //     This will take the process lock.
@@ -276,13 +276,13 @@ void NeuterList::Add(CordbProcess * pProcess, CordbBase * pObject)
 void NeuterList::UnsafeAdd(CordbProcess * pProcess, CordbBase * pObject)
 {
     _ASSERTE(pObject != NULL);
-    
-    // Lock if needed. 
+
+    // Lock if needed.
     RSLock * pLock = (pProcess != NULL) ? pProcess->GetProcessLock() : NULL;
     RSLockHolder lockHolder(pLock, FALSE);
     if (pLock != NULL) lockHolder.Acquire();
 
-    
+
     Node * pNode = new Node(); // throws on error.
     pNode->m_pObject.Assign(pObject);
     pNode->m_pNext = m_pHead;
@@ -303,10 +303,10 @@ void NeuterList::UnsafeAdd(CordbProcess * pProcess, CordbBase * pObject)
 //     This will release all internal references and empty the list.
 void NeuterList::NeuterAndClear(CordbProcess * pProcess)
 {
-    RSLock * pLock = (pProcess != NULL) ? pProcess->GetProcessLock() : NULL;        
+    RSLock * pLock = (pProcess != NULL) ? pProcess->GetProcessLock() : NULL;
     (void)pLock; //prevent "unused variable" error from GCC
     _ASSERTE((pLock == NULL) || pLock->HasLock());
-        
+
     while (m_pHead != NULL)
     {
         Node * pTemp = m_pHead;
@@ -351,7 +351,7 @@ void NeuterList::SweepAllNeuterAtWillObjects(CordbProcess * pProcess)
 
 //-----------------------------------------------------------------------------
 // Neuters all objects in the list and empties the list.
-// 
+//
 // Notes:
 //    See also code:LeftSideResourceCleanupList::SweepNeuterLeftSideResources,
 //    which only neuters objects that have been marked as NeuterAtWill (external
@@ -360,9 +360,9 @@ void LeftSideResourceCleanupList::NeuterLeftSideResourcesAndClear(CordbProcess *
 {
     // Traversal protected under Process-lock.
     // SG-lock must already be held to do neutering.
-    // Stop-Go lock is bigger than Process-lock. 
+    // Stop-Go lock is bigger than Process-lock.
     // Neutering requires the Stop-Go lock (until we get rid of IPC events)
-    // But we want to be able to add to the Neuter list under the Process-lock. 
+    // But we want to be able to add to the Neuter list under the Process-lock.
     // So we just need to protected m_pHead under process-lock.
 
     // "Privatize" the list under the lock.
@@ -378,7 +378,7 @@ void LeftSideResourceCleanupList::NeuterLeftSideResourcesAndClear(CordbProcess *
 
     // @dbgtodo - eventually everything can be under the process lock.
     _ASSERTE(!pLock->HasLock()); // Can't hold Process lock while calling NeuterLeftSideResources
-    
+
     // Now we're operating on local data, so traversing doesn't need to be under the lock.
     while (pCur != NULL)
     {
@@ -388,17 +388,17 @@ void LeftSideResourceCleanupList::NeuterLeftSideResourcesAndClear(CordbProcess *
         pTemp->m_pObject->NeuterLeftSideResources();
         delete pTemp; // will implicitly release
     }
-  
+
 }
 
 //-----------------------------------------------------------------------------
 // Only neuter objects that are marked. Removes neutered objects from the list.
-// 
+//
 // Arguments:
 //    pProcess - non-null process owning the objects in the list
-//    
+//
 // Notes:
-//    this cleans up left-side resources held by objects in the list. 
+//    this cleans up left-side resources held by objects in the list.
 //    It may send IPC events to do this.
 void LeftSideResourceCleanupList::SweepNeuterLeftSideResources(CordbProcess * pProcess)
 {
@@ -413,12 +413,12 @@ void LeftSideResourceCleanupList::SweepNeuterLeftSideResources(CordbProcess * pP
     // Lock while we "privatize" the head.
     RSLockHolder lockHolder(pLock);
     Node * pHead = m_pHead;
-    m_pHead = NULL; 
+    m_pHead = NULL;
     lockHolder.Release();
 
     Node ** ppLast = &pHead;
     Node * pCur = pHead;
-    
+
     // Can't hold the process-lock while calling Neuter.
     while (pCur != NULL)
     {
@@ -444,7 +444,7 @@ void LeftSideResourceCleanupList::SweepNeuterLeftSideResources(CordbProcess * pP
 
     // Now link back in. m_pHead may have changed while we were unlocked.
     // The list does not need to be ordered.
-        
+
     lockHolder.Acquire();
     *ppLast = m_pHead;
     m_pHead = pHead;
@@ -465,7 +465,7 @@ void CordbCommonBase::InitializeCommon()
     {
         return;
     }
-    
+
 #ifdef STRESS_LOG
     {
         bool fStressLog = false;
@@ -503,14 +503,14 @@ void CordbCommonBase::InitializeCommon()
 
     // Add debug privilege. This will let us call OpenProcess() on anything, regardless of ACL.
     AddDebugPrivilege();
-        
+
     IsInitialized = true;
 }
 
 // Adjust the permissions of this process to ensure that we have
 // the debugging priviledge. If we can't make the adjustment, it
 // only means that we won't be able to attach to a service under
-// NT, so we won't treat that as a critical failure. 
+// NT, so we won't treat that as a critical failure.
 // This also will let us call OpenProcess() on anything, regardless of DACL. This allows an
 // Admin debugger to attach to a debuggee in the guest account.
 // Ideally, the debugger would set this (and we wouldn't mess with privileges at all). However, we've been
@@ -526,14 +526,14 @@ void CordbCommonBase::AddDebugPrivilege()
 
     fSucc = LookupPrivilegeValueW(NULL, SE_DEBUG_NAME, &SeDebugLuid);
     DWORD err = GetLastError();
-    
+
     if (!fSucc)
     {
         STRESS_LOG1(LF_CORDB, LL_INFO1000, "Unable to adjust permissions of this process to include SE_DEBUG. Lookup failed %d\n", err);
         return;
     }
-    
-    
+
+
     // Retrieve a handle of the access token
     fSucc = OpenProcessToken(GetCurrentProcess(),
                              TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY,
@@ -555,7 +555,7 @@ void CordbCommonBase::AddDebugPrivilege()
         // The return value of AdjustTokenPrivileges cannot be tested.
         if (err != ERROR_SUCCESS)
         {
-            STRESS_LOG1(LF_CORDB, LL_INFO1000, 
+            STRESS_LOG1(LF_CORDB, LL_INFO1000,
                 "Unable to adjust permissions of this process to include SE_DEBUG. Adjust failed %d\n", err);
         }
         else
@@ -565,7 +565,7 @@ void CordbCommonBase::AddDebugPrivilege()
         CloseHandle(hToken);
     }
 #endif
-} 
+}
 
 
 namespace
@@ -852,18 +852,122 @@ namespace
         pAppDomain->Continue(false);
         return S_OK;
     }
+
+    //
+    // DefaultManagedCallback4
+    //
+    // In the event that the debugger is of an older version than the Right Side & Left Side, the Right Side may issue
+    // new callbacks that the debugger is not expecting. In this case, we need to provide a default behavior for those
+    // new callbacks, if for nothing else than to force the debugger to Continue().
+    //
+    class DefaultManagedCallback4 : public ICorDebugManagedCallback4
+    {
+    public:
+        DefaultManagedCallback4(ICorDebug* pDebug);
+        virtual ~DefaultManagedCallback4() { }
+        virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** pInterface);
+        virtual ULONG STDMETHODCALLTYPE AddRef();
+        virtual ULONG STDMETHODCALLTYPE Release();
+        COM_METHOD BeforeGarbageCollection(ICorDebugProcess* pProcess);
+        COM_METHOD AfterGarbageCollection(ICorDebugProcess* pProcess);
+        COM_METHOD DataBreakpoint(ICorDebugProcess* pProcess, ICorDebugThread* pThread, BYTE* pContext, ULONG32 contextSize);
+    private:
+        // not implemented
+        DefaultManagedCallback4(const DefaultManagedCallback4&);
+        DefaultManagedCallback4& operator=(const DefaultManagedCallback4&);
+
+        ICorDebug* m_pDebug;
+        LONG m_refCount;
+    };
+
+    DefaultManagedCallback4::DefaultManagedCallback4(ICorDebug* pDebug) : m_pDebug(pDebug), m_refCount(0)
+    {
+    }
+
+    HRESULT
+        DefaultManagedCallback4::QueryInterface(REFIID iid, void** pInterface)
+    {
+        if (IID_ICorDebugManagedCallback4 == iid)
+        {
+            *pInterface = static_cast<ICorDebugManagedCallback4*>(this);
+        }
+        else if (IID_IUnknown == iid)
+        {
+            *pInterface = static_cast<IUnknown*>(this);
+        }
+        else
+        {
+            *pInterface = NULL;
+            return E_NOINTERFACE;
+        }
+
+        this->AddRef();
+        return S_OK;
+    }
+
+    ULONG
+        DefaultManagedCallback4::AddRef()
+    {
+        return InterlockedIncrement(&m_refCount);
+    }
+
+    ULONG
+        DefaultManagedCallback4::Release()
+    {
+        ULONG ulRef = InterlockedDecrement(&m_refCount);
+        if (0 == ulRef)
+        {
+            delete this;
+        }
+
+        return ulRef;
+    }
+
+    HRESULT
+        DefaultManagedCallback4::BeforeGarbageCollection(ICorDebugProcess* pProcess)
+    {
+        //
+        // Just ignore and continue the process.
+        //
+        pProcess->Continue(false);
+        return S_OK;
+    }
+
+    HRESULT
+        DefaultManagedCallback4::AfterGarbageCollection(ICorDebugProcess* pProcess)
+    {
+        //
+        // Just ignore and continue the process.
+        //
+        pProcess->Continue(false);
+        return S_OK;
+    }
+
+    HRESULT
+        DefaultManagedCallback4::DataBreakpoint(ICorDebugProcess* pProcess, ICorDebugThread* pThread, BYTE* pContext, ULONG32 contextSize)
+    {
+        //
+        // Just ignore and continue the process.
+        //
+        pProcess->Continue(false);
+        return S_OK;
+    }
 }
 
 /* ------------------------------------------------------------------------- *
  * Cordb class
  * ------------------------------------------------------------------------- */
-
-
 Cordb::Cordb(CorDebugInterfaceVersion iDebuggerVersion)
+  : Cordb(iDebuggerVersion, ProcessDescriptor::CreateUninitialized())
+{
+}
+
+Cordb::Cordb(CorDebugInterfaceVersion iDebuggerVersion, const ProcessDescriptor& pd)
   : CordbBase(NULL, 0, enumCordb),
     m_processes(11),
     m_initialized(false),
-    m_debuggerSpecifiedVersion(iDebuggerVersion)
+    m_debuggerSpecifiedVersion(iDebuggerVersion),
+    m_pd(pd)
 #ifdef FEATURE_CORESYSTEM
     ,
     m_targetCLR(0)
@@ -880,6 +984,10 @@ Cordb::Cordb(CorDebugInterfaceVersion iDebuggerVersion)
 Cordb::~Cordb()
 {
     LOG((LF_CORDB, LL_INFO10, "C::~C Terminating Cordb object.\n"));
+    if (m_pd.m_ApplicationGroupId != NULL)
+    {
+        delete [] m_pd.m_ApplicationGroupId;
+    }
     g_pRSDebuggingInfo->m_Cordb = NULL;
 }
 
@@ -890,13 +998,13 @@ void Cordb::Neuter()
         return;
     }
 
-    
+
     RSLockHolder lockHolder(&m_processListMutex);
     m_pProcessEnumList.NeuterAndClear(NULL);
-    
+
 
     HRESULT hr = S_OK;
-    EX_TRY // @dbgtodo push this up. 
+    EX_TRY // @dbgtodo push this up.
     {
         // Iterating needs to be done under the processList lock (small), while neutering
         // needs to be able to take the process lock (big).
@@ -905,13 +1013,13 @@ void Cordb::Neuter()
 
         // can't hold list lock while calling CordbProcess::Neuter (which
         // will take the Process-lock).
-        lockHolder.Release(); 
+        lockHolder.Release();
 
         list.NeuterAndClear();
         // List dtor calls release on each element
-    }    
+    }
     EX_CATCH_HRESULT(hr);
-    SIMPLIFYING_ASSUMPTION_SUCCEEDED(hr); 
+    SIMPLIFYING_ASSUMPTION_SUCCEEDED(hr);
 
     CordbCommonBase::Neuter();
 
@@ -966,7 +1074,7 @@ HRESULT Cordb::Terminate()
 
     FAIL_IF_NEUTERED(this);
 
-    // We can't terminate the debugging services from within a callback. 
+    // We can't terminate the debugging services from within a callback.
     // Caller is supposed to be out of all callbacks when they call this.
     // This also avoids a deadlock because we'll shutdown the RCET, which would block if we're
     // in the RCET.
@@ -1055,6 +1163,7 @@ HRESULT Cordb::Terminate()
     m_managedCallback.Clear();
     m_managedCallback2.Clear();
     m_managedCallback3.Clear();
+    m_managedCallback4.Clear();
     m_unmanagedCallback.Clear();
 
     // The Shell may still have outstanding references, so we don't want to shutdown logging yet.
@@ -1109,7 +1218,7 @@ HRESULT Cordb::Initialize(void)
     if (!m_initialized)
     {
         CordbCommonBase::InitializeCommon();
-        
+
         // Since logging wasn't active when we called CordbBase, do it now.
         LOG((LF_CORDB, LL_EVERYTHING, "Memory: CordbBase object allocated: this=%p, count=%d, RootObject\n", this, s_TotalObjectCount));
         LOG((LF_CORDB, LL_INFO10, "Initializing ICorDebug...\n"));
@@ -1209,7 +1318,7 @@ void Cordb::AddProcess(CordbProcess* process)
     // can have another debuggee.
     STRESS_LOG1(LF_CORDB, LL_INFO10, "Cordb::AddProcess %08x...\n", process);
 
-    if ((m_managedCallback == NULL) || (m_managedCallback2 == NULL) || (m_managedCallback3 == NULL))
+    if ((m_managedCallback == NULL) || (m_managedCallback2 == NULL) || (m_managedCallback3 == NULL) || (m_managedCallback4 == NULL))
     {
         ThrowHR(E_FAIL);
     }
@@ -1325,7 +1434,7 @@ HRESULT Cordb::SetTargetCLR(HMODULE hmodTargetCLR)
     CoreClrCallbacks cccallbacks;
     cccallbacks.m_hmodCoreCLR               = hmodTargetCLR;
     cccallbacks.m_pfnIEE                    = NULL;
-    cccallbacks.m_pfnGetCORSystemDirectory  = NULL;    
+    cccallbacks.m_pfnGetCORSystemDirectory  = NULL;
     cccallbacks.m_pfnGetCLRFunction         = NULL;
     InitUtilcode(cccallbacks);
 
@@ -1352,6 +1461,7 @@ HRESULT Cordb::SetManagedHandler(ICorDebugManagedCallback *pCallback)
     m_managedCallback.Clear();
     m_managedCallback2.Clear();
     m_managedCallback3.Clear();
+    m_managedCallback4.Clear();
 
     // For SxS, V2.0 debuggers must implement ManagedCallback2 to handle v2.0 debug events.
     // For Single-CLR, A v1.0 debugger may actually geta V2.0 debuggee.
@@ -1376,7 +1486,6 @@ HRESULT Cordb::SetManagedHandler(ICorDebugManagedCallback *pCallback)
         }
     }
 
-
     pCallback->QueryInterface(IID_ICorDebugManagedCallback3, (void **)&m_managedCallback3);
     if (m_managedCallback3 == NULL)
     {
@@ -1384,6 +1493,17 @@ HRESULT Cordb::SetManagedHandler(ICorDebugManagedCallback *pCallback)
     }
 
     if (m_managedCallback3 == NULL)
+    {
+        return E_OUTOFMEMORY;
+    }
+
+    pCallback->QueryInterface(IID_ICorDebugManagedCallback4, (void **)&m_managedCallback4);
+    if (m_managedCallback4 == NULL)
+    {
+        m_managedCallback4.Assign(new (nothrow) DefaultManagedCallback4(this));
+    }
+
+    if (m_managedCallback4 == NULL)
     {
         return E_OUTOFMEMORY;
     }
@@ -1411,7 +1531,7 @@ bool Cordb::IsCreateProcessSupported()
 {
 #if !defined(FEATURE_DBGIPC_TRANSPORT_DI)
     return false;
-#else 
+#else
     return true;
 #endif
 }
@@ -1445,7 +1565,7 @@ bool Cordb::IsInteropDebuggingSupported()
 // Creates a process.
 //
 // Arguments:
-//    The following arguments are passed thru unmodified to the OS CreateProcess API and 
+//    The following arguments are passed thru unmodified to the OS CreateProcess API and
 //       are defined by that API.
 //           lpApplicationName
 //           lpCommandLine
@@ -1567,7 +1687,7 @@ HRESULT Cordb::CreateProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
     #endif // FEATURE_INTEROP_DEBUGGING
 
         // Must have a managed-callback by now.
-        if ((m_managedCallback == NULL) || (m_managedCallback2 == NULL) || (m_managedCallback3 == NULL))
+        if ((m_managedCallback == NULL) || (m_managedCallback2 == NULL) || (m_managedCallback3 == NULL) || (m_managedCallback4 == NULL))
         {
             ThrowHR(E_FAIL);
         }
@@ -1702,9 +1822,15 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
         }
 
         // Must have a managed-callback by now.
-        if ((m_managedCallback == NULL) || (m_managedCallback2 == NULL) || (m_managedCallback3 == NULL))
+        if ((m_managedCallback == NULL) || (m_managedCallback2 == NULL) || (m_managedCallback3 == NULL) || (m_managedCallback4 == NULL))
         {
             ThrowHR(E_FAIL);
+        }
+
+        // Verify that given process ID, matches the process ID for which the object was created
+        if (m_pd.IsInitialized() && m_pd.m_Pid != dwProcessId)
+        {
+            ThrowHR(E_INVALIDARG);
         }
 
         // See the comment in Cordb::CreateProcess
@@ -1733,7 +1859,7 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
     hr = ShimProcess::DebugActiveProcess(
         this,
         pRemoteTarget,
-        dwProcessId,
+        &m_pd,
         fWin32Attach == TRUE);
 
     // If that worked, then there will be a process object...
@@ -1760,13 +1886,13 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
         }
 
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
-        // This is where we queue the managed attach event in Whidbey.  In the new architecture, the Windows 
-        // pipeline gets a loader breakpoint when native attach is completed, and that's where we queue the 
+        // This is where we queue the managed attach event in Whidbey.  In the new architecture, the Windows
+        // pipeline gets a loader breakpoint when native attach is completed, and that's where we queue the
         // managed attach event.  See how we handle the loader breakpoint in code:ShimProcess::DefaultEventHandler.
         // However, the Mac debugging transport gets no such breakpoint, and so we need to do this here.
-        // 
-        // @dbgtodo  Mac - Ideally we should hide this in our pipeline implementation, or at least move 
-        // this to the shim.  
+        //
+        // @dbgtodo  Mac - Ideally we should hide this in our pipeline implementation, or at least move
+        // this to the shim.
         _ASSERTE(!fWin32Attach);
         {
             pProcess->Lock();
@@ -1774,7 +1900,7 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
             pProcess->Unlock();
         }
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
-        
+
         *ppProcess = (ICorDebugProcess*) pProcess;
     }
 
@@ -1793,23 +1919,23 @@ void Cordb::CheckCompatibility()
         clrMajor = 2;
     else if (debuggerVersion <= CorDebugVersion_4_0)
         clrMajor = 4;
-    else 
+    else
         clrMajor = 5;   // some unrecognized future version
 
     if(!CordbProcess::IsCompatibleWith(clrMajor))
     {
         // Carefully choose our error-code to get an appropriate error-message from VS 2008
         // If GetDebuggerVersion is >= 4, we could consider using the more-appropriate (but not
-        // added until V4) HRESULT CORDBG_E_UNSUPPORTED_FORWARD_COMPAT that is used by 
+        // added until V4) HRESULT CORDBG_E_UNSUPPORTED_FORWARD_COMPAT that is used by
         // OpenVirtualProcess, but it's probably simpler to keep ICorDebug APIs returning
         // consistent error codes.
         ThrowHR(CORDBG_E_INCOMPATIBLE_PROTOCOL);
     }
 }
 
-HRESULT Cordb::DebugActiveProcessEx(ICorDebugRemoteTarget * pRemoteTarget, 
-                                    DWORD dwProcessId, 
-                                    BOOL fWin32Attach, 
+HRESULT Cordb::DebugActiveProcessEx(ICorDebugRemoteTarget * pRemoteTarget,
+                                    DWORD dwProcessId,
+                                    BOOL fWin32Attach,
                                     ICorDebugProcess ** ppProcess)
 {
     if (pRemoteTarget == NULL)
@@ -1866,12 +1992,12 @@ HRESULT Cordb::EnumerateProcesses(ICorDebugProcessEnum **ppProcesses)
 
         RSInitHolder<CordbHashTableEnum> pEnum;
         CordbHashTableEnum::BuildOrThrow(
-            this, 
-            &m_pProcessEnumList, 
+            this,
+            &m_pProcessEnumList,
             GetProcessList(),
             IID_ICorDebugProcessEnum,
             pEnum.GetAddr());
-        
+
 
         pEnum.TransferOwnershipExternal(ppProcesses);
     }
@@ -1905,7 +2031,7 @@ HRESULT Cordb::CanLaunchOrAttach(DWORD dwProcessId, BOOL fWin32DebuggingEnabled)
     EX_TRY
     {
         EnsureCanLaunchOrAttach(fWin32DebuggingEnabled);
-    } 
+    }
     EX_CATCH_HRESULT(hr);
 
     return hr;
@@ -1953,7 +2079,7 @@ void Cordb::EnsureCanLaunchOrAttach(BOOL fWin32DebuggingEnabled)
 
 HRESULT Cordb::CreateObjectV1(REFIID id, void **object)
 {
-    return CreateObject(CorDebugVersion_1_0, id, object);
+    return CreateObject(CorDebugVersion_1_0, ProcessDescriptor::UNINITIALIZED_PID, NULL, id, object);
 }
 
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
@@ -1961,21 +2087,52 @@ HRESULT Cordb::CreateObjectV1(REFIID id, void **object)
 // same debug engine version as V2, though this may change in the future.
 HRESULT Cordb::CreateObjectTelesto(REFIID id, void ** pObject)
 {
-    return CreateObject(CorDebugVersion_2_0, id, pObject);
+    return CreateObject(CorDebugVersion_2_0, ProcessDescriptor::UNINITIALIZED_PID, NULL, id, pObject);
 }
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
 
 // Static
 // Used to create an instance for a ClassFactory (thus an external ref).
-HRESULT Cordb::CreateObject(CorDebugInterfaceVersion iDebuggerVersion, REFIID id, void **object)
+HRESULT Cordb::CreateObject(CorDebugInterfaceVersion iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, REFIID id, void **object)
 {
     if (id != IID_IUnknown && id != IID_ICorDebug)
         return (E_NOINTERFACE);
 
-    Cordb *db = new (nothrow) Cordb(iDebuggerVersion);
+    LPSTR applicationGroupId = NULL;
+    if (lpApplicationGroupId != NULL)
+    {
+        // Get length of target string
+        int cbMultiByte = WideCharToMultiByte(CP_ACP, 0, lpApplicationGroupId, -1, NULL, 0, NULL, NULL);
+        if (cbMultiByte == 0)
+        {
+            return E_FAIL;
+        }
+
+        applicationGroupId = new (nothrow) CHAR[cbMultiByte];
+        if (applicationGroupId == NULL)
+        {
+            return (E_OUTOFMEMORY);
+        }
+
+        /* Convert to ASCII */
+        cbMultiByte = WideCharToMultiByte(CP_ACP, 0, lpApplicationGroupId, -1, applicationGroupId, cbMultiByte, NULL, NULL);
+        if (cbMultiByte == 0)
+        {
+            return E_FAIL;
+        }
+    }
+
+    ProcessDescriptor pd = ProcessDescriptor::Create(pid, applicationGroupId);
+
+    Cordb *db = new (nothrow) Cordb(iDebuggerVersion, pd);
 
     if (db == NULL)
+    {
+        if (applicationGroupId != NULL)
+            delete [] applicationGroupId;
+
         return (E_OUTOFMEMORY);
+    }
 
     *object = static_cast<ICorDebug*> (db);
     db->ExternalAddRef();
@@ -2005,12 +2162,12 @@ CordbEnumFilter::CordbEnumFilter(CordbBase * pOwnerObj, NeuterList * pOwnerList)
     m_iCount (0)
 {
     _ASSERTE(m_pOwnerNeuterList != NULL);
-    
+
     HRESULT hr = S_OK;
     EX_TRY
     {
         m_pOwnerNeuterList->Add(pOwnerObj->GetProcess(), this);
-    } 
+    }
     EX_CATCH_HRESULT(hr);
     SetUnrecoverableIfFailed(GetProcess(), hr);
 
@@ -2024,15 +2181,15 @@ CordbEnumFilter::CordbEnumFilter(CordbEnumFilter *src)
     m_pCurrent (NULL)
 {
     _ASSERTE(m_pOwnerNeuterList != NULL);
-    
+
     HRESULT hr = S_OK;
     EX_TRY
     {
         m_pOwnerNeuterList->Add(src->GetProcess(), this);
-    } 
+    }
     EX_CATCH_HRESULT(hr);
     SetUnrecoverableIfFailed(GetProcess(), hr);
-    
+
 
 
     int iCountSanityCheck = 0;
@@ -2124,10 +2281,10 @@ void CordbEnumFilter::Neuter()
 HRESULT CordbEnumFilter::QueryInterface(REFIID id, void **ppInterface)
 {
     // if we QI with the IID of the base type, we can't just return a pointer ICorDebugEnum directly, because
-    // the cast is ambiguous. This happens because CordbEnumFilter implements both ICorDebugModuleEnum and 
+    // the cast is ambiguous. This happens because CordbEnumFilter implements both ICorDebugModuleEnum and
     // ICorDebugThreadEnum, both of which derive in turn from ICorDebugEnum. This produces a diamond inheritance
-    // graph. Thus we need a double cast. It doesn't really matter whether we pick ICorDebugThreadEnum or 
-    // ICorDebugModuleEnum, because it will be backed by the same object regardless. 
+    // graph. Thus we need a double cast. It doesn't really matter whether we pick ICorDebugThreadEnum or
+    // ICorDebugModuleEnum, because it will be backed by the same object regardless.
     if (id == IID_ICorDebugEnum)
         *ppInterface = static_cast<ICorDebugEnum *>(static_cast<ICorDebugThreadEnum *>(this));
     else if (id == IID_ICorDebugModuleEnum)
@@ -2467,7 +2624,7 @@ HRESULT CordbEnumFilter::Init (ICorDebugThreadEnum *pThreadEnum, CordbAppDomain 
         {
             goto Error;
         }
-       
+
         if (pThreadDomain == pAppDomain)
         {
             pElement = new (nothrow) EnumElement;

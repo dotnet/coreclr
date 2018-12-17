@@ -44,7 +44,7 @@ Jitutils_url = 'https://github.com/dotnet/jitutils.git'
 # The Docker file and possibly options should be hoisted out to a text file to be shared between scripts.
 
 Docker_name_arm32 = 'microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420'
-Docker_opts_arm32 = '-e ROOTFS_DIR=/crossrootfs/arm -e CAC_ROOTFS_DIR=/crossrootfs/x86'
+Docker_opts_arm32 = '-e ROOTFS_DIR=/crossrootfs/arm'
 
 Docker_name_arm64 = 'microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921'
 Docker_opts_arm64 = '-e ROOTFS_DIR=/crossrootfs/arm64'
@@ -313,7 +313,7 @@ def baseline_build():
                 dockerOpts = Docker_opts_arm64
 
             dockerCmd = 'docker run -i --rm -v %s:%s -w %s %s %s ' % (baseCoreClrPath, baseCoreClrPath, baseCoreClrPath, dockerOpts, dockerFile)
-            buildOpts = 'cross crosscomponent'
+            buildOpts = 'cross'
             scriptPath = baseCoreClrPath
 
         # Build a checked baseline jit 
@@ -565,8 +565,7 @@ def do_pmi_diffs():
 
         # Over which set of assemblies should we generate asm?
         # TODO: parameterize this
-        asm_source_args = ["--corelib"]
-        # asm_source_args = ["--frameworks"]
+        asm_source_args = ["--frameworks", "--benchmarks"]
 
         command = ["dotnet", jitDiffPath, "diff", "--pmi", "--base", "--base_root", baseCoreClrPath, "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "1", "--noanalyze", "--output", asmRootPath] + asm_source_args + altjit_args
         returncode = run_command(command, my_env)

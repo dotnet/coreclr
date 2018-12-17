@@ -109,7 +109,7 @@ private:
 
 public:
     StackString()
-        : m_buffer(m_innerBuffer), m_size(0), m_count(0)
+        : m_buffer(m_innerBuffer), m_size(STACKCOUNT+1), m_count(0)
     {
     }
 
@@ -127,6 +127,12 @@ public:
     BOOL Set(const StackString &s)
     {
         return Set(s.m_buffer, s.m_count);
+    }
+
+    template<SIZE_T bufferLength> BOOL Set(const T (&buffer)[bufferLength])
+    {
+        // bufferLength includes terminator character
+        return Set(buffer, bufferLength - 1);
     }
 
     SIZE_T GetCount() const
@@ -155,6 +161,11 @@ public:
             result = (T *)m_buffer;
         }
         return result;
+    }
+
+    T * OpenStringBuffer()
+    {
+        return m_buffer;
     }
 
     //count should not include the terminating null
@@ -198,29 +209,47 @@ public:
     {
         return Append(s.GetString(), s.GetCount());
     }
-   
-   BOOL IsEmpty()
-   {
-       return 0 == m_buffer[0];
-   }
 
-   void Clear()
-   {
-       m_count = 0;
-       NullTerminate();
-   }
-   ~StackString()
-   {
-       DeleteBuffer();
-   }
+    template<SIZE_T bufferLength> BOOL Append(const T (&buffer)[bufferLength])
+    {
+        // bufferLength includes terminator character
+        return Append(buffer, bufferLength - 1);
+    }
+
+    BOOL Append(T ch)
+    {
+        SIZE_T endpos = m_count;
+        if (!Resize(m_count + 1))
+            return FALSE;
+
+        m_buffer[endpos] = ch;
+        NullTerminate();
+        return TRUE;
+    }
+
+    BOOL IsEmpty()
+    {
+        return 0 == m_buffer[0];
+    }
+
+    void Clear()
+    {
+        m_count = 0;
+        NullTerminate();
+    }
+
+    ~StackString()
+    {
+        DeleteBuffer();
+    }
 };
 
 #if _DEBUG
 typedef StackString<32, CHAR> PathCharString;
 typedef StackString<32, WCHAR> PathWCharString; 
 #else
-typedef StackString<260, CHAR> PathCharString;
-typedef StackString<260, WCHAR> PathWCharString; 
+typedef StackString<MAX_PATH, CHAR> PathCharString;
+typedef StackString<MAX_PATH, WCHAR> PathWCharString; 
 #endif
 #endif
 

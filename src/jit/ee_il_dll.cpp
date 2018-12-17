@@ -130,7 +130,7 @@ extern "C" void __stdcall jitStartup(ICorJitHost* jitHost)
     g_jitInitialized = true;
 }
 
-void jitShutdown()
+void jitShutdown(bool processIsTerminating)
 {
     if (!g_jitInitialized)
     {
@@ -141,7 +141,13 @@ void jitShutdown()
 
     if (jitstdout != procstdout())
     {
-        fclose(jitstdout);
+        // When the process is terminating, the fclose call is unnecessary and is also prone to
+        // crashing since the UCRT itself often frees the backing memory earlier on in the
+        // termination sequence.
+        if (!processIsTerminating)
+        {
+            fclose(jitstdout);
+        }
     }
 
 #ifdef FEATURE_TRACELOGGING
@@ -162,7 +168,10 @@ extern "C" BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID pvReserv
     }
     else if (dwReason == DLL_PROCESS_DETACH)
     {
-        jitShutdown();
+        // From MSDN: If fdwReason is DLL_PROCESS_DETACH, lpvReserved is NULL if FreeLibrary has
+        // been called or the DLL load failed and non-NULL if the process is terminating.
+        bool processIsTerminating = (pvReserved != nullptr);
+        jitShutdown(processIsTerminating);
     }
 
     return TRUE;
@@ -354,7 +363,7 @@ void CILJit::ProcessShutdownWork(ICorStaticInfo* statInfo)
         // Continue, by shutting down this JIT as well.
     }
 
-    jitShutdown();
+    jitShutdown(false);
 
     Compiler::ProcessShutdownWork(statInfo);
 }
@@ -393,7 +402,12 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_FEATURE_SIMD) &&
         jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
     {
-        if (JitConfig.EnableAVX() != 0 && JitConfig.EnableAVX2() != 0)
+        // Since the ISAs can be disabled individually and since they are hierarchical in nature (that is
+        // disabling SSE also disables SSE2 through AVX2), we need to check each ISA in the hierarchy to
+        // ensure that AVX2 is actually supported. Otherwise, we will end up getting asserts downstream.
+        if ((JitConfig.EnableAVX2() != 0) && (JitConfig.EnableAVX() != 0) && (JitConfig.EnableSSE42() != 0) &&
+            (JitConfig.EnableSSE41() != 0) && (JitConfig.EnableSSSE3() != 0) && (JitConfig.EnableSSE3() != 0) &&
+            (JitConfig.EnableSSE2() != 0) && (JitConfig.EnableSSE() != 0) && (JitConfig.EnableHWIntrinsic() != 0))
         {
             if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
             {

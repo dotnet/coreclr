@@ -164,8 +164,8 @@ if not exist "%__LogsDir%"                      md "%__LogsDir%"
 
 echo %__MsgPrefix%Checking prerequisites
 
-REM Eval the output from probe-win1.ps1
-for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\probe-win.ps1"""') do %%a
+REM Eval the output from set-cmake-path.ps1
+for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\set-cmake-path.ps1"""') do %%a
 
 REM =========================================================================================
 REM ===
@@ -343,7 +343,10 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
         echo     %__BuildLog%
         echo     %__BuildWrn%
         echo     %__BuildErr%
-        exit /b 1
+        REM This is necessary because of a(n apparent) bug in the FOR /L command.  Under certain circumstances,
+        REM such as when this script is invoke with CMD /C "build-test.cmd", a non-zero exit directly from
+        REM within the loop body will not propagate to the caller.  For some reason, goto works around it.
+        goto     :Exit_Failure
     )
 
     set __SkipPackageRestore=true
@@ -527,7 +530,7 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=-MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr!
 
-call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\helixprep.proj !__Logging! %__RunArgs% %__BuildAgainstPackagesArg% %RuntimeIdArg% %TargetsWindowsArg% %__CrossgenArg% %__PriorityArg% %__PassThroughArg% %__UnprocessedBuildArgs%
+call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\helixprep.proj !__Logging! %__RunArgs% %RuntimeIdArg% %TargetsWindowsArg% %__CrossgenArg% %__PriorityArg% %__PassThroughArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -633,3 +636,6 @@ ren "%CORE_ROOT%\temp.ni.dll" %2
     
 echo Successfully precompiled %2
 exit /b 0
+
+:Exit_Failure
+exit /b 1

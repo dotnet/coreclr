@@ -923,6 +923,68 @@ FCIMPL1(int, MarshalNative::GetHRForException_WinRT, Object* eUNSAFE)
 }
 FCIMPLEND
 
+// static
+INT_PTR QCALLTYPE MarshalNative::LoadLibraryFromPath(LPCWSTR path, BOOL throwOnError)
+{
+    QCALL_CONTRACT;
+
+    NATIVE_LIBRARY_HANDLE handle = nullptr;
+
+    BEGIN_QCALL;
+
+    handle = NDirect::LoadLibraryFromPath(path, throwOnError);
+
+    END_QCALL;
+
+    return reinterpret_cast<INT_PTR>(handle);
+}
+
+// static
+INT_PTR QCALLTYPE MarshalNative::LoadLibraryByName(LPCWSTR name, QCall::AssemblyHandle callingAssembly, 
+                                                   BOOL hasDllImportSearchPathFlag, DWORD dllImportSearchPathFlag, 
+                                                   BOOL throwOnError)
+{
+    QCALL_CONTRACT;
+
+    NATIVE_LIBRARY_HANDLE handle = nullptr;
+    Assembly *pAssembly = callingAssembly->GetAssembly();
+
+    BEGIN_QCALL;
+
+    handle = NDirect::LoadLibraryByName(name, pAssembly, hasDllImportSearchPathFlag, dllImportSearchPathFlag, throwOnError);
+
+    END_QCALL;
+
+    return reinterpret_cast<INT_PTR>(handle);
+}
+
+// static
+void QCALLTYPE MarshalNative::FreeNativeLibrary(INT_PTR handle)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+
+    NDirect::FreeNativeLibrary((NATIVE_LIBRARY_HANDLE) handle);
+    
+    END_QCALL;
+}
+
+//static 
+INT_PTR QCALLTYPE MarshalNative::GetNativeLibraryExport(INT_PTR handle, LPCWSTR symbolName, BOOL throwOnError)
+{
+    QCALL_CONTRACT;
+
+    INT_PTR address = NULL;
+    
+    BEGIN_QCALL;
+
+    address = NDirect::GetNativeLibraryExport((NATIVE_LIBRARY_HANDLE)handle, symbolName, throwOnError);
+
+    END_QCALL;
+
+    return address;
+}
 
 #ifdef FEATURE_COMINTEROP
 
@@ -994,7 +1056,7 @@ FCIMPL1(ITypeInfo*, MarshalNative::GetITypeInfoForType, ReflectClassBaseObject* 
     _ASSERTE(pMT);
 
     // Retrieve the ITypeInfo for the class.
-    IfFailThrow(GetITypeInfoForEEClass(pMT, &pTI, true));
+    IfFailThrow(GetITypeInfoForEEClass(pMT, &pTI, true /* bClassInfo */));
     _ASSERTE(pTI != NULL);
 
     HELPER_METHOD_FRAME_END();
@@ -1049,7 +1111,7 @@ FCIMPL1(IUnknown*, MarshalNative::GetRawIUnknownForComObjectNoAddRef, Object* or
     if(!oref)
         COMPlusThrowArgumentNull(W("o"));
 
-    MethodTable* pMT = oref->GetTrueMethodTable();
+    MethodTable* pMT = oref->GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);    
     if(!pMT->IsComObjectType())
         COMPlusThrow(kArgumentException, IDS_EE_SRC_OBJ_NOT_COMOBJECT);
@@ -1288,7 +1350,7 @@ FCIMPL2(IUnknown*, MarshalNative::CreateAggregatedObject, IUnknown* pOuter, Obje
     if (oref == NULL)
         COMPlusThrowArgumentNull(W("o"));
 
-    MethodTable *pMT = oref->GetTrueMethodTable();
+    MethodTable *pMT = oref->GetMethodTable();
     if (pMT->IsWinRTObjectType() || pMT->IsExportedToWinRT())
         COMPlusThrowArgumentException(W("o"), W("Argument_ObjIsWinRTObject"));
 
@@ -1363,7 +1425,7 @@ FCIMPL1(FC_BOOL_RET, MarshalNative::IsComObject, Object* objUNSAFE)
     if(!obj)
         COMPlusThrowArgumentNull(W("o"));
 
-    MethodTable* pMT = obj->GetTrueMethodTable();
+    MethodTable* pMT = obj->GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);
     retVal = pMT->IsComObjectType();
 
@@ -1388,7 +1450,7 @@ FCIMPL1(INT32, MarshalNative::ReleaseComObject, Object* objUNSAFE)
     if(!obj)
         COMPlusThrowArgumentNull(W("o"));
 
-    MethodTable* pMT = obj->GetTrueMethodTable();
+    MethodTable* pMT = obj->GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);    
     if(!pMT->IsComObjectType())
         COMPlusThrow(kArgumentException, IDS_EE_SRC_OBJ_NOT_COMOBJECT);
@@ -1415,7 +1477,7 @@ FCIMPL1(void, MarshalNative::FinalReleaseComObject, Object* objUNSAFE)
     if(!obj)
         COMPlusThrowArgumentNull(W("o"));
 
-    MethodTable* pMT = obj->GetTrueMethodTable();
+    MethodTable* pMT = obj->GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);    
     if(!pMT->IsComObjectType())
         COMPlusThrow(kArgumentException, IDS_EE_SRC_OBJ_NOT_COMOBJECT);
@@ -2206,39 +2268,6 @@ FCIMPL1(Object*, MarshalNative::WrapIUnknownWithComObject, IUnknown* pUnk)
 }
 FCIMPLEND
 
-//+----------------------------------------------------------------------------
-//
-//  Method:     CLR_BOOL __stdcall MarshalNative::SwitchCCW(switchCCWArgs* pArgs)
-//
-//  Synopsis:   switch the wrapper from oldtp to newtp
-//
-
-//
-//+----------------------------------------------------------------------------
-
-FCIMPL2(FC_BOOL_RET, MarshalNative::SwitchCCW, Object* oldtpUNSAFE, Object* newtpUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    BOOL retVal = FALSE;
-    OBJECTREF oldtp = (OBJECTREF) oldtpUNSAFE;
-    OBJECTREF newtp = (OBJECTREF) newtpUNSAFE;
-    HELPER_METHOD_FRAME_BEGIN_RET_2(oldtp, newtp);
-
-    if (oldtp == NULL)
-        COMPlusThrowArgumentNull(W("oldtp"));
-    if (newtp == NULL)
-        COMPlusThrowArgumentNull(W("newtp"));
-
-    // defined in interoputil.cpp
-    retVal = ReconnectWrapper(&oldtp, &newtp);
-
-    HELPER_METHOD_FRAME_END();
-    FC_RETURN_BOOL(retVal);
-}
-FCIMPLEND
-
-
 FCIMPL2(void, MarshalNative::ChangeWrapperHandleStrength, Object* orefUNSAFE, CLR_BOOL fIsWeak)
 {
     FCALL_CONTRACT;
@@ -2388,7 +2417,7 @@ void QCALLTYPE MarshalNative::GetInspectableIIDs(
         if(orComObject == NULL)
             COMPlusThrowArgumentNull(W("obj"));
 
-        MethodTable* pMT = orComObject->GetTrueMethodTable();
+        MethodTable* pMT = orComObject->GetMethodTable();
         PREFIX_ASSUME(pMT != NULL);
         if(!pMT->IsComObjectType())
             COMPlusThrow(kArgumentException, IDS_EE_SRC_OBJ_NOT_COMOBJECT);
@@ -2418,111 +2447,6 @@ void QCALLTYPE MarshalNative::GetInspectableIIDs(
             retArrayGuids.SetGuidArray(rgIIDs, size);
         }
     }
-
-    END_QCALL;
-}
-
-
-void QCALLTYPE MarshalNative::GetCachedWinRTTypes(
-                        QCall::ObjectHandleOnStack hadObj,
-                        int * pEpoch,
-                        QCall::ObjectHandleOnStack retArrayMT)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(*hadObj.m_ppObject, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    BEGIN_QCALL;
-
-    AppDomain * pDomain = GetAppDomain();
-
-    {
-        GCX_COOP();
-
-        // set return to failure value
-        retArrayMT.Set(NULL);
-
-        OBJECTREF orDomain = NULL;
-        GCPROTECT_BEGIN(orDomain);
-
-        orDomain = ObjectToOBJECTREF(*hadObj.m_ppObject);
-
-        // Validation: hadObj represents a non-NULL System.AppDomain instance
-        if(orDomain != NULL)
-        {
-            MethodTable* pMT = orDomain->GetTrueMethodTable();
-            PREFIX_ASSUME(pMT != NULL);
-            if (!pMT->CanCastToClass(MscorlibBinder::GetClass(CLASS__APP_DOMAIN)))
-                // TODO: find better resource string
-                COMPlusThrow(kArgumentException, IDS_EE_ADUNLOAD_DEFAULT);
-
-            pDomain = ((AppDomainBaseObject*)(OBJECTREFToObject(orDomain)))->GetDomain();
-        }
-        GCPROTECT_END();
-    }
-
-    if (pDomain != NULL)
-    {
-        SArray<PTR_MethodTable> types;
-        SArray<GUID> guids;
-        UINT e = *(UINT*)pEpoch;
-        pDomain->GetCachedWinRTTypes(&types, &guids, e, (UINT*)pEpoch);
-
-        retArrayMT.SetIntPtrArray((void**)(&types[0]), types.GetCount());
-    }
-
-    END_QCALL;
-}
-
-void QCALLTYPE MarshalNative::GetCachedWinRTTypeByIID(
-                        QCall::ObjectHandleOnStack hadObj,
-                        GUID guid,
-                        void * * ppMT)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(*hadObj.m_ppObject, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    BEGIN_QCALL;
-
-    AppDomain * pDomain = GetAppDomain();
-
-    {
-        GCX_COOP();
-
-        // set return to failure value
-        *ppMT = NULL;
-
-        OBJECTREF orDomain = NULL;
-        GCPROTECT_BEGIN(orDomain);
-
-        orDomain = ObjectToOBJECTREF(*hadObj.m_ppObject);
-
-        // Validation: hadObj represents a non-NULL System.AppDomain instance
-        if(orDomain != NULL)
-        {
-            MethodTable* pMT = orDomain->GetTrueMethodTable();
-            PREFIX_ASSUME(pMT != NULL);
-            if (!pMT->CanCastToClass(MscorlibBinder::GetClass(CLASS__APP_DOMAIN)))
-                // TODO: find better resource string
-                COMPlusThrow(kArgumentException, IDS_EE_ADUNLOAD_DEFAULT);
-
-            pDomain = ((AppDomainBaseObject*)(OBJECTREFToObject(orDomain)))->GetDomain();
-        }
-        GCPROTECT_END();
-    }
-
-    if (pDomain != NULL)
-    {
-        *ppMT = pDomain->LookupTypeByGuid(guid);;
-    }
-
 
     END_QCALL;
 }

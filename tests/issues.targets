@@ -69,7 +69,7 @@
     </ItemGroup>
 
     <!-- Arm32 All OS -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'arm'">
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and ('$(BuildArch)' == 'arm' or '$(AltJitArch)' == 'arm')">
         <ExcludeList Include="$(XunitTestBinBase)/CoreMangLib/cti/system/reflection/emit/DynMethodJumpStubTests/DynMethodJumpStubTests/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
@@ -190,19 +190,16 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/eh/FinallyExec/nonlocalexitinroot/*">
             <Issue>times out</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/opt/ObjectStackAllocation/ObjectStackAllocationTests/*">
+          <Issue>21376</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/devdiv_902271/DevDiv_902271/*">
             <Issue>times out</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/SIMD/Matrix4x4_r/*">
-            <Issue>19537</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/SIMD/Matrix4x4_ro/*">
-            <Issue>19537</Issue>
         </ExcludeList>
     </ItemGroup>
 
     <!-- Arm64 All OS -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'arm64'">
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and ('$(BuildArch)' == 'arm64' or '$(AltJitArch)' == 'arm64')">
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/opt/cse/hugeexpr1/hugeexpr1/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
@@ -241,6 +238,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/readytorun/r2rdump/R2RDumpTest/*">
             <Issue>19441</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/DevDiv_736188/DevDiv_736188/*">
+            <Issue>21363</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -312,9 +312,19 @@
         </ExcludeList>
     </ItemGroup>
 
+    <!-- x86 specific excludes -->
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'x86'">
+      <ExcludeList Include="$(XunitTestBinBase)/JIT/opt/ObjectStackAllocation/ObjectStackAllocationTests/*">
+        <Issue>Object stack allocation is not supported on x86 yet</Issue>
+      </ExcludeList>
+    </ItemGroup>
+
     <!-- Windows arm32 specific excludes -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'arm' and '$(TargetsWindows)' == 'true'">
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and ('$(BuildArch)' == 'arm' or '$(AltJitArch)' == 'arm') and '$(TargetsWindows)' == 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NETClients/Primitives/NETClientPrimitives/*">
+            <Issue>20682</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NETClients/Primitives/NETClientPrimitivesInALC/*">
             <Issue>20682</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NativeClients/Primitives/*">
@@ -329,7 +339,7 @@
     </ItemGroup>
 
     <!-- Windows arm64 specific excludes -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'arm64' and '$(TargetsWindows)' == 'true'">
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and ('$(BuildArch)' == 'arm64' or '$(AltJitArch)' == 'arm64') and '$(TargetsWindows)' == 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/GC/Features/HeapExpansion/bestfit-threaded/*">
             <Issue>15016</Issue>
         </ExcludeList>
@@ -444,7 +454,7 @@
     </ItemGroup>
 
     <!-- arm32 All OS specific excludes -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'arm'">
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and  ('$(BuildArch)' == 'arm' or '$(AltJitArch)' == 'arm')">
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/tailcall_v4/hijacking/*">
             <Issue>6217</Issue>
         </ExcludeList>
@@ -557,7 +567,7 @@
     </ItemGroup>
 
     <!-- Unix arm64 specific -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'arm64' and '$(TargetsWindows)' != 'true' and '$(BuildTestsAgainstPackages)' != 'true'">
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and ('$(BuildArch)' == 'arm64' or '$(AltJitArch)' == 'arm64') and '$(TargetsWindows)' != 'true' and '$(BuildTestsAgainstPackages)' != 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/eh/FinallyExec/nonlocalexitinhandler/*">
             <Issue>Test times out</Issue>
         </ExcludeList>
@@ -585,7 +595,7 @@
     </ItemGroup>
 
     <!-- Unix arm32 specific -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'arm' and '$(TargetsWindows)' != 'true' and '$(BuildTestsAgainstPackages)' != 'true'">
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and ('$(BuildArch)' == 'arm' or '$(AltJitArch)' == 'arm') and '$(TargetsWindows)' != 'true' and '$(BuildTestsAgainstPackages)' != 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/tracing/runtimeeventsource/runtimeeventsource/*">
             <Issue>19340</Issue>
         </ExcludeList>
@@ -800,6 +810,9 @@
     <!-- The following are tests that fail on non-Windows, which we must not run when building against packages -->
 
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildTestsAgainstPackages)' == 'true' and '$(TargetsWindows)' != 'true'">
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/MarshalAPI/NativeLibrary/NativeLibraryTests/*">
+            <Issue>Issue building native components for the test. Since tests are currently built on Windows, the native components end up at Core_Root instead of Test directory, which is not suitable for the test.</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/CoreMangLib/cti/system/byte/ByteToString3/*">
             <Issue>needs triage</Issue>
         </ExcludeList>

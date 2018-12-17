@@ -486,6 +486,15 @@ BOOL MyICJI::isValueClass(CORINFO_CLASS_HANDLE cls)
     return jitInstance->mc->repIsValueClass(cls);
 }
 
+// Decides how the JIT should do the optimization to inline the check for
+//     GetTypeFromHandle(handle) == obj.GetType() (for CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE)
+//     GetTypeFromHandle(X) == GetTypeFromHandle(Y) (for CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+CorInfoInlineTypeCheck MyICJI::canInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source)
+{
+    jitInstance->mc->cr->AddCall("canInlineTypeCheck");
+    return jitInstance->mc->repCanInlineTypeCheck(cls, source);
+}
+
 // If this method returns true, JIT will do optimization to inline the check for
 //     GetTypeFromHandle(handle) == obj.GetType()
 BOOL MyICJI::canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
@@ -1250,13 +1259,14 @@ const char* MyICJI::getMethodName(CORINFO_METHOD_HANDLE ftn,       /* IN */
     return jitInstance->mc->repGetMethodName(ftn, moduleName);
 }
 
-const char* MyICJI::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,          /* IN */
-                                              const char**          className,    /* OUT */
-                                              const char**          namespaceName /* OUT */
+const char* MyICJI::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,                /* IN */
+                                              const char**          className,          /* OUT */
+                                              const char**          namespaceName,      /* OUT */
+                                              const char**          enclosingClassName /* OUT */
                                               )
 {
     jitInstance->mc->cr->AddCall("getMethodNameFromMetadata");
-    return jitInstance->mc->repGetMethodNameFromMetadata(ftn, className, namespaceName);
+    return jitInstance->mc->repGetMethodNameFromMetadata(ftn, className, namespaceName, enclosingClassName);
 }
 
 // this function is for debugging only.  It returns a value that
@@ -1514,6 +1524,13 @@ void* MyICJI::getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection)
 {
     jitInstance->mc->cr->AddCall("getFieldAddress");
     return jitInstance->mc->repGetFieldAddress(field, ppIndirection);
+}
+
+// return the class handle for the current value of a static field
+CORINFO_CLASS_HANDLE MyICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative)
+{
+    jitInstance->mc->cr->AddCall("getStaticFieldCurrentClass");
+    return jitInstance->mc->repGetStaticFieldCurrentClass(field, pIsSpeculative);
 }
 
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)

@@ -61,8 +61,27 @@ SET_DEFAULT_DEBUG_CHANNEL(PROCESS); // some headers have code with asserts, so d
 #include <stdint.h>
 #include <dlfcn.h>
 
+#ifdef __linux__
+#include <sys/syscall.h> // __NR_membarrier
+// Ensure __NR_membarrier is defined for portable builds.
+# if !defined(__NR_membarrier)
+#  if defined(__amd64__)
+#   define __NR_membarrier  324
+#  elif defined(__i386__)
+#   define __NR_membarrier  375
+#  elif defined(__arm__)
+#   define __NR_membarrier  389
+#  elif defined(__aarch64__)
+#   define __NR_membarrier  283
+#  elif
+#   error Unknown architecture
+#  endif
+# endif
+#endif
+
 #ifdef __APPLE__
 #include <sys/sysctl.h>
+#include <sys/posix_sem.h>
 #endif
 
 #ifdef __NetBSD__
@@ -96,6 +115,32 @@ CObjectType CorUnix::otProcess(
                 CObjectType::ThreadReleaseHasNoSideEffects,
                 CObjectType::NoOwner
                 );
+
+//
+// Helper membarrier function
+//
+#ifdef __NR_membarrier
+# define membarrier(...)  syscall(__NR_membarrier, __VA_ARGS__)
+#else
+# define membarrier(...)  -ENOSYS
+#endif
+
+enum membarrier_cmd
+{
+    MEMBARRIER_CMD_QUERY                                 = 0,
+    MEMBARRIER_CMD_GLOBAL                                = (1 << 0),
+    MEMBARRIER_CMD_GLOBAL_EXPEDITED                      = (1 << 1),
+    MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED             = (1 << 2),
+    MEMBARRIER_CMD_PRIVATE_EXPEDITED                     = (1 << 3),
+    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED            = (1 << 4),
+    MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE           = (1 << 5),
+    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE  = (1 << 6)
+};
+
+//
+// Tracks if the OS supports FlushProcessWriteBuffers using membarrier
+//
+static int s_flushUsingMemBarrier = 0;
 
 //
 // Helper memory page used by the FlushProcessWriteBuffers
@@ -139,14 +184,25 @@ Volatile<LONG> terminator = 0;
 DWORD gPID = (DWORD) -1;
 DWORD gSID = (DWORD) -1;
 
+// Application group ID for this process
+#ifdef __APPLE__
+LPCSTR gApplicationGroupId = nullptr;
+int gApplicationGroupIdLength = 0;
+#endif // __APPLE__
+PathCharString* gSharedFilesPath = nullptr;
+
 // The lowest common supported semaphore length, including null character
 // NetBSD-7.99.25: 15 characters
 // MacOSX 10.11: 31 -- Core 1.0 RC2 compatibility
 #if defined(__NetBSD__)
 #define CLR_SEM_MAX_NAMELEN 15
+#elif defined(__APPLE__)
+#define CLR_SEM_MAX_NAMELEN PSEMNAMLEN
 #else
 #define CLR_SEM_MAX_NAMELEN (NAME_MAX - 4)
 #endif
+
+static_assert_no_msg(CLR_SEM_MAX_NAMELEN <= MAX_PATH);
 
 // Function to call during PAL/process shutdown/abort
 Volatile<PSHUTDOWN_CALLBACK> g_shutdownCallback = nullptr;
@@ -160,18 +216,40 @@ char* g_argvCreateDump[8] = { nullptr };
 //
 pthread_key_t CorUnix::thObjKey;
 
-#define PROCESS_PELOADER_FILENAME  "clix"
-
 static WCHAR W16_WHITESPACE[]= {0x0020, 0x0009, 0x000D, 0};
 static WCHAR W16_WHITESPACE_DQUOTE[]= {0x0020, 0x0009, 0x000D, '"', 0};
 
 enum FILETYPE
 {
     FILE_ERROR,/*ERROR*/
-    FILE_PE,   /*PE/COFF file*/
     FILE_UNIX, /*Unix Executable*/
     FILE_DIR   /*Directory*/
 };
+
+#pragma pack(push,1)
+// When creating the semaphore name on Mac running in a sandbox, We reference this structure as a byte array 
+// in order to encode its data into a string. Its important to make sure there is no padding between the fields
+// and also at the end of the buffer. Hence, this structure is defined inside a pack(1)
+struct UnambiguousProcessDescriptor
+{
+    UnambiguousProcessDescriptor()
+    {
+    }
+
+    UnambiguousProcessDescriptor(DWORD processId, UINT64 disambiguationKey)
+    {
+        Init(processId, disambiguationKey);
+    }
+
+    void Init(DWORD processId, UINT64 disambiguationKey)
+    {
+        m_processId = processId;
+        m_disambiguationKey = disambiguationKey;
+    }
+    UINT64 m_disambiguationKey;
+    DWORD m_processId;
+};
+#pragma pack(pop)
 
 static
 DWORD
@@ -192,8 +270,16 @@ PROCGetProcessStatus(
     PROCESS_STATE *pps,
     DWORD *pdwExitCode);
 
+static
+void 
+CreateSemaphoreName(
+    char semName[CLR_SEM_MAX_NAMELEN],
+    LPCSTR semaphoreName,
+    const UnambiguousProcessDescriptor& unambiguousProcessDescriptor,
+    LPCSTR applicationGroupId);
+
 static BOOL getFileName(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, PathCharString& lpFileName);
-static char ** buildArgv(LPCWSTR lpCommandLine, PathCharString& lpAppPath, UINT *pnArg, BOOL prependLoader);
+static char ** buildArgv(LPCWSTR lpCommandLine, PathCharString& lpAppPath, UINT *pnArg);
 static BOOL getPath(PathCharString& lpFileName, PathCharString& lpPathFileName);
 static int checkFileType(LPCSTR lpFileName);
 static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode, BOOL bTerminateUnconditionally);
@@ -736,28 +822,6 @@ CorUnix::InternalCreateProcess(
             palError = ERROR_FILE_NOT_FOUND;
             goto InternalCreateProcessExit;
 
-        case FILE_PE: /* PE/COFF file */
-            //Get the path name where the PAL DLL was loaded from
-            if ( PAL_GetPALDirectoryA( lpFileNamePS ))
-            {
-                if (lpFileNamePS.Append("/", 1) == FALSE  ||
-                    lpFileNamePS.Append( PROCESS_PELOADER_FILENAME, strlen(PROCESS_PELOADER_FILENAME)) == FALSE)
-                {
-                    ERROR("Append failed!\n");
-                    palError = ERROR_INTERNAL_ERROR;
-                    goto InternalCreateProcessExit;
-                }
-            }
-            else
-            {
-                ASSERT("PAL_GetPALDirectoryA failed to return the"
-                       "pal installation directory \n");
-                palError = ERROR_INTERNAL_ERROR;
-                goto InternalCreateProcessExit;
-            }
-
-            break;
-
         case FILE_UNIX: /* Unix binary file */
             break;  /* nothing to do */
 
@@ -775,7 +839,7 @@ CorUnix::InternalCreateProcess(
 
     /* build Argument list, lppArgv is allocated in buildArgv function and
        requires to be freed */
-    lppArgv = buildArgv(lpCommandLine, lpFileNamePS, &nArg, iRet==1);
+    lppArgv = buildArgv(lpCommandLine, lpFileNamePS, &nArg);
 
     /* set the Environment variable */
     if (lpEnvironment != NULL)
@@ -1469,12 +1533,13 @@ static bool IsCoreClrModule(const char* pModulePath)
 // NetBSD limits semaphore names to 15 characters, including null (at least up to 7.99.25).
 // Keep 31 length for Core 1.0 RC2 compatibility
 #if defined(__NetBSD__)
-static const char* RuntimeStartupSemaphoreName = "/clrst%08llx";
-static const char* RuntimeContinueSemaphoreName = "/clrco%08llx";
+static const char* RuntimeSemaphoreNameFormat = "/clr%s%08llx";
 #else
-static const char* RuntimeStartupSemaphoreName = "/clrst%08x%016llx";
-static const char* RuntimeContinueSemaphoreName = "/clrco%08x%016llx";
+static const char* RuntimeSemaphoreNameFormat = "/clr%s%08x%016llx";
 #endif
+
+static const char* RuntimeStartupSemaphoreName = "st";
+static const char* RuntimeContinueSemaphoreName = "co";
 
 #if defined(__NetBSD__)
 static uint64_t HashSemaphoreName(uint64_t a, uint64_t b)
@@ -1496,6 +1561,11 @@ class PAL_RuntimeStartupHelper
     DWORD m_threadId;
     HANDLE m_threadHandle;
     DWORD m_processId;
+#ifdef __APPLE__    
+    char m_applicationGroupId[MAX_APPLICATION_GROUP_ID_LENGTH+1];
+#endif // __APPLE__    
+    char m_startupSemName[CLR_SEM_MAX_NAMELEN];
+    char m_continueSemName[CLR_SEM_MAX_NAMELEN];
 
     // A value that, used in conjunction with the process ID, uniquely identifies a process.
     // See the format we use for debugger semaphore names for why this is necessary.
@@ -1507,6 +1577,15 @@ class PAL_RuntimeStartupHelper
     // Debuggee waits on this semaphore and the debugger signals it after the startup callback 
     // registered (m_callback) returns.
     sem_t *m_continueSem;
+
+    LPCSTR GetApplicationGroupId() const
+    {
+#ifdef __APPLE__        
+        return m_applicationGroupId[0] == '\0' ? nullptr : m_applicationGroupId;
+#else // __APPLE__
+        return nullptr;
+#endif // __APPLE__        
+    }
 
 public:
     PAL_RuntimeStartupHelper(DWORD dwProcessId, PPAL_STARTUP_CALLBACK pfnCallback, PVOID parameter) :
@@ -1526,28 +1605,14 @@ public:
     {
         if (m_startupSem != SEM_FAILED)
         {
-            char startupSemName[CLR_SEM_MAX_NAMELEN];
-            sprintf_s(startupSemName,
-                      sizeof(startupSemName),
-                      RuntimeStartupSemaphoreName,
-                      HashSemaphoreName(m_processId,
-                                        m_processIdDisambiguationKey));
-
             sem_close(m_startupSem);
-            sem_unlink(startupSemName);
+            sem_unlink(m_startupSemName);
         }
 
         if (m_continueSem != SEM_FAILED)
         {
-            char continueSemName[CLR_SEM_MAX_NAMELEN];
-            sprintf_s(continueSemName,
-                      sizeof(continueSemName),
-                      RuntimeContinueSemaphoreName,
-                      HashSemaphoreName(m_processId,
-                                        m_processIdDisambiguationKey));
-
             sem_close(m_continueSem);
-            sem_unlink(continueSemName);
+            sem_unlink(m_continueSemName);
         }
 
         if (m_threadHandle != NULL)
@@ -1603,39 +1668,54 @@ public:
         return pe;
     }
 
-    PAL_ERROR Register()
+    PAL_ERROR Register(LPCWSTR lpApplicationGroupId)
     {
         CPalThread *pThread = InternalGetCurrentThread();
-        char startupSemName[CLR_SEM_MAX_NAMELEN];
-        char continueSemName[CLR_SEM_MAX_NAMELEN];
         PAL_ERROR pe = NO_ERROR;
+        BOOL ret;
+        UnambiguousProcessDescriptor unambiguousProcessDescriptor;
+
+#ifdef __APPLE__
+        if (lpApplicationGroupId != NULL)
+        {
+            /* Convert to ASCII */
+            int applicationGroupIdLength = WideCharToMultiByte(CP_ACP, 0, lpApplicationGroupId, -1, m_applicationGroupId, sizeof(m_applicationGroupId), NULL, NULL);
+            if (applicationGroupIdLength == 0)
+            {
+                pe = GetLastError();
+                TRACE("applicationGroupId: Failed to convert to multibyte string (%u)\n", pe);
+                if (pe == ERROR_INSUFFICIENT_BUFFER)
+                {
+                    pe = ERROR_BAD_LENGTH;
+                }
+                goto exit;
+            }
+        }
+        else
+        {
+            // Indicate that group ID is not being used
+            m_applicationGroupId[0] = '\0';
+        }
+#endif // __APPLE__
 
         // See semaphore name format for details about this value. We store it so that
         // it can be used by the cleanup code that removes the semaphore with sem_unlink.
-        BOOL ret = GetProcessIdDisambiguationKey(m_processId, &m_processIdDisambiguationKey);
+        ret = GetProcessIdDisambiguationKey(m_processId, &m_processIdDisambiguationKey);
 
         // If GetProcessIdDisambiguationKey failed for some reason, it should set the value 
         // to 0. We expect that anyone else opening the semaphore name will also fail and thus 
         // will also try to use 0 as the value.
         _ASSERTE(ret == TRUE || m_processIdDisambiguationKey == 0);
 
-        sprintf_s(startupSemName,
-                  sizeof(startupSemName),
-                  RuntimeStartupSemaphoreName,
-                  HashSemaphoreName(m_processId,
-                                    m_processIdDisambiguationKey));
+        unambiguousProcessDescriptor.Init(m_processId, m_processIdDisambiguationKey);
+        CreateSemaphoreName(m_startupSemName, RuntimeStartupSemaphoreName, unambiguousProcessDescriptor, GetApplicationGroupId());
+        CreateSemaphoreName(m_continueSemName, RuntimeContinueSemaphoreName, unambiguousProcessDescriptor, GetApplicationGroupId());
 
-        sprintf_s(continueSemName,
-                  sizeof(continueSemName),
-                  RuntimeContinueSemaphoreName,
-                  HashSemaphoreName(m_processId,
-                                    m_processIdDisambiguationKey));
-
-        TRACE("PAL_RuntimeStartupHelper.Register creating startup '%s' continue '%s'\n", startupSemName, continueSemName);
+        TRACE("PAL_RuntimeStartupHelper.Register creating startup '%s' continue '%s'\n", m_startupSemName, m_continueSemName);
 
         // Create the continue semaphore first so we don't race with PAL_NotifyRuntimeStarted. This open will fail if another 
         // debugger is trying to attach to this process because the name will already exist.
-        m_continueSem = sem_open(continueSemName, O_CREAT | O_EXCL, S_IRWXU, 0);
+        m_continueSem = sem_open(m_continueSemName, O_CREAT | O_EXCL, S_IRWXU, 0);
         if (m_continueSem == SEM_FAILED)
         {
             TRACE("sem_open(continue) failed: errno is %d (%s)\n", errno, strerror(errno));
@@ -1644,7 +1724,7 @@ public:
         }
 
         // Create the debuggee startup semaphore so the runtime (debuggee) knows to wait for a debugger connection.
-        m_startupSem = sem_open(startupSemName, O_CREAT | O_EXCL, S_IRWXU, 0);
+        m_startupSem = sem_open(m_startupSemName, O_CREAT | O_EXCL, S_IRWXU, 0);
         if (m_startupSem == SEM_FAILED)
         {
             TRACE("sem_open(startup) failed: errno is %d (%s)\n", errno, strerror(errno));
@@ -1720,7 +1800,7 @@ public:
     {
         char pipeName[MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH];  
 
-        PAL_GetTransportPipeName(pipeName, m_processId, "in");
+        PAL_GetTransportPipeName(pipeName, m_processId, GetApplicationGroupId(), "in");
 
         struct stat buf;
         if (stat(pipeName, &buf) == 0) 
@@ -1835,6 +1915,9 @@ StartupHelperThread(LPVOID p)
 
 Parameters:
     dwProcessId - process id of runtime process
+    lpApplicationGroupId - A string representing the application group ID of a sandboxed
+                           process running in Mac. Pass NULL if the process is not 
+                           running in a sandbox and other platforms.
     pfnCallback - function to callback for coreclr module found
     parameter - data to pass to callback
     ppUnregisterToken - pointer to put PAL_UnregisterForRuntimeStartup token.
@@ -1855,6 +1938,7 @@ DWORD
 PALAPI
 PAL_RegisterForRuntimeStartup(
     IN DWORD dwProcessId,
+    IN LPCWSTR lpApplicationGroupId,
     IN PPAL_STARTUP_CALLBACK pfnCallback,
     IN PVOID parameter,
     OUT PVOID *ppUnregisterToken)
@@ -1866,7 +1950,7 @@ PAL_RegisterForRuntimeStartup(
 
     // Create the debuggee startup semaphore so the runtime (debuggee) knows to wait for 
     // a debugger connection.
-    PAL_ERROR pe = helper->Register();
+    PAL_ERROR pe = helper->Register(lpApplicationGroupId);
     if (NO_ERROR != pe)
     {
         helper->Release();
@@ -1934,8 +2018,15 @@ PAL_NotifyRuntimeStarted()
     // will also try to use 0 as the value.
     _ASSERTE(ret == TRUE || processIdDisambiguationKey == 0);
 
-    sprintf_s(startupSemName, sizeof(startupSemName), RuntimeStartupSemaphoreName, HashSemaphoreName(gPID, processIdDisambiguationKey));
-    sprintf_s(continueSemName, sizeof(continueSemName), RuntimeContinueSemaphoreName, HashSemaphoreName(gPID, processIdDisambiguationKey));
+    UnambiguousProcessDescriptor unambiguousProcessDescriptor(gPID, processIdDisambiguationKey);
+    LPCSTR applicationGroupId = 
+#ifdef __APPLE__    
+        PAL_GetApplicationGroupId();
+#else
+        nullptr;
+#endif
+    CreateSemaphoreName(startupSemName, RuntimeStartupSemaphoreName, unambiguousProcessDescriptor, applicationGroupId);
+    CreateSemaphoreName(continueSemName, RuntimeContinueSemaphoreName, unambiguousProcessDescriptor, applicationGroupId);
 
     TRACE("PAL_NotifyRuntimeStarted opening continue '%s' startup '%s'\n", continueSemName, startupSemName);
 
@@ -1981,6 +2072,86 @@ exit:
         sem_close(continueSem);
     }
     return launched;
+}
+
+#ifdef __APPLE__
+LPCSTR
+PALAPI
+PAL_GetApplicationGroupId()
+{
+    return gApplicationGroupId;
+}
+
+// We use 7bits from each byte, so this computes the extra size we need to encode a given byte count
+constexpr int GetExtraEncodedAreaSize(UINT rawByteCount)
+{
+    return (rawByteCount+6)/7;
+}
+const int SEMAPHORE_ENCODED_NAME_EXTRA_LENGTH = GetExtraEncodedAreaSize(sizeof(UnambiguousProcessDescriptor));
+const int SEMAPHORE_ENCODED_NAME_LENGTH =
+    sizeof(UnambiguousProcessDescriptor) + /* For process ID + disambiguationKey */
+    SEMAPHORE_ENCODED_NAME_EXTRA_LENGTH; /* For base 255 extra encoding space */
+
+static_assert_no_msg(MAX_APPLICATION_GROUP_ID_LENGTH
+    + 1 /* For / */
+    + 2 /* For ST/CO name prefix */
+    + SEMAPHORE_ENCODED_NAME_LENGTH /* For encoded name string */
+    + 1 /* For null terminator */
+    <= CLR_SEM_MAX_NAMELEN);
+
+// In Apple we are limited by the length of the semaphore name. However, the characters which can be used in the
+// name can be anything between 1 and 255 (since 0 will terminate the string). Thus, we encode each byte b in 
+// unambiguousProcessDescriptor as b ? b : 1, and mark an additional bit indicating if b is 0 or not. We use 7 bits
+// out of each extra byte so 1 bit will always be '1'. This will ensure that our extra bytes are never 0 which are
+// invalid characters. Thus we need an extra byte for each 7 input bytes. Hence, only extra 2 bytes for the name string.
+void EncodeSemaphoreName(char *encodedSemName, const UnambiguousProcessDescriptor& unambiguousProcessDescriptor)
+{
+    const unsigned char *buffer = (const unsigned char *)&unambiguousProcessDescriptor;
+    char *extraEncodingBits = encodedSemName + sizeof(UnambiguousProcessDescriptor);
+
+    // Reset the extra encoding bit area
+    for (int i=0; i<SEMAPHORE_ENCODED_NAME_EXTRA_LENGTH; i++)
+    {
+        extraEncodingBits[i] = 0x80;
+    }
+
+    // Encode each byte in unambiguousProcessDescriptor
+    for (int i=0; i<sizeof(UnambiguousProcessDescriptor); i++)
+    {
+        unsigned char b = buffer[i];
+        encodedSemName[i] = b ? b : 1;
+        extraEncodingBits[i/7] |= (b ? 0 : 1) << (i%7);
+    }
+}
+#endif
+
+void CreateSemaphoreName(char semName[CLR_SEM_MAX_NAMELEN], LPCSTR semaphoreName, const UnambiguousProcessDescriptor& unambiguousProcessDescriptor, LPCSTR applicationGroupId)
+{
+    int length = 0;
+
+#ifdef __APPLE__
+    if (applicationGroupId != nullptr)
+    {
+        // We assume here that applicationGroupId has been already tested for length and is less than MAX_APPLICATION_GROUP_ID_LENGTH
+        length = sprintf_s(semName, CLR_SEM_MAX_NAMELEN, "%s/%s", applicationGroupId, semaphoreName);
+        _ASSERTE(length > 0 && length < CLR_SEM_MAX_NAMELEN);
+
+        EncodeSemaphoreName(semName+length, unambiguousProcessDescriptor);
+        length += SEMAPHORE_ENCODED_NAME_LENGTH;
+        semName[length] = 0;
+    }
+    else
+#endif // __APPLE__    
+    {
+        length = sprintf_s(
+            semName,
+            CLR_SEM_MAX_NAMELEN,
+            RuntimeSemaphoreNameFormat,
+            semaphoreName,
+            HashSemaphoreName(unambiguousProcessDescriptor.m_processId, unambiguousProcessDescriptor.m_disambiguationKey));
+    }
+
+    _ASSERTE(length > 0 && length < CLR_SEM_MAX_NAMELEN );
 }
 
 /*++
@@ -2128,33 +2299,70 @@ PALAPI
 PAL_GetTransportPipeName(
     OUT char *name,
     IN DWORD id,
+    IN const char *applicationGroupId,
     IN const char *suffix)
 {
     *name = '\0';
     DWORD dwRetVal = 0;
     UINT64 disambiguationKey = 0;
-    char formatBuffer[MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH];
+    PathCharString formatBufferString;
     BOOL ret = GetProcessIdDisambiguationKey(id, &disambiguationKey);
+    char *formatBuffer = formatBufferString.OpenStringBuffer(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH-1);
+    if (formatBuffer == nullptr)
+    {
+        ERROR("Out Of Memory");
+        return;
+    }
 
     // If GetProcessIdDisambiguationKey failed for some reason, it should set the value 
     // to 0. We expect that anyone else making the pipe name will also fail and thus will
     // also try to use 0 as the value.
     _ASSERTE(ret == TRUE || disambiguationKey == 0);
-
-    // Get a temp file location
-    dwRetVal = ::GetTempPathA(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, formatBuffer);
-    if (dwRetVal == 0)
+#ifdef __APPLE__
+    if (nullptr != applicationGroupId)
     {
-        ERROR("GetTempPath failed (0x%08x)", ::GetLastError());
-        return;
+        // Verify the length of the application group ID
+        int applicationGroupIdLength = strlen(applicationGroupId);
+        if (applicationGroupIdLength > MAX_APPLICATION_GROUP_ID_LENGTH)
+        {
+            ERROR("The length of applicationGroupId is larger than MAX_APPLICATION_GROUP_ID_LENGTH");
+            return;
+        }
+
+        // In sandbox, all IPC files (locks, pipes) should be written to the application group
+        // container. The path returned by GetTempPathA will be unique for each process and cannot
+        // be used for IPC between two different processes
+        if (!GetApplicationContainerFolder(formatBufferString, applicationGroupId, applicationGroupIdLength))
+        {
+            ERROR("Out Of Memory");
+            return;
+        }
+
+        // Verify the size of the path won't exceed maximum allowed size
+        if (formatBufferString.GetCount() >= MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH)
+        {
+            ERROR("GetApplicationContainerFolder returned a path that was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
+            return;
+        }
     }
-    if (dwRetVal > MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH)
+    else
+#endif // __APPLE__    
     {
-        ERROR("GetTempPath returned a path that was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
-        return;
+        // Get a temp file location
+        dwRetVal = ::GetTempPathA(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, formatBuffer);
+        if (dwRetVal == 0)
+        {
+            ERROR("GetTempPath failed (0x%08x)", ::GetLastError());
+            return;
+        }
+        if (dwRetVal > MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH)
+        {
+            ERROR("GetTempPath returned a path that was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
+            return;
+        }
     }
 
-    if (strncat_s(formatBuffer, _countof(formatBuffer), PipeNameFormat, strlen(PipeNameFormat)) == STRUNCATE)
+    if (strncat_s(formatBuffer, MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, PipeNameFormat, strlen(PipeNameFormat)) == STRUNCATE)
     {
         ERROR("TransportPipeName was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
         return;
@@ -2626,6 +2834,7 @@ GetProcessModulesFromHandle(
     if (hPseudoCurrentProcess == hProcess)
     {
         pobjProcess = g_pobjProcess;
+        pobjProcess->AddReference();
     }
     else
     {
@@ -3117,12 +3326,27 @@ BOOL
 InitializeFlushProcessWriteBuffers()
 {
     _ASSERTE(s_helperPage == 0);
+    _ASSERTE(s_flushUsingMemBarrier == 0);
+
+    // Starting with Linux kernel 4.14, process memory barriers can be generated
+    // using MEMBARRIER_CMD_PRIVATE_EXPEDITED.
+    int mask = membarrier(MEMBARRIER_CMD_QUERY, 0);
+    if (mask >= 0 &&
+        mask & MEMBARRIER_CMD_PRIVATE_EXPEDITED)
+    {
+        // Register intent to use the private expedited command.
+        if (membarrier(MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED, 0) == 0)
+        {
+            s_flushUsingMemBarrier = TRUE;
+            return TRUE;
+        }
+    }
 
     s_helperPage = static_cast<int*>(mmap(0, GetVirtualPageSize(), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
 
     if(s_helperPage == MAP_FAILED)
     {
-        return false;
+        return FALSE;
     }
 
     // Verify that the s_helperPage is really aligned to the GetVirtualPageSize()
@@ -3168,24 +3392,32 @@ VOID
 PALAPI 
 FlushProcessWriteBuffers()
 {   
-    int status = pthread_mutex_lock(&flushProcessWriteBuffersMutex);
-    FATAL_ASSERT(status == 0, "Failed to lock the flushProcessWriteBuffersMutex lock");
+    if (s_flushUsingMemBarrier)
+    {
+        int status = membarrier(MEMBARRIER_CMD_PRIVATE_EXPEDITED, 0);
+        FATAL_ASSERT(status == 0, "Failed to flush using membarrier");
+    }
+    else
+    {
+        int status = pthread_mutex_lock(&flushProcessWriteBuffersMutex);
+        FATAL_ASSERT(status == 0, "Failed to lock the flushProcessWriteBuffersMutex lock");
 
-    // Changing a helper memory page protection from read / write to no access 
-    // causes the OS to issue IPI to flush TLBs on all processors. This also
-    // results in flushing the processor buffers.
-    status = mprotect(s_helperPage, GetVirtualPageSize(), PROT_READ | PROT_WRITE);
-    FATAL_ASSERT(status == 0, "Failed to change helper page protection to read / write");
+        // Changing a helper memory page protection from read / write to no access
+        // causes the OS to issue IPI to flush TLBs on all processors. This also
+        // results in flushing the processor buffers.
+        status = mprotect(s_helperPage, GetVirtualPageSize(), PROT_READ | PROT_WRITE);
+        FATAL_ASSERT(status == 0, "Failed to change helper page protection to read / write");
 
-    // Ensure that the page is dirty before we change the protection so that
-    // we prevent the OS from skipping the global TLB flush.
-    InterlockedIncrement(s_helperPage);
+        // Ensure that the page is dirty before we change the protection so that
+        // we prevent the OS from skipping the global TLB flush.
+        InterlockedIncrement(s_helperPage);
 
-    status = mprotect(s_helperPage, GetVirtualPageSize(), PROT_NONE);
-    FATAL_ASSERT(status == 0, "Failed to change helper page protection to no access");
+        status = mprotect(s_helperPage, GetVirtualPageSize(), PROT_NONE);
+        FATAL_ASSERT(status == 0, "Failed to change helper page protection to no access");
 
-    status = pthread_mutex_unlock(&flushProcessWriteBuffersMutex);
-    FATAL_ASSERT(status == 0, "Failed to unlock the flushProcessWriteBuffersMutex lock");
+        status = pthread_mutex_unlock(&flushProcessWriteBuffersMutex);
+        FATAL_ASSERT(status == 0, "Failed to unlock the flushProcessWriteBuffersMutex lock");
+    }
 }
 
 /*++
@@ -3945,6 +4177,21 @@ PROCGetProcessStatusExit:
     return palError;
 }
 
+#ifdef __APPLE__
+bool GetApplicationContainerFolder(PathCharString& buffer, const char *applicationGroupId, int applicationGroupIdLength)
+{
+    const char *homeDir = getpwuid(getuid())->pw_dir;
+    int homeDirLength = strlen(homeDir);
+
+    // The application group container folder is defined as:
+    // /user/{loginname}/Library/Group Containers/{AppGroupId}/
+    return buffer.Set(homeDir, homeDirLength)
+        && buffer.Append(APPLICATION_CONTAINER_BASE_PATH_SUFFIX)
+        && buffer.Append(applicationGroupId, applicationGroupIdLength)
+        && buffer.Append('/');
+}
+#endif // __APPLE__
+
 #ifdef _DEBUG
 void PROCDumpThreadList()
 {
@@ -4115,7 +4362,6 @@ getFileName(
 
         /* Replace '\' by '/' */
         FILEDosToUnixPathA(lpFileName);
-
         if (!getPath(lpFileNamePS, lpPathFileName))
         {
             /* file is not in the path */
@@ -4123,183 +4369,6 @@ getFileName(
         }
     }
     return TRUE;
-}
-
-/*++
-Functions: VAL16 & VAL32
-   Byte swapping functions for reading in little endian format files
---*/
-#ifdef BIGENDIAN
-
-static inline USHORT    VAL16(USHORT x)
-{
-    return ( ((x & 0xFF00) >> 8) | ((x & 0x00FF) << 8) );
-}
-static inline ULONG   VAL32(DWORD x)
-{
-    return( ((x & 0xFF000000L) >> 24) |
-            ((x & 0x00FF0000L) >>  8) |
-            ((x & 0x0000FF00L) <<  8) |
-            ((x & 0x000000FFL) << 24) );
-}
-#else   // BIGENDIAN
-// For little-endian machines, do nothing
-static __inline USHORT  VAL16(unsigned short x) { return x; }
-static __inline DWORD   VAL32(DWORD x){ return x; }
-#endif  // BIGENDIAN
-
-static const DWORD IMAGE_DOS_SIGNATURE = 0x5A4D;
-static const DWORD IMAGE_NT_SIGNATURE  = 0x00004550;
-static const DWORD IMAGE_SIZEOF_NT_OPTIONAL32_HEADER     = 224;
-static const DWORD IMAGE_NT_OPTIONAL_HDR32_MAGIC         = 0x10b;
-static const DWORD IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR  = 14;
-
-typedef struct _IMAGE_DATA_DIRECTORY {
-    DWORD   VirtualAddress;
-    DWORD   Size;
-} IMAGE_DATA_DIRECTORY, *PIMAGE_DATA_DIRECTORY;
-
-typedef struct _IMAGE_OPTIONAL_HEADER {
-    //
-    // Standard fields.
-    //
-
-    WORD    Magic;
-    BYTE    MajorLinkerVersion;
-    BYTE    MinorLinkerVersion;
-    DWORD   SizeOfCode;
-    DWORD   SizeOfInitializedData;
-    DWORD   SizeOfUninitializedData;
-    DWORD   AddressOfEntryPoint;
-    DWORD   BaseOfCode;
-    DWORD   BaseOfData;
-
-    //
-    // NT additional fields.
-    //
-
-    DWORD   ImageBase;
-    DWORD   SectionAlignment;
-    DWORD   FileAlignment;
-    WORD    MajorOperatingSystemVersion;
-    WORD    MinorOperatingSystemVersion;
-    WORD    MajorImageVersion;
-    WORD    MinorImageVersion;
-    WORD    MajorSubsystemVersion;
-    WORD    MinorSubsystemVersion;
-    DWORD   Win32VersionValue;
-    DWORD   SizeOfImage;
-    DWORD   SizeOfHeaders;
-    DWORD   CheckSum;
-    WORD    Subsystem;
-    WORD    DllCharacteristics;
-    DWORD   SizeOfStackReserve;
-    DWORD   SizeOfStackCommit;
-    DWORD   SizeOfHeapReserve;
-    DWORD   SizeOfHeapCommit;
-    DWORD   LoaderFlags;
-    DWORD   NumberOfRvaAndSizes;
-    IMAGE_DATA_DIRECTORY DataDirectory[16];
-} IMAGE_OPTIONAL_HEADER32, *PIMAGE_OPTIONAL_HEADER32;
-
-typedef struct _IMAGE_FILE_HEADER {
-    WORD    Machine;
-    WORD    NumberOfSections;
-    DWORD   TimeDateStamp;
-    DWORD   PointerToSymbolTable;
-    DWORD   NumberOfSymbols;
-    WORD    SizeOfOptionalHeader;
-    WORD    Characteristics;
-} IMAGE_FILE_HEADER, *PIMAGE_FILE_HEADER;
-
-typedef struct _IMAGE_NT_HEADERS {
-    DWORD Signature;
-    IMAGE_FILE_HEADER FileHeader;
-    IMAGE_OPTIONAL_HEADER32 OptionalHeader;
-} IMAGE_NT_HEADERS32, *PIMAGE_NT_HEADERS32;
-
-typedef struct _IMAGE_DOS_HEADER {      /* DOS .EXE header*/
-    WORD   e_magic;                     /* Magic number*/
-    WORD   e_cblp;                      /* Bytes on last page of file*/
-    WORD   e_cp;                        /* Pages in file*/
-    WORD   e_crlc;                      /* Relocations*/
-    WORD   e_cparhdr;                   /* Size of header in paragraphs*/
-    WORD   e_minalloc;                  /* Minimum extra paragraphs needed*/
-    WORD   e_maxalloc;                  /* Maximum extra paragraphs needed*/
-    WORD   e_ss;                        /* Initial (relative) SS value*/
-    WORD   e_sp;                        /* Initial SP value*/
-    WORD   e_csum;                      /* Checksum*/
-    WORD   e_ip;                        /* Initial IP value*/
-    WORD   e_cs;                        /* Initial (relative) CS value*/
-    WORD   e_lfarlc;                    /* File address of relocation table*/
-    WORD   e_ovno;                      /* Overlay number*/
-    WORD   e_res[4];                    /* Reserved words*/
-    WORD   e_oemid;                     /* OEM identifier (for e_oeminfo)*/
-    WORD   e_oeminfo;                   /* OEM information; e_oemid specific*/
-    WORD   e_res2[10];                  /* Reserved words*/
-    LONG   e_lfanew;                    /* File address of new exe header*/
-  } IMAGE_DOS_HEADER, *PIMAGE_DOS_HEADER;
-
-
-/*++
-Function:
-  isManagedExecutable
-
-Determines if the passed in file is a managed executable
-
---*/
-static
-int
-isManagedExecutable(LPCSTR lpFileName)
-{
-    HANDLE hFile = INVALID_HANDLE_VALUE;
-    DWORD cbRead;
-    IMAGE_DOS_HEADER        dosheader;
-    IMAGE_NT_HEADERS32      NtHeaders; 
-    BOOL ret = 0;
-
-    /* then check if it is a PE/COFF file */ 
-    if((hFile = CreateFileA(lpFileName, GENERIC_READ, FILE_SHARE_READ, NULL,
-                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
-                            NULL)) == INVALID_HANDLE_VALUE)
-    {        
-          goto isManagedExecutableExit;
-    }
-      
-    /* Open the file and read the IMAGE_DOS_HEADER structure */ 
-    if(!ReadFile(hFile, &dosheader, sizeof(IMAGE_DOS_HEADER), &cbRead, NULL) || cbRead != sizeof(IMAGE_DOS_HEADER) )
-      goto isManagedExecutableExit;
-       
-    /* check the DOS headers */
-    if ( (dosheader.e_magic != VAL16(IMAGE_DOS_SIGNATURE)) || (VAL32(dosheader.e_lfanew) <= 0) ) 
-      goto isManagedExecutableExit;         
- 
-    /* Advance the file pointer to File address of new exe header */
-    if( SetFilePointer(hFile, VAL32(dosheader.e_lfanew), NULL, FILE_BEGIN) == 0xffffffff)
-      goto isManagedExecutableExit;
-            
-    if( !ReadFile(hFile, &NtHeaders , sizeof(IMAGE_NT_HEADERS32), &cbRead, NULL) || cbRead != sizeof(IMAGE_NT_HEADERS32) )
-      goto isManagedExecutableExit;
-   
-    /* check the NT headers */   
-    if ((NtHeaders.Signature != VAL32(IMAGE_NT_SIGNATURE)) ||
-        (NtHeaders.FileHeader.SizeOfOptionalHeader != VAL16(IMAGE_SIZEOF_NT_OPTIONAL32_HEADER)) ||
-        (NtHeaders.OptionalHeader.Magic != VAL16(IMAGE_NT_OPTIONAL_HDR32_MAGIC)))
-        goto isManagedExecutableExit;
-     
-    /* Check that the virtual address of IMAGE_DIRECTORY_ENTRY_COMHEADER is non-null */
-    if ( NtHeaders.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].VirtualAddress == 0 )
-        goto isManagedExecutableExit;
-  
-    /* The file is a managed executable */
-    ret =  1;
-     
- isManagedExecutableExit:
-    /* Close the file handle if we opened it */
-    if ( hFile != INVALID_HANDLE_VALUE )
-      CloseHandle(hFile);
-
-    return ret;
 }
 
 /*++
@@ -4315,7 +4384,6 @@ Parameters:
 Return:
     FILE_DIR: Directory
     FILE_UNIX: Unix executable file
-    FILE_PE: managed PE/COFF file
     FILE_ERROR: Error
 --*/
 static
@@ -4330,15 +4398,9 @@ checkFileType( LPCSTR lpFileName)
         return FILE_ERROR;
     }
     
-    if( isManagedExecutable(lpFileName) )
-    {
-        return FILE_PE;
-    }
-
     /* if it's not a PE/COFF file, check if it is executable */
     if ( -1 != stat( lpFileName, &stat_data ) )
     {
-
         if((stat_data.st_mode & S_IFMT) == S_IFDIR )
         {
             /*The given file is a directory*/
@@ -4371,7 +4433,6 @@ Parameters:
     IN  lpCommandLine: second parameter from CreateProcessW (an unicode string)
     IN  lpAppPath: cannonical name of the application to launched
     OUT lppArgv: array of arguments to be passed to the new process
-    IN  prependLoader:  If True first argument should be the PE loader
 
 Return:
     the number of arguments
@@ -4395,8 +4456,7 @@ char **
 buildArgv(
       LPCWSTR lpCommandLine,
       PathCharString& lpAppPath,
-      UINT *pnArg,
-      BOOL prependLoader)
+      UINT *pnArg)
 {
     CPalThread *pThread = NULL;
     UINT iWlen;
@@ -4418,7 +4478,7 @@ buildArgv(
 
     pThread = InternalGetCurrentThread();
     /* make sure to allocate enough space, up for the worst case scenario */
-    int iLength = (iWlen + strlen(PROCESS_PELOADER_FILENAME) + lpAppPath.GetCount() + 2);
+    int iLength = (iWlen + lpAppPath.GetCount() + 2);
     lpAsciiCmdLine = (char *) InternalMalloc(iLength);
 
     if (lpAsciiCmdLine == NULL)
@@ -4429,98 +4489,82 @@ buildArgv(
 
     pChar = lpAsciiCmdLine;
 
-    /* Prepend the PE loader, if it's required */
-    if (prependLoader)
+    /* put the cannonical name of the application as the first parameter */
+    if ((strcpy_s(lpAsciiCmdLine, iLength, "\"") != SAFECRT_SUCCESS) ||
+        (strcat_s(lpAsciiCmdLine, iLength, lpAppPath) != SAFECRT_SUCCESS) ||
+        (strcat_s(lpAsciiCmdLine, iLength,  "\"") != SAFECRT_SUCCESS) ||
+        (strcat_s(lpAsciiCmdLine, iLength, " ") != SAFECRT_SUCCESS))
     {
-        if ((strcpy_s(lpAsciiCmdLine, iLength,  PROCESS_PELOADER_FILENAME) != SAFECRT_SUCCESS) ||
-            (strcat_s(lpAsciiCmdLine, iLength, " ") != SAFECRT_SUCCESS))
-        {
-            ERROR("strcpy_s/strcat_s failed!\n");
-            return NULL;
-        }
-
-        pChar = lpAsciiCmdLine + strlen (lpAsciiCmdLine);
-
+        ERROR("strcpy_s/strcat_s failed!\n");
+        return NULL;
     }
-    else
+
+    pChar = lpAsciiCmdLine + strlen (lpAsciiCmdLine);
+
+    /* let's skip the first argument in the command line */
+
+    /* strip leading whitespace; function returns NULL if there's only 
+        whitespace, so the if statement below will work correctly */
+    lpCommandLine = UTIL_inverse_wcspbrk((LPWSTR)lpCommandLine, W16_WHITESPACE);
+
+    if (lpCommandLine)
     {
-        /* put the cannonical name of the application as the first parameter */
-        if ((strcpy_s(lpAsciiCmdLine, iLength, "\"") != SAFECRT_SUCCESS) ||
-            (strcat_s(lpAsciiCmdLine, iLength, lpAppPath) != SAFECRT_SUCCESS) ||
-            (strcat_s(lpAsciiCmdLine, iLength,  "\"") != SAFECRT_SUCCESS) ||
-            (strcat_s(lpAsciiCmdLine, iLength, " ") != SAFECRT_SUCCESS))
+        LPCWSTR stringstart = lpCommandLine;
+
+        do
         {
-            ERROR("strcpy_s/strcat_s failed!\n");
-            return NULL;
-        }
-
-        pChar = lpAsciiCmdLine + strlen (lpAsciiCmdLine);
-
-        /* let's skip the first argument in the command line */
-
-        /* strip leading whitespace; function returns NULL if there's only 
-           whitespace, so the if statement below will work correctly */
-        lpCommandLine = UTIL_inverse_wcspbrk((LPWSTR)lpCommandLine, W16_WHITESPACE);
-
-        if (lpCommandLine)
-        {
-            LPCWSTR stringstart = lpCommandLine;
-
-            do
+            /* find first whitespace or dquote character */
+            lpCommandLine = PAL_wcspbrk(lpCommandLine,W16_WHITESPACE_DQUOTE);
+            if(NULL == lpCommandLine)
             {
-                /* find first whitespace or dquote character */
-                lpCommandLine = PAL_wcspbrk(lpCommandLine,W16_WHITESPACE_DQUOTE);
-                if(NULL == lpCommandLine)
+                /* no whitespace or dquote found : first arg is only arg */
+                break;
+            }
+            else if('"' == *lpCommandLine)
+            {
+                /* got a dquote; skip over it if it's escaped; make sure we 
+                    don't try to look before the first character in the 
+                    string */
+                if(lpCommandLine > stringstart && '\\' == lpCommandLine[-1])
                 {
-                    /* no whitespace or dquote found : first arg is only arg */
-                    break;
-                }
-                else if('"' == *lpCommandLine)
-                {
-                    /* got a dquote; skip over it if it's escaped; make sure we 
-                       don't try to look before the first character in the 
-                       string */
-                    if(lpCommandLine > stringstart && '\\' == lpCommandLine[-1])
-                    {
-                        lpCommandLine++;
-                        continue;
-                    } 
-
-                    /* found beginning of dquoted sequence, run to the end */
-                    /* don't stop if we hit an escaped dquote */
                     lpCommandLine++;
-                    while( *lpCommandLine )
+                    continue;
+                } 
+
+                /* found beginning of dquoted sequence, run to the end */
+                /* don't stop if we hit an escaped dquote */
+                lpCommandLine++;
+                while( *lpCommandLine )
+                {
+                    lpCommandLine = PAL_wcschr(lpCommandLine, '"');
+                    if(NULL == lpCommandLine)
                     {
-                        lpCommandLine = PAL_wcschr(lpCommandLine, '"');
-                        if(NULL == lpCommandLine)
-                        {
-                            /* no ending dquote, arg runs to end of string */
-                            break;
-                        }
-                        if('\\' != lpCommandLine[-1])
-                        {
-                            /* dquote is not escaped, dquoted sequence is over*/
-                            break;
-                        } 
-                        lpCommandLine++;
-                    }   
-                    if(NULL == lpCommandLine || '\0' == *lpCommandLine)
-                    {
-                        /* no terminating dquote */
+                        /* no ending dquote, arg runs to end of string */
                         break;
                     }
-
-                    /* step over dquote, keep looking for end of arg */
+                    if('\\' != lpCommandLine[-1])
+                    {
+                        /* dquote is not escaped, dquoted sequence is over*/
+                        break;
+                    } 
                     lpCommandLine++;
-                }
-                else
+                }   
+                if(NULL == lpCommandLine || '\0' == *lpCommandLine)
                 {
-                    /* found whitespace : end of arg. */
-                    lpCommandLine++;
+                    /* no terminating dquote */
                     break;
                 }
-            }while(lpCommandLine);
-        }
+
+                /* step over dquote, keep looking for end of arg */
+                lpCommandLine++;
+            }
+            else
+            {
+                /* found whitespace : end of arg. */
+                lpCommandLine++;
+                break;
+            }
+        }while(lpCommandLine);
     }
 
     /* Convert to ASCII */

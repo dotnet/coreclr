@@ -13,7 +13,6 @@ if [ "$PYTHON" == "" ] ; then
        exit 1
     fi
 fi
-
 # validate python-dependency
 # useful in case of explicitly set option.
 if ! command -v $PYTHON > /dev/null
@@ -34,8 +33,6 @@ usage()
     echo "-clangx.y - optional argument to build using clang version x.y."
     echo "-cross - optional argument to signify cross compilation,"
     echo "       - will use ROOTFS_DIR environment variable if set."
-    echo "-crosscomponent - optional argument to build cross-architecture component,"
-    echo "                - will use CAC_ROOTFS_DIR environment variable if set."
     echo "-nopgooptimize - do not use profile guided optimizations."
     echo "-pgoinstrument - generate instrumented code for profile guided optimization enabled binaries."
     echo "-ibcinstrument - generate IBC-tuning-enabled native images when invoking crossgen."
@@ -82,6 +79,9 @@ initHostDistroRid()
             local redhatRelease=$(</etc/redhat-release)
             if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
                __HostDistroRid="rhel.6-$__HostArch"
+            fi
+            if [[ $redhatRelease == "CentOS Linux release 7."* ]]; then
+                __HostDistroRid="rhel.7-$__Arch"
             fi
         fi
     fi
@@ -339,10 +339,8 @@ build_native()
 
 build_cross_architecture_components()
 {
-    local crossArch="$1"
-
-    local intermediatesForBuild="$__IntermediatesDir/Host$crossArch/crossgen"
-    local crossArchBinDir="$__BinDir/$crossArch"
+    local intermediatesForBuild="$__IntermediatesDir/Host$__CrossArch/crossgen"
+    local crossArchBinDir="$__BinDir/$__CrossArch"
 
     mkdir -p "$intermediatesForBuild"
     mkdir -p "$crossArchBinDir"
@@ -350,21 +348,10 @@ build_cross_architecture_components()
     generate_event_logging_sources "$intermediatesForBuild" "the crossarch build system"
 
     __SkipCrossArchBuild=1
-    TARGET_ROOTFS=""
     # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
-    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$crossArch" == "x86" ]]; then
-        export CROSSCOMPILE=0
+    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && ("$__CrossArch" == "x86" || "$__CrossArch" == "x64") ]]; then
         __SkipCrossArchBuild=0
-
-        # building x64-host/arm-target cross-architecture component need to use cross toolchain of x86
-        if [ "$__HostArch" == "x64" ]; then
-            export CROSSCOMPILE=1
-        fi
-    elif [[ ("$__BuildArch" == "arm64") && "$crossArch" == "x64" ]]; then
-        export CROSSCOMPILE=0
-        __SkipCrossArchBuild=0
-    elif [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$crossArch" == "x64" ]]; then
-        export CROSSCOMPILE=0
+    elif [[ "$__BuildArch" == "arm64" && "$__CrossArch" == "x64" ]]; then
         __SkipCrossArchBuild=0
     else
         # not supported
@@ -372,25 +359,11 @@ build_cross_architecture_components()
     fi
 
     export __CMakeBinDir="$crossArchBinDir"
-    export CROSSCOMPONENT=1
+    export CROSSCOMPILE=0
 
-    if [ $CROSSCOMPILE == 1 ]; then
-        TARGET_ROOTFS="$ROOTFS_DIR"
-        if [ -n "$CAC_ROOTFS_DIR" ]; then
-            export ROOTFS_DIR="$CAC_ROOTFS_DIR"
-        else
-            export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__CrossArch"
-        fi
-    fi
+    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize -DCLR_CROSS_COMPONENTS_BUILD=1"
+    build_native $__SkipCrossArchBuild "$__CrossArch" "$intermediatesForBuild" "$__ExtraCmakeArgs" "cross-architecture components"
 
-    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
-    build_native $__SkipCrossArchBuild "$crossArch" "$intermediatesForBuild" "$__ExtraCmakeArgs" "cross-architecture components"
-
-    # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE
-    if [ -n "$TARGET_ROOTFS" ]; then
-        export ROOTFS_DIR="$TARGET_ROOTFS"
-    fi
-    export CROSSCOMPONENT=
     export CROSSCOMPILE=1
 }
 
@@ -511,10 +484,10 @@ build_CoreLib()
        else
            exit 1
        fi
-    elif [ $__DoCrossArchBuild == 1 ]; then
-       if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ) ]]; then
+    else
+       if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
-       elif [[ ( "$__CrossArch" == "x64" ) && ( "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ) ]]; then
+       elif [[ ( "$__CrossArch" == "x64" ) && ( "$__BuildArch" == "arm" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "arm64" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
@@ -540,7 +513,7 @@ generate_NugetPackages()
     echo "DistroRid is "$__DistroRid
     echo "ROOTFS_DIR is "$ROOTFS_DIR
     # Build the packages
-    $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false -__DoCrossArchBuild=$__DoCrossArchBuild $__RunArgs $__UnprocessedBuildArgs
+    $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false -__DoCrossArchBuild=$__CrossBuild $__RunArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to generate Nuget packages."
@@ -678,7 +651,6 @@ __HostDistroRid=""
 __DistroRid=""
 __cmakeargs=""
 __SkipGenerateVersion=0
-__DoCrossArchBuild=0
 __PortableBuild=1
 __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
@@ -842,10 +814,6 @@ while :; do
         skipcoreclr|-skipcoreclr)
             # Accept "skipcoreclr" for backwards-compatibility.
             __SkipCoreCLR=1
-            ;;
-
-        crosscomponent|-crosscomponent)
-            __DoCrossArchBuild=1
             ;;
 
         skipmanaged|-skipmanaged)
@@ -1051,13 +1019,8 @@ fi
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 
 # Build cross-architecture components
-if [[ $__CrossBuild == 1 && $__DoCrossArchBuild == 1 ]]; then
-    build_cross_architecture_components "$__CrossArch"
-
-    # For now, continue building Hostx86/arm crossgen
-    if [[ "$__HostArch" == "x64" && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
-        build_cross_architecture_components "x86"
-    fi
+if [[ $__CrossBuild == 1 ]]; then
+    build_cross_architecture_components
 fi
 
 # Build System.Private.CoreLib.

@@ -450,7 +450,7 @@ regMaskTP CodeGenInterface::genGetRegMask(const LclVarDsc* varDsc)
 // inline
 regMaskTP CodeGenInterface::genGetRegMask(GenTree* tree)
 {
-    assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_REG_VAR);
+    assert(tree->gtOper == GT_LCL_VAR);
 
     regMaskTP        regMask = RBM_NONE;
     const LclVarDsc* varDsc  = compiler->lvaTable + tree->gtLclVarCommon.gtLclNum;
@@ -941,17 +941,17 @@ bool CodeGenInterface::genCodeIndirAddrNeedsReloc(size_t addr)
     }
 
 #ifdef _TARGET_AMD64_
-    // If code addr could be encoded as 32-bit offset relative to IP, we need to record a relocation.
-    if (genCodeIndirAddrCanBeEncodedAsPCRelOffset(addr))
+    // See if the code indir addr can be encoded as 32-bit displacement relative to zero.
+    // We don't need a relocation in that case.
+    if (genCodeIndirAddrCanBeEncodedAsZeroRelOffset(addr))
     {
-        return true;
+        return false;
     }
 
-    // It could be possible that the code indir addr could be encoded as 32-bit displacement relative
-    // to zero.  But we don't need to emit a relocation in that case.
-    return false;
+    // Else we need a relocation.
+    return true;
 #else  //_TARGET_X86_
-    // On x86 there is need for recording relocations during jitting,
+    // On x86 there is no need to record or ask for relocations during jitting,
     // because all addrs fit within 32-bits.
     return false;
 #endif //_TARGET_X86_
@@ -3199,9 +3199,8 @@ void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
     // We classify the "tgt" trees as follows:
     // If "tgt" is of the form (where [ x ] indicates an optional x, and { x1, ..., xn } means "one of the x_i forms"):
-    //    IND [-> ADDR -> IND] -> { GT_LCL_VAR, GT_REG_VAR, ADD({GT_LCL_VAR, GT_REG_VAR}, X), ADD(X, (GT_LCL_VAR,
-    //    GT_REG_VAR)) }
-    // then let "v" be the GT_LCL_VAR or GT_REG_VAR.
+    //    IND [-> ADDR -> IND] -> { GT_LCL_VAR, ADD({GT_LCL_VAR}, X), ADD(X, (GT_LCL_VAR)) }
+    // then let "v" be the GT_LCL_VAR.
     //   * If "v" is the return buffer argument, classify as CWBKind_RetBuf.
     //   * If "v" is another by-ref argument, classify as CWBKind_ByRefArg.
     //   * Otherwise, classify as CWBKind_OtherByRefLocal.
@@ -3218,17 +3217,17 @@ void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
         {
             indArg = indArg->gtOp.gtOp1->gtOp.gtOp1;
         }
-        if (indArg->gtOper == GT_LCL_VAR || indArg->gtOper == GT_REG_VAR)
+        if (indArg->gtOper == GT_LCL_VAR)
         {
             lcl = indArg;
         }
         else if (indArg->gtOper == GT_ADD)
         {
-            if (indArg->gtOp.gtOp1->gtOper == GT_LCL_VAR || indArg->gtOp.gtOp1->gtOper == GT_REG_VAR)
+            if (indArg->gtOp.gtOp1->gtOper == GT_LCL_VAR)
             {
                 lcl = indArg->gtOp.gtOp1;
             }
-            else if (indArg->gtOp.gtOp2->gtOper == GT_LCL_VAR || indArg->gtOp.gtOp2->gtOper == GT_REG_VAR)
+            else if (indArg->gtOp.gtOp2->gtOper == GT_LCL_VAR)
             {
                 lcl = indArg->gtOp.gtOp2;
             }
@@ -3236,14 +3235,7 @@ void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
         if (lcl != NULL)
         {
             wbKind          = CWBKind_OtherByRefLocal; // Unclassified local variable.
-            unsigned lclNum = 0;
-            if (lcl->gtOper == GT_LCL_VAR)
-                lclNum = lcl->gtLclVarCommon.gtLclNum;
-            else
-            {
-                assert(lcl->gtOper == GT_REG_VAR);
-                lclNum = lcl->gtRegVar.gtLclNum;
-            }
+            unsigned lclNum = lcl->AsLclVar()->GetLclNum();
             if (lclNum == compiler->info.compRetBuffArg)
             {
                 wbKind = CWBKind_RetBuf; // Ret buff.  Can happen if the struct exceeds the size limit.
@@ -3691,6 +3683,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #if !defined(UNIX_AMD64_ABI)
             assert((i > 0) || (regNum == varDsc->lvArgReg));
 #endif // defined(UNIX_AMD64_ABI)
+
             // Is the arg dead on entry to the method ?
 
             if ((regArgMaskLive & genRegMask(regNum)) == 0)
@@ -3916,6 +3909,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             continue;
         }
 #endif // defined(UNIX_AMD64_ABI)
+
         // If the arg is dead on entry to the method, skip it
 
         if (regArgTab[argNum].processed)
@@ -4543,6 +4537,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 getEmitter()->emitIns_R_R_I(INS_mov, EA_8BYTE, destRegNum, nextRegNum, 1);
             }
 #endif // defined(_TARGET_ARM64_) && defined(FEATURE_SIMD)
+
             // Mark the rest of the argument registers corresponding to this multi-reg type as
             // being processed and no longer live.
             for (int regSlot = 1; regSlot < argRegCount; regSlot++)
@@ -5272,290 +5267,6 @@ void          CodeGen::genPushCalleeSavedRegisters()
 #else
     assert(!"Unknown TARGET");
 #endif // _TARGET_*
-}
-
-/*-----------------------------------------------------------------------------
- *
- *  Probe the stack and allocate the local stack frame: subtract from SP.
- *  On ARM64, this only does the probing; allocating the frame is done when callee-saved registers are saved.
- */
-
-void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
-{
-    assert(compiler->compGeneratingProlog);
-
-    if (frameSize == 0)
-    {
-        return;
-    }
-
-    const target_size_t pageSize = compiler->eeGetPageSize();
-
-#ifdef _TARGET_ARM_
-    assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
-#endif // _TARGET_ARM_
-
-#ifdef _TARGET_XARCH_
-    if (frameSize == REGSIZE_BYTES)
-    {
-        // Frame size is the same as register size.
-        inst_RV(INS_push, REG_EAX, TYP_I_IMPL);
-    }
-    else
-#endif // _TARGET_XARCH_
-        if (frameSize < pageSize)
-    {
-#ifndef _TARGET_ARM64_
-        // Frame size is (0x0008..0x1000)
-        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif // !_TARGET_ARM64_
-    }
-    else if (frameSize < compiler->getVeryLargeFrameSize())
-    {
-        // Frame size is (0x1000..0x3000)
-        CLANG_FORMAT_COMMENT_ANCHOR;
-
-#if CPU_LOAD_STORE_ARCH
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)pageSize);
-        getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
-        regSet.verifyRegUsed(initReg);
-        *pInitRegZeroed = false; // The initReg does not contain zero
-#else
-        getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE, -(int)pageSize);
-#endif
-
-        if (frameSize >= 0x2000)
-        {
-#if CPU_LOAD_STORE_ARCH
-            instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -2 * (ssize_t)pageSize);
-            getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
-            regSet.verifyRegUsed(initReg);
-#else
-            getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE, -2 * (int)pageSize);
-#endif
-        }
-
-#ifdef _TARGET_ARM64_
-        compiler->unwindPadding();
-#else // !_TARGET_ARM64_
-#if CPU_LOAD_STORE_ARCH
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, frameSize);
-        compiler->unwindPadding();
-        getEmitter()->emitIns_R_R_R(INS_sub, EA_4BYTE, REG_SPBASE, REG_SPBASE, initReg);
-#else
-        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif
-#endif // !_TARGET_ARM64_
-    }
-    else
-    {
-        // Frame size >= 0x3000
-        assert(frameSize >= compiler->getVeryLargeFrameSize());
-
-        // Emit the following sequence to 'tickle' the pages.
-        // Note it is important that stack pointer not change until this is
-        // complete since the tickles could cause a stack overflow, and we
-        // need to be able to crawl the stack afterward (which means the
-        // stack pointer needs to be known).
-        CLANG_FORMAT_COMMENT_ANCHOR;
-
-#ifdef _TARGET_XARCH_
-        bool pushedStubParam = false;
-        if (compiler->info.compPublishStubParam && (REG_SECRET_STUB_PARAM == initReg))
-        {
-            // push register containing the StubParam
-            inst_RV(INS_push, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
-            pushedStubParam = true;
-        }
-#endif // !_TARGET_XARCH_
-
-#if CPU_LOAD_STORE_ARCH || !defined(_TARGET_UNIX_)
-        instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
-#endif
-
-        //
-        // Can't have a label inside the ReJIT padding area
-        //
-        genPrologPadForReJit();
-
-#if CPU_LOAD_STORE_ARCH
-
-        // TODO-ARM64-Bug?: set the availMask properly!
-        regMaskTP availMask =
-            (regSet.rsGetModifiedRegsMask() & RBM_ALLINT) | RBM_R12 | RBM_LR; // Set of available registers
-        availMask &= ~maskArgRegsLiveIn;   // Remove all of the incoming argument registers as they are currently live
-        availMask &= ~genRegMask(initReg); // Remove the pre-calculated initReg
-
-        regNumber rOffset = initReg;
-        regNumber rLimit;
-        regNumber rTemp;
-        regMaskTP tempMask;
-
-        // We pick the next lowest register number for rTemp
-        noway_assert(availMask != RBM_NONE);
-        tempMask = genFindLowestBit(availMask);
-        rTemp    = genRegNumFromMask(tempMask);
-        availMask &= ~tempMask;
-
-        // We pick the next lowest register number for rLimit
-        noway_assert(availMask != RBM_NONE);
-        tempMask = genFindLowestBit(availMask);
-        rLimit   = genRegNumFromMask(tempMask);
-        availMask &= ~tempMask;
-
-        // TODO-LdStArch-Bug?: review this. The first time we load from [sp+0] which will always succeed. That doesn't
-        // make sense.
-        // TODO-ARM64-CQ: we could probably use ZR on ARM64 instead of rTemp.
-        //
-        //      mov rLimit, -frameSize
-        // loop:
-        //      ldr rTemp, [sp+rOffset]
-        //      sub rOffset, 0x1000     // Note that 0x1000 on ARM32 uses the funky Thumb immediate encoding
-        //      cmp rOffset, rLimit
-        //      jge loop
-        noway_assert((ssize_t)(int)frameSize == (ssize_t)frameSize); // make sure framesize safely fits within an int
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rLimit, -(int)frameSize);
-        getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, rOffset);
-        regSet.verifyRegUsed(rTemp);
-#if defined(_TARGET_ARM_)
-        getEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, rOffset, pageSize);
-#elif defined(_TARGET_ARM64_)
-        getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, rOffset, rOffset, pageSize);
-#endif // _TARGET_ARM64_
-        getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rOffset, rLimit);
-        getEmitter()->emitIns_J(INS_bhi, NULL, -4);
-
-#else // !CPU_LOAD_STORE_ARCH
-
-#ifndef _TARGET_UNIX_
-        // Code size for each instruction. We need this because the
-        // backward branch is hard-coded with the number of bytes to branch.
-        // The encoding differs based on the architecture and what register is
-        // used (namely, using RAX has a smaller encoding).
-        //
-        // loop:
-        // For x86
-        //      test [esp + eax], eax       3
-        //      sub eax, 0x1000             5
-        //      cmp EAX, -frameSize         5
-        //      jge loop                    2
-        //
-        // For AMD64 using RAX
-        //      test [rsp + rax], rax       4
-        //      sub rax, 0x1000             6
-        //      cmp rax, -frameSize         6
-        //      jge loop                    2
-        //
-        // For AMD64 using RBP
-        //      test [rsp + rbp], rbp       4
-        //      sub rbp, 0x1000             7
-        //      cmp rbp, -frameSize         7
-        //      jge loop                    2
-
-        getEmitter()->emitIns_R_ARR(INS_TEST, EA_PTRSIZE, initReg, REG_SPBASE, initReg, 0);
-        inst_RV_IV(INS_sub, initReg, pageSize, EA_PTRSIZE);
-        inst_RV_IV(INS_cmp, initReg, -((ssize_t)frameSize), EA_PTRSIZE);
-
-        int bytesForBackwardJump;
-#ifdef _TARGET_AMD64_
-        assert((initReg == REG_EAX) || (initReg == REG_EBP)); // We use RBP as initReg for EH funclets.
-        bytesForBackwardJump = ((initReg == REG_EAX) ? -18 : -20);
-#else  // !_TARGET_AMD64_
-        assert(initReg == REG_EAX);
-        bytesForBackwardJump = -15;
-#endif // !_TARGET_AMD64_
-
-        inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
-#else  // _TARGET_UNIX_
-        // Code size for each instruction. We need this because the
-        // backward branch is hard-coded with the number of bytes to branch.
-        // The encoding differs based on the architecture and what register is
-        // used (namely, using RAX has a smaller encoding).
-        //
-        // For x86
-        //      lea eax, [esp - frameSize]
-        // loop:
-        //      lea esp, [esp - pageSize]   7
-        //      test [esp], eax             3
-        //      cmp esp, eax                2
-        //      jge loop                    2
-        //      lea rsp, [rbp + frameSize]
-        //
-        // For AMD64 using RAX
-        //      lea rax, [rsp - frameSize]
-        // loop:
-        //      lea rsp, [rsp - pageSize]   8
-        //      test [rsp], rax             4
-        //      cmp rsp, rax                3
-        //      jge loop                    2
-        //      lea rsp, [rax + frameSize]
-        //
-        // For AMD64 using RBP
-        //      lea rbp, [rsp - frameSize]
-        // loop:
-        //      lea rsp, [rsp - pageSize]   8
-        //      test [rsp], rbp             4
-        //      cmp rsp, rbp                3
-        //      jge loop                    2
-        //      lea rsp, [rbp + frameSize]
-
-        int sPageSize = (int)pageSize;
-
-        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, initReg, REG_SPBASE, -((ssize_t)frameSize)); // get frame border
-
-        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -sPageSize);
-        getEmitter()->emitIns_R_AR(INS_TEST, EA_PTRSIZE, initReg, REG_SPBASE, 0);
-        inst_RV_RV(INS_cmp, REG_SPBASE, initReg);
-
-        int bytesForBackwardJump;
-#ifdef _TARGET_AMD64_
-        assert((initReg == REG_EAX) || (initReg == REG_EBP)); // We use RBP as initReg for EH funclets.
-        bytesForBackwardJump = -17;
-#else  // !_TARGET_AMD64_
-        assert(initReg == REG_EAX);
-        bytesForBackwardJump = -14;
-#endif // !_TARGET_AMD64_
-
-        inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
-
-        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, initReg, frameSize); // restore stack pointer
-#endif // _TARGET_UNIX_
-
-#endif // !CPU_LOAD_STORE_ARCH
-
-        *pInitRegZeroed = false; // The initReg does not contain zero
-
-#ifdef _TARGET_XARCH_
-        if (pushedStubParam)
-        {
-            // pop eax
-            inst_RV(INS_pop, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
-            regSet.verifyRegUsed(REG_SECRET_STUB_PARAM);
-        }
-#endif // _TARGET_XARCH_
-
-#if CPU_LOAD_STORE_ARCH
-        compiler->unwindPadding();
-#endif
-
-#if CPU_LOAD_STORE_ARCH
-#ifndef _TARGET_ARM64_
-        inst_RV_RV(INS_add, REG_SPBASE, rLimit, TYP_I_IMPL);
-#endif // !_TARGET_ARM64_
-#else
-        //      sub esp, frameSize   6
-        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif
-    }
-
-#ifndef _TARGET_ARM64_
-    compiler->unwindAllocStack(frameSize);
-
-    if (!doubleAlignOrFramePointerUsed())
-    {
-        psiAdjustStackLevel(frameSize);
-    }
-#endif // !_TARGET_ARM64_
 }
 
 #if defined(_TARGET_ARM_)
@@ -8035,6 +7746,7 @@ void CodeGen::genFnProlog()
 
             noway_assert(!isFramePointerUsed() || loOffs != 0);
 #endif // !defined(_TARGET_AMD64_)
+
             // printf("    Untracked tmp at [EBP-%04X]\n", -stkOffs);
 
             hasUntrLcl = true;
@@ -8581,15 +8293,15 @@ void CodeGen::genFnProlog()
 
 #endif // _TARGET_X86_
 
-#ifdef DEBUG
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
     if (compiler->opts.compStackCheckOnRet)
     {
-        noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
-                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnEspCheck, 0);
+        noway_assert(compiler->lvaReturnSpCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaReturnSpCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaReturnSpCheck].lvOnFrame);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnSpCheck, 0);
     }
-#endif
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 
     getEmitter()->emitEndProlog();
     compiler->unwindEndProlog();
@@ -11927,4 +11639,56 @@ void CodeGen::genReturn(GenTree* treeNode)
         }
     }
 #endif // PROFILING_SUPPORTED
+
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
+    bool doStackPointerCheck = compiler->opts.compStackCheckOnRet;
+
+#if FEATURE_EH_FUNCLETS
+    // Don't do stack pointer check at the return from a funclet; only for the main function.
+    if (compiler->funCurrentFunc()->funKind != FUNC_ROOT)
+    {
+        doStackPointerCheck = false;
+    }
+#else  // !FEATURE_EH_FUNCLETS
+    // Don't generate stack checks for x86 finally/filter EH returns: these are not invoked
+    // with the same SP as the main function. See also CodeGen::genEHFinallyOrFilterRet().
+    if ((compiler->compCurBB->bbJumpKind == BBJ_EHFINALLYRET) || (compiler->compCurBB->bbJumpKind == BBJ_EHFILTERRET))
+    {
+        doStackPointerCheck = false;
+    }
+#endif // !FEATURE_EH_FUNCLETS
+
+    genStackPointerCheck(doStackPointerCheck, compiler->lvaReturnSpCheck);
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 }
+
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
+
+//------------------------------------------------------------------------
+// genStackPointerCheck: Generate code to check the stack pointer against a saved value.
+// This is a debug check.
+//
+// Arguments:
+//    doStackPointerCheck - If true, do the stack pointer check, otherwise do nothing.
+//    lvaStackPointerVar  - The local variable number that holds the value of the stack pointer
+//                          we are comparing against.
+//
+// Return Value:
+//    None
+//
+void CodeGen::genStackPointerCheck(bool doStackPointerCheck, unsigned lvaStackPointerVar)
+{
+    if (doStackPointerCheck)
+    {
+        noway_assert(lvaStackPointerVar != 0xCCCCCCCC && compiler->lvaTable[lvaStackPointerVar].lvDoNotEnregister &&
+                     compiler->lvaTable[lvaStackPointerVar].lvOnFrame);
+        getEmitter()->emitIns_S_R(INS_cmp, EA_PTRSIZE, REG_SPBASE, lvaStackPointerVar, 0);
+
+        BasicBlock* sp_check = genCreateTempLabel();
+        getEmitter()->emitIns_J(INS_je, sp_check);
+        instGen(INS_BREAKPOINT);
+        genDefineTempLabel(sp_check);
+    }
+}
+
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)

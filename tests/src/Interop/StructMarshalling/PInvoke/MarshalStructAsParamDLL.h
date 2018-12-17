@@ -1,4 +1,4 @@
-#include "platformdefines.h"
+#include <platformdefines.h>
 #include <xplatform.h>
 
 inline char* CoStrDup(const char* str)
@@ -54,7 +54,6 @@ typedef unsigned short WORD;
 typedef short SHORT;
 typedef float FLOAT;
 typedef double DOUBLE;
-typedef long INT_PTR;
 #endif
 
 struct INNER2 // size = 12 bytes

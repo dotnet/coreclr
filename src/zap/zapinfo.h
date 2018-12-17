@@ -417,6 +417,9 @@ public:
 
     void * getFieldAddress(CORINFO_FIELD_HANDLE field,
                                     void **ppIndirection);
+    CORINFO_CLASS_HANDLE getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field,
+                                                    bool* pIsSpeculative);
+
     DWORD getFieldThreadLocalStoreID (CORINFO_FIELD_HANDLE field,
                                                 void **ppIndirection);
     CORINFO_VARARGS_HANDLE getVarArgsHandle(CORINFO_SIG_INFO *sig,
@@ -518,6 +521,7 @@ public:
                                   BOOL fFullInst,
                                   BOOL fAssembly);
     BOOL isValueClass(CORINFO_CLASS_HANDLE clsHnd);
+    CorInfoInlineTypeCheck canInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source);
     BOOL canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE clsHnd);
     DWORD getClassAttribs(CORINFO_CLASS_HANDLE cls);
     BOOL isStructRequiringStackAllocRetBuf(CORINFO_CLASS_HANDLE cls);
@@ -630,7 +634,8 @@ public:
                                         const char **moduleName);
     const char* getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,
                                           const char **className,
-                                          const char **namespaceName);
+                                          const char **namespaceName,
+                                          const char **enclosingClassName);
 
     unsigned getMethodHash(CORINFO_METHOD_HANDLE ftn);
     DWORD getMethodAttribs(CORINFO_METHOD_HANDLE ftn);

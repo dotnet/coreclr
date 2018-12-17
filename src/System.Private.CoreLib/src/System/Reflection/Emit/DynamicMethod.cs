@@ -2,21 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Security;
+using System.Text;
+using System.Threading;
 
 namespace System.Reflection.Emit
 {
-    using System;
-    using System.Collections.Generic;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using System.Reflection;
-    using System.Security;
-    using System.Threading;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-    using System.Diagnostics;
-    using System.Runtime.InteropServices;
-
     public sealed class DynamicMethod : MethodInfo
     {
         private RuntimeType[] m_parameterTypes;
@@ -240,11 +235,6 @@ namespace System.Reflection.Emit
                 if (s_anonymouslyHostedDynamicMethodsModule != null)
                     return s_anonymouslyHostedDynamicMethodsModule;
 
-                ConstructorInfo transparencyCtor = typeof(SecurityTransparentAttribute).GetConstructor(Type.EmptyTypes);
-                CustomAttributeBuilder transparencyAttribute = new CustomAttributeBuilder(transparencyCtor, Array.Empty<object>());
-                List<CustomAttributeBuilder> assemblyAttributes = new List<CustomAttributeBuilder>();
-                assemblyAttributes.Add(transparencyAttribute);
-
                 AssemblyName assemblyName = new AssemblyName("Anonymously Hosted DynamicMethods Assembly");
                 StackCrawlMark stackMark = StackCrawlMark.LookForMe;
 
@@ -252,9 +242,7 @@ namespace System.Reflection.Emit
                     assemblyName,
                     AssemblyBuilderAccess.Run,
                     ref stackMark,
-                    assemblyAttributes);
-
-                AppDomain.PublishAnonymouslyHostedDynamicMethodsAssembly(assembly.GetNativeHandle());
+                    null);
 
                 // this always gets the internal module.
                 s_anonymouslyHostedDynamicMethodsModule = (InternalModuleBuilder)assembly.ManifestModule;
@@ -585,7 +573,17 @@ namespace System.Reflection.Emit
             //
             public override string ToString()
             {
-                return ReturnType.FormatTypeName() + " " + FormatNameAndSig();
+                var sbName = new ValueStringBuilder(MethodNameBufferSize);
+
+                sbName.Append(ReturnType.FormatTypeName());
+                sbName.Append(' ');
+                sbName.Append(Name);
+
+                sbName.Append('(');
+                AppendParameters(ref sbName, GetParameterTypes(), CallingConvention);
+                sbName.Append(')');
+
+                return sbName.ToString();
             }
 
             public override string Name

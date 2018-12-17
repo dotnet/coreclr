@@ -336,15 +336,15 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 #endif
 
-#ifndef _TARGET_ARM_
-        // TODO-ARM-CQ: We should contain this as long as the offset fits.
+#ifndef _TARGET_ARMARCH_
+        // TODO-ARMARCH-CQ: We should contain this as long as the offset fits.
         case GT_OBJ:
             if (node->AsObj()->Addr()->OperIsLocalAddr())
             {
                 node->AsObj()->Addr()->SetContained();
             }
             break;
-#endif // !_TARGET_ARM_
+#endif // !_TARGET_ARMARCH_
 
         default:
             break;
@@ -1572,7 +1572,7 @@ void Lowering::LowerCall(GenTree* node)
     LowerArgsForCall(call);
 
     // note that everything generated from this point on runs AFTER the outgoing args are placed
-    GenTree* result = nullptr;
+    GenTree* controlExpr = nullptr;
 
     // for x86, this is where we record ESP for checking later to make sure stack is balanced
 
@@ -1581,7 +1581,7 @@ void Lowering::LowerCall(GenTree* node)
     // an indirect call.
     if (call->IsDelegateInvoke())
     {
-        result = LowerDelegateInvoke(call);
+        controlExpr = LowerDelegateInvoke(call);
     }
     else
     {
@@ -1589,26 +1589,26 @@ void Lowering::LowerCall(GenTree* node)
         switch (call->gtFlags & GTF_CALL_VIRT_KIND_MASK)
         {
             case GTF_CALL_VIRT_STUB:
-                result = LowerVirtualStubCall(call);
+                controlExpr = LowerVirtualStubCall(call);
                 break;
 
             case GTF_CALL_VIRT_VTABLE:
                 // stub dispatching is off or this is not a virtual call (could be a tailcall)
-                result = LowerVirtualVtableCall(call);
+                controlExpr = LowerVirtualVtableCall(call);
                 break;
 
             case GTF_CALL_NONVIRT:
                 if (call->IsUnmanaged())
                 {
-                    result = LowerNonvirtPinvokeCall(call);
+                    controlExpr = LowerNonvirtPinvokeCall(call);
                 }
                 else if (call->gtCallType == CT_INDIRECT)
                 {
-                    result = LowerIndirectNonvirtCall(call);
+                    controlExpr = LowerIndirectNonvirtCall(call);
                 }
                 else
                 {
-                    result = LowerDirectCall(call);
+                    controlExpr = LowerDirectCall(call);
                 }
                 break;
 
@@ -1621,26 +1621,22 @@ void Lowering::LowerCall(GenTree* node)
     if (call->IsTailCallViaHelper())
     {
         // Either controlExpr or gtCallAddr must contain real call target.
-        if (result == nullptr)
+        if (controlExpr == nullptr)
         {
             assert(call->gtCallType == CT_INDIRECT);
             assert(call->gtCallAddr != nullptr);
-            result = call->gtCallAddr;
+            controlExpr = call->gtCallAddr;
         }
 
-        result = LowerTailCallViaHelper(call, result);
-    }
-    else if (call->IsFastTailCall())
-    {
-        LowerFastTailCall(call);
+        controlExpr = LowerTailCallViaHelper(call, controlExpr);
     }
 
-    if (result != nullptr)
+    if (controlExpr != nullptr)
     {
-        LIR::Range resultRange = LIR::SeqTree(comp, result);
+        LIR::Range controlExprRange = LIR::SeqTree(comp, controlExpr);
 
         JITDUMP("results of lowering call:\n");
-        DISPRANGE(resultRange);
+        DISPRANGE(controlExprRange);
 
         GenTree* insertionPoint = call;
         if (!call->IsTailCallViaHelper())
@@ -1671,10 +1667,21 @@ void Lowering::LowerCall(GenTree* node)
             }
         }
 
-        ContainCheckRange(resultRange);
-        BlockRange().InsertBefore(insertionPoint, std::move(resultRange));
+        ContainCheckRange(controlExprRange);
+        BlockRange().InsertBefore(insertionPoint, std::move(controlExprRange));
 
-        call->gtControlExpr = result;
+        call->gtControlExpr = controlExpr;
+    }
+    if (call->IsFastTailCall())
+    {
+        // Lower fast tail call can introduce new temps to set up args correctly for Callee.
+        // This involves patching LCL_VAR and LCL_VAR_ADDR nodes holding Caller stack args
+        // and replacing them with a new temp. Control expr also can contain nodes that need
+        // to be patched.
+        // Therefore lower fast tail call must be done after controlExpr is inserted into LIR.
+        // There is one side effect which is flipping the order of PME and control expression
+        // since LowerFastTailCall calls InsertPInvokeMethodEpilog.
+        LowerFastTailCall(call);
     }
 
     if (comp->opts.IsJit64Compat())
@@ -2034,8 +2041,8 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         {
             if (treeNode->OperIsLocal() || treeNode->OperIsLocalAddr())
             {
-                // This should neither be a GT_REG_VAR nor GT_PHI_ARG.
-                assert((treeNode->OperGet() != GT_REG_VAR) && (treeNode->OperGet() != GT_PHI_ARG));
+                // This should not be a GT_PHI_ARG.
+                assert(treeNode->OperGet() != GT_PHI_ARG);
 
                 GenTreeLclVarCommon* lcl    = treeNode->AsLclVarCommon();
                 LclVarDsc*           lclVar = &comp->lvaTable[lcl->gtLclNum];
@@ -4560,13 +4567,11 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
         const bool     requiresAdjustment       = add;
         const bool     requiresDividendMultiuse = requiresAdjustment || !isDiv;
         const unsigned curBBWeight              = m_block->getBBWeight(comp);
-        unsigned       dividendLclNum           = BAD_VAR_NUM;
 
         if (requiresDividendMultiuse)
         {
             LIR::Use dividendUse(BlockRange(), &divMod->gtOp1, divMod);
-            dividendLclNum = ReplaceWithLclVar(dividendUse);
-            dividend       = divMod->gtGetOp1();
+            dividend = ReplaceWithLclVar(dividendUse);
         }
 
         // Insert a new GT_MULHI node before the existing GT_UDIV/GT_UMOD node.
@@ -4581,8 +4586,8 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
 
         if (requiresAdjustment)
         {
-            GenTree* dividend = comp->gtNewLclvNode(dividendLclNum, type);
-            GenTree* sub      = comp->gtNewOperNode(GT_SUB, type, dividend, mulhi);
+            dividend     = comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet());
+            GenTree* sub = comp->gtNewOperNode(GT_SUB, type, dividend, mulhi);
             BlockRange().InsertBefore(divMod, dividend, sub);
 
             GenTree* one = comp->gtNewIconNode(1, TYP_INT);
@@ -4590,11 +4595,11 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
             BlockRange().InsertBefore(divMod, one, rsz);
 
             LIR::Use mulhiUse(BlockRange(), &sub->gtOp.gtOp2, sub);
-            unsigned mulhiLclNum = ReplaceWithLclVar(mulhiUse);
+            mulhi = ReplaceWithLclVar(mulhiUse);
 
-            GenTree* mulhiCopy = comp->gtNewLclvNode(mulhiLclNum, type);
-            GenTree* add       = comp->gtNewOperNode(GT_ADD, type, rsz, mulhiCopy);
-            BlockRange().InsertBefore(divMod, mulhiCopy, add);
+            mulhi        = comp->gtNewLclvNode(mulhi->AsLclVar()->GetLclNum(), mulhi->TypeGet());
+            GenTree* add = comp->gtNewOperNode(GT_ADD, type, rsz, mulhi);
+            BlockRange().InsertBefore(divMod, mulhi, add);
 
             mulhi = add;
             shift -= 1;
@@ -4614,9 +4619,9 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
             GenTree* div = comp->gtNewOperNode(GT_RSZ, type, mulhi, shiftBy);
 
             // divisor UMOD dividend = dividend SUB (div MUL divisor)
-            GenTree* divisor  = comp->gtNewIconNode(divisorValue, type);
-            GenTree* mul      = comp->gtNewOperNode(GT_MUL, type, div, divisor);
-            GenTree* dividend = comp->gtNewLclvNode(dividendLclNum, type);
+            GenTree* divisor = comp->gtNewIconNode(divisorValue, type);
+            GenTree* mul     = comp->gtNewOperNode(GT_MUL, type, div, divisor);
+            dividend         = comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet());
 
             divMod->SetOper(GT_SUB);
             divMod->gtOp1 = dividend;
@@ -4753,19 +4758,18 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         bool     requiresShiftAdjust      = shift != 0;
         bool     requiresDividendMultiuse = requiresAddSubAdjust || !isDiv;
         unsigned curBBWeight              = comp->compCurBB->getBBWeight(comp);
-        unsigned dividendLclNum           = BAD_VAR_NUM;
 
         if (requiresDividendMultiuse)
         {
             LIR::Use dividendUse(BlockRange(), &mulhi->gtOp.gtOp2, mulhi);
-            dividendLclNum = ReplaceWithLclVar(dividendUse);
+            dividend = ReplaceWithLclVar(dividendUse);
         }
 
         GenTree* adjusted;
 
         if (requiresAddSubAdjust)
         {
-            dividend = comp->gtNewLclvNode(dividendLclNum, type);
+            dividend = comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet());
             adjusted = comp->gtNewOperNode(divisorValue > 0 ? GT_ADD : GT_SUB, type, mulhi, dividend);
             BlockRange().InsertBefore(divMod, dividend, adjusted);
         }
@@ -4779,8 +4783,8 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         BlockRange().InsertBefore(divMod, shiftBy, signBit);
 
         LIR::Use adjustedUse(BlockRange(), &signBit->gtOp.gtOp1, signBit);
-        unsigned adjustedLclNum = ReplaceWithLclVar(adjustedUse);
-        adjusted                = comp->gtNewLclvNode(adjustedLclNum, type);
+        adjusted = ReplaceWithLclVar(adjustedUse);
+        adjusted = comp->gtNewLclvNode(adjusted->AsLclVar()->GetLclNum(), adjusted->TypeGet());
         BlockRange().InsertBefore(divMod, adjusted);
 
         if (requiresShiftAdjust)
@@ -4800,7 +4804,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         {
             GenTree* div = comp->gtNewOperNode(GT_ADD, type, adjusted, signBit);
 
-            dividend = comp->gtNewLclvNode(dividendLclNum, type);
+            dividend = comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet());
 
             // divisor % dividend = dividend - divisor x div
             GenTree* divisor = comp->gtNewIconNode(divisorValue, type);
@@ -4834,12 +4838,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     unsigned curBBWeight = comp->compCurBB->getBBWeight(comp);
 
     LIR::Use opDividend(BlockRange(), &divMod->gtOp.gtOp1, divMod);
-    ReplaceWithLclVar(opDividend);
-
-    dividend = divMod->gtGetOp1();
-    assert(dividend->OperGet() == GT_LCL_VAR);
-
-    unsigned dividendLclNum = dividend->gtLclVar.gtLclNum;
+    dividend = ReplaceWithLclVar(opDividend);
 
     GenTree* adjustment = comp->gtNewOperNode(GT_RSH, type, dividend, comp->gtNewIconNode(type == TYP_INT ? 31 : 63));
 
@@ -4855,7 +4854,8 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     }
 
     GenTree* adjustedDividend =
-        comp->gtNewOperNode(GT_ADD, type, adjustment, comp->gtNewLclvNode(dividendLclNum, type));
+        comp->gtNewOperNode(GT_ADD, type, adjustment,
+                            comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet()));
 
     GenTree* newDivMod;
 
@@ -4881,7 +4881,8 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         // which simply discards the low log2(divisor) bits, that's just dividend & ~(divisor - 1)
         divisor->gtIntCon.SetIconValue(~(absDivisorValue - 1));
 
-        newDivMod = comp->gtNewOperNode(GT_SUB, type, comp->gtNewLclvNode(dividendLclNum, type),
+        newDivMod = comp->gtNewOperNode(GT_SUB, type,
+                                        comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet()),
                                         comp->gtNewOperNode(GT_AND, type, adjustedDividend, divisor));
     }
 

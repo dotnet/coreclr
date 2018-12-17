@@ -20,8 +20,6 @@
 #include "eeconfig.h" // This is here even for retail & free builds...
 #include "../../dlls/mscorrc/resource.h"
 
-
-#include "context.h"
 #include "vars.hpp"
 #include "threads.h"
 #include "appdomain.inl"
@@ -2630,7 +2628,6 @@ void PackArgumentArray(DebuggerEval *pDE,
                 MethodTable *pMT = objPtr->GetMethodTable();
                 // <TODO> Do this check in the following cases as well... </TODO>
                 if (!pMT->IsArray() 
-                    && !pMT->IsTransparentProxy() 
                     && !pDE->m_md->IsSharedByGenericInstantiations())
                 {
                     TypeHandle thFrom = TypeHandle(pMT);

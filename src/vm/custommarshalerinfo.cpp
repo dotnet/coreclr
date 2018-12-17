@@ -294,24 +294,29 @@ MethodDesc *CustomMarshalerInfo::GetCustomMarshalerMD(EnumCustomMarshalerMethods
     {
         case CustomMarshalerMethods_MarshalNativeToManaged:
             pMD = pMT->GetMethodDescForInterfaceMethod(
-                       MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__MARSHAL_NATIVE_TO_MANAGED));  
+                       MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__MARSHAL_NATIVE_TO_MANAGED),
+                       TRUE /* throwOnConflict */);
             break;
         case CustomMarshalerMethods_MarshalManagedToNative:
             pMD = pMT->GetMethodDescForInterfaceMethod(
-                       MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__MARSHAL_MANAGED_TO_NATIVE));
+                       MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__MARSHAL_MANAGED_TO_NATIVE),
+                       TRUE /* throwOnConflict */);
             break;
         case CustomMarshalerMethods_CleanUpNativeData:
             pMD = pMT->GetMethodDescForInterfaceMethod(
-                        MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__CLEANUP_NATIVE_DATA));
+                        MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__CLEANUP_NATIVE_DATA),
+                        TRUE /* throwOnConflict */);
             break;
 
         case CustomMarshalerMethods_CleanUpManagedData:
             pMD = pMT->GetMethodDescForInterfaceMethod(
-                        MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__CLEANUP_MANAGED_DATA));
+                        MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__CLEANUP_MANAGED_DATA),
+                        TRUE /* throwOnConflict */);
             break;
         case CustomMarshalerMethods_GetNativeDataSize:
             pMD = pMT->GetMethodDescForInterfaceMethod(
-                        MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__GET_NATIVE_DATA_SIZE));
+                        MscorlibBinder::GetMethod(METHOD__ICUSTOM_MARSHALER__GET_NATIVE_DATA_SIZE),
+                        TRUE /* throwOnConflict */);
             break;
         case CustomMarshalerMethods_GetInstance:
             // Must look this up by name since it's static
@@ -378,7 +383,6 @@ EEHashEntry_t * EECMHelperHashtableHelper::AllocateEntry(EECMHelperHashtableKey 
         pEntryKey->m_Instantiation = Instantiation(
             (TypeHandle *) (pEntryKey->m_strCookie + pEntryKey->m_cCookieStrBytes),
             pKey->GetMarshalerInstantiation().GetNumArgs());
-        pEntryKey->m_bSharedHelper = pKey->IsSharedHelper();
         memcpy((void*)pEntryKey->m_strMarshalerTypeName, pKey->GetMarshalerTypeName(), pKey->GetMarshalerTypeNameByteCount()); 
         memcpy((void*)pEntryKey->m_strCookie, pKey->GetCookieString(), pKey->GetCookieStringByteCount()); 
         memcpy((void*)pEntryKey->m_Instantiation.GetRawArgs(), pKey->GetMarshalerInstantiation().GetRawArgs(),
@@ -397,7 +401,6 @@ EEHashEntry_t * EECMHelperHashtableHelper::AllocateEntry(EECMHelperHashtableKey 
         pEntryKey->m_cCookieStrBytes = pKey->GetCookieStringByteCount();
         pEntryKey->m_strCookie = pKey->GetCookieString();
         pEntryKey->m_Instantiation = Instantiation(pKey->GetMarshalerInstantiation());
-        pEntryKey->m_bSharedHelper = pKey->IsSharedHelper();
     }
 
     return pEntry;
@@ -433,9 +436,6 @@ BOOL EECMHelperHashtableHelper::CompareKeys(EEHashEntry_t *pEntry, EECMHelperHas
     
     EECMHelperHashtableKey *pEntryKey = (EECMHelperHashtableKey *) pEntry->Key;
 
-    if (pEntryKey->IsSharedHelper() != pKey->IsSharedHelper())
-        return FALSE;
-
     if (pEntryKey->GetMarshalerTypeNameByteCount() != pKey->GetMarshalerTypeNameByteCount())
         return FALSE;
 
@@ -469,8 +469,7 @@ DWORD EECMHelperHashtableHelper::Hash(EECMHelperHashtableKey *pKey)
     return (DWORD)
         (HashBytes((const BYTE *) pKey->GetMarshalerTypeName(), pKey->GetMarshalerTypeNameByteCount()) + 
         HashBytes((const BYTE *) pKey->GetCookieString(), pKey->GetCookieStringByteCount()) + 
-        HashBytes((const BYTE *) pKey->GetMarshalerInstantiation().GetRawArgs(), pKey->GetMarshalerInstantiation().GetNumArgs() * sizeof(LPVOID)) +
-        (pKey->IsSharedHelper() ? 1 : 0));
+        HashBytes((const BYTE *) pKey->GetMarshalerInstantiation().GetRawArgs(), pKey->GetMarshalerInstantiation().GetNumArgs() * sizeof(LPVOID)));
 }
 
 
