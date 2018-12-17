@@ -182,7 +182,7 @@ restore_optdata()
         "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
                                    /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount \
                                    /t:RestoreOptData ./build.proj \
-                                   $__RunMSBuildArgs $__UnprocessedBuildArgs
+                                   $__CommonMSBuildArgs $__UnprocessedBuildArgs
         if [ $? != 0 ]; then
             echo "Failed to restore the optimization data package."
             exit 1
@@ -301,7 +301,7 @@ build_native()
                                        "$__ProjectDir/build.proj" \
                                        /p:GenerateVersionSourceFile=true /t:GenerateVersionSourceFile \
                                        /p:NativeVersionSourceFile=$__versionSourceFile \
-                                       $__RunMSBuildArgs $__UnprocessedBuildArgs
+                                       $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else
             # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
@@ -455,14 +455,14 @@ build_CoreLib()
     echo "Commencing build of managed components for $__BuildOS.$__BuildArch.$__BuildType"
 
     # Invoke MSBuild
-    __ExtraBuildMSBuildArgs=""
+    __ExtraBuildArgs=""
     if [[ "$__IbcTuning" == "" ]]; then
-        __ExtraBuildMSBuildArgs="$__ExtraBuildMSBuildArgs /p:OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data\""
-        __ExtraBuildMSBuildArgs="$__ExtraBuildMSBuildArgs /p:EnableProfileGuidedOptimization=true"
+        __ExtraBuildArgs="$__ExtraBuildArgs /p:OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data\""
+        __ExtraBuildArgs="$__ExtraBuildArgs /p:EnableProfileGuidedOptimization=true"
     fi
 
     if [[ "$__BuildManagedTools" -eq "1" ]]; then
-        __ExtraBuildMSBuildArgs="$__ExtraBuildMSBuildArgs /p:BuildManagedTools=true"
+        __ExtraBuildArgs="$__ExtraBuildArgs /p:BuildManagedTools=true"
     fi
 
     $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
@@ -474,8 +474,8 @@ build_CoreLib()
                              /p:__RootBinDir=$__RootBinDir \
                              /p:BuildNugetPackage=false \
                              /p:UseSharedCompilation=false \
-                             $__RunMSBuildArgs \
-                             $__ExtraBuildMSBuildArgs \
+                             $__CommonMSBuildArgs \
+                             $__ExtraBuildArgs \
                              $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
@@ -543,7 +543,7 @@ generate_NugetPackages()
                              /p:BuildNugetPackages=false \
                              /p:UseSharedCompilation=false \
                              /p:__DoCrossArchBuild=$__CrossBuild \
-                             $__RunMSBuildArgs $__UnprocessedBuildArgs
+                             $__CommonMSBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to generate Nuget packages."
@@ -654,7 +654,7 @@ __SourceDir="$__ProjectDir/src"
 __PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/packages}"
 __RootBinDir="$__ProjectDir/bin"
 __UnprocessedBuildArgs=
-__RunMSBuildArgs=
+__CommonMSBuildArgs=
 __MSBCleanBuildArgs=
 __UseNinja=0
 __VerboseBuild=0
@@ -686,6 +686,8 @@ __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
 __IbcOptDataVersion=""
 __BuildManagedTools=1
+__OfficialBuildIdArg=""
+__SignTypeArg=""
 
 # Get the number of processors available to the scheduler
 # Other techniques such as `nproc` only get the number of
@@ -939,6 +941,19 @@ while :; do
             exit 1
             ;;
 
+        -OfficialBuildId=*)
+            __Id=$(echo $1| cut -d'=' -f 2)
+            __OfficialBuildIdArg="/p:OfficialBuildId=$__Id"
+            ;;
+
+        -disableoss)
+            __SignTypeArg="/p:SignType=real"
+            ;;
+
+        --)
+            # Skip run.sh-style argument passing
+            ;;
+
         *)
             __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
             ;;
@@ -947,12 +962,12 @@ while :; do
     shift
 done
 
-__RunMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS"
+__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS $__OfficialBuildIdArg $__SignTypeArg"
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
     export VERBOSE=1
-    __RunMSBuildArgs="$__RunMSBuildArgs /v:detailed"
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /v:detailed"
 fi
 
 # Set default clang version
@@ -972,7 +987,7 @@ if [[ "$__BuildArch" == "armel" ]]; then
 fi
 
 if [ $__PortableBuild == 0 ]; then
-    __RunMSBuildArgs="$__RunMSBuildArgs /p:PortableBuild=false"
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
 fi
 
 # Set dependent variables
