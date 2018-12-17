@@ -191,7 +191,7 @@ generate_layout()
     build_MSBuild_projects "Restore_Packages" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "/t:BatchRestorePackages"
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
-        __up=-updateinvalidpackageversion
+        __up="/t:UpdateInvalidPackageVersions"
     fi
 
     echo "${__MsgPrefix}Creating test overlay..."
@@ -329,7 +329,7 @@ build_Tests()
     build_test_wrappers
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
-        __up=-updateinvalidpackageversion
+        __up="/t:UpdateInvalidPackageVersions"
     fi
 
     generate_layout
@@ -357,10 +357,10 @@ build_MSBuild_projects()
     __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
 
     # Use binclashlogger by default if no other logger is specified
-    if [[ "${extraBuildParameters[*]}" == *"-MsBuildEventLogging"* ]]; then
-        msbuildEventLogging=""
+    elif [[ "${extraBuildParameters[*]}" == *"/l:"* ]]; then
+        msbuildEventLoggingMSBuildArg=
     else
-        msbuildEventLoggingMSBuildArg="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"
+        msbuildEventLoggingMSBuildArg="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log"
     fi
 
     if [[ "$subDirectoryName" == "Tests_Managed" ]]; then
@@ -394,7 +394,7 @@ build_MSBuild_projects()
             buildMSBuildArgs+=("${__RunMSBuildArgs[@]}")
             buildMSBuildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-            nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildMSBuildArgs[@]}"
+            nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildMSBuildArgs[@]}"
             echo "Building step '$stepName' slice=$slice via $nextCommand"
             eval $nextCommand
 
@@ -422,7 +422,7 @@ build_MSBuild_projects()
         buildMSBuildArgs+=("${__RunMSBuildArgs[@]}")
         buildMSBuildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-        nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildMSBuildArgs[@]}"
+        nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildMSBuildArgs[@]}"
         echo "Building step '$stepName' via $nextCommand"
         eval $nextCommand
 
