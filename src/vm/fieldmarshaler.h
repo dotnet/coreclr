@@ -295,6 +295,9 @@ VOID FmtValueTypeUpdateCLR(LPVOID pProtectedManagedData, MethodTable *pMT, BYTE 
 
 class FieldMarshaler
 {
+    template<typename TFieldMarshaler, typename TSpace, typename... TArgs>
+    friend NStructFieldType InitFieldMarshaler(TSpace& space, NativeFieldFlags flags, TArgs&&... args);
+
 public:
     VOID UpdateNative(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLR(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -346,11 +349,21 @@ public:
         return m_nft;
     }
 
+private:
     void SetNStructFieldType(NStructFieldType nft)
     {
         LIMITED_METHOD_CONTRACT;
         m_nft = nft;
     }
+
+    void SetNativeFieldFlags(NativeFieldFlags nff)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(m_nff == 0);
+        m_nff = nff;
+    }
+
+public:
 
     BOOL IsIllegalMarshaler() const
     {
@@ -361,13 +374,6 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_nff;
-    }
-
-    void SetNativeFieldFlags(NativeFieldFlags nff)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(m_nff == 0);
-        m_nff = nff;
     }
 
 #ifdef FEATURE_PREJIT
