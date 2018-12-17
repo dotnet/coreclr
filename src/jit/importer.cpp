@@ -4039,8 +4039,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 break;
             }
 
-            case NI_MathF_Round:
-            case NI_Math_Round:
+            case NI_System_Math_Round:
+            case NI_System_MathF_Round:
             {
                 // Math.Round and MathF.Round used to be a traditional JIT intrinsic. In order
                 // to simplify the transition, we will just treat it as if it was still the
@@ -4460,13 +4460,24 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
         {
             result = NI_System_Enum_HasFlag;
         }
-        else if ((strcmp(className, "MathF") == 0) && (strcmp(methodName, "Round") == 0))
+        else if (strncmp(methodName, "Math", 4) == 0)
         {
-            result = NI_MathF_Round;
-        }
-        else if ((strcmp(className, "Math") == 0) && (strcmp(methodName, "Round") == 0))
-        {
-            result = NI_Math_Round;
+            methodName += 4;
+
+            if (methodName[0] == '\0')
+            {
+                if (strcmp(methodName, "Round") == 0)
+                {
+                    result = NI_System_Math_Round;
+                }
+            }
+            else if (strcmp(methodName, "F") == 0)
+            {
+                if (strcmp(methodName, "Round") == 0)
+                {
+                    result = NI_System_MathF_Round;
+                }
+            }
         }
     }
 #if defined(_TARGET_XARCH_) // We currently only support BSWAP on x86
