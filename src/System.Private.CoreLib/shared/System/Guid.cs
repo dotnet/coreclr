@@ -694,20 +694,6 @@ namespace System
             return true;
         }
 
-        private static bool TryParseHex(ReadOnlySpan<char> guidString, out short result, ref bool overflow)
-        {
-            uint tmp;
-            bool success = TryParseHex(guidString, out tmp, ref overflow);
-            result = (short)tmp;
-            return success;
-        }
-
-        private static bool TryParseHex(ReadOnlySpan<char> guidString, out uint result)
-        {
-            bool overflowIgnored = false;
-            return TryParseHex(guidString, out result, ref overflowIgnored);
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool TryParseHexD(ReadOnlySpan<char> value, out uint result)
         {
@@ -821,6 +807,14 @@ namespace System
         FalseExit:
             result = 0;
             return false;
+        }
+
+        private static bool TryParseHex(ReadOnlySpan<char> guidString, out short result, ref bool overflow)
+        {
+            uint tmp;
+            bool success = TryParseHex(guidString, out tmp, ref overflow);
+            result = (short)tmp;
+            return success;
         }
 
         private static bool TryParseHex(ReadOnlySpan<char> guidString, out uint result, ref bool overflow)
