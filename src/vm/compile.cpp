@@ -986,8 +986,11 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
     // methods and don't have an instantiation argument.
     // See code:CEEInfo::getMethodSigInternal
     //
-    if (pMD->RequiresInstArg() && (!isDispatchCell || !pMD->GetMethodTable()->IsInterface()))
+    assert(!isDispatchCell || !pMD->RequiresInstArg() || pMD->GetMethodTable()->IsInterface());
+    if (pMD->RequiresInstArg() && !isDispatchCell)
+    {
         msig.SetHasParamTypeArg();
+    }
 
     ArgIterator argit(&msig);
 

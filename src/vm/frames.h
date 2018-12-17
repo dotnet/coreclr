@@ -2290,7 +2290,8 @@ public:
         //
         // See code:CEEInfo::getMethodSigInternal
         //
-        return pMD->GetMethodTable()->IsInterface();
+        assert(pMD->GetMethodTable()->IsInterface());
+        return TRUE;
     }
 
 private:

@@ -369,7 +369,7 @@ StackWalkAction GcStackCrawlCallBack(CrawlFrame* pCF, VOID* pData)
                         paramContextType = GENERIC_PARAM_CONTEXT_METHODTABLE;
                 }
 
-                if (SafeToReportGenericParamContext(pCF))
+                if (paramContextType != GENERIC_PARAM_CONTEXT_NONE && SafeToReportGenericParamContext(pCF))
                 {
                     // Handle the case where the method is a static shared generic method and we need to keep the type 
                     // of the generic parameters alive
