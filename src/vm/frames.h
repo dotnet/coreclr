@@ -2278,8 +2278,6 @@ public:
 
     virtual BOOL SuppressParamTypeArg()
     {
-        MethodDesc *pMD = GetFunction();
-
         //
         // Shared default interface methods (i.e. virtual interface methods with an implementation) require
         // an instantiation argument. But if we're in the stub dispatch frame, we haven't actually resolved
@@ -2290,7 +2288,7 @@ public:
         //
         // See code:CEEInfo::getMethodSigInternal
         //
-        assert(pMD->GetMethodTable()->IsInterface());
+        assert(GetFunction()->GetMethodTable()->IsInterface());
         return TRUE;
     }
 
