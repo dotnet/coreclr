@@ -469,11 +469,11 @@ build_native_projects()
             pwd
             $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
                                      /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount \
-                                      $__ProjectDir/build.proj \
-                                      /t:GenerateVersionHeader /p:GenerateVersionHeader=true \
-                                      /p:NativeVersionSourceFile=$__versionSourceFile \
-                                      /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                                      $__CommonMSBuildArgs $__UnprocessedBuildArgs
+                                     $__ProjectDir/build.proj \
+                                     /t:GenerateVersionHeader /p:GenerateVersionHeader=true \
+                                     /p:NativeVersionSourceFile=$__versionSourceFile \
+                                     /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
+                                     $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else
             # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
