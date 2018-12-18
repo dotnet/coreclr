@@ -240,9 +240,6 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames);
 HRESULT EEStartup(COINITIEE fFlags);
 
 
-BOOL STDMETHODCALLTYPE ExecuteEXE(HMODULE hMod);
-BOOL STDMETHODCALLTYPE ExecuteEXE(__in LPWSTR pImageNameIn);
-
 #ifndef CROSSGEN_COMPILE
 static void InitializeGarbageCollector();
 
@@ -1160,11 +1157,6 @@ HRESULT EEStartup(COINITIEE fFlags)
     }
     PAL_ENDTRY
 
-#ifndef CROSSGEN_COMPILE
-    if(SUCCEEDED(g_EEStartupStatus) && (fFlags & COINITEE_MAIN) == 0)
-        g_EEStartupStatus = SystemDomain::SetupDefaultDomainNoThrow();
-#endif
-
     return g_EEStartupStatus;
 }
 
@@ -1202,9 +1194,6 @@ void InnerCoEEShutDownCOM()
     AppDomainIterator i(TRUE);
     while (i.Next())
         i.GetDomain()->DeleteMarshalingData();
-
-    // Release marshaling data  in shared domain as well
-    SharedDomain::GetDomain()->DeleteMarshalingData();
 
 #ifdef FEATURE_APPX    
     // Cleanup cached factory pointer in SynchronizationContextNative

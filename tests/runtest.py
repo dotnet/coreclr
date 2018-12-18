@@ -41,6 +41,7 @@
 
 import argparse
 import datetime
+import fnmatch
 import json
 import math
 import os
@@ -103,6 +104,7 @@ parser.add_argument("-product_location", dest="product_location", nargs='?', def
 parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 parser.add_argument("-test_env", dest="test_env", default=None)
 parser.add_argument("-crossgen_altjit", dest="crossgen_altjit", default=None)
+parser.add_argument("-altjit_arch", dest="altjit_arch", default=None)
 
 # Optional arguments which change execution.
 
@@ -125,6 +127,7 @@ parser.add_argument("--generate_layout", dest="generate_layout", action="store_t
 parser.add_argument("--generate_layout_only", dest="generate_layout_only", action="store_true", default=False)
 parser.add_argument("--analyze_results_only", dest="analyze_results_only", action="store_true", default=False)
 parser.add_argument("--verbose", dest="verbose", action="store_true", default=False)
+parser.add_argument("--limited_core_dumps", dest="limited_core_dumps", action="store_true", default=False)
 
 # Only used on Unix
 parser.add_argument("-test_native_bin_location", dest="test_native_bin_location", nargs='?', default=None)
@@ -136,6 +139,7 @@ parser.add_argument("-test_native_bin_location", dest="test_native_bin_location"
 g_verbose = False
 gc_stress_c = False
 gc_stress = False
+coredump_pattern = ""
 file_name_cache = defaultdict(lambda: None)
 
 ################################################################################
@@ -425,6 +429,7 @@ def create_and_use_test_env(_os, env, func):
         in runtest.sh.
     """
     global gc_stress_c
+    global gc_stress
 
     complus_vars = defaultdict(lambda: None)
 
@@ -499,6 +504,7 @@ def get_environment(test_env=None):
         influencing the test runner.
     """
     global gc_stress_c
+    global gc_stress
 
     complus_vars = defaultdict(lambda: "")
     
@@ -545,11 +551,13 @@ def get_environment(test_env=None):
 
 def call_msbuild(coreclr_repo_location,
                  dotnetcli_location,
+                 test_location,
                  host_os,
                  arch,
                  build_type, 
                  is_illink=False,
-                 sequential=False):
+                 sequential=False,
+                 limited_core_dumps=False):
     """ Call msbuild to run the tests built.
 
     Args:
@@ -588,6 +596,9 @@ def call_msbuild(coreclr_repo_location,
     if is_illink:
         command += ["/p:RunTestsViaIllink=true"]
 
+    if limited_core_dumps:
+        command += ["/p:LimitedCoreDumps=true"]
+
     log_path = os.path.join(logs_dir, "TestRunResults_%s_%s_%s" % (host_os, arch, build_type))
     build_log = log_path + ".log"
     wrn_log = log_path + ".wrn"
@@ -618,6 +629,9 @@ def call_msbuild(coreclr_repo_location,
     except:
         proc.kill()
         sys.exit(1)
+
+    if limited_core_dumps:
+        inspect_and_delete_coredump_files(host_os, arch, test_location)
 
     return proc.returncode
 
@@ -702,6 +716,207 @@ def correct_line_endings(host_os, test_location, root=True):
             with open(test_location, 'w') as file_handle:
                 file_handle.write(content)
 
+def setup_coredump_generation(host_os):
+    """ Configures the environment so that the current process and any child
+        processes can generate coredumps.
+
+    Args:
+        host_os (String)        : os
+
+    Notes:
+        This is only support for OSX and Linux, it does nothing on Windows.
+        This will print a message if setting the rlimit fails but will otherwise
+        continue execution, as some systems will already be configured correctly
+        and it is not necessarily a failure to not collect coredumps.
+    """
+    global coredump_pattern
+
+    if host_os == "OSX":
+        coredump_pattern = subprocess.check_output("sysctl -n kern.corefile", shell=True).rstrip()
+    elif host_os == "Linux":
+        with open("/proc/sys/kernel/core_pattern", "r") as f:
+            coredump_pattern = f.read().rstrip()
+    else:
+        print("CoreDump generation not enabled due to unsupported OS: %s" % host_os)
+        return
+
+    # resource is only available on Unix platforms
+    import resource
+
+    if coredump_pattern != "core" and coredump_pattern != "core.%P":
+        print("CoreDump generation not enabled due to unsupported coredump pattern: %s" % coredump_pattern)
+        return
+    else:
+        print("CoreDump pattern: %s" % coredump_pattern)
+
+    # We specify 'shell=True' as the command may otherwise fail (some systems will
+    # complain that the executable cannot be found in the current directory).
+    rlimit_core = subprocess.check_output("ulimit -c", shell=True).rstrip()
+
+    if rlimit_core != "unlimited":
+        try:
+            # This can fail on certain platforms. ARM64 in particular gives: "ValueError: not allowed to raise maximum limit"
+            resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+        except:
+            print("Failed to enable CoreDump generation. rlimit_core: %s" % rlimit_core)
+            return
+
+        rlimit_core = subprocess.check_output("ulimit -c", shell=True).rstrip()
+
+        if rlimit_core != "unlimited":
+            print("Failed to enable CoreDump generation. rlimit_core: %s" % rlimit_core)
+            return
+
+    print("CoreDump generation enabled")
+
+    if host_os == "Linux" and os.path.isfile("/proc/self/coredump_filter"):
+        # Include memory in private and shared file-backed mappings in the dump.
+        # This ensures that we can see disassembly from our shared libraries when
+        # inspecting the contents of the dump. See 'man core' for details.
+        with open("/proc/self/coredump_filter", "w") as f:
+            f.write("0x3F")
+
+def print_info_from_coredump_file(host_os, arch, coredump_name, executable_name):
+    """ Prints information from the specified coredump to the console
+
+    Args:
+        host_os (String)         : os
+        arch (String)            : architecture
+        coredump_name (String)   : name of the coredump to print
+        executable_name (String) : name of the executable that generated the coredump
+
+    Notes:
+        This is only support for OSX and Linux, it does nothing on Windows.
+        This defaults to lldb on OSX and gdb on Linux.
+        For both lldb and db, it backtraces all threads. For gdb, it also prints local
+        information for every frame. This option is not available as a built-in for lldb.
+    """
+    if not os.path.isfile(executable_name):
+        print("Not printing coredump due to missing executable: %s" % executable_name)
+        return
+
+    if not os.path.isfile(coredump_name):
+        print("Not printing coredump due to missing coredump: %s" % coredump_name)
+        return
+
+    command = ""
+
+    if host_os == "OSX":
+        command = "lldb -c %s -b -o 'bt all' -o 'disassemble -b -p'" % coredump_name
+    elif host_os == "Linux":
+        command = "gdb --batch -ex \"thread apply all bt full\" -ex \"disassemble /r $pc\" -ex \"quit\" %s %s" % (executable_name, coredump_name)
+    else:
+        print("Not printing coredump due to unsupported OS: %s" % host_os)
+        return
+
+    print("Printing info from coredump: %s" % coredump_name)
+
+    proc_failed = False
+
+    try:
+        sys.stdout.flush() # flush output before creating sub-process
+
+        # We specify 'shell=True' as the command may otherwise fail (some systems will
+        # complain that the executable cannot be found in the current directory).
+        proc = subprocess.Popen(command, shell=True)
+        proc.communicate()
+
+        if proc.returncode != 0:
+            proc_failed = True
+    except:
+        proc_failed = True
+
+    if proc_failed:
+        print("Failed to print coredump: %s" % coredump_name)
+
+def preserve_coredump_file(coredump_name, root_storage_location="/tmp/coredumps_coreclr"):
+    """ Copies the specified coredump to a new randomly named temporary directory under
+        root_storage_location to ensure it is accessible after the workspace is cleaned.
+
+    Args:
+        coredump_name (String)         : name of the coredump to print
+        root_storage_location (String) : the directory under which to copy coredump_name
+
+    Notes:
+        root_storage_location defaults to a folder under /tmp to ensure that it is cleaned
+        up on next reboot (or after the OS configured time elapses for the folder).
+    """
+    if not os.path.exists(root_storage_location):
+        os.mkdir(root_storage_location)
+
+    # This creates a temporary directory under `root_storage_location` to ensure it doesn'tag
+    # conflict with any coredumps from past runs.
+    storage_location = tempfile.mkdtemp('', '', root_storage_location)
+
+    # Only preserve the dump if the directory is empty. Otherwise, do nothing.
+    # This is a way to prevent us from storing/uploading too many dumps.
+    if os.path.isfile(coredump_name) and not os.listdir(storage_location):
+        print("Copying coredump file %s to %s" % (coredump_name, storage_location))
+        shutil.copy2(coredump_name, storage_location)
+        # TODO: Support uploading to dumpling
+
+def inspect_and_delete_coredump_file(host_os, arch, coredump_name):
+    """ Prints information from the specified coredump and creates a backup of it
+
+    Args:
+        host_os (String)         : os
+        arch (String)            : architecture
+        coredump_name (String)   : name of the coredump to print
+    """
+    print_info_from_coredump_file(host_os, arch, coredump_name, "%s/corerun" % os.environ["CORE_ROOT"])
+    preserve_coredump_file(coredump_name)
+    os.remove(coredump_name)
+
+def inspect_and_delete_coredump_files(host_os, arch, test_location):
+    """ Finds all coredumps under test_location, prints some basic information about them
+        to the console, and creates a backup of the dumps for further investigation
+
+    Args:
+        host_os (String)         : os
+        arch (String)            : architecture
+        test_location (String)   : the folder under which to search for coredumps
+    """
+    # This function prints some basic information from core files in the current
+    # directory and deletes them immediately. Based on the state of the system, it may
+    # also upload a core file to the dumpling service.
+    # (see preserve_core_file).
+    
+    # Depending on distro/configuration, the core files may either be named "core"
+    # or "core.<PID>" by default. We will read /proc/sys/kernel/core_uses_pid to 
+    # determine which one it is.
+    # On OS X/macOS, we checked the kern.corefile value before enabling core dump
+    # generation, so we know it always includes the PID.
+    coredump_name_uses_pid=False
+
+    print("Looking for coredumps...")
+    
+    if "%P" in coredump_pattern:
+        coredump_name_uses_pid=True
+    elif host_os == "Linux" and os.path.isfile("/proc/sys/kernel/core_uses_pid"):
+        with open("/proc/sys/kernel/core_uses_pid", "r") as f:
+            if f.read().rstrip() == "1":
+                coredump_name_uses_pid=True
+
+    filter_pattern = ""
+    regex_pattern = ""
+    matched_file_count = 0
+
+    if coredump_name_uses_pid:
+        filter_pattern = "core.*"
+        regex_pattern = "core.[0-9]+"
+    else:
+        filter_pattern = "core"
+        regex_pattern = "core"
+
+    for dir_path, dir_names, file_names in os.walk(test_location):
+        for file_name in fnmatch.filter(file_names, filter_pattern):
+            if re.match(regex_pattern, file_name):
+                print("Found coredump: %s in %s" % (file_name, dir_path))
+                matched_file_count += 1
+                inspect_and_delete_coredump_file(host_os, arch, os.path.join(dir_path, file_name))
+
+    print("Found %s coredumps." % matched_file_count)
+
 def run_tests(host_os,
               arch,
               build_type, 
@@ -716,7 +931,8 @@ def run_tests(host_os,
               is_ilasm=False,
               is_illink=False,
               run_crossgen_tests=False,
-              run_sequential=False):
+              run_sequential=False,
+              limited_core_dumps=False):
     """ Run the coreclr tests
     
     Args:
@@ -729,8 +945,7 @@ def run_tests(host_os,
         test_native_bin_location    : Native test components, None and windows.
         test_env(str)               : path to the test_env to be used
     """
-    global gc_stress
-    
+
     # Setup the dotnetcli location
     dotnetcli_location = os.path.join(coreclr_repo_location, "Tools", "dotnetcli", "dotnet%s" % (".exe" if host_os == "Windows_NT" else ""))
 
@@ -764,6 +979,9 @@ def run_tests(host_os,
         print("Running GCStress, extending timeout to 120 minutes.")
         os.environ["__TestTimeout"] = str(120*60*1000) # 1,800,000 ms
 
+    if limited_core_dumps:
+        setup_coredump_generation(host_os)
+
     # Set Core_Root
     print("Setting CORE_ROOT=%s" % core_root)
     os.environ["CORE_ROOT"] = core_root
@@ -791,7 +1009,7 @@ def run_tests(host_os,
     #  1) git clone https://github.com/echesakovMSFT/xunit.git --branch UseConcurrentDictionaryInDependencyContextAssemblyCache --single-branch
     #  2) cd xunit
     #  3) git submodule update --init
-    #  4) powershell .\build.ps1
+    #  4) powershell .\build.ps1 -target packages -buildAssemblyVersion 2.4.1 -buildSemanticVersion 2.4.1-coreclr
     #
     # Then file "xunit\src\xunit.console\bin\Release\netcoreapp2.0\xunit.console.dll" was archived and uploaded to the clrjit blob storage.
     #
@@ -809,7 +1027,7 @@ def run_tests(host_os,
 
     urlretrieve = urllib.urlretrieve if sys.version_info.major < 3 else urllib.request.urlretrieve
     zipfilename = os.path.join(tempfile.gettempdir(), "xunit.console.dll.zip")
-    url = r"https://clrjit.blob.core.windows.net/xunit-console/xunit.console.dll.zip"
+    url = r"https://clrjit.blob.core.windows.net/xunit-console/xunit.console.dll-v2.4.1.zip"
     urlretrieve(url, zipfilename)
 
     with zipfile.ZipFile(zipfilename,"r") as ziparch:
@@ -821,10 +1039,12 @@ def run_tests(host_os,
     # Call msbuild.
     return call_msbuild(coreclr_repo_location,
                         dotnetcli_location,
+                        test_location,
                         host_os,
                         arch,
                         build_type,
                         is_illink=is_illink,
+                        limited_core_dumps=limited_core_dumps,
                         sequential=run_sequential)
 
 def setup_args(args):
@@ -1466,6 +1686,13 @@ def setup_core_root(host_os,
 
     return True
 
+if sys.version_info.major < 3:
+    def to_unicode(s):
+        return unicode(s, "utf-8")
+else:
+    def to_unicode(s):
+        return str(s, "utf-8")
+
 def delete_existing_wrappers(test_location):
     """ Delete the existing xunit wrappers
 
@@ -1490,7 +1717,8 @@ def build_test_wrappers(host_os,
                         arch, 
                         build_type, 
                         coreclr_repo_location,
-                        test_location):
+                        test_location,
+                        altjit_arch=None):
     """ Build the coreclr test wrappers
 
     Args:
@@ -1509,7 +1737,7 @@ def build_test_wrappers(host_os,
     """
     global g_verbose
 
-    delete_existing_wrappers(test_location)
+    delete_existing_wrappers(to_unicode(test_location))
 
     # Setup the dotnetcli location
     dotnetcli_location = os.path.join(coreclr_repo_location, "Tools", "dotnetcli", "dotnet%s" % (".exe" if host_os == "Windows_NT" else ""))
@@ -1543,6 +1771,9 @@ def build_test_wrappers(host_os,
                 "/p:__BuildArch=%s" % arch,
                 "/p:__BuildType=%s" % build_type,
                 "/p:__LogsDir=%s" % logs_dir]
+
+    if not altjit_arch is None:
+        command += ["/p:__AltJitArch=%s" % altjit_arch]
 
     print("Creating test wrappers...")
     print(" ".join(command))
@@ -1958,8 +2189,6 @@ def do_setup(host_os,
              core_root, 
              unprocessed_args, 
              test_env):
-    global gc_stress_c
-
     # Setup the tools for the repo.
     setup_tools(host_os, coreclr_repo_location)
 
@@ -2008,12 +2237,18 @@ def do_setup(host_os,
         # Line ending only need to be corrected if this is a cross build.
         correct_line_endings(host_os, test_location)
 
+    # If we are inside altjit scenario, we ought to re-build Xunit test wrappers to consider
+    # ExcludeList items in issues.targets for both build arch and altjit arch
+    is_altjit_scenario = not args.altjit_arch is None
+
     if unprocessed_args.build_test_wrappers:
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
     elif build_info is None:
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
     elif not (is_same_os and is_same_arch and is_same_build_type):
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
+    elif is_altjit_scenario:
+        build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location, args.altjit_arch)
 
     return run_tests(host_os, 
               arch,
@@ -2027,6 +2262,7 @@ def do_setup(host_os,
               is_gcsimulator=unprocessed_args.gcsimulator,
               is_jitdasm=unprocessed_args.jitdisasm,
               is_ilasm=unprocessed_args.ilasmroundtrip,
+              limited_core_dumps=unprocessed_args.limited_core_dumps,
               run_sequential=unprocessed_args.sequential,
               run_crossgen_tests=unprocessed_args.run_crossgen_tests,
               test_env=test_env)

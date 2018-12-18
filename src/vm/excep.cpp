@@ -2265,7 +2265,7 @@ void StackTraceInfo::SaveStackTrace(BOOL bAllowAllocMem, OBJECTHANDLE hThrowable
     _ASSERTE(! bSkipLastElement || ! bReplaceStack);
 
     bool         fSuccess = false;
-    MethodTable* pMT      = ObjectFromHandle(hThrowable)->GetTrueMethodTable();
+    MethodTable* pMT      = ObjectFromHandle(hThrowable)->GetMethodTable();
 
     // Check if the flag indicating foreign exception raise has been setup or not,
     // and then reset it so that subsequent processing of managed frames proceeds
@@ -2751,7 +2751,7 @@ VOID DECLSPEC_NORETURN RaiseTheException(OBJECTREF throwable, BOOL rethrow
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
     LOG((LF_EH, LL_INFO100, "RealCOMPlusThrow throwing %s\n",
-        throwable->GetTrueMethodTable()->GetDebugClassName()));
+        throwable->GetMethodTable()->GetDebugClassName()));
 
     if (throwable == NULL)
     {
@@ -2837,7 +2837,7 @@ HRESULT GetHRFromThrowable(OBJECTREF throwable)
     STATIC_CONTRACT_MODE_ANY;
 
     HRESULT    hr  = E_FAIL;
-    MethodTable *pMT = throwable->GetTrueMethodTable();
+    MethodTable *pMT = throwable->GetMethodTable();
 
     // Only Exception objects have a HResult field
     // So don't fetch the field unless we have an exception
@@ -2909,7 +2909,7 @@ VOID DECLSPEC_NORETURN RaiseTheExceptionInternalOnly(OBJECTREF throwable, BOOL r
 #ifdef _DEBUG
     // If ThreadAbort exception is thrown, the thread should be marked with AbortRequest.
     // If not, we may see unhandled exception.
-    if (param.throwable->GetTrueMethodTable() == g_pThreadAbortExceptionClass)
+    if (param.throwable->GetMethodTable() == g_pThreadAbortExceptionClass)
     {
         _ASSERTE(GetThread()->IsAbortRequested()
 #ifdef _TARGET_X86_
@@ -3821,7 +3821,7 @@ BOOL IsExceptionOfType(RuntimeExceptionKind reKind, OBJECTREF *pThrowable)
     if (*pThrowable == NULL)
         return FALSE;
 
-    MethodTable *pThrowableMT = (*pThrowable)->GetTrueMethodTable();
+    MethodTable *pThrowableMT = (*pThrowable)->GetMethodTable();
 
     // IsExceptionOfType is supported for mscorlib exception types only
     _ASSERTE(reKind <= kLastExceptionInMscorlib);
@@ -4467,9 +4467,9 @@ void DECLSPEC_NORETURN RaiseDeadLockException()
 //  Returns:
 //    true              If the exception is of a type that is always swallowed.
 //
-bool ExceptionIsAlwaysSwallowed(EXCEPTION_POINTERS *pExceptionInfo)
+BOOL ExceptionIsAlwaysSwallowed(EXCEPTION_POINTERS *pExceptionInfo)
 {
-    bool isSwallowed = false;
+    BOOL isSwallowed = false;
 
     // The exception code must be ours, if it is one of our Exceptions.
     if (IsComPlusException(pExceptionInfo->ExceptionRecord))
@@ -4486,8 +4486,7 @@ bool ExceptionIsAlwaysSwallowed(EXCEPTION_POINTERS *pExceptionInfo)
                 throwable = pThread->LastThrownObject();
             }
             //@todo: could throwable be NULL here?
-            isSwallowed = IsExceptionOfType(kThreadAbortException, &throwable) ||
-                          IsExceptionOfType(kAppDomainUnloadedException, &throwable);
+            isSwallowed = IsExceptionOfType(kThreadAbortException, &throwable);
         }
     }
 
@@ -4767,7 +4766,7 @@ BOOL UpdateCurrentThrowable(PEXCEPTION_RECORD pExceptionRecord)
             //        to inspect the thread to see what the throwable is on an unhandled
             //        exception.. (but clearly it needs to be fixed asap)
             //        We have the same problem in EEPolicy::LogFatalError().
-            LOG((LF_EH, LL_INFO100, "UpdateCurrentThrowable: setting throwable to %s\n", (oThrowable == NULL) ? "NULL" : oThrowable->GetTrueMethodTable()->GetDebugClassName()));
+            LOG((LF_EH, LL_INFO100, "UpdateCurrentThrowable: setting throwable to %s\n", (oThrowable == NULL) ? "NULL" : oThrowable->GetMethodTable()->GetDebugClassName()));
             pThread->SafeSetThrowables(oThrowable);
 #endif // WIN64EXCEPTIONS
         }
@@ -5557,8 +5556,8 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
 #endif
 
     GCPROTECT_BEGIN(throwable);
-    //BOOL IsStackOverflow = (throwable->GetTrueMethodTable() == g_pStackOverflowExceptionClass);
-    BOOL IsOutOfMemory = (throwable->GetTrueMethodTable() == g_pOutOfMemoryExceptionClass);
+    //BOOL IsStackOverflow = (throwable->GetMethodTable() == g_pStackOverflowExceptionClass);
+    BOOL IsOutOfMemory = (throwable->GetMethodTable() == g_pOutOfMemoryExceptionClass);
 
     // Notify the AppDomain that we have taken an unhandled exception.  Can't notify of stack overflow -- guard
     // page is not yet reset.
@@ -5621,12 +5620,6 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                 else if (SentEvent || IsAsyncThreadException(&throwable))
                 {
                     // We don't print anything on async exceptions, like ThreadAbort.
-                    dump = FALSE;
-                    INDEBUG(suppressSelectiveBreak=TRUE);
-                }
-                else if (isThreadBaseFilter && IsExceptionOfType(kAppDomainUnloadedException, &throwable))
-                {
-                    // AppdomainUnloadedException is also a special case.
                     dump = FALSE;
                     INDEBUG(suppressSelectiveBreak=TRUE);
                 }
@@ -5765,7 +5758,7 @@ BOOL NotifyAppDomainsOfUnhandledException(
 #endif
 
     GCPROTECT_BEGIN(throwable);
-    //BOOL IsStackOverflow = (throwable->GetTrueMethodTable() == g_pStackOverflowExceptionClass);
+    //BOOL IsStackOverflow = (throwable->GetMethodTable() == g_pStackOverflowExceptionClass);
 
     // Notify the AppDomain that we have taken an unhandled exception.  Can't notify of stack overflow -- guard
     // page is not yet reset.
@@ -6965,6 +6958,48 @@ AdjustContextForWriteBarrier(
         CONTEXT *pContext)
 {
     WRAPPER_NO_CONTRACT;
+
+#ifdef FEATURE_DATABREAKPOINT
+
+    // If pExceptionRecord is null, it means it is called from EEDbgInterfaceImpl::AdjustContextForWriteBarrierForDebugger()
+    // This is called only when a data breakpoint is hitm which could be inside a JIT write barrier helper and required
+    // this logic to help unwind out of it. For the x86, not patched case, we assume the IP lies within the region where we 
+    // have already saved the registers on the stack, and therefore the code unwind those registers as well. This is not true 
+    // for the usual AV case where the registers are not saved yet.
+
+    if (pExceptionRecord == nullptr)
+    {
+        PCODE ip = GetIP(pContext);
+#if defined(_TARGET_X86_)
+        bool withinWriteBarrierGroup = ((ip >= (PCODE) JIT_WriteBarrierGroup) && (ip <= (PCODE) JIT_WriteBarrierGroup_End));
+        bool withinPatchedWriteBarrierGroup = ((ip >= (PCODE) JIT_PatchedWriteBarrierGroup) && (ip <= (PCODE) JIT_PatchedWriteBarrierGroup_End));
+        if (withinWriteBarrierGroup || withinPatchedWriteBarrierGroup)
+        {
+            DWORD* esp = (DWORD*)pContext->Esp;
+            if (withinWriteBarrierGroup)
+            {
+#if defined(WRITE_BARRIER_CHECK)
+                pContext->Ebp = *esp++;
+                pContext->Ecx = *esp++;
+#endif
+            }
+            pContext->Eip = *esp++;
+            pContext->Esp = (DWORD)esp;
+            return TRUE;
+        }
+#elif defined(_TARGET_AMD64_)
+        if (IsIPInMarkedJitHelper((UINT_PTR)ip))
+        {
+            Thread::VirtualUnwindToFirstManagedCallFrame(pContext);
+            return TRUE;
+        }
+#else
+        #error Not supported
+#endif
+        return FALSE;
+    }
+
+#endif // FEATURE_DATABREAKPOINT
 
 #if defined(_TARGET_X86_) && !defined(PLATFORM_UNIX)
     void* f_IP = (void *)GetIP(pContext);
@@ -12001,259 +12036,6 @@ BOOL CEHelper::CanIDispatchTargetHandleException()
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
 #ifndef DACCESS_COMPILE
-// When a managed thread starts in non-default domain, its callstack looks like below:
-//
-// <ManagedThreadBase_DispatchOuter>
-// <ManagedThreadBase_DispatchMiddle>
-// <ManagedThreadBase_DispatchInner>
-//
-// -- AD transition is here --        ==> Pushes ContextTransitionFrame and has EX_CATCH
-//
-// <ManagedThreadBase_DispatchOuter>
-// <ManagedThreadBase_DispatchMiddle>
-// <ManagedThreadBase_DispatchInner>
-//
-// In CoreCLR, all managed threads spawned will have a stack like this since they all
-// run in non-DefaultDomain. The upper three frames are in default domain and the lower
-// three are in the non-default domain in which the thread was created. Any exception
-// that is unhandled in non-default domain will be caught at AD transition boundary.
-// The transition boundary does the following tasks:
-//
-// 1) Catch any incoming unhandled exception from the non-default domain using EX_CATCH.
-// 2) Marshal the exception object to the return context (i.e. DefaultDomain)
-// 3) Return to the context of DefaultDomain and throw the marshalled exception object there.
-//
-// All this depends upon the EX_CATCH (which is based upon C++ exception handling) being
-// able to catch the exception.
-//
-// However, if a breakpoint exception ia raised and a debugger is not available to handle it,
-// C++'s catch(...) will not be able to catch it, even when compiled with /EHa. For the curious,
-// refer to "FindHandlerForForeignException" function's implementation in the CRT. One of the first
-// things it does is check for breakpoint exception and if it is, it will simply bail out of the
-// process of finding a handler. Thus, EX_CATCH will not be able to catch this exception and we
-// will not be able to transition to the previous AD context.
-//
-// Imagine a thread in non-default domain suffers breakpoint exception. Assuming it will go unhandled,
-// it will reach the OS, which will trigger an unwind. The execution of termination handlers in lower
-// three frames (above) is fine since they are in the same AD as the thread. But when termination
-// handlers in the upper three frames execute, its a case of bad mixup since the thread is in a different
-// AD context than what the frames are expected to be in.
-//
-// Hence, we need a mechanism to transition to the expected AppDomain in case of breakpoint exception.
-// This function supports this mechanism in a generic fashion, i.e., one can use it to transition to
-// any AppDomain, though only up the stack.
-
-BOOL ReturnToPreviousAppDomain()
-{
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    Thread *pCurThread = GetThread();
-    _ASSERTE(pCurThread != NULL);
-
-    BOOL fTransitioned = FALSE;
-
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(pCurThread, return FALSE);
-
-    // Get the thread's current domain
-    AppDomain *pCurDomain = pCurThread->GetDomain();
-    _ASSERTE(pCurDomain != NULL);
-
-    // Lookup the ContextTransitionFrame for the transition into the current AppDomain.
-    Frame *pCtxTransitionFrame = pCurThread->GetFirstTransitionInto(pCurDomain, NULL);
-    if (pCtxTransitionFrame == NULL)
-    {
-        // Since we couldnt find the context transition frame, check if its the default domain.
-        // If so, we will set fTransitioned to TRUE since there is no context transition frame
-        // setup for the initial entry into the default domain. For all other transitions to it
-        // from non-default domains, we will have a context transition frame. We will do a
-        // debug-only check to assert this invariant.
-        BOOL fIsDefDomain = pCurDomain->IsDefaultDomain();
-#ifdef _DEBUG
-        if (fIsDefDomain)
-        {
-            // Start with the topmost frame and look for a CTX frame until we reach the top of the frame chain.
-            // We better not find one since we couldnt find a transition frame to the DefaultDomain.
-            Frame *pStartFrame = pCurThread->GetFrame();
-            BOOL fFoundCTXFrame = FALSE;
-            while ((pStartFrame != NULL) && (pStartFrame != (Frame *)FRAME_TOP))
-            {
-                 if (pStartFrame->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr())
-                 {
-                    fFoundCTXFrame = TRUE;
-                    break;
-                 }
-
-                // Get the next frame in the chain
-                pStartFrame = pStartFrame->PtrNextFrame();
-            }
-
-            _ASSERTE_MSG(!fFoundCTXFrame, "How come we didnt find the transition frame to DefDomain but found another CTX frame on the frame chain?");
-        }
-#endif // _DEBUG
-        fTransitioned = fIsDefDomain;
-        LOG((LF_EH, LL_INFO100, "ReturnToPreviousAppDomain: Unable to find the transition into the current domain (IsDefaultDomain: %d).\n", fIsDefDomain));
-
-        goto done;
-    }
-
-    // Confirm its the correct type of frame
-    _ASSERTE_MSG(pCtxTransitionFrame->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr(),
-                    "How come we didn't find context transition frame for this AD transition?");
-
-    // Get the topmost Frame
-    Frame *pCurFrame;
-    pCurFrame = pCurThread->GetFrame();
-
-    // <ASSUMPTION>
-    //
-    // The loop below assumes we are called during an exception unwind since it
-    // unwinds the Frames and pops them off the thread.
-    //
-    // </ASSUMPTION>
-    //
-    // Clear all the frames until we are at the frame of our interest. If there was a
-    // CTX frame between the topmost frame and the AD transition, then we should be able to
-    // catch it here as well.
-    while((pCurFrame != NULL) && (pCurFrame < pCtxTransitionFrame) &&
-          (pCurFrame->GetVTablePtr() != ContextTransitionFrame::GetMethodFrameVPtr()))
-    {
-        // Invoke exception unwind and pop the frame off
-        pCurFrame->ExceptionUnwind();
-        pCurFrame->Pop();
-        pCurFrame = pCurThread->GetFrame();
-    }
-
-    // Confirm that we are at the expected Frame.
-    _ASSERTE_MSG(((pCurFrame != NULL) &&
-                  (pCurFrame->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr()) &&
-                  (pCurFrame == pCtxTransitionFrame)),
-                    "How come we are not at the exact context transition frame?");
-
-    // Log our context return
-    LOG((LF_EH, LL_INFO100, "ReturnToPreviousAppDomain: Returning from AD %d to AD %d\n",
-        GetAppDomain()->GetId().m_dwId, pCtxTransitionFrame->GetReturnDomain()->GetId().m_dwId));
-
-    // Return to the previous AD context
-    pCurThread->ReturnToContext((ContextTransitionFrame *)pCtxTransitionFrame);
-
-#ifdef _DEBUG
-    // At this point, the context transition frame would have been popped off by
-    // ReturnToContext above.
-    pCurFrame = pCurThread->GetFrame();
-    _ASSERTE_MSG(pCurFrame != pCtxTransitionFrame, "How come the CTX frame of AD transition is still on the frame chain?");
-#endif // _DEBUG
-
-    // Set the flag that we transitioned correctly.
-    fTransitioned = TRUE;
-
-done:;
-    END_SO_INTOLERANT_CODE;
-
-    return fTransitioned;
-}
-
-// This class defines a holder that can be used to return to previous AppDomain incase an exception
-// goes across an AD transition boundary without reverting the active context.
-//
-// Use this holder *after* you have transitioned to the target AD.
-void ReturnToPreviousAppDomainHolder::Init()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    m_fShouldReturnToPreviousAppDomain = TRUE;
-    m_pThread = GetThread();
-    _ASSERTE(m_pThread != NULL);
-
-#ifdef _DEBUG
-    m_pTransitionedToAD = m_pThread->GetDomain();
-#endif // _DEBUG
-}
-
-ReturnToPreviousAppDomainHolder::ReturnToPreviousAppDomainHolder()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    Init();
-}
-
-void ReturnToPreviousAppDomainHolder::ReturnToPreviousAppDomain()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-        // Test your sanity - we should still be in the transitioned-to AD.
-        PRECONDITION(m_pThread->GetDomain() == m_pTransitionedToAD);
-    }
-    CONTRACTL_END;
-
-    {
-        GCX_COOP();
-        ::ReturnToPreviousAppDomain();
-    }
-
-    // Set the LastThrownObject as NULL since we have returned to a different
-    // AD. Maintaining the reference to an object in the "returned-from" AD
-    // will prevent the AD from getting unloaded.
-    //
-    // Setting to NULL does not require us to be in COOP mode.
-    m_pThread->SafeSetLastThrownObject(NULL);
-}
-
-ReturnToPreviousAppDomainHolder::~ReturnToPreviousAppDomainHolder()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    if (m_fShouldReturnToPreviousAppDomain)
-    {
-        ReturnToPreviousAppDomain();
-    }
-}
-
-// Reset the flag to indicate that reverting to previous AD is not required anymore.
-// This should be invoked when the call has successfully returned from the target execution context.
-//
-// By default, this flag is TRUE (see the contructor above) to enable automatic context
-// revert incase an exception goes past the transition.
-//
-// END_DOMAIN_TRANSITION_NO_EH_AT_TRANSITION macro uses it. See its implementation in threads.h
-// for usage.
-void ReturnToPreviousAppDomainHolder::SuppressRelease()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    m_fShouldReturnToPreviousAppDomain = FALSE;
-}
-
-#endif // !DACCESS_COMPILE
-
-#ifndef DACCESS_COMPILE
 // This method will deliver the actual exception notification. Its assumed that the caller has done the necessary checks, including
 // checking whether the delegate can be invoked for the exception's corruption severity.
 void ExceptionNotifications::DeliverExceptionNotification(ExceptionNotificationHandlerType notificationType, OBJECTREF *pDelegate,
@@ -12445,30 +12227,18 @@ BOOL ExceptionNotifications::CanDeliverNotificationToCurrentAppDomain(ExceptionN
 {
     CONTRACTL
     {
-        NOTHROW;
-        GC_NOTRIGGER;
+        THROWS;
+        GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
         PRECONDITION(GetThread() != NULL);
         PRECONDITION(notificationType  != UnhandledExceptionHandler);
     }
     CONTRACTL_END;
 
-    Thread *pCurThread = GetThread();
-
-    // Get the current AppDomain
-    OBJECTREF oCurAppDomain = pCurThread->GetDomain()->GetRawExposedObject();
-    if (oCurAppDomain == NULL)
-    {
-        // Managed object for the current domain does not exist. Hence, no one
-        // can wireup to exception notifications, let alone receive them.
-        return FALSE;
-    }
-
     // Do we have handler(s) of the specific type wired up?
     if (notificationType == FirstChanceExceptionHandler)
     {
-        return (((APPDOMAINREF)oCurAppDomain)->GetFirstChanceExceptionNotificationHandler() != NULL);
+        return MscorlibBinder::GetField(FIELD__APPCONTEXT__FIRST_CHANCE_EXCEPTION)->GetStaticOBJECTREF() != NULL;
     }
     else
     {
@@ -12583,12 +12353,11 @@ void ExceptionNotifications::DeliverNotificationInternal(ExceptionNotificationHa
     // Save the reference to the current AppDomain. If the user code has
     // wired upto this event, then the managed AppDomain object will exist.
     gc.oCurAppDomain = pCurDomain->GetRawExposedObject();
-    _ASSERTE(gc.oCurAppDomain);
 
     // Get the reference to the delegate based upon the type of notification
     if (notificationType == FirstChanceExceptionHandler)
     {
-        gc.oNotificationDelegate = ((APPDOMAINREF)gc.oCurAppDomain)->GetFirstChanceExceptionNotificationHandler();
+        gc.oNotificationDelegate = MscorlibBinder::GetField(FIELD__APPCONTEXT__FIRST_CHANCE_EXCEPTION)->GetStaticOBJECTREF();
     }
     else
     {

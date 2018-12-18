@@ -39,7 +39,6 @@ namespace System
         /// </summary>
         /// <param name="array">The target array.</param>
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
-        /// reference (Nothing in Visual Basic).</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan(T[] array)
         {
@@ -61,7 +60,6 @@ namespace System
         /// <param name="start">The index at which to begin the read-only span.</param>
         /// <param name="length">The number of items in the read-only span.</param>
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
-        /// reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
@@ -154,6 +152,26 @@ namespace System
 #endif
         }
 
+        public ref readonly T this[Index index]
+        {
+            get
+            {
+                // Evaluate the actual index first because it helps performance
+                int actualIndex = index.FromEnd ? _length - index.Value : index.Value;
+                return ref this [actualIndex];
+            }
+        }
+
+        public ReadOnlySpan<T> this[Range range]
+        {
+            get
+            {
+                int start = range.Start.FromEnd ? _length - range.Start.Value : range.Start.Value;
+                int end = range.End.FromEnd ? _length - range.End.Value : range.End.Value;
+                return Slice(start, end - start);
+            }
+        }
+
         /// <summary>
         /// Returns a reference to the 0th element of the Span. If the Span is empty, returns null reference.
         /// It can be used for pinning and is required to support the use of span within a fixed statement.
@@ -194,6 +212,7 @@ namespace System
             }
         }
 
+        /// <summary>
         /// Copies the contents of this read-only span into destination span. If the source
         /// and destinations overlap, this method behaves as if the original values in
         /// a temporary location before the destination is overwritten.

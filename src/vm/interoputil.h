@@ -128,13 +128,12 @@ int  InternalWideToAnsi(__in_ecount(iNumWideChars) LPCWSTR szWideString, int iNu
 CorClassIfaceAttr ReadClassInterfaceTypeCustomAttribute(TypeHandle type);
 
 //-------------------------------------------------------------------
- // Called from DLLMain, to initialize com specific data structures.
+ // Used to populate ExceptionData with COM data
 //-------------------------------------------------------------------
-void FillExceptionData(ExceptionData* pedata, IErrorInfo* pErrInfo, IRestrictedErrorInfo* pRestrictedErrInfo);
-
-//------------------------------------------------------------------------------
- // helper to access fields from an object
-INT64 FieldAccessor(FieldDesc* pFD, OBJECTREF oref, INT64 val, BOOL isGetter, U1 cbSize);
+void FillExceptionData(
+    _Inout_ ExceptionData* pedata,
+    _In_ IErrorInfo* pErrInfo,
+    _In_opt_ IRestrictedErrorInfo* pRestrictedErrorInfo);
 
 //---------------------------------------------------------------------------
 //returns true if pImport has DefaultDllImportSearchPathsAttribute
@@ -164,7 +163,7 @@ HRESULT GetStringizedTypeLibGuidForAssembly(Assembly *pAssembly, CQuickArray<BYT
 
 //--------------------------------------------------------------------------------
 // GetErrorInfo helper, enables and disables GC during call-outs
-HRESULT SafeGetErrorInfo(IErrorInfo **ppIErrInfo);
+HRESULT SafeGetErrorInfo(_Outptr_ IErrorInfo **ppIErrInfo);
 
 //--------------------------------------------------------------------------------
 // QI helper, enables and disables GC during call-outs
@@ -188,21 +187,10 @@ ComCallWrapper* GetCCWFromIUnknown(IUnknown* pUnk, BOOL bEnableCustomization = T
 
 // A version of LoadRegTypeLib that loads based on bitness and platform support
 //  and loads with LCID == LOCALE_USER_DEFAULT
-HRESULT LoadRegTypeLibWithFlags(REFGUID rguid, 
-                                unsigned short wVerMajor,
-                                unsigned short wVerMinor,
-                                int flags,
-                                ITypeLib FAR* FAR*  pptlib);
-
-// A version of LoadTypeLibEx that loads based on bitness and platform support.
-HRESULT LoadTypeLibExWithFlags(LPCOLESTR  szFile, 
-                               int  flags,
-                               ITypeLib**  pptlib);
-
-//-------------------------------------------------------------------------------
-// Given an IErrorInfo pointer created on a com exception obect
-// obtain the hresult stored in the exception object
-HRESULT GetHRFromCLRErrorInfo(IErrorInfo* pErr);
+HRESULT LoadRegTypeLib(_In_ REFGUID guid,
+                       _In_ unsigned short wVerMajor,
+                       _In_ unsigned short wVerMinor,
+                       _Outptr_ ITypeLib **pptlib);
 
 //--------------------------------------------------------------------------------
 // Called from EEStartup, to initialize com Interop specific data structures.
@@ -259,7 +247,7 @@ void SafeReleaseStream(IStream *pStream);
 // Our version is more discriminating. This should only be used for
 // marshaling scenarios where we can assume unmanaged code permissions
 // (and hence are already in a position of trusting unmanaged data.)
-HRESULT ClrSafeArrayGetVartype(SAFEARRAY *psa, VARTYPE *vt);
+HRESULT ClrSafeArrayGetVartype(_In_ SAFEARRAY *psa, _Out_ VARTYPE *pvt);
 
 //Helpers
 
@@ -348,7 +336,10 @@ HRESULT GetTypeLibGuidForAssembly(Assembly *pAssembly, GUID *pGuid);
 
 //--------------------------------------------------------------------------------
 // Helper to get the version of the typelib that is created from an assembly.
-HRESULT GetTypeLibVersionForAssembly(Assembly *pAssembly, USHORT *pMajorVersion, USHORT *pMinorVersion);
+HRESULT GetTypeLibVersionForAssembly(
+    _In_ Assembly *pAssembly,
+    _Out_ USHORT *pMajorVersion,
+    _Out_ USHORT *pMinorVersion);
 
 //---------------------------------------------------------------------------
 // This method determines if a member is visible from COM.
@@ -370,8 +361,19 @@ BOOL MethodNeedsReverseComStub(MethodDesc *pMD);
 //--------------------------------------------------------------------------------
 // InvokeDispMethod will convert a set of managed objects and call IDispatch.  The
 // result will be returned as a COM+ Variant pointed to by pRetVal.
-void IUInvokeDispMethod(REFLECTCLASSBASEREF* pRefClassObj, OBJECTREF* pTarget,OBJECTREF* pName, DISPID *pMemberID, OBJECTREF* pArgs, OBJECTREF* pModifiers, 
-                        OBJECTREF* pNamedArgs, OBJECTREF* pRetVal, LCID lcid, WORD flags, BOOL bIgnoreReturn, BOOL bIgnoreCase);
+void IUInvokeDispMethod(
+    REFLECTCLASSBASEREF* pRefClassObj,
+    OBJECTREF* pTarget,
+    OBJECTREF* pName,
+    DISPID *pMemberID,
+    OBJECTREF* pArgs,
+    OBJECTREF* pModifiers,
+    OBJECTREF* pNamedArgs,
+    OBJECTREF* pRetVal,
+    LCID lcid,
+    WORD flags,
+    BOOL bIgnoreReturn,
+    BOOL bIgnoreCase);
 
 #ifdef FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 // Class Factory helpers
@@ -383,12 +385,6 @@ void GetComClassFromProgID(STRINGREF srefProgID, STRINGREF srefServer, OBJECTREF
 //--------------------------------------------------------------------------
 // GetComClassFromCLSID used by reflection class to setup a Class based on CLSID
 void GetComClassFromCLSID(REFCLSID clsid, STRINGREF srefServer, OBJECTREF* pRef);
-
-// Helper used by GetComClassFromProgID and GetComClassFromCLSID
-void GetComClassHelper(OBJECTREF *pRef,
-                       EEClassFactoryInfoHashTable *pClassFactHash,
-                       ClassFactoryInfo *pClassFactInfo,
-                       __in_opt WCHAR *wszProgID);
 
 //-------------------------------------------------------------
 // check if a ComClassFactory/WinRTClassFactory has been setup for this class
@@ -456,16 +452,6 @@ TypeHandle GetClassFromIInspectable(IUnknown* pUnk, bool *pfSupportsIInspectable
 //--------------------------------------------------------------------------------
 // Build a WinRT URI for a given raw URI
 ABI::Windows::Foundation::IUriRuntimeClass *CreateWinRTUri(LPCWSTR wszUri, INT32 cchUri);
-
-// Global process GUID to identify the process
-BSTR GetProcessGUID();
-
-//--------------------------------------------------------------------------
- // switch objects for this wrapper
-// used by JIT&ObjectPooling to ensure a deactivated CCW can point to a new object
-// during reactivate
-//--------------------------------------------------------------------------
-BOOL ReconnectWrapper(OBJECTREF* pOldRef, OBJECTREF* pNewRef);
 
 // Generates GUIDs for parameterized WinRT types.
 class WinRTGuidGenerator

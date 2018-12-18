@@ -395,6 +395,14 @@ BOOL WrapICorJitInfo::isValueClass(CORINFO_CLASS_HANDLE cls)
     return temp;
 }
 
+CorInfoInlineTypeCheck canInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source)
+{
+    API_ENTER(canInlineTypeCheck);
+    CorInfoInlineTypeCheck temp = wrapHnd->canInlineTypeCheck(cls, source);
+    API_LEAVE(canInlineTypeCheck);
+    return temp;
+}
+
 BOOL WrapICorJitInfo::canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
 {
     API_ENTER(canInlineTypeCheckWithObjectVTable);
@@ -1071,12 +1079,13 @@ const char* WrapICorJitInfo::getMethodName(
 }
 
 const char* WrapICorJitInfo::getMethodNameFromMetadata(
-        CORINFO_METHOD_HANDLE       ftn,           /* IN */
-        const char                **className,     /* OUT */
-        const char                **namespaceName  /* OUT */)
+        CORINFO_METHOD_HANDLE       ftn,                 /* IN */
+        const char                **className,           /* OUT */
+        const char                **namespaceName,       /* OUT */
+        const char                **enclosingClassName  /* OUT */)
 {
     API_ENTER(getMethodNameFromMetadata);
-    const char* temp = wrapHnd->getMethodNameFromMetaData(ftn, moduleName, namespaceName);
+    const char* temp = wrapHnd->getMethodNameFromMetaData(ftn, className, namespaceName, enclosingClassName);
     API_LEAVE(getMethodNameFromMetadata);
     return temp;
 }

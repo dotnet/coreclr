@@ -2585,7 +2585,6 @@ DPOSS_ACTION DebuggerController::ScanForTriggers(CORDB_ADDRESS_TYPE *address,
         PRECONDITION(CheckPointer(context));
         PRECONDITION(CheckPointer(pDcq));
         PRECONDITION(CheckPointer(pTpr));
-
     }
     CONTRACTL_END;
 
@@ -2725,6 +2724,16 @@ DPOSS_ACTION DebuggerController::ScanForTriggers(CORDB_ADDRESS_TYPE *address,
             patch = NULL;
         }
     }
+
+#ifdef FEATURE_DATABREAKPOINT
+    if (stWhat & ST_SINGLE_STEP &&
+        tpr != TPR_TRIGGER_ONLY_THIS && 
+        DebuggerDataBreakpoint::TriggerDataBreakpoint(thread, context))
+    {
+        DebuggerDataBreakpoint *pDataBreakpoint = new (interopsafe) DebuggerDataBreakpoint(thread);
+        pDcq->dcqEnqueue(pDataBreakpoint, FALSE);
+    }
+#endif
 
     if (stWhat & ST_SINGLE_STEP &&
         tpr != TPR_TRIGGER_ONLY_THIS)
@@ -8566,6 +8575,22 @@ TP_RESULT DebuggerFuncEvalComplete::TriggerPatch(DebuggerControllerPatch *patch,
 
     // Restore the thread's context to what it was before we hijacked it for this func eval.
     CONTEXT *pCtx = GetManagedLiveCtx(thread);
+#ifdef FEATURE_DATABREAKPOINT
+#ifdef FEATURE_PAL    
+        #error Not supported
+#endif // FEATURE_PAL
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    // If a data breakpoint is set while we hit a breakpoint inside a FuncEval, this will make sure the data breakpoint stays
+    m_pDE->m_context.Dr0 = pCtx->Dr0;
+    m_pDE->m_context.Dr1 = pCtx->Dr1;
+    m_pDE->m_context.Dr2 = pCtx->Dr2;
+    m_pDE->m_context.Dr3 = pCtx->Dr3;
+    m_pDE->m_context.Dr6 = pCtx->Dr6;
+    m_pDE->m_context.Dr7 = pCtx->Dr7;
+#else
+    #error Not supported
+#endif
+#endif
     CORDbgCopyThreadContext(reinterpret_cast<DT_CONTEXT *>(pCtx), 
                             reinterpret_cast<DT_CONTEXT *>(&(m_pDE->m_context)));
 
@@ -8957,4 +8982,93 @@ bool DebuggerContinuableExceptionBreakpoint::SendEvent(Thread *thread, bool fIpC
 
     return true;
 }
+
+#ifdef FEATURE_DATABREAKPOINT
+
+/* static */ bool DebuggerDataBreakpoint::TriggerDataBreakpoint(Thread *thread, CONTEXT * pContext)
+{
+    LOG((LF_CORDB, LL_INFO10000, "D::DDBP: Doing TriggerDataBreakpoint...\n"));
+
+    bool hitDataBp = false;
+    bool result = false;
+#ifdef FEATURE_PAL    
+    #error Not supported
+#endif // FEATURE_PAL    
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    PDR6 pdr6 = (PDR6)&(pContext->Dr6);
+
+    if (pdr6->B0 || pdr6->B1 || pdr6->B2 || pdr6->B3)
+    {
+        hitDataBp = true;
+    }
+#else // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    #error Not supported
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    if (hitDataBp)
+    {
+        if (g_pDebugger->IsThreadAtSafePlace(thread))
+        {
+            LOG((LF_CORDB, LL_INFO10000, "D::DDBP: HIT DATA BREAKPOINT...\n"));
+            result = true;
+        }
+        else
+        {
+            CONTEXT contextToAdjust;
+            BOOL adjustedContext = FALSE;
+            memcpy(&contextToAdjust, pContext, sizeof(CONTEXT));
+            adjustedContext = g_pEEInterface->AdjustContextForWriteBarrierForDebugger(&contextToAdjust);        
+            if (adjustedContext)
+            {
+                LOG((LF_CORDB, LL_INFO10000, "D::DDBP: HIT DATA BREAKPOINT INSIDE WRITE BARRIER...\n"));
+                DebuggerDataBreakpoint *pDataBreakpoint = new (interopsafe) DebuggerDataBreakpoint(thread);
+                pDataBreakpoint->AddAndActivateNativePatchForAddress((CORDB_ADDRESS_TYPE*)GetIP(&contextToAdjust), FramePointer::MakeFramePointer(GetFP(&contextToAdjust)), true, DPT_DEFAULT_TRACE_TYPE);
+            }
+            else
+            {
+                LOG((LF_CORDB, LL_INFO10000, "D::DDBP: HIT DATA BREAKPOINT BUT STILL NEED TO ROLL ...\n"));
+                DebuggerDataBreakpoint *pDataBreakpoint = new (interopsafe) DebuggerDataBreakpoint(thread);
+                pDataBreakpoint->EnableSingleStep();
+            }
+            result = false;
+        }
+    }
+    else
+    {
+        LOG((LF_CORDB, LL_INFO10000, "D::DDBP: DIDN'T TRIGGER DATA BREAKPOINT...\n"));
+        result = false;
+    }
+    return result;
+}
+
+TP_RESULT DebuggerDataBreakpoint::TriggerPatch(DebuggerControllerPatch *patch, Thread *thread,  TRIGGER_WHY tyWhy)
+{
+    if (g_pDebugger->IsThreadAtSafePlace(thread))
+    {
+        return TPR_TRIGGER;
+    }
+    else
+    {
+        LOG((LF_CORDB, LL_INFO10000, "D::DDBP: REACH RETURN OF JIT HELPER BUT STILL NEED TO ROLL ...\n"));
+        this->EnableSingleStep();
+        return TPR_IGNORE;
+    }
+}
+
+bool DebuggerDataBreakpoint::TriggerSingleStep(Thread *thread, const BYTE *ip)
+{
+    if (g_pDebugger->IsThreadAtSafePlace(thread))
+    {
+        LOG((LF_CORDB, LL_INFO10000, "D:DDBP: Finally safe for stopping, stop stepping\n"));
+        this->DisableSingleStep();
+        return true;
+    }
+    else
+    {
+        LOG((LF_CORDB, LL_INFO10000, "D:DDBP: Still not safe for stopping, continue stepping\n"));
+        return false;
+    }
+}
+
+#endif // FEATURE_DATABREAKPOINT
+
 #endif // !DACCESS_COMPILE

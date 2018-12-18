@@ -39,7 +39,6 @@ namespace System
         /// </summary>
         /// <param name="array">The target array.</param>
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
-        /// reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span(T[] array)
@@ -64,7 +63,6 @@ namespace System
         /// <param name="start">The index at which to begin the span.</param>
         /// <param name="length">The number of items in the span.</param>
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
-        /// reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
@@ -131,6 +129,7 @@ namespace System
             _length = length;
         }
 
+        /// <summary>
         /// Returns a reference to specified element of the Span.
         /// </summary>
         /// <param name="index"></param>
@@ -157,6 +156,26 @@ namespace System
                 return ref Unsafe.Add(ref _pointer.Value, index);
             }
 #endif
+        }
+
+        public ref T this[Index index]
+        {
+            get
+            {
+                // Evaluate the actual index first because it helps performance
+                int actualIndex = index.FromEnd ? _length - index.Value : index.Value;
+                return ref this [actualIndex];
+            }
+        }
+
+        public Span<T> this[Range range]
+        {
+            get
+            {
+                int start = range.Start.FromEnd ? _length - range.Start.Value : range.Start.Value;
+                int end = range.End.FromEnd ? _length - range.End.Value : range.End.Value;
+                return Slice(start, end - start);
+            }
         }
 
         /// <summary>

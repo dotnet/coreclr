@@ -67,19 +67,9 @@ namespace System.Reflection
             return codeBase;
         }
 
-        public override string CodeBase
-        {
-            get
-            {
-                string codeBase = GetCodeBase(false);
-                return codeBase;
-            }
-        }
+        public override string CodeBase => GetCodeBase(false);
 
-        internal RuntimeAssembly GetNativeHandle()
-        {
-            return this;
-        }
+        internal RuntimeAssembly GetNativeHandle() => this;
 
         // If the assembly is copied before it is loaded, the codebase will be set to the
         // actual file loaded if copiedName is true. If it is false, then the original code base
@@ -101,15 +91,12 @@ namespace System.Reflection
                     GetFlags() | AssemblyNameFlags.PublicKey,
                     null); // strong name key pair
 
-            PortableExecutableKinds pek;
-            ImageFileMachine ifm;
-
             Module manifestModule = ManifestModule;
             if (manifestModule != null)
             {
                 if (manifestModule.MDStreamVersion > 0x10000)
                 {
-                    ManifestModule.GetPEKind(out pek, out ifm);
+                    ManifestModule.GetPEKind(out PortableExecutableKinds pek, out ImageFileMachine ifm);
                     an.SetProcArchIndex(pek, ifm);
                 }
             }
@@ -342,10 +329,15 @@ namespace System.Reflection
             if (assemblyRef == null)
                 throw new ArgumentNullException(nameof(assemblyRef));
 
-            if (assemblyRef.CodeBase != null)
+#if FEATURE_APPX
+            if (ApplicationModel.IsUap)
             {
-                AppDomain.CheckLoadFromSupported();
+                if (assemblyRef.CodeBase != null)
+                {
+                    throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFrom"));
+                }
             }
+#endif
 
             assemblyRef = (AssemblyName)assemblyRef.Clone();
             if (assemblyRef.ProcessorArchitecture != ProcessorArchitecture.None)
@@ -426,16 +418,6 @@ namespace System.Reflection
         public override string[] GetManifestResourceNames()
         {
             return GetManifestResourceNames(GetNativeHandle());
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetExecutingAssembly(StackCrawlMarkHandle stackMark, ObjectHandleOnStack retAssembly);
-
-        internal static RuntimeAssembly GetExecutingAssembly(ref StackCrawlMark stackMark)
-        {
-            RuntimeAssembly retAssembly = null;
-            GetExecutingAssembly(JitHelpers.GetStackCrawlMarkHandle(ref stackMark), JitHelpers.GetObjectHandleOnStack(ref retAssembly));
-            return retAssembly;
         }
 
         // Returns the names of all the resources

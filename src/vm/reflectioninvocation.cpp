@@ -168,11 +168,6 @@ FCIMPL5(Object*, RuntimeFieldHandle::GetValue, ReflectFieldObject *pFieldUNSAFE,
         pAssem = declaringType.GetAssembly();
     }
 
-    // We should throw NotSupportedException here. 
-    // But for backward compatibility we are throwing FieldAccessException instead.
-    if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
-        FCThrow(kFieldAccessException);
-
     OBJECTREF rv = NULL; // not protected
 
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
@@ -328,16 +323,27 @@ FCIMPL7(void, RuntimeFieldHandle::SetValue, ReflectFieldObject *pFieldUNSAFE, Ob
         pAssem = declaringType.GetAssembly();
     }
 
-    // We should throw NotSupportedException here. 
-    // But for backward compatibility we are throwing FieldAccessException instead.
-    if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
-        FCThrowVoid(kFieldAccessException);
-
     FC_GC_POLL_NOT_NEEDED();
 
     FieldDesc* pFieldDesc = gc.refField->GetField();
 
     HELPER_METHOD_FRAME_BEGIN_PROTECT(gc);
+
+    // Verify we're not trying to set the value of a static initonly field
+    // once the class has been initialized.
+    if (pFieldDesc->IsStatic())
+    {
+        MethodTable* pEnclosingMT = pFieldDesc->GetEnclosingMethodTable();
+        if (pEnclosingMT->IsClassInited() && IsFdInitOnly(pFieldDesc->GetAttributes()))
+        {
+            DefineFullyQualifiedNameForClassW();
+            SString ssFieldName(SString::Utf8, pFieldDesc->GetName());
+            COMPlusThrow(kFieldAccessException,
+                IDS_EE_CANNOT_SET_INITONLY_STATIC_FIELD,
+                ssFieldName.GetUnicode(),
+                GetFullyQualifiedNameForClassW(pEnclosingMT));
+        }
+    }
 
     //TODO: cleanup this function
     InvokeUtil::SetValidField(fieldType.GetSignatureCorElementType(), fieldType, pFieldDesc, &gc.target, &gc.value, declaringType, pDomainInitialized);
@@ -400,9 +406,6 @@ FCIMPL6(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
     TypeHandle thisTH = refThis->GetType();
 
     Assembly *pAssem = thisTH.GetAssembly();
-
-    if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
-        FCThrowRes(kNotSupportedException, W("NotSupported_DynamicAssemblyNoRunAccess"));
 
     HELPER_METHOD_FRAME_BEGIN_RET_2(rv, refThis);
 
@@ -557,7 +560,6 @@ FCIMPL2(Object*, RuntimeTypeHandle::CreateInstanceForGenericType, ReflectClassBa
     // Get the type information associated with refThis
     MethodTable* pVMT = instantiatedType.GetMethodTable();
     _ASSERTE (pVMT != 0 &&  !instantiatedType.IsTypeDesc());
-    _ASSERTE(!(pVMT->GetAssembly()->IsDynamic() && !pVMT->GetAssembly()->HasRunAccess()));
     _ASSERTE( !pVMT->IsAbstract() ||! instantiatedType.ContainsGenericVariables());
     _ASSERTE(!pVMT->IsByRefLike() && pVMT->HasDefaultConstructor());
 
@@ -728,10 +730,6 @@ static BOOL IsActivationNeededForMethodInvoke(MethodDesc * pMD)
     // The activation for non-generic instance methods is covered by non-null "this pointer"
     if (!pMD->IsStatic() && !pMD->HasMethodInstantiation() && !pMD->IsInterface())
         return FALSE;
-
-    // We need to activate each time for domain neutral types
-    if (pMD->IsDomainNeutral())
-        return TRUE;
 
     // We need to activate the instance at least once
     pMD->EnsureActive();
@@ -989,11 +987,6 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
 
     Assembly *pAssem = pMeth->GetAssembly();
-
-    // We should throw NotSupportedException here. 
-    // But for backward compatibility we are throwing TargetException instead.
-    if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
-        COMPlusThrow(kTargetException);
 
     if (ownerType.IsSharedByGenericInstantiations())
         COMPlusThrow(kNotSupportedException, W("NotSupported_Type"));
@@ -1528,11 +1521,6 @@ FCIMPL4(Object*, RuntimeFieldHandle::GetValueDirect, ReflectFieldObject *pFieldU
 
     Assembly *pAssem = pField->GetModule()->GetAssembly();
 
-    // We should throw NotSupportedException here. 
-    // But for backward compatibility we are throwing FieldAccessException instead.
-    if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
-        FCThrow(kFieldAccessException);
-
     OBJECTREF refRet  = NULL;
     CorElementType fieldElType;
 
@@ -1690,11 +1678,6 @@ FCIMPL5(void, RuntimeFieldHandle::SetValueDirect, ReflectFieldObject *pFieldUNSA
 
     Assembly *pAssem = pField->GetModule()->GetAssembly();
 
-    // We should throw NotSupportedException here. 
-    // But for backward compatibility we are throwing FieldAccessException instead.
-    if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
-        FCThrowVoid(kFieldAccessException);
-
     BYTE           *pDst = NULL;
     ARG_SLOT        value = NULL;
     CorElementType  fieldElType;
@@ -1709,10 +1692,17 @@ FCIMPL5(void, RuntimeFieldHandle::SetValueDirect, ReflectFieldObject *pFieldUNSA
         // Verify that the value passed can be widened into the target
         InvokeUtil::ValidField(fieldType, &gc.oValue);
 
-        // Verify that this is not a Final Field
-        DWORD attr = pField->GetAttributes(); // should we cache?
-        if (IsFdLiteral(attr))
-            COMPlusThrow(kFieldAccessException,W("Acc_ReadOnly"));
+        // Verify we're not trying to set the value of a static initonly field
+        // once the class has been initialized.
+        if (pField->IsStatic() && pEnclosingMT->IsClassInited() && IsFdInitOnly(pField->GetAttributes()))
+        {
+            DefineFullyQualifiedNameForClassW();
+            SString ssFieldName(SString::Utf8, pField->GetName());
+            COMPlusThrow(kFieldAccessException,
+                IDS_EE_CANNOT_SET_INITONLY_STATIC_FIELD,
+                ssFieldName.GetUnicode(),
+                GetFullyQualifiedNameForClassW(pEnclosingMT));
+        }
 
         // Verify the callee/caller access
         if (!pField->IsPublic() || (pEnclosingMT != NULL && !pEnclosingMT->IsExternallyVisible())) 
@@ -1904,11 +1894,6 @@ FCIMPL1(void, ReflectionInvocation::RunClassConstructor, ReflectClassBaseObject 
 
     Assembly *pAssem = pMT->GetAssembly();
 
-    if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
-    {
-        FCThrowResVoid(kNotSupportedException, W("NotSupported_DynamicAssemblyNoRunAccess"));
-    }
-
     if (!pMT->IsClassInited()) 
     {
         HELPER_METHOD_FRAME_BEGIN_1(refType);
@@ -1938,9 +1923,6 @@ FCIMPL1(void, ReflectionInvocation::RunModuleConstructor, ReflectModuleBaseObjec
     Module *pModule = refModule->GetModule();
 
     Assembly *pAssem = pModule->GetAssembly();
-
-    if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
-        FCThrowResVoid(kNotSupportedException, W("NotSupported_DynamicAssemblyNoRunAccess"));
 
     DomainFile *pDomainFile = pModule->FindDomainFile(GetAppDomain());
     if (pDomainFile==NULL || !pDomainFile->IsActive())

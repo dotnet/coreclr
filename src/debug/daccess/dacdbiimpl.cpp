@@ -3239,7 +3239,7 @@ CORDB_ADDRESS DacDbiInterfaceImpl::GetThreadStaticAddress(VMPTR_FieldDesc vmFiel
     // Find out whether the field is thread local and get its address.
     if (pFieldDesc->IsThreadStatic())
     {
-        fieldAddress = pRuntimeThread->GetStaticFieldAddrNoCreate(pFieldDesc, NULL);
+        fieldAddress = pRuntimeThread->GetStaticFieldAddrNoCreate(pFieldDesc);
     }
     else
     {
@@ -3445,10 +3445,7 @@ void DacDbiInterfaceImpl::GetStackFramesFromException(VMPTR_Object vmObject, Dac
             AppDomain* pDomain = NULL;
             DomainFile* pDomainFile = NULL;
 
-            if (pBaseDomain->IsSharedDomain())
-                pDomain = SystemDomain::System()->DefaultDomain();
-            else
-                pDomain = pBaseDomain->AsAppDomain();
+            pDomain = pBaseDomain->AsAppDomain();
 
             _ASSERTE(pDomain != NULL);
 
@@ -4667,8 +4664,7 @@ CONNID DacDbiInterfaceImpl::GetConnectionID(VMPTR_Thread vmThread)
 {
     DD_ENTER_MAY_THROW;
 
-    Thread * pThread = vmThread.GetDacPtr();
-    return pThread->GetConnectionId();
+    return INVALID_CONNECTION_ID;
 }
 
 // Return the task ID of the specified thread.
@@ -4676,8 +4672,7 @@ TASKID DacDbiInterfaceImpl::GetTaskID(VMPTR_Thread vmThread)
 {
     DD_ENTER_MAY_THROW;
 
-    Thread * pThread = vmThread.GetDacPtr();
-    return pThread->GetTaskId();
+    return INVALID_TASK_ID;
 }
 
 // Return the OS thread ID of the specified thread
@@ -6807,14 +6802,8 @@ bool DacDbiInterfaceImpl::GetAppDomainForObject(CORDB_ADDRESS addr, OUT VMPTR_Ap
     PTR_Module module = mt->GetModule();
     PTR_Assembly assembly = module->GetAssembly();
     BaseDomain *baseDomain = assembly->GetDomain();
-    
-    if (baseDomain->IsSharedDomain())
-    {
-        pModule->SetDacTargetPtr(PTR_HOST_TO_TADDR(module));
-        *pAppDomain = VMPTR_AppDomain::NullPtr();
-        *pDomainFile = VMPTR_DomainFile::NullPtr();
-    }
-    else if (baseDomain->IsAppDomain())
+
+    if (baseDomain->IsAppDomain())
     {
         pAppDomain->SetDacTargetPtr(PTR_HOST_TO_TADDR(baseDomain->AsAppDomain()));
         pModule->SetDacTargetPtr(PTR_HOST_TO_TADDR(module));
@@ -7259,6 +7248,22 @@ HRESULT DacDbiInterfaceImpl::GetMDStructuresVersion(ULONG32* pMDStructuresVersio
     return S_OK;
 }
 
+HRESULT DacDbiInterfaceImpl::EnableGCNotificationEvents(BOOL fEnable)
+{
+    DD_ENTER_MAY_THROW
+
+    HRESULT hr = S_OK;
+    EX_TRY
+    {
+        if (g_pDebugger != NULL)
+        {
+            TADDR addr = PTR_HOST_MEMBER_TADDR(Debugger, g_pDebugger, m_isGarbageCollectionEventsEnabled);
+            SafeWriteStructOrThrow<BOOL>(addr, &fEnable);
+        }
+    }
+    EX_CATCH_HRESULT(hr);
+    return hr;
+}
 
 DacRefWalker::DacRefWalker(ClrDataAccess *dac, BOOL walkStacks, BOOL walkFQ, UINT32 handleMask)
     : mDac(dac), mWalkStacks(walkStacks), mWalkFQ(walkFQ), mHandleMask(handleMask), mStackWalker(NULL),

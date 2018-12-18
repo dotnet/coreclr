@@ -453,23 +453,6 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
 
     // All flags on m_pNgenPrivateData data apart
     // are initially false for a dynamically generated instantiation.
-    //
-    // Last time this was checked this included
-    //    enum_flag_RemotingConfigChecked
-    //    enum_flag_RequiresManagedActivation
-    //    enum_flag_Unrestored
-    //    enum_flag_CriticalTypePrepared
-#ifdef FEATURE_PREJIT
-    //    enum_flag_NGEN_IsFixedUp
-    //    enum_flag_NGEN_NeedsRestoreCached
-    //    enum_flag_NGEN_NeedsRestore
-#endif // FEATURE_PREJIT
-
-    if (pOldMT->RequiresManagedActivation())
-    {
-        // Will also set enum_flag_RemotingConfigChecked
-        pMT->SetRequiresManagedActivation();
-    }
 
     if (fContainsGenericVariables)
         pMT->SetContainsGenericVariables();
@@ -607,7 +590,6 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
     // Check we've set up the flags correctly on the new method table
     _ASSERTE(!fContainsGenericVariables == !pMT->ContainsGenericVariables());
     _ASSERTE(!fHasGenericsStaticsInfo == !pMT->HasGenericsStaticsInfo());
-    _ASSERTE(!pLoaderModule->GetAssembly()->IsDomainNeutral() == !pMT->IsDomainNeutral());
 #ifdef FEATURE_COMINTEROP
     _ASSERTE(!fHasDynamicInterfaceMap == !pMT->HasDynamicInterfaceMap());
     _ASSERTE(!fHasRCWPerTypeData == !pMT->HasRCWPerTypeData());

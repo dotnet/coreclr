@@ -140,24 +140,6 @@ BOOL Object::ValidateObjectWithPossibleAV()
 
 #ifndef DACCESS_COMPILE
 
-MethodTable *Object::GetTrueMethodTable()
-{
-    CONTRACT(MethodTable*)
-    {
-        MODE_COOPERATIVE;
-        GC_NOTRIGGER;
-        NOTHROW;
-        SO_TOLERANT;
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END;
-
-    MethodTable *mt = GetMethodTable();
-
-
-    RETURN mt;
-}
-
 TypeHandle Object::GetTrueTypeHandle()
 {
     CONTRACTL
@@ -172,7 +154,7 @@ TypeHandle Object::GetTrueTypeHandle()
     if (m_pMethTab->IsArray())
         return ((ArrayBase*) this)->GetTypeHandle();
     else
-        return TypeHandle(GetTrueMethodTable());
+        return TypeHandle(GetMethodTable());
 }
 
 // There are cases where it is not possible to get a type handle during a GC.
@@ -268,7 +250,7 @@ TypeHandle Object::GetGCSafeTypeHandleIfPossible() const
         GC_TRIGGERS;
         INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pInterfaceMT));
-        PRECONDITION(pObj->GetTrueMethodTable()->IsRestored_NoLogging());
+        PRECONDITION(pObj->GetMethodTable()->IsRestored_NoLogging());
         PRECONDITION(pInterfaceMT->IsInterface());
     }
     CONTRACTL_END
@@ -281,7 +263,7 @@ TypeHandle Object::GetGCSafeTypeHandleIfPossible() const
         pInterfaceMT->CheckRestore();
 
         // Check to see if the static class definition indicates we implement the interface.
-        MethodTable * pMT = pObj->GetTrueMethodTable();
+        MethodTable * pMT = pObj->GetMethodTable();
         if (pMT->CanCastToInterface(pInterfaceMT))
         {
             bSupportsItf = TRUE;
@@ -344,27 +326,21 @@ void Object::SetAppDomain(AppDomain *pDomain)
     CONTRACTL_END;
 
 #ifndef _DEBUG
-    if (!GetMethodTable()->IsDomainNeutral())
-    {
-        //
-        // If we have a per-app-domain method table, we can 
-        // infer the app domain from the method table, so 
-        // there is no reason to mark the object.
-        //
-        // But we don't do this in a debug build, because
-        // we want to be able to detect the case when the
-        // domain was unloaded from underneath an object (and
-        // the MethodTable will be toast in that case.)
-        //
-
-        _ASSERTE(pDomain == GetMethodTable()->GetDomain());
-    }
-    else
+    //
+    // If we have a per-app-domain method table, we can 
+    // infer the app domain from the method table, so 
+    // there is no reason to mark the object.
+    //
+    // But we don't do this in a debug build, because
+    // we want to be able to detect the case when the
+    // domain was unloaded from underneath an object (and
+    // the MethodTable will be toast in that case.)
+    //
+    _ASSERTE(pDomain == GetMethodTable()->GetDomain());
+#else
+    ADIndex index = pDomain->GetIndex();
+    GetHeader()->SetAppDomainIndex(index);
 #endif
-    {
-        ADIndex index = pDomain->GetIndex();
-        GetHeader()->SetAppDomainIndex(index);
-    }
 
     _ASSERTE(GetHeader()->GetAppDomainIndex().m_dwIndex != 0);
 }
@@ -406,8 +382,7 @@ AppDomain *Object::GetAppDomain()
     }
     CONTRACTL_END;
 #ifndef _DEBUG
-    if (!GetMethodTable()->IsDomainNeutral())
-        return (AppDomain*) GetMethodTable()->GetDomain();
+    return (AppDomain*) GetMethodTable()->GetDomain();
 #endif
 
     ADIndex index = GetHeader()->GetAppDomainIndex();

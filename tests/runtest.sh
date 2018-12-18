@@ -49,6 +49,7 @@ function print_usage {
     echo '  --corefxtestlist=<path>          : Runs the CoreFX tests specified in the passed list'   
     echo '  --testHostDir=<path>             : Directory containing a built test host including core binaries, test dependencies' 
     echo '                                     and a dotnet executable'
+    echo '  --coreclr-src=<path>             : Specify the CoreCLR root directory. Required to build the TestFileSetup tool for CoreFX testing.'
 }
 
 function create_testhost
@@ -553,6 +554,9 @@ if (($doCrossgen!=0)); then
     runtestPyArguments+=("--precompile_core_root")
 fi
 
+if [ "$limitedCoreDumps" == "ON" ]; then
+    runtestPyArguments+=("--limited_core_dumps")
+fi
 
 # Default to python3 if it is installed
 __Python=python

@@ -1,0 +1,139 @@
+parameters:
+  buildConfig: ''
+  archType: ''
+  osGroup: ''
+  osIdentifier: ''
+  containerName: ''
+  crossrootfsDir: ''
+
+### Product build
+jobs:
+- template: xplat-job.yml
+  parameters:
+    buildConfig: ${{ parameters.buildConfig }}
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}
+    osIdentifier: ${{ parameters.osIdentifier }}
+    enableMicrobuild: true
+
+    # Compute job name from template parameters
+    name: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('Build {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    # Run all steps in the container.
+    # Note that the containers are resources defined in azure-pipelines.yml
+    containerName: ${{ parameters.containerName }}
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
+
+    gatherAssetManifests: true
+    variables:
+    - name: osIdentifier
+      value: ${{ parameters.osIdentifier }}
+    - name: portableBuildArg
+      value: ''
+    # Ensure that we produce os-specific packages for the following distros:
+    - ${{ if in(parameters.osIdentifier, 'Linux_rhel6', 'Linux_rhel7', 'Linux_musl') }}:
+      - name: portableBuildArg
+        value: '-portablebuild=false'
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      # Variables used to publish packages to blob feed
+      - name: dotnetfeedUrl
+        value: https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json
+      - name: dotnetfeedPAT
+        value: $(dotnetfeed-storage-access-key-1)
+      # Variables used by arcade to gather asset manifests
+      - name: _DotNetPublishToBlobFeed
+        value: true
+      - name: _BuildConfig
+        value: $(buildConfigUpper)
+
+    steps:
+
+    # Install native dependencies
+    #
+    # This is only required for non-docker builds.
+    - ${{ if eq(parameters.osGroup, 'OSX') }}:
+      - script: sh eng/install-native-dependencies.sh $(osGroup)
+        displayName: Install native dependencies
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      # Necessary to install python
+      - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
+        displayName: Install native dependencies
+
+    # Build
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget
+        displayName: Build product
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      # TODO: IBCOptimize? EnforcePGO? pass an OfficialBuildId? SignType? file logging parameters?
+      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages
+        displayName: Build product
+
+    # Sign on Windows
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest'), eq(parameters.osGroup, 'Windows_NT')) }}:
+      - script: powershell eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:DotNetSignType=%_SignType%
+        displayName: Sign Binaries
+
+      - task: PublishBuildArtifacts@1
+        displayName: Publish Signing Logs to VSTS
+        inputs:
+          PathtoPublish: '$(Build.SourcesDirectory)/artifacts/'
+          PublishLocation: Container
+          ArtifactName: $(Agent.Os)_$(Agent.JobName)_$(archType)
+        continueOnError: true
+        condition: always()
+
+    # Upload build as pipeline artifact
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - task: PublishPipelineArtifact@0
+        displayName: Save product build as pipeline artifact
+        inputs:
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - task: PublishPipelineArtifact@0
+        displayName: Save product build as pipeline artifact
+        inputs:
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          targetPath: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)
+
+    # Get key vault secrets for publishing
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - task: AzureKeyVault@1
+        inputs:
+          azureSubscription: 'DotNet-Engineering-Services_KeyVault'
+          KeyVaultName: EngKeyVault
+          SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
+
+
+    # Build packages and publish official build
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(crossPackagesArg) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
+          displayName: Build packages
+        - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore
+          displayName: Restore blob feed tasks
+        - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier) /p:AzureFeedUrl=$(dotnetfeedUrl) /p:AzureAccountKey=$(dotnetfeedPAT)
+          displayName: Publish packages to blob feed
+          env:
+            # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+            NUGET_PACKAGES: $(Build.SourcesDirectory)/.packages 
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        # TODO: pass publish feed url and access token in from the internal pipeline
+        - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
+          displayName: Build packages
+        - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore
+          displayName: Restore blob feed tasks
+        - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier) /p:AzureFeedUrl=$(dotnetfeedUrl) /p:AzureAccountKey=$(dotnetfeedPAT)
+          displayName: Publish packages to blob feed
+          env:
+            # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+            NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages 
+
+
+    # Kill tasks that hold onto files on Windows. Otherwise git clean
+    # may fail for later jobs on the same agent.
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: eng/kill_tasks.cmd
+        displayName: Kill tasks that hold on to files
+        condition: always()

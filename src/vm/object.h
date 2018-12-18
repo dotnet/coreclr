@@ -51,8 +51,6 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref);
  *  |       |
  *  |       +-  PtrArray   - Array of OBJECTREFs, different than base arrays because of pObjectClass
  *  |              
- *  +-- code:AppDomainBaseObject - The base object for the class AppDomain
- *  |              
  *  +-- code:AssemblyBaseObject - The base object for the class Assembly
  *
  *
@@ -84,7 +82,6 @@ class MethodTable;
 class Thread;
 class BaseDomain;
 class Assembly;
-class Context;
 class DomainAssembly;
 class AssemblyNative;
 class WaitHandleNative;
@@ -184,14 +181,6 @@ class Object
     }
 #endif //!DACCESS_COMPILE
 
-    // An object might be a proxy of some sort, with a thunking VTable.  If so, we can
-    // advance to the true method table or class.
-    BOOL            IsTransparentProxy()                        
-    { 
-        LIMITED_METHOD_CONTRACT;
-        return FALSE;
-    }
-
 #define MARKED_BIT 0x1
 
     PTR_MethodTable GetMethodTable() const              
@@ -218,8 +207,6 @@ class Object
         return dac_cast<DPTR(PTR_MethodTable)>(PTR_HOST_MEMBER_TADDR(Object, this, m_pMethTab));
     }
 
-    MethodTable    *GetTrueMethodTable();
-    
     TypeHandle      GetTypeHandle();
     TypeHandle      GetTrueTypeHandle();
 
@@ -1573,90 +1560,6 @@ class MarshalByRefObjectBaseObject : public Object
 {
 };
 
-// AppDomainBaseObject 
-// This class is the base class for application domains
-//  
-class AppDomainBaseObject : public MarshalByRefObjectBaseObject
-{
-    friend class AppDomain;
-    friend class MscorlibBinder;
-
-  protected:
-    // READ ME:
-    // Modifying the order or fields of this object may require other changes to the
-    //  classlib class definition of this object.
-    OBJECTREF    m_pDomainManager;     // AppDomainManager for host settings.
-    OBJECTREF    m_LocalStore;
-    OBJECTREF    m_FusionTable;
-    OBJECTREF    m_pAssemblyEventHandler; // Delegate for 'loading assembly' event
-    OBJECTREF    m_pTypeEventHandler;     // Delegate for 'resolve type' event
-    OBJECTREF    m_pResourceEventHandler; // Delegate for 'resolve resource' event
-    OBJECTREF    m_pAsmResolveEventHandler; // Delegate for 'resolve assembly' event
-    OBJECTREF    m_pProcessExitEventHandler; // Delegate for 'process exit' event.  Only used in Default appdomain.
-    OBJECTREF    m_pDomainUnloadEventHandler; // Delegate for 'about to unload domain' event
-    OBJECTREF    m_pUnhandledExceptionEventHandler; // Delegate for 'unhandled exception' event
-
-    OBJECTREF    m_compatFlags;
-
-    OBJECTREF    m_pFirstChanceExceptionHandler; // Delegate for 'FirstChance Exception' event
-
-    AppDomain*   m_pDomain;            // Pointer to the BaseDomain Structure
-    CLR_BOOL     m_compatFlagsInitialized;
-
-  protected:
-    AppDomainBaseObject() { LIMITED_METHOD_CONTRACT; }
-   ~AppDomainBaseObject() { LIMITED_METHOD_CONTRACT; }
-   
-  public:
-
-    void SetDomain(AppDomain* p) 
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pDomain = p;
-    }
-    AppDomain* GetDomain() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pDomain;
-    }
-
-    OBJECTREF GetAppDomainManager()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pDomainManager;
-    }
-
-    // Returns the reference to the delegate of the first chance exception notification handler
-    OBJECTREF GetFirstChanceExceptionNotificationHandler()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return m_pFirstChanceExceptionHandler;
-    }
-};
-
-
-// The managed definition of AppDomainSetup is in BCL\System\AppDomainSetup.cs
-class AppDomainSetupObject : public Object
-{
-    friend class MscorlibBinder;
-
-  protected:
-    PTRARRAYREF m_Entries;
-    STRINGREF m_AppBase;
-    OBJECTREF m_CompatFlags;
-
-  protected:
-    AppDomainSetupObject() { LIMITED_METHOD_CONTRACT; }
-   ~AppDomainSetupObject() { LIMITED_METHOD_CONTRACT; }
-};
-typedef DPTR(AppDomainSetupObject) PTR_AppDomainSetupObject;
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<AppDomainSetupObject> APPDOMAINSETUPREF;
-#else
-typedef AppDomainSetupObject*     APPDOMAINSETUPREF;
-#endif
-
 // AssemblyBaseObject 
 // This class is the base class for assemblies
 //  
@@ -1775,161 +1678,6 @@ class VersionBaseObject : public Object
     int GetRevision() { LIMITED_METHOD_CONTRACT; return m_Revision; }
 };
 
-// FrameSecurityDescriptorBaseObject 
-// This class is the base class for the frame security descriptor
-//  
-
-class FrameSecurityDescriptorBaseObject : public Object
-{
-    friend class MscorlibBinder;
-
-  protected:
-    // READ ME:
-    // Modifying the order or fields of this object may require other changes to the
-    //  classlib class definition of this object.
-
-    OBJECTREF       m_assertions;    // imperative
-    OBJECTREF       m_denials;      // imperative
-    OBJECTREF       m_restriction;  //  imperative
-    OBJECTREF       m_DeclarativeAssertions;
-    OBJECTREF       m_DeclarativeDenials;
-    OBJECTREF       m_DeclarativeRestrictions;
-    CLR_BOOL        m_assertFT;
-    CLR_BOOL        m_assertAllPossible;
-    CLR_BOOL        m_declSecComputed;
-    
-
-
-  protected:
-    FrameSecurityDescriptorBaseObject() {LIMITED_METHOD_CONTRACT;}
-   ~FrameSecurityDescriptorBaseObject() {LIMITED_METHOD_CONTRACT;}
-   
-  public:
-
-    INT32 GetOverridesCount()
-    {
-        LIMITED_METHOD_CONTRACT;
-        INT32 ret =0;
-        if (m_restriction != NULL)
-            ret++;
-        if (m_denials != NULL)
-            ret++;        
-        if (m_DeclarativeDenials != NULL)
-            ret++;
-        if (m_DeclarativeRestrictions != NULL)
-            ret++;
-        return ret;
-    }
-
-    INT32 GetAssertCount()
-    {
-        LIMITED_METHOD_CONTRACT;
-        INT32 ret =0;
-        if (m_assertions != NULL || m_DeclarativeAssertions != NULL || HasAssertAllPossible())
-            ret++;
-        return ret;
-    }  
-
-    BOOL HasAssertFT()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_assertFT;
-    }
-
-    BOOL IsDeclSecComputed()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_declSecComputed;
-    }
-
-    BOOL HasAssertAllPossible()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_assertAllPossible;
-    }
-
-    OBJECTREF GetImperativeAssertions()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_assertions;
-    }
-   OBJECTREF GetDeclarativeAssertions()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_DeclarativeAssertions;
-    }
-    OBJECTREF GetImperativeDenials()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_denials;
-    }
-    OBJECTREF GetDeclarativeDenials()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_DeclarativeDenials;
-    }
-    OBJECTREF GetImperativeRestrictions()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_restriction;
-    }
-   OBJECTREF GetDeclarativeRestrictions()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_DeclarativeRestrictions;
-    }
-    void SetImperativeAssertions(OBJECTREF assertRef)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&m_assertions, assertRef, this->GetAppDomain());
-    }
-    void SetDeclarativeAssertions(OBJECTREF assertRef)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&m_DeclarativeAssertions, assertRef, this->GetAppDomain());
-    }
-    void SetImperativeDenials(OBJECTREF denialRef)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&m_denials, denialRef, this->GetAppDomain()); 
-    }
-
-    void SetDeclarativeDenials(OBJECTREF denialRef)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&m_DeclarativeDenials, denialRef, this->GetAppDomain()); 
-    }
-
-    void SetImperativeRestrictions(OBJECTREF restrictRef)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&m_restriction, restrictRef, this->GetAppDomain());
-    }
-
-    void SetDeclarativeRestrictions(OBJECTREF restrictRef)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&m_DeclarativeRestrictions, restrictRef, this->GetAppDomain());
-    }
-    void SetAssertAllPossible(BOOL assertAllPossible)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_assertAllPossible = !!assertAllPossible;
-    }
-    
-    void SetAssertFT(BOOL assertFT)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_assertFT = !!assertFT;
-    }
-    void SetDeclSecComputed(BOOL declSec)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_declSecComputed = !!declSec;
-    }
-};
-
-
 class WeakReferenceObject : public Object
 {
 public:
@@ -1957,8 +1705,6 @@ typedef REF<AssemblyBaseObject> ASSEMBLYREF;
 typedef REF<AssemblyNameBaseObject> ASSEMBLYNAMEREF;
 
 typedef REF<VersionBaseObject> VERSIONREF;
-
-typedef REF<FrameSecurityDescriptorBaseObject> FRAMESECDESCREF;
 
 
 typedef REF<WeakReferenceObject> WEAKREFERENCEREF;
@@ -2002,16 +1748,12 @@ typedef PTR_ReflectClassBaseObject REFLECTCLASSBASEREF;
 typedef PTR_ReflectMethodObject REFLECTMETHODREF;
 typedef PTR_ReflectFieldObject REFLECTFIELDREF;
 typedef PTR_ThreadBaseObject THREADBASEREF;
-typedef PTR_AppDomainBaseObject APPDOMAINREF;
 typedef PTR_AssemblyBaseObject ASSEMBLYREF;
 typedef PTR_AssemblyNameBaseObject ASSEMBLYNAMEREF;
 
 #ifndef DACCESS_COMPILE
 typedef MarshalByRefObjectBaseObject* MARSHALBYREFOBJECTBASEREF;
 typedef VersionBaseObject* VERSIONREF;
-typedef FrameSecurityDescriptorBaseObject* FRAMESECDESCREF;
-
-
 typedef WeakReferenceObject* WEAKREFERENCEREF;
 #endif // #ifndef DACCESS_COMPILE
 
@@ -3003,49 +2745,6 @@ typedef REF<ContractExceptionObject> CONTRACTEXCEPTIONREF;
 #else // USE_CHECKED_OBJECTREFS
 typedef PTR_ContractExceptionObject CONTRACTEXCEPTIONREF;
 #endif // USE_CHECKED_OBJECTREFS
-
-class NumberFormatInfo: public Object
-{
-public:
-    // C++ data members                 // Corresponding data member in NumberFormatInfo.cs
-                                        // Also update mscorlib.h when you add/remove fields
-
-    I4ARRAYREF cNumberGroup;        // numberGroupSize
-    I4ARRAYREF cCurrencyGroup;      // currencyGroupSize
-    I4ARRAYREF cPercentGroup;       // percentGroupSize
-    
-    STRINGREF sPositive;            // positiveSign
-    STRINGREF sNegative;            // negativeSign
-    STRINGREF sNumberDecimal;       // numberDecimalSeparator
-    STRINGREF sNumberGroup;         // numberGroupSeparator
-    STRINGREF sCurrencyGroup;       // currencyDecimalSeparator
-    STRINGREF sCurrencyDecimal;     // currencyGroupSeparator
-    STRINGREF sCurrency;            // currencySymbol
-    STRINGREF sNaN;                 // nanSymbol
-    STRINGREF sPositiveInfinity;    // positiveInfinitySymbol
-    STRINGREF sNegativeInfinity;    // negativeInfinitySymbol
-    STRINGREF sPercentDecimal;      // percentDecimalSeparator
-    STRINGREF sPercentGroup;        // percentGroupSeparator
-    STRINGREF sPercent;             // percentSymbol
-    STRINGREF sPerMille;            // perMilleSymbol
-
-    PTRARRAYREF sNativeDigits;      // nativeDigits (a string array)
-
-    INT32 cNumberDecimals;          // numberDecimalDigits
-    INT32 cCurrencyDecimals;        // currencyDecimalDigits
-    INT32 cPosCurrencyFormat;       // positiveCurrencyFormat
-    INT32 cNegCurrencyFormat;       // negativeCurrencyFormat
-    INT32 cNegativeNumberFormat;    // negativeNumberFormat
-    INT32 cPositivePercentFormat;   // positivePercentFormat
-    INT32 cNegativePercentFormat;   // negativePercentFormat
-    INT32 cPercentDecimals;         // percentDecimalDigits
-    INT32 iDigitSubstitution;       // digitSubstitution
-
-    CLR_BOOL bIsReadOnly;              // Is this NumberFormatInfo ReadOnly?
-    CLR_BOOL bIsInvariant;             // Is this the NumberFormatInfo for the Invariant Culture?
-};
-
-typedef NumberFormatInfo * NUMFMTREF;
 
 //===============================================================================
 // #NullableFeature

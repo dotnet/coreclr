@@ -148,10 +148,7 @@
             "DockerTag": "ubuntu-14.04-cross-e435274-20180426002420",
             "Architecture": "arm",
             "Rid": "linux",
-            "CrossArchitecture": "x86",
-            "CrossArchBuildArgs": "crosscomponent",
-            "CrossArchBuildPackagesArgs": "-__DoCrossArchBuild=1",
-            "CAC_ROOTFS_DIR": "/crossrootfs/$(CrossArchitecture)"
+            "CrossArchBuildPackagesArgs": "-__DoCrossArchBuild=1"
           },
           "ReportingParameters": {
             "OperatingSystem": "Linux",
@@ -167,7 +164,6 @@
             "DockerTag": "ubuntu-16.04-cross-arm64-a3ae44b-20180315221921",
             "Architecture": "arm64",
             "Rid": "linux",
-            "CrossArchBuildArgs": "crosscomponent",
             "CrossArchBuildPackagesArgs": "-__DoCrossArchBuild=1"
           },
           "ReportingParameters": {

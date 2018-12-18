@@ -91,7 +91,7 @@ void CallFinalizer(Object* obj)
         {
 
             _ASSERTE(obj->GetMethodTable() == pMT);
-            _ASSERTE(pMT->HasFinalizer() || pMT->IsTransparentProxy());
+            _ASSERTE(pMT->HasFinalizer());
 
             LogFinalization(obj);
             MethodTable::CallFinalizer(obj);
@@ -179,8 +179,6 @@ Object * FinalizerThread::DoOneFinalization(Object* fobj, Thread* pThread,int bi
     } 
     else 
     {
-        _ASSERTE(targetAppDomain->GetDefaultContext());
-
         if (!currentDomain->IsDefaultDomain())
         {
             // this means we are in some other domain, so need to return back out through the DoADCallback

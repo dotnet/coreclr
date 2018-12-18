@@ -1125,17 +1125,8 @@ void ILValueClassMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEm
     pslILEmit->EmitLDTOKEN(managedVCToken); // pMT
     pslILEmit->EmitCALL(METHOD__RT_TYPE_HANDLE__GETVALUEINTERNAL, 1, 1); // Convert RTH to IntPtr
 
-    if (IsCLRToNative(m_dwMarshalFlags))
-    {
-        // this should only be needed in CLR-to-native scenarios for the SafeHandle field marshaler
-        m_pslNDirect->LoadCleanupWorkList(pslILEmit);
-    }
-    else
-    {
-        pslILEmit->EmitLoadNullPtr();
-    }
-
-    pslILEmit->EmitCALL(METHOD__VALUECLASSMARSHALER__CONVERT_TO_NATIVE, 4, 0);        // void ConvertToNative(IntPtr dst, IntPtr src, IntPtr pMT, ref CleanupWorkList pCleanupWorkList)
+    m_pslNDirect->LoadCleanupWorkList(pslILEmit);
+    pslILEmit->EmitCALL(METHOD__VALUECLASSMARSHALER__CONVERT_TO_NATIVE, 4, 0);        // void ConvertToNative(IntPtr dst, IntPtr src, IntPtr pMT, ref CleanupWorkListElement pCleanupWorkList)
 }
 
 void ILValueClassMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
@@ -1888,7 +1879,6 @@ void ILBSTRMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
     EmitStoreManagedValue(pslILEmit);
 }
 
-#ifdef FEATURE_COMINTEROP
 LocalDesc ILAnsiBSTRMarshaler::GetNativeType()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1939,6 +1929,8 @@ void ILAnsiBSTRMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
     EmitLoadNativeValue(pslILEmit);
     pslILEmit->EmitCALL(METHOD__ANSIBSTRMARSHALER__CLEAR_NATIVE, 1, 0);
 }
+
+#ifdef FEATURE_COMINTEROP
 
 LocalDesc ILHSTRINGMarshaler::GetNativeType()
 {
@@ -2410,19 +2402,7 @@ void ILLayoutClassPtrMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* psl
     EmitLoadManagedValue(pslILEmit);
     EmitLoadNativeValue(pslILEmit);
 
-    if (IsCLRToNative(m_dwMarshalFlags))
-    {
-        m_pslNDirect->LoadCleanupWorkList(pslILEmit);
-    }
-    else
-    {
-        //
-        // The assertion here is as follows:
-        //      1) the only field marshaler that requires the CleanupWorkList is FieldMarshaler_SafeHandle 
-        //      2) SafeHandle marshaling is disallowed in the native-to-CLR direction, so we'll never see it..
-        //
-        pslILEmit->EmitLDNULL();  // pass a NULL CleanupWorkList in the native-to-CLR case
-    }
+    m_pslNDirect->LoadCleanupWorkList(pslILEmit);
 
     // static void FmtClassUpdateNativeInternal(object obj, byte* pNative, IntPtr pOptionalCleanupList);
 
@@ -2568,6 +2548,7 @@ MarshalerOverrideStatus ILHandleRefMarshaler::ArgumentOverride(NDirectStubLinker
 
     ILCodeStream* pcsMarshal    = psl->GetMarshalCodeStream();
     ILCodeStream* pcsDispatch   = psl->GetDispatchCodeStream();
+    ILCodeStream* pcsUnmarshal  = psl->GetUnmarshalCodeStream();
 
     if (fManagedToNative && !byref)
     {
@@ -2576,10 +2557,15 @@ MarshalerOverrideStatus ILHandleRefMarshaler::ArgumentOverride(NDirectStubLinker
 
         // HandleRefs are valuetypes, so pinning is not needed.
         // The argument address is on the stack and will not move.
-        pcsDispatch->EmitLDARGA(argidx);
-        pcsDispatch->EmitLDC(offsetof(HANDLEREF, m_handle));
-        pcsDispatch->EmitADD();
-        pcsDispatch->EmitLDIND_I();
+        mdFieldDef handleField = pcsDispatch->GetToken(MscorlibBinder::GetField(FIELD__HANDLE_REF__HANDLE));
+        pcsDispatch->EmitLDARG(argidx);
+        pcsDispatch->EmitLDFLD(handleField);
+
+        mdFieldDef wrapperField = pcsUnmarshal->GetToken(MscorlibBinder::GetField(FIELD__HANDLE_REF__WRAPPER));
+        pcsUnmarshal->EmitLDARG(argidx);
+        pcsUnmarshal->EmitLDFLD(wrapperField);
+        pcsUnmarshal->EmitCALL(METHOD__GC__KEEP_ALIVE, 1, 0);
+
         return OVERRIDDEN;
     }
     else
@@ -2778,7 +2764,7 @@ MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinke
                 pslIL->EmitLDLOC(dwInputHandleLocal);
 
                 // This is realiable, i.e. the cleanup will happen if and only if the SH was actually AddRef'ed.
-                pslIL->EmitCALL(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST, 2, 1);
+                pslIL->EmitCALL(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST_SAFEHANDLE, 2, 1);
 
                 pslIL->EmitSTLOC(dwNativeHandleLocal);
 

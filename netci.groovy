@@ -32,18 +32,6 @@ def static getOSGroup(def os) {
     return osGroupMap[os]
 }
 
-def static getCrossArchitectures(def os, def architecture, def scenario) {
-    switch (architecture) {
-        case 'arm':
-            return ['x86','x64']
-
-        case 'arm64':
-            return ['x64']
-    }
-
-    assert false
-}
-
 // We use this class (vs variables) so that the static functions can access data here.
 class Constants {
 
@@ -464,7 +452,7 @@ class Constants {
                // 'gc_reliability_framework'
                // 'illink'
                // 'corefx_innerloop'
-               // 'crossgen_comparison'
+               'crossgen_comparison',
                'pmi_asm_diffs',
                'r2r_jitstress1',
                'r2r_jitstress2',
@@ -930,7 +918,7 @@ def static isCrossGenComparisonScenario(def scenario) {
 
 def static shouldGenerateCrossGenComparisonJob(def os, def architecture, def configuration, def scenario) {
     assert isCrossGenComparisonScenario(scenario)
-    return (os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release'))
+    return ((os == 'Ubuntu' && architecture == 'arm') || (os == 'Ubuntu16.04' && architecture == 'arm64')) && (configuration == 'Checked' || configuration == 'Release')
 }
 
 def static getFxBranch(def branch) {
@@ -1333,7 +1321,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
     // Check scenario.
     switch (scenario) {
         case 'crossgen_comparison':
-            if (isFlowJob && os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release')) {
+            if (isFlowJob && ((os == 'Ubuntu' && architecture == 'arm') || (os == 'Ubuntu16.04' && architecture == 'arm64')) && (configuration == 'Checked' || configuration == 'Release')) {
                 addPeriodicTriggerHelper(job, '@daily')
             }
             break
@@ -2219,9 +2207,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                             if (architecture == 'x86_arm_altjit') {
                                 buildCommandsStr += envScriptAppendExistingScript(os, "%WORKSPACE%\\tests\\x86_arm_altjit.cmd", envScriptPath)
+                                testOpts += " altjitarch arm"
                             }
                             else if (architecture == 'x64_arm64_altjit') {
                                 buildCommandsStr += envScriptAppendExistingScript(os, "%WORKSPACE%\\tests\\x64_arm64_altjit.cmd", envScriptPath)
+                                testOpts += " altjitarch arm64"
                             }
 
                             envScriptFinalize(os, envScriptPath)
@@ -2233,9 +2223,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         }
                         else if (architecture == 'x86_arm_altjit') {
                             envScriptPath = "%WORKSPACE%\\tests\\x86_arm_altjit.cmd"
+                            testOpts += " altjitarch arm"
                         }
                         else if (architecture == 'x64_arm64_altjit') {
                             envScriptPath = "%WORKSPACE%\\tests\\x64_arm64_altjit.cmd"
+                            testOpts += " altjitarch arm64"
                         }
                         if (envScriptPath != '') {
                             testOpts += " TestEnv ${envScriptPath}"
@@ -2261,12 +2253,12 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
 
                                 // Archive and process (only) the test results
-                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
-                                Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
+                                Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
 
                                 //Archive additional build stuff to diagnose why my attempt at fault injection isn't causing CI to fail
                                 Utilities.addArchival(newJob, "SetStressModes.bat", "", true, false)
-                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/testhost/**", "", true, false)
+                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/testhost/**", "", true, false)
                             }
                         }
                         else if (isGcReliabilityFramework(scenario)) {
@@ -2346,8 +2338,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath} -no_run_tests"
 
                         // Zip up the CoreFx runtime and tests. We don't need the CoreCLR binaries; they have been copied to the CoreFX tree.
-                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}', '${workspaceRelativeFxRootWin}\\fxruntime.zip')\"";
-                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\bin\\tests', '${workspaceRelativeFxRootWin}\\fxtests.zip')\"";
+                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\artifacts\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}', '${workspaceRelativeFxRootWin}\\fxruntime.zip')\"";
+                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\artifacts\\bin\\tests', '${workspaceRelativeFxRootWin}\\fxtests.zip')\"";
 
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxruntime.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
@@ -2476,8 +2468,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName}"
 
                             // Archive and process (only) the test results
-                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
-                            Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
+                            Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
                         }
                     }
                     break
@@ -2516,11 +2508,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // Add some useful information to the log file. Ignore return codes.
                     buildCommands += "uname -a || true"
 
-                    def additionalOpts = ""
-                    if (architecture == 'arm') {
-                        additionalOpts = "-e CAC_ROOTFS_DIR=/crossrootfs/x86"
-                    }
-
                     // Cross build the Ubuntu/arm product using docker with a docker image that contains the correct
                     // Ubuntu cross-compilation toolset (running on a Ubuntu x64 host).
                     // For CoreFX testing, we only need the product build; we don't need to generate the layouts. The product
@@ -2528,9 +2515,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // ZIP up the generated CoreFX runtime and tests.
 
                     def dockerImage = getDockerImageName(architecture, os, true)
-                    def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${additionalOpts} ${dockerImage} "
+                    def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${dockerImage} "
 
-                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross crosscomponent"
+                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross"
 
                     if (doCoreFxTesting) {
                         def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
@@ -2548,8 +2535,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "${dockerCmd}python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName} -no_run_tests"
 
                         // Docker creates files with root permission, so we need to zip in docker also, or else we'll get permission errors.
-                        buildCommands += "${dockerCmd}zip -r ${workspaceRelativeFxRootLinux}/fxruntime.zip ${workspaceRelativeFxRootLinux}/bin/testhost/netcoreapp-Linux-Release-${architecture}"
-                        buildCommands += "${dockerCmd}zip -r ${workspaceRelativeFxRootLinux}/fxtests.zip ${workspaceRelativeFxRootLinux}/bin/tests"
+                        buildCommands += "${dockerCmd}zip -r ${workspaceRelativeFxRootLinux}/fxruntime.zip ${workspaceRelativeFxRootLinux}/artifacts/bin/testhost/netcoreapp-Linux-Release-${architecture}"
+                        buildCommands += "${dockerCmd}zip -r ${workspaceRelativeFxRootLinux}/fxtests.zip ${workspaceRelativeFxRootLinux}/artifacts/bin/tests"
 
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxruntime.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
@@ -2564,14 +2551,14 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def workspaceRelativeResultsDir = "_"
                         def workspaceRelativeArtifactsArchive = "${os}.${architecture}.${configuration}.${scenario}.zip"
                         def crossGenComparisonCmd = "python -u \${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript} "
-                        getCrossArchitectures(os, architecture, scenario).each{ crossArch ->
-                            def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeProductBinDir}/${crossArch}/crossgen"
-                            def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
+                        def crossArch = "x64"
+                        def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeProductBinDir}/${crossArch}/crossgen"
+                        def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
 
-                            buildCommands += "${dockerCmd}mkdir -p \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
-                            buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
-                            buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
-                        } // crossArch
+                        buildCommands += "${dockerCmd}mkdir -p \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
+                        buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
+                        buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}"
+
                         buildCommands += "${dockerCmd}zip -r ${workspaceRelativeArtifactsArchive} ${workspaceRelativeCoreLib} ${workspaceRelativeCoreRootDir} ${workspaceRelativeCrossGenComparisonScript} ${workspaceRelativeResultsDir}"
                         Utilities.addArchival(newJob, "${workspaceRelativeArtifactsArchive}")
                     }
@@ -3065,14 +3052,14 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                 assert architecture == 'arm' || architecture == 'arm64'
 
                 // Unzip CoreFx runtime
-                batchFile("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::ExtractToDirectory('_\\fx\\fxruntime.zip', '_\\fx\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}')\"")
+                batchFile("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::ExtractToDirectory('_\\fx\\fxruntime.zip', '_\\fx\\artifacts\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}')\"")
 
                 // Unzip CoreFx tests.
-                batchFile("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::ExtractToDirectory('_\\fx\\fxtests.zip', '_\\fx\\bin\\tests')\"")
+                batchFile("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::ExtractToDirectory('_\\fx\\fxtests.zip', '_\\fx\\artifacts\\bin\\tests')\"")
 
                 // Add the script to run the corefx tests
-                def corefx_runtime_path   = "%WORKSPACE%\\_\\fx\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}"
-                def corefx_tests_dir      = "%WORKSPACE%\\_\\fx\\bin\\tests"
+                def corefx_runtime_path   = "%WORKSPACE%\\_\\fx\\artifacts\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}"
+                def corefx_tests_dir      = "%WORKSPACE%\\_\\fx\\artifacts\\bin\\tests"
                 def corefx_exclusion_file = "%WORKSPACE%\\tests\\${architecture}\\corefx_test_exclusions.txt"
                 batchFile("call %WORKSPACE%\\tests\\scripts\\run-corefx-tests.bat ${corefx_runtime_path} ${corefx_tests_dir} ${corefx_exclusion_file} ${architecture}")
 
@@ -3450,7 +3437,7 @@ python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci
             }
             else if (doCoreFxTesting) {
                 shell("""\
-\${WORKSPACE}/tests/scripts/run-corefx-tests.sh --test-exclude-file \${WORKSPACE}/tests/${architecture}/corefx_linux_test_exclusions.txt --runtime \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin/testhost/netcoreapp-Linux-Release-${architecture} --arch ${architecture} --corefx-tests \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin --configurationGroup Release""")
+\${WORKSPACE}/tests/scripts/run-corefx-tests.sh --test-exclude-file \${WORKSPACE}/tests/${architecture}/corefx_linux_test_exclusions.txt --runtime \${WORKSPACE}/${workspaceRelativeFxRootLinux}/artifacts/bin/testhost/netcoreapp-Linux-Release-${architecture} --arch ${architecture} --corefx-tests \${WORKSPACE}/${workspaceRelativeFxRootLinux}/artifacts/bin --configurationGroup Release""")
             }
             else {
                 def runScript = "${dockerCmd}./tests/runtest.sh"
@@ -3491,7 +3478,7 @@ ${runScript} \\
         Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.zip")
     }
     else if (doCoreFxTesting) {
-        Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/bin/**/testResults.xml")
+        Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/artifacts/bin/**/testResults.xml")
         if ((os == "Ubuntu") && (architecture == 'arm')) {
             // We have a problem with the xunit plug-in, where it is consistently failing on Ubuntu arm32 test result uploading with this error:
             //
@@ -3501,7 +3488,7 @@ ${runScript} \\
             // This is tracked by: https://github.com/dotnet/coreclr/issues/19447.
         }
         else {
-            Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRootLinux}/bin/**/testResults.xml")
+            Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRootLinux}/artifacts/bin/**/testResults.xml")
         }
     }
     else {
@@ -3520,6 +3507,9 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
 
     def workspaceRelativeResultsDir = "_"
     def workspaceRelativeNativeArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${architecture}_${architecture}.${configuration}"
+
+    def crossArch = "x64"
+    def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
 
     def jobFolder = getJobFolder(scenario)
     def newJob = dslFactory.job(Utilities.getFullJobName(project, jobName, isPR, jobFolder)) {
@@ -3551,18 +3541,12 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
             shell("${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeNativeArchResultDir}")
             shell("${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeNativeArchResultDir}")
 
-            getCrossArchitectures(os, architecture, scenario).each{ crossArch ->
-                def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
-                shell("${crossGenComparisonCmd}compare --base_dir \${WORKSPACE}/${workspaceRelativeNativeArchResultDir} --diff_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}")
-            } // crossArch
+            shell("${crossGenComparisonCmd}compare --base_dir \${WORKSPACE}/${workspaceRelativeNativeArchResultDir} --diff_dir \${WORKSPACE}/${workspaceRelativeCrossArchResultDir}")
         } // steps
     }  // job
 
     Utilities.addArchival(newJob, "${workspaceRelativeNativeArchResultDir}/**")
-    getCrossArchitectures(os, architecture, scenario).each{ crossArch ->
-        def workspaceRelativeCrossArchResultDir = "${workspaceRelativeResultsDir}/${osGroup}.${crossArch}_${architecture}.${configuration}"
-        Utilities.addArchival(newJob, "${workspaceRelativeCrossArchResultDir}/**")
-    } // crossArch
+    Utilities.addArchival(newJob, "${workspaceRelativeCrossArchResultDir}/**")
 
     return newJob
 }

@@ -95,6 +95,7 @@ CONFIG_INTEGER(JitNoRegLoc, W("JitNoRegLoc"), 0)
 CONFIG_INTEGER(JitNoStructPromotion, W("JitNoStructPromotion"), 0) // Disables struct promotion in Jit32
 CONFIG_INTEGER(JitNoUnroll, W("JitNoUnroll"), 0)
 CONFIG_INTEGER(JitOrder, W("JitOrder"), 0)
+CONFIG_INTEGER(JitQueryCurrentStaticFieldClass, W("JitQueryCurrentStaticFieldClass"), 1)
 CONFIG_INTEGER(JitReportFastTailCallDecisions, W("JitReportFastTailCallDecisions"), 0)
 CONFIG_INTEGER(JitPInvokeCheckEnabled, W("JITPInvokeCheckEnabled"), 0)
 CONFIG_INTEGER(JitPInvokeEnabled, W("JITPInvokeEnabled"), 1)
@@ -233,25 +234,26 @@ CONFIG_INTEGER(EnableSSE3_4, W("EnableSSE3_4"), 1) // Enable SSE3, SSSE3, SSE 4.
 #if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
 // Enable AVX instruction set for wide operations as default. When both AVX and SSE3_4 are set, we will use the most
 // capable instruction set available which will prefer AVX over SSE3/4.
-CONFIG_INTEGER(EnableSSE, W("EnableSSE"), 1)             // Enable SSE
-CONFIG_INTEGER(EnableSSE2, W("EnableSSE2"), 1)           // Enable SSE2
-CONFIG_INTEGER(EnableSSE3, W("EnableSSE3"), 1)           // Enable SSE3
-CONFIG_INTEGER(EnableSSSE3, W("EnableSSSE3"), 1)         // Enable SSSE3
-CONFIG_INTEGER(EnableSSE41, W("EnableSSE41"), 1)         // Enable SSE41
-CONFIG_INTEGER(EnableSSE42, W("EnableSSE42"), 1)         // Enable SSE42
-CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 1)             // Enable AVX
-CONFIG_INTEGER(EnableAVX2, W("EnableAVX2"), 1)           // Enable AVX2
-CONFIG_INTEGER(EnableFMA, W("EnableFMA"), 1)             // Enable FMA
-CONFIG_INTEGER(EnableAES, W("EnableAES"), 1)             // Enable AES
-CONFIG_INTEGER(EnableBMI1, W("EnableBMI1"), 1)           // Enable BMI1
-CONFIG_INTEGER(EnableBMI2, W("EnableBMI2"), 1)           // Enable BMI2
-CONFIG_INTEGER(EnableLZCNT, W("EnableLZCNT"), 1)         // Enable AES
-CONFIG_INTEGER(EnablePCLMULQDQ, W("EnablePCLMULQDQ"), 1) // Enable PCLMULQDQ
-CONFIG_INTEGER(EnablePOPCNT, W("EnablePOPCNT"), 1)       // Enable POPCNT
-#else                                                    // !defined(_TARGET_AMD64_) && !defined(_TARGET_X86_)
+CONFIG_INTEGER(EnableHWIntrinsic, W("EnableHWIntrinsic"), 1) // Enable Base
+CONFIG_INTEGER(EnableSSE, W("EnableSSE"), 1)                 // Enable SSE
+CONFIG_INTEGER(EnableSSE2, W("EnableSSE2"), 1)               // Enable SSE2
+CONFIG_INTEGER(EnableSSE3, W("EnableSSE3"), 1)               // Enable SSE3
+CONFIG_INTEGER(EnableSSSE3, W("EnableSSSE3"), 1)             // Enable SSSE3
+CONFIG_INTEGER(EnableSSE41, W("EnableSSE41"), 1)             // Enable SSE41
+CONFIG_INTEGER(EnableSSE42, W("EnableSSE42"), 1)             // Enable SSE42
+CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 1)                 // Enable AVX
+CONFIG_INTEGER(EnableAVX2, W("EnableAVX2"), 1)               // Enable AVX2
+CONFIG_INTEGER(EnableFMA, W("EnableFMA"), 1)                 // Enable FMA
+CONFIG_INTEGER(EnableAES, W("EnableAES"), 1)                 // Enable AES
+CONFIG_INTEGER(EnableBMI1, W("EnableBMI1"), 1)               // Enable BMI1
+CONFIG_INTEGER(EnableBMI2, W("EnableBMI2"), 1)               // Enable BMI2
+CONFIG_INTEGER(EnableLZCNT, W("EnableLZCNT"), 1)             // Enable AES
+CONFIG_INTEGER(EnablePCLMULQDQ, W("EnablePCLMULQDQ"), 1)     // Enable PCLMULQDQ
+CONFIG_INTEGER(EnablePOPCNT, W("EnablePOPCNT"), 1)           // Enable POPCNT
+#else                                                        // !defined(_TARGET_AMD64_) && !defined(_TARGET_X86_)
 // Enable AVX instruction set for wide operations as default
 CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 0)
-#endif                                                   // !defined(_TARGET_AMD64_) && !defined(_TARGET_X86_)
+#endif                                                       // !defined(_TARGET_AMD64_) && !defined(_TARGET_X86_)
 ///
 /// JIT
 ///
@@ -347,6 +349,7 @@ CONFIG_STRING(JitInlineReplayFile, W("JitInlineReplayFile"))
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
 CONFIG_INTEGER(JitInlinePolicyModel, W("JitInlinePolicyModel"), 0)
+CONFIG_INTEGER(JitObjectStackAllocation, W("JitObjectStackAllocation"), 0)
 
 CONFIG_INTEGER(JitEECallTimingInfo, W("JitEECallTimingInfo"), 0)
 
@@ -358,6 +361,15 @@ CONFIG_INTEGER(JitEnableRemoveEmptyTry, W("JitEnableRemoveEmptyTry"), 1)
 CONFIG_INTEGER(JitEnableFinallyCloning, W("JitEnableFinallyCloning"), 0)
 CONFIG_INTEGER(JitEnableRemoveEmptyTry, W("JitEnableRemoveEmptyTry"), 0)
 #endif // defined(FEATURE_CORECLR)
+#endif // DEBUG
+
+// Overall master enable for Guarded Devirtualization. Currently not enabled by default.
+CONFIG_INTEGER(JitEnableGuardedDevirtualization, W("JitEnableGuardedDevirtualization"), 0)
+
+#if defined(DEBUG)
+// Various policies for GuardedDevirtualization
+CONFIG_INTEGER(JitGuardedDevirtualizationGuessUniqueInterface, W("JitGuardedDevirtualizationGuessUniqueInterface"), 1)
+CONFIG_INTEGER(JitGuardedDevirtualizationGuessBestClass, W("JitGuardedDevirtualizationGuessBestClass"), 1)
 #endif // DEBUG
 
 #undef CONFIG_INTEGER

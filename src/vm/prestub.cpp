@@ -1528,7 +1528,7 @@ extern "C" PCODE STDCALL PreStubWorker(TransitionBlock * pTransitionBlock, Metho
 
         if (curobj != NULL) // Check for virtual function called non-virtually on a NULL object
         {
-            pDispatchingMT = curobj->GetTrueMethodTable();
+            pDispatchingMT = curobj->GetMethodTable();
 
 #ifdef FEATURE_ICASTABLE
             if (pDispatchingMT->IsICastable())
@@ -1729,15 +1729,6 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     {
         pThread->HandleThreadAbort();
     }
-
-    /**************************   CLASS CONSTRUCTOR   ********************/
-    // Make sure .cctor has been run
-
-    if (IsClassConstructorTriggeredViaPrestub())
-    {
-        pMT->CheckRunClassInitThrowing();
-    }
-
 
     /***************************   CALL COUNTER    ***********************/
     // If we are counting calls for tiered compilation, leave the prestub
@@ -2295,20 +2286,24 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
             // Get the stub manager for this module
             VirtualCallStubManager *pMgr = pModule->GetLoaderAllocator()->GetVirtualCallStubManager();
 
-            DispatchToken token;
-            if (pMT->IsInterface())
-                token = pMT->GetLoaderAllocator()->GetDispatchToken(pMT->GetTypeID(), slot);
-            else
-                token = DispatchToken::CreateDispatchToken(slot);
-
             OBJECTREF *protectedObj = pEMFrame->GetThisPtr();
             _ASSERTE(protectedObj != NULL);
             if (*protectedObj == NULL) {
                 COMPlusThrow(kNullReferenceException);
             }
-            
-            StubCallSite callSite(pIndirection, pEMFrame->GetReturnAddress());
-            pCode = pMgr->ResolveWorker(&callSite, protectedObj, token, VirtualCallStubManager::SK_LOOKUP);
+
+            DispatchToken token;
+            if (pMT->IsInterface() || MethodTable::VTableIndir_t::isRelative)
+            {
+                token = pMT->GetLoaderAllocator()->GetDispatchToken(pMT->GetTypeID(), slot);
+                StubCallSite callSite(pIndirection, pEMFrame->GetReturnAddress());
+                pCode = pMgr->ResolveWorker(&callSite, protectedObj, token, VirtualCallStubManager::SK_LOOKUP);
+            }
+            else
+            {
+                pCode = pMgr->GetVTableCallStub(slot);
+                *EnsureWritableExecutablePages((TADDR *)pIndirection) = pCode;
+            }
             _ASSERTE(pCode != NULL);
         }
         else
@@ -2376,7 +2371,7 @@ EXTERN_C PCODE VirtualMethodFixupWorker(Object * pThisPtr,  CORCOMPILE_VIRTUAL_I
     _ASSERTE(pThisPtr != NULL);
     VALIDATEOBJECT(pThisPtr);
 
-    MethodTable * pMT = pThisPtr->GetTrueMethodTable();
+    MethodTable * pMT = pThisPtr->GetMethodTable();
 
     WORD slotNumber = pThunk->slotNum;
     _ASSERTE(slotNumber != (WORD)-1);
@@ -2855,11 +2850,6 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
 
                     bool fNeedsNonTrivialHelper = false;
 
-                    if (pMT->IsDomainNeutral() && !IsSingleAppDomain())
-                    {
-                        fNeedsNonTrivialHelper = true;
-                    }
-                    else
                     if (pMT->Collectible() && (kind != ENCODE_CCTOR_TRIGGER))
                     {
                         // Collectible statics are not pinned - the fast getters expect statics to be pinned

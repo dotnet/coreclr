@@ -883,67 +883,6 @@ void ThisPtrRetBufPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocat
 }
 
 
-#ifdef HAS_REMOTING_PRECODE
-
-void RemotingPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator)
-{
-    WRAPPER_NO_CONTRACT;
-
-    int n = 0;
-
-    m_rgCode[n++] = 0xb502; // push {r1,lr}
-    m_rgCode[n++] = 0x4904; // ldr r1, [pc, #16]   ; =m_pPrecodeRemotingThunk
-    m_rgCode[n++] = 0x4788; // blx r1
-    m_rgCode[n++] = 0xe8bd; // pop {r1,lr}
-    m_rgCode[n++] = 0x4002;
-    m_rgCode[n++] = 0xf8df; // ldr pc, [pc, #12]    ; =m_pLocalTarget
-    m_rgCode[n++] = 0xf00c;
-    m_rgCode[n++] = 0xbf00; // nop                  ; padding for alignment
-
-    _ASSERTE(n == _countof(m_rgCode));
-
-    m_pMethodDesc = (TADDR)pMD;
-    m_pPrecodeRemotingThunk = GetEEFuncEntryPoint(PrecodeRemotingThunk);
-    m_pLocalTarget = GetPreStubEntryPoint();
-}
-
-#ifdef FEATURE_NATIVE_IMAGE_GENERATION
-void RemotingPrecode::Fixup(DataImage *image, ZapNode *pCodeNode)
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (pCodeNode)
-        image->FixupFieldToNode(this, offsetof(RemotingPrecode, m_pLocalTarget),
-                                pCodeNode,
-                                THUMB_CODE,
-                                IMAGE_REL_BASED_PTR);
-    else
-        image->FixupFieldToNode(this, offsetof(RemotingPrecode, m_pLocalTarget),
-                                image->GetHelperThunk(CORINFO_HELP_EE_PRESTUB),
-                                0,
-                                IMAGE_REL_BASED_PTR);
-
-    image->FixupFieldToNode(this, offsetof(RemotingPrecode, m_pPrecodeRemotingThunk),
-                            image->GetHelperThunk(CORINFO_HELP_EE_REMOTING_THUNK),
-                            0,
-                            IMAGE_REL_BASED_PTR);
-
-    image->FixupField(this, offsetof(RemotingPrecode, m_pMethodDesc),
-                      (void*)GetMethodDesc(),
-                      0,
-                      IMAGE_REL_BASED_PTR);
-}
-#endif // FEATURE_NATIVE_IMAGE_GENERATION
-
-void CTPMethodTable::ActivatePrecodeRemotingThunk()
-{
-    // Nothing to do for ARM version of remoting precode (we don't burn the TP MethodTable pointer into
-    // PrecodeRemotingThunk directly).
-}
-
-#endif // HAS_REMOTING_PRECODE
-
-
 #ifndef CROSSGEN_COMPILE
 /*
 Rough pseudo-code of interface dispatching:
@@ -3448,6 +3387,16 @@ void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target)
 }
 #endif // FEATURE_COMINTEROP
 
+void MovRegImm(BYTE* p, int reg, TADDR imm)
+{
+    LIMITED_METHOD_CONTRACT;
+    *(WORD *)(p + 0) = 0xF240;
+    *(WORD *)(p + 2) = (UINT16)(reg << 8);
+    *(WORD *)(p + 4) = 0xF2C0;
+    *(WORD *)(p + 6) = (UINT16)(reg << 8);
+    PutThumb2Mov32((UINT16 *)p, imm);
+}
+
 #ifndef DACCESS_COMPILE
 
 #ifndef CROSSGEN_COMPILE
@@ -3471,16 +3420,6 @@ void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target)
     while (p < pStart + cbAligned) { *(WORD *)p = 0xdefe; p += 2; } \
     ClrFlushInstructionCache(pStart, cbAligned); \
     return (PCODE)((TADDR)pStart | THUMB_CODE)
-
-static void MovRegImm(BYTE* p, int reg, TADDR imm)
-{
-    LIMITED_METHOD_CONTRACT;
-    *(WORD *)(p + 0) = 0xF240;
-    *(WORD *)(p + 2) = (UINT16)(reg << 8);
-    *(WORD *)(p + 4) = 0xF2C0;
-    *(WORD *)(p + 6) = (UINT16)(reg << 8);
-    PutThumb2Mov32((UINT16 *)p, imm);
-}
 
 PCODE DynamicHelpers::CreateHelper(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
 {

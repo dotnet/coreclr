@@ -2,18 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Reflection;
 using System.IO;
-using System.Runtime.Versioning;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security;
-using System.Threading;
-
 
 namespace System.Runtime.Loader
 {
@@ -24,16 +18,13 @@ namespace System.Runtime.Loader
         private static bool _isProcessExiting;
 
         // Id used by contextsToUnload
-        private readonly long id;
+        private readonly long _id;
 
         // synchronization primitive to protect against usage of this instance while unloading
-        private readonly object unloadLock = new object();
+        private readonly object _unloadLock;
 
         // Indicates the state of this ALC (Alive or in Unloading state)
-        private InternalState state;
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern bool CanUseAppPathAssemblyLoadContextInCurrentDomain();
+        private InternalState _state;
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext, bool isCollectible);
@@ -50,12 +41,6 @@ namespace System.Runtime.Loader
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void InternalStartProfile(string profile, IntPtr ptrNativeAssemblyLoadContext);
 
-        static AssemblyLoadContext()
-        {
-            // We register the cleanup of all AssemblyLoadContext that have not been finalized in the AppContext.Unloading
-            AppContext.Unloading += OnAppContextUnloading;
-        }
-
         protected AssemblyLoadContext() : this(false, false)
         {
         }
@@ -68,6 +53,16 @@ namespace System.Runtime.Loader
         {
             // Initialize the VM side of AssemblyLoadContext if not already done.
             IsCollectible = isCollectible;
+            // The _unloadLock needs to be assigned after the IsCollectible to ensure proper behavior of the finalizer
+            // even in case the following allocation fails or the thread is aborted between these two lines.
+            _unloadLock = new object();
+
+            if (!isCollectible)
+            {
+                // For non collectible AssemblyLoadContext, the finalizer should never be called and thus the AssemblyLoadContext should not
+                // be on the finalizer queue.
+                GC.SuppressFinalize(this);
+            }
 
             // Add this instance to the list of alive ALC
             lock (ContextsToUnload)
@@ -86,17 +81,23 @@ namespace System.Runtime.Loader
                 Resolving = null;
                 Unloading = null;
 
-                id = _nextId++;
-                ContextsToUnload.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
+                _id = _nextId++;
+                ContextsToUnload.Add(_id, new WeakReference<AssemblyLoadContext>(this, true));
             }
         }
 
         ~AssemblyLoadContext()
         {
-            // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
-            // We get here only in case the explicit Unload was not initiated.
-            Debug.Assert(state != InternalState.Unloading);
-            InitiateUnload();
+            // Use the _unloadLock as a guard to detect the corner case when the constructor of the AssemblyLoadContext was not executed
+            // e.g. due to the JIT failing to JIT it.
+            if (_unloadLock != null)
+            {
+                // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
+                Debug.Assert(IsCollectible);
+                // We get here only in case the explicit Unload was not initiated.
+                Debug.Assert(_state != InternalState.Unloading);
+                InitiateUnload();
+            }
         }
 
         private void InitiateUnload()
@@ -107,11 +108,11 @@ namespace System.Runtime.Loader
 
             // When in Unloading state, we are not supposed to be called on the finalizer
             // as the native side is holding a strong reference after calling Unload
-            lock (unloadLock)
+            lock (_unloadLock)
             {
                 if (!_isProcessExiting)
                 {
-                    Debug.Assert(state == InternalState.Alive);
+                    Debug.Assert(_state == InternalState.Alive);
 
                     var thisStrongHandle = GCHandle.Alloc(this, GCHandleType.Normal);
                     var thisStrongHandlePtr = GCHandle.ToIntPtr(thisStrongHandle);
@@ -120,14 +121,14 @@ namespace System.Runtime.Loader
                     PrepareForAssemblyLoadContextRelease(m_pNativeAssemblyLoadContext, thisStrongHandlePtr);
                 }
 
-                state = InternalState.Unloading;
+                _state = InternalState.Unloading;
             }
 
             if (!_isProcessExiting)
             {
                 lock (ContextsToUnload)
                 {
-                    ContextsToUnload.Remove(id);
+                    ContextsToUnload.Remove(_id);
                 }
             }
         }
@@ -135,12 +136,10 @@ namespace System.Runtime.Loader
         public bool IsCollectible { get; }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void LoadFromPath(IntPtr ptrNativeAssemblyLoadContet, string ilPath, string niPath, ObjectHandleOnStack retAssembly);
+        private static extern void LoadFromPath(IntPtr ptrNativeAssemblyLoadContext, string ilPath, string niPath, ObjectHandleOnStack retAssembly);
 
-        public static Assembly[] GetLoadedAssemblies()
-        {
-            return AppDomain.CurrentDomain.GetAssemblies(false);
-        }
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern Assembly[] GetLoadedAssemblies();
 
         // These methods load assemblies into the current AssemblyLoadContext 
         // They may be used in the implementation of an AssemblyLoadContext derivation
@@ -151,7 +150,7 @@ namespace System.Runtime.Loader
                 throw new ArgumentNullException(nameof(assemblyPath));
             }
 
-            lock (unloadLock)
+            lock (_unloadLock)
             {
                 VerifyIsAlive();
                 if (PathInternal.IsPartiallyQualified(assemblyPath))
@@ -173,7 +172,7 @@ namespace System.Runtime.Loader
                 throw new ArgumentNullException(nameof(nativeImagePath));
             }
 
-            lock (unloadLock)
+            lock (_unloadLock)
             {
                 VerifyIsAlive();
 
@@ -212,7 +211,7 @@ namespace System.Runtime.Loader
             {
                 throw new BadImageFormatException(SR.BadImageFormat_BadILFormat);
             }
-            lock (unloadLock)
+            lock (_unloadLock)
             {
                 VerifyIsAlive();
 
@@ -261,7 +260,7 @@ namespace System.Runtime.Loader
 
         private void VerifyIsAlive()
         {
-            if (state != InternalState.Alive)
+            if (_state != InternalState.Alive)
             {
                 throw new InvalidOperationException(SR.GetResourceString("AssemblyLoadContext_Verify_NotUnloading"));
             }
@@ -371,9 +370,7 @@ namespace System.Runtime.Loader
         public Assembly LoadFromAssemblyName(AssemblyName assemblyName)
         {
             // Attempt to load the assembly, using the same ordering as static load, in the current load context.
-            Assembly loadedAssembly = Assembly.Load(assemblyName, m_pNativeAssemblyLoadContext);
-
-            return loadedAssembly;
+            return Assembly.Load(assemblyName, m_pNativeAssemblyLoadContext);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -422,16 +419,12 @@ namespace System.Runtime.Loader
             {
                 if (s_DefaultAssemblyLoadContext == null)
                 {
-                    // Try to initialize the default assembly load context with apppath one if we are allowed to
-                    if (AssemblyLoadContext.CanUseAppPathAssemblyLoadContextInCurrentDomain())
+                    // Synchronize access to initializing Default ALC
+                    lock (s_initLock)
                     {
-                        // Synchronize access to initializing Default ALC
-                        lock (s_initLock)
+                        if (s_DefaultAssemblyLoadContext == null)
                         {
-                            if (s_DefaultAssemblyLoadContext == null)
-                            {
-                                s_DefaultAssemblyLoadContext = new AppPathAssemblyLoadContext();
-                            }
+                            s_DefaultAssemblyLoadContext = new AppPathAssemblyLoadContext();
                         }
                     }
                 }
@@ -498,12 +491,7 @@ namespace System.Runtime.Loader
             InternalStartProfile(profile, m_pNativeAssemblyLoadContext);
         }
 
-        private void OnAppContextUnloading()
-        {
-            InitiateUnload();
-        }
-
-        private static void OnAppContextUnloading(object sender, EventArgs e)
+        internal static void OnProcessExit()
         {
             lock (ContextsToUnload)
             {
@@ -514,7 +502,7 @@ namespace System.Runtime.Loader
                     if (alcAlive.Value.TryGetTarget(out alc))
                     {
                         // Should we use a try/catch?
-                        alc.OnAppContextUnloading();
+                        alc.InitiateUnload();
                     }
                 }
                 ContextsToUnload.Clear();
@@ -536,32 +524,67 @@ namespace System.Runtime.Loader
         private static readonly object s_initLock = new object();
 
         // Occurs when an Assembly is loaded
-        public static event AssemblyLoadEventHandler AssemblyLoad
-        {
-            add { AppDomain.CurrentDomain.AssemblyLoad += value; }
-            remove { AppDomain.CurrentDomain.AssemblyLoad -= value; }
-        }
+        public static event AssemblyLoadEventHandler AssemblyLoad;
 
         // Occurs when resolution of type fails
-        public static event ResolveEventHandler TypeResolve
-        {
-            add { AppDomain.CurrentDomain.TypeResolve += value; }
-            remove { AppDomain.CurrentDomain.TypeResolve -= value; }
-        }
+        public static event ResolveEventHandler TypeResolve;
 
         // Occurs when resolution of resource fails
-        public static event ResolveEventHandler ResourceResolve
-        {
-            add { AppDomain.CurrentDomain.ResourceResolve += value; }
-            remove { AppDomain.CurrentDomain.ResourceResolve -= value; }
-        }
+        public static event ResolveEventHandler ResourceResolve;
 
         // Occurs when resolution of assembly fails
         // This event is fired after resolve events of AssemblyLoadContext fails
-        public static event ResolveEventHandler AssemblyResolve
+        public static event ResolveEventHandler AssemblyResolve;
+
+        // This method is called by the VM.
+        private static void OnAssemblyLoad(RuntimeAssembly assembly)
         {
-            add { AppDomain.CurrentDomain.AssemblyResolve += value; }
-            remove { AppDomain.CurrentDomain.AssemblyResolve -= value; }
+            AssemblyLoad?.Invoke(null /* AppDomain */, new AssemblyLoadEventArgs(assembly));
+        }
+
+        // This method is called by the VM.
+        private static RuntimeAssembly OnResourceResolve(RuntimeAssembly assembly, string resourceName)
+        {
+            return InvokeResolveEvent(ResourceResolve, assembly, resourceName);
+        }
+
+        // This method is called by the VM
+        private static RuntimeAssembly OnTypeResolve(RuntimeAssembly assembly, string typeName)
+        {
+            return InvokeResolveEvent(TypeResolve, assembly, typeName);
+        }
+
+        // This method is called by the VM.
+        private static RuntimeAssembly OnAssemblyResolve(RuntimeAssembly assembly, string assemblyFullName)
+        {
+            return InvokeResolveEvent(AssemblyResolve, assembly, assemblyFullName);
+        }
+
+        private static RuntimeAssembly InvokeResolveEvent(ResolveEventHandler eventHandler, RuntimeAssembly assembly, string name)
+        {
+            if (eventHandler == null)
+                return null;
+
+            var args = new ResolveEventArgs(name, assembly);
+
+            foreach (ResolveEventHandler handler in eventHandler.GetInvocationList())
+            {
+                Assembly asm = handler(null /* AppDomain */, args);
+                RuntimeAssembly ret = GetRuntimeAssembly(asm);
+                if (ret != null)
+                    return ret;
+            }
+
+            return null;
+        }
+
+        private static RuntimeAssembly GetRuntimeAssembly(Assembly asm)
+        {
+            return
+                asm == null ? null :
+                asm is RuntimeAssembly rtAssembly ? rtAssembly :
+                asm is System.Reflection.Emit.AssemblyBuilder ab ? ab.InternalAssembly :
+                null;
         }
 
         private enum InternalState
@@ -604,6 +627,4 @@ namespace System.Runtime.Loader
             return null;
         }
     }
-
 }
-

@@ -114,6 +114,17 @@ namespace R2RDump
             }
         }
 
+        internal override void DumpEntryPoints()
+        {
+            XmlNode entryPointsNode = XmlDocument.CreateNode("element", "EntryPoints", "");
+            _rootNode.AppendChild(entryPointsNode);
+            AddXMLAttribute(entryPointsNode, "Count", _r2r.R2RMethods.Count.ToString());
+            foreach (R2RMethod method in NormalizedMethods())
+            {
+                DumpMethod(method, entryPointsNode);
+            }
+        }
+
         internal override void DumpAllMethods()
         {
             XmlNode methodsNode = XmlDocument.CreateNode("element", "Methods", "");
@@ -304,7 +315,7 @@ namespace R2RDump
                             }
                             if (importSection.AuxiliaryDataRVA != 0)
                             {
-                                DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryData.Size, importSectionsNode, "AuxiliaryDataBytes");
+                                DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryDataSize, importSectionsNode, "AuxiliaryDataBytes");
                             }
                         }
                         foreach (R2RImportSection.ImportSectionEntry entry in importSection.Entries)

@@ -629,7 +629,6 @@ void ComClassFactory::Init(__in_opt WCHAR* pwszProgID, __in_opt WCHAR* pwszServe
 
     m_pwszProgID = pwszProgID;
     m_pwszServer = pwszServer;  
-    _ASSERTE(pClassMT == NULL || !pClassMT->Collectible());
     m_pClassMT = pClassMT;
 }
 
@@ -2959,14 +2958,6 @@ IUnknown* RCW::GetComIPFromRCW(MethodTable* pMT)
         RETURN result;
     }
 
-    //
-    // Collectible types do not support com interop
-    //
-    if (pMT->Collectible())
-    {
-        COMPlusThrow(kNotSupportedException, W("NotSupported_CollectibleCOM"));
-    }
-
     // returns an AddRef'ed IP
     RETURN GetComIPForMethodTableFromCache(pMT);
 }
@@ -3556,7 +3547,7 @@ MethodDesc *RCW::GetGetEnumeratorMethod()
         MethodTable *pClsMT;
         {
             GCX_COOP();
-            pClsMT = GetExposedObject()->GetTrueMethodTable();
+            pClsMT = GetExposedObject()->GetMethodTable();
         }
 
         SetGetEnumeratorMethod(pClsMT);
@@ -3929,7 +3920,7 @@ HRESULT RCW::CallQueryInterfaceUsingVariance(MethodTable *pMT, IUnknown **ppUnk)
         
         {
             GCX_COOP();
-            pClassMT = GetExposedObject()->GetTrueMethodTable();
+            pClassMT = GetExposedObject()->GetMethodTable();
         }
         
         // Try interfaces that we know about from metadata
@@ -4739,15 +4730,6 @@ OBJECTREF ComObject::CreateComObjectRef(MethodTable* pMT)
     {
         pMT->CheckRestore();
         pMT->EnsureInstanceActive();
-
-        //
-        // Collectible types do not support com interop
-        //
-        if (pMT->Collectible())
-        {
-            COMPlusThrow(kNotSupportedException, W("NotSupported_CollectibleCOM"));
-        }
-
         pMT->CheckRunClassInitThrowing();
     }
     

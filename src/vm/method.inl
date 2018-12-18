@@ -22,12 +22,6 @@ inline InstantiatedMethodDesc* MethodDesc::AsInstantiatedMethodDesc() const
     return dac_cast<PTR_InstantiatedMethodDesc>(this);
 }
 
-inline BOOL MethodDesc::IsDomainNeutral()
-{
-    WRAPPER_NO_CONTRACT;
-    return !IsLCGMethod() && GetDomain()->IsSharedDomain();
-}
-
 inline BOOL MethodDesc::IsZapped()
 {
     WRAPPER_NO_CONTRACT;
@@ -175,14 +169,6 @@ inline ComPlusCallInfo *ComPlusCallInfo::FromMethodDesc(MethodDesc *pMD)
 }
 
 #endif //FEATURE_COMINTEROP
-
-#ifndef FEATURE_TYPEEQUIVALENCE
-inline BOOL HasTypeEquivalentStructParameters()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-#endif // FEATURE_TYPEEQUIVALENCE
 
 #ifdef FEATURE_CODE_VERSIONING
 inline CodeVersionManager * MethodDesc::GetCodeVersionManager()

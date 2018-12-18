@@ -880,11 +880,6 @@ public:
         WRAPPER_NO_CONTRACT;
         return IsTdSequentialLayout(GetAttrClass());
     }
-    BOOL IsSerializable()
-    {
-        WRAPPER_NO_CONTRACT;
-        return IsTdSerializable(GetAttrClass());
-    }
     BOOL IsBeforeFieldInit()
     {
         WRAPPER_NO_CONTRACT;
@@ -1132,13 +1127,13 @@ public:
         return m_VMFlags & VMFLAG_IS_EQUIVALENT_TYPE;
     }
 
-#ifdef FEATURE_COMINTEROP
+#ifdef FEATURE_TYPEEQUIVALENCE
     inline void SetIsEquivalentType()
     {
         LIMITED_METHOD_CONTRACT;
         m_VMFlags |= VMFLAG_IS_EQUIVALENT_TYPE;
     }
-#endif
+#endif // FEATURE_TYPEEQUIVALENCE
 
     /*
      * Number of static handles allocated
@@ -1589,9 +1584,6 @@ public:
         EnsureWritablePages(&m_pGuidInfo)->SetValueMaybeNull(pGuidInfo);
         #endif // DACCESS_COMPILE
     }
-
-    // Cached class level reliability contract info, see ConstrainedExecutionRegion.cpp for details.
-    DWORD GetReliabilityContract();
 
 
 #if defined(UNIX_AMD64_ABI)

@@ -1,0 +1,210 @@
+
+# Temporarily set a build number format that includes a large revision
+# number that won't conflict with buildpipeline official builds.
+name: $(Date:yyyyMMdd)$(Rev:.7r)
+
+variables:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+resources:
+  containers:
+  - container: ubuntu_1404_arm_cross_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420
+
+  - container: ubuntu_1604_arm64_cross_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921
+
+  - container: ubuntu_1604_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-c103199-20180628134544
+
+  - container: musl_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-e2521f8-20180716231200
+
+  - container: centos7_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:centos-7-d485f41-20173404063424
+
+  - container: centos6_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:centos-6-376e1a3-20174311014331
+
+jobs:
+
+##   The following is the matrix of test runs that we have. This is
+##   duplicated for each os/arch combination in platform-matrix.yml.
+
+##
+##   Product build       Test build              Test run
+##   (Azure DevOps)      (Azure DevOps)          (helix)
+##
+##   ###########################################################################################
+##
+##   Debug
+##
+##   Checked ----------> Pri0 -----------------> plain runtests
+##           |
+##           \---------> Pri1 -----------------> plain runtests
+##           |                \----------------> jitstress
+##           |                \----------------> gcstress
+##           |                \----------------> maybe more (dynamically selected runtest modes)
+##           |
+##           \---------> Pri1 crossgen --------> plain runtests
+##                                     \-------> jitstress
+##                                     \-------> gcstress
+##                                     \-------> maybe more (dynamically selected runtest modes)
+##
+##   Release ----------> Pri1 -----------------> plain runtests
+##           |
+##           \---------> Pri1 crossgen --------> plain runtests
+##
+##
+
+## Each build or test job is defined in Azure DevOps, and will show
+## up in the UI in the order in which they are defined here. The
+## build and test build job matrix is defined statically, but
+## queue-time inputs can be used to control whether a job executes
+## (used to select which jobs run in ci vs for official builds), or
+## to select test modes. This should eventually be used to enable
+## requesting specific test runs from pull requests.
+
+
+##
+## Templates used to define jobs:
+## Please update this if the factoring changes.
+##
+## This file defines the set of jobs in a platform-agnostic manner,
+## using the platform-matrix.yml template. This will create one job
+## for each platform from the passed-in jobTemplate (either a build
+## job or a test job). The build-job.yml and test-job.yml templates
+## use xplat-job.yml to handle some of the common logic for
+## abstracting over platforms. Finally, xplat-job.yml uses the arcade
+## base.yml job template, which sets up telemetry and signing support.
+
+## azure-pipelines.yml -> platform-matrix.yml -------> build-job.yml -------> xplat-job.yml -> base.yml
+##                                            |  (passed-in jobTemplate)  |                    (arcade)
+##                                            \------> test-job.yml ------/
+
+# TODO: simplify logic surrounding official build/ci. See
+# https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
+
+#
+# Debug build (CI)
+#
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: debug
+
+#
+# Checked build (CI)
+#
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: checked
+
+#
+# Release build (Official Build)
+#
+- template: eng/platform-matrix.yml
+  parameters:
+    jobTemplate: build-job.yml
+    buildConfig: release
+
+#
+# Checked test builds
+#
+
+# Pri0 (PullRequest)
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 0
+        timeoutInMinutes: 120
+
+# Pri1 (CI)
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        timeoutInMinutes: 240
+
+# Pri1 crossgen (CI)
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        crossgen: true
+        timeoutInMinutes: 240
+
+# Pri1 (Manual)
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'Manual')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        scenarios: 'normal,jitstress1,jitstress2,gcstress0x3,gcstress0xc'
+        timeoutInMinutes: 300
+
+#
+# Release test builds (Official Build)
+#
+
+# Pri1
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: release
+      jobParameters:
+        priority: 1
+
+# Pri1 crossgen (Official Build)
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: release
+      jobParameters:
+        priority: 1
+        crossgen: true
+
+
+# Publish build information to Build Assets Registry
+
+# This job gathers build assets from the pipeline (from each official
+# product build job), and publishes them to the build assets
+# registry. Its dependencies should be updated to include all of the
+# official builds if we add more platform/arch combinations.
+
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: /eng/common/templates/job/publish-build-assets.yml
+    parameters:
+      configuration: Release
+      pool:
+        name: dotnet-internal-temp
+      dependsOn:
+      - build_Linux_arm_release
+      - build_Linux_arm64_release
+      # TODO: depend on musl job once the glibc container issue is fixed
+      # https://dnceng.visualstudio.com/internal/_workitems/edit/109
+      # - build_Linux_musl_x64_release
+      - build_Linux_rhel6_x64_release
+      - build_Linux_rhel7_x64_release
+      - build_Linux_x64_release
+      - build_OSX_x64_release
+      - build_Windows_NT_x64_release
+      - build_Windows_NT_x86_release
+      - build_Windows_NT_arm_release
+      - build_Windows_NT_arm64_release

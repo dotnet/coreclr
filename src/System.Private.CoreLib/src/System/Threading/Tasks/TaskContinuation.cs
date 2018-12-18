@@ -223,7 +223,7 @@ namespace System.Threading.Tasks
     {
         /// <summary>Inlines or schedules the continuation.</summary>
         /// <param name="completedTask">The antecedent task that has completed.</param>
-        /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
+        /// <param name="bCanInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
         internal abstract void Run(Task completedTask, bool bCanInlineContinuationTask);
 
         /// <summary>Tries to run the task on the current thread, if possible; otherwise, schedules it.</summary>
@@ -395,7 +395,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Inlines or schedules the continuation.</summary>
-        /// <param name="ignored">The antecedent task, which is ignored.</param>
+        /// <param name="task">The antecedent task, which is ignored.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
         internal sealed override void Run(Task task, bool canInlineContinuationTask)
         {
@@ -565,7 +565,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Inlines or schedules the continuation onto the default scheduler.</summary>
-        /// <param name="ignored">The antecedent task, which is ignored.</param>
+        /// <param name="task">The antecedent task, which is ignored.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
         internal override void Run(Task task, bool canInlineContinuationTask)
         {
@@ -646,16 +646,20 @@ namespace System.Threading.Tasks
                 // We're not inside of a task, so t_currentTask doesn't need to be specially maintained.
                 // We're on a thread pool thread with no higher-level callers, so exceptions can just propagate.
 
-                // If there's no execution context, just invoke the delegate.
-                if (context == null)
+                ExecutionContext.CheckThreadPoolAndContextsAreDefault();
+                // If there's no execution context or Default, just invoke the delegate as ThreadPool is on Default context.
+                // We don't have to use ExecutionContext.Run for the Default context here as there is no extra processing after the delegate
+                if (context == null || context.IsDefault)
                 {
                     m_action();
                 }
                 // If there is an execution context, get the cached delegate and run the action under the context.
                 else
                 {
-                    ExecutionContext.RunInternal(context, GetInvokeActionCallback(), m_action);
+                    ExecutionContext.RunForThreadPoolUnsafe(context, s_invokeAction, m_action);
                 }
+
+                // ThreadPoolWorkQueue.Dispatch handles notifications and reset context back to default
             }
             finally
             {
@@ -667,19 +671,11 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Cached delegate that invokes an Action passed as an object parameter.</summary>
-        private static ContextCallback s_invokeActionCallback;
-
-        /// <summary>Runs an action provided as an object parameter.</summary>
-        /// <param name="state">The Action to invoke.</param>
-        private static void InvokeAction(object state) { ((Action)state)(); }
+        private readonly static ContextCallback s_invokeContextCallback = (state) => ((Action)state)();
+        private readonly static Action<Action> s_invokeAction = (action) => action();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected static ContextCallback GetInvokeActionCallback()
-        {
-            ContextCallback callback = s_invokeActionCallback;
-            if (callback == null) { s_invokeActionCallback = callback = InvokeAction; } // lazily initialize SecurityCritical delegate
-            return callback;
-        }
+        protected static ContextCallback GetInvokeActionCallback() => s_invokeContextCallback;
 
         /// <summary>Runs the callback synchronously with the provided state.</summary>
         /// <param name="callback">The callback to run.</param>
@@ -813,6 +809,7 @@ namespace System.Threading.Tasks
 
         /// <summary>Schedules the action to be executed.  No ExecutionContext work is performed used.</summary>
         /// <param name="action">The action to invoke or queue.</param>
+        /// <param name="task">The task scheduling the action.</param>
         internal static void UnsafeScheduleAction(Action action, Task task)
         {
             AwaitTaskContinuation atc = new AwaitTaskContinuation(action, flowExecutionContext: false);
@@ -839,7 +836,7 @@ namespace System.Threading.Tasks
             // If unhandled error reporting APIs are available use those, otherwise since this 
             // would have executed on the thread pool otherwise, let it propagate there.
 
-            if (!(exc is ThreadAbortException || exc is AppDomainUnloadedException))
+            if (!(exc is ThreadAbortException))
             {
 #if FEATURE_COMINTEROP
                 if (!WindowsRuntimeMarshal.ReportUnhandledError(exc))

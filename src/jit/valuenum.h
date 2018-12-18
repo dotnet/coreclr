@@ -397,12 +397,25 @@ public:
 
     ValueNumPair VNPWithExc(ValueNumPair vnp, ValueNumPair excSetVNP);
 
-    // If "vnWx" is a "VNF_ValWithExc(normal, excSet)" value, this sets "*pvn" to the Normal value
-    // and sets "*pvnx" to Exception set value.  Otherwise, this just sets "*pvn" to to the Normal value.
+    // This sets "*pvn" to the Normal value and sets "*pvnx" to Exception set value.
     // "pvnx" represents the set of all exceptions that can happen for the expression
     void VNUnpackExc(ValueNum vnWx, ValueNum* pvn, ValueNum* pvnx);
 
     void VNPUnpackExc(ValueNumPair vnWx, ValueNumPair* pvn, ValueNumPair* pvnx);
+
+    // This returns the Union of exceptions from vnWx and vnExcSet
+    ValueNum VNUnionExcSet(ValueNum vnWx, ValueNum vnExcSet);
+
+    // This returns the Union of exceptions from vnpWx and vnpExcSet
+    ValueNumPair VNPUnionExcSet(ValueNumPair vnpWx, ValueNumPair vnpExcSet);
+
+    // Sets the normal value to a new unique ValueNum
+    // Keeps any Exception set values
+    ValueNum VNMakeNormalUnique(ValueNum vn);
+
+    // Sets the liberal & conservative
+    // Keeps any Exception set values
+    ValueNumPair VNPMakeNormalUniquePair(ValueNumPair vnp);
 
     // If "vn" is a "VNF_ValWithExc(norm, excSet)" value, returns the "norm" argument; otherwise,
     // just returns "vn".

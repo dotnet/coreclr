@@ -512,15 +512,30 @@ void CodeGen::genCodeForBBlist()
         // it up to date for vars that are not register candidates
         // (it would be nice to have a xor set function)
 
-        VARSET_TP extraLiveVars(VarSetOps::Diff(compiler, block->bbLiveOut, compiler->compCurLife));
-        VarSetOps::UnionD(compiler, extraLiveVars, VarSetOps::Diff(compiler, compiler->compCurLife, block->bbLiveOut));
-        VarSetOps::Iter extraLiveVarIter(compiler, extraLiveVars);
-        unsigned        extraLiveVarIndex = 0;
-        while (extraLiveVarIter.NextElem(&extraLiveVarIndex))
+        VARSET_TP mismatchLiveVars(VarSetOps::Diff(compiler, block->bbLiveOut, compiler->compCurLife));
+        VarSetOps::UnionD(compiler, mismatchLiveVars,
+                          VarSetOps::Diff(compiler, compiler->compCurLife, block->bbLiveOut));
+        VarSetOps::Iter mismatchLiveVarIter(compiler, mismatchLiveVars);
+        unsigned        mismatchLiveVarIndex  = 0;
+        bool            foundMismatchedRegVar = false;
+        while (mismatchLiveVarIter.NextElem(&mismatchLiveVarIndex))
         {
-            unsigned   varNum = compiler->lvaTrackedToVarNum[extraLiveVarIndex];
+            unsigned   varNum = compiler->lvaTrackedToVarNum[mismatchLiveVarIndex];
             LclVarDsc* varDsc = compiler->lvaTable + varNum;
-            assert(!varDsc->lvIsRegCandidate());
+            if (varDsc->lvIsRegCandidate())
+            {
+                if (!foundMismatchedRegVar)
+                {
+                    JITDUMP("Mismatched live reg vars after BB%02u:", block->bbNum);
+                    foundMismatchedRegVar = true;
+                }
+                JITDUMP(" V%02u", varNum);
+            }
+        }
+        if (foundMismatchedRegVar)
+        {
+            assert(!"Found mismatched live reg var(s) after block");
+            JITDUMP("\n");
         }
 #endif
 
@@ -741,21 +756,9 @@ void CodeGen::genSpillVar(GenTree* tree)
         var_types lclTyp = genActualType(varDsc->TypeGet());
         emitAttr  size   = emitTypeSize(lclTyp);
 
-        bool restoreRegVar = false;
-        if (tree->gtOper == GT_REG_VAR)
-        {
-            tree->SetOper(GT_LCL_VAR);
-            restoreRegVar = true;
-        }
-
         instruction storeIns = ins_Store(lclTyp, compiler->isSIMDTypeLocalAligned(varNum));
         assert(varDsc->lvRegNum == tree->gtRegNum);
         inst_TT_RV(storeIns, tree, tree->gtRegNum, 0, size);
-
-        if (restoreRegVar)
-        {
-            tree->SetOper(GT_REG_VAR);
-        }
 
         genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(tree));
         gcInfo.gcMarkRegSetNpt(varDsc->lvRegMask());

@@ -106,6 +106,9 @@ public:
     void FirePinObjectAtGCTime(void* object, uint8_t** ppObject) = 0;
 
     virtual
+    void FirePinPlugAtGCTime(uint8_t* plug_start, uint8_t* plug_end, uint8_t* gapBeforeSize) = 0;
+
+    virtual
     void FireGCPerHeapHistory_V3(void *freeListAllocated,
                                  void *freeListRejected,
                                  void *endOfSegAllocated,
@@ -328,12 +331,6 @@ public:
     // and it's up to the GC to finalize it later.
     virtual
     bool EagerFinalized(Object* obj) = 0;
-
-    // Asks the EE if it wishes for the current GC to be a blocking GC. The GC will
-    // only invoke this callback when it intends to do a full GC, so at this point
-    // the EE can opt to elevate that collection to be a blocking GC and not a background one.
-    virtual
-    bool ForceFullGCToBeBlocking() = 0;
 
     // Retrieves the method table for the free object, a special kind of object used by the GC
     // to keep the heap traversable. Conceptually, the free object is similar to a managed array
