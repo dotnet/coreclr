@@ -54,16 +54,9 @@ struct NFTDataBaseEntry
 static const NFTDataBaseEntry NFTDataBase[] =
 {
     #undef DEFINE_NFT
-    #define DEFINE_NFT(name, fieldMarshaler,  nativesize, fWinRTSupported) { nativesize, fWinRTSupported },
+    #define DEFINE_NFT(name,  nativesize, fWinRTSupported) { nativesize, fWinRTSupported },
     #include "nsenums.h"
 };
-
-template<typename FieldMarshaler>
-struct FieldMarshalerNFTMap;
-
-#undef DEFINE_NFT
-#define DEFINE_NFT(name, fieldMarshaler, nativeSize, fWinRTSupported) template<> struct FieldMarshalerNFTMap<fieldMarshaler>{ static constexpr NStructFieldType nft = name; };
-#include "nsenums.h"
 
 template<typename TFieldMarshaler, typename TSpace, typename... TArgs>
 NStructFieldType InitFieldMarshaler(TSpace& space, NativeFieldFlags flags, TArgs&&... args)
@@ -71,9 +64,9 @@ NStructFieldType InitFieldMarshaler(TSpace& space, NativeFieldFlags flags, TArgs
     static_assert_no_msg(sizeof(TFieldMarshaler) <= MAXFIELDMARSHALERSIZE);
     static_assert_no_msg(sizeof(TSpace) == MAXFIELDMARSHALERSIZE);
     TFieldMarshaler* marshaler = new (&space) TFieldMarshaler(std::forward<TArgs>(args)...);
-    marshaler->SetNStructFieldType(FieldMarshalerNFTMap<TFieldMarshaler>::nft);
+    marshaler->SetNStructFieldType(TFieldMarshaler::s_nft);
     marshaler->SetNativeFieldFlags(flags);
-    return FieldMarshalerNFTMap<TFieldMarshaler>::nft;
+    return TFieldMarshaler::s_nft;
 }
 
 #ifdef _PREFAST_

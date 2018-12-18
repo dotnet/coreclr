@@ -507,6 +507,7 @@ protected:
 class FieldMarshaler_BSTR : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_BSTR;
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -523,6 +524,7 @@ public:
 class FieldMarshaler_HSTRING : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_HSTRING;
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
@@ -537,6 +539,7 @@ public:
 class FieldMarshaler_Nullable : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_WINDOWSFOUNDATIONIREFERENCE;
 
     FieldMarshaler_Nullable(MethodTable* pMT)
     {
@@ -633,6 +636,8 @@ private:
 class FieldMarshaler_SystemType : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_SYSTEMTYPE;
+
     VOID UpdateNativeImpl(OBJECTREF * pCLRValue, LPVOID pNativeValue, OBJECTREF * ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID * pNativeValue, OBJECTREF * ppProtectedCLRValue, OBJECTREF * ppProtectedOldCLRValue) const;
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
@@ -648,6 +653,8 @@ public:
 class FieldMarshaler_Exception : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_WINDOWSFOUNDATIONHRESULT;
+
     VOID UpdateNativeImpl(OBJECTREF * pCLRValue, LPVOID pNativeValue, OBJECTREF * ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID * pNativeValue, OBJECTREF * ppProtectedCLRValue, OBJECTREF * ppProtectedOldCLRValue) const;
     
@@ -669,6 +676,8 @@ public:
 class FieldMarshaler_NestedLayoutClass : public FieldMarshaler_NestedType
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_NESTEDLAYOUTCLASS;
+
     FieldMarshaler_NestedLayoutClass(MethodTable *pMT)
     {
         WRAPPER_NO_CONTRACT;
@@ -754,6 +763,7 @@ private:
 class FieldMarshaler_NestedValueClass : public FieldMarshaler_NestedType
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_NESTEDVALUECLASS;
 #ifndef _DEBUG
     FieldMarshaler_NestedValueClass(MethodTable *pMT)
 #else
@@ -875,6 +885,7 @@ private:
 class FieldMarshaler_StringUni : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_STRINGUNI;
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -890,6 +901,7 @@ public:
 class FieldMarshaler_StringUtf8 : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_STRINGUTF8;
 
 	VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
 	VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -905,6 +917,8 @@ public:
 class FieldMarshaler_StringAnsi : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_STRINGANSI;
+
     FieldMarshaler_StringAnsi(BOOL BestFit, BOOL ThrowOnUnmappableChar) : 
         m_BestFitMap(!!BestFit), m_ThrowOnUnmappableChar(!!ThrowOnUnmappableChar)
     {
@@ -948,6 +962,8 @@ private:
 class FieldMarshaler_FixedStringUni : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_FIXEDSTRINGUNI;
+
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
 
@@ -977,6 +993,8 @@ private:
 class FieldMarshaler_FixedStringAnsi : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_FIXEDSTRINGANSI;
+
     FieldMarshaler_FixedStringAnsi(UINT32 numChar, BOOL BestFitMap, BOOL ThrowOnUnmappableChar) :
         m_numchar(numChar), m_BestFitMap(!!BestFitMap), m_ThrowOnUnmappableChar(!!ThrowOnUnmappableChar)
     {
@@ -1022,6 +1040,8 @@ private:
 class FieldMarshaler_FixedCharArrayAnsi : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_FIXEDCHARARRAYANSI;
+
     FieldMarshaler_FixedCharArrayAnsi(UINT32 numElems, BOOL BestFit, BOOL ThrowOnUnmappableChar) :
         m_numElems(numElems), m_BestFitMap(!!BestFit), m_ThrowOnUnmappableChar(!!ThrowOnUnmappableChar)
     {
@@ -1067,6 +1087,8 @@ private:
 class FieldMarshaler_FixedArray : public FieldMarshaler_NestedType
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_FIXEDARRAY;
+
     FieldMarshaler_FixedArray(IMDInternalImport *pMDImport, mdTypeDef cl, UINT32 numElems, VARTYPE vt, MethodTable* pElementMT);
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
@@ -1180,6 +1202,7 @@ private:
 class FieldMarshaler_SafeArray : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_SAFEARRAY;
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -1269,6 +1292,8 @@ private:
 class FieldMarshaler_Delegate : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_DELEGATE;
+
     FieldMarshaler_Delegate(MethodTable* pMT)
     {
         WRAPPER_NO_CONTRACT;
@@ -1347,6 +1372,7 @@ public:
 class FieldMarshaler_SafeHandle : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_SAFEHANDLE;
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -1364,6 +1390,7 @@ public:
 class FieldMarshaler_CriticalHandle : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_CRITICALHANDLE;
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -1380,6 +1407,7 @@ public:
 class FieldMarshaler_Interface : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_INTERFACE;
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -1516,6 +1544,7 @@ static_assert_no_msg(sizeof(FieldMarshaler_Interface) == MAXFIELDMARSHALERSIZE);
 class FieldMarshaler_Variant : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_VARIANT;
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -1534,6 +1563,8 @@ public:
 class FieldMarshaler_Illegal : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_ILLEGAL;
+
     FieldMarshaler_Illegal(UINT resIDWhy)
     {
         WRAPPER_NO_CONTRACT;
@@ -1564,7 +1595,8 @@ private:
 
 class FieldMarshaler_Copy1 : public FieldMarshaler
 {
-public: 
+public:
+    static constexpr NStructFieldType s_nft = NFT_COPY1;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
@@ -1610,6 +1642,7 @@ public:
 class FieldMarshaler_Copy2 : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_COPY2;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
@@ -1654,6 +1687,7 @@ public:
 class FieldMarshaler_Copy4 : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_COPY4;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
@@ -1698,6 +1732,7 @@ public:
 class FieldMarshaler_Copy8 : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_COPY8;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
@@ -1749,6 +1784,8 @@ public:
 class FieldMarshaler_Ansi : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_ANSICHAR;
+
     FieldMarshaler_Ansi(BOOL BestFitMap, BOOL ThrowOnUnmappableChar) :
         m_BestFitMap(!!BestFitMap), m_ThrowOnUnmappableChar(!!ThrowOnUnmappableChar)
     {
@@ -1827,6 +1864,7 @@ private:
 class FieldMarshaler_WinBool : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_WINBOOL;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
@@ -1875,6 +1913,7 @@ public:
 class FieldMarshaler_VariantBool : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_VARIANTBOOL;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
@@ -1926,6 +1965,7 @@ public:
 class FieldMarshaler_CBool : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_CBOOL;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
@@ -1969,6 +2009,8 @@ public:
 class FieldMarshaler_Decimal : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_DECIMAL;
+
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
@@ -2010,6 +2052,7 @@ public:
 class FieldMarshaler_Date : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_DATE;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
@@ -2029,6 +2072,7 @@ public:
 class FieldMarshaler_Currency : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_CURRENCY;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
@@ -2044,6 +2088,7 @@ public:
 class FieldMarshaler_DateTimeOffset : public FieldMarshaler
 {
 public:
+    static constexpr NStructFieldType s_nft = NFT_DATETIMEOFFSET;
 
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
