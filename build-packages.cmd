@@ -15,7 +15,7 @@ if /I [%1] == [/help] goto Usage
 
 REM CMD eats "=" on the argument list.
 REM TODO: remove all -Property=Value type arguments here once we get rid of them in buildpipeline.
-if /i "%1" == "-BuildArch"       (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildArch=%2&shift&shift&echo -BuildArch=%2&goto Arg_Loop)
+if /i "%1" == "-BuildArch"       (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildArch=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "-BuildType"       (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildType=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "-OfficialBuildId" (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:OfficialBuildId=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "--"               (set processedArgs=!processedArgs! %1&shift)
@@ -33,7 +33,7 @@ if [!processedArgs!]==[] (
 
 :ArgsDone
 
-call %__ProjectDir%/msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /p:__BuildOS=Windows_NT /flp:v=detailed;Append;LogFile=build-packages.log /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:PortableBuild=true %__ProjectDir%\src\.nuget\packages.builds /p:FilterToOSGroup=Windows_NT %unprocessedArgs%
+call %__ProjectDir%/msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /p:__BuildOS=Windows_NT /flp:v=detailed;Append;LogFile=build-packages.log /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:PortableBuild=true %__ProjectDir%\src\.nuget\packages.builds /p:FilterToOSGroup=Windows_NT %__MSBuildArgs% %unprocessedArgs%
 if NOT [!ERRORLEVEL!]==[0] (
   echo ERROR: An error occurred while building packages, see build-packages.log for more details.
   exit /b 1
