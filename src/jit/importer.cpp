@@ -4039,6 +4039,38 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 break;
             }
 
+#ifdef FEATURE_HW_INTRINSICS
+            case NI_System_Math_FusedMultiplyAdd:
+            case NI_System_MathF_FusedMultiplyAdd:
+            {
+#ifdef _TARGET_XARCH_
+                if (compSupports(InstructionSet_FMA))
+                {
+                    assert(varTypeIsFloating(callType));
+
+                    // We are constructing a chain of intrinsics similar to:
+                    //    return FMA.MultiplyAddScalar(
+                    //        Vector128.CreateScalar(x),
+                    //        Vector128.CreateScalar(y),
+                    //        Vector128.CreateScalar(z)
+                    //    ).ToScalar();
+
+                    GenTree* op3 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                            NI_Base_Vector128_CreateScalarUnsafe, callType, 16);
+                    GenTree* op2 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                            NI_Base_Vector128_CreateScalarUnsafe, callType, 16);
+                    GenTree* op1 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                            NI_Base_Vector128_CreateScalarUnsafe, callType, 16);
+                    GenTree* res =
+                        gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, op2, op3, NI_FMA_MultiplyAddScalar, callType, 16);
+
+                    retNode = gtNewSimdHWIntrinsicNode(callType, res, NI_Base_Vector128_ToScalar, callType, 16);
+                }
+#endif // _TARGET_XARCH_
+                break;
+            }
+#endif // FEATURE_HW_INTRINSICS
+
             case NI_System_Math_Round:
             case NI_System_MathF_Round:
             {
@@ -4460,20 +4492,28 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
         {
             result = NI_System_Enum_HasFlag;
         }
-        else if (strncmp(methodName, "Math", 4) == 0)
+        else if (strncmp(className, "Math", 4) == 0)
         {
-            methodName += 4;
+            className += 4;
 
-            if (methodName[0] == '\0')
+            if (className[0] == '\0')
             {
-                if (strcmp(methodName, "Round") == 0)
+                if (strcmp(methodName, "FusedMultiplyAdd") == 0)
+                {
+                    result = NI_System_Math_FusedMultiplyAdd;
+                }
+                else if (strcmp(methodName, "Round") == 0)
                 {
                     result = NI_System_Math_Round;
                 }
             }
-            else if (strcmp(methodName, "F") == 0)
+            else if (strcmp(className, "F") == 0)
             {
-                if (strcmp(methodName, "Round") == 0)
+                if (strcmp(methodName, "FusedMultiplyAdd") == 0)
+                {
+                    result = NI_System_MathF_FusedMultiplyAdd;
+                }
+                else if (strcmp(methodName, "Round") == 0)
                 {
                     result = NI_System_MathF_Round;
                 }
