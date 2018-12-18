@@ -300,7 +300,7 @@ protected:
 
     int genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
                                         int       spDelta,
-                                        int spOffset DEBUGARG(bool isRegsToSaveCountOddToSaveCountOdd));
+                                        int spOffset DEBUGARG(bool isRegsToSaveCountOdd));
     int genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
                                            int       spDelta,
                                            int spOffset DEBUGARG(bool isRegsToRestoreCountOdd));
