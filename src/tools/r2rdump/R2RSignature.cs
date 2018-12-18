@@ -107,7 +107,7 @@ namespace R2RDump
                         string fieldSig = memberRef.DecodeFieldSignature<string, DisassemblingGenericContext>(this, genericContext);
                         builder.Append(fieldSig);
                         builder.Append(" ");
-                        builder.Append(EmitContainingTypeAndMethodName(memberRef, owningTypeOverride));
+                        builder.Append(EmitContainingTypeAndMemberName(memberRef, owningTypeOverride));
                         break;
                     }
 
@@ -116,7 +116,7 @@ namespace R2RDump
                         MethodSignature<String> methodSig = memberRef.DecodeMethodSignature<string, DisassemblingGenericContext>(this, genericContext);
                         builder.Append(methodSig.ReturnType);
                         builder.Append(" ");
-                        builder.Append(EmitContainingTypeAndMethodName(memberRef, owningTypeOverride));
+                        builder.Append(EmitContainingTypeAndMemberName(memberRef, owningTypeOverride));
                         builder.Append(EmitMethodSignature(methodSig));
                         break;
                     }
@@ -196,17 +196,17 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Emit containing type and method name and extract the method signature from a method reference.
+        /// Emit containing type and member name.
         /// </summary>
-        /// <param name="methodRef">Method reference to format</param>
-        /// <param name="methodSignature">Output method signature</param>
-        private string EmitContainingTypeAndMethodName(MemberReference methodRef, string owningTypeOverride)
+        /// <param name="memberRef">Member reference to format</param>
+        /// <param name="owningTypeOverride">Optional override for the owning type, null = MemberReference.Parent</param>
+        private string EmitContainingTypeAndMemberName(MemberReference memberRef, string owningTypeOverride)
         {
             if (owningTypeOverride == null)
             {
-                owningTypeOverride = EmitHandleName(methodRef.Parent, namespaceQualified: true, owningTypeOverride: null);
+                owningTypeOverride = EmitHandleName(memberRef.Parent, namespaceQualified: true, owningTypeOverride: null);
             }
-            return owningTypeOverride + "." + EmitString(methodRef.Name);
+            return owningTypeOverride + "." + EmitString(memberRef.Name);
         }
 
         /// <summary>
