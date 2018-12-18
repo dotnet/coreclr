@@ -388,13 +388,13 @@ build_MSBuild_projects()
             export TestBuildSlice=$slice
 
             # Generate build command
-            buildMSBuildArgs=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-            buildMSBuildArgs+=("$msbuildEventLoggingMSBuildArg")
-            buildMSBuildArgs+=("${extraBuildParameters[@]}")
-            buildMSBuildArgs+=("${__RunMSBuildArgs[@]}")
-            buildMSBuildArgs+=("${__UnprocessedBuildArgs[@]}")
+            buildArgs=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
+            buildArgs+=("$msbuildEventLoggingMSBuildArg")
+            buildArgs+=("${extraBuildParameters[@]}")
+            buildArgs+=("${__CommonMSBuildArgs[@]}")
+            buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-            nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildMSBuildArgs[@]}"
+            nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildArgs[@]}"
             echo "Building step '$stepName' slice=$slice via $nextCommand"
             eval $nextCommand
 
@@ -416,13 +416,13 @@ build_MSBuild_projects()
         __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
 
         # Generate build command
-        buildMSBuildArgs=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-        buildMSBuildArgs+=("$msbuildEventLoggingMSBuildArg")
-        buildMSBuildArgs+=("${extraBuildParameters[@]}")
-        buildMSBuildArgs+=("${__RunMSBuildArgs[@]}")
-        buildMSBuildArgs+=("${__UnprocessedBuildArgs[@]}")
+        buildArgs=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
+        buildArgs+=("$msbuildEventLoggingMSBuildArg")
+        buildArgs+=("${extraBuildParameters[@]}")
+        buildArgs+=("${__CommonMSBuildArgs[@]}")
+        buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-        nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildMSBuildArgs[@]}"
+        nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildArgs[@]}"
         echo "Building step '$stepName' via $nextCommand"
         eval $nextCommand
 
@@ -473,7 +473,7 @@ build_native_projects()
                                       /t:GenerateVersionHeader /p:GenerateVersionHeader=true \
                                       /p:NativeVersionSourceFile=$__versionSourceFile \
                                       /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                                      $__RunMSBuildArgs $__UnprocessedBuildArgs
+                                      $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else
             # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
@@ -641,7 +641,7 @@ __RootBinDir="$__ProjectDir/bin"
 __BuildToolsDir="$__ProjectDir/Tools"
 __DotNetCli="${__BuildToolsDir}/dotnetcli/dotnet"
 __UnprocessedBuildArgs=
-__RunMSBuildArgs=
+__CommonMSBuildArgs=
 __MSBCleanBuildArgs=
 __UseNinja=0
 __VerboseBuild=0
@@ -868,12 +868,12 @@ else
   __NumProc=$(nproc --all)
 fi
 
-__RunMSBuildArgs=("/p:BuildArch=$__BuildArch" "/p:BuildType=$__BuildType" "/p:BuildOS=$__BuildOS")
+__CommonMSBuildArgs=("/p:BuildArch=$__BuildArch" "/p:BuildType=$__BuildType" "/p:BuildOS=$__BuildOS")
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
     export VERBOSE=1
-    __RunMSBuildArgs+=("/v:detailed")
+    __CommonMSBuildArgs+=("/v:detailed")
 fi
 
 # Set default clang version
