@@ -39,7 +39,7 @@
     <RefDestination>$(ProductDestination)\ref</RefDestination>
   </PropertyGroup>
 
-  <Target Name="CopyDependecyToCoreRoot"
+  <Target Name="CopyDependencyToCoreRoot"
     Inputs="@(CoreRootProjectLockJsonFiles)"
     Outputs="$(CORE_ROOT)\*.*">
 
