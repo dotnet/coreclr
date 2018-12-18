@@ -157,6 +157,8 @@ namespace System
                 {
                     throw CreateGuidParseException();
                 }
+
+                _parsedGuid = Empty;
             }
 
             internal void SetFailure(bool overflow, string failureMessageID, object failureMessageFormatArgument)
@@ -426,10 +428,10 @@ namespace System
                 ref Guid g = ref result._parsedGuid;
 
                 uint uintTmp;
-                uint uintTmp2;
+                uint uintTmp2 = 0;
 
                 if (!TryParseHexD(guidString.Slice(0, 4), out uintTmp) ||
-                    !TryParseHexD(guidString.Slice(4, 4), out uintTmp2))
+                    !TryParseHexN(guidString.Slice(4, 4), ref uintTmp2))
                     goto FalseExit;
                 g._a = (int)((uintTmp << 16) + uintTmp2);
 
@@ -448,8 +450,8 @@ namespace System
                 g._f = (byte)(uintTmp2 >> 8);
                 g._g = (byte)uintTmp2;
 
-                if (!TryParseHexD(guidString.Slice(28, 4), out uintTmp) ||
-                    !TryParseHexD(guidString.Slice(32, 4), out uintTmp2))
+                if (!TryParseHexN(guidString.Slice(28, 4), ref uintTmp) ||
+                    !TryParseHexN(guidString.Slice(32, 4), ref uintTmp2))
                     goto FalseExit;
                 g._h = (byte)(uintTmp >> 8);
                 g._i = (byte)uintTmp;
@@ -477,31 +479,31 @@ namespace System
             {
                 ref Guid g = ref result._parsedGuid;
 
-                uint uintTmp;
-                uint uintTmp2;
+                uint uintTmp = 0;
+                uint uintTmp2 = 0;
 
-                if (!TryParseHexN(guidString.Slice(0, 4), out uintTmp) ||
-                    !TryParseHexN(guidString.Slice(4, 4), out uintTmp2))
+                if (!TryParseHexN(guidString.Slice(0, 4), ref uintTmp) ||
+                    !TryParseHexN(guidString.Slice(4, 4), ref uintTmp2))
                     goto FalseExit;
                 g._a = (int)((uintTmp << 16) + uintTmp2);
 
-                if (!TryParseHexN(guidString.Slice(8, 4), out uintTmp) ||
-                    !TryParseHexN(guidString.Slice(12, 4), out uintTmp2))
+                if (!TryParseHexN(guidString.Slice(8, 4), ref uintTmp) ||
+                    !TryParseHexN(guidString.Slice(12, 4), ref uintTmp2))
                     goto FalseExit;
 
                 g._b = (short)uintTmp;
                 g._c = (short)uintTmp2;
 
-                if (!TryParseHexN(guidString.Slice(16, 4), out uintTmp) ||
-                    !TryParseHexN(guidString.Slice(20, 4), out uintTmp2))
+                if (!TryParseHexN(guidString.Slice(16, 4), ref uintTmp) ||
+                    !TryParseHexN(guidString.Slice(20, 4), ref uintTmp2))
                     goto FalseExit;
                 g._d = (byte)(uintTmp >> 8);
                 g._e = (byte)uintTmp;
                 g._f = (byte)(uintTmp2 >> 8);
                 g._g = (byte)uintTmp2;
 
-                if (!TryParseHexN(guidString.Slice(24, 4), out uintTmp) ||
-                    !TryParseHexN(guidString.Slice(28, 4), out uintTmp2))
+                if (!TryParseHexN(guidString.Slice(24, 4), ref uintTmp) ||
+                    !TryParseHexN(guidString.Slice(28, 4), ref uintTmp2))
                     goto FalseExit;
                 g._h = (byte)(uintTmp >> 8);
                 g._i = (byte)uintTmp;
@@ -776,37 +778,35 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool TryParseHexN(ReadOnlySpan<char> value, out uint result)
+        private static bool TryParseHexN(ReadOnlySpan<char> value, ref uint result)
         {
-            Debug.Assert(value.Length == 4, "Expects exact 4 characters (guaranteed, because called only from TryParseExactN)");
+            Debug.Assert(value.Length == 4,
+                "Expects exact 4 characters (guaranteed, because called only from TryParseExactN and TryParseExactD)");
             ReadOnlySpan<byte> charToHexLookup = Number.CharToHexLookup;
 
             int num = value[0];
             uint numValue;
 
             if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                goto FalseExit;
+                return false;
             result = numValue;
 
             num = value[1];
             if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                goto FalseExit;
+                return false;
             result = 16 * result + numValue;
 
             num = value[2];
             if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                goto FalseExit;
+                return false;
             result = 16 * result + numValue;
 
             num = value[3];
             if ((uint)num >= (uint)charToHexLookup.Length || (numValue = charToHexLookup[num]) == 0xFF)
-                goto FalseExit;
+                return false;
             result = 16 * result + numValue;
 
             return true;
-        FalseExit:
-            result = 0;
-            return false;
         }
 
         private static bool TryParseHex(ReadOnlySpan<char> guidString, out short result, ref bool overflow)
