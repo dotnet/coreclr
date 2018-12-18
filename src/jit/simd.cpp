@@ -2349,11 +2349,14 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
                                     CORINFO_CLASS_HANDLE  clsHnd,
                                     CORINFO_METHOD_HANDLE methodHnd,
                                     CORINFO_SIG_INFO*     sig,
+                                    unsigned              methodFlags,
                                     int                   memberRef)
 {
     assert(featureSIMD);
 
-    if (!isSIMDClass(clsHnd))
+    // Exit early if we are either not in one of the SIMD types or if the method
+    // is not a JIT Intrinsic (which requires the [Intrinsic] attribute).
+    if (!isSIMDClass(clsHnd) || ((methodFlags & CORINFO_FLG_JIT_INTRINSIC) == 0))
     {
         return nullptr;
     }
