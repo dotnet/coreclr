@@ -86,42 +86,6 @@ namespace System.Runtime.CompilerServices
         }
 
 #if DEBUG
-        internal static int UnsafeEnumCast<T>(T val) where T : struct		// Actually T must be 4 byte (or less) enum
-        {
-            Debug.Assert(typeof(T).IsEnum
-                              && (Enum.GetUnderlyingType(typeof(T)) == typeof(int)
-                                  || Enum.GetUnderlyingType(typeof(T)) == typeof(uint)
-                                  || Enum.GetUnderlyingType(typeof(T)) == typeof(short)
-                                  || Enum.GetUnderlyingType(typeof(T)) == typeof(ushort)
-                                  || Enum.GetUnderlyingType(typeof(T)) == typeof(byte)
-                                  || Enum.GetUnderlyingType(typeof(T)) == typeof(sbyte)),
-                "Error, T must be an 4 byte (or less) enum JitHelpers.UnsafeEnumCast!");
-            return UnsafeEnumCastInternal<T>(val);
-        }
-
-        private static int UnsafeEnumCastInternal<T>(T val) where T : struct		// Actually T must be 4 (or less) byte enum
-        {
-            // should be return (int) val; but C# does not allow, runtime does this magically
-            // See getILIntrinsicImplementation for how this happens.  
-            throw new InvalidOperationException();
-        }
-
-        internal static long UnsafeEnumCastLong<T>(T val) where T : struct		// Actually T must be 8 byte enum
-        {
-            Debug.Assert(typeof(T).IsEnum
-                              && (Enum.GetUnderlyingType(typeof(T)) == typeof(long)
-                                  || Enum.GetUnderlyingType(typeof(T)) == typeof(ulong)),
-                "Error, T must be an 8 byte enum JitHelpers.UnsafeEnumCastLong!");
-            return UnsafeEnumCastLongInternal<T>(val);
-        }
-
-        private static long UnsafeEnumCastLongInternal<T>(T val) where T : struct	// Actually T must be 8 byte enum
-        {
-            // should be return (int) val; but C# does not allow, runtime does this magically
-            // See getILIntrinsicImplementation for how this happens.  
-            throw new InvalidOperationException();
-        }
-
         // Internal method for getting a raw pointer for handles in JitHelpers.
         // The reference has to point into a local stack variable in order so it can not be moved by the GC.
         internal static IntPtr UnsafeCastToStackPointer<T>(ref T val)
@@ -138,20 +102,6 @@ namespace System.Runtime.CompilerServices
             throw new InvalidOperationException();
         }
 #else // DEBUG
-
-        internal static int UnsafeEnumCast<T>(T val) where T : struct		// Actually T must be 4 byte (or less) enum
-        {
-            // should be return (int) val; but C# does not allow, runtime does this magically
-            // See getILIntrinsicImplementation for how this happens.  
-            throw new InvalidOperationException();
-        }
-
-        internal static long UnsafeEnumCastLong<T>(T val) where T : struct	// Actually T must be 8 byte enum
-        {
-            // should be return (long) val; but C# does not allow, runtime does this magically
-            // See getILIntrinsicImplementation for how this happens.  
-            throw new InvalidOperationException();
-        }
 
         internal static IntPtr UnsafeCastToStackPointer<T>(ref T val)
         {

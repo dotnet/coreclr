@@ -765,9 +765,10 @@ namespace System.Reflection
         {
             Debug.Assert(value != null);
 
-            if (value.GetType().IsEnum)
+            Type type = value.GetType();
+            if (type.IsEnum)
             {
-                return ((Enum)value).GetValue();
+                return Enum.GetBridge(type).GetUnderlyingValue((Enum)value);
             }
             return value;
         }

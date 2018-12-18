@@ -6984,68 +6984,6 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
         methInfo->options = (CorInfoOptions)0;
         return true;
     }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST)->GetMemberDef()) 
-    {
-        // Normally we would follow the above pattern and unconditionally replace the IL,
-        // relying on generic type constraints to guarantee that it will only ever be instantiated
-        // on the type/size of argument we expect.
-        //
-        // However C#/CLR does not support restricting a generic type to be an Enum, so the best
-        // we can do is constrain it to be a value type.  This is fine for run time, since we only
-        // ever create instantiations on 4 byte or less Enums. But during NGen we may compile instantiations
-        // on other value types (to be specific, every value type instatiation of EqualityComparer
-        // because of its TypeDependencyAttribute; here again we would like to restrict this to
-        // 4 byte or less Enums but cannot).
-        //
-        // This IL is invalid for those instantiations, and replacing it would lead to all sorts of
-        // errors at NGen time.  So we only replace it for instantiations where it would be valid, 
-        // leaving the others, which we should never execute, with the C# implementation of throwing.
-
-        _ASSERTE(ftn->HasMethodInstantiation());
-        Instantiation inst = ftn->GetMethodInstantiation();
-
-        _ASSERTE(inst.GetNumArgs() == 1);
-        CorElementType et = inst[0].GetVerifierCorElementType();
-        if (et == ELEMENT_TYPE_I4 ||
-            et == ELEMENT_TYPE_U4 ||
-            et == ELEMENT_TYPE_I2 ||
-            et == ELEMENT_TYPE_U2 ||
-            et == ELEMENT_TYPE_I1 ||
-            et == ELEMENT_TYPE_U1)
-        {
-            // Cast to I4 and return the argument that was passed in.
-            static const BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_I4, CEE_RET };
-            methInfo->ILCode = const_cast<BYTE*>(ilcode);
-            methInfo->ILCodeSize = sizeof(ilcode);
-            methInfo->maxStack = 1;
-            methInfo->EHcount = 0;
-            methInfo->options = (CorInfoOptions)0;
-            return true;
-        }
-    }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST_LONG)->GetMemberDef()) 
-    {
-        // The the comment above on why this is is not an unconditional replacement.  This case handles
-        // Enums backed by 8 byte values.
-
-        _ASSERTE(ftn->HasMethodInstantiation());
-        Instantiation inst = ftn->GetMethodInstantiation();
-
-        _ASSERTE(inst.GetNumArgs() == 1);
-        CorElementType et = inst[0].GetVerifierCorElementType();
-        if (et == ELEMENT_TYPE_I8 ||
-            et == ELEMENT_TYPE_U8)
-        {
-            // Cast to I8 and return the argument that was passed in.
-            static const BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_I8, CEE_RET };
-            methInfo->ILCode = const_cast<BYTE*>(ilcode);
-            methInfo->ILCodeSize = sizeof(ilcode);
-            methInfo->maxStack = 1;
-            methInfo->EHcount = 0;
-            methInfo->options = (CorInfoOptions)0;
-            return true;
-        }
-    }
     else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
     {
         mdToken tokArrayPinningHelper = MscorlibBinder::GetField(FIELD__ARRAY_PINNING_HELPER__M_ARRAY_DATA)->GetMemberDef();
@@ -9133,15 +9071,10 @@ CORINFO_CLASS_HANDLE CEEInfo::getDefaultEqualityComparerClassHelper(CORINFO_CLAS
             case ELEMENT_TYPE_U2:
             case ELEMENT_TYPE_I4:
             case ELEMENT_TYPE_U4:
-            {
-                targetClass = MscorlibBinder::GetClass(CLASS__ENUM_EQUALITYCOMPARER);
-                break;
-            }
-
             case ELEMENT_TYPE_I8:
             case ELEMENT_TYPE_U8:
             {
-                targetClass = MscorlibBinder::GetClass(CLASS__LONG_ENUM_EQUALITYCOMPARER);
+                targetClass = MscorlibBinder::GetClass(CLASS__ENUM_EQUALITYCOMPARER);
                 break;
             }
 

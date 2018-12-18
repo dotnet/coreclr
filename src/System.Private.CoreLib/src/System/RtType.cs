@@ -3408,17 +3408,7 @@ namespace System
 
         public override string[] GetEnumNames()
         {
-            if (!IsEnum)
-                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-
-            string[] ret = Enum.InternalGetNames(this);
-
-            // Make a copy since we can't hand out the same array since users can modify them
-            string[] retVal = new string[ret.Length];
-
-            Array.Copy(ret, retVal, ret.Length);
-
-            return retVal;
+            return Enum.GetNames(this);
         }
 
         public override Array GetEnumValues()
@@ -3426,19 +3416,7 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            // Get all of the values
-            ulong[] values = Enum.InternalGetValues(this);
-
-            // Create a generic Array
-            Array ret = Array.CreateInstance(this, values.Length);
-
-            for (int i = 0; i < values.Length; i++)
-            {
-                object val = Enum.ToObject(this, values[i]);
-                ret.SetValue(val, i);
-            }
-
-            return ret;
+            return Enum.GetBridge(this).GetValues();
         }
 
         public override Type GetEnumUnderlyingType()
@@ -3446,68 +3424,23 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.InternalGetUnderlyingType(this);
+            return Enum.GetBridge(this).UnderlyingType;
         }
 
         public override bool IsEnumDefined(object value)
         {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
+            if (!IsEnum)
+                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            // Check if both of them are of the same type
-            RuntimeType valueType = (RuntimeType)value.GetType();
-
-            // If the value is an Enum then we need to extract the underlying value from it
-            if (valueType.IsEnum)
-            {
-                if (!valueType.IsEquivalentTo(this))
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType.ToString(), ToString()));
-
-                valueType = (RuntimeType)valueType.GetEnumUnderlyingType();
-            }
-
-            // If a string is passed in
-            if (valueType == StringType)
-            {
-                // Get all of the Fields, calling GetHashEntry directly to avoid copying
-                string[] names = Enum.InternalGetNames(this);
-                if (Array.IndexOf(names, value) >= 0)
-                    return true;
-                else
-                    return false;
-            }
-
-            // If an enum or integer value is passed in
-            if (Type.IsIntegerType(valueType))
-            {
-                RuntimeType underlyingType = Enum.InternalGetUnderlyingType(this);
-                if (underlyingType != valueType)
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType.ToString(), underlyingType.ToString()));
-
-                ulong[] ulValues = Enum.InternalGetValues(this);
-                ulong ulValue = Enum.ToUInt64(value);
-
-                return (Array.BinarySearch(ulValues, ulValue) >= 0);
-            }
-            else
-            {
-                throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
-            }
+            return Enum.GetBridge(this).IsDefined(value);
         }
 
         public override string GetEnumName(object value)
         {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
+            if (!IsEnum)
+                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            Type valueType = value.GetType();
-
-            if (!(valueType.IsEnum || IsIntegerType(valueType)))
-                throw new ArgumentException(SR.Arg_MustBeEnumBaseTypeOrEnum, nameof(value));
-
-            ulong ulValue = Enum.ToUInt64(value);
-
-            return Enum.GetEnumName(this, ulValue);
+            return Enum.GetBridge(this).GetName(value);
         }
         #endregion
 
