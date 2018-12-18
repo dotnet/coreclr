@@ -951,7 +951,7 @@ while :; do
             ;;
 
         --)
-            # Skip run.sh-style argument passing
+            # Skip -Option=Value style argument passing
             ;;
 
         *)
