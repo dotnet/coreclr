@@ -2649,11 +2649,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         unsigned normalizedFieldOffset = fieldOffset + startOffsetOfStruct;
 
         unsigned int fieldNativeSize = pFieldMarshaler->NativeSize();
-        if (fieldNativeSize > SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
-        {
-            // Pass on stack in this case.
-            return false;
-        }
 
         _ASSERTE(fieldNativeSize != (unsigned int)-1);
 

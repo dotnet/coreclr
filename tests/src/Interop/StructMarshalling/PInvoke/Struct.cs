@@ -15,6 +15,33 @@ public struct InnerSequential
 }
 
 [StructLayout(LayoutKind.Sequential)]
+struct IntWithInnerSequential
+{
+    public int i1;
+    public InnerSequential sequential;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+struct SequentialWrapper
+{
+    public InnerSequential sequential;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+struct SequentialDoubleWrapper
+{
+    public SequentialWrapper wrapper;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+struct AggregateSequentialWrapper
+{
+    public SequentialWrapper wrapper1;
+    public InnerSequential sequential;
+    public SequentialWrapper wrapper2;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct ComplexStruct
 {
     public int i;

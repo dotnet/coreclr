@@ -22,7 +22,11 @@ public class Managed
         S8Id,
         S9Id,
         IncludeOuterIntergerStructSequentialId,
-        S11Id
+        S11Id,
+        IntWithInnerSequentialId,
+        SequentialWrapperId,
+        SequentialDoubleWrapperId,
+        AggregateSequentialWrapperId
     }
 
     private static void InitialArray(int[] iarr, int[] icarr)
@@ -302,6 +306,14 @@ public class Managed
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByRef14")]
     static extern bool MarshalStructAsParam_AsSeqByRefInOut14([In, Out] ref S11 str1);
     #endregion
+    [DllImport("MarshalStructAsParam")]
+    static extern bool MarshalStructAsParam_AsSeqByValIntWithInnerSequential(IntWithInnerSequential str, int i);
+    [DllImport("MarshalStructAsParam")]
+    static extern bool MarshalStructAsParam_AsSeqByValSequentialWrapper(SequentialWrapper wrapper);
+    [DllImport("MarshalStructAsParam")]
+    static extern bool MarshalStructAsParam_AsSeqByValSequentialDoubleWrapper(SequentialDoubleWrapper wrapper);
+    [DllImport("MarshalStructAsParam")]
+    static extern bool MarshalStructAsParam_AsSeqByValSequentialAggregateSequentialWrapper(AggregateSequentialWrapper wrapper);
 
     #region Marshal struct method in PInvoke
     [SecuritySafeCritical]
@@ -518,6 +530,66 @@ public class Managed
                     }
                     break;
 
+                case StructID.IntWithInnerSequentialId:
+                    IntWithInnerSequential intWithInnerSeq = new IntWithInnerSequential
+                    {
+                        i1 = 42,
+                        sequential = Helper.NewInnerSequential(1, 1.0F, "")
+                    };
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValIntWithInnerSequential...");
+                    if (!MarshalStructAsParam_AsSeqByValIntWithInnerSequential(intWithInnerSeq, 42))
+                    {
+                        Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValIntWithInnerSequential.Expected:True;Actual:False");
+                        failures++;
+                    }
+                    break; 
+                case StructID.SequentialWrapperId:
+                    SequentialWrapper sequentialWrapper = new SequentialWrapper
+                    {
+                        sequential = Helper.NewInnerSequential(1, 1.0F, "")
+                    };
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValSequentialWrapper...");
+                    if (!MarshalStructAsParam_AsSeqByValSequentialWrapper(sequentialWrapper))
+                    {
+                        Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValSequentialWrapper.Expected:True;Actual:False");
+                        failures++;
+                    }
+                    break; 
+                case StructID.SequentialDoubleWrapperId:
+                    SequentialDoubleWrapper doubleWrapper = new SequentialDoubleWrapper
+                    {
+                        wrapper = new SequentialWrapper
+                        {
+                            sequential = Helper.NewInnerSequential(1, 1.0F, "")
+                        }
+                    };
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValSequentialDoubleWrapper...");
+                    if (!MarshalStructAsParam_AsSeqByValSequentialDoubleWrapper(doubleWrapper))
+                    {
+                        Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValSequentialDoubleWrapper.Expected:True;Actual:False");
+                        failures++;
+                    }
+                    break; 
+                case StructID.AggregateSequentialWrapperId:
+                    AggregateSequentialWrapper aggregateWrapper = new AggregateSequentialWrapper
+                    {
+                        wrapper1 = new SequentialWrapper
+                        {
+                            sequential = Helper.NewInnerSequential(1, 1.0F, "")
+                        },
+                        sequential = Helper.NewInnerSequential(1, 1.0F, ""),
+                        wrapper2 = new SequentialWrapper
+                        {
+                            sequential = Helper.NewInnerSequential(1, 1.0F, "")
+                        },
+                    };
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValSequentialAggregateSequentialWrapper...");
+                    if (!MarshalStructAsParam_AsSeqByValSequentialAggregateSequentialWrapper(aggregateWrapper))
+                    {
+                        Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValSequentialAggregateSequentialWrapper.Expected:True;Actual:False");
+                        failures++;
+                    }
+                    break; 
                 default:
                     Console.WriteLine("\tThere is not the struct id");
                     failures++;
@@ -2135,6 +2207,10 @@ public class Managed
         MarshalStructAsParam_AsSeqByVal(StructID.S9Id);
         MarshalStructAsParam_AsSeqByVal(StructID.IncludeOuterIntergerStructSequentialId);
         MarshalStructAsParam_AsSeqByVal(StructID.S11Id);
+        MarshalStructAsParam_AsSeqByVal(StructID.IntWithInnerSequentialId);
+        MarshalStructAsParam_AsSeqByVal(StructID.SequentialWrapperId);
+        MarshalStructAsParam_AsSeqByVal(StructID.SequentialDoubleWrapperId);
+        MarshalStructAsParam_AsSeqByVal(StructID.AggregateSequentialWrapperId);
     }
 
     [SecuritySafeCritical]
