@@ -469,7 +469,7 @@ inline BOOL Module::IsEditAndContinueCapable()
     
     // for now, Module::IsReflection is equivalent to m_file->IsDynamic,
     // which is checked by IsEditAndContinueCapable(m_pAssembly, m_file)
-    _ASSERTE(!isEnCCapable || (!this->IsReflection() && !GetAssembly()->IsDomainNeutral()));
+    _ASSERTE(!isEnCCapable || (!this->IsReflection()));
 
     return isEnCCapable;
 }
@@ -497,19 +497,6 @@ FORCEINLINE PTR_DomainLocalModule Module::GetDomainLocalModule(AppDomain *pDomai
 
     return pDomain->GetDomainLocalBlock()->GetModuleSlot(GetModuleIndex());
 }
-
-FORCEINLINE ULONG Module::GetNumberOfActivations()
-{
-    _ASSERTE(m_Crst.OwnedByCurrentThread());
-    return m_dwNumberOfActivations;
-}
-
-FORCEINLINE ULONG Module::IncrementNumberOfActivations()
-{
-    CrstHolder lock(&m_Crst);
-    return ++m_dwNumberOfActivations;
-}
-
 
 #ifdef FEATURE_PREJIT
 

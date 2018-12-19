@@ -923,6 +923,68 @@ FCIMPL1(int, MarshalNative::GetHRForException_WinRT, Object* eUNSAFE)
 }
 FCIMPLEND
 
+// static
+INT_PTR QCALLTYPE MarshalNative::LoadLibraryFromPath(LPCWSTR path, BOOL throwOnError)
+{
+    QCALL_CONTRACT;
+
+    NATIVE_LIBRARY_HANDLE handle = nullptr;
+
+    BEGIN_QCALL;
+
+    handle = NDirect::LoadLibraryFromPath(path, throwOnError);
+
+    END_QCALL;
+
+    return reinterpret_cast<INT_PTR>(handle);
+}
+
+// static
+INT_PTR QCALLTYPE MarshalNative::LoadLibraryByName(LPCWSTR name, QCall::AssemblyHandle callingAssembly, 
+                                                   BOOL hasDllImportSearchPathFlag, DWORD dllImportSearchPathFlag, 
+                                                   BOOL throwOnError)
+{
+    QCALL_CONTRACT;
+
+    NATIVE_LIBRARY_HANDLE handle = nullptr;
+    Assembly *pAssembly = callingAssembly->GetAssembly();
+
+    BEGIN_QCALL;
+
+    handle = NDirect::LoadLibraryByName(name, pAssembly, hasDllImportSearchPathFlag, dllImportSearchPathFlag, throwOnError);
+
+    END_QCALL;
+
+    return reinterpret_cast<INT_PTR>(handle);
+}
+
+// static
+void QCALLTYPE MarshalNative::FreeNativeLibrary(INT_PTR handle)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+
+    NDirect::FreeNativeLibrary((NATIVE_LIBRARY_HANDLE) handle);
+    
+    END_QCALL;
+}
+
+//static 
+INT_PTR QCALLTYPE MarshalNative::GetNativeLibraryExport(INT_PTR handle, LPCWSTR symbolName, BOOL throwOnError)
+{
+    QCALL_CONTRACT;
+
+    INT_PTR address = NULL;
+    
+    BEGIN_QCALL;
+
+    address = NDirect::GetNativeLibraryExport((NATIVE_LIBRARY_HANDLE)handle, symbolName, throwOnError);
+
+    END_QCALL;
+
+    return address;
+}
 
 #ifdef FEATURE_COMINTEROP
 
@@ -994,7 +1056,7 @@ FCIMPL1(ITypeInfo*, MarshalNative::GetITypeInfoForType, ReflectClassBaseObject* 
     _ASSERTE(pMT);
 
     // Retrieve the ITypeInfo for the class.
-    IfFailThrow(GetITypeInfoForEEClass(pMT, &pTI, true));
+    IfFailThrow(GetITypeInfoForEEClass(pMT, &pTI, true /* bClassInfo */));
     _ASSERTE(pTI != NULL);
 
     HELPER_METHOD_FRAME_END();
@@ -2385,111 +2447,6 @@ void QCALLTYPE MarshalNative::GetInspectableIIDs(
             retArrayGuids.SetGuidArray(rgIIDs, size);
         }
     }
-
-    END_QCALL;
-}
-
-
-void QCALLTYPE MarshalNative::GetCachedWinRTTypes(
-                        QCall::ObjectHandleOnStack hadObj,
-                        int * pEpoch,
-                        QCall::ObjectHandleOnStack retArrayMT)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(*hadObj.m_ppObject, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    BEGIN_QCALL;
-
-    AppDomain * pDomain = GetAppDomain();
-
-    {
-        GCX_COOP();
-
-        // set return to failure value
-        retArrayMT.Set(NULL);
-
-        OBJECTREF orDomain = NULL;
-        GCPROTECT_BEGIN(orDomain);
-
-        orDomain = ObjectToOBJECTREF(*hadObj.m_ppObject);
-
-        // Validation: hadObj represents a non-NULL System.AppDomain instance
-        if(orDomain != NULL)
-        {
-            MethodTable* pMT = orDomain->GetMethodTable();
-            PREFIX_ASSUME(pMT != NULL);
-            if (!pMT->CanCastToClass(MscorlibBinder::GetClass(CLASS__APP_DOMAIN)))
-                // TODO: find better resource string
-                COMPlusThrow(kArgumentException, IDS_EE_ADUNLOAD_DEFAULT);
-
-            pDomain = ((AppDomainBaseObject*)(OBJECTREFToObject(orDomain)))->GetDomain();
-        }
-        GCPROTECT_END();
-    }
-
-    if (pDomain != NULL)
-    {
-        SArray<PTR_MethodTable> types;
-        SArray<GUID> guids;
-        UINT e = *(UINT*)pEpoch;
-        pDomain->GetCachedWinRTTypes(&types, &guids, e, (UINT*)pEpoch);
-
-        retArrayMT.SetIntPtrArray((void**)(&types[0]), types.GetCount());
-    }
-
-    END_QCALL;
-}
-
-void QCALLTYPE MarshalNative::GetCachedWinRTTypeByIID(
-                        QCall::ObjectHandleOnStack hadObj,
-                        GUID guid,
-                        void * * ppMT)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(*hadObj.m_ppObject, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    BEGIN_QCALL;
-
-    AppDomain * pDomain = GetAppDomain();
-
-    {
-        GCX_COOP();
-
-        // set return to failure value
-        *ppMT = NULL;
-
-        OBJECTREF orDomain = NULL;
-        GCPROTECT_BEGIN(orDomain);
-
-        orDomain = ObjectToOBJECTREF(*hadObj.m_ppObject);
-
-        // Validation: hadObj represents a non-NULL System.AppDomain instance
-        if(orDomain != NULL)
-        {
-            MethodTable* pMT = orDomain->GetMethodTable();
-            PREFIX_ASSUME(pMT != NULL);
-            if (!pMT->CanCastToClass(MscorlibBinder::GetClass(CLASS__APP_DOMAIN)))
-                // TODO: find better resource string
-                COMPlusThrow(kArgumentException, IDS_EE_ADUNLOAD_DEFAULT);
-
-            pDomain = ((AppDomainBaseObject*)(OBJECTREFToObject(orDomain)))->GetDomain();
-        }
-        GCPROTECT_END();
-    }
-
-    if (pDomain != NULL)
-    {
-        *ppMT = pDomain->LookupTypeByGuid(guid);;
-    }
-
 
     END_QCALL;
 }

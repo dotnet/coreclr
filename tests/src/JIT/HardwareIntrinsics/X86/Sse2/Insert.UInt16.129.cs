@@ -144,7 +144,7 @@ namespace JIT.HardwareIntrinsics.X86
             _dataTable = new SimpleUnaryOpTest__DataTable<UInt16, UInt16>(_data, new UInt16[RetElementCount], LargestVectorSize);
         }
 
-        public bool IsSupported => Sse2.IsSupported && (Environment.Is64BitProcess || ((typeof(UInt16) != typeof(long)) && (typeof(UInt16) != typeof(ulong))));
+        public bool IsSupported => Sse2.IsSupported;
 
         public bool Succeeded { get; set; }
 
@@ -326,7 +326,7 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
 
-            Succeeded = false;
+            bool succeeded = false;
 
             try
             {
@@ -334,7 +334,12 @@ namespace JIT.HardwareIntrinsics.X86
             }
             catch (PlatformNotSupportedException)
             {
-                Succeeded = true;
+                succeeded = true;
+            }
+
+            if (!succeeded)
+            {
+                Succeeded = false;
             }
         }
 
@@ -362,22 +367,25 @@ namespace JIT.HardwareIntrinsics.X86
 
         private void ValidateResult(UInt16[] firstOp, UInt16[] result, [CallerMemberName] string method = "")
         {
+            bool succeeded = true;
 
             for (var i = 0; i < RetElementCount; i++)
             {
                 if ((i == 1 ? result[i] != 2 : result[i] != 0))
                 {
-                    Succeeded = false;
+                    succeeded = false;
                     break;
                 }
             }
 
-            if (!Succeeded)
+            if (!succeeded)
             {
                 TestLibrary.TestFramework.LogInformation($"{nameof(Sse2)}.{nameof(Sse2.Insert)}<UInt16>(Vector128<UInt16><9>): {method} failed:");
                 TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
                 TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
                 TestLibrary.TestFramework.LogInformation(string.Empty);
+
+                Succeeded = false;
             }
         }
     }

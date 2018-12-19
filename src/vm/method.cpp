@@ -218,15 +218,7 @@ BaseDomain *MethodDesc::GetDomain()
     }
     CONTRACTL_END
 
-    if (HasMethodInstantiation() && !IsGenericMethodDefinition())
-    {
-        return BaseDomain::ComputeBaseDomain(GetMethodTable()->GetDomain(),
-                                             GetMethodInstantiation());
-    }
-    else
-    {
-        return GetMethodTable()->GetDomain();
-    }
+    return AppDomain::GetCurrentDomain();
 }
 
 #ifndef DACCESS_COMPILE
@@ -5415,7 +5407,7 @@ moveToNextToken:
 
 
 #ifdef FEATURE_TYPEEQUIVALENCE
-void CheckForEquivalenceAndLoadType(Module *pModule, mdToken token, Module *pDefModule, mdToken defToken, const SigParser *ptr, SigTypeContext *pTypeContext, void *pData)
+static void CheckForEquivalenceAndLoadType(Module *pModule, mdToken token, Module *pDefModule, mdToken defToken, const SigParser *ptr, SigTypeContext *pTypeContext, void *pData)
 {
     CONTRACTL
     {
@@ -5434,9 +5426,11 @@ void CheckForEquivalenceAndLoadType(Module *pModule, mdToken token, Module *pDef
         TypeHandle th = sigPtr.GetTypeHandleThrowing(pModule, pTypeContext);
     }
 }
+#endif // FEATURE_TYPEEQUIVALENCE
 
 BOOL MethodDesc::HasTypeEquivalentStructParameters()
 {
+#ifdef FEATURE_TYPEEQUIVALENCE
     CONTRACTL
     {
         THROWS;
@@ -5455,9 +5449,14 @@ BOOL MethodDesc::HasTypeEquivalentStructParameters()
         SetDoesNotHaveEquivalentValuetypeParameters();
 
     return fHasTypeEquivalentStructParameters;
-}
+
+#else
+    LIMITED_METHOD_CONTRACT;
+    return FALSE;
 
 #endif // FEATURE_TYPEEQUIVALENCE
+}
+
 
 PrecodeType MethodDesc::GetPrecodeType()
 {

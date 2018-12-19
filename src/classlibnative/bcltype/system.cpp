@@ -76,7 +76,7 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
     {
         func = &::GetSystemTimeAsFileTime;
     }
-    
+
     g_pfnGetSystemTimeAsFileTime = func;
     func(lpSystemTimeAsFileTime);
 }
@@ -99,12 +99,90 @@ FCIMPL0(INT64, SystemNative::__GetSystemTimeAsFileTime)
 FCIMPLEND;
 
 
+#ifndef FEATURE_PAL
+
+FCIMPL1(VOID, SystemNative::GetSystemTimeWithLeapSecondsHandling, FullSystemTime *time)
+{
+    FCALL_CONTRACT;
+    INT64 timestamp;
+
+    g_pfnGetSystemTimeAsFileTime((FILETIME*)&timestamp);
+
+    if (::FileTimeToSystemTime((FILETIME*)&timestamp, &(time->systemTime)))
+    {
+        // to keep the time precision
+        time->hundredNanoSecond = timestamp % 10000; // 10000 is the number of 100-nano seconds per Millisecond
+    }
+    else
+    {
+        ::GetSystemTime(&(time->systemTime));
+        time->hundredNanoSecond = 0;
+    }
+
+    if (time->systemTime.wSecond > 59)
+    {
+        // we have a leap second, force it to last second in the minute as DateTime doesn't account for leap seconds in its calculation.
+        // we use the maxvalue from the milliseconds and the 100-nano seconds to avoid reporting two out of order 59 seconds
+        time->systemTime.wSecond = 59;
+        time->systemTime.wMilliseconds = 999;
+        time->hundredNanoSecond = 9999;
+    }
+}
+FCIMPLEND;
+
+FCIMPL2(FC_BOOL_RET, SystemNative::FileTimeToSystemTime, INT64 fileTime, FullSystemTime *time)
+{
+    FCALL_CONTRACT;
+    if (::FileTimeToSystemTime((FILETIME*)&fileTime, (LPSYSTEMTIME) time))
+    {
+        // to keep the time precision
+        time->hundredNanoSecond = fileTime % 10000; // 10000 is the number of 100-nano seconds per Millisecond
+        if (time->systemTime.wSecond > 59)
+        {
+            // we have a leap second, force it to last second in the minute as DateTime doesn't account for leap seconds in its calculation.
+            // we use the maxvalue from the milliseconds and the 100-nano seconds to avoid reporting two out of order 59 seconds
+            time->systemTime.wSecond = 59;
+            time->systemTime.wMilliseconds = 999;
+            time->hundredNanoSecond = 9999;
+        }
+        FC_RETURN_BOOL(TRUE);
+    }
+    FC_RETURN_BOOL(FALSE);
+}
+FCIMPLEND;
+
+FCIMPL2(FC_BOOL_RET, SystemNative::ValidateSystemTime, SYSTEMTIME *time, CLR_BOOL localTime)
+{
+    FCALL_CONTRACT;
+
+    if (localTime)
+    {
+        SYSTEMTIME st;
+        FC_RETURN_BOOL(::TzSpecificLocalTimeToSystemTime(NULL, time, &st));
+    }
+    else
+    {
+        FILETIME timestamp;
+        FC_RETURN_BOOL(::SystemTimeToFileTime(time, &timestamp));
+    }
+}
+FCIMPLEND;
+
+FCIMPL2(FC_BOOL_RET, SystemNative::SystemTimeToFileTime, SYSTEMTIME *time, INT64 *pFileTime)
+{
+    FCALL_CONTRACT;
+
+    BOOL ret = ::SystemTimeToFileTime(time, (LPFILETIME) pFileTime);
+    FC_RETURN_BOOL(ret);
+}
+FCIMPLEND;
+#endif // FEATURE_PAL
 
 
 FCIMPL0(UINT32, SystemNative::GetTickCount)
 {
     FCALL_CONTRACT;
-    
+
     return ::GetTickCount();
 }
 FCIMPLEND;
@@ -132,7 +210,7 @@ VOID QCALLTYPE SystemNative::Exit(INT32 exitcode)
 FCIMPL1(VOID,SystemNative::SetExitCode,INT32 exitcode)
 {
     FCALL_CONTRACT;
-    
+
     // The exit code for the process is communicated in one of two ways.  If the
     // entrypoint returns an 'int' we take that.  Otherwise we take a latched
     // process exit code.  This can be modified by the app via setting
@@ -144,7 +222,7 @@ FCIMPLEND
 FCIMPL0(INT32, SystemNative::GetExitCode)
 {
     FCALL_CONTRACT;
-    
+
     // Return whatever has been latched so far.  This is uninitialized to 0.
     return GetLatchedExitCode();
 }
@@ -158,18 +236,10 @@ void QCALLTYPE SystemNative::_GetCommandLine(QCall::StringHandleOnStack retStrin
 
     LPCWSTR commandLine;
 
-    if (g_pCachedCommandLine != NULL)
-    {
-        // Use the cached command line if available
-        commandLine = g_pCachedCommandLine;
-    }
-    else
-    {
-        commandLine = WszGetCommandLine();
-        if (commandLine==NULL)
-            COMPlusThrowOM();
-    }
-    
+    commandLine = WszGetCommandLine();
+    if (commandLine==NULL)
+        COMPlusThrowOM();
+
     retString.Set(commandLine);
 
     END_QCALL;
@@ -185,17 +255,9 @@ FCIMPL0(Object*, SystemNative::GetCommandLineArgs)
 
     LPWSTR commandLine;
 
-    if (g_pCachedCommandLine != NULL)
-    {
-        // Use the cached command line if available
-        commandLine = g_pCachedCommandLine;
-    }
-    else
-    {
-        commandLine = WszGetCommandLine();
-        if (commandLine==NULL)
-            COMPlusThrowOM();
-    }
+    commandLine = WszGetCommandLine();
+    if (commandLine==NULL)
+        COMPlusThrowOM();
 
     DWORD numArgs = 0;
     LPWSTR* argv = SegmentCommandLine(commandLine, &numArgs);
@@ -203,10 +265,10 @@ FCIMPL0(Object*, SystemNative::GetCommandLineArgs)
         COMPlusThrowOM();
 
     _ASSERTE(numArgs > 0);
-    
+
     strArray = (PTRARRAYREF) AllocateObjectArray(numArgs, g_pStringClass);
     // Copy each argument into new Strings.
-    for(unsigned int i=0; i<numArgs; i++) 
+    for(unsigned int i=0; i<numArgs; i++)
     {
         STRINGREF str = StringObject::NewString(argv[i]);
         STRINGREF * destData = ((STRINGREF*)(strArray->GetDataPtr())) + i;
@@ -216,7 +278,7 @@ FCIMPL0(Object*, SystemNative::GetCommandLineArgs)
 
     HELPER_METHOD_FRAME_END();
 
-    return OBJECTREFToObject(strArray); 
+    return OBJECTREFToObject(strArray);
 }
 FCIMPLEND
 
@@ -224,7 +286,7 @@ FCIMPLEND
 FCIMPL1(ReflectMethodObject*, SystemNative::GetMethodFromStackTrace, ArrayBase* pStackTraceUNSAFE)
 {
     FCALL_CONTRACT;
-    
+
     I1ARRAYREF pArray(static_cast<I1Array *>(pStackTraceUNSAFE));
     StackTraceArray stackArray(pArray);
 
@@ -247,64 +309,6 @@ FCIMPL1(ReflectMethodObject*, SystemNative::GetMethodFromStackTrace, ArrayBase* 
     HELPER_METHOD_FRAME_END();
 
     return (ReflectMethodObject*)OBJECTREFToObject(refRet);
-}
-FCIMPLEND
-
-FCIMPL0(StringObject*, SystemNative::_GetModuleFileName)
-{
-    FCALL_CONTRACT;
-
-    STRINGREF   refRetVal = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);
-    if (g_pCachedModuleFileName)
-    {
-        refRetVal = StringObject::NewString(g_pCachedModuleFileName);
-    }
-    else
-    {
-        PathString wszFilePathString;
-
-       
-        DWORD lgth = WszGetModuleFileName(NULL, wszFilePathString);
-        if (!lgth)
-        {
-            COMPlusThrowWin32();
-        }
-       
-
-        refRetVal = StringObject::NewString(wszFilePathString.GetUnicode());
-    }
-    HELPER_METHOD_FRAME_END();
-
-    return (StringObject*)OBJECTREFToObject(refRetVal);
-}
-FCIMPLEND
-
-FCIMPL0(StringObject*, SystemNative::GetRuntimeDirectory)
-{
-    FCALL_CONTRACT;
-
-    STRINGREF   refRetVal   = NULL;
-    DWORD dwFile = MAX_LONGPATH+1;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);
-    SString wszFilePathString;
-
-    WCHAR * wszFile = wszFilePathString.OpenUnicodeBuffer(dwFile);
-    HRESULT hr = GetInternalSystemDirectory(wszFile, &dwFile);
-    wszFilePathString.CloseBuffer(dwFile);
-    
-    if(FAILED(hr))
-        COMPlusThrowHR(hr);
-
-    dwFile--; // remove the trailing NULL
-
-    if(dwFile)
-        refRetVal = StringObject::NewString(wszFile, dwFile);
-
-    HELPER_METHOD_FRAME_END();
-    return (StringObject*)OBJECTREFToObject(refRetVal);
 }
 FCIMPLEND
 
@@ -350,7 +354,7 @@ FCIMPL0(FC_BOOL_RET, SystemNative::HasShutdownStarted)
 {
     FCALL_CONTRACT;
 
-    // Return true if the EE has started to shutdown and is now going to 
+    // Return true if the EE has started to shutdown and is now going to
     // aggressively finalize objects referred to by static variables OR
     // if someone is unloading the current AppDomain AND we have started
     // finalizing objects referred to by static variables.
@@ -378,7 +382,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
         SO_TOLERANT;
     }CONTRACTL_END;
 
-    struct 
+    struct
     {
         STRINGREF refMesgString;
         EXCEPTIONREF refExceptionForWatsonBucketing;
@@ -387,7 +391,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     ZeroMemory(&gc, sizeof(gc));
 
     GCPROTECT_BEGIN(gc);
-    
+
     gc.refMesgString = refMesgString;
     gc.refExceptionForWatsonBucketing = refExceptionForWatsonBucketing;
     gc.refErrorSourceString = refErrorSourceString;
@@ -418,12 +422,12 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
 
     WCHAR * errorSourceString = NULL;
 
-    if (gc.refErrorSourceString != NULL) 
+    if (gc.refErrorSourceString != NULL)
     {
         DWORD cchErrorSource = gc.refErrorSourceString->GetStringLength();
         errorSourceString = new (nothrow) WCHAR[cchErrorSource + 1];
 
-        if (errorSourceString != NULL) 
+        if (errorSourceString != NULL)
         {
             memcpyNoGCRefs(errorSourceString, gc.refErrorSourceString->GetBuffer(), cchErrorSource * sizeof(WCHAR));
             errorSourceString[cchErrorSource] = W('\0');
@@ -446,7 +450,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
             pszMessage = g_szFailFastBuffer;
         }
     }
-    
+
     if (cchMessage > 0)
         memcpyNoGCRefs(pszMessage, gc.refMesgString->GetBuffer(), cchMessage * sizeof(WCHAR));
     pszMessage[cchMessage] = W('\0');
@@ -470,7 +474,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
 
     Thread *pThread = GetThread();
 
-#ifndef FEATURE_PAL    
+#ifndef FEATURE_PAL
     // If we have the exception object, then try to setup
     // the watson bucket if it has any details.
     // On CoreCLR, Watson may not be enabled. Thus, we should
@@ -504,18 +508,18 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
 }
 
 // Note: Do not merge this FCALL method with any other FailFast overloads.
-// Watson uses the managed FailFast method with one String for crash dump bucketization. 
+// Watson uses the managed FailFast method with one String for crash dump bucketization.
 FCIMPL1(VOID, SystemNative::FailFast, StringObject* refMessageUNSAFE)
-{   
+{
     FCALL_CONTRACT;
 
     STRINGREF refMessage = (STRINGREF)refMessageUNSAFE;
-    
+
     HELPER_METHOD_FRAME_BEGIN_1(refMessage);
 
     // The HelperMethodFrame knows how to get the return address.
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
-    
+
     // Call the actual worker to perform failfast
     GenericFailFast(refMessage, NULL, retaddr, COR_E_FAILFAST, NULL);
 
@@ -524,16 +528,16 @@ FCIMPL1(VOID, SystemNative::FailFast, StringObject* refMessageUNSAFE)
 FCIMPLEND
 
 FCIMPL2(VOID, SystemNative::FailFastWithExitCode, StringObject* refMessageUNSAFE, UINT exitCode)
-{   
+{
     FCALL_CONTRACT;
 
     STRINGREF refMessage = (STRINGREF)refMessageUNSAFE;
-    
+
     HELPER_METHOD_FRAME_BEGIN_1(refMessage);
 
     // The HelperMethodFrame knows how to get the return address.
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
-    
+
     // Call the actual worker to perform failfast
     GenericFailFast(refMessage, NULL, retaddr, exitCode, NULL);
 
@@ -542,7 +546,7 @@ FCIMPL2(VOID, SystemNative::FailFastWithExitCode, StringObject* refMessageUNSAFE
 FCIMPLEND
 
 FCIMPL2(VOID, SystemNative::FailFastWithException, StringObject* refMessageUNSAFE, ExceptionObject* refExceptionUNSAFE)
-{   
+{
     FCALL_CONTRACT;
 
     STRINGREF refMessage = (STRINGREF)refMessageUNSAFE;
@@ -552,7 +556,7 @@ FCIMPL2(VOID, SystemNative::FailFastWithException, StringObject* refMessageUNSAF
 
     // The HelperMethodFrame knows how to get the return address.
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
-    
+
     // Call the actual worker to perform failfast
     GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST, NULL);
 
@@ -572,7 +576,7 @@ FCIMPL3(VOID, SystemNative::FailFastWithExceptionAndSource, StringObject* refMes
 
     // The HelperMethodFrame knows how to get the return address.
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
-    
+
     // Call the actual worker to perform failfast
     GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST, errorSource);
 
@@ -608,6 +612,6 @@ BOOL QCALLTYPE SystemNative::WinRTSupported()
 
 
 
-	
+
 
 

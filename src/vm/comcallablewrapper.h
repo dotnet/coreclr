@@ -41,11 +41,6 @@ typedef DPTR(struct SimpleComCallWrapper) PTR_SimpleComCallWrapper;
 
 class ComCallWrapperCache
 {
-    enum
-    {
-        AD_IS_UNLOADING = 0x01,
-    };
-    
 public:
     // Encapsulate a SpinLockHolder, so that clients of our lock don't have to know
     // the details of our implementation.
@@ -62,12 +57,8 @@ public:
     ComCallWrapperCache();
     ~ComCallWrapperCache();
 
-    // create a new WrapperCache (one per domain)
-    static ComCallWrapperCache* Create(AppDomain *pDomain);
-
-    // Called when the domain is going away.  We may have outstanding references to this cache,
-    //  so we keep it around in a neutered state.
-    void    Neuter();
+    // create a new WrapperCache (one per each LoaderAllocator)
+    static ComCallWrapperCache* Create(LoaderAllocator *pLoaderAllocator);
 
     // refcount
     LONG    AddRef();
@@ -87,9 +78,9 @@ public:
         RETURN m_pCacheLineAllocator;
     }
 
-    AppDomain* GetDomain()
+    LoaderAllocator* GetLoaderAllocator()
     {
-        CONTRACT (AppDomain*)
+        CONTRACT (LoaderAllocator*)
         {
             WRAPPER(THROWS);
             WRAPPER(GC_TRIGGERS);
@@ -98,41 +89,13 @@ public:
         }
         CONTRACT_END;
         
-        RETURN ((AppDomain*)((size_t)m_pDomain & ~AD_IS_UNLOADING));
-    }
-
-    void ClearDomain()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        m_pDomain = (AppDomain *)AD_IS_UNLOADING;
-    }
-
-    void SetDomainIsUnloading()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        m_pDomain = (AppDomain*)((size_t)m_pDomain | AD_IS_UNLOADING);
-    }
-
-    void ResetDomainIsUnloading()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        m_pDomain = (AppDomain*)((size_t)m_pDomain & (~AD_IS_UNLOADING));
-    }
-
-    BOOL IsDomainUnloading()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        return ((size_t)m_pDomain & AD_IS_UNLOADING) != 0;
+        RETURN m_pLoaderAllocator;
     }
 
 private:
     LONG                    m_cbRef;
     CCacheLineAllocator*    m_pCacheLineAllocator;
-    AppDomain*              m_pDomain;
+    LoaderAllocator*        m_pLoaderAllocator;
 
     // spin lock for fast synchronization
     Crst                    m_lock;
@@ -1035,15 +998,6 @@ private:
 public:
     ADID GetDomainID();
 
-    // The first overload respects the is-agile flag and context, the other two respect the flag but
-    // ignore the context (this is mostly for back compat reasons, new code should call the first overload).
-    BOOL NeedToSwitchDomains(Thread *pThread, ADID *pTargetADID, Context **ppTargetContext);
-    BOOL NeedToSwitchDomains(Thread *pThread);
-    BOOL NeedToSwitchDomains(ADID appdomainID);
-
-    void MakeAgile(OBJECTREF pObj);
-    void CheckMakeAgile(OBJECTREF pObj);
-
     VOID ResetHandleStrength();
     VOID MarkHandleWeak();
 
@@ -1214,9 +1168,6 @@ public:
     // is the object aggregated by a COM component
     BOOL IsAggregated();
 
-    // is the object a transparent proxy
-    BOOL IsObjectTP();
-
     // is the object extends from (aggregates) a COM component
     BOOL IsExtendsCOMObject();
 
@@ -1378,8 +1329,6 @@ public:
 
     // Get an interface from wrapper, based on riid or pIntfMT
     static IUnknown* GetComIPFromCCW(ComCallWrapper *pWrap, REFIID riid, MethodTable* pIntfMT, GetComIPFromCCW::flags flags = GetComIPFromCCW::None);
-    static IUnknown* GetComIPFromCCWNoThrow(ComCallWrapper *pWrap, REFIID riid, MethodTable* pIntfMT, GetComIPFromCCW::flags flags = GetComIPFromCCW::None);
-
 
 private:
     // pointer to OBJECTREF
@@ -1428,7 +1377,6 @@ class WeakReferenceImpl : public IUnknownCommon<IWeakReference>
 {
 private:
     ADID                m_adid;                 // AppDomain ID of where this weak reference is created
-    Context             *m_pContext;            // Saved context
     OBJECTHANDLE        m_ppObject;             // Short weak global handle points back to the object, 
                                                 // created in domain ID = m_adid
     
@@ -1495,8 +1443,8 @@ private:
         enum_IsAggregated                      = 0x1,
         enum_IsExtendsCom                      = 0x2,
         enum_IsHandleWeak                      = 0x4,
-        enum_IsObjectTP                        = 0x8,
-        enum_IsAgile                           = 0x10,
+        // unused                              = 0x8,
+        // unused                              = 0x10,
         enum_IsPegged                          = 0x80,
         // unused                              = 0x100,
         enum_CustomQIRespondsToIMarshal        = 0x200,
@@ -1566,7 +1514,7 @@ public:
     // Init pointer to the vtable of the interface
     // and the main ComCallWrapper if the interface needs it
     void InitNew(OBJECTREF oref, ComCallWrapperCache *pWrapperCache, ComCallWrapper* pWrap,
-                 ComCallWrapper *pClassWrap, Context* pContext, SyncBlock* pSyncBlock,
+                 ComCallWrapper *pClassWrap, SyncBlock* pSyncBlock,
                  ComCallWrapperTemplate* pTemplate);
     
     // used by reconnect wrapper to new object
@@ -1638,9 +1586,6 @@ public:
             MODE_ANY;
         }
         CONTRACTL_END;
-        
-        if (IsAgile())
-            return GetThread()->GetDomain()->GetId();
 
         return m_dwDomainId;
     }
@@ -1649,84 +1594,6 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
         return m_dwDomainId;
-    }
-
-#ifndef CROSSGEN_COMPILE
-    inline BOOL NeedToSwitchDomains(Thread *pThread, ADID *pTargetADID, Context **ppTargetContext)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            WRAPPER(GC_TRIGGERS);
-            MODE_ANY;
-            SUPPORTS_DAC;
-        }
-        CONTRACTL_END;
-        
-        if (IsAgile())
-            return FALSE;
-
-        if (m_dwDomainId == pThread->GetDomain()->GetId() && m_pContext == pThread->GetContext())
-            return FALSE;
-
-        // we intentionally don't provide any other way to read m_pContext so the caller always
-        // gets ADID & Context that are guaranteed to be in sync (note that GetDomainID() lies
-        // if the CCW is agile and using it together with m_pContext leads to issues)
-        *pTargetADID = m_dwDomainId;
-        *ppTargetContext = m_pContext;
-
-        return TRUE;
-    }
-
-    // if you call this you must either pass TRUE for throwIfUnloaded or check
-    // after the result before accessing any pointers that may be invalid.
-    inline BOOL NeedToSwitchDomains(ADID appdomainID)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        // Check for a direct domain ID match first -- this is more common than agile wrappers.
-        return (m_dwDomainId != appdomainID) && !IsAgile();
-    }
-#endif //CROSSGEN_COMPILE
-
-    BOOL ShouldBeAgile()
-    {
-        CONTRACTL
-        {
-            WRAPPER(THROWS);
-            WRAPPER(GC_TRIGGERS);
-            MODE_ANY;
-        }
-        CONTRACTL_END;
-        
-        return (!IsAgile() && GetThread()->GetDomain()->GetId()!= m_dwDomainId);
-    }
-
-    void MakeAgile(OBJECTHANDLE origHandle)
-    {
-        CONTRACTL
-        {
-            WRAPPER(THROWS);
-            WRAPPER(GC_TRIGGERS);
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-        
-        m_hOrigDomainHandle = origHandle;
-        FastInterlockOr((ULONG*)&m_flags, enum_IsAgile);
-    }
-
-    BOOL IsAgile()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        return m_flags & enum_IsAgile;
-    }
-
-    BOOL IsObjectTP()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        return m_flags & enum_IsObjectTP;
     }
 
     // is the object aggregated by a COM component
@@ -2214,16 +2081,9 @@ private:
     PTR_ComCallWrapper              m_pWrap;      // the first ComCallWrapper associated with this SimpleComCallWrapper
     PTR_ComCallWrapper              m_pClassWrap; // the first ComCallWrapper associated with the class (only if m_pMT is an interface)
     MethodTable*                    m_pMT;
-    Context*                        m_pContext;
     ComCallWrapperCache*            m_pWrapperCache;    
     PTR_ComCallWrapperTemplate      m_pTemplate;
     
-    // when we make the object agile, need to save off the original handle so we can clean
-    // it up when the object goes away.
-    // <TODO>Would be nice to overload one of the other values with this, but then
-    // would have to synchronize on it too</TODO>
-    OBJECTHANDLE                    m_hOrigDomainHandle;
-
     // Points to uncommonly used data that are dynamically allocated
     VolatilePtr<SimpleCCWAuxData>   m_pAuxData;         
 
@@ -2289,66 +2149,16 @@ inline ComCallWrapper* __stdcall ComCallWrapper::InlineGetWrapper(OBJECTREF* ppO
     else
         pMainWrap = pWrap;
 
-    pMainWrap->CheckMakeAgile(*ppObj);
-
     pWrap->AddRef();
     
     RETURN pWrap;
 }
-
-#ifndef CROSSGEN_COMPILE
-
-inline BOOL ComCallWrapper::NeedToSwitchDomains(Thread *pThread, ADID *pTargetADID, Context **ppTargetContext)
-{
-    WRAPPER_NO_CONTRACT;
-    
-    return GetSimpleWrapper()->NeedToSwitchDomains(pThread, pTargetADID, ppTargetContext);
-}
-
-inline BOOL ComCallWrapper::NeedToSwitchDomains(Thread *pThread)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-    
-    return NeedToSwitchDomains(pThread->GetDomain()->GetId());
-}
-
-
-inline BOOL ComCallWrapper::NeedToSwitchDomains(ADID appdomainID)
-{
-    WRAPPER_NO_CONTRACT;
-    
-    return GetSimpleWrapper()->NeedToSwitchDomains(appdomainID);
-}
-
-#endif // CROSSGEN_COMPILE
 
 inline ADID ComCallWrapper::GetDomainID()
 {
     WRAPPER_NO_CONTRACT;
     
     return GetSimpleWrapper()->GetDomainID();
-}
-
-
-inline void ComCallWrapper::CheckMakeAgile(OBJECTREF pObj)
-{
-    CONTRACTL
-    {
-        WRAPPER(THROWS);
-        WRAPPER(GC_TRIGGERS);
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-    
-    if (GetSimpleWrapper()->ShouldBeAgile())
-        MakeAgile(pObj);
 }
 
 inline ULONG ComCallWrapper::GetRefCount()

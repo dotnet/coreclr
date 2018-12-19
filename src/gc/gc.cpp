@@ -21680,7 +21680,7 @@ void gc_heap::plan_phase (int condemned_gen_number)
             generation_plan_allocation_start (temp_gen)));
     }
 
-    BOOL fire_pinned_plug_events_p = ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, PinPlugAtGCTime);
+    BOOL fire_pinned_plug_events_p = EVENT_ENABLED(PinPlugAtGCTime);
     size_t last_plug_len = 0;
 
     while (1)
@@ -21966,9 +21966,8 @@ void gc_heap::plan_phase (int condemned_gen_number)
             if (pinned_plug_p)
             {
                 if (fire_pinned_plug_events_p)
-                    FireEtwPinPlugAtGCTime(plug_start, plug_end, 
-                                           (merge_with_last_pin_p ? 0 : (uint8_t*)node_gap_size (plug_start)),
-                                           GetClrInstanceId());
+                    FIRE_EVENT(PinPlugAtGCTime, plug_start, plug_end, 
+                               (merge_with_last_pin_p ? 0 : (uint8_t*)node_gap_size (plug_start)));
 
                 if (merge_with_last_pin_p)
                 {
@@ -35215,17 +35214,14 @@ int GCHeap::GetNumberOfHeaps ()
 int GCHeap::GetHomeHeapNumber ()
 {
 #ifdef MULTIPLE_HEAPS
-    Thread *pThread = GCToEEInterface::GetThread();
-    for (int i = 0; i < gc_heap::n_heaps; i++)
+    gc_alloc_context* ctx = GCToEEInterface::GetAllocContext();
+    if (!ctx)
     {
-        if (pThread)
-        {
-            gc_alloc_context* ctx = GCToEEInterface::GetAllocContext();
-            GCHeap *hp = static_cast<alloc_context*>(ctx)->get_home_heap();
-            if (hp == gc_heap::g_heaps[i]->vm_heap) return i;
-        }
+        return 0;
     }
-    return 0;
+
+    GCHeap *hp = static_cast<alloc_context*>(ctx)->get_home_heap();
+    return (hp ? hp->pGenGCHeap->heap_number : 0);
 #else
     return 0;
 #endif //MULTIPLE_HEAPS

@@ -1582,8 +1582,7 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
                 fieldAccessor = intrinsicAccessor;
             }
             else
-            if (// Domain neutral access.
-                m_pMethodBeingCompiled->IsDomainNeutral() || m_pMethodBeingCompiled->IsZapped() || IsCompilingForNGen() ||
+            if (m_pMethodBeingCompiled->IsZapped() || IsCompilingForNGen() ||
                 // Static fields are not pinned in collectible types. We will always access 
                 // them using a helper since the address cannot be embeded into the code.
                 pFieldMT->Collectible() ||
@@ -4120,12 +4119,12 @@ CorInfoInitClassResult CEEInfo::initClass(
 
     MethodDesc *methodBeingCompiled = m_pMethodBeingCompiled;
 
-    BOOL fMethodDomainNeutral = methodBeingCompiled->IsDomainNeutral() || methodBeingCompiled->IsZapped() || IsCompilingForNGen();
+    BOOL fMethodZappedOrNGen = methodBeingCompiled->IsZapped() || IsCompilingForNGen();
 
     MethodTable *pTypeToInitMT = typeToInitTH.AsMethodTable();
 
     // This should be the most common early-out case.
-    if (fMethodDomainNeutral)
+    if (fMethodZappedOrNGen)
     {
         if (pTypeToInitMT->IsClassPreInited())
         {
@@ -4242,7 +4241,7 @@ CorInfoInitClassResult CEEInfo::initClass(
         }
     }
 
-    if (fMethodDomainNeutral)
+    if (fMethodZappedOrNGen)
     {
         // Well, because of code sharing we can't do anything at coge generation time.
         // We have to do it at runtime.
@@ -6607,7 +6606,7 @@ const char* CEEInfo::getMethodName (CORINFO_METHOD_HANDLE ftnHnd, const char** s
     return result;
 }
 
-const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, const char** className, const char** namespaceName)
+const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, const char** className, const char** namespaceName, const char **enclosingClassName)
 {
     CONTRACTL {
         SO_TOLERANT;
@@ -6619,6 +6618,7 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
     const char* result = NULL;
     const char* classResult = NULL;
     const char* namespaceResult = NULL;
+    const char* enclosingResult = NULL;
 
     JIT_TO_EE_TRANSITION();
 
@@ -6627,10 +6627,16 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
 
     if (!IsNilToken(token))
     {
-        if (!FAILED(ftn->GetMDImport()->GetNameOfMethodDef(token, &result)))
+        MethodTable* pMT = ftn->GetMethodTable();
+        IMDInternalImport* pMDImport = pMT->GetMDImport();
+
+        IfFailThrow(pMDImport->GetNameOfMethodDef(token, &result));
+        IfFailThrow(pMDImport->GetNameOfTypeDef(pMT->GetCl(), &classResult, &namespaceResult));
+        // Query enclosingClassName when the method is in a nested class
+        // and get the namespace of enclosing classes (nested class's namespace is empty)
+        if (pMT->GetClass()->IsNested())
         {
-            MethodTable* pMT = ftn->GetMethodTable();
-            classResult = pMT->GetFullyQualifiedNameInfo(&namespaceResult);
+            IfFailThrow(pMDImport->GetNameOfTypeDef(pMT->GetEnclosingCl(), &enclosingResult, &namespaceResult));
         }
     }
 
@@ -6643,6 +6649,11 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
     {
         *namespaceName = namespaceResult;
     }
+
+    if (enclosingClassName != NULL)
+    {
+        *enclosingClassName = enclosingResult;
+    } 
 
     EE_TO_JIT_TRANSITION();
     
@@ -10957,23 +10968,7 @@ void CEEJitInfo::addActiveDependency(CORINFO_MODULE_HANDLE moduleFrom,CORINFO_MO
     Module *dependency = (Module *)moduleTo;
     _ASSERTE(!dependency->IsSystem());
 
-    if (m_pMethodBeingCompiled->IsLCGMethod())
-    {
-        // The context module of the m_pMethodBeingCompiled is irrelevant.  Rather than tracking
-        // the dependency, we just do immediate activation.
-        dependency->EnsureActive();
-    }
-    else
-    {
-#ifdef FEATURE_LOADER_OPTIMIZATION
-        Module *context = (Module *)moduleFrom;
-
-        // Record active dependency for loader.
-        context->AddActiveDependency(dependency, FALSE);
-#else
-        dependency->EnsureActive();
-#endif
-    }
+    dependency->EnsureActive();
 
     // EE_TO_JIT_TRANSITION();
 }
@@ -13969,11 +13964,35 @@ InfoAccessType CEEInfo::emptyStringLiteral(void ** ppValue)
 void* CEEInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
                                   void **ppIndirection)
 {
-    LIMITED_METHOD_CONTRACT;
-    _ASSERTE(isVerifyOnly());
+    CONTRACTL{
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    void *result = NULL;
+
     if (ppIndirection != NULL)
         *ppIndirection = NULL;
-    return (void *)0x10;
+
+    // Do not bother with initialization if we are only verifying the method.
+    if (isVerifyOnly())
+    {
+        return (void *)0x10;
+    }
+
+    JIT_TO_EE_TRANSITION();
+
+    FieldDesc* field = (FieldDesc*)fieldHnd;
+
+    _ASSERTE(field->IsRVA());
+
+    result = field->GetStaticAddressHandle(NULL);
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
 }
 
 CORINFO_CLASS_HANDLE CEEInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,

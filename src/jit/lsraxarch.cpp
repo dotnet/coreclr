@@ -1894,8 +1894,9 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
             // Mark op1 as contained if it is either zero or int constant of all 1's,
             // or a float constant with 16 or 32 byte simdType (AVX case)
             //
-            // Should never see small int base type vectors except for zero initialization.
-            assert(!varTypeIsSmallInt(simdTree->gtSIMDBaseType) || op1->IsIntegralConst(0));
+            // Note that for small int base types, the initVal has been constructed so that
+            // we can use the full int value.
+            CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if !defined(_TARGET_64BIT_)
             if (op1->OperGet() == GT_LONG)
@@ -2372,6 +2373,60 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         // must be handled within the case.
         switch (intrinsicId)
         {
+            case NI_Base_Vector128_CreateScalarUnsafe:
+            case NI_Base_Vector128_ToScalar:
+            case NI_Base_Vector256_CreateScalarUnsafe:
+            case NI_Base_Vector256_ToScalar:
+            {
+                assert(numArgs == 1);
+
+                if (varTypeIsFloating(baseType))
+                {
+                    if (op1->isContained())
+                    {
+                        srcCount += BuildOperandUses(op1);
+                    }
+                    else
+                    {
+                        // We will either be in memory and need to be moved
+                        // into a register of the appropriate size or we
+                        // are already in an XMM/YMM register and can stay
+                        // where we are.
+
+                        tgtPrefUse = BuildUse(op1);
+                        srcCount += 1;
+                    }
+
+                    buildUses = false;
+                }
+                break;
+            }
+
+            case NI_Base_Vector128_ToVector256:
+            case NI_Base_Vector128_ToVector256Unsafe:
+            case NI_Base_Vector256_GetLower:
+            {
+                assert(numArgs == 1);
+
+                if (op1->isContained())
+                {
+                    srcCount += BuildOperandUses(op1);
+                }
+                else
+                {
+                    // We will either be in memory and need to be moved
+                    // into a register of the appropriate size or we
+                    // are already in an XMM/YMM register and can stay
+                    // where we are.
+
+                    tgtPrefUse = BuildUse(op1);
+                    srcCount += 1;
+                }
+
+                buildUses = false;
+                break;
+            }
+
             case NI_SSE_CompareEqualOrderedScalar:
             case NI_SSE_CompareEqualUnorderedScalar:
             case NI_SSE_CompareNotEqualOrderedScalar:
@@ -2441,6 +2496,7 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
 #ifdef _TARGET_X86_
             case NI_SSE42_Crc32:
+            case NI_SSE42_X64_Crc32:
             {
                 // TODO-XArch-Cleanup: Currently we use the BaseType to bring the type of the second argument
                 // to the code generator. We may want to encode the overload info in another way.
@@ -2779,6 +2835,10 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
         }
     }
 #ifdef FEATURE_SIMD
+    if (varTypeIsSIMD(indirTree))
+    {
+        SetContainsAVXFlags(true, genTypeSize(indirTree->TypeGet()));
+    }
     buildInternalRegisterUses();
 #endif // FEATURE_SIMD
 

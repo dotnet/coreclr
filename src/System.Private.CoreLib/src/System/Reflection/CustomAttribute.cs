@@ -912,20 +912,20 @@ namespace System.Reflection
     internal enum CustomAttributeEncoding : int
     {
         Undefined = 0,
-        Boolean = CorElementType.Boolean,
-        Char = CorElementType.Char,
-        SByte = CorElementType.I1,
-        Byte = CorElementType.U1,
-        Int16 = CorElementType.I2,
-        UInt16 = CorElementType.U2,
-        Int32 = CorElementType.I4,
-        UInt32 = CorElementType.U4,
-        Int64 = CorElementType.I8,
-        UInt64 = CorElementType.U8,
-        Float = CorElementType.R4,
-        Double = CorElementType.R8,
-        String = CorElementType.String,
-        Array = CorElementType.SzArray,
+        Boolean = CorElementType.ELEMENT_TYPE_BOOLEAN,
+        Char = CorElementType.ELEMENT_TYPE_CHAR,
+        SByte = CorElementType.ELEMENT_TYPE_I1,
+        Byte = CorElementType.ELEMENT_TYPE_U1,
+        Int16 = CorElementType.ELEMENT_TYPE_I2,
+        UInt16 = CorElementType.ELEMENT_TYPE_U2,
+        Int32 = CorElementType.ELEMENT_TYPE_I4,
+        UInt32 = CorElementType.ELEMENT_TYPE_U4,
+        Int64 = CorElementType.ELEMENT_TYPE_I8,
+        UInt64 = CorElementType.ELEMENT_TYPE_U8,
+        Float = CorElementType.ELEMENT_TYPE_R4,
+        Double = CorElementType.ELEMENT_TYPE_R8,
+        String = CorElementType.ELEMENT_TYPE_STRING,
+        Array = CorElementType.ELEMENT_TYPE_SZARRAY,
         Type = 0x50,
         Object = 0x51,
         Field = 0x53,
@@ -1616,7 +1616,15 @@ namespace System.Reflection
             if (ctorHasParameters)
             {
                 // Resolve method ctor token found in decorated decoratedModule scope
-                ctor = decoratedModule.ResolveMethod(caRecord.tkCtor, attributeType.GenericTypeArguments, null).MethodHandle.GetMethodInfo();
+                // See https://github.com/dotnet/coreclr/issues/21456 for why we fast-path non-generics here (fewer allocations)
+                if (attributeType.IsGenericType)
+                {
+                    ctor = decoratedModule.ResolveMethod(caRecord.tkCtor, attributeType.GenericTypeArguments, null).MethodHandle.GetMethodInfo();
+                }
+                else
+                {
+                    ctor = ModuleHandle.ResolveMethodHandleInternal(decoratedModule.GetNativeHandle(), caRecord.tkCtor);
+                }
             }
             else
             {

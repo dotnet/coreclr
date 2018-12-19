@@ -1715,6 +1715,9 @@ ReadyToRunHelper MapReadyToRunHelper(CorInfoHelpFunc func, bool * pfOptimizeForS
     case corInfoHelpFunc: flags return readyToRunHelper;
 #include "readytorunhelpers.h"
 
+    case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE:
+        return READYTORUN_HELPER_GetRuntimeTypeHandle;
+
     case CORINFO_HELP_STRCNS_CURRENT_MODULE:
         *pfOptimizeForSize = true;
         return READYTORUN_HELPER_GetString;
@@ -2319,6 +2322,13 @@ unsigned ZapInfo::getClassDomainID (CORINFO_CLASS_HANDLE cls, void **ppIndirecti
 
 void * ZapInfo::getFieldAddress(CORINFO_FIELD_HANDLE field, void **ppIndirection)
 {
+    if (IsReadyToRunCompilation())
+    {
+        void * pAddress = m_pEEJitInfo->getFieldAddress(field, ppIndirection);
+
+        return m_pImage->m_pILMetaData->GetRVAField(pAddress);
+    }
+
     _ASSERTE(ppIndirection != NULL);
 
     CORINFO_CLASS_HANDLE hClass = m_pEEJitInfo->getFieldClass(field);
@@ -3005,8 +3015,15 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 		}
             break;
 
-        case CORINFO_FIELD_STATIC_ADDRESS:           // field at given address
         case CORINFO_FIELD_STATIC_RVA_ADDRESS:       // RVA field at given address
+            if (m_pEEJitInfo->getClassModule(pResolvedToken->hClass) != m_pImage->m_hModule)
+            {
+                m_zapper->Warning(W("ReadyToRun: Cross-module RVA static fields not supported\n"));
+                ThrowHR(E_NOTIMPL);
+            }
+            break;
+
+        case CORINFO_FIELD_STATIC_ADDRESS:           // field at given address
         case CORINFO_FIELD_STATIC_ADDR_HELPER:       // static field accessed using address-of helper (argument is FieldDesc *)
         case CORINFO_FIELD_STATIC_TLS:
             m_zapper->Warning(W("ReadyToRun: Rare kinds of static fields not supported\n"));
@@ -3605,9 +3622,9 @@ const char* ZapInfo::getMethodName(CORINFO_METHOD_HANDLE ftn, const char **modul
     return m_pEEJitInfo->getMethodName(ftn, moduleName);
 }
 
-const char* ZapInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn, const char **className, const char** namespaceName)
+const char* ZapInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn, const char **className, const char** namespaceName, const char **enclosingClassName)
 {
-    return m_pEEJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName);
+    return m_pEEJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName, enclosingClassName);
 }
 
 unsigned ZapInfo::getMethodHash(CORINFO_METHOD_HANDLE ftn)

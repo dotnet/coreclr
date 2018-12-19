@@ -175,9 +175,6 @@
   <data name="Arg_AmbiguousMatchException" xml:space="preserve">
     <value>Ambiguous match found.</value>
   </data>
-  <data name="Arg_AppDomainUnloadedException" xml:space="preserve">
-    <value>Attempted to access an unloaded AppDomain.</value>
-  </data>
   <data name="Arg_ApplicationException" xml:space="preserve">
     <value>Error in the application.</value>
   </data>
@@ -1499,7 +1496,7 @@
     <value>The DaylightTransitionStart property must not equal the DaylightTransitionEnd property.</value>
   </data>
   <data name="Argument_TypedReferenceInvalidField" xml:space="preserve">
-    <value>Field '{0}' in TypedReferences cannot be static or init only.</value>
+    <value>Field '{0}' in TypedReferences cannot be static.</value>
   </data>
   <data name="Argument_TypeIsWinRTType" xml:space="preserve">
     <value>The type must not be a Windows Runtime type.</value>
@@ -1539,9 +1536,6 @@
   </data>
   <data name="Argument_UnmatchingSymScope" xml:space="preserve">
     <value>Non-matching symbol scope.</value>
-  </data>
-  <data name="Argument_UnrecognizedLoaderOptimization" xml:space="preserve">
-    <value>Unrecognized LOADER_OPTIMIZATION property value.  Supported values may include "SingleDomain", "MultiDomain", "MultiDomainHost", and "NotSpecified".</value>
   </data>
   <data name="Argument_UTCOutOfRange" xml:space="preserve">
     <value>The UTC time represented when the offset is applied must be between year 0 and 10,000.</value>
@@ -2614,9 +2608,6 @@
   <data name="InvalidOperation_ShouldNotHaveMethodBody" xml:space="preserve">
     <value>Method body should not exist.</value>
   </data>
-  <data name="InvalidOperation_StrongNameKeyPairRequired" xml:space="preserve">
-    <value>A strong name key pair is required to emit a strong-named dynamic assembly.</value>
-  </data>
   <data name="InvalidOperation_ThreadWrongThreadStart" xml:space="preserve">
     <value>The thread was created with a ThreadStart delegate that does not accept a parameter.</value>
   </data>
@@ -2887,8 +2878,8 @@
   <data name="NotSupported_CollectibleBoundNonCollectible" xml:space="preserve">
     <value>A non-collectible assembly may not reference a collectible assembly.</value>
   </data>
-  <data name="NotSupported_CollectibleCOM" xml:space="preserve">
-    <value>COM Interop is not supported for collectible types.</value>
+  <data name="NotSupported_CollectibleWinRT" xml:space="preserve">
+    <value>WinRT Interop is not supported for collectible types.</value>
   </data>
   <data name="NotSupported_CreateInstanceWithTypeBuilder" xml:space="preserve">
     <value>CreateInstance cannot be used with an object of type TypeBuilder.</value>
@@ -2904,9 +2895,6 @@
   </data>
   <data name="NotSupported_DynamicAssembly" xml:space="preserve">
     <value>The invoked member is not supported in a dynamic assembly.</value>
-  </data>
-  <data name="NotSupported_DynamicAssemblyNoRunAccess" xml:space="preserve">
-    <value>Cannot execute code on a dynamic assembly without run access.</value>
   </data>
   <data name="NotSupported_DynamicMethodFlags" xml:space="preserve">
     <value>Wrong MethodAttributes or CallingConventions for DynamicMethod. Only public, static, standard supported</value>
@@ -3172,6 +3160,12 @@
   <data name="PlatformNotSupported_OverlappedIO" xml:space="preserve">
     <value>This API is specific to the way in which Windows handles asynchronous I/O, and is not supported on this platform.</value>
   </data>
+  <data name="PlatformNotSupported_ITypeInfo" xml:space="preserve">
+    <value>Marshalling a System.Type to an unmanaged ITypeInfo or marshalling an ITypeInfo to a System.Type is not supported on this platform.</value>
+  </data>
+  <data name="PlatformNotSupported_IExpando" xml:space="preserve">
+    <value>Marshalling an IDispatchEx to an IReflect or IExpando is not supported on this platform.</value>
+  </data>
   <data name="Policy_CannotLoadSemiTrustAssembliesDuringInit" xml:space="preserve">
     <value>All assemblies loaded as part of AppDomain initialization must be fully trusted.</value>
   </data>
@@ -3201,9 +3195,6 @@
   </data>
   <data name="ReflectionTypeLoad_LoadFailed" xml:space="preserve">
     <value>Unable to load one or more of the requested types.</value>
-  </data>
-  <data name="Remoting_AppDomainUnloaded_ThreadUnwound" xml:space="preserve">
-    <value>The application domain in which the thread was running has been unloaded.</value>
   </data>
   <data name="ResourceReaderIsClosed" xml:space="preserve">
     <value>ResourceReader is closed.</value>
@@ -3532,9 +3523,6 @@
   <data name="UnauthorizedAccess_RegistryKeyGeneric_Key" xml:space="preserve">
     <value>Access to the registry key '{0}' is denied.</value>
   </data>
-  <data name="UnauthorizedAccess_SystemDomain" xml:space="preserve">
-    <value>Cannot execute an assembly in the system domain.</value>
-  </data>
   <data name="UnknownError_Num" xml:space="preserve">
     <value>Unknown error "{0}".</value>
   </data>
@@ -3663,5 +3651,11 @@
   </data>
   <data name="Argument_PrecisionTooLarge" xml:space="preserve">
     <value>Precision cannot be larger than {0}.</value>
+  </data>
+  <data name="Arg_EnumNotCloneable" xml:space="preserve">
+    <value>The supplied object does not implement ICloneable.</value>
+  </data>
+  <data name="InvalidOp_InvalidNewEnumVariant" xml:space="preserve">
+    <value>The returned enumerator does not implement IEnumVARIANT.</value>
   </data>
 </root>

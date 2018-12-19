@@ -75,32 +75,22 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     }
     else
     {
-        // name specified, if immersive ignore the codebase
-        if (GetThread()->GetDomain()->HasLoadContextHostBinder())
-            gc.codeBase = NULL;
-
         // Compute parent assembly
         if (gc.requestingAssembly == NULL)
         {
             pRefAssembly = SystemDomain::GetCallersAssembly(stackMark);
-        
-            // Cross-appdomain callers aren't allowed as the parent
-            if (pRefAssembly &&
-                (pRefAssembly->GetDomain() != pThread->GetDomain()))
-            {
-                pRefAssembly = NULL;
-            }
         }
         else
+        {
             pRefAssembly = gc.requestingAssembly->GetAssembly();
+        }
         
         // Shared or collectible assemblies should not be used for the parent in the
         // late-bound case.
-        if (pRefAssembly && (!pRefAssembly->IsDomainNeutral()) && (!pRefAssembly->IsCollectible()))
+        if (pRefAssembly && (!pRefAssembly->IsCollectible()))
         {
             pParentAssembly= pRefAssembly->GetDomainAssembly();
         }
-
     }
 
     // Initialize spec
@@ -314,7 +304,7 @@ INT_PTR QCALLTYPE AssemblyNative::InternalLoadUnmanagedDllFromPath(LPCWSTR unman
 
     BEGIN_QCALL;
 
-    moduleHandle = NDirect::LoadLibraryFromPath(unmanagedLibraryPath);
+    moduleHandle = NDirect::LoadLibraryFromPath(unmanagedLibraryPath, true);
 
     END_QCALL;
 
@@ -658,16 +648,12 @@ void QCALLTYPE AssemblyNative::GetModules(QCall::AssemblyHandle pAssembly, BOOL 
 
     modules.Append(pAssembly);
 
-    ReflectionModule *pOnDiskManifest = NULL;
-    if (pAssembly->GetAssembly()->NeedsToHideManifestForEmit())
-        pOnDiskManifest = pAssembly->GetAssembly()->GetOnDiskManifestModule();
-
     mdFile mdFile;
     while (pAssembly->GetMDImport()->EnumNext(&phEnum, &mdFile))
     {
         DomainFile *pModule = pAssembly->GetModule()->LoadModule(GetAppDomain(), mdFile, fGetResourceModules, !fLoadIfNotFound);
 
-        if (pModule && pModule->GetModule() != pOnDiskManifest) {
+        if (pModule) {
             modules.Append(pModule);
         }
     }
@@ -1295,65 +1281,6 @@ void QCALLTYPE AssemblyNative::PrepareForAssemblyLoadContextRelease(INT_PTR ptrN
 }
 
 /*static*/
-BOOL QCALLTYPE AssemblyNative::OverrideDefaultAssemblyLoadContextForCurrentDomain(INT_PTR ptrNativeAssemblyLoadContext)
-{
-    QCALL_CONTRACT;
-    
-    BOOL fOverrodeDefaultLoadContext = FALSE;
-    
-    BEGIN_QCALL;
-    
-    AppDomain *pCurDomain = AppDomain::GetCurrentDomain();
-    
-    if (pCurDomain->LockBindingModel())
-    {
-        // Only one thread will ever enter here - it will be the ones that actually locked the binding model
-        //
-        // AssemblyLoadContext should have a binder associated with it
-        IUnknown *pOverrideBinder = reinterpret_cast<IUnknown *>(ptrNativeAssemblyLoadContext);
-        _ASSERTE(pOverrideBinder != NULL);
-        
-        // Get reference to the current default context binder
-        
-        IUnknown * pCurrentDefaultContextBinder = pCurDomain->GetFusionContext();
-        
-        // The default context binder can never be null since the runtime always sets one up
-        _ASSERTE(pCurrentDefaultContextBinder != NULL);
-        
-        // The default context should also be the same as TPABinder context
-        _ASSERTE(pCurrentDefaultContextBinder == pCurDomain->GetTPABinderContext());
-        
-        // Override the default context binder in the VM
-        pCurDomain->OverrideDefaultContextBinder(pOverrideBinder);
-        
-        fOverrodeDefaultLoadContext = TRUE;
-    }
-    
-    END_QCALL;
-    
-    return fOverrodeDefaultLoadContext;
-}
-
-BOOL QCALLTYPE AssemblyNative::CanUseAppPathAssemblyLoadContextInCurrentDomain()
-{
-    QCALL_CONTRACT;
-    
-    BOOL fCanUseAppPathAssemblyLoadContext = FALSE;
-    
-    BEGIN_QCALL;
-
-    AppDomain *pCurDomain = AppDomain::GetCurrentDomain();
-
-    pCurDomain->LockBindingModel();
-        
-    fCanUseAppPathAssemblyLoadContext = !pCurDomain->IsHostAssemblyResolverInUse();
-
-    END_QCALL;
-    
-    return fCanUseAppPathAssemblyLoadContext;
-}
-
-/*static*/
 INT_PTR QCALLTYPE AssemblyNative::GetLoadContextForAssembly(QCall::AssemblyHandle pAssembly)
 {
     QCALL_CONTRACT;
@@ -1367,42 +1294,39 @@ INT_PTR QCALLTYPE AssemblyNative::GetLoadContextForAssembly(QCall::AssemblyHandl
     PTR_PEAssembly pPEAssembly = pPEFile->AsAssembly();
     _ASSERTE(pAssembly != NULL);
    
-    // Platform assemblies are semantically bound against the "Default" binder which could be the TPA Binder or
-    // the overridden binder. In either case, the reference to the same will be returned when this QCall returns.
-    if (!pPEAssembly->IsProfileAssembly())
+    // Platform assemblies are semantically bound against the "Default" binder. 
+    // The reference to the same will be returned when this QCall returns.
+
+    // Get the binding context for the assembly.
+    //
+    ICLRPrivBinder *pOpaqueBinder = nullptr;
+    AppDomain *pCurDomain = AppDomain::GetCurrentDomain();
+    CLRPrivBinderCoreCLR *pTPABinder = pCurDomain->GetTPABinderContext();
+
+    // GetBindingContext returns a ICLRPrivAssembly which can be used to get access to the
+    // actual ICLRPrivBinder instance in which the assembly was loaded.
+    PTR_ICLRPrivBinder pBindingContext = pPEAssembly->GetBindingContext();
+    UINT_PTR assemblyBinderID = 0;
+    IfFailThrow(pBindingContext->GetBinderID(&assemblyBinderID));
+
+    // If the assembly was bound using the TPA binder,
+    // then we will return the reference to "Default" binder from the managed implementation when this QCall returns.
+    //
+    // See earlier comment about "Default" binder for additional context.
+    pOpaqueBinder = reinterpret_cast<ICLRPrivBinder *>(assemblyBinderID);
+
+    // We should have a load context binder at this point.
+    _ASSERTE(pOpaqueBinder != nullptr);
+
+    if (!AreSameBinderInstance(pTPABinder, pOpaqueBinder))
     {
-        // Get the binding context for the assembly.
-        //
-        ICLRPrivBinder *pOpaqueBinder = nullptr;
-        AppDomain *pCurDomain = AppDomain::GetCurrentDomain();
-        CLRPrivBinderCoreCLR *pTPABinder = pCurDomain->GetTPABinderContext();
+        // Only CLRPrivBinderAssemblyLoadContext instance contains the reference to its
+        // corresponding managed instance.
+        CLRPrivBinderAssemblyLoadContext *pBinder = (CLRPrivBinderAssemblyLoadContext *)(pOpaqueBinder);
 
-        
-        // GetBindingContext returns a ICLRPrivAssembly which can be used to get access to the
-        // actual ICLRPrivBinder instance in which the assembly was loaded.
-        PTR_ICLRPrivBinder pBindingContext = pPEAssembly->GetBindingContext();
-        UINT_PTR assemblyBinderID = 0;
-        IfFailThrow(pBindingContext->GetBinderID(&assemblyBinderID));
-
-        // If the assembly was bound using the TPA binder,
-        // then we will return the reference to "Default" binder from the managed implementation when this QCall returns.
-        //
-        // See earlier comment about "Default" binder for additional context.
-        pOpaqueBinder = reinterpret_cast<ICLRPrivBinder *>(assemblyBinderID);
-        
-        // We should have a load context binder at this point.
-        _ASSERTE(pOpaqueBinder != nullptr);
-
-        if (!AreSameBinderInstance(pTPABinder, pOpaqueBinder))
-        {
-            // Only CLRPrivBinderAssemblyLoadContext instance contains the reference to its
-            // corresponding managed instance.
-            CLRPrivBinderAssemblyLoadContext *pBinder = (CLRPrivBinderAssemblyLoadContext *)(pOpaqueBinder);
-            
-            // Fetch the managed binder reference from the native binder instance
-            ptrManagedAssemblyLoadContext = pBinder->GetManagedAssemblyLoadContext();
-            _ASSERTE(ptrManagedAssemblyLoadContext != NULL);
-        }
+        // Fetch the managed binder reference from the native binder instance
+        ptrManagedAssemblyLoadContext = pBinder->GetManagedAssemblyLoadContext();
+        _ASSERTE(ptrManagedAssemblyLoadContext != NULL);
     }
     
     END_QCALL;

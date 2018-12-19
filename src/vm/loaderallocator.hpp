@@ -18,6 +18,7 @@
 
 class FuncPtrStubs;
 #include "qcall.h"
+#include "ilstubcache.h"
 
 #define VPTRU_LoaderAllocator 0x3200
 
@@ -25,7 +26,6 @@ enum LoaderAllocatorType
 {
     LAT_Invalid,
     LAT_Global,
-    LAT_AppDomain,
     LAT_Assembly
 };
 
@@ -70,7 +70,6 @@ protected:
     LoaderAllocatorType m_type;
     union
     {
-        AppDomain* m_pAppDomain;
         DomainAssembly* m_pDomainAssembly;
         void* m_pValue;
     };
@@ -84,11 +83,9 @@ public:
         m_pValue = value;
     };
     VOID Init();
-    VOID Init(AppDomain* pAppDomain);
     LoaderAllocatorType GetType();
     VOID AddDomainAssembly(DomainAssembly* pDomainAssembly);
     DomainAssemblyIterator GetDomainAssemblyIterator();
-    AppDomain* GetAppDomain();
     BOOL Equals(LoaderAllocatorID* pId);
     COUNT_T Hash();
 };
@@ -131,6 +128,10 @@ template <typename ELEMENT>
 class ListLockEntryBase;
 typedef ListLockEntryBase<void*> ListLockEntry;
 class UMEntryThunkCache;
+
+#ifdef FEATURE_COMINTEROP
+class ComCallWrapperCache;
+#endif // FEATURE_COMINTEROP
 
 class LoaderAllocator
 {
@@ -177,6 +178,9 @@ protected:
     // U->M thunks that are not associated with a delegate.
     // The cache is keyed by MethodDesc pointers.
     UMEntryThunkCache * m_pUMEntryThunkCache;
+
+    // IL stub cache with fabricated MethodTable parented by a random module in this LoaderAllocator.
+    ILStubCache         m_ILStubCache;
 
 public:
     BYTE *GetVSDHeapInitialBlock(DWORD *pSize);
@@ -248,6 +252,18 @@ private:
     SList<FailedTypeInitCleanupListItem> m_failedTypeInitCleanupList;
 
     SegmentedHandleIndexStack m_freeHandleIndexesStack;
+#ifdef FEATURE_COMINTEROP
+    // The wrapper cache for this loader allocator - it has its own CCacheLineAllocator on a per loader allocator basis
+    // to allow the loader allocator to go away and eventually kill the memory when all refs are gone
+    
+    VolatilePtr<ComCallWrapperCache> m_pComCallWrapperCache;
+    // Used for synchronizing creation of the m_pComCallWrapperCache
+    CrstExplicitInit m_ComCallWrapperCrst;
+    // Hash table that maps a MethodTable to COM Interop compatibility data.
+    PtrHashMap m_interopDataHash;
+    // Used for synchronizing access to the m_interopDataHash
+    CrstExplicitInit m_InteropDataCrst;
+#endif
 
 #ifndef DACCESS_COMPILE
 
@@ -469,7 +485,6 @@ public:
     virtual ~LoaderAllocator();
     BaseDomain *GetDomain() { LIMITED_METHOD_CONTRACT; return m_pDomain; }
     virtual BOOL CanUnload() = 0;
-    BOOL IsDomainNeutral();
     void Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory = NULL);
     void Terminate();
     virtual void ReleaseManagedAssemblyLoadContext() {}
@@ -509,6 +524,7 @@ public:
 
     void InitVirtualCallStubManager(BaseDomain *pDomain);
     void UninitVirtualCallStubManager();
+
 #ifndef CROSSGEN_COMPILE
     inline VirtualCallStubManager *GetVirtualCallStubManager()
     {
@@ -519,6 +535,41 @@ public:
     UMEntryThunkCache *GetUMEntryThunkCache();
 
 #endif
+
+    static LoaderAllocator* GetLoaderAllocator(ILStubCache* pILStubCache)
+    {
+         return CONTAINING_RECORD(pILStubCache, LoaderAllocator, m_ILStubCache);
+    }
+
+    ILStubCache* GetILStubCache()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &m_ILStubCache;
+    }
+
+#ifdef FEATURE_COMINTEROP
+
+    ComCallWrapperCache * GetComCallWrapperCache();
+
+    void ResetComCallWrapperCache()
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_pComCallWrapperCache = NULL;
+    }
+
+#ifndef DACCESS_COMPILE
+
+    // Look up interop data for a method table
+    // Returns the data pointer if present, NULL otherwise
+    InteropMethodTableData *LookupComInteropData(MethodTable *pMT);
+
+    // Returns TRUE if successfully inserted, FALSE if this would be a duplicate entry
+    BOOL InsertComInteropData(MethodTable* pMT, InteropMethodTableData *pData);
+
+#endif // DACCESS_COMPILE
+
+#endif // FEATURE_COMINTEROP
+
 };  // class LoaderAllocator
 
 typedef VPTR(LoaderAllocator) PTR_LoaderAllocator;
@@ -541,23 +592,6 @@ public:
 };
 
 typedef VPTR(GlobalLoaderAllocator) PTR_GlobalLoaderAllocator;
-
-
-class AppDomainLoaderAllocator : public LoaderAllocator
-{
-    VPTR_VTABLE_CLASS(AppDomainLoaderAllocator, LoaderAllocator)
-    VPTR_UNIQUE(VPTRU_LoaderAllocator+2)
-
-protected:
-    LoaderAllocatorID m_Id;
-public:    
-    AppDomainLoaderAllocator() : m_Id(LAT_AppDomain) { LIMITED_METHOD_CONTRACT;};
-    void Init(AppDomain *pAppDomain);
-    virtual LoaderAllocatorID* Id();
-    virtual BOOL CanUnload();
-};
-
-typedef VPTR(AppDomainLoaderAllocator) PTR_AppDomainLoaderAllocator;
 
 class ShuffleThunkCache;
 

@@ -337,16 +337,16 @@ MethodTable* ILStubCache::GetOrCreateStubMethodTable(Module* pModule)
     CONTRACT_END;
 
 #ifdef _DEBUG
-    if (pModule->GetDomain()->IsSharedDomain() || pModule->GetDomain()->AsAppDomain()->IsCompilationDomain())
+    if (pModule->IsSystem() || pModule->GetDomain()->IsSharedDomain() || pModule->GetDomain()->AsAppDomain()->IsCompilationDomain())
     {
         // in the shared domain and compilation AD we are associated with the module
         CONSISTENCY_CHECK(pModule->GetILStubCache() == this);
     }
     else
     {
-        // otherwise we are associated with the AD
-        AppDomain* pStubCacheDomain = AppDomain::GetDomain(this);
-        CONSISTENCY_CHECK(pStubCacheDomain == pModule->GetDomain()->AsAppDomain());
+        // otherwise we are associated with the LoaderAllocator
+        LoaderAllocator* pStubLoaderAllocator = LoaderAllocator::GetLoaderAllocator(this);
+        CONSISTENCY_CHECK(pStubLoaderAllocator == pModule->GetLoaderAllocator());
     }
 #endif // _DEBUG
 

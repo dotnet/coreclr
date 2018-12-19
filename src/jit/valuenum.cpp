@@ -1125,7 +1125,7 @@ ValueNum ValueNumStore::VNExcSetUnion(ValueNum xs0, ValueNum xs1)
 //                   (see VNExcSetUnion for more details)
 //
 // Notes:   - This method is used to form a Value Number Pair when we
-//            want both the Liberal and Conservative Value NUmbers
+//            want both the Liberal and Conservative Value Numbers
 //
 ValueNumPair ValueNumStore::VNPExcSetUnion(ValueNumPair xs0vnp, ValueNumPair xs1vnp)
 {
@@ -1195,7 +1195,7 @@ ValueNum ValueNumStore::VNExcSetIntersection(ValueNum xs0, ValueNum xs1)
 //                 (see VNExcSetIntersection for more details)
 //
 // Notes:   - This method is used to form a Value Number Pair when we
-//            want both the Liberal and Conservative Value NUmbers
+//            want both the Liberal and Conservative Value Numbers
 //
 ValueNumPair ValueNumStore::VNPExcSetIntersection(ValueNumPair xs0vnp, ValueNumPair xs1vnp)
 {
@@ -1302,18 +1302,18 @@ bool ValueNumStore::VNExcIsSubset(ValueNum vnFullSet, ValueNum vnCandidateSet)
 //                the normal and the exception set components.
 //
 // Arguments:
-//    vnWx        - The value number of the first exception set
+//    vnWx        - A value number, it may have an exception set
 //    pvn         - a write back pointer to the normal value portion of 'vnWx'
 //    pvnx        - a write back pointer for the exception set portion of 'vnWx'
 //
-// Return Values: - This method signature is void but can return up to two values
-//                  using the write back parameters.
+// Return Values: - This method signature is void but returns two values using
+//                  the write back parameters.
 //
-// Note: 'pvnx' is only written when 'vnWx' actually has an exception set,
-//       otherwise it is left unchanged.  When we have an exception set 'vnWx'
-//       will be a VN func with m_func == VNF_ValWithExc.
-//       When 'vnWx' does not have an exception set, the orginal value is the
-//       normal value and is written to 'pvn'.
+// Note: When 'vnWx' does not have an exception set, the orginal value is the
+//       normal value and is written to 'pvn' and VNForEmptyExcSet() is
+//       written to 'pvnx'.
+//       When we have an exception set 'vnWx' will be a VN func with m_func
+//       equal to VNF_ValWithExc.
 //
 void ValueNumStore::VNUnpackExc(ValueNum vnWx, ValueNum* pvn, ValueNum* pvnx)
 {
@@ -1326,7 +1326,8 @@ void ValueNumStore::VNUnpackExc(ValueNum vnWx, ValueNum* pvn, ValueNum* pvnx)
     }
     else
     {
-        *pvn = vnWx;
+        *pvn  = vnWx;
+        *pvnx = VNForEmptyExcSet();
     }
 }
 
@@ -1336,12 +1337,50 @@ void ValueNumStore::VNUnpackExc(ValueNum vnWx, ValueNum* pvn, ValueNum* pvnx)
 //                 (see VNUnpackExc for more details)
 //
 // Notes:   - This method is used to form a Value Number Pair when we
-//            want both the Liberal and Conservative Value NUmbers
+//            want both the Liberal and Conservative Value Numbers
 //
 void ValueNumStore::VNPUnpackExc(ValueNumPair vnpWx, ValueNumPair* pvnp, ValueNumPair* pvnpx)
 {
     VNUnpackExc(vnpWx.GetLiberal(), pvnp->GetLiberalAddr(), pvnpx->GetLiberalAddr());
     VNUnpackExc(vnpWx.GetConservative(), pvnp->GetConservativeAddr(), pvnpx->GetConservativeAddr());
+}
+
+//-------------------------------------------------------------------------------------
+// VNUnionExcSet: - Given a ValueNum 'vnWx' and a current 'vnExcSet', return an
+//                  exception set of the Union of both exception sets.
+//
+// Arguments:
+//    vnWx        - A value number, it may have an exception set
+//    vnExcSet    - The value number for the current exception set
+//
+// Return Values: - The value number of the Union of the exception set of 'vnWx'
+//                  with the current 'vnExcSet'.
+//
+// Note: When 'vnWx' does not have an exception set, 'vnExcSet' is returned.
+//
+ValueNum ValueNumStore::VNUnionExcSet(ValueNum vnWx, ValueNum vnExcSet)
+{
+    assert(vnWx != NoVN);
+    VNFuncApp funcApp;
+    if (GetVNFunc(vnWx, &funcApp) && funcApp.m_func == VNF_ValWithExc)
+    {
+        vnExcSet = VNExcSetUnion(funcApp.m_args[1], vnExcSet);
+    }
+    return vnExcSet;
+}
+
+//-------------------------------------------------------------------------------------
+// VNPUnionExcSet: - Given a ValueNum 'vnWx' and a current 'excSet', return an
+//                   exception set of the Union of both exception sets.
+//                   (see VNUnionExcSet for more details)
+//
+// Notes:   - This method is used to form a Value Number Pair when we
+//            want both the Liberal and Conservative Value Numbers
+//
+ValueNumPair ValueNumStore::VNPUnionExcSet(ValueNumPair vnpWx, ValueNumPair vnpExcSet)
+{
+    return ValueNumPair(VNUnionExcSet(vnpWx.GetLiberal(), vnpExcSet.GetLiberal()),
+                        VNUnionExcSet(vnpWx.GetConservative(), vnpExcSet.GetConservative()));
 }
 
 //--------------------------------------------------------------------------------
@@ -1372,6 +1411,47 @@ ValueNum ValueNumStore::VNNormalValue(ValueNum vn)
     {
         return vn;
     }
+}
+
+//------------------------------------------------------------------------------------
+// VNMakeNormalUnique:
+//
+// Arguments:
+//    vn         - The current Value Number for the expression, including any excSet.
+//                 This excSet is an optional item and represents the set of
+//                 possible exceptions for the expression.
+//
+// Return Value:
+//               - The normal value is set to a new unique VN, while keeping
+//                 the excSet (if any)
+//
+ValueNum ValueNumStore::VNMakeNormalUnique(ValueNum orig)
+{
+    // First Unpack the existing Norm,Exc for 'elem'
+    ValueNum vnOrigNorm;
+    ValueNum vnOrigExcSet;
+    VNUnpackExc(orig, &vnOrigNorm, &vnOrigExcSet);
+
+    // Replace the normal value with a unique ValueNum
+    ValueNum vnUnique = VNForExpr(m_pComp->compCurBB, TypeOfVN(vnOrigNorm));
+
+    // Keep any ExcSet from 'elem'
+    return VNWithExc(vnUnique, vnOrigExcSet);
+}
+
+//--------------------------------------------------------------------------------
+// VNPMakeNormalUniquePair:
+//
+// Arguments:
+//    vnp         - The Value Number Pair for the expression, including any excSet.
+//
+// Return Value:
+//               - The normal values are set to a new unique VNs, while keeping
+//                 the excSets (if any)
+//
+ValueNumPair ValueNumStore::VNPMakeNormalUniquePair(ValueNumPair vnp)
+{
+    return ValueNumPair(VNMakeNormalUnique(vnp.GetLiberal()), VNMakeNormalUnique(vnp.GetConservative()));
 }
 
 //--------------------------------------------------------------------------------
@@ -1405,7 +1485,7 @@ ValueNum ValueNumStore::VNNormalValue(ValueNumPair vnp, ValueNumKind vnk)
 //    vnp         - The Value Number Pair for the expression, including any excSet.
 //
 // Notes:         - This method is used to form a Value Number Pair using both
-//                  the Liberal and Conservative Value NUmbers normal (non-exceptional)
+//                  the Liberal and Conservative Value Numbers normal (non-exceptional)
 //
 ValueNumPair ValueNumStore::VNPNormalPair(ValueNumPair vnp)
 {
@@ -1449,7 +1529,7 @@ ValueNum ValueNumStore::VNExceptionSet(ValueNum vn)
 //                 (see VNExceptionSet for more details)
 //
 // Notes:        - This method is used to form a Value Number Pair when we
-//                 want both the Liberal and Conservative Value NUmbers
+//                 want both the Liberal and Conservative Value Numbers
 //
 ValueNumPair ValueNumStore::VNPExceptionSet(ValueNumPair vnp)
 {
@@ -1483,7 +1563,7 @@ ValueNum ValueNumStore::VNWithExc(ValueNum vn, ValueNum excSet)
     else
     {
         ValueNum vnNorm;
-        ValueNum vnX = VNForEmptyExcSet();
+        ValueNum vnX;
         VNUnpackExc(vn, &vnNorm, &vnX);
         return VNForFunc(TypeOfVN(vnNorm), VNF_ValWithExc, vnNorm, VNExcSetUnion(vnX, excSet));
     }
@@ -1495,7 +1575,7 @@ ValueNum ValueNumStore::VNWithExc(ValueNum vn, ValueNum excSet)
 //                 (see VNWithExc for more details)
 //
 // Notes:        = This method is used to form a Value Number Pair when we
-//                 want both the Liberal and Conservative Value NUmbers
+//                 want both the Liberal and Conservative Value Numbers
 //
 ValueNumPair ValueNumStore::VNPWithExc(ValueNumPair vnp, ValueNumPair excSetVNP)
 {
@@ -3276,7 +3356,7 @@ bool ValueNumStore::VNEvalShouldFold(var_types typ, VNFunc func, ValueNum arg0VN
 //----------------------------------------------------------------------------------------
 //  EvalUsingMathIdentity
 //                   - Attempts to evaluate 'func' by using mathimatical identities
-//                     that can be appied to 'func'.
+//                     that can be applied to 'func'.
 //
 // Arguments:
 //    typ            - The type of the resulting ValueNum produced by 'func'
@@ -3650,15 +3730,15 @@ ValueNum ValueNumStore::VNApplySelectorsTypeCheck(ValueNum elem, var_types indTy
             // Reading beyong the end of 'elem'
 
             // return a new unique value number
-            elem = VNForExpr(nullptr, indType);
+            elem = VNMakeNormalUnique(elem);
+
             JITDUMP("    *** Mismatched types in VNApplySelectorsTypeCheck (reading beyond the end)\n");
         }
         else if (varTypeIsStruct(indType))
         {
-            // indType is TYP_STRUCT
-
             // return a new unique value number
-            elem = VNForExpr(nullptr, indType);
+            elem = VNMakeNormalUnique(elem);
+
             JITDUMP("    *** Mismatched types in VNApplySelectorsTypeCheck (indType is TYP_STRUCT)\n");
         }
         else
@@ -3669,6 +3749,7 @@ ValueNum ValueNumStore::VNApplySelectorsTypeCheck(ValueNum elem, var_types indTy
             elem = VNForCast(elem, indType, elemTyp);
         }
     }
+
     return elem;
 }
 
@@ -3692,7 +3773,8 @@ ValueNum ValueNumStore::VNApplySelectorsAssignTypeCoerce(ValueNum elem, var_type
             if (varTypeIsStruct(indType))
             {
                 // return a new unique value number
-                elem = VNForExpr(block, indType);
+                elem = VNMakeNormalUnique(elem);
+
                 JITDUMP("    *** Mismatched types in VNApplySelectorsAssignTypeCoerce (indType is TYP_STRUCT)\n");
             }
             else
@@ -3701,6 +3783,9 @@ ValueNum ValueNumStore::VNApplySelectorsAssignTypeCoerce(ValueNum elem, var_type
 
                 // insert a cast of elem to 'indType'
                 elem = VNForCast(elem, indType, elemTyp);
+
+                JITDUMP("    Cast to %s inserted in VNApplySelectorsAssignTypeCoerce (elemTyp is %s)\n",
+                        varTypeName(indType), varTypeName(elemTyp));
             }
         }
     }
@@ -3919,7 +4004,7 @@ ValueNum ValueNumStore::ExtendPtrVN(GenTree* opA, FieldSeqNode* fldSeq)
     ValueNum opAvnWx = opA->gtVNPair.GetLiberal();
     assert(VNIsValid(opAvnWx));
     ValueNum opAvn;
-    ValueNum opAvnx = VNForEmptyExcSet();
+    ValueNum opAvnx;
     VNUnpackExc(opAvnWx, &opAvn, &opAvnx);
     assert(VNIsValid(opAvn) && VNIsValid(opAvnx));
 
@@ -4154,6 +4239,7 @@ ValueNum Compiler::fgValueNumberArrIndexVal(GenTree*             tree,
         if (tree != nullptr)
         {
             tree->gtVNPair.SetLiberal(selectedElem);
+
             // TODO-CQ: what to do here about exceptions?  We don't have the array and ind conservative
             // values, so we don't have their exceptions.  Maybe we should.
             tree->gtVNPair.SetConservative(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
@@ -6132,7 +6218,7 @@ ValueNum Compiler::fgMemoryVNForLoopSideEffects(MemoryKind  memoryKind,
 #ifdef DEBUG
         if (verbose)
         {
-            printf("  Loop %d has memory havoc effect; heap state is new fresh $%x.\n", loopNum, res);
+            printf("  Loop %d has memory havoc effect; heap state is new unique $%x.\n", loopNum, res);
         }
 #endif // DEBUG
         return res;
@@ -6663,7 +6749,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTree* tree)
                             else
                             {
                                 JITDUMP("    *** Missing field sequence info for Src/RHS of COPYBLK\n");
-                                rhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, indType)); //  a new unique value number
+                                isNewUniq = true;
                             }
                         }
                         else if (srcAddrFuncApp.m_func == VNF_PtrToArrElem)
@@ -6691,28 +6777,32 @@ void Compiler::fgValueNumberBlockAssignment(GenTree* tree)
                     JITDUMP("    *** Missing field sequence info for Dst/LHS of COPYBLK\n");
                     isNewUniq = true;
                 }
-                else if (lhsFldSeq != nullptr && isEntire)
-                {
-                    // This can occur for structs with one field, itself of a struct type.
-                    // We are assigning the one field and it is also the entire enclosing struct.
-                    //
-                    // Use an unique value number for the old map, as this is an an entire assignment
-                    // and we won't have any other values in the map
-                    ValueNumPair oldMap;
-                    oldMap.SetBoth(vnStore->VNForExpr(compCurBB, lclVarTree->TypeGet()));
-                    rhsVNPair = vnStore->VNPairApplySelectorsAssign(oldMap, lhsFldSeq, rhsVNPair, lclVarTree->TypeGet(),
-                                                                    compCurBB);
-                }
-                else if (!isNewUniq)
-                {
-                    ValueNumPair oldLhsVNPair = lvaTable[lhsLclNum].GetPerSsaData(lclVarTree->GetSsaNum())->m_vnPair;
-                    rhsVNPair                 = vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, lhsFldSeq, rhsVNPair,
-                                                                    lclVarTree->TypeGet(), compCurBB);
-                }
 
                 if (isNewUniq)
                 {
                     rhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lclVarTree->TypeGet()));
+                }
+                else // We will assign rhsVNPair into a map[lhsFldSeq]
+                {
+                    if (lhsFldSeq != nullptr && isEntire)
+                    {
+                        // This can occur for structs with one field, itself of a struct type.
+                        // We are assigning the one field and it is also the entire enclosing struct.
+                        //
+                        // Use an unique value number for the old map, as this is an an entire assignment
+                        // and we won't have any other values in the map
+                        ValueNumPair uniqueMap;
+                        uniqueMap.SetBoth(vnStore->VNForExpr(compCurBB, lclVarTree->TypeGet()));
+                        rhsVNPair = vnStore->VNPairApplySelectorsAssign(uniqueMap, lhsFldSeq, rhsVNPair,
+                                                                        lclVarTree->TypeGet(), compCurBB);
+                    }
+                    else
+                    {
+                        ValueNumPair oldLhsVNPair =
+                            lvaTable[lhsLclNum].GetPerSsaData(lclVarTree->GetSsaNum())->m_vnPair;
+                        rhsVNPair = vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, lhsFldSeq, rhsVNPair,
+                                                                        lclVarTree->TypeGet(), compCurBB);
+                    }
                 }
 
                 lvaTable[lhsLclNum].GetPerSsaData(lclDefSsaNum)->m_vnPair = vnStore->VNPNormalPair(rhsVNPair);
@@ -6797,7 +6887,6 @@ void Compiler::fgValueNumberTree(GenTree* tree)
         switch (oper)
         {
             case GT_LCL_VAR:
-            case GT_REG_VAR:
             {
                 GenTreeLclVarCommon* lcl    = tree->AsLclVarCommon();
                 unsigned             lclNum = lcl->gtLclNum;
@@ -7127,7 +7216,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             // First we'll record the exeception set for the rhs and
             // later we will union in the exeception set for the lhs
             //
-            ValueNum vnExcSet = ValueNumStore::VNForEmptyExcSet();
+            ValueNum vnExcSet;
 
             // Unpack, Norm,Exc for 'rhsVNPair'
             ValueNum vnRhsLibNorm;
@@ -7166,7 +7255,6 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             switch (lhs->OperGet())
             {
                 case GT_LCL_VAR:
-                case GT_REG_VAR:
                 {
                     GenTreeLclVarCommon* lcl          = lhs->AsLclVarCommon();
                     unsigned             lclDefSsaNum = GetSsaNumForLocalVarDef(lcl);
@@ -7543,7 +7631,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                                     if (obj != nullptr)
                                     {
                                         // Unpack, Norm,Exc for 'obj'
-                                        ValueNum vnObjExcSet = ValueNumStore::VNForEmptyExcSet();
+                                        ValueNum vnObjExcSet;
                                         vnStore->VNUnpackExc(obj->gtVNPair.GetLiberal(), &normVal, &vnObjExcSet);
                                         vnExcSet = vnStore->VNExcSetUnion(vnExcSet, vnObjExcSet);
 
@@ -7762,7 +7850,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
 
             // See if the addr has any exceptional part.
             ValueNumPair addrNvnp;
-            ValueNumPair addrXvnp = ValueNumPair(ValueNumStore::VNForEmptyExcSet(), ValueNumStore::VNForEmptyExcSet());
+            ValueNumPair addrXvnp;
             vnStore->VNPUnpackExc(addr->gtVNPair, &addrNvnp, &addrXvnp);
 
             // Is the dereference immutable?  If so, model it as referencing the read-only heap.
@@ -8024,7 +8112,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                         else
                         {
                             ValueNumPair op1VNP;
-                            ValueNumPair op1VNPx = ValueNumStore::VNPForEmptyExcSet();
+                            ValueNumPair op1VNPx;
                             vnStore->VNPUnpackExc(tree->gtOp.gtOp1->gtVNPair, &op1VNP, &op1VNPx);
 
                             // If we are fetching the array length for an array ref that came from global memory
@@ -8072,11 +8160,11 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                     // PtrToXXX.
 
                     ValueNumPair op1vnp;
-                    ValueNumPair op1Xvnp = ValueNumStore::VNPForEmptyExcSet();
+                    ValueNumPair op1Xvnp;
                     vnStore->VNPUnpackExc(tree->gtOp.gtOp1->gtVNPair, &op1vnp, &op1Xvnp);
 
                     ValueNumPair op2vnp;
-                    ValueNumPair op2Xvnp = ValueNumStore::VNPForEmptyExcSet();
+                    ValueNumPair op2Xvnp;
                     vnStore->VNPUnpackExc(op2VNPair, &op2vnp, &op2Xvnp);
                     ValueNumPair excSet = vnStore->VNPExcSetUnion(op1Xvnp, op2Xvnp);
 
@@ -8113,7 +8201,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                     case GT_COMMA:
                     {
                         ValueNumPair op1vnp;
-                        ValueNumPair op1Xvnp = ValueNumStore::VNPForEmptyExcSet();
+                        ValueNumPair op1Xvnp;
                         vnStore->VNPUnpackExc(tree->gtOp.gtOp1->gtVNPair, &op1vnp, &op1Xvnp);
                         ValueNumPair op2vnp;
                         ValueNumPair op2Xvnp = ValueNumStore::VNPForEmptyExcSet();
@@ -8150,13 +8238,36 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                     break;
 
                     case GT_LOCKADD: // Binop
-                    case GT_XADD:    // Binop
-                    case GT_XCHG:    // Binop
-                        assert(!tree->OperIs(GT_LOCKADD) && "LOCKADD should not appear before lowering");
-                        // For CMPXCHG and other intrinsics add an arbitrary side effect on GcHeap/ByrefExposed.
-                        fgMutateGcHeap(tree DEBUGARG("Interlocked intrinsic"));
-                        tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
+                        noway_assert("LOCKADD should not appear before lowering");
                         break;
+
+                    case GT_XADD: // Binop
+                    case GT_XCHG: // Binop
+                    {
+                        // For XADD and XCHG other intrinsics add an arbitrary side effect on GcHeap/ByrefExposed.
+                        fgMutateGcHeap(tree DEBUGARG("Interlocked intrinsic"));
+
+                        assert(tree->OperIsImplicitIndir()); // special node with an implicit indirections
+
+                        GenTree* addr = tree->gtOp.gtOp1; // op1
+                        GenTree* data = tree->gtOp.gtOp2; // op2
+
+                        ValueNumPair vnpExcSet = ValueNumStore::VNPForEmptyExcSet();
+
+                        vnpExcSet = vnStore->VNPUnionExcSet(data->gtVNPair, vnpExcSet);
+                        vnpExcSet = vnStore->VNPUnionExcSet(addr->gtVNPair, vnpExcSet);
+
+                        // The normal value is a new unique VN.
+                        ValueNumPair normalPair;
+                        normalPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
+
+                        // Attach the combined exception set
+                        tree->gtVNPair = vnStore->VNPWithExc(normalPair, vnpExcSet);
+
+                        // add the null check exception for 'addr' to the tree's value number
+                        fgValueNumberAddExceptionSetForIndirection(tree, addr);
+                        break;
+                    }
 
                     case GT_JTRUE:
                     case GT_LIST:
@@ -8201,17 +8312,20 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             case GT_HW_INTRINSIC_CHK:
 #endif // FEATURE_HW_INTRINSICS
             {
-                // A bounds check node has no value, but may throw exceptions.
-                ValueNumPair excSet = vnStore->VNPExcSetSingleton(
-                    vnStore->VNPairForFunc(TYP_REF, VNF_IndexOutOfRangeExc,
-                                           vnStore->VNPNormalPair(tree->AsBoundsChk()->gtIndex->gtVNPair),
-                                           vnStore->VNPNormalPair(tree->AsBoundsChk()->gtArrLen->gtVNPair)));
-                excSet =
-                    vnStore->VNPExcSetUnion(excSet, vnStore->VNPExceptionSet(tree->AsBoundsChk()->gtIndex->gtVNPair));
-                excSet =
-                    vnStore->VNPExcSetUnion(excSet, vnStore->VNPExceptionSet(tree->AsBoundsChk()->gtArrLen->gtVNPair));
+                ValueNumPair vnpIndex  = tree->AsBoundsChk()->gtIndex->gtVNPair;
+                ValueNumPair vnpArrLen = tree->AsBoundsChk()->gtArrLen->gtVNPair;
 
-                tree->gtVNPair = vnStore->VNPWithExc(vnStore->VNPForVoid(), excSet);
+                // Construct the exception set for bounds check
+                ValueNumPair vnpExcSet = vnStore->VNPExcSetSingleton(
+                    vnStore->VNPairForFunc(TYP_REF, VNF_IndexOutOfRangeExc, vnStore->VNPNormalPair(vnpIndex),
+                                           vnStore->VNPNormalPair(vnpArrLen)));
+
+                // And collect the exceptions  from Index and ArrLen
+                vnpExcSet = vnStore->VNPUnionExcSet(vnpIndex, vnpExcSet);
+                vnpExcSet = vnStore->VNPUnionExcSet(vnpArrLen, vnpExcSet);
+
+                // A bounds check node has no value, but may throw exceptions.
+                tree->gtVNPair = vnStore->VNPWithExc(vnStore->VNPForVoid(), vnpExcSet);
 
                 // Record non-constant value numbers that are used as the length argument to bounds checks, so that
                 // assertion prop will know that comparisons against them are worth analyzing.
@@ -8224,10 +8338,38 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             break;
 
             case GT_CMPXCHG: // Specialop
+            {
                 // For CMPXCHG and other intrinsics add an arbitrary side effect on GcHeap/ByrefExposed.
                 fgMutateGcHeap(tree DEBUGARG("Interlocked intrinsic"));
-                tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
+
+                GenTreeCmpXchg* const cmpXchg = tree->AsCmpXchg();
+
+                assert(tree->OperIsImplicitIndir()); // special node with an implicit indirections
+
+                GenTree* location  = cmpXchg->gtOpLocation;  // arg1
+                GenTree* value     = cmpXchg->gtOpValue;     // arg2
+                GenTree* comparand = cmpXchg->gtOpComparand; // arg3
+
+                ValueNumPair vnpExcSet = ValueNumStore::VNPForEmptyExcSet();
+
+                // Collect the exception sets from our operands
+                vnpExcSet = vnStore->VNPUnionExcSet(location->gtVNPair, vnpExcSet);
+                vnpExcSet = vnStore->VNPUnionExcSet(value->gtVNPair, vnpExcSet);
+                vnpExcSet = vnStore->VNPUnionExcSet(comparand->gtVNPair, vnpExcSet);
+
+                // The normal value is a new unique VN.
+                ValueNumPair normalPair;
+                normalPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
+
+                // Attach the combined exception set
+                tree->gtVNPair = vnStore->VNPWithExc(normalPair, vnpExcSet);
+
+                // add the null check exception for 'location' to the tree's value number
+                fgValueNumberAddExceptionSetForIndirection(tree, location);
+                // add the null check exception for 'comparand' to the tree's value number
+                fgValueNumberAddExceptionSetForIndirection(tree, comparand);
                 break;
+            }
 
             default:
                 tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
@@ -8366,7 +8508,7 @@ ValueNumPair ValueNumStore::VNPairForCast(ValueNumPair srcVNPair,
     var_types resultType = genActualType(castToType);
 
     ValueNumPair castArgVNP;
-    ValueNumPair castArgxVNP = ValueNumStore::VNPForEmptyExcSet();
+    ValueNumPair castArgxVNP;
     VNPUnpackExc(srcVNPair, &castArgVNP, &castArgxVNP);
 
     // When we're considering actual value returned by a non-checking cast, (hasOverflowCheck is false)
@@ -8576,7 +8718,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
             // Has at least two arguments.
             ValueNumPair vnp1wx = getCurrentArg(1)->gtVNPair;
             ValueNumPair vnp1;
-            ValueNumPair vnp1x = ValueNumStore::VNPForEmptyExcSet();
+            ValueNumPair vnp1x;
             vnStore->VNPUnpackExc(vnp1wx, &vnp1, &vnp1x);
             vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp1x);
 
@@ -8596,7 +8738,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
             {
                 ValueNumPair vnp2wx = getCurrentArg(2)->gtVNPair;
                 ValueNumPair vnp2;
-                ValueNumPair vnp2x = ValueNumStore::VNPForEmptyExcSet();
+                ValueNumPair vnp2x;
                 vnStore->VNPUnpackExc(vnp2wx, &vnp2, &vnp2x);
                 vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp2x);
 
@@ -8792,7 +8934,10 @@ VNFunc Compiler::fgValueNumberJitHelperMethodVNFunc(CorInfoHelpFunc helpFunc)
         case CORINFO_HELP_NEW_CROSSCONTEXT:
         case CORINFO_HELP_NEWFAST:
         case CORINFO_HELP_NEWSFAST:
+        case CORINFO_HELP_NEWSFAST_FINALIZE:
         case CORINFO_HELP_NEWSFAST_ALIGN8:
+        case CORINFO_HELP_NEWSFAST_ALIGN8_VC:
+        case CORINFO_HELP_NEWSFAST_ALIGN8_FINALIZE:
             vnf = VNF_JitNew;
             break;
 
@@ -9059,6 +9204,8 @@ bool Compiler::fgValueNumberHelperCall(GenTreeCall* call)
 // Arguments:
 //    tree       - The current GenTree node,
 //                 It must be some kind of an indirection node
+//                 or have an implicit indirection
+//    baseAddr   - The address that we are indirecting
 //
 // Return Value:
 //               - The tree's gtVNPair is updated to include the VNF_nullPtrExc
@@ -9071,11 +9218,10 @@ bool Compiler::fgValueNumberHelperCall(GenTreeCall* call)
 //                 For arrays the base address currently includes the
 //                 index calculations.
 //
-void Compiler::fgValueNumberAddExceptionSetForIndirection(GenTree* tree)
+void Compiler::fgValueNumberAddExceptionSetForIndirection(GenTree* tree, GenTree* baseAddr)
 {
-    // We should have an Unary operator
-    assert(tree->OperIsUnary());
-    GenTree* baseAddr = tree->gtGetOp1();
+    // We should have tree that a unary indirection or a tree node with an implicit indirection
+    assert(tree->OperIsUnary() || tree->OperIsImplicitIndir());
 
     // We evaluate the baseAddr ValueNumber further in order
     // to obtain a better value to use for the null check exeception.
@@ -9152,7 +9298,7 @@ void Compiler::fgValueNumberAddExceptionSetForIndirection(GenTree* tree)
 
     // Unpack, Norm,Exc for the tree's op1 VN
     ValueNumPair vnpBaseNorm;
-    ValueNumPair vnpBaseExc = ValueNumStore::VNPForEmptyExcSet();
+    ValueNumPair vnpBaseExc;
     vnStore->VNPUnpackExc(baseVNP, &vnpBaseNorm, &vnpBaseExc);
 
     // The Norm VN for op1 is used to create the NullPtrExc
@@ -9186,7 +9332,7 @@ void Compiler::fgValueNumberAddExceptionSetForIndirection(GenTree* tree)
 //               - The tree's gtVNPair is updated to include
 //                 VNF_DivideByZeroExc and VNF_ArithmeticExc,
 //                 We will omit one or both of them when the operation
-//                 has constants argumemts that preclude the exception.
+//                 has constants arguments that preclude the exception.
 //
 void Compiler::fgValueNumberAddExceptionSetForDivision(GenTree* tree)
 {
@@ -9318,7 +9464,7 @@ void Compiler::fgValueNumberAddExceptionSetForDivision(GenTree* tree)
 
     // Unpack, Norm,Exc for the tree's VN
     ValueNumPair vnpTreeNorm;
-    ValueNumPair vnpTreeExc    = ValueNumStore::VNPForEmptyExcSet();
+    ValueNumPair vnpTreeExc;
     ValueNumPair vnpDivZeroExc = ValueNumStore::VNPForEmptyExcSet();
     ValueNumPair vnpArithmExc  = ValueNumStore::VNPForEmptyExcSet();
 
@@ -9379,7 +9525,7 @@ void Compiler::fgValueNumberAddExceptionSetForOverflow(GenTree* tree)
     // Unpack, Norm,Exc for the tree's VN
     //
     ValueNumPair vnpTreeNorm;
-    ValueNumPair vnpTreeExc = ValueNumStore::VNPForEmptyExcSet();
+    ValueNumPair vnpTreeExc;
 
     vnStore->VNPUnpackExc(tree->gtVNPair, &vnpTreeNorm, &vnpTreeExc);
 
@@ -9422,7 +9568,7 @@ void Compiler::fgValueNumberAddExceptionSetForCkFinite(GenTree* tree)
     // Unpack, Norm,Exc for the tree's VN
     //
     ValueNumPair vnpTreeNorm;
-    ValueNumPair vnpTreeExc = ValueNumStore::VNPForEmptyExcSet();
+    ValueNumPair vnpTreeExc;
     ValueNumPair newExcSet;
 
     vnStore->VNPUnpackExc(tree->gtVNPair, &vnpTreeNorm, &vnpTreeExc);
@@ -9482,14 +9628,29 @@ void Compiler::fgValueNumberAddExceptionSet(GenTree* tree)
                     // Don't add exception set on LHS of assignment
                     break;
                 }
-            // fall through
+                __fallthrough;
 
-            case GT_BLK: // All Block opcodes contain at least one indirection
+            case GT_BLK:
             case GT_OBJ:
             case GT_DYN_BLK:
-            case GT_ARR_LENGTH: // Implicit null check.
-            case GT_NULLCHECK:  // Explicit null check.
-                fgValueNumberAddExceptionSetForIndirection(tree);
+            case GT_NULLCHECK:
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->AsIndir()->Addr());
+                break;
+
+            case GT_ARR_LENGTH:
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->AsArrLen()->ArrRef());
+                break;
+
+            case GT_ARR_ELEM:
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->gtArrElem.gtArrObj);
+                break;
+
+            case GT_ARR_INDEX:
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->gtArrIndex.ArrObj());
+                break;
+
+            case GT_ARR_OFFSET:
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->gtArrOffs.gtArrObj);
                 break;
 
             case GT_DIV:

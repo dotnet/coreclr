@@ -104,13 +104,9 @@ typedef DPTR(CONNID)   PTR_CONNID;
 
 // *** ICorRuntimeHost methods ***
 
-CorHost2::CorHost2()
+CorHost2::CorHost2() : m_fFirstToLoadCLR(FALSE), m_fStarted(FALSE), m_fAppDomainCreated(FALSE)
 {
     LIMITED_METHOD_CONTRACT;
-
-    m_fStarted = FALSE;
-    m_fFirstToLoadCLR = FALSE;
-    m_fAppDomainCreated = FALSE;
 }
 
 static DangerousNonHostedSpinLock lockOnlyOneToInvokeStart;
@@ -298,9 +294,7 @@ HRESULT CorHost2::GetCurrentAppDomainId(DWORD *pdwAppDomainId)
     // No point going further if the runtime is not running...
     // We use CanRunManagedCode() instead of IsRuntimeActive() because this allows us
     // to specify test using the form that does not trigger a GC.
-    if (!(g_fEEStarted && CanRunManagedCode(LoaderLockCheck::None))
-        || !m_fStarted
-    )
+    if (!(g_fEEStarted && CanRunManagedCode(LoaderLockCheck::None)))
     {
         return HOST_E_CLRNOTAVAILABLE;
     }   
@@ -417,7 +411,7 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         return HOST_E_INVALIDOPERATION;
 
     // No point going further if the runtime is not running...
-    if (!IsRuntimeActive() || !m_fStarted)
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
     }   
@@ -513,9 +507,7 @@ HRESULT CorHost2::ExecuteInDefaultAppDomain(LPCWSTR pwzAssemblyPath,
     CONTRACTL_END;
 
     // No point going further if the runtime is not running...
-    if (!IsRuntimeActive()
-        || !m_fStarted
-    )
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
     }   
@@ -622,9 +614,7 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
 {
 
     // No point going further if the runtime is not running...
-    if (!IsRuntimeActive()
-        || !m_fStarted
-    )
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
     }       
@@ -694,106 +684,127 @@ HRESULT CorHost2::_CreateAppDomain(
     EMPTY_STRING_TO_NULL(wszAppDomainManagerAssemblyName);
     EMPTY_STRING_TO_NULL(wszAppDomainManagerTypeName);
 
-    if(pAppDomainID==NULL)
+    if (pAppDomainID==NULL)
         return E_POINTER;
 
     if (!m_fStarted)
         return HOST_E_INVALIDOPERATION;
 
-    if(wszFriendlyName == NULL)
+    if (wszFriendlyName == NULL)
         return E_INVALIDARG;
 
-    if((wszAppDomainManagerAssemblyName == NULL) != (wszAppDomainManagerTypeName == NULL))
+    if ((wszAppDomainManagerAssemblyName != NULL) || (wszAppDomainManagerTypeName != NULL))
         return E_INVALIDARG;
 
     BEGIN_ENTRYPOINT_NOTHROW;
 
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
-    GCX_COOP_THREAD_EXISTS(GET_THREAD());
 
-    AppDomainCreationHolder<AppDomain> pDomain;
+    AppDomain* pDomain = SystemDomain::System()->DefaultDomain();
 
-    pDomain.Assign(SystemDomain::System()->DefaultDomain());
+    pDomain->SetFriendlyName(wszFriendlyName);
 
     ETW::LoaderLog::DomainLoad(pDomain, (LPWSTR)wszFriendlyName);
 
     if (dwFlags & APPDOMAIN_IGNORE_UNHANDLED_EXCEPTIONS)
-    {
         pDomain->SetIgnoreUnhandledExceptions();
-    }
-
-    if (dwFlags & APPDOMAIN_SECURITY_FORBID_CROSSAD_REVERSE_PINVOKE)
-        pDomain->SetReversePInvokeCannotEnter();
 
     if (dwFlags & APPDOMAIN_FORCE_TRIVIAL_WAIT_OPERATIONS)
         pDomain->SetForceTrivialWaitOperations();
 
+    pDomain->CreateFusionContext();
+
     {
         GCX_COOP();
-    
-        struct 
-        {
-            STRINGREF friendlyName;
-            PTRARRAYREF propertyNames;
-            PTRARRAYREF propertyValues;
-            OBJECTREF setupInfo;
-            OBJECTREF adSetup;
-        } _gc;
 
-        ZeroMemory(&_gc,sizeof(_gc));
+        MethodDescCallSite setup(METHOD__APPCONTEXT__SETUP);
 
-        GCPROTECT_BEGIN(_gc)
-        _gc.friendlyName=StringObject::NewString(wszFriendlyName);
-        
-        if(nProperties>0)
-        {
-            _gc.propertyNames = (PTRARRAYREF) AllocateObjectArray(nProperties, g_pStringClass);
-            _gc.propertyValues= (PTRARRAYREF) AllocateObjectArray(nProperties, g_pStringClass);
-            for (int i=0;i< nProperties;i++)
-            {
-                STRINGREF obj = StringObject::NewString(pPropertyNames[i]);
-                _gc.propertyNames->SetAt(i, obj);
-                
-                obj = StringObject::NewString(pPropertyValues[i]);
-                _gc.propertyValues->SetAt(i, obj);
-            }
-        }
+        ARG_SLOT args[3];
+        args[0] = PtrToArgSlot(pPropertyNames);
+        args[1] = PtrToArgSlot(pPropertyValues);
+        args[2] = PtrToArgSlot(nProperties);
 
-        MethodDescCallSite prepareDataForSetup(METHOD__APP_DOMAIN__PREPARE_DATA_FOR_SETUP);
-
-        ARG_SLOT args[4];
-        args[0]=ObjToArgSlot(_gc.friendlyName);
-        args[1]=ObjToArgSlot(NULL);
-        args[2]=ObjToArgSlot(_gc.propertyNames);
-        args[3]=ObjToArgSlot(_gc.propertyValues);
-
-        _gc.setupInfo=prepareDataForSetup.Call_RetOBJECTREF(args);
-
-        //
-        // Get the new flag values and set it to the domain
-        //
-        PTRARRAYREF handleArrayObj = (PTRARRAYREF) ObjectToOBJECTREF(_gc.setupInfo);
-        _gc.adSetup = ObjectToOBJECTREF(handleArrayObj->GetAt(1));
-
-
-        pDomain->DoSetup(&_gc.setupInfo);
-        
-        GCPROTECT_END();
-
-        *pAppDomainID=pDomain->GetId().m_dwId;
-
-        m_fAppDomainCreated = TRUE;
+        setup.Call(args);
     }
-    // DoneCreating releases ownership of AppDomain.  After this call, there should be no access to pDomain.
-    pDomain.DoneCreating();
+
+    LPCWSTR pwzNativeDllSearchDirectories = NULL;
+    LPCWSTR pwzTrustedPlatformAssemblies = NULL;
+    LPCWSTR pwzPlatformResourceRoots = NULL;
+    LPCWSTR pwzAppPaths = NULL;
+    LPCWSTR pwzAppNiPaths = NULL;
+#ifdef FEATURE_COMINTEROP
+    LPCWSTR pwzAppLocalWinMD = NULL;
+#endif
+
+    for (int i = 0; i < nProperties; i++)
+    {
+        if (wcscmp(pPropertyNames[i], W("NATIVE_DLL_SEARCH_DIRECTORIES")) == 0)
+        {
+            pwzNativeDllSearchDirectories = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("TRUSTED_PLATFORM_ASSEMBLIES")) == 0)
+        {
+            pwzTrustedPlatformAssemblies = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("PLATFORM_RESOURCE_ROOTS")) == 0)
+        {
+            pwzPlatformResourceRoots = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("APP_PATHS")) == 0)
+        {
+            pwzAppPaths = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("APP_NI_PATHS")) == 0)
+        {
+            pwzAppNiPaths = pPropertyValues[i];
+        }
+#ifdef FEATURE_COMINTEROP
+        else
+        if (wcscmp(pPropertyNames[i], W("APP_LOCAL_WINMETADATA")) == 0)
+        {
+            pwzAppLocalWinMD = pPropertyValues[i];
+        }
+#endif
+    }
+
+    pDomain->SetNativeDllSearchDirectories(pwzNativeDllSearchDirectories);
+
+    {
+        SString sTrustedPlatformAssemblies(pwzTrustedPlatformAssemblies);
+        SString sPlatformResourceRoots(pwzPlatformResourceRoots);
+        SString sAppPaths(pwzAppPaths);
+        SString sAppNiPaths(pwzAppNiPaths);
+
+        CLRPrivBinderCoreCLR *pBinder = pDomain->GetTPABinderContext();
+        _ASSERTE(pBinder != NULL);
+        IfFailThrow(pBinder->SetupBindingPaths(
+            sTrustedPlatformAssemblies,
+            sPlatformResourceRoots,
+            sAppPaths,
+            sAppNiPaths));
+    }
+
+#ifdef FEATURE_COMINTEROP
+    if (WinRTSupported())
+    {
+        pDomain->SetWinrtApplicationContext(pwzAppLocalWinMD);
+    }
+#endif
+
+    *pAppDomainID=pDomain->GetId().m_dwId;
+
+    m_fAppDomainCreated = TRUE;
 
     END_EXTERNAL_ENTRYPOINT;
 
     END_ENTRYPOINT_NOTHROW;
 
     return hr;
-
-};
+}
 
 HRESULT CorHost2::_CreateDelegate(
     DWORD appDomainID,
@@ -830,9 +841,6 @@ HRESULT CorHost2::_CreateDelegate(
     if(wszMethodName == NULL)
         return E_INVALIDARG;
     
-    if (!m_fStarted)
-        return HOST_E_INVALIDOPERATION;
-
     BEGIN_ENTRYPOINT_NOTHROW;
 
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
@@ -1220,7 +1228,6 @@ STDMETHODIMP CorHost2::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDone, i
         if (1 == refCount)
         {
             // Stop coreclr on unload.
-            m_fStarted = FALSE;
             EEShutDown(FALSE);
         }
         else

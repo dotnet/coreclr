@@ -1,5 +1,19 @@
 ﻿[
     {
+        "name": "System.Diagnostics.TraceSource.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Diagnostics.TraceSourceTests.DefaultTraceListenerClassTests.EntryAssemblyName_Null_NotIncludedInTrace",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Globalization.Tests",
         "enabled": true,
         "exclusions": {
@@ -583,6 +597,26 @@
                 },
                 {
                     "name" : "System.Runtime.InteropServices.Tests.GetFunctionPointerForDelegateTests.GetFunctionPointerForDelegate_DelegateCollectible_ThrowsNotSupportedException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.GetComInterfaceForObjectTests.GetComInterfaceForObject_ObjectNotCollectible_ThrowsNotSupportedException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.ChangeWrapperHandleStrengthTests.ChangeWrapperHandleStrength_ObjectNotCollectible_ThrowsNotSupportedException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.CreateAggregatedObjectTests.CreateAggregatedObject_ObjectNotCollectible_ReturnsExpected",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.GetNativeVariantForObjectTests.GetNativeVariantForObject_ObjectNotCollectible_ThrowsNotSupportedException",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Runtime.InteropServices.Tests.GetIUnknownForObjectTests.GetIUnknownForObject_ObjectNotCollectible_ThrowsNotSupportedException",
                     "reason" : "outdated"
                 }
             ]

@@ -212,8 +212,7 @@ CreateAssemblyNameObjectFromMetaData(
 //=====================================================================================================================
 HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
     IAssemblyName *         pAssemblyName,
-    CLRPrivAssemblyWinRT ** ppAssembly,
-    BOOL fPreBind)
+    CLRPrivAssemblyWinRT ** ppAssembly)
 {
     STANDARD_VM_CONTRACT;
     HRESULT hr = S_OK;
@@ -339,9 +338,7 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
 
                 IfFailGo(GetAssemblyAndTryFindNativeImage(sAssemblyPath, wszFileNameStripped, &pBinderAssembly));
 
-                // We have set bInGac to TRUE here because the plan is full trust for WinRT.  If this changes, we may need to check with
-                // AppDomain to verify trust based on the WinMD's path
-                pBindResult->Init(pBinderAssembly, TRUE);
+                pBindResult->Init(pBinderAssembly);
                 NewHolder<CLRPrivAssemblyWinRT> pNewAssembly(
                     new CLRPrivAssemblyWinRT(this, pResource, pBindResult, fIsWindowsNamespace));
                 
@@ -393,14 +390,13 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
 //=====================================================================================================================
 HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
     IAssemblyName *     pAssemblyName,
-    ICLRPrivAssembly ** ppPrivAssembly,
-    BOOL fPreBind)
+    ICLRPrivAssembly ** ppPrivAssembly)
 {
     STANDARD_VM_CONTRACT;
     HRESULT hr = S_OK;
 
     ReleaseHolder<CLRPrivAssemblyWinRT> pWinRTAssembly;
-    IfFailRet(BindWinRTAssemblyByName(pAssemblyName, &pWinRTAssembly, fPreBind));
+    IfFailRet(BindWinRTAssemblyByName(pAssemblyName, &pWinRTAssembly));
     IfFailRet(pWinRTAssembly->QueryInterface(__uuidof(ICLRPrivAssembly), (LPVOID *)ppPrivAssembly));
 
     return hr;
@@ -409,8 +405,7 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
 //=====================================================================================================================
 HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
     IAssemblyName * pAssemblyName,
-    IBindResult ** ppIBindResult,
-    BOOL fPreBind)
+    IBindResult ** ppIBindResult)
 {
     STANDARD_VM_CONTRACT;
     HRESULT hr = S_OK;
@@ -419,7 +414,7 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
     VALIDATE_ARG_RET(ppIBindResult != nullptr);
 
     ReleaseHolder<CLRPrivAssemblyWinRT> pWinRTAssembly;
-    IfFailRet(BindWinRTAssemblyByName(pAssemblyName, &pWinRTAssembly, fPreBind));
+    IfFailRet(BindWinRTAssemblyByName(pAssemblyName, &pWinRTAssembly));
     IfFailRet(pWinRTAssembly->GetIBindResult(ppIBindResult));
 
     return hr;
@@ -512,7 +507,7 @@ HRESULT CLRPrivBinderWinRT::GetAssemblyAndTryFindNativeImage(SString &sWinmdFile
 }
 
 //=====================================================================================================================
-HRESULT CLRPrivBinderWinRT::SetApplicationContext(BINDER_SPACE::ApplicationContext *pApplicationContext, SString &appLocalWinMD)
+HRESULT CLRPrivBinderWinRT::SetApplicationContext(BINDER_SPACE::ApplicationContext *pApplicationContext, LPCWSTR pwzAppLocalWinMD)
 {
     STANDARD_VM_CONTRACT;
 
@@ -535,9 +530,9 @@ HRESULT CLRPrivBinderWinRT::SetApplicationContext(BINDER_SPACE::ApplicationConte
                 m_rgAltPaths.GetRawArray() + i));
     }
 
-    if (!appLocalWinMD.IsEmpty())
+    if (pwzAppLocalWinMD != NULL)
     {
-        m_appLocalWinMDPath = DuplicateStringThrowing(appLocalWinMD.GetUnicode());
+        m_appLocalWinMDPath = DuplicateStringThrowing(pwzAppLocalWinMD);
     }
 #else
     Crossgen::SetAppPaths(pAppPaths);

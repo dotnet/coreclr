@@ -359,8 +359,11 @@ public:
 #if OPT_BOOL_OPS
     unsigned char lvIsBoolean : 1; // set if variable is boolean
 #endif
+    unsigned char lvSingleDef : 1; // variable has a single def
+                                   // before lvaMarkLocalVars: identifies ref type locals that can get type updates
+                                   // after lvaMarkLocalVars: identifies locals that are suitable for optAddCopies
+
 #if ASSERTION_PROP
-    unsigned char lvSingleDef : 1;    // variable has a single def
     unsigned char lvDisqualify : 1;   // variable is no longer OK for add copy optimization
     unsigned char lvVolatileHint : 1; // hint for AssertionProp
 #endif
@@ -2462,7 +2465,9 @@ public:
 
     GenTreeCast* gtNewCastNodeL(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType);
 
-    GenTree* gtNewAllocObjNode(unsigned int helper, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
+    GenTreeAllocObj* gtNewAllocObjNode(unsigned int helper, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
+
+    GenTreeAllocObj* gtNewAllocObjNode(CORINFO_RESOLVED_TOKEN* pResolvedToken, BOOL useParent);
 
     GenTree* gtNewRuntimeLookup(CORINFO_GENERIC_HANDLE hnd, CorInfoGenericHandleType hndTyp, GenTree* lookupTree);
 
@@ -2479,10 +2484,19 @@ public:
 
     // Create a copy of `tree`, optionally adding specifed flags, and optionally mapping uses of local
     // `varNum` to int constants with value `varVal`.
-    GenTree* gtCloneExpr(GenTree* tree, unsigned addFlags = 0, unsigned varNum = (unsigned)-1, int varVal = 0)
+    GenTree* gtCloneExpr(GenTree* tree, unsigned addFlags = 0, unsigned varNum = BAD_VAR_NUM, int varVal = 0)
     {
         return gtCloneExpr(tree, addFlags, varNum, varVal, varNum, varVal);
     }
+
+    // Internal helper for cloning a call
+    GenTreeCall* gtCloneExprCallHelper(GenTreeCall* call,
+                                       unsigned     addFlags   = 0,
+                                       unsigned     deepVarNum = BAD_VAR_NUM,
+                                       int          deepVarVal = 0);
+
+    // Create copy of an inline or guarded devirtualization candidate tree.
+    GenTreeCall* gtCloneCandidateCall(GenTreeCall* call);
 
     GenTree* gtReplaceTree(GenTree* stmt, GenTree* tree, GenTree* replacementTree);
 
@@ -3041,7 +3055,7 @@ public:
 #endif
 
 #ifdef _TARGET_ARM_
-    int lvaFrameAddress(int varNum, bool mustBeFPBased, regNumber* pBaseReg, int addrModeOffset);
+    int lvaFrameAddress(int varNum, bool mustBeFPBased, regNumber* pBaseReg, int addrModeOffset, bool isFloatUsage);
 #else
     int lvaFrameAddress(int varNum, bool* pFPbased);
 #endif
@@ -3295,6 +3309,13 @@ public:
         return IsTargetAbi(CORINFO_CORERT_ABI) ? TYP_I_IMPL : TYP_REF;
     }
 
+    void impDevirtualizeCall(GenTreeCall*            call,
+                             CORINFO_METHOD_HANDLE*  method,
+                             unsigned*               methodFlags,
+                             CORINFO_CONTEXT_HANDLE* contextHandle,
+                             CORINFO_CONTEXT_HANDLE* exactContextHandle,
+                             bool                    isLateDevirtualization);
+
     //=========================================================================
     //                          PROTECTED
     //=========================================================================
@@ -3352,12 +3373,6 @@ protected:
                             CORINFO_CALL_INFO* callInfo,
                             IL_OFFSET          rawILOffset);
 
-    void impDevirtualizeCall(GenTreeCall*            call,
-                             CORINFO_METHOD_HANDLE*  method,
-                             unsigned*               methodFlags,
-                             CORINFO_CONTEXT_HANDLE* contextHandle,
-                             CORINFO_CONTEXT_HANDLE* exactContextHandle);
-
     CORINFO_CLASS_HANDLE impGetSpecialIntrinsicExactReturnType(CORINFO_METHOD_HANDLE specialIntrinsicHandle);
 
     bool impMethodInfo_hasRetBuffArg(CORINFO_METHOD_INFO* methInfo);
@@ -3407,6 +3422,10 @@ protected:
     NamedIntrinsic lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method);
 
 #ifdef FEATURE_HW_INTRINSICS
+    GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_CLASS_HANDLE  clsHnd,
+                              CORINFO_METHOD_HANDLE method,
+                              CORINFO_SIG_INFO*     sig);
     GenTree* impHWIntrinsic(NamedIntrinsic        intrinsic,
                             CORINFO_METHOD_HANDLE method,
                             CORINFO_SIG_INFO*     sig,
@@ -3469,7 +3488,6 @@ protected:
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
     GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
     GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
-    bool hwIntrinsicSignatureTypeSupported(var_types retType, CORINFO_SIG_INFO* sig, NamedIntrinsic intrinsic);
 #endif // _TARGET_XARCH_
 #ifdef _TARGET_ARM64_
     InstructionSet lookupHWIntrinsicISA(const char* className);
@@ -3862,7 +3880,7 @@ private:
                         bool                  forceInline,
                         InlineResult*         inlineResult);
 
-    void impCheckCanInline(GenTree*               call,
+    void impCheckCanInline(GenTreeCall*           call,
                            CORINFO_METHOD_HANDLE  fncHandle,
                            unsigned               methAttr,
                            CORINFO_CONTEXT_HANDLE exactContextHnd,
@@ -3890,6 +3908,11 @@ private:
                                 CORINFO_CONTEXT_HANDLE exactContextHnd,
                                 bool                   exactContextNeedsRuntimeLookup,
                                 CORINFO_CALL_INFO*     callInfo);
+
+    void impMarkInlineCandidateHelper(GenTreeCall*           call,
+                                      CORINFO_CONTEXT_HANDLE exactContextHnd,
+                                      bool                   exactContextNeedsRuntimeLookup,
+                                      CORINFO_CALL_INFO*     callInfo);
 
     bool impTailCallRetTypeCompatible(var_types            callerRetType,
                                       CORINFO_CLASS_HANDLE callerRetTypeClass,
@@ -4130,7 +4153,7 @@ public:
 
     void fgImport();
 
-    void fgTransformFatCalli();
+    void fgTransformIndirectCalls();
 
     void fgInline();
 
@@ -4449,8 +4472,8 @@ public:
     // Returns the corresponding VNFunc to use for value numbering
     VNFunc fgValueNumberJitHelperMethodVNFunc(CorInfoHelpFunc helpFunc);
 
-    // Adds the exception set for the current tree node which is performing a memory indirection operation
-    void fgValueNumberAddExceptionSetForIndirection(GenTree* tree);
+    // Adds the exception set for the current tree node which has a memory indirection operation
+    void fgValueNumberAddExceptionSetForIndirection(GenTree* tree, GenTree* baseAddr);
 
     // Adds the exception sets for the current tree node which is performing a division or modulus operation
     void fgValueNumberAddExceptionSetForDivision(GenTree* tree);
@@ -5351,8 +5374,8 @@ private:
 #ifdef DEBUG
     static fgWalkPreFn fgDebugCheckInlineCandidates;
 
-    void               CheckNoFatPointerCandidatesLeft();
-    static fgWalkPreFn fgDebugCheckFatPointerCandidates;
+    void               CheckNoTransformableIndirectCallsRemain();
+    static fgWalkPreFn fgDebugCheckForTransformableIndirectCalls;
 #endif
 
     void fgPromoteStructs();
@@ -6135,6 +6158,7 @@ public:
 #define OMF_HAS_NULLCHECK 0x00000010     // Method contains null check.
 #define OMF_HAS_FATPOINTER 0x00000020    // Method contains call, that needs fat pointer transformation.
 #define OMF_HAS_OBJSTACKALLOC 0x00000040 // Method contains an object allocated on the stack.
+#define OMF_HAS_GUARDEDDEVIRT 0x00000080 // Method contains guarded devirtualization candidate
 
     bool doesMethodHaveFatPointer()
     {
@@ -6152,6 +6176,27 @@ public:
     }
 
     void addFatPointerCandidate(GenTreeCall* call);
+
+    bool doesMethodHaveGuardedDevirtualization()
+    {
+        return (optMethodFlags & OMF_HAS_GUARDEDDEVIRT) != 0;
+    }
+
+    void setMethodHasGuardedDevirtualization()
+    {
+        optMethodFlags |= OMF_HAS_GUARDEDDEVIRT;
+    }
+
+    void clearMethodHasGuardedDevirtualization()
+    {
+        optMethodFlags &= ~OMF_HAS_GUARDEDDEVIRT;
+    }
+
+    void addGuardedDevirtualizationCandidate(GenTreeCall*          call,
+                                             CORINFO_METHOD_HANDLE methodHandle,
+                                             CORINFO_CLASS_HANDLE  classHandle,
+                                             unsigned              methodAttr,
+                                             unsigned              classAttr);
 
     unsigned optMethodFlags;
 
@@ -6518,6 +6563,7 @@ public:
 
     // Used for Relop propagation.
     AssertionIndex optGlobalAssertionIsEqualOrNotEqual(ASSERT_VALARG_TP assertions, GenTree* op1, GenTree* op2);
+    AssertionIndex optGlobalAssertionIsEqualOrNotEqualZero(ASSERT_VALARG_TP assertions, GenTree* op1);
     AssertionIndex optLocalAssertionIsEqualOrNotEqual(
         optOp1Kind op1Kind, unsigned lclNum, optOp2Kind op2Kind, ssize_t cnsVal, ASSERT_VALARG_TP assertions);
 
@@ -7441,10 +7487,6 @@ private:
                      DWORD                 cfiCodeBytes,
                      const CFI_CODE* const pCfiCode);
 #endif
-#if defined(_TARGET_ARM_)
-    bool unwindCfiEpilogFormed; // Avoid duplicated unwind info for methods with multiple epilogs (we expect and require
-                                // all the epilogs to be precisely the same)
-#endif
 
 #endif // _TARGET_UNIX_
 
@@ -7474,10 +7516,7 @@ private:
             return SIMD_AVX2_Supported;
         }
 
-        // SIMD_SSE4_Supported actually requires all of SSE3, SSSE3, SSE4.1, and SSE4.2
-        // to be supported. We can only enable it if all four are enabled in the compiler
-        if (compSupports(InstructionSet_SSE42) && compSupports(InstructionSet_SSE41) &&
-            compSupports(InstructionSet_SSSE3) && compSupports(InstructionSet_SSE3))
+        if (compSupports(InstructionSet_SSE42))
         {
             return SIMD_SSE4_Supported;
         }
@@ -7536,12 +7575,12 @@ private:
 #ifdef FEATURE_HW_INTRINSICS
 #if defined(_TARGET_ARM64_)
         CORINFO_CLASS_HANDLE Vector64FloatHandle;
-        CORINFO_CLASS_HANDLE Vector64UIntHandle;
+        CORINFO_CLASS_HANDLE Vector64IntHandle;
         CORINFO_CLASS_HANDLE Vector64UShortHandle;
         CORINFO_CLASS_HANDLE Vector64UByteHandle;
         CORINFO_CLASS_HANDLE Vector64ShortHandle;
         CORINFO_CLASS_HANDLE Vector64ByteHandle;
-        CORINFO_CLASS_HANDLE Vector64IntHandle;
+        CORINFO_CLASS_HANDLE Vector64UIntHandle;
 #endif // defined(_TARGET_ARM64_)
         CORINFO_CLASS_HANDLE Vector128FloatHandle;
         CORINFO_CLASS_HANDLE Vector128DoubleHandle;
@@ -7575,6 +7614,9 @@ private:
 
     SIMDHandlesCache* m_simdHandleCache;
 
+    // Get an appropriate "zero" for the given type and class handle.
+    GenTree* gtGetSIMDZero(var_types simdType, var_types baseType, CORINFO_CLASS_HANDLE simdHandle);
+
     // Get the handle for a SIMD type.
     CORINFO_CLASS_HANDLE gtGetStructHandleForSIMD(var_types simdType, var_types simdBaseType)
     {
@@ -7606,7 +7648,7 @@ private:
                     unreached();
             }
         }
-        assert(simdType == getSIMDVectorType());
+        assert(emitTypeSize(simdType) <= maxSIMDStructBytes());
         switch (simdBaseType)
         {
             case TYP_FLOAT:
@@ -7635,12 +7677,33 @@ private:
         return NO_CLASS_HANDLE;
     }
 
+    // Returns true if this is a SIMD type that should be considered an opaque
+    // vector type (i.e. do not analyze or promote its fields).
+    // Note that all but the fixed vector types are opaque, even though they may
+    // actually be declared as having fields.
+    bool isOpaqueSIMDType(CORINFO_CLASS_HANDLE structHandle)
+    {
+        return ((m_simdHandleCache != nullptr) && (structHandle != m_simdHandleCache->SIMDVector2Handle) &&
+                (structHandle != m_simdHandleCache->SIMDVector3Handle) &&
+                (structHandle != m_simdHandleCache->SIMDVector4Handle));
+    }
+
     // Returns true if the tree corresponds to a TYP_SIMD lcl var.
     // Note that both SIMD vector args and locals are mared as lvSIMDType = true, but
     // type of an arg node is TYP_BYREF and a local node is TYP_SIMD or TYP_STRUCT.
     bool isSIMDTypeLocal(GenTree* tree)
     {
         return tree->OperIsLocal() && lvaTable[tree->AsLclVarCommon()->gtLclNum].lvSIMDType;
+    }
+
+    // Returns true if the lclVar is an opaque SIMD type.
+    bool isOpaqueSIMDLclVar(LclVarDsc* varDsc)
+    {
+        if (!varDsc->lvSIMDType)
+        {
+            return false;
+        }
+        return isOpaqueSIMDType(varDsc->lvVerTypeInfo.GetClassHandle());
     }
 
     // Returns true if the type of the tree is a byref of TYP_SIMD
@@ -7982,6 +8045,11 @@ private:
         return lvaSIMDInitTempVarNum;
     }
 
+#else  // !FEATURE_SIMD
+    bool isOpaqueSIMDLclVar(LclVarDsc* varDsc)
+    {
+        return false;
+    }
 #endif // FEATURE_SIMD
 
 public:
@@ -9750,7 +9818,6 @@ public:
 #endif // !FEATURE_EH_FUNCLETS
             case GT_PHI_ARG:
             case GT_JMPTABLE:
-            case GT_REG_VAR:
             case GT_CLS_VAR:
             case GT_CLS_VAR_ADDR:
             case GT_ARGPLACE:
