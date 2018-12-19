@@ -950,7 +950,7 @@ while :; do
             __SignTypeArg="/p:SignType=real"
             ;;
 
-        -OfficialBuildId=*)
+        -officialbuildid=*)
             __Id=$(echo $1| cut -d'=' -f 2)
             __OfficialBuildIdArg="/p:OfficialBuildId=$__Id"
             ;;
