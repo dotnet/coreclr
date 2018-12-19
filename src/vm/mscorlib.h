@@ -717,6 +717,7 @@ DEFINE_CLASS(RAW_DATA,              CompilerServices,       RawData)
 DEFINE_FIELD(RAW_DATA,              DATA,                   Data)
 
 DEFINE_CLASS(RAW_SZARRAY_DATA,      CompilerServices,       RawSzArrayData)
+DEFINE_FIELD(RAW_SZARRAY_DATA,      COUNT,                  Count)
 DEFINE_FIELD(RAW_SZARRAY_DATA,      DATA,                   Data)
 
 DEFINE_CLASS(RUNTIME_WRAPPED_EXCEPTION, CompilerServices,   RuntimeWrappedException)
