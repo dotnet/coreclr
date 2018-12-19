@@ -615,7 +615,7 @@ namespace System.Numerics
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         public static T Dot<T>(Vector<T> left, Vector<T> right) where T : struct
         {
-            return Vector<T>.DotProduct(left, right);
+            return Vector<T>.Dot(left, right);
         }
 
         /// <summary>
@@ -771,6 +771,7 @@ namespace System.Numerics
         /// <param name="left">The first source vector.</param>
         /// <param name="right">The second source vector.</param>
         /// <returns>The resultant vector.</returns>
+        [Intrinsic]
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         public static Vector<T> AndNot<T>(Vector<T> left, Vector<T> right) where T : struct
         {

@@ -4196,7 +4196,8 @@ namespace System.Numerics
             }
         }
 
-        internal static T DotProduct(Vector<T> left, Vector<T> right)
+        [Intrinsic]
+        internal static T Dot(Vector<T> left, Vector<T> right)
         {
             if (Vector.IsHardwareAccelerated)
             {
