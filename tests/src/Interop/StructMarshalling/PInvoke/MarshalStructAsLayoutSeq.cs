@@ -21,7 +21,7 @@ public class Managed
         StringStructSequentialUnicodeId,
         S8Id,
         S9Id,
-        IncludeOuterIntergerStructSequentialId,
+        IncludeOuterIntegerStructSequentialId,
         S11Id,
         IntWithInnerSequentialId,
         SequentialWrapperId,
@@ -272,21 +272,21 @@ public class Managed
     #endregion
     #region Struct with Layout Sequential scenario12
     [DllImport("MarshalStructAsParam")]
-    static extern bool MarshalStructAsParam_AsSeqByVal13(IncludeOuterIntergerStructSequential str1);
+    static extern bool MarshalStructAsParam_AsSeqByVal13(IncludeOuterIntegerStructSequential str1);
     [DllImport("MarshalStructAsParam")]
-    static extern bool MarshalStructAsParam_AsSeqByRef13(ref IncludeOuterIntergerStructSequential str1);
+    static extern bool MarshalStructAsParam_AsSeqByRef13(ref IncludeOuterIntegerStructSequential str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal13")]
-    static extern bool MarshalStructAsParam_AsSeqByValIn13([In] IncludeOuterIntergerStructSequential str1);
+    static extern bool MarshalStructAsParam_AsSeqByValIn13([In] IncludeOuterIntegerStructSequential str1);
     [DllImport("MarshalStructAsParam")]
-    static extern bool MarshalStructAsParam_AsSeqByRefIn13([In] ref IncludeOuterIntergerStructSequential str1);
+    static extern bool MarshalStructAsParam_AsSeqByRefIn13([In] ref IncludeOuterIntegerStructSequential str1);
     [DllImport("MarshalStructAsParam")]
-    static extern bool MarshalStructAsParam_AsSeqByValOut13([Out] IncludeOuterIntergerStructSequential str1);
+    static extern bool MarshalStructAsParam_AsSeqByValOut13([Out] IncludeOuterIntegerStructSequential str1);
     [DllImport("MarshalStructAsParam")]
-    static extern bool MarshalStructAsParam_AsSeqByRefOut13(out IncludeOuterIntergerStructSequential str1);
+    static extern bool MarshalStructAsParam_AsSeqByRefOut13(out IncludeOuterIntegerStructSequential str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal13")]
-    static extern bool MarshalStructAsParam_AsSeqByValInOut13([In, Out] IncludeOuterIntergerStructSequential str1);
+    static extern bool MarshalStructAsParam_AsSeqByValInOut13([In, Out] IncludeOuterIntegerStructSequential str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByRef13")]
-    static extern bool MarshalStructAsParam_AsSeqByRefInOut13([In, Out] ref IncludeOuterIntergerStructSequential str1);
+    static extern bool MarshalStructAsParam_AsSeqByRefInOut13([In, Out] ref IncludeOuterIntegerStructSequential str1);
     #endregion
     #region Struct with Layout Sequential scenario13
     [DllImport("MarshalStructAsParam")]
@@ -499,17 +499,17 @@ public class Managed
                         failures++;
                     }
                     break;    
-                case StructID.IncludeOuterIntergerStructSequentialId:
-                    IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
-                    IncludeOuterIntergerStructSequential cloneIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
+                case StructID.IncludeOuterIntegerStructSequentialId:
+                    IncludeOuterIntegerStructSequential sourceIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
+                    IncludeOuterIntegerStructSequential cloneIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
 
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByVal13...");
-                    if (!MarshalStructAsParam_AsSeqByVal13(sourceIncludeOuterIntergerStructSequential))
+                    if (!MarshalStructAsParam_AsSeqByVal13(sourceIncludeOuterIntegerStructSequential))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByVal13.Expected:True;Actual:False");
                         failures++;
                     }
-                    if (!Helper.ValidateIncludeOuterIntergerStructSequential(sourceIncludeOuterIntergerStructSequential, cloneIncludeOuterIntergerStructSequential, "MarshalStructAsParam_AsSeqByVal13"))
+                    if (!Helper.ValidateIncludeOuterIntegerStructSequential(sourceIncludeOuterIntegerStructSequential, cloneIncludeOuterIntegerStructSequential, "MarshalStructAsParam_AsSeqByVal13"))
                     {
                         failures++;
                     }
@@ -785,17 +785,17 @@ public class Managed
                         failures++;
                     }
                     break;    
-                case StructID.IncludeOuterIntergerStructSequentialId:
-                    IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
-                    IncludeOuterIntergerStructSequential changeIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(64, 64);
+                case StructID.IncludeOuterIntegerStructSequentialId:
+                    IncludeOuterIntegerStructSequential sourceIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
+                    IncludeOuterIntegerStructSequential changeIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(64, 64);
 
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef13...");
-                    if (!MarshalStructAsParam_AsSeqByRef13(ref sourceIncludeOuterIntergerStructSequential))
+                    if (!MarshalStructAsParam_AsSeqByRef13(ref sourceIncludeOuterIntegerStructSequential))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByRef13.Expected:True;Actual:False");
                         failures++;
                     }
-                    if (!Helper.ValidateIncludeOuterIntergerStructSequential(sourceIncludeOuterIntergerStructSequential, changeIncludeOuterIntergerStructSequential, "MarshalStructAsParam_AsSeqByRef13"))
+                    if (!Helper.ValidateIncludeOuterIntegerStructSequential(sourceIncludeOuterIntegerStructSequential, changeIncludeOuterIntegerStructSequential, "MarshalStructAsParam_AsSeqByRef13"))
                     {
                         failures++;
                     }
@@ -1010,17 +1010,17 @@ public class Managed
                         failures++;
                     }
                     break;    
-                case StructID.IncludeOuterIntergerStructSequentialId:
-                    IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
-                    IncludeOuterIntergerStructSequential cloneIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
+                case StructID.IncludeOuterIntegerStructSequentialId:
+                    IncludeOuterIntegerStructSequential sourceIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
+                    IncludeOuterIntegerStructSequential cloneIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
 
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValIn13...");
-                    if (!MarshalStructAsParam_AsSeqByValIn13(sourceIncludeOuterIntergerStructSequential))
+                    if (!MarshalStructAsParam_AsSeqByValIn13(sourceIncludeOuterIntegerStructSequential))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValIn13.Expected:True;Actual:False");
                         failures++;
                     }
-                    if (!Helper.ValidateIncludeOuterIntergerStructSequential(sourceIncludeOuterIntergerStructSequential, cloneIncludeOuterIntergerStructSequential, "MarshalStructAsParam_AsSeqByValIn13"))
+                    if (!Helper.ValidateIncludeOuterIntegerStructSequential(sourceIncludeOuterIntegerStructSequential, cloneIncludeOuterIntegerStructSequential, "MarshalStructAsParam_AsSeqByValIn13"))
                     {
                         failures++;
                     }
@@ -1236,17 +1236,17 @@ public class Managed
                         failures++;
                     }
                     break;    
-                case StructID.IncludeOuterIntergerStructSequentialId:
-                    IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
-                    IncludeOuterIntergerStructSequential changeIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(64, 64);
+                case StructID.IncludeOuterIntegerStructSequentialId:
+                    IncludeOuterIntegerStructSequential sourceIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
+                    IncludeOuterIntegerStructSequential changeIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(64, 64);
 
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn13...");
-                    if (!MarshalStructAsParam_AsSeqByRefIn13(ref sourceIncludeOuterIntergerStructSequential))
+                    if (!MarshalStructAsParam_AsSeqByRefIn13(ref sourceIncludeOuterIntegerStructSequential))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByRefIn13.Expected:True;Actual:False");
                         failures++;
                     }
-                    if (!Helper.ValidateIncludeOuterIntergerStructSequential(sourceIncludeOuterIntergerStructSequential, changeIncludeOuterIntergerStructSequential, "MarshalStructAsParam_AsSeqByRefIn13"))
+                    if (!Helper.ValidateIncludeOuterIntegerStructSequential(sourceIncludeOuterIntegerStructSequential, changeIncludeOuterIntegerStructSequential, "MarshalStructAsParam_AsSeqByRefIn13"))
                     {
                         failures++;
                     }
@@ -1461,17 +1461,17 @@ public class Managed
                         failures++;
                     }
                     break;    
-                case StructID.IncludeOuterIntergerStructSequentialId:
-                    IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
-                    IncludeOuterIntergerStructSequential cloneIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
+                case StructID.IncludeOuterIntegerStructSequentialId:
+                    IncludeOuterIntegerStructSequential sourceIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
+                    IncludeOuterIntegerStructSequential cloneIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
 
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValOut13...");
-                    if (!MarshalStructAsParam_AsSeqByValOut13(sourceIncludeOuterIntergerStructSequential))
+                    if (!MarshalStructAsParam_AsSeqByValOut13(sourceIncludeOuterIntegerStructSequential))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValOut13.Expected:True;Actual:False");
                         failures++;
                     }
-                    if (!Helper.ValidateIncludeOuterIntergerStructSequential(sourceIncludeOuterIntergerStructSequential, cloneIncludeOuterIntergerStructSequential, "MarshalStructAsParam_AsSeqByValOut13"))
+                    if (!Helper.ValidateIncludeOuterIntegerStructSequential(sourceIncludeOuterIntegerStructSequential, cloneIncludeOuterIntegerStructSequential, "MarshalStructAsParam_AsSeqByValOut13"))
                     {
                         failures++;
                     }
@@ -1691,17 +1691,17 @@ public class Managed
                         Console.WriteLine("\tPASSED!");
                     }
                     break;    
-                case StructID.IncludeOuterIntergerStructSequentialId:
-                    IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
-                    IncludeOuterIntergerStructSequential changeIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(64, 64);
+                case StructID.IncludeOuterIntegerStructSequentialId:
+                    IncludeOuterIntegerStructSequential sourceIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
+                    IncludeOuterIntegerStructSequential changeIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(64, 64);
 
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut13...");
-                    if (!MarshalStructAsParam_AsSeqByRefOut13(out sourceIncludeOuterIntergerStructSequential))
+                    if (!MarshalStructAsParam_AsSeqByRefOut13(out sourceIncludeOuterIntegerStructSequential))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByRefOut13.Expected:True;Actual:False");
                         failures++;
                     }
-                    if (!Helper.ValidateIncludeOuterIntergerStructSequential(sourceIncludeOuterIntergerStructSequential, changeIncludeOuterIntergerStructSequential, "MarshalStructAsParam_AsSeqByRefOut13"))
+                    if (!Helper.ValidateIncludeOuterIntegerStructSequential(sourceIncludeOuterIntegerStructSequential, changeIncludeOuterIntegerStructSequential, "MarshalStructAsParam_AsSeqByRefOut13"))
                     {
                         failures++;
                     }
@@ -1916,17 +1916,17 @@ public class Managed
                         failures++;
                     }
                     break;    
-                case StructID.IncludeOuterIntergerStructSequentialId:
-                    IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
-                    IncludeOuterIntergerStructSequential cloneIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
+                case StructID.IncludeOuterIntegerStructSequentialId:
+                    IncludeOuterIntegerStructSequential sourceIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
+                    IncludeOuterIntegerStructSequential cloneIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
 
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValInOut13...");
-                    if (!MarshalStructAsParam_AsSeqByValInOut13(sourceIncludeOuterIntergerStructSequential))
+                    if (!MarshalStructAsParam_AsSeqByValInOut13(sourceIncludeOuterIntegerStructSequential))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValInOut13.Expected:True;Actual:False");
                         failures++;
                     }
-                    if (!Helper.ValidateIncludeOuterIntergerStructSequential(sourceIncludeOuterIntergerStructSequential, cloneIncludeOuterIntergerStructSequential, "MarshalStructAsParam_AsSeqByValInOut13"))
+                    if (!Helper.ValidateIncludeOuterIntegerStructSequential(sourceIncludeOuterIntegerStructSequential, cloneIncludeOuterIntegerStructSequential, "MarshalStructAsParam_AsSeqByValInOut13"))
                     {
                         failures++;
                     }
@@ -2142,17 +2142,17 @@ public class Managed
                         failures++;
                     }
                     break;    
-                case StructID.IncludeOuterIntergerStructSequentialId:
-                    IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
-                    IncludeOuterIntergerStructSequential changeIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(64, 64);
+                case StructID.IncludeOuterIntegerStructSequentialId:
+                    IncludeOuterIntegerStructSequential sourceIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(32, 32);
+                    IncludeOuterIntegerStructSequential changeIncludeOuterIntegerStructSequential = Helper.NewIncludeOuterIntegerStructSequential(64, 64);
 
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut13...");
-                    if (!MarshalStructAsParam_AsSeqByRefInOut13(ref sourceIncludeOuterIntergerStructSequential))
+                    if (!MarshalStructAsParam_AsSeqByRefInOut13(ref sourceIncludeOuterIntegerStructSequential))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByRefInOut13.Expected:True;Actual:False");
                         failures++;
                     }
-                    if (!Helper.ValidateIncludeOuterIntergerStructSequential(sourceIncludeOuterIntergerStructSequential, changeIncludeOuterIntergerStructSequential, "MarshalStructAsParam_AsSeqByRefInOut13"))
+                    if (!Helper.ValidateIncludeOuterIntegerStructSequential(sourceIncludeOuterIntegerStructSequential, changeIncludeOuterIntegerStructSequential, "MarshalStructAsParam_AsSeqByRefInOut13"))
                     {
                         failures++;
                     }
@@ -2205,7 +2205,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByVal(StructID.StringStructSequentialUnicodeId);
         MarshalStructAsParam_AsSeqByVal(StructID.S8Id);
         MarshalStructAsParam_AsSeqByVal(StructID.S9Id);
-        MarshalStructAsParam_AsSeqByVal(StructID.IncludeOuterIntergerStructSequentialId);
+        MarshalStructAsParam_AsSeqByVal(StructID.IncludeOuterIntegerStructSequentialId);
         MarshalStructAsParam_AsSeqByVal(StructID.S11Id);
         MarshalStructAsParam_AsSeqByVal(StructID.IntWithInnerSequentialId);
         MarshalStructAsParam_AsSeqByVal(StructID.SequentialWrapperId);
@@ -2232,7 +2232,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByRef(StructID.StringStructSequentialUnicodeId);
         MarshalStructAsParam_AsSeqByRef(StructID.S8Id);
         MarshalStructAsParam_AsSeqByRef(StructID.S9Id);
-        MarshalStructAsParam_AsSeqByRef(StructID.IncludeOuterIntergerStructSequentialId);
+        MarshalStructAsParam_AsSeqByRef(StructID.IncludeOuterIntegerStructSequentialId);
         MarshalStructAsParam_AsSeqByRef(StructID.S11Id);
     }
 
@@ -2255,7 +2255,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByValIn(StructID.StringStructSequentialUnicodeId);
         MarshalStructAsParam_AsSeqByValIn(StructID.S8Id);
         MarshalStructAsParam_AsSeqByValIn(StructID.S9Id);
-        MarshalStructAsParam_AsSeqByValIn(StructID.IncludeOuterIntergerStructSequentialId);
+        MarshalStructAsParam_AsSeqByValIn(StructID.IncludeOuterIntegerStructSequentialId);
         MarshalStructAsParam_AsSeqByValIn(StructID.S11Id);
     }
 
@@ -2278,7 +2278,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByRefIn(StructID.StringStructSequentialUnicodeId);
         MarshalStructAsParam_AsSeqByRefIn(StructID.S8Id);
         MarshalStructAsParam_AsSeqByRefIn(StructID.S9Id);
-        MarshalStructAsParam_AsSeqByRefIn(StructID.IncludeOuterIntergerStructSequentialId);
+        MarshalStructAsParam_AsSeqByRefIn(StructID.IncludeOuterIntegerStructSequentialId);
         MarshalStructAsParam_AsSeqByRefIn(StructID.S11Id);
     }
 
@@ -2301,7 +2301,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByValOut(StructID.StringStructSequentialUnicodeId);
         MarshalStructAsParam_AsSeqByValOut(StructID.S8Id);
         MarshalStructAsParam_AsSeqByValOut(StructID.S9Id);
-        MarshalStructAsParam_AsSeqByValOut(StructID.IncludeOuterIntergerStructSequentialId);
+        MarshalStructAsParam_AsSeqByValOut(StructID.IncludeOuterIntegerStructSequentialId);
         MarshalStructAsParam_AsSeqByValOut(StructID.S11Id);
     }
 
@@ -2324,7 +2324,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByRefOut(StructID.StringStructSequentialUnicodeId);
         MarshalStructAsParam_AsSeqByRefOut(StructID.S8Id);
         MarshalStructAsParam_AsSeqByRefOut(StructID.S9Id);
-        MarshalStructAsParam_AsSeqByRefOut(StructID.IncludeOuterIntergerStructSequentialId);
+        MarshalStructAsParam_AsSeqByRefOut(StructID.IncludeOuterIntegerStructSequentialId);
         MarshalStructAsParam_AsSeqByRefOut(StructID.S11Id);
     }
 
@@ -2347,7 +2347,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByValInOut(StructID.StringStructSequentialUnicodeId);
         MarshalStructAsParam_AsSeqByValInOut(StructID.S8Id);
         MarshalStructAsParam_AsSeqByValInOut(StructID.S9Id);
-        MarshalStructAsParam_AsSeqByValInOut(StructID.IncludeOuterIntergerStructSequentialId);
+        MarshalStructAsParam_AsSeqByValInOut(StructID.IncludeOuterIntegerStructSequentialId);
         MarshalStructAsParam_AsSeqByValInOut(StructID.S11Id);
     }
 
@@ -2370,7 +2370,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByRefInOut(StructID.StringStructSequentialUnicodeId);
         MarshalStructAsParam_AsSeqByRefInOut(StructID.S8Id);
         MarshalStructAsParam_AsSeqByRefInOut(StructID.S9Id);
-        MarshalStructAsParam_AsSeqByRefInOut(StructID.IncludeOuterIntergerStructSequentialId);
+        MarshalStructAsParam_AsSeqByRefInOut(StructID.IncludeOuterIntegerStructSequentialId);
         MarshalStructAsParam_AsSeqByRefInOut(StructID.S11Id);
     }
 }

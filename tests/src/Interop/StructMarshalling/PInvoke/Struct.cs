@@ -211,20 +211,20 @@ public struct S9
 public delegate void TestDelegate1(S9 myStruct);
 
 [StructLayout(LayoutKind.Sequential)]
-public struct IntergerStructSequential
+public struct IntegerStructSequential
 {
     public int i;
 }
 [StructLayout(LayoutKind.Sequential)]
-public struct OuterIntergerStructSequential
+public struct OuterIntegerStructSequential
 {
     public int i;
-    public IntergerStructSequential s_int;
+    public IntegerStructSequential s_int;
 }
 [StructLayout(LayoutKind.Sequential)]
-public struct IncludeOuterIntergerStructSequential
+public struct IncludeOuterIntegerStructSequential
 {
-    public OuterIntergerStructSequential s;
+    public OuterIntegerStructSequential s;
 }
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct S11
