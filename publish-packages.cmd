@@ -7,37 +7,35 @@ set processedArgs=
 set unprocessedArgs=
 set __MSBuildArgs=
 
-:Arg_Loop
+:ArgLoop
+
 if "%1" == "" goto ArgsDone
 if /I [%1] == [-?] goto Usage
 if /I [%1] == [-help] goto Usage
 
-REM CMD eats "=" on the argument list.
-if /i "%1" == "-AzureAccount"     (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:CloudDropAccountName=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "-AzureToken"       (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:CloudDropAccessToken=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "-BuildArch"        (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildArch=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "-BuildType"        (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildType=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "-Container"        (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:ContainerName=%2&shift&shift&goto Arg_Loop)
+REM This for loop splits the remaining arguments, preserving "=".
+REM x gets the next argument, and y gets all remaining arguments after the first.
+FOR /f "tokens=1*" %%x IN ("%*") DO (
+    set param=%%x
+    if /i "!param:~0,14!" == "-AzureAccount=" (set v=!param:~14!&set __MSBuildArgs=!__MSBuildArgs! /p:CloudDropAccountName=!v!)
+    if /i "!param:~0,12!" == "-AzureToken="   (set v=!param:~12!&set __MSBuildArgs=!__MSBuildArgs! /p:CloudDropAccessToken=!v!)
+    if /i "!param:~0,11!" == "-BuildArch="    (set v=!param:~11!&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildArch=!v!)
+    if /i "!param:~0,11!" == "-BuildType="    (set v=!param:~11!&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildType=!v!)
+    if /i "!param:~0,11!" == "-Container="    (set v=!param:~11!&set __MSBuildArgs=!__MSBuildArgs! /p:__ContainerName=!v!)
+    if /i "!param:!" == "-PublishPackages"    (set v=!param:~17!&set __MSBuildArgs=!__MSBuildArgs! /p:__PublishPackages=true)
+    if /i "!param:!" == "-PublishSymbols"     (set v=!param:~16!&set __MSBuildArgs=!__MSBuildArgs! /p:__PublishSymbols=true)
+    REM all other arguments get passed through to msbuild unchanged.
+    if /i not "!param:~0,1!" == "-"           (set __MSBuildArgs=!__MSBuildArgs! !param!)
 
-if /i "%1" == "-PublishPackages"  (set processedArgs=!processedArgs! %1&set __MSBuildArgs=!__MSBuildArgs! /p:__PublishPackages=true&shift&goto Arg_Loop)
-if /i "%1" == "-PublishSymbols"   (set processedArgs=!processedArgs! %1&set __MSBuildArgs=!__MSBuildArgs! /p:__PublishSymbols=true&shift&goto Arg_Loop)
-
-if /i "%1" == "--"                (set processedArgs=!processedArgs! %1&shift)
-
-REM handle any unprocessed arguments, assumed to go only after the processed arguments above
-if [!processedArgs!]==[] (
-   set unprocessedArgs=%__args%
-) else (
-   set unprocessedArgs=%__args%
-   for %%t in (!processedArgs!) do (
-   REM strip out already-processed arguments from unprocessedArgs
-   set unprocessedArgs=!unprocessedArgs:*%%t=!
-   )
+    REM The innermost recursive invocation of :ArgLoop will execute
+    REM msbuild, and all other invocations simply exit.
+    call :ArgLoop %%y
+    exit /b
 )
 
 :ArgsDone
 
-call %~dp0msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /p:__BuildOS=Windows_NT .\src\publish.proj /flp:v=detailed;LogFile=publish-packages.log /clp:v=detailed %__MSBuildArgs% %unprocessedArgs%
+call %~dp0msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /p:__BuildOS=Windows_NT .\src\publish.proj /flp:v=detailed;LogFile=publish-packages.log /clp:v=detailed %__MSBuildArgs%
 @exit /b %ERRORLEVEL%
 
 :Usage
