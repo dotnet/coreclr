@@ -77,7 +77,7 @@ while :; do
     shift
 done
 
-$working_tree_root/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary /p:__BuildOS=${OSName} ./src/publish.proj /flp:v=detailed\;LogFile=publish-packages.log /clp:v=detailed $buildArgrs $unprocessedBuildArgs
+$working_tree_root/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary ./src/publish.proj /flp:v=detailed\;LogFile=publish-packages.log /clp:v=detailed $buildArgrs $unprocessedBuildArgs
 if [ $? -ne 0 ]
 then
     echo "ERROR: An error occurred while publishing packages; see $working_tree_root/publish-packages.log for more details. There may have been networking problems, so please try again in a few minutes."
