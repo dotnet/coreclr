@@ -846,19 +846,6 @@ MethodDesc *ZapSig::DecodeMethod(Module *pReferencingModule,
 
     TypeHandle thOwner = NULL;
 
-    // Module * dbg_infoModule;
-
-    // if (wcscmp(pInfoModule->GetDebugName(), L"test") != 0) {
-    //     int refModuleTest = wcscmp(pReferencingModule->GetDebugName(), L"test");
-    //     int refModuleMain = wcscmp(pReferencingModule->GetDebugName(), L"mainv1");
-    //     dbg_infoModule = pInfoModule;
-    // }
-    // else if (wcscmp(pInfoModule->GetDebugName(), L"mainv1") != 0) {
-    //     int refModuleTest = wcscmp(pReferencingModule->GetDebugName(), L"test");
-    //     int refModuleMain = wcscmp(pReferencingModule->GetDebugName(), L"mainv1");
-    //     dbg_infoModule = pReferencingModule;
-    // }
-
     if ( methodFlags & ENCODE_METHOD_SIG_OwnerType )
     {
         if (ppOwnerTypeSpecWithVars != NULL)
@@ -892,7 +879,6 @@ MethodDesc *ZapSig::DecodeMethod(Module *pReferencingModule,
         //
         RID rid;
         IfFailThrow(sig.GetData(&rid));
-        // MemberRef token is interpreted in the incorrect module
         if (methodFlags & ENCODE_METHOD_SIG_MemberRefToken)
         {
             if (thOwner.IsNull())

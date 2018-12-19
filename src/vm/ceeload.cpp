@@ -3579,7 +3579,7 @@ BOOL Module::IsWindowsRuntimeModule()
 
     return IsAfContentType_WindowsRuntime(dwFlags);
 }
-// Update this?
+
 BOOL Module::IsInCurrentVersionBubble()
 {
     LIMITED_METHOD_CONTRACT;
@@ -3594,7 +3594,7 @@ BOOL Module::IsInCurrentVersionBubble()
         return TRUE;
 
     if (IsReadyToRunCompilation())
-        return TRUE;
+        return IsLargeVersionBubbleEnabled();
 
 #ifdef FEATURE_COMINTEROP
     if (g_fNGenWinMDResilient)

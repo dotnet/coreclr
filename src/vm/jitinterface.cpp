@@ -684,10 +684,10 @@ bool IsInSameVersionBubble(Assembly * current, Assembly * target)
 
     // trivial case: current and target are identical
     // DO NOT change this without reading the notice above
-    //if (current == target)
+    if (current == target)
         return true;
 
-   // return false;
+    return IsLargeVersionBubbleEnabled();
 }
 
 // Returns true if the assemblies defining current and target are in the same version bubble

@@ -1811,12 +1811,22 @@ extern bool g_fNGenWinMDResilient;
 
 #ifdef FEATURE_READYTORUN_COMPILER
 extern bool g_fReadyToRunCompilation;
+extern bool g_fLargeVersionBubble;
 #endif
 
 inline bool IsReadyToRunCompilation()
 {
 #ifdef FEATURE_READYTORUN_COMPILER
     return g_fReadyToRunCompilation;
+#else
+    return false;
+#endif
+}
+
+inline bool IsLargeVersionBubbleEnabled()
+{
+#ifdef FEATURE_READYTORUN_COMPILER
+    return g_fLargeVersionBubble;
 #else
     return false;
 #endif
