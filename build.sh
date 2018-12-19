@@ -686,8 +686,9 @@ __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
 __IbcOptDataVersion=""
 __BuildManagedTools=1
-__OfficialBuildIdArg=""
+__SkipRestoreArg=""
 __SignTypeArg=""
+__OfficialBuildIdArg=""
 
 # Get the number of processors available to the scheduler
 # Other techniques such as `nproc` only get the number of
@@ -941,13 +942,17 @@ while :; do
             exit 1
             ;;
 
-        -OfficialBuildId=*)
-            __Id=$(echo $1| cut -d'=' -f 2)
-            __OfficialBuildIdArg="/p:OfficialBuildId=$__Id"
+        -skiprestore)
+            __SkipRestoreArg="/p:RestoreDuringBuild=false"
             ;;
 
         -disableoss)
             __SignTypeArg="/p:SignType=real"
+            ;;
+
+        -OfficialBuildId=*)
+            __Id=$(echo $1| cut -d'=' -f 2)
+            __OfficialBuildIdArg="/p:OfficialBuildId=$__Id"
             ;;
 
         --)
@@ -962,7 +967,7 @@ while :; do
     shift
 done
 
-__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS $__OfficialBuildIdArg $__SignTypeArg"
+__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS $__OfficialBuildIdArg $__SignTypeArg $__SkipRestoreArg"
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
