@@ -45,7 +45,7 @@ while :; do
             buildArgs="$buildArgs /p:CloudDropAccessToken=$__Token"
             ;;
         -BuildType=*)
-            __Type=$(echo $1| cut -d'=' f 2)
+            __Type=$(echo $1| cut -d'=' -f 2)
             buildArgs="$buildArgs /p:__BuildType=$__Type"
             ;;
         -BuildArch=*)
