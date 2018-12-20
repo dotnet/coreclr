@@ -146,6 +146,13 @@ public:
         return data[indx];
     }
 
+    // return a reference to the i'th from the bottom
+    T BottomRef(int indx)
+    {
+        assert(tosIndex > indx);
+        return data[indx];
+    }
+
     void Reset()
     {
         tosIndex = 0;
