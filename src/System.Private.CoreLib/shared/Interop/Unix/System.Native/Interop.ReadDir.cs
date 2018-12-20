@@ -62,7 +62,7 @@ internal static partial class Interop
         internal static extern int GetReadDirRBufferSize();
 
         [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_ReadDirR", SetLastError = false)]
-        private static extern unsafe int ReadDirR(IntPtr dir, ref byte buffer, int bufferSize, ref DirectoryEntry outputEntry);
+        private static extern unsafe int ReadDirR(IntPtr dir, byte* buffer, int bufferSize, ref DirectoryEntry outputEntry);
 
         [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_CloseDir", SetLastError = true)]
         internal static extern int CloseDir(IntPtr dir);
@@ -74,13 +74,16 @@ internal static partial class Interop
         /// 
         /// Call <see cref="ReadBufferSize"/> to see what size buffer to allocate.
         /// </summary>
-        internal static int ReadDir(IntPtr dir, Span<byte> buffer, ref DirectoryEntry entry)
+        internal static unsafe int ReadDir(IntPtr dir, Span<byte> buffer, ref DirectoryEntry entry)
         {
             // The calling pattern for ReadDir is described in src/Native/Unix/System.Native/pal_io.cpp|.h
             Debug.Assert(buffer.Length >= ReadBufferSize, "should have a big enough buffer for the raw data");
 
             // ReadBufferSize is zero when the native implementation does not support reading into a buffer.
-            return ReadDirR(dir, ref MemoryMarshal.GetReference(buffer), ReadBufferSize, ref entry);
+            fixed (byte* bufferPtr = buffer)
+            {
+                return ReadDirR(dir, bufferPtr, buffer.Length, ref entry);
+            }
         }
     }
 }

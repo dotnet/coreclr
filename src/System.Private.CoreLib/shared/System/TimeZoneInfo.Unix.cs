@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -422,19 +423,21 @@ namespace System
                     throw Interop.GetExceptionForIoErrno(Interop.Sys.GetLastErrorInfo(), currentPath, isDirectory: true);
                 }
 
-                byte[] dirBuffer = ArrayPool<byte>.Shared.Rent(Interop.Sys.ReadBufferSize);
-                Span<byte> dirBufferSpan = dirBuffer.AsSpan(0, Interop.Sys.ReadBufferSize);
+                byte[] dirBuffer = null;
                 try
                 {
+                    dirBuffer = ArrayPool<byte>.Shared.Rent(Interop.Sys.ReadBufferSize);
+                    Span<byte> dirBufferSpan = dirBuffer.AsSpan(0, Interop.Sys.ReadBufferSize);
+
                     // Read each entry from the enumerator
                     Interop.Sys.DirectoryEntry dirent = default;
-                    while (Interop.Sys.ReadDir(dirHandle, dirBufferSpan, out dirent) == 0)
+                    while (Interop.Sys.ReadDir(dirHandle, dirBufferSpan, ref dirent) == 0)
                     {
                         Span<char> nameBuffer = stackalloc char[256];
                         ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);
 
-                        if (((uint)direntName.Length == 1u && direntName[0] == ".") &&
-                            ((uint)direntName.Length == 2u && direntName[0] == "." && direntName[1] == "."))
+                        if (((uint)direntName.Length == 1u && direntName[0] == '.') &&
+                            ((uint)direntName.Length == 2u && direntName[0] == '.' && direntName[1] == '.'))
                             continue;
 
                         string fullPath = Path.Join(currentPath.AsSpan(), nameBuffer);
