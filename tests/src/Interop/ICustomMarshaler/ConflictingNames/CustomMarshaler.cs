@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 
-public class WrappedString
+class WrappedString
 {
     public WrappedString(string str)
     {
@@ -17,7 +17,7 @@ public class WrappedString
     internal string _str;
 }
 
-public class WrappedStringCustomMarshaler : ICustomMarshaler
+class WrappedStringCustomMarshaler : ICustomMarshaler
 {
     public void CleanUpManagedData(object ManagedObj) { }
     public void CleanUpNativeData(IntPtr pNativeData) { Marshal.ZeroFreeCoTaskMemAnsi(pNativeData); }
@@ -30,13 +30,21 @@ public class WrappedStringCustomMarshaler : ICustomMarshaler
     public static ICustomMarshaler GetInstance(string cookie) => new WrappedStringCustomMarshaler();
 }
 
-public class CustomMarshalerTest
+#if CUSTOMMARSHALERS2
+namespace CustomMarshalers2
+#else
+namespace CustomMarshalers
+#endif
 {
-    [DllImport("CustomMarshalersALCNative", CharSet = CharSet.Ansi)]
-    public static extern int NativeParseInt([MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(WrappedStringCustomMarshaler))] WrappedString str);
-
-    public int ParseInt(string str)
+    public class CustomMarshalerTest
     {
-        return NativeParseInt(new WrappedString(str));
+        [DllImport("CustomMarshalerNative", CharSet = CharSet.Ansi)]
+        private static extern int NativeParseInt([MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(WrappedStringCustomMarshaler))] WrappedString str);
+
+        public int ParseInt(string str)
+        {
+            return NativeParseInt(new WrappedString(str));
+        }
     }
 }
+

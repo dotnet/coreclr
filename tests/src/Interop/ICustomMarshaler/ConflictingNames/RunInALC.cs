@@ -23,7 +23,7 @@ public class RunInALC
         string currentAssemblyDirectory = Path.GetDirectoryName(new Uri(Assembly.GetExecutingAssembly().CodeBase).AbsolutePath);
         var context = new CustomLoadContext();
         Assembly inContextAssembly = context.LoadFromAssemblyPath(Path.Combine(currentAssemblyDirectory, "CustomMarshalerInALC.dll"));
-        Type inContextType = inContextAssembly.GetType("CustomMarshalerTest");
+        Type inContextType = inContextAssembly.GetType("CustomMarshalers.CustomMarshalerTest");
         object instance = Activator.CreateInstance(inContextType);
         MethodInfo parseIntMethod = inContextType.GetMethod("ParseInt", BindingFlags.Instance | BindingFlags.Public);
         Assert.AreEqual(1234, (int)parseIntMethod.Invoke(instance, new object[]{"1234"}));
