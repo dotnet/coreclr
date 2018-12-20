@@ -422,12 +422,13 @@ namespace System
                     throw Interop.GetExceptionForIoErrno(Interop.Sys.GetLastErrorInfo(), currentPath, isDirectory: true);
                 }
 
+                byte[] dirBuffer = ArrayPool<byte>.Shared.Rent(Interop.Sys.ReadBufferSize);
+                Span<byte> dirBufferSpan = dirBuffer.AsSpan(0, Interop.Sys.ReadBufferSize);
                 try
                 {
                     // Read each entry from the enumerator
-                    var dirBuffer = new byte[Interop.Sys.ReadBufferSize];
                     Interop.Sys.DirectoryEntry dirent = default;
-                    while (Interop.Sys.ReadDir(dirHandle, dirBuffer, out dirent) == 0)
+                    while (Interop.Sys.ReadDir(dirHandle, dirBufferSpan, out dirent) == 0)
                     {
                         Span<char> nameBuffer = stackalloc char[256];
                         ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);
@@ -486,6 +487,7 @@ namespace System
                 }
                 finally
                 {
+                    ArrayPool<byte>.Shared.Return(dirBuffer);
                     Interop.Sys.CloseDir(dirHandle);
                 }
 
