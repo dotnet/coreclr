@@ -376,7 +376,7 @@ void CodeGen::genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, reg
 
 #ifdef DEBUG
 //------------------------------------------------------------------------
-// CheckSPOffset: Check Stack Pointer(SP) offset value,
+// genCheckSPOffset: Check Stack Pointer(SP) offset value,
 // it must be 8 to account for alignment for the odd count
 // or it must be 0 for the even count.
 //
@@ -385,7 +385,7 @@ void CodeGen::genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, reg
 //   spOffset       - stack pointer offset value;
 //   slotSize       - stack slot size in bytes.
 //
-void CheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize)
+void CodeGen::genCheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize)
 {
     if (isRegsCountOdd)
     {
@@ -400,28 +400,8 @@ void CheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize)
 }
 #endif // DEBUG
 
-// A simple struct to keep register pairs for prolog and epilog.
-struct RegPair
-{
-    regNumber reg1;
-    regNumber reg2;
-
-    RegPair() : reg1(REG_NA), reg2(REG_NA)
-    {
-    }
-
-    RegPair(regNumber reg1) : reg1(reg1), reg2(REG_NA)
-    {
-    }
-
-    RegPair(regNumber reg1, regNumber reg2) : reg1(reg1), reg2(reg2)
-    {
-        assert(reg2 == REG_NEXT(reg1));
-    }
-};
-
 //------------------------------------------------------------------------
-// buildRegPairsStack: Build a stack of register pairs for prolog/epilog save/restore for the given mask.
+// genBuildRegPairsStack: Build a stack of register pairs for prolog/epilog save/restore for the given mask.
 // The first register pair will contain the lowest register. Register pairs will combine neighbor
 // registers in pairs. If it can't be done (for example if we have a hole or this is the last reg in a mask with
 // odd number of regs) then the second element of that RegPair will be REG_NA.
@@ -433,7 +413,7 @@ struct RegPair
 // Return value:
 //   no return value; the regStack argument is modified.
 //
-void buildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack)
+void CodeGen::genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack)
 {
     assert(regStack != nullptr);
     assert(regStack->Height() == 0);
@@ -471,7 +451,7 @@ void buildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack)
 }
 
 //------------------------------------------------------------------------
-// GetSlotSizeForRegsInMask: Get the stack slot size appropriate for the register type from the mask.
+// genGetSlotSizeForRegsInMask: Get the stack slot size appropriate for the register type from the mask.
 //
 // Arguments:
 //   regsMask - a mask of registers for prolog/epilog generation.
@@ -479,7 +459,7 @@ void buildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack)
 // Return value:
 //   stack slot size in bytes.
 //
-int GetSlotSizeForRegsInMask(regMaskTP regsMask)
+int CodeGen::genGetSlotSizeForRegsInMask(regMaskTP regsMask)
 {
     assert((regsMask & (RBM_CALLEE_SAVED | RBM_LR)) == regsMask); // Do not expect anything else.
 
@@ -511,17 +491,17 @@ int CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
                                              int       spDelta,
                                              int spOffset DEBUGARG(bool isRegsToSaveCountOdd))
 {
-    const int slotSize = GetSlotSizeForRegsInMask(regsMask);
+    const int slotSize = genGetSlotSizeForRegsInMask(regsMask);
 
 #ifdef DEBUG
     if (spDelta != 0) // The first store change SP offset, check its value before.
     {
-        CheckSPOffset(isRegsToSaveCountOdd, spOffset, slotSize);
+        genCheckSPOffset(isRegsToSaveCountOdd, spOffset, slotSize);
     }
 #endif // DEBUG
 
     ArrayStack<RegPair> regStack(compiler->getAllocator(CMK_Codegen));
-    buildRegPairsStack(regsMask, &regStack);
+    genBuildRegPairsStack(regsMask, &regStack);
 
     bool lastSavedWasPair = false; // currently unused, see the comment below.
     for (int i = 0; i < regStack.Height(); ++i)
@@ -647,10 +627,10 @@ int CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
                                                 int       spDelta,
                                                 int spOffset DEBUGARG(bool isRegsToRestoreCountOdd))
 {
-    const int slotSize = GetSlotSizeForRegsInMask(regsMask);
+    const int slotSize = genGetSlotSizeForRegsInMask(regsMask);
 
     ArrayStack<RegPair> regStack(compiler->getAllocator(CMK_Codegen));
-    buildRegPairsStack(regsMask, &regStack);
+    genBuildRegPairsStack(regsMask, &regStack);
 
     int stackDelta = 0;
     for (int i = 0; i < regStack.Height(); ++i)
@@ -681,7 +661,7 @@ int CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
 #ifdef DEBUG
     if (stackDelta != 0) // The last restore (the first save) changes SP offset, check its value after.
     {
-        CheckSPOffset(isRegsToRestoreCountOdd, spOffset, slotSize);
+        genCheckSPOffset(isRegsToRestoreCountOdd, spOffset, slotSize);
     }
 #endif // DEBUG
     return spOffset;
