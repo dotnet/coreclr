@@ -25,7 +25,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="RunInALC.cs" />
-    <Compile Include="CustomLoadContext.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />

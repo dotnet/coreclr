@@ -19,8 +19,6 @@ public class WrappedString
 
 public class WrappedStringCustomMarshaler : ICustomMarshaler
 {
-    private static readonly WrappedStringCustomMarshaler instance = new WrappedStringCustomMarshaler();
-
     public void CleanUpManagedData(object ManagedObj) { }
     public void CleanUpNativeData(IntPtr pNativeData) { Marshal.ZeroFreeCoTaskMemAnsi(pNativeData); }
 
@@ -29,7 +27,7 @@ public class WrappedStringCustomMarshaler : ICustomMarshaler
     public IntPtr MarshalManagedToNative(object ManagedObj) => Marshal.StringToCoTaskMemAnsi(((WrappedString)ManagedObj)._str);
     public object MarshalNativeToManaged(IntPtr pNativeData) => new WrappedString(Marshal.PtrToStringAnsi(pNativeData));
 
-    public static ICustomMarshaler GetInstance(string cookie) => instance;
+    public static ICustomMarshaler GetInstance(string cookie) => new WrappedStringCustomMarshaler();
 }
 
 public class CustomMarshalerTest
