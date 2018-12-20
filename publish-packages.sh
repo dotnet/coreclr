@@ -41,7 +41,7 @@ while :; do
             buildArgs="$buildArgs /p:CloudDropAccountName=$__Account"
             ;;
         -AzureToken=*)
-            __Token=$(echo $1| cut -d'=' -f 2)
+            __Token=${1:12}
             buildArgs="$buildArgs /p:CloudDropAccessToken=$__Token"
             ;;
         -BuildType=*)
