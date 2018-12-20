@@ -127,6 +127,11 @@ public:
         return tosIndex;
     }
 
+    bool Empty()
+    {
+        return tosIndex == 0;
+    }
+
     // return the bottom of the stack
     T Bottom()
     {
