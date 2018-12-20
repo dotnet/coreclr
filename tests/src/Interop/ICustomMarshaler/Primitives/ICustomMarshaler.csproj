@@ -22,7 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ICustomMarshaler.cs" />
-    <Compile Include="..\common\XunitBase.cs" />
+    <Compile Include="..\..\common\XunitBase.cs" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
