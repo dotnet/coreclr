@@ -565,11 +565,14 @@ namespace System.Globalization
 
         private static char ToLowerAsciiInvariant(char c)
         {
-            if ((uint)(c - 'A') <= (uint)('Z' - 'A'))
-            {
-                c = (char)(c | 0x20);
-            }
-            return c;
+            const int offset = 'a' - 'A';
+            const int bitsPerChar = sizeof(char) * 8;
+
+            int maskA = 'A' - c - 1;
+            int maskZ = c - 'Z' - 1;
+            int mask = (maskA & maskZ) >> bitsPerChar;
+
+            return (char)(c + (mask & offset));
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -604,11 +607,14 @@ namespace System.Globalization
 
         internal static char ToUpperAsciiInvariant(char c)
         {
-            if ((uint)(c - 'a') <= (uint)('z' - 'a'))
-            {
-                c = (char)(c & ~0x20);
-            }
-            return c;
+            const int offset = 'A' - 'a';
+            const int bitsPerChar = sizeof(char) * 8;
+
+            int maskA = 'a' - c - 1;
+            int maskB = c - 'z' - 1;
+            int mask = (maskA & maskB) >> bitsPerChar;
+
+            return (char)(c + (mask & offset));
         }
 
         private static bool IsAscii(char c)
