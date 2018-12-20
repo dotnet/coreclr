@@ -11,17 +11,17 @@ class ArrayStack
     static const int builtinSize = 8;
 
 public:
-    ArrayStack(CompAllocator alloc, int initialSize = builtinSize) : m_alloc(alloc)
+    ArrayStack(CompAllocator alloc, int initialCapacity = builtinSize) : m_alloc(alloc)
     {
-        if (initialSize > builtinSize)
+        if (initialCapacity > builtinSize)
         {
-            maxIndex = initialSize;
-            data     = new (alloc) T[initialSize];
+            maxIndex = initialCapacity;
+            data     = m_alloc.allocate<T>(initialCapacity);
         }
         else
         {
             maxIndex = builtinSize;
-            data     = builtinData;
+            data     = reinterpret_cast<T*>(builtinData);
         }
 
         tosIndex = 0;
@@ -56,7 +56,7 @@ public:
         // and copy over
         T* oldData = data;
         noway_assert(maxIndex * 2 > maxIndex);
-        data = new (m_alloc) T[maxIndex * 2];
+        data = m_alloc.allocate<T>(maxIndex * 2);
         for (int i = 0; i < maxIndex; i++)
         {
             data[i] = oldData[i];
@@ -139,5 +139,5 @@ private:
     int           maxIndex;
     T*            data;
     // initial allocation
-    T builtinData[builtinSize];
+    char builtinData[builtinSize * sizeof(T)];
 };
