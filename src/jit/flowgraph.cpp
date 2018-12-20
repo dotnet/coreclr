@@ -9687,7 +9687,7 @@ VARSET_VALRET_TP Compiler::fgGetVarBits(GenTree* tree)
 {
     VARSET_TP varBits(VarSetOps::MakeEmpty(this));
 
-    assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD || tree->gtOper == GT_REG_VAR);
+    assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD);
 
     unsigned int lclNum = tree->gtLclVarCommon.gtLclNum;
     LclVarDsc*   varDsc = lvaTable + lclNum;
@@ -23274,7 +23274,7 @@ GenTree* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                     const var_types argType = lclVarInfo[argNum].lclTypeInfo;
 
                     // Create the temp assignment for this argument
-                    CORINFO_CLASS_HANDLE structHnd = DUMMY_INIT(0);
+                    CORINFO_CLASS_HANDLE structHnd = NO_CLASS_HANDLE;
 
                     if (varTypeIsStruct(argType))
                     {

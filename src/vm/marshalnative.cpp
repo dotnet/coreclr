@@ -1056,7 +1056,7 @@ FCIMPL1(ITypeInfo*, MarshalNative::GetITypeInfoForType, ReflectClassBaseObject* 
     _ASSERTE(pMT);
 
     // Retrieve the ITypeInfo for the class.
-    IfFailThrow(GetITypeInfoForEEClass(pMT, &pTI, true));
+    IfFailThrow(GetITypeInfoForEEClass(pMT, &pTI, true /* bClassInfo */));
     _ASSERTE(pTI != NULL);
 
     HELPER_METHOD_FRAME_END();
@@ -2447,111 +2447,6 @@ void QCALLTYPE MarshalNative::GetInspectableIIDs(
             retArrayGuids.SetGuidArray(rgIIDs, size);
         }
     }
-
-    END_QCALL;
-}
-
-
-void QCALLTYPE MarshalNative::GetCachedWinRTTypes(
-                        QCall::ObjectHandleOnStack hadObj,
-                        int * pEpoch,
-                        QCall::ObjectHandleOnStack retArrayMT)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(*hadObj.m_ppObject, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    BEGIN_QCALL;
-
-    AppDomain * pDomain = GetAppDomain();
-
-    {
-        GCX_COOP();
-
-        // set return to failure value
-        retArrayMT.Set(NULL);
-
-        OBJECTREF orDomain = NULL;
-        GCPROTECT_BEGIN(orDomain);
-
-        orDomain = ObjectToOBJECTREF(*hadObj.m_ppObject);
-
-        // Validation: hadObj represents a non-NULL System.AppDomain instance
-        if(orDomain != NULL)
-        {
-            MethodTable* pMT = orDomain->GetMethodTable();
-            PREFIX_ASSUME(pMT != NULL);
-            if (!pMT->CanCastToClass(MscorlibBinder::GetClass(CLASS__APP_DOMAIN)))
-                // TODO: find better resource string
-                COMPlusThrow(kArgumentException, IDS_EE_ADUNLOAD_DEFAULT);
-
-            pDomain = ((AppDomainBaseObject*)(OBJECTREFToObject(orDomain)))->GetDomain();
-        }
-        GCPROTECT_END();
-    }
-
-    if (pDomain != NULL)
-    {
-        SArray<PTR_MethodTable> types;
-        SArray<GUID> guids;
-        UINT e = *(UINT*)pEpoch;
-        pDomain->GetCachedWinRTTypes(&types, &guids, e, (UINT*)pEpoch);
-
-        retArrayMT.SetIntPtrArray((void**)(&types[0]), types.GetCount());
-    }
-
-    END_QCALL;
-}
-
-void QCALLTYPE MarshalNative::GetCachedWinRTTypeByIID(
-                        QCall::ObjectHandleOnStack hadObj,
-                        GUID guid,
-                        void * * ppMT)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(*hadObj.m_ppObject, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    BEGIN_QCALL;
-
-    AppDomain * pDomain = GetAppDomain();
-
-    {
-        GCX_COOP();
-
-        // set return to failure value
-        *ppMT = NULL;
-
-        OBJECTREF orDomain = NULL;
-        GCPROTECT_BEGIN(orDomain);
-
-        orDomain = ObjectToOBJECTREF(*hadObj.m_ppObject);
-
-        // Validation: hadObj represents a non-NULL System.AppDomain instance
-        if(orDomain != NULL)
-        {
-            MethodTable* pMT = orDomain->GetMethodTable();
-            PREFIX_ASSUME(pMT != NULL);
-            if (!pMT->CanCastToClass(MscorlibBinder::GetClass(CLASS__APP_DOMAIN)))
-                // TODO: find better resource string
-                COMPlusThrow(kArgumentException, IDS_EE_ADUNLOAD_DEFAULT);
-
-            pDomain = ((AppDomainBaseObject*)(OBJECTREFToObject(orDomain)))->GetDomain();
-        }
-        GCPROTECT_END();
-    }
-
-    if (pDomain != NULL)
-    {
-        *ppMT = pDomain->LookupTypeByGuid(guid);;
-    }
-
 
     END_QCALL;
 }

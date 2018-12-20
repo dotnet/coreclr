@@ -227,10 +227,6 @@ LONG GenTree::s_gtNodeCounts[GT_COUNT + 1] = {0};
 /* static */
 void GenTree::InitNodeSize()
 {
-    /* 'GT_LCL_VAR' often gets changed to 'GT_REG_VAR' */
-
-    assert(GenTree::s_gtNodeSizes[GT_LCL_VAR] >= GenTree::s_gtNodeSizes[GT_REG_VAR]);
-
     /* Set all sizes to 'small' first */
 
     for (unsigned op = 0; op <= GT_COUNT; op++)
@@ -315,7 +311,6 @@ void GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeLclVarCommon) <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeLclVar)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeLclFld)       <= TREE_NODE_SZ_SMALL);
-    static_assert_no_msg(sizeof(GenTreeRegVar)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeCC)           <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeCast)         <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeBox)          <= TREE_NODE_SZ_LARGE); // *** large node
@@ -4388,6 +4383,15 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 
 DONE:
 
+#ifdef FEATURE_HW_INTRINSICS
+    if ((oper == GT_HWIntrinsic) && (tree->gtGetOp1() == nullptr))
+    {
+        // We can have nullary HWIntrinsic nodes, and we must have non-zero cost.
+        costEx = 1;
+        costSz = 1;
+    }
+#endif // FEATURE_HW_INTRINSICS
+
     // Some path through this function must have set the costs.
     assert(costEx != -1);
     assert(costSz != -1);
@@ -4709,7 +4713,6 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
 #endif // !FEATURE_EH_FUNCLETS
         case GT_PHI_ARG:
         case GT_JMPTABLE:
-        case GT_REG_VAR:
         case GT_CLS_VAR:
         case GT_CLS_VAR_ADDR:
         case GT_ARGPLACE:
@@ -6682,6 +6685,68 @@ GenTree* Compiler::gtNewBitCastNode(var_types type, GenTree* arg)
     return node;
 }
 
+//------------------------------------------------------------------------
+// gtNewAllocObjNode: Helper to create an object allocation node.
+//
+// Arguments:
+//    pResolvedToken   - Resolved token for the object being allocated
+//    useParent     -    true iff the token represents a child of the object's class
+//
+// Return Value:
+//    Returns GT_ALLOCOBJ node that will be later morphed into an
+//    allocation helper call or local variable allocation on the stack.
+
+GenTreeAllocObj* Compiler::gtNewAllocObjNode(CORINFO_RESOLVED_TOKEN* pResolvedToken, BOOL useParent)
+{
+    const BOOL      mustRestoreHandle     = TRUE;
+    BOOL* const     pRuntimeLookup        = nullptr;
+    bool            usingReadyToRunHelper = false;
+    CorInfoHelpFunc helper                = CORINFO_HELP_UNDEF;
+    GenTree*        opHandle = impTokenToHandle(pResolvedToken, pRuntimeLookup, mustRestoreHandle, useParent);
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    CORINFO_CONST_LOOKUP lookup;
+
+    if (opts.IsReadyToRun())
+    {
+        helper                                        = CORINFO_HELP_READYTORUN_NEW;
+        CORINFO_LOOKUP_KIND* const pGenericLookupKind = nullptr;
+        usingReadyToRunHelper =
+            info.compCompHnd->getReadyToRunHelper(pResolvedToken, pGenericLookupKind, helper, &lookup);
+    }
+#endif
+
+    if (!usingReadyToRunHelper)
+    {
+        if (opHandle == nullptr)
+        {
+            // We must be backing out of an inline.
+            assert(compDonotInline());
+            return nullptr;
+        }
+
+        helper = info.compCompHnd->getNewHelper(pResolvedToken, info.compMethodHnd);
+    }
+
+    // TODO: ReadyToRun: When generic dictionary lookups are necessary, replace the lookup call
+    // and the newfast call with a single call to a dynamic R2R cell that will:
+    //      1) Load the context
+    //      2) Perform the generic dictionary lookup and caching, and generate the appropriate stub
+    //      3) Allocate and return the new object for boxing
+    // Reason: performance (today, we'll always use the slow helper for the R2R generics case)
+
+    GenTreeAllocObj* allocObj = gtNewAllocObjNode(helper, pResolvedToken->hClass, TYP_REF, opHandle);
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    if (usingReadyToRunHelper)
+    {
+        allocObj->gtEntryPoint = lookup;
+    }
+#endif
+
+    return allocObj;
+}
+
 /*****************************************************************************
  *
  *  Clones the given tree value and returns a copy of the given tree.
@@ -6743,9 +6808,6 @@ GenTree* Compiler::gtClone(GenTree* tree, bool complexOK)
             copy = new (this, GT_CLS_VAR)
                 GenTreeClsVar(tree->gtType, tree->gtClsVar.gtClsVarHnd, tree->gtClsVar.gtFieldSeq);
             break;
-
-        case GT_REG_VAR:
-            assert(!"clone regvar");
 
         default:
             if (!complexOK)
@@ -6954,10 +7016,6 @@ GenTree* Compiler::gtCloneExpr(
 
             case GT_ARGPLACE:
                 copy = gtNewArgPlaceHolderNode(tree->gtType, tree->gtArgPlace.gtArgPlaceClsHnd);
-                goto DONE;
-
-            case GT_REG_VAR:
-                NO_WAY("Cloning of GT_REG_VAR node not supported");
                 goto DONE;
 
             case GT_FTN_ADDR:
@@ -8372,7 +8430,6 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
 #endif // !FEATURE_EH_FUNCLETS
         case GT_PHI_ARG:
         case GT_JMPTABLE:
-        case GT_REG_VAR:
         case GT_CLS_VAR:
         case GT_CLS_VAR_ADDR:
         case GT_ARGPLACE:
@@ -9453,7 +9510,6 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
             case GT_LCL_FLD_ADDR:
             case GT_STORE_LCL_FLD:
             case GT_STORE_LCL_VAR:
-            case GT_REG_VAR:
                 if (tree->gtFlags & GTF_VAR_USEASG)
                 {
                     printf("U");
@@ -10313,29 +10369,6 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
                     printf(" (last use)");
                 }
             }
-            break;
-
-        case GT_REG_VAR:
-            printf(" ");
-            gtDispLclVar(tree->gtRegVar.gtLclNum);
-            if (isFloatRegType(tree->gtType))
-            {
-                assert(tree->gtRegVar.gtRegNum == tree->gtRegNum);
-                printf(" FPV%u", tree->gtRegNum);
-            }
-            else
-            {
-                printf(" %s", compRegVarName(tree->gtRegVar.gtRegNum));
-            }
-
-            varNum = tree->gtRegVar.gtLclNum;
-            varDsc = &lvaTable[varNum];
-
-            if (varDsc->lvTracked && fgLocalVarLivenessDone && ((tree->gtFlags & GTF_VAR_DEATH) != 0))
-            {
-                printf(" (last use)");
-            }
-
             break;
 
         case GT_JMP:
@@ -13024,7 +13057,12 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             case TYP_INT:
 
                 /* Fold constant INT unary operator */
-                assert(op1->gtIntCon.ImmedValCanBeFolded(this, tree->OperGet()));
+
+                if (!op1->gtIntCon.ImmedValCanBeFolded(this, tree->OperGet()))
+                {
+                    return tree;
+                }
+
                 i1 = (int)op1->gtIntCon.gtIconVal;
 
                 // If we fold a unary oper, then the folded constant
@@ -13177,7 +13215,11 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
 
                 /* Fold constant LONG unary operator */
 
-                assert(op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
+                if (!op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+                {
+                    return tree;
+                }
+
                 lval1 = op1->gtIntConCommon.LngValue();
 
                 switch (tree->gtOper)
@@ -13518,8 +13560,15 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             //
             assert(!varTypeIsGC(op1->gtType) && !varTypeIsGC(op2->gtType));
 
-            assert(op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
-            assert(op2->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
+            if (!op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+            {
+                return tree;
+            }
+
+            if (!op2->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+            {
+                return tree;
+            }
 
             i1 = op1->gtIntConCommon.IconValue();
             i2 = op2->gtIntConCommon.IconValue();
@@ -13880,8 +13929,15 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             //
             assert((op2->gtType == TYP_LONG) || (op2->gtType == TYP_INT));
 
-            assert(op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
-            assert(op2->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()));
+            if (!op1->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+            {
+                return tree;
+            }
+
+            if (!op2->gtIntConCommon.ImmedValCanBeFolded(this, tree->OperGet()))
+            {
+                return tree;
+            }
 
             lval1 = op1->gtIntConCommon.LngValue();
 
@@ -14468,13 +14524,16 @@ GenTree* Compiler::gtNewTempAssign(
     CORINFO_CLASS_HANDLE structHnd = gtGetStructHandleIfPresent(val);
     if (varTypeIsStruct(valTyp) && ((structHnd != NO_CLASS_HANDLE) || (varTypeIsSIMD(valTyp))))
     {
-        // The GT_OBJ may be be a child of a GT_COMMA.
+        // The struct value may be be a child of a GT_COMMA.
         GenTree* valx = val->gtEffectiveVal(/*commaOnly*/ true);
 
-        if (valx->gtOper == GT_OBJ)
+        if (structHnd != NO_CLASS_HANDLE)
         {
-            assert(structHnd != nullptr);
             lvaSetStruct(tmp, structHnd, false);
+        }
+        else
+        {
+            assert(valx->gtOper != GT_OBJ);
         }
         dest->gtFlags |= GTF_DONT_CSE;
         valx->gtFlags |= GTF_DONT_CSE;
@@ -16178,6 +16237,235 @@ bool Compiler::gtIsStaticFieldPtrToBoxedStruct(var_types fieldNodeType, CORINFO_
     var_types   fieldTyp = JITtype2varType(cit);
     return fieldTyp != TYP_REF;
 }
+
+#ifdef FEATURE_SIMD
+//------------------------------------------------------------------------
+// gtGetSIMDZero: Get a zero value of the appropriate SIMD type.
+//
+// Arguments:
+//    var_types - The simdType
+//    baseType  - The base type we need
+//    simdHandle - The handle for the SIMD type
+//
+// Return Value:
+//    A node generating the appropriate Zero, if we are able to discern it,
+//    otherwise null (note that this shouldn't happen, but callers should
+//    be tolerant of this case).
+
+GenTree* Compiler::gtGetSIMDZero(var_types simdType, var_types baseType, CORINFO_CLASS_HANDLE simdHandle)
+{
+    bool found    = false;
+    bool isHWSIMD = true;
+    noway_assert(m_simdHandleCache != nullptr);
+
+    // First, determine whether this is Vector<T>.
+    if (simdType == getSIMDVectorType())
+    {
+        switch (baseType)
+        {
+            case TYP_FLOAT:
+                found = (simdHandle == m_simdHandleCache->SIMDFloatHandle);
+                break;
+            case TYP_DOUBLE:
+                found = (simdHandle == m_simdHandleCache->SIMDDoubleHandle);
+                break;
+            case TYP_INT:
+                found = (simdHandle == m_simdHandleCache->SIMDIntHandle);
+                break;
+            case TYP_USHORT:
+                found = (simdHandle == m_simdHandleCache->SIMDUShortHandle);
+                break;
+            case TYP_UBYTE:
+                found = (simdHandle == m_simdHandleCache->SIMDUByteHandle);
+                break;
+            case TYP_SHORT:
+                found = (simdHandle == m_simdHandleCache->SIMDShortHandle);
+                break;
+            case TYP_BYTE:
+                found = (simdHandle == m_simdHandleCache->SIMDByteHandle);
+                break;
+            case TYP_LONG:
+                found = (simdHandle == m_simdHandleCache->SIMDLongHandle);
+                break;
+            case TYP_UINT:
+                found = (simdHandle == m_simdHandleCache->SIMDUIntHandle);
+                break;
+            case TYP_ULONG:
+                found = (simdHandle == m_simdHandleCache->SIMDULongHandle);
+                break;
+            default:
+                break;
+        }
+        if (found)
+        {
+            isHWSIMD = false;
+        }
+    }
+
+    if (!found)
+    {
+        // We must still have isHWSIMD set to true, and the only non-HW types left are the fixed types.
+        switch (simdType)
+        {
+            case TYP_SIMD8:
+                switch (baseType)
+                {
+                    case TYP_FLOAT:
+                        if (simdHandle == m_simdHandleCache->SIMDVector2Handle)
+                        {
+                            isHWSIMD = false;
+                        }
+#if defined(_TARGET_ARM64_) && defined(FEATURE_HW_INTRINSICS)
+                        else
+                        {
+                            assert(simdHandle == m_simdHandleCache->Vector64FloatHandle);
+                        }
+                        break;
+                    case TYP_INT:
+                        assert(simdHandle == m_simdHandleCache->Vector64IntHandle);
+                        break;
+                    case TYP_USHORT:
+                        assert(simdHandle == m_simdHandleCache->Vector64UShortHandle);
+                        break;
+                    case TYP_UBYTE:
+                        assert(simdHandle == m_simdHandleCache->Vector64UByteHandle);
+                        break;
+                    case TYP_SHORT:
+                        assert(simdHandle == m_simdHandleCache->Vector64ShortHandle);
+                        break;
+                    case TYP_BYTE:
+                        assert(simdHandle == m_simdHandleCache->Vector64ByteHandle);
+                        break;
+                    case TYP_UINT:
+                        assert(simdHandle == m_simdHandleCache->Vector64UIntHandle);
+                        break;
+#endif // defined(_TARGET_ARM64_) && defined(FEATURE_HW_INTRINSICS)
+                    default:
+                        break;
+                }
+                break;
+
+            case TYP_SIMD12:
+                assert((baseType == TYP_FLOAT) && (simdHandle == m_simdHandleCache->SIMDVector3Handle));
+                isHWSIMD = false;
+                break;
+
+            case TYP_SIMD16:
+                switch (baseType)
+                {
+                    case TYP_FLOAT:
+                        if (simdHandle == m_simdHandleCache->SIMDVector4Handle)
+                        {
+                            isHWSIMD = false;
+                        }
+#if defined(FEATURE_HW_INTRINSICS)
+                        else
+                        {
+                            assert(simdHandle == m_simdHandleCache->Vector128FloatHandle);
+                        }
+                        break;
+                    case TYP_DOUBLE:
+                        assert(simdHandle == m_simdHandleCache->Vector128DoubleHandle);
+                        break;
+                    case TYP_INT:
+                        assert(simdHandle == m_simdHandleCache->Vector128IntHandle);
+                        break;
+                    case TYP_USHORT:
+                        assert(simdHandle == m_simdHandleCache->Vector128UShortHandle);
+                        break;
+                    case TYP_UBYTE:
+                        assert(simdHandle == m_simdHandleCache->Vector128UByteHandle);
+                        break;
+                    case TYP_SHORT:
+                        assert(simdHandle == m_simdHandleCache->Vector128ShortHandle);
+                        break;
+                    case TYP_BYTE:
+                        assert(simdHandle == m_simdHandleCache->Vector128ByteHandle);
+                        break;
+                    case TYP_LONG:
+                        assert(simdHandle == m_simdHandleCache->Vector128LongHandle);
+                        break;
+                    case TYP_UINT:
+                        assert(simdHandle == m_simdHandleCache->Vector128UIntHandle);
+                        break;
+                    case TYP_ULONG:
+                        assert(simdHandle == m_simdHandleCache->Vector128ULongHandle);
+                        break;
+#endif // defined(FEATURE_HW_INTRINSICS)
+
+                    default:
+                        break;
+                }
+                break;
+
+#if defined(_TARGET_XARCH4_) && defined(FEATURE_HW_INTRINSICS)
+            case TYP_SIMD32:
+                switch (baseType)
+                {
+                    case TYP_FLOAT:
+                        assert(simdHandle == m_simdHandleCache->Vector256FloatHandle);
+                        break;
+                    case TYP_DOUBLE:
+                        assert(simdHandle == m_simdHandleCache->Vector256DoubleHandle);
+                        break;
+                    case TYP_INT:
+                        assert(simdHandle == m_simdHandleCache->Vector256IntHandle);
+                        break;
+                    case TYP_USHORT:
+                        assert(simdHandle == m_simdHandleCache->Vector256UShortHandle);
+                        break;
+                    case TYP_UBYTE:
+                        assert(simdHandle == m_simdHandleCache->Vector256UByteHandle);
+                        break;
+                    case TYP_SHORT:
+                        assert(simdHandle == m_simdHandleCache->Vector256ShortHandle);
+                        break;
+                    case TYP_BYTE:
+                        assert(simdHandle == m_simdHandleCache->Vector256ByteHandle);
+                        break;
+                    case TYP_LONG:
+                        assert(simdHandle == m_simdHandleCache->Vector256LongHandle);
+                        break;
+                    case TYP_UINT:
+                        assert(simdHandle == m_simdHandleCache->Vector256UIntHandle);
+                        break;
+                    case TYP_ULONG:
+                        assert(simdHandle == m_simdHandleCache->Vector256ULongHandle);
+                        break;
+                    default:
+                        break;
+                }
+                break;
+#endif // _TARGET_XARCH_ && FEATURE_HW_INTRINSICS
+            default:
+                break;
+        }
+    }
+
+    unsigned size = genTypeSize(simdType);
+    if (isHWSIMD)
+    {
+#if defined(_TARGET_XARCH_) && defined(FEATURE_HW_INTRINSICS)
+        switch (simdType)
+        {
+            case TYP_SIMD16:
+                return gtNewSimdHWIntrinsicNode(simdType, NI_Base_Vector128_Zero, baseType, size);
+            case TYP_SIMD32:
+                return gtNewSimdHWIntrinsicNode(simdType, NI_Base_Vector256_Zero, baseType, size);
+            default:
+                break;
+        }
+#endif // _TARGET_XARCH_ && FEATURE_HW_INTRINSICS
+        JITDUMP("Coudn't find the matching SIMD type for %s<%s> in gtGetSIMDZero\n", varTypeName(simdType),
+                varTypeName(baseType));
+    }
+    else
+    {
+        return gtNewSIMDVectorZero(simdType, baseType, size);
+    }
+    return nullptr;
+}
+#endif // FEATURE_SIMD
 
 CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
 {
