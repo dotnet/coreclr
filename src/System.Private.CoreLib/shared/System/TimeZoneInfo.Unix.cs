@@ -10,6 +10,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Security;
+using System.Runtime.InteropServices;
 
 using Internal.IO;
 
@@ -425,12 +426,14 @@ namespace System
                 }
 
                 byte[] dirBuffer = null;
+                GCHandle dirBufferHandle = default;
                 try
                 {
                     dirBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+                    dirBufferHandle = GCHandle.Alloc(dirBuffer, GCHandleType.Pinned);
                     // Read each entry from the enumerator
                     Interop.Sys.DirectoryEntry dirent = default;
-                    while (Interop.Sys.ReadDir(dirHandle, dirBuffer, ref dirent) == 0)
+                    while (Interop.Sys.ReadDirR(dirHandle, dirBufferHandle.AddrOfPinnedObject(), bufferSize, out dirent) == 0)
                     {
                         Span<char> nameBuffer = stackalloc char[Interop.Sys.DirectoryEntry.NameBufferSize];
                         ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);
@@ -491,6 +494,8 @@ namespace System
                 {
                     if (dirHandle != IntPtr.Zero)
                         Interop.Sys.CloseDir(dirHandle);
+                    if (dirBufferHandle != default)
+                        dirBufferHandle.Free();
                     if (dirBuffer != null)
                         ArrayPool<byte>.Shared.Return(dirBuffer);
                 }
