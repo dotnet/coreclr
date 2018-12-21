@@ -25,7 +25,7 @@
     <HelixType>$(_HelixType)</HelixType>
 
     <TimeoutInMinutes>$(_TimeoutInMinutes)</TimeoutInMinutes>
-    <TimeoutInMinutes Condition=" '$(TimeoutInMinutes)' == '' ">30</TimeoutInMinutes>
+    <TimeoutInMinutes Condition=" '$(TimeoutInMinutes)' == '' ">5</TimeoutInMinutes>
 
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
     <CoreRootDirectory>$(TestWorkingDir)\Tests\Core_Root</CoreRootDirectory>
