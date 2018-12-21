@@ -432,7 +432,7 @@ namespace System
                     dirBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
                     dirBufferHandle = GCHandle.Alloc(dirBuffer, GCHandleType.Pinned);
                     // Read each entry from the enumerator
-                    Interop.Sys.DirectoryEntry dirent = default;
+                    Interop.Sys.DirectoryEntry dirent;
                     while (Interop.Sys.ReadDirR(dirHandle, dirBufferHandle.AddrOfPinnedObject(), bufferSize, out dirent) == 0)
                     {
                         Span<char> nameBuffer = stackalloc char[Interop.Sys.DirectoryEntry.NameBufferSize];
@@ -442,7 +442,7 @@ namespace System
                             ((uint)direntName.Length == 2u && direntName[0] == '.' && direntName[1] == '.'))
                             continue;
 
-                        string fullPath = Path.Join(currentPath.AsSpan(), nameBuffer);
+                        string fullPath = Path.Join(currentPath.AsSpan(), direntName);
 
                         // Get from the dir entry whether the entry is a file or directory.
                         // We classify everything as a file unless we know it to be a directory.
