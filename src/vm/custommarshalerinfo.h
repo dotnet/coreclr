@@ -36,7 +36,7 @@ class CustomMarshalerInfo
 {
 public:
     // Constructor and destructor.
-    CustomMarshalerInfo(BaseDomain* pDomain, TypeHandle hndCustomMarshalerType, TypeHandle hndManagedType, LPCUTF8 strCookie, DWORD cCookieStrBytes);
+    CustomMarshalerInfo(LoaderAllocator* pLoaderAllocator, TypeHandle hndCustomMarshalerType, TypeHandle hndManagedType, LPCUTF8 strCookie, DWORD cCookieStrBytes);
     ~CustomMarshalerInfo();
 
     // CustomMarshalerInfo's are always allocated on the loader heap so we need to redefine

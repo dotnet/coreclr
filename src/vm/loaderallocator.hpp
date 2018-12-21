@@ -132,6 +132,7 @@ class UMEntryThunkCache;
 #ifdef FEATURE_COMINTEROP
 class ComCallWrapperCache;
 #endif // FEATURE_COMINTEROP
+class EEMarshalingData;
 
 class LoaderAllocator
 {
@@ -263,6 +264,9 @@ private:
     PtrHashMap m_interopDataHash;
     // Used for synchronizing access to the m_interopDataHash
     CrstExplicitInit m_InteropDataCrst;
+
+    
+    EEMarshalingData* m_pMarshalingData;
 #endif
 
 #ifndef DACCESS_COMPILE
@@ -546,6 +550,14 @@ public:
         LIMITED_METHOD_CONTRACT;
         return &m_ILStubCache;
     }
+
+    //****************************************************************************************
+    // This method returns marshaling data that the EE uses that is stored on a per LoaderAllocator
+    // basis.
+    EEMarshalingData *GetMarshalingData();
+
+    // Deletes marshaling data at shutdown (which contains cached factories that needs to be released)
+    void DeleteMarshalingData();
 
 #ifdef FEATURE_COMINTEROP
 

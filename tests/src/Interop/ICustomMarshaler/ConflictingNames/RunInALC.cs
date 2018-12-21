@@ -13,20 +13,53 @@ public class RunInALC
 {
     public static int Main(string[] args)
     {
-        Run();
-        Run();
+        try
+        {
+            ConflictingCustomMarshalerNamesInCollectibleLoadContexts_Succeeds();
+            ConflictingCustomMarshalerNamesInNoncollectibleLoadContexts_Succeeds();
+        }
+        catch (System.Exception e)
+        {
+            Console.WriteLine(e.ToString());
+            return 101;
+        }
         return 100;
     }
 
-    static void Run()
+    static void ConflictingCustomMarshalerNamesInCollectibleLoadContexts_Succeeds()
+    {
+        Run(new UnloadableLoadContext());
+        Run(new UnloadableLoadContext());
+    }
+
+    static void ConflictingCustomMarshalerNamesInNoncollectibleLoadContexts_Succeeds()
+    {
+        Run(new CustomLoadContext());
+        Run(new CustomLoadContext());
+    }
+
+    static void Run(AssemblyLoadContext context)
     {
         string currentAssemblyDirectory = Path.GetDirectoryName(new Uri(Assembly.GetExecutingAssembly().CodeBase).AbsolutePath);
-        var context = new CustomLoadContext();
-        Assembly inContextAssembly = context.LoadFromAssemblyPath(Path.Combine(currentAssemblyDirectory, "CustomMarshalerInALC.dll"));
+        Assembly inContextAssembly = context.LoadFromAssemblyPath(Path.Combine(currentAssemblyDirectory, "CustomMarshaler.dll"));
         Type inContextType = inContextAssembly.GetType("CustomMarshalers.CustomMarshalerTest");
         object instance = Activator.CreateInstance(inContextType);
         MethodInfo parseIntMethod = inContextType.GetMethod("ParseInt", BindingFlags.Instance | BindingFlags.Public);
         Assert.AreEqual(1234, (int)parseIntMethod.Invoke(instance, new object[]{"1234"}));
+    }
+}
+
+class UnloadableLoadContext : AssemblyLoadContext
+{
+    public UnloadableLoadContext()
+        :base(true)
+    {
+        
+    }
+
+    protected override Assembly Load(AssemblyName assemblyName)
+    {
+        return null;
     }
 }
 

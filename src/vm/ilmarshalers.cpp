@@ -1521,7 +1521,7 @@ LocalDesc ILOleColorMarshaler::GetManagedType()
     STANDARD_VM_CONTRACT;
 
     BaseDomain* pDomain = m_pargs->m_pMarshalInfo->GetModule()->GetDomain();
-    TypeHandle  hndColorType = pDomain->GetMarshalingData()->GetOleColorMarshalingInfo()->GetColorType();
+    TypeHandle  hndColorType = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetOleColorMarshalingInfo()->GetColorType();
 
     //
     // value class
@@ -1534,7 +1534,7 @@ void ILOleColorMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit
     STANDARD_VM_CONTRACT;
 
     BaseDomain* pDomain = m_pargs->m_pMarshalInfo->GetModule()->GetDomain();
-    MethodDesc* pConvertMD = pDomain->GetMarshalingData()->GetOleColorMarshalingInfo()->GetSystemColorToOleColorMD();
+    MethodDesc* pConvertMD = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetOleColorMarshalingInfo()->GetSystemColorToOleColorMD();
 
     EmitLoadManagedValue(pslILEmit);
     // int System.Drawing.ColorTranslator.ToOle(System.Drawing.Color c)
@@ -1547,7 +1547,7 @@ void ILOleColorMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit
     STANDARD_VM_CONTRACT;
 
     BaseDomain* pDomain = m_pargs->m_pMarshalInfo->GetModule()->GetDomain();
-    MethodDesc* pConvertMD = pDomain->GetMarshalingData()->GetOleColorMarshalingInfo()->GetOleColorToSystemColorMD();
+    MethodDesc* pConvertMD = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetOleColorMarshalingInfo()->GetOleColorToSystemColorMD();
 
     EmitLoadNativeValue(pslILEmit);
     // System.Drawing.Color System.Drawing.ColorTranslator.FromOle(int oleColor)
@@ -5676,7 +5676,7 @@ LocalDesc ILUriMarshaler::GetManagedType()
 {
     STANDARD_VM_CONTRACT;;    
     BaseDomain* pDomain = m_pargs->m_pMarshalInfo->GetModule()->GetDomain();
-    TypeHandle  hndUriType = pDomain->GetMarshalingData()->GetUriMarshalingInfo()->GetSystemUriType();
+    TypeHandle  hndUriType = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetUriMarshalingInfo()->GetSystemUriType();
 
     return LocalDesc(hndUriType); // System.Uri
 }
@@ -5693,7 +5693,7 @@ void ILUriMarshaler::EmitConvertCLRUriToWinRTUri(ILCodeStream* pslILEmit, BaseDo
 {
     STANDARD_VM_CONTRACT;
 
-    UriMarshalingInfo* marshalingInfo = pDomain->GetMarshalingData()->GetUriMarshalingInfo();
+    UriMarshalingInfo* marshalingInfo = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetUriMarshalingInfo();
 
     ILCodeLabel *pNotNullLabel = pslILEmit->NewCodeLabel();
     ILCodeLabel *pDoneLabel = pslILEmit->NewCodeLabel();
@@ -5731,7 +5731,7 @@ void ILUriMarshaler::EmitConvertWinRTUriToCLRUri(ILCodeStream* pslILEmit, BaseDo
 {
     STANDARD_VM_CONTRACT;
 
-    MethodDesc* pSystemUriCtorMD = pDomain->GetMarshalingData()->GetUriMarshalingInfo()->GetSystemUriCtorMD();
+    MethodDesc* pSystemUriCtorMD = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetUriMarshalingInfo()->GetSystemUriCtorMD();
 
     ILCodeLabel *pNotNullLabel = pslILEmit->NewCodeLabel();
     ILCodeLabel *pDoneLabel = pslILEmit->NewCodeLabel();
@@ -5784,7 +5784,7 @@ LocalDesc ILNCCEventArgsMarshaler::GetManagedType()
     STANDARD_VM_CONTRACT;;    
     
     BaseDomain *pDomain = m_pargs->m_pMarshalInfo->GetModule()->GetDomain();
-    TypeHandle  hndNCCEventArgType = pDomain->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetSystemNCCEventArgsType();
+    TypeHandle  hndNCCEventArgType = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetSystemNCCEventArgsType();
 
     return LocalDesc(hndNCCEventArgType); // System.Collections.Specialized.NotifyCollectionChangedEventArgs
 }
@@ -5802,7 +5802,7 @@ void ILNCCEventArgsMarshaler::EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStre
 {
     STANDARD_VM_CONTRACT;
 
-    MethodDesc *pConvertMD = pDomain->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetSystemNCCEventArgsToWinRTNCCEventArgsMD();
+    MethodDesc *pConvertMD = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetSystemNCCEventArgsToWinRTNCCEventArgsMD();
 
     // IntPtr System.Runtime.InteropServices.WindowsRuntime.NotifyCollectionChangedEventArgsMarshaler.ConvertToNative(NotifyCollectionChangedEventArgs)
     pslILEmit->EmitCALL(pslILEmit->GetToken(pConvertMD), 1, 1);
@@ -5824,7 +5824,7 @@ void ILNCCEventArgsMarshaler::EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStre
 {
     STANDARD_VM_CONTRACT;
 
-    MethodDesc *pConvertMD = pDomain->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetWinRTNCCEventArgsToSystemNCCEventArgsMD();
+    MethodDesc *pConvertMD = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetWinRTNCCEventArgsToSystemNCCEventArgsMD();
 
     // NotifyCollectionChangedEventArgs System.Runtime.InteropServices.WindowsRuntime.NotifyCollectionChangedEventArgsMarshaler.ConvertToManaged(IntPtr)
     pslILEmit->EmitCALL(pslILEmit->GetToken(pConvertMD), 1, 1);
@@ -5860,7 +5860,7 @@ LocalDesc ILPCEventArgsMarshaler::GetManagedType()
     STANDARD_VM_CONTRACT;;    
     
     BaseDomain *pDomain = m_pargs->m_pMarshalInfo->GetModule()->GetDomain();
-    TypeHandle  hndPCEventArgType = pDomain->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetSystemPCEventArgsType();
+    TypeHandle  hndPCEventArgType = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetSystemPCEventArgsType();
 
     return LocalDesc(hndPCEventArgType); // System.ComponentModel.PropertyChangedEventArgs
 }
@@ -5878,7 +5878,7 @@ void ILPCEventArgsMarshaler::EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStrea
 {
     STANDARD_VM_CONTRACT;
 
-    MethodDesc *pConvertMD = pDomain->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetSystemPCEventArgsToWinRTPCEventArgsMD();
+    MethodDesc *pConvertMD = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetSystemPCEventArgsToWinRTPCEventArgsMD();
 
     // IntPtr System.Runtime.InteropServices.WindowsRuntime.PropertyChangedEventArgsMarshaler.ConvertToNative(PropertyChangedEventArgs)
     pslILEmit->EmitCALL(pslILEmit->GetToken(pConvertMD), 1, 1);
@@ -5900,7 +5900,7 @@ void ILPCEventArgsMarshaler::EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStrea
 {
     STANDARD_VM_CONTRACT;
 
-    MethodDesc *pConvertMD = pDomain->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetWinRTPCEventArgsToSystemPCEventArgsMD();
+    MethodDesc *pConvertMD = pDomain->GetLoaderAllocator()->GetMarshalingData()->GetEventArgsMarshalingInfo()->GetWinRTPCEventArgsToSystemPCEventArgsMD();
 
     // PropertyChangedEventArgs System.Runtime.InteropServices.WindowsRuntime.PropertyChangedEventArgsMarshaler.ConvertToManaged(IntPtr)
     pslILEmit->EmitCALL(pslILEmit->GetToken(pConvertMD), 1, 1);
