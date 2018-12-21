@@ -34,6 +34,11 @@ jobs:
 
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
+    ${{ if eq(parameters.crossgen, 'false') }}:
+      helixType: ${{ format('test/functional/cli/pri{0}', parameters.priority) }}
+    ${{ if eq(parameters.crossgen, 'true') }}:
+      helixType: ${{ format('test/functional/r2r/cli/pri{0}', parameters.priority) }}
+
     variables:
     # Map template parameters to command line arguments
     - ${{ if eq(parameters.priority, '1') }}:
@@ -112,11 +117,7 @@ jobs:
 
         helixBuild: $(Build.BuildNumber)
         helixSource: $(_HelixSource)
-
-        ${{ if eq(parameters.crossgen, 'false') }}:
-          helixType: ${{ format('test/functional/cli/pri{0}', parameters.priority) }}
-        ${{ if eq(parameters.crossgen, 'true') }}:
-          helixType: ${{ format('test/functional/r2r/cli/pri{0}', parameters.priority) }}
+        helixType: $(_HelixType)
 
         publishTestResults: true
         # TODO: see if this amount is enough for all individual jobs to finish
