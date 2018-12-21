@@ -385,6 +385,7 @@ void CodeGen::genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, reg
 //   spOffset       - stack pointer offset value;
 //   slotSize       - stack slot size in bytes.
 //
+// static
 void CodeGen::genCheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize)
 {
     if (isRegsCountOdd)
@@ -413,6 +414,7 @@ void CodeGen::genCheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize)
 // Return value:
 //   no return value; the regStack argument is modified.
 //
+// static
 void CodeGen::genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack)
 {
     assert(regStack != nullptr);
@@ -459,6 +461,7 @@ void CodeGen::genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* reg
 // Return value:
 //   stack slot size in bytes.
 //
+// static
 int CodeGen::genGetSlotSizeForRegsInMask(regMaskTP regsMask)
 {
     assert((regsMask & (RBM_CALLEE_SAVED | RBM_LR)) == regsMask); // Do not expect anything else.

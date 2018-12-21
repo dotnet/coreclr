@@ -299,7 +299,7 @@ protected:
     void genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, regNumber tmpReg, bool* pTmpRegIsZero);
 
 #ifdef DEBUG
-    void genCheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize);
+    static void genCheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize);
 #endif // DEBUG
 
     // A simple struct to keep register pairs for prolog and epilog.
@@ -322,9 +322,9 @@ protected:
         }
     };
 
-    void genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack);
+    static void genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack);
 
-    int genGetSlotSizeForRegsInMask(regMaskTP regsMask);
+    static int genGetSlotSizeForRegsInMask(regMaskTP regsMask);
 
     int genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
                                         int       spDelta,
