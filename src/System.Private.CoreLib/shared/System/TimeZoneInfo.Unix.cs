@@ -427,11 +427,10 @@ namespace System
                 try
                 {
                     dirBuffer = ArrayPool<byte>.Shared.Rent(Interop.Sys.ReadBufferSize);
-                    Span<byte> dirBufferSpan = dirBuffer.AsSpan(0, Interop.Sys.ReadBufferSize);
 
                     // Read each entry from the enumerator
                     Interop.Sys.DirectoryEntry dirent = default;
-                    while (Interop.Sys.ReadDir(dirHandle, dirBufferSpan, ref dirent) == 0)
+                    while (Interop.Sys.ReadDir(dirHandle, dirBuffer, ref dirent) == 0)
                     {
                         Span<char> nameBuffer = stackalloc char[256];
                         ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);
