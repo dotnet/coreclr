@@ -3030,6 +3030,17 @@ inline void LogContention()
 #define LogContention()
 #endif
 
+LONGLONG ComputeElapsedTimeInNanosecond(LARGE_INTEGER startTime, LARGE_INTEGER endTime)
+{
+    static LARGE_INTEGER freq;
+    if (freq.QuadPart == 0)
+        QueryPerformanceFrequency(&freq);
+
+    const int NsPerSecond = 1000 * 1000 * 1000;
+    LONGLONG elapsedTicks = endTime.QuadPart - startTime.QuadPart;
+    return (elapsedTicks * NsPerSecond) / freq.QuadPart;
+}
+
 BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 {
     STATIC_CONTRACT_THROWS;
@@ -3048,6 +3059,9 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     _ASSERTE(pCurThread->PreemptiveGCDisabled());
 
     COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cContention++);
+
+    LARGE_INTEGER startTime;
+    QueryPerformanceCounter(&startTime);
 
     // Fire a contention start event for a managed contention
     FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
@@ -3181,8 +3195,14 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     GCPROTECT_END();
     DecrementTransientPrecious();
 
+    LARGE_INTEGER endTime;
+    QueryPerformanceCounter(&endTime);
+
+    double elapsedTimeInNanosecond = (double)ComputeElapsedTimeInNanosecond(startTime, endTime);
+
     // Fire a contention end event for a managed contention
-    FireEtwContentionStop(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
+    FireEtwContentionStop_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId(), elapsedTimeInNanosecond);
+
 
     if (ret == WAIT_TIMEOUT)
     {
