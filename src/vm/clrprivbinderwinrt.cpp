@@ -1168,17 +1168,6 @@ HRESULT CLRPrivBinderWinRT::GetBinderID(
     return S_OK;
 }
 
-//=====================================================================================================================
-HRESULT CLRPrivBinderWinRT::FindWinRTAssemblyBySpec(
-    LPVOID pvAppDomain,
-    LPVOID pvAssemblySpec,
-    HRESULT * pResult,
-    ICLRPrivAssembly ** ppAssembly)
-{
-    STATIC_CONTRACT_WRAPPER;
-    return E_FAIL; 
-}
-
 
 //=====================================================================================================================
 HRESULT CLRPrivAssemblyWinRT::GetIBindResult(

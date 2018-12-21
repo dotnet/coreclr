@@ -166,12 +166,6 @@ EXTERN_C const IID IID_ICLRPrivBinder;
         virtual HRESULT STDMETHODCALLTYPE GetBinderID( 
             /* [retval][out] */ UINT_PTR *pBinderId) = 0;
         
-        virtual HRESULT STDMETHODCALLTYPE FindAssemblyBySpec( 
-            /* [in] */ LPVOID pvAppDomain,
-            /* [in] */ LPVOID pvAssemblySpec,
-            /* [out] */ HRESULT *pResult,
-            /* [out] */ ICLRPrivAssembly **ppAssembly) = 0;
-
         virtual HRESULT STDMETHODCALLTYPE GetLoaderAllocator(
             /* [retval][out] */ LPVOID* pLoaderAllocator) = 0;
     };
@@ -214,13 +208,6 @@ EXTERN_C const IID IID_ICLRPrivBinder;
             ICLRPrivBinder * This,
             /* [retval][out] */ UINT_PTR *pBinderId);
         
-        HRESULT ( STDMETHODCALLTYPE *FindAssemblyBySpec )( 
-            ICLRPrivBinder * This,
-            /* [in] */ LPVOID pvAppDomain,
-            /* [in] */ LPVOID pvAssemblySpec,
-            /* [out] */ HRESULT *pResult,
-            /* [out] */ ICLRPrivAssembly **ppAssembly);
-        
         HRESULT(STDMETHODCALLTYPE *GetLoaderAllocator)(
             ICLRPrivBinder * This,
             /* [retval][out] */ LPVOID *pLoaderAllocator) = 0;
@@ -259,9 +246,6 @@ EXTERN_C const IID IID_ICLRPrivBinder;
 
 #define ICLRPrivBinder_GetBinderID(This,pBinderId)	\
     ( (This)->lpVtbl -> GetBinderID(This,pBinderId) ) 
-
-#define ICLRPrivBinder_FindAssemblyBySpec(This,pvAppDomain,pvAssemblySpec,pResult,ppAssembly)	\
-    ( (This)->lpVtbl -> FindAssemblyBySpec(This,pvAppDomain,pvAssemblySpec,pResult,ppAssembly) ) 
 
 #endif /* COBJMACROS */
 
@@ -363,13 +347,6 @@ EXTERN_C const IID IID_ICLRPrivAssembly;
             ICLRPrivAssembly * This,
             /* [retval][out] */ UINT_PTR *pBinderId);
         
-        HRESULT ( STDMETHODCALLTYPE *FindAssemblyBySpec )( 
-            ICLRPrivAssembly * This,
-            /* [in] */ LPVOID pvAppDomain,
-            /* [in] */ LPVOID pvAssemblySpec,
-            /* [out] */ HRESULT *pResult,
-            /* [out] */ ICLRPrivAssembly **ppAssembly);
-        
         HRESULT ( STDMETHODCALLTYPE *IsShareable )( 
             ICLRPrivAssembly * This,
             /* [retval][out] */ BOOL *pbIsShareable);
@@ -418,9 +395,6 @@ EXTERN_C const IID IID_ICLRPrivAssembly;
 
 #define ICLRPrivAssembly_GetBinderID(This,pBinderId)	\
     ( (This)->lpVtbl -> GetBinderID(This,pBinderId) ) 
-
-#define ICLRPrivAssembly_FindAssemblyBySpec(This,pvAppDomain,pvAssemblySpec,pResult,ppAssembly)	\
-    ( (This)->lpVtbl -> FindAssemblyBySpec(This,pvAppDomain,pvAssemblySpec,pResult,ppAssembly) ) 
 
 
 #define ICLRPrivAssembly_IsShareable(This,pbIsShareable)	\

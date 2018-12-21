@@ -76,23 +76,6 @@ interface ICLRPrivBinder : IUnknown
         [out, retval] UINT_PTR *pBinderId);
 
     /**********************************************************************************
-     ** FindAssemblyBySpec -- if it has been previously bound, guarantees that the same
-     ** result will be returned; if previous result was successful, the bound
-     ** ICLRPrivAssembly will be returned, and if previous result was not successful
-     ** the same failure HRESULT will be assigned to *pResult. Returns failure HR if
-     ** identity has not been requested previously.
-     **
-     **  pvAssemblySpec - the AssemblySpec identity to bind.
-     **  pResult        - the result of the previous bind request.
-     **  ppAssembly     - when successful, contains the corresponding assembly object.
-     **********************************************************************************/
-    HRESULT FindAssemblyBySpec(
-        [in]          LPVOID pvAppDomain,
-        [in]          LPVOID pvAssemblySpec,
-        [out]         HRESULT * pResult,
-        [out]         ICLRPrivAssembly ** ppAssembly);
-
-    /**********************************************************************************
      ** GetLoaderAllocator
      ** Get LoaderAllocator for binders that contain it. For other binders, return
      ** E_FAIL

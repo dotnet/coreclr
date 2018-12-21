@@ -299,15 +299,6 @@ Exit:
         return (m_pBinder == NULL) ? E_FAIL : m_pBinder->BindAssemblyByName(pIAssemblyName, ppAssembly);
     }
 
-    HRESULT Assembly::FindAssemblyBySpec(
-                LPVOID pvAppDomain,
-                LPVOID pvAssemblySpec,
-                HRESULT * pResult,
-                ICLRPrivAssembly ** ppAssembly)
-    { 
-        return (m_pBinder == NULL) ? E_FAIL : m_pBinder->FindAssemblyBySpec(pvAppDomain, pvAssemblySpec, pResult, ppAssembly); 
-    }
-
     HRESULT Assembly::VerifyBind (
                 IAssemblyName * pIAssemblyName,
                 ICLRPrivAssembly *pAssembly,

@@ -151,42 +151,11 @@ public:
     STDMETHOD(GetBinderID)(
         UINT_PTR * pBinderId);
 
-    STDMETHOD(FindAssemblyBySpec)(
-        LPVOID pvAppDomain,
-        LPVOID pvAssemblySpec,
-        HRESULT * pResult,
-        ICLRPrivAssembly ** ppAssembly)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-#ifndef DACCESS_COMPILE
-        // CLRPrivBinderWinRT instances only have parent binders in Metro processes (not in classic).
-        _ASSERTE((AppX::IsAppXProcess()) == (m_pParentBinder != nullptr));
-#endif
-
-        if (m_pParentBinder != NULL)
-        {
-            return m_pParentBinder->FindAssemblyBySpec(pvAppDomain, pvAssemblySpec, pResult, ppAssembly);
-        }
-        else
-        {
-            // Note: should never get here if caller is Module::GetAssemblyIfLoaded, but can
-            // be called from AssemblySpec::LoadDomainAssembly..
-            return FindWinRTAssemblyBySpec(pvAppDomain, pvAssemblySpec, pResult, ppAssembly);
-        }
-    }
-
     STDMETHOD(GetLoaderAllocator)(
         LPVOID * pLoaderAllocator)
     {
         return E_FAIL;
     }
-
-    HRESULT FindWinRTAssemblyBySpec(
-        LPVOID pvAppDomain,
-        LPVOID pvAssemblySpec,
-        HRESULT * pResult,
-        ICLRPrivAssembly ** ppAssembly);
 
 
     //=============================================================================================
@@ -374,17 +343,6 @@ public:
         return m_pBinder->GetBinderID(pBinderId);
     }
     
-    // Implements code:ICLRPrivBinder::FindAssemblyBySpec
-    STDMETHOD(FindAssemblyBySpec)(
-        LPVOID pvAppDomain,
-        LPVOID pvAssemblySpec,
-        HRESULT * pResult,
-        ICLRPrivAssembly ** ppAssembly)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        return m_pBinder->FindAssemblyBySpec(pvAppDomain, pvAssemblySpec, pResult, ppAssembly);
-    }
-
     STDMETHOD(GetLoaderAllocator)(
         LPVOID * pLoaderAllocator)
     {

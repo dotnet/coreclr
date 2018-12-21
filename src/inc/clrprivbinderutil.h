@@ -146,15 +146,6 @@ namespace CLRPrivBinderUtil
 
         //-----------------------------------------------------------------------------------------------------------------
         // Forwards to wrapped binder.
-        STDMETHOD(FindAssemblyBySpec)(
-        LPVOID pvAppDomain,
-            LPVOID pvAssemblySpec,
-            HRESULT * pResult,
-            ICLRPrivAssembly ** ppAssembly)
-        { STATIC_CONTRACT_WRAPPER; return _pWrapped->FindAssemblyBySpec(pvAppDomain, pvAssemblySpec, pResult, ppAssembly); }
-
-        //-----------------------------------------------------------------------------------------------------------------
-        // Forwards to wrapped binder.
         STDMETHOD(GetLoaderAllocator)(
             LPVOID * pLoaderAllocator)
         {

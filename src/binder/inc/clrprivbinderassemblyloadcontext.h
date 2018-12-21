@@ -46,12 +46,6 @@ public:
     STDMETHOD(GetBinderID)( 
             /* [retval][out] */ UINT_PTR *pBinderId);
          
-    STDMETHOD(FindAssemblyBySpec)( 
-            /* [in] */ LPVOID pvAppDomain,
-            /* [in] */ LPVOID pvAssemblySpec,
-            /* [out] */ HRESULT *pResult,
-            /* [out] */ ICLRPrivAssembly **ppAssembly);
-
     STDMETHOD(GetLoaderAllocator)(
         /* [retval][out] */ LPVOID *pLoaderAllocator);
 

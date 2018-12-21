@@ -191,18 +191,6 @@ HRESULT CLRPrivBinderAssemblyLoadContext::GetBinderID(
     return S_OK;
 }
          
-HRESULT CLRPrivBinderAssemblyLoadContext::FindAssemblyBySpec( 
-            LPVOID pvAppDomain,
-            LPVOID pvAssemblySpec,
-            HRESULT *pResult,
-            ICLRPrivAssembly **ppAssembly)
-{
-    // We are not using a cache at this level
-    // However, assemblies bound by the CoreCLR binder is already cached in the
-    // AppDomain and will be resolved from there if required
-    return E_FAIL;
-}
-
 HRESULT CLRPrivBinderAssemblyLoadContext::GetLoaderAllocator(LPVOID* pLoaderAllocator)
 {
     _ASSERTE(pLoaderAllocator != NULL);
