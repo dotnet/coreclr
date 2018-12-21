@@ -426,16 +426,16 @@ namespace System
                 byte[] dirBuffer = null;
                 try
                 {
-                    dirBuffer = ArrayPool<byte>.Shared.Rent(Interop.Sys.ReadBufferSize);
-
+                    int bufferSize = Interop.Sys.ReadBufferSize;
+                    dirBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
                     // Read each entry from the enumerator
                     Interop.Sys.DirectoryEntry dirent = default;
-                    while (Interop.Sys.ReadDir(dirHandle, dirBuffer, ref dirent) == 0)
+                    while (Interop.Sys.ReadDir(dirHandle, dirBuffer.AsSpan(0, bufferSize), ref dirent) == 0)
                     {
                         Span<char> nameBuffer = stackalloc char[256];
                         ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);
 
-                        if (((uint)direntName.Length == 1u && direntName[0] == '.') &&
+                        if (((uint)direntName.Length == 1u && direntName[0] == '.') ||
                             ((uint)direntName.Length == 2u && direntName[0] == '.' && direntName[1] == '.'))
                             continue;
 
@@ -489,8 +489,10 @@ namespace System
                 }
                 finally
                 {
-                    ArrayPool<byte>.Shared.Return(dirBuffer);
-                    Interop.Sys.CloseDir(dirHandle);
+                    if (dirHandle != IntPtr.Zero)
+                        Interop.Sys.CloseDir(dirHandle);
+                    if (dirBuffer != null)
+                        ArrayPool<byte>.Shared.Return(dirBuffer);
                 }
 
                 if (toExplore == null || toExplore.Count == 0)
