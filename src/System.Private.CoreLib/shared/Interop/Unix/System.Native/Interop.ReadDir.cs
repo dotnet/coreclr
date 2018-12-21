@@ -6,7 +6,6 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
 
 internal static partial class Interop
 {
@@ -65,24 +64,5 @@ internal static partial class Interop
 
         [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_CloseDir", SetLastError = true)]
         internal static extern int CloseDir(IntPtr dir);
-
-        /// <summary>
-        /// Get the next directory entry for the given handle. **Note** the actual memory used may be allocated
-        /// by the OS and will be freed when the handle is closed. As such, the handle lifespan MUST be kept tightly
-        /// controlled. The DirectoryEntry name cannot be accessed after the handle is closed.
-        /// 
-        /// Call <see cref="GetReadDirRBufferSize"/> to see what size buffer to allocate.
-        /// </summary>
-        internal static unsafe int ReadDir(IntPtr dir, Span<byte> buffer, out DirectoryEntry entry)
-        {
-            // The calling pattern for ReadDir is described in src/Native/Unix/System.Native/pal_io.cpp|.h
-            Debug.Assert(buffer.Length >= GetReadDirRBufferSize(), "should have a big enough buffer for the raw data");
-
-            // ReadBufferSize is zero when the native implementation does not support reading into a buffer.
-            fixed (byte* bufferPtr = buffer)
-            {
-                return ReadDirR(dir, (IntPtr)bufferPtr, buffer.Length, out entry);
-            }
-        }
     }
 }
