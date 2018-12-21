@@ -414,6 +414,7 @@ namespace System
         {
             List<string> toExplore = null; // List used as a stack
 
+            int bufferSize = Interop.Sys.GetReadDirRBufferSize();
             string currentPath = path;
             for(;;)
             {
@@ -426,11 +427,10 @@ namespace System
                 byte[] dirBuffer = null;
                 try
                 {
-                    int bufferSize = Interop.Sys.ReadBufferSize;
                     dirBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
                     // Read each entry from the enumerator
                     Interop.Sys.DirectoryEntry dirent = default;
-                    while (Interop.Sys.ReadDir(dirHandle, dirBuffer.AsSpan(0, bufferSize), ref dirent) == 0)
+                    while (Interop.Sys.ReadDir(dirHandle, dirBuffer, ref dirent) == 0)
                     {
                         Span<char> nameBuffer = stackalloc char[256];
                         ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);

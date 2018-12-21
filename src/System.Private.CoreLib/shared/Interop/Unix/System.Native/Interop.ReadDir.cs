@@ -12,8 +12,6 @@ internal static partial class Interop
 {
     internal static partial class Sys
     {
-        internal static int ReadBufferSize { get; } = GetReadDirRBufferSize();
-
         internal enum NodeType : int
         {
             DT_UNKNOWN = 0,
@@ -72,17 +70,17 @@ internal static partial class Interop
         /// by the OS and will be freed when the handle is closed. As such, the handle lifespan MUST be kept tightly
         /// controlled. The DirectoryEntry name cannot be accessed after the handle is closed.
         /// 
-        /// Call <see cref="ReadBufferSize"/> to see what size buffer to allocate.
+        /// Call <see cref="GetReadDirRBufferSize"/> to see what size buffer to allocate.
         /// </summary>
         internal static unsafe int ReadDir(IntPtr dir, Span<byte> buffer, ref DirectoryEntry entry)
         {
             // The calling pattern for ReadDir is described in src/Native/Unix/System.Native/pal_io.cpp|.h
-            Debug.Assert(buffer.Length >= ReadBufferSize, "should have a big enough buffer for the raw data");
+            Debug.Assert(buffer.Length >= GetReadDirRBufferSize(), "should have a big enough buffer for the raw data");
 
             // ReadBufferSize is zero when the native implementation does not support reading into a buffer.
             fixed (byte* bufferPtr = buffer)
             {
-                return ReadDirR(dir, bufferPtr, buffer.Length, ref entry);
+                return ReadDirR(dir, bufferPtr, GetReadDirRBufferSize(), ref entry);
             }
         }
     }
