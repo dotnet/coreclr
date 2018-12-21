@@ -458,6 +458,9 @@ BOOL EECMHelperHashtableHelper::CompareKeys(EEHashEntry_t *pEntry, EECMHelperHas
             return FALSE;
     }
 
+    if (pEntryKey->GetInvokingAssembly() != pKey->GetInvokingAssembly())
+        return FALSE;
+
     return TRUE;
 }
 

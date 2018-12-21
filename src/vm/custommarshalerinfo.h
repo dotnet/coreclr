@@ -114,16 +114,18 @@ private:
 
 typedef SList<CustomMarshalerInfo, true> CMINFOLIST;
 
+class Assembly;
 
 class EECMHelperHashtableKey
 {
 public:
-    EECMHelperHashtableKey(DWORD cMarshalerTypeNameBytes, LPCSTR strMarshalerTypeName, DWORD cCookieStrBytes, LPCSTR strCookie, Instantiation instantiation)
+    EECMHelperHashtableKey(DWORD cMarshalerTypeNameBytes, LPCSTR strMarshalerTypeName, DWORD cCookieStrBytes, LPCSTR strCookie, Instantiation instantiation, Assembly* invokingAssembly)
     : m_cMarshalerTypeNameBytes(cMarshalerTypeNameBytes)
     , m_strMarshalerTypeName(strMarshalerTypeName)
     , m_cCookieStrBytes(cCookieStrBytes)
     , m_strCookie(strCookie)
     , m_Instantiation(instantiation)
+    , m_invokingAssembly(invokingAssembly)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -153,12 +155,18 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_Instantiation;
     }
+    inline Assembly* GetInvokingAssembly() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_invokingAssembly;
+    }
 
     DWORD           m_cMarshalerTypeNameBytes;
     LPCSTR          m_strMarshalerTypeName;
     DWORD           m_cCookieStrBytes;
     LPCSTR          m_strCookie;
     Instantiation   m_Instantiation;
+    Assembly*       m_invokingAssembly;
 };
 
 
