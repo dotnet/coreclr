@@ -19416,7 +19416,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     sc.promotion = TRUE;
     sc.concurrent = FALSE;
 
-    dprintf(2,("---- Mark Phase condemning %d ----", condemned_gen_number));
+    dprintf(1,("---- Mark Phase condemning %d ----", condemned_gen_number));
     BOOL  full_p = (condemned_gen_number == max_generation);
 
 #ifdef TIME_GC
