@@ -126,15 +126,6 @@ namespace CLRPrivBinderUtil
             return _pWrapped->VerifyBind(pAssemblyName, pAssembly, pAssemblyInfo);
         }
         
-        //---------------------------------------------------------------------------------------------
-        // Forwards to wrapped binder.
-        STDMETHOD(GetBinderFlags)(
-            DWORD *pBinderFlags)
-        {
-            WRAPPER_NO_CONTRACT;
-            return _pWrapped->GetBinderFlags(pBinderFlags);
-        }
-
         //-----------------------------------------------------------------------------------------------------------------
         // Forwards to wrapped binder.
         STDMETHOD(GetBinderID)(

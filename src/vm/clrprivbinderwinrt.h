@@ -128,25 +128,6 @@ public:
         ICLRPrivAssembly *     pAssembly, 
         ICLRPrivAssemblyInfo * pAssemblyInfo);
 
-    // Implements interface method code:ICLRPrivBinder::GetBinderFlags
-    STDMETHOD(GetBinderFlags)(
-        DWORD *pBinderFlags)
-    {
-        STATIC_CONTRACT_WRAPPER;
-
-        if (pBinderFlags == NULL)
-            return E_INVALIDARG;
-
-        HRESULT hr = S_OK;
-
-        if (m_pParentBinder != NULL)
-            hr = m_pParentBinder->GetBinderFlags(pBinderFlags);
-        else
-            *pBinderFlags = BINDER_NONE;
-
-        return hr;
-    }
-
     // Implements interface method code:ICLRPrivBinder::GetBinderID.
     STDMETHOD(GetBinderID)(
         UINT_PTR * pBinderId);
@@ -325,14 +306,6 @@ public:
     {
         STATIC_CONTRACT_WRAPPER;
         return m_pBinder->VerifyBind(pAssemblyName, pAssembly, pAssemblyInfo);
-    }
-
-    // Implements interface method code:ICLRPrivBinder::GetBinderFlags
-    STDMETHOD(GetBinderFlags)(
-        DWORD *pBinderFlags)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        return m_pBinder->GetBinderFlags(pBinderFlags);
     }
 
     // Implements interface method code:ICLRPrivBinder::GetBinderID.

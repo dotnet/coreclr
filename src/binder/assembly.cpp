@@ -312,11 +312,6 @@ Exit:
         return (m_pBinder == NULL) ? E_FAIL : m_pBinder->GetBinderID(pBinderId);
     }
  
-    HRESULT Assembly::GetBinderFlags(DWORD *pBinderFlags)
-    {
-        return (m_pBinder == NULL) ? E_FAIL : m_pBinder->GetBinderFlags(pBinderFlags);
-    }
-
     HRESULT Assembly::GetLoaderAllocator(LPVOID* pLoaderAllocator)
     {
         return (m_pBinder == NULL) ? E_FAIL : m_pBinder->GetLoaderAllocator(pLoaderAllocator);

@@ -188,14 +188,6 @@ HRESULT CLRPrivBinderCoreCLR::VerifyBind(IAssemblyName        *AssemblyName,
     return E_FAIL;
 }
          
-HRESULT CLRPrivBinderCoreCLR::GetBinderFlags(DWORD *pBinderFlags)
-{
-    if (pBinderFlags == NULL)
-        return E_INVALIDARG;
-    *pBinderFlags = BINDER_NONE;
-    return S_OK;
-}
-         
 HRESULT CLRPrivBinderCoreCLR::GetBinderID( 
         UINT_PTR *pBinderId)
 {

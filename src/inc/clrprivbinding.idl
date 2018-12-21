@@ -59,13 +59,6 @@ interface ICLRPrivBinder : IUnknown
         [in] ICLRPrivAssemblyInfo * pAssemblyInfo);
 
     /**********************************************************************************
-     ** GetBinderFlags
-     **  pBinderFlags, pointer to binder flags.
-     **********************************************************************************/
-    HRESULT GetBinderFlags(
-        [out, retval] DWORD *pBinderFlags);
-
-    /**********************************************************************************
      ** GetBinderID
      **  pBinderId, pointer to binder id. The binder id has the following properties
      **        It is a pointer that does not change over the lifetime of a binder object
@@ -86,13 +79,6 @@ interface ICLRPrivBinder : IUnknown
         [out, retval] LPVOID * pLoaderAllocator);
 };
 
-enum CLR_PRIV_BINDER_FLAGS
-{
-    BINDER_NONE                     = 0x0,
-    BINDER_DESIGNER_BINDING_CONTEXT = 0x1,
-    BINDER_FINDASSEMBLYBYSPEC_REQUIRES_EXACT_MATCH = 0x2,
-};
-    
 /**************************************************************************************
  ** ASSEMBLY_IMAGE_TYPES - The set of assembly image formats.
  **************************************************************************************/

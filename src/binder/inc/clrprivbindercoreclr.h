@@ -30,9 +30,6 @@ public:
             /* [in] */ ICLRPrivAssembly *pAssembly,
             /* [in] */ ICLRPrivAssemblyInfo *pAssemblyInfo);
 
-    STDMETHOD(GetBinderFlags)( 
-            /* [retval][out] */ DWORD *pBinderFlags);
-         
     STDMETHOD(GetBinderID)( 
             /* [retval][out] */ UINT_PTR *pBinderId);
          
