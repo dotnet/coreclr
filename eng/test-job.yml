@@ -53,12 +53,6 @@ jobs:
     - ${{ if eq(parameters.crossgen, 'false') }}:
       - name: crossgenArg
         value: ''
-    - ${{ if ne(parameters.scenarios, '') }}:
-      - name: scenariosArg
-        value: ${{ format('/p:Scenarios=\"{0}\"', parameters.scenarios) }}
-    - ${{ if eq(parameters.scenarios, '') }}:
-      - name: scenariosArg
-        value: ''
 
     # TODO: Enable crossgen in build-test.sh. It currently doesn't
     # accept a crossgen arg, so disable the macos/linux crossgen test
