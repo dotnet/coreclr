@@ -155,11 +155,6 @@ EXTERN_C const IID IID_ICLRPrivBinder;
             /* [in] */ IAssemblyName *pAssemblyName,
             /* [retval][out] */ ICLRPrivAssembly **ppAssembly) = 0;
         
-        virtual HRESULT STDMETHODCALLTYPE VerifyBind( 
-            /* [in] */ IAssemblyName *AssemblyName,
-            /* [in] */ ICLRPrivAssembly *pAssembly,
-            /* [in] */ ICLRPrivAssemblyInfo *pAssemblyInfo) = 0;
-        
         virtual HRESULT STDMETHODCALLTYPE GetBinderID( 
             /* [retval][out] */ UINT_PTR *pBinderId) = 0;
         
@@ -190,12 +185,6 @@ EXTERN_C const IID IID_ICLRPrivBinder;
             ICLRPrivBinder * This,
             /* [in] */ IAssemblyName *pAssemblyName,
             /* [retval][out] */ ICLRPrivAssembly **ppAssembly);
-        
-        HRESULT ( STDMETHODCALLTYPE *VerifyBind )( 
-            ICLRPrivBinder * This,
-            /* [in] */ IAssemblyName *AssemblyName,
-            /* [in] */ ICLRPrivAssembly *pAssembly,
-            /* [in] */ ICLRPrivAssemblyInfo *pAssemblyInfo);
         
         HRESULT ( STDMETHODCALLTYPE *GetBinderID )( 
             ICLRPrivBinder * This,
@@ -230,9 +219,6 @@ EXTERN_C const IID IID_ICLRPrivBinder;
 
 #define ICLRPrivBinder_BindAssemblyByName(This,pAssemblyName,ppAssembly)	\
     ( (This)->lpVtbl -> BindAssemblyByName(This,pAssemblyName,ppAssembly) ) 
-
-#define ICLRPrivBinder_VerifyBind(This,AssemblyName,pAssembly,pAssemblyInfo)	\
-    ( (This)->lpVtbl -> VerifyBind(This,AssemblyName,pAssembly,pAssemblyInfo) ) 
 
 #define ICLRPrivBinder_GetBinderID(This,pBinderId)	\
     ( (This)->lpVtbl -> GetBinderID(This,pBinderId) ) 
@@ -316,12 +302,6 @@ EXTERN_C const IID IID_ICLRPrivAssembly;
             /* [in] */ IAssemblyName *pAssemblyName,
             /* [retval][out] */ ICLRPrivAssembly **ppAssembly);
         
-        HRESULT ( STDMETHODCALLTYPE *VerifyBind )( 
-            ICLRPrivAssembly * This,
-            /* [in] */ IAssemblyName *AssemblyName,
-            /* [in] */ ICLRPrivAssembly *pAssembly,
-            /* [in] */ ICLRPrivAssemblyInfo *pAssemblyInfo);
-        
         HRESULT ( STDMETHODCALLTYPE *GetBinderID )( 
             ICLRPrivAssembly * This,
             /* [retval][out] */ UINT_PTR *pBinderId);
@@ -365,9 +345,6 @@ EXTERN_C const IID IID_ICLRPrivAssembly;
 
 #define ICLRPrivAssembly_BindAssemblyByName(This,pAssemblyName,ppAssembly)	\
     ( (This)->lpVtbl -> BindAssemblyByName(This,pAssemblyName,ppAssembly) ) 
-
-#define ICLRPrivAssembly_VerifyBind(This,AssemblyName,pAssembly,pAssemblyInfo)	\
-    ( (This)->lpVtbl -> VerifyBind(This,AssemblyName,pAssembly,pAssemblyInfo) ) 
 
 #define ICLRPrivAssembly_GetBinderID(This,pBinderId)	\
     ( (This)->lpVtbl -> GetBinderID(This,pBinderId) ) 

@@ -122,12 +122,6 @@ public:
         IAssemblyName * pAssemblyName,
         ICLRPrivAssembly ** ppAssembly);
 
-    // Implements interface method code:ICLRPrivBinder::VerifyBind.
-    STDMETHOD(VerifyBind)(
-        IAssemblyName *        pAssemblyName, 
-        ICLRPrivAssembly *     pAssembly, 
-        ICLRPrivAssemblyInfo * pAssemblyInfo);
-
     // Implements interface method code:ICLRPrivBinder::GetBinderID.
     STDMETHOD(GetBinderID)(
         UINT_PTR * pBinderId);
@@ -298,16 +292,6 @@ public:
         return m_pBinder->BindAssemblyByName(pAssemblyName, ppAssembly);
     }
     
-    // Implements interface method code:ICLRPrivBinder::VerifyBind.
-    STDMETHOD(VerifyBind)(
-        IAssemblyName *        pAssemblyName, 
-        ICLRPrivAssembly *     pAssembly, 
-        ICLRPrivAssemblyInfo * pAssemblyInfo)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        return m_pBinder->VerifyBind(pAssemblyName, pAssembly, pAssemblyInfo);
-    }
-
     // Implements interface method code:ICLRPrivBinder::GetBinderID.
     STDMETHOD(GetBinderID)(
         UINT_PTR * pBinderId)

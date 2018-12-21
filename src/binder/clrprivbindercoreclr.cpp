@@ -181,13 +181,6 @@ Exit:;
 }
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
-HRESULT CLRPrivBinderCoreCLR::VerifyBind(IAssemblyName        *AssemblyName,
-                                         ICLRPrivAssembly     *pAssembly,
-                                         ICLRPrivAssemblyInfo *pAssemblyInfo)
-{
-    return E_FAIL;
-}
-         
 HRESULT CLRPrivBinderCoreCLR::GetBinderID( 
         UINT_PTR *pBinderId)
 {

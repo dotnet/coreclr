@@ -299,14 +299,6 @@ Exit:
         return (m_pBinder == NULL) ? E_FAIL : m_pBinder->BindAssemblyByName(pIAssemblyName, ppAssembly);
     }
 
-    HRESULT Assembly::VerifyBind (
-                IAssemblyName * pIAssemblyName,
-                ICLRPrivAssembly *pAssembly,
-                ICLRPrivAssemblyInfo *pAssemblyInfo)
-    {
-        return (m_pBinder == NULL) ? E_FAIL : m_pBinder->VerifyBind(pIAssemblyName, pAssembly, pAssemblyInfo);
-    }
-
     HRESULT Assembly::GetBinderID(UINT_PTR *pBinderId)
     {
         return (m_pBinder == NULL) ? E_FAIL : m_pBinder->GetBinderID(pBinderId);

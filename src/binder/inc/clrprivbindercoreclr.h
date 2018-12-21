@@ -25,11 +25,6 @@ public:
             /* [in] */ IAssemblyName *pIAssemblyName,
             /* [retval][out] */ ICLRPrivAssembly **ppAssembly);
         
-    STDMETHOD(VerifyBind)( 
-            /* [in] */ IAssemblyName *pIAssemblyName,
-            /* [in] */ ICLRPrivAssembly *pAssembly,
-            /* [in] */ ICLRPrivAssemblyInfo *pAssemblyInfo);
-
     STDMETHOD(GetBinderID)( 
             /* [retval][out] */ UINT_PTR *pBinderId);
          

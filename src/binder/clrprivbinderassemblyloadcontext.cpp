@@ -169,13 +169,6 @@ Exit:;
     return hr;
 }
                               
-HRESULT CLRPrivBinderAssemblyLoadContext::VerifyBind(IAssemblyName        *AssemblyName,
-                                         ICLRPrivAssembly     *pAssembly,
-                                         ICLRPrivAssemblyInfo *pAssemblyInfo)
-{
-    return E_FAIL;
-}
-         
 HRESULT CLRPrivBinderAssemblyLoadContext::GetBinderID( 
         UINT_PTR *pBinderId)
 {

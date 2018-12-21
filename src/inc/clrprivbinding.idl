@@ -51,14 +51,6 @@ interface ICLRPrivBinder : IUnknown
         [out, retval] ICLRPrivAssembly ** ppAssembly);
 
     /**********************************************************************************
-     ** VerifyBind
-     **********************************************************************************/
-    HRESULT VerifyBind(
-        [in] IAssemblyName * AssemblyName,
-        [in] ICLRPrivAssembly * pAssembly,
-        [in] ICLRPrivAssemblyInfo * pAssemblyInfo);
-
-    /**********************************************************************************
      ** GetBinderID
      **  pBinderId, pointer to binder id. The binder id has the following properties
      **        It is a pointer that does not change over the lifetime of a binder object

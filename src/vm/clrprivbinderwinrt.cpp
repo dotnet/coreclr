@@ -1132,31 +1132,6 @@ HRESULT CLRPrivAssemblyWinRT::GetImageResource(
 }
 
 //=====================================================================================================================
-// Implements interface method code:ICLRPrivBinder::VerifyBind.
-// 
-HRESULT CLRPrivBinderWinRT::VerifyBind(
-    IAssemblyName *        pAssemblyName, 
-    ICLRPrivAssembly *     pAssembly, 
-    ICLRPrivAssemblyInfo * pAssemblyInfo)
-{
-    STANDARD_BIND_CONTRACT;
-    HRESULT hr = S_OK;
-
-    VALIDATE_ARG_RET(pAssemblyInfo != nullptr);
-    
-    UINT_PTR binderID;
-    IfFailRet(pAssembly->GetBinderID(&binderID));
-    if (binderID != reinterpret_cast<UINT_PTR>(this))
-    {
-        return pAssembly->VerifyBind(pAssemblyName, pAssembly, pAssemblyInfo);
-    }
-    
-    // Since WinRT types are bound by type name and not assembly name, assembly-level version validation
-    // does not make sense here. Just return S_OK.
-    return S_OK;
-}
-
-//=====================================================================================================================
 // Implements interface method code:ICLRPrivBinder::GetBinderID.
 // 
 HRESULT CLRPrivBinderWinRT::GetBinderID(
