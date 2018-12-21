@@ -138,3 +138,5 @@ jobs:
           isExternal: true
           creator: $(Build.RequestedForId)
           helixQueues: ${{ parameters.helixQueuesPublic }}
+
+        scenarios: ${{ parameters.scenarios }}
