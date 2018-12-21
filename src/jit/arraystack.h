@@ -64,31 +64,6 @@ public:
         maxIndex *= 2;
     }
 
-    // reverse the top N in the stack
-    void ReverseTop(int number)
-    {
-        if (number < 2)
-        {
-            return;
-        }
-
-        assert(number <= tosIndex);
-
-        int start  = tosIndex - number;
-        int offset = 0;
-        while (offset < number / 2)
-        {
-            T   temp;
-            int index        = start + offset;
-            int otherIndex   = tosIndex - 1 - offset;
-            temp             = data[index];
-            data[index]      = data[otherIndex];
-            data[otherIndex] = temp;
-
-            offset++;
-        }
-    }
-
     T Pop()
     {
         assert(tosIndex > 0);
