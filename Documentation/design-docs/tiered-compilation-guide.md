@@ -38,9 +38,7 @@ Tiered compilation is enabled by default from .NET Core 2.2 preview 2 and in 3.0
 # Known issues
 
 - There is a known issue with benchmarks written in a simple way (single method with loop), which may run slower with tiered compilation. See the [cold method with hot loops issue](https://github.com/dotnet/coreclr/issues/19751) for information on how to identify the issue and some options for working around it.
-- See known issues:
-  - [Tiered compilation issues](https://github.com/dotnet/coreclr/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3Aarea-TieredCompilation)
-  - [Code versioning issues](https://github.com/dotnet/coreclr/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3Aarea-CodeVersioning)
+- See known [tiered compilation issues](https://github.com/dotnet/coreclr/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3Aarea-TieredCompilation)
 
 # Providing feedback
 
