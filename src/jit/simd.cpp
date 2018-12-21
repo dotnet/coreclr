@@ -2882,6 +2882,18 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
             op2 = impSIMDPopStack(simdType);
             op1 = impSIMDPopStack(simdType, instMethod);
 
+#ifdef _TARGET_XARCH_
+            if (simdIntrinsicID == SIMDIntrinsicBitwiseAndNot)
+            {
+                // XARCH implements SIMDIntrinsicBitwiseAndNot as ~op1 & op2, while the
+                // software implementation does op1 & ~op2, so we need to swap the operands
+
+                GenTree* tmp = op2;
+                op2          = op1;
+                op1          = tmp;
+            }
+#endif // _TARGET_XARCH_
+
             simdTree = gtNewSIMDNode(simdType, op1, op2, simdIntrinsicID, baseType, size);
             retVal   = simdTree;
         }
