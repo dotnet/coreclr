@@ -24,6 +24,9 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
   </PropertyGroup>
+  <PropertyGroup>
+    <CopyDebugRuntimeDllsToOutputDirectory Condition="('$(Configuration)' == 'Debug') Or ('$(Configuration)' == 'Checked')">true</CopyDebugRuntimeDllsToOutputDirectory>
+  </PropertyGroup>
   <ItemGroup>
     <CodeAnalysisDependentAssemblyPaths Condition=" '$(VS100COMNTOOLS)' != '' " Include="$(VS100COMNTOOLS)..\IDE\PrivateAssemblies">
       <Visible>False</Visible>
