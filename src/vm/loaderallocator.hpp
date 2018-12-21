@@ -263,10 +263,10 @@ private:
     // Hash table that maps a MethodTable to COM Interop compatibility data.
     PtrHashMap m_interopDataHash;
 
-    // Used for synchronizing access to the m_interopDataHash
-    CrstExplicitInit m_InteropDataCrst;
 #endif
 
+    // Used for synchronizing access to the m_interopDataHash and m_pMarshalingData
+    CrstExplicitInit m_InteropDataCrst;
     EEMarshalingData* m_pMarshalingData;
 
 #ifndef DACCESS_COMPILE
