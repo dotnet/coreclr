@@ -432,7 +432,7 @@ namespace System
                     Interop.Sys.DirectoryEntry dirent = default;
                     while (Interop.Sys.ReadDir(dirHandle, dirBuffer, ref dirent) == 0)
                     {
-                        Span<char> nameBuffer = stackalloc char[256];
+                        Span<char> nameBuffer = stackalloc char[Interop.Sys.DirectoryEntry.NameBufferSize];
                         ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);
 
                         if (((uint)direntName.Length == 1u && direntName[0] == '.') ||
