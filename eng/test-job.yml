@@ -133,8 +133,8 @@ jobs:
           isExternal: false
           # Access token variable for internal project
           helixAccessToken: $(DotNet-HelixApi-Access)
-          helixTargetQueues: ${{ parameters.helixQueuesInternal }}
+          helixQueues: ${{ parameters.helixQueuesInternal }}
         ${{ if eq(variables['System.TeamProject'], 'public') }}:
           isExternal: true
           creator: $(Build.RequestedForId)
-          helixTargetQueues: ${{ parameters.helixQueuesPublic }}
+          helixQueues: ${{ parameters.helixQueuesPublic }}

@@ -10,7 +10,7 @@ parameters:
   helixAccessToken: ''
   helixBuild: ''
   helixSource: ''
-  helixTargetQueues: ''
+  helixQueues: ''
   helixType: ''
   scenarios: ''
   timeoutInMinutes: ''
@@ -31,7 +31,7 @@ steps:
       _HelixAccessToken: ${{ parameters.helixAccessToken }}
       _HelixBuild: ${{ parameters.helixBuild }}
       _HelixSource: ${{ parameters.helixSource }}
-      _HelixTargetQueues: ${{ parameters.helixTargetQueues }}
+      _HelixTargetQueues: ${{ parameters.helixQueues }}
       _HelixType: ${{ parameters.helixType }}
       _Scenarios: ${{ parameters.scenarios }}
       _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
@@ -53,7 +53,7 @@ steps:
       _HelixAccessToken: ${{ parameters.helixAccessToken }}
       _HelixBuild: ${{ parameters.helixBuild }}
       _HelixSource: ${{ parameters.helixSource }}
-      _HelixTargetQueues: ${{ parameters.helixTargetQueues }}
+      _HelixTargetQueues: ${{ parameters.helixQueues }}
       _HelixType: ${{ parameters.helixType }}
       _Scenarios: ${{ parameters.scenarios }}
       _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
