@@ -116,8 +116,7 @@ namespace System.Collections.ObjectModel
         {
             get
             {
-                ICollection c = list as ICollection;
-                return c == null ? this : c.SyncRoot;
+                return (list is ICollection coll) ? coll.SyncRoot : this;
             }
         }
 
