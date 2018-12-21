@@ -373,7 +373,7 @@ private:
 class EEMarshalingData
 {
 public:
-    EEMarshalingData(LoaderAllocator *pAllocator, LoaderHeap *pHeap, CrstBase *pCrst);
+    EEMarshalingData(LoaderAllocator *pAllocator, CrstBase *pCrst);
     ~EEMarshalingData();
 
     // EEMarshalingData's are always allocated on the loader heap so we need to redefine

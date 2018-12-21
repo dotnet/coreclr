@@ -1072,9 +1072,9 @@ void OleColorMarshalingInfo::operator delete(void *pMem)
 
 #endif // FEATURE_COMINTEROP
 
-EEMarshalingData::EEMarshalingData(LoaderAllocator* pAllocator, LoaderHeap *pHeap, CrstBase *pCrst) :
+EEMarshalingData::EEMarshalingData(LoaderAllocator* pAllocator, CrstBase *pCrst) :
     m_pAllocator(pAllocator),
-    m_pHeap(pHeap),
+    m_pHeap(pAllocator->GetLowFrequencyHeap()),
     m_lock(pCrst)
 {
     CONTRACTL
