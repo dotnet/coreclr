@@ -344,14 +344,6 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Read a single byte from the signature stream without advancing the current offset.
-        /// </summary>
-        public byte PeekByte()
-        {
-            return _image[_offset];
-        }
-
-        /// <summary>
         /// Read a single unsigned 32-bit in from the signature stream. Adapted from CorSigUncompressData,
         /// <a href="">https://github.com/dotnet/coreclr/blob/master/src/inc/cor.h</a>.
         /// </summary>
@@ -468,21 +460,15 @@ namespace R2RDump
         /// <param name="builder"></param>
         private void ParseSignature(StringBuilder builder)
         {
-            uint fixupType = PeekByte();
-            bool moduleOverride = (fixupType & (uint)CORCOMPILE_FIXUP_BLOB_KIND.ENCODE_MODULE_OVERRIDE) != 0;
+            uint fixupType = ReadByte();
+            bool moduleOverride = (fixupType & (byte)CORCOMPILE_FIXUP_BLOB_KIND.ENCODE_MODULE_OVERRIDE) != 0;
             // Check first byte for a module override being encoded
             if (moduleOverride)
             {
                 builder.Append("ENCODE_MODULE_OVERRIDE @ ");
                 fixupType &= ~(uint)CORCOMPILE_FIXUP_BLOB_KIND.ENCODE_MODULE_OVERRIDE;
-                ReadByte();
-                uint moduleIndex = ReadByte();
+                uint moduleIndex = ReadUInt();
                 builder.Append(string.Format(" Index:  {0:X2}", moduleIndex));
-            }
-            // If the most significant bit has not been set, 
-            else
-            {
-                fixupType = ReadUInt();
             }
 
             switch ((ReadyToRunFixupKind)fixupType)
