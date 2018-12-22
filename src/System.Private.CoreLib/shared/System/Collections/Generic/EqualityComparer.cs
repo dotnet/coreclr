@@ -16,26 +16,6 @@ namespace System.Collections.Generic
         public abstract bool Equals(T x, T y);
         public abstract int GetHashCode(T obj);
 
-        internal virtual int IndexOf(T[] array, T value, int startIndex, int count)
-        {
-            int endIndex = startIndex + count;
-            for (int i = startIndex; i < endIndex; i++)
-            {
-                if (Equals(array[i], value)) return i;
-            }
-            return -1;
-        }
-
-        internal virtual int LastIndexOf(T[] array, T value, int startIndex, int count)
-        {
-            int endIndex = startIndex - count + 1;
-            for (int i = startIndex; i >= endIndex; i--)
-            {
-                if (Equals(array[i], value)) return i;
-            }
-            return -1;
-        }
-
         int IEqualityComparer.GetHashCode(object obj)
         {
             if (obj == null) return 0;
@@ -59,7 +39,7 @@ namespace System.Collections.Generic
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     // Needs to be public to support binary serialization compatibility
-    public sealed class GenericEqualityComparer<T> : EqualityComparer<T> where T : IEquatable<T>
+    public sealed partial class GenericEqualityComparer<T> : EqualityComparer<T> where T : IEquatable<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(T x, T y)
@@ -76,46 +56,6 @@ namespace System.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode(T obj) => obj?.GetHashCode() ?? 0;
 
-        internal override int IndexOf(T[] array, T value, int startIndex, int count)
-        {
-            int endIndex = startIndex + count;
-            if (value == null)
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
-                    if (array[i] == null) return i;
-                }
-            }
-            else
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
-                    if (array[i] != null && array[i].Equals(value)) return i;
-                }
-            }
-            return -1;
-        }
-
-        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
-        {
-            int endIndex = startIndex - count + 1;
-            if (value == null)
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
-                    if (array[i] == null) return i;
-                }
-            }
-            else
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
-                    if (array[i] != null && array[i].Equals(value)) return i;
-                }
-            }
-            return -1;
-        }
-
         // Equals method for the comparer itself.
         // If in the future this type is made sealed, change the is check to obj != null && GetType() == obj.GetType().
         public override bool Equals(object obj) =>
@@ -129,7 +69,7 @@ namespace System.Collections.Generic
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     // Needs to be public to support binary serialization compatibility
-    public sealed class NullableEqualityComparer<T> : EqualityComparer<T?> where T : struct, IEquatable<T>
+    public sealed partial class NullableEqualityComparer<T> : EqualityComparer<T?> where T : struct, IEquatable<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(T? x, T? y)
@@ -146,46 +86,6 @@ namespace System.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode(T? obj) => obj.GetHashCode();
 
-        internal override int IndexOf(T?[] array, T? value, int startIndex, int count)
-        {
-            int endIndex = startIndex + count;
-            if (!value.HasValue)
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
-                    if (!array[i].HasValue) return i;
-                }
-            }
-            else
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
-                    if (array[i].HasValue && array[i].value.Equals(value.value)) return i;
-                }
-            }
-            return -1;
-        }
-
-        internal override int LastIndexOf(T?[] array, T? value, int startIndex, int count)
-        {
-            int endIndex = startIndex - count + 1;
-            if (!value.HasValue)
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
-                    if (!array[i].HasValue) return i;
-                }
-            }
-            else
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
-                    if (array[i].HasValue && array[i].value.Equals(value.value)) return i;
-                }
-            }
-            return -1;
-        }
-
         // Equals method for the comparer itself.
         public override bool Equals(object obj) =>
             obj != null && GetType() == obj.GetType();
@@ -197,7 +97,7 @@ namespace System.Collections.Generic
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     // Needs to be public to support binary serialization compatibility
-    public sealed class ObjectEqualityComparer<T> : EqualityComparer<T>
+    public sealed partial class ObjectEqualityComparer<T> : EqualityComparer<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(T x, T y)
@@ -214,46 +114,6 @@ namespace System.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode(T obj) => obj?.GetHashCode() ?? 0;
 
-        internal override int IndexOf(T[] array, T value, int startIndex, int count)
-        {
-            int endIndex = startIndex + count;
-            if (value == null)
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
-                    if (array[i] == null) return i;
-                }
-            }
-            else
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
-                    if (array[i] != null && array[i].Equals(value)) return i;
-                }
-            }
-            return -1;
-        }
-
-        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
-        {
-            int endIndex = startIndex - count + 1;
-            if (value == null)
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
-                    if (array[i] == null) return i;
-                }
-            }
-            else
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
-                    if (array[i] != null && array[i].Equals(value)) return i;
-                }
-            }
-            return -1;
-        }
-
         // Equals method for the comparer itself.
         public override bool Equals(object obj) =>
             obj != null && GetType() == obj.GetType();
@@ -265,7 +125,7 @@ namespace System.Collections.Generic
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     // Needs to be public to support binary serialization compatibility
-    public sealed class ByteEqualityComparer : EqualityComparer<byte>
+    public sealed partial class ByteEqualityComparer : EqualityComparer<byte>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(byte x, byte y)
@@ -279,20 +139,6 @@ namespace System.Collections.Generic
             return b.GetHashCode();
         }
 
-#if DEBUG
-        internal override int IndexOf(byte[] array, byte value, int startIndex, int count)
-        {
-             Debug.Fail("Should not get here.");
-             return -1;
-        }
-
-        internal override int LastIndexOf(byte[] array, byte value, int startIndex, int count)
-        {
-             Debug.Fail("Should not get here.");
-             return -1;
-        }
-#endif
-
         // Equals method for the comparer itself.
         public override bool Equals(object obj) =>
             obj != null && GetType() == obj.GetType();
@@ -304,7 +150,7 @@ namespace System.Collections.Generic
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     // Needs to be public to support binary serialization compatibility
-    public sealed class EnumEqualityComparer<T> : EqualityComparer<T>, ISerializable where T : struct, Enum
+    public sealed partial class EnumEqualityComparer<T> : EqualityComparer<T>, ISerializable where T : struct, Enum
     {
         internal EnumEqualityComparer() { }
 
@@ -337,25 +183,5 @@ namespace System.Collections.Generic
 
         public override int GetHashCode() =>
             GetType().GetHashCode();
-
-        internal override int IndexOf(T[] array, T value, int startIndex, int count)
-        {
-            int endIndex = startIndex + count;
-            for (int i = startIndex; i < endIndex; i++)
-            {
-                if (System.Runtime.CompilerServices.JitHelpers.EnumEquals(array[i], value)) return i;
-            }
-            return -1;
-        }
-
-        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
-        {
-            int endIndex = startIndex - count + 1;
-            for (int i = startIndex; i >= endIndex; i--)
-            {
-                if (System.Runtime.CompilerServices.JitHelpers.EnumEquals(array[i], value)) return i;
-            }
-            return -1;
-        }
     }
 }
