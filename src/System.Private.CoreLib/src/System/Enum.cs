@@ -132,6 +132,8 @@ namespace System
 
         internal static ulong ToUInt64(object value, bool throwInvalidOperationException = true)
         {
+            Debug.Assert(value != null);
+
             // Helper function to silently convert the value to UInt64 from the other base types for enum without throwing an exception.
             // This is need since the Convert functions do overflow checks.
             TypeCode typeCode = Convert.GetTypeCode(value);
@@ -170,13 +172,32 @@ namespace System
                 case TypeCode.Int64:
                     result = (ulong)(long)value;
                     break;
+                case TypeCode.Single:
+                    result = (ulong)BitConverter.SingleToInt32Bits((float)value);
+                    break;
+                case TypeCode.Double:
+                    result = (ulong)BitConverter.DoubleToInt64Bits((double)value);
+                    break;
                 // All unsigned types will be directly cast
                 default:
-                    if (throwInvalidOperationException)
+                    Type type = value.GetType();
+                    if (type == typeof(IntPtr))
                     {
-                        throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
+                        result = (ulong)(IntPtr)value;
                     }
-                    throw new ArgumentException(SR.Arg_MustBeEnumBaseTypeOrEnum, nameof(value));
+                    else if (type == typeof(UIntPtr))
+                    {
+                        result = (ulong)(UIntPtr)value;
+                    }
+                    else
+                    {
+                        if (throwInvalidOperationException)
+                        {
+                            throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
+                        }
+                        throw new ArgumentException(SR.Arg_MustBeEnumBaseTypeOrEnum, nameof(value));
+                    }
+                    break;
             }
 
             return result;
@@ -187,14 +208,25 @@ namespace System
         public static object Parse(Type enumType, string value) =>
             Parse(enumType, value, ignoreCase: false);
 
-        public static object Parse(Type enumType, string value, bool ignoreCase) =>
-            GetBridge(enumType).Parse(value.AsSpan(), ignoreCase);
+        public static object Parse(Type enumType, string value, bool ignoreCase)
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+            return GetBridge(enumType).Parse(value.AsSpan(), ignoreCase);
+        }
 
         public static TEnum Parse<TEnum>(string value) where TEnum : struct =>
             Parse<TEnum>(value, ignoreCase: false);
 
         public static TEnum Parse<TEnum>(string value, bool ignoreCase) where TEnum : struct
         {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
             IEnumBridge<TEnum> bridge = EnumBridge<TEnum>.Bridge;
             if (bridge == null)
             {
@@ -251,8 +283,15 @@ namespace System
         public static bool IsDefined(Type enumType, object value) =>
             GetBridge(enumType).IsDefined(value);
 
-        public static string Format(Type enumType, object value, string format) =>
-            GetBridge(enumType).Format(value, format);
+        public static string Format(Type enumType, object value, string format)
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            return GetBridge(enumType).Format(value, format);
+        }
         #endregion
 
         #region Definitions
@@ -262,25 +301,21 @@ namespace System
             public readonly static IEnumBridge<TEnum> Bridge = (IEnumBridge<TEnum>)CreateEnumBridge(typeof(TEnum));
         }
 
-        internal interface IEnumBridgeCommon
+        internal interface IEnumBridge
         {
             Type UnderlyingType { get; }
             int Count { get; }
             TypeCode TypeCode { get; }
-            
-            IEnumerable<string> GetNames();
-        }
 
-        internal interface IEnumBridge : IEnumBridgeCommon
-        {
             int CompareTo(Enum value, object other);
             bool Equals(Enum value, object other);
             string Format(object value, string format);
             int GetHashCode(Enum value);
             string GetName(object value);
+            IEnumerable<string> GetNames();
             object GetUnderlyingValue(Enum value);
             Array GetValues();
-            bool HasAllFlags(object value, object flags);
+            bool HasFlag(Enum value, object flag);
             bool IsDefined(object value);
             object Parse(ReadOnlySpan<char> value, bool ignoreCase);
             bool ToBoolean(Enum value);
@@ -303,32 +338,16 @@ namespace System
             bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result);
         }
 
-        internal interface IEnumBridge<TEnum> : IEnumBridgeCommon
+        internal interface IEnumBridge<TEnum> : IEnumBridge
         {
             int CompareTo(TEnum value, TEnum other);
             bool Equals(TEnum value, TEnum other);
-            string Format(TEnum value, string format);
             int GetHashCode(TEnum value);
-            string GetName(TEnum value);
-            IEnumerable<TEnum> GetValues();
-            bool IsDefined(TEnum value);
-            TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase);
-            byte ToByte(TEnum value);
-            short ToInt16(TEnum value);
-            int ToInt32(TEnum value);
-            long ToInt64(TEnum value);
-            TEnum ToObject(object value);
-            TEnum ToObject(ulong value);
-            sbyte ToSByte(TEnum value);
-            string ToString(TEnum value);
-            string ToString(TEnum value, string format);
-            ushort ToUInt16(TEnum value);
-            uint ToUInt32(TEnum value);
-            ulong ToUInt64(TEnum value);
+            new TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase);
             bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result);
         }
 
-        private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperators> : IEnumBridge<TEnum>, IEnumBridge
+        private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperators> : IEnumBridge<TEnum>
             where TEnum : struct, Enum
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperators : struct, IUnderlyingOperators<TUnderlying>
@@ -342,6 +361,23 @@ namespace System
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             private static TEnum ToEnum(TUnderlying value) => Unsafe.As<TUnderlying, TEnum>(ref value);
+
+            private static TEnum ToEnum(object value)
+            {
+                Debug.Assert(value != null);
+
+                if (!(value is TEnum enumValue))
+                {
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, value.GetType().ToString(), typeof(TEnum).ToString()));
+                }
+                return enumValue;
+            }
+
+            public Type UnderlyingType { get; } = typeof(TUnderlying);
+
+            public TypeCode TypeCode { get; } = Type.GetTypeCode(typeof(TUnderlying));
+
+            public int Count => s_cache._members.Count;
 
             public TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(s_cache.Parse(value, ignoreCase));
 
@@ -358,104 +394,50 @@ namespace System
 
             public int GetHashCode(TEnum value) => ToUnderlying(value).GetHashCode();
 
-            public string Format(TEnum value, string format) => s_cache.Format(ToUnderlying(value), format);
-
-            public string GetName(TEnum value) => s_cache.GetName(ToUnderlying(value));
-
             public IEnumerable<string> GetNames() => s_cache.GetNames();
-
-            public Type UnderlyingType { get; } = typeof(TUnderlying);
-
-            public TypeCode TypeCode { get; } = Type.GetTypeCode(typeof(TUnderlying));
-
-            public IEnumerable<TEnum> GetValues()
-            {
-                foreach (EnumCache<TUnderlying, TUnderlyingOperators>.EnumMemberInternal member in s_cache._members)
-                {
-                    yield return ToEnum(member.Value);
-                }
-            }
-
-            public bool IsDefined(TEnum value) => s_cache.IsDefined(ToUnderlying(value));
-
-            public byte ToByte(TEnum value) => s_operators.ToByte(ToUnderlying(value));
-
-            public short ToInt16(TEnum value) => s_operators.ToInt16(ToUnderlying(value));
-
-            public int ToInt32(TEnum value) => s_operators.ToInt32(ToUnderlying(value));
-
-            public long ToInt64(TEnum value) => s_operators.ToInt64(ToUnderlying(value));
-
-            public TEnum ToObject(object value) => ToEnum(s_cache.ToObject(value));
-
-            public TEnum ToObject(ulong value) => ToEnum(s_operators.ToObject(value));
-
-            public sbyte ToSByte(TEnum value) => s_operators.ToSByte(ToUnderlying(value));
-
-            public string ToString(TEnum value) => s_cache.ToString(ToUnderlying(value));
-
-            public string ToString(TEnum value, string format) => s_cache.ToString(ToUnderlying(value), format);
-
-            public ushort ToUInt16(TEnum value) => s_operators.ToUInt16(ToUnderlying(value));
-
-            public uint ToUInt32(TEnum value) => s_operators.ToUInt32(ToUnderlying(value));
-
-            public ulong ToUInt64(TEnum value) => s_operators.ToUInt64(ToUnderlying(value));
-
-            public bool HasAllFlags(TEnum value, TEnum flags) => s_operators.And(ToUnderlying(value), ToUnderlying(flags)).Equals(ToUnderlying(flags));
-
-            public int Count => s_cache._members.Count;
-
-            #region IEnumBridge
-            private static TEnum ToEnum(object value)
-            {
-                Debug.Assert(value != null);
-
-                if (!(value is TEnum enumValue))
-                {
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, value.GetType().ToString(), typeof(TEnum).ToString()));
-                }
-                return enumValue;
-            }
 
             public int CompareTo(Enum value, object other)
             {
                 Debug.Assert(other != null);
 
-                return CompareTo((TEnum)value, ToEnum(other));
+                return s_operators.CompareTo(ToUnderlying((TEnum)value), ToUnderlying(ToEnum(other)));
             }
 
-            public bool Equals(Enum value, object other) => other is TEnum enumValue ? Equals((TEnum)value, enumValue) : false;
+            public bool Equals(Enum value, object other) => other is TEnum enumValue ? ToUnderlying((TEnum)value).Equals(ToUnderlying(enumValue)) : false;
 
-            public string Format(object value, string format) => Format(value is TUnderlying underlyingValue ? ToEnum(underlyingValue) : ToEnum(value), format);
+            public string Format(object value, string format) => s_cache.Format(value is TUnderlying underlyingValue ? underlyingValue : ToUnderlying(ToEnum(value)), format);
 
             public int GetHashCode(Enum value) => ToUnderlying((TEnum)value).GetHashCode();
 
-            public string GetName(object value) => value is TEnum enumValue ? GetName(enumValue) : s_cache.GetName(value);
+            public string GetName(object value) => value is TEnum enumValue ? s_cache.GetName(ToUnderlying(enumValue)) : s_cache.GetName(value);
 
             public object GetUnderlyingValue(Enum value) => ToUnderlying((TEnum)value);
 
-            Array IEnumBridge.GetValues()
+            public Array GetValues()
             {
                 TEnum[] array = new TEnum[Count];
                 int i = 0;
-                foreach (TEnum value in GetValues())
+                foreach (EnumCache<TUnderlying, TUnderlyingOperators>.EnumMemberInternal member in s_cache._members)
                 {
-                    array[i] = value;
+                    array[i] = ToEnum(member.Value);
                     ++i;
                 }
                 return array;
             }
 
-            public bool HasAllFlags(object value, object flags) => HasAllFlags(ToEnum(value), ToEnum(flags));
+            public bool HasFlag(Enum value, object flag)
+            {
+                TUnderlying underlyingFlag = ToUnderlying(ToEnum(flag));
+                return s_operators.And(ToUnderlying((TEnum)value), underlyingFlag).Equals(underlyingFlag);
+            }
 
-            public bool IsDefined(object value) => value is TEnum enumValue ? IsDefined(enumValue) : s_cache.IsDefined(value);
+            public bool IsDefined(object value) => value is TEnum enumValue ? s_cache.IsDefined(ToUnderlying(enumValue)) : s_cache.IsDefined(value);
 
-            object IEnumBridge.Parse(ReadOnlySpan<char> value, bool ignoreCase) => Parse(value, ignoreCase);
+            object IEnumBridge.Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(s_cache.Parse(value, ignoreCase));
 
             public bool ToBoolean(Enum value) => s_operators.ToBoolean(ToUnderlying((TEnum)value));
 
-            public byte ToByte(Enum value) => ToByte((TEnum)value);
+            public byte ToByte(Enum value) => s_operators.ToByte(ToUnderlying((TEnum)value));
 
             public char ToChar(Enum value) => s_operators.ToChar(ToUnderlying((TEnum)value));
 
@@ -463,37 +445,36 @@ namespace System
 
             public double ToDouble(Enum value) => s_operators.ToDouble(ToUnderlying((TEnum)value));
 
-            public short ToInt16(Enum value) => ToInt16((TEnum)value);
+            public short ToInt16(Enum value) => s_operators.ToInt16(ToUnderlying((TEnum)value));
 
-            public int ToInt32(Enum value) => ToInt32((TEnum)value);
+            public int ToInt32(Enum value) => s_operators.ToInt32(ToUnderlying((TEnum)value));
 
-            public long ToInt64(Enum value) => ToInt64((TEnum)value);
+            public long ToInt64(Enum value) => s_operators.ToInt64(ToUnderlying((TEnum)value));
 
-            object IEnumBridge.ToObject(object value) => ToObject(value);
+            public object ToObject(object value) => ToEnum(s_cache.ToObject(value));
 
-            object IEnumBridge.ToObject(ulong value) => ToObject(value);
+            public object ToObject(ulong value) => ToEnum(s_operators.ToObject(value));
 
-            public sbyte ToSByte(Enum value) => ToSByte((TEnum)value);
+            public sbyte ToSByte(Enum value) => s_operators.ToSByte(ToUnderlying((TEnum)value));
 
             public float ToSingle(Enum value) => s_operators.ToSingle(ToUnderlying((TEnum)value));
 
-            public string ToString(Enum value) => ToString((TEnum)value);
+            public string ToString(Enum value) => s_cache.ToString(ToUnderlying((TEnum)value));
 
-            public string ToString(Enum value, string format) => ToString((TEnum)value, format);
+            public string ToString(Enum value, string format) => s_cache.ToString(ToUnderlying((TEnum)value), format);
 
-            public ushort ToUInt16(Enum value) => ToUInt16((TEnum)value);
+            public ushort ToUInt16(Enum value) => s_operators.ToUInt16(ToUnderlying((TEnum)value));
 
-            public uint ToUInt32(Enum value) => ToUInt32((TEnum)value);
+            public uint ToUInt32(Enum value) => s_operators.ToUInt32(ToUnderlying((TEnum)value));
 
-            public ulong ToUInt64(Enum value) => ToUInt64((TEnum)value);
+            public ulong ToUInt64(Enum value) => s_operators.ToUInt64(ToUnderlying((TEnum)value));
 
             public bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result)
             {
-                bool success = TryParse(value, ignoreCase, out TEnum enumResult);
-                result = success ? (object)enumResult : null;
+                bool success = s_cache.TryParse(value, ignoreCase, out TUnderlying underlyingResult);
+                result = success ? (object)ToEnum(underlyingResult) : null;
                 return success;
             }
-            #endregion
         }
         #endregion
 
@@ -508,12 +489,6 @@ namespace System
 
             private readonly bool _isFlagEnum;
 
-            private readonly bool _isContiguous;
-
-            private readonly TUnderlying _maxDefined;
-
-            private readonly TUnderlying _minDefined;
-
             internal readonly EnumMembers _members;
 
             public EnumCache(Type enumType)
@@ -522,23 +497,14 @@ namespace System
                 _isFlagEnum = enumType.IsDefined(typeof(FlagsAttribute), false);
 
                 FieldInfo[] fields = enumType.GetFields(BindingFlags.Public | BindingFlags.Static);
-                _members = new EnumMembers(fields.Length);
-                if (fields.Length == 0)
-                {
-                    return;
-                }
-
+                EnumMembers members = new EnumMembers(fields.Length);
                 foreach (FieldInfo field in fields)
                 {
                     TUnderlying value = (TUnderlying)field.GetRawConstantValue();
                     EnumMemberInternal member = new EnumMemberInternal(value, field.Name);
-                    _members.Add(member);
+                    members.Add(member);
                 }
-
-                _maxDefined = _members[_members.Count - 1].Value;
-                _minDefined = _members[0].Value;
-
-                _isContiguous = s_operators.Subtract(_maxDefined, s_operators.ToObject((ulong)(_members.Count - 1))).Equals(_minDefined);
+                _members = members;
             }
 
             public IEnumerable<string> GetNames()
@@ -573,7 +539,7 @@ namespace System
                 return s_operators.IsInValueRange(uint64Value) ? GetName(s_operators.ToObject(uint64Value)) : null;
             }
 
-            public bool IsDefined(TUnderlying value) => _isContiguous ? !(s_operators.LessThan(value, _minDefined) || s_operators.LessThan(_maxDefined, value)) : _members.IndexOf(value) >= 0;
+            public bool IsDefined(TUnderlying value) => _members.IndexOf(value) >= 0;
 
             public bool IsDefined(object value)
             {
@@ -657,7 +623,7 @@ namespace System
                         return value.ToString();
                     case 'X':
                     case 'x':
-                        return s_operators.ToHexString(value);
+                        return s_operators.ToHexStr(value);
                     case 'F':
                     case 'f':
                         return ToStringFlags(value);
@@ -775,90 +741,80 @@ namespace System
 
             public TUnderlying Parse(ReadOnlySpan<char> value, bool ignoreCase)
             {
-                value = value.Trim();
+                value = value.TrimStart();
 
+                Number.ParsingStatus status = TryParseInternal(value, ignoreCase, out TUnderlying result);
+                if (status == Number.ParsingStatus.OK)
+                {
+                    return result;
+                }
+                if (status == Number.ParsingStatus.Overflow)
+                {
+                    throw new OverflowException(s_operators.OverflowMessage);
+                }
                 if (value.Length == 0)
                 {
                     throw new ArgumentException(SR.Arg_MustContainEnumInfo);
                 }
-                if (TryParseInternal(value, ignoreCase, out TUnderlying result, out bool isNumeric))
-                {
-                    return result;
-                }
-                if (isNumeric)
-                {
-                    throw new OverflowException(s_operators.OverflowMessage);
-                }
                 throw new ArgumentException(SR.Arg_EnumValueNotFound, nameof(value));
             }
 
-            public bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TUnderlying result) => TryParseInternal(value.Trim(), ignoreCase, out result, out _);
+            public bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TUnderlying result) => TryParseInternal(value.TrimStart(), ignoreCase, out result) == Number.ParsingStatus.OK;
 
-            private bool TryParseInternal(ReadOnlySpan<char> value, bool ignoreCase, out TUnderlying result, out bool isNumeric)
+            private Number.ParsingStatus TryParseInternal(ReadOnlySpan<char> value, bool ignoreCase, out TUnderlying result)
             {
-                isNumeric = false;
-                result = default;
+                Number.ParsingStatus status = Number.ParsingStatus.Failed;
+                TUnderlying localResult = default;
                 if (value.Length > 0)
                 {
                     char firstNonWhitespaceChar = value[0];
-                    if ((char.IsDigit(firstNonWhitespaceChar) || firstNonWhitespaceChar == '-' || firstNonWhitespaceChar == '+'))
+                    if (char.IsInRange(firstNonWhitespaceChar, '0', '9') || firstNonWhitespaceChar == '-' || firstNonWhitespaceChar == '+')
                     {
-                        isNumeric = true;
-                        if (s_operators.TryParse(value, out result))
+                        status = s_operators.TryParse(value, out result);
+                        if (status != Number.ParsingStatus.Failed)
                         {
-                            return true;
+                            return status;
                         }
-                        result = default;
                     }
 
-                    ReadOnlySpan<char> span = value;
-
-                    while (true)
+                    status = Number.ParsingStatus.OK;
+                    do
                     {
-                        // Find the next separator, if there is one, otherwise the end of the string.
-                        int endIndex = span.IndexOf(EnumSeparatorChar);
+                        // Find the next separator.
+                        ReadOnlySpan<char> subvalue;
+                        int endIndex = value.IndexOf(EnumSeparatorChar);
                         if (endIndex == -1)
                         {
-                            endIndex = span.Length;
+                            subvalue = value.Trim();
+                            value = default;
                         }
-                        else if (endIndex + 1 == span.Length)
+                        else if (endIndex != value.Length - 1)
                         {
-                            break;
+                            // Found a separator before the last char.
+                            subvalue = value.Slice(0, endIndex).Trim();
+                            value = value.Slice(endIndex + 1);
                         }
                         else
                         {
-                            isNumeric = false;
-                        }
-
-                        ReadOnlySpan<char> slice = span.Slice(0, endIndex).Trim();
-
-                        if (slice.Length == 0)
-                        {
+                            // Last char was a separator, which is invalid.
+                            status = Number.ParsingStatus.Failed;
                             break;
                         }
 
-                        if (_members.TryGetValue(slice, ignoreCase, out EnumMemberInternal member))
+                        if (_members.TryGetValue(subvalue, ignoreCase, out EnumMemberInternal member))
                         {
-                            result = s_operators.Or(result, member.Value);
-                            if (endIndex == span.Length)
-                            {
-                                isNumeric = false;
-                                return true;
-                            }
-                            else
-                            {
-                                span = span.Slice(endIndex + 1);
-                            }
+                            localResult = s_operators.Or(localResult, member.Value);
                         }
                         else
                         {
+                            status = Number.ParsingStatus.Failed;
                             break;
                         }
-                    }
+                    } while (value.Length > 0);
                 }
 
-                result = default;
-                return false;
+                result = status == Number.ParsingStatus.OK ? localResult : default;
+                return status;
             }
 
             public readonly struct EnumMemberInternal
@@ -1105,7 +1061,7 @@ namespace System
             char ToChar(TUnderlying value);
             decimal ToDecimal(TUnderlying value);
             double ToDouble(TUnderlying value);
-            string ToHexString(TUnderlying value);
+            string ToHexStr(TUnderlying value);
             short ToInt16(TUnderlying value);
             int ToInt32(TUnderlying value);
             long ToInt64(TUnderlying value);
@@ -1116,7 +1072,7 @@ namespace System
             uint ToUInt32(TUnderlying value);
             ulong ToUInt64(TUnderlying value);
             ulong ToUInt64Unchecked(TUnderlying value);
-            bool TryParse(ReadOnlySpan<char> span, out TUnderlying result);
+            Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out TUnderlying result);
         }
 
         private struct ByteOperators : IUnderlyingOperators<byte>
@@ -1147,7 +1103,7 @@ namespace System
 
             public double ToDouble(byte value) => value;
 
-            public string ToHexString(byte value) => value.ToString("X2");
+            public string ToHexStr(byte value) => Number.Int32ToHexStr(value, '7', 2);
 
             public short ToInt16(byte value) => value;
 
@@ -1169,7 +1125,16 @@ namespace System
 
             public ulong ToUInt64Unchecked(byte value) => value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out byte result) => byte.TryParse(span, NumberStyles.Integer, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out byte result)
+            {
+                Number.ParsingStatus status = Number.TryParseUInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out uint i);
+                if (status == Number.ParsingStatus.OK && i > byte.MaxValue)
+                {
+                    status = Number.ParsingStatus.Overflow;
+                }
+                result = (byte)i;
+                return status;
+            }
         }
 
         private struct SByteOperators : IUnderlyingOperators<sbyte>
@@ -1200,7 +1165,7 @@ namespace System
 
             public double ToDouble(sbyte value) => value;
 
-            public string ToHexString(sbyte value) => value.ToString("X2");
+            public string ToHexStr(sbyte value) => Number.Int32ToHexStr(value, '7', 2);
 
             public short ToInt16(sbyte value) => value;
 
@@ -1222,7 +1187,16 @@ namespace System
 
             public ulong ToUInt64Unchecked(sbyte value) => (ulong)value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out sbyte result) => sbyte.TryParse(span, NumberStyles.Integer, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out sbyte result)
+            {
+                Number.ParsingStatus status = Number.TryParseInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out int i);
+                if (status == Number.ParsingStatus.OK && (uint)(i - sbyte.MinValue) > byte.MaxValue)
+                {
+                    status = Number.ParsingStatus.Overflow;
+                }
+                result = (sbyte)i;
+                return status;
+            }
         }
 
         private struct Int16Operators : IUnderlyingOperators<short>
@@ -1253,7 +1227,7 @@ namespace System
 
             public double ToDouble(short value) => value;
 
-            public string ToHexString(short value) => value.ToString("X4");
+            public string ToHexStr(short value) => Number.Int32ToHexStr(value, '7', 4);
 
             public short ToInt16(short value) => value;
 
@@ -1275,7 +1249,16 @@ namespace System
 
             public ulong ToUInt64Unchecked(short value) => (ulong)value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out short result) => short.TryParse(span, NumberStyles.Integer, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out short result)
+            {
+                Number.ParsingStatus status = Number.TryParseInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out int i);
+                if (status == Number.ParsingStatus.OK && (uint)(i - short.MinValue) > ushort.MaxValue)
+                {
+                    status = Number.ParsingStatus.Overflow;
+                }
+                result = (short)i;
+                return status;
+            }
         }
 
         private struct UInt16Operators : IUnderlyingOperators<ushort>
@@ -1306,7 +1289,7 @@ namespace System
 
             public double ToDouble(ushort value) => value;
 
-            public string ToHexString(ushort value) => value.ToString("X4");
+            public string ToHexStr(ushort value) => Number.Int32ToHexStr(value, '7', 4);
 
             public short ToInt16(ushort value) => Convert.ToInt16(value);
 
@@ -1328,7 +1311,16 @@ namespace System
 
             public ulong ToUInt64Unchecked(ushort value) => value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out ushort result) => ushort.TryParse(span, NumberStyles.Integer, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out ushort result)
+            {
+                Number.ParsingStatus status = Number.TryParseUInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out uint i);
+                if (status == Number.ParsingStatus.OK && i > ushort.MaxValue)
+                {
+                    status = Number.ParsingStatus.Overflow;
+                }
+                result = (ushort)i;
+                return status;
+            }
         }
 
         private struct Int32Operators : IUnderlyingOperators<int>
@@ -1359,7 +1351,7 @@ namespace System
 
             public double ToDouble(int value) => value;
 
-            public string ToHexString(int value) => value.ToString("X8");
+            public string ToHexStr(int value) => Number.Int32ToHexStr(value, '7', 8);
 
             public short ToInt16(int value) => Convert.ToInt16(value);
 
@@ -1381,7 +1373,7 @@ namespace System
 
             public ulong ToUInt64Unchecked(int value) => (ulong)value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out int result) => int.TryParse(span, NumberStyles.Integer, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out int result) => Number.TryParseInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out result);
         }
 
         private struct UInt32Operators : IUnderlyingOperators<uint>
@@ -1412,7 +1404,7 @@ namespace System
 
             public double ToDouble(uint value) => value;
 
-            public string ToHexString(uint value) => value.ToString("X8");
+            public string ToHexStr(uint value) => Number.Int32ToHexStr((int)value, '7', 8);
 
             public short ToInt16(uint value) => Convert.ToInt16(value);
 
@@ -1434,7 +1426,7 @@ namespace System
 
             public ulong ToUInt64Unchecked(uint value) => value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out uint result) => uint.TryParse(span, NumberStyles.Integer, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out uint result) => Number.TryParseUInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out result);
         }
 
         private struct Int64Operators : IUnderlyingOperators<long>
@@ -1465,7 +1457,7 @@ namespace System
 
             public double ToDouble(long value) => value;
 
-            public string ToHexString(long value) => value.ToString("X16");
+            public string ToHexStr(long value) => Number.Int64ToHexStr(value, '7', 16);
 
             public short ToInt16(long value) => Convert.ToInt16(value);
 
@@ -1487,7 +1479,7 @@ namespace System
 
             public ulong ToUInt64Unchecked(long value) => (ulong)value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out long result) => long.TryParse(span, NumberStyles.Integer, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out long result) => Number.TryParseInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out result);
         }
 
         private struct UInt64Operators : IUnderlyingOperators<ulong>
@@ -1518,7 +1510,7 @@ namespace System
 
             public double ToDouble(ulong value) => value;
 
-            public string ToHexString(ulong value) => value.ToString("X16");
+            public string ToHexStr(ulong value) => Number.Int64ToHexStr((long)value, '7', 16);
 
             public short ToInt16(ulong value) => Convert.ToInt16(value);
 
@@ -1540,7 +1532,7 @@ namespace System
 
             public ulong ToUInt64Unchecked(ulong value) => value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out ulong result) => ulong.TryParse(span, NumberStyles.Integer, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out ulong result) => Number.TryParseUInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out result);
         }
 
         private struct BooleanOperators : IUnderlyingOperators<bool>
@@ -1571,7 +1563,7 @@ namespace System
 
             public double ToDouble(bool value) => Convert.ToDouble(value);
 
-            public string ToHexString(bool value) => Convert.ToByte(value).ToString("X2");
+            public string ToHexStr(bool value) => Convert.ToByte(value).ToString("X2");
 
             public short ToInt16(bool value) => Convert.ToInt16(value);
 
@@ -1593,7 +1585,7 @@ namespace System
 
             public ulong ToUInt64Unchecked(bool value) => Convert.ToUInt64(value);
 
-            public bool TryParse(ReadOnlySpan<char> span, out bool result) => bool.TryParse(span, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out bool result) => bool.TryParse(span, out result) ? Number.ParsingStatus.OK : Number.ParsingStatus.Failed;
         }
 
         private struct CharOperators : IUnderlyingOperators<char>
@@ -1624,7 +1616,7 @@ namespace System
 
             public double ToDouble(char value) => value;
 
-            public string ToHexString(char value) => ((ushort)value).ToString("X4");
+            public string ToHexStr(char value) => ((ushort)value).ToString("X4");
 
             public short ToInt16(char value) => Convert.ToInt16(value);
 
@@ -1646,11 +1638,11 @@ namespace System
 
             public ulong ToUInt64Unchecked(char value) => value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out char result)
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out char result)
             {
                 bool success = span.Length == 1;
                 result = success ? span[0] : default;
-                return success;
+                return success ? Number.ParsingStatus.OK : Number.ParsingStatus.Failed;
             }
         }
 
@@ -1682,7 +1674,7 @@ namespace System
 
             public double ToDouble(float value) => value;
 
-            public string ToHexString(float value) => BitConverter.SingleToInt32Bits(value).ToString("X8");
+            public string ToHexStr(float value) => BitConverter.SingleToInt32Bits(value).ToString("X8");
 
             public short ToInt16(float value) => Convert.ToInt16(value);
 
@@ -1704,7 +1696,10 @@ namespace System
 
             public ulong ToUInt64Unchecked(float value) => (ulong)BitConverter.SingleToInt32Bits(value);
 
-            public bool TryParse(ReadOnlySpan<char> span, out float result) => float.TryParse(span, NumberStyles.Float, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out float result)
+            {
+                return Number.TryParseSingle(span, NumberStyles.AllowTrailingWhite | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent, CultureInfo.InvariantCulture.NumberFormat, out result) ? Number.ParsingStatus.OK : Number.ParsingStatus.Failed;
+            }
         }
 
         private struct DoubleOperators : IUnderlyingOperators<double>
@@ -1735,7 +1730,7 @@ namespace System
 
             public double ToDouble(double value) => value;
 
-            public string ToHexString(double value) => BitConverter.DoubleToInt64Bits(value).ToString("X16");
+            public string ToHexStr(double value) => BitConverter.DoubleToInt64Bits(value).ToString("X16");
 
             public short ToInt16(double value) => Convert.ToInt16(value);
 
@@ -1757,7 +1752,10 @@ namespace System
 
             public ulong ToUInt64Unchecked(double value) => (ulong)BitConverter.DoubleToInt64Bits(value);
 
-            public bool TryParse(ReadOnlySpan<char> span, out double result) => double.TryParse(span, NumberStyles.Float, null, out result);
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out double result)
+            {
+                return Number.TryParseDouble(span, NumberStyles.AllowTrailingWhite | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent, CultureInfo.InvariantCulture.NumberFormat, out result) ? Number.ParsingStatus.OK : Number.ParsingStatus.Failed;
+            }
         }
 
         private struct IntPtrOperators : IUnderlyingOperators<IntPtr>
@@ -1788,7 +1786,7 @@ namespace System
 
             public double ToDouble(IntPtr value) => IntPtr.Size == 4 ? (int)value : (long)value;
 
-            public string ToHexString(IntPtr value) => IntPtr.Size == 4 ? ((int)value).ToString("X8") : ((long)value).ToString("X16");
+            public string ToHexStr(IntPtr value) => IntPtr.Size == 4 ? ((int)value).ToString("X8") : ((long)value).ToString("X16");
 
             public short ToInt16(IntPtr value) => IntPtr.Size == 4 ? Convert.ToInt16((int)value) : Convert.ToInt16((long)value);
 
@@ -1810,20 +1808,20 @@ namespace System
 
             public ulong ToUInt64Unchecked(IntPtr value) => IntPtr.Size == 4 ? (ulong)(int)value : (ulong)(long)value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out IntPtr result)
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out IntPtr result)
             {
-                bool success;
+                Number.ParsingStatus status;
                 if (IntPtr.Size == 4)
                 {
-                    success = int.TryParse(span, NumberStyles.Integer, null, out int int32Result);
+                    status = Number.TryParseInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out int int32Result);
                     result = (IntPtr)int32Result;
                 }
                 else
                 {
-                    success = long.TryParse(span, NumberStyles.Integer, null, out long int64Result);
+                    status = Number.TryParseInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out long int64Result);
                     result = (IntPtr)int64Result;
                 }
-                return success;
+                return status;
             }
         }
 
@@ -1855,7 +1853,7 @@ namespace System
 
             public double ToDouble(UIntPtr value) => UIntPtr.Size == 4 ? (uint)value : (ulong)value;
 
-            public string ToHexString(UIntPtr value) => UIntPtr.Size == 4 ? ((uint)value).ToString("X8") : ((ulong)value).ToString("X16");
+            public string ToHexStr(UIntPtr value) => UIntPtr.Size == 4 ? ((uint)value).ToString("X8") : ((ulong)value).ToString("X16");
 
             public short ToInt16(UIntPtr value) => UIntPtr.Size == 4 ? Convert.ToInt16((uint)value) : Convert.ToInt16((ulong)value);
 
@@ -1877,20 +1875,20 @@ namespace System
 
             public ulong ToUInt64Unchecked(UIntPtr value) => UIntPtr.Size == 4 ? (uint)value : (ulong)value;
 
-            public bool TryParse(ReadOnlySpan<char> span, out UIntPtr result)
+            public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out UIntPtr result)
             {
-                bool success;
+                Number.ParsingStatus status;
                 if (UIntPtr.Size == 4)
                 {
-                    success = uint.TryParse(span, NumberStyles.Integer, null, out uint uint32Result);
+                    status = Number.TryParseUInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out uint uint32Result);
                     result = (UIntPtr)uint32Result;
                 }
                 else
                 {
-                    success = ulong.TryParse(span, NumberStyles.Integer, null, out ulong uint64Result);
+                    status = Number.TryParseUInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out ulong uint64Result);
                     result = (UIntPtr)uint64Result;
                 }
-                return success;
+                return status;
             }
         }
         #endregion
@@ -1948,7 +1946,7 @@ namespace System
                 throw new ArgumentNullException(nameof(flag));
             }
 
-            return GetBridge((RuntimeType)GetType()).HasAllFlags(this, flag);
+            return GetBridge((RuntimeType)GetType()).HasFlag(this, flag);
         }
         #endregion
 
