@@ -10,14 +10,10 @@ using System.Runtime.Serialization;
 namespace System.Collections.Generic
 {
     [Serializable]
-    [TypeDependencyAttribute("System.Collections.Generic.ObjectComparer`1")]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
-    public abstract class Comparer<T> : IComparer, IComparer<T>
+    public abstract partial class Comparer<T> : IComparer, IComparer<T>
     {
-        // To minimize generic instantiation overhead of creating the comparer per type, we keep the generic portion of the code as small
-        // as possible and define most of the creation logic in a non-generic class.
-        public static Comparer<T> Default { get; } = (Comparer<T>)ComparerHelpers.CreateDefaultComparer(typeof(T));
-
+#if !PROJECTN
         public static Comparer<T> Create(Comparison<T> comparison)
         {
             if (comparison == null)
@@ -25,6 +21,7 @@ namespace System.Collections.Generic
 
             return new ComparisonComparer<T>(comparison);
         }
+#endif
 
         public abstract int Compare(T x, T y);
 

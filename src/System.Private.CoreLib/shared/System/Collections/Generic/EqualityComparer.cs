@@ -2,12 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Security;
-
-using System.Globalization;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
@@ -16,14 +10,9 @@ using System.Diagnostics;
 namespace System.Collections.Generic
 {
     [Serializable]
-    [TypeDependencyAttribute("System.Collections.Generic.ObjectEqualityComparer`1")]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
-    public abstract class EqualityComparer<T> : IEqualityComparer, IEqualityComparer<T>
+    public abstract partial class EqualityComparer<T> : IEqualityComparer, IEqualityComparer<T>
     {
-        // To minimize generic instantiation overhead of creating the comparer per type, we keep the generic portion of the code as small
-        // as possible and define most of the creation logic in a non-generic class.
-        public static EqualityComparer<T> Default { [Intrinsic] get; } = (EqualityComparer<T>)ComparerHelpers.CreateDefaultEqualityComparer(typeof(T));
-
         public abstract bool Equals(T x, T y);
         public abstract int GetHashCode(T obj);
 
