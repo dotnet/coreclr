@@ -367,6 +367,7 @@ EEHashEntry_t * EECMHelperHashtableHelper::AllocateEntry(EECMHelperHashtableKey 
         cbEntry += S_SIZE_T(pKey->GetMarshalerTypeNameByteCount());
         cbEntry += S_SIZE_T(pKey->GetCookieStringByteCount());
         cbEntry += S_SIZE_T(pKey->GetMarshalerInstantiation().GetNumArgs()) * S_SIZE_T(sizeof(LPVOID));
+        cbEntry += S_SIZE_T(sizeof(LPVOID));
 
         if (cbEntry.IsOverflow())
             return NULL;
@@ -387,6 +388,7 @@ EEHashEntry_t * EECMHelperHashtableHelper::AllocateEntry(EECMHelperHashtableKey 
         memcpy((void*)pEntryKey->m_strCookie, pKey->GetCookieString(), pKey->GetCookieStringByteCount()); 
         memcpy((void*)pEntryKey->m_Instantiation.GetRawArgs(), pKey->GetMarshalerInstantiation().GetRawArgs(),
             pEntryKey->m_Instantiation.GetNumArgs() * sizeof(LPVOID)); 
+        pEntryKey->m_invokingAssembly = pKey->GetInvokingAssembly();
     }
     else
     {
@@ -401,6 +403,7 @@ EEHashEntry_t * EECMHelperHashtableHelper::AllocateEntry(EECMHelperHashtableKey 
         pEntryKey->m_cCookieStrBytes = pKey->GetCookieStringByteCount();
         pEntryKey->m_strCookie = pKey->GetCookieString();
         pEntryKey->m_Instantiation = Instantiation(pKey->GetMarshalerInstantiation());
+        pEntryKey->m_invokingAssembly = pKey->GetInvokingAssembly();
     }
 
     return pEntry;
