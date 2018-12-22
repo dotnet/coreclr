@@ -2679,13 +2679,13 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
             assert(supportsSIMDScalarLoads == false);
             assert(supportsUnalignedSIMDLoads == false);
 
-            if (genTypeSize(node->TypeGet()) != genTypeSize(containingNode->gtSIMDBaseType))
+            if (genTypeSize(node->TypeGet()) != genTypeSize(containingNode->TypeGet()))
             {
                 // We should only get here for integral nodes
                 assert(varTypeIsIntegral(node->TypeGet()));
 
                 // These intrinsics require the contained operand to be
-                // the same size as the baseType for the containing node.
+                // the same size as the type for the containing node.
                 //
                 // If it isn't the same size, we can't mark the node as
                 // contained because it might avoid a zero or sign-extension
