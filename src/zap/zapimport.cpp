@@ -658,7 +658,7 @@ void ZapImportSectionSignatures::PlaceStubDispatchCell(ZapImport * pImport)
 
     m_pImage->GetImportTable()->PlaceImportBlob(pCell);
 
-    m_pGCRefMapTable->Append(pCell->GetMethod());
+    m_pGCRefMapTable->Append(pCell->GetMethod(), true);
 }
 
 //
@@ -871,9 +871,9 @@ ZapImport * ZapImportTable::GetVirtualImportThunk(CORINFO_METHOD_HANDLE handle, 
 // GCRefMapTable is used to encode for GC references locations for lazily resolved calls
 //
 
-void ZapGCRefMapTable::Append(CORINFO_METHOD_HANDLE handle)
+void ZapGCRefMapTable::Append(CORINFO_METHOD_HANDLE handle, bool isDispatchCell)
 {
-    m_pImage->GetCompileInfo()->GetCallRefMap(handle, &m_GCRefMapBuilder);
+    m_pImage->GetCompileInfo()->GetCallRefMap(handle, &m_GCRefMapBuilder, isDispatchCell);
     m_nCount++;
 }
 
@@ -2289,7 +2289,7 @@ ZapImport * ZapImportTable::GetHelperImport(ReadyToRunHelper helperNum)
     {
         SigBuilder sigBuilder;
 
-        sigBuilder.AppendData(ENCODE_READYTORUN_HELPER);
+        sigBuilder.AppendByte(ENCODE_READYTORUN_HELPER);
         sigBuilder.AppendData(helperNum);
 
         pImport->SetBlob(GetBlob(&sigBuilder));

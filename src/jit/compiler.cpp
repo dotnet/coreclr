@@ -2489,14 +2489,6 @@ void Compiler::compSetProcessor()
             codeGen->getEmitter()->SetContainsAVX(false);
             codeGen->getEmitter()->SetContains256bitAVX(false);
         }
-        else if (compSupports(InstructionSet_SSSE3) || compSupports(InstructionSet_AES) ||
-                 compSupports(InstructionSet_PCLMULQDQ))
-        {
-            // Emitter::UseSSE4 controls whether we support the 4-byte encoding for certain
-            // instructions. We need to check if either is supported independently, since
-            // it is currently possible to enable/disable them separately.
-            codeGen->getEmitter()->SetUseSSE4(true);
-        }
     }
 #endif
 #if defined(_TARGET_ARM64_)
@@ -4208,7 +4200,8 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
     // Always do the layout even if returning early. Callers might
     // depend on us to do the layout.
     unsigned frameSize = lvaFrameSize(curState);
-    JITDUMP("\ncompRsvdRegCheck\n"
+    JITDUMP("\n"
+            "compRsvdRegCheck\n"
             "  frame size  = %6d\n"
             "  compArgSize = %6d\n",
             frameSize, compArgSize);
