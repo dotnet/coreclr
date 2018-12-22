@@ -13,7 +13,6 @@ namespace System.Collections.Generic
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
     public abstract partial class Comparer<T> : IComparer, IComparer<T>
     {
-#if !PROJECTN
         public static Comparer<T> Create(Comparison<T> comparison)
         {
             if (comparison == null)
@@ -21,7 +20,6 @@ namespace System.Collections.Generic
 
             return new ComparisonComparer<T>(comparison);
         }
-#endif
 
         public abstract int Compare(T x, T y);
 
