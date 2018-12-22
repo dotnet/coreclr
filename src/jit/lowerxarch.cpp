@@ -2457,6 +2457,8 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
     {
         case HW_Category_SimpleSIMD:
         {
+            // These intrinsics only expect 16 or 32-byte nodes for containment
+            assert((genTypeSize(node->TypeGet()) == 16) || (genTypeSize(node->TypeGet()) == 32));
             assert(supportsSIMDScalarLoads == false);
 
             supportsAlignedSIMDLoads =
@@ -2502,6 +2504,8 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                 case NI_AVX2_ShuffleHigh:
                 case NI_AVX2_ShuffleLow:
                 {
+                    // These intrinsics only expect 16 or 32-byte nodes for containment
+                    assert((genTypeSize(node->TypeGet()) == 16) || (genTypeSize(node->TypeGet()) == 32));
                     assert(supportsSIMDScalarLoads == false);
 
                     supportsAlignedSIMDLoads   = !comp->canUseVexEncoding();
@@ -2511,11 +2515,13 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                     break;
                 }
 
+                case NI_SSE2_Insert:
                 case NI_SSE41_Insert:
                 case NI_SSE41_X64_Insert:
                 {
                     if (containingNode->gtSIMDBaseType == TYP_FLOAT)
                     {
+                        assert(containingIntrinsicId != NI_SSE2_Insert);
                         assert(supportsSIMDScalarLoads == false);
 
                         GenTree* op1 = containingNode->gtGetOp1();
@@ -2562,6 +2568,25 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                         assert(supportsUnalignedSIMDLoads == false);
                         assert(supportsGeneralLoads == false);
                     }
+                    else if (genTypeSize(node->TypeGet()) != genTypeSize(containingNode->gtSIMDBaseType))
+                    {
+                        // We should only get here for integral nodes
+                        assert(varTypeIsIntegral(node->TypeGet()));
+
+                        // These intrinsics require the contained operand to be
+                        // the same size as the baseType for the containing node.
+                        //
+                        // If it isn't the same size, we can't mark the node as
+                        // contained because it might avoid a zero or sign-extension
+                        // that should have otherwise occurred.
+                        //
+                        // We need this even though there are overloads that explicitly
+                        // take byte/sbyte/int16/uint16, since the user may be calling
+                        // the int32/uint32 overload with an explicit cast.
+
+                        *supportsRegOptional = false;
+                        return false;
+                    }
                     else
                     {
                         assert(supportsAlignedSIMDLoads == false);
@@ -2570,19 +2595,19 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                         supportsSIMDScalarLoads = true;
                         supportsGeneralLoads    = supportsSIMDScalarLoads;
                     }
-
                     break;
                 }
 
-                case NI_SSE2_Insert:
                 case NI_AVX_CompareScalar:
                 {
+                    // These intrinsics only expect 16 or 32-byte nodes for containment
+                    assert((genTypeSize(node->TypeGet()) == 16) || (genTypeSize(node->TypeGet()) == 32));
+
                     assert(supportsAlignedSIMDLoads == false);
                     assert(supportsUnalignedSIMDLoads == false);
 
                     supportsSIMDScalarLoads = true;
                     supportsGeneralLoads    = supportsSIMDScalarLoads;
-
                     break;
                 }
 
@@ -2603,9 +2628,48 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
             assert(supportsAlignedSIMDLoads == false);
             assert(supportsUnalignedSIMDLoads == false);
 
+            switch (containingIntrinsicId)
+            {
+                case NI_Base_Vector128_CreateScalarUnsafe:
+                case NI_Base_Vector256_CreateScalarUnsafe:
+                case NI_SSE_ConvertScalarToVector128Single:
+                case NI_SSE2_ConvertScalarToVector128Double:
+                case NI_SSE2_ConvertScalarToVector128Int32:
+                case NI_SSE2_ConvertScalarToVector128UInt32:
+                {
+                    // CreateScalarUnsafe needs to go down this path as well, even though
+                    // it doesn't care about the value of the upper bits. This is because
+                    // we can't guarantee that the 32-bit read that would happen for a contained
+                    // node is `safe`.
+
+                    // We need to check for integral types here to account for the overload of
+                    // ConvertScalarToVector128Double that takes a Vector128<float>
+                    if (varTypeIsIntegral(node->TypeGet()) &&
+                        (genTypeSize(node->TypeGet()) != genTypeSize(containingNode->gtSIMDBaseType)))
+                    {
+                        // These intrinsics require the contained operand to be
+                        // the same size as the baseType for the containing node.
+                        //
+                        // If it isn't the same size, we can't mark the node as
+                        // contained because it might avoid a zero or sign-extension
+                        // that should have otherwise occurred.
+
+                        *supportsRegOptional = false;
+                        return false;
+                    }
+                    break;
+                }
+
+                default:
+                    break;
+            }
+
+            // These intrinsics expect the node to be contained is either the same size as the base
+            // type of the containing node or that the node is exactly 16 or 32-bytes.
+            assert((genTypeSize(node->TypeGet()) == 16) || (genTypeSize(node->TypeGet()) == 32) ||
+                   (genTypeSize(node->TypeGet()) == genTypeSize(containingNode->gtSIMDBaseType)));
             supportsSIMDScalarLoads = true;
             supportsGeneralLoads    = supportsSIMDScalarLoads;
-
             break;
         }
 
@@ -2614,6 +2678,26 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
             assert(supportsAlignedSIMDLoads == false);
             assert(supportsSIMDScalarLoads == false);
             assert(supportsUnalignedSIMDLoads == false);
+
+            if (genTypeSize(node->TypeGet()) != genTypeSize(containingNode->gtSIMDBaseType))
+            {
+                // We should only get here for integral nodes
+                assert(varTypeIsIntegral(node->TypeGet()));
+
+                // These intrinsics require the contained operand to be
+                // the same size as the baseType for the containing node.
+                //
+                // If it isn't the same size, we can't mark the node as
+                // contained because it might avoid a zero or sign-extension
+                // that should have otherwise occurred.
+                //
+                // We need this even though there are overloads that explicitly
+                // take byte/sbyte/int16/uint16, since the user may be calling
+                // the int32/uint32 overload with an explicit cast.
+
+                *supportsRegOptional = false;
+                return false;
+            }
 
             supportsGeneralLoads = true;
             break;
