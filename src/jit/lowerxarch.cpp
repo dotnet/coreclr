@@ -2522,6 +2522,7 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                     if (containingNode->gtSIMDBaseType == TYP_FLOAT)
                     {
                         assert(containingIntrinsicId == NI_SSE41_Insert);
+                        assert(genTypeSize(node->TypeGet()) == 16);
 
                         // Sse41.Insert(V128<float>, V128<float>, byte) is a bit special
                         // in that it has different behavior depending on whether the
@@ -2573,33 +2574,47 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                             supportsSIMDScalarLoads = (ival <= 0x3F);
                             supportsGeneralLoads    = supportsSIMDScalarLoads;
                         }
+                        break;
                     }
-                    else if (genTypeSize(node->TypeGet()) != genTypeSize(containingNode->gtSIMDBaseType))
+
+                    // We should only get here for integral nodes.
+                    assert(varTypeIsIntegral(node->TypeGet()));
+
+                    // These intrinsics require the contained operand to be the same
+                    // size as the baseType for the containing node.
+                    //
+                    // If it isn't, we can't mark the node as contained because it
+                    // might avoid a zero or sign-extension that should have otherwise
+                    // occurred.
+                    //
+                    // We need this even though there are overloads that explicitly
+                    // take byte/sbyte/int16/uint16, since the user may be calling
+                    // the int32/uint32 overload with an explicit cast.
+                    //
+                    // Finally, SIMDScalarLoads aren't supported because these intrinsics
+                    // take an actual scalar value, rather than taking a vector and only
+                    // operating on the lower bits.ther than taking a vector and only
+                    // operating on the lower bits.
+
+                    assert(supportsAlignedSIMDLoads == false);
+                    assert(supportsUnalignedSIMDLoads == false);
+                    assert(supportsSIMDScalarLoads == false);
+
+                    const unsigned expectedSize = genTypeSize(containingNode->gtSIMDBaseType);
+                    const unsigned operandSize  = genTypeSize(node->TypeGet());
+
+                    supportsGeneralLoads = (operandSize == expectedSize);
+
+                    if (!supportsGeneralLoads && ((expectedSize == 1) || (expectedSize == 2)))
                     {
-                        // We should only get here for integral nodes
-                        assert(varTypeIsIntegral(node->TypeGet()));
+                        // The scalar intrinsics that take an 8-bit or 16-bit operand
+                        // should also support general loads when the operand is 32-
+                        // bits in order to handle the case where we have a stack-spilled
+                        // value. This should be safe to do since loads from other 32-
+                        // bit locations (such as fields) should be coming to us in the
+                        // form of a CAST node and will fail the IsContainableMemoryOp check.
 
-                        // These intrinsics require the contained operand to be
-                        // the same size as the baseType for the containing node.
-                        //
-                        // If it isn't the same size, we can't mark the node as
-                        // contained because it might avoid a zero or sign-extension
-                        // that should have otherwise occurred.
-                        //
-                        // We need this even though there are overloads that explicitly
-                        // take byte/sbyte/int16/uint16, since the user may be calling
-                        // the int32/uint32 overload with an explicit cast.
-
-                        *supportsRegOptional = false;
-                        return false;
-                    }
-                    else
-                    {
-                        assert(supportsAlignedSIMDLoads == false);
-                        assert(supportsUnalignedSIMDLoads == false);
-
-                        supportsSIMDScalarLoads = true;
-                        supportsGeneralLoads    = supportsSIMDScalarLoads;
+                        supportsGeneralLoads = (operandSize == 4);
                     }
                     break;
                 }
@@ -2638,74 +2653,142 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
             {
                 case NI_Base_Vector128_CreateScalarUnsafe:
                 case NI_Base_Vector256_CreateScalarUnsafe:
-                case NI_SSE_ConvertScalarToVector128Single:
-                case NI_SSE2_ConvertScalarToVector128Double:
-                case NI_SSE2_ConvertScalarToVector128Int32:
-                case NI_SSE2_ConvertScalarToVector128UInt32:
                 {
-                    // CreateScalarUnsafe needs to go down this path as well, even though
-                    // it doesn't care about the value of the upper bits. This is because
-                    // we can't guarantee that the 32-bit read that would happen for a contained
-                    // node is `safe`.
+                    // These intrinsics need to go down this code path even though they
+                    // don't care about the value of the upper bits. This is because we
+                    // can't know for certain that the 32-bit read that would happen
+                    // won't result in an AV.
 
-                    // We need to check for integral types here to account for the overload of
-                    // ConvertScalarToVector128Double that takes a Vector128<float>
-                    if (varTypeIsIntegral(node->TypeGet()) &&
-                        (genTypeSize(node->TypeGet()) != genTypeSize(containingNode->gtSIMDBaseType)))
+                    assert(supportsSIMDScalarLoads == false);
+
+                    // These intrinsics require the contained operand to be the same
+                    // size as the baseType for the containing node.
+                    //
+                    // If it isn't, we can't mark the node as contained because it
+                    // might avoid a zero or sign-extension that should have otherwise
+                    // occurred.
+                    //
+                    // We need this even though there are overloads that explicitly
+                    // take byte/sbyte/int16/uint16, since the user may be calling
+                    // the int32/uint32 overload with an explicit cast.
+                    //
+                    // Finally, SIMDScalarLoads aren't supported because these intrinsics
+                    // take an actual scalar value, rather than taking a vector and only
+                    // operating on the lower bits.ther than taking a vector and only
+                    // operating on the lower bits.
+
+                    const unsigned expectedSize = genTypeSize(containingNode->gtSIMDBaseType);
+                    const unsigned operandSize  = genTypeSize(node->TypeGet());
+
+                    supportsGeneralLoads = (operandSize == expectedSize);
+
+                    if (!supportsGeneralLoads && ((expectedSize == 1) || (expectedSize == 2)))
                     {
-                        // These intrinsics require the contained operand to be
-                        // the same size as the baseType for the containing node.
-                        //
-                        // If it isn't the same size, we can't mark the node as
-                        // contained because it might avoid a zero or sign-extension
-                        // that should have otherwise occurred.
+                        // The scalar intrinsics that take an 8-bit or 16-bit operand
+                        // should also support general loads when the operand is 32-
+                        // bits in order to handle the case where we have a stack-spilled
+                        // value. This should be safe to do since loads from other 32-
+                        // bit locations (such as fields) should be coming to us in the
+                        // form of a CAST node and will fail the IsContainableMemoryOp check.
 
-                        *supportsRegOptional = false;
-                        return false;
+                        supportsGeneralLoads = (operandSize == 4);
                     }
                     break;
                 }
 
-                default:
-                    break;
-            }
+                case NI_SSE_ConvertScalarToVector128Single:
+                case NI_SSE2_ConvertScalarToVector128Double:
+                case NI_SSE2_ConvertScalarToVector128Int32:
+                case NI_SSE2_ConvertScalarToVector128UInt32:
+                case NI_SSE_X64_ConvertScalarToVector128Single:
+                case NI_SSE2_X64_ConvertScalarToVector128Double:
+                case NI_SSE2_X64_ConvertScalarToVector128Int64:
+                case NI_SSE2_X64_ConvertScalarToVector128UInt64:
+                {
+                    if (!varTypeIsIntegral(node->TypeGet()))
+                    {
+                        // The floating-point overload doesn't require any special semantics
+                        assert(containingIntrinsicId == NI_SSE2_ConvertScalarToVector128Double);
+                        supportsSIMDScalarLoads = true;
+                        supportsGeneralLoads    = supportsSIMDScalarLoads;
+                        break;
+                    }
 
-            // These intrinsics expect the node to be contained is either the same size as the base
-            // type of the containing node or that the node is exactly 16 or 32-bytes.
-            assert((genTypeSize(node->TypeGet()) == 16) || (genTypeSize(node->TypeGet()) == 32) ||
-                   (genTypeSize(node->TypeGet()) == genTypeSize(containingNode->gtSIMDBaseType)));
-            supportsSIMDScalarLoads = true;
-            supportsGeneralLoads    = supportsSIMDScalarLoads;
+                    // These intrinsics require the contained operand to be the same
+                    // size as the baseType for the containing node.
+                    //
+                    // If it isn't, we can't mark the node as contained because it
+                    // might avoid a zero or sign-extension that should have otherwise
+                    // occurred.
+                    //
+                    // We need this even though there are overloads that explicitly
+                    // take byte/sbyte/int16/uint16, since the user may be calling
+                    // the int32/uint32 overload with an explicit cast.
+                    //
+                    // Finally, SIMDScalarLoads aren't supported because these intrinsics
+                    // take an actual scalar value, rather than taking a vector and only
+                    // operating on the lower bits.
+
+                    assert(supportsSIMDScalarLoads == false);
+                    supportsGeneralLoads =
+                        (genTypeSize(node->TypeGet()) == genTypeSize(containingNode->gtSIMDBaseType));
+                    break;
+                }
+
+                default:
+                {
+                    // These intrinsics only expect 16 or 32-byte nodes for containment
+                    assert((genTypeSize(node->TypeGet()) == 16) || (genTypeSize(node->TypeGet()) == 32));
+
+                    supportsSIMDScalarLoads = true;
+                    supportsGeneralLoads    = supportsSIMDScalarLoads;
+                    break;
+                }
+            }
             break;
         }
 
         case HW_Category_Scalar:
         {
+            // We should only get here for integral nodes.
+            assert(varTypeIsIntegral(node->TypeGet()));
+
+            // These intrinsics require the contained operand to be the same
+            // size as the baseType for the containing node.
+            //
+            // If it isn't, we can't mark the node as contained because it
+            // might avoid a zero or sign-extension that should have otherwise
+            // occurred.
+            //
+            // We need this even though there are overloads that explicitly
+            // take byte/sbyte/int16/uint16, since the user may be calling
+            // the int32/uint32 overload with an explicit cast.
+            //
+            // Finally, SIMDScalarLoads aren't supported because these intrinsics
+            // take an actual scalar value, rather than taking a vector and only
+            // operating on the lower bits.ther than taking a vector and only
+            // operating on the lower bits.
+
             assert(supportsAlignedSIMDLoads == false);
-            assert(supportsSIMDScalarLoads == false);
             assert(supportsUnalignedSIMDLoads == false);
+            assert(supportsSIMDScalarLoads == false);
 
-            if (genTypeSize(node->TypeGet()) != genTypeSize(containingNode->TypeGet()))
+            const unsigned expectedSize = genTypeSize(containingNode->TypeGet());
+            const unsigned operandSize  = genTypeSize(node->TypeGet());
+
+            supportsGeneralLoads = (operandSize == expectedSize);
+
+            if (!supportsGeneralLoads && ((expectedSize == 1) || (expectedSize == 2)))
             {
-                // We should only get here for integral nodes
-                assert(varTypeIsIntegral(node->TypeGet()));
+                // The scalar intrinsics that take an 8-bit or 16-bit operand
+                // should also support general loads when the operand is 32-
+                // bits in order to handle the case where we have a stack-spilled
+                // value. This should be safe to do since loads from other 32-
+                // bit locations (such as fields) should be coming to us in the
+                // form of a CAST node and will fail the IsContainableMemoryOp check.
 
-                // These intrinsics require the contained operand to be
-                // the same size as the type for the containing node.
-                //
-                // If it isn't the same size, we can't mark the node as
-                // contained because it might avoid a zero or sign-extension
-                // that should have otherwise occurred.
-                //
-                // We need this even though there are overloads that explicitly
-                // take byte/sbyte/int16/uint16, since the user may be calling
-                // the int32/uint32 overload with an explicit cast.
-
-                *supportsRegOptional = false;
-                return false;
+                supportsGeneralLoads = (operandSize == 4);
             }
-
-            supportsGeneralLoads = true;
             break;
         }
 
