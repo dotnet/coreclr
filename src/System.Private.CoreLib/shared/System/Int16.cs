@@ -63,7 +63,7 @@ namespace System
         // Returns a HashCode for the Int16
         public override int GetHashCode()
         {
-            return (int)m_value;
+            return m_value;
         }
 
 

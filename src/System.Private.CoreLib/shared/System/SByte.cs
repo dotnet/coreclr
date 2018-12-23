@@ -66,7 +66,7 @@ namespace System
         // Gets a hash code for this instance.
         public override int GetHashCode()
         {
-            return (int)m_value;
+            return m_value;
         }
 
 
