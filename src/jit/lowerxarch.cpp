@@ -2521,11 +2521,23 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                 {
                     if (containingNode->gtSIMDBaseType == TYP_FLOAT)
                     {
-                        assert(containingIntrinsicId != NI_SSE2_Insert);
+                        assert(containingIntrinsicId == NI_SSE41_Insert);
+
+                        // Sse41.Insert(V128<float>, V128<float>, byte) is a bit special
+                        // in that it has different behavior depending on whether the
+                        // second operand is coming from a register or memory. When coming
+                        // from a register, all 4 elements of the vector can be used and it
+                        // is effectively a regular `SimpleSIMD` operation; but when loading
+                        // from memory, it only works with the lowest element and is effectively
+                        // a `SIMDScalar`.
+
+                        assert(supportsAlignedSIMDLoads == false);
+                        assert(supportsUnalignedSIMDLoads == false);
+                        assert(supportsGeneralLoads == false);
                         assert(supportsSIMDScalarLoads == false);
 
                         GenTree* op1 = containingNode->gtGetOp1();
-                        GenTree* op2 = containingNode->gtGetOp2();
+                        GenTree* op2 = nullptr;
                         GenTree* op3 = nullptr;
 
                         assert(op1->OperIsList());
@@ -2548,25 +2560,19 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                         // bits, we need to disable containment support if op3 is not
                         // constant or if the constant is greater than 0x3F (which means
                         // at least one of the upper two bits is set).
+                        //
+                        // We can, however, still support GeneralLoads if SIMDScalarLoads
+                        // are also supported, since we will be reading less bytes than
+                        // are actually available in memory.
 
                         if (op3->IsCnsIntOrI())
                         {
                             ssize_t ival = op3->AsIntCon()->IconValue();
                             assert((ival >= 0) && (ival <= 255));
 
-                            if (ival <= 0x3F)
-                            {
-                                supportsAlignedSIMDLoads   = !comp->canUseVexEncoding();
-                                supportsUnalignedSIMDLoads = !supportsAlignedSIMDLoads;
-                                supportsGeneralLoads       = supportsUnalignedSIMDLoads;
-
-                                break;
-                            }
+                            supportsSIMDScalarLoads = (ival <= 0x3F);
+                            supportsGeneralLoads    = supportsSIMDScalarLoads;
                         }
-
-                        assert(supportsAlignedSIMDLoads == false);
-                        assert(supportsUnalignedSIMDLoads == false);
-                        assert(supportsGeneralLoads == false);
                     }
                     else if (genTypeSize(node->TypeGet()) != genTypeSize(containingNode->gtSIMDBaseType))
                     {
