@@ -6051,7 +6051,7 @@ CorInfoHelpFunc CEEInfo::getNewHelperStatic(MethodTable * pMT, bool * pHasSideEf
         else
 #endif
         {
-            *pHasSideEffects = (hasFinalizer != 0);
+            *pHasSideEffects = !!hasFinalizer;
         }
     }
 
