@@ -142,7 +142,7 @@ namespace System
                 _throwStyle = canThrow;
             }
 
-            internal void SetFailure(bool overflow, string failureMessageID, string failureMessageFormatArgument = null)
+            internal void SetFailure(bool overflow, string failureMessageID)
             {
                 if (_throwStyle != GuidParseThrowStyle.None)
                 {
@@ -517,7 +517,7 @@ namespace System
             // Check for '0x'
             if (!IsHexPrefix(guidString, 1))
             {
-                result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix), "{0xdddddddd, etc}");
+                result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix));
                 return false;
             }
 
@@ -540,7 +540,7 @@ namespace System
             // Check for '0x'
             if (!IsHexPrefix(guidString, numStart + numLen + 1))
             {
-                result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix), "{0xdddddddd, 0xdddd, etc}");
+                result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix));
                 return false;
             }
             // +3 to get by ',0x'
@@ -562,7 +562,7 @@ namespace System
             // Check for '0x'
             if (!IsHexPrefix(guidString, numStart + numLen + 1))
             {
-                result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix), "{0xdddddddd, 0xdddd, 0xdddd, etc}");
+                result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix));
                 return false;
             }
             // +3 to get by ',0x'
@@ -595,7 +595,7 @@ namespace System
                 // Check for '0x'
                 if (!IsHexPrefix(guidString, numStart + numLen + 1))
                 {
-                    result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix), "{... { ... 0xdd, ...}}");
+                    result.SetFailure(overflow: false, nameof(SR.Format_GuidHexPrefix));
                     return false;
                 }
 
