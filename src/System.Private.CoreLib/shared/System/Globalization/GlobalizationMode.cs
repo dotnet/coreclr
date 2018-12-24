@@ -6,9 +6,7 @@ namespace System.Globalization
 {
     internal static partial class GlobalizationMode
     {
-        private static bool GetGlobalizationInvariantMode()
-        {
-            return GetInvariantSwitchValue();
-        }
+        private const string InvariantModeConfigSwitch = "System.Globalization.Invariant";
+        internal static bool Invariant { get; } = GetGlobalizationInvariantMode();
     }
 }
