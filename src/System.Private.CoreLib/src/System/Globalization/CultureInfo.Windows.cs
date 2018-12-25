@@ -140,9 +140,9 @@ namespace System.Globalization
                     return ci;
                 }
 
-                if (Thread.m_CurrentCulture != null)
+                if (s_currentThreadCulture != null)
                 {
-                    return Thread.m_CurrentCulture;
+                    return s_currentThreadUICulture;
                 }
 
                 ci = s_DefaultThreadCurrentCulture;

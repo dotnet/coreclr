@@ -263,6 +263,8 @@ DEFINE_METHOD(CULTURE_INFO,         INT_CTOR,               .ctor,              
 DEFINE_PROPERTY(CULTURE_INFO,       ID,                     LCID,                       Int)
 #endif
 DEFINE_PROPERTY(CULTURE_INFO,       PARENT,                 Parent,                     CultureInfo)
+DEFINE_FIELD(CULTURE_INFO,          CULTURE,                s_currentThreadCulture)
+DEFINE_FIELD(CULTURE_INFO,          UI_CULTURE,             s_currentThreadUICulture)
 
 DEFINE_CLASS(CURRENCY,              System,                 Currency)
 DEFINE_METHOD(CURRENCY,             DECIMAL_CTOR,           .ctor,                      IM_Dec_RetVoid)
@@ -821,8 +823,6 @@ DEFINE_FIELD_U(m_ThreadStartArg,           ThreadBaseObject,   m_ThreadStartArg)
 DEFINE_FIELD_U(DONT_USE_InternalThread,    ThreadBaseObject,   m_InternalThread)
 DEFINE_FIELD_U(m_Priority,                 ThreadBaseObject,   m_Priority)
 DEFINE_CLASS(THREAD,                Threading,              Thread)
-DEFINE_FIELD(THREAD,                CULTURE,                m_CurrentCulture)
-DEFINE_FIELD(THREAD,                UI_CULTURE,             m_CurrentUICulture)
 DEFINE_SET_PROPERTY(THREAD,         CULTURE,                CurrentCulture,             CultureInfo)
 DEFINE_SET_PROPERTY(THREAD,         UI_CULTURE,             CurrentUICulture,           CultureInfo)
 DEFINE_STATIC_PROPERTY(THREAD,      CURRENT_THREAD,         CurrentThread,              Thread)

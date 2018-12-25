@@ -62,9 +62,9 @@ namespace System.Globalization
         {
             get
             {
-                if (Thread.m_CurrentCulture != null)
+                if (s_currentThreadCulture != null)
                 {
-                    return Thread.m_CurrentCulture;
+                    return s_currentThreadUICulture;
                 }
 
                 CultureInfo ci = s_DefaultThreadCurrentCulture;

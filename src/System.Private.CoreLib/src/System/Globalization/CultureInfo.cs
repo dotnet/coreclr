@@ -119,17 +119,22 @@ namespace System.Globalization
         private static volatile CultureInfo s_DefaultThreadCurrentUICulture;
         private static volatile CultureInfo s_DefaultThreadCurrentCulture;
 
+        [ThreadStatic]
+        internal static CultureInfo s_currentThreadCulture;
+        [ThreadStatic]
+        internal static CultureInfo s_currentThreadUICulture;
+
         internal static AsyncLocal<CultureInfo> s_asyncLocalCurrentCulture; 
         internal static AsyncLocal<CultureInfo> s_asyncLocalCurrentUICulture;
 
         internal static void AsyncLocalSetCurrentCulture(AsyncLocalValueChangedArgs<CultureInfo> args)
         {
-            Thread.m_CurrentCulture = args.CurrentValue;
+            s_currentThreadCulture = args.CurrentValue;
         }
 
         internal static void AsyncLocalSetCurrentUICulture(AsyncLocalValueChangedArgs<CultureInfo> args)
         {
-            Thread.m_CurrentUICulture = args.CurrentValue;
+            s_currentThreadUICulture = args.CurrentValue;
         }
 
         private static readonly Lock _lock = new Lock();
@@ -407,9 +412,9 @@ namespace System.Globalization
                 return ci;
             }
 
-            if (Thread.m_CurrentUICulture != null)
+            if (s_currentThreadUICulture != null)
             {
-                return Thread.m_CurrentUICulture;
+                return s_currentThreadUICulture;
             }
 
             ci = s_DefaultThreadCurrentUICulture;
