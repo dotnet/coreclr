@@ -1410,7 +1410,6 @@ private:
     CULTUREINFOBASEREF _parent;
     CLR_BOOL _isReadOnly;
     CLR_BOOL _isInherited;
-    CLR_BOOL _useUserOverride;
 
 public:
     CULTUREINFOBASEREF GetParent()
