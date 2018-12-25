@@ -214,17 +214,11 @@ namespace System
             return (o != null) ? new ObjectHandle(o) : null;
         }
 
-        public static T CreateInstance<T>()
-        {
-            var rt = (RuntimeType)typeof(T);
+        public static T CreateInstance<T>() => CreateInstance<T>(args: null);
 
-            // This is a workaround to maintain compatibility with V2. Without this we would throw a NotSupportedException for void[].
-            // Array, Ref, and Pointer types don't have default constructors.
-            if (rt.HasElementType)
-                throw new MissingMethodException(SR.Format(SR.Arg_NoDefCTor, rt));
+        public static T CreateInstance<T>(params object[] args) => CreateInstance<T>(args, null);
 
-            // Skip the CreateInstanceCheckThis call to avoid perf cost and to maintain compatibility with V2 (throwing the same exceptions).
-            return (T)rt.CreateInstanceDefaultCtor(publicOnly: true, skipCheckThis: true, fillCache: true, wrapExceptions: true);
-        }
+        public static T CreateInstance<T>(object[] args, object[] activationAttributes) =>
+            (T)CreateInstance(typeof(T), args: args, activationAttributes: activationAttributes);
     }
 }
