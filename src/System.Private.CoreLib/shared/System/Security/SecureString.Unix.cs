@@ -135,39 +135,9 @@ namespace System.Security
             _buffer.Write((ulong)(index * sizeof(char)), c);
         }
 
-        internal unsafe IntPtr MarshalToBSTRCore()
+        internal IntPtr MarshalToBSTRCore()
         {
-            int length = _decryptedLength;
-            IntPtr ptr = IntPtr.Zero;
-            IntPtr result = IntPtr.Zero;
-            byte* bufferPtr = null;
-            
-            try
-            {
-                _buffer.AcquirePointer(ref bufferPtr);
-                int resultByteLength = (length + 1) * sizeof(char);
-
-                ptr = PInvokeMarshal.AllocBSTR(length);
-
-                Buffer.MemoryCopy(bufferPtr, (byte*)ptr, resultByteLength, length * sizeof(char));
-
-                result = ptr;
-            }
-            finally
-            {
-                // If we failed for any reason, free the new buffer
-                if (result == IntPtr.Zero && ptr != IntPtr.Zero)
-                {
-                    RuntimeImports.RhZeroMemory(ptr, (UIntPtr)(length * sizeof(char)));
-                    PInvokeMarshal.FreeBSTR(ptr);
-                }
-
-                if (bufferPtr != null)
-                {
-                    _buffer.ReleasePointer();
-                }
-            }
-            return result;
+            throw new PlatformNotSupportedException();
         }
 
         internal unsafe IntPtr MarshalToStringCore(bool globalAlloc, bool unicode)
