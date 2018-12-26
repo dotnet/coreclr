@@ -79,51 +79,6 @@ namespace System.Globalization
             return false;
         }
 
-#if FEATURE_APPX
-        internal static CultureInfo GetCultureInfoForUserPreferredLanguageInAppX()
-        {
-            // If a call to GetCultureInfoForUserPreferredLanguageInAppX() generated a recursive
-            // call to itself, return null, since we don't want to stack overflow.  For example,
-            // this can happen if some code in this method ends up calling CultureInfo.CurrentCulture.
-            // In this case, returning null will mean CultureInfo.CurrentCulture gets the default Win32
-            // value, which should be fine.
-            if (ts_IsDoingAppXCultureInfoLookup)
-            {
-                return null;
-            }
-
-            CultureInfo toReturn = null;
-
-            try
-            {
-                ts_IsDoingAppXCultureInfoLookup = true;
-
-                if (s_WindowsRuntimeResourceManager == null)
-                {
-                    s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
-                }
-
-                toReturn = s_WindowsRuntimeResourceManager.GlobalResourceContextBestFitCultureInfo;
-            }
-            finally
-            {
-               ts_IsDoingAppXCultureInfoLookup = false;
-            }
-
-            return toReturn;
-        }
-
-        internal static bool SetCultureInfoForUserPreferredLanguageInAppX(CultureInfo ci)
-        {
-            if (s_WindowsRuntimeResourceManager == null)
-            {
-                s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
-            }
-
-            return s_WindowsRuntimeResourceManager.SetGlobalResourceContextDefaultCulture(ci);
-        }
-#endif
-
         internal static CultureInfo GetUserDefaultCulture()
         {
             if (GlobalizationMode.Invariant)
@@ -182,5 +137,50 @@ namespace System.Globalization
 
             return InitializeUserDefaultCulture();
         }
+
+#if FEATURE_APPX
+        internal static CultureInfo GetCultureInfoForUserPreferredLanguageInAppX()
+        {
+            // If a call to GetCultureInfoForUserPreferredLanguageInAppX() generated a recursive
+            // call to itself, return null, since we don't want to stack overflow.  For example,
+            // this can happen if some code in this method ends up calling CultureInfo.CurrentCulture.
+            // In this case, returning null will mean CultureInfo.CurrentCulture gets the default Win32
+            // value, which should be fine.
+            if (ts_IsDoingAppXCultureInfoLookup)
+            {
+                return null;
+            }
+
+            CultureInfo toReturn = null;
+
+            try
+            {
+                ts_IsDoingAppXCultureInfoLookup = true;
+
+                if (s_WindowsRuntimeResourceManager == null)
+                {
+                    s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
+                }
+
+                toReturn = s_WindowsRuntimeResourceManager.GlobalResourceContextBestFitCultureInfo;
+            }
+            finally
+            {
+               ts_IsDoingAppXCultureInfoLookup = false;
+            }
+
+            return toReturn;
+        }
+
+        internal static bool SetCultureInfoForUserPreferredLanguageInAppX(CultureInfo ci)
+        {
+            if (s_WindowsRuntimeResourceManager == null)
+            {
+                s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
+            }
+
+            return s_WindowsRuntimeResourceManager.SetGlobalResourceContextDefaultCulture(ci);
+        }
+#endif
     }
 }
