@@ -22,63 +22,6 @@ namespace System.Globalization
         private static bool ts_IsDoingAppXCultureInfoLookup;
 #endif
 
-        /// <summary>
-        /// Gets the default user culture from WinRT, if available.
-        /// </summary>
-        /// <remarks>
-        /// This method may return null, if there is no default user culture or if WinRT isn't available.
-        /// </remarks>
-        private static CultureInfo GetUserDefaultCultureCacheOverride()
-        {
-#if ENABLE_WINRT
-            WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
-            if (callbacks != null && callbacks.IsAppxModel())
-            {
-                return (CultureInfo)callbacks.GetUserDefaultCulture();
-            }
-#endif
-#if FEATURE_APPX
-            if (ApplicationModel.IsUap)
-            {
-                CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
-                if (culture != null)
-                    return culture;
-            }
-#endif
-
-            return null;
-        }
-
-        /// <summary>
-        /// Sets the default culture for WinRT.
-        /// </summary>
-        /// <return>
-        /// Returns true if running on WinRT and the culture was successfully set.
-        /// </return>
-        private static bool SetGlobalDefaultCulture(CultureInfo culture)
-        {
-#if ENABLE_WINRT
-            WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
-            if (callbacks != null && callbacks.IsAppxModel())
-            {
-                callbacks.SetGlobalDefaultCulture(value);
-                return true;
-            }
-#endif
-#if FEATURE_APPX
-            if (ApplicationModel.IsUap)
-            {
-                if (SetCultureInfoForUserPreferredLanguageInAppX(culture))
-                {
-                    // successfully set the culture, otherwise fallback to legacy path
-                    return true;
-                }
-            }
-#endif
-
-            return false;
-        }
-
         internal static CultureInfo GetUserDefaultCulture()
         {
             if (GlobalizationMode.Invariant)

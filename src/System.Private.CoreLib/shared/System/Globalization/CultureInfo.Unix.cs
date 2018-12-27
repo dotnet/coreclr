@@ -6,16 +6,6 @@ namespace System.Globalization
 {
     public partial class CultureInfo : IFormatProvider
     {
-        private static CultureInfo GetUserDefaultCultureCacheOverride()
-        {
-            return null; // ICU doesn't provide a user override
-        }
-
-        private static bool SetGlobalDefaultCulture(CultureInfo culture)
-        {
-            return false;
-        }
-
         internal static CultureInfo GetUserDefaultCulture()
         {
             if (GlobalizationMode.Invariant)

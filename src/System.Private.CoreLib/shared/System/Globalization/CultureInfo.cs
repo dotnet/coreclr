@@ -405,18 +405,28 @@ namespace System.Globalization
         {
             get
             {
-                CultureInfo ci = GetUserDefaultCultureCacheOverride();
-                if (ci != null)
+#if ENABLE_WINRT
+                WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
+                if (callbacks != null && callbacks.IsAppxModel())
                 {
-                    return ci;
+                    return (CultureInfo)callbacks.GetUserDefaultCulture();
                 }
+#endif
+#if FEATURE_APPX
+                if (ApplicationModel.IsUap)
+                {
+                    CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
+                    if (culture != null)
+                        return culture;
+                }
+#endif
 
                 if (s_currentThreadCulture != null)
                 {
                     return s_currentThreadCulture;
                 }
 
-                ci = s_DefaultThreadCurrentCulture;
+                CultureInfo ci = s_DefaultThreadCurrentCulture;
                 if (ci != null)
                 {
                     return ci;
@@ -432,10 +442,24 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value));
                 }
 
-                if (SetGlobalDefaultCulture(value))
+#if ENABLE_WINRT
+                WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
+                if (callbacks != null && callbacks.IsAppxModel())
                 {
+                    callbacks.SetGlobalDefaultCulture(value);
                     return;
                 }
+#endif
+#if FEATURE_APPX
+                if (ApplicationModel.IsUap)
+                {
+                    if (SetCultureInfoForUserPreferredLanguageInAppX(value))
+                    {
+                        // successfully set the culture, otherwise fallback to legacy path
+                        return;
+                    }
+                }
+#endif
 
                 if (s_asyncLocalCurrentCulture == null)
                 {
@@ -449,13 +473,34 @@ namespace System.Globalization
         {
             get
             {
-                CultureInfo ci = GetUserDefaultCultureCacheOverride();
+#if ENABLE_WINRT
+                WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
+                if (callbacks != null && callbacks.IsAppxModel())
+                {
+                    return (CultureInfo)callbacks.GetUserDefaultCulture();
+                }
+#endif
+#if FEATURE_APPX
+                if (ApplicationModel.IsUap)
+                {
+                    CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
+                    if (culture != null)
+                        return culture;
+                }
+#endif
+
+                if (s_currentThreadUICulture != null)
+                {
+                    return s_currentThreadUICulture;
+                }
+
+                CultureInfo ci = s_DefaultThreadCurrentUICulture;
                 if (ci != null)
                 {
                     return ci;
                 }
 
-                return GetCurrentUICultureNoAppX();
+                return UserDefaultUICulture;
             }
 
             set
@@ -467,10 +512,24 @@ namespace System.Globalization
 
                 CultureInfo.VerifyCultureName(value, true);
 
-                if (SetGlobalDefaultCulture(value))
+#if ENABLE_WINRT
+                WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
+                if (callbacks != null && callbacks.IsAppxModel())
                 {
+                    callbacks.SetGlobalDefaultCulture(value);
                     return;
                 }
+#endif
+#if FEATURE_APPX
+                if (ApplicationModel.IsUap)
+                {
+                    if (SetCultureInfoForUserPreferredLanguageInAppX(value))
+                    {
+                        // successfully set the culture, otherwise fallback to legacy path
+                        return;
+                    }
+                }
+#endif
 
                 if (s_asyncLocalCurrentUICulture == null)
                 {
@@ -482,26 +541,10 @@ namespace System.Globalization
             }
         }
 
+        // TODO: Remove
         internal static CultureInfo GetCurrentUICultureNoAppX()
         {
-            CultureInfo ci = GetUserDefaultCultureCacheOverride();
-            if (ci != null)
-            {
-                return ci;
-            }
-
-            if (s_currentThreadUICulture != null)
-            {
-                return s_currentThreadUICulture;
-            }
-
-            ci = s_DefaultThreadCurrentUICulture;
-            if (ci != null)
-            {
-                return ci;
-            }
-
-            return UserDefaultUICulture;
+            return CurrentUICulture;
         }
 
         internal static void ResetThreadCulture()
