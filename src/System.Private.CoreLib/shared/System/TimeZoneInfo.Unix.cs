@@ -408,7 +408,7 @@ namespace System
             return id;
         }
 
-        private static string GetDirectoryEntryFullPath(Interop.Sys.DirectoryEntry dirent, string currentPath)
+        private static string GetDirectoryEntryFullPath(ref Interop.Sys.DirectoryEntry dirent, string currentPath)
         {
             Span<char> nameBuffer = stackalloc char[Interop.Sys.DirectoryEntry.NameBufferSize];
             ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);
@@ -447,7 +447,7 @@ namespace System
                     Interop.Sys.DirectoryEntry dirent;
                     while (Interop.Sys.ReadDirR(dirHandle, dirBufferHandle.AddrOfPinnedObject(), bufferSize, out dirent) == 0)
                     {
-                        string fullPath = GetDirectoryEntryFullPath(dirent, currentPath);
+                        string fullPath = GetDirectoryEntryFullPath(ref dirent, currentPath);
                         if (fullPath == null)
                             continue;
 
@@ -495,7 +495,7 @@ namespace System
                         {
                             yield return fullPath;
                         }
-                    }
+                    }   
                 }
                 finally
                 {
