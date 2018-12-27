@@ -408,6 +408,18 @@ namespace System
             return id;
         }
 
+        private static string GetDirectoryEntryFullPath(Interop.Sys.DirectoryEntry dirent, string currentPath)
+        {
+            Span<char> nameBuffer = stackalloc char[Interop.Sys.DirectoryEntry.NameBufferSize];
+            ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);
+
+            if ((direntName.Length == 1 && direntName[0] == '.') ||
+                (direntName.Length == 2 && direntName[0] == '.' && direntName[1] == '.'))
+                return null;
+
+            return Path.Join(currentPath.AsSpan(), direntName);
+        }
+
         /// <summary>
         /// Enumerate files
         /// </summary>
@@ -435,14 +447,9 @@ namespace System
                     Interop.Sys.DirectoryEntry dirent;
                     while (Interop.Sys.ReadDirR(dirHandle, dirBufferHandle.AddrOfPinnedObject(), bufferSize, out dirent) == 0)
                     {
-                        Span<char> nameBuffer = stackalloc char[Interop.Sys.DirectoryEntry.NameBufferSize];
-                        ReadOnlySpan<char> direntName = dirent.GetName(nameBuffer);
-
-                        if (((uint)direntName.Length == 1u && direntName[0] == '.') ||
-                            ((uint)direntName.Length == 2u && direntName[0] == '.' && direntName[1] == '.'))
+                        string fullPath = GetDirectoryEntryFullPath(dirent, currentPath);
+                        if (fullPath == null)
                             continue;
-
-                        string fullPath = Path.Join(currentPath.AsSpan(), direntName);
 
                         // Get from the dir entry whether the entry is a file or directory.
                         // We classify everything as a file unless we know it to be a directory.
