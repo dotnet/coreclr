@@ -45,8 +45,8 @@ namespace System.Globalization
         private bool _isReadOnly;
         private CompareInfo _compareInfo;
         private TextInfo _textInfo;
-        internal NumberFormatInfo numInfo;
-        internal DateTimeFormatInfo dateTimeInfo;
+        internal NumberFormatInfo _numInfo;
+        internal DateTimeFormatInfo _dateTimeInfo;
         private Calendar _calendar;
         //
         // The CultureData instance that we are going to read data from.
@@ -931,13 +931,13 @@ namespace System.Globalization
         {
             get
             {
-                if (numInfo == null)
+                if (_numInfo == null)
                 {
                     NumberFormatInfo temp = new NumberFormatInfo(_cultureData);
                     temp.isReadOnly = _isReadOnly;
-                    Interlocked.CompareExchange(ref numInfo, temp, null);
+                    Interlocked.CompareExchange(ref _numInfo, temp, null);
                 }
-                return (numInfo);
+                return (_numInfo);
             }
             set
             {
@@ -946,7 +946,7 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value), SR.ArgumentNull_Obj);
                 }
                 VerifyWritable();
-                numInfo = value;
+                _numInfo = value;
             }
         }
 
@@ -962,14 +962,14 @@ namespace System.Globalization
         {
             get
             {
-                if (dateTimeInfo == null)
+                if (_dateTimeInfo == null)
                 {
                     // Change the calendar of DTFI to the specified calendar of this CultureInfo.
                     DateTimeFormatInfo temp = new DateTimeFormatInfo(_cultureData, this.Calendar);
                     temp._isReadOnly = _isReadOnly;
-                    Interlocked.CompareExchange(ref dateTimeInfo, temp, null);
+                    Interlocked.CompareExchange(ref _dateTimeInfo, temp, null);
                 }
-                return (dateTimeInfo);
+                return (_dateTimeInfo);
             }
 
             set
@@ -979,7 +979,7 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value), SR.ArgumentNull_Obj);
                 }
                 VerifyWritable();
-                dateTimeInfo = value;
+                _dateTimeInfo = value;
             }
         }
 
@@ -1132,13 +1132,13 @@ namespace System.Globalization
             //they've already been allocated.  If this is a derived type, we'll take a more generic codepath.
             if (!_isInherited)
             {
-                if (this.dateTimeInfo != null)
+                if (_dateTimeInfo != null)
                 {
-                    ci.dateTimeInfo = (DateTimeFormatInfo)this.dateTimeInfo.Clone();
+                    ci._dateTimeInfo = (DateTimeFormatInfo)_dateTimeInfo.Clone();
                 }
-                if (this.numInfo != null)
+                if (_numInfo != null)
                 {
-                    ci.numInfo = (NumberFormatInfo)this.numInfo.Clone();
+                    ci._numInfo = (NumberFormatInfo)_numInfo.Clone();
                 }
             }
             else
@@ -1179,13 +1179,13 @@ namespace System.Globalization
                 //they've already been allocated.  If this is a derived type, we'll take a more generic codepath.
                 if (!ci._isInherited)
                 {
-                    if (ci.dateTimeInfo != null)
+                    if (ci._dateTimeInfo != null)
                     {
-                        newInfo.dateTimeInfo = DateTimeFormatInfo.ReadOnly(ci.dateTimeInfo);
+                        newInfo._dateTimeInfo = DateTimeFormatInfo.ReadOnly(ci._dateTimeInfo);
                     }
-                    if (ci.numInfo != null)
+                    if (ci._numInfo != null)
                     {
-                        newInfo.numInfo = NumberFormatInfo.ReadOnly(ci.numInfo);
+                        newInfo._numInfo = NumberFormatInfo.ReadOnly(ci._numInfo);
                     }
                 }
                 else

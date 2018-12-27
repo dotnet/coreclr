@@ -1399,8 +1399,8 @@ class CultureInfoBaseObject : public Object
 private:
     OBJECTREF _compareInfo;
     OBJECTREF _textInfo;
-    OBJECTREF numInfo;
-    OBJECTREF dateTimeInfo;
+    OBJECTREF _numInfo;
+    OBJECTREF _dateTimeInfo;
     OBJECTREF _calendar;
     OBJECTREF _cultureData;
     OBJECTREF _consoleFallbackCulture;
