@@ -26,7 +26,7 @@ using Internal.Runtime.CompilerServices;
 namespace System
 {
     [Serializable]
-    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
+    [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public abstract class Enum : ValueType, IComparable, IFormattable, IConvertible
     {
         #region Private Constants
@@ -69,8 +69,7 @@ namespace System
         private static IEnumBridge CreateEnumBridge(Type enumType)
         {
             Type underlyingType = GetUnderlyingTypeInternal(enumType);
-            Type operatorsType = underlyingType != null ? GetOperatorsType(underlyingType) : null;
-            return operatorsType != null ? (IEnumBridge)Activator.CreateInstance(typeof(EnumBridge<,,>).MakeGenericType(enumType, underlyingType, operatorsType)) : null;
+            return underlyingType != null ? (IEnumBridge)Activator.CreateInstance(typeof(EnumBridge<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations))) : null;
         }
 
         private static Type GetUnderlyingTypeInternal(Type enumType)
@@ -89,118 +88,56 @@ namespace System
             return fields[0].FieldType;
         }
 
-        private static Type GetOperatorsType(Type underlyingType)
-        {
-            switch (Type.GetTypeCode(underlyingType))
-            {
-                case TypeCode.SByte:
-                    return typeof(SByteOperators);
-                case TypeCode.Byte:
-                    return typeof(ByteOperators);
-                case TypeCode.Int16:
-                    return typeof(Int16Operators);
-                case TypeCode.UInt16:
-                    return typeof(UInt16Operators);
-                case TypeCode.Int32:
-                    return typeof(Int32Operators);
-                case TypeCode.UInt32:
-                    return typeof(UInt32Operators);
-                case TypeCode.Int64:
-                    return typeof(Int64Operators);
-                case TypeCode.UInt64:
-                    return typeof(UInt64Operators);
-                case TypeCode.Boolean:
-                    return typeof(BooleanOperators);
-                case TypeCode.Char:
-                    return typeof(CharOperators);
-                case TypeCode.Single:
-                    return typeof(SingleOperators);
-                case TypeCode.Double:
-                    return typeof(DoubleOperators);
-                default:
-                    if (underlyingType == typeof(IntPtr))
-                    {
-                        return typeof(IntPtrOperators);
-                    }
-                    if (underlyingType == typeof(UIntPtr))
-                    {
-                        return typeof(UIntPtrOperators);
-                    }
-                    return null;
-            }
-        }
-
         internal static ulong ToUInt64(object value, bool throwInvalidOperationException = true)
         {
             Debug.Assert(value != null);
 
             // Helper function to silently convert the value to UInt64 from the other base types for enum without throwing an exception.
-            // This is need since the Convert functions do overflow checks.
-            TypeCode typeCode = Convert.GetTypeCode(value);
-
-            ulong result;
-            switch (typeCode)
+            // This is needed since the Convert functions do overflow checks.
+            switch (Convert.GetTypeCode(value))
             {
                 case TypeCode.SByte:
-                    result = (ulong)(sbyte)value;
-                    break;
+                    return (ulong)(sbyte)value;
                 case TypeCode.Byte:
-                    result = (byte)value;
-                    break;
+                    return (byte)value;
                 case TypeCode.Boolean:
                     // direct cast from bool to byte is not allowed
-                    result = Convert.ToByte((bool)value);
-                    break;
+                    return Convert.ToByte((bool)value);
                 case TypeCode.Int16:
-                    result = (ulong)(short)value;
-                    break;
+                    return (ulong)(short)value;
                 case TypeCode.UInt16:
-                    result = (ushort)value;
-                    break;
+                    return (ushort)value;
                 case TypeCode.Char:
-                    result = (char)value;
-                    break;
+                    return (char)value;
                 case TypeCode.UInt32:
-                    result = (uint)value;
-                    break;
+                    return (uint)value;
                 case TypeCode.Int32:
-                    result = (ulong)(int)value;
-                    break;
+                    return (ulong)(int)value;
                 case TypeCode.UInt64:
-                    result = (ulong)value;
-                    break;
+                    return (ulong)value;
                 case TypeCode.Int64:
-                    result = (ulong)(long)value;
-                    break;
+                    return (ulong)(long)value;
                 case TypeCode.Single:
-                    result = (ulong)BitConverter.SingleToInt32Bits((float)value);
-                    break;
+                    return (ulong)BitConverter.SingleToInt32Bits((float)value);
                 case TypeCode.Double:
-                    result = (ulong)BitConverter.DoubleToInt64Bits((double)value);
-                    break;
+                    return (ulong)BitConverter.DoubleToInt64Bits((double)value);
                 // All unsigned types will be directly cast
                 default:
                     Type type = value.GetType();
                     if (type == typeof(IntPtr))
                     {
-                        result = (ulong)(IntPtr)value;
+                        return (ulong)(long)(IntPtr)value;
                     }
-                    else if (type == typeof(UIntPtr))
+                    if (type == typeof(UIntPtr))
                     {
-                        result = (ulong)(UIntPtr)value;
+                        return (ulong)(UIntPtr)value;
                     }
-                    else
+                    if (throwInvalidOperationException)
                     {
-                        if (throwInvalidOperationException)
-                        {
-                            throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
-                        }
-                        throw new ArgumentException(SR.Arg_MustBeEnumBaseTypeOrEnum, nameof(value));
+                        throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
                     }
-                    break;
+                    throw new ArgumentException(SR.Arg_MustBeEnumBaseTypeOrEnum, nameof(value));
             }
-
-            return result;
         }
         #endregion
 
@@ -242,7 +179,7 @@ namespace System
             GetBridge(enumType).TryParse(value.AsSpan(), ignoreCase, out result);
 
         public static bool TryParse<TEnum>(string value, out TEnum result) where TEnum : struct =>
-            TryParse<TEnum>(value, ignoreCase: false, out result);
+            TryParse(value, ignoreCase: false, out result);
 
         public static bool TryParse<TEnum>(string value, bool ignoreCase, out TEnum result) where TEnum : struct
         {
@@ -277,8 +214,15 @@ namespace System
             return names;
         }
 
-        public static object ToObject(Type enumType, object value) =>
-            GetBridge(enumType).ToObject(value);
+        public static object ToObject(Type enumType, object value)
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            return GetBridge(enumType).ToObject(value);
+        }
 
         public static bool IsDefined(Type enumType, object value) =>
             GetBridge(enumType).IsDefined(value);
@@ -307,8 +251,8 @@ namespace System
             int Count { get; }
             TypeCode TypeCode { get; }
 
-            int CompareTo(Enum value, object other);
-            bool Equals(Enum value, object other);
+            int CompareTo(Enum value, object target);
+            bool Equals(Enum value, object obj);
             string Format(object value, string format);
             int GetHashCode(Enum value);
             string GetName(object value);
@@ -347,14 +291,14 @@ namespace System
             bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result);
         }
 
-        private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperators> : IEnumBridge<TEnum>
+        private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperations> : IEnumBridge<TEnum>
             where TEnum : struct, Enum
             where TUnderlying : struct, IEquatable<TUnderlying>
-            where TUnderlyingOperators : struct, IUnderlyingOperators<TUnderlying>
+            where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
-            private static readonly TUnderlyingOperators s_operators = new TUnderlyingOperators();
+            private static readonly TUnderlyingOperations s_operations = new TUnderlyingOperations();
 
-            private static readonly EnumCache<TUnderlying, TUnderlyingOperators> s_cache = new EnumCache<TUnderlying, TUnderlyingOperators>(typeof(TEnum));
+            private static readonly EnumCache<TUnderlying, TUnderlyingOperations> s_cache = new EnumCache<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             private static TUnderlying ToUnderlying(TEnum value) => Unsafe.As<TEnum, TUnderlying>(ref value);
@@ -388,7 +332,7 @@ namespace System
                 return success;
             }
 
-            public int CompareTo(TEnum value, TEnum other) => s_operators.CompareTo(ToUnderlying(value), ToUnderlying(other));
+            public int CompareTo(TEnum value, TEnum other) => s_operations.CompareTo(ToUnderlying(value), ToUnderlying(other));
 
             public bool Equals(TEnum value, TEnum other) => ToUnderlying(value).Equals(ToUnderlying(other));
 
@@ -396,16 +340,21 @@ namespace System
 
             public IEnumerable<string> GetNames() => s_cache.GetNames();
 
-            public int CompareTo(Enum value, object other)
+            public int CompareTo(Enum value, object target)
             {
-                Debug.Assert(other != null);
+                Debug.Assert(target != null);
 
-                return s_operators.CompareTo(ToUnderlying((TEnum)value), ToUnderlying(ToEnum(other)));
+                return s_operations.CompareTo(ToUnderlying((TEnum)value), ToUnderlying(ToEnum(target)));
             }
 
-            public bool Equals(Enum value, object other) => other is TEnum enumValue ? ToUnderlying((TEnum)value).Equals(ToUnderlying(enumValue)) : false;
+            public bool Equals(Enum value, object obj) => obj is TEnum enumValue ? ToUnderlying((TEnum)value).Equals(ToUnderlying(enumValue)) : false;
 
-            public string Format(object value, string format) => s_cache.Format(value is TUnderlying underlyingValue ? underlyingValue : ToUnderlying(ToEnum(value)), format);
+            public string Format(object value, string format)
+            {
+                Debug.Assert(value != null);
+
+                return s_cache.Format(value is TUnderlying underlyingValue ? underlyingValue : ToUnderlying(ToEnum(value)), format);
+            }
 
             public int GetHashCode(Enum value) => ToUnderlying((TEnum)value).GetHashCode();
 
@@ -415,59 +364,66 @@ namespace System
 
             public Array GetValues()
             {
-                TEnum[] array = new TEnum[Count];
+                EnumCache<TUnderlying, TUnderlyingOperations>.EnumMembers members = s_cache._members;
+                TEnum[] array = new TEnum[members.Count];
                 int i = 0;
-                foreach (EnumCache<TUnderlying, TUnderlyingOperators>.EnumMemberInternal member in s_cache._members)
+                foreach (EnumCache<TUnderlying, TUnderlyingOperations>.EnumMemberInternal member in members)
                 {
-                    array[i] = ToEnum(member.Value);
-                    ++i;
+                    array[i++] = ToEnum(member.Value);
                 }
                 return array;
             }
 
             public bool HasFlag(Enum value, object flag)
             {
+                Debug.Assert(flag != null);
+
                 TUnderlying underlyingFlag = ToUnderlying(ToEnum(flag));
-                return s_operators.And(ToUnderlying((TEnum)value), underlyingFlag).Equals(underlyingFlag);
+                return s_operations.And(ToUnderlying((TEnum)value), underlyingFlag).Equals(underlyingFlag);
             }
 
             public bool IsDefined(object value) => value is TEnum enumValue ? s_cache.IsDefined(ToUnderlying(enumValue)) : s_cache.IsDefined(value);
 
             object IEnumBridge.Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(s_cache.Parse(value, ignoreCase));
 
-            public bool ToBoolean(Enum value) => s_operators.ToBoolean(ToUnderlying((TEnum)value));
+            public bool ToBoolean(Enum value) => s_operations.ToBoolean(ToUnderlying((TEnum)value));
 
-            public byte ToByte(Enum value) => s_operators.ToByte(ToUnderlying((TEnum)value));
+            public byte ToByte(Enum value) => s_operations.ToByte(ToUnderlying((TEnum)value));
 
-            public char ToChar(Enum value) => s_operators.ToChar(ToUnderlying((TEnum)value));
+            public char ToChar(Enum value) => s_operations.ToChar(ToUnderlying((TEnum)value));
 
-            public decimal ToDecimal(Enum value) => s_operators.ToDecimal(ToUnderlying((TEnum)value));
+            public decimal ToDecimal(Enum value) => s_operations.ToDecimal(ToUnderlying((TEnum)value));
 
-            public double ToDouble(Enum value) => s_operators.ToDouble(ToUnderlying((TEnum)value));
+            public double ToDouble(Enum value) => s_operations.ToDouble(ToUnderlying((TEnum)value));
 
-            public short ToInt16(Enum value) => s_operators.ToInt16(ToUnderlying((TEnum)value));
+            public short ToInt16(Enum value) => s_operations.ToInt16(ToUnderlying((TEnum)value));
 
-            public int ToInt32(Enum value) => s_operators.ToInt32(ToUnderlying((TEnum)value));
+            public int ToInt32(Enum value) => s_operations.ToInt32(ToUnderlying((TEnum)value));
 
-            public long ToInt64(Enum value) => s_operators.ToInt64(ToUnderlying((TEnum)value));
+            public long ToInt64(Enum value) => s_operations.ToInt64(ToUnderlying((TEnum)value));
 
-            public object ToObject(object value) => ToEnum(s_cache.ToObject(value));
+            public object ToObject(object value)
+            {
+                Debug.Assert(value != null);
 
-            public object ToObject(ulong value) => ToEnum(s_operators.ToObject(value));
+                return ToEnum(s_operations.ToObject(Enum.ToUInt64(value, throwInvalidOperationException: false)));
+            }
 
-            public sbyte ToSByte(Enum value) => s_operators.ToSByte(ToUnderlying((TEnum)value));
+            public object ToObject(ulong value) => ToEnum(s_operations.ToObject(value));
 
-            public float ToSingle(Enum value) => s_operators.ToSingle(ToUnderlying((TEnum)value));
+            public sbyte ToSByte(Enum value) => s_operations.ToSByte(ToUnderlying((TEnum)value));
+
+            public float ToSingle(Enum value) => s_operations.ToSingle(ToUnderlying((TEnum)value));
 
             public string ToString(Enum value) => s_cache.ToString(ToUnderlying((TEnum)value));
 
             public string ToString(Enum value, string format) => s_cache.ToString(ToUnderlying((TEnum)value), format);
 
-            public ushort ToUInt16(Enum value) => s_operators.ToUInt16(ToUnderlying((TEnum)value));
+            public ushort ToUInt16(Enum value) => s_operations.ToUInt16(ToUnderlying((TEnum)value));
 
-            public uint ToUInt32(Enum value) => s_operators.ToUInt32(ToUnderlying((TEnum)value));
+            public uint ToUInt32(Enum value) => s_operations.ToUInt32(ToUnderlying((TEnum)value));
 
-            public ulong ToUInt64(Enum value) => s_operators.ToUInt64(ToUnderlying((TEnum)value));
+            public ulong ToUInt64(Enum value) => s_operations.ToUInt64(ToUnderlying((TEnum)value));
 
             public bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result)
             {
@@ -479,11 +435,11 @@ namespace System
         #endregion
 
         #region EnumCache
-        private sealed class EnumCache<TUnderlying, TUnderlyingOperators>
+        private sealed class EnumCache<TUnderlying, TUnderlyingOperations>
             where TUnderlying : struct, IEquatable<TUnderlying>
-            where TUnderlyingOperators : struct, IUnderlyingOperators<TUnderlying>
+            where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
-            private static readonly TUnderlyingOperators s_operators = new TUnderlyingOperators();
+            private static readonly TUnderlyingOperations s_operations = new TUnderlyingOperations();
 
             private readonly Type _enumType;
 
@@ -494,7 +450,7 @@ namespace System
             public EnumCache(Type enumType)
             {
                 _enumType = enumType;
-                _isFlagEnum = enumType.IsDefined(typeof(FlagsAttribute), false);
+                _isFlagEnum = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
 
                 FieldInfo[] fields = enumType.GetFields(BindingFlags.Public | BindingFlags.Static);
                 EnumMembers members = new EnumMembers(fields.Length);
@@ -515,16 +471,6 @@ namespace System
                 }
             }
 
-            public TUnderlying ToObject(object value)
-            {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
-
-                return s_operators.ToObject(ToUInt64(value, false));
-            }
-
             public string GetName(TUnderlying value) => _members.TryGetValue(value, out EnumMemberInternal member) ? member.Name : null;
 
             public string GetName(object value)
@@ -535,8 +481,8 @@ namespace System
                     throw new ArgumentNullException(nameof(value));
                 }
 
-                ulong uint64Value = ToUInt64(value, false);
-                return s_operators.IsInValueRange(uint64Value) ? GetName(s_operators.ToObject(uint64Value)) : null;
+                ulong uint64Value = ToUInt64(value, throwInvalidOperationException: false);
+                return s_operations.IsInValueRange(uint64Value) ? GetName(s_operations.ToObject(uint64Value)) : null;
             }
 
             public bool IsDefined(TUnderlying value) => _members.IndexOf(value) >= 0;
@@ -550,7 +496,7 @@ namespace System
                     case TUnderlying underlyingValue:
                         return IsDefined(underlyingValue);
                     case string str:
-                        return _members.TryGetValue(str.AsSpan(), false, out _);
+                        return _members.TryGetValue(str.AsSpan(), ignoreCase: false, out _);
                     case null:
                         throw new ArgumentNullException(nameof(value));
                     default:
@@ -623,7 +569,7 @@ namespace System
                         return value.ToString();
                     case 'X':
                     case 'x':
-                        return s_operators.ToHexStr(value);
+                        return s_operations.ToHexStr(value);
                     case 'F':
                     case 'f':
                         return ToStringFlags(value);
@@ -637,11 +583,19 @@ namespace System
                 // Values are sorted, so if the incoming value is 0, we can check to see whether
                 // the first entry matches it, in which case we can return its name; otherwise,
                 // we can just return "0".
-                if (value.Equals(s_operators.Zero))
+                if (value.Equals(s_operations.Zero))
                 {
-                    return _members.Count > 0 && _members[0].Value.Equals(s_operators.Zero) ?
+                    return _members.Count > 0 && _members[0].Value.Equals(s_operations.Zero) ?
                         _members[0].Name :
                         "0";
+                }
+
+                // Walk from largest to smallest. It's common to have a flags enum with a single
+                // value that matches a single entry, in which case we can just return the existing
+                // name string.
+                if (_members.TryGetValue(value, out EnumMemberInternal member))
+                {
+                    return member.Name;
                 }
 
                 // With a ulong result value, regardless of the enum's base type, the maximum
@@ -650,42 +604,22 @@ namespace System
                 // their names, we effectively switch off those bits.
                 Span<int> foundItems = stackalloc int[64];
 
-                // Walk from largest to smallest. It's common to have a flags enum with a single
-                // value that matches a single entry, in which case we can just return the existing
-                // name string.
-                int index = _members.Count - 1;
-                while (index >= 0)
-                {
-                    EnumMemberInternal member = _members[index];
-                    if (member.Value.Equals(value))
-                    {
-                        return member.Name;
-                    }
-
-                    if (s_operators.LessThan(member.Value, value))
-                    {
-                        break;
-                    }
-
-                    index--;
-                }
-
                 // Now look for multiple matches, storing the indices of the values
                 // into our span.
+                int index = _members.Count - 1;
                 int resultLength = 0, foundItemsCount = 0;
                 while (index >= 0)
                 {
                     TUnderlying currentValue = _members[index].Value;
-                    if (index == 0 && currentValue.Equals(s_operators.Zero))
+                    if (s_operations.And(value, currentValue).Equals(currentValue))
                     {
-                        break;
-                    }
-
-                    if (s_operators.And(value, currentValue).Equals(currentValue))
-                    {
-                        value = s_operators.Subtract(value, currentValue);
+                        value = s_operations.Subtract(value, currentValue);
                         foundItems[foundItemsCount++] = index;
                         resultLength = checked(resultLength + _members[index].Name.Length);
+                        if (value.Equals(s_operations.Zero))
+                        {
+                            break;
+                        }
                     }
 
                     index--;
@@ -695,7 +629,7 @@ namespace System
                 // a non-zero result, we couldn't match the result to only named values.
                 // In that case, we return null and let the call site just generate
                 // a string for the integral value.
-                if (!value.Equals(s_operators.Zero))
+                if (!value.Equals(s_operations.Zero))
                 {
                     return null;
                 }
@@ -750,7 +684,7 @@ namespace System
                 }
                 if (status == Number.ParsingStatus.Overflow)
                 {
-                    throw new OverflowException(s_operators.OverflowMessage);
+                    throw new OverflowException(s_operations.OverflowMessage);
                 }
                 if (value.Length == 0)
                 {
@@ -770,7 +704,7 @@ namespace System
                     char firstNonWhitespaceChar = value[0];
                     if (char.IsInRange(firstNonWhitespaceChar, '0', '9') || firstNonWhitespaceChar == '-' || firstNonWhitespaceChar == '+')
                     {
-                        status = s_operators.TryParse(value, out result);
+                        status = s_operations.TryParse(value, out result);
                         if (status != Number.ParsingStatus.Failed)
                         {
                             return status;
@@ -803,7 +737,7 @@ namespace System
 
                         if (_members.TryGetValue(subvalue, ignoreCase, out EnumMemberInternal member))
                         {
-                            localResult = s_operators.Or(localResult, member.Value);
+                            localResult = s_operations.Or(localResult, member.Value);
                         }
                         else
                         {
@@ -827,8 +761,6 @@ namespace System
                     Value = value;
                     Name = name;
                 }
-
-                public int CompareTo(EnumMemberInternal other) => s_operators.ToUInt64Unchecked(Value).CompareTo(s_operators.ToUInt64Unchecked(other.Value));
             }
 
             public sealed class EnumMembers
@@ -936,7 +868,7 @@ namespace System
                         index = _count;
                         for (; index > 0; --index)
                         {
-                            if (member.CompareTo(_entries[index - 1].Member) > 0)
+                            if (s_operations.ToUInt64Unchecked(member.Value).CompareTo(s_operations.ToUInt64Unchecked(_entries[index - 1].Member.Value)) > 0)
                             {
                                 break;
                             }
@@ -1044,8 +976,8 @@ namespace System
         }
         #endregion
 
-        #region UnderlyingOperators
-        private interface IUnderlyingOperators<TUnderlying>
+        #region UnderlyingOperations
+        private interface IUnderlyingOperations<TUnderlying>
             where TUnderlying : struct, IEquatable<TUnderlying>
         {
             TUnderlying Zero { get; }
@@ -1075,56 +1007,1057 @@ namespace System
             Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out TUnderlying result);
         }
 
-        private struct ByteOperators : IUnderlyingOperators<byte>
+        private readonly struct UnderlyingOperations : IUnderlyingOperations<byte>, IUnderlyingOperations<sbyte>, IUnderlyingOperations<short>, IUnderlyingOperations<ushort>, IUnderlyingOperations<int>, IUnderlyingOperations<uint>, IUnderlyingOperations<long>, IUnderlyingOperations<ulong>, IUnderlyingOperations<bool>, IUnderlyingOperations<char>, IUnderlyingOperations<float>, IUnderlyingOperations<double>, IUnderlyingOperations<IntPtr>, IUnderlyingOperations<UIntPtr>
         {
-            public byte Zero => 0;
+            #region Zero
+            byte IUnderlyingOperations<byte>.Zero => 0;
 
-            public string OverflowMessage => SR.Overflow_Byte;
+            sbyte IUnderlyingOperations<sbyte>.Zero => 0;
 
+            short IUnderlyingOperations<short>.Zero => 0;
+
+            ushort IUnderlyingOperations<ushort>.Zero => 0;
+
+            int IUnderlyingOperations<int>.Zero => 0;
+
+            uint IUnderlyingOperations<uint>.Zero => 0;
+
+            long IUnderlyingOperations<long>.Zero => 0;
+
+            ulong IUnderlyingOperations<ulong>.Zero => 0;
+
+            bool IUnderlyingOperations<bool>.Zero => false;
+
+            char IUnderlyingOperations<char>.Zero => (char)0;
+
+            float IUnderlyingOperations<float>.Zero => default;
+
+            double IUnderlyingOperations<double>.Zero => default;
+
+            IntPtr IUnderlyingOperations<IntPtr>.Zero => IntPtr.Zero;
+
+            UIntPtr IUnderlyingOperations<UIntPtr>.Zero => UIntPtr.Zero;
+            #endregion
+
+            #region OverflowMessage
+            string IUnderlyingOperations<byte>.OverflowMessage => SR.Overflow_Byte;
+
+            string IUnderlyingOperations<sbyte>.OverflowMessage => SR.Overflow_SByte;
+
+            string IUnderlyingOperations<short>.OverflowMessage => SR.Overflow_Int16;
+
+            string IUnderlyingOperations<ushort>.OverflowMessage => SR.Overflow_UInt16;
+
+            string IUnderlyingOperations<int>.OverflowMessage => SR.Overflow_Int32;
+
+            string IUnderlyingOperations<uint>.OverflowMessage => SR.Overflow_UInt32;
+
+            string IUnderlyingOperations<long>.OverflowMessage => SR.Overflow_Int64;
+
+            string IUnderlyingOperations<ulong>.OverflowMessage => SR.Overflow_UInt64;
+
+            string IUnderlyingOperations<bool>.OverflowMessage => null;
+
+            string IUnderlyingOperations<char>.OverflowMessage => null;
+
+            string IUnderlyingOperations<float>.OverflowMessage => null;
+
+            string IUnderlyingOperations<double>.OverflowMessage => null;
+
+            string IUnderlyingOperations<IntPtr>.OverflowMessage
+            {
+                get
+                {
+#if BIT64
+                    return SR.Overflow_Int64;
+#else
+                    return SR.Overflow_Int32;
+#endif
+                }
+            }
+
+            string IUnderlyingOperations<UIntPtr>.OverflowMessage
+            {
+                get
+                {
+#if BIT64
+                    return SR.Overflow_UInt64;
+#else
+                    return SR.Overflow_UInt32;
+#endif
+                }
+            }
+            #endregion
+
+            #region And
             public byte And(byte left, byte right) => (byte)(left & right);
 
+            public sbyte And(sbyte left, sbyte right) => (sbyte)(left & right);
+
+            public short And(short left, short right) => (short)(left & right);
+
+            public ushort And(ushort left, ushort right) => (ushort)(left & right);
+
+            public int And(int left, int right) => left & right;
+
+            public uint And(uint left, uint right) => left & right;
+
+            public long And(long left, long right) => left & right;
+
+            public ulong And(ulong left, ulong right) => left & right;
+
+            public bool And(bool left, bool right) => left & right;
+
+            public char And(char left, char right) => (char)(left & right);
+
+            public float And(float left, float right) => BitConverter.Int32BitsToSingle(BitConverter.SingleToInt32Bits(left) & BitConverter.SingleToInt32Bits(right));
+
+            public double And(double left, double right) => BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(left) & BitConverter.DoubleToInt64Bits(right));
+
+            public IntPtr And(IntPtr left, IntPtr right)
+            {
+#if BIT64
+                return (IntPtr)((long)left & (long)right);
+#else
+                return (IntPtr)((int)left & (int)right);
+#endif
+            }
+
+            public UIntPtr And(UIntPtr left, UIntPtr right)
+            {
+#if BIT64
+                return (UIntPtr)((ulong)left & (ulong)right);
+#else
+                return (UIntPtr)((uint)left & (uint)right);
+#endif
+            }
+            #endregion
+
+            #region CompareTo
             public int CompareTo(byte left, byte right) => left.CompareTo(right);
 
-            public bool IsInValueRange(ulong value) => value <= byte.MaxValue;
+            public int CompareTo(sbyte left, sbyte right) => left.CompareTo(right);
 
+            public int CompareTo(short left, short right) => left.CompareTo(right);
+
+            public int CompareTo(ushort left, ushort right) => left.CompareTo(right);
+
+            public int CompareTo(int left, int right) => left.CompareTo(right);
+
+            public int CompareTo(uint left, uint right) => left.CompareTo(right);
+
+            public int CompareTo(long left, long right) => left.CompareTo(right);
+
+            public int CompareTo(ulong left, ulong right) => left.CompareTo(right);
+
+            public int CompareTo(bool left, bool right) => left.CompareTo(right);
+
+            public int CompareTo(char left, char right) => left.CompareTo(right);
+
+            public int CompareTo(float left, float right) => BitConverter.SingleToInt32Bits(left).CompareTo(BitConverter.SingleToInt32Bits(right));
+
+            public int CompareTo(double left, double right) => BitConverter.DoubleToInt64Bits(left).CompareTo(BitConverter.DoubleToInt64Bits(right));
+
+            public int CompareTo(IntPtr left, IntPtr right)
+            {
+#if BIT64
+                return ((long)left).CompareTo((long)right);
+#else
+                return ((int)left).CompareTo((int)right);
+#endif
+            }
+
+            public int CompareTo(UIntPtr left, UIntPtr right)
+            {
+#if BIT64
+                return ((ulong)left).CompareTo((ulong)right);
+#else
+                return ((uint)left).CompareTo((uint)right);
+#endif
+            }
+            #endregion
+
+            #region IsInValueRange
+            bool IUnderlyingOperations<byte>.IsInValueRange(ulong value) => value <= byte.MaxValue;
+
+            bool IUnderlyingOperations<sbyte>.IsInValueRange(ulong value) => value <= (ulong)sbyte.MaxValue || value >= unchecked((ulong)sbyte.MinValue);
+
+            bool IUnderlyingOperations<short>.IsInValueRange(ulong value) => value <= (ulong)short.MaxValue || value >= unchecked((ulong)short.MinValue);
+
+            bool IUnderlyingOperations<ushort>.IsInValueRange(ulong value) => value <= ushort.MaxValue;
+
+            bool IUnderlyingOperations<int>.IsInValueRange(ulong value) => value <= int.MaxValue || value >= unchecked((ulong)int.MinValue);
+
+            bool IUnderlyingOperations<uint>.IsInValueRange(ulong value) => value <= uint.MaxValue;
+
+            bool IUnderlyingOperations<long>.IsInValueRange(ulong value) => true;
+
+            bool IUnderlyingOperations<ulong>.IsInValueRange(ulong value) => true;
+
+            bool IUnderlyingOperations<bool>.IsInValueRange(ulong value) => value <= bool.True;
+
+            bool IUnderlyingOperations<char>.IsInValueRange(ulong value) => value <= char.MaxValue;
+
+            bool IUnderlyingOperations<float>.IsInValueRange(ulong value) => value <= int.MaxValue || value >= unchecked((ulong)int.MinValue);
+
+            bool IUnderlyingOperations<double>.IsInValueRange(ulong value) => true;
+
+            bool IUnderlyingOperations<IntPtr>.IsInValueRange(ulong value)
+            {
+#if BIT64
+                return true;
+#else
+                return value <= int.MaxValue || value >= unchecked((ulong)int.MinValue);
+#endif
+            }
+
+            bool IUnderlyingOperations<UIntPtr>.IsInValueRange(ulong value)
+            {
+#if BIT64
+                return true;
+#else
+                return value <= uint.MaxValue;
+#endif
+            }
+            #endregion
+
+            #region LessThan
             public bool LessThan(byte left, byte right) => left < right;
 
+            public bool LessThan(sbyte left, sbyte right) => left < right;
+
+            public bool LessThan(short left, short right) => left < right;
+
+            public bool LessThan(ushort left, ushort right) => left < right;
+
+            public bool LessThan(int left, int right) => left < right;
+
+            public bool LessThan(uint left, uint right) => left < right;
+
+            public bool LessThan(long left, long right) => left < right;
+
+            public bool LessThan(ulong left, ulong right) => left < right;
+
+            public bool LessThan(bool left, bool right) => !left & right;
+
+            public bool LessThan(char left, char right) => left < right;
+
+            public bool LessThan(float left, float right) => BitConverter.SingleToInt32Bits(left) < BitConverter.SingleToInt32Bits(right);
+
+            public bool LessThan(double left, double right) => BitConverter.DoubleToInt64Bits(left) < BitConverter.DoubleToInt64Bits(right);
+
+            public bool LessThan(IntPtr left, IntPtr right)
+            {
+#if BIT64
+                return (long)left < (long)right;
+#else
+                return (int)left < (int)right;
+#endif
+            }
+
+            public bool LessThan(UIntPtr left, UIntPtr right)
+            {
+#if BIT64
+                return (ulong)left < (ulong)right;
+#else
+                return (uint)left < (uint)right;
+#endif
+            }
+            #endregion
+
+            #region Or
             public byte Or(byte left, byte right) => (byte)(left | right);
 
+            public sbyte Or(sbyte left, sbyte right) => (sbyte)(left | right);
+
+            public short Or(short left, short right) => (short)(left | right);
+
+            public ushort Or(ushort left, ushort right) => (ushort)(left | right);
+
+            public int Or(int left, int right) => left | right;
+
+            public uint Or(uint left, uint right) => left | right;
+
+            public long Or(long left, long right) => left | right;
+
+            public ulong Or(ulong left, ulong right) => left | right;
+
+            public bool Or(bool left, bool right) => left | right;
+
+            public char Or(char left, char right) => (char)(left | right);
+
+            public float Or(float left, float right) => BitConverter.Int32BitsToSingle(BitConverter.SingleToInt32Bits(left) | BitConverter.SingleToInt32Bits(right));
+
+            public double Or(double left, double right) => BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(left) | BitConverter.DoubleToInt64Bits(right));
+
+            public IntPtr Or(IntPtr left, IntPtr right)
+            {
+#if BIT64
+                return (IntPtr)((long)left | (long)right);
+#else
+                return (IntPtr)((int)left | (int)right);
+#endif
+            }
+
+            public UIntPtr Or(UIntPtr left, UIntPtr right)
+            {
+#if BIT64
+                return (UIntPtr)((ulong)left | (ulong)right);
+#else
+                return (UIntPtr)((uint)left | (uint)right);
+#endif
+            }
+            #endregion
+
+            #region Subtract
             public byte Subtract(byte left, byte right) => (byte)(left - right);
 
+            public sbyte Subtract(sbyte left, sbyte right) => (sbyte)(left - right);
+
+            public short Subtract(short left, short right) => (short)(left - right);
+
+            public ushort Subtract(ushort left, ushort right) => (ushort)(left - right);
+
+            public int Subtract(int left, int right) => left - right;
+
+            public uint Subtract(uint left, uint right) => left - right;
+
+            public long Subtract(long left, long right) => left - right;
+
+            public ulong Subtract(ulong left, ulong right) => left - right;
+
+            public bool Subtract(bool left, bool right) => left ^ right;
+
+            public char Subtract(char left, char right) => (char)(left - right);
+
+            public float Subtract(float left, float right) => BitConverter.Int32BitsToSingle(BitConverter.SingleToInt32Bits(left) - BitConverter.SingleToInt32Bits(right));
+
+            public double Subtract(double left, double right) => BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(left) - BitConverter.DoubleToInt64Bits(right));
+
+            public IntPtr Subtract(IntPtr left, IntPtr right)
+            {
+#if BIT64
+                return (IntPtr)((long)left - (long)right);
+#else
+                return (IntPtr)((int)left - (int)right);
+#endif
+            }
+
+            public UIntPtr Subtract(UIntPtr left, UIntPtr right)
+            {
+#if BIT64
+                return (UIntPtr)((ulong)left - (ulong)right);
+#else
+                return (UIntPtr)((uint)left - (uint)right);
+#endif
+            }
+            #endregion
+
+            #region ToBoolean
             public bool ToBoolean(byte value) => Convert.ToBoolean(value);
 
+            public bool ToBoolean(sbyte value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(short value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(ushort value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(int value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(uint value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(long value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(ulong value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(bool value) => value;
+
+            public bool ToBoolean(char value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(float value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(double value) => Convert.ToBoolean(value);
+
+            public bool ToBoolean(IntPtr value)
+            {
+#if BIT64
+                return Convert.ToBoolean((long)value);
+#else
+                return Convert.ToBoolean((int)value);
+#endif
+            }
+
+            public bool ToBoolean(UIntPtr value)
+            {
+#if BIT64
+                return Convert.ToBoolean((ulong)value);
+#else
+                return Convert.ToBoolean((uint)value);
+#endif
+            }
+            #endregion
+
+            #region ToByte
             public byte ToByte(byte value) => value;
 
+            public byte ToByte(sbyte value) => Convert.ToByte(value);
+
+            public byte ToByte(short value) => Convert.ToByte(value);
+
+            public byte ToByte(ushort value) => Convert.ToByte(value);
+
+            public byte ToByte(int value) => Convert.ToByte(value);
+
+            public byte ToByte(uint value) => Convert.ToByte(value);
+
+            public byte ToByte(long value) => Convert.ToByte(value);
+
+            public byte ToByte(ulong value) => Convert.ToByte(value);
+
+            public byte ToByte(bool value) => Convert.ToByte(value);
+
+            public byte ToByte(char value) => Convert.ToByte(value);
+
+            public byte ToByte(float value) => Convert.ToByte(value);
+
+            public byte ToByte(double value) => Convert.ToByte(value);
+
+            public byte ToByte(IntPtr value)
+            {
+#if BIT64
+                return Convert.ToByte((long)value);
+#else
+                return Convert.ToByte((int)value);
+#endif
+            }
+
+            public byte ToByte(UIntPtr value)
+            {
+#if BIT64
+                return Convert.ToByte((ulong)value);
+#else
+                return Convert.ToByte((uint)value);
+#endif
+            }
+            #endregion
+
+            #region ToChar
             public char ToChar(byte value) => (char)value;
 
+            public char ToChar(sbyte value) => Convert.ToChar(value);
+
+            public char ToChar(short value) => Convert.ToChar(value);
+
+            public char ToChar(ushort value) => (char)value;
+
+            public char ToChar(int value) => Convert.ToChar(value);
+
+            public char ToChar(uint value) => Convert.ToChar(value);
+
+            public char ToChar(long value) => Convert.ToChar(value);
+
+            public char ToChar(ulong value) => Convert.ToChar(value);
+
+            public char ToChar(bool value) => Convert.ToChar(value);
+
+            public char ToChar(char value) => value;
+
+            public char ToChar(float value) => Convert.ToChar(value);
+
+            public char ToChar(double value) => Convert.ToChar(value);
+
+            public char ToChar(IntPtr value)
+            {
+#if BIT64
+                return Convert.ToChar((long)value);
+#else
+                return Convert.ToChar((int)value);
+#endif
+            }
+
+            public char ToChar(UIntPtr value)
+            {
+#if BIT64
+                return Convert.ToChar((ulong)value);
+#else
+                return Convert.ToChar((uint)value);
+#endif
+            }
+            #endregion
+
+            #region ToDecimal
             public decimal ToDecimal(byte value) => value;
 
+            public decimal ToDecimal(sbyte value) => value;
+
+            public decimal ToDecimal(short value) => value;
+
+            public decimal ToDecimal(ushort value) => value;
+
+            public decimal ToDecimal(int value) => value;
+
+            public decimal ToDecimal(uint value) => value;
+
+            public decimal ToDecimal(long value) => value;
+
+            public decimal ToDecimal(ulong value) => value;
+
+            public decimal ToDecimal(bool value) => Convert.ToDecimal(value);
+
+            public decimal ToDecimal(char value) => value;
+
+            public decimal ToDecimal(float value) => (decimal)value;
+
+            public decimal ToDecimal(double value) => (decimal)value;
+
+            public decimal ToDecimal(IntPtr value)
+            {
+#if BIT64
+                return (long)value;
+#else
+                return (int)value;
+#endif
+            }
+
+            public decimal ToDecimal(UIntPtr value)
+            {
+#if BIT64
+                return (ulong)value;
+#else
+                return (uint)value;
+#endif
+            }
+            #endregion
+
+            #region ToDouble
             public double ToDouble(byte value) => value;
 
+            public double ToDouble(sbyte value) => value;
+
+            public double ToDouble(short value) => value;
+
+            public double ToDouble(ushort value) => value;
+
+            public double ToDouble(int value) => value;
+
+            public double ToDouble(uint value) => value;
+
+            public double ToDouble(long value) => value;
+
+            public double ToDouble(ulong value) => value;
+
+            public double ToDouble(bool value) => Convert.ToDouble(value);
+
+            public double ToDouble(char value) => value;
+
+            public double ToDouble(float value) => value;
+
+            public double ToDouble(double value) => value;
+
+            public double ToDouble(IntPtr value)
+            {
+#if BIT64
+                return (long)value;
+#else
+                return (int)value;
+#endif
+            }
+
+            public double ToDouble(UIntPtr value)
+            {
+#if BIT64
+                return (ulong)value;
+#else
+                return (uint)value;
+#endif
+            }
+            #endregion
+
+            #region ToHexStr
             public string ToHexStr(byte value) => Number.Int32ToHexStr(value, '7', 2);
 
+            public string ToHexStr(sbyte value) => Number.Int32ToHexStr(value, '7', 2);
+
+            public string ToHexStr(short value) => Number.Int32ToHexStr(value, '7', 4);
+
+            public string ToHexStr(ushort value) => Number.Int32ToHexStr(value, '7', 4);
+
+            public string ToHexStr(int value) => Number.Int32ToHexStr(value, '7', 8);
+
+            public string ToHexStr(uint value) => Number.Int32ToHexStr((int)value, '7', 8);
+
+            public string ToHexStr(long value) => Number.Int64ToHexStr(value, '7', 16);
+
+            public string ToHexStr(ulong value) => Number.Int64ToHexStr((long)value, '7', 16);
+
+            public string ToHexStr(bool value) => Convert.ToByte(value).ToString("X2");
+
+            public string ToHexStr(char value) => ((ushort)value).ToString("X4");
+
+            public string ToHexStr(float value) => BitConverter.SingleToInt32Bits(value).ToString("X8");
+
+            public string ToHexStr(double value) => BitConverter.DoubleToInt64Bits(value).ToString("X16");
+
+            public string ToHexStr(IntPtr value)
+            {
+#if BIT64
+                return ((long)value).ToString("X16");
+#else
+                return ((int)value).ToString("X8");
+#endif
+            }
+
+            public string ToHexStr(UIntPtr value)
+            {
+#if BIT64
+                return ((ulong)value).ToString("X16");
+#else
+                return ((uint)value).ToString("X8");
+#endif
+            }
+            #endregion
+
+            #region ToInt16
             public short ToInt16(byte value) => value;
 
+            public short ToInt16(sbyte value) => value;
+
+            public short ToInt16(short value) => value;
+
+            public short ToInt16(ushort value) => Convert.ToInt16(value);
+
+            public short ToInt16(int value) => Convert.ToInt16(value);
+
+            public short ToInt16(uint value) => Convert.ToInt16(value);
+
+            public short ToInt16(long value) => Convert.ToInt16(value);
+
+            public short ToInt16(ulong value) => Convert.ToInt16(value);
+
+            public short ToInt16(bool value) => Convert.ToInt16(value);
+
+            public short ToInt16(char value) => Convert.ToInt16(value);
+
+            public short ToInt16(float value) => Convert.ToInt16(value);
+
+            public short ToInt16(double value) => Convert.ToInt16(value);
+
+            public short ToInt16(IntPtr value)
+            {
+#if BIT64
+                return Convert.ToInt16((long)value);
+#else
+                return Convert.ToInt16((int)value);
+#endif
+            }
+
+            public short ToInt16(UIntPtr value)
+            {
+#if BIT64
+                return Convert.ToInt16((ulong)value);
+#else
+                return Convert.ToInt16((uint)value);
+#endif
+            }
+            #endregion
+
+            #region ToInt32
             public int ToInt32(byte value) => value;
 
+            public int ToInt32(sbyte value) => value;
+
+            public int ToInt32(short value) => value;
+
+            public int ToInt32(ushort value) => value;
+
+            public int ToInt32(int value) => value;
+
+            public int ToInt32(uint value) => Convert.ToInt32(value);
+
+            public int ToInt32(long value) => Convert.ToInt32(value);
+
+            public int ToInt32(ulong value) => Convert.ToInt32(value);
+
+            public int ToInt32(bool value) => Convert.ToInt32(value);
+
+            public int ToInt32(char value) => value;
+
+            public int ToInt32(float value) => Convert.ToInt32(value);
+
+            public int ToInt32(double value) => Convert.ToInt32(value);
+
+            public int ToInt32(IntPtr value)
+            {
+#if BIT64
+                return Convert.ToInt32((long)value);
+#else
+                return (int)value;
+#endif
+            }
+
+            public int ToInt32(UIntPtr value)
+            {
+#if BIT64
+                return Convert.ToInt32((ulong)value);
+#else
+                return Convert.ToInt32((uint)value);
+#endif
+            }
+            #endregion
+
+            #region ToInt64
             public long ToInt64(byte value) => value;
 
-            public byte ToObject(ulong value) => (byte)value;
+            public long ToInt64(sbyte value) => value;
 
+            public long ToInt64(short value) => value;
+
+            public long ToInt64(ushort value) => value;
+
+            public long ToInt64(int value) => value;
+
+            public long ToInt64(uint value) => value;
+
+            public long ToInt64(long value) => value;
+
+            public long ToInt64(ulong value) => Convert.ToInt64(value);
+
+            public long ToInt64(bool value) => Convert.ToInt64(value);
+
+            public long ToInt64(char value) => value;
+
+            public long ToInt64(float value) => Convert.ToInt64(value);
+
+            public long ToInt64(double value) => Convert.ToInt64(value);
+
+            public long ToInt64(IntPtr value)
+            {
+#if BIT64
+                return (long)value;
+#else
+                return (int)value;
+#endif
+            }
+
+            public long ToInt64(UIntPtr value)
+            {
+#if BIT64
+                return Convert.ToInt64((ulong)value);
+#else
+                return (uint)value;
+#endif
+            }
+            #endregion
+
+            #region ToObject
+            byte IUnderlyingOperations<byte>.ToObject(ulong value) => (byte)value;
+
+            sbyte IUnderlyingOperations<sbyte>.ToObject(ulong value) => (sbyte)value;
+
+            short IUnderlyingOperations<short>.ToObject(ulong value) => (short)value;
+
+            ushort IUnderlyingOperations<ushort>.ToObject(ulong value) => (ushort)value;
+
+            int IUnderlyingOperations<int>.ToObject(ulong value) => (int)value;
+
+            uint IUnderlyingOperations<uint>.ToObject(ulong value) => (uint)value;
+
+            long IUnderlyingOperations<long>.ToObject(ulong value) => (long)value;
+
+            ulong IUnderlyingOperations<ulong>.ToObject(ulong value) => value;
+
+            bool IUnderlyingOperations<bool>.ToObject(ulong value) => value != 0UL;
+
+            char IUnderlyingOperations<char>.ToObject(ulong value) => (char)value;
+
+            float IUnderlyingOperations<float>.ToObject(ulong value) => BitConverter.Int32BitsToSingle((int)value);
+
+            double IUnderlyingOperations<double>.ToObject(ulong value) => BitConverter.Int64BitsToDouble((long)value);
+
+            IntPtr IUnderlyingOperations<IntPtr>.ToObject(ulong value)
+            {
+#if BIT64
+                return (IntPtr)(long)value;
+#else
+                return (IntPtr)(int)value;
+#endif
+            }
+
+            UIntPtr IUnderlyingOperations<UIntPtr>.ToObject(ulong value)
+            {
+#if BIT64
+                return (UIntPtr)value;
+#else
+                return (UIntPtr)(uint)value;
+#endif
+            }
+            #endregion
+
+            #region ToSByte
             public sbyte ToSByte(byte value) => Convert.ToSByte(value);
 
+            public sbyte ToSByte(sbyte value) => value;
+
+            public sbyte ToSByte(short value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(ushort value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(int value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(uint value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(long value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(ulong value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(bool value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(char value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(float value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(double value) => Convert.ToSByte(value);
+
+            public sbyte ToSByte(IntPtr value)
+            {
+#if BIT64
+                return Convert.ToSByte((long)value);
+#else
+                return Convert.ToSByte((int)value);
+#endif
+            }
+
+            public sbyte ToSByte(UIntPtr value)
+            {
+#if BIT64
+                return Convert.ToSByte((ulong)value);
+#else
+                return Convert.ToSByte((uint)value);
+#endif
+            }
+            #endregion
+
+            #region ToSingle
             public float ToSingle(byte value) => value;
 
+            public float ToSingle(sbyte value) => value;
+
+            public float ToSingle(short value) => value;
+
+            public float ToSingle(ushort value) => value;
+
+            public float ToSingle(int value) => value;
+
+            public float ToSingle(uint value) => value;
+
+            public float ToSingle(long value) => value;
+
+            public float ToSingle(ulong value) => value;
+
+            public float ToSingle(bool value) => Convert.ToSingle(value);
+
+            public float ToSingle(char value) => value;
+
+            public float ToSingle(float value) => value;
+
+            public float ToSingle(double value) => (float)value;
+
+            public float ToSingle(IntPtr value)
+            {
+#if BIT64
+                return (long)value;
+#else
+                return (int)value;
+#endif
+            }
+
+            public float ToSingle(UIntPtr value)
+            {
+#if BIT64
+                return (ulong)value;
+#else
+                return (uint)value;
+#endif
+            }
+            #endregion
+
+            #region ToUInt16
             public ushort ToUInt16(byte value) => value;
 
+            public ushort ToUInt16(sbyte value) => Convert.ToUInt16(value);
+
+            public ushort ToUInt16(short value) => Convert.ToUInt16(value);
+
+            public ushort ToUInt16(ushort value) => value;
+
+            public ushort ToUInt16(int value) => Convert.ToUInt16(value);
+
+            public ushort ToUInt16(uint value) => Convert.ToUInt16(value);
+
+            public ushort ToUInt16(long value) => Convert.ToUInt16(value);
+
+            public ushort ToUInt16(ulong value) => Convert.ToUInt16(value);
+
+            public ushort ToUInt16(bool value) => Convert.ToUInt16(value);
+
+            public ushort ToUInt16(char value) => value;
+
+            public ushort ToUInt16(float value) => Convert.ToUInt16(value);
+
+            public ushort ToUInt16(double value) => Convert.ToUInt16(value);
+
+            public ushort ToUInt16(IntPtr value)
+            {
+#if BIT64
+                return Convert.ToUInt16((long)value);
+#else
+                return Convert.ToUInt16((int)value);
+#endif
+            }
+
+            public ushort ToUInt16(UIntPtr value)
+            {
+#if BIT64
+                return Convert.ToUInt16((ulong)value);
+#else
+                return Convert.ToUInt16((uint)value);
+#endif
+            }
+            #endregion
+
+            #region ToUInt32
             public uint ToUInt32(byte value) => value;
 
+            public uint ToUInt32(sbyte value) => Convert.ToUInt32(value);
+
+            public uint ToUInt32(short value) => Convert.ToUInt32(value);
+
+            public uint ToUInt32(ushort value) => value;
+
+            public uint ToUInt32(int value) => Convert.ToUInt32(value);
+
+            public uint ToUInt32(uint value) => value;
+
+            public uint ToUInt32(long value) => Convert.ToUInt32(value);
+
+            public uint ToUInt32(ulong value) => Convert.ToUInt32(value);
+
+            public uint ToUInt32(bool value) => Convert.ToUInt32(value);
+
+            public uint ToUInt32(char value) => value;
+
+            public uint ToUInt32(float value) => Convert.ToUInt32(value);
+
+            public uint ToUInt32(double value) => Convert.ToUInt32(value);
+
+            public uint ToUInt32(IntPtr value)
+            {
+#if BIT64
+                return Convert.ToUInt32((long)value);
+#else
+                return Convert.ToUInt32((int)value);
+#endif
+            }
+
+            public uint ToUInt32(UIntPtr value)
+            {
+#if BIT64
+                return Convert.ToUInt32((ulong)value);
+#else
+                return (uint)value;
+#endif
+            }
+            #endregion
+
+            #region ToUInt64
             public ulong ToUInt64(byte value) => value;
 
+            public ulong ToUInt64(sbyte value) => Convert.ToUInt64(value);
+
+            public ulong ToUInt64(short value) => Convert.ToUInt64(value);
+
+            public ulong ToUInt64(ushort value) => value;
+
+            public ulong ToUInt64(int value) => Convert.ToUInt64(value);
+
+            public ulong ToUInt64(uint value) => value;
+
+            public ulong ToUInt64(long value) => Convert.ToUInt64(value);
+
+            public ulong ToUInt64(ulong value) => value;
+
+            public ulong ToUInt64(bool value) => Convert.ToUInt64(value);
+
+            public ulong ToUInt64(char value) => value;
+
+            public ulong ToUInt64(float value) => Convert.ToUInt64(value);
+
+            public ulong ToUInt64(double value) => Convert.ToUInt64(value);
+
+            public ulong ToUInt64(IntPtr value)
+            {
+#if BIT64
+                return Convert.ToUInt64((long)value);
+#else
+                return Convert.ToUInt64((int)value);
+#endif
+            }
+
+            public ulong ToUInt64(UIntPtr value)
+            {
+#if BIT64
+                return (ulong)value;
+#else
+                return (uint)value;
+#endif
+            }
+            #endregion
+
+            #region ToUInt64Unchecked
             public ulong ToUInt64Unchecked(byte value) => value;
 
+            public ulong ToUInt64Unchecked(sbyte value) => (ulong)value;
+
+            public ulong ToUInt64Unchecked(short value) => (ulong)value;
+
+            public ulong ToUInt64Unchecked(ushort value) => value;
+
+            public ulong ToUInt64Unchecked(int value) => (ulong)value;
+
+            public ulong ToUInt64Unchecked(uint value) => value;
+
+            public ulong ToUInt64Unchecked(long value) => (ulong)value;
+
+            public ulong ToUInt64Unchecked(ulong value) => value;
+
+            public ulong ToUInt64Unchecked(bool value) => Convert.ToUInt64(value);
+
+            public ulong ToUInt64Unchecked(char value) => value;
+
+            public ulong ToUInt64Unchecked(float value) => (ulong)BitConverter.SingleToInt32Bits(value);
+
+            public ulong ToUInt64Unchecked(double value) => (ulong)BitConverter.DoubleToInt64Bits(value);
+
+            public ulong ToUInt64Unchecked(IntPtr value)
+            {
+#if BIT64
+                return (ulong)(long)value;
+#else
+                return (ulong)(int)value;
+#endif
+            }
+
+            public ulong ToUInt64Unchecked(UIntPtr value)
+            {
+#if BIT64
+                return (ulong)value;
+#else
+                return (uint)value;
+#endif
+            }
+            #endregion
+
+            #region TryParse
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out byte result)
             {
                 Number.ParsingStatus status = Number.TryParseUInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out uint i);
@@ -1135,57 +2068,6 @@ namespace System
                 result = (byte)i;
                 return status;
             }
-        }
-
-        private struct SByteOperators : IUnderlyingOperators<sbyte>
-        {
-            public sbyte Zero => 0;
-
-            public string OverflowMessage => SR.Overflow_SByte;
-
-            public sbyte And(sbyte left, sbyte right) => (sbyte)(left & right);
-
-            public int CompareTo(sbyte left, sbyte right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => value <= (ulong)sbyte.MaxValue || value >= unchecked((ulong)sbyte.MinValue);
-
-            public bool LessThan(sbyte left, sbyte right) => left < right;
-
-            public sbyte Or(sbyte left, sbyte right) => (sbyte)(left | right);
-
-            public sbyte Subtract(sbyte left, sbyte right) => (sbyte)(left - right);
-
-            public bool ToBoolean(sbyte value) => Convert.ToBoolean(value);
-
-            public byte ToByte(sbyte value) => Convert.ToByte(value);
-
-            public char ToChar(sbyte value) => Convert.ToChar(value);
-
-            public decimal ToDecimal(sbyte value) => value;
-
-            public double ToDouble(sbyte value) => value;
-
-            public string ToHexStr(sbyte value) => Number.Int32ToHexStr(value, '7', 2);
-
-            public short ToInt16(sbyte value) => value;
-
-            public int ToInt32(sbyte value) => value;
-
-            public long ToInt64(sbyte value) => value;
-
-            public sbyte ToObject(ulong value) => (sbyte)value;
-
-            public sbyte ToSByte(sbyte value) => value;
-
-            public float ToSingle(sbyte value) => value;
-
-            public ushort ToUInt16(sbyte value) => Convert.ToUInt16(value);
-
-            public uint ToUInt32(sbyte value) => Convert.ToUInt32(value);
-
-            public ulong ToUInt64(sbyte value) => Convert.ToUInt64(value);
-
-            public ulong ToUInt64Unchecked(sbyte value) => (ulong)value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out sbyte result)
             {
@@ -1197,57 +2079,6 @@ namespace System
                 result = (sbyte)i;
                 return status;
             }
-        }
-
-        private struct Int16Operators : IUnderlyingOperators<short>
-        {
-            public short Zero => 0;
-
-            public string OverflowMessage => SR.Overflow_Int16;
-
-            public short And(short left, short right) => (short)(left & right);
-
-            public int CompareTo(short left, short right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => value <= (ulong)short.MaxValue || value >= unchecked((ulong)short.MinValue);
-
-            public bool LessThan(short left, short right) => left < right;
-
-            public short Or(short left, short right) => (short)(left | right);
-
-            public short Subtract(short left, short right) => (short)(left - right);
-
-            public bool ToBoolean(short value) => Convert.ToBoolean(value);
-
-            public byte ToByte(short value) => Convert.ToByte(value);
-
-            public char ToChar(short value) => Convert.ToChar(value);
-
-            public decimal ToDecimal(short value) => value;
-
-            public double ToDouble(short value) => value;
-
-            public string ToHexStr(short value) => Number.Int32ToHexStr(value, '7', 4);
-
-            public short ToInt16(short value) => value;
-
-            public int ToInt32(short value) => value;
-
-            public long ToInt64(short value) => value;
-
-            public short ToObject(ulong value) => (short)value;
-
-            public sbyte ToSByte(short value) => Convert.ToSByte(value);
-
-            public float ToSingle(short value) => value;
-
-            public ushort ToUInt16(short value) => Convert.ToUInt16(value);
-
-            public uint ToUInt32(short value) => Convert.ToUInt32(value);
-
-            public ulong ToUInt64(short value) => Convert.ToUInt64(value);
-
-            public ulong ToUInt64Unchecked(short value) => (ulong)value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out short result)
             {
@@ -1259,57 +2090,6 @@ namespace System
                 result = (short)i;
                 return status;
             }
-        }
-
-        private struct UInt16Operators : IUnderlyingOperators<ushort>
-        {
-            public ushort Zero => 0;
-
-            public string OverflowMessage => SR.Overflow_UInt16;
-
-            public ushort And(ushort left, ushort right) => (ushort)(left & right);
-
-            public int CompareTo(ushort left, ushort right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => value <= ushort.MaxValue;
-
-            public bool LessThan(ushort left, ushort right) => left < right;
-
-            public ushort Or(ushort left, ushort right) => (ushort)(left | right);
-
-            public ushort Subtract(ushort left, ushort right) => (ushort)(left - right);
-
-            public bool ToBoolean(ushort value) => Convert.ToBoolean(value);
-
-            public byte ToByte(ushort value) => Convert.ToByte(value);
-
-            public char ToChar(ushort value) => (char)value;
-
-            public decimal ToDecimal(ushort value) => value;
-
-            public double ToDouble(ushort value) => value;
-
-            public string ToHexStr(ushort value) => Number.Int32ToHexStr(value, '7', 4);
-
-            public short ToInt16(ushort value) => Convert.ToInt16(value);
-
-            public int ToInt32(ushort value) => value;
-
-            public long ToInt64(ushort value) => value;
-
-            public ushort ToObject(ulong value) => (ushort)value;
-
-            public sbyte ToSByte(ushort value) => Convert.ToSByte(value);
-
-            public float ToSingle(ushort value) => value;
-
-            public ushort ToUInt16(ushort value) => value;
-
-            public uint ToUInt32(ushort value) => value;
-
-            public ulong ToUInt64(ushort value) => value;
-
-            public ulong ToUInt64Unchecked(ushort value) => value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out ushort result)
             {
@@ -1321,322 +2101,16 @@ namespace System
                 result = (ushort)i;
                 return status;
             }
-        }
-
-        private struct Int32Operators : IUnderlyingOperators<int>
-        {
-            public int Zero => 0;
-
-            public string OverflowMessage => SR.Overflow_Int32;
-
-            public int And(int left, int right) => left & right;
-
-            public int CompareTo(int left, int right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => value <= int.MaxValue || value >= unchecked((ulong)int.MinValue);
-
-            public bool LessThan(int left, int right) => left < right;
-
-            public int Or(int left, int right) => left | right;
-
-            public int Subtract(int left, int right) => left - right;
-
-            public bool ToBoolean(int value) => Convert.ToBoolean(value);
-
-            public byte ToByte(int value) => Convert.ToByte(value);
-
-            public char ToChar(int value) => Convert.ToChar(value);
-
-            public decimal ToDecimal(int value) => value;
-
-            public double ToDouble(int value) => value;
-
-            public string ToHexStr(int value) => Number.Int32ToHexStr(value, '7', 8);
-
-            public short ToInt16(int value) => Convert.ToInt16(value);
-
-            public int ToInt32(int value) => value;
-
-            public long ToInt64(int value) => value;
-
-            public int ToObject(ulong value) => (int)value;
-
-            public sbyte ToSByte(int value) => Convert.ToSByte(value);
-
-            public float ToSingle(int value) => value;
-
-            public ushort ToUInt16(int value) => Convert.ToUInt16(value);
-
-            public uint ToUInt32(int value) => Convert.ToUInt32(value);
-
-            public ulong ToUInt64(int value) => Convert.ToUInt64(value);
-
-            public ulong ToUInt64Unchecked(int value) => (ulong)value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out int result) => Number.TryParseInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out result);
-        }
-
-        private struct UInt32Operators : IUnderlyingOperators<uint>
-        {
-            public uint Zero => 0;
-
-            public string OverflowMessage => SR.Overflow_UInt32;
-
-            public uint And(uint left, uint right) => left & right;
-
-            public int CompareTo(uint left, uint right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => value <= uint.MaxValue;
-
-            public bool LessThan(uint left, uint right) => left < right;
-
-            public uint Or(uint left, uint right) => left | right;
-
-            public uint Subtract(uint left, uint right) => left - right;
-
-            public bool ToBoolean(uint value) => Convert.ToBoolean(value);
-
-            public byte ToByte(uint value) => Convert.ToByte(value);
-
-            public char ToChar(uint value) => Convert.ToChar(value);
-
-            public decimal ToDecimal(uint value) => value;
-
-            public double ToDouble(uint value) => value;
-
-            public string ToHexStr(uint value) => Number.Int32ToHexStr((int)value, '7', 8);
-
-            public short ToInt16(uint value) => Convert.ToInt16(value);
-
-            public int ToInt32(uint value) => Convert.ToInt32(value);
-
-            public long ToInt64(uint value) => value;
-
-            public uint ToObject(ulong value) => (uint)value;
-
-            public sbyte ToSByte(uint value) => Convert.ToSByte(value);
-
-            public float ToSingle(uint value) => value;
-
-            public ushort ToUInt16(uint value) => Convert.ToUInt16(value);
-
-            public uint ToUInt32(uint value) => value;
-
-            public ulong ToUInt64(uint value) => value;
-
-            public ulong ToUInt64Unchecked(uint value) => value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out uint result) => Number.TryParseUInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out result);
-        }
-
-        private struct Int64Operators : IUnderlyingOperators<long>
-        {
-            public long Zero => 0;
-
-            public string OverflowMessage => SR.Overflow_Int64;
-
-            public long And(long left, long right) => left & right;
-
-            public int CompareTo(long left, long right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => true;
-
-            public bool LessThan(long left, long right) => left < right;
-
-            public long Or(long left, long right) => left | right;
-
-            public long Subtract(long left, long right) => left - right;
-
-            public bool ToBoolean(long value) => Convert.ToBoolean(value);
-
-            public byte ToByte(long value) => Convert.ToByte(value);
-
-            public char ToChar(long value) => Convert.ToChar(value);
-
-            public decimal ToDecimal(long value) => value;
-
-            public double ToDouble(long value) => value;
-
-            public string ToHexStr(long value) => Number.Int64ToHexStr(value, '7', 16);
-
-            public short ToInt16(long value) => Convert.ToInt16(value);
-
-            public int ToInt32(long value) => Convert.ToInt32(value);
-
-            public long ToInt64(long value) => value;
-
-            public long ToObject(ulong value) => (long)value;
-
-            public sbyte ToSByte(long value) => Convert.ToSByte(value);
-
-            public float ToSingle(long value) => value;
-
-            public ushort ToUInt16(long value) => Convert.ToUInt16(value);
-
-            public uint ToUInt32(long value) => Convert.ToUInt32(value);
-
-            public ulong ToUInt64(long value) => Convert.ToUInt64(value);
-
-            public ulong ToUInt64Unchecked(long value) => (ulong)value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out long result) => Number.TryParseInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out result);
-        }
-
-        private struct UInt64Operators : IUnderlyingOperators<ulong>
-        {
-            public ulong Zero => 0;
-
-            public string OverflowMessage => SR.Overflow_UInt64;
-
-            public ulong And(ulong left, ulong right) => left & right;
-
-            public int CompareTo(ulong left, ulong right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => true;
-
-            public bool LessThan(ulong left, ulong right) => left < right;
-
-            public ulong Or(ulong left, ulong right) => left | right;
-
-            public ulong Subtract(ulong left, ulong right) => left - right;
-
-            public bool ToBoolean(ulong value) => Convert.ToBoolean(value);
-
-            public byte ToByte(ulong value) => Convert.ToByte(value);
-
-            public char ToChar(ulong value) => Convert.ToChar(value);
-
-            public decimal ToDecimal(ulong value) => value;
-
-            public double ToDouble(ulong value) => value;
-
-            public string ToHexStr(ulong value) => Number.Int64ToHexStr((long)value, '7', 16);
-
-            public short ToInt16(ulong value) => Convert.ToInt16(value);
-
-            public int ToInt32(ulong value) => Convert.ToInt32(value);
-
-            public long ToInt64(ulong value) => Convert.ToInt64(value);
-
-            public ulong ToObject(ulong value) => value;
-
-            public sbyte ToSByte(ulong value) => Convert.ToSByte(value);
-
-            public float ToSingle(ulong value) => value;
-
-            public ushort ToUInt16(ulong value) => Convert.ToUInt16(value);
-
-            public uint ToUInt32(ulong value) => Convert.ToUInt32(value);
-
-            public ulong ToUInt64(ulong value) => value;
-
-            public ulong ToUInt64Unchecked(ulong value) => value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out ulong result) => Number.TryParseUInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out result);
-        }
-
-        private struct BooleanOperators : IUnderlyingOperators<bool>
-        {
-            public bool Zero => false;
-
-            public string OverflowMessage => null;
-
-            public bool And(bool left, bool right) => left & right;
-
-            public int CompareTo(bool left, bool right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => value <= bool.True;
-
-            public bool LessThan(bool left, bool right) => !left & right;
-
-            public bool Or(bool left, bool right) => left | right;
-
-            public bool Subtract(bool left, bool right) => left ^ right;
-
-            public bool ToBoolean(bool value) => value;
-
-            public byte ToByte(bool value) => Convert.ToByte(value);
-
-            public char ToChar(bool value) => Convert.ToChar(value);
-
-            public decimal ToDecimal(bool value) => Convert.ToDecimal(value);
-
-            public double ToDouble(bool value) => Convert.ToDouble(value);
-
-            public string ToHexStr(bool value) => Convert.ToByte(value).ToString("X2");
-
-            public short ToInt16(bool value) => Convert.ToInt16(value);
-
-            public int ToInt32(bool value) => Convert.ToInt32(value);
-
-            public long ToInt64(bool value) => Convert.ToInt64(value);
-
-            public bool ToObject(ulong value) => value != 0UL;
-
-            public sbyte ToSByte(bool value) => Convert.ToSByte(value);
-
-            public float ToSingle(bool value) => Convert.ToSingle(value);
-
-            public ushort ToUInt16(bool value) => Convert.ToUInt16(value);
-
-            public uint ToUInt32(bool value) => Convert.ToUInt32(value);
-
-            public ulong ToUInt64(bool value) => Convert.ToUInt64(value);
-
-            public ulong ToUInt64Unchecked(bool value) => Convert.ToUInt64(value);
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out bool result) => bool.TryParse(span, out result) ? Number.ParsingStatus.OK : Number.ParsingStatus.Failed;
-        }
-
-        private struct CharOperators : IUnderlyingOperators<char>
-        {
-            public char Zero => (char)0;
-
-            public string OverflowMessage => SR.Overflow_Char;
-
-            public char And(char left, char right) => (char)(left & right);
-
-            public int CompareTo(char left, char right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => value <= char.MaxValue;
-
-            public bool LessThan(char left, char right) => left < right;
-
-            public char Or(char left, char right) => (char)(left | right);
-
-            public char Subtract(char left, char right) => (char)(left - right);
-
-            public bool ToBoolean(char value) => Convert.ToBoolean(value);
-
-            public byte ToByte(char value) => Convert.ToByte(value);
-
-            public char ToChar(char value) => value;
-
-            public decimal ToDecimal(char value) => value;
-
-            public double ToDouble(char value) => value;
-
-            public string ToHexStr(char value) => ((ushort)value).ToString("X4");
-
-            public short ToInt16(char value) => Convert.ToInt16(value);
-
-            public int ToInt32(char value) => value;
-
-            public long ToInt64(char value) => value;
-
-            public char ToObject(ulong value) => (char)value;
-
-            public sbyte ToSByte(char value) => Convert.ToSByte(value);
-
-            public float ToSingle(char value) => value;
-
-            public ushort ToUInt16(char value) => value;
-
-            public uint ToUInt32(char value) => value;
-
-            public ulong ToUInt64(char value) => value;
-
-            public ulong ToUInt64Unchecked(char value) => value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out char result)
             {
@@ -1644,252 +2118,43 @@ namespace System
                 result = success ? span[0] : default;
                 return success ? Number.ParsingStatus.OK : Number.ParsingStatus.Failed;
             }
-        }
-
-        private struct SingleOperators : IUnderlyingOperators<float>
-        {
-            public float Zero => default;
-
-            public string OverflowMessage => SR.Overflow_Int32;
-
-            public float And(float left, float right) => BitConverter.Int32BitsToSingle(BitConverter.SingleToInt32Bits(left) & BitConverter.SingleToInt32Bits(right));
-
-            public int CompareTo(float left, float right) => BitConverter.SingleToInt32Bits(left).CompareTo(BitConverter.SingleToInt32Bits(right));
-
-            public bool IsInValueRange(ulong value) => value <= int.MaxValue || value >= unchecked((ulong)int.MinValue);
-
-            public bool LessThan(float left, float right) => BitConverter.SingleToInt32Bits(left) < BitConverter.SingleToInt32Bits(right);
-
-            public float Or(float left, float right) => BitConverter.Int32BitsToSingle(BitConverter.SingleToInt32Bits(left) | BitConverter.SingleToInt32Bits(right));
-
-            public float Subtract(float left, float right) => BitConverter.Int32BitsToSingle(BitConverter.SingleToInt32Bits(left) - BitConverter.SingleToInt32Bits(right));
-
-            public bool ToBoolean(float value) => Convert.ToBoolean(value);
-
-            public byte ToByte(float value) => Convert.ToByte(value);
-
-            public char ToChar(float value) => Convert.ToChar(value);
-
-            public decimal ToDecimal(float value) => (decimal)value;
-
-            public double ToDouble(float value) => value;
-
-            public string ToHexStr(float value) => BitConverter.SingleToInt32Bits(value).ToString("X8");
-
-            public short ToInt16(float value) => Convert.ToInt16(value);
-
-            public int ToInt32(float value) => Convert.ToInt32(value);
-
-            public long ToInt64(float value) => Convert.ToInt64(value);
-
-            public float ToObject(ulong value) => BitConverter.Int32BitsToSingle((int)value);
-
-            public sbyte ToSByte(float value) => Convert.ToSByte(value);
-
-            public float ToSingle(float value) => value;
-
-            public ushort ToUInt16(float value) => Convert.ToUInt16(value);
-
-            public uint ToUInt32(float value) => Convert.ToUInt32(value);
-
-            public ulong ToUInt64(float value) => Convert.ToUInt64(value);
-
-            public ulong ToUInt64Unchecked(float value) => (ulong)BitConverter.SingleToInt32Bits(value);
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out float result)
             {
                 return Number.TryParseSingle(span, NumberStyles.AllowTrailingWhite | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent, CultureInfo.InvariantCulture.NumberFormat, out result) ? Number.ParsingStatus.OK : Number.ParsingStatus.Failed;
             }
-        }
-
-        private struct DoubleOperators : IUnderlyingOperators<double>
-        {
-            public double Zero => default;
-
-            public string OverflowMessage => SR.Overflow_Int64;
-
-            public double And(double left, double right) => BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(left) & BitConverter.DoubleToInt64Bits(right));
-
-            public int CompareTo(double left, double right) => left.CompareTo(right);
-
-            public bool IsInValueRange(ulong value) => true;
-
-            public bool LessThan(double left, double right) => BitConverter.DoubleToInt64Bits(left) < BitConverter.DoubleToInt64Bits(right);
-
-            public double Or(double left, double right) => BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(left) | BitConverter.DoubleToInt64Bits(right));
-
-            public double Subtract(double left, double right) => BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(left) - BitConverter.DoubleToInt64Bits(right));
-
-            public bool ToBoolean(double value) => Convert.ToBoolean(value);
-
-            public byte ToByte(double value) => Convert.ToByte(value);
-
-            public char ToChar(double value) => Convert.ToChar(value);
-
-            public decimal ToDecimal(double value) => (decimal)value;
-
-            public double ToDouble(double value) => value;
-
-            public string ToHexStr(double value) => BitConverter.DoubleToInt64Bits(value).ToString("X16");
-
-            public short ToInt16(double value) => Convert.ToInt16(value);
-
-            public int ToInt32(double value) => Convert.ToInt32(value);
-
-            public long ToInt64(double value) => Convert.ToInt64(value);
-
-            public double ToObject(ulong value) => BitConverter.Int64BitsToDouble((long)value);
-
-            public sbyte ToSByte(double value) => Convert.ToSByte(value);
-
-            public float ToSingle(double value) => (float)value;
-
-            public ushort ToUInt16(double value) => Convert.ToUInt16(value);
-
-            public uint ToUInt32(double value) => Convert.ToUInt32(value);
-
-            public ulong ToUInt64(double value) => Convert.ToUInt64(value);
-
-            public ulong ToUInt64Unchecked(double value) => (ulong)BitConverter.DoubleToInt64Bits(value);
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out double result)
             {
                 return Number.TryParseDouble(span, NumberStyles.AllowTrailingWhite | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent, CultureInfo.InvariantCulture.NumberFormat, out result) ? Number.ParsingStatus.OK : Number.ParsingStatus.Failed;
             }
-        }
-
-        private struct IntPtrOperators : IUnderlyingOperators<IntPtr>
-        {
-            public IntPtr Zero => IntPtr.Zero;
-
-            public string OverflowMessage => IntPtr.Size == 4 ? SR.Overflow_Int32 : SR.Overflow_Int64;
-
-            public IntPtr And(IntPtr left, IntPtr right) => IntPtr.Size == 4 ? (IntPtr)((int)left & (int)right) : (IntPtr)((long)left & (long)right);
-
-            public int CompareTo(IntPtr left, IntPtr right) => IntPtr.Size == 4 ? ((int)left).CompareTo((int)right) : ((long)left).CompareTo((long)right);
-
-            public bool IsInValueRange(ulong value) => IntPtr.Size == 8 || (value <= int.MaxValue || value >= unchecked((ulong)int.MinValue));
-
-            public bool LessThan(IntPtr left, IntPtr right) => IntPtr.Size == 4 ? (int)left < (int)right : (long)left < (long)right;
-
-            public IntPtr Or(IntPtr left, IntPtr right) => IntPtr.Size == 4 ? (IntPtr)((int)left | (int)right) : (IntPtr)((long)left | (long)right);
-
-            public IntPtr Subtract(IntPtr left, IntPtr right) => IntPtr.Size == 4 ? (IntPtr)((int)left - (int)right) : (IntPtr)((long)left - (long)right);
-
-            public bool ToBoolean(IntPtr value) => IntPtr.Size == 4 ? Convert.ToBoolean((int)value) : Convert.ToBoolean((long)value);
-
-            public byte ToByte(IntPtr value) => IntPtr.Size == 4 ? Convert.ToByte((int)value) : Convert.ToByte((long)value);
-
-            public char ToChar(IntPtr value) => IntPtr.Size == 4 ? Convert.ToChar((int)value) : Convert.ToChar((long)value);
-
-            public decimal ToDecimal(IntPtr value) => IntPtr.Size == 4 ? (int)value : (long)value;
-
-            public double ToDouble(IntPtr value) => IntPtr.Size == 4 ? (int)value : (long)value;
-
-            public string ToHexStr(IntPtr value) => IntPtr.Size == 4 ? ((int)value).ToString("X8") : ((long)value).ToString("X16");
-
-            public short ToInt16(IntPtr value) => IntPtr.Size == 4 ? Convert.ToInt16((int)value) : Convert.ToInt16((long)value);
-
-            public int ToInt32(IntPtr value) => IntPtr.Size == 4 ? (int)value : Convert.ToInt32((long)value);
-
-            public long ToInt64(IntPtr value) => IntPtr.Size == 4 ? (int)value : (long)value;
-
-            public IntPtr ToObject(ulong value) => IntPtr.Size == 4 ? (IntPtr)(int)value : (IntPtr)(long)value;
-
-            public sbyte ToSByte(IntPtr value) => IntPtr.Size == 4 ? Convert.ToSByte((int)value) : Convert.ToSByte((long)value);
-
-            public float ToSingle(IntPtr value) => IntPtr.Size == 4 ? (int)value : (long)value;
-
-            public ushort ToUInt16(IntPtr value) => IntPtr.Size == 4 ? Convert.ToUInt16((int)value) : Convert.ToUInt16((long)value);
-
-            public uint ToUInt32(IntPtr value) => IntPtr.Size == 4 ? Convert.ToUInt32((int)value) : Convert.ToUInt32((long)value);
-
-            public ulong ToUInt64(IntPtr value) => IntPtr.Size == 4 ? Convert.ToUInt64((int)value) : Convert.ToUInt64((long)value);
-
-            public ulong ToUInt64Unchecked(IntPtr value) => IntPtr.Size == 4 ? (ulong)(int)value : (ulong)(long)value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out IntPtr result)
             {
-                Number.ParsingStatus status;
-                if (IntPtr.Size == 4)
-                {
-                    status = Number.TryParseInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out int int32Result);
-                    result = (IntPtr)int32Result;
-                }
-                else
-                {
-                    status = Number.TryParseInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out long int64Result);
-                    result = (IntPtr)int64Result;
-                }
+#if BIT64
+                Number.ParsingStatus status = Number.TryParseInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out long int64Result);
+                result = (IntPtr)int64Result;
                 return status;
+#else
+                Number.ParsingStatus status = Number.TryParseInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out int int32Result);
+                result = (IntPtr)int32Result;
+                return status;
+#endif
             }
-        }
-
-        private struct UIntPtrOperators : IUnderlyingOperators<UIntPtr>
-        {
-            public UIntPtr Zero => UIntPtr.Zero;
-
-            public string OverflowMessage => UIntPtr.Size == 4 ? SR.Overflow_UInt32 : SR.Overflow_UInt64;
-
-            public UIntPtr And(UIntPtr left, UIntPtr right) => UIntPtr.Size == 4 ? (UIntPtr)((uint)left & (uint)right) : (UIntPtr)((ulong)left & (ulong)right);
-
-            public int CompareTo(UIntPtr left, UIntPtr right) => UIntPtr.Size == 4 ? ((uint)left).CompareTo((uint)right) : ((ulong)left).CompareTo((ulong)right);
-
-            public bool IsInValueRange(ulong value) => UIntPtr.Size == 8 || value <= uint.MaxValue;
-
-            public bool LessThan(UIntPtr left, UIntPtr right) => UIntPtr.Size == 4 ? (uint)left < (uint)right : (ulong)left < (ulong)right;
-
-            public UIntPtr Or(UIntPtr left, UIntPtr right) => UIntPtr.Size == 4 ? (UIntPtr)((uint)left | (uint)right) : (UIntPtr)((ulong)left | (ulong)right);
-
-            public UIntPtr Subtract(UIntPtr left, UIntPtr right) => UIntPtr.Size == 4 ? (UIntPtr)((uint)left - (uint)right) : (UIntPtr)((ulong)left - (ulong)right);
-
-            public bool ToBoolean(UIntPtr value) => UIntPtr.Size == 4 ? Convert.ToBoolean((uint)value) : Convert.ToBoolean((ulong)value);
-
-            public byte ToByte(UIntPtr value) => UIntPtr.Size == 4 ? Convert.ToByte((uint)value) : Convert.ToByte((ulong)value);
-
-            public char ToChar(UIntPtr value) => UIntPtr.Size == 4 ? Convert.ToChar((uint)value) : Convert.ToChar((ulong)value);
-
-            public decimal ToDecimal(UIntPtr value) => UIntPtr.Size == 4 ? (uint)value : (ulong)value;
-
-            public double ToDouble(UIntPtr value) => UIntPtr.Size == 4 ? (uint)value : (ulong)value;
-
-            public string ToHexStr(UIntPtr value) => UIntPtr.Size == 4 ? ((uint)value).ToString("X8") : ((ulong)value).ToString("X16");
-
-            public short ToInt16(UIntPtr value) => UIntPtr.Size == 4 ? Convert.ToInt16((uint)value) : Convert.ToInt16((ulong)value);
-
-            public int ToInt32(UIntPtr value) => UIntPtr.Size == 4 ? Convert.ToInt32((uint)value) : Convert.ToInt32((ulong)value);
-
-            public long ToInt64(UIntPtr value) => UIntPtr.Size == 4 ? Convert.ToInt64((uint)value) : Convert.ToInt64((ulong)value);
-
-            public UIntPtr ToObject(ulong value) => UIntPtr.Size == 4 ? (UIntPtr)(uint)value : (UIntPtr)value;
-
-            public sbyte ToSByte(UIntPtr value) => UIntPtr.Size == 4 ? Convert.ToSByte((uint)value) : Convert.ToSByte((ulong)value);
-
-            public float ToSingle(UIntPtr value) => UIntPtr.Size == 4 ? (uint)value : (ulong)value;
-
-            public ushort ToUInt16(UIntPtr value) => UIntPtr.Size == 4 ? Convert.ToUInt16((uint)value) : Convert.ToUInt16((ulong)value);
-
-            public uint ToUInt32(UIntPtr value) => UIntPtr.Size == 4 ? (uint)value : Convert.ToUInt32((ulong)value);
-
-            public ulong ToUInt64(UIntPtr value) => UIntPtr.Size == 4 ? (uint)value : (ulong)value;
-
-            public ulong ToUInt64Unchecked(UIntPtr value) => UIntPtr.Size == 4 ? (uint)value : (ulong)value;
 
             public Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out UIntPtr result)
             {
-                Number.ParsingStatus status;
-                if (UIntPtr.Size == 4)
-                {
-                    status = Number.TryParseUInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out uint uint32Result);
-                    result = (UIntPtr)uint32Result;
-                }
-                else
-                {
-                    status = Number.TryParseUInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out ulong uint64Result);
-                    result = (UIntPtr)uint64Result;
-                }
+#if BIT64
+                Number.ParsingStatus status = Number.TryParseUInt64IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out ulong uint64Result);
+                result = (UIntPtr)uint64Result;
                 return status;
+#else
+                Number.ParsingStatus status = Number.TryParseUInt32IntegerStyle(span, NumberStyles.AllowLeadingSign | NumberStyles.AllowTrailingWhite, CultureInfo.InvariantCulture.NumberFormat, out uint uint32Result);
+                result = (UIntPtr)uint32Result;
+                return status;
+#endif
             }
+            #endregion
         }
         #endregion
         #endregion
