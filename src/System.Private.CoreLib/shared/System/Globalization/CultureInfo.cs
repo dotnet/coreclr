@@ -29,6 +29,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+#if ENABLE_WINRT
+using Internal.Runtime.Augments;
+#endif
 
 namespace System.Globalization
 {

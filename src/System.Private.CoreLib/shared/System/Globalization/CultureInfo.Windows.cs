@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#if ENABLE_WINRT
-using Internal.Runtime.Augments;
-#endif
 #if FEATURE_APPX
 using System.Resources;
 using Internal.Resources;
