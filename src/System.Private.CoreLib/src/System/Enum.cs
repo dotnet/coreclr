@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Internal.Runtime.CompilerServices;
 
 // The code below includes partial support for float/double and
@@ -202,16 +203,15 @@ namespace System
 
         public static string[] GetNames(Type enumType)
         {
-            IEnumBridge bridge = GetBridge(enumType);
-
-            string[] names = new string[bridge.Count];
+            IReadOnlyList<string> names = GetBridge(enumType).Names;
+            string[] namesArray = new string[names.Count];
             int i = 0;
-            foreach (string name in bridge.GetNames())
+            foreach (string name in names)
             {
-                names[i++] = name;
+                namesArray[i++] = name;
             }
 
-            return names;
+            return namesArray;
         }
 
         public static object ToObject(Type enumType, object value)
@@ -248,15 +248,14 @@ namespace System
         internal interface IEnumBridge
         {
             Type UnderlyingType { get; }
-            int Count { get; }
             TypeCode TypeCode { get; }
+            IReadOnlyList<string> Names { get; }
 
             int CompareTo(Enum value, object target);
             bool Equals(Enum value, object obj);
             string Format(object value, string format);
             int GetHashCode(Enum value);
             string GetName(object value);
-            IEnumerable<string> GetNames();
             object GetUnderlyingValue(Enum value);
             Array GetValues();
             bool HasFlag(Enum value, object flag);
@@ -296,7 +295,7 @@ namespace System
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
-            private static readonly TUnderlyingOperations s_operations = new TUnderlyingOperations();
+            private static readonly TUnderlyingOperations s_operations = new TUnderlyingOperations(); // Should this be cached?
 
             private static readonly EnumCache<TUnderlying, TUnderlyingOperations> s_cache = new EnumCache<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
 
@@ -317,11 +316,11 @@ namespace System
                 return enumValue;
             }
 
-            public Type UnderlyingType { get; } = typeof(TUnderlying);
+            public Type UnderlyingType { get; } = typeof(TUnderlying); // Should this be cached?
 
-            public TypeCode TypeCode { get; } = Type.GetTypeCode(typeof(TUnderlying));
+            public TypeCode TypeCode { get; } = Type.GetTypeCode(typeof(TUnderlying)); // Should this be cached?
 
-            public int Count => s_cache._members.Count;
+            public IReadOnlyList<string> Names => s_cache._members.Names;
 
             public TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(s_cache.Parse(value, ignoreCase));
 
@@ -337,8 +336,6 @@ namespace System
             public bool Equals(TEnum value, TEnum other) => ToUnderlying(value).Equals(ToUnderlying(other));
 
             public int GetHashCode(TEnum value) => ToUnderlying(value).GetHashCode();
-
-            public IEnumerable<string> GetNames() => s_cache.GetNames();
 
             public int CompareTo(Enum value, object target)
             {
@@ -439,7 +436,7 @@ namespace System
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
-            private static readonly TUnderlyingOperations s_operations = new TUnderlyingOperations();
+            private static readonly TUnderlyingOperations s_operations = new TUnderlyingOperations(); // Should this be cached?
 
             private readonly Type _enumType;
 
@@ -461,14 +458,6 @@ namespace System
                     members.Add(member);
                 }
                 _members = members;
-            }
-
-            public IEnumerable<string> GetNames()
-            {
-                foreach (EnumMemberInternal member in _members)
-                {
-                    yield return member.Name;
-                }
             }
 
             public string GetName(TUnderlying value) => _members.TryGetValue(value, out EnumMemberInternal member) ? member.Name : null;
@@ -776,6 +765,7 @@ namespace System
                 private int[] _valueBuckets;
                 private int[] _nameBuckets;
                 private Entry[] _entries;
+                private NameCollection _names;
                 private int _count;
 
                 public EnumMembers(int capacity)
@@ -790,6 +780,15 @@ namespace System
                 }
 
                 public int Count => _count;
+
+                public NameCollection Names
+                {
+                    get
+                    {
+                        NameCollection names = _names;
+                        return names ?? Interlocked.CompareExchange(ref _names, (names = new NameCollection(this)), null) ?? names;
+                    }
+                }
 
                 public EnumMemberInternal this[int index]
                 {
@@ -971,6 +970,30 @@ namespace System
                         _current = default;
                         return false;
                     }
+                }
+
+                public sealed class NameCollection : IReadOnlyList<string>
+                {
+                    private readonly EnumMembers _members;
+
+                    internal NameCollection(EnumMembers members)
+                    {
+                        _members = members;
+                    }
+
+                    public int Count => _members.Count;
+
+                    public string this[int index] => _members[index].Name;
+
+                    public IEnumerator<string> GetEnumerator()
+                    {
+                        foreach (EnumMemberInternal member in _members)
+                        {
+                            yield return member.Name;
+                        }
+                    }
+
+                    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
                 }
             }
         }
