@@ -34,7 +34,7 @@ enum ReturnValues
 #define NumItems(s) (sizeof(s) / sizeof(s[0]))
 
 STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths, LPCWSTR pwzDiasymreaderPath);
-STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, LPCWSTR pwzVersionBubbleAssemblyPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr);
+STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr);
 void SetSvcLogger(ICorSvcLogger *pCorSvcLogger);
 void SetMscorlibPath(LPCWSTR wzSystemDirectory);
 
@@ -422,8 +422,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     LPCWSTR pwzAppNiPaths = nullptr;
     LPCWSTR pwzPlatformAssembliesPaths = nullptr;
     LPCWSTR pwzPlatformWinmdPaths = nullptr;
-    // TODO Add Variable Num of cli arguments
-    LPCWSTR pwzVersionBubbleAssemblyPaths = nullptr;
     StackSString wzDirectoryToStorePDB;
     bool fCreatePDB = false;
     bool fGeneratePDBLinesInfo = false;
@@ -474,7 +472,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 
     // By default, Crossgen will generate readytorun images unless /FragileNonVersionable switch is specified
     dwFlags |= NGENWORKER_FLAGS_READYTORUN;
-
     while (argc > 0)
     {
         // Command-line parsing
@@ -533,6 +530,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         else if (MatchParameter(*argv, W("LargeVersionBubble")))
         {
             dwFlags |= NGENWORKER_FLAGS_LARGEVERSIONBUBBLE;
+            fLargeVersionBubbleSwitch = true;
         }
 #endif
         else if (MatchParameter(*argv, W("NoMetaData")))
@@ -598,14 +596,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         else if (MatchParameter(*argv, W("Platform_Assemblies_Paths")) && (argc > 1))
         {
             pwzPlatformAssembliesPaths = argv[1];
-            
-            // skip path list
-            argv++;
-            argc--;
-        }
-        else if (MatchParameter(*argv, W("Version_Bubble_Assembly_Paths")) && (argc > 1))
-        {
-            pwzVersionBubbleAssemblyPaths = argv[1];
             
             // skip path list
             argv++;
@@ -933,8 +923,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
          pwzPlatformResourceRoots,
          pwzAppPaths,
          pwzOutputFilename,
-         pwzPlatformWinmdPaths,
-         pwzVersionBubbleAssemblyPaths
+         pwzPlatformWinmdPaths
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
         ,
         NULL, // ICorSvcLogger

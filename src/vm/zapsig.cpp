@@ -781,9 +781,9 @@ Module *ZapSig::DecodeModuleFromIndexIfLoaded(Module *fromModule,
 
 
 TypeHandle ZapSig::DecodeType(Module *pEncodeModuleContext,
-    Module *pInfoModule,
-    PCCOR_SIGNATURE pBuffer,
-    ClassLoadLevel level)
+                              Module *pInfoModule,
+                              PCCOR_SIGNATURE pBuffer,
+                              ClassLoadLevel level)
 {
     CONTRACTL
     {
@@ -879,6 +879,7 @@ MethodDesc *ZapSig::DecodeMethod(Module *pReferencingModule,
         //
         RID rid;
         IfFailThrow(sig.GetData(&rid));
+
         if (methodFlags & ENCODE_METHOD_SIG_MemberRefToken)
         {
             if (thOwner.IsNull())
@@ -1201,7 +1202,6 @@ BOOL ZapSig::EncodeMethod(
             // GetSvcLogger()->Printf(W("ReadyToRun: Method reference outside of current version bubble cannot be encoded\n"));
             ThrowHR(E_FAIL);
         }
-        //_ASSERTE(pReferencingModule == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
 
         methodToken = pResolvedToken->token;
 

@@ -2393,7 +2393,6 @@ public:
         CrstHolder ch(this->GetLookupTableCrst());
         m_pMemberRefToDescHashTable->Insert(token, value);
     }
-    // This call
     void StoreMemberRef(mdMemberRef token, MethodDesc *value)
     {
         WRAPPER_NO_CONTRACT;

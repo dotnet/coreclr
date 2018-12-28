@@ -19906,9 +19906,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
 
         // Look up the new call info.
         CORINFO_CALL_INFO derivedCallInfo;
-        eeGetCallInfo(&derivedResolvedToken, nullptr,
-                      addVerifyFlag(CORINFO_CALLINFO_ALLOWINSTPARAM),
-                      &derivedCallInfo);
+        eeGetCallInfo(&derivedResolvedToken, nullptr, addVerifyFlag(CORINFO_CALLINFO_ALLOWINSTPARAM), &derivedCallInfo);
 
         // Update the call.
         call->gtCallMoreFlags &= ~GTF_CALL_M_VIRTSTUB_REL_INDIRECT;

@@ -1833,7 +1833,6 @@ void ZapImage::Compile()
         OutputInliningTableForReadyToRun();
         OutputProfileDataForReadyToRun();
         OutputManifestMetadataForReadyToRun();
-
     }
     else
 #endif

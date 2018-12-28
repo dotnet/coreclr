@@ -941,7 +941,6 @@ ZapImport * ZapImportTable::GetExistingMethodHandleImport(CORINFO_METHOD_HANDLE 
 
 CORINFO_MODULE_HANDLE ZapImportTable::TryEncodeModule(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_MODULE_HANDLE module, SigBuilder * pSigBuilder)
 {
-    // Use def tokens and module references? 
     if (!GetCompileInfo()->IsInCurrentVersionBubble(module))
         module = GetImage()->GetModuleHandle();
 
@@ -990,7 +989,6 @@ void ZapImportTable::EncodeMethod(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHO
     CORINFO_CLASS_HANDLE clsHandle = GetJitInfo()->getMethodClass(handle);
     CORINFO_MODULE_HANDLE referencingModule = GetJitInfo()->getClassModule(clsHandle);
     referencingModule = TryEncodeModule(kind, referencingModule, pSigBuilder);
-
     GetCompileInfo()->EncodeMethod(referencingModule, handle, pSigBuilder, this, EncodeModuleHelper,
         pResolvedToken, pConstrainedResolvedToken, fEncodeUsingResolvedTokenSpecStreams);
 }
@@ -1847,7 +1845,6 @@ ZapImport * ZapImportTable::GetDynamicHelperCell(CORCOMPILE_FIXUP_BLOB_KIND kind
         sigBuilder.AppendData(kind & ~CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE);
 
         GetCompileInfo()->EncodeClass(m_pImage->GetModuleHandle(), handle, &sigBuilder, this, EncodeModuleHelper);
-        // CHANGE IT HERE
         pImport->SetBlob(GetBlob(&sigBuilder));
     }
 
