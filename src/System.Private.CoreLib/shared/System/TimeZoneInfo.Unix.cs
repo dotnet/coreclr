@@ -423,97 +423,102 @@ namespace System
         /// <summary>
         /// Enumerate files
         /// </summary>
-        private static unsafe string FindFile(string path, Predicate<string> condition)
+        private static unsafe void EnumerateFilesRecursively(string path, Predicate<string> condition)
         {
             List<string> toExplore = null; // List used as a stack
 
             int bufferSize = Interop.Sys.GetReadDirRBufferSize();
-            string currentPath = path;
-            for(;;)
+            byte[] dirBuffer = null;
+            try
             {
-                IntPtr dirHandle = Interop.Sys.OpenDir(currentPath);
-                if (dirHandle == IntPtr.Zero)
-                {
-                    throw Interop.GetExceptionForIoErrno(Interop.Sys.GetLastErrorInfo(), currentPath, isDirectory: true);
-                }
+                dirBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+                string currentPath = path;
 
-                byte[] dirBuffer = null;
-                try
+                fixed (byte* dirBufferPtr = dirBuffer)
                 {
-                    dirBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-                    fixed (byte* dirBufferPtr = dirBuffer)
-                    { 
-                        // Read each entry from the enumerator
-                        Interop.Sys.DirectoryEntry dirent;
-                        while (Interop.Sys.ReadDirR(dirHandle, dirBufferPtr, bufferSize, out dirent) == 0)
+                    for(;;)
+                    {
+                        IntPtr dirHandle = Interop.Sys.OpenDir(currentPath);
+                        if (dirHandle == IntPtr.Zero)
                         {
-                            string fullPath = GetDirectoryEntryFullPath(ref dirent, currentPath);
-                            if (fullPath == null)
-                                continue;
+                            throw Interop.GetExceptionForIoErrno(Interop.Sys.GetLastErrorInfo(), currentPath, isDirectory: true);
+                        }
 
-                            // Get from the dir entry whether the entry is a file or directory.
-                            // We classify everything as a file unless we know it to be a directory.
-                            bool isDir;
-                            if (dirent.InodeType == Interop.Sys.NodeType.DT_DIR)
+                        try
+                        {
+                            // Read each entry from the enumerator
+                            Interop.Sys.DirectoryEntry dirent;
+                            while (Interop.Sys.ReadDirR(dirHandle, dirBufferPtr, bufferSize, out dirent) == 0)
                             {
-                                // We know it's a directory.
-                                isDir = true;
-                            }
-                            else if (dirent.InodeType == Interop.Sys.NodeType.DT_LNK || dirent.InodeType == Interop.Sys.NodeType.DT_UNKNOWN)
-                            {
-                                // It's a symlink or unknown: stat to it to see if we can resolve it to a directory.
-                                // If we can't (e.g. symlink to a file, broken symlink, etc.), we'll just treat it as a file.
+                                string fullPath = GetDirectoryEntryFullPath(ref dirent, currentPath);
+                                if (fullPath == null)
+                                    continue;
 
-                                Interop.Sys.FileStatus fileinfo;
-                                if (Interop.Sys.Stat(fullPath, out fileinfo) >= 0)
+                                // Get from the dir entry whether the entry is a file or directory.
+                                // We classify everything as a file unless we know it to be a directory.
+                                bool isDir;
+                                if (dirent.InodeType == Interop.Sys.NodeType.DT_DIR)
                                 {
-                                    isDir = (fileinfo.Mode & Interop.Sys.FileTypes.S_IFMT) == Interop.Sys.FileTypes.S_IFDIR;
+                                    // We know it's a directory.
+                                    isDir = true;
+                                }
+                                else if (dirent.InodeType == Interop.Sys.NodeType.DT_LNK || dirent.InodeType == Interop.Sys.NodeType.DT_UNKNOWN)
+                                {
+                                    // It's a symlink or unknown: stat to it to see if we can resolve it to a directory.
+                                    // If we can't (e.g. symlink to a file, broken symlink, etc.), we'll just treat it as a file.
+
+                                    Interop.Sys.FileStatus fileinfo;
+                                    if (Interop.Sys.Stat(fullPath, out fileinfo) >= 0)
+                                    {
+                                        isDir = (fileinfo.Mode & Interop.Sys.FileTypes.S_IFMT) == Interop.Sys.FileTypes.S_IFDIR;
+                                    }
+                                    else
+                                    {
+                                        isDir = false;
+                                    }
                                 }
                                 else
                                 {
+                                    // Otherwise, treat it as a file.  This includes regular files, FIFOs, etc.
                                     isDir = false;
                                 }
-                            }
-                            else
-                            {
-                                // Otherwise, treat it as a file.  This includes regular files, FIFOs, etc.
-                                isDir = false;
-                            }
 
-                            // Yield the result if the user has asked for it.  In the case of directories,
-                            // always explore it by pushing it onto the stack, regardless of whether
-                            // we're returning directories.
-                            if (isDir)
-                            {
-                                if (toExplore == null)
+                                // Yield the result if the user has asked for it.  In the case of directories,
+                                // always explore it by pushing it onto the stack, regardless of whether
+                                // we're returning directories.
+                                if (isDir)
                                 {
-                                    toExplore = new List<string>();
+                                    if (toExplore == null)
+                                    {
+                                        toExplore = new List<string>();
+                                    }
+                                    toExplore.Add(fullPath);
                                 }
-                                toExplore.Add(fullPath);
-                            }
-                            else if (condition(fullPath))
-                            {
-                                return fullPath;
+                                else if (condition(fullPath))
+                                {
+                                    return;
+                                }
                             }
                         }
+                        finally
+                        {
+                            if (dirHandle != IntPtr.Zero)
+                                Interop.Sys.CloseDir(dirHandle);
+                        }
+
+                        if (toExplore == null || toExplore.Count == 0)
+                            break;
+
+                        currentPath = toExplore[toExplore.Count - 1];
+                        toExplore.RemoveAt(toExplore.Count - 1);
                     }
                 }
-                finally
-                {
-                    if (dirHandle != IntPtr.Zero)
-                        Interop.Sys.CloseDir(dirHandle);
-                    if (dirBuffer != null)
-                        ArrayPool<byte>.Shared.Return(dirBuffer);
-                }
-
-                if (toExplore == null || toExplore.Count == 0)
-                    break;
-
-                currentPath = toExplore[toExplore.Count - 1];
-                toExplore.RemoveAt(toExplore.Count - 1);
             }
-
-            return null;
+            finally
+            {
+                if (dirBuffer != null)
+                    ArrayPool<byte>.Shared.Return(dirBuffer);
+            }
         }
 
         /// <summary>
@@ -529,32 +534,29 @@ namespace System
             string posixrulesFilePath = Path.Combine(timeZoneDirectory, "posixrules");
             byte[] buffer = new byte[rawData.Length];
 
-            bool FindTzFile(string filePath)
-            {                        
-                // skip the localtime and posixrules file, since they won't give us the correct id
-                if (!string.Equals(filePath, localtimeFilePath, StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(filePath, posixrulesFilePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (CompareTimeZoneFile(filePath, buffer, rawData))
-                    {
-                        // if all bytes are the same, this must be the right tz file
-                        id = filePath;
-
-                        // strip off the root time zone directory
-                        if (id.StartsWith(timeZoneDirectory, StringComparison.Ordinal))
-                        {
-                            id = id.Substring(timeZoneDirectory.Length);
-                        }
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
             try
             {
-                FindFile(timeZoneDirectory, FindTzFile);
+                EnumerateFilesRecursively(timeZoneDirectory, (string filePath) =>
+                {                
+                    // skip the localtime and posixrules file, since they won't give us the correct id
+                    if (!string.Equals(filePath, localtimeFilePath, StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(filePath, posixrulesFilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (CompareTimeZoneFile(filePath, buffer, rawData))
+                        {
+                            // if all bytes are the same, this must be the right tz file
+                            id = filePath;
+
+                            // strip off the root time zone directory
+                            if (id.StartsWith(timeZoneDirectory, StringComparison.Ordinal))
+                            {
+                                id = id.Substring(timeZoneDirectory.Length);
+                            }
+                            return true;
+                        }
+                    }
+                    return false;
+                });
             }
             catch (IOException) { }
             catch (SecurityException) { }
