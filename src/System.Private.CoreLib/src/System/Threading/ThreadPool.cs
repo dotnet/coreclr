@@ -137,6 +137,11 @@ namespace System.Threading
 
             private SpinLock m_foreignLock = new SpinLock(enableThreadOwnerTracking: false);
 
+            public WorkStealingQueue()
+            {
+                WorkStealingQueueList.Add(this);
+            }
+
             public void LocalPush(object obj)
             {
                 int tail = m_tailIndex;
@@ -461,7 +466,7 @@ namespace System.Threading
 
             if (null != tl)
             {
-                tl.workStealingQueue.LocalPush(callback);
+                GetOrCreateLocalQueue(tl).LocalPush(callback);
             }
             else
             {
@@ -471,10 +476,20 @@ namespace System.Threading
             EnsureThreadRequested();
         }
 
+        private static WorkStealingQueue GetOrCreateLocalQueue(ThreadPoolWorkQueueThreadLocals tl)
+        {
+            WorkStealingQueue CreateLocalQueue(ThreadPoolWorkQueueThreadLocals locals)
+            {
+                return (locals.workStealingQueue = new WorkStealingQueue());
+            }
+
+            return tl.workStealingQueue ?? CreateLocalQueue(tl);
+        }
+
         internal bool LocalFindAndPop(object callback)
         {
             ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
-            return tl != null && tl.workStealingQueue.LocalFindAndPop(callback);
+            return tl?.workStealingQueue?.LocalFindAndPop(callback) ?? false;
         }
 
         public object Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref bool missedSteal)
@@ -482,7 +497,7 @@ namespace System.Threading
             WorkStealingQueue localWsq = tl.workStealingQueue;
             object callback;
 
-            if ((callback = localWsq.LocalPop()) == null && // first try the local queue
+            if ((callback = localWsq?.LocalPop()) == null && // first try the local queue
                 !workItems.TryDequeue(out callback)) // then try the global queue
             {
                 // finally try to steal from another thread's local queue
@@ -709,33 +724,32 @@ namespace System.Threading
         public static ThreadPoolWorkQueueThreadLocals threadLocals;
 
         public readonly ThreadPoolWorkQueue workQueue;
-        public readonly ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
+        public ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
         public readonly Thread currentThread;
         public FastRandom random = new FastRandom(Thread.CurrentThread.ManagedThreadId); // mutable struct, do not copy or make readonly
 
         public ThreadPoolWorkQueueThreadLocals(ThreadPoolWorkQueue tpq)
         {
             workQueue = tpq;
-            workStealingQueue = new ThreadPoolWorkQueue.WorkStealingQueue();
-            ThreadPoolWorkQueue.WorkStealingQueueList.Add(workStealingQueue);
             currentThread = Thread.CurrentThread;
         }
 
         private void CleanUp()
         {
-            if (null != workStealingQueue)
+            ThreadPoolWorkQueue.WorkStealingQueue localQueue = workStealingQueue;
+            if (null != localQueue)
             {
                 if (null != workQueue)
                 {
                     object cb;
-                    while ((cb = workStealingQueue.LocalPop()) != null)
+                    while ((cb = localQueue.LocalPop()) != null)
                     {
                         Debug.Assert(null != cb);
                         workQueue.Enqueue(cb, forceGlobal: true);
                     }
                 }
 
-                ThreadPoolWorkQueue.WorkStealingQueueList.Remove(workStealingQueue);
+                ThreadPoolWorkQueue.WorkStealingQueueList.Remove(localQueue);
             }
         }
 
