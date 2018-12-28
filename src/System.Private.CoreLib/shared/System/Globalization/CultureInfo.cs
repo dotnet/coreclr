@@ -346,7 +346,7 @@ namespace System.Globalization
                 return culture;
             }
 
-            return (new CultureInfo(culture._cultureData.SSPECIFICCULTURE));
+            return new CultureInfo(culture._cultureData.SSPECIFICCULTURE);
         }
 
         internal static bool VerifyCultureName(string cultureName, bool throwException)
@@ -611,7 +611,7 @@ namespace System.Globalization
             get
             {
                 Debug.Assert(s_InvariantCultureInfo != null);
-                return (s_InvariantCultureInfo);
+                return s_InvariantCultureInfo;
             }
         }
 
@@ -679,7 +679,7 @@ namespace System.Globalization
             {
                 types |= CultureTypes.ReplacementCultures;
             }
-            return (CultureData.GetCultures(types));
+            return CultureData.GetCultures(types);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -844,7 +844,7 @@ namespace System.Globalization
                                     ? GetCultureInfo(_name).CompareInfo
                                     : new CompareInfo(this);
                 }
-                return (_compareInfo);
+                return _compareInfo;
             }
         }
 
@@ -866,7 +866,7 @@ namespace System.Globalization
                     tempTextInfo.SetReadOnlyState(_isReadOnly);
                     _textInfo = tempTextInfo;
                 }
-                return (_textInfo);
+                return _textInfo;
             }
         }
 
@@ -892,10 +892,10 @@ namespace System.Globalization
                 // using CompareInfo to verify the data passed through the constructor
                 // CultureInfo(String cultureName, String textAndCompareCultureName)
 
-                return (this.Name.Equals(that.Name) && this.CompareInfo.Equals(that.CompareInfo));
+                return this.Name.Equals(that.Name) && this.CompareInfo.Equals(that.CompareInfo);
             }
 
-            return (false);
+            return false;
         }
 
 
@@ -911,7 +911,7 @@ namespace System.Globalization
 
         public override int GetHashCode()
         {
-            return (this.Name.GetHashCode() + this.CompareInfo.GetHashCode());
+            return this.Name.GetHashCode() + this.CompareInfo.GetHashCode();
         }
 
 
@@ -934,10 +934,10 @@ namespace System.Globalization
         public virtual object GetFormat(Type formatType)
         {
             if (formatType == typeof(NumberFormatInfo))
-                return (NumberFormat);
+                return NumberFormat;
             if (formatType == typeof(DateTimeFormatInfo))
-                return (DateTimeFormat);
-            return (null);
+                return DateTimeFormat;
+            return null;
         }
 
         public virtual bool IsNeutralCulture
@@ -983,7 +983,7 @@ namespace System.Globalization
                     temp.isReadOnly = _isReadOnly;
                     Interlocked.CompareExchange(ref _numInfo, temp, null);
                 }
-                return (_numInfo);
+                return _numInfo;
             }
             set
             {
@@ -1015,7 +1015,7 @@ namespace System.Globalization
                     temp._isReadOnly = _isReadOnly;
                     Interlocked.CompareExchange(ref _dateTimeInfo, temp, null);
                 }
-                return (_dateTimeInfo);
+                return _dateTimeInfo;
             }
 
             set
@@ -1058,7 +1058,7 @@ namespace System.Globalization
         {
             if (calType == CalendarId.GREGORIAN)
             {
-                return (new GregorianCalendar());
+                return new GregorianCalendar();
             }
             return GetCalendarInstanceRare(calType);
         }
@@ -1076,25 +1076,25 @@ namespace System.Globalization
                 case CalendarId.GREGORIAN_ARABIC:           // Gregorian Arabic calendar
                 case CalendarId.GREGORIAN_XLIT_ENGLISH:     // Gregorian Transliterated English calendar
                 case CalendarId.GREGORIAN_XLIT_FRENCH:      // Gregorian Transliterated French calendar
-                    return (new GregorianCalendar((GregorianCalendarTypes)calType));
+                    return new GregorianCalendar((GregorianCalendarTypes)calType);
                 case CalendarId.TAIWAN:                     // Taiwan Era calendar
-                    return (new TaiwanCalendar());
+                    return new TaiwanCalendar();
                 case CalendarId.JAPAN:                      // Japanese Emperor Era calendar
-                    return (new JapaneseCalendar());
+                    return new JapaneseCalendar();
                 case CalendarId.KOREA:                      // Korean Tangun Era calendar
-                    return (new KoreanCalendar());
+                    return new KoreanCalendar();
                 case CalendarId.THAI:                       // Thai calendar
-                    return (new ThaiBuddhistCalendar());
+                    return new ThaiBuddhistCalendar();
                 case CalendarId.HIJRI:                      // Hijri (Arabic Lunar) calendar
-                    return (new HijriCalendar());
+                    return new HijriCalendar();
                 case CalendarId.HEBREW:                     // Hebrew (Lunar) calendar
-                    return (new HebrewCalendar());
+                    return new HebrewCalendar();
                 case CalendarId.UMALQURA:
-                    return (new UmAlQuraCalendar());
+                    return new UmAlQuraCalendar();
                 case CalendarId.PERSIAN:
-                    return (new PersianCalendar());
+                    return new PersianCalendar();
             }
-            return (new GregorianCalendar());
+            return new GregorianCalendar())
         }
 
         /*=================================Calendar==========================
@@ -1120,7 +1120,7 @@ namespace System.Globalization
                     newObj.SetReadOnlyState(_isReadOnly);
                     _calendar = newObj;
                 }
-                return (_calendar);
+                return _calendar;
             }
         }
 
@@ -1145,7 +1145,7 @@ namespace System.Globalization
                 {
                     cals[i] = GetCalendarInstance(calID[i]);
                 }
-                return (cals);
+                return cals;
             }
         }
 
@@ -1166,7 +1166,7 @@ namespace System.Globalization
                 temp._isReadOnly = true;
                 _consoleFallbackCulture = temp;
             }
-            return (temp);
+            return temp;
         }
 
         public virtual object Clone()
@@ -1203,7 +1203,7 @@ namespace System.Globalization
                 ci._calendar = (Calendar)_calendar.Clone();
             }
 
-            return (ci);
+            return ci;
         }
 
         public static CultureInfo ReadOnly(CultureInfo ci)
@@ -1215,7 +1215,7 @@ namespace System.Globalization
 
             if (ci.IsReadOnly)
             {
-                return (ci);
+                return ci;
             }
             CultureInfo newInfo = (CultureInfo)(ci.MemberwiseClone());
 
@@ -1255,7 +1255,7 @@ namespace System.Globalization
             // We should set the read-only flag here.  Otherwise, info.DateTimeFormat will not be able to set.
             newInfo._isReadOnly = true;
 
-            return (newInfo);
+            return newInfo;
         }
 
 
@@ -1263,7 +1263,7 @@ namespace System.Globalization
         {
             get
             {
-                return (_isReadOnly);
+                return _isReadOnly;
             }
         }
 
@@ -1506,4 +1506,3 @@ namespace System.Globalization
         }
     }
 }
-
