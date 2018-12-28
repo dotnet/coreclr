@@ -506,15 +506,27 @@ namespace System.Threading
                 int c = queues.Length;
                 if (c == 0)
                 {
+                    // No local queues to check
                     return null;
                 }
 
-                int maxIndex = c - 1;
                 int i = tl.random.Next(c);
-                while (c > 0)
+                do
                 {
-                    i = (i < maxIndex) ? i + 1 : 0;
-                    WorkStealingQueue otherQueue = queues[i];
+                    WorkStealingQueue otherQueue;
+                    if ((uint)i < (uint)queues.Length)
+                    {
+                        // Elides bounds check for common case
+                        otherQueue = queues[i];
+                    }
+                    else
+                    {
+                        // Moved passed last element, move to first element
+                        i = 0;
+                        // Bounds check occurs here, as Jit checks if 0 is <= .Length
+                        otherQueue = queues[i];
+                    }
+
                     if (otherQueue != localWsq && otherQueue.CanSteal)
                     {
                         callback = otherQueue.TrySteal(ref missedSteal);
@@ -524,7 +536,8 @@ namespace System.Threading
                         }
                     }
                     c--;
-                }
+                    i++;
+                } while (c > 0);
             }
 
             return callback;
