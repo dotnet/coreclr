@@ -12,7 +12,7 @@ Build using docker
 
 Install Docker, see https://docs.docker.com/install/linux/docker-ce/ubuntu/ 
 
-Building using docker will require that you choose the correct image for your environemnt. Note that the OS is strictly speaking not extremely important, for example if you are on ubuntu 18.04 and build using the ubuntu 16.04 x64 image there should be no issues. The target arch is more important, as building arm32 using the x64 image will not work, there will be missing rootfs components required by the build. See [Docker Images](#Docker-Images) for more information on choosing an image to build with.
+Building using docker will require that you choose the correct image for your environment. Note that the OS is strictly speaking not extremely important, for example if you are on Ubuntu 18.04 and build using the Ubuntu 16.04 x64 image there should be no issues. The target arch is more important, as building arm32 using the x64 image will not work, there will be missing rootfs components required by the build. See [Docker Images](#Docker-Images) for more information on choosing an image to build with.
 
 Once you have chosen an image the build is one command run from the root of the coreclr repository:
 
@@ -56,8 +56,6 @@ Environment
 ===========
 
 These instructions are written assuming the Ubuntu 16.04/18.04 LTS, since that's the distro the team uses. Pull Requests are welcome to address other environments as long as they don't break the ability to use Ubuntu 16.04/18.04 LTS.
-
-There have been reports of issues when using other distros or versions of Ubuntu (e.g. [Issue 95](https://github.com/dotnet/coreclr/issues/95)). If you're on another distribution, consider using docker's `ubuntu:16.04/18.04` image.
 
 Minimum RAM required to build is 1GB. The build is known to fail on 512 MB VMs ([Issue 536](https://github.com/dotnet/coreclr/issues/536)).
 
@@ -109,7 +107,7 @@ If you are using Fedora, then you will need to install the following packages:
 Git Setup
 ---------
 
-This guide assumes that you've cloned the coreclr repositories and are at the root of the coreclr folder.
+This guide assumes that you've cloned the coreclr repository.
 
 Set the maximum number of file-handles
 --------------------------------------
