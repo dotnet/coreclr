@@ -144,7 +144,7 @@ namespace System
 
             internal void SetFailure(bool overflow, string failureMessageID)
             {
-                if (_throwStyle != GuidParseThrowStyle.None)
+                if (_throwStyle == GuidParseThrowStyle.None)
                 {
                     return;
                 }
