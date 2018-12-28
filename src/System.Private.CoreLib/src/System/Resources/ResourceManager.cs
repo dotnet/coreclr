@@ -891,17 +891,12 @@ namespace System.Resources
 #if FEATURE_APPX
             if (_bUsingModernResourceManagement)
             {
-                if (ApplicationModel.IsUap)
+                // If the caller explicitly passed in a culture that was obtained by calling CultureInfo.CurrentUICulture,
+                // null it out, so that we re-compute it.  If we use modern resource lookup, we may end up getting a "better"
+                // match, since CultureInfo objects can't represent all the different languages the AppX resource model supports.
+                if (object.ReferenceEquals(culture, CultureInfo.CurrentUICulture))
                 {
-                    // If the caller explictily passed in a culture that was obtained by calling CultureInfo.CurrentUICulture,
-                    // null it out, so that we re-compute it.  If we use modern resource lookup, we may end up getting a "better"
-                    // match, since CultureInfo objects can't represent all the different languages the AppX resource model supports.
-                    // For classic resources, this causes us to ignore the languages list and instead use the older Win32 behavior,
-                    // which is the design choice we've made.
-                    if (object.ReferenceEquals(culture, CultureInfo.CurrentUICulture))
-                    {
-                        culture = null;
-                    }
+                    culture = null;
                 }
 
                 if (_PRIonAppXInitialized == false)
