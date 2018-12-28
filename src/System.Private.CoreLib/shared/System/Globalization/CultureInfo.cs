@@ -1094,7 +1094,7 @@ namespace System.Globalization
                 case CalendarId.PERSIAN:
                     return new PersianCalendar();
             }
-            return new GregorianCalendar())
+            return new GregorianCalendar();
         }
 
         /*=================================Calendar==========================
