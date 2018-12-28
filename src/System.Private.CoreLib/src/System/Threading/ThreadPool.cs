@@ -137,11 +137,6 @@ namespace System.Threading
 
             private SpinLock m_foreignLock = new SpinLock(enableThreadOwnerTracking: false);
 
-            public WorkStealingQueue()
-            {
-                WorkStealingQueueList.Add(this);
-            }
-
             public void LocalPush(object obj)
             {
                 int tail = m_tailIndex;
@@ -478,12 +473,18 @@ namespace System.Threading
 
         private static WorkStealingQueue GetOrCreateLocalQueue(ThreadPoolWorkQueueThreadLocals tl)
         {
-            WorkStealingQueue CreateLocalQueue(ThreadPoolWorkQueueThreadLocals locals)
-            {
-                return (locals.workStealingQueue = new WorkStealingQueue());
-            }
-
             return tl.workStealingQueue ?? CreateLocalQueue(tl);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static WorkStealingQueue CreateLocalQueue(ThreadPoolWorkQueueThreadLocals locals)
+        {
+            Debug.Assert(locals.workStealingQueue == null, "Local queue being created when thread already has local queue");
+
+            WorkStealingQueue localQueue =  new WorkStealingQueue();
+            locals.workStealingQueue = localQueue;
+            WorkStealingQueueList.Add(localQueue);
+            return localQueue;
         }
 
         internal bool LocalFindAndPop(object callback)
@@ -503,7 +504,11 @@ namespace System.Threading
                 // finally try to steal from another thread's local queue
                 WorkStealingQueue[] queues = WorkStealingQueueList.Queues;
                 int c = queues.Length;
-                Debug.Assert(c > 0, "There must at least be a queue for this thread.");
+                if (c == 0)
+                {
+                    return null;
+                }
+
                 int maxIndex = c - 1;
                 int i = tl.random.Next(c);
                 while (c > 0)
