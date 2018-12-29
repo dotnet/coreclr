@@ -13,6 +13,8 @@ namespace System.Collections.Generic
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
     public abstract partial class EqualityComparer<T> : IEqualityComparer, IEqualityComparer<T>
     {
+        // public static EqualityComparer<T> Default is runtime-specific
+
         public abstract bool Equals(T x, T y);
         public abstract int GetHashCode(T obj);
 
@@ -165,11 +167,7 @@ namespace System.Collections.Generic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(T x, T y)
-        {
-            return System.Runtime.CompilerServices.JitHelpers.EnumEquals(x, y);
-        }
+        // public override bool Equals(T x, T y) is runtime-specific
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode(T obj)

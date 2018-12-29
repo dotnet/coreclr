@@ -4,7 +4,6 @@
 
 using System.Runtime;
 using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
 using System.Diagnostics;
 
 namespace System.Collections.Generic
@@ -183,8 +182,14 @@ namespace System.Collections.Generic
 #endif
     }
 
-    public sealed partial class EnumEqualityComparer<T> : EqualityComparer<T>, ISerializable where T : struct, Enum
+    public sealed partial class EnumEqualityComparer<T> : EqualityComparer<T> where T : struct, Enum
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override bool Equals(T x, T y)
+        {
+            return System.Runtime.CompilerServices.JitHelpers.EnumEquals(x, y);
+        }
+
         internal override int IndexOf(T[] array, T value, int startIndex, int count)
         {
             int endIndex = startIndex + count;

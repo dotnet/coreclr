@@ -15,4 +15,12 @@ namespace System.Collections.Generic
         // as possible and define most of the creation logic in a non-generic class.
         public static Comparer<T> Default { get; } = (Comparer<T>)ComparerHelpers.CreateDefaultComparer(typeof(T));
     }
+
+    internal sealed partial class EnumComparer<T> : Comparer<T> where T : struct, Enum
+    {
+        public override int Compare(T x, T y)
+        {
+            return System.Runtime.CompilerServices.JitHelpers.EnumCompareTo(x, y);
+        }
+    }
 }
