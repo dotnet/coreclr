@@ -163,7 +163,7 @@ namespace System.IO
                 // And we want to give the user the value that they asked for
                 if ((uint)(_capacity * 2) > Array.MaxByteArrayLength)
                 {
-                    newCapacity = Math.Min(value, Array.MaxByteArrayLength);
+                    newCapacity = Math.Max(value, Array.MaxByteArrayLength);
                 }
 
                 Capacity = newCapacity;
