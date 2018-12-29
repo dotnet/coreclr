@@ -408,6 +408,8 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.NoInlining)]
         private ThreadPoolWorkQueueThreadLocals CreateThreadLocals()
         {
+            Debug.Assert(ThreadPoolWorkQueueThreadLocals.threadLocals == null);
+
             return (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
         }
 
