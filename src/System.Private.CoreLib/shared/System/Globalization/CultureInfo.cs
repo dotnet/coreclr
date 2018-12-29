@@ -543,12 +543,6 @@ namespace System.Globalization
             }
         }
 
-        internal static void ResetThreadCulture()
-        {
-            s_currentThreadCulture = null;
-            s_currentThreadUICulture = null;
-        }
-
         internal static CultureInfo UserDefaultUICulture => s_userDefaultUICulture ?? InitializeUserDefaultUICulture();
 
         public static CultureInfo InstalledUICulture => s_userDefaultCulture ?? InitializeUserDefaultCulture();
