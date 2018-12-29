@@ -1644,9 +1644,6 @@ Thread::Thread()
     contextHolder.SuppressRelease();
     savedRedirectContextHolder.SuppressRelease();
 
-    managedThreadCurrentCulture = NULL;
-    managedThreadCurrentUICulture = NULL;
-
 #ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
     m_ullProcessorUsageBaseline = 0;
 #endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
@@ -8610,31 +8607,6 @@ void Thread::DeleteThreadStaticData(ModuleIndex index)
     m_ThreadLocalBlock.FreeTLM(index.m_dwIndex, FALSE /* isThreadShuttingDown */);
 }
 
-void Thread::InitCultureAccessors()
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END;
-
-    OBJECTREF *pCurrentCulture = NULL;
-    Thread *pThread = GetThread();
-
-    GCX_COOP();
-
-    if (managedThreadCurrentCulture == NULL) {
-        managedThreadCurrentCulture = MscorlibBinder::GetField(FIELD__CULTURE_INFO__CULTURE);
-        pCurrentCulture = (OBJECTREF*)pThread->GetStaticFieldAddress(managedThreadCurrentCulture);
-    }
-
-    if (managedThreadCurrentUICulture == NULL) {
-        managedThreadCurrentUICulture = MscorlibBinder::GetField(FIELD__CULTURE_INFO__UI_CULTURE);
-        pCurrentCulture = (OBJECTREF*)pThread->GetStaticFieldAddress(managedThreadCurrentUICulture);
-    }
-}
-
-
 ARG_SLOT Thread::CallPropertyGet(BinderMethodID id, OBJECTREF pObject)
 {
     CONTRACTL {
@@ -8663,39 +8635,6 @@ ARG_SLOT Thread::CallPropertyGet(BinderMethodID id, OBJECTREF pObject)
     return retVal;
 }
 
-ARG_SLOT Thread::CallPropertySet(BinderMethodID id, OBJECTREF pObject, OBJECTREF pValue)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    if (!pObject) {
-        return 0;
-    }
-
-    ARG_SLOT retVal;
-
-    GCPROTECT_BEGIN(pObject);
-    GCPROTECT_BEGIN(pValue);
-    MethodDescCallSite propSet(id, &pObject);
-
-    // Set up the Stack.
-    ARG_SLOT pNewArgs[] = {
-        ObjToArgSlot(pObject),
-        ObjToArgSlot(pValue)
-    };
-
-    // Make the actual call.
-    retVal = propSet.Call_RetArgSlot(pNewArgs);
-    GCPROTECT_END();
-    GCPROTECT_END();
-
-    return retVal;
-}
-
 OBJECTREF Thread::GetCulture(BOOL bUICulture)
 {
     CONTRACTL {
@@ -8715,31 +8654,21 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
         return NULL;
     }
 
-    // Get the actual thread culture.
-    OBJECTREF pCurThreadObject = GetExposedObject();
-    _ASSERTE(pCurThreadObject!=NULL);
+    OBJECTREF pCurrentCulture;
+    if (bUICulture) {
+        // Call the Getter for the CurrentUICulture.  This will cause it to populate the field.
+        MethodDescCallSite propGet(METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE);
+        ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
+        pCurrentCulture = ArgSlotToObj(retVal);
+    } else {
+        //This is  faster than calling the property, because this is what the call does anyway.
+        pFD = MscorlibBinder::GetField(FIELD__CULTURE_INFO__CURRENT_CULTURE);
+        _ASSERTE(pFD);
 
-    THREADBASEREF pThreadBase = (THREADBASEREF)(pCurThreadObject);
-    OBJECTREF pCurrentCulture = bUICulture ? pThreadBase->GetCurrentUICulture() : pThreadBase->GetCurrentUserCulture();
+        pFD->CheckRunClassInitThrowing();
 
-    if (pCurrentCulture==NULL) {
-        GCPROTECT_BEGIN(pThreadBase);
-        if (bUICulture) {
-            // Call the Getter for the CurrentUICulture.  This will cause it to populate the field.
-            ARG_SLOT retVal = CallPropertyGet(METHOD__THREAD__GET_UI_CULTURE,
-                                           (OBJECTREF)pThreadBase);
-            pCurrentCulture = ArgSlotToObj(retVal);
-        } else {
-            //This is  faster than calling the property, because this is what the call does anyway.
-            pFD = MscorlibBinder::GetField(FIELD__CULTURE_INFO__CURRENT_CULTURE);
-            _ASSERTE(pFD);
-
-            pFD->CheckRunClassInitThrowing();
-
-            pCurrentCulture = pFD->GetStaticOBJECTREF();
-            _ASSERTE(pCurrentCulture!=NULL);
-        }
-        GCPROTECT_END();
+        pCurrentCulture = pFD->GetStaticOBJECTREF();
+        _ASSERTE(pCurrentCulture!=NULL);
     }
 
     return pCurrentCulture;
@@ -8963,16 +8892,17 @@ void Thread::SetCulture(OBJECTREF *CultureObj, BOOL bUICulture)
     }
     CONTRACTL_END;
 
-    // Retrieve the exposed thread object.
-    OBJECTREF pCurThreadObject = GetExposedObject();
-    _ASSERTE(pCurThreadObject!=NULL);
+    MethodDescCallSite propSet(bUICulture
+        ? METHOD__CULTURE_INFO__SET_CURRENT_UI_CULTURE
+        : METHOD__CULTURE_INFO__SET_CURRENT_CULTURE);
 
-    // Set the culture property on the thread.
-    THREADBASEREF pThreadBase = (THREADBASEREF)(pCurThreadObject);
-    CallPropertySet(bUICulture
-                    ? METHOD__THREAD__SET_UI_CULTURE
-                    : METHOD__THREAD__SET_CULTURE,
-                    (OBJECTREF)pThreadBase, *CultureObj);
+    // Set up the Stack.
+    ARG_SLOT pNewArgs[] = {
+        ObjToArgSlot(*CultureObj)
+    };
+
+    // Make the actual call.
+    propSet.Call_RetArgSlot(pNewArgs);
 }
 
 void Thread::SetHasPromotedBytes ()
@@ -9073,7 +9003,6 @@ INT32 Thread::ResetManagedThreadObjectInCoopMode(INT32 nPriority)
     THREADBASEREF pObject = (THREADBASEREF)ObjectFromHandle(m_ExposedObject);
     if (pObject != NULL)
     {
-        pObject->ResetCulture();
         pObject->ResetName();
         nPriority = pObject->GetPriority();
     }

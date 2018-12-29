@@ -3377,7 +3377,6 @@ private:
 
     // Used by the culture accesors.
     ARG_SLOT CallPropertyGet(BinderMethodID id, OBJECTREF pObject);
-    ARG_SLOT CallPropertySet(BinderMethodID id, OBJECTREF pObject, OBJECTREF pValue);
 
 #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
     // Used in suspension code to redirect a thread at a HandledJITCase
@@ -4209,20 +4208,16 @@ public:
         return m_pLoadingFile;
     }
 
- private:
-
+private:
     static void LoadingFileRelease(Thread *pThread)
     {
         WRAPPER_NO_CONTRACT;
         pThread->ClearLoadingFile();
     }
 
- public:
-
+public:
      typedef Holder<Thread *, DoNothing, Thread::LoadingFileRelease> LoadingFileHolder;
-    void InitCultureAccessors();
-    FieldDesc *managedThreadCurrentCulture;
-    FieldDesc *managedThreadCurrentUICulture;
+
 private:
     // Don't allow a thread to be asynchronously stopped or interrupted (e.g. because
     // it is performing a <clinit>)
