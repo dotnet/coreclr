@@ -544,12 +544,6 @@ namespace System.Globalization
             }
         }
 
-        // TODO: Remove
-        internal static CultureInfo GetCurrentUICultureNoAppX()
-        {
-            return CurrentUICulture;
-        }
-
         internal static void ResetThreadCulture()
         {
             s_currentThreadCulture = null;
