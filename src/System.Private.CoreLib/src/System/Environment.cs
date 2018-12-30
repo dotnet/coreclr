@@ -275,7 +275,7 @@ namespace System
         internal static bool IsWindows8OrAbove => WindowsVersion.IsWindows8OrAbove;
 
         // Seperate type so a .cctor is not created for Enviroment which then would be triggered during startup
-        internal static class WindowsVersion
+        private static class WindowsVersion
         {
             // Cache the value in readonly static that can be optimized out by the JIT
             internal readonly static bool IsWindows8OrAbove = GetIsWindows8OrAbove();
@@ -310,7 +310,7 @@ namespace System
 
 #if FEATURE_COMINTEROP
         // Seperate type so a .cctor is not created for Enviroment which then would be triggered during startup
-        internal static class WinRT
+        private static class WinRT
         {
             // Cache the value in readonly static that can be optimized out by the JIT
             public readonly static bool IsSupported = WinRTSupported();
