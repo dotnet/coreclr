@@ -421,7 +421,12 @@ namespace System.IO
             if (path.IsEmpty)
                 return true;
 
-            return path.IsWhiteSpace();
+            foreach (char c in path)
+            {
+                if (c != ' ')
+                    return false;
+            }
+            return true;
         }
     }
 }
