@@ -4880,25 +4880,19 @@ namespace System
 
         public override string ToString()
         {
-            unsafe
+            int byteLength = m_StringHeapByteLength;
+            if (byteLength == 0)
             {
-                byte* buf = stackalloc byte[m_StringHeapByteLength];
-                byte* pItr = (byte*)m_pStringHeap;
-
-                for (int currentPos = 0; currentPos < m_StringHeapByteLength; currentPos++)
-                {
-                    buf[currentPos] = *pItr;
-                    pItr++;
-                }
-
-                if (m_StringHeapByteLength == 0)
-                    return "";
-
-                int cResult = Encoding.UTF8.GetCharCount(buf, m_StringHeapByteLength);
-                char* result = stackalloc char[cResult];
-                Encoding.UTF8.GetChars(buf, m_StringHeapByteLength, result, cResult);
-                return new string(result, 0, cResult);
+                return "";
             }
+
+            ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(m_pStringHeap, byteLength);
+            int charLength = Encoding.UTF8.GetCharCount(span);
+
+            return string.Create(
+                charLength, 
+                this, 
+                (chars, utf8String) => Encoding.UTF8.GetChars(new ReadOnlySpan<byte>(utf8String.m_pStringHeap, utf8String.m_StringHeapByteLength), chars));
         }
     }
     #endregion
