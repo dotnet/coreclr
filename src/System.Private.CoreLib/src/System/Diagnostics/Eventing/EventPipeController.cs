@@ -38,17 +38,15 @@ namespace System.Diagnostics.Tracing
         private const int DisabledPollingIntervalMilliseconds = 5000; // 5 seconds
         private const uint DefaultCircularBufferMB = 1024; // 1 GB
         private const char ConfigEntryDelimiter = '=';
-
-        private static char[] ProviderConfigDelimiter => Defaults.ProviderConfigDelimiter;
-        private static char[] ConfigComponentDelimiter => Defaults.ConfigComponentDelimiter;
-        private static string[] ConfigFileLineDelimiters => Defaults.ConfigFileLineDelimiters;
+        private const char ProviderConfigDelimiter = ',';
+        private const char ConfigComponentDelimiter = ':';
 
         // Config file keys.
-        private static string ConfigKey_Providers => Defaults.ConfigKey_Providers;
-        private static string ConfigKey_CircularMB => Defaults.ConfigKey_CircularMB;
-        private static string ConfigKey_OutputPath => Defaults.ConfigKey_OutputPath;
-        private static string ConfigKey_ProcessID => Defaults.ConfigKey_ProcessID;
-        private static string ConfigKey_MultiFileSec => Defaults.ConfigKey_MultiFileSec;
+        private const string ConfigKey_Providers = "Providers";
+        private const string ConfigKey_CircularMB = "CircularMB";
+        private const string ConfigKey_OutputPath = "OutputPath";
+        private const string ConfigKey_ProcessID = "ProcessID";
+        private const string ConfigKey_MultiFileSec = "MultiFileSec";
 
         // The default set of providers/keywords/levels.  Used if an alternative configuration is not specified.
         private static EventPipeProviderConfiguration[] DefaultProviderConfiguration => Defaults.ProviderConfiguration;
@@ -62,17 +60,6 @@ namespace System.Diagnostics.Tracing
                 new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5, null),
                 new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5, null),
             };
-
-            internal static readonly char[] ProviderConfigDelimiter = new char[] { ',' };
-            internal static readonly char[] ConfigComponentDelimiter = new char[] { ':' };
-            internal static readonly string[] ConfigFileLineDelimiters = new string[] { "\r\n", "\n" };
-
-            // Config file keys.
-            internal const string ConfigKey_Providers = "Providers";
-            internal const string ConfigKey_CircularMB = "CircularMB";
-            internal const string ConfigKey_OutputPath = "OutputPath";
-            internal const string ConfigKey_ProcessID = "ProcessID";
-            internal const string ConfigKey_MultiFileSec = "MultiFileSec";
         }
 
         // Singleton controller instance.
@@ -195,7 +182,7 @@ namespace System.Diagnostics.Tracing
             string strMultiFileSec = null;
 
             // Split the configuration entries by line.
-            string[] configEntries = strConfigContents.Split(ConfigFileLineDelimiters, StringSplitOptions.RemoveEmptyEntries);
+            string[] configEntries = strConfigContents.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
             foreach (string configEntry in configEntries)
             {
                 //`Split the key and value by '='.
