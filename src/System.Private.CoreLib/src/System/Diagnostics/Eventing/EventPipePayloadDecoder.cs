@@ -90,8 +90,9 @@ namespace System.Diagnostics.Tracing
                 }
                 else if (parameterType == typeof(Guid))
                 {
-                    // Payload is automatically updated to point to the next piece of data.
-                    decodedFields[i] = ReadUnalignedGuid(ref payload);
+                    const int sizeOfGuid = 16;
+                    decodedFields[i] = new Guid(payload.Slice(0, sizeOfGuid));
+                    payload = payload.Slice(sizeOfGuid);
                 }
                 else if (parameterType == typeof(char))
                 {
@@ -113,28 +114,6 @@ namespace System.Diagnostics.Tracing
             }
 
             return decodedFields;
-        }
-
-        private static Guid ReadUnalignedGuid(ref ReadOnlySpan<byte> payload)
-        {
-            const int sizeOfGuid = 16;
-            Guid guid;
-            if (BitConverter.IsLittleEndian)
-            {
-                Span<byte> guidBytes = stackalloc byte[sizeOfGuid];
-                for (int i = sizeOfGuid - 1; i >= 0; i--)
-                {
-                    guidBytes[i] = MemoryMarshal.Read<byte>(payload);
-                    payload = payload.Slice(sizeof(byte));
-                }
-                guid = MemoryMarshal.Read<Guid>(guidBytes);
-            }
-            else
-            {
-                guid = new Guid(payload.Slice(0, sizeOfGuid));
-                payload = payload.Slice(sizeOfGuid);
-            }
-            return guid;
         }
     }
 #endif // FEATURE_PERFTRACING
