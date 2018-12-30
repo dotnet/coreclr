@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using Internal.Runtime.CompilerServices;
 using DebuggerStepThroughAttribute = System.Diagnostics.DebuggerStepThroughAttribute;
 using MdToken = System.Reflection.MetadataToken;
 
@@ -4808,9 +4809,6 @@ namespace System
     #region Library
     internal readonly unsafe struct MdUtf8String
     {
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern unsafe bool EqualsCaseSensitive(void* szLhs, void* szRhs, int cSz);
-
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern unsafe bool EqualsCaseInsensitive(void* szLhs, void* szRhs, int cSz);
 
@@ -4857,17 +4855,20 @@ namespace System
             m_StringHeapByteLength = cUtf8String;
         }
 
+        // Very common called version of the Equals pair
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe bool Equals(MdUtf8String s)
         {
+            bool isEqual = false;
             if (m_pStringHeap == null)
             {
-                return s.m_StringHeapByteLength == 0;
+                isEqual = s.m_StringHeapByteLength == 0 ? true : false;
             }
             if ((s.m_StringHeapByteLength == m_StringHeapByteLength) && (m_StringHeapByteLength != 0))
             {
-                return EqualsCaseSensitive(s.m_pStringHeap, m_pStringHeap, m_StringHeapByteLength);
+                isEqual = SpanHelpers.SequenceEqual<byte>(ref Unsafe.AsRef<byte>(s.m_pStringHeap), ref Unsafe.AsRef<byte>(m_pStringHeap), m_StringHeapByteLength) ? true : false;
             }
-            return false;
+            return isEqual;
         }
 
         internal unsafe bool EqualsCaseInsensitive(MdUtf8String s)
