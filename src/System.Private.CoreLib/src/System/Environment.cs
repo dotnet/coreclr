@@ -298,6 +298,7 @@ namespace System
                            conditionMask);
             }
 
+            s_IsWindows8OrAbove = isWindows8OrAbove;
             return isWindows8OrAbove;
         }
 
