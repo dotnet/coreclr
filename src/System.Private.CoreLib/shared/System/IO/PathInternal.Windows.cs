@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace System.IO
@@ -65,6 +66,7 @@ namespace System.IO
         /// <summary>
         /// Returns true if the given character is a valid drive letter
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool IsValidDriveChar(char value)
         {
             return ((value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z'));
@@ -150,7 +152,7 @@ namespace System.IO
             return IsExtended(path)
                 ||
                 (
-                    path.Length >= DevicePrefixLength
+                    (uint)path.Length > DevicePrefixLength - 1
                     && IsDirectorySeparator(path[0])
                     && IsDirectorySeparator(path[1])
                     && (path[2] == '.' || path[2] == '?')
@@ -163,7 +165,7 @@ namespace System.IO
         /// </summary>
         internal static bool IsDeviceUNC(ReadOnlySpan<char> path)
         {
-            return path.Length >= UncExtendedPrefixLength
+            return (uint)path.Length > UncExtendedPrefixLength - 1
                 && IsDevice(path)
                 && IsDirectorySeparator(path[7])
                 && path[4] == 'U'
@@ -180,7 +182,7 @@ namespace System.IO
         {
             // While paths like "//?/C:/" will work, they're treated the same as "\\.\" paths.
             // Skipping of normalization will *only* occur if back slashes ('\') are used.
-            return path.Length >= DevicePrefixLength
+            return (uint)path.Length > DevicePrefixLength - 1
                 && path[0] == '\\'
                 && (path[1] == '\\' || path[1] == '?')
                 && path[2] == '?'
@@ -300,7 +302,7 @@ namespace System.IO
 
             // The only way to specify a fixed path that doesn't begin with two slashes
             // is the drive, colon, slash format- i.e. C:\
-            return !((path.Length >= 3)
+            return !(((uint)path.Length > 2)
                 && (path[1] == VolumeSeparatorChar)
                 && IsDirectorySeparator(path[2])
                 // To match old behavior we'll check the drive character for validity as the path is technically
@@ -314,7 +316,9 @@ namespace System.IO
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool IsDirectorySeparator(char c)
         {
-            return c == DirectorySeparatorChar || c == AltDirectorySeparatorChar;
+            // Ternary operator returning true/false prevents redundant asm generation:
+            // https://github.com/dotnet/coreclr/issues/914 (see String.IsNullOrEmpty)
+            return (c == DirectorySeparatorChar || c == AltDirectorySeparatorChar) ? true : false;
         }
 
         /// <summary>
@@ -417,12 +421,7 @@ namespace System.IO
             if (path.IsEmpty)
                 return true;
 
-            foreach (char c in path)
-            {
-                if (c != ' ')
-                    return false;
-            }
-            return true;
+            return path.IsWhiteSpace();
         }
     }
 }
