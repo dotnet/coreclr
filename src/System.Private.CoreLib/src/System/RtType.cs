@@ -4817,20 +4817,9 @@ namespace System
 
         private static int GetUtf8StringByteLength(void* pUtf8String)
         {
-            int len = 0;
+            const int MaxStringLength = 1024;
 
-            unsafe
-            {
-                byte* pItr = (byte*)pUtf8String;
-
-                while (*pItr != 0)
-                {
-                    len++;
-                    pItr++;
-                }
-            }
-
-            return len;
+            return SpanHelpers.IndexOf(ref Unsafe.AsRef<byte>(pUtf8String), (byte)0, MaxStringLength);
         }
 
         private readonly void* m_pStringHeap;        // This is the raw UTF8 string.
