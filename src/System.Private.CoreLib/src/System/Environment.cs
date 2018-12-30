@@ -186,7 +186,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern string[] GetCommandLineArgsNative();
 
-        private static string[] s_CommandLineArgs = null;
+        private static string[] s_CommandLineArgs;
         private static void SetCommandLineArgs(string[] cmdLineArgs)
         {
             s_CommandLineArgs = cmdLineArgs;
@@ -272,8 +272,12 @@ namespace System
         }
 
 #if !FEATURE_PAL
-        private static Lazy<bool> s_IsWindows8OrAbove = new Lazy<bool>(() => 
+        private static bool? s_IsWindows8OrAbove;
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static bool SetAndGetIsWindows8OrAbove() 
         {
+            bool isWindows8OrAbove;
             unsafe
             {
                 ulong conditionMask = Win32Native.VerSetConditionMask(0, Win32Native.VER_MAJORVERSION, Win32Native.VER_GREATER_EQUAL);
@@ -289,22 +293,30 @@ namespace System
                 version.wServicePackMajor = 0;
                 version.wServicePackMinor = 0;
 
-                return Win32Native.VerifyVersionInfoW(ref version,
+                isWindows8OrAbove = Win32Native.VerifyVersionInfoW(ref version,
                            Win32Native.VER_MAJORVERSION | Win32Native.VER_MINORVERSION | Win32Native.VER_SERVICEPACKMAJOR | Win32Native.VER_SERVICEPACKMINOR,
                            conditionMask);
             }
-        });
-        internal static bool IsWindows8OrAbove => s_IsWindows8OrAbove.Value;
+
+            return isWindows8OrAbove;
+        }
+
+        internal static bool IsWindows8OrAbove => s_IsWindows8OrAbove ?? SetAndGetIsWindows8OrAbove();
 #endif
-        
+
 #if FEATURE_COMINTEROP
         // Does the current version of Windows have Windows Runtime suppport?
-        private static Lazy<bool> s_IsWinRTSupported = new Lazy<bool>(() =>
-        {
-            return WinRTSupported();
-        });
+        private static bool? s_IsWinRTSupported;
 
-        internal static bool IsWinRTSupported => s_IsWinRTSupported.Value;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static bool SetAndGetIsWinRTSupported()
+        {
+            bool isWinRTSupported = WinRTSupported();
+            s_IsWinRTSupported = isWinRTSupported;
+            return isWinRTSupported;
+        }
+
+        internal static bool IsWinRTSupported => s_IsWinRTSupported ?? SetAndGetIsWinRTSupported();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
