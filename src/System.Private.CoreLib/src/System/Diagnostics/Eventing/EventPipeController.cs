@@ -37,38 +37,56 @@ namespace System.Diagnostics.Tracing
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
         private const int DisabledPollingIntervalMilliseconds = 5000; // 5 seconds
         private const uint DefaultCircularBufferMB = 1024; // 1 GB
-        private static readonly char[] ProviderConfigDelimiter = new char[] { ',' };
-        private static readonly char[] ConfigComponentDelimiter = new char[] { ':' };
-        private static readonly string[] ConfigFileLineDelimiters = new string[] { "\r\n", "\n" };
         private const char ConfigEntryDelimiter = '=';
 
+        private static char[] ProviderConfigDelimiter => Defaults.ProviderConfigDelimiter;
+        private static char[] ConfigComponentDelimiter => Defaults.ConfigComponentDelimiter;
+        private static string[] ConfigFileLineDelimiters => Defaults.ConfigFileLineDelimiters;
+
         // Config file keys.
-        private const string ConfigKey_Providers = "Providers";
-        private const string ConfigKey_CircularMB = "CircularMB";
-        private const string ConfigKey_OutputPath = "OutputPath";
-        private const string ConfigKey_ProcessID = "ProcessID";
-        private const string ConfigKey_MultiFileSec = "MultiFileSec";
+        private static string ConfigKey_Providers => Defaults.ConfigKey_Providers;
+        private static string ConfigKey_CircularMB => Defaults.ConfigKey_CircularMB;
+        private static string ConfigKey_OutputPath => Defaults.ConfigKey_OutputPath;
+        private static string ConfigKey_ProcessID => Defaults.ConfigKey_ProcessID;
+        private static string ConfigKey_MultiFileSec => Defaults.ConfigKey_MultiFileSec;
 
         // The default set of providers/keywords/levels.  Used if an alternative configuration is not specified.
-        private static readonly EventPipeProviderConfiguration[] DefaultProviderConfiguration = new EventPipeProviderConfiguration[]
+        private static EventPipeProviderConfiguration[] DefaultProviderConfiguration => Defaults.ProviderConfiguration;
+
+        // Inner static type to hold static initalization to avoid creating a static .cctor that's activated in the startup path
+        private static class Defaults
         {
-            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntime", 0x4c14fccbd, 5, null),
-            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5, null),
-            new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5, null),
-        };
+            internal static readonly EventPipeProviderConfiguration[] ProviderConfiguration = new EventPipeProviderConfiguration[]
+            {
+                new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntime", 0x4c14fccbd, 5, null),
+                new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5, null),
+                new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5, null),
+            };
+
+            internal static readonly char[] ProviderConfigDelimiter = new char[] { ',' };
+            internal static readonly char[] ConfigComponentDelimiter = new char[] { ':' };
+            internal static readonly string[] ConfigFileLineDelimiters = new string[] { "\r\n", "\n" };
+
+            // Config file keys.
+            internal const string ConfigKey_Providers = "Providers";
+            internal const string ConfigKey_CircularMB = "CircularMB";
+            internal const string ConfigKey_OutputPath = "OutputPath";
+            internal const string ConfigKey_ProcessID = "ProcessID";
+            internal const string ConfigKey_MultiFileSec = "MultiFileSec";
+        }
 
         // Singleton controller instance.
-        private static EventPipeController s_controllerInstance = null;
+        private static EventPipeController s_controllerInstance;
 
         // Initialization flag used to avoid initializing FrameworkEventSource on the startup path.
-        private static bool s_initializing = false;
+        private static bool s_initializing;
 
         // Controller object state.
         private Timer m_timer;
         private string m_configFilePath;
         private DateTime m_configFileUpdateTime;
-        private string m_traceFilePath = null;
-        private bool m_configFileExists = false;
+        private string m_traceFilePath;
+        private bool m_configFileExists;
 
         internal static bool Initializing
         {
@@ -377,26 +395,38 @@ namespace System.Diagnostics.Tracing
         #region Configuration
 
         // Cache for COMPlus configuration variables.
-        private static int s_Config_EnableEventPipe = -1;
-        private static string s_Config_EventPipeConfig = null;
-        private static uint s_Config_EventPipeCircularMB = 0;
-        private static string s_Config_EventPipeOutputPath = null;
+        private static int s_Config_EnableEventPipe;
+        private static string s_Config_EventPipeConfig;
+        private static uint s_Config_EventPipeCircularMB;
+        private static string s_Config_EventPipeOutputPath;
 
         private static int Config_EnableEventPipe
         {
             get
             {
-                if (s_Config_EnableEventPipe == -1)
-                {
-                    string strEnabledValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
-                    if ((strEnabledValue == null) || (!int.TryParse(strEnabledValue, out s_Config_EnableEventPipe)))
-                    {
-                        s_Config_EnableEventPipe = 0;
-                    }
-                }
-
-                return s_Config_EnableEventPipe;
+                // 1 disabled and 2 is enabled, however we return 0 and 1 respectively, so subtract 1.
+                int config_EnableEventPipe = s_Config_EnableEventPipe - 1;
+                return config_EnableEventPipe >= 0 ? config_EnableEventPipe : GetAndSetConfig_EnableEventPipe();
             }
+        }
+
+        private static int GetAndSetConfig_EnableEventPipe()
+        {
+            int config_EnableEventPipe;
+            string strEnabledValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
+            if ((strEnabledValue == null) || (!int.TryParse(strEnabledValue, out config_EnableEventPipe)))
+            {
+                config_EnableEventPipe = 0;
+                // 1 is disabled
+                s_Config_EnableEventPipe = 1;
+            }
+            else
+            {
+                // Add one to the parsed value, we'll subtract it when returning the value from the property
+                s_Config_EnableEventPipe = config_EnableEventPipe + 1;
+            }
+
+            return config_EnableEventPipe;
         }
 
         private static string Config_EventPipeConfig
