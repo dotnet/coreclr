@@ -29,7 +29,7 @@ namespace System.Runtime.InteropServices
     public static partial class Marshal
     {
 #if FEATURE_COMINTEROP
-        internal static Guid IID_IUnknown = new Guid("00000000-0000-0000-C000-000000000046");
+        internal static Guid IID_IUnknown = new Guid(0, 0, 0, 0xC0, 0, 0, 0, 0, 0, 0, 0x46);
 #endif //FEATURE_COMINTEROP
 
         private const int LMEM_FIXED = 0;
