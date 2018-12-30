@@ -122,8 +122,6 @@ namespace System.Runtime.InteropServices
 
         #endregion
 
-        private static Guid IID_IManagedObject = new Guid(0xC3FCC19E, 0xA970, 0x11D2, 0x8B, 0x5A, 0, 0xA0, 0xC9, 0xB7, 0xC9, 0xC4);
-
         CustomQueryInterfaceResult ICustomQueryInterface.GetInterface(ref Guid iid, out IntPtr ppv)
         {
             ppv = IntPtr.Zero;
@@ -131,10 +129,6 @@ namespace System.Runtime.InteropServices
             {
                 ppv = Marshal.GetComInterfaceForObject(this, typeof(IDispatch), CustomQueryInterfaceMode.Ignore);
                 return CustomQueryInterfaceResult.Handled;
-            }
-            else if (iid == IID_IManagedObject)
-            {
-                return CustomQueryInterfaceResult.Failed;
             }
 
             return CustomQueryInterfaceResult.NotHandled;
