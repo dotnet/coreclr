@@ -164,7 +164,7 @@ namespace System.StubHelpers
                 return null;
 
             byte* pBytes = (byte*)cstr;
-            int nbBytes = StubHelpers.strlen(pBytes);
+            int nbBytes = string.strlen(pBytes);
             return string.CreateStringFromEncoding(pBytes, nbBytes, Encoding.UTF8);
         }
 
@@ -206,7 +206,7 @@ namespace System.StubHelpers
                 return;
 
             byte* pBytes = (byte*)pNative;
-            int nbBytes = StubHelpers.strlen(pBytes);
+            int nbBytes = string.strlen(pBytes);
             sb.ReplaceBufferUtf8Internal(new Span<byte>(pBytes, nbBytes));
         }
     }
@@ -1191,7 +1191,7 @@ namespace System.StubHelpers
                 case BackPropAction.StringBuilderAnsi:
                     {
                         sbyte* ptr = (sbyte*)pNativeHome.ToPointer();
-                        ((StringBuilder)pManagedHome).ReplaceBufferAnsiInternal(ptr, Win32Native.lstrlenA(pNativeHome));
+                        ((StringBuilder)pManagedHome).ReplaceBufferAnsiInternal(ptr, string.strlen((byte*)pNativeHome));
                         break;
                     }
 
@@ -1529,8 +1529,6 @@ namespace System.StubHelpers
 
     internal static class StubHelpers
     {
-        private const int MaxStringLength = 0x7ffffff0;
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsQCall(IntPtr pMD);
 
@@ -1720,22 +1718,12 @@ namespace System.StubHelpers
 
         internal static void CheckStringLength(uint length)
         {
+            const int MaxStringLength = 0x7ffffff0;
+
             if (length > MaxStringLength)
             {
                 ThrowStringTooLong();
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe int strlen(byte* ptr)
-        {
-            int length = SpanHelpers.IndexOf(ref *ptr, (byte)'\0', MaxStringLength);
-            if (length < 0)
-            {
-                ThrowStringTooLong();
-            }
-
-            return length;
         }
 
         private static void ThrowStringTooLong()

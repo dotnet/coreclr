@@ -85,7 +85,7 @@ namespace System.Runtime.InteropServices
                 return null;
             }
 
-            int nb = Win32Native.lstrlenA(ptr);
+            int nb = string.strlen((byte*)ptr);
             if (nb == 0)
             {
                 return string.Empty;
@@ -155,7 +155,7 @@ namespace System.Runtime.InteropServices
                 return null;
             }
 
-            int nbBytes = StubHelpers.StubHelpers.strlen((byte*)ptr.ToPointer());
+            int nbBytes = string.strlen((byte*)ptr);
             return PtrToStringUTF8(ptr, nbBytes);
         }
 
@@ -1714,9 +1714,9 @@ namespace System.Runtime.InteropServices
             FreeBSTR(s);
         }
 
-        public static void ZeroFreeCoTaskMemAnsi(IntPtr s)
+        public unsafe static void ZeroFreeCoTaskMemAnsi(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
             FreeCoTaskMem(s);
         }
 
@@ -1728,7 +1728,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe void ZeroFreeCoTaskMemUTF8(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)System.StubHelpers.StubHelpers.strlen((byte*)s));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
             FreeCoTaskMem(s);
         }
 
@@ -1752,9 +1752,9 @@ namespace System.Runtime.InteropServices
             return s.MarshalToString(globalAlloc: true, unicode: true); ;
         }
 
-        public static void ZeroFreeGlobalAllocAnsi(IntPtr s)
+        public unsafe static void ZeroFreeGlobalAllocAnsi(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
             FreeHGlobal(s);
         }
 

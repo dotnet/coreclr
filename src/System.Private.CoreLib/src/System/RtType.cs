@@ -4822,7 +4822,7 @@ namespace System
             byte* pStringBytes = (byte*)pStringHeap;
             if (pStringHeap != null)
             {
-                m_StringHeapByteLength = StubHelpers.StubHelpers.strlen(pStringBytes);
+                m_StringHeapByteLength = string.strlen(pStringBytes);
             }
             else
             {
