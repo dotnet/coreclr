@@ -162,8 +162,10 @@ namespace System.StubHelpers
         {
             if (IntPtr.Zero == cstr)
                 return null;
-            int nbBytes = StubHelpers.strlen((sbyte*)cstr);
-            return string.CreateStringFromEncoding((byte*)cstr, nbBytes, Encoding.UTF8);
+
+            byte* pBytes = (byte*)cstr;
+            int nbBytes = StubHelpers.strlen(pBytes);
+            return string.CreateStringFromEncoding(pBytes, nbBytes, Encoding.UTF8);
         }
 
         internal static void ClearNative(IntPtr pNative)
@@ -203,8 +205,9 @@ namespace System.StubHelpers
             if (pNative == IntPtr.Zero)
                 return;
 
-            int nbBytes = StubHelpers.strlen((sbyte*)pNative);
-            sb.ReplaceBufferUtf8Internal(new Span<byte>((byte*)pNative, nbBytes));
+            byte* pBytes = (byte*)pNative;
+            int nbBytes = StubHelpers.strlen(pBytes);
+            sb.ReplaceBufferUtf8Internal(new Span<byte>(pBytes, nbBytes));
         }
     }
 
@@ -1526,6 +1529,8 @@ namespace System.StubHelpers
 
     internal static class StubHelpers
     {
+        private const int MaxStringLength = 0x7ffffff0;
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsQCall(IntPtr pMD);
 
@@ -1715,14 +1720,28 @@ namespace System.StubHelpers
 
         internal static void CheckStringLength(uint length)
         {
-            if (length > 0x7ffffff0)
+            if (length > MaxStringLength)
             {
-                throw new MarshalDirectiveException(SR.Marshaler_StringTooLong);
+                ThrowStringTooLong();
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern unsafe int strlen(sbyte* ptr);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe int strlen(byte* ptr)
+        {
+            int length = SpanHelpers.IndexOf(ref *ptr, (byte)'\0', MaxStringLength);
+            if (length < 0)
+            {
+                ThrowStringTooLong();
+            }
+
+            return length;
+        }
+
+        private static void ThrowStringTooLong()
+        {
+            throw new MarshalDirectiveException(SR.Marshaler_StringTooLong);
+        }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern unsafe void FmtClassUpdateNativeInternal(object obj, byte* pNative, ref CleanupWorkListElement pCleanupWorkList);

@@ -155,7 +155,7 @@ namespace System.Runtime.InteropServices
                 return null;
             }
 
-            int nbBytes = StubHelpers.StubHelpers.strlen((sbyte*)ptr.ToPointer());
+            int nbBytes = StubHelpers.StubHelpers.strlen((byte*)ptr.ToPointer());
             return PtrToStringUTF8(ptr, nbBytes);
         }
 
@@ -1728,7 +1728,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe void ZeroFreeCoTaskMemUTF8(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)System.StubHelpers.StubHelpers.strlen((sbyte*)s));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)System.StubHelpers.StubHelpers.strlen((byte*)s));
             FreeCoTaskMem(s);
         }
 
