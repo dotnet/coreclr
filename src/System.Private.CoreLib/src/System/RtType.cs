@@ -11,7 +11,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using Internal.Runtime.CompilerServices;
 using DebuggerStepThroughAttribute = System.Diagnostics.DebuggerStepThroughAttribute;
 using MdToken = System.Reflection.MetadataToken;
 
@@ -4823,7 +4822,7 @@ namespace System
             m_pStringHeap = (byte*)pStringHeap;
             if (pStringHeap != null)
             {
-                m_StringHeapByteLength = StubHelpers.StubHelpers.strlen((sbyte*)m_pStringHeap);
+                m_StringHeapByteLength = StubHelpers.StubHelpers.strlen((sbyte*)pStringHeap);
             }
             else
             {
@@ -4853,15 +4852,14 @@ namespace System
 
         internal unsafe bool EqualsCaseInsensitive(MdUtf8String s)
         {
-            if (m_pStringHeap == null)
+            if (s.m_StringHeapByteLength != m_StringHeapByteLength)
             {
-                return s.m_StringHeapByteLength == 0;
+                return false;
             }
-            if ((s.m_StringHeapByteLength == m_StringHeapByteLength) && (m_StringHeapByteLength != 0))
+            else
             {
-                return EqualsCaseInsensitive(s.m_pStringHeap, m_pStringHeap, m_StringHeapByteLength);
+                return (m_StringHeapByteLength == 0) || EqualsCaseInsensitive(s.m_pStringHeap, m_pStringHeap, m_StringHeapByteLength);
             }
-            return false;
         }
 
         internal unsafe uint HashCaseInsensitive()
