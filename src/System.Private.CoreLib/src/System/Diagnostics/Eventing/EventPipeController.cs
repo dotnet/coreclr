@@ -49,18 +49,12 @@ namespace System.Diagnostics.Tracing
         private const string ConfigKey_MultiFileSec = "MultiFileSec";
 
         // The default set of providers/keywords/levels.  Used if an alternative configuration is not specified.
-        private static EventPipeProviderConfiguration[] DefaultProviderConfiguration => Defaults.ProviderConfiguration;
-
-        // Inner static type to hold static initalization to avoid creating a static .cctor that's activated in the startup path
-        private static class Defaults
+        private static EventPipeProviderConfiguration[] DefaultProviderConfiguration => new EventPipeProviderConfiguration[]
         {
-            internal static readonly EventPipeProviderConfiguration[] ProviderConfiguration = new EventPipeProviderConfiguration[]
-            {
-                new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntime", 0x4c14fccbd, 5, null),
-                new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5, null),
-                new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5, null),
-            };
-        }
+            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntime", 0x4c14fccbd, 5, null),
+            new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5, null),
+            new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5, null),
+        };
 
         // Singleton controller instance.
         private static EventPipeController s_controllerInstance;
