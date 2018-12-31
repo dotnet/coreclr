@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -4809,6 +4810,9 @@ namespace System
     #region Library
     internal readonly unsafe struct MdUtf8String
     {
+        private static readonly SpanAction<char, MdUtf8String> s_createString = (Span<char> chars, MdUtf8String utf8String)
+            => Encoding.UTF8.GetChars(new ReadOnlySpan<byte>(utf8String.m_pStringHeap, utf8String.m_StringHeapByteLength), chars);
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern unsafe bool EqualsCaseInsensitive(void* szLhs, void* szRhs, int cSz);
 
@@ -4889,10 +4893,7 @@ namespace System
             ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(m_pStringHeap, byteLength);
             int charLength = Encoding.UTF8.GetCharCount(span);
 
-            return string.Create(
-                charLength, 
-                this, 
-                (chars, utf8String) => Encoding.UTF8.GetChars(new ReadOnlySpan<byte>(utf8String.m_pStringHeap, utf8String.m_StringHeapByteLength), chars));
+            return string.Create(charLength, this, s_createString);
         }
     }
     #endregion
