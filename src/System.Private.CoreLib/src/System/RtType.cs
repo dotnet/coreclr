@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -166,7 +165,7 @@ namespace System
 
                 public unsafe Filter(byte* pUtf8Name, int cUtf8Name, MemberListType listType)
                 {
-                    m_name = new MdUtf8String((void*)pUtf8Name, cUtf8Name);
+                    m_name = new MdUtf8String(pUtf8Name, cUtf8Name);
                     m_listType = listType;
                     m_nameHash = 0;
 
@@ -4816,22 +4815,15 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern unsafe uint HashCaseInsensitive(void* sz, int cSz);
 
-        private static int GetUtf8StringByteLength(void* pUtf8String)
-        {
-            const int MaxStringLength = 1024;
-
-            return SpanHelpers.IndexOf(ref Unsafe.AsRef<byte>(pUtf8String), (byte)0, MaxStringLength);
-        }
-
-        private readonly void* m_pStringHeap;        // This is the raw UTF8 string.
+        private readonly byte* m_pStringHeap;        // This is the raw UTF8 string.
         private readonly int m_StringHeapByteLength;
 
         internal MdUtf8String(void* pStringHeap)
         {
-            m_pStringHeap = pStringHeap;
+            m_pStringHeap = (byte*)pStringHeap;
             if (pStringHeap != null)
             {
-                m_StringHeapByteLength = GetUtf8StringByteLength(pStringHeap);
+                m_StringHeapByteLength = StubHelpers.StubHelpers.strlen((sbyte*)m_pStringHeap);
             }
             else
             {
@@ -4839,7 +4831,7 @@ namespace System
             }
         }
 
-        internal unsafe MdUtf8String(void* pUtf8String, int cUtf8String)
+        internal unsafe MdUtf8String(byte* pUtf8String, int cUtf8String)
         {
             m_pStringHeap = pUtf8String;
             m_StringHeapByteLength = cUtf8String;
@@ -4849,16 +4841,14 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe bool Equals(MdUtf8String s)
         {
-            bool isEqual = false;
-            if (m_pStringHeap == null)
+            if (s.m_StringHeapByteLength != m_StringHeapByteLength)
             {
-                isEqual = s.m_StringHeapByteLength == 0 ? true : false;
+                return false;
             }
-            if ((s.m_StringHeapByteLength == m_StringHeapByteLength) && (m_StringHeapByteLength != 0))
+            else
             {
-                isEqual = SpanHelpers.SequenceEqual<byte>(ref Unsafe.AsRef<byte>(s.m_pStringHeap), ref Unsafe.AsRef<byte>(m_pStringHeap), m_StringHeapByteLength) ? true : false;
+                return SpanHelpers.SequenceEqual<byte>(ref *s.m_pStringHeap, ref *m_pStringHeap, m_StringHeapByteLength);
             }
-            return isEqual;
         }
 
         internal unsafe bool EqualsCaseInsensitive(MdUtf8String s)
