@@ -593,14 +593,9 @@ namespace System
             }
         }
 
-        internal void GetStackTracesDeepCopy(out object currentStackTrace, out object dynamicMethodArray)
-        {
-            GetStackTracesDeepCopy(this, out currentStackTrace, out dynamicMethodArray);
-        }
-
         // This is invoked by ExceptionDispatchInfo.Throw to restore the exception stack trace, corresponding to the original throw of the
         // exception, just before the exception is "rethrown".
-        internal void RestoreExceptionDispatchInfo(System.Runtime.ExceptionServices.ExceptionDispatchInfo exceptionDispatchInfo)
+        internal void RestoreEdiState(EdiCaptureState exceptionDispatchInfo)
         {
             bool fCanProcessException = !(IsImmutableAgileException(this));
             // Restore only for non-preallocated exceptions
@@ -622,8 +617,8 @@ namespace System
                     //
                     // Since deep copying can throw on OOM, try to get the copies
                     // outside the lock.
-                    object _stackTraceCopy = (exceptionDispatchInfo.BinaryStackTraceArray == null) ? null : DeepCopyStackTrace(exceptionDispatchInfo.BinaryStackTraceArray);
-                    object _dynamicMethodsCopy = (exceptionDispatchInfo.DynamicMethodArray == null) ? null : DeepCopyDynamicMethods(exceptionDispatchInfo.DynamicMethodArray);
+                    object _stackTraceCopy = (exceptionDispatchInfo._stackTrace == null) ? null : DeepCopyStackTrace(exceptionDispatchInfo._stackTrace);
+                    object _dynamicMethodsCopy = (exceptionDispatchInfo._dynamicMethods == null) ? null : DeepCopyDynamicMethods(exceptionDispatchInfo._dynamicMethods);
 
                     // Finally, restore the information. 
                     //
@@ -631,9 +626,9 @@ namespace System
                     // they can have different data to be restored. Thus, to ensure atomicity of restoration from each EDI, perform the restore under a lock.
                     lock (Exception.s_EDILock)
                     {
-                        _watsonBuckets = exceptionDispatchInfo.WatsonBuckets;
-                        _ipForWatsonBuckets = exceptionDispatchInfo.IPForWatsonBuckets;
-                        _remoteStackTraceString = exceptionDispatchInfo.RemoteStackTrace;
+                        _watsonBuckets = exceptionDispatchInfo._watsonBuckets;
+                        _ipForWatsonBuckets = exceptionDispatchInfo._ipForWatsonBuckets;
+                        _remoteStackTraceString = exceptionDispatchInfo._remoteStackTrace;
                         SaveStackTracesFromDeepCopy(this, _stackTraceCopy, _dynamicMethodsCopy);
                     }
                     _stackTraceString = null;
@@ -745,6 +740,31 @@ namespace System
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetMessageFromNativeResources(ExceptionMessageKind kind, StringHandleOnStack retMesg);
+
+        internal class EdiCaptureState
+        {
+            public object _stackTrace;
+            public object _dynamicMethods;
+            public string _remoteStackTrace;
+            public UIntPtr _ipForWatsonBuckets;
+            public object _watsonBuckets;
+        }
+
+        internal EdiCaptureState CaptureEdiState()
+        {
+            object stackTrace;
+            object dynamicMethods;
+            GetStackTracesDeepCopy(this, out stackTrace, out dynamicMethods);
+
+            return new EdiCaptureState()
+            {
+                _stackTrace = stackTrace,
+                _dynamicMethods = dynamicMethods,
+                _remoteStackTrace = RemoteStackTrace,
+                _ipForWatsonBuckets = IPForWatsonBuckets,
+                _watsonBuckets = WatsonBuckets
+            };
+        }
     }
 }
 

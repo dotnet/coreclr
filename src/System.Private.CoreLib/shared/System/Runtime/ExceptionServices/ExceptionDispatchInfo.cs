@@ -2,20 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*=============================================================================
-**
-**
-**
-** Purpose: Contains common usage support entities for advanced exception
-**          handling/processing scenarios.
-**
-** Created: 11/2/2010
-** 
-** 
-** 
-=============================================================================*/
-
-using System;
 using System.Diagnostics;
 
 namespace System.Runtime.ExceptionServices
@@ -29,70 +15,13 @@ namespace System.Runtime.ExceptionServices
     // propagate exceptions (i.e. errors to be precise) across threads.
     public sealed class ExceptionDispatchInfo
     {
-        // Private members that will hold the relevant details.
-        private Exception m_Exception;
-        private string m_remoteStackTrace;
-        private object m_stackTrace;
-        private object m_dynamicMethods;
-        private UIntPtr m_IPForWatsonBuckets;
-        private object m_WatsonBuckets;
+        private readonly Exception _exception;
+        private readonly Exception.EdiCaptureState _ediCaptureState;
 
         private ExceptionDispatchInfo(Exception exception)
         {
-            // Copy over the details we need to save.
-            m_Exception = exception;
-            m_remoteStackTrace = exception.RemoteStackTrace;
-
-            // NOTE: don't be tempted to pass the fields for the out params; the containing object
-            //       might be relocated during the call so the pointers will no longer be valid.
-            object stackTrace;
-            object dynamicMethods;
-            m_Exception.GetStackTracesDeepCopy(out stackTrace, out dynamicMethods);
-            m_stackTrace = stackTrace;
-            m_dynamicMethods = dynamicMethods;
-
-            m_IPForWatsonBuckets = exception.IPForWatsonBuckets;
-            m_WatsonBuckets = exception.WatsonBuckets;
-        }
-
-        internal UIntPtr IPForWatsonBuckets
-        {
-            get
-            {
-                return m_IPForWatsonBuckets;
-            }
-        }
-
-        internal object WatsonBuckets
-        {
-            get
-            {
-                return m_WatsonBuckets;
-            }
-        }
-
-        internal object BinaryStackTraceArray
-        {
-            get
-            {
-                return m_stackTrace;
-            }
-        }
-
-        internal object DynamicMethodArray
-        {
-            get
-            {
-                return m_dynamicMethods;
-            }
-        }
-
-        internal string RemoteStackTrace
-        {
-            get
-            {
-                return m_remoteStackTrace;
-            }
+            _exception = exception;
+            _ediCaptureState = exception.CaptureEdiState();
         }
 
         // This static method is used to create an instance of ExceptionDispatchInfo for
@@ -102,7 +31,7 @@ namespace System.Runtime.ExceptionServices
         {
             if (source == null)
             {
-                throw new ArgumentNullException(nameof(source), SR.ArgumentNull_Obj);
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.source);
             }
 
             return new ExceptionDispatchInfo(source);
@@ -113,7 +42,7 @@ namespace System.Runtime.ExceptionServices
         {
             get
             {
-                return m_Exception;
+                return _exception;
             }
         }
 
@@ -128,8 +57,8 @@ namespace System.Runtime.ExceptionServices
         public void Throw()
         {
             // Restore the exception dispatch details before throwing the exception.
-            m_Exception.RestoreExceptionDispatchInfo(this);
-            throw m_Exception;
+            _exception.RestoreEdiState(_ediCaptureState);
+            throw _exception;
         }
 
         // Throws the source exception, maintaining the original bucketing details and augmenting
