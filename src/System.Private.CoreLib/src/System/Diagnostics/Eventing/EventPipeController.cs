@@ -59,27 +59,20 @@ namespace System.Diagnostics.Tracing
         // Singleton controller instance.
         private static EventPipeController s_controllerInstance;
 
-        // Initialization flag used to avoid initializing FrameworkEventSource on the startup path.
-        private static bool s_initializing;
-
         // Controller object state.
         private Timer m_timer;
         private string m_configFilePath;
-        private DateTime m_configFileUpdateTime;
-        private string m_traceFilePath;
         private bool m_configFileExists;
 
-        internal static bool Initializing
-        {
-            get { return s_initializing; }
-        }
+        // Initialization flag used to avoid initializing FrameworkEventSource on the startup path.
+        internal static bool Initializing { get; private set; }
 
         internal static void Initialize()
         {
             // Don't allow failures to propagate upstream.  Ensure program correctness without tracing.
             try
             {
-                s_initializing = true;
+                Initializing = true;
 
                 if (s_controllerInstance == null)
                 {
@@ -99,7 +92,7 @@ namespace System.Diagnostics.Tracing
             catch { }
             finally
             {
-                s_initializing = false;
+                Initializing = false;
             }
         }
 
@@ -373,70 +366,33 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        #region Configuration
-
-        // Cache for COMPlus configuration variables.
-        private static int s_Config_EnableEventPipe;
-        private static string s_Config_EventPipeConfig;
-        private static uint s_Config_EventPipeCircularMB;
-        private static string s_Config_EventPipeOutputPath;
-
         private static int Config_EnableEventPipe
         {
             get
             {
-                // 1 disabled and 2 is enabled, however we return 0 and 1 respectively, so subtract 1.
-                int config_EnableEventPipe = s_Config_EnableEventPipe - 1;
-                return config_EnableEventPipe >= 0 ? config_EnableEventPipe : GetAndSetConfig_EnableEventPipe();
-            }
-        }
-
-        private static int GetAndSetConfig_EnableEventPipe()
-        {
-            int config_EnableEventPipe;
-            string strEnabledValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
-            if ((strEnabledValue == null) || (!int.TryParse(strEnabledValue, out config_EnableEventPipe)))
-            {
-                config_EnableEventPipe = 0;
-                // 1 is disabled
-                s_Config_EnableEventPipe = 1;
-            }
-            else
-            {
-                // Add one to the parsed value, we'll subtract it when returning the value from the property
-                s_Config_EnableEventPipe = config_EnableEventPipe + 1;
-            }
-
-            return config_EnableEventPipe;
-        }
-
-        private static string Config_EventPipeConfig
-        {
-            get
-            {
-                if (s_Config_EventPipeConfig == null)
+                string stringValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
+                if ((stringValue == null) || (!int.TryParse(stringValue, out int value)))
                 {
-                    s_Config_EventPipeConfig = CompatibilitySwitch.GetValueInternal("EventPipeConfig");
+                    value = 0;
                 }
 
-                return s_Config_EventPipeConfig;
+                return value;
             }
         }
+
+        private static string Config_EventPipeConfig => CompatibilitySwitch.GetValueInternal("EventPipeConfig");
 
         private static uint Config_EventPipeCircularMB
         {
             get
             {
-                if (s_Config_EventPipeCircularMB == 0)
+                string stringValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
+                if ((stringValue == null) || (!uint.TryParse(stringValue, out uint value)))
                 {
-                    string strCircularMB = CompatibilitySwitch.GetValueInternal("EventPipeCircularMB");
-                    if ((strCircularMB == null) || (!uint.TryParse(strCircularMB, out s_Config_EventPipeCircularMB)))
-                    {
-                        s_Config_EventPipeCircularMB = DefaultCircularBufferMB;
-                    }
+                    value = DefaultCircularBufferMB;
                 }
 
-                return s_Config_EventPipeCircularMB;
+                return value;
             }
         }
 
@@ -444,20 +400,15 @@ namespace System.Diagnostics.Tracing
         {
             get
             {
-                if (s_Config_EventPipeOutputPath == null)
+                string stringValue = CompatibilitySwitch.GetValueInternal("EventPipeOutputPath");
+                if (stringValue == null)
                 {
-                    s_Config_EventPipeOutputPath = CompatibilitySwitch.GetValueInternal("EventPipeOutputPath");
-                    if (s_Config_EventPipeOutputPath == null)
-                    {
-                        s_Config_EventPipeOutputPath = ".";
-                    }
+                    stringValue = ".";
                 }
 
-                return s_Config_EventPipeOutputPath;
+                return stringValue;
             }
         }
-
-        #endregion Configuration
     }
 }
 
