@@ -4810,9 +4810,6 @@ namespace System
     #region Library
     internal readonly unsafe struct MdUtf8String
     {
-        private static readonly SpanAction<char, MdUtf8String> s_createString = (Span<char> chars, MdUtf8String utf8String)
-            => Encoding.UTF8.GetChars(new ReadOnlySpan<byte>(utf8String.m_pStringHeap, utf8String.m_StringHeapByteLength), chars);
-
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern unsafe bool EqualsCaseInsensitive(void* szLhs, void* szRhs, int cSz);
 
@@ -4883,18 +4880,7 @@ namespace System
         }
 
         public override string ToString()
-        {
-            int byteLength = m_StringHeapByteLength;
-            if (byteLength == 0)
-            {
-                return "";
-            }
-
-            ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(m_pStringHeap, byteLength);
-            int charLength = Encoding.UTF8.GetCharCount(span);
-
-            return string.Create(charLength, this, s_createString);
-        }
+            => Encoding.UTF8.GetString(new ReadOnlySpan<byte>(m_pStringHeap, m_StringHeapByteLength));
     }
     #endregion
 }
