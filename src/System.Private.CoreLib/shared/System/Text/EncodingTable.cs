@@ -14,8 +14,8 @@ namespace System.Text
     //
     internal static partial class EncodingTable
     {
-        private static readonly Dictionary<string, int> s_name2code = new Dictionary<string, int>(StringComparer.Ordinal);
-        private static readonly Dictionary<int, CodePageDataItem> s_code2data = new Dictionary<int, CodePageDataItem>();
+        private static readonly Dictionary<string, int> s_nameToCodePage = new Dictionary<string, int>(StringComparer.Ordinal);
+        private static readonly Dictionary<int, CodePageDataItem> s_codePageToCodePageData = new Dictionary<int, CodePageDataItem>();
 
         /*=================================GetCodePageFromName==========================
         **Action: Given a encoding name, return the correct code page number for this encoding.
@@ -33,18 +33,18 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(name));
 
             int code;
-            lock (s_name2code)
+            lock (s_nameToCodePage)
             {
-                if (s_name2code.TryGetValue(name, out code))
+                if (s_nameToCodePage.TryGetValue(name, out code))
                     return code;
             }
 
             code = InternalGetCodePageFromName(name);
 
-            lock (s_name2code)
+            lock (s_nameToCodePage)
             {
-                if (!s_name2code.TryAdd(name, code))
-                    code = s_name2code[name];
+                if (!s_nameToCodePage.TryAdd(name, code))
+                    code = s_nameToCodePage[name];
             }
 
             return code;
@@ -121,7 +121,6 @@ namespace System.Text
         }
 
         // Return a list of all EncodingInfo objects describing all of our encodings
-        // This is hard coded based on the 
         internal static EncodingInfo[] GetEncodings()
         {
             EncodingInfo[] arrayEncodingInfo = new EncodingInfo[s_mappedCodePages.Length];
@@ -141,18 +140,18 @@ namespace System.Text
         internal static CodePageDataItem GetCodePageDataItem(int codePage)
         {
             CodePageDataItem data;
-            lock (s_code2data)
+            lock (s_codePageToCodePageData)
             {
-                if (s_code2data.TryGetValue(codePage, out data))
+                if (s_codePageToCodePageData.TryGetValue(codePage, out data))
                     return data;
             }
 
             data = InternalGetCodePageDataItem(codePage);
 
-            lock (s_code2data)
+            lock (s_codePageToCodePageData)
             {
-                if (!s_code2data.TryAdd(codePage, data))
-                    data = s_code2data[codePage];
+                if (!s_codePageToCodePageData.TryAdd(codePage, data))
+                    data = s_codePageToCodePageData[codePage];
             }
 
             return data;
