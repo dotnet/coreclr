@@ -64,7 +64,7 @@ namespace System.ComponentModel
                     if (s_convertFromInvariantString == null)
                     {
                         Type typeDescriptorType = Type.GetType("System.ComponentModel.TypeDescriptor, System.ComponentModel.TypeConverter", throwOnError: false);
-                        Volatile.Write(ref s_convertFromInvariantString, typeDescriptorType == null ? new object() : Delegate.CreateDelegate(typeof(Func<Type, string, object>), typeDescriptorType, "ConvertFromInvariantString", ignoreCase: false));
+                        Volatile.Write(ref s_convertFromInvariantString, typeDescriptorType is null ? new object() : Delegate.CreateDelegate(typeof(Func<Type, string, object>), typeDescriptorType, "ConvertFromInvariantString", ignoreCase: false));
                     }
 
                     if (!(s_convertFromInvariantString is Func<Type, string, object> convertFromInvariantString))

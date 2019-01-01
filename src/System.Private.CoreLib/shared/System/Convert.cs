@@ -256,7 +256,7 @@ namespace System
         internal static object DefaultToType(IConvertible value, Type targetType, IFormatProvider provider)
         {
             Debug.Assert(value != null, "[Convert.DefaultToType]value!=null");
-            if (targetType == null)
+            if (targetType is null)
             {
                 throw new ArgumentNullException(nameof(targetType));
             }

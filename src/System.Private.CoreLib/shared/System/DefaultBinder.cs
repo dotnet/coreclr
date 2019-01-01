@@ -217,14 +217,14 @@ namespace System
                     // now do a "classic" type check
                     if (pCls.IsPrimitive)
                     {
-                        if (argTypes[paramOrder[i][j]] == null || !CanChangePrimitiveObjectToType(args[paramOrder[i][j]], pCls))
+                        if (argTypes[paramOrder[i][j]] is null || !CanChangePrimitiveObjectToType(args[paramOrder[i][j]], pCls))
                         {
                             break;
                         }
                     }
                     else
                     {
-                        if (argTypes[paramOrder[i][j]] == null)
+                        if (argTypes[paramOrder[i][j]] is null)
                             continue;
 
                         if (!pCls.IsAssignableFrom(argTypes[paramOrder[i][j]]))
@@ -247,12 +247,12 @@ namespace System
                     {
                         if (paramArrayType.IsPrimitive)
                         {
-                            if (argTypes[j] == null || !CanChangePrimitiveObjectToType(args[j], paramArrayType))
+                            if (argTypes[j] is null || !CanChangePrimitiveObjectToType(args[j], paramArrayType))
                                 break;
                         }
                         else
                         {
-                            if (argTypes[j] == null)
+                            if (argTypes[j] is null)
                                 continue;
 
                             if (!paramArrayType.IsAssignableFrom(argTypes[j]))
@@ -563,7 +563,7 @@ namespace System
                         if (!(candidates[i] is MethodInfo methodInfo))
                             break;
                         type = signatureType.TryResolveAgainstGenericMethod(methodInfo);
-                        if (type == null)
+                        if (type is null)
                             break;
                     }
 
@@ -622,7 +622,7 @@ namespace System
             {
                 foreach (Type index in indexes)
                 {
-                    if (index == null)
+                    if (index is null)
                         throw new ArgumentNullException(nameof(indexes));
                 }
             }
@@ -856,8 +856,8 @@ namespace System
                                             Type[] types, object[] args)
         {
             // A method using params is always less specific than one not using params
-            if (paramArrayType1 != null && paramArrayType2 == null) return 2;
-            if (paramArrayType2 != null && paramArrayType1 == null) return 1;
+            if (paramArrayType1 != null && paramArrayType2 is null) return 2;
+            if (paramArrayType2 != null && paramArrayType1 is null) return 1;
 
             // now either p1 and p2 both use params or neither does.
 

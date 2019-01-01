@@ -120,7 +120,7 @@ namespace System.Reflection
             if (object.ReferenceEquals(left, right))
                 return true;
 
-            if ((object)left == null || (object)right == null)
+            if (left is null || right is null)
                 return false;
 
             return left.Equals(right);
