@@ -61,7 +61,7 @@ namespace System.Text
             Debug.Assert(s_encodingNameIndices.Length == s_codePagesByName.Length + 1);
             Debug.Assert(s_encodingNameIndices[s_encodingNameIndices.Length - 1] == s_encodingNames.Length);
 
-            name = name.ToLowerInvariant();
+            ReadOnlySpan<char> invariantName = name.ToLowerInvariant().AsSpan();
 
             //Binary search the array until we have only a couple of elements left and then
             //just walk those elements.
@@ -70,7 +70,8 @@ namespace System.Text
                 index = ((right - left) / 2) + left;
 
                 Debug.Assert(index < s_encodingNameIndices.Length - 1);
-                result = CompareOrdinal(name, s_encodingNames, s_encodingNameIndices[index], s_encodingNameIndices[index + 1] - s_encodingNameIndices[index]);
+                result = string.CompareOrdinal(invariantName, s_encodingNames.AsSpan(s_encodingNameIndices[index], s_encodingNameIndices[index + 1] - s_encodingNameIndices[index]));
+
                 if (result == 0)
                 {
                     //We found the item, return the associated codePage.
@@ -92,7 +93,7 @@ namespace System.Text
             for (; left <= right; left++)
             {
                 Debug.Assert(left < s_encodingNameIndices.Length - 1);
-                if (CompareOrdinal(name, s_encodingNames, s_encodingNameIndices[left], s_encodingNameIndices[left + 1] - s_encodingNameIndices[left]) == 0)
+                if (string.CompareOrdinal(invariantName, s_encodingNames.AsSpan(s_encodingNameIndices[left], s_encodingNameIndices[left + 1] - s_encodingNameIndices[left])) == 0)
                 {
                     return s_codePagesByName[left];
                 }
@@ -102,22 +103,6 @@ namespace System.Text
             throw new ArgumentException(
                 SR.Format(SR.Argument_EncodingNotSupported, name),
                 nameof(name));
-        }
-
-        private static int CompareOrdinal(string s1, string s2, int index, int length)
-        {
-            int count = s1.Length;
-            if (count > length)
-                count = length;
-
-            int i = 0;
-            while (i < count && s1[i] == s2[index + i])
-                i++;
-
-            if (i < count)
-                return (int)(s1[i] - s2[index + i]);
-
-            return s1.Length - length;
         }
 
         // Return a list of all EncodingInfo objects describing all of our encodings
