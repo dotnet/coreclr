@@ -69,26 +69,7 @@ namespace System.Reflection
                 return true;
             }
 
-            if (left is null || right is null)
-            {
-                return false;
-            }
-
-            if (left is MethodInfo method1)
-            {
-                // MethodInfo operator== calls Equals after same reference and null checks above,
-                // so just call Equals directly.
-                return (right is MethodInfo method2) ? method1.Equals(method2) : false;
-            }
-
-            if (left is ConstructorInfo constructor1)
-            {
-                // ConstructorInfo operator== calls Equals after same reference and null checks above,
-                // so just call Equals directly.
-                return (right is ConstructorInfo constructor2) ? constructor1.Equals(constructor2) : false;
-            }
-
-            return false;
+            return (left is null || right is null) ? false : left.Equals(right);
         }
 
         public static bool operator !=(MethodBase left, MethodBase right) => !(left == right);

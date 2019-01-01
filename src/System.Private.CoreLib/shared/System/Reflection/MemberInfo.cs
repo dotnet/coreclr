@@ -52,45 +52,7 @@ namespace System.Reflection
                 return true;
             }
 
-            if (left is null || right is null)
-            {
-                return false;
-            }
-
-            if (left is Type type1)
-            {
-                // Type has special handling via operator== 
-                return (right is Type type2) ? type1 == type2 : false;
-            }
-
-            if (left is MethodBase method1)
-            {
-                // MethodBase has special handling via operator== 
-                return (right is MethodBase method2) ? method1 == method2 : false;
-            }
-
-            if (left is FieldInfo field1)
-            {
-                // FieldInfo operator== calls Equals after same reference and null checks above,
-                // so just call Equals directly.
-                return (right is FieldInfo field2) ? field1.Equals(field2) : false;
-            }
-
-            if (left is EventInfo event1)
-            {
-                // EventInfo operator== calls Equals after same reference and null checks above,
-                // so just call Equals directly.
-                return (right is EventInfo event2) ? event1.Equals(event2) : false;
-            }
-
-            if (left is PropertyInfo property1)
-            {
-                // PropertyInfo operator== calls Equals after same reference and null checks above,
-                // so just call Equals directly.
-                return (right is PropertyInfo property2) ? property1.Equals(property2) : false;
-            }
-
-            return false;
+            return (left is null || right is null) ? false : left.Equals(right);
         }
 
         public static bool operator !=(MemberInfo left, MemberInfo right) => !(left == right);
