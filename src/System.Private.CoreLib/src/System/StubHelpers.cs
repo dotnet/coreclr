@@ -24,7 +24,7 @@ namespace System.StubHelpers
         // character set. It is only guaranteed to be larger or equal to cbLength, don't depend on the exact value.
         unsafe internal static byte[] DoAnsiConversion(string str, bool fBestFit, bool fThrowOnUnmappableChar, out int cbLength)
         {
-            byte[] buffer = new byte[(str.Length + 1) * Marshal.SystemMaxDBCSCharSize];
+            byte[] buffer = new byte[checked((str.Length + 1) * Marshal.SystemMaxDBCSCharSize)];
             Debug.Assert(buffer.Length != 0);
             fixed (byte* bufferPtr = &buffer[0])
             {
@@ -61,8 +61,6 @@ namespace System.StubHelpers
                 return IntPtr.Zero;
             }
 
-            StubHelpers.CheckStringLength(strManaged.Length);
-
             int nb;
             byte* pbNativeBuffer = (byte*)pNativeBuffer;
 
@@ -71,18 +69,18 @@ namespace System.StubHelpers
                 // If we are marshaling into a stack buffer or we can accurately estimate the size of the required heap
                 // space, we will use a "1-pass" mode where we convert the string directly into the unmanaged buffer.
 
-                // + 1 for the null character from the user
-                nb = (strManaged.Length + 1) * Marshal.SystemMaxDBCSCharSize;
+                // + 1 for the null character from the user.  + 1 for the null character we put in.
+                nb = checked((strManaged.Length + 1) * Marshal.SystemMaxDBCSCharSize + 1);
 
                 // Use the pre-allocated buffer (allocated by localloc IL instruction) if not NULL, 
                 // otherwise fallback to AllocCoTaskMem
                 if (pbNativeBuffer == null)
                 {
                     // + 1 for the null character we put in
-                    pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb + 1);
+                    pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb);
                 }
 
-                nb = strManaged.ConvertToAnsi(pbNativeBuffer, nb + 1, 0 != (flags & 0xFF), 0 != (flags >> 8));
+                nb = strManaged.ConvertToAnsi(pbNativeBuffer, nb, 0 != (flags & 0xFF), 0 != (flags >> 8));
             }
             else
             {
@@ -128,7 +126,6 @@ namespace System.StubHelpers
             {
                 return IntPtr.Zero;
             }
-            StubHelpers.CheckStringLength(strManaged.Length);
 
             int nb;
             byte* pbNativeBuffer = (byte*)pNativeBuffer;
@@ -218,8 +215,6 @@ namespace System.StubHelpers
             }
             else
             {
-                StubHelpers.CheckStringLength(strManaged.Length);
-
                 byte trailByte;
                 bool hasTrailByte = strManaged.TryGetTrailByte(out trailByte);
 
@@ -345,10 +340,8 @@ namespace System.StubHelpers
 
             cch = strManaged.Length;
 
-            StubHelpers.CheckStringLength(cch);
-
             // length field at negative offset + (# of characters incl. the terminator) * max ANSI char size
-            int nbytes = sizeof(uint) + ((cch + 1) * Marshal.SystemMaxDBCSCharSize);
+            int nbytes = checked(sizeof(uint) + ((cch + 1) * Marshal.SystemMaxDBCSCharSize));
 
             pNative = (byte*)Marshal.AllocCoTaskMem(nbytes);
             int* pLength = (int*)pNative;
@@ -403,14 +396,10 @@ namespace System.StubHelpers
                 return IntPtr.Zero;
             }
 
-            int length = strManaged.Length;
-
-            StubHelpers.CheckStringLength(length);
-
             byte[] bytes = null;
             int nb = 0;
 
-            if (length > 0)
+            if (strManaged.Length > 0)
             {
                 bytes = AnsiCharMarshaler.DoAnsiConversion(strManaged, 0 != (flags & 0xFF), 0 != (flags >> 8), out nb);
             }
@@ -1012,7 +1001,6 @@ namespace System.StubHelpers
             else
             {
                 // marshal the object as Unicode string (UnmanagedType.LPWStr)
-                StubHelpers.CheckStringLength(pManagedHome.Length);
 
                 int allocSize = (pManagedHome.Length + 1) * 2;
                 pNativeHome = Marshal.AllocCoTaskMem(allocSize);
@@ -1047,7 +1035,7 @@ namespace System.StubHelpers
                 StubHelpers.CheckStringLength(pManagedHome.Capacity);
 
                 // marshal the object as Ansi string (UnmanagedType.LPStr)
-                int allocSize = (pManagedHome.Capacity * Marshal.SystemMaxDBCSCharSize) + 4;
+                int allocSize = checked((pManagedHome.Capacity * Marshal.SystemMaxDBCSCharSize) + 4);
                 pNativeHome = Marshal.AllocCoTaskMem(allocSize);
 
                 byte* ptr = (byte*)pNativeHome;
@@ -1071,7 +1059,7 @@ namespace System.StubHelpers
             else
             {
                 // marshal the object as Unicode string (UnmanagedType.LPWStr)
-                int allocSize = (pManagedHome.Capacity * 2) + 4;
+                int allocSize = checked((pManagedHome.Capacity * 2) + 4);
                 pNativeHome = Marshal.AllocCoTaskMem(allocSize);
 
                 byte* ptr = (byte*)pNativeHome;
