@@ -470,18 +470,20 @@ namespace System.Reflection
 
         internal RuntimeModule GetRuntimeModule()
         {
-            RuntimeMethodInfo method = Member as RuntimeMethodInfo;
-            RuntimeConstructorInfo constructor = Member as RuntimeConstructorInfo;
-            RuntimePropertyInfo property = Member as RuntimePropertyInfo;
-
-            if (method != null)
+            if (Member is RuntimeMethodInfo method)
+            {
                 return method.GetRuntimeModule();
-            else if (constructor != null)
+            }
+            else if (Member is RuntimeConstructorInfo constructor)
+            {
                 return constructor.GetRuntimeModule();
-            else if (property != null)
+            }
+            else if (Member is RuntimePropertyInfo property)
+            {
                 return property.GetRuntimeModule();
-            else
-                return null;
+            }
+
+            return null;
         }
 
         public override int MetadataToken

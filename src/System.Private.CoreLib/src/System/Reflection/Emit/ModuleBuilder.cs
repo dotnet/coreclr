@@ -243,7 +243,7 @@ namespace System.Reflection.Emit
         internal MethodToken InternalGetConstructorToken(ConstructorInfo con, bool usingRef)
         {
             // Helper to get constructor token. If usingRef is true, we will never use the def token
-            if (con == null)
+            if (con is null)
             {
                 throw new ArgumentNullException(nameof(con));
             }
@@ -251,11 +251,7 @@ namespace System.Reflection.Emit
             int tr;
             int mr = 0;
 
-            ConstructorBuilder conBuilder = null;
-            ConstructorOnTypeBuilderInstantiation conOnTypeBuilderInst = null;
-            RuntimeConstructorInfo rtCon = null;
-
-            if ((conBuilder = con as ConstructorBuilder) != null)
+            if (con is ConstructorBuilder conBuilder)
             {
                 if (usingRef == false && conBuilder.Module.Equals(this))
                     return conBuilder.GetToken();
@@ -264,14 +260,14 @@ namespace System.Reflection.Emit
                 tr = GetTypeTokenInternal(con.ReflectedType).Token;
                 mr = GetMemberRef(con.ReflectedType.Module, tr, conBuilder.GetToken().Token);
             }
-            else if ((conOnTypeBuilderInst = con as ConstructorOnTypeBuilderInstantiation) != null)
+            else if (con is ConstructorOnTypeBuilderInstantiation conOnTypeBuilderInst)
             {
                 if (usingRef == true) throw new InvalidOperationException();
 
                 tr = GetTypeTokenInternal(con.DeclaringType).Token;
                 mr = GetMemberRef(con.DeclaringType.Module, tr, conOnTypeBuilderInst.MetadataTokenInternal);
             }
-            else if ((rtCon = con as RuntimeConstructorInfo) != null && con.ReflectedType.IsArray == false)
+            else if ((con is RuntimeConstructorInfo rtCon) && con.ReflectedType.IsArray == false)
             {
                 // constructor is not a dynamic field
                 // We need to get the TypeRef tokens
@@ -378,14 +374,11 @@ namespace System.Reflection.Emit
             {
                 MethodBase methDef = null; // methodInfo = G<Foo>.M<Bar> ==> methDef = G<T>.M<S>
 
-                MethodOnTypeBuilderInstantiation motbi;
-                ConstructorOnTypeBuilderInstantiation cotbi;
-
-                if ((motbi = method as MethodOnTypeBuilderInstantiation) != null)
+                if (method is MethodOnTypeBuilderInstantiation motbi)
                 {
                     methDef = motbi.m_method;
                 }
-                else if ((cotbi = method as ConstructorOnTypeBuilderInstantiation) != null)
+                else if (method is ConstructorOnTypeBuilderInstantiation cotbi)
                 {
                     methDef = cotbi.m_ctor;
                 }
@@ -442,10 +435,14 @@ namespace System.Reflection.Emit
             else
             {
                 // Use methodDef as parent because the method lives in this assembly and its declaringType has no generic arguments
-                if (masmi != null)
-                    tkParent = GetMethodToken(masmi).Token;
-                else
+                if (masmi is null)
+                {
                     tkParent = GetConstructorToken(method as ConstructorInfo).Token;
+                }
+                else
+                {
+                    tkParent = GetMethodToken(masmi).Token;
+                }
             }
 
             return GetMemberRefFromSignature(tkParent, method.Name, sigBytes, sigLength);
@@ -1137,7 +1134,7 @@ namespace System.Reflection.Emit
         {
             // Return a MemberRef token if MethodInfo is not defined in this module. Or 
             // return the MethodDef token. 
-            if (method == null)
+            if (method is null)
             {
                 throw new ArgumentNullException(nameof(method));
             }
@@ -1145,10 +1142,7 @@ namespace System.Reflection.Emit
             int tr;
             int mr = 0;
 
-            SymbolMethod symMethod = null;
-            MethodBuilder methBuilder = null;
-
-            if ((methBuilder = method as MethodBuilder) != null)
+            if (method is MethodBuilder methBuilder)
             {
                 int methodToken = methBuilder.MetadataTokenInternal;
                 if (method.Module.Equals(this))
@@ -1169,7 +1163,7 @@ namespace System.Reflection.Emit
             {
                 return new MethodToken(GetMemberRefToken(method, null));
             }
-            else if ((symMethod = method as SymbolMethod) != null)
+            else if (method is SymbolMethod symMethod)
             {
                 if (symMethod.GetModule() == this)
                     return symMethod.GetToken();
@@ -1182,12 +1176,10 @@ namespace System.Reflection.Emit
                 Type declaringType = method.DeclaringType;
 
                 // We need to get the TypeRef tokens
-                if (declaringType == null)
+                if (declaringType is null)
                 {
                     throw new InvalidOperationException(SR.InvalidOperation_CannotImportGlobalFromDifferentModule);
                 }
-
-                RuntimeMethodInfo rtMeth = null;
 
                 if (declaringType.IsArray == true)
                 {
@@ -1201,7 +1193,7 @@ namespace System.Reflection.Emit
 
                     return GetArrayMethodToken(declaringType, method.Name, method.CallingConvention, method.ReturnType, tt);
                 }
-                else if ((rtMeth = method as RuntimeMethodInfo) != null)
+                else if (method is RuntimeMethodInfo rtMeth)
                 {
                     tr = getGenericTypeDefinition ? GetTypeToken(method.DeclaringType).Token : GetTypeTokenInternal(method.DeclaringType).Token;
                     mr = GetMemberRefOfMethodInfo(tr, rtMeth);
@@ -1292,15 +1284,15 @@ namespace System.Reflection.Emit
             else
             {
                 if (((method.CallingConvention & CallingConventions.VarArgs) == 0) &&
-                    (method.DeclaringType == null || !method.DeclaringType.IsGenericType))
+                    (method.DeclaringType is null || !method.DeclaringType.IsGenericType))
                 {
-                    if (methodInfo != null)
+                    if (methodInfo is null)
                     {
-                        tk = GetMethodTokenInternal(methodInfo).Token;
+                        tk = GetConstructorToken(method as ConstructorInfo).Token;
                     }
                     else
                     {
-                        tk = GetConstructorToken(method as ConstructorInfo).Token;
+                        tk = GetMethodTokenInternal(methodInfo).Token;
                     }
                 }
                 else
@@ -1387,7 +1379,7 @@ namespace System.Reflection.Emit
 
         private FieldToken GetFieldTokenNoLock(FieldInfo field)
         {
-            if (field == null)
+            if (field is null)
             {
                 throw new ArgumentNullException(nameof(field));
             }
@@ -1395,11 +1387,7 @@ namespace System.Reflection.Emit
             int tr;
             int mr = 0;
 
-            FieldBuilder fdBuilder = null;
-            RuntimeFieldInfo rtField = null;
-            FieldOnTypeBuilderInstantiation fOnTB = null;
-
-            if ((fdBuilder = field as FieldBuilder) != null)
+            if (field is FieldBuilder fdBuilder)
             {
                 if (field.DeclaringType != null && field.DeclaringType.IsGenericType)
                 {
@@ -1415,7 +1403,7 @@ namespace System.Reflection.Emit
                 else
                 {
                     // field is defined in a different module
-                    if (field.DeclaringType == null)
+                    if (field.DeclaringType is null)
                     {
                         throw new InvalidOperationException(SR.InvalidOperation_CannotImportGlobalFromDifferentModule);
                     }
@@ -1423,7 +1411,7 @@ namespace System.Reflection.Emit
                     mr = GetMemberRef(field.ReflectedType.Module, tr, fdBuilder.GetToken().Token);
                 }
             }
-            else if ((rtField = field as RuntimeFieldInfo) != null)
+            else if (field is RuntimeFieldInfo rtField)
             {
                 // FieldInfo is not an dynamic field
                 // We need to get the TypeRef tokens
@@ -1444,7 +1432,7 @@ namespace System.Reflection.Emit
                     mr = GetMemberRefOfFieldInfo(tr, field.DeclaringType.GetTypeHandleInternal(), rtField);
                 }
             }
-            else if ((fOnTB = field as FieldOnTypeBuilderInstantiation) != null)
+            else if (field is FieldOnTypeBuilderInstantiation fOnTB)
             {
                 FieldInfo fb = fOnTB.FieldInfo;
                 byte[] sig = SignatureHelper.GetTypeSigToken(this, field.DeclaringType).InternalGetSignature(out int length);
@@ -1512,7 +1500,7 @@ namespace System.Reflection.Emit
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
             {
                 throw new ArgumentNullException(nameof(con));
             }

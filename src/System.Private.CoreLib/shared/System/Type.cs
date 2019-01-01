@@ -41,8 +41,8 @@ namespace System
         protected abstract bool IsPointerImpl();
         public virtual bool IsConstructedGenericType { get { throw NotImplemented.ByDesign; } }
         public virtual bool IsGenericParameter => false;
-        public virtual bool IsGenericTypeParameter => IsGenericParameter && DeclaringMethod == null;
-        public virtual bool IsGenericMethodParameter => IsGenericParameter && DeclaringMethod != null;
+        public virtual bool IsGenericTypeParameter => IsGenericParameter && DeclaringMethod is null;
+        public virtual bool IsGenericMethodParameter => IsGenericParameter && !(DeclaringMethod is null);
         public virtual bool IsGenericType => false;
         public virtual bool IsGenericTypeDefinition => false;
 
@@ -127,7 +127,7 @@ namespace System
                 throw new ArgumentNullException(nameof(types));
             for (int i = 0; i < types.Length; i++)
             {
-                if (types[i] == null)
+                if (types[i] is null)
                     throw new ArgumentNullException(nameof(types));
             }
             return GetConstructorImpl(bindingAttr, binder, callConvention, types, modifiers);
@@ -175,7 +175,7 @@ namespace System
                 throw new ArgumentNullException(nameof(types));
             for (int i = 0; i < types.Length; i++)
             {
-                if (types[i] == null)
+                if (types[i] is null)
                     throw new ArgumentNullException(nameof(types));
             }
             return GetMethodImpl(name, bindingAttr, binder, callConvention, types, modifiers);
@@ -196,7 +196,7 @@ namespace System
                 throw new ArgumentNullException(nameof(types));
             for (int i = 0; i < types.Length; i++)
             {
-                if (types[i] == null)
+                if (types[i] is null)
                     throw new ArgumentNullException(nameof(types));
             }
             return GetMethodImpl(name, genericParameterCount, bindingAttr, binder, callConvention, types, modifiers);
@@ -225,7 +225,7 @@ namespace System
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
-            if (returnType == null)
+            if (returnType is null)
                 throw new ArgumentNullException(nameof(returnType));
             return GetPropertyImpl(name, Type.DefaultLookup, null, returnType, null, null);
         }
@@ -252,7 +252,7 @@ namespace System
         public virtual RuntimeTypeHandle TypeHandle { get { throw new NotSupportedException(); } }
         public static RuntimeTypeHandle GetTypeHandle(object o)
         {
-            if (o == null)
+            if (o is null)
                 throw new ArgumentNullException(null, SR.Arg_InvalidHandle);
             Type type = o.GetType();
             return type.TypeHandle;
@@ -275,13 +275,13 @@ namespace System
 
         public static TypeCode GetTypeCode(Type type)
         {
-            if (type == null)
+            if (type is null)
                 return TypeCode.Empty;
             return type.GetTypeCodeImpl();
         }
         protected virtual TypeCode GetTypeCodeImpl()
         {
-            if (this != UnderlyingSystemType && UnderlyingSystemType != null)
+            if (this != UnderlyingSystemType && !(UnderlyingSystemType is null))
                 return Type.GetTypeCode(UnderlyingSystemType);
 
             return TypeCode.Object;
@@ -355,15 +355,15 @@ namespace System
 
         public override string ToString() => "Type: " + Name;  // Why do we add the "Type: " prefix?
 
-        public override bool Equals(object o) => o == null ? false : Equals(o as Type);
+        public override bool Equals(object o) => o is null ? false : Equals(o as Type);
         public override int GetHashCode()
         {
             Type systemType = UnderlyingSystemType;
-            if (!object.ReferenceEquals(systemType, this))
+            if (!ReferenceEquals(systemType, this))
                 return systemType.GetHashCode();
             return base.GetHashCode();
         }
-        public virtual bool Equals(Type o) => o == null ? false : object.ReferenceEquals(this.UnderlyingSystemType, o.UnderlyingSystemType);
+        public virtual bool Equals(Type o) => o is null ? false : ReferenceEquals(this.UnderlyingSystemType, o.UnderlyingSystemType);
 
         public static Type ReflectionOnlyGetType(string typeName, bool throwIfNotFound, bool ignoreCase) { throw new PlatformNotSupportedException(SR.PlatformNotSupported_ReflectionOnly); }
 

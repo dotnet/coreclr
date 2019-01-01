@@ -102,7 +102,7 @@ namespace System
                 paramArrayType = null;
 
                 // If we have named parameters then we may have a hole in the candidates array.
-                if (candidates[i] == null)
+                if (candidates[i] is null)
                     continue;
 
                 // Validate the parameters.
@@ -838,10 +838,15 @@ namespace System
                 if (returnType != null && returnType != match[i].PropertyType)
                     continue;
 
-                if (bestMatch != null)
+                if (bestMatch is null)
+                {
+                    bestMatch = match[i];
+                }
+                else
+                {
                     throw new AmbiguousMatchException(SR.Arg_AmbiguousMatchException);
+                }
 
-                bestMatch = match[i];
             }
             return bestMatch;
         }

@@ -24,7 +24,7 @@ namespace System.Reflection
                 for (int i = 0; i < types.Length; i++)
                 {
                     TypeInfo typeinfo = types[i].GetTypeInfo();
-                    if (typeinfo == null)
+                    if (typeinfo is null)
                         throw new NotSupportedException(SR.Format(SR.NotSupported_NoTypeInfo, types[i].FullName));
 
                     typeinfos[i] = typeinfo;
@@ -100,7 +100,7 @@ namespace System.Reflection
         public virtual object CreateInstance(string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
         {
             Type t = GetType(typeName, throwOnError: false, ignoreCase: ignoreCase);
-            if (t == null)
+            if (t is null)
                 return null;
 
             return Activator.CreateInstance(t, bindingAttr, binder, args, culture, activationAttributes);
@@ -167,11 +167,11 @@ namespace System.Reflection
 
         public static Assembly GetAssembly(Type type)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             Module m = type.Module;
-            if (m == null)
+            if (m is null)
                 return null;
             else
                 return m.Assembly;

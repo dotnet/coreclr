@@ -147,7 +147,7 @@ namespace System.Reflection.Emit
                              Type[] parameterTypes,
                              Type owner)
         {
-            if (owner == null)
+            if (owner is null)
                 throw new ArgumentNullException(nameof(owner));
 
             Init(name,
@@ -167,7 +167,7 @@ namespace System.Reflection.Emit
                              Type owner,
                              bool skipVisibility)
         {
-            if (owner == null)
+            if (owner is null)
                 throw new ArgumentNullException(nameof(owner));
 
             Init(name,
@@ -189,7 +189,7 @@ namespace System.Reflection.Emit
                              Type owner,
                              bool skipVisibility)
         {
-            if (owner == null)
+            if (owner is null)
                 throw new ArgumentNullException(nameof(owner));
 
             Init(name,
@@ -288,7 +288,7 @@ namespace System.Reflection.Emit
 
             if (transparentMethod)
             {
-                Debug.Assert(owner == null && m == null, "owner and m cannot be set for transparent methods");
+                Debug.Assert(owner is null && m == null, "owner and m cannot be set for transparent methods");
                 m_module = GetDynamicMethodsModule();
                 if (skipVisibility)
                 {
@@ -299,7 +299,7 @@ namespace System.Reflection.Emit
             {
                 Debug.Assert(m != null || owner != null, "Constructor should ensure that either m or owner is set");
                 Debug.Assert(m == null || !m.Equals(s_anonymouslyHostedDynamicMethodsModule), "The user cannot explicitly use this assembly");
-                Debug.Assert(m == null || owner == null, "m and owner cannot both be set");
+                Debug.Assert(m == null || owner is null, "m and owner cannot both be set");
 
                 if (m != null)
                     m_module = m.ModuleHandle.GetRuntimeModule(); // this returns the underlying module for all RuntimeModule and ModuleBuilder objects.

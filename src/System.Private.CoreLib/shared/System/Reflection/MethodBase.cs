@@ -64,19 +64,29 @@ namespace System.Reflection
 
         public static bool operator ==(MethodBase left, MethodBase right)
         {
-            if (object.ReferenceEquals(left, right))
+            if (ReferenceEquals(left, right))
+            {
                 return true;
+            }
 
-            if ((object)left == null || (object)right == null)
+            if (left is null || right is null)
+            {
                 return false;
+            }
 
-            MethodInfo method1, method2;
-            ConstructorInfo constructor1, constructor2;
+            if (left is MethodInfo method1)
+            {
+                // MethodInfo operator== calls Equals after same reference and null checks above,
+                // so just call Equals directly.
+                return (right is MethodInfo method2) ? method1.Equals(method2) : false;
+            }
 
-            if ((method1 = left as MethodInfo) != null && (method2 = right as MethodInfo) != null)
-                return method1 == method2;
-            else if ((constructor1 = left as ConstructorInfo) != null && (constructor2 = right as ConstructorInfo) != null)
-                return constructor1 == constructor2;
+            if (left is ConstructorInfo constructor1)
+            {
+                // ConstructorInfo operator== calls Equals after same reference and null checks above,
+                // so just call Equals directly.
+                return (right is ConstructorInfo constructor2) ? constructor1.Equals(constructor2) : false;
+            }
 
             return false;
         }

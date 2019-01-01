@@ -225,7 +225,7 @@ namespace System.Runtime.InteropServices
             }
 
             FieldInfo f = t.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (f == null)
+            if (f is null)
             {
                 throw new ArgumentException(SR.Format(SR.Argument_OffsetOfFieldNotFound, t.FullName), nameof(fieldName));
             }
@@ -734,7 +734,7 @@ namespace System.Runtime.InteropServices
 
         public static void Prelink(MethodInfo m)
         {
-            if (m == null)
+            if (m is null)
             {
                 throw new ArgumentNullException(nameof(m));
             }

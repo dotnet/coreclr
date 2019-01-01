@@ -110,13 +110,13 @@ namespace System.Diagnostics
                         "System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
                         throwOnError: false);
 
-                    if (symbolsType == null)
+                    if (symbolsType is null)
                     {
                         return;
                     }
 
                     MethodInfo symbolsMethodInfo = symbolsType.GetMethod("GetSourceLineInfo", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-                    if (symbolsMethodInfo == null)
+                    if (symbolsMethodInfo is null)
                     {
                         return;
                     }

@@ -38,7 +38,7 @@ namespace System
             for (int i = 0; i < flds.Length; i++)
             {
                 RuntimeFieldInfo field = flds[i] as RuntimeFieldInfo;
-                if (field == null)
+                if (field is null)
                     throw new ArgumentException(SR.Argument_MustBeRuntimeFieldInfo);
 
                 if (field.IsStatic)

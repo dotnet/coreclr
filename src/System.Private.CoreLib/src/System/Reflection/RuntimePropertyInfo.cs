@@ -322,7 +322,7 @@ namespace System.Reflection
 
                 // First try to get the Get method.
                 MethodInfo m = GetGetMethod(true);
-                if (m != null)
+                if (!(m is null))
                 {
                     // There is a Get method so use it.
                     methParams = m.GetParametersNoCopy();
@@ -333,7 +333,7 @@ namespace System.Reflection
                     // If there is no Get method then use the Set method.
                     m = GetSetMethod(true);
 
-                    if (m != null)
+                    if (!(m is null))
                     {
                         methParams = m.GetParametersNoCopy();
                         numParams = methParams.Length - 1;
@@ -366,7 +366,7 @@ namespace System.Reflection
         {
             get
             {
-                return m_getterMethod != null;
+                return !(m_getterMethod is null);
             }
         }
 
@@ -374,7 +374,7 @@ namespace System.Reflection
         {
             get
             {
-                return m_setterMethod != null;
+                return !(m_setterMethod is null);
             }
         }
         #endregion
@@ -393,7 +393,7 @@ namespace System.Reflection
         public override object GetValue(object obj, BindingFlags invokeAttr, Binder binder, object[] index, CultureInfo culture)
         {
             MethodInfo m = GetGetMethod(true);
-            if (m == null)
+            if (m is null)
                 throw new ArgumentException(System.SR.Arg_GetMethNotFnd);
             return m.Invoke(obj, invokeAttr, binder, index, null);
         }
@@ -416,7 +416,7 @@ namespace System.Reflection
         {
             MethodInfo m = GetSetMethod(true);
 
-            if (m == null)
+            if (m is null)
                 throw new ArgumentException(System.SR.Arg_SetMethNotFnd);
 
             object[] args = null;

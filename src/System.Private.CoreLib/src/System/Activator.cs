@@ -148,7 +148,7 @@ namespace System
                 }
             }
 
-            if (type == null)
+            if (type is null)
             {                
                 type = assembly.GetType(typeName, true /*throwOnError*/, ignoreCase);
             }

@@ -23,13 +23,12 @@ namespace System.Reflection
 
         public static bool operator ==(ConstructorInfo left, ConstructorInfo right)
         {
-            if (object.ReferenceEquals(left, right))
+            if (ReferenceEquals(left, right))
+            {
                 return true;
+            }
 
-            if ((object)left == null || (object)right == null)
-                return false;
-
-            return left.Equals(right);
+            return (left is null || right is null) ? false : left.Equals(right);
         }
 
         public static bool operator !=(ConstructorInfo left, ConstructorInfo right) => !(left == right);

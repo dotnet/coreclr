@@ -19,7 +19,7 @@ namespace System.Reflection.Emit
         // Use this function if client decides to form the custom attribute blob themselves
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
             {
                 throw new ArgumentNullException(nameof(con));
             }

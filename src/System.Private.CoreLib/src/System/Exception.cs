@@ -421,7 +421,7 @@ namespace System
                 {
                     tempStackTraceString = Environment.GetStackTrace(this, true);
                 }
-                if (_exceptionMethod == null)
+                if (_exceptionMethod is null)
                 {
                     _exceptionMethod = GetExceptionMethodFromStackTrace();
                 }

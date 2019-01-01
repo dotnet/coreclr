@@ -79,7 +79,7 @@ namespace System
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
-            if (t == null)
+            if (t is null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
             return InternalCreate((void*)t.TypeHandle.Value, 1, &length, null);
         }
@@ -94,7 +94,7 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length2, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
-            if (t == null)
+            if (t is null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
             int* pLengths = stackalloc int[2];
             pLengths[0] = length1;
@@ -114,7 +114,7 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length3, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
-            if (t == null)
+            if (t is null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
             int* pLengths = stackalloc int[3];
             pLengths[0] = length1;
@@ -133,7 +133,7 @@ namespace System
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
-            if (t == null)
+            if (t is null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
 
             // Check to make sure the lenghts are all positive. Note that we check this here to give
@@ -173,7 +173,7 @@ namespace System
 
         public static unsafe Array CreateInstance(Type elementType, int[] lengths, int[] lowerBounds)
         {
-            if (elementType == null)
+            if (elementType is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (lengths == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);
@@ -185,7 +185,7 @@ namespace System
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
-            if (t == null)
+            if (t is null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
 
             // Check to make sure the lenghts are all positive. Note that we check this here to give

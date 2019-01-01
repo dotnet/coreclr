@@ -104,7 +104,7 @@ namespace System.Reflection.Emit
                                                  PropertyInfo[] namedProperties, object[] propertyValues,
                                                  FieldInfo[] namedFields, object[] fieldValues)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
             if (constructorArgs == null)
                 throw new ArgumentNullException(nameof(constructorArgs));
@@ -182,7 +182,7 @@ namespace System.Reflection.Emit
             {
                 // Validate the property.
                 PropertyInfo property = namedProperties[i];
-                if (property == null)
+                if (property is null)
                     throw new ArgumentNullException("namedProperties[" + i + "]");
 
                 // Allow null for non-primitive types only.
@@ -240,7 +240,7 @@ namespace System.Reflection.Emit
             {
                 // Validate the field.
                 FieldInfo namedField = namedFields[i];
-                if (namedField == null)
+                if (namedField is null)
                     throw new ArgumentNullException("namedFields[" + i + "]");
 
                 // Allow null for non-primitive types only.

@@ -55,7 +55,7 @@ namespace System
         //    same target, method and invocation list as this object
         public override sealed bool Equals(object obj)
         {
-            if (obj == null)
+            if (obj is null)
                 return false;
             if (object.ReferenceEquals(this, obj))
                 return true;
@@ -217,7 +217,7 @@ namespace System
         //    to form a new delegate.
         protected override sealed Delegate CombineImpl(Delegate follow)
         {
-            if ((object)follow == null) // cast to object for a more efficient test
+            if (follow is null)
                 return this;
 
             // Verify that the types are the same...
@@ -338,14 +338,12 @@ namespace System
             // There is a special case were we are removing using a delegate as
             //    the value we need to check for this case
             //
-            MulticastDelegate v = value as MulticastDelegate;
 
-            if (v == null)
+            if (!(value is MulticastDelegate v))
                 return this;
             if (v._invocationList as object[] == null)
             {
-                object[] invocationList = _invocationList as object[];
-                if (invocationList == null)
+                if (!(_invocationList is object[] invocationList))
                 {
                     // they are both not real Multicast
                     if (this.Equals(value))
@@ -372,32 +370,28 @@ namespace System
                     }
                 }
             }
-            else
+            else if (_invocationList is object[] invocationList)
             {
-                object[] invocationList = _invocationList as object[];
-                if (invocationList != null)
+                int invocationCount = (int)_invocationCount;
+                int vInvocationCount = (int)v._invocationCount;
+                for (int i = invocationCount - vInvocationCount; i >= 0; i--)
                 {
-                    int invocationCount = (int)_invocationCount;
-                    int vInvocationCount = (int)v._invocationCount;
-                    for (int i = invocationCount - vInvocationCount; i >= 0; i--)
+                    if (EqualInvocationLists(invocationList, v._invocationList as object[], i, vInvocationCount))
                     {
-                        if (EqualInvocationLists(invocationList, v._invocationList as object[], i, vInvocationCount))
+                        if (invocationCount - vInvocationCount == 0)
                         {
-                            if (invocationCount - vInvocationCount == 0)
-                            {
-                                // Special case - no values left
-                                return null;
-                            }
-                            else if (invocationCount - vInvocationCount == 1)
-                            {
-                                // Special case - only one value left, either at the beginning or the end
-                                return (Delegate)invocationList[i != 0 ? 0 : invocationCount - 1];
-                            }
-                            else
-                            {
-                                object[] list = DeleteFromInvocationList(invocationList, invocationCount, i, vInvocationCount);
-                                return NewMulticastDelegate(list, invocationCount - vInvocationCount, true);
-                            }
+                            // Special case - no values left
+                            return null;
+                        }
+                        else if (invocationCount - vInvocationCount == 1)
+                        {
+                            // Special case - only one value left, either at the beginning or the end
+                            return (Delegate)invocationList[i != 0 ? 0 : invocationCount - 1];
+                        }
+                        else
+                        {
+                            object[] list = DeleteFromInvocationList(invocationList, invocationCount, i, vInvocationCount);
+                            return NewMulticastDelegate(list, invocationCount - vInvocationCount, true);
                         }
                     }
                 }
@@ -410,8 +404,7 @@ namespace System
         public override sealed Delegate[] GetInvocationList()
         {
             Delegate[] del;
-            object[] invocationList = _invocationList as object[];
-            if (invocationList == null)
+            if (!(_invocationList is object[] invocationList))
             {
                 del = new Delegate[1];
                 del[0] = this;
@@ -435,7 +428,9 @@ namespace System
                 return true;
             }
 
-            return d1 is null ? false : d1.Equals(d2);
+            // Check if second argument is null first to fast-path null checks
+            // e.g. d1 == null
+            return d2 is null ? false : d2.Equals(d1);
         }
 
         public static bool operator !=(MulticastDelegate d1, MulticastDelegate d2)
@@ -444,8 +439,9 @@ namespace System
             {
                 return false;
             }
-
-            return d1 is null ? true : !d1.Equals(d2);
+            // Check if second argument is null first to fast-path null checks
+            // e.g. d1 != null
+            return d2 is null ? true : !d2.Equals(d1);
         }
 
         public override sealed int GetHashCode()

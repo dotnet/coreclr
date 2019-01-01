@@ -176,7 +176,7 @@ namespace System.Diagnostics
                 if (mb != null)
                 {
                     Type t = mb.DeclaringType;
-                    if (t == null)
+                    if (t is null)
                         break;
                     string ns = t.Namespace;
                     if (ns == null)
@@ -489,7 +489,7 @@ namespace System.Diagnostics
             declaringType = method.DeclaringType;
 
             Type parentType = declaringType.DeclaringType;
-            if (parentType == null)
+            if (parentType is null)
             {
                 return false;
             }

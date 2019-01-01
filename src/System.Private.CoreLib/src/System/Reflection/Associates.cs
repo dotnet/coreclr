@@ -102,7 +102,7 @@ namespace System.Reflection
                 RuntimeType.GetMethodBase(reflectedType, associateMethodHandle) as RuntimeMethodInfo;
 
             // suppose a property was mapped to a method not in the derivation hierarchy of the reflectedTypeHandle
-            if (associateMethod == null)
+            if (associateMethod is null)
                 associateMethod = reflectedType.Module.ResolveMethod(tkMethod, null, null) as RuntimeMethodInfo;
 
             return associateMethod;
@@ -151,7 +151,7 @@ namespace System.Reflection
                 RuntimeMethodInfo associateMethod =
                     AssignAssociates(methodDefToken, declaringType, reflectedType);
 
-                if (associateMethod == null)
+                if (associateMethod is null)
                     continue;
 
                 MethodAttributes methAttr = associateMethod.Attributes;

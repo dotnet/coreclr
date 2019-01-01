@@ -213,7 +213,7 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(SR.InvalidOperation_MethodHasBody);
             }
 
-            if (il.m_methodBuilder != this && il.m_methodBuilder != null)
+            if (il.m_methodBuilder != this && !(il.m_methodBuilder is null))
             {
                 // you don't need to call DefineBody when you get your ILGenerator
                 // through MethodBuilder::GetILGenerator.
@@ -340,14 +340,11 @@ namespace System.Reflection.Emit
 
         internal static Type GetMethodBaseReturnType(MethodBase method)
         {
-            MethodInfo mi = null;
-            ConstructorInfo ci = null;
-
-            if ((mi = method as MethodInfo) != null)
+            if (method is MethodInfo mi)
             {
                 return mi.ReturnType;
             }
-            else if ((ci = method as ConstructorInfo) != null)
+            else if (method is ConstructorInfo ci)
             {
                 return ci.GetReturnType();
             }
@@ -914,7 +911,7 @@ namespace System.Reflection.Emit
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));

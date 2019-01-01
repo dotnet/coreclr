@@ -813,7 +813,7 @@ namespace System
 
         public static Type GetUnderlyingType(Type enumType)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.GetEnumUnderlyingType();
@@ -821,7 +821,7 @@ namespace System
 
         public static Array GetValues(Type enumType)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.GetEnumValues();
@@ -835,7 +835,7 @@ namespace System
 
         public static string GetName(Type enumType, object value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.GetEnumName(value);
@@ -843,7 +843,7 @@ namespace System
 
         public static string[] GetNames(Type enumType)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.GetEnumNames();
@@ -903,7 +903,7 @@ namespace System
 
         public static bool IsDefined(Type enumType, object value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.IsEnumDefined(value);
@@ -1366,7 +1366,7 @@ namespace System
 
         private static RuntimeType ValidateRuntimeType(Type enumType)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));

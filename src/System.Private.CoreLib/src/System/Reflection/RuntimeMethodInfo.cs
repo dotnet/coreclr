@@ -210,15 +210,13 @@ namespace System.Reflection
         public override bool Equals(object obj)
         {
             if (!IsGenericMethod)
-                return obj == (object)this;
+                return ReferenceEquals(this, obj);
 
             // We cannot do simple object identity comparisons for generic methods.
             // Equals will be called in CerHashTable when RuntimeType+RuntimeTypeCache.GetGenericMethodInfo()
             // retrieve items from and insert items into s_methodInstantiations which is a CerHashtable.
 
-            RuntimeMethodInfo mi = obj as RuntimeMethodInfo;
-
-            if (mi == null || !mi.IsGenericMethod)
+            if (!(obj is RuntimeMethodInfo mi) || !mi.IsGenericMethod)
                 return false;
 
             // now we know that both operands are generic methods

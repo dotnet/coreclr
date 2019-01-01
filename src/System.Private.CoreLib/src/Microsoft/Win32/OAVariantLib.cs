@@ -76,7 +76,7 @@ namespace Microsoft.Win32
          */
         internal static Variant ChangeType(Variant source, Type targetClass, short options, CultureInfo culture)
         {
-            if (targetClass == null)
+            if (targetClass is null)
                 throw new ArgumentNullException(nameof(targetClass));
             if (culture == null)
                 throw new ArgumentNullException(nameof(culture));

@@ -67,8 +67,7 @@ namespace System.Reflection.Emit
             byte[] mungedSig;
             int index;
 
-            MethodBuilder methodBuilder = m_methodBuilder as MethodBuilder;
-            if (methodBuilder == null)
+            if (!(m_methodBuilder is MethodBuilder methodBuilder))
                 // it's a light code gen entity
                 throw new NotSupportedException();
             dynMod = (ModuleBuilder)methodBuilder.Module;

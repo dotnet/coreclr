@@ -1001,7 +1001,7 @@ namespace System.Resources
             {
                 throw new BadImageFormatException(SR.BadImageFormat_InvalidType);
             }
-            if (_typeTable[typeIndex] == null)
+            if (_typeTable[typeIndex] is null)
             {
                 long oldPos = _store.BaseStream.Position;
                 try

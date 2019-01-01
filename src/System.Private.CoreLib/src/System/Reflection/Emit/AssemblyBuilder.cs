@@ -584,7 +584,7 @@ namespace System.Reflection.Emit
         /// </summary>
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
             {
                 throw new ArgumentNullException(nameof(con));
             }

@@ -35,7 +35,7 @@ namespace System.Reflection.Emit
 
             public CustAttr(ConstructorInfo con, byte[] binaryAttribute)
             {
-                if (con == null)
+                if (con is null)
                     throw new ArgumentNullException(nameof(con));
 
                 if (binaryAttribute == null)
@@ -1292,10 +1292,10 @@ namespace System.Reflection.Emit
 
         private void DefineMethodOverrideNoLock(MethodInfo methodInfoBody, MethodInfo methodInfoDeclaration)
         {
-            if (methodInfoBody == null)
+            if (methodInfoBody is null)
                 throw new ArgumentNullException(nameof(methodInfoBody));
 
-            if (methodInfoDeclaration == null)
+            if (methodInfoDeclaration is null)
                 throw new ArgumentNullException(nameof(methodInfoDeclaration));
 
             ThrowIfCreated();
@@ -1606,12 +1606,12 @@ namespace System.Reflection.Emit
                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
             }
 
-            if (con == null)
+            if (con is null)
             {
                 con = m_typeParent.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
             }
 
-            if (con == null)
+            if (con is null)
                 throw new NotSupportedException(SR.NotSupported_NoParentDefaultConstructor);
 
             // Define the constructor Builder
@@ -2013,7 +2013,7 @@ namespace System.Reflection.Emit
                     constraints[i] = m_module.GetTypeTokenInternal(m_typeInterfaces[i]).Token;
                 }
 
-                int declMember = m_declMeth == null ? m_DeclaringType.m_tdType.Token : m_declMeth.GetToken().Token;
+                int declMember = m_declMeth is null ? m_DeclaringType.m_tdType.Token : m_declMeth.GetToken().Token;
                 m_tdType = new TypeToken(DefineGenericParam(m_module.GetNativeHandle(),
                     m_strName, declMember, m_genParamAttributes, m_genParamPos, constraints));
 
@@ -2229,7 +2229,7 @@ namespace System.Reflection.Emit
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
 
             if (binaryAttribute == null)

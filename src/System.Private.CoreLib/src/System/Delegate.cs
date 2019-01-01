@@ -35,10 +35,10 @@ namespace System
         //  compiler generated code
         protected Delegate(object target, string method)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
             // This API existed in v1/v1.1 and only expected to create closed
@@ -58,17 +58,16 @@ namespace System
         // for the class defining the method.
         protected unsafe Delegate(Type target, string method)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
             if (target.ContainsGenericParameters)
                 throw new ArgumentException(SR.Arg_UnboundGenParam, nameof(target));
 
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType rtTarget = target as RuntimeType;
-            if (rtTarget == null)
+            if (!(target is RuntimeType rtTarget))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(target));
 
             // This API existed in v1/v1.1 and only expected to create open
@@ -111,7 +110,7 @@ namespace System
 
         public override bool Equals(object obj)
         {
-            if (obj == null || !InternalEqualTypes(this, obj))
+            if (obj is null || !InternalEqualTypes(this, obj))
                 return false;
 
             Delegate d = (Delegate)obj;
@@ -153,7 +152,7 @@ namespace System
 
             // method ptrs don't match, go down long path
             // 
-            if (_methodBase == null || d._methodBase == null || !(_methodBase is MethodInfo) || !(d._methodBase is MethodInfo))
+            if (_methodBase is null || d._methodBase is null || !(_methodBase is MethodInfo) || !(d._methodBase is MethodInfo))
                 return Delegate.InternalEqualMethodHandles(this, d);
             else
                 return _methodBase.Equals(d._methodBase);
@@ -179,8 +178,10 @@ namespace System
 
         public static Delegate Combine(Delegate a, Delegate b)
         {
-            if ((object)a == null) // cast to object for a more efficient test
+            if (a is null)
+            {
                 return b;
+            }
 
             return a.CombineImpl(b);
         }
@@ -205,84 +206,80 @@ namespace System
         }
 
         // This routine will return the method
-        public MethodInfo Method
-        {
-            get
-            {
-                return GetMethodImpl();
-            }
-        }
+        public MethodInfo Method => GetMethodImpl();
 
         protected virtual MethodInfo GetMethodImpl()
         {
-            if ((_methodBase == null) || !(_methodBase is MethodInfo))
+            if ((_methodBase is null) || !(_methodBase is MethodInfo methodInfo))
             {
-                IRuntimeMethodInfo method = FindMethodHandle();
-                RuntimeType declaringType = RuntimeMethodHandle.GetDeclaringType(method);
-                // need a proper declaring type instance method on a generic type
-                if (RuntimeTypeHandle.IsGenericTypeDefinition(declaringType) || RuntimeTypeHandle.HasInstantiation(declaringType))
-                {
-                    bool isStatic = (RuntimeMethodHandle.GetAttributes(method) & MethodAttributes.Static) != (MethodAttributes)0;
-                    if (!isStatic)
-                    {
-                        if (_methodPtrAux == IntPtr.Zero)
-                        {
-                            // The target may be of a derived type that doesn't have visibility onto the
-                            // target method. We don't want to call RuntimeType.GetMethodBase below with that
-                            // or reflection can end up generating a MethodInfo where the ReflectedType cannot
-                            // see the MethodInfo itself and that breaks an important invariant. But the
-                            // target type could include important generic type information we need in order
-                            // to work out what the exact instantiation of the method's declaring type is. So
-                            // we'll walk up the inheritance chain (which will yield exactly instantiated
-                            // types at each step) until we find the declaring type. Since the declaring type
-                            // we get from the method is probably shared and those in the hierarchy we're
-                            // walking won't be we compare using the generic type definition forms instead.
-                            Type currentType = _target.GetType();
-                            Type targetType = declaringType.GetGenericTypeDefinition();
-                            while (currentType != null)
-                            {
-                                if (currentType.IsGenericType &&
-                                    currentType.GetGenericTypeDefinition() == targetType)
-                                {
-                                    declaringType = currentType as RuntimeType;
-                                    break;
-                                }
-                                currentType = currentType.BaseType;
-                            }
+                return InitalizeMethodBase();
+            }
 
-                            // RCWs don't need to be "strongly-typed" in which case we don't find a base type
-                            // that matches the declaring type of the method. This is fine because interop needs
-                            // to work with exact methods anyway so declaringType is never shared at this point.
-                            Debug.Assert(currentType != null || _target.GetType().IsCOMObject, "The class hierarchy should declare the method");
-                        }
-                        else
+            return methodInfo;
+        }
+
+        private MethodInfo InitalizeMethodBase()
+        {
+            IRuntimeMethodInfo method = FindMethodHandle();
+            RuntimeType declaringType = RuntimeMethodHandle.GetDeclaringType(method);
+            // need a proper declaring type instance method on a generic type
+            if (RuntimeTypeHandle.IsGenericTypeDefinition(declaringType) || RuntimeTypeHandle.HasInstantiation(declaringType))
+            {
+                bool isStatic = (RuntimeMethodHandle.GetAttributes(method) & MethodAttributes.Static) != (MethodAttributes)0;
+                if (!isStatic)
+                {
+                    if (_methodPtrAux == IntPtr.Zero)
+                    {
+                        // The target may be of a derived type that doesn't have visibility onto the
+                        // target method. We don't want to call RuntimeType.GetMethodBase below with that
+                        // or reflection can end up generating a MethodInfo where the ReflectedType cannot
+                        // see the MethodInfo itself and that breaks an important invariant. But the
+                        // target type could include important generic type information we need in order
+                        // to work out what the exact instantiation of the method's declaring type is. So
+                        // we'll walk up the inheritance chain (which will yield exactly instantiated
+                        // types at each step) until we find the declaring type. Since the declaring type
+                        // we get from the method is probably shared and those in the hierarchy we're
+                        // walking won't be we compare using the generic type definition forms instead.
+                        Type currentType = _target.GetType();
+                        Type targetType = declaringType.GetGenericTypeDefinition();
+                        while (!(currentType is null))
                         {
-                            // it's an open one, need to fetch the first arg of the instantiation
-                            MethodInfo invoke = this.GetType().GetMethod("Invoke");
-                            declaringType = (RuntimeType)invoke.GetParameters()[0].ParameterType;
+                            if (currentType.IsGenericType &&
+                                currentType.GetGenericTypeDefinition() == targetType)
+                            {
+                                declaringType = currentType as RuntimeType;
+                                break;
+                            }
+                            currentType = currentType.BaseType;
                         }
+
+                        // RCWs don't need to be "strongly-typed" in which case we don't find a base type
+                        // that matches the declaring type of the method. This is fine because interop needs
+                        // to work with exact methods anyway so declaringType is never shared at this point.
+                        Debug.Assert(currentType != null || _target.GetType().IsCOMObject, "The class hierarchy should declare the method");
+                    }
+                    else
+                    {
+                        // it's an open one, need to fetch the first arg of the instantiation
+                        MethodInfo invoke = this.GetType().GetMethod("Invoke");
+                        declaringType = (RuntimeType)invoke.GetParameters()[0].ParameterType;
                     }
                 }
-                _methodBase = (MethodInfo)RuntimeType.GetMethodBase(declaringType, method);
             }
-            return (MethodInfo)_methodBase;
+
+            MethodInfo methodInfo = (MethodInfo)RuntimeType.GetMethodBase(declaringType, method);
+            _methodBase = methodInfo;
+            return methodInfo;
         }
 
-        public object Target
-        {
-            get
-            {
-                return GetTarget();
-            }
-        }
-
+        public object Target => GetTarget();
 
         public static Delegate Remove(Delegate source, Delegate value)
         {
-            if (source == null)
+            if (source is null)
                 return null;
 
-            if (value == null)
+            if (value is null)
                 return source;
 
             if (!InternalEqualTypes(source, value))
@@ -336,15 +333,14 @@ namespace System
         // V1 API.
         public static Delegate CreateDelegate(Type type, object target, string method, bool ignoreCase, bool throwOnBindFailure)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType rtType = type as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(type));
@@ -386,20 +382,18 @@ namespace System
         // V1 API.
         public static Delegate CreateDelegate(Type type, Type target, string method, bool ignoreCase, bool throwOnBindFailure)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
             if (target.ContainsGenericParameters)
                 throw new ArgumentException(SR.Arg_UnboundGenParam, nameof(target));
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType rtType = type as RuntimeType;
-            RuntimeType rtTarget = target as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
-            if (rtTarget == null)
+            if (!(target is RuntimeType rtTarget))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(target));
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(type));
@@ -426,17 +420,15 @@ namespace System
         public static Delegate CreateDelegate(Type type, MethodInfo method, bool throwOnBindFailure)
         {
             // Validate the parameters.
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType rtType = type as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
 
-            RuntimeMethodInfo rmi = method as RuntimeMethodInfo;
-            if (rmi == null)
+            if (!(method is RuntimeMethodInfo rmi))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(method));
 
             if (!rtType.IsDelegate())
@@ -456,7 +448,7 @@ namespace System
                 null,
                 DelegateBindingFlags.OpenDelegateOnly | DelegateBindingFlags.RelaxedSignature);
 
-            if (d == null && throwOnBindFailure)
+            if (d is null && throwOnBindFailure)
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);
 
             return d;
@@ -472,17 +464,15 @@ namespace System
         public static Delegate CreateDelegate(Type type, object firstArgument, MethodInfo method, bool throwOnBindFailure)
         {
             // Validate the parameters.
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType rtType = type as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
 
-            RuntimeMethodInfo rmi = method as RuntimeMethodInfo;
-            if (rmi == null)
+            if (!(method is RuntimeMethodInfo rmi))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(method));
 
             if (!rtType.IsDelegate())
@@ -499,7 +489,7 @@ namespace System
                 firstArgument,
                 DelegateBindingFlags.RelaxedSignature);
 
-            if (d == null && throwOnBindFailure)
+            if (d is null && throwOnBindFailure)
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);
 
             return d;
@@ -507,18 +497,26 @@ namespace System
 
         public static bool operator ==(Delegate d1, Delegate d2)
         {
-            if ((object)d1 == null)
-                return (object)d2 == null;
+            // Check if second argument is null first to fast-path null checks
+            // e.g. d1 == null
+            if (d2 is null)
+            {
+                return d1 is null;
+            }
 
-            return d1.Equals(d2);
+            return d2.Equals(d1);
         }
 
         public static bool operator !=(Delegate d1, Delegate d2)
         {
-            if ((object)d1 == null)
-                return (object)d2 != null;
+            // Check if second argument is null first to fast-path not null checks
+            // e.g. d1 != null
+            if (d2 is null)
+            {
+                return !(d1 is null);
+            }
 
-            return !d1.Equals(d2);
+            return !d2.Equals(d1);
         }
 
         //
@@ -539,14 +537,13 @@ namespace System
         internal static unsafe Delegate CreateDelegateNoSecurityCheck(Type type, object target, RuntimeMethodHandle method)
         {
             // Validate the parameters.
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             if (method.IsNullHandle())
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType rtType = type as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
 
             if (!rtType.IsDelegate())
@@ -571,14 +568,12 @@ namespace System
         internal static Delegate CreateDelegateNoSecurityCheck(RuntimeType type, object firstArgument, MethodInfo method)
         {
             // Validate the parameters.
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
-
-            RuntimeMethodInfo rtMethod = method as RuntimeMethodInfo;
-            if (rtMethod == null)
+            if (!(method is RuntimeMethodInfo rtMethod))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(method));
 
             if (!type.IsDelegate())
@@ -596,7 +591,7 @@ namespace System
                                               DelegateBindingFlags.SkipSecurityChecks |
                                               DelegateBindingFlags.RelaxedSignature);
 
-            if (d == null)
+            if (d is null)
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);
 
             return d;

@@ -24,7 +24,7 @@ namespace System.Reflection
         #region Public Static Members
         public static IList<CustomAttributeData> GetCustomAttributes(MemberInfo target)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
             return target.GetCustomAttributesData();
@@ -32,7 +32,7 @@ namespace System.Reflection
 
         public static IList<CustomAttributeData> GetCustomAttributes(Module target)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
             return target.GetCustomAttributesData();
@@ -40,7 +40,7 @@ namespace System.Reflection
 
         public static IList<CustomAttributeData> GetCustomAttributes(Assembly target)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
             return target.GetCustomAttributesData();
@@ -48,7 +48,7 @@ namespace System.Reflection
 
         public static IList<CustomAttributeData> GetCustomAttributes(ParameterInfo target)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
             return target.GetCustomAttributesData();
@@ -538,19 +538,22 @@ namespace System.Reflection
         #region Constructor
         public CustomAttributeNamedArgument(MemberInfo memberInfo, object value)
         {
-            if (memberInfo == null)
+            if (memberInfo is null)
                 throw new ArgumentNullException(nameof(memberInfo));
 
             Type type = null;
-            FieldInfo field = memberInfo as FieldInfo;
-            PropertyInfo property = memberInfo as PropertyInfo;
-
-            if (field != null)
+            if (memberInfo is FieldInfo field)
+            {
                 type = field.FieldType;
-            else if (property != null)
+            }
+            else if (memberInfo is PropertyInfo property)
+            {
                 type = property.PropertyType;
+            }
             else
+            {
                 throw new ArgumentException(SR.Argument_InvalidMemberForNamedArgument);
+            }
 
             m_memberInfo = memberInfo;
             m_value = new CustomAttributeTypedArgument(type, value);
@@ -558,8 +561,10 @@ namespace System.Reflection
 
         public CustomAttributeNamedArgument(MemberInfo memberInfo, CustomAttributeTypedArgument typedArgument)
         {
-            if (memberInfo == null)
+            if (memberInfo is null)
+            {
                 throw new ArgumentNullException(nameof(memberInfo));
+            }
 
             m_memberInfo = memberInfo;
             m_value = typedArgument;
@@ -569,8 +574,10 @@ namespace System.Reflection
         #region Object Override
         public override string ToString()
         {
-            if (m_memberInfo == null)
+            if (m_memberInfo is null)
+            {
                 return base.ToString();
+            }
 
             return string.Format(CultureInfo.CurrentCulture, "{0} = {1}", MemberInfo.Name, TypedValue.ToString(ArgumentType != typeof(object)));
         }
@@ -727,7 +734,7 @@ namespace System.Reflection
         {
             RuntimeType type = RuntimeTypeHandle.GetTypeByNameUsingCARules(typeName, scope);
 
-            if (type == null)
+            if (type is null)
                 throw new InvalidOperationException(
                     string.Format(CultureInfo.CurrentUICulture, SR.Arg_CATypeResolutionFailed, typeName));
 
@@ -744,7 +751,7 @@ namespace System.Reflection
         public CustomAttributeTypedArgument(Type argumentType, object value)
         {
             // value can be null.
-            if (argumentType == null)
+            if (argumentType is null)
                 throw new ArgumentNullException(nameof(argumentType));
 
             m_value = (value == null) ? null : CanonicalizeValue(value);
@@ -840,7 +847,7 @@ namespace System.Reflection
 
         internal string ToString(bool typed)
         {
-            if (m_argumentType == null)
+            if (m_argumentType is null)
                 return base.ToString();
 
             if (ArgumentType.IsEnum)
@@ -1122,7 +1129,7 @@ namespace System.Reflection
 
             method = method.GetParentDefinition();
 
-            while (method != null)
+            while (!(method is null))
             {
                 if (IsCustomAttributeDefined(method.GetRuntimeModule(), method.MetadataToken, caType, 0, inherit))
                     return true;
@@ -1229,7 +1236,7 @@ namespace System.Reflection
 
             RuntimeType.ListBuilder<object> result = new RuntimeType.ListBuilder<object>();
             bool mustBeInheritable = false;
-            bool useObjectArray = (caType == null || caType.IsValueType || caType.ContainsGenericParameters);
+            bool useObjectArray = (caType is null || caType.IsValueType || caType.ContainsGenericParameters);
             RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : caType;
 
             for (var i = 0; i < pcas.Count; i++)
@@ -1272,13 +1279,13 @@ namespace System.Reflection
 
             RuntimeType.ListBuilder<object> result = new RuntimeType.ListBuilder<object>();
             bool mustBeInheritable = false;
-            bool useObjectArray = (caType == null || caType.IsValueType || caType.ContainsGenericParameters);
+            bool useObjectArray = (caType is null || caType.IsValueType || caType.ContainsGenericParameters);
             RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : caType;
 
             for (var i = 0; i < pcas.Count; i++)
                 result.Add(pcas[i]);
 
-            while (method != null)
+            while (!(method is null))
             {
                 AddCustomAttributes(ref result, method.GetRuntimeModule(), method.MetadataToken, caType, mustBeInheritable, ref result);
                 mustBeInheritable = true;
@@ -1401,7 +1408,7 @@ namespace System.Reflection
             }
             else
             {
-                Debug.Assert(attributeFilterType == null);
+                Debug.Assert(attributeFilterType is null);
                 Debug.Assert(!MetadataToken.IsNullToken(attributeCtorToken));
 
                 for (int i = 0; i < car.Length; i++)
@@ -1424,7 +1431,7 @@ namespace System.Reflection
 
             AddCustomAttributes(ref attributes, decoratedModule, decoratedMetadataToken, attributeFilterType, false, ref _);
 
-            bool useObjectArray = attributeFilterType == null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters;
+            bool useObjectArray = attributeFilterType is null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters;
             RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : attributeFilterType;
 
             object[] result = CreateAttributeArrayHelper(arrayType, attributes.Count + pcaCount);
@@ -1443,7 +1450,7 @@ namespace System.Reflection
             MetadataImport scope = decoratedModule.MetadataImport;
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
 
-            if (attributeFilterType == null && car.Length == 0)
+            if (attributeFilterType is null && car.Length == 0)
                 return;
 
             for (int i = 0; i < car.Length; i++)
@@ -1517,7 +1524,7 @@ namespace System.Reflection
                         if (isProperty)
                         {
                             #region // Initialize property
-                            if (type == null && value != null)
+                            if (type is null && value != null)
                             {
                                 type = (RuntimeType)value.GetType();
                                 if (type == Type_RuntimeType)
@@ -1526,13 +1533,13 @@ namespace System.Reflection
 
                             RuntimePropertyInfo property = null;
 
-                            if (type == null)
+                            if (type is null)
                                 property = attributeType.GetProperty(name) as RuntimePropertyInfo;
                             else
                                 property = attributeType.GetProperty(name, type, Type.EmptyTypes) as RuntimePropertyInfo;
 
                             // Did we get a valid property reference?
-                            if (property == null)
+                            if (property is null)
                             {
                                 throw new CustomAttributeFormatException(
                                     string.Format(CultureInfo.CurrentUICulture, 

@@ -22,9 +22,10 @@ namespace System.Reflection
                 // This check is necessary because for some reason, Type adds a new "Module" property that hides the inherited one instead 
                 // of overriding.
 
-                Type type = this as Type;
-                if (type != null)
+                if (this is Type type)
+                {
                     return type.Module;
+                }
 
                 throw NotImplemented.ByDesign;
             }
@@ -46,28 +47,48 @@ namespace System.Reflection
 
         public static bool operator ==(MemberInfo left, MemberInfo right)
         {
-            if (object.ReferenceEquals(left, right))
+            if (ReferenceEquals(left, right))
+            {
                 return true;
+            }
 
-            if ((object)left == null || (object)right == null)
+            if (left is null || right is null)
+            {
                 return false;
+            }
 
-            Type type1, type2;
-            MethodBase method1, method2;
-            FieldInfo field1, field2;
-            EventInfo event1, event2;
-            PropertyInfo property1, property2;
+            if (left is Type type1)
+            {
+                // Type has special handling via operator== 
+                return (right is Type type2) ? type1 == type2 : false;
+            }
 
-            if ((type1 = left as Type) != null && (type2 = right as Type) != null)
-                return type1 == type2;
-            else if ((method1 = left as MethodBase) != null && (method2 = right as MethodBase) != null)
-                return method1 == method2;
-            else if ((field1 = left as FieldInfo) != null && (field2 = right as FieldInfo) != null)
-                return field1 == field2;
-            else if ((event1 = left as EventInfo) != null && (event2 = right as EventInfo) != null)
-                return event1 == event2;
-            else if ((property1 = left as PropertyInfo) != null && (property2 = right as PropertyInfo) != null)
-                return property1 == property2;
+            if (left is MethodBase method1)
+            {
+                // MethodBase has special handling via operator== 
+                return (right is MethodBase method2) ? method1 == method2 : false;
+            }
+
+            if (left is FieldInfo field1)
+            {
+                // FieldInfo operator== calls Equals after same reference and null checks above,
+                // so just call Equals directly.
+                return (right is FieldInfo field2) ? field1.Equals(field2) : false;
+            }
+
+            if (left is EventInfo event1)
+            {
+                // EventInfo operator== calls Equals after same reference and null checks above,
+                // so just call Equals directly.
+                return (right is EventInfo event2) ? event1.Equals(event2) : false;
+            }
+
+            if (left is PropertyInfo property1)
+            {
+                // PropertyInfo operator== calls Equals after same reference and null checks above,
+                // so just call Equals directly.
+                return (right is PropertyInfo property2) ? property1.Equals(property2) : false;
+            }
 
             return false;
         }

@@ -70,7 +70,7 @@ namespace System
                                                          null); // no parameter modifiers
 
             bool wrongSignature = false;
-            if (initializeMethod == null)
+            if (initializeMethod is null)
             {
                 // There weren't any static methods without
                 // parameters. Look for any methods with the correct
@@ -89,7 +89,7 @@ namespace System
                     Debug.Assert(initializeMethod == null);
                     wrongSignature = true;
                 }
-                if (initializeMethod != null)
+                if (!(initializeMethod is null))
                 {
                     // Found one
                     wrongSignature = true;

@@ -14,8 +14,7 @@ namespace System
         {
             get
             {
-                RuntimeType rt = this as RuntimeType;
-                if (rt != null)
+                if (this is RuntimeType rt)
                     return RuntimeTypeHandle.IsInterface(rt);
                 return ((GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface);
             }

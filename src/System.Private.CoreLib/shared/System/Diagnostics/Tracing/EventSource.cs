@@ -317,7 +317,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public static Guid GetGuid(Type eventSourceType)
         {
-            if (eventSourceType == null)
+            if (eventSourceType is null)
                 throw new ArgumentNullException(nameof(eventSourceType));
 
             EventSourceAttribute attrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute));
@@ -384,7 +384,7 @@ namespace System.Diagnostics.Tracing
         /// <returns>The XML data string or null</returns>
         public static string GenerateManifest(Type eventSourceType, string assemblyPathToIncludeInManifest, EventManifestOptions flags)
         {
-            if (eventSourceType == null)
+            if (eventSourceType is null)
                 throw new ArgumentNullException(nameof(eventSourceType));
 
             byte[] manifestBytes = EventSource.CreateManifestAndDescriptors(eventSourceType, assemblyPathToIncludeInManifest, null, flags);
@@ -1461,7 +1461,7 @@ namespace System.Diagnostics.Tracing
 
         private static string GetName(Type eventSourceType, EventManifestOptions flags)
         {
-            if (eventSourceType == null)
+            if (eventSourceType is null)
                 throw new ArgumentNullException(nameof(eventSourceType));
 
             EventSourceAttribute attrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute), flags);

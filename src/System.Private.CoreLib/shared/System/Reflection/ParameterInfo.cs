@@ -29,7 +29,7 @@ namespace System.Reflection
 
         public virtual bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             return false;
@@ -41,7 +41,7 @@ namespace System.Reflection
         public virtual object[] GetCustomAttributes(bool inherit) => Array.Empty<object>();
         public virtual object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             return Array.Empty<object>();
@@ -57,7 +57,7 @@ namespace System.Reflection
             // Once all the serializable fields have come in we can set up the real
             // instance based on just two of them (MemberImpl and PositionImpl).
 
-            if (MemberImpl == null)
+            if (MemberImpl is null)
                 throw new SerializationException(SR.Serialization_InsufficientState);
 
             ParameterInfo[] args = null;

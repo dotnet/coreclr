@@ -270,7 +270,7 @@ namespace System
             if (m != null)
             {
                 for (i = 0; i < m.Length; i++)
-                    if (m[i] != null)
+                    if (!(m[i] is null))
                         ret[cnt++] = m[i];
             }
 
@@ -278,7 +278,7 @@ namespace System
             if (c != null)
             {
                 for (i = 0; i < c.Length; i++)
-                    if (c[i] != null)
+                    if (!(c[i] is null))
                         ret[cnt++] = c[i];
             }
 
@@ -286,7 +286,7 @@ namespace System
             if (f != null)
             {
                 for (i = 0; i < f.Length; i++)
-                    if (f[i] != null)
+                    if (!(f[i] is null))
                         ret[cnt++] = f[i];
             }
 
@@ -294,7 +294,7 @@ namespace System
             if (p != null)
             {
                 for (i = 0; i < p.Length; i++)
-                    if (p[i] != null)
+                    if (!(p[i] is null))
                         ret[cnt++] = p[i];
             }
 
@@ -302,7 +302,7 @@ namespace System
             if (e != null)
             {
                 for (i = 0; i < e.Length; i++)
-                    if (e[i] != null)
+                    if (!(e[i] is null))
                         ret[cnt++] = e[i];
             }
 
@@ -333,7 +333,7 @@ namespace System
 
         public virtual bool IsAssignableFrom(Type c)
         {
-            if (c == null)
+            if (c is null)
                 return false;
 
             if (this == c)

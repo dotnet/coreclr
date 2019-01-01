@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
 namespace System.Reflection.Emit
 {
     using System;
@@ -11,12 +9,8 @@ namespace System.Reflection.Emit
     using System.Diagnostics.SymbolStore;
     using System.Runtime.InteropServices;
     using System.Reflection;
-    using System.Collections;
     using System.Collections.Generic;
-    using System.Threading;
     using System.Diagnostics;
-    using System.Diagnostics.CodeAnalysis;
-    using System.Security;
 
     internal class DynamicILGenerator : ILGenerator
     {
@@ -46,12 +40,10 @@ namespace System.Reflection.Emit
         public override LocalBuilder DeclareLocal(Type localType, bool pinned)
         {
             LocalBuilder localBuilder;
-            if (localType == null)
+            if (localType is null)
                 throw new ArgumentNullException(nameof(localType));
 
-            RuntimeType rtType = localType as RuntimeType;
-
-            if (rtType == null)
+            if (!(localType is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
             localBuilder = new LocalBuilder(m_localCount, localType, m_methodBuilder);
@@ -68,16 +60,14 @@ namespace System.Reflection.Emit
         //
         public override void Emit(OpCode opcode, MethodInfo meth)
         {
-            if (meth == null)
+            if (meth is null)
                 throw new ArgumentNullException(nameof(meth));
 
             int stackchange = 0;
             int token = 0;
-            DynamicMethod dynMeth = meth as DynamicMethod;
-            if (dynMeth == null)
+            if (!(meth is DynamicMethod dynMeth))
             {
-                RuntimeMethodInfo rtMeth = meth as RuntimeMethodInfo;
-                if (rtMeth == null)
+                if (!(meth is RuntimeMethodInfo rtMeth))
                     throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(meth));
 
                 RuntimeType declaringType = rtMeth.GetRuntimeType();
@@ -123,11 +113,11 @@ namespace System.Reflection.Emit
 
         public override void Emit(OpCode opcode, ConstructorInfo con)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
 
             RuntimeConstructorInfo rtConstructor = con as RuntimeConstructorInfo;
-            if (rtConstructor == null)
+            if (rtConstructor is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(con));
 
             RuntimeType declaringType = rtConstructor.GetRuntimeType();
@@ -150,12 +140,12 @@ namespace System.Reflection.Emit
 
         public override void Emit(OpCode opcode, Type type)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             RuntimeType rtType = type as RuntimeType;
 
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
             int token = GetTokenFor(rtType);
@@ -166,15 +156,14 @@ namespace System.Reflection.Emit
 
         public override void Emit(OpCode opcode, FieldInfo field)
         {
-            if (field == null)
+            if (field is null)
                 throw new ArgumentNullException(nameof(field));
 
-            RuntimeFieldInfo runtimeField = field as RuntimeFieldInfo;
-            if (runtimeField == null)
+            if (!(field is RuntimeFieldInfo runtimeField))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeFieldInfo, nameof(field));
 
             int token;
-            if (field.DeclaringType == null)
+            if (field.DeclaringType is null)
                 token = GetTokenFor(runtimeField);
             else
                 token = GetTokenFor(runtimeField, runtimeField.GetRuntimeType());
@@ -278,7 +267,7 @@ namespace System.Reflection.Emit
 
         public override void EmitCall(OpCode opcode, MethodInfo methodInfo, Type[] optionalParameterTypes)
         {
-            if (methodInfo == null)
+            if (methodInfo is null)
                 throw new ArgumentNullException(nameof(methodInfo));
 
             if (!(opcode.Equals(OpCodes.Call) || opcode.Equals(OpCodes.Callvirt) || opcode.Equals(OpCodes.Newobj)))
@@ -388,10 +377,10 @@ namespace System.Reflection.Emit
             else
             {
                 // execute this branch if previous clause is Catch or Fault
-                if (exceptionType == null)
+                if (exceptionType is null)
                     throw new ArgumentNullException(nameof(exceptionType));
 
-                if (rtType == null)
+                if (rtType is null)
                     throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
                 Label endLabel = current.GetEndLabel();
@@ -447,8 +436,7 @@ namespace System.Reflection.Emit
 
             RuntimeMethodInfo rtMeth = methodInfo as RuntimeMethodInfo;
             DynamicMethod dm = methodInfo as DynamicMethod;
-
-            if (rtMeth == null && dm == null)
+            if (rtMeth is null && dm is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(methodInfo));
 
             ParameterInfo[] paramInfo = methodInfo.GetParametersNoCopy();
@@ -468,7 +456,7 @@ namespace System.Reflection.Emit
                                                      parameterTypes,
                                                      optionalParameterTypes);
 
-            if (rtMeth != null)
+            if (!(rtMeth is null))
                 return GetTokenForVarArgMethod(rtMeth, sig);
             else
                 return GetTokenForVarArgMethod(dm, sig);
@@ -625,10 +613,10 @@ namespace System.Reflection.Emit
         {
             DynamicMethod method = m_method;
 
-            if (method == null)
+            if (method is null)
                 return;
 
-            if (method.m_methodHandle == null)
+            if (method.m_methodHandle is null)
                 return;
 
             DestroyScout scout = null;
@@ -794,54 +782,50 @@ namespace System.Reflection.Emit
 
             object handle = m_scope[token];
 
-            if (handle == null)
+            if (handle is null)
                 throw new InvalidProgramException();
 
-            if (handle is RuntimeTypeHandle)
+            if (handle is RuntimeTypeHandle rth)
             {
-                typeHandle = ((RuntimeTypeHandle)handle).Value;
+                typeHandle = rth.Value;
                 return;
             }
 
-            if (handle is RuntimeMethodHandle)
+            if (handle is RuntimeMethodHandle rmh)
             {
-                methodHandle = ((RuntimeMethodHandle)handle).Value;
+                methodHandle = rmh.Value;
                 return;
             }
 
-            if (handle is RuntimeFieldHandle)
+            if (handle is RuntimeFieldHandle rfh)
             {
-                fieldHandle = ((RuntimeFieldHandle)handle).Value;
+                fieldHandle = rfh.Value;
                 return;
             }
 
-            DynamicMethod dm = handle as DynamicMethod;
-            if (dm != null)
+            if (handle is DynamicMethod dm)
             {
                 methodHandle = dm.GetMethodDescriptor().Value;
                 return;
             }
 
-            GenericMethodInfo gmi = handle as GenericMethodInfo;
-            if (gmi != null)
+            if (handle is GenericMethodInfo gmi)
             {
                 methodHandle = gmi.m_methodHandle.Value;
                 typeHandle = gmi.m_context.Value;
                 return;
             }
 
-            GenericFieldInfo gfi = handle as GenericFieldInfo;
-            if (gfi != null)
+            if (handle is GenericFieldInfo gfi)
             {
                 fieldHandle = gfi.m_fieldHandle.Value;
                 typeHandle = gfi.m_context.Value;
                 return;
             }
 
-            VarArgMethod vaMeth = handle as VarArgMethod;
-            if (vaMeth != null)
+            if (handle is VarArgMethod vaMeth)
             {
-                if (vaMeth.m_dynamicMethod == null)
+                if (vaMeth.m_dynamicMethod is null)
                 {
                     methodHandle = vaMeth.m_method.MethodHandle.Value;
                     typeHandle = vaMeth.m_method.GetDeclaringTypeInternal().GetTypeHandleInternal().Value;

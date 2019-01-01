@@ -14,7 +14,7 @@ namespace System.Reflection
         // intended user of this constructor.
         internal SignatureConstructedGenericType(Type genericTypeDefinition, Type[] typeArguments)
         {
-            if (genericTypeDefinition == null)
+            if (genericTypeDefinition is null)
                 throw new ArgumentNullException(nameof(genericTypeDefinition));
 
             if (typeArguments == null)
@@ -23,7 +23,7 @@ namespace System.Reflection
             typeArguments = (Type[])(typeArguments.Clone());
             for (int i = 0; i < typeArguments.Length; i++)
             {
-                if (typeArguments[i] == null)
+                if (typeArguments[i] is null)
                     throw new ArgumentNullException(nameof(typeArguments));
             }
 

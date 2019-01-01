@@ -46,7 +46,7 @@ namespace System.Reflection
                 throw new ArgumentNullException(nameof(types));
             for (int i = 0; i < types.Length; i++)
             {
-                if (types[i] == null)
+                if (types[i] is null)
                     throw new ArgumentNullException(nameof(types));
             }
             return GetMethodImpl(name, bindingAttr, binder, callConvention, types, modifiers);

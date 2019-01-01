@@ -67,7 +67,7 @@ namespace System.Reflection
         {
             MethodInfo addMethod = GetAddMethod(nonPublic: false);
 
-            if (addMethod == null)
+            if (addMethod is null)
                 throw new InvalidOperationException(SR.InvalidOperation_NoPublicAddMethod);
 
 #if FEATURE_COMINTEROP
@@ -84,7 +84,7 @@ namespace System.Reflection
         {
             MethodInfo removeMethod = GetRemoveMethod(nonPublic: false);
 
-            if (removeMethod == null)
+            if (removeMethod is null)
                 throw new InvalidOperationException(SR.InvalidOperation_NoPublicRemoveMethod);
 
 #if FEATURE_COMINTEROP
@@ -101,11 +101,15 @@ namespace System.Reflection
 
         public static bool operator ==(EventInfo left, EventInfo right)
         {
-            if (object.ReferenceEquals(left, right))
+            if (ReferenceEquals(left, right))
+            {
                 return true;
+            }
 
-            if ((object)left == null || (object)right == null)
+            if (left is null || right is null)
+            {
                 return false;
+            }
 
             return left.Equals(right);
         }
