@@ -76,7 +76,6 @@ namespace System.StubHelpers
                 // otherwise fallback to AllocCoTaskMem
                 if (pbNativeBuffer == null)
                 {
-                    // + 1 for the null character we put in
                     pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb);
                 }
 
