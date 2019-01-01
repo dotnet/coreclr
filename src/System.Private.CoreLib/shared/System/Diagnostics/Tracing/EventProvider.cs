@@ -57,7 +57,7 @@ namespace System.Diagnostics.Tracing
     /// </summary>
 #if ES_BUILD_STANDALONE
     [System.Security.Permissions.HostProtection(MayLeakOnAbort = true)]
- #endif
+#endif
     internal partial class EventProvider : IDisposable
     {
         // This is the windows EVENT_DATA_DESCRIPTOR structure.  We expose it because this is what
