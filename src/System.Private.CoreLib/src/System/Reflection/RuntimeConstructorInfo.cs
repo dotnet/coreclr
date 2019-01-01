@@ -96,7 +96,7 @@ namespace System.Reflection
         {
             RuntimeConstructorInfo m = o as RuntimeConstructorInfo;
 
-            if ((object)m == null)
+            if (m is null)
                 return false;
 
             return m.m_handle == m_handle;

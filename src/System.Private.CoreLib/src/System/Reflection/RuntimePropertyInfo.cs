@@ -57,7 +57,7 @@ namespace System.Reflection
         {
             RuntimePropertyInfo m = o as RuntimePropertyInfo;
 
-            if ((object)m == null)
+            if (m is null)
                 return false;
 
             return m.m_token == m_token &&
@@ -262,7 +262,7 @@ namespace System.Reflection
             if (Associates.IncludeAccessor(m_setterMethod, nonPublic))
                 accessorList.Add(m_setterMethod);
 
-            if ((object)m_otherMethod != null)
+            if (m_otherMethod is object)
             {
                 for (int i = 0; i < m_otherMethod.Length; i++)
                 {

@@ -33,7 +33,7 @@ namespace System.Reflection
         {
             MdFieldInfo m = o as MdFieldInfo;
 
-            if ((object)m == null)
+            if (m is null)
                 return false;
 
             return m.m_tkField == m_tkField &&

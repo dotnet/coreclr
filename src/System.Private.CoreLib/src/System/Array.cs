@@ -73,7 +73,7 @@ namespace System
         // Create instance will create an array
         public static unsafe Array CreateInstance(Type elementType, int length)
         {
-            if ((object)elementType == null)
+            if (elementType is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length < 0)
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
@@ -86,7 +86,7 @@ namespace System
 
         public static unsafe Array CreateInstance(Type elementType, int length1, int length2)
         {
-            if ((object)elementType == null)
+            if (elementType is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length1 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length1, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -104,7 +104,7 @@ namespace System
 
         public static unsafe Array CreateInstance(Type elementType, int length1, int length2, int length3)
         {
-            if ((object)elementType == null)
+            if (elementType is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length1 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length1, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -125,7 +125,7 @@ namespace System
 
         public static unsafe Array CreateInstance(Type elementType, params int[] lengths)
         {
-            if ((object)elementType == null)
+            if (elementType is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (lengths == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);

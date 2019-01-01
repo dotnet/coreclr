@@ -40,7 +40,7 @@ namespace System.Runtime.Serialization
         //
         public static object GetUninitializedObject(Type type)
         {
-            if ((object)type == null)
+            if (type is null)
             {
                 throw new ArgumentNullException(nameof(type));
             }

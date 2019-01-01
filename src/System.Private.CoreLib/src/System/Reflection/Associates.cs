@@ -23,7 +23,7 @@ namespace System.Reflection
 
         internal static bool IncludeAccessor(MethodInfo associate, bool nonPublic)
         {
-            if ((object)associate == null)
+            if (associate is null)
                 return false;
 
             if (nonPublic)

@@ -2200,7 +2200,7 @@ namespace System
         private static bool FilterApplyType(
             Type type, BindingFlags bindingFlags, string name, bool prefixLookup, string ns)
         {
-            Debug.Assert((object)type != null);
+            Debug.Assert(type is object);
             Debug.Assert(type is RuntimeType);
 
             bool isPublic = type.IsNestedPublic || type.IsPublic;

@@ -58,7 +58,7 @@ namespace System.Reflection
         {
             RuntimeEventInfo m = o as RuntimeEventInfo;
 
-            if ((object)m == null)
+            if (m is null)
                 return false;
 
             return m.m_token == m_token &&
@@ -157,7 +157,7 @@ namespace System.Reflection
         {
             List<MethodInfo> ret = new List<MethodInfo>();
 
-            if ((object)m_otherMethod == null)
+            if (m_otherMethod is null)
                 return new MethodInfo[0];
 
             for (int i = 0; i < m_otherMethod.Length; i++)

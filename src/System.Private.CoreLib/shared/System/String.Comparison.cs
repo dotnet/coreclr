@@ -540,7 +540,7 @@ namespace System
 
         public bool EndsWith(string value, StringComparison comparisonType)
         {
-            if ((object)value == null)
+            if (value is null)
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -643,7 +643,7 @@ namespace System
                 return true;
             }
 
-            if ((object)value == null)
+            if (value is null)
             {
                 CheckStringComparison(comparisonType);
                 return false;
@@ -684,7 +684,7 @@ namespace System
                 return true;
             }
 
-            if ((object)a == null || (object)b == null || a.Length != b.Length)
+            if (a is null || b is null || a.Length != b.Length)
             {
                 return false;
             }
@@ -700,7 +700,7 @@ namespace System
                 return true;
             }
 
-            if ((object)a == null || (object)b == null)
+            if (a is null || b is null)
             {
                 CheckStringComparison(comparisonType);
                 return false;
@@ -841,7 +841,7 @@ namespace System
         //
         public bool StartsWith(string value)
         {
-            if ((object)value == null)
+            if (value is null)
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -850,7 +850,7 @@ namespace System
 
         public bool StartsWith(string value, StringComparison comparisonType)
         {
-            if ((object)value == null)
+            if (value is null)
             {
                 throw new ArgumentNullException(nameof(value));
             }

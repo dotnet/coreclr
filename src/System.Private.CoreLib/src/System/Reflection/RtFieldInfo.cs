@@ -109,7 +109,7 @@ namespace System.Reflection
         {
             RtFieldInfo m = o as RtFieldInfo;
 
-            if ((object)m == null)
+            if (m is null)
                 return false;
 
             return m.m_fieldHandle == m_fieldHandle;
