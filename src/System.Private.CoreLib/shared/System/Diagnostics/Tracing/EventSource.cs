@@ -176,7 +176,7 @@ using System.Resources;
 using System.Security;
 #if ES_BUILD_STANDALONE
 using System.Security.Permissions;
-#endif // ES_BUILD_STANDALONE
+#endif
 
 using System.Text;
 using System.Threading;

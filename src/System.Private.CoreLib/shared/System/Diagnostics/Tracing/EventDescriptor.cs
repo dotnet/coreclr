@@ -24,7 +24,7 @@ namespace System.Diagnostics.Tracing
     [StructLayout(LayoutKind.Explicit, Size = 16)]
 #if ES_BUILD_STANDALONE
     [System.Security.Permissions.HostProtection(MayLeakOnAbort = true)]
-#endif // ES_BUILD_STANDALONE
+#endif
 
     /*
      EventDescriptor was public in the separate System.Diagnostics.Tracing assembly(pre NS2.0), 
