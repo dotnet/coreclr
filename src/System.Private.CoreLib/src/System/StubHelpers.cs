@@ -1191,7 +1191,17 @@ namespace System.StubHelpers
                 case BackPropAction.StringBuilderAnsi:
                     {
                         sbyte* ptr = (sbyte*)pNativeHome.ToPointer();
-                        ((StringBuilder)pManagedHome).ReplaceBufferAnsiInternal(ptr, string.strlen((byte*)pNativeHome));
+                        int length;
+                        if (pNativeHome == IntPtr.Zero)
+                        {
+                            length = 0;
+                        }
+                        else
+                        {
+                            length = string.strlen((byte*)pNativeHome);
+                        }
+
+                        ((StringBuilder)pManagedHome).ReplaceBufferAnsiInternal(ptr, length);
                         break;
                     }
 
@@ -1718,17 +1728,10 @@ namespace System.StubHelpers
 
         internal static void CheckStringLength(uint length)
         {
-            const int MaxStringLength = 0x7ffffff0;
-
-            if (length > MaxStringLength)
+            if (length > 0x7ffffff0)
             {
-                ThrowStringTooLong();
+                throw new MarshalDirectiveException(SR.Marshaler_StringTooLong);
             }
-        }
-
-        private static void ThrowStringTooLong()
-        {
-            throw new MarshalDirectiveException(SR.Marshaler_StringTooLong);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

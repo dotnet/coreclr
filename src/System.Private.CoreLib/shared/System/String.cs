@@ -655,11 +655,6 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe int strlen(byte* ptr)
         {
-            if (ptr == null)
-            {
-                return 0;
-            }
-
             // IndexOf processes memory in aligned chunks, and thus it won't crash even if it accesses memory beyond the null terminator.
             int length = SpanHelpers.IndexOf(ref *ptr, (byte)'\0', int.MaxValue);
             if (length < 0)
