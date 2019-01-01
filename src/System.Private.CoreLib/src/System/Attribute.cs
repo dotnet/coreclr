@@ -41,7 +41,7 @@ namespace System
 
 
             PropertyInfo baseProp = GetParentDefinition(element, indexParamTypes);
-            while (!(baseProp is null))
+            while (baseProp is object)
             {
                 attributes = GetCustomAttributes(baseProp, type, false);
                 AddAttributesToList(attributeList, attributes, types);
@@ -70,7 +70,7 @@ namespace System
 
                 PropertyInfo baseProp = GetParentDefinition(element, indexParamTypes);
 
-                while (!(baseProp is null))
+                while (baseProp is object)
                 {
                     if (baseProp.IsDefined(attributeType, false))
                         return true;
@@ -97,7 +97,7 @@ namespace System
             {
                 rtPropAccessor = rtPropAccessor.GetParentDefinition();
 
-                if (!(rtPropAccessor is null))
+                if (rtPropAccessor is object)
                 {
                     // There is a public overload of Type.GetProperty that takes both a BingingFlags enum and a return type.
                     // However, we cannot use that because it doesn't accept null for "types".
@@ -134,7 +134,7 @@ namespace System
                 CopyToArrayList(attributeList, attributes, types);
 
                 EventInfo baseEvent = GetParentDefinition(element);
-                while (!(baseEvent is null))
+                while (baseEvent is object)
                 {
                     attributes = GetCustomAttributes(baseEvent, type, false);
                     AddAttributesToList(attributeList, attributes, types);
@@ -158,7 +158,7 @@ namespace System
             if (add is RuntimeMethodInfo rtAdd)
             {
                 rtAdd = rtAdd.GetParentDefinition();
-                if (!(rtAdd is null))
+                if (rtAdd is object)
                     return rtAdd.DeclaringType.GetEvent(ev.Name);
             }
             return null;
@@ -181,7 +181,7 @@ namespace System
 
                 EventInfo baseEvent = GetParentDefinition(element);
 
-                while (!(baseEvent is null))
+                while (baseEvent is object)
                 {
                     if (baseEvent.IsDefined(attributeType, false))
                         return true;

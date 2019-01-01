@@ -1129,7 +1129,7 @@ namespace System.Reflection
 
             method = method.GetParentDefinition();
 
-            while (!(method is null))
+            while (method is object)
             {
                 if (IsCustomAttributeDefined(method.GetRuntimeModule(), method.MetadataToken, caType, 0, inherit))
                     return true;
@@ -1285,7 +1285,7 @@ namespace System.Reflection
             for (var i = 0; i < pcas.Count; i++)
                 result.Add(pcas[i]);
 
-            while (!(method is null))
+            while (method is object)
             {
                 AddCustomAttributes(ref result, method.GetRuntimeModule(), method.MetadataToken, caType, mustBeInheritable, ref result);
                 mustBeInheritable = true;

@@ -456,7 +456,7 @@ namespace System.Reflection.Emit
                                                      parameterTypes,
                                                      optionalParameterTypes);
 
-            if (!(rtMeth is null))
+            if (rtMeth is object)
                 return GetTokenForVarArgMethod(rtMeth, sig);
             else
                 return GetTokenForVarArgMethod(dm, sig);

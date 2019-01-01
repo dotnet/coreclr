@@ -170,7 +170,7 @@ namespace System
         public bool Equals(Version obj)
         {
             return object.ReferenceEquals(obj, this) ||
-                (!(obj is null) &&
+                ((obj is object) &&
                 _Major == obj._Major &&
                 _Minor == obj._Minor &&
                 _Build == obj._Build &&

@@ -242,7 +242,7 @@ namespace System
                         // walking won't be we compare using the generic type definition forms instead.
                         Type currentType = _target.GetType();
                         Type targetType = declaringType.GetGenericTypeDefinition();
-                        while (!(currentType is null))
+                        while (currentType is object)
                         {
                             if (currentType.IsGenericType &&
                                 currentType.GetGenericTypeDefinition() == targetType)

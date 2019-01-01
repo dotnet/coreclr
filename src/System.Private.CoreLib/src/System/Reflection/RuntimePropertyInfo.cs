@@ -322,7 +322,7 @@ namespace System.Reflection
 
                 // First try to get the Get method.
                 MethodInfo m = GetGetMethod(true);
-                if (!(m is null))
+                if (m is object)
                 {
                     // There is a Get method so use it.
                     methParams = m.GetParametersNoCopy();
@@ -333,7 +333,7 @@ namespace System.Reflection
                     // If there is no Get method then use the Set method.
                     m = GetSetMethod(true);
 
-                    if (!(m is null))
+                    if (m is object)
                     {
                         methParams = m.GetParametersNoCopy();
                         numParams = methParams.Length - 1;

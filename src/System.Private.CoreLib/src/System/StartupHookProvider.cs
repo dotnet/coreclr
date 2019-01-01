@@ -89,7 +89,7 @@ namespace System
                     Debug.Assert(initializeMethod == null);
                     wrongSignature = true;
                 }
-                if (!(initializeMethod is null))
+                if (initializeMethod is object)
                 {
                     // Found one
                     wrongSignature = true;

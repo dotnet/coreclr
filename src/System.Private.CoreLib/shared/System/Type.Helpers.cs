@@ -270,7 +270,7 @@ namespace System
             if (m != null)
             {
                 for (i = 0; i < m.Length; i++)
-                    if (!(m[i] is null))
+                    if (m[i] is object)
                         ret[cnt++] = m[i];
             }
 
@@ -278,7 +278,7 @@ namespace System
             if (c != null)
             {
                 for (i = 0; i < c.Length; i++)
-                    if (!(c[i] is null))
+                    if (c[i] is object)
                         ret[cnt++] = c[i];
             }
 
@@ -286,7 +286,7 @@ namespace System
             if (f != null)
             {
                 for (i = 0; i < f.Length; i++)
-                    if (!(f[i] is null))
+                    if (f[i] is object)
                         ret[cnt++] = f[i];
             }
 
@@ -294,7 +294,7 @@ namespace System
             if (p != null)
             {
                 for (i = 0; i < p.Length; i++)
-                    if (!(p[i] is null))
+                    if (p[i] is object)
                         ret[cnt++] = p[i];
             }
 
@@ -302,7 +302,7 @@ namespace System
             if (e != null)
             {
                 for (i = 0; i < e.Length; i++)
-                    if (!(e[i] is null))
+                    if (e[i] is object)
                         ret[cnt++] = e[i];
             }
 
@@ -310,7 +310,7 @@ namespace System
             if (t != null)
             {
                 for (i = 0; i < t.Length; i++)
-                    if (t[i] != null)
+                    if (t[i] is object)
                         ret[cnt++] = t[i];
             }
 
@@ -322,7 +322,7 @@ namespace System
             Type p = this;
             if (p == c)
                 return false;
-            while (p != null)
+            while (p is object)
             {
                 if (p == c)
                     return true;
@@ -369,7 +369,7 @@ namespace System
         internal bool ImplementInterface(Type ifaceType)
         {
             Type t = this;
-            while (t != null)
+            while (t is object)
             {
                 Type[] interfaces = t.GetInterfaces();
                 if (interfaces != null)

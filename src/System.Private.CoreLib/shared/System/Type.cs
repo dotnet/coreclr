@@ -42,7 +42,7 @@ namespace System
         public virtual bool IsConstructedGenericType { get { throw NotImplemented.ByDesign; } }
         public virtual bool IsGenericParameter => false;
         public virtual bool IsGenericTypeParameter => IsGenericParameter && DeclaringMethod is null;
-        public virtual bool IsGenericMethodParameter => IsGenericParameter && !(DeclaringMethod is null);
+        public virtual bool IsGenericMethodParameter => IsGenericParameter && DeclaringMethod is object;
         public virtual bool IsGenericType => false;
         public virtual bool IsGenericTypeDefinition => false;
 
@@ -281,7 +281,7 @@ namespace System
         }
         protected virtual TypeCode GetTypeCodeImpl()
         {
-            if (this != UnderlyingSystemType && !(UnderlyingSystemType is null))
+            if (this != UnderlyingSystemType && (UnderlyingSystemType is object))
                 return Type.GetTypeCode(UnderlyingSystemType);
 
             return TypeCode.Object;
