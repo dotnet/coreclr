@@ -25,7 +25,6 @@ namespace System.StubHelpers
         unsafe internal static byte[] DoAnsiConversion(string str, bool fBestFit, bool fThrowOnUnmappableChar, out int cbLength)
         {
             byte[] buffer = new byte[checked((str.Length + 1) * Marshal.SystemMaxDBCSCharSize)];
-            Debug.Assert(buffer.Length != 0);
             fixed (byte* bufferPtr = &buffer[0])
             {
                 cbLength = str.ConvertToAnsi(bufferPtr, buffer.Length, fBestFit, fThrowOnUnmappableChar);
@@ -79,7 +78,8 @@ namespace System.StubHelpers
                     pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb);
                 }
 
-                nb = strManaged.ConvertToAnsi(pbNativeBuffer, nb, 0 != (flags & 0xFF), 0 != (flags >> 8));
+                nb = strManaged.ConvertToAnsi(pbNativeBuffer, nb,
+                    fBestFit: 0 != (flags & 0xFF), fThrowOnUnmappableChar: 0 != (flags >> 8));
             }
             else
             {
@@ -88,7 +88,8 @@ namespace System.StubHelpers
                 // wasting memory on systems with multibyte character sets where the buffer we end up with is often much
                 // smaller than the upper bound for the given managed string.
 
-                byte[] bytes = AnsiCharMarshaler.DoAnsiConversion(strManaged, 0 != (flags & 0xFF), 0 != (flags >> 8), out nb);
+                byte[] bytes = AnsiCharMarshaler.DoAnsiConversion(strManaged,
+                    fBestFit: 0 != (flags & 0xFF), fThrowOnUnmappableChar: 0 != (flags >> 8), out nb);
 
                 // + 1 for the null character from the user.  + 1 for the null character we put in.
                 pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb + 2);
