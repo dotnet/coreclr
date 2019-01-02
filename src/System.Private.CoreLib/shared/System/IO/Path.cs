@@ -47,30 +47,50 @@ namespace System.IO
         // is null, any existing extension is removed from path.
         public static string ChangeExtension(string path, string extension)
         {
-            if (path != null)
+            if (path == null)
+                return null;
+
+            int subLength = path.Length;
+            if (subLength == 0)
+                return string.Empty;
+
+            for (int i = path.Length - 1; i >= 0; i--)
             {
-                string s = path;
-                for (int i = path.Length - 1; i >= 0; i--)
+                char ch = path[i];
+
+                if (ch == '.')
                 {
-                    char ch = path[i];
-                    if (ch == '.')
-                    {
-                        s = path.Substring(0, i);
-                        break;
-                    }
-                    if (PathInternal.IsDirectorySeparator(ch)) break;
+                    subLength = i;
+                    break;
                 }
 
-                if (extension != null && path.Length != 0)
+                if (PathInternal.IsDirectorySeparator(ch))
                 {
-                    s = (extension.Length == 0 || extension[0] != '.') ?
-                        s + "." + extension :
-                        s + extension;
+                    break;
                 }
-
-                return s;
             }
-            return null;
+
+            if (extension == null)
+            {
+                return path.Substring(0, subLength);
+            }
+            else if (extension.StartsWith('.'))
+            {
+                string result = string.FastAllocateString(subLength + extension.Length);
+                Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
+                path.AsSpan(0, subLength).CopyTo(resultSpan);
+                extension.AsSpan().CopyTo(resultSpan.Slice(subLength));
+                return result;
+            }
+            else
+            {
+                string result = string.FastAllocateString(subLength + 1 + extension.Length);
+                Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
+                path.AsSpan(0, subLength).CopyTo(resultSpan);
+                resultSpan[subLength] = '.';
+                extension.AsSpan().CopyTo(resultSpan.Slice(subLength + 1));
+                return result;
+            }
         }
 
         /// <summary>
