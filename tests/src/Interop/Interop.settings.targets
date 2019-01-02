@@ -23,6 +23,6 @@
     Condition="'$(TargetsWindows)' == 'true' And ('$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Checked') And '$(CopyDebugCRTDllsToOutputDirectory)' == 'true'" >
 
     <None Include="$(VCToolsRedistDir)onecore/debug_nonredist/$(Platform)/Microsoft.VC*.DebugCRT/vcruntime*d.dll" CopyToOutputDirectory="Always" />
-    <None Include="$(UniversalCRTSdkDir)bin/$(Platform)/ucrt/ucrtbased.dll" CopyToOutputDirectory="Always" />
+    <None Include="$(ExtensionSdkDir)/Microsoft.UniversalCRT.Debug/$(UCRTVersion)/Redist/Debug/$(Platform)/ucrtbased.dll" CopyToOutputDirectory="Always" />
   </ItemGroup>
 </Project>
