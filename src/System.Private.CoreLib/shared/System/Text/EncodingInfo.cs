@@ -6,63 +6,31 @@ namespace System.Text
 {
     public sealed class EncodingInfo
     {
-        private readonly int iCodePage;          // Code Page #
-        private readonly string strEncodingName;    // Short name (web name)
-        private readonly string strDisplayName;     // Full localized name
-
         internal EncodingInfo(int codePage, string name, string displayName)
         {
-            iCodePage = codePage;
-            strEncodingName = name;
-            strDisplayName = displayName;
+            CodePage = codePage;
+            Name = name;
+            DisplayName = displayName;
         }
 
-
-        public int CodePage
-        {
-            get
-            {
-                return iCodePage;
-            }
-        }
-
-
-        public string Name
-        {
-            get
-            {
-                return strEncodingName;
-            }
-        }
-
-
-        public string DisplayName
-        {
-            get
-            {
-                return strDisplayName;
-            }
-        }
-
+        public int CodePage { get; }
+        public string Name { get; }
+        public string DisplayName { get; }
 
         public Encoding GetEncoding()
         {
-            return Encoding.GetEncoding(iCodePage);
+            return Encoding.GetEncoding(CodePage);
         }
 
         public override bool Equals(object value)
         {
             EncodingInfo that = value as EncodingInfo;
-            if (that != null)
-            {
-                return (this.CodePage == that.CodePage);
-            }
-            return (false);
+            return CodePage == that?.CodePage;
         }
 
         public override int GetHashCode()
         {
-            return this.CodePage;
+            return CodePage;
         }
     }
 }
