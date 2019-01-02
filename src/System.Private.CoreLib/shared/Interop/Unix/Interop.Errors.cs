@@ -171,7 +171,7 @@ internal static partial class Interop
             byte* buffer = stackalloc byte[maxBufferLength];
             byte* message = StrErrorR(platformErrno, buffer, maxBufferLength);
 
-            if (message is null)
+            if (message == null)
             {
                 // This means the buffer was not large enough, but still contains
                 // as much of the error message as possible and is guaranteed to
