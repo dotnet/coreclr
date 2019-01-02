@@ -383,7 +383,12 @@ namespace System.Reflection
 
             string codeBase = VerifyCodeBase(assemblyRef.CodeBase);
 
-            return nLoad(assemblyRef, codeBase, reqAssembly, ref stackMark,
+            if (reqAssembly == null)
+            {
+                reqAssembly = Assembly.GetExecutingAssembly(ref stackMark);
+            }
+
+            return nLoad(assemblyRef, codeBase, reqAssembly,
                 pPrivHostBinder,
                 throwOnFileNotFound, ptrLoadContextBinder);
         }
@@ -392,7 +397,6 @@ namespace System.Reflection
         private static extern RuntimeAssembly nLoad(AssemblyName fileName,
                                                     string codeBase,
                                                     RuntimeAssembly locationHint,
-                                                    ref StackCrawlMark stackMark,
                                                     IntPtr pPrivHostBinder,
                                                     bool throwOnFileNotFound,
                                                     IntPtr ptrLoadContextBinder = default);
@@ -670,7 +674,6 @@ namespace System.Reflection
             return InternalGetSatelliteAssembly(name, culture, version, true);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         internal RuntimeAssembly InternalGetSatelliteAssembly(string name,
                                                               CultureInfo culture,
                                                               Version version,
@@ -689,11 +692,7 @@ namespace System.Reflection
             an.CultureInfo = culture;
             an.Name = name;
 
-            // This stack crawl mark is never used in the native code sinde we specify the assembly
-            // explicitly.
-            StackCrawlMark stackMark = StackCrawlMark.LookForMe;
-
-            RuntimeAssembly retAssembly = nLoad(an, null, this, ref stackMark, IntPtr.Zero, throwOnFileNotFound);
+            RuntimeAssembly retAssembly = nLoad(an, null, this, IntPtr.Zero, throwOnFileNotFound);
 
             if (retAssembly == this || (retAssembly == null && throwOnFileNotFound))
             {

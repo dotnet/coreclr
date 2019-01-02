@@ -34,10 +34,9 @@
 
 
 
-FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE, 
+FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE, 
         StringObject* codeBaseUNSAFE, 
         AssemblyBaseObject* requestingAssemblyUNSAFE,
-        StackCrawlMark* stackMark,
         ICLRPrivBinder * pPrivHostBinder,
         CLR_BOOL fThrowOnFileNotFound,
         INT_PTR ptrLoadContextBinder)
@@ -59,6 +58,8 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
 
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
 
+    _ASSERTE(gc.requestingAssembly != NULL);
+
     if (gc.assemblyName == NULL)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_AssemblyName"));
 
@@ -76,14 +77,7 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     else
     {
         // Compute parent assembly
-        if (gc.requestingAssembly == NULL)
-        {
-            pRefAssembly = SystemDomain::GetCallersAssembly(stackMark);
-        }
-        else
-        {
-            pRefAssembly = gc.requestingAssembly->GetAssembly();
-        }
+        pRefAssembly = gc.requestingAssembly->GetAssembly();
 
         // Shared or collectible assemblies should not be used for the parent in the
         // late-bound case.
