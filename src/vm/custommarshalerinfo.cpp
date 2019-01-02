@@ -367,7 +367,7 @@ EEHashEntry_t * EECMHelperHashtableHelper::AllocateEntry(EECMHelperHashtableKey 
         cbEntry += S_SIZE_T(pKey->GetMarshalerTypeNameByteCount());
         cbEntry += S_SIZE_T(pKey->GetCookieStringByteCount());
         cbEntry += S_SIZE_T(pKey->GetMarshalerInstantiation().GetNumArgs()) * S_SIZE_T(sizeof(LPVOID));
-        cbEntry += S_SIZE_T(sizeof(LPVOID));
+        cbEntry += S_SIZE_T(sizeof(LPVOID)); // For EECMHelperHashtableKey::m_invokingAssembly
 
         if (cbEntry.IsOverflow())
             return NULL;
