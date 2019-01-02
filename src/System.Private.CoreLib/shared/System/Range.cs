@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
+
 namespace System
 {
     public readonly struct Range : IEquatable<Range>
@@ -44,7 +46,8 @@ namespace System
                 span[0] = '^';
                 pos = 1;
             }
-            ((uint)Start.Value).TryFormat(span.Slice(pos), out charsWritten);
+            bool formatted = ((uint)Start.Value).TryFormat(span.Slice(pos), out charsWritten);
+            Debug.Assert(formatted);
             pos += charsWritten;
 
             span[pos++] = '.';
@@ -54,7 +57,8 @@ namespace System
             {
                 span[pos++] = '^';
             }
-            ((uint)End.Value).TryFormat(span.Slice(pos), out charsWritten);
+            formatted = ((uint)End.Value).TryFormat(span.Slice(pos), out charsWritten);
+            Debug.Assert(formatted);
             pos += charsWritten;
 
             return new string(span.Slice(0, pos));
