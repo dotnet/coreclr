@@ -3361,23 +3361,11 @@ public:
         return m_TraceCallCount;
     }
 
-    // Functions to get culture information for thread.
-    int GetParentCultureName(__out_ecount(length) LPWSTR szBuffer, int length, BOOL bUICulture);
-    int GetCultureName(__out_ecount(length) LPWSTR szBuffer, int length, BOOL bUICulture);
-    LCID GetCultureId(BOOL bUICulture);
-    OBJECTREF GetCulture(BOOL bUICulture);
-
-    // Release user cultures that can't survive appdomain unload
-
-    // Functions to set the culture on the thread.
-    void SetCultureId(LCID lcid, BOOL bUICulture);
-    void SetCulture(OBJECTREF *CultureObj, BOOL bUICulture);
+    // Functions to get/set culture information for current thread.
+    static OBJECTREF GetCulture(BOOL bUICulture);
+    static void SetCulture(OBJECTREF *CultureObj, BOOL bUICulture);
 
 private:
-
-    // Used by the culture accesors.
-    ARG_SLOT CallPropertyGet(BinderMethodID id, OBJECTREF pObject);
-
 #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
     // Used in suspension code to redirect a thread at a HandledJITCase
     BOOL RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt);
@@ -5120,9 +5108,6 @@ public:
 
 // End of class Thread
 
-
-LCID GetThreadCultureIdNoThrow(Thread *pThread, BOOL bUICulture);
-
 typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 typedef Thread::ThreadPreventAsyncHolder ThreadPreventAsyncHolder;
 typedef Thread::ThreadPreventAbortHolder ThreadPreventAbortHolder;
@@ -6662,62 +6647,6 @@ inline void NO_FORBIDGC_LOADER_USE_ThrowSO()
 // exception was triggered from code that was executing in cooperative GC mode, we now have GC holes and
 // general corruption.
 BOOL HasIllegalReentrancy();
-
-
-// This class can be used to "schedule" a culture setting,
-//  kicking in when leaving scope or during exception unwinding.
-//  Note: during destruction, this can throw.  You have been warned.
-class ReturnCultureHolder
-{
-public:
-    ReturnCultureHolder(Thread* pThread, OBJECTREF* culture, BOOL bUICulture)
-    {
-        CONTRACTL
-        {
-            WRAPPER(NOTHROW);
-            WRAPPER(GC_NOTRIGGER);
-            MODE_COOPERATIVE;
-            PRECONDITION(CheckPointer(pThread));
-        }
-        CONTRACTL_END;
-
-        m_pThread = pThread;
-        m_culture = culture;
-        m_bUICulture = bUICulture;
-        m_acquired = TRUE;
-    }
-
-    FORCEINLINE void SuppressRelease()
-    {
-        m_acquired = FALSE;
-    }
-
-    ~ReturnCultureHolder()
-    {
-        CONTRACTL
-        {
-            WRAPPER(THROWS);
-            WRAPPER(GC_TRIGGERS);
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-
-        if (m_acquired)
-            m_pThread->SetCulture(m_culture, m_bUICulture);
-    }
-
-private:
-    ReturnCultureHolder()
-    {
-        LIMITED_METHOD_CONTRACT;
-    }
-
-    Thread* m_pThread;
-    OBJECTREF* m_culture;
-    BOOL m_bUICulture;
-    BOOL m_acquired;
-};
-
 
 //
 // _pThread:        (Thread*)       current Thread

@@ -2713,7 +2713,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
             // and we don't want them moving on us.
             GCX_COOP();
 
-            CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)pThread->GetCulture(TRUE);
+            CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
 
             if (pCurrentCulture != NULL)
             {
@@ -2857,7 +2857,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         // and we don't want them moving on us.
         GCX_COOP();
 
-        CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)pThread->GetCulture(TRUE);
+        CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
 
         if (pCurrentCulture != NULL)
         {
@@ -2931,7 +2931,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         // and we don't want them moving on us.
         GCX_COOP();
 
-        CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)pThread->GetCulture(TRUE);
+        CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
 
         if (pCurrentCulture != NULL)
         {
