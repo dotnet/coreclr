@@ -261,19 +261,6 @@ namespace System.Text
             if (result != null)
                 return result;
 
-            //
-            // NOTE: If you add a new encoding that can be retrieved by codepage, be sure to
-            // add the corresponding item in EncodingTable.
-            // Otherwise, the code below will throw exception when trying to call
-            // EncodingTable.GetDataItem().
-            //
-            if (codepage < 0 || codepage > 65535)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(codepage), SR.Format(SR.ArgumentOutOfRange_Range, 0, 65535));
-            }
-
-
             switch (codepage)
             {
                 case CodePageDefault: return Default;            // 0
@@ -294,14 +281,13 @@ namespace System.Text
                     throw new ArgumentException(SR.Format(SR.Argument_CodepageNotSupported, codepage), nameof(codepage));
             }
 
-            // Is it a valid code page?
-            if (EncodingTable.GetCodePageDataItem(codepage) == null)
+            if (codepage < 0 || codepage > 65535)
             {
-                throw new NotSupportedException(
-                    SR.Format(SR.NotSupported_NoCodepageData, codepage));
+                throw new ArgumentOutOfRangeException(
+                    nameof(codepage), SR.Format(SR.ArgumentOutOfRange_Range, 0, 65535));
             }
 
-            return UTF8;
+            throw new NotSupportedException(SR.Format(SR.NotSupported_NoCodepageData, codepage));
         }
 
         public static Encoding GetEncoding(int codepage,
