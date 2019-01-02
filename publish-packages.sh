@@ -22,6 +22,33 @@ usage()
 
 working_tree_root="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# Use uname to determine what the OS is.
+OSName=$(uname -s)
+case $OSName in
+    Linux)
+        __BuildOS=Linux
+        ;;
+    Darwin)
+        __BuildOS=OSX
+        ;;
+    FreeBSD)
+        __BuildOS=FreeBSD
+        ;;
+    OpenBSD)
+        __BuildOS=OpenBSD
+        ;;
+    NetBSD)
+        __BuildOS=NetBSD
+        ;;
+    SunOS)
+        __BuildOS=SunOS
+        ;;
+    *)
+        echo "Unsupported OS $OSName detected, configuring as if for Linux"
+        __BuildOS=Linux
+        ;;
+esac
+
 buildArgs=
 unprocessedBuildArgs=
 
@@ -77,7 +104,7 @@ while :; do
     shift
 done
 
-$working_tree_root/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary ./src/publish.proj /flp:v=detailed\;LogFile=publish-packages.log /clp:v=detailed $buildArgs $unprocessedBuildArgs
+$working_tree_root/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary ./src/publish.proj /flp:v=detailed\;LogFile=publish-packages.log /clp:v=detailed /p:__BuildOS=$__BuildOS $buildArgs $unprocessedBuildArgs
 if [ $? -ne 0 ]
 then
     echo "ERROR: An error occurred while publishing packages; see $working_tree_root/publish-packages.log for more details. There may have been networking problems, so please try again in a few minutes."
