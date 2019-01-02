@@ -36,7 +36,7 @@ namespace System.Diagnostics
         /// </summary>
         public StackTrace()
         {
-            CaptureStackTrace(METHODS_TO_SKIP, false);
+            InitializeForThreadFrameIndex(METHODS_TO_SKIP, false);
         }
 
         /// <summary>
@@ -44,7 +44,7 @@ namespace System.Diagnostics
         /// </summary>
         public StackTrace(bool fNeedFileInfo)
         {
-            CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo);
+            InitializeForThreadFrameIndex(METHODS_TO_SKIP, fNeedFileInfo);
         }
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace System.Diagnostics
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, false);
+            InitializeForThreadFrameIndex(skipFrames + METHODS_TO_SKIP, false);
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace System.Diagnostics
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo);
+            InitializeForThreadFrameIndex(skipFrames + METHODS_TO_SKIP, fNeedFileInfo);
         }
 
         /// <summary>

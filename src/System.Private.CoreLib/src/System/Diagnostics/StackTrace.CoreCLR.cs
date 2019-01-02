@@ -53,11 +53,16 @@ namespace System.Diagnostics
             CaptureStackTrace(skipFrames, needFileInfo, exception);
         }
 
+        private void InitializeForThreadFrameIndex(int skipFrames, bool needFileInfo)
+        {
+            CaptureStackTrace(skipFrames, needFileInfo, null);
+        }
+
         /// <summary>
         /// Retrieves an object with stack trace information encoded.
         /// It leaves out the first "iSkip" lines of the stacktrace.
         /// </summary>
-        private void CaptureStackTrace(int iSkip, bool fNeedFileInfo, Exception e = null)
+        private void CaptureStackTrace(int iSkip, bool fNeedFileInfo, Exception e)
         {
             m_iMethodsToSkip = iSkip;
 
