@@ -29,7 +29,10 @@ namespace System.Runtime.InteropServices
     public static partial class Marshal
     {
 #if FEATURE_COMINTEROP
-        internal static Guid IID_IUnknown = new Guid("00000000-0000-0000-C000-000000000046");
+        /// <summary>
+        /// IUnknown is {00000000-0000-0000-C000-000000000046}
+        /// </summary>
+        internal static Guid IID_IUnknown = new Guid(0, 0, 0, 0xC0, 0, 0, 0, 0, 0, 0, 0x46);
 #endif //FEATURE_COMINTEROP
 
         private const int LMEM_FIXED = 0;
@@ -82,7 +85,7 @@ namespace System.Runtime.InteropServices
                 return null;
             }
 
-            int nb = Win32Native.lstrlenA(ptr);
+            int nb = string.strlen((byte*)ptr);
             if (nb == 0)
             {
                 return string.Empty;
@@ -152,7 +155,7 @@ namespace System.Runtime.InteropServices
                 return null;
             }
 
-            int nbBytes = StubHelpers.StubHelpers.strlen((sbyte*)ptr.ToPointer());
+            int nbBytes = string.strlen((byte*)ptr);
             return PtrToStringUTF8(ptr, nbBytes);
         }
 
@@ -175,8 +178,7 @@ namespace System.Runtime.InteropServices
                 return string.Empty;
             }
 
-            byte* pByte = (byte*)ptr.ToPointer();
-            return Encoding.UTF8.GetString(pByte, byteLen);
+            return Encoding.UTF8.GetString((byte*)ptr, byteLen);
         }
 
         public static int SizeOf(object structure)
@@ -968,10 +970,11 @@ namespace System.Runtime.InteropServices
                 return IntPtr.Zero;
             }
 
-            int nb = (s.Length + 1) * SystemMaxDBCSCharSize;
+            long lnb = (s.Length + 1) * (long)SystemMaxDBCSCharSize;
+            int nb = (int)lnb;
 
             // Overflow checking
-            if (nb < s.Length)
+            if (nb != lnb)
             {
                 throw new ArgumentOutOfRangeException(nameof(s));
             }
@@ -1221,10 +1224,11 @@ namespace System.Runtime.InteropServices
                 return IntPtr.Zero;
             }
 
-            int nb = (s.Length + 1) * SystemMaxDBCSCharSize;
+            long lnb = (s.Length + 1) * (long)SystemMaxDBCSCharSize;
+            int nb = (int)lnb;
 
             // Overflow checking
-            if (nb < s.Length)
+            if (nb != lnb)
             {
                 throw new ArgumentOutOfRangeException(nameof(s));
             }
@@ -1707,25 +1711,41 @@ namespace System.Runtime.InteropServices
         
         public static void ZeroFreeBSTR(IntPtr s)
         {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
             RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.SysStringLen(s) * 2));
             FreeBSTR(s);
         }
 
-        public static void ZeroFreeCoTaskMemAnsi(IntPtr s)
+        public unsafe static void ZeroFreeCoTaskMemAnsi(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
             FreeCoTaskMem(s);
         }
 
-        public static void ZeroFreeCoTaskMemUnicode(IntPtr s)
+        public static unsafe void ZeroFreeCoTaskMemUnicode(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenW(s) * 2));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
             FreeCoTaskMem(s);
         }
 
         public static unsafe void ZeroFreeCoTaskMemUTF8(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)System.StubHelpers.StubHelpers.strlen((sbyte*)s));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
             FreeCoTaskMem(s);
         }
 
@@ -1749,15 +1769,23 @@ namespace System.Runtime.InteropServices
             return s.MarshalToString(globalAlloc: true, unicode: true); ;
         }
 
-        public static void ZeroFreeGlobalAllocAnsi(IntPtr s)
+        public unsafe static void ZeroFreeGlobalAllocAnsi(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
             FreeHGlobal(s);
         }
 
-        public static void ZeroFreeGlobalAllocUnicode(IntPtr s)
+        public static unsafe void ZeroFreeGlobalAllocUnicode(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenW(s) * 2));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
             FreeHGlobal(s);
         }
 

@@ -925,7 +925,7 @@ bool GenTreeCall::HasSideEffects(Compiler* compiler, bool ignoreExceptions, bool
     // If this is not a Pure helper call or an allocator (that will not need to run a finalizer)
     // then this call has side effects.
     return !helperProperties.IsPure(helper) &&
-           (!helperProperties.IsAllocator(helper) || helperProperties.MayFinalize(helper));
+           (!helperProperties.IsAllocator(helper) || ((gtCallMoreFlags & GTF_CALL_M_ALLOC_SIDE_EFFECTS) != 0));
 }
 
 //-------------------------------------------------------------------------
@@ -2397,7 +2397,7 @@ unsigned Compiler::gtSetListOrder(GenTree* list, bool isListCallArgs, bool callA
     } while ((list != nullptr) && (list->OperIsAnyList()));
 
     unsigned nxtlvl = (list == nullptr) ? 0 : gtSetEvalOrder(list);
-    while (listNodes.Height() > 0)
+    while (!listNodes.Empty())
     {
         list = listNodes.Pop();
         assert(list && list->OperIsAnyList());
@@ -6705,7 +6705,7 @@ GenTreeAllocObj* Compiler::gtNewAllocObjNode(CORINFO_RESOLVED_TOKEN* pResolvedTo
     GenTree*        opHandle = impTokenToHandle(pResolvedToken, pRuntimeLookup, mustRestoreHandle, useParent);
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    CORINFO_CONST_LOOKUP lookup;
+    CORINFO_CONST_LOOKUP lookup = {};
 
     if (opts.IsReadyToRun())
     {
@@ -6724,8 +6724,15 @@ GenTreeAllocObj* Compiler::gtNewAllocObjNode(CORINFO_RESOLVED_TOKEN* pResolvedTo
             assert(compDonotInline());
             return nullptr;
         }
+    }
 
-        helper = info.compCompHnd->getNewHelper(pResolvedToken, info.compMethodHnd);
+    bool            helperHasSideEffects;
+    CorInfoHelpFunc helperTemp =
+        info.compCompHnd->getNewHelper(pResolvedToken, info.compMethodHnd, &helperHasSideEffects);
+
+    if (!usingReadyToRunHelper)
+    {
+        helper = helperTemp;
     }
 
     // TODO: ReadyToRun: When generic dictionary lookups are necessary, replace the lookup call
@@ -6735,7 +6742,8 @@ GenTreeAllocObj* Compiler::gtNewAllocObjNode(CORINFO_RESOLVED_TOKEN* pResolvedTo
     //      3) Allocate and return the new object for boxing
     // Reason: performance (today, we'll always use the slow helper for the R2R generics case)
 
-    GenTreeAllocObj* allocObj = gtNewAllocObjNode(helper, pResolvedToken->hClass, TYP_REF, opHandle);
+    GenTreeAllocObj* allocObj =
+        gtNewAllocObjNode(helper, helperHasSideEffects, pResolvedToken->hClass, TYP_REF, opHandle);
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (usingReadyToRunHelper)
@@ -7134,8 +7142,9 @@ GenTree* Compiler::gtCloneExpr(
             case GT_ALLOCOBJ:
             {
                 GenTreeAllocObj* asAllocObj = tree->AsAllocObj();
-                copy = new (this, GT_ALLOCOBJ) GenTreeAllocObj(tree->TypeGet(), asAllocObj->gtNewHelper,
-                                                               asAllocObj->gtAllocObjClsHnd, asAllocObj->gtOp1);
+                copy                        = new (this, GT_ALLOCOBJ)
+                    GenTreeAllocObj(tree->TypeGet(), asAllocObj->gtNewHelper, asAllocObj->gtHelperHasSideEffects,
+                                    asAllocObj->gtAllocObjClsHnd, asAllocObj->gtOp1);
             }
             break;
 
@@ -15039,7 +15048,7 @@ void Compiler::gtExtractSideEffList(GenTree*  expr,
     // This is also why the list cannot be built while traversing the tree.
     // The number of side effects is usually small (<= 4), less than the ArrayStack's
     // built-in size, so memory allocation is avoided.
-    while (extractor.m_sideEffects.Height() > 0)
+    while (!extractor.m_sideEffects.Empty())
     {
         list = gtBuildCommaList(list, extractor.m_sideEffects.Pop());
     }
@@ -16449,9 +16458,23 @@ GenTree* Compiler::gtGetSIMDZero(var_types simdType, var_types baseType, CORINFO
         switch (simdType)
         {
             case TYP_SIMD16:
-                return gtNewSimdHWIntrinsicNode(simdType, NI_Base_Vector128_Zero, baseType, size);
+                if (compSupports(InstructionSet_SSE))
+                {
+                    // We only return the HWIntrinsicNode if SSE is supported, since it is possible for
+                    // the user to disable the SSE HWIntrinsic support via the COMPlus configuration knobs
+                    // even though the hardware vector types are still available.
+                    return gtNewSimdHWIntrinsicNode(simdType, NI_Base_Vector128_Zero, baseType, size);
+                }
+                return nullptr;
             case TYP_SIMD32:
-                return gtNewSimdHWIntrinsicNode(simdType, NI_Base_Vector256_Zero, baseType, size);
+                if (compSupports(InstructionSet_AVX))
+                {
+                    // We only return the HWIntrinsicNode if AVX is supported, since it is possible for
+                    // the user to disable the AVX HWIntrinsic support via the COMPlus configuration knobs
+                    // even though the hardware vector types are still available.
+                    return gtNewSimdHWIntrinsicNode(simdType, NI_Base_Vector256_Zero, baseType, size);
+                }
+                return nullptr;
             default:
                 break;
         }
@@ -17957,18 +17980,30 @@ bool GenTreeHWIntrinsic::OperIsMemoryStore()
     {
         return true;
     }
-    else if (HWIntrinsicInfo::MaybeMemoryStore(gtHWIntrinsicId) && category == HW_Category_IMM)
+    else if (HWIntrinsicInfo::MaybeMemoryStore(gtHWIntrinsicId) &&
+             (category == HW_Category_IMM || category == HW_Category_Scalar))
     {
         // Some AVX intrinsic (without HW_Category_MemoryStore) also have MemoryStore semantics
 
         // Avx/Avx2.InsertVector128 have vector and pointer overloads both, e.g.,
         // Vector128<sbyte> ExtractVector128(Vector256<sbyte> value, byte index)
         // void ExtractVector128(sbyte* address, Vector256<sbyte> value, byte index)
+        // Bmi2/Bmi2.X64.MultiplyNoFlags may return the lower half result by a out argument
+        // unsafe ulong MultiplyNoFlags(ulong left, ulong right, ulong* low)
+        //
         // So, the 3-argument form is MemoryStore
-        if ((HWIntrinsicInfo::lookupNumArgs(this) == 3) &&
-            (gtHWIntrinsicId == NI_AVX_ExtractVector128 || gtHWIntrinsicId == NI_AVX2_ExtractVector128))
+        if (HWIntrinsicInfo::lookupNumArgs(this) == 3)
         {
-            return true;
+            switch (gtHWIntrinsicId)
+            {
+                case NI_AVX_ExtractVector128:
+                case NI_AVX2_ExtractVector128:
+                case NI_BMI2_MultiplyNoFlags:
+                case NI_BMI2_X64_MultiplyNoFlags:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 #endif // _TARGET_XARCH_
