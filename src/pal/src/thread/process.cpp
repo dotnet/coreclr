@@ -3544,7 +3544,7 @@ CorUnix::InitializeProcessCommandLine(
     {
         LPWSTR lpwstr = PAL_wcsrchr(lpwstrFullPath, '/');
         lpwstr[0] = '\0';
-        size_t n = wcslen(lpwstrFullPath) + 1;
+        size_t n = PAL_wcslen(lpwstrFullPath) + 1;
 
         size_t iLen = n;
         initial_dir = reinterpret_cast<LPWSTR>(InternalMalloc(iLen*sizeof(WCHAR)));

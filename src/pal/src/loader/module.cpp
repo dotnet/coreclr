@@ -536,7 +536,7 @@ GetModuleFileNameW(
 
     /* Copy module name into supplied buffer */
 
-    name_length = wcslen(wide_name);
+    name_length = PAL_wcslen(wide_name);
     if (name_length >= (INT)nSize)
     {
         TRACE("Buffer too small (%u) to copy module's file name (%u).\n", nSize, name_length);
