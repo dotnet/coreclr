@@ -28,10 +28,14 @@ namespace System
             return _value;
         }
 
-        public override string ToString()
+        public override string ToString() => FromEnd ? ToStringFromEnd() : ((uint)Value).ToString();
+
+        private string ToStringFromEnd()
         {
-            string str = Value.ToString();
-            return FromEnd ? "^" + str : str;
+            Span<char> span = stackalloc char[11]; // 1 for ^ and 10 for longest possible uint value
+            ((uint)Value).TryFormat(span.Slice(1), out int charsWritten);
+            span[0] = '^';
+            return new string(span.Slice(0, charsWritten + 1));
         }
 
         public static implicit operator Index(int value)

@@ -35,7 +35,29 @@ namespace System
 
         public override string ToString()
         {
-            return Start + ".." + End;
+            Span<char> span = stackalloc char[2 + (2 * 11)]; // 2 for "..", then for each index 1 for '^' and 10 for longest possible uint
+            int charsWritten;
+            int pos = 0;
+
+            if (Start.FromEnd)
+            {
+                span[0] = '^';
+                pos = 1;
+            }
+            ((uint)Start.Value).TryFormat(span.Slice(pos), out charsWritten);
+            pos += charsWritten;
+
+            span[pos++] = '.';
+            span[pos++] = '.';
+
+            if (End.FromEnd)
+            {
+                span[pos++] = '^';
+            }
+            ((uint)End.Value).TryFormat(span.Slice(pos), out charsWritten);
+            pos += charsWritten;
+
+            return new string(span.Slice(0, pos));
         }
 
         public static Range Create(Index start, Index end) => new Range(start, end);
