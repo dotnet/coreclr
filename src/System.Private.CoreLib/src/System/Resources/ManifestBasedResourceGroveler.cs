@@ -51,7 +51,7 @@ namespace System.Resources
             _mediator = mediator;
         }
 
-        public ResourceSet GrovelForResourceSet(CultureInfo culture, Dictionary<string, ResourceSet> localResourceSets, bool tryParents, bool createIfNotExists, ref StackCrawlMark stackMark)
+        public ResourceSet GrovelForResourceSet(CultureInfo culture, Dictionary<string, ResourceSet> localResourceSets, bool tryParents, bool createIfNotExists)
         {
             Debug.Assert(culture != null, "culture shouldn't be null; check caller");
             Debug.Assert(localResourceSets != null, "localResourceSets shouldn't be null; check caller");
@@ -71,7 +71,7 @@ namespace System.Resources
             }
             else
             {
-                satellite = GetSatelliteAssembly(lookForCulture, ref stackMark);
+                satellite = GetSatelliteAssembly(lookForCulture);
 
                 if (satellite == null)
                 {
@@ -100,7 +100,7 @@ namespace System.Resources
                     localResourceSets.TryGetValue(culture.Name, out rs);
                 }
 
-                stream = GetManifestResourceStream(satellite, fileName, ref stackMark);
+                stream = GetManifestResourceStream(satellite, fileName);
             }
 
             // 4a. Found a stream; create a ResourceSet if possible
@@ -306,17 +306,12 @@ namespace System.Resources
             }
         }
 
-        private Stream GetManifestResourceStream(RuntimeAssembly satellite, string fileName, ref StackCrawlMark stackMark)
+        private Stream GetManifestResourceStream(RuntimeAssembly satellite, string fileName)
         {
             Debug.Assert(satellite != null, "satellite shouldn't be null; check caller");
             Debug.Assert(fileName != null, "fileName shouldn't be null; check caller");
 
-            // If we're looking in the main assembly AND if the main assembly was the person who
-            // created the ResourceManager, skip a security check for private manifest resources.
-            bool canSkipSecurityCheck = (_mediator.MainAssembly == satellite)
-                                        && (_mediator.CallingAssembly == _mediator.MainAssembly);
-
-            Stream stream = satellite.GetManifestResourceStream(_mediator.LocationInfo, fileName, canSkipSecurityCheck, ref stackMark);
+            Stream stream = satellite.GetManifestResourceStream(_mediator.LocationInfo, fileName);
             if (stream == null)
             {
                 stream = CaseInsensitiveManifestResourceStreamLookup(satellite, fileName);
@@ -370,15 +365,10 @@ namespace System.Resources
                 return null;
             }
 
-            // If we're looking in the main assembly AND if the main
-            // assembly was the person who created the ResourceManager,
-            // skip a security check for private manifest resources.
-            bool canSkipSecurityCheck = _mediator.MainAssembly == satellite && _mediator.CallingAssembly == _mediator.MainAssembly;
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return satellite.GetManifestResourceStream(canonicalName, ref stackMark, canSkipSecurityCheck);
+            return satellite.GetManifestResourceStream(canonicalName);
         }
 
-        private RuntimeAssembly GetSatelliteAssembly(CultureInfo lookForCulture, ref StackCrawlMark stackMark)
+        private RuntimeAssembly GetSatelliteAssembly(CultureInfo lookForCulture)
         {
             if (!_mediator.LookedForSatelliteContractVersion)
             {
@@ -395,7 +385,7 @@ namespace System.Resources
             // Yet also somehow log this error for a developer.
             try
             {
-                satellite = _mediator.MainAssembly.InternalGetSatelliteAssembly(satAssemblyName, lookForCulture, _mediator.SatelliteContractVersion, false, ref stackMark);
+                satellite = _mediator.MainAssembly.InternalGetSatelliteAssembly(satAssemblyName, lookForCulture, _mediator.SatelliteContractVersion, false);
             }
 
             // Jun 08: for cases other than ACCESS_DENIED, we'll assert instead of throw to give release builds more opportunity to fallback.
