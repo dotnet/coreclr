@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -14,7 +15,7 @@ namespace System.Text
     //
     internal static partial class EncodingTable
     {
-        private static readonly Dictionary<string, int> s_nameToCodePage = new Dictionary<string, int>(StringComparer.Ordinal);
+        private static readonly Hashtable s_nameToCodePage = Hashtable.Synchronized(new Hashtable(StringComparer.OrdinalIgnoreCase));
         private static readonly Dictionary<int, CodePageDataItem> s_codePageToCodePageData = new Dictionary<int, CodePageDataItem>();
 
         /*=================================GetCodePageFromName==========================
@@ -32,22 +33,19 @@ namespace System.Text
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
-            int code;
-            lock (s_nameToCodePage)
+            object codePageObj;
+            codePageObj = s_nameToCodePage[name];
+
+            if (codePageObj != null)
             {
-                if (s_nameToCodePage.TryGetValue(name, out code))
-                    return code;
+                return (int)codePageObj;
             }
 
-            code = InternalGetCodePageFromName(name);
+            int codePage = InternalGetCodePageFromName(name);
 
-            lock (s_nameToCodePage)
-            {
-                if (!s_nameToCodePage.TryAdd(name, code))
-                    code = s_nameToCodePage[name];
-            }
+            s_nameToCodePage[name] = codePage;
 
-            return code;
+            return codePage;
         }
 
         // Find the data item by binary searching the table.
