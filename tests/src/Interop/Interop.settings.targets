@@ -19,7 +19,9 @@
   </ItemGroup>
 
   <!-- Required debug vcruntime and UCRT dlls -->
-  <ItemGroup Condition="('$(TargetsWindows)' == 'true') And ('$(CopyDebugCRTDllsToOutputDirectory)' == 'true')" >
+  <ItemGroup
+    Condition="'$(TargetsWindows)' == 'true' And ('$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Checked') And '$(CopyDebugCRTDllsToOutputDirectory)' == 'true'" >
+
     <None Include="$(VCToolsRedistDir)onecore/debug_nonredist/$(Platform)/Microsoft.VC*.DebugCRT/vcruntime*d.dll" CopyToOutputDirectory="Always" />
     <None Include="$(UniversalCRTSdkDir)bin/$(Platform)/ucrt/ucrtbased.dll" CopyToOutputDirectory="Always" />
   </ItemGroup>
