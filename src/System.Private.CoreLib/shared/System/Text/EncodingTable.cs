@@ -115,7 +115,7 @@ namespace System.Text
                 arrayEncodingInfo[i] = new EncodingInfo(
                     s_mappedCodePages[i],
                     s_webNames.Substring(s_webNameIndices[i], s_webNameIndices[i + 1] - s_webNameIndices[i]),
-                    s_englishNames.Substring(s_englishNameIndices[i], s_englishNameIndices[i + 1] - s_englishNameIndices[i])
+                    GetDisplayName(s_mappedCodePages[i], i)
                     );
             }
 
@@ -150,17 +150,26 @@ namespace System.Text
                 {
                     int uiFamilyCodePage = s_uiFamilyCodePages[i];
                     string webName = s_webNames.Substring(s_webNameIndices[i], s_webNameIndices[i + 1] - s_webNameIndices[i]);
-                    // All supported code pages have identical web names, header names, and body names.
+                    // All supported code pages have identical header names, and body names.
                     string headerName = webName;
                     string bodyName = webName;
-                    string englishName = s_englishNames.Substring(s_englishNameIndices[i], s_englishNameIndices[i + 1] - s_englishNameIndices[i]);
+                    string displayName = GetDisplayName(codePage, i);
                     uint flags = s_flags[i];
 
-                    return new CodePageDataItem(codePage, uiFamilyCodePage, webName, headerName, bodyName, englishName, flags);
+                    return new CodePageDataItem(codePage, uiFamilyCodePage, webName, headerName, bodyName, displayName, flags);
                 }
             }
 
             return null;
+        }
+
+        private static string GetDisplayName(int codePage, int englishNameIndex)
+        {
+            string displayName = SR.GetResourceString("Globalization_cp_" + codePage.ToString());
+            if (string.IsNullOrEmpty(displayName))
+                displayName = s_englishNames.Substring(s_englishNameIndices[englishNameIndex], s_englishNameIndices[englishNameIndex + 1] - s_englishNameIndices[englishNameIndex]);
+
+            return displayName;
         }
     }
 }
