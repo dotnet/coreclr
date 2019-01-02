@@ -81,7 +81,7 @@ namespace System.Collections.Concurrent
             // be a power of 2 in length.
             int length = InitialSegmentLength;
             var c = collection as ICollection<T>;
-            if (c != null)
+            if (c is object)
             {
                 int count = c.Count;
                 if (count > length)
@@ -108,7 +108,7 @@ namespace System.Collections.Concurrent
         /// <exception cref="System.ArgumentNullException">The <paramref name="collection"/> argument is null.</exception>
         public ConcurrentQueue(IEnumerable<T> collection)
         {
-            if (collection == null)
+            if (collection is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
             }
@@ -144,14 +144,14 @@ namespace System.Collections.Concurrent
         {
             // Special-case when the Array is actually a T[], taking a faster path
             T[] szArray = array as T[];
-            if (szArray != null)
+            if (szArray is object)
             {
                 CopyTo(szArray, index);
                 return;
             }
 
             // Validate arguments.
-            if (array == null)
+            if (array is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
@@ -457,7 +457,7 @@ namespace System.Collections.Concurrent
         /// </exception>
         public void CopyTo(T[] array, int index)
         {
-            if (array == null)
+            if (array is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
@@ -711,7 +711,7 @@ namespace System.Collections.Concurrent
                 // Check to see whether this segment is the last. If it is, we can consider
                 // this to be a moment-in-time empty condition (even though between the TryDequeue
                 // check and this check, another item could have arrived).
-                if (head._nextSegment == null)
+                if (head._nextSegment is null)
                 {
                     item = default;
                     return false;
@@ -780,7 +780,7 @@ namespace System.Collections.Concurrent
 
                 // The current segment was empty at the moment we checked.
 
-                if (next != null)
+                if (next is object)
                 {
                     // If prior to the peek there was already a next segment, then
                     // during the peek no additional items could have been enqueued

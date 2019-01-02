@@ -75,7 +75,7 @@ namespace System.Collections.Generic
                 _comparer = comparer;
             }
 
-            if (typeof(TKey) == typeof(string) && _comparer == null)
+            if (typeof(TKey) == typeof(string) && _comparer is null)
             {
                 // To start, move off default comparer for string which is randomised
                 _comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Default;
@@ -85,9 +85,9 @@ namespace System.Collections.Generic
         public Dictionary(IDictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
         public Dictionary(IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer) :
-            this(dictionary != null ? dictionary.Count : 0, comparer)
+            this(dictionary is object ? dictionary.Count : 0, comparer)
         {
-            if (dictionary == null)
+            if (dictionary is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.dictionary);
             }
@@ -122,7 +122,7 @@ namespace System.Collections.Generic
         public Dictionary(IEnumerable<KeyValuePair<TKey, TValue>> collection, IEqualityComparer<TKey> comparer) :
             this((collection as ICollection<KeyValuePair<TKey, TValue>>)?.Count ?? 0, comparer)
         {
-            if (collection == null)
+            if (collection is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
             }
@@ -145,7 +145,7 @@ namespace System.Collections.Generic
         {
             get
             {
-                return (_comparer == null || _comparer is NonRandomizedStringEqualityComparer) ? EqualityComparer<TKey>.Default : _comparer;
+                return (_comparer is null || _comparer is NonRandomizedStringEqualityComparer) ? EqualityComparer<TKey>.Default : _comparer;
             }
         }
 
@@ -158,7 +158,7 @@ namespace System.Collections.Generic
         {
             get
             {
-                if (_keys == null) _keys = new KeyCollection(this);
+                if (_keys is null) _keys = new KeyCollection(this);
                 return _keys;
             }
         }
@@ -167,7 +167,7 @@ namespace System.Collections.Generic
         {
             get
             {
-                if (_keys == null) _keys = new KeyCollection(this);
+                if (_keys is null) _keys = new KeyCollection(this);
                 return _keys;
             }
         }
@@ -176,7 +176,7 @@ namespace System.Collections.Generic
         {
             get
             {
-                if (_keys == null) _keys = new KeyCollection(this);
+                if (_keys is null) _keys = new KeyCollection(this);
                 return _keys;
             }
         }
@@ -185,7 +185,7 @@ namespace System.Collections.Generic
         {
             get
             {
-                if (_values == null) _values = new ValueCollection(this);
+                if (_values is null) _values = new ValueCollection(this);
                 return _values;
             }
         }
@@ -194,7 +194,7 @@ namespace System.Collections.Generic
         {
             get
             {
-                if (_values == null) _values = new ValueCollection(this);
+                if (_values is null) _values = new ValueCollection(this);
                 return _values;
             }
         }
@@ -203,7 +203,7 @@ namespace System.Collections.Generic
         {
             get
             {
-                if (_values == null) _values = new ValueCollection(this);
+                if (_values is null) _values = new ValueCollection(this);
                 return _values;
             }
         }
@@ -308,7 +308,7 @@ namespace System.Collections.Generic
 
         private void CopyTo(KeyValuePair<TKey, TValue>[] array, int index)
         {
-            if (array == null)
+            if (array is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
@@ -342,16 +342,16 @@ namespace System.Collections.Generic
 
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.info);
             }
 
             info.AddValue(VersionName, _version);
             info.AddValue(ComparerName, _comparer ?? EqualityComparer<TKey>.Default, typeof(IEqualityComparer<TKey>));
-            info.AddValue(HashSizeName, _buckets == null ? 0 : _buckets.Length); // This is the length of the bucket array
+            info.AddValue(HashSizeName, _buckets is null ? 0 : _buckets.Length); // This is the length of the bucket array
 
-            if (_buckets != null)
+            if (_buckets is object)
             {
                 var array = new KeyValuePair<TKey, TValue>[Count];
                 CopyTo(array, 0);
@@ -370,10 +370,10 @@ namespace System.Collections.Generic
             int[] buckets = _buckets;
             Entry[] entries = _entries;
             int collisionCount = 0;
-            if (buckets != null)
+            if (buckets is object)
             {
                 IEqualityComparer<TKey> comparer = _comparer;
-                if (comparer == null)
+                if (comparer is null)
                 {
                     int hashCode = key.GetHashCode() & 0x7FFFFFFF;
                     // Value in _buckets is 1-based
@@ -474,7 +474,7 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            if (_buckets == null)
+            if (_buckets is null)
             {
                 Initialize(0);
             }
@@ -482,14 +482,14 @@ namespace System.Collections.Generic
             Entry[] entries = _entries;
             IEqualityComparer<TKey> comparer = _comparer;
 
-            int hashCode = ((comparer == null) ? key.GetHashCode() : comparer.GetHashCode(key)) & 0x7FFFFFFF;
+            int hashCode = ((comparer is null) ? key.GetHashCode() : comparer.GetHashCode(key)) & 0x7FFFFFFF;
 
             int collisionCount = 0;
             ref int bucket = ref _buckets[hashCode % _buckets.Length];
             // Value in _buckets is 1-based
             int i = bucket - 1;
 
-            if (comparer == null)
+            if (comparer is null)
             {
                 if (default(TKey) != null)
                 {
@@ -665,7 +665,7 @@ namespace System.Collections.Generic
         {
             HashHelpers.SerializationInfoTable.TryGetValue(this, out SerializationInfo siInfo);
 
-            if (siInfo == null)
+            if (siInfo is null)
             {
                 // We can return immediately if this function is called twice. 
                 // Note we remove the serialization info from the table at the end of this method.
@@ -683,7 +683,7 @@ namespace System.Collections.Generic
                 KeyValuePair<TKey, TValue>[] array = (KeyValuePair<TKey, TValue>[])
                     siInfo.GetValue(KeyValuePairsName, typeof(KeyValuePair<TKey, TValue>[]));
 
-                if (array == null)
+                if (array is null)
                 {
                     ThrowHelper.ThrowSerializationException(ExceptionResource.Serialization_MissingKeys);
                 }
@@ -762,7 +762,7 @@ namespace System.Collections.Generic
             int[] buckets = _buckets;
             Entry[] entries = _entries;
             int collisionCount = 0;
-            if (buckets != null)
+            if (buckets is object)
             {
                 int hashCode = (_comparer?.GetHashCode(key) ?? key.GetHashCode()) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;
@@ -827,7 +827,7 @@ namespace System.Collections.Generic
             int[] buckets = _buckets;
             Entry[] entries = _entries;
             int collisionCount = 0;
-            if (buckets != null)
+            if (buckets is object)
             {
                 int hashCode = (_comparer?.GetHashCode(key) ?? key.GetHashCode()) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;
@@ -905,7 +905,7 @@ namespace System.Collections.Generic
 
         void ICollection.CopyTo(Array array, int index)
         {
-            if (array == null)
+            if (array is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (array.Rank != 1)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
@@ -934,7 +934,7 @@ namespace System.Collections.Generic
             else
             {
                 object[] objects = array as object[];
-                if (objects == null)
+                if (objects is null)
                 {
                     ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
@@ -968,11 +968,11 @@ namespace System.Collections.Generic
         {
             if (capacity < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
-            int currentCapacity = _entries == null ? 0 : _entries.Length;
+            int currentCapacity = _entries is null ? 0 : _entries.Length;
             if (currentCapacity >= capacity)
                 return currentCapacity;
             _version++;
-            if (_buckets == null)
+            if (_buckets is null)
                 return Initialize(capacity);
             int newSize = HashHelpers.GetPrime(capacity);
             Resize(newSize, forceNewHashCodes: false);
@@ -1006,7 +1006,7 @@ namespace System.Collections.Generic
             int newSize = HashHelpers.GetPrime(capacity);
 
             Entry[] oldEntries = _entries;
-            int currentCapacity = oldEntries == null ? 0 : oldEntries.Length;
+            int currentCapacity = oldEntries is null ? 0 : oldEntries.Length;
             if (newSize >= currentCapacity)
                 return;
 
@@ -1063,7 +1063,7 @@ namespace System.Collections.Generic
             }
             set
             {
-                if (key == null)
+                if (key is null)
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
                 }
@@ -1090,7 +1090,7 @@ namespace System.Collections.Generic
 
         private static bool IsCompatibleKey(object key)
         {
-            if (key == null)
+            if (key is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
@@ -1099,7 +1099,7 @@ namespace System.Collections.Generic
 
         void IDictionary.Add(object key, object value)
         {
-            if (key == null)
+            if (key is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
@@ -1276,7 +1276,7 @@ namespace System.Collections.Generic
 
             public KeyCollection(Dictionary<TKey, TValue> dictionary)
             {
-                if (dictionary == null)
+                if (dictionary is null)
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.dictionary);
                 }
@@ -1288,7 +1288,7 @@ namespace System.Collections.Generic
 
             public void CopyTo(TKey[] array, int index)
             {
-                if (array == null)
+                if (array is null)
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
                 }
@@ -1338,7 +1338,7 @@ namespace System.Collections.Generic
 
             void ICollection.CopyTo(Array array, int index)
             {
-                if (array == null)
+                if (array is null)
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
                 if (array.Rank != 1)
                     ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
@@ -1356,7 +1356,7 @@ namespace System.Collections.Generic
                 else
                 {
                     object[] objects = array as object[];
-                    if (objects == null)
+                    if (objects is null)
                     {
                         ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                     }
@@ -1459,7 +1459,7 @@ namespace System.Collections.Generic
 
             public ValueCollection(Dictionary<TKey, TValue> dictionary)
             {
-                if (dictionary == null)
+                if (dictionary is null)
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.dictionary);
                 }
@@ -1471,7 +1471,7 @@ namespace System.Collections.Generic
 
             public void CopyTo(TValue[] array, int index)
             {
-                if (array == null)
+                if (array is null)
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
                 }
@@ -1521,7 +1521,7 @@ namespace System.Collections.Generic
 
             void ICollection.CopyTo(Array array, int index)
             {
-                if (array == null)
+                if (array is null)
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
                 if (array.Rank != 1)
                     ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
@@ -1539,7 +1539,7 @@ namespace System.Collections.Generic
                 else
                 {
                     object[] objects = array as object[];
-                    if (objects == null)
+                    if (objects is null)
                     {
                         ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                     }

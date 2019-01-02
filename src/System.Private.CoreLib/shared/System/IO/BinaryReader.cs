@@ -47,11 +47,11 @@ namespace System.IO
 
         public BinaryReader(Stream input, Encoding encoding, bool leaveOpen)
         {
-            if (input == null)
+            if (input is null)
             {
                 throw new ArgumentNullException(nameof(input));
             }
-            if (encoding == null)
+            if (encoding is null)
             {
                 throw new ArgumentNullException(nameof(encoding));
             }
@@ -80,7 +80,7 @@ namespace System.IO
             _isMemoryStream = (_stream.GetType() == typeof(MemoryStream));
             _leaveOpen = leaveOpen;
 
-            Debug.Assert(_decoder != null, "[BinaryReader.ctor]_decoder!=null");
+            Debug.Assert(_decoder is object, "[BinaryReader.ctor]_decoder!=null");
         }
 
         public virtual Stream BaseStream
@@ -97,7 +97,7 @@ namespace System.IO
             {
                 Stream copyOfStream = _stream;
                 _stream = null;
-                if (copyOfStream != null && !_leaveOpen)
+                if (copyOfStream is object && !_leaveOpen)
                 {
                     copyOfStream.Close();
                 }
@@ -125,7 +125,7 @@ namespace System.IO
 
         public virtual int PeekChar()
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }
@@ -143,7 +143,7 @@ namespace System.IO
 
         public virtual int Read()
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }
@@ -157,11 +157,11 @@ namespace System.IO
                 posSav = _stream.Position;
             }
 
-            if (_charBytes == null)
+            if (_charBytes is null)
             {
                 _charBytes = new byte[MaxCharBytesSize]; //REVIEW: We need at most 2 bytes/char here? 
             }
-            if (_singleChar == null)
+            if (_singleChar is null)
             {
                 _singleChar = new char[1];
             }
@@ -229,7 +229,7 @@ namespace System.IO
         public virtual byte ReadByte()
         {
             // Inlined to avoid some method call overhead with FillBuffer.
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }
@@ -277,7 +277,7 @@ namespace System.IO
         {
             if (_isMemoryStream)
             {
-                if (_stream == null)
+                if (_stream is null)
                 {
                     throw Error.GetFileNotOpen();
                 }
@@ -358,7 +358,7 @@ namespace System.IO
 
         public virtual string ReadString()
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }
@@ -381,12 +381,12 @@ namespace System.IO
                 return string.Empty;
             }
 
-            if (_charBytes == null)
+            if (_charBytes is null)
             {
                 _charBytes = new byte[MaxCharBytesSize];
             }
 
-            if (_charBuffer == null)
+            if (_charBuffer is null)
             {
                 _charBuffer = new char[_maxCharsSize];
             }
@@ -409,7 +409,7 @@ namespace System.IO
                     return new string(_charBuffer, 0, charsRead);
                 }
 
-                if (sb == null)
+                if (sb is null)
                 {
                     sb = StringBuilderCache.Acquire(stringLength); // Actual string length in chars may be smaller.
                 }
@@ -423,7 +423,7 @@ namespace System.IO
 
         public virtual int Read(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -439,7 +439,7 @@ namespace System.IO
             {
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             }
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }
@@ -450,7 +450,7 @@ namespace System.IO
 
         public virtual int Read(Span<char> buffer)
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }
@@ -460,13 +460,13 @@ namespace System.IO
 
         private int InternalReadChars(Span<char> buffer)
         {
-            Debug.Assert(_stream != null);
+            Debug.Assert(_stream is object);
 
             int numBytes = 0;
             int index = 0;
             int charsRemaining = buffer.Length;
 
-            if (_charBytes == null)
+            if (_charBytes is null)
             {
                 _charBytes = new byte[MaxCharBytesSize];
             }
@@ -549,7 +549,7 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }
@@ -574,7 +574,7 @@ namespace System.IO
 
         public virtual int Read(byte[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -590,7 +590,7 @@ namespace System.IO
             {
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             }
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }
@@ -600,7 +600,7 @@ namespace System.IO
 
         public virtual int Read(Span<byte> buffer)
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }
@@ -614,7 +614,7 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_FileClosed);
             }
@@ -651,7 +651,7 @@ namespace System.IO
 
         protected virtual void FillBuffer(int numBytes)
         {
-            if (_buffer != null && (numBytes < 0 || numBytes > _buffer.Length))
+            if (_buffer is object && (numBytes < 0 || numBytes > _buffer.Length))
             {
                 throw new ArgumentOutOfRangeException(nameof(numBytes), SR.ArgumentOutOfRange_BinaryReaderFillBuffer);
             }
@@ -659,7 +659,7 @@ namespace System.IO
             int bytesRead = 0;
             int n = 0;
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw Error.GetFileNotOpen();
             }

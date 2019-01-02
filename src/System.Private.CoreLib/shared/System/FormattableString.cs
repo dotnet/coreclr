@@ -65,7 +65,7 @@ namespace System
         /// </summary>
         public static string Invariant(FormattableString formattable)
         {
-            if (formattable == null)
+            if (formattable is null)
             {
                 throw new ArgumentNullException(nameof(formattable));
             }
@@ -88,7 +88,7 @@ namespace System
         /// </summary>
         public static string CurrentCulture(FormattableString formattable)
         {
-            if (formattable == null)
+            if (formattable is null)
             {
                 throw new ArgumentNullException(nameof(formattable));
             }

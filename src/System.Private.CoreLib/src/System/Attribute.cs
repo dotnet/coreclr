@@ -265,7 +265,7 @@ namespace System
 
             ParameterInfo baseParam = GetParentDefinition(param);
 
-            while (baseParam != null)
+            while (baseParam is object)
             {
                 objAttr = baseParam.GetCustomAttributes(type, false);
 
@@ -327,12 +327,12 @@ namespace System
             if (param.IsDefined(type, false))
                 return true;
 
-            if (param.Member.DeclaringType == null || !inherit) // This is an interface so we are done.
+            if (param.Member.DeclaringType is null || !inherit) // This is an interface so we are done.
                 return false;
 
             ParameterInfo baseParam = GetParentDefinition(param);
 
-            while (baseParam != null)
+            while (baseParam is object)
             {
                 object[] objAttr = baseParam.GetCustomAttributes(type, false);
 
@@ -392,7 +392,7 @@ namespace System
                 AttributeUsageAttribute usage = null;
                 types.TryGetValue(attrType, out usage);
 
-                if (usage == null)
+                if (usage is null)
                 {
                     // the type has never been seen before if it's inheritable add it to the list
                     usage = InternalGetAttributeUsage(attrType);
@@ -526,7 +526,7 @@ namespace System
         {
             Attribute[] attrib = GetCustomAttributes(element, attributeType, inherit);
 
-            if (attrib == null || attrib.Length == 0)
+            if (attrib is null || attrib.Length == 0)
                 return null;
 
             if (attrib.Length == 1)
@@ -594,7 +594,7 @@ namespace System
         public static bool IsDefined(ParameterInfo element, Type attributeType, bool inherit)
         {
             // Returns true is a custom attribute subclass of attributeType class/interface with inheritance walk
-            if (element == null)
+            if (element is null)
                 throw new ArgumentNullException(nameof(element));
 
             if (attributeType is null)
@@ -633,7 +633,7 @@ namespace System
             // throws an AmbiguousMatchException if there are more than one defined.
             Attribute[] attrib = GetCustomAttributes(element, attributeType, inherit);
 
-            if (attrib == null || attrib.Length == 0)
+            if (attrib is null || attrib.Length == 0)
                 return null;
 
             if (attrib.Length == 0)
@@ -660,7 +660,7 @@ namespace System
 
         public static Attribute[] GetCustomAttributes(Module element, bool inherit)
         {
-            if (element == null)
+            if (element is null)
                 throw new ArgumentNullException(nameof(element));
 
             return (Attribute[])element.GetCustomAttributes(typeof(Attribute), inherit);
@@ -668,7 +668,7 @@ namespace System
 
         public static Attribute[] GetCustomAttributes(Module element, Type attributeType, bool inherit)
         {
-            if (element == null)
+            if (element is null)
                 throw new ArgumentNullException(nameof(element));
 
             if (attributeType is null)
@@ -688,7 +688,7 @@ namespace System
         public static bool IsDefined(Module element, Type attributeType, bool inherit)
         {
             // Returns true is a custom attribute subclass of attributeType class/interface with no inheritance walk
-            if (element == null)
+            if (element is null)
                 throw new ArgumentNullException(nameof(element));
 
             if (attributeType is null)
@@ -711,7 +711,7 @@ namespace System
             // throws an AmbiguousMatchException if there are more than one defined.
             Attribute[] attrib = GetCustomAttributes(element, attributeType, inherit);
 
-            if (attrib == null || attrib.Length == 0)
+            if (attrib is null || attrib.Length == 0)
                 return null;
 
             if (attrib.Length == 1)
@@ -730,7 +730,7 @@ namespace System
 
         public static Attribute[] GetCustomAttributes(Assembly element, Type attributeType, bool inherit)
         {
-            if (element == null)
+            if (element is null)
                 throw new ArgumentNullException(nameof(element));
 
             if (attributeType is null)
@@ -749,7 +749,7 @@ namespace System
 
         public static Attribute[] GetCustomAttributes(Assembly element, bool inherit)
         {
-            if (element == null)
+            if (element is null)
                 throw new ArgumentNullException(nameof(element));
 
             return (Attribute[])element.GetCustomAttributes(typeof(Attribute), inherit);
@@ -763,7 +763,7 @@ namespace System
         public static bool IsDefined(Assembly element, Type attributeType, bool inherit)
         {
             // Returns true is a custom attribute subclass of attributeType class/interface with no inheritance walk
-            if (element == null)
+            if (element is null)
                 throw new ArgumentNullException(nameof(element));
 
             if (attributeType is null)
@@ -786,7 +786,7 @@ namespace System
             // throws an AmbiguousMatchException if there are more than one defined.
             Attribute[] attrib = GetCustomAttributes(element, attributeType, inherit);
 
-            if (attrib == null || attrib.Length == 0)
+            if (attrib is null || attrib.Length == 0)
                 return null;
 
             if (attrib.Length == 1)
@@ -806,7 +806,7 @@ namespace System
         #region Object Overrides
         public override bool Equals(object obj)
         {
-            if (obj == null)
+            if (obj is null)
                 return false;
 
             Type thisType = this.GetType();
@@ -842,9 +842,9 @@ namespace System
         // Compares values of custom-attribute fields.    
         private static bool AreFieldValuesEqual(object thisValue, object thatValue)
         {
-            if (thisValue == null && thatValue == null)
+            if (thisValue is null && thatValue is null)
                 return true;
-            if (thisValue == null || thatValue == null)
+            if (thisValue is null || thatValue is null)
                 return false;
 
             if (thisValue.GetType().IsArray)
@@ -904,14 +904,14 @@ namespace System
                     // different hashcodes for arrays with the same contents.
                     // Since we do deep comparisons of arrays in Equals(), this means Equals and GetHashCode will
                     // be inconsistent for arrays. Therefore, we ignore hashes of arrays.
-                    if (fieldValue != null && !fieldValue.GetType().IsArray)
+                    if (fieldValue is object && !fieldValue.GetType().IsArray)
                         vThis = fieldValue;
 
-                    if (vThis != null)
+                    if (vThis is object)
                         break;
                 }
 
-                if (vThis != null)
+                if (vThis is object)
                     return vThis.GetHashCode();
 
                 type = type.BaseType;

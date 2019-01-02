@@ -213,7 +213,7 @@ namespace System.Runtime.InteropServices
         public void ReadArray<T>(ulong byteOffset, T[] array, int index, int count)
             where T : struct
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array), SR.ArgumentNull_Buffer);
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -292,7 +292,7 @@ namespace System.Runtime.InteropServices
         public void WriteArray<T>(ulong byteOffset, T[] array, int index, int count)
             where T : struct
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array), SR.ArgumentNull_Buffer);
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);

@@ -95,11 +95,11 @@ namespace System.Diagnostics.Tracing
             EventSourceSettings config,
             params string[] traits)
             : this(
-                eventSourceName == null ? new Guid() : GenerateGuidFromName(eventSourceName.ToUpperInvariant()),
+                eventSourceName is null ? new Guid() : GenerateGuidFromName(eventSourceName.ToUpperInvariant()),
                 eventSourceName,
                 config, traits)
         {
-            if (eventSourceName == null)
+            if (eventSourceName is null)
             {
                 throw new ArgumentNullException(nameof(eventSourceName));
             }
@@ -112,7 +112,7 @@ namespace System.Diagnostics.Tracing
         /// <param name="eventName">The name of the event. Must not be null.</param>
         public unsafe void Write(string eventName)
         {
-            if (eventName == null)
+            if (eventName is null)
             {
                 throw new ArgumentNullException(nameof(eventName));
             }
@@ -137,7 +137,7 @@ namespace System.Diagnostics.Tracing
         /// </param>
         public unsafe void Write(string eventName, EventSourceOptions options)
         {
-            if (eventName == null)
+            if (eventName is null)
             {
                 throw new ArgumentNullException(nameof(eventName));
             }
@@ -428,7 +428,7 @@ namespace System.Diagnostics.Tracing
                 : eventTypes.keywords;
 
             var nameInfo = eventTypes.GetNameInfo(eventName ?? eventTypes.Name, tags);
-            if (nameInfo == null)
+            if (nameInfo is null)
             {
                 return;
             }
@@ -545,7 +545,7 @@ namespace System.Diagnostics.Tracing
             {
                 EventDescriptor descriptor;
                 var nameInfo = this.UpdateDescriptor(eventName, eventTypes, ref options, out descriptor);
-                if (nameInfo == null)
+                if (nameInfo is null)
                 {
                     return;
                 }
@@ -614,7 +614,7 @@ namespace System.Diagnostics.Tracing
                     EventDescriptor descriptor;
                     options.Opcode = options.IsOpcodeSet ? options.Opcode : GetOpcodeWithDefault(options.Opcode, eventName);
                     var nameInfo = this.UpdateDescriptor(eventName, eventTypes, ref options, out descriptor);
-                    if (nameInfo == null)
+                    if (nameInfo is null)
                     {
                         return;
                     }
@@ -696,7 +696,7 @@ namespace System.Diagnostics.Tracing
 #endif // FEATURE_MANAGED_ETW
 
                             // TODO enable filtering for listeners.
-                            if (m_Dispatchers != null)
+                            if (m_Dispatchers is object)
                             {
                                 var eventData = (EventPayload)(eventTypes.typeInfos[0].GetData(data));
                                 WriteToAllListeners(eventName, ref descriptor, nameInfo.tags, pActivityId, pRelatedActivityId, eventData);
@@ -744,7 +744,7 @@ namespace System.Diagnostics.Tracing
             if (pChildActivityId != null)
                 eventCallbackArgs.RelatedActivityId = *pChildActivityId;
 
-            if (payload != null)
+            if (payload is object)
             {
                 eventCallbackArgs.Payload = new ReadOnlyCollection<object>((IList<object>)payload.Values);
                 eventCallbackArgs.PayloadNames = new ReadOnlyCollection<string>((IList<string>)payload.Keys);
@@ -775,7 +775,7 @@ namespace System.Diagnostics.Tracing
         private void InitializeProviderMetadata()
         {
 #if FEATURE_MANAGED_ETW
-            if (m_traits != null)
+            if (m_traits is object)
             {
                 List<byte> traitMetaData = new List<byte>(100);
                 for (int i = 0; i < m_traits.Length - 1; i += 2)

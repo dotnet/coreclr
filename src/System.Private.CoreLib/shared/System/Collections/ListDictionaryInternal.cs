@@ -35,13 +35,13 @@ namespace System.Collections
         {
             get
             {
-                if (key == null)
+                if (key is null)
                 {
                     throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 }
                 DictionaryNode node = head;
 
-                while (node != null)
+                while (node is object)
                 {
                     if (node.key.Equals(key))
                     {
@@ -53,7 +53,7 @@ namespace System.Collections
             }
             set
             {
-                if (key == null)
+                if (key is null)
                 {
                     throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 }
@@ -62,7 +62,7 @@ namespace System.Collections
                 version++;
                 DictionaryNode last = null;
                 DictionaryNode node;
-                for (node = head; node != null; node = node.next)
+                for (node = head; node is object; node = node.next)
                 {
                     if (node.key.Equals(key))
                     {
@@ -70,7 +70,7 @@ namespace System.Collections
                     }
                     last = node;
                 }
-                if (node != null)
+                if (node is object)
                 {
                     // Found it
                     node.value = value;
@@ -80,7 +80,7 @@ namespace System.Collections
                 DictionaryNode newNode = new DictionaryNode();
                 newNode.key = key;
                 newNode.value = value;
-                if (last != null)
+                if (last is object)
                 {
                     last.next = newNode;
                 }
@@ -144,7 +144,7 @@ namespace System.Collections
 
         public void Add(object key, object value)
         {
-            if (key == null)
+            if (key is null)
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
@@ -153,7 +153,7 @@ namespace System.Collections
             version++;
             DictionaryNode last = null;
             DictionaryNode node;
-            for (node = head; node != null; node = node.next)
+            for (node = head; node is object; node = node.next)
             {
                 if (node.key.Equals(key))
                 {
@@ -161,7 +161,7 @@ namespace System.Collections
                 }
                 last = node;
             }
-            if (node != null)
+            if (node is object)
             {
                 // Found it
                 node.value = value;
@@ -171,7 +171,7 @@ namespace System.Collections
             DictionaryNode newNode = new DictionaryNode();
             newNode.key = key;
             newNode.value = value;
-            if (last != null)
+            if (last is object)
             {
                 last.next = newNode;
             }
@@ -191,11 +191,11 @@ namespace System.Collections
 
         public bool Contains(object key)
         {
-            if (key == null)
+            if (key is null)
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
-            for (DictionaryNode node = head; node != null; node = node.next)
+            for (DictionaryNode node = head; node is object; node = node.next)
             {
                 if (node.key.Equals(key))
                 {
@@ -207,7 +207,7 @@ namespace System.Collections
 
         public void CopyTo(Array array, int index)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
 
             if (array.Rank != 1)
@@ -219,7 +219,7 @@ namespace System.Collections
             if (array.Length - index < this.Count)
                 throw new ArgumentException(SR.ArgumentOutOfRange_Index, nameof(index));
 
-            for (DictionaryNode node = head; node != null; node = node.next)
+            for (DictionaryNode node = head; node is object; node = node.next)
             {
                 array.SetValue(new DictionaryEntry(node.key, node.value), index);
                 index++;
@@ -238,14 +238,14 @@ namespace System.Collections
 
         public void Remove(object key)
         {
-            if (key == null)
+            if (key is null)
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
             version++;
             DictionaryNode last = null;
             DictionaryNode node;
-            for (node = head; node != null; node = node.next)
+            for (node = head; node is object; node = node.next)
             {
                 if (node.key.Equals(key))
                 {
@@ -253,7 +253,7 @@ namespace System.Collections
                 }
                 last = node;
             }
-            if (node == null)
+            if (node is null)
             {
                 return;
             }
@@ -296,7 +296,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == null)
+                    if (current is null)
                     {
                         throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                     }
@@ -308,7 +308,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == null)
+                    if (current is null)
                     {
                         throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                     }
@@ -320,7 +320,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == null)
+                    if (current is null)
                     {
                         throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                     }
@@ -341,12 +341,12 @@ namespace System.Collections
                 }
                 else
                 {
-                    if (current != null)
+                    if (current is object)
                     {
                         current = current.next;
                     }
                 }
-                return (current != null);
+                return (current is object);
             }
 
             public void Reset()
@@ -374,7 +374,7 @@ namespace System.Collections
 
             void ICollection.CopyTo(Array array, int index)
             {
-                if (array == null)
+                if (array is null)
                     throw new ArgumentNullException(nameof(array));
                 if (array.Rank != 1)
                     throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
@@ -382,7 +382,7 @@ namespace System.Collections
                     throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
                 if (array.Length - index < list.Count)
                     throw new ArgumentException(SR.ArgumentOutOfRange_Index, nameof(index));
-                for (DictionaryNode node = list.head; node != null; node = node.next)
+                for (DictionaryNode node = list.head; node is object; node = node.next)
                 {
                     array.SetValue(isKeys ? node.key : node.value, index);
                     index++;
@@ -394,7 +394,7 @@ namespace System.Collections
                 get
                 {
                     int count = 0;
-                    for (DictionaryNode node = list.head; node != null; node = node.next)
+                    for (DictionaryNode node = list.head; node is object; node = node.next)
                     {
                         count++;
                     }
@@ -445,7 +445,7 @@ namespace System.Collections
                 {
                     get
                     {
-                        if (current == null)
+                        if (current is null)
                         {
                             throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                         }
@@ -466,12 +466,12 @@ namespace System.Collections
                     }
                     else
                     {
-                        if (current != null)
+                        if (current is object)
                         {
                             current = current.next;
                         }
                     }
-                    return (current != null);
+                    return (current is object);
                 }
 
                 public void Reset()

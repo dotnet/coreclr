@@ -57,7 +57,7 @@ namespace System.Threading.Tasks
         /// </summary>
         ~TaskExceptionHolder()
         {
-            if (m_faultExceptions != null && !m_isHandled)
+            if (m_faultExceptions is object && !m_isHandled)
             {
                 // We will only propagate if this is truly unhandled. The reason this could
                 // ever occur is somewhat subtle: if a Task's exceptions are observed in some
@@ -74,7 +74,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Gets whether the exception holder is currently storing any exceptions for faults.</summary>
-        internal bool ContainsFaultList { get { return m_faultExceptions != null; } }
+        internal bool ContainsFaultList { get { return m_faultExceptions is object; } }
 
         /// <summary>
         /// Add an exception to the holder.  This will ensure the holder is
@@ -124,7 +124,7 @@ namespace System.Threading.Tasks
 
             // Store the cancellation exception
             var oce = exceptionObject as OperationCanceledException;
-            if (oce != null)
+            if (oce is object)
             {
                 m_cancellationException = ExceptionDispatchInfo.Capture(oce);
             }
@@ -151,12 +151,12 @@ namespace System.Threading.Tasks
 
             // Initialize the exceptions list if necessary.  The list should be non-null iff it contains exceptions.
             var exceptions = m_faultExceptions;
-            if (exceptions == null) m_faultExceptions = exceptions = new List<ExceptionDispatchInfo>(1);
+            if (exceptions is null) m_faultExceptions = exceptions = new List<ExceptionDispatchInfo>(1);
             else Debug.Assert(exceptions.Count > 0, "Expected existing exceptions list to have > 0 exceptions.");
 
             // Handle Exception by capturing it into an ExceptionDispatchInfo and storing that
             var exception = exceptionObject as Exception;
-            if (exception != null)
+            if (exception is object)
             {
                 exceptions.Add(ExceptionDispatchInfo.Capture(exception));
             }
@@ -164,7 +164,7 @@ namespace System.Threading.Tasks
             {
                 // Handle ExceptionDispatchInfo by storing it into the list
                 var edi = exceptionObject as ExceptionDispatchInfo;
-                if (edi != null)
+                if (edi is object)
                 {
                     exceptions.Add(edi);
                 }
@@ -172,7 +172,7 @@ namespace System.Threading.Tasks
                 {
                     // Handle enumerables of exceptions by capturing each of the contained exceptions into an EDI and storing it
                     var exColl = exceptionObject as IEnumerable<Exception>;
-                    if (exColl != null)
+                    if (exColl is object)
                     {
 #if DEBUG
                         int numExceptions = 0;
@@ -193,7 +193,7 @@ namespace System.Threading.Tasks
                     {
                         // Handle enumerables of EDIs by storing them directly
                         var ediColl = exceptionObject as IEnumerable<ExceptionDispatchInfo>;
-                        if (ediColl != null)
+                        if (ediColl is object)
                         {
                             exceptions.AddRange(ediColl);
 #if DEBUG
@@ -271,7 +271,7 @@ namespace System.Threading.Tasks
 
             // If we're only including the previously captured exceptions, 
             // return them immediately in an aggregate.
-            if (includeThisException == null)
+            if (includeThisException is null)
                 return new AggregateException(exceptions);
 
             // Otherwise, the caller wants a specific exception to be included, 

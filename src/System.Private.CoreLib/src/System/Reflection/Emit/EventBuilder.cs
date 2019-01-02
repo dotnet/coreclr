@@ -90,7 +90,7 @@ namespace System.Reflection.Emit
         {
             if (con is null)
                 throw new ArgumentNullException(nameof(con));
-            if (binaryAttribute == null)
+            if (binaryAttribute is null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
             m_type.ThrowIfCreated();
 
@@ -105,7 +105,7 @@ namespace System.Reflection.Emit
         // Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
-            if (customBuilder == null)
+            if (customBuilder is null)
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }

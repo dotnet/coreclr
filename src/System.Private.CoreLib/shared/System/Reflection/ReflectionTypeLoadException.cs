@@ -53,7 +53,7 @@ namespace System.Reflection
             string baseValue = isMessage ? base.Message : base.ToString();
 
             Exception[] exceptions = LoaderExceptions;
-            if (exceptions == null || exceptions.Length == 0)
+            if (exceptions is null || exceptions.Length == 0)
             {
                 return baseValue;
             }
@@ -61,7 +61,7 @@ namespace System.Reflection
             var text = new StringBuilder(baseValue);
             foreach (Exception e in exceptions)
             {
-                if (e != null)
+                if (e is object)
                 {
                     text.AppendLine();
                     text.Append(isMessage ? e.Message : e.ToString());

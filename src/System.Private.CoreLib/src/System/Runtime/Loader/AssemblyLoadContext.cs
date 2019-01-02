@@ -90,7 +90,7 @@ namespace System.Runtime.Loader
         {
             // Use the _unloadLock as a guard to detect the corner case when the constructor of the AssemblyLoadContext was not executed
             // e.g. due to the JIT failing to JIT it.
-            if (_unloadLock != null)
+            if (_unloadLock is object)
             {
                 // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
                 Debug.Assert(IsCollectible);
@@ -145,7 +145,7 @@ namespace System.Runtime.Loader
         // They may be used in the implementation of an AssemblyLoadContext derivation
         public Assembly LoadFromAssemblyPath(string assemblyPath)
         {
-            if (assemblyPath == null)
+            if (assemblyPath is null)
             {
                 throw new ArgumentNullException(nameof(assemblyPath));
             }
@@ -167,7 +167,7 @@ namespace System.Runtime.Loader
 
         public Assembly LoadFromNativeImagePath(string nativeImagePath, string assemblyPath)
         {
-            if (nativeImagePath == null)
+            if (nativeImagePath is null)
             {
                 throw new ArgumentNullException(nameof(nativeImagePath));
             }
@@ -182,7 +182,7 @@ namespace System.Runtime.Loader
                         nameof(nativeImagePath));
                 }
 
-                if (assemblyPath != null && PathInternal.IsPartiallyQualified(assemblyPath))
+                if (assemblyPath is object && PathInternal.IsPartiallyQualified(assemblyPath))
                 {
                     throw new ArgumentException(SR.GetResourceString("Argument_AbsolutePathRequired"),
                         nameof(assemblyPath));
@@ -202,7 +202,7 @@ namespace System.Runtime.Loader
 
         public Assembly LoadFromStream(Stream assembly, Stream assemblySymbols)
         {
-            if (assembly == null)
+            if (assembly is null)
             {
                 throw new ArgumentNullException(nameof(assembly));
             }
@@ -226,7 +226,7 @@ namespace System.Runtime.Loader
 
                 // Get the symbol stream in byte[] if provided
                 byte[] arrSymbols = null;
-                if (assemblySymbols != null)
+                if (assemblySymbols is object)
                 {
                     iSymbolLength = (int) assemblySymbols.Length;
                     arrSymbols = new byte[iSymbolLength];
@@ -296,13 +296,13 @@ namespace System.Runtime.Loader
 
             Func<AssemblyLoadContext, AssemblyName, Assembly> assemblyResolveHandler = Resolving;
 
-            if (assemblyResolveHandler != null)
+            if (assemblyResolveHandler is object)
             {
                 // Loop through the event subscribers and return the first non-null Assembly instance
                 foreach (Func<AssemblyLoadContext, AssemblyName, Assembly> handler in assemblyResolveHandler.GetInvocationList())
                 {
                     resolvedAssembly = handler(this, assemblyName);
-                    if (resolvedAssembly != null)
+                    if (resolvedAssembly is object)
                     {
                         break;
                     }
@@ -321,7 +321,7 @@ namespace System.Runtime.Loader
             // which is a RuntimeAssembly instance. However, since Assembly type can be used build any other artifact (e.g. AssemblyBuilder),
             // we need to check for RuntimeAssembly.
             RuntimeAssembly rtLoadedAssembly = assembly as RuntimeAssembly;
-            if (rtLoadedAssembly != null)
+            if (rtLoadedAssembly is object)
             {
                 loadedSimpleName = rtLoadedAssembly.GetSimpleName();
             }
@@ -338,7 +338,7 @@ namespace System.Runtime.Loader
             string simpleName = assemblyName.Name;
             Assembly assembly = Load(assemblyName);
 
-            if (assembly != null)
+            if (assembly is object)
             {
                 assembly = ValidateAssemblyNameWithSimpleName(assembly, simpleName);
             }
@@ -352,14 +352,14 @@ namespace System.Runtime.Loader
 
             // Invoke the AssemblyResolve event callbacks if wired up
             Assembly assembly = GetFirstResolvedAssembly(assemblyName);
-            if (assembly != null)
+            if (assembly is object)
             {
                 assembly = ValidateAssemblyNameWithSimpleName(assembly, simpleName);
             }
 
             // Since attempt to resolve the assembly via Resolving event is the last option,
             // throw an exception if we do not find any assembly.
-            if (assembly == null)
+            if (assembly is null)
             {
                 throw new FileNotFoundException(SR.IO_FileLoad, simpleName);
             }
@@ -380,7 +380,7 @@ namespace System.Runtime.Loader
         // platform-independent way. The DLL is loaded with default load flags.
         protected IntPtr LoadUnmanagedDllFromPath(string unmanagedDllPath)
         {
-            if (unmanagedDllPath == null)
+            if (unmanagedDllPath is null)
             {
                 throw new ArgumentNullException(nameof(unmanagedDllPath));
             }
@@ -417,12 +417,12 @@ namespace System.Runtime.Loader
         {
             get
             {
-                if (s_DefaultAssemblyLoadContext == null)
+                if (s_DefaultAssemblyLoadContext is null)
                 {
                     // Synchronize access to initializing Default ALC
                     lock (s_initLock)
                     {
-                        if (s_DefaultAssemblyLoadContext == null)
+                        if (s_DefaultAssemblyLoadContext is null)
                         {
                             s_DefaultAssemblyLoadContext = new AppPathAssemblyLoadContext();
                         }
@@ -436,7 +436,7 @@ namespace System.Runtime.Loader
         // Helper to return AssemblyName corresponding to the path of an IL assembly
         public static AssemblyName GetAssemblyName(string assemblyPath)
         {
-            if (assemblyPath == null)
+            if (assemblyPath is null)
             {
                 throw new ArgumentNullException(nameof(assemblyPath));
             }
@@ -450,7 +450,7 @@ namespace System.Runtime.Loader
         // Returns the load context in which the specified assembly has been loaded
         public static AssemblyLoadContext GetLoadContext(Assembly assembly)
         {
-            if (assembly == null)
+            if (assembly is null)
             {
                 throw new ArgumentNullException(nameof(assembly));
             }
@@ -460,7 +460,7 @@ namespace System.Runtime.Loader
             RuntimeAssembly rtAsm = assembly as RuntimeAssembly;
 
             // We only support looking up load context for runtime assemblies.
-            if (rtAsm != null)
+            if (rtAsm is object)
             {
                 IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(rtAsm);
                 if (ptrAssemblyLoadContext == IntPtr.Zero)
@@ -562,7 +562,7 @@ namespace System.Runtime.Loader
 
         private static RuntimeAssembly InvokeResolveEvent(ResolveEventHandler eventHandler, RuntimeAssembly assembly, string name)
         {
-            if (eventHandler == null)
+            if (eventHandler is null)
                 return null;
 
             var args = new ResolveEventArgs(name, assembly);
@@ -571,7 +571,7 @@ namespace System.Runtime.Loader
             {
                 Assembly asm = handler(null /* AppDomain */, args);
                 RuntimeAssembly ret = GetRuntimeAssembly(asm);
-                if (ret != null)
+                if (ret is object)
                     return ret;
             }
 
@@ -581,7 +581,7 @@ namespace System.Runtime.Loader
         private static RuntimeAssembly GetRuntimeAssembly(Assembly asm)
         {
             return
-                asm == null ? null :
+                asm is null ? null :
                 asm is RuntimeAssembly rtAssembly ? rtAssembly :
                 asm is System.Reflection.Emit.AssemblyBuilder ab ? ab.InternalAssembly :
                 null;

@@ -69,7 +69,7 @@ namespace System
         {
             get
             {
-                if (_typeName == null)
+                if (_typeName is null)
                 {
                     return string.Empty;
                 }

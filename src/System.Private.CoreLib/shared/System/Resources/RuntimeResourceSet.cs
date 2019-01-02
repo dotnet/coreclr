@@ -208,7 +208,7 @@ namespace System.Resources
 
         protected override void Dispose(bool disposing)
         {
-            if (Reader == null)
+            if (Reader is null)
                 return;
 
             if (disposing)
@@ -216,7 +216,7 @@ namespace System.Resources
                 lock (Reader)
                 {
                     _resCache = null;
-                    if (_defaultReader != null)
+                    if (_defaultReader is object)
                     {
                         _defaultReader.Close();
                         _defaultReader = null;
@@ -249,7 +249,7 @@ namespace System.Resources
         private IDictionaryEnumerator GetEnumeratorHelper()
         {
             IResourceReader copyOfReader = Reader;
-            if (copyOfReader == null || _resCache == null)
+            if (copyOfReader is null || _resCache is null)
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
             return copyOfReader.GetEnumerator();
@@ -280,9 +280,9 @@ namespace System.Resources
 
         private object GetObject(string key, bool ignoreCase, bool isString)
         {
-            if (key == null)
+            if (key is null)
                 throw new ArgumentNullException(nameof(key));
-            if (Reader == null || _resCache == null)
+            if (Reader is null || _resCache is null)
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
             object value = null;
@@ -290,10 +290,10 @@ namespace System.Resources
 
             lock (Reader)
             {
-                if (Reader == null)
+                if (Reader is null)
                     throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
-                if (_defaultReader != null)
+                if (_defaultReader is object)
                 {
                     // Find the offset within the data section
                     int dataPos = -1;
@@ -303,12 +303,12 @@ namespace System.Resources
                         dataPos = resLocation.DataPosition;
                     }
 
-                    if (dataPos == -1 && value == null)
+                    if (dataPos == -1 && value is null)
                     {
                         dataPos = _defaultReader.FindPosForResource(key);
                     }
 
-                    if (dataPos != -1 && value == null)
+                    if (dataPos != -1 && value is null)
                     {
                         Debug.Assert(dataPos >= 0, "data section offset cannot be negative!");
                         // Normally calling LoadString or LoadObject requires
@@ -334,7 +334,7 @@ namespace System.Resources
                         }
                     }
 
-                    if (value != null || !ignoreCase)
+                    if (value is object || !ignoreCase)
                     {
                         return value;  // may be null
                     }
@@ -346,12 +346,12 @@ namespace System.Resources
                 if (!_haveReadFromReader)
                 {
                     // If necessary, init our case insensitive hash table.
-                    if (ignoreCase && _caseInsensitiveTable == null)
+                    if (ignoreCase && _caseInsensitiveTable is null)
                     {
                         _caseInsensitiveTable = new Dictionary<string, ResourceLocator>(StringComparer.OrdinalIgnoreCase);
                     }
 
-                    if (_defaultReader == null)
+                    if (_defaultReader is null)
                     {
                         IDictionaryEnumerator en = Reader.GetEnumerator();
                         while (en.MoveNext())
@@ -386,7 +386,7 @@ namespace System.Resources
                 object obj = null;
                 bool found = false;
                 bool keyInWrongCase = false;
-                if (_defaultReader != null)
+                if (_defaultReader is object)
                 {
                     if (_resCache.TryGetValue(key, out resLocation))
                     {
@@ -415,7 +415,7 @@ namespace System.Resources
             // We need to explicitly resolve loosely linked manifest
             // resources, and we need to resolve ResourceLocators with null objects.
             object value = resLocation.Value;
-            if (value == null)
+            if (value is null)
             {
                 ResourceTypeCode typeCode;
                 lock (Reader)

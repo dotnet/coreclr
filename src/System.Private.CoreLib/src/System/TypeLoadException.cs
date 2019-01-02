@@ -55,17 +55,17 @@ namespace System
 
         private void SetMessageField()
         {
-            if (_message == null)
+            if (_message is null)
             {
-                if ((ClassName == null) &&
+                if ((ClassName is null) &&
                     (ResourceId == 0))
                     _message = SR.Arg_TypeLoadException;
 
                 else
                 {
-                    if (AssemblyName == null)
+                    if (AssemblyName is null)
                         AssemblyName = SR.IO_UnknownFileName;
-                    if (ClassName == null)
+                    if (ClassName is null)
                         ClassName = SR.IO_UnknownFileName;
 
                     string format = null;
@@ -79,7 +79,7 @@ namespace System
         {
             get
             {
-                if (ClassName == null)
+                if (ClassName is null)
                     return string.Empty;
 
                 return ClassName;

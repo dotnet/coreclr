@@ -164,7 +164,7 @@ namespace System.Reflection
                     case CorElementType.ELEMENT_TYPE_STRING:
                         // A string constant can be empty but never null.
                         // A nullref constant can only be type CorElementType.ELEMENT_TYPE_CLASS.
-                        return stringVal == null ? string.Empty : stringVal;
+                        return stringVal is null ? string.Empty : stringVal;
 
                     case CorElementType.ELEMENT_TYPE_CLASS:
                         return null;

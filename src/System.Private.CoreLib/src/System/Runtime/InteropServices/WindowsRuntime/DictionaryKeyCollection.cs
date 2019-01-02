@@ -16,7 +16,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public DictionaryKeyCollection(IDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary == null)
+            if (dictionary is null)
                 throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
@@ -24,7 +24,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public void CopyTo(TKey[] array, int index)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
@@ -89,7 +89,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public DictionaryKeyEnumerator(IDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary == null)
+            if (dictionary is null)
                 throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;

@@ -54,14 +54,14 @@ namespace System
         {
             get
             {
-                if (ClassName == null)
+                if (ClassName is null)
                 {
                     return base.Message;
                 }
                 else
                 {
                     // do any desired fixups to classname here.
-                    return SR.Format(SR.MissingMember_Name, ClassName + "." + MemberName + (Signature != null ? " " + FormatSignature(Signature) : string.Empty));
+                    return SR.Format(SR.MissingMember_Name, ClassName + "." + MemberName + (Signature is object ? " " + FormatSignature(Signature) : string.Empty));
                 }
             }
         }

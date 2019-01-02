@@ -22,7 +22,7 @@ namespace System
         public override object ChangeType(object value, Type type, CultureInfo cultureInfo)
         {
             Variant myValue = new Variant(value);
-            if (cultureInfo == null)
+            if (cultureInfo is null)
                 cultureInfo = CultureInfo.CurrentCulture;
 
 #if DISPLAY_DEBUG_INFO

@@ -126,7 +126,7 @@ namespace System.Threading
         [CLSCompliant(false)]
         protected static int WaitHelper(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
         {
-            if (waitHandles == null)
+            if (waitHandles is null)
             {
                 throw new ArgumentNullException(nameof(waitHandles));
             }
@@ -152,7 +152,7 @@ namespace System.Threading
                 SynchronizationContext context = Thread.CurrentThread.SynchronizationContext;
 
 #if FEATURE_APPX
-                if (context == null && ApplicationModel.IsUap)
+                if (context is null && ApplicationModel.IsUap)
                     context = GetWinRTContext();
 #endif
 
@@ -177,7 +177,7 @@ namespace System.Threading
             // System.Runtime.WindowsRuntime to get a corresponding SynchronizationContext.
             //
             object dispatcher = GetWinRTDispatcherForCurrentThread();
-            if (dispatcher != null)
+            if (dispatcher is object)
                 return GetWinRTSynchronizationContext(dispatcher);
 
             return null;
@@ -193,7 +193,7 @@ namespace System.Threading
             // we can do very little with WinRT stuff in mscorlib.
             //
             Func<object, SynchronizationContext> createSynchronizationContextDelegate = s_createSynchronizationContextDelegate;
-            if (createSynchronizationContextDelegate == null)
+            if (createSynchronizationContextDelegate is null)
             {
                 Type factoryType = Type.GetType("System.Threading.WinRTSynchronizationContextFactory, System.Runtime.WindowsRuntime", throwOnError: true);
                 

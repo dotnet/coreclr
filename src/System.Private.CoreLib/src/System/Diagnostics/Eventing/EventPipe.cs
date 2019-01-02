@@ -181,12 +181,12 @@ namespace System.Diagnostics.Tracing
 
         internal static void Enable(EventPipeConfiguration configuration)
         {
-            if(configuration == null)
+            if(configuration is null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            if(configuration.Providers == null)
+            if(configuration.Providers is null)
             {
                 throw new ArgumentNullException(nameof(configuration.Providers));
             }

@@ -227,7 +227,7 @@ namespace System
         /// </exception>
         public static int ToLower(this ReadOnlySpan<char> source, Span<char> destination, CultureInfo culture)
         {
-            if (culture == null)
+            if (culture is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.culture);
 
             // Assuming that changing case does not affect length
@@ -278,7 +278,7 @@ namespace System
         /// </exception>
         public static int ToUpper(this ReadOnlySpan<char> source, Span<char> destination, CultureInfo culture)
         {
-            if (culture == null)
+            if (culture is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.culture);
 
             // Assuming that changing case does not affect length
@@ -386,7 +386,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<T> AsSpan<T>(this T[] array, int start)
         {
-            if (array == null)
+            if (array is null)
             {
                 if (start != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException();
@@ -408,7 +408,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> AsSpan(this string text)
         {
-            if (text == null)
+            if (text is null)
                 return default;
 
             return new ReadOnlySpan<char>(ref text.GetRawStringData(), text.Length);
@@ -426,7 +426,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> AsSpan(this string text, int start)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -452,7 +452,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> AsSpan(this string text, int start, int length)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -476,7 +476,7 @@ namespace System
         /// <remarks>Returns default when <paramref name="text"/> is null.</remarks>
         public static ReadOnlyMemory<char> AsMemory(this string text)
         {
-            if (text == null)
+            if (text is null)
                 return default;
 
             return new ReadOnlyMemory<char>(text, 0, text.Length);
@@ -491,7 +491,7 @@ namespace System
         /// </exception>
         public static ReadOnlyMemory<char> AsMemory(this string text, int start)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -514,7 +514,7 @@ namespace System
         /// </exception>
         public static ReadOnlyMemory<char> AsMemory(this string text, int start, int length)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);

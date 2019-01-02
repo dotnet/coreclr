@@ -18,7 +18,7 @@ namespace System.Text
         public virtual Encoding GetEncoding(string name, EncoderFallback encoderFallback, DecoderFallback decoderFallback)
         {
             Encoding enc = GetEncoding(name);
-            if (enc != null)
+            if (enc is object)
             {
                 enc = (Encoding)GetEncoding(name).Clone();
                 enc.EncoderFallback = encoderFallback;
@@ -31,7 +31,7 @@ namespace System.Text
         public virtual Encoding GetEncoding(int codepage, EncoderFallback encoderFallback, DecoderFallback decoderFallback)
         {
             Encoding enc = GetEncoding(codepage);
-            if (enc != null)
+            if (enc is object)
             {
                 enc = (Encoding)GetEncoding(codepage).Clone();
                 enc.EncoderFallback = encoderFallback;
@@ -43,12 +43,12 @@ namespace System.Text
 
         internal static void AddProvider(EncodingProvider provider)
         {
-            if (provider == null)
+            if (provider is null)
                 throw new ArgumentNullException(nameof(provider));
 
             lock (s_InternalSyncObject)
             {
-                if (s_providers == null)
+                if (s_providers is null)
                 {
                     s_providers = new EncodingProvider[1] { provider };
                     return;
@@ -68,14 +68,14 @@ namespace System.Text
 
         internal static Encoding GetEncodingFromProvider(int codepage)
         {
-            if (s_providers == null)
+            if (s_providers is null)
                 return null;
 
             EncodingProvider[] providers = s_providers;
             foreach (EncodingProvider provider in providers)
             {
                 Encoding enc = provider.GetEncoding(codepage);
-                if (enc != null)
+                if (enc is object)
                     return enc;
             }
 
@@ -84,14 +84,14 @@ namespace System.Text
 
         internal static Encoding GetEncodingFromProvider(string encodingName)
         {
-            if (s_providers == null)
+            if (s_providers is null)
                 return null;
 
             EncodingProvider[] providers = s_providers;
             foreach (EncodingProvider provider in providers)
             {
                 Encoding enc = provider.GetEncoding(encodingName);
-                if (enc != null)
+                if (enc is object)
                     return enc;
             }
 
@@ -100,14 +100,14 @@ namespace System.Text
 
         internal static Encoding GetEncodingFromProvider(int codepage, EncoderFallback enc, DecoderFallback dec)
         {
-            if (s_providers == null)
+            if (s_providers is null)
                 return null;
 
             EncodingProvider[] providers = s_providers;
             foreach (EncodingProvider provider in providers)
             {
                 Encoding encing = provider.GetEncoding(codepage, enc, dec);
-                if (encing != null)
+                if (encing is object)
                     return encing;
             }
 
@@ -116,14 +116,14 @@ namespace System.Text
 
         internal static Encoding GetEncodingFromProvider(string encodingName, EncoderFallback enc, DecoderFallback dec)
         {
-            if (s_providers == null)
+            if (s_providers is null)
                 return null;
 
             EncodingProvider[] providers = s_providers;
             foreach (EncodingProvider provider in providers)
             {
                 Encoding encoding = provider.GetEncoding(encodingName, enc, dec);
-                if (encoding != null)
+                if (encoding is object)
                     return encoding;
             }
 

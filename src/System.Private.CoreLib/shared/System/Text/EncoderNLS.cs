@@ -45,14 +45,14 @@ namespace System.Text
         public override void Reset()
         {
             _charLeftOver = (char)0;
-            if (_fallbackBuffer != null)
+            if (_fallbackBuffer is object)
                 _fallbackBuffer.Reset();
         }
 
         public override unsafe int GetByteCount(char[] chars, int index, int count, bool flush)
         {
             // Validate input parameters
-            if (chars == null)
+            if (chars is null)
                 throw new ArgumentNullException(nameof(chars),
                       SR.ArgumentNull_Array);
 
@@ -93,8 +93,8 @@ namespace System.Text
                                               byte[] bytes, int byteIndex, bool flush)
         {
             // Validate parameters
-            if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
+            if (chars is null || bytes is null)
+                throw new ArgumentNullException((chars is null ? nameof(chars) : nameof(bytes)),
                       SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
@@ -143,8 +143,8 @@ namespace System.Text
                                               out int charsUsed, out int bytesUsed, out bool completed)
         {
             // Validate parameters
-            if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
+            if (chars is null || bytes is null)
+                throw new ArgumentNullException((chars is null ? nameof(chars) : nameof(bytes)),
                       SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
@@ -199,7 +199,7 @@ namespace System.Text
 
             // Its completed if they've used what they wanted AND if they didn't want flush or if we are flushed
             completed = (charsUsed == charCount) && (!flush || !this.HasState) &&
-                (_fallbackBuffer == null || _fallbackBuffer.Remaining == 0);
+                (_fallbackBuffer is null || _fallbackBuffer.Remaining == 0);
 
             // Our data thingys are now full, we can return
         }

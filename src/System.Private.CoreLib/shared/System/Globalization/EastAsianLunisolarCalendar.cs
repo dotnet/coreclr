@@ -98,7 +98,7 @@ namespace System.Globalization
         {
             EraInfo[] mEraInfo = CalEraInfo;
             //ChineseLunisolarCalendar does not has m_EraInfo it is going to retuen null
-            if (mEraInfo == null)
+            if (mEraInfo is null)
             {
                 return MinCalendarYear;
             }
@@ -127,7 +127,7 @@ namespace System.Globalization
         {
             EraInfo[] mEraInfo = CalEraInfo;
             //ChineseLunisolarCalendar does not has m_EraInfo it is going to retuen null
-            if (mEraInfo == null)
+            if (mEraInfo is null)
             {
                 return MaxCalendarYear;
             }

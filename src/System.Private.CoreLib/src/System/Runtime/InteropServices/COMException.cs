@@ -52,20 +52,20 @@ namespace System.Runtime.InteropServices
             string _className = GetType().ToString();
             s = _className + " (0x" + HResult.ToString("X8", CultureInfo.InvariantCulture) + ")";
 
-            if (!(message == null || message.Length <= 0))
+            if (!(message is null || message.Length <= 0))
             {
                 s = s + ": " + message;
             }
 
             Exception _innerException = InnerException;
 
-            if (_innerException != null)
+            if (_innerException is object)
             {
                 s = s + " ---> " + _innerException.ToString();
             }
 
 
-            if (StackTrace != null)
+            if (StackTrace is object)
                 s += Environment.NewLine + StackTrace;
 
             return s;

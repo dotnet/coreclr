@@ -34,7 +34,7 @@ namespace System.Diagnostics.Tracing
         /// </param>
         public EventSourceActivity(EventSource eventSource)
         {
-            if (eventSource == null)
+            if (eventSource is null)
                 throw new ArgumentNullException(nameof(eventSource));
 
             this.eventSource = eventSource;
@@ -269,7 +269,7 @@ namespace System.Diagnostics.Tracing
         {
             if (this.state != State.Started)
                 throw new InvalidOperationException();      // Write after stop. 
-            if (eventName == null)
+            if (eventName is null)
                 throw new ArgumentNullException();
 
             eventSource.Write(eventName, ref options, ref this.activityId, ref s_empty, ref data);
@@ -285,7 +285,7 @@ namespace System.Diagnostics.Tracing
                 return;
 
             this.state = State.Stopped;
-            if (eventName == null)
+            if (eventName is null)
             {
                 eventName = this.eventName;
                 if (eventName.EndsWith("Start"))
@@ -305,7 +305,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// If eventName is non-null then we logged a start event 
         /// </summary>
-        private bool StartEventWasFired { get { return eventName != null; } }
+        private bool StartEventWasFired { get { return eventName is object; } }
 
         private readonly EventSource eventSource;
         private EventSourceOptions startStopOptions;

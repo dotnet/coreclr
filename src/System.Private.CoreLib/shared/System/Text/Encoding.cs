@@ -221,7 +221,7 @@ namespace System.Text
         public static byte[] Convert(Encoding srcEncoding, Encoding dstEncoding,
             byte[] bytes)
         {
-            if (bytes == null)
+            if (bytes is null)
                 throw new ArgumentNullException(nameof(bytes));
 
             return Convert(srcEncoding, dstEncoding, bytes, 0, bytes.Length);
@@ -235,12 +235,12 @@ namespace System.Text
         public static byte[] Convert(Encoding srcEncoding, Encoding dstEncoding,
             byte[] bytes, int index, int count)
         {
-            if (srcEncoding == null || dstEncoding == null)
+            if (srcEncoding is null || dstEncoding is null)
             {
-                throw new ArgumentNullException((srcEncoding == null ? nameof(srcEncoding) : nameof(dstEncoding)),
+                throw new ArgumentNullException((srcEncoding is null ? nameof(srcEncoding) : nameof(dstEncoding)),
                     SR.ArgumentNull_Array);
             }
-            if (bytes == null)
+            if (bytes is null)
             {
                 throw new ArgumentNullException(nameof(bytes),
                     SR.ArgumentNull_Array);
@@ -258,7 +258,7 @@ namespace System.Text
         public static Encoding GetEncoding(int codepage)
         {
             Encoding result = EncodingProvider.GetEncodingFromProvider(codepage);
-            if (result != null)
+            if (result is object)
                 return result;
 
             //
@@ -309,7 +309,7 @@ namespace System.Text
         {
             Encoding baseEncoding = EncodingProvider.GetEncodingFromProvider(codepage, encoderFallback, decoderFallback);
 
-            if (baseEncoding != null)
+            if (baseEncoding is object)
                 return baseEncoding;
 
             // Get the default encoding (which is cached and read only)
@@ -328,7 +328,7 @@ namespace System.Text
         public static Encoding GetEncoding(string name)
         {
             Encoding baseEncoding = EncodingProvider.GetEncodingFromProvider(name);
-            if (baseEncoding != null)
+            if (baseEncoding is object)
                 return baseEncoding;
 
             //
@@ -346,7 +346,7 @@ namespace System.Text
             EncoderFallback encoderFallback, DecoderFallback decoderFallback)
         {
             Encoding baseEncoding = EncodingProvider.GetEncodingFromProvider(name, encoderFallback, decoderFallback);
-            if (baseEncoding != null)
+            if (baseEncoding is object)
                 return baseEncoding;
 
             //
@@ -373,10 +373,10 @@ namespace System.Text
 
         private void GetDataItem()
         {
-            if (_dataItem == null)
+            if (_dataItem is null)
             {
                 _dataItem = EncodingTable.GetCodePageDataItem(_codePage);
-                if (_dataItem == null)
+                if (_dataItem is null)
                 {
                     throw new NotSupportedException(SR.Format(SR.NotSupported_NoCodepageData, _codePage));
                 }
@@ -390,7 +390,7 @@ namespace System.Text
         {
             get
             {
-                if (_dataItem == null)
+                if (_dataItem is null)
                 {
                     GetDataItem();
                 }
@@ -405,7 +405,7 @@ namespace System.Text
             get
             {
                 string encodingName = GetLocalizedEncodingNameResource(this.CodePage);
-                if (encodingName == null)
+                if (encodingName is null)
                 {
                     throw new NotSupportedException(SR.Format(SR.MissingEncodingNameResource, this.CodePage));
                 }
@@ -418,7 +418,7 @@ namespace System.Text
                     // in this case. This currently returns the English name of the encoding from a
                     // static data table.
                     encodingName = EncodingTable.GetCodePageDataItem(this.CodePage).EnglishName;
-                    if (encodingName == null)
+                    if (encodingName is null)
                     {
                         throw new NotSupportedException(SR.Format(SR.MissingEncodingNameResource, this.WebName, this.CodePage));
                     }
@@ -458,7 +458,7 @@ namespace System.Text
         {
             get
             {
-                if (_dataItem == null)
+                if (_dataItem is null)
                 {
                     GetDataItem();
                 }
@@ -471,7 +471,7 @@ namespace System.Text
         {
             get
             {
-                if (_dataItem == null)
+                if (_dataItem is null)
                 {
                     GetDataItem();
                 }
@@ -485,7 +485,7 @@ namespace System.Text
         {
             get
             {
-                if (_dataItem == null)
+                if (_dataItem is null)
                 {
                     GetDataItem();
                 }
@@ -500,7 +500,7 @@ namespace System.Text
         {
             get
             {
-                if (_dataItem == null)
+                if (_dataItem is null)
                 {
                     GetDataItem();
                 }
@@ -514,7 +514,7 @@ namespace System.Text
         {
             get
             {
-                if (_dataItem == null)
+                if (_dataItem is null)
                 {
                     GetDataItem();
                 }
@@ -528,7 +528,7 @@ namespace System.Text
         {
             get
             {
-                if (_dataItem == null)
+                if (_dataItem is null)
                 {
                     GetDataItem();
                 }
@@ -544,7 +544,7 @@ namespace System.Text
         {
             get
             {
-                if (_dataItem == null)
+                if (_dataItem is null)
                 {
                     GetDataItem();
                 }
@@ -575,7 +575,7 @@ namespace System.Text
                 if (this.IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
 
-                if (value == null)
+                if (value is null)
                     throw new ArgumentNullException(nameof(value));
 
                 encoderFallback = value;
@@ -595,7 +595,7 @@ namespace System.Text
                 if (this.IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
 
-                if (value == null)
+                if (value is null)
                     throw new ArgumentNullException(nameof(value));
 
                 decoderFallback = value;
@@ -637,7 +637,7 @@ namespace System.Text
         //
         public virtual int GetByteCount(char[] chars)
         {
-            if (chars == null)
+            if (chars is null)
             {
                 throw new ArgumentNullException(nameof(chars),
                     SR.ArgumentNull_Array);
@@ -648,7 +648,7 @@ namespace System.Text
 
         public virtual int GetByteCount(string s)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
 
             char[] chars = s.ToCharArray();
@@ -664,7 +664,7 @@ namespace System.Text
         //
         public int GetByteCount(string s, int index, int count)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s),
                     SR.ArgumentNull_String);
             if (index < 0)
@@ -734,7 +734,7 @@ namespace System.Text
         //
         public virtual byte[] GetBytes(char[] chars)
         {
-            if (chars == null)
+            if (chars is null)
             {
                 throw new ArgumentNullException(nameof(chars),
                     SR.ArgumentNull_Array);
@@ -769,7 +769,7 @@ namespace System.Text
         //
         public virtual byte[] GetBytes(string s)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s),
                     SR.ArgumentNull_String);
 
@@ -785,7 +785,7 @@ namespace System.Text
         //
         public byte[] GetBytes(string s, int index, int count)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s),
                     SR.ArgumentNull_String);
             if (index < 0)
@@ -820,7 +820,7 @@ namespace System.Text
         public virtual int GetBytes(string s, int charIndex, int charCount,
                                        byte[] bytes, int byteIndex)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             return GetBytes(s.ToCharArray(), charIndex, charCount, bytes, byteIndex);
         }
@@ -907,7 +907,7 @@ namespace System.Text
         //
         public virtual int GetCharCount(byte[] bytes)
         {
-            if (bytes == null)
+            if (bytes is null)
             {
                 throw new ArgumentNullException(nameof(bytes),
                     SR.ArgumentNull_Array);
@@ -963,7 +963,7 @@ namespace System.Text
         //
         public virtual char[] GetChars(byte[] bytes)
         {
-            if (bytes == null)
+            if (bytes is null)
             {
                 throw new ArgumentNullException(nameof(bytes),
                     SR.ArgumentNull_Array);
@@ -1186,7 +1186,7 @@ namespace System.Text
         //
         public virtual string GetString(byte[] bytes)
         {
-            if (bytes == null)
+            if (bytes is null)
                 throw new ArgumentNullException(nameof(bytes),
                     SR.ArgumentNull_Array);
 
@@ -1244,7 +1244,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             Encoding that = value as Encoding;
-            if (that != null)
+            if (that is object)
                 return (_codePage == that._codePage) &&
                        (EncoderFallback.Equals(that.EncoderFallback)) &&
                        (DecoderFallback.Equals(that.DecoderFallback));
@@ -1279,9 +1279,9 @@ namespace System.Text
 
         internal void ThrowBytesOverflow(EncoderNLS encoder, bool nothingEncoded)
         {
-            if (encoder == null || encoder._throwOnOverflow || nothingEncoded)
+            if (encoder is null || encoder._throwOnOverflow || nothingEncoded)
             {
-                if (encoder != null && encoder.InternalHasFallbackBuffer)
+                if (encoder is object && encoder.InternalHasFallbackBuffer)
                     encoder.FallbackBuffer.InternalReset();
                 // Special message to include fallback type in case fallback's GetMaxCharCount is broken
                 // This happens if user has implemented an encoder fallback with a broken GetMaxCharCount
@@ -1302,9 +1302,9 @@ namespace System.Text
 
         internal void ThrowCharsOverflow(DecoderNLS decoder, bool nothingDecoded)
         {
-            if (decoder == null || decoder._throwOnOverflow || nothingDecoded)
+            if (decoder is null || decoder._throwOnOverflow || nothingDecoded)
             {
-                if (decoder != null && decoder.InternalHasFallbackBuffer)
+                if (decoder is object && decoder.InternalHasFallbackBuffer)
                     decoder.FallbackBuffer.InternalReset();
 
                 // Special message to include fallback type in case fallback's GetMaxCharCount is broken
@@ -1482,7 +1482,7 @@ namespace System.Text
                 _bytes = byteStart;
                 _byteEnd = byteStart + byteCount;
 
-                if (_decoder == null)
+                if (_decoder is null)
                     _fallbackBuffer = enc.DecoderFallback.CreateFallbackBuffer();
                 else
                     _fallbackBuffer = _decoder.FallbackBuffer;
@@ -1655,7 +1655,7 @@ namespace System.Text
                 _byteStart = inByteStart;
                 _byteEnd = inByteStart + inByteCount;
 
-                if (_encoder == null)
+                if (_encoder is null)
                     this.fallbackBuffer = _enc.EncoderFallback.CreateFallbackBuffer();
                 else
                 {

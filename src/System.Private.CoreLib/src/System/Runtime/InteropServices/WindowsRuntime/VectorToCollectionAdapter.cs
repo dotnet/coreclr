@@ -75,7 +75,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // void CopyTo(T[] array, int arrayIndex)
         internal void CopyTo<T>(T[] array, int arrayIndex)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
 
             if (arrayIndex < 0)

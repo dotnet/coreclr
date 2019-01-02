@@ -27,7 +27,7 @@ namespace System.Diagnostics.Tracing.Internal
         public static string GetResourceString(string key, params object[] args)
         {
             string fmt = rm.GetString(key);
-            if (fmt != null)
+            if (fmt is object)
                 return string.Format(fmt, args);
 
             string sargs = string.Empty;
@@ -283,7 +283,7 @@ namespace Microsoft.Reflection
                     break;
                 }
             }
-            return ti == null ? null : ti.AsType();
+            return ti is null ? null : ti.AsType();
         }
         public static TypeCode GetTypeCode(this Type type) 
         {

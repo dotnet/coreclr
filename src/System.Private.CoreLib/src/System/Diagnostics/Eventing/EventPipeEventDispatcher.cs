@@ -135,7 +135,7 @@ namespace System.Diagnostics.Tracing
         {
             Debug.Assert(Monitor.IsEntered(m_dispatchControlLock));
 
-            if (m_dispatchTask == null)
+            if (m_dispatchTask is null)
             {
                 m_stopDispatchTask = false;
                 m_dispatchTask = Task.Factory.StartNew(DispatchEventsToEventListeners, TaskCreationOptions.LongRunning);
@@ -146,7 +146,7 @@ namespace System.Diagnostics.Tracing
         {
             Debug.Assert(Monitor.IsEntered(m_dispatchControlLock));
 
-            if(m_dispatchTask != null)
+            if(m_dispatchTask is object)
             {
                 m_stopDispatchTask = true;
                 m_dispatchTask.Wait();

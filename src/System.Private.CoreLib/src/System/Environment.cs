@@ -177,7 +177,7 @@ namespace System
              * So our best bet is to simply use the commandLine that was used to invoke the process.
              * in case it is present.
              */
-            if (s_CommandLineArgs != null)
+            if (s_CommandLineArgs is object)
                 return (string[])s_CommandLineArgs.Clone();
 
             return GetCommandLineArgsNative();
@@ -347,7 +347,7 @@ namespace System
             // before the EE's ExecuteMainMethod has had a chance to set up the
             // apartment state.  -- 
             StackTrace st;
-            if (e == null)
+            if (e is null)
                 st = new StackTrace(needFileInfo);
             else
                 st = new StackTrace(e, needFileInfo);
@@ -379,7 +379,7 @@ namespace System
 
         public static string GetEnvironmentVariable(string variable)
         {
-            if (variable == null)
+            if (variable is null)
             {
                 throw new ArgumentNullException(nameof(variable));
             }
@@ -390,7 +390,7 @@ namespace System
 
         internal static string GetEnvironmentVariable(string variable, EnvironmentVariableTarget target)
         {
-            if (variable == null)
+            if (variable is null)
             {
                 throw new ArgumentNullException(nameof(variable));
             }
@@ -418,7 +418,7 @@ namespace System
 
         private static void ValidateVariableAndValue(string variable, ref string value)
         {
-            if (variable == null)
+            if (variable is null)
             {
                 throw new ArgumentNullException(nameof(variable));
             }
@@ -604,7 +604,7 @@ namespace System
 
             using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: false))
             {
-                if (environmentKey != null)
+                if (environmentKey is object)
                 {
                     foreach (string name in environmentKey.GetValueNames())
                     {
@@ -691,9 +691,9 @@ namespace System
 
             using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: true))
             {
-                if (environmentKey != null)
+                if (environmentKey is object)
                 {
-                    if (value == null)
+                    if (value is null)
                     {
                         environmentKey.DeleteValue(variable, throwOnMissingValue: false);
                     }

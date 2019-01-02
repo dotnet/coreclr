@@ -149,7 +149,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
         public static Calendar ReadOnly(Calendar calendar)
         {
-            if (calendar == null) { throw new ArgumentNullException(nameof(calendar)); }
+            if (calendar is null) { throw new ArgumentNullException(nameof(calendar)); }
             if (calendar.IsReadOnly) { return (calendar); }
 
             Calendar clonedCalendar = (Calendar)(calendar.MemberwiseClone());

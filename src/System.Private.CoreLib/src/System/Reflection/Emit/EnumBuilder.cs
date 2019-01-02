@@ -25,7 +25,7 @@ namespace System.Reflection.Emit
     {
         public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo)
         {
-            if (typeInfo == null) return false;
+            if (typeInfo is null) return false;
             return IsAssignableFrom(typeInfo.AsType());
         }
 
@@ -148,7 +148,7 @@ namespace System.Reflection.Emit
         protected override MethodInfo GetMethodImpl(string name, BindingFlags bindingAttr, Binder binder,
                 CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
         {
-            if (types == null)
+            if (types is null)
                 return m_typeBuilder.GetMethod(name, bindingAttr);
             else
                 return m_typeBuilder.GetMethod(name, bindingAttr, binder, callConvention, types, modifiers);

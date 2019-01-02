@@ -58,7 +58,7 @@ namespace System
         public AggregateException(string message, Exception innerException)
             : base(message, innerException)
         {
-            if (innerException == null)
+            if (innerException is null)
             {
                 throw new ArgumentNullException(nameof(innerException));
             }
@@ -107,7 +107,7 @@ namespace System
         public AggregateException(string message, IEnumerable<Exception> innerExceptions)
             // If it's already an IList, pass that along (a defensive copy will be made in the delegated ctor).  If it's null, just pass along
             // null typed correctly.  Otherwise, create an IList from the enumerable and pass that along. 
-            : this(message, innerExceptions as IList<Exception> ?? (innerExceptions == null ? (List<Exception>)null : new List<Exception>(innerExceptions)))
+            : this(message, innerExceptions as IList<Exception> ?? (innerExceptions is null ? (List<Exception>)null : new List<Exception>(innerExceptions)))
         {
         }
 
@@ -136,9 +136,9 @@ namespace System
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptions"/> is
         /// null.</exception>
         private AggregateException(string message, IList<Exception> innerExceptions)
-            : base(message, innerExceptions != null && innerExceptions.Count > 0 ? innerExceptions[0] : null)
+            : base(message, innerExceptions is object && innerExceptions.Count > 0 ? innerExceptions[0] : null)
         {
-            if (innerExceptions == null)
+            if (innerExceptions is null)
             {
                 throw new ArgumentNullException(nameof(innerExceptions));
             }
@@ -194,7 +194,7 @@ namespace System
             // If it's already an IList, pass that along (a defensive copy will be made in the delegated ctor).  If it's null, just pass along
             // null typed correctly.  Otherwise, create an IList from the enumerable and pass that along. 
             : this(message, innerExceptionInfos as IList<ExceptionDispatchInfo> ??
-                                (innerExceptionInfos == null ?
+                                (innerExceptionInfos is null ?
                                     (List<ExceptionDispatchInfo>)null :
                                     new List<ExceptionDispatchInfo>(innerExceptionInfos)))
         {
@@ -213,10 +213,10 @@ namespace System
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptionInfos"/> is
         /// null.</exception>
         private AggregateException(string message, IList<ExceptionDispatchInfo> innerExceptionInfos)
-            : base(message, innerExceptionInfos != null && innerExceptionInfos.Count > 0 && innerExceptionInfos[0] != null ?
+            : base(message, innerExceptionInfos is object && innerExceptionInfos.Count > 0 && innerExceptionInfos[0] != null ?
                                 innerExceptionInfos[0].SourceException : null)
         {
-            if (innerExceptionInfos == null)
+            if (innerExceptionInfos is null)
             {
                 throw new ArgumentNullException(nameof(innerExceptionInfos));
             }
@@ -229,7 +229,7 @@ namespace System
             for (int i = 0; i < exceptionsCopy.Length; i++)
             {
                 var edi = innerExceptionInfos[i];
-                if (edi != null) exceptionsCopy[i] = edi.SourceException;
+                if (edi is object) exceptionsCopy[i] = edi.SourceException;
 
                 if (exceptionsCopy[i] == null)
                 {
@@ -252,13 +252,13 @@ namespace System
         protected AggregateException(SerializationInfo info, StreamingContext context) :
             base(info, context)
         {
-            if (info == null)
+            if (info is null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
 
             Exception[] innerExceptions = info.GetValue("InnerExceptions", typeof(Exception[])) as Exception[];
-            if (innerExceptions == null)
+            if (innerExceptions is null)
             {
                 throw new SerializationException(SR.AggregateException_DeserializationFailure);
             }
@@ -294,7 +294,7 @@ namespace System
             // Recursively traverse the inner exceptions as long as the inner exception of type AggregateException and has only one inner exception
             Exception back = this;
             AggregateException backAsAggregate = this;
-            while (backAsAggregate != null && backAsAggregate.InnerExceptions.Count == 1)
+            while (backAsAggregate is object && backAsAggregate.InnerExceptions.Count == 1)
             {
                 back = back.InnerException;
                 backAsAggregate = back as AggregateException;
@@ -333,7 +333,7 @@ namespace System
         /// null.</exception>
         public void Handle(Func<Exception, bool> predicate)
         {
-            if (predicate == null)
+            if (predicate is null)
             {
                 throw new ArgumentNullException(nameof(predicate));
             }
@@ -345,7 +345,7 @@ namespace System
                 // exceptions (to be rethrown later) and add it.
                 if (!predicate(m_innerExceptions[i]))
                 {
-                    if (unhandledExceptions == null)
+                    if (unhandledExceptions is null)
                     {
                         unhandledExceptions = new List<Exception>();
                     }
@@ -355,7 +355,7 @@ namespace System
             }
 
             // If there are unhandled exceptions remaining, throw them.
-            if (unhandledExceptions != null)
+            if (unhandledExceptions is object)
             {
                 throw new AggregateException(Message, unhandledExceptions);
             }
@@ -394,7 +394,7 @@ namespace System
                 {
                     Exception currentInnerException = currentInnerExceptions[i];
 
-                    if (currentInnerException == null)
+                    if (currentInnerException is null)
                     {
                         continue;
                     }
@@ -403,7 +403,7 @@ namespace System
 
                     // If this exception is an aggregate, keep it around for later.  Otherwise,
                     // simply add it to the list of flattened exceptions to be returned.
-                    if (currentInnerAsAggregate != null)
+                    if (currentInnerAsAggregate is object)
                     {
                         exceptionsToFlatten.Add(currentInnerAsAggregate);
                     }

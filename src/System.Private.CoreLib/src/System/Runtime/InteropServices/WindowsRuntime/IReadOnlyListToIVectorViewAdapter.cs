@@ -94,7 +94,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             EnsureIndexInt32(startIndex, _this.Count);
 
-            if (items == null)
+            if (items is null)
             {
                 return 0;
             }

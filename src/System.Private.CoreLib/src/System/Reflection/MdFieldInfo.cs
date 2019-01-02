@@ -47,7 +47,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_name == null)
+                if (m_name is null)
                     m_name = GetRuntimeModule().MetadataImport.GetName(m_tkField).ToString();
 
                 return m_name;
@@ -112,7 +112,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_fieldType == null)
+                if (m_fieldType is null)
                 {
                     ConstArray fieldMarshal = GetRuntimeModule().MetadataImport.GetSigOfFieldDef(m_tkField);
 

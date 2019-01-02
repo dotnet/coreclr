@@ -80,9 +80,9 @@ namespace System
 
         private void SetMessageField()
         {
-            if (_message == null)
+            if (_message is null)
             {
-                if ((_fileName == null) &&
+                if ((_fileName is null) &&
                     (HResult == HResults.COR_E_EXCEPTION))
                     _message = SR.Arg_BadImageFormatException;
 
@@ -100,18 +100,18 @@ namespace System
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (_fileName != null && _fileName.Length != 0)
+            if (_fileName is object && _fileName.Length != 0)
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, _fileName);
 
-            if (InnerException != null)
+            if (InnerException is object)
                 s = s + " ---> " + InnerException.ToString();
 
-            if (StackTrace != null)
+            if (StackTrace is object)
                 s += Environment.NewLine + StackTrace;
 
-            if (_fusionLog != null)
+            if (_fusionLog is object)
             {
-                if (s == null)
+                if (s is null)
                     s = " ";
                 s += Environment.NewLine;
                 s += Environment.NewLine;

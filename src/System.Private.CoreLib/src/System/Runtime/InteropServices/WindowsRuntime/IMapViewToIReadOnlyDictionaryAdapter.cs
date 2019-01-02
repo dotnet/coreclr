@@ -128,7 +128,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public ReadOnlyDictionaryKeyCollection(IReadOnlyDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary == null)
+            if (dictionary is null)
                 throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
@@ -137,7 +137,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         /*
         public void CopyTo(TKey[] array, int index)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
@@ -182,7 +182,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public ReadOnlyDictionaryKeyEnumerator(IReadOnlyDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary == null)
+            if (dictionary is null)
                 throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
@@ -223,7 +223,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public ReadOnlyDictionaryValueCollection(IReadOnlyDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary == null)
+            if (dictionary is null)
                 throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
@@ -232,7 +232,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         /*
         public void CopyTo(TValue[] array, int index)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
@@ -281,7 +281,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public ReadOnlyDictionaryValueEnumerator(IReadOnlyDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary == null)
+            if (dictionary is null)
                 throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;

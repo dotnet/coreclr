@@ -69,7 +69,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_signature == null)
+                if (m_signature is null)
                 {
                     PropertyAttributes flags;
                     ConstArray sig;
@@ -148,12 +148,12 @@ namespace System.Reflection
 
         public override object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -161,12 +161,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
@@ -184,7 +184,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_name == null)
+                if (m_name is null)
                     m_name = new MdUtf8String(m_utf8name).ToString();
 
                 return m_name;
@@ -315,7 +315,7 @@ namespace System.Reflection
             // @History - Logic ported from RTM
 
             // No need to lock because we don't guarantee the uniqueness of ParameterInfo objects
-            if (m_parameters == null)
+            if (m_parameters is null)
             {
                 int numParams = 0;
                 ParameterInfo[] methParams = null;
@@ -421,7 +421,7 @@ namespace System.Reflection
 
             object[] args = null;
 
-            if (index != null)
+            if (index is object)
             {
                 args = new object[index.Length + 1];
 

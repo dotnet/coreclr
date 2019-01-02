@@ -131,7 +131,7 @@ namespace System
         //
         public int CompareTo(object value)
         {
-            if (value == null)
+            if (value is null)
             {
                 return 1;
             }
@@ -171,7 +171,7 @@ namespace System
 
         public static char Parse(string s)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -186,7 +186,7 @@ namespace System
         public static bool TryParse(string s, out char result)
         {
             result = '\0';
-            if (s == null)
+            if (s is null)
             {
                 return false;
             }
@@ -361,7 +361,7 @@ namespace System
         // <;<;Not fully implemented>;>;
         public static char ToUpper(char c, CultureInfo culture)
         {
-            if (culture == null)
+            if (culture is null)
                 throw new ArgumentNullException(nameof(culture));
             return culture.TextInfo.ToUpper(c);
         }
@@ -393,7 +393,7 @@ namespace System
         // <;<;Not fully implemented>;>;
         public static char ToLower(char c, CultureInfo culture)
         {
-            if (culture == null)
+            if (culture is null)
                 throw new ArgumentNullException(nameof(culture));
             return culture.TextInfo.ToLower(c);
         }
@@ -511,7 +511,7 @@ namespace System
 
         public static bool IsControl(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -528,7 +528,7 @@ namespace System
 
         public static bool IsDigit(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -544,7 +544,7 @@ namespace System
 
         public static bool IsLetter(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -565,7 +565,7 @@ namespace System
 
         public static bool IsLetterOrDigit(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -581,7 +581,7 @@ namespace System
 
         public static bool IsLower(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -624,7 +624,7 @@ namespace System
 
         public static bool IsNumber(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -652,7 +652,7 @@ namespace System
 
         public static bool IsPunctuation(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -694,7 +694,7 @@ namespace System
 
         public static bool IsSeparator(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -715,7 +715,7 @@ namespace System
 
         public static bool IsSurrogate(string s, int index)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -746,7 +746,7 @@ namespace System
 
         public static bool IsSymbol(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -763,7 +763,7 @@ namespace System
 
         public static bool IsUpper(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -784,7 +784,7 @@ namespace System
 
         public static bool IsWhiteSpace(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -810,7 +810,7 @@ namespace System
 
         public static UnicodeCategory GetUnicodeCategory(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -830,7 +830,7 @@ namespace System
 
         public static double GetNumericValue(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -850,7 +850,7 @@ namespace System
 
         public static bool IsHighSurrogate(string s, int index)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -871,7 +871,7 @@ namespace System
 
         public static bool IsLowSurrogate(string s, int index)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -887,7 +887,7 @@ namespace System
          ==============================================================================*/
         public static bool IsSurrogatePair(string s, int index)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -958,7 +958,7 @@ namespace System
 
         public static int ConvertToUtf32(string s, int index)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }

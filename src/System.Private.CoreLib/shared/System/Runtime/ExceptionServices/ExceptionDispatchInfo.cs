@@ -29,7 +29,7 @@ namespace System.Runtime.ExceptionServices
         // needed to be propagated when the exception is "rethrown" on a different thread.
         public static ExceptionDispatchInfo Capture(Exception source)
         {
-            if (source == null)
+            if (source is null)
             {
                 throw new ArgumentNullException(nameof(source));
             }

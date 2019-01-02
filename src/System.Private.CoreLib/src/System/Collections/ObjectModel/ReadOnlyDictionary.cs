@@ -29,7 +29,7 @@ namespace System.Collections.ObjectModel
 
         public ReadOnlyDictionary(IDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary == null)
+            if (dictionary is null)
             {
                 throw new ArgumentNullException(nameof(dictionary));
             }
@@ -45,7 +45,7 @@ namespace System.Collections.ObjectModel
         {
             get
             {
-                if (m_keys == null)
+                if (m_keys is null)
                 {
                     m_keys = new KeyCollection(m_dictionary.Keys);
                 }
@@ -57,7 +57,7 @@ namespace System.Collections.ObjectModel
         {
             get
             {
-                if (m_values == null)
+                if (m_values is null)
                 {
                     m_values = new ValueCollection(m_dictionary.Values);
                 }
@@ -188,7 +188,7 @@ namespace System.Collections.ObjectModel
 
         private static bool IsCompatibleKey(object key)
         {
-            if (key == null)
+            if (key is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
@@ -213,7 +213,7 @@ namespace System.Collections.ObjectModel
         IDictionaryEnumerator IDictionary.GetEnumerator()
         {
             IDictionary d = m_dictionary as IDictionary;
-            if (d != null)
+            if (d is object)
             {
                 return d.GetEnumerator();
             }
@@ -269,7 +269,7 @@ namespace System.Collections.ObjectModel
 
         void ICollection.CopyTo(Array array, int index)
         {
-            if (array == null)
+            if (array is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
@@ -295,14 +295,14 @@ namespace System.Collections.ObjectModel
             }
 
             KeyValuePair<TKey, TValue>[] pairs = array as KeyValuePair<TKey, TValue>[];
-            if (pairs != null)
+            if (pairs is object)
             {
                 m_dictionary.CopyTo(pairs, index);
             }
             else
             {
                 DictionaryEntry[] dictEntryArray = array as DictionaryEntry[];
-                if (dictEntryArray != null)
+                if (dictEntryArray is object)
                 {
                     foreach (var item in m_dictionary)
                     {
@@ -312,7 +312,7 @@ namespace System.Collections.ObjectModel
                 else
                 {
                     object[] objects = array as object[];
-                    if (objects == null)
+                    if (objects is null)
                     {
                         ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                     }
@@ -341,10 +341,10 @@ namespace System.Collections.ObjectModel
         {
             get
             {
-                if (m_syncRoot == null)
+                if (m_syncRoot is null)
                 {
                     ICollection c = m_dictionary as ICollection;
-                    if (c != null)
+                    if (c is object)
                     {
                         m_syncRoot = c.SyncRoot;
                     }
@@ -430,7 +430,7 @@ namespace System.Collections.ObjectModel
 
             internal KeyCollection(ICollection<TKey> collection)
             {
-                if (collection == null)
+                if (collection is null)
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
                 }
@@ -511,10 +511,10 @@ namespace System.Collections.ObjectModel
             {
                 get
                 {
-                    if (m_syncRoot == null)
+                    if (m_syncRoot is null)
                     {
                         ICollection c = m_collection as ICollection;
-                        if (c != null)
+                        if (c is object)
                         {
                             m_syncRoot = c.SyncRoot;
                         }
@@ -539,7 +539,7 @@ namespace System.Collections.ObjectModel
 
             internal ValueCollection(ICollection<TValue> collection)
             {
-                if (collection == null)
+                if (collection is null)
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
                 }
@@ -620,10 +620,10 @@ namespace System.Collections.ObjectModel
             {
                 get
                 {
-                    if (m_syncRoot == null)
+                    if (m_syncRoot is null)
                     {
                         ICollection c = m_collection as ICollection;
-                        if (c != null)
+                        if (c is object)
                         {
                             m_syncRoot = c.SyncRoot;
                         }
@@ -648,7 +648,7 @@ namespace System.Collections.ObjectModel
         // Abstracted away to avoid redundant implementations.
         internal static void CopyToNonGenericICollectionHelper<T>(ICollection<T> collection, Array array, int index)
         {
-            if (array == null)
+            if (array is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
@@ -675,14 +675,14 @@ namespace System.Collections.ObjectModel
 
             // Easy out if the ICollection<T> implements the non-generic ICollection
             ICollection nonGenericCollection = collection as ICollection;
-            if (nonGenericCollection != null)
+            if (nonGenericCollection is object)
             {
                 nonGenericCollection.CopyTo(array, index);
                 return;
             }
 
             T[] items = array as T[];
-            if (items != null)
+            if (items is object)
             {
                 collection.CopyTo(items, index);
             }
@@ -706,7 +706,7 @@ namespace System.Collections.ObjectModel
                 // widening of primitive types here.
                 //
                 object[] objects = array as object[];
-                if (objects == null)
+                if (objects is null)
                 {
                     ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }

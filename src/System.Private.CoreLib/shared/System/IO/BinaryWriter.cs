@@ -50,9 +50,9 @@ namespace System.IO
 
         public BinaryWriter(Stream output, Encoding encoding, bool leaveOpen)
         {
-            if (output == null)
+            if (output is null)
                 throw new ArgumentNullException(nameof(output));
-            if (encoding == null)
+            if (encoding is null)
                 throw new ArgumentNullException(nameof(encoding));
             if (!output.CanWrite)
                 throw new ArgumentException(SR.Argument_StreamNotWritable);
@@ -173,7 +173,7 @@ namespace System.IO
         // 
         public virtual void Write(byte[] buffer)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer));
             OutStream.Write(buffer, 0, buffer.Length);
         }
@@ -214,7 +214,7 @@ namespace System.IO
         // 
         public virtual void Write(char[] chars)
         {
-            if (chars == null)
+            if (chars is null)
                 throw new ArgumentNullException(nameof(chars));
 
             byte[] bytes = _encoding.GetBytes(chars, 0, chars.Length);
@@ -356,13 +356,13 @@ namespace System.IO
         // 
         public unsafe virtual void Write(string value)
         {
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
             int len = _encoding.GetByteCount(value);
             Write7BitEncodedInt(len);
 
-            if (_largeByteBuffer == null)
+            if (_largeByteBuffer is null)
             {
                 _largeByteBuffer = new byte[LargeByteBufferSize];
                 _maxChars = _largeByteBuffer.Length / _encoding.GetMaxByteCount(1);

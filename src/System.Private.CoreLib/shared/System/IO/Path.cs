@@ -47,7 +47,7 @@ namespace System.IO
         // is null, any existing extension is removed from path.
         public static string ChangeExtension(string path, string extension)
         {
-            if (path != null)
+            if (path is object)
             {
                 string s = path;
                 for (int i = path.Length - 1; i >= 0; i--)
@@ -61,7 +61,7 @@ namespace System.IO
                     if (PathInternal.IsDirectorySeparator(ch)) break;
                 }
 
-                if (extension != null && path.Length != 0)
+                if (extension is object && path.Length != 0)
                 {
                     s = (extension.Length == 0 || extension[0] != '.') ?
                         s + "." + extension :
@@ -86,7 +86,7 @@ namespace System.IO
         /// </remarks>
         public static string GetDirectoryName(string path)
         {
-            if (path == null || PathInternal.IsEffectivelyEmpty(path.AsSpan()))
+            if (path is null || PathInternal.IsEffectivelyEmpty(path.AsSpan()))
                 return null;
 
             int end = GetDirectoryNameOffset(path.AsSpan());
@@ -134,7 +134,7 @@ namespace System.IO
         /// </summary>
         public static string GetExtension(string path)
         {
-            if (path == null)
+            if (path is null)
                 return null;
 
             return GetExtension(path.AsSpan()).ToString();
@@ -173,7 +173,7 @@ namespace System.IO
         /// </summary>
         public static string GetFileName(string path)
         {
-            if (path == null)
+            if (path is null)
                 return null;
 
             ReadOnlySpan<char> result = GetFileName(path.AsSpan());
@@ -204,7 +204,7 @@ namespace System.IO
 
         public static string GetFileNameWithoutExtension(string path)
         {
-            if (path == null)
+            if (path is null)
                 return null;
 
             ReadOnlySpan<char> result = GetFileNameWithoutExtension(path.AsSpan());
@@ -261,7 +261,7 @@ namespace System.IO
         /// </exception>
         public static bool IsPathFullyQualified(string path)
         {
-            if (path == null)
+            if (path is null)
                 throw new ArgumentNullException(nameof(path));
 
             return IsPathFullyQualified(path.AsSpan());
@@ -278,7 +278,7 @@ namespace System.IO
         /// </summary>
         public static bool HasExtension(string path)
         {
-            if (path != null)
+            if (path is object)
             {
                 return HasExtension(path.AsSpan());
             }
@@ -326,7 +326,7 @@ namespace System.IO
 
         public static string Combine(params string[] paths)
         {
-            if (paths == null)
+            if (paths is null)
             {
                 throw new ArgumentNullException(nameof(paths));
             }

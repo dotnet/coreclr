@@ -54,13 +54,13 @@ namespace System.IO
 
         private void SetMessageField()
         {
-            if (_message == null)
+            if (_message is null)
             {
-                if ((FileName == null) &&
+                if ((FileName is null) &&
                     (HResult == System.HResults.COR_E_EXCEPTION))
                     _message = SR.IO_FileNotFound;
 
-                else if (FileName != null)
+                else if (FileName is object)
                     _message = FileLoadException.FormatFileLoadExceptionMessage(FileName, HResult);
             }
         }
@@ -72,18 +72,18 @@ namespace System.IO
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (FileName != null && FileName.Length != 0)
+            if (FileName is object && FileName.Length != 0)
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, FileName);
 
-            if (InnerException != null)
+            if (InnerException is object)
                 s = s + " ---> " + InnerException.ToString();
 
-            if (StackTrace != null)
+            if (StackTrace is object)
                 s += Environment.NewLine + StackTrace;
 
-            if (FusionLog != null)
+            if (FusionLog is object)
             {
-                if (s == null)
+                if (s is null)
                     s = " ";
                 s += Environment.NewLine;
                 s += Environment.NewLine;

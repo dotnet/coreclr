@@ -61,7 +61,7 @@ namespace System.ComponentModel
                     conversionResult = null;
 
                     // lazy init reflection objects
-                    if (s_convertFromInvariantString == null)
+                    if (s_convertFromInvariantString is null)
                     {
                         Type typeDescriptorType = Type.GetType("System.ComponentModel.TypeDescriptor, System.ComponentModel.TypeConverter", throwOnError: false);
                         Volatile.Write(ref s_convertFromInvariantString, typeDescriptorType is null ? new object() : Delegate.CreateDelegate(typeof(Func<Type, string, object>), typeDescriptorType, "ConvertFromInvariantString", ignoreCase: false));
@@ -227,15 +227,15 @@ namespace System.ComponentModel
 
             DefaultValueAttribute other = obj as DefaultValueAttribute;
 
-            if (other != null)
+            if (other is object)
             {
-                if (Value != null)
+                if (Value is object)
                 {
                     return Value.Equals(other.Value);
                 }
                 else
                 {
-                    return (other.Value == null);
+                    return (other.Value is null);
                 }
             }
             return false;

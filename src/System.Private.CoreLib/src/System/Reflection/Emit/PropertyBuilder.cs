@@ -37,7 +37,7 @@ namespace System.Reflection.Emit
             PropertyToken prToken,        // the metadata token for this property
             TypeBuilder containingType) // the containing type
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
@@ -122,7 +122,7 @@ namespace System.Reflection.Emit
         {
             if (con is null)
                 throw new ArgumentNullException(nameof(con));
-            if (binaryAttribute == null)
+            if (binaryAttribute is null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
 
             m_containingType.ThrowIfCreated();
@@ -137,7 +137,7 @@ namespace System.Reflection.Emit
         // Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
-            if (customBuilder == null)
+            if (customBuilder is null)
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }

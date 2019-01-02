@@ -62,7 +62,7 @@ namespace System.Reflection.Emit
             SignatureHelper sigHelp;
             MdSigCallingConvention intCall;
 
-            if (returnType == null)
+            if (returnType is null)
             {
                 returnType = typeof(void);
             }
@@ -92,7 +92,7 @@ namespace System.Reflection.Emit
             SignatureHelper sigHelp;
             MdSigCallingConvention intCall;
 
-            if (returnType == null)
+            if (returnType is null)
                 returnType = typeof(void);
 
             if (unmanagedCallConv == CallingConvention.Cdecl)
@@ -164,7 +164,7 @@ namespace System.Reflection.Emit
         {
             SignatureHelper sigHelp;
 
-            if (returnType == null)
+            if (returnType is null)
             {
                 returnType = typeof(void);
             }
@@ -183,10 +183,10 @@ namespace System.Reflection.Emit
 
         internal static SignatureHelper GetTypeSigToken(Module module, Type type)
         {
-            if (module == null)
+            if (module is null)
                 throw new ArgumentNullException(nameof(module));
 
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             return new SignatureHelper(module, type);
@@ -243,7 +243,7 @@ namespace System.Reflection.Emit
             m_sigDone = false;
             m_sizeLoc = NO_SIZE_IN_SIG;
 
-            if (m_module == null && mod != null)
+            if (m_module is null && mod is object)
                 throw new ArgumentException(SR.NotSupported_MustBeModuleBuilder);
         }
 
@@ -290,13 +290,13 @@ namespace System.Reflection.Emit
 
             Debug.Assert(clsArgument != null);
 
-            if (optionalCustomModifiers != null)
+            if (optionalCustomModifiers is object)
             {
                 for (int i = 0; i < optionalCustomModifiers.Length; i++)
                 {
                     Type t = optionalCustomModifiers[i];
 
-                    if (t == null)
+                    if (t is null)
                         throw new ArgumentNullException(nameof(optionalCustomModifiers));
 
                     if (t.HasElementType)
@@ -313,13 +313,13 @@ namespace System.Reflection.Emit
                 }
             }
 
-            if (requiredCustomModifiers != null)
+            if (requiredCustomModifiers is object)
             {
                 for (int i = 0; i < requiredCustomModifiers.Length; i++)
                 {
                     Type t = requiredCustomModifiers[i];
 
-                    if (t == null)
+                    if (t is null)
                         throw new ArgumentNullException(nameof(requiredCustomModifiers));
 
                     if (t.HasElementType)
@@ -344,7 +344,7 @@ namespace System.Reflection.Emit
         {
             if (clsArgument.IsGenericParameter)
             {
-                if (clsArgument.DeclaringMethod != null)
+                if (clsArgument.DeclaringMethod is object)
                     AddElementType(CorElementType.ELEMENT_TYPE_MVAR);
                 else
                     AddElementType(CorElementType.ELEMENT_TYPE_VAR);
@@ -466,7 +466,7 @@ namespace System.Reflection.Emit
                 {
                     AddElementType(type);
                 }
-                else if (m_module == null)
+                else if (m_module is null)
                 {
                     InternalAddRuntimeType(clsArgument);
                 }
@@ -772,7 +772,7 @@ namespace System.Reflection.Emit
 
         public void AddArgument(Type argument, bool pinned)
         {
-            if (argument == null)
+            if (argument is null)
                 throw new ArgumentNullException(nameof(argument));
 
             IncrementArgCounts();
@@ -781,19 +781,19 @@ namespace System.Reflection.Emit
 
         public void AddArguments(Type[] arguments, Type[][] requiredCustomModifiers, Type[][] optionalCustomModifiers)
         {
-            if (requiredCustomModifiers != null && (arguments == null || requiredCustomModifiers.Length != arguments.Length))
+            if (requiredCustomModifiers is object && (arguments is null || requiredCustomModifiers.Length != arguments.Length))
                 throw new ArgumentException(SR.Format(SR.Argument_MismatchedArrays, nameof(requiredCustomModifiers), nameof(arguments)));
 
-            if (optionalCustomModifiers != null && (arguments == null || optionalCustomModifiers.Length != arguments.Length))
+            if (optionalCustomModifiers is object && (arguments is null || optionalCustomModifiers.Length != arguments.Length))
                 throw new ArgumentException(SR.Format(SR.Argument_MismatchedArrays, nameof(optionalCustomModifiers), nameof(arguments)));
 
-            if (arguments != null)
+            if (arguments is object)
             {
                 for (int i = 0; i < arguments.Length; i++)
                 {
                     AddArgument(arguments[i],
-                        requiredCustomModifiers == null ? null : requiredCustomModifiers[i],
-                        optionalCustomModifiers == null ? null : optionalCustomModifiers[i]);
+                        requiredCustomModifiers is null ? null : requiredCustomModifiers[i],
+                        optionalCustomModifiers is null ? null : optionalCustomModifiers[i]);
                 }
             }
         }
@@ -803,7 +803,7 @@ namespace System.Reflection.Emit
             if (m_sigDone)
                 throw new ArgumentException(SR.Argument_SigIsFinalized);
 
-            if (argument == null)
+            if (argument is null)
                 throw new ArgumentNullException(nameof(argument));
 
             IncrementArgCounts();

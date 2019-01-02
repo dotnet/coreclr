@@ -51,9 +51,9 @@ namespace System
                 thisResult = ((RtFieldInfo)thisFields[i]).UnsafeGetValue(thisObj);
                 thatResult = ((RtFieldInfo)thisFields[i]).UnsafeGetValue(obj);
 
-                if (thisResult == null)
+                if (thisResult is null)
                 {
-                    if (thatResult != null)
+                    if (thatResult is object)
                         return false;
                 }
                 else

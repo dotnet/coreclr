@@ -85,7 +85,7 @@ namespace System
         // Creates a new GUID initialized to the value represented by the arguments.
         public Guid(int a, short b, short c, byte[] d)
         {
-            if (d == null)
+            if (d is null)
             {
                 throw new ArgumentNullException(nameof(d));
             }
@@ -172,7 +172,7 @@ namespace System
         // then 12) such as: "CA761232-ED42-11CE-BACD-00AA0057B223"
         public Guid(string g)
         {
-            if (g == null)
+            if (g is null)
             {
                 throw new ArgumentNullException(nameof(g));
             }
@@ -185,7 +185,7 @@ namespace System
         }
 
         public static Guid Parse(string input) =>
-            Parse(input != null ? (ReadOnlySpan<char>)input : throw new ArgumentNullException(nameof(input)));
+            Parse(input is object ? (ReadOnlySpan<char>)input : throw new ArgumentNullException(nameof(input)));
 
         public static Guid Parse(ReadOnlySpan<char> input)
         {
@@ -198,7 +198,7 @@ namespace System
 
         public static bool TryParse(string input, out Guid result)
         {
-            if (input == null)
+            if (input is null)
             {
                 result = default;
                 return false;
@@ -224,8 +224,8 @@ namespace System
 
         public static Guid ParseExact(string input, string format) =>
             ParseExact(
-                input != null ? (ReadOnlySpan<char>)input : throw new ArgumentNullException(nameof(input)),
-                format != null ? (ReadOnlySpan<char>)format : throw new ArgumentNullException(nameof(format)));
+                input is object ? (ReadOnlySpan<char>)input : throw new ArgumentNullException(nameof(input)),
+                format is object ? (ReadOnlySpan<char>)format : throw new ArgumentNullException(nameof(format)));
 
         public static Guid ParseExact(ReadOnlySpan<char> input, ReadOnlySpan<char> format)
         {
@@ -271,7 +271,7 @@ namespace System
 
         public static bool TryParseExact(string input, string format, out Guid result)
         {
-            if (input == null)
+            if (input is null)
             {
                 result = default;
                 return false;
@@ -810,7 +810,7 @@ namespace System
         {
             Guid g;
             // Check that o is a Guid first
-            if (o == null || !(o is Guid))
+            if (o is null || !(o is Guid))
                 return false;
             else g = (Guid)o;
 
@@ -834,7 +834,7 @@ namespace System
 
         public int CompareTo(object value)
         {
-            if (value == null)
+            if (value is null)
             {
                 return 1;
             }

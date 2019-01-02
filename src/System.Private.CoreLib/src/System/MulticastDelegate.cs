@@ -43,7 +43,7 @@ namespace System
 
         internal bool InvocationListLogicallyNull()
         {
-            return (_invocationList == null) || (_invocationList is LoaderAllocator) || (_invocationList is System.Reflection.Emit.DynamicResolver);
+            return (_invocationList is null) || (_invocationList is LoaderAllocator) || (_invocationList is System.Reflection.Emit.DynamicResolver);
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
@@ -228,17 +228,17 @@ namespace System
             object[] resultList;
             int followCount = 1;
             object[] followList = dFollow._invocationList as object[];
-            if (followList != null)
+            if (followList is object)
                 followCount = (int)dFollow._invocationCount;
 
             int resultCount;
             object[] invocationList = _invocationList as object[];
-            if (invocationList == null)
+            if (invocationList is null)
             {
                 resultCount = 1 + followCount;
                 resultList = new object[resultCount];
                 resultList[0] = this;
-                if (followList == null)
+                if (followList is null)
                 {
                     resultList[1] = dFollow;
                 }
@@ -257,7 +257,7 @@ namespace System
                 if (resultCount <= invocationList.Length)
                 {
                     resultList = invocationList;
-                    if (followList == null)
+                    if (followList is null)
                     {
                         if (!TrySetSlot(resultList, invocationCount, dFollow))
                             resultList = null;
@@ -275,7 +275,7 @@ namespace System
                     }
                 }
 
-                if (resultList == null)
+                if (resultList is null)
                 {
                     int allocCount = invocationList.Length;
                     while (allocCount < resultCount)
@@ -286,7 +286,7 @@ namespace System
                     for (int i = 0; i < invocationCount; i++)
                         resultList[i] = invocationList[i];
 
-                    if (followList == null)
+                    if (followList is null)
                     {
                         resultList[invocationCount] = dFollow;
                     }
@@ -453,7 +453,7 @@ namespace System
             {
                 var t = _invocationList as Delegate;
 
-                if (t != null)
+                if (t is object)
                 {
                     // this is a secure/wrapper delegate so we need to unwrap and check the inner one
                     return t.GetHashCode();
@@ -461,7 +461,7 @@ namespace System
             }
 
             object[] invocationList = _invocationList as object[];
-            if (invocationList == null)
+            if (invocationList is null)
             {
                 return base.GetHashCode();
             }
@@ -494,7 +494,7 @@ namespace System
                 else
                 {
                     object[] invocationList = _invocationList as object[];
-                    if (invocationList != null)
+                    if (invocationList is object)
                     {
                         int invocationCount = (int)_invocationCount;
                         return ((Delegate)invocationList[invocationCount - 1]).GetTarget();
@@ -502,7 +502,7 @@ namespace System
                     else
                     {
                         Delegate receiver = _invocationList as Delegate;
-                        if (receiver != null)
+                        if (receiver is object)
                             return receiver.GetTarget();
                     }
                 }
@@ -512,17 +512,17 @@ namespace System
 
         protected override MethodInfo GetMethodImpl()
         {
-            if (_invocationCount != (IntPtr)0 && _invocationList != null)
+            if (_invocationCount != (IntPtr)0 && _invocationList is object)
             {
                 // multicast case
                 object[] invocationList = _invocationList as object[];
-                if (invocationList != null)
+                if (invocationList is object)
                 {
                     int index = (int)_invocationCount - 1;
                     return ((Delegate)invocationList[index]).Method;
                 }
                 MulticastDelegate innerDelegate = _invocationList as MulticastDelegate;
-                if (innerDelegate != null)
+                if (innerDelegate is object)
                 {
                     // must be a secure/wrapper delegate
                     return innerDelegate.GetMethodImpl();
@@ -532,7 +532,7 @@ namespace System
             {
                 // we handle unmanaged function pointers here because the generic ones (used for WinRT) would otherwise
                 // be treated as open delegates by the base implementation, resulting in failure to get the MethodInfo
-                if ((_methodBase == null) || !(_methodBase is MethodInfo))
+                if ((_methodBase is null) || !(_methodBase is MethodInfo))
                 {
                     IRuntimeMethodInfo method = FindMethodHandle();
                     RuntimeType declaringType = RuntimeMethodHandle.GetDeclaringType(method);
@@ -563,7 +563,7 @@ namespace System
         [System.Diagnostics.DebuggerNonUserCode]
         private void CtorClosed(object target, IntPtr methodPtr)
         {
-            if (target == null)
+            if (target is null)
                 ThrowNullThisInDelegateToInstance();
             this._target = target;
             this._methodPtr = methodPtr;

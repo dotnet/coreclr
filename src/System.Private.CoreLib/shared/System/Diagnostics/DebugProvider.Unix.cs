@@ -12,7 +12,7 @@ namespace System.Diagnostics
 
         public static void FailCore(string stackTrace, string message, string detailMessage, string errorSource)
         {
-            if (s_FailCore != null)
+            if (s_FailCore is object)
             {
                 s_FailCore(stackTrace, message, detailMessage, errorSource); 
                 return;
@@ -46,7 +46,7 @@ namespace System.Diagnostics
 
         public static void WriteCore(string message)
         {
-            if (s_WriteCore != null)
+            if (s_WriteCore is object)
             {
                 s_WriteCore(message); 
                 return;

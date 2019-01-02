@@ -48,7 +48,7 @@ namespace System.Globalization
 
             string leapHebrewMonthName = null;
             result &= EnumMonthNames(localeName, calendarId, CalendarDataType.MonthNames, out this.saMonthNames, ref leapHebrewMonthName);
-            if (leapHebrewMonthName != null)
+            if (leapHebrewMonthName is object)
             {              
                 // In Hebrew calendar, get the leap month name Adar II and override the non-leap month 7              
                 Debug.Assert(calendarId == CalendarId.HEBREW && saMonthNames.Length == 13);

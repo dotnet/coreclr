@@ -62,7 +62,7 @@ namespace System.IO
 
         public MemoryStream(byte[] buffer, bool writable)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
 
             _buffer = buffer;
@@ -85,7 +85,7 @@ namespace System.IO
 
         public MemoryStream(byte[] buffer, int index, int count, bool writable, bool publiclyVisible)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -331,7 +331,7 @@ namespace System.IO
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -391,7 +391,7 @@ namespace System.IO
 
         public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -410,7 +410,7 @@ namespace System.IO
                 var t = _lastReadTask;
                 Debug.Assert(t == null || t.Status == TaskStatus.RanToCompletion,
                     "Expected that a stored last task completed successfully");
-                return (t != null && t.Result == n) ? t : (_lastReadTask = Task.FromResult<int>(n));
+                return (t is object && t.Result == n) ? t : (_lastReadTask = Task.FromResult<int>(n));
             }
             catch (OperationCanceledException oce)
             {
@@ -528,7 +528,7 @@ namespace System.IO
 
             // If destination is not a memory stream, write there asynchronously:
             MemoryStream memStrDest = destination as MemoryStream;
-            if (memStrDest == null)
+            if (memStrDest is null)
                 return destination.WriteAsync(_buffer, pos, n, cancellationToken);
 
             try
@@ -628,7 +628,7 @@ namespace System.IO
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -720,7 +720,7 @@ namespace System.IO
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -808,7 +808,7 @@ namespace System.IO
         // Writes this MemoryStream to another stream.
         public virtual void WriteTo(Stream stream)
         {
-            if (stream == null)
+            if (stream is null)
                 throw new ArgumentNullException(nameof(stream), SR.ArgumentNull_Stream);
 
             EnsureNotClosed();

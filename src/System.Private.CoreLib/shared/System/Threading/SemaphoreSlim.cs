@@ -117,13 +117,13 @@ namespace System.Threading
                 CheckDispose();
 
                 // Return it directly if it is not null
-                if (m_waitHandle != null)
+                if (m_waitHandle is object)
                     return m_waitHandle;
 
                 //lock the count to avoid multiple threads initializing the handle if it is null
                 lock (m_lockObj)
                 {
-                    if (m_waitHandle == null)
+                    if (m_waitHandle is null)
                     {
                         // The initial state for the wait handle is true if the count is greater than zero
                         // false otherwise
@@ -367,7 +367,7 @@ namespace System.Threading
                 // If there are any async waiters, for fairness we'll get in line behind
                 // then by translating our synchronous wait into an asynchronous one that we 
                 // then block on (once we've released the lock).
-                if (m_asyncHead != null)
+                if (m_asyncHead is object)
                 {
                     Debug.Assert(m_asyncTail != null, "tail should not be null if head isn't");
                     asyncWaitTask = WaitAsync(millisecondsTimeout, cancellationToken);
@@ -408,13 +408,13 @@ namespace System.Threading
                         waitSuccessful = true;
                         m_currentCount--;
                     }
-                    else if (oce != null)
+                    else if (oce is object)
                     {
                         throw oce;
                     }
 
                     // Exposing wait handle which is lazily initialized if needed
-                    if (m_waitHandle != null && m_currentCount == 0)
+                    if (m_waitHandle is object && m_currentCount == 0)
                     {
                         m_waitHandle.Reset();
                     }
@@ -439,7 +439,7 @@ namespace System.Threading
             // wait, and whether we successfully acquired the semaphore is
             // stored in waitSuccessful.
 
-            return (asyncWaitTask != null) ? asyncWaitTask.GetAwaiter().GetResult() : waitSuccessful;
+            return (asyncWaitTask is object) ? asyncWaitTask.GetAwaiter().GetResult() : waitSuccessful;
         }
 
         /// <summary>
@@ -635,7 +635,7 @@ namespace System.Threading
                 if (m_currentCount > 0)
                 {
                     --m_currentCount;
-                    if (m_waitHandle != null && m_currentCount == 0) m_waitHandle.Reset();
+                    if (m_waitHandle is object && m_currentCount == 0) m_waitHandle.Reset();
                     return s_trueTask;
                 }
                 else if (millisecondsTimeout == 0)
@@ -667,7 +667,7 @@ namespace System.Threading
             var task = new TaskNode();
 
             // Add it to the linked list
-            if (m_asyncHead == null)
+            if (m_asyncHead is null)
             {
                 Debug.Assert(m_asyncTail == null, "If head is null, so too should be tail");
                 m_asyncHead = task;
@@ -694,11 +694,11 @@ namespace System.Threading
             Debug.Assert(Monitor.IsEntered(m_lockObj), "Requires the lock be held");
 
             // Is the task in the list?  To be in the list, either it's the head or it has a predecessor that's in the list.
-            bool wasInList = m_asyncHead == task || task.Prev != null;
+            bool wasInList = m_asyncHead == task || task.Prev is object;
 
             // Remove it from the linked list
-            if (task.Next != null) task.Next.Prev = task.Prev;
-            if (task.Prev != null) task.Prev.Next = task.Next;
+            if (task.Next is object) task.Next.Prev = task.Prev;
+            if (task.Prev is object) task.Prev.Next = task.Next;
             if (m_asyncHead == task) m_asyncHead = task.Next;
             if (m_asyncTail == task) m_asyncTail = task.Prev;
             Debug.Assert((m_asyncHead == null) == (m_asyncTail == null), "Head is null iff tail is null");
@@ -835,11 +835,11 @@ namespace System.Threading
                 // asynchronous waiters, we assume that all synchronous waiters will eventually
                 // acquire the semaphore.  That could be a faulty assumption if those synchronous
                 // waits are canceled, but the wait code path will handle that.
-                if (m_asyncHead != null)
+                if (m_asyncHead is object)
                 {
                     Debug.Assert(m_asyncTail != null, "tail should not be null if head isn't null");
                     int maxAsyncToRelease = currentCount - waitCount;
-                    while (maxAsyncToRelease > 0 && m_asyncHead != null)
+                    while (maxAsyncToRelease > 0 && m_asyncHead is object)
                     {
                         --currentCount;
                         --maxAsyncToRelease;
@@ -853,7 +853,7 @@ namespace System.Threading
                 m_currentCount = currentCount;
 
                 // Exposing wait handle if it is not null
-                if (m_waitHandle != null && returnCount == 0 && currentCount > 0)
+                if (m_waitHandle is object && returnCount == 0 && currentCount > 0)
                 {
                     m_waitHandle.Set();
                 }
@@ -891,7 +891,7 @@ namespace System.Threading
         {
             if (disposing)
             {
-                if (m_waitHandle != null)
+                if (m_waitHandle is object)
                 {
                     m_waitHandle.Dispose();
                     m_waitHandle = null;
@@ -922,7 +922,7 @@ namespace System.Threading
         /// </summary>
         private void CheckDispose()
         {
-            if (m_lockObj == null)
+            if (m_lockObj is null)
             {
                 throw new ObjectDisposedException(null, SR.SemaphoreSlim_Disposed);
             }

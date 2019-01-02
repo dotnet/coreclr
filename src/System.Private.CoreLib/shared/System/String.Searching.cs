@@ -90,7 +90,7 @@ namespace System
 
         public int IndexOfAny(char[] anyOf, int startIndex, int count)
         {
-            if (anyOf == null)
+            if (anyOf is null)
                 throw new ArgumentNullException(nameof(anyOf));
 
             if ((uint)startIndex > (uint)Length)
@@ -252,7 +252,7 @@ namespace System
         public int IndexOf(string value, int startIndex, int count, StringComparison comparisonType)
         {
             // Validate inputs
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
             if (startIndex < 0 || startIndex > this.Length)
@@ -336,7 +336,7 @@ namespace System
 
         public unsafe int LastIndexOfAny(char[] anyOf, int startIndex, int count)
         {
-            if (anyOf == null)
+            if (anyOf is null)
                 throw new ArgumentNullException(nameof(anyOf));
 
             if (Length == 0)
@@ -434,7 +434,7 @@ namespace System
 
         public int LastIndexOf(string value, int startIndex, int count, StringComparison comparisonType)
         {
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
             // Special case for 0 length input strings

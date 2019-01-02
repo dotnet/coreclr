@@ -164,7 +164,7 @@ namespace System.Globalization
         {
             get
             {
-                if (s_RegionNames == null)
+                if (s_RegionNames is null)
                 {
                     StringStringDictionary regionNames = new StringStringDictionary(211 /* prime */);
 
@@ -320,7 +320,7 @@ namespace System.Globalization
             // First check if GetCultureData() can find it (ie: its a real culture)
             //
             CultureData retVal = GetCultureData(cultureName, useUserOverride);
-            if (retVal != null && (retVal.IsNeutralCulture == false)) return retVal;
+            if (retVal is object && (retVal.IsNeutralCulture == false)) return retVal;
 
             //
             // Not a specific culture, perhaps it's region-only name
@@ -333,7 +333,7 @@ namespace System.Globalization
             // Try the hash table next
             string hashName = AnsiToLower(useUserOverride ? cultureName : cultureName + '*');
             StringCultureDataDictionary tempHashTable = s_cachedRegions;
-            if (tempHashTable == null)
+            if (tempHashTable is null)
             {
                 // No table yet, make a new one
                 tempHashTable = new StringCultureDataDictionary();
@@ -345,7 +345,7 @@ namespace System.Globalization
                 {
                     tempHashTable.TryGetValue(hashName, out retVal);
                 }
-                if (retVal != null)
+                if (retVal is object)
                 {
                     return retVal;
                 }
@@ -356,7 +356,7 @@ namespace System.Globalization
             //
 
             // If not a valid mapping from the registry we'll have to try the hard coded table
-            if (retVal == null || (retVal.IsNeutralCulture == true))
+            if (retVal is null || (retVal.IsNeutralCulture == true))
             {
                 // Not a valid mapping, try the hard coded table
                 string name;
@@ -368,13 +368,13 @@ namespace System.Globalization
             }
 
             // If not found in the hard coded table we'll have to find a culture that works for us
-            if (!GlobalizationMode.Invariant && (retVal == null || (retVal.IsNeutralCulture == true)))
+            if (!GlobalizationMode.Invariant && (retVal is null || (retVal.IsNeutralCulture == true)))
             {
                 retVal = GetCultureDataFromRegionName(cultureName);
             }
 
             // If we found one we can use, then cache it for next time
-            if (retVal != null && (retVal.IsNeutralCulture == false))
+            if (retVal is object && (retVal.IsNeutralCulture == false))
             {
                 // first add it to the cache
                 lock (s_lock)
@@ -557,7 +557,7 @@ namespace System.Globalization
         {
             get
             {
-                if (s_Invariant == null)
+                if (s_Invariant is null)
                 {
                     // Remember it
                     s_Invariant = CreateCultureWithInvariantData();
@@ -585,7 +585,7 @@ namespace System.Globalization
             // Try the hash table first
             string hashName = AnsiToLower(useUserOverride ? cultureName : cultureName + '*');
             StringCultureDataDictionary tempHashTable = s_cachedCultures;
-            if (tempHashTable == null)
+            if (tempHashTable is null)
             {
                 // No table yet, make a new one
                 tempHashTable = new StringCultureDataDictionary();
@@ -599,7 +599,7 @@ namespace System.Globalization
                 {
                     ret = tempHashTable.TryGetValue(hashName, out retVal);
                 }
-                if (ret && retVal != null)
+                if (ret && retVal is object)
                 {
                     return retVal;
                 }
@@ -607,7 +607,7 @@ namespace System.Globalization
 
             // Not found in the hash table, need to see if we can build one that works for us
             CultureData culture = CreateCultureData(cultureName, useUserOverride);
-            if (culture == null)
+            if (culture is null)
             {
                 return null;
             }
@@ -774,7 +774,7 @@ namespace System.Globalization
             }
 
             // If not successful, throw
-            if (retVal == null)
+            if (retVal is null)
                 throw new CultureNotFoundException(nameof(culture), culture, SR.Argument_CultureNotSupported);
 
             // Return the one we found
@@ -826,7 +826,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sName == null)
+                if (_sName is null)
                 {
                     _sName = string.Empty;
                 }
@@ -839,7 +839,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sParent == null)
+                if (_sParent is null)
                 {
                     // Ask using the real name, so that we get parents of neutrals
                     _sParent = GetLocaleInfo(_sRealName, LocaleStringData.ParentName);
@@ -853,7 +853,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sLocalizedDisplayName == null)
+                if (_sLocalizedDisplayName is null)
                 {
                     if (this.IsSupplementalCustomCulture)
                     {
@@ -905,7 +905,7 @@ namespace System.Globalization
                             // if DefaultThreadCurrentUICulture was set
                             CultureInfo ci;
 
-                            if (CultureInfo.DefaultThreadCurrentUICulture != null &&
+                            if (CultureInfo.DefaultThreadCurrentUICulture is object &&
                                 ((ci = GetUserDefaultCulture()) != null) &&
                                 !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
                             {
@@ -928,7 +928,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sEnglishDisplayName == null)
+                if (_sEnglishDisplayName is null)
                 {
                     // If its neutral use the language name
                     if (this.IsNeutralCulture)
@@ -977,7 +977,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sNativeDisplayName == null)
+                if (_sNativeDisplayName is null)
                 {
                     // If its neutral use the language name
                     if (this.IsNeutralCulture)
@@ -1030,7 +1030,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sISO639Language == null)
+                if (_sISO639Language is null)
                 {
                     _sISO639Language = GetLocaleInfo(LocaleStringData.Iso639LanguageTwoLetterName);
                 }
@@ -1056,7 +1056,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sAbbrevLang == null)
+                if (_sAbbrevLang is null)
                 {
                     _sAbbrevLang = GetThreeLetterWindowsLanguageName(_sRealName);
                 }
@@ -1070,13 +1070,13 @@ namespace System.Globalization
         {
             get
             {
-                if (_sLocalizedLanguage == null)
+                if (_sLocalizedLanguage is null)
                 {
                     // Usually the UI culture shouldn't be different than what we got from WinRT except
                     // if DefaultThreadCurrentUICulture was set
                     CultureInfo ci;
 
-                    if (CultureInfo.DefaultThreadCurrentUICulture != null &&
+                    if (CultureInfo.DefaultThreadCurrentUICulture is object &&
                         ((ci = GetUserDefaultCulture()) != null) &&
                         !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
                     {
@@ -1097,7 +1097,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sEnglishLanguage == null)
+                if (_sEnglishLanguage is null)
                 {
                     _sEnglishLanguage = GetLocaleInfo(LocaleStringData.EnglishLanguageName);
                 }
@@ -1110,7 +1110,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sNativeLanguage == null)
+                if (_sNativeLanguage is null)
                 {
                     _sNativeLanguage = GetLocaleInfo(LocaleStringData.NativeLanguageName);
                 }
@@ -1127,7 +1127,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sRegionName == null)
+                if (_sRegionName is null)
                 {
                     _sRegionName = GetLocaleInfo(LocaleStringData.Iso3166CountryName);
                 }
@@ -1152,7 +1152,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sLocalizedCountry == null)
+                if (_sLocalizedCountry is null)
                 {
                     try
                     {
@@ -1163,7 +1163,7 @@ namespace System.Globalization
                         // do nothing. we'll fallback
                     }
 
-                    if (_sLocalizedCountry == null)
+                    if (_sLocalizedCountry is null)
                     {
                         _sLocalizedCountry = SNATIVECOUNTRY;
                     }
@@ -1177,7 +1177,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sEnglishCountry == null)
+                if (_sEnglishCountry is null)
                 {
                     _sEnglishCountry = GetLocaleInfo(LocaleStringData.EnglishCountryName);
                 }
@@ -1190,7 +1190,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sNativeCountry == null)
+                if (_sNativeCountry is null)
                 {
                     _sNativeCountry = GetLocaleInfo(LocaleStringData.NativeCountryName);
                 }
@@ -1203,7 +1203,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sISO3166CountryName == null)
+                if (_sISO3166CountryName is null)
                 {
                     _sISO3166CountryName = GetLocaleInfo(LocaleStringData.Iso3166CountryName);
                 }
@@ -1249,7 +1249,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sConsoleFallbackName == null)
+                if (_sConsoleFallbackName is null)
                 {
                     _sConsoleFallbackName = GetConsoleFallbackName(_sRealName);
                 }
@@ -1262,7 +1262,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_waGrouping == null)
+                if (_waGrouping is null)
                 {
                     _waGrouping = GetLocaleInfo(LocaleGroupingData.Digit);
                 }
@@ -1279,7 +1279,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sNaN == null)
+                if (_sNaN is null)
                 {
                     _sNaN = GetLocaleInfo(LocaleStringData.NaNSymbol);
                 }
@@ -1292,7 +1292,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sPositiveInfinity == null)
+                if (_sPositiveInfinity is null)
                 {
                     _sPositiveInfinity = GetLocaleInfo(LocaleStringData.PositiveInfinitySymbol);
                 }
@@ -1305,7 +1305,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sNegativeInfinity == null)
+                if (_sNegativeInfinity is null)
                 {
                     _sNegativeInfinity = GetLocaleInfo(LocaleStringData.NegativeInfinitySymbol);
                 }
@@ -1351,7 +1351,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sPercent == null)
+                if (_sPercent is null)
                 {
                     _sPercent = GetLocaleInfo(LocaleStringData.PercentSymbol);
                 }
@@ -1364,7 +1364,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sPerMille == null)
+                if (_sPerMille is null)
                 {
                     _sPerMille = GetLocaleInfo(LocaleStringData.PerMilleSymbol);
                 }
@@ -1381,7 +1381,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sCurrency == null)
+                if (_sCurrency is null)
                 {
                     _sCurrency = GetLocaleInfo(LocaleStringData.MonetarySymbol);
                 }
@@ -1394,7 +1394,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sIntlMonetarySymbol == null)
+                if (_sIntlMonetarySymbol is null)
                 {
                     _sIntlMonetarySymbol = GetLocaleInfo(LocaleStringData.Iso4217MonetarySymbol);
                 }
@@ -1407,7 +1407,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sEnglishCurrency == null)
+                if (_sEnglishCurrency is null)
                 {
                     _sEnglishCurrency = GetLocaleInfo(LocaleStringData.CurrencyEnglishName);
                 }
@@ -1420,7 +1420,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sNativeCurrency == null)
+                if (_sNativeCurrency is null)
                 {
                     _sNativeCurrency = GetLocaleInfo(LocaleStringData.CurrencyNativeName);
                 }
@@ -1437,7 +1437,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_waMonetaryGrouping == null)
+                if (_waMonetaryGrouping is null)
                 {
                     _waMonetaryGrouping = GetLocaleInfo(LocaleGroupingData.Monetary);
                 }
@@ -1463,7 +1463,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sListSeparator == null)
+                if (_sListSeparator is null)
                 {
                     _sListSeparator = GetLocaleInfo(LocaleStringData.ListSeparator);
                 }
@@ -1507,12 +1507,12 @@ namespace System.Globalization
         {
             get
             {
-                if (_saLongTimes == null)
+                if (_saLongTimes is null)
                 {
                     Debug.Assert(!GlobalizationMode.Invariant);
 
                     string[] longTimes = GetTimeFormats();
-                    if (longTimes == null || longTimes.Length == 0)
+                    if (longTimes is null || longTimes.Length == 0)
                     {
                         _saLongTimes = Invariant._saLongTimes;
                     }
@@ -1532,7 +1532,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_saShortTimes == null)
+                if (_saShortTimes is null)
                 {
                     Debug.Assert(!GlobalizationMode.Invariant);
 
@@ -1540,7 +1540,7 @@ namespace System.Globalization
                     string[] shortTimes = null;
                     shortTimes = GetShortTimeFormats();
 
-                    if (shortTimes == null || shortTimes.Length == 0)
+                    if (shortTimes is null || shortTimes.Length == 0)
                     {
                         //
                         // If we couldn't find short times, then compute them from long times
@@ -1805,7 +1805,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_waCalendars == null)
+                if (_waCalendars is null)
                 {
                     // We pass in an array of ints, and native side fills it up with count calendars.
                     // We then have to copy that list to a new array of the right size.
@@ -1890,7 +1890,7 @@ namespace System.Globalization
             int calendarIndex = (int)calendarId - 1;
 
             // Have to have calendars
-            if (_calendars == null)
+            if (_calendars is null)
             {
                 _calendars = new CalendarData[CalendarData.MAX_CALENDARS];
             }
@@ -1900,7 +1900,7 @@ namespace System.Globalization
             // right after we insert the newly created CalendarData (below)
             CalendarData calendarData = _calendars[calendarIndex];
             // Make sure that calendar has data
-            if (calendarData == null)
+            if (calendarData is null)
             {
                 Debug.Assert(_sWindowsName != null, "[CultureData.GetCalendar] Expected _sWindowsName to be populated by already");
                 calendarData = new CalendarData(_sWindowsName, calendarId, this.UseUserOverride);
@@ -2116,7 +2116,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_sTimeSeparator == null)
+                if (_sTimeSeparator is null)
                 {
                     string longTimeFormat = GetTimeFormatString();
                     if (string.IsNullOrEmpty(longTimeFormat))
@@ -2183,13 +2183,13 @@ namespace System.Globalization
                 switch (str[i])
                 {
                     case '\'':
-                        if (result == null)
+                        if (result is null)
                         {
                             result = new StringBuilder(str, start, i - start, str.Length);
                         }
                         break;
                     case '\\':
-                        if (result == null)
+                        if (result is null)
                         {
                             result = new StringBuilder(str, start, i - start, str.Length);
                         }
@@ -2200,7 +2200,7 @@ namespace System.Globalization
                         }
                         break;
                     default:
-                        if (result != null)
+                        if (result is object)
                         {
                             result.Append(str[i]);
                         }
@@ -2208,7 +2208,7 @@ namespace System.Globalization
                 }
             }
 
-            if (result == null)
+            if (result is null)
                 return (str.Substring(start, end - start + 1));
 
             return (result.ToString());
@@ -2394,12 +2394,12 @@ namespace System.Globalization
             //
 
             // Windows usually returns an empty positive sign, but we like it to be "+"
-            if (nfi.positiveSign == null || nfi.positiveSign.Length == 0) nfi.positiveSign = "+";
+            if (nfi.positiveSign is null || nfi.positiveSign.Length == 0) nfi.positiveSign = "+";
 
             //Special case for Italian.  The currency decimal separator in the control panel is the empty string. When the user
             //specifies C4 as the currency format, this results in the number apparently getting multiplied by 10000 because the
             //decimal point doesn't show up.  We'll just hack this here because our default currency format will never use nfi.
-            if (nfi.currencyDecimalSeparator == null || nfi.currencyDecimalSeparator.Length == 0)
+            if (nfi.currencyDecimalSeparator is null || nfi.currencyDecimalSeparator.Length == 0)
             {
                 nfi.currencyDecimalSeparator = nfi.numberDecimalSeparator;
             }

@@ -18,7 +18,7 @@ namespace System.Text
         {
             get
             {
-                if (s_replacementFallback == null)
+                if (s_replacementFallback is null)
                     Interlocked.CompareExchange<EncoderFallback>(ref s_replacementFallback, new EncoderReplacementFallback(), null);
 
                 return s_replacementFallback;
@@ -30,7 +30,7 @@ namespace System.Text
         {
             get
             {
-                if (s_exceptionFallback == null)
+                if (s_exceptionFallback is null)
                     Interlocked.CompareExchange<EncoderFallback>(ref s_exceptionFallback, new EncoderExceptionFallback(), null);
 
                 return s_exceptionFallback;
@@ -149,7 +149,7 @@ namespace System.Text
                 {
                     // Nothing left in input buffer
                     // No input, return 0 if mustflush is false
-                    if (this.encoder != null && !this.encoder.MustFlush)
+                    if (this.encoder is object && !this.encoder.MustFlush)
                     {
                         // Done, nothing to fallback
                         if (this.setEncoder)

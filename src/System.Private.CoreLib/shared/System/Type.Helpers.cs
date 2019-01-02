@@ -30,7 +30,7 @@ namespace System
 
                         underlyingType = underlyingType.BaseType;
                     }
-                    while (underlyingType != null);
+                    while (underlyingType is object);
                 }
 
                 return false;
@@ -77,7 +77,7 @@ namespace System
             {
 #if CORECLR
                 RuntimeType rt = this as RuntimeType;
-                if (rt != null)
+                if (rt is object)
                     return RuntimeTypeHandle.IsVisible(rt);
 #endif //CORECLR
 
@@ -116,7 +116,7 @@ namespace System
 
         public virtual Type[] FindInterfaces(TypeFilter filter, object filterCriteria)
         {
-            if (filter == null)
+            if (filter is null)
                 throw new ArgumentNullException(nameof(filter));
 
             Type[] c = GetInterfaces();
@@ -158,7 +158,7 @@ namespace System
             if ((memberType & MemberTypes.Method) != 0)
             {
                 m = GetMethods(bindingAttr);
-                if (filter != null)
+                if (filter is object)
                 {
                     for (i = 0; i < m.Length; i++)
                         if (!filter(m[i], filterCriteria))
@@ -176,7 +176,7 @@ namespace System
             if ((memberType & MemberTypes.Constructor) != 0)
             {
                 c = GetConstructors(bindingAttr);
-                if (filter != null)
+                if (filter is object)
                 {
                     for (i = 0; i < c.Length; i++)
                         if (!filter(c[i], filterCriteria))
@@ -194,7 +194,7 @@ namespace System
             if ((memberType & MemberTypes.Field) != 0)
             {
                 f = GetFields(bindingAttr);
-                if (filter != null)
+                if (filter is object)
                 {
                     for (i = 0; i < f.Length; i++)
                         if (!filter(f[i], filterCriteria))
@@ -212,7 +212,7 @@ namespace System
             if ((memberType & MemberTypes.Property) != 0)
             {
                 p = GetProperties(bindingAttr);
-                if (filter != null)
+                if (filter is object)
                 {
                     for (i = 0; i < p.Length; i++)
                         if (!filter(p[i], filterCriteria))
@@ -230,7 +230,7 @@ namespace System
             if ((memberType & MemberTypes.Event) != 0)
             {
                 e = GetEvents(bindingAttr);
-                if (filter != null)
+                if (filter is object)
                 {
                     for (i = 0; i < e.Length; i++)
                         if (!filter(e[i], filterCriteria))
@@ -248,7 +248,7 @@ namespace System
             if ((memberType & MemberTypes.NestedType) != 0)
             {
                 t = GetNestedTypes(bindingAttr);
-                if (filter != null)
+                if (filter is object)
                 {
                     for (i = 0; i < t.Length; i++)
                         if (!filter(t[i], filterCriteria))
@@ -267,7 +267,7 @@ namespace System
 
             // Copy the Methods
             cnt = 0;
-            if (m != null)
+            if (m is object)
             {
                 for (i = 0; i < m.Length; i++)
                     if (m[i] is object)
@@ -275,7 +275,7 @@ namespace System
             }
 
             // Copy the Constructors
-            if (c != null)
+            if (c is object)
             {
                 for (i = 0; i < c.Length; i++)
                     if (c[i] is object)
@@ -283,7 +283,7 @@ namespace System
             }
 
             // Copy the Fields
-            if (f != null)
+            if (f is object)
             {
                 for (i = 0; i < f.Length; i++)
                     if (f[i] is object)
@@ -291,7 +291,7 @@ namespace System
             }
 
             // Copy the Properties
-            if (p != null)
+            if (p is object)
             {
                 for (i = 0; i < p.Length; i++)
                     if (p[i] is object)
@@ -299,7 +299,7 @@ namespace System
             }
 
             // Copy the Events
-            if (e != null)
+            if (e is object)
             {
                 for (i = 0; i < e.Length; i++)
                     if (e[i] is object)
@@ -307,7 +307,7 @@ namespace System
             }
 
             // Copy the Types
-            if (t != null)
+            if (t is object)
             {
                 for (i = 0; i < t.Length; i++)
                     if (t[i] is object)
@@ -372,7 +372,7 @@ namespace System
             while (t is object)
             {
                 Type[] interfaces = t.GetInterfaces();
-                if (interfaces != null)
+                if (interfaces is object)
                 {
                     for (int i = 0; i < interfaces.Length; i++)
                     {
@@ -396,7 +396,7 @@ namespace System
         private static bool FilterAttributeImpl(MemberInfo m, object filterCriteria)
         {
             // Check that the criteria object is an Integer object
-            if (filterCriteria == null)
+            if (filterCriteria is null)
                 throw new InvalidFilterCriteriaException(SR.InvalidFilterCriteriaException_CritInt);
 
             switch (m.MemberType)

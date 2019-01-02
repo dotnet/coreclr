@@ -235,7 +235,7 @@ namespace System
         // Converts an array of bytes into a short.  
         public static short ToInt16(byte[] value, int startIndex)
         {
-            if (value == null)
+            if (value is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= unchecked((uint)value.Length))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
@@ -256,7 +256,7 @@ namespace System
         // Converts an array of bytes into an int.  
         public static int ToInt32(byte[] value, int startIndex)
         {
-            if (value == null)
+            if (value is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= unchecked((uint)value.Length))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
@@ -277,7 +277,7 @@ namespace System
         // Converts an array of bytes into a long.  
         public static long ToInt64(byte[] value, int startIndex)
         {
-            if (value == null)
+            if (value is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= unchecked((uint)value.Length))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
@@ -362,7 +362,7 @@ namespace System
         // Converts an array of bytes into a String.  
         public static string ToString(byte[] value, int startIndex, int length)
         {
-            if (value == null)
+            if (value is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (startIndex < 0 || startIndex >= value.Length && startIndex > 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
@@ -408,7 +408,7 @@ namespace System
         // Converts an array of bytes into a String.  
         public static string ToString(byte[] value)
         {
-            if (value == null)
+            if (value is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             return ToString(value, 0, value.Length);
         }
@@ -416,7 +416,7 @@ namespace System
         // Converts an array of bytes into a String.  
         public static string ToString(byte[] value, int startIndex)
         {
-            if (value == null)
+            if (value is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             return ToString(value, startIndex, value.Length - startIndex);
         }
@@ -432,7 +432,7 @@ namespace System
         // Converts an array of bytes into a boolean.  
         public static bool ToBoolean(byte[] value, int startIndex)
         {
-            if (value == null)
+            if (value is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (startIndex < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);

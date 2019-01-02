@@ -45,7 +45,7 @@ namespace System
         {
             // Check to see if the target object is still alive.
             object targetObj = _weakTargetObj.Target;
-            if (targetObj == null)
+            if (targetObj is null)
             {
                 // The target object is dead, so this callback object is no longer needed.
                 _weakTargetObj.Free();

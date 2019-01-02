@@ -45,7 +45,7 @@ namespace System.IO
         {
             get
             {
-                if (_message == null)
+                if (_message is null)
                 {
                     _message = FormatFileLoadExceptionMessage(FileName, HResult);
                 }
@@ -60,18 +60,18 @@ namespace System.IO
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (FileName != null && FileName.Length != 0)
+            if (FileName is object && FileName.Length != 0)
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, FileName);
 
-            if (InnerException != null)
+            if (InnerException is object)
                 s = s + " ---> " + InnerException.ToString();
 
-            if (StackTrace != null)
+            if (StackTrace is object)
                 s += Environment.NewLine + StackTrace;
 
-            if (FusionLog != null)
+            if (FusionLog is object)
             {
-                if (s == null)
+                if (s is null)
                     s = " ";
                 s += Environment.NewLine;
                 s += Environment.NewLine;

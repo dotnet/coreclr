@@ -491,7 +491,7 @@ namespace System
         //
         int IComparable.CompareTo(object obj)
         {
-            if (obj == null) return 1;
+            if (obj is null) return 1;
             if (!(obj is DateTimeOffset))
             {
                 throw new ArgumentException(SR.Arg_MustBeDateTimeOffset);
@@ -607,7 +607,7 @@ namespace System
 
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
@@ -619,7 +619,7 @@ namespace System
 
         private DateTimeOffset(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
@@ -641,7 +641,7 @@ namespace System
         //
         public static DateTimeOffset Parse(string input)
         {
-            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            if (input is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
 
             TimeSpan offset;
             DateTime dateResult = DateTimeParse.Parse(input,
@@ -657,14 +657,14 @@ namespace System
         //
         public static DateTimeOffset Parse(string input, IFormatProvider formatProvider)
         {
-            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            if (input is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
             return Parse(input, formatProvider, DateTimeStyles.None);
         }
 
         public static DateTimeOffset Parse(string input, IFormatProvider formatProvider, DateTimeStyles styles)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            if (input is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
 
             TimeSpan offset;
             DateTime dateResult = DateTimeParse.Parse(input,
@@ -687,8 +687,8 @@ namespace System
         //
         public static DateTimeOffset ParseExact(string input, string format, IFormatProvider formatProvider)
         {
-            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
-            if (format == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
+            if (input is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            if (format is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
             return ParseExact(input, format, formatProvider, DateTimeStyles.None);
         }
 
@@ -699,8 +699,8 @@ namespace System
         public static DateTimeOffset ParseExact(string input, string format, IFormatProvider formatProvider, DateTimeStyles styles)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
-            if (format == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
+            if (input is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            if (format is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
 
             TimeSpan offset;
             DateTime dateResult = DateTimeParse.ParseExact(input,
@@ -721,7 +721,7 @@ namespace System
         public static DateTimeOffset ParseExact(string input, string[] formats, IFormatProvider formatProvider, DateTimeStyles styles)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            if (input is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
 
             TimeSpan offset;
             DateTime dateResult = DateTimeParse.ParseExactMultiple(input,
@@ -846,7 +846,7 @@ namespace System
         public static bool TryParse(string input, IFormatProvider formatProvider, DateTimeStyles styles, out DateTimeOffset result)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            if (input == null)
+            if (input is null)
             {
                 result = default;
                 return false;
@@ -875,7 +875,7 @@ namespace System
                                             out DateTimeOffset result)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            if (input == null || format == null)
+            if (input is null || format is null)
             {
                 result = default;
                 return false;
@@ -906,7 +906,7 @@ namespace System
                                             out DateTimeOffset result)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            if (input == null)
+            if (input is null)
             {
                 result = default;
                 return false;

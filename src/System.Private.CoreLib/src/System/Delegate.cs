@@ -171,7 +171,7 @@ namespace System
                 return unchecked((int)((long)this._methodPtrAux));
             */
             if (_methodPtrAux == IntPtr.Zero)
-                return ( _target != null ? RuntimeHelpers.GetHashCode(_target) * 33 : 0) + GetType().GetHashCode();
+                return ( _target is object ? RuntimeHelpers.GetHashCode(_target) * 33 : 0) + GetType().GetHashCode();
             else
                 return GetType().GetHashCode();
         }
@@ -188,7 +188,7 @@ namespace System
 
         public static Delegate Combine(params Delegate[] delegates)
         {
-            if (delegates == null || delegates.Length == 0)
+            if (delegates is null || delegates.Length == 0)
                 return null;
 
             Delegate d = delegates[0];

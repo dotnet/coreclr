@@ -70,7 +70,7 @@ namespace System.IO
         //
         public virtual int Read(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -235,7 +235,7 @@ namespace System.IO
 
         public virtual Task<int> ReadAsync(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -273,7 +273,7 @@ namespace System.IO
 
         public virtual Task<int> ReadBlockAsync(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -328,7 +328,7 @@ namespace System.IO
 
         public static TextReader Synchronized(TextReader reader)
         {
-            if (reader == null)
+            if (reader is null)
                 throw new ArgumentNullException(nameof(reader));
 
             return reader is SyncTextReader ? reader : new SyncTextReader(reader);
@@ -385,7 +385,7 @@ namespace System.IO
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task<int> ReadBlockAsync(char[] buffer, int index, int count)
             {
-                if (buffer == null)
+                if (buffer is null)
                     throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
                 if (index < 0 || count < 0)
                     throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -398,7 +398,7 @@ namespace System.IO
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task<int> ReadAsync(char[] buffer, int index, int count)
             {
-                if (buffer == null)
+                if (buffer is null)
                     throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
                 if (index < 0 || count < 0)
                     throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);

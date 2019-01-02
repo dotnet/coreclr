@@ -87,7 +87,7 @@ namespace System.Buffers
                 {
                     // Attempt to rent from the bucket.  If we get a buffer from it, return it.
                     buffer = _buckets[i].Rent();
-                    if (buffer != null)
+                    if (buffer is object)
                     {
                         if (log.IsEnabled())
                         {
@@ -122,7 +122,7 @@ namespace System.Buffers
 
         public override void Return(T[] array, bool clearArray = false)
         {
-            if (array == null)
+            if (array is null)
             {
                 throw new ArgumentNullException(nameof(array));
             }
@@ -202,7 +202,7 @@ namespace System.Buffers
                     {
                         buffer = buffers[_index];
                         buffers[_index++] = null;
-                        allocateBuffer = buffer == null;
+                        allocateBuffer = buffer is null;
                     }
                 }
                 finally

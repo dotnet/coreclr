@@ -76,7 +76,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             ConstantSplittableMap<K, V> splittableMap = _this as ConstantSplittableMap<K, V>;
 
-            if (splittableMap == null)
+            if (splittableMap is null)
                 splittableMap = new ConstantSplittableMap<K, V>(_this);
 
             splittableMap.Split(out first, out second);

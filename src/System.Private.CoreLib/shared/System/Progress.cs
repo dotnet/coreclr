@@ -49,7 +49,7 @@ namespace System
         /// <exception cref="System.ArgumentNullException">The <paramref name="handler"/> is null (Nothing in Visual Basic).</exception>
         public Progress(Action<T> handler) : this()
         {
-            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            if (handler is null) throw new ArgumentNullException(nameof(handler));
             _handler = handler;
         }
 
@@ -69,7 +69,7 @@ namespace System
             // an event handler is removed between now and then.
             Action<T> handler = _handler;
             EventHandler<T> changedEvent = ProgressChanged;
-            if (handler != null || changedEvent != null)
+            if (handler is object || changedEvent is object)
             {
                 // Post the processing to the sync context.
                 // (If T is a value type, it will get boxed here.)
@@ -90,8 +90,8 @@ namespace System
             Action<T> handler = _handler;
             EventHandler<T> changedEvent = ProgressChanged;
 
-            if (handler != null) handler(value);
-            if (changedEvent != null) changedEvent(this, value);
+            if (handler is object) handler(value);
+            if (changedEvent is object) changedEvent(this, value);
         }
     }
 

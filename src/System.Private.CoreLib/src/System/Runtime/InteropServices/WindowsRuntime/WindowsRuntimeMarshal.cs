@@ -27,9 +27,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                                               Action<EventRegistrationToken> removeMethod,
                                               T handler)
         {
-            if (addMethod == null)
+            if (addMethod is null)
                 throw new ArgumentNullException(nameof(addMethod));
-            if (removeMethod == null)
+            if (removeMethod is null)
                 throw new ArgumentNullException(nameof(removeMethod));
 
             // Managed code allows adding a null event handler, the effect is a no-op.  To match this behavior
@@ -44,7 +44,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // there could be more than one RCW for the same COM object
             // it would be more confusing and less-performant if we were to merge them together
             object target = removeMethod.Target;
-            if (target == null || Marshal.IsComObject(target))
+            if (target is null || Marshal.IsComObject(target))
                 NativeOrStaticEventRegistrationImpl.AddEventHandler<T>(addMethod, removeMethod, handler);
             else
                 ManagedEventRegistrationImpl.AddEventHandler<T>(addMethod, removeMethod, handler);
@@ -54,7 +54,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // its token, previously stored via AddEventHandler<T>
         public static void RemoveEventHandler<T>(Action<EventRegistrationToken> removeMethod, T handler)
         {
-            if (removeMethod == null)
+            if (removeMethod is null)
                 throw new ArgumentNullException(nameof(removeMethod));
 
             // Managed code allows removing a null event handler, the effect is a no-op.  To match this behavior
@@ -69,7 +69,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // there could be more than one RCW for the same COM object
             // it would be more confusing and less-performant if we were to merge them together
             object target = removeMethod.Target;
-            if (target == null || Marshal.IsComObject(target))
+            if (target is null || Marshal.IsComObject(target))
                 NativeOrStaticEventRegistrationImpl.RemoveEventHandler<T>(removeMethod, handler);
             else
                 ManagedEventRegistrationImpl.RemoveEventHandler<T>(removeMethod, handler);
@@ -77,7 +77,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public static void RemoveAllEventHandlers(Action<EventRegistrationToken> removeMethod)
         {
-            if (removeMethod == null)
+            if (removeMethod is null)
                 throw new ArgumentNullException(nameof(removeMethod));
 
             // Delegate to managed event registration implementation or native event registration implementation
@@ -85,7 +85,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // there could be more than one RCW for the same COM object
             // it would be more confusing and less-performant if we were to merge them together
             object target = removeMethod.Target;
-            if (target == null || Marshal.IsComObject(target))
+            if (target is null || Marshal.IsComObject(target))
                 NativeOrStaticEventRegistrationImpl.RemoveAllEventHandlers(removeMethod);
             else
                 ManagedEventRegistrationImpl.RemoveAllEventHandlers(removeMethod);
@@ -97,7 +97,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             int count = 0;
 
-            if (ManagedEventRegistrationImpl.s_eventRegistrations != null)
+            if (ManagedEventRegistrationImpl.s_eventRegistrations is object)
             {
                 lock (ManagedEventRegistrationImpl.s_eventRegistrations)
                 {
@@ -106,7 +106,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
             }
 
-            if (NativeOrStaticEventRegistrationImpl.s_eventRegistrations != null)
+            if (NativeOrStaticEventRegistrationImpl.s_eventRegistrations is object)
             {
                 lock (NativeOrStaticEventRegistrationImpl.s_eventRegistrations)
                 {
@@ -139,7 +139,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 bool needCopy = false;
 
-                if (restTokens == null)
+                if (restTokens is null)
                 {
                     restTokens = new List<EventRegistrationToken>();
                     needCopy = true;
@@ -155,7 +155,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             public bool Pop(out EventRegistrationToken token)
             {
                 // Only 1 token in this list and we just removed the last token
-                if (restTokens == null || restTokens.Count == 0)
+                if (restTokens is null || restTokens.Count == 0)
                 {
                     token = firstToken;
                     return false;
@@ -171,7 +171,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             public void CopyTo(List<EventRegistrationToken> tokens)
             {
                 tokens.Add(firstToken);
-                if (restTokens != null)
+                if (restTokens is object)
                     tokens.AddRange(restTokens);
             }
         }
@@ -524,7 +524,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 object target = removeMethod.Target;
                 Debug.Assert(target == null || Marshal.IsComObject(target), "Must be null or a RCW");
-                if (target == null)
+                if (target is null)
                     return removeMethod.Method.DeclaringType;
 
                 // Need the "Raw" IUnknown pointer for the RCW that is not bound to the current context
@@ -590,7 +590,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                             // the last token in C, and that may lead to crash.
                             //
                             object key = FindEquivalentKeyUnsafe(registrationTokens, handler, out tokens);
-                            if (key == null)
+                            if (key is null)
                             {
                                 tokens = new EventRegistrationTokenListWithCount(tokenListCount, token);
                                 registrationTokens.Add(handler, tokens);
@@ -694,7 +694,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 {
                     TokenListCount tokenListCount;
                     ConditionalWeakTable<object, EventRegistrationTokenListWithCount> registrationTokens = GetEventRegistrationTokenTableNoCreate(instanceKey, removeMethod, out tokenListCount);
-                    if (registrationTokens == null)
+                    if (registrationTokens is null)
                     {
                         // We have no information regarding this particular instance (IUnknown*/type) - just return
                         // This is necessary to avoid leaking empty dictionary/conditionalWeakTables for this instance
@@ -714,9 +714,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         // Note that inside TryGetValueWithValueEquality we assumes that any delegate
                         // with the same value equality would have the same hash code
                         object key = FindEquivalentKeyUnsafe(registrationTokens, handler, out tokens);
-                        Debug.Assert((key != null && tokens != null) || (key == null && tokens == null),
+                        Debug.Assert((key is object && tokens is object) || (key is null && tokens is null),
                                         "key and tokens must be both null or non-null");
-                        if (tokens == null)
+                        if (tokens is null)
                         {
                             // Failure to find a registration for a token is not an error - it's simply a no-op.
                             Log("[WinRT_Eventing] no token list found for instance=" + instanceKey + ", handler= " + handler + "\n");
@@ -770,7 +770,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 {
                     TokenListCount tokenListCount;
                     ConditionalWeakTable<object, EventRegistrationTokenListWithCount> registrationTokens = GetEventRegistrationTokenTableNoCreate(instanceKey, removeMethod, out tokenListCount);
-                    if (registrationTokens == null)
+                    if (registrationTokens is null)
                     {
                         // We have no information regarding this particular instance (IUnknown*/type) - just return
                         // This is necessary to avoid leaking empty dictionary/conditionalWeakTables for this instance
@@ -861,7 +861,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         }
 
                         // Drat, we need to wait.  Mark that we have waiters and wait.
-                        if (readEvent == null)      // Create the needed event
+                        if (readEvent is null)      // Create the needed event
                         {
                             LazyCreateEvent(ref readEvent, false);
                             continue;   // since we left the lock, start over.
@@ -885,7 +885,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         }
 
                         // Drat, we need to wait.  Mark that we have waiters and wait.
-                        if (writeEvent == null)     // create the needed event.
+                        if (writeEvent is null)     // create the needed event.
                         {
                             LazyCreateEvent(ref writeEvent, true);
                             continue;   // since we left the lock, start over.
@@ -930,7 +930,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     else
                         newEvent = new ManualResetEvent(false);
                     EnterMyLock();
-                    if (waitEvent == null)          // maybe someone snuck in.
+                    if (waitEvent is null)          // maybe someone snuck in.
                         waitEvent = newEvent;
                 }
 
@@ -1057,10 +1057,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal static Exception GetExceptionForHR(int hresult, Exception innerException, string messageResource)
         {
             Exception e = null;
-            if (innerException != null)
+            if (innerException is object)
             {
                 string message = innerException.Message;
-                if (message == null && messageResource != null)
+                if (message is null && messageResource is object)
                 {
                     message = SR.GetResourceString(messageResource);
                 }
@@ -1068,7 +1068,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             else
             {
-                string message = (messageResource != null ? SR.GetResourceString(messageResource): null);
+                string message = (messageResource is object ? SR.GetResourceString(messageResource): null);
                 e = new Exception(message);
             }
 
@@ -1136,7 +1136,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return false;
             }
 
-            if (e != null)
+            if (e is object)
             {
                 IntPtr exceptionIUnknown = IntPtr.Zero;
                 IntPtr exceptionIErrorInfo = IntPtr.Zero;
@@ -1158,7 +1158,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                             if (RoOriginateLanguageException(Marshal.GetHRForException_WinRT(e), e.Message, exceptionIErrorInfo))
                             {
                                 IRestrictedErrorInfo restrictedError = UnsafeNativeMethods.GetRestrictedErrorInfo();
-                                if (restrictedError != null)
+                                if (restrictedError is object)
                                 {
                                     RoReportUnhandledError(restrictedError);
                                     return true;
@@ -1218,7 +1218,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         public static IActivationFactory GetActivationFactory(Type type)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             if (type.IsWindowsRuntimeObject && type.IsImport)
@@ -1243,7 +1243,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (!Environment.IsWinRTSupported)
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);
 
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
 
             unsafe

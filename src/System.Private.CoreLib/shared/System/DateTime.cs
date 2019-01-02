@@ -232,7 +232,7 @@ namespace System
         //
         public DateTime(int year, int month, int day, int hour, int minute, int second, Calendar calendar)
         {
-            if (calendar == null)
+            if (calendar is null)
                 throw new ArgumentNullException(nameof(calendar));
 
             int originalSecond = second;
@@ -312,7 +312,7 @@ namespace System
         //
         public DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, Calendar calendar)
         {
-            if (calendar == null)
+            if (calendar is null)
                 throw new ArgumentNullException(nameof(calendar));
             if (millisecond < 0 || millisecond >= MillisPerSecond)
             {
@@ -344,7 +344,7 @@ namespace System
 
         public DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, Calendar calendar, DateTimeKind kind)
         {
-            if (calendar == null)
+            if (calendar is null)
                 throw new ArgumentNullException(nameof(calendar));
             if (millisecond < 0 || millisecond >= MillisPerSecond)
             {
@@ -380,7 +380,7 @@ namespace System
 
         private DateTime(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
                 throw new ArgumentNullException(nameof(info));
 
             bool foundTicks = false;
@@ -623,7 +623,7 @@ namespace System
         // Returns a value less than zero if this  object
         public int CompareTo(object value)
         {
-            if (value == null) return 1;
+            if (value is null) return 1;
             if (!(value is DateTime))
             {
                 throw new ArgumentException(SR.Arg_MustBeDateTime);
@@ -830,7 +830,7 @@ namespace System
 
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
@@ -1195,7 +1195,7 @@ namespace System
         //
         public static DateTime Parse(string s)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return (DateTimeParse.Parse(s, DateTimeFormatInfo.CurrentInfo, DateTimeStyles.None));
         }
 
@@ -1205,14 +1205,14 @@ namespace System
         //
         public static DateTime Parse(string s, IFormatProvider provider)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return (DateTimeParse.Parse(s, DateTimeFormatInfo.GetInstance(provider), DateTimeStyles.None));
         }
 
         public static DateTime Parse(string s, IFormatProvider provider, DateTimeStyles styles)
         {
             DateTimeFormatInfo.ValidateStyles(styles, nameof(styles));
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return (DateTimeParse.Parse(s, DateTimeFormatInfo.GetInstance(provider), styles));
         }
 
@@ -1228,8 +1228,8 @@ namespace System
         //
         public static DateTime ParseExact(string s, string format, IFormatProvider provider)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            if (format == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (format is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
             return (DateTimeParse.ParseExact(s, format, DateTimeFormatInfo.GetInstance(provider), DateTimeStyles.None));
         }
 
@@ -1240,8 +1240,8 @@ namespace System
         public static DateTime ParseExact(string s, string format, IFormatProvider provider, DateTimeStyles style)
         {
             DateTimeFormatInfo.ValidateStyles(style, nameof(style));
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            if (format == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (format is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
             return (DateTimeParse.ParseExact(s, format, DateTimeFormatInfo.GetInstance(provider), style));
         }
 
@@ -1254,7 +1254,7 @@ namespace System
         public static DateTime ParseExact(string s, string[] formats, IFormatProvider provider, DateTimeStyles style)
         {
             DateTimeFormatInfo.ValidateStyles(style, nameof(style));
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return DateTimeParse.ParseExactMultiple(s, formats, DateTimeFormatInfo.GetInstance(provider), style);
         }
 
@@ -1416,7 +1416,7 @@ namespace System
 
         public static bool TryParse(string s, out DateTime result)
         {
-            if (s == null)
+            if (s is null)
             {
                 result = default;
                 return false;
@@ -1433,7 +1433,7 @@ namespace System
         {
             DateTimeFormatInfo.ValidateStyles(styles, nameof(styles));
 
-            if (s == null)
+            if (s is null)
             {
                 result = default;
                 return false;
@@ -1452,7 +1452,7 @@ namespace System
         {
             DateTimeFormatInfo.ValidateStyles(style, nameof(style));
 
-            if (s == null || format == null)
+            if (s is null || format is null)
             {
                 result = default;
                 return false;
@@ -1471,7 +1471,7 @@ namespace System
         {
             DateTimeFormatInfo.ValidateStyles(style, nameof(style));
 
-            if (s == null)
+            if (s is null)
             {
                 result = default;
                 return false;

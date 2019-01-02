@@ -64,7 +64,7 @@ namespace System.Runtime.CompilerServices
                 {
                     t.ConfigureAwait(_value._continueOnCapturedContext).GetAwaiter().OnCompleted(continuation);
                 }
-                else if (obj != null)
+                else if (obj is object)
                 {
                     Unsafe.As<IValueTaskSource>(obj).OnCompleted(ValueTaskAwaiter.s_invokeActionDelegate, continuation, _value._token,
                         ValueTaskSourceOnCompletedFlags.FlowExecutionContext |
@@ -86,7 +86,7 @@ namespace System.Runtime.CompilerServices
                 {
                     t.ConfigureAwait(_value._continueOnCapturedContext).GetAwaiter().UnsafeOnCompleted(continuation);
                 }
-                else if (obj != null)
+                else if (obj is object)
                 {
                     Unsafe.As<IValueTaskSource>(obj).OnCompleted(ValueTaskAwaiter.s_invokeActionDelegate, continuation, _value._token,
                         _value._continueOnCapturedContext ? ValueTaskSourceOnCompletedFlags.UseSchedulingContext : ValueTaskSourceOnCompletedFlags.None);
@@ -106,7 +106,7 @@ namespace System.Runtime.CompilerServices
                 {
                     TaskAwaiter.UnsafeOnCompletedInternal(t, box, _value._continueOnCapturedContext);
                 }
-                else if (obj != null)
+                else if (obj is object)
                 {
                     Unsafe.As<IValueTaskSource>(obj).OnCompleted(ThreadPoolGlobals.s_invokeAsyncStateMachineBox, box, _value._token,
                         _value._continueOnCapturedContext ? ValueTaskSourceOnCompletedFlags.UseSchedulingContext : ValueTaskSourceOnCompletedFlags.None);
@@ -170,7 +170,7 @@ namespace System.Runtime.CompilerServices
                 {
                     t.ConfigureAwait(_value._continueOnCapturedContext).GetAwaiter().OnCompleted(continuation);
                 }
-                else if (obj != null)
+                else if (obj is object)
                 {
                     Unsafe.As<IValueTaskSource<TResult>>(obj).OnCompleted(ValueTaskAwaiter.s_invokeActionDelegate, continuation, _value._token,
                         ValueTaskSourceOnCompletedFlags.FlowExecutionContext |
@@ -192,7 +192,7 @@ namespace System.Runtime.CompilerServices
                 {
                     t.ConfigureAwait(_value._continueOnCapturedContext).GetAwaiter().UnsafeOnCompleted(continuation);
                 }
-                else if (obj != null)
+                else if (obj is object)
                 {
                     Unsafe.As<IValueTaskSource<TResult>>(obj).OnCompleted(ValueTaskAwaiter.s_invokeActionDelegate, continuation, _value._token,
                         _value._continueOnCapturedContext ? ValueTaskSourceOnCompletedFlags.UseSchedulingContext : ValueTaskSourceOnCompletedFlags.None);
@@ -212,7 +212,7 @@ namespace System.Runtime.CompilerServices
                 {
                     TaskAwaiter.UnsafeOnCompletedInternal(t, box, _value._continueOnCapturedContext);
                 }
-                else if (obj != null)
+                else if (obj is object)
                 {
                     Unsafe.As<IValueTaskSource<TResult>>(obj).OnCompleted(ThreadPoolGlobals.s_invokeAsyncStateMachineBox, box, _value._token,
                         _value._continueOnCapturedContext ? ValueTaskSourceOnCompletedFlags.UseSchedulingContext : ValueTaskSourceOnCompletedFlags.None);

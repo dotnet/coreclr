@@ -132,7 +132,7 @@ namespace System.Reflection
         public override string ToString()
         {
             string displayName = FullName;
-            if (displayName == null)
+            if (displayName is null)
                 return base.ToString();
             else
                 return displayName;
@@ -182,7 +182,7 @@ namespace System.Reflection
         [Obsolete("This method has been deprecated. Please use Assembly.Load() instead. https://go.microsoft.com/fwlink/?linkid=14202")]
         public static Assembly LoadWithPartialName(string partialName)
         {
-            if (partialName == null)
+            if (partialName is null)
                 throw new ArgumentNullException(nameof(partialName));
 
             return Load(partialName);

@@ -23,7 +23,7 @@ namespace System.Reflection
         private static Assembly LoadFromResolveHandler(object sender, ResolveEventArgs args)
         {
             Assembly requestingAssembly = args.RequestingAssembly;
-            if (requestingAssembly == null)
+            if (requestingAssembly is null)
             {
                 return null;
             }
@@ -73,7 +73,7 @@ namespace System.Reflection
 
         public static Assembly LoadFrom(string assemblyFile)
         {
-            if (assemblyFile == null)
+            if (assemblyFile is null)
                 throw new ArgumentNullException(nameof(assemblyFile));
             
             string fullPath = Path.GetFullPath(assemblyFile);
@@ -125,7 +125,7 @@ namespace System.Reflection
         public static Assembly Load(AssemblyName assemblyRef)
         {
             AssemblyName modifiedAssemblyRef = null;
-            if (assemblyRef != null && assemblyRef.CodeBase != null)
+            if (assemblyRef is object && assemblyRef.CodeBase is object)
             {
                 modifiedAssemblyRef = (AssemblyName)assemblyRef.Clone();
                 modifiedAssemblyRef.CodeBase = null;
@@ -145,7 +145,7 @@ namespace System.Reflection
         internal static Assembly Load(AssemblyName assemblyRef, IntPtr ptrLoadContextBinder)
         {
             AssemblyName modifiedAssemblyRef = null;
-            if (assemblyRef != null && assemblyRef.CodeBase != null)
+            if (assemblyRef is object && assemblyRef.CodeBase is object)
             {
                 modifiedAssemblyRef = (AssemblyName)assemblyRef.Clone();
                 modifiedAssemblyRef.CodeBase = null;
@@ -165,7 +165,7 @@ namespace System.Reflection
         public static Assembly Load(byte[] rawAssembly,
                                     byte[] rawSymbolStore)
         {
-            if (rawAssembly == null)
+            if (rawAssembly is null)
                 throw new ArgumentNullException(nameof(rawAssembly));
 
 #if FEATURE_APPX
@@ -175,7 +175,7 @@ namespace System.Reflection
 
             AssemblyLoadContext alc = new IndividualAssemblyLoadContext();
             MemoryStream assemblyStream = new MemoryStream(rawAssembly);
-            MemoryStream symbolStream = (rawSymbolStore != null) ? new MemoryStream(rawSymbolStore) : null;
+            MemoryStream symbolStream = (rawSymbolStore is object) ? new MemoryStream(rawSymbolStore) : null;
             return alc.LoadFromStream(assemblyStream, symbolStream);
         }
 
@@ -183,7 +183,7 @@ namespace System.Reflection
 
         public static Assembly LoadFile(string path)
         {
-            if (path == null)
+            if (path is null)
                 throw new ArgumentNullException(nameof(path));
 
 #if FEATURE_APPX

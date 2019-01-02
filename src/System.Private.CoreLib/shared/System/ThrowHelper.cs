@@ -329,7 +329,7 @@ namespace System
 
         private static Exception GetArraySegmentCtorValidationFailedException(Array array, int offset, int count)
         {
-            if (array == null)
+            if (array is null)
                 return new ArgumentNullException(nameof(array));
             if (offset < 0)
                 return new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);

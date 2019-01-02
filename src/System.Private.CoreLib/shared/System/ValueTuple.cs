@@ -58,7 +58,7 @@ namespace System
 
         int IComparable.CompareTo(object other)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple))
             {
@@ -83,7 +83,7 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple))
             {
@@ -352,7 +352,7 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null || !(other is ValueTuple<T1>)) return false;
+            if (other is null || !(other is ValueTuple<T1>)) return false;
 
             var objTuple = (ValueTuple<T1>)other;
 
@@ -361,7 +361,7 @@ namespace System
 
         int IComparable.CompareTo(object other)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1>))
             {
@@ -388,7 +388,7 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1>))
             {
@@ -545,7 +545,7 @@ namespace System
         /// </remarks>
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null || !(other is ValueTuple<T1, T2>)) return false;
+            if (other is null || !(other is ValueTuple<T1, T2>)) return false;
 
             var objTuple = (ValueTuple<T1, T2>)other;
 
@@ -555,7 +555,7 @@ namespace System
 
         int IComparable.CompareTo(object other)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2>))
             {
@@ -583,7 +583,7 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2>))
             {
@@ -744,7 +744,7 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null || !(other is ValueTuple<T1, T2, T3>)) return false;
+            if (other is null || !(other is ValueTuple<T1, T2, T3>)) return false;
 
             var objTuple = (ValueTuple<T1, T2, T3>)other;
 
@@ -755,7 +755,7 @@ namespace System
 
         int IComparable.CompareTo(object other)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3>))
             {
@@ -786,7 +786,7 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3>))
             {
@@ -960,7 +960,7 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null || !(other is ValueTuple<T1, T2, T3, T4>)) return false;
+            if (other is null || !(other is ValueTuple<T1, T2, T3, T4>)) return false;
 
             var objTuple = (ValueTuple<T1, T2, T3, T4>)other;
 
@@ -972,7 +972,7 @@ namespace System
 
         int IComparable.CompareTo(object other)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4>))
             {
@@ -1006,7 +1006,7 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4>))
             {
@@ -1195,7 +1195,7 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null || !(other is ValueTuple<T1, T2, T3, T4, T5>)) return false;
+            if (other is null || !(other is ValueTuple<T1, T2, T3, T4, T5>)) return false;
 
             var objTuple = (ValueTuple<T1, T2, T3, T4, T5>)other;
 
@@ -1208,7 +1208,7 @@ namespace System
 
         int IComparable.CompareTo(object other)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5>))
             {
@@ -1245,7 +1245,7 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5>))
             {
@@ -1449,7 +1449,7 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null || !(other is ValueTuple<T1, T2, T3, T4, T5, T6>)) return false;
+            if (other is null || !(other is ValueTuple<T1, T2, T3, T4, T5, T6>)) return false;
 
             var objTuple = (ValueTuple<T1, T2, T3, T4, T5, T6>)other;
 
@@ -1463,7 +1463,7 @@ namespace System
 
         int IComparable.CompareTo(object other)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6>))
             {
@@ -1503,7 +1503,7 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6>))
             {
@@ -1722,7 +1722,7 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null || !(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7>)) return false;
+            if (other is null || !(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7>)) return false;
 
             var objTuple = (ValueTuple<T1, T2, T3, T4, T5, T6, T7>)other;
 
@@ -1737,7 +1737,7 @@ namespace System
 
         int IComparable.CompareTo(object other)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7>))
             {
@@ -1780,7 +1780,7 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7>))
             {
@@ -2020,7 +2020,7 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null || !(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>)) return false;
+            if (other is null || !(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>)) return false;
 
             var objTuple = (ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>)other;
 
@@ -2036,7 +2036,7 @@ namespace System
 
         int IComparable.CompareTo(object other)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>))
             {
@@ -2082,7 +2082,7 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>))
             {
@@ -2123,7 +2123,7 @@ namespace System
         {
             // We want to have a limited hash in this case.  We'll use the last 8 elements of the tuple
             IValueTupleInternal rest = Rest as IValueTupleInternal;
-            if (rest == null)
+            if (rest is null)
             {
                 return ValueTuple.CombineHashCodes(Item1?.GetHashCode() ?? 0,
                                                    Item2?.GetHashCode() ?? 0,
@@ -2199,7 +2199,7 @@ namespace System
         {
             // We want to have a limited hash in this case.  We'll use the last 8 elements of the tuple
             IValueTupleInternal rest = Rest as IValueTupleInternal;
-            if (rest == null)
+            if (rest is null)
             {
                 return ValueTuple.CombineHashCodes(comparer.GetHashCode(Item1), comparer.GetHashCode(Item2), comparer.GetHashCode(Item3),
                                                    comparer.GetHashCode(Item4), comparer.GetHashCode(Item5), comparer.GetHashCode(Item6),
@@ -2257,7 +2257,7 @@ namespace System
         public override string ToString()
         {
             IValueTupleInternal rest = Rest as IValueTupleInternal;
-            if (rest == null)
+            if (rest is null)
             {
                 return "(" + Item1?.ToString() + ", " + Item2?.ToString() + ", " + Item3?.ToString() + ", " + Item4?.ToString() + ", " + Item5?.ToString() + ", " + Item6?.ToString() + ", " + Item7?.ToString() + ", " + Rest.ToString() + ")";
             }
@@ -2270,7 +2270,7 @@ namespace System
         string IValueTupleInternal.ToStringEnd()
         {
             IValueTupleInternal rest = Rest as IValueTupleInternal;
-            if (rest == null)
+            if (rest is null)
             {
                 return Item1?.ToString() + ", " + Item2?.ToString() + ", " + Item3?.ToString() + ", " + Item4?.ToString() + ", " + Item5?.ToString() + ", " + Item6?.ToString() + ", " + Item7?.ToString() + ", " + Rest.ToString() + ")";
             }
@@ -2288,7 +2288,7 @@ namespace System
             get
             {
                 IValueTupleInternal rest = Rest as IValueTupleInternal;
-                return rest == null ? 8 : 7 + rest.Length;
+                return rest is null ? 8 : 7 + rest.Length;
             }
         }
 
@@ -2318,7 +2318,7 @@ namespace System
                 }
 
                 IValueTupleInternal rest = Rest as IValueTupleInternal;
-                if (rest == null)
+                if (rest is null)
                 {
                     if (index == 7)
                     {

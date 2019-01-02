@@ -17,7 +17,7 @@ namespace System.Collections.ObjectModel
 
         public ReadOnlyCollection(IList<T> list)
         {
-            if (list == null)
+            if (list is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.list);
             }
@@ -122,7 +122,7 @@ namespace System.Collections.ObjectModel
 
         void ICollection.CopyTo(Array array, int index)
         {
-            if (array == null)
+            if (array is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
@@ -148,7 +148,7 @@ namespace System.Collections.ObjectModel
             }
 
             T[] items = array as T[];
-            if (items != null)
+            if (items is object)
             {
                 list.CopyTo(items, index);
             }
@@ -172,7 +172,7 @@ namespace System.Collections.ObjectModel
                 // widening of primitive types here.
                 //
                 object[] objects = array as object[];
-                if (objects == null)
+                if (objects is null)
                 {
                     ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
@@ -226,7 +226,7 @@ namespace System.Collections.ObjectModel
         {
             // Non-null values are fine.  Only accept nulls if T is a class or Nullable<U>.
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
-            return ((value is T) || (value == null && default(T) == null));
+            return ((value is T) || (value is null && default(T) == null));
         }
 
         bool IList.Contains(object value)

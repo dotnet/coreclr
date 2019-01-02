@@ -134,7 +134,7 @@ namespace System.Text
                 }
                 currentSrc = currentSrc.m_ChunkPrevious;
             }
-            while (currentSrc != null);
+            while (currentSrc is object);
         }
     }
 }

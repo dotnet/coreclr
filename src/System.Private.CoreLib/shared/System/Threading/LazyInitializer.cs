@@ -112,7 +112,7 @@ namespace System.Threading
         private static T EnsureInitializedCore<T>(ref T target, Func<T> valueFactory) where T : class
         {
             T value = valueFactory();
-            if (value == null)
+            if (value is null)
             {
                 throw new InvalidOperationException(SR.Lazy_StaticInit_InvalidOperation);
             }
@@ -264,7 +264,7 @@ namespace System.Threading
                 if (Volatile.Read(ref target) == null)
                 {
                     Volatile.Write(ref target, valueFactory());
-                    if (target == null)
+                    if (target is null)
                     {
                         throw new InvalidOperationException(SR.Lazy_StaticInit_InvalidOperation);
                     }

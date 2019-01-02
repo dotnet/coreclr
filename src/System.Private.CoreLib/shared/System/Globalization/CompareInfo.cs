@@ -99,7 +99,7 @@ namespace System.Globalization
         public static CompareInfo GetCompareInfo(int culture, Assembly assembly)
         {
             // Parameter checking.
-            if (assembly == null)
+            if (assembly is null)
             {
                 throw new ArgumentNullException(nameof(assembly));
             }
@@ -125,9 +125,9 @@ namespace System.Globalization
         // Assembly constructor should be deprecated, we don't act on the assembly information any more
         public static CompareInfo GetCompareInfo(string name, Assembly assembly)
         {
-            if (name == null || assembly == null)
+            if (name is null || assembly is null)
             {
-                throw new ArgumentNullException(name == null ? nameof(name) : nameof(assembly));
+                throw new ArgumentNullException(name is null ? nameof(name) : nameof(assembly));
             }
 
             if (assembly != typeof(object).Module.Assembly)
@@ -170,7 +170,7 @@ namespace System.Globalization
 
         public static CompareInfo GetCompareInfo(string name)
         {
-            if (name == null)
+            if (name is null)
             {
                 throw new ArgumentNullException(nameof(name));
             }
@@ -190,7 +190,7 @@ namespace System.Globalization
 
         public static unsafe bool IsSortable(string text)
         {
-            if (text == null)
+            if (text is null)
             {
                 // A null param is invalid here.
                 throw new ArgumentNullException(nameof(text));
@@ -233,7 +233,7 @@ namespace System.Globalization
         private void OnDeserialized()
         {
             // If we didn't have a name, use the LCID
-            if (m_name == null)
+            if (m_name is null)
             {
                 // From whidbey, didn't have a name
                 CultureInfo ci = CultureInfo.GetCultureInfo(this.culture);
@@ -740,9 +740,9 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
         public virtual bool IsPrefix(string source, string prefix, CompareOptions options)
         {
-            if (source == null || prefix == null)
+            if (source is null || prefix is null)
             {
-                throw new ArgumentNullException((source == null ? nameof(source) : nameof(prefix)),
+                throw new ArgumentNullException((source is null ? nameof(source) : nameof(prefix)),
                     SR.ArgumentNull_String);
             }
 
@@ -805,9 +805,9 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
         public virtual bool IsSuffix(string source, string suffix, CompareOptions options)
         {
-            if (source == null || suffix == null)
+            if (source is null || suffix is null)
             {
-                throw new ArgumentNullException((source == null ? nameof(source) : nameof(suffix)),
+                throw new ArgumentNullException((source is null ? nameof(source) : nameof(suffix)),
                     SR.ArgumentNull_String);
             }
 
@@ -877,7 +877,7 @@ namespace System.Globalization
 
         public virtual int IndexOf(string source, char value)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             return IndexOf(source, value, 0, source.Length, CompareOptions.None);
@@ -886,7 +886,7 @@ namespace System.Globalization
 
         public virtual int IndexOf(string source, string value)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             return IndexOf(source, value, 0, source.Length, CompareOptions.None);
@@ -895,7 +895,7 @@ namespace System.Globalization
 
         public virtual int IndexOf(string source, char value, CompareOptions options)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             return IndexOf(source, value, 0, source.Length, options);
@@ -904,7 +904,7 @@ namespace System.Globalization
 
         public virtual int IndexOf(string source, string value, CompareOptions options)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             return IndexOf(source, value, 0, source.Length, options);
@@ -912,7 +912,7 @@ namespace System.Globalization
 
         public virtual int IndexOf(string source, char value, int startIndex)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             return IndexOf(source, value, startIndex, source.Length - startIndex, CompareOptions.None);
@@ -920,7 +920,7 @@ namespace System.Globalization
 
         public virtual int IndexOf(string source, string value, int startIndex)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             return IndexOf(source, value, startIndex, source.Length - startIndex, CompareOptions.None);
@@ -928,7 +928,7 @@ namespace System.Globalization
 
         public virtual int IndexOf(string source, char value, int startIndex, CompareOptions options)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             return IndexOf(source, value, startIndex, source.Length - startIndex, options);
@@ -937,7 +937,7 @@ namespace System.Globalization
 
         public virtual int IndexOf(string source, string value, int startIndex, CompareOptions options)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             return IndexOf(source, value, startIndex, source.Length - startIndex, options);
@@ -958,7 +958,7 @@ namespace System.Globalization
         public unsafe virtual int IndexOf(string source, char value, int startIndex, int count, CompareOptions options)
         {
             // Validate inputs
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             if (startIndex < 0 || startIndex > source.Length)
@@ -983,9 +983,9 @@ namespace System.Globalization
         public unsafe virtual int IndexOf(string source, string value, int startIndex, int count, CompareOptions options)
         {
             // Validate inputs
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
             if (startIndex > source.Length)
@@ -1156,7 +1156,7 @@ namespace System.Globalization
 
         public virtual int LastIndexOf(string source, char value)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             // Can't start at negative index, so make sure we check for the length == 0 case.
@@ -1166,7 +1166,7 @@ namespace System.Globalization
 
         public virtual int LastIndexOf(string source, string value)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             // Can't start at negative index, so make sure we check for the length == 0 case.
@@ -1177,7 +1177,7 @@ namespace System.Globalization
 
         public virtual int LastIndexOf(string source, char value, CompareOptions options)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             // Can't start at negative index, so make sure we check for the length == 0 case.
@@ -1187,7 +1187,7 @@ namespace System.Globalization
 
         public virtual int LastIndexOf(string source, string value, CompareOptions options)
         {
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             // Can't start at negative index, so make sure we check for the length == 0 case.
@@ -1232,7 +1232,7 @@ namespace System.Globalization
         public virtual int LastIndexOf(string source, char value, int startIndex, int count, CompareOptions options)
         {
             // Verify Arguments
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
 
             // Validate CompareOptions
@@ -1277,9 +1277,9 @@ namespace System.Globalization
         public virtual int LastIndexOf(string source, string value, int startIndex, int count, CompareOptions options)
         {
             // Verify Arguments
-            if (source == null)
+            if (source is null)
                 throw new ArgumentNullException(nameof(source));
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
             // Validate CompareOptions
@@ -1373,7 +1373,7 @@ namespace System.Globalization
         {
             CompareInfo that = value as CompareInfo;
 
-            if (that != null)
+            if (that is object)
             {
                 return this.Name == that.Name;
             }
@@ -1515,7 +1515,7 @@ namespace System.Globalization
         {
             get
             {
-                if (m_SortVersion == null)
+                if (m_SortVersion is null)
                 {
                     if (GlobalizationMode.Invariant)
                     {

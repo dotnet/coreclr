@@ -224,7 +224,7 @@ namespace System.Threading
                 {
                     object unused = LocalPop();
                     Debug.Assert(unused == null || unused == obj);
-                    return unused != null;
+                    return unused is object;
                 }
 
                 // Else, do an O(N) search for the work item. The theory of work stealing and our
@@ -297,7 +297,7 @@ namespace System.Threading
                         object obj = Volatile.Read(ref m_array[idx]);
 
                         // Check for nulls in the array.
-                        if (obj == null) continue;
+                        if (obj is null) continue;
 
                         m_array[idx] = null;
                         return obj;
@@ -317,7 +317,7 @@ namespace System.Threading
                                 object obj = Volatile.Read(ref m_array[idx]);
 
                                 // Check for nulls in the array.
-                                if (obj == null) continue;
+                                if (obj is null) continue;
 
                                 m_array[idx] = null;
                                 return obj;
@@ -362,7 +362,7 @@ namespace System.Threading
                                     object obj = Volatile.Read(ref m_array[idx]);
 
                                     // Check for nulls in the array.
-                                    if (obj == null) continue;
+                                    if (obj is null) continue;
 
                                     m_array[idx] = null;
                                     return obj;
@@ -481,7 +481,7 @@ namespace System.Threading
         internal bool LocalFindAndPop(object callback)
         {
             ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
-            return tl != null && tl.workStealingQueue.LocalFindAndPop(callback);
+            return tl is object && tl.workStealingQueue.LocalFindAndPop(callback);
         }
 
         public object Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref bool missedSteal)
@@ -505,7 +505,7 @@ namespace System.Threading
                     if (otherQueue != localWsq && otherQueue.CanSteal)
                     {
                         callback = otherQueue.TrySteal(ref missedSteal);
-                        if (callback != null)
+                        if (callback is object)
                         {
                             break;
                         }
@@ -568,7 +568,7 @@ namespace System.Threading
                     // Use operate on workItem local to try block so it can be enregistered 
                     object workItem = outerWorkItem = workQueue.Dequeue(tl, ref missedSteal);
 
-                    if (workItem == null)
+                    if (workItem is null)
                     {
                         //
                         // No work.  We're going to return to the VM once we leave this protected region.
@@ -779,7 +779,7 @@ namespace System.Threading
             RuntimeHelpers.PrepareConstrainedRegions();
 
             m_internalWaitObject = waitObject;
-            if (waitObject != null)
+            if (waitObject is object)
             {
                 m_internalWaitObject.SafeWaitHandle.DangerousAddRef(ref bReleaseNeeded);
             }
@@ -805,7 +805,7 @@ namespace System.Threading
                     {
                         if (ValidHandle())
                         {
-                            result = UnregisterWaitNative(GetHandle(), waitObject == null ? null : waitObject.SafeWaitHandle);
+                            result = UnregisterWaitNative(GetHandle(), waitObject is null ? null : waitObject.SafeWaitHandle);
                             if (result == true)
                             {
                                 if (bReleaseNeeded)
@@ -1109,7 +1109,7 @@ namespace System.Threading
             Debug.Assert(helper != null, "Null state passed to PerformWaitOrTimerCallback!");
             // call directly if it is an unsafe call OR EC flow is suppressed
             ExecutionContext context = helper._executionContext;
-            if (context == null)
+            if (context is null)
             {
                 WaitOrTimerCallback callback = helper._waitOrTimerCallback;
                 callback(helper._state, timedOut);
@@ -1190,7 +1190,7 @@ namespace System.Threading
         {
             RegisteredWaitHandle registeredWaitHandle = new RegisteredWaitHandle();
 
-            if (callBack != null)
+            if (callBack is object)
             {
                 _ThreadPoolWaitOrTimerCallback callBackHelper = new _ThreadPoolWaitOrTimerCallback(callBack, state, compressStack);
                 state = (object)callBackHelper;
@@ -1301,7 +1301,7 @@ namespace System.Threading
 
         public static bool QueueUserWorkItem(WaitCallback callBack, object state)
         {
-            if (callBack == null)
+            if (callBack is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
@@ -1310,7 +1310,7 @@ namespace System.Threading
 
             ExecutionContext context = ExecutionContext.Capture();
 
-            object tpcallBack = (context == null || context.IsDefault) ?
+            object tpcallBack = (context is null || context.IsDefault) ?
                 new QueueUserWorkItemCallbackDefaultContext(callBack, state) :
                 (object)new QueueUserWorkItemCallback(callBack, state, context);
 
@@ -1321,7 +1321,7 @@ namespace System.Threading
 
         public static bool QueueUserWorkItem<TState>(Action<TState> callBack, TState state, bool preferLocal)
         {
-            if (callBack == null)
+            if (callBack is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
@@ -1330,7 +1330,7 @@ namespace System.Threading
 
             ExecutionContext context = ExecutionContext.Capture();
 
-            object tpcallBack = (context == null || context.IsDefault) ?
+            object tpcallBack = (context is null || context.IsDefault) ?
                 new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state) :
                 (object)new QueueUserWorkItemCallback<TState>(callBack, state, context);
 
@@ -1341,7 +1341,7 @@ namespace System.Threading
 
         public static bool UnsafeQueueUserWorkItem<TState>(Action<TState> callBack, TState state, bool preferLocal)
         {
-            if (callBack == null)
+            if (callBack is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
@@ -1374,7 +1374,7 @@ namespace System.Threading
 
         public static bool UnsafeQueueUserWorkItem(WaitCallback callBack, object state)
         {
-            if (callBack == null)
+            if (callBack is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
@@ -1390,7 +1390,7 @@ namespace System.Threading
 
         public static bool UnsafeQueueUserWorkItem(IThreadPoolWorkItem callBack, bool preferLocal)
         {
-            if (callBack == null)
+            if (callBack is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
@@ -1435,13 +1435,13 @@ namespace System.Threading
             // Enumerate each local queue
             foreach (ThreadPoolWorkQueue.WorkStealingQueue wsq in ThreadPoolWorkQueue.WorkStealingQueueList.Queues)
             {
-                if (wsq != null && wsq.m_array != null)
+                if (wsq is object && wsq.m_array is object)
                 {
                     object[] items = wsq.m_array;
                     for (int i = 0; i < items.Length; i++)
                     {
                         object item = items[i];
-                        if (item != null)
+                        if (item is object)
                         {
                             yield return item;
                         }
@@ -1453,13 +1453,13 @@ namespace System.Threading
         internal static IEnumerable<object> GetLocallyQueuedWorkItems()
         {
             ThreadPoolWorkQueue.WorkStealingQueue wsq = ThreadPoolWorkQueueThreadLocals.threadLocals.workStealingQueue;
-            if (wsq != null && wsq.m_array != null)
+            if (wsq is object && wsq.m_array is object)
             {
                 object[] items = wsq.m_array;
                 for (int i = 0; i < items.Length; i++)
                 {
                     object item = items[i];
-                    if (item != null)
+                    if (item is object)
                         yield return item;
                 }
             }
@@ -1581,7 +1581,7 @@ namespace System.Threading
 
         public static bool BindHandle(SafeHandle osHandle)
         {
-            if (osHandle == null)
+            if (osHandle is null)
                 throw new ArgumentNullException(nameof(osHandle));
 
             bool ret = false;

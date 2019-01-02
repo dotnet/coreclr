@@ -77,7 +77,7 @@ namespace System.Runtime.InteropServices
 
         internal static ComEventsMethod Find(ComEventsMethod methods, int dispid)
         {
-            while (methods != null && methods._dispid != dispid)
+            while (methods is object && methods._dispid != dispid)
             {
                 methods = methods._next;
             }
@@ -99,9 +99,9 @@ namespace System.Runtime.InteropServices
             else
             {
                 ComEventsMethod current = methods;
-                while (current != null && current._next != method)
+                while (current is object && current._next != method)
                     current = current._next;
-                if (current != null)
+                if (current is object)
                     current._next = method._next;
             }
 
@@ -113,13 +113,13 @@ namespace System.Runtime.InteropServices
 
         internal bool Empty
         {
-            get { return _delegateWrappers == null || _delegateWrappers.Length == 0; }
+            get { return _delegateWrappers is null || _delegateWrappers.Length == 0; }
         }
 
         internal void AddDelegate(Delegate d)
         {
             int count = 0;
-            if (_delegateWrappers != null)
+            if (_delegateWrappers is object)
             {
                 count = _delegateWrappers.Length;
             }
@@ -163,7 +163,7 @@ namespace System.Runtime.InteropServices
                 return;
 
             Delegate newDelegate = Delegate.Remove(_delegateWrappers[removeIdx].Delegate, d);
-            if (newDelegate != null)
+            if (newDelegate is object)
             {
                 _delegateWrappers[removeIdx].Delegate = newDelegate;
                 return;

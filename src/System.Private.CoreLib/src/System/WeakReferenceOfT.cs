@@ -46,7 +46,7 @@ namespace System
 
         internal WeakReference(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
@@ -70,7 +70,7 @@ namespace System
             // Call the worker method that has more performant but less user friendly signature.
             T o = this.Target;
             target = o;
-            return o != null;
+            return o is object;
         }
 
         public void SetTarget(T target)
@@ -98,7 +98,7 @@ namespace System
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
             {
                 throw new ArgumentNullException(nameof(info));
             }

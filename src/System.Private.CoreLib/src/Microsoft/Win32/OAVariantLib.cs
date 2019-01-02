@@ -78,7 +78,7 @@ namespace Microsoft.Win32
         {
             if (targetClass is null)
                 throw new ArgumentNullException(nameof(targetClass));
-            if (culture == null)
+            if (culture is null)
                 throw new ArgumentNullException(nameof(culture));
             Variant result = new Variant();
             ChangeTypeEx(ref result, ref source,

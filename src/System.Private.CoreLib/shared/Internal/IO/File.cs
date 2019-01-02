@@ -23,7 +23,7 @@ namespace Internal.IO
         {
             try
             {
-                if (path == null)
+                if (path is null)
                     return false;
                 if (path.Length == 0)
                     return false;

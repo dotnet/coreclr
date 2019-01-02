@@ -120,7 +120,7 @@ namespace System.Reflection.Emit
                 // Create and cache the opcode names lazily. They should be rarely used (only for logging, etc.)
                 // Note that we do not any locks here because of we always get the same names. The last one wins.
                 string[] nameCache = g_nameCache;
-                if (nameCache == null)
+                if (nameCache is null)
                 {
                     nameCache = new string[0x11f];
                     g_nameCache = nameCache;
@@ -145,7 +145,7 @@ namespace System.Reflection.Emit
                 }
 
                 string name = Volatile.Read(ref nameCache[idx]);
-                if (name != null)
+                if (name is object)
                     return name;
 
                 // Create ilasm style name from the enum value name.

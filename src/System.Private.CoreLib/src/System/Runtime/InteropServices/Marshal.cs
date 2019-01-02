@@ -184,7 +184,7 @@ namespace System.Runtime.InteropServices
 
         public static int SizeOf(object structure)
         {
-            if (structure == null)
+            if (structure is null)
             {
                 throw new ArgumentNullException(nameof(structure));
             }
@@ -196,7 +196,7 @@ namespace System.Runtime.InteropServices
 
         public static int SizeOf(Type t)
         {
-            if (t == null)
+            if (t is null)
             {
                 throw new ArgumentNullException(nameof(t));
             }
@@ -219,7 +219,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr OffsetOf(Type t, string fieldName)
         {
-            if (t == null)
+            if (t is null)
             {
                 throw new ArgumentNullException(nameof(t));
             }
@@ -502,7 +502,7 @@ namespace System.Runtime.InteropServices
         private static unsafe T ReadValueSlow<T>(object ptr, int ofs, Func<IntPtr, int, T> readValueHelper)
         {
             // Consumers of this method are documented to throw AccessViolationException on any AV
-            if (ptr == null)
+            if (ptr is null)
             {
                 throw new AccessViolationException();
             }
@@ -687,7 +687,7 @@ namespace System.Runtime.InteropServices
         private static unsafe void WriteValueSlow<T>(object ptr, int ofs, T val, Action<IntPtr, int, T> writeValueHelper)
         {
             // Consumers of this method are documented to throw AccessViolationException on any AV
-            if (ptr == null)
+            if (ptr is null)
             {
                 throw new AccessViolationException();
             }
@@ -751,13 +751,13 @@ namespace System.Runtime.InteropServices
 
         public static void PrelinkAll(Type c)
         {
-            if (c == null)
+            if (c is null)
             {
                 throw new ArgumentNullException(nameof(c));
             }
 
             MethodInfo[] mi = c.GetMethods();
-            if (mi != null)
+            if (mi is object)
             {
                 for (int i = 0; i < mi.Length; i++)
                 {
@@ -809,7 +809,7 @@ namespace System.Runtime.InteropServices
                 return null;
             }
 
-            if (structureType == null)
+            if (structureType is null)
             {
                 throw new ArgumentNullException(nameof(structureType));
             }
@@ -851,7 +851,7 @@ namespace System.Runtime.InteropServices
         /// </summary>
         public static IntPtr GetHINSTANCE(Module m)
         {
-            if (m == null)
+            if (m is null)
             {
                 throw new ArgumentNullException(nameof(m));
             }
@@ -966,7 +966,7 @@ namespace System.Runtime.InteropServices
     
         public static unsafe IntPtr StringToHGlobalAnsi(string s)
         {
-            if (s == null)
+            if (s is null)
             {
                 return IntPtr.Zero;
             }
@@ -992,7 +992,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe IntPtr StringToHGlobalUni(string s)
         {
-            if (s == null)
+            if (s is null)
             {
                 return IntPtr.Zero;
             }
@@ -1047,7 +1047,7 @@ namespace System.Runtime.InteropServices
         /// </summary>
         public static string GetTypeInfoName(ITypeInfo typeInfo)
         {
-            if (typeInfo == null)
+            if (typeInfo is null)
             {
                 throw new ArgumentNullException(nameof(typeInfo));
             }
@@ -1162,7 +1162,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe IntPtr StringToCoTaskMemUni(string s)
         {
-            if (s == null)
+            if (s is null)
             {
                 return IntPtr.Zero;
             }
@@ -1190,7 +1190,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe IntPtr StringToCoTaskMemUTF8(string s)
         {
-            if (s == null)
+            if (s is null)
             {
                 return IntPtr.Zero;
             }
@@ -1219,7 +1219,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe IntPtr StringToCoTaskMemAnsi(string s)
         {
-            if (s == null)
+            if (s is null)
             {
                 return IntPtr.Zero;
             }
@@ -1271,7 +1271,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr StringToBSTR(string s)
         {
-            if (s == null)
+            if (s is null)
             {
                 return IntPtr.Zero;
             }
@@ -1303,7 +1303,7 @@ namespace System.Runtime.InteropServices
         /// </summary>
         public static int ReleaseComObject(object o)
         {
-            if (o == null)
+            if (o is null)
             {
                 // Match .NET Framework behaviour.
                 throw new NullReferenceException();
@@ -1325,7 +1325,7 @@ namespace System.Runtime.InteropServices
         /// </summary>
         public static int FinalReleaseComObject(object o)
         {
-            if (o == null)
+            if (o is null)
             {
                 throw new ArgumentNullException(nameof(o));
             }
@@ -1343,11 +1343,11 @@ namespace System.Runtime.InteropServices
 
         public static object GetComObjectData(object obj, object key)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 throw new ArgumentNullException(nameof(obj));
             }
-            if (key == null)
+            if (key is null)
             {
                 throw new ArgumentNullException(nameof(key));
             }
@@ -1372,11 +1372,11 @@ namespace System.Runtime.InteropServices
         /// </summary>
         public static bool SetComObjectData(object obj, object key, object data)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 throw new ArgumentNullException(nameof(obj));
             }
-            if (key == null)
+            if (key is null)
             {
                 throw new ArgumentNullException(nameof(key));
             }
@@ -1399,7 +1399,7 @@ namespace System.Runtime.InteropServices
         /// </summary>
         public static object CreateWrapperOfType(object o, Type t)
         {
-            if (t == null)
+            if (t is null)
             {
                 throw new ArgumentNullException(nameof(t));
             }
@@ -1416,7 +1416,7 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentException(SR.Argument_TypeIsWinRTType, nameof(t));
             }
 
-            if (o == null)
+            if (o is null)
             {
                 return null;
             }
@@ -1438,7 +1438,7 @@ namespace System.Runtime.InteropServices
 
             // Check to see if we already have a cached wrapper for this type.
             object Wrapper = GetComObjectData(o, t);
-            if (Wrapper == null)
+            if (Wrapper is null)
             {
                 // Create the wrapper for the specified type.
                 Wrapper = InternalCreateWrapperOfType(o, t);
@@ -1501,7 +1501,7 @@ namespace System.Runtime.InteropServices
             object[] objects = GetObjectsForNativeVariants(aSrcNativeVariant, cVars);
             T[] result = null;
 
-            if (objects != null)
+            if (objects is object)
             {
                 result = new T[objects.Length];
                 Array.Copy(objects, result, objects.Length);
@@ -1538,7 +1538,7 @@ namespace System.Runtime.InteropServices
         /// </summary>
         public static string GenerateProgIdForType(Type type)
         {
-            if (type == null)
+            if (type is null)
             {
                 throw new ArgumentNullException(nameof(type));
             }
@@ -1565,7 +1565,7 @@ namespace System.Runtime.InteropServices
 
                     string strProgId = (string)progIdConstructorArg.Value;
 
-                    if (strProgId == null)
+                    if (strProgId is null)
                         strProgId = string.Empty;
 
                     return strProgId;
@@ -1630,7 +1630,7 @@ namespace System.Runtime.InteropServices
             {
                 throw new ArgumentNullException(nameof(ptr));
             }
-            if (t == null)
+            if (t is null)
             {
                 throw new ArgumentNullException(nameof(t));
             }
@@ -1644,7 +1644,7 @@ namespace System.Runtime.InteropServices
             }
 
             Type c = t.BaseType;
-            if (c == null || (c != typeof(Delegate) && c != typeof(MulticastDelegate)))
+            if (c is null || (c != typeof(Delegate) && c != typeof(MulticastDelegate)))
             {
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(t));
             }
@@ -1662,7 +1662,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr GetFunctionPointerForDelegate(Delegate d)
         {
-            if (d == null)
+            if (d is null)
             {
                 throw new ArgumentNullException(nameof(d));
             }
@@ -1680,7 +1680,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr SecureStringToBSTR(SecureString s)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -1690,7 +1690,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr SecureStringToCoTaskMemAnsi(SecureString s)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -1700,7 +1700,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr SecureStringToCoTaskMemUnicode(SecureString s)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -1750,7 +1750,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr SecureStringToGlobalAllocAnsi(SecureString s)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -1760,7 +1760,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr SecureStringToGlobalAllocUnicode(SecureString s)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -1801,7 +1801,7 @@ namespace System.Runtime.InteropServices
         /// <exception cref="System.BadImageFormatException">If the library is not valid.</exception>
         public static IntPtr LoadLibrary(string libraryPath)
         {
-            if (libraryPath == null)
+            if (libraryPath is null)
                 throw new ArgumentNullException(nameof(libraryPath));
 
             return LoadLibraryFromPath(libraryPath, throwOnError: true);
@@ -1816,7 +1816,7 @@ namespace System.Runtime.InteropServices
         /// <exception cref="System.ArgumentNullException">If libraryPath is null</exception>
         public static bool TryLoadLibrary(string libraryPath, out IntPtr handle)
         {
-            if (libraryPath == null)
+            if (libraryPath is null)
                 throw new ArgumentNullException(nameof(libraryPath));
 
             handle = LoadLibraryFromPath(libraryPath, throwOnError: false);
@@ -1843,9 +1843,9 @@ namespace System.Runtime.InteropServices
         /// <exception cref="System.BadImageFormatException">If the library is not valid.</exception>        
         public static IntPtr LoadLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
         {
-            if (libraryName == null)
+            if (libraryName is null)
                 throw new ArgumentNullException(nameof(libraryName));
-            if (assembly == null)
+            if (assembly is null)
                 throw new ArgumentNullException(nameof(assembly));
             if (!(assembly is RuntimeAssembly))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
@@ -1869,9 +1869,9 @@ namespace System.Runtime.InteropServices
         /// <exception cref="System.ArgumentException">If assembly is not a RuntimeAssembly</exception>
         public static bool TryLoadLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath, out IntPtr handle)
         {
-            if (libraryName == null)
+            if (libraryName is null)
                 throw new ArgumentNullException(nameof(libraryName));
-            if (assembly == null)
+            if (assembly is null)
                 throw new ArgumentNullException(nameof(assembly));
             if (!(assembly is RuntimeAssembly))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
@@ -1909,7 +1909,7 @@ namespace System.Runtime.InteropServices
         {
             if (handle == IntPtr.Zero) 
                 throw new ArgumentNullException(nameof(handle));
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
 
             return GetNativeLibraryExport(handle, name, throwOnError: true);
@@ -1927,7 +1927,7 @@ namespace System.Runtime.InteropServices
         {
             if (handle == IntPtr.Zero) 
                 throw new ArgumentNullException(nameof(handle));
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
 
             address = GetNativeLibraryExport(handle, name, throwOnError: false);

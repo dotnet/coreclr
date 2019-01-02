@@ -45,7 +45,7 @@ namespace System.Diagnostics.Contracts
                 }
             }
 
-            if (probablyNotRewritten == null)
+            if (probablyNotRewritten is null)
                 probablyNotRewritten = thisAssembly;
             string simpleName = probablyNotRewritten.GetName().Name;
             System.Runtime.CompilerServices.ContractHelper.TriggerFailure(kind, SR.Format(SR.MustUseCCRewrite, contractKind, simpleName), null, null, null);
@@ -70,7 +70,7 @@ namespace System.Diagnostics.Contracts
             // displayMessage == null means: yes we handled it. Otherwise it is the localized failure message
             var displayMessage = System.Runtime.CompilerServices.ContractHelper.RaiseContractFailedEvent(failureKind, userMessage, conditionText, innerException);
 
-            if (displayMessage == null) return;
+            if (displayMessage is null) return;
 
             System.Runtime.CompilerServices.ContractHelper.TriggerFailure(failureKind, displayMessage, userMessage, conditionText, innerException);
         }
@@ -265,7 +265,7 @@ namespace System.Runtime.CompilerServices
             {
                 displayMessage = GetDisplayMessage(failureKind, userMessage, conditionText);
                 EventHandler<ContractFailedEventArgs> contractFailedEventLocal = contractFailedEvent;
-                if (contractFailedEventLocal != null)
+                if (contractFailedEventLocal is object)
                 {
                     eventArgs = new ContractFailedEventArgs(failureKind, displayMessage, conditionText, innerException);
                     foreach (EventHandler<ContractFailedEventArgs> handler in contractFailedEventLocal.GetInvocationList())
@@ -283,14 +283,14 @@ namespace System.Runtime.CompilerServices
                     if (eventArgs.Unwind)
                     {
                         // unwind
-                        if (innerException == null) { innerException = eventArgs.thrownDuringHandler; }
+                        if (innerException is null) { innerException = eventArgs.thrownDuringHandler; }
                         throw new ContractException(failureKind, displayMessage, userMessage, conditionText, innerException);
                     }
                 }
             }
             finally
             {
-                if (eventArgs != null && eventArgs.Handled)
+                if (eventArgs is object && eventArgs.Handled)
                 {
                     returnValue = null; // handled
                 }

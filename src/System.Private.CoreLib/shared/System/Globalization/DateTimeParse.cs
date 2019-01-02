@@ -165,7 +165,7 @@ namespace System
         internal static bool TryParseExactMultiple(ReadOnlySpan<char> s, string[] formats,
                                                 DateTimeFormatInfo dtfi, DateTimeStyles style, ref DateTimeResult result)
         {
-            if (formats == null)
+            if (formats is null)
             {
                 result.SetFailure(ParseFailureKind.ArgumentNull, nameof(SR.ArgumentNull_String), null, nameof(formats));
                 return false;
@@ -1987,7 +1987,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
 
             if (raw.timeMark == TM.NotSet)
             {
-                if (dtfi.AMDesignator != null && dtfi.PMDesignator != null)
+                if (dtfi.AMDesignator is object && dtfi.PMDesignator is object)
                 {
                     if (dtfi.AMDesignator.Length == 0 && dtfi.PMDesignator.Length != 0)
                     {
@@ -3524,7 +3524,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             {
                 int[] eras = dtfi.Calendar.Eras;
 
-                if (eras != null)
+                if (eras is object)
                 {
                     for (int i = 0; i < eras.Length; i++)
                     {
@@ -5168,7 +5168,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
         // return a string in the form: "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
         private static string Hex(string[] strs)
         {
-            if (strs == null || strs.Length == 0)
+            if (strs is null || strs.Length == 0)
                 return string.Empty;
             if (strs.Length == 1)
                 return Hex(strs[0]);

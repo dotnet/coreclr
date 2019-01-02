@@ -45,7 +45,7 @@ namespace System.Resources
             // Create new ResourceSet, if a file exists on disk for it.
             string tempFileName = _mediator.GetResourceFileName(culture);
             fileName = FindResourceFile(culture, tempFileName);
-            if (fileName == null)
+            if (fileName is null)
             {
                 if (tryParents)
                 {
@@ -54,7 +54,7 @@ namespace System.Resources
                     {
                         // We really don't think this should happen - we always
                         // expect the neutral locale's resources to be present.
-                        throw new MissingManifestResourceException(SR.MissingManifestResource_NoNeutralDisk + Environment.NewLine + "baseName: " + _mediator.BaseNameField + "  locationInfo: " + (_mediator.LocationInfo == null ? "<null>" : _mediator.LocationInfo.FullName) + "  fileName: " + _mediator.GetResourceFileName(culture));
+                        throw new MissingManifestResourceException(SR.MissingManifestResource_NoNeutralDisk + Environment.NewLine + "baseName: " + _mediator.BaseNameField + "  locationInfo: " + (_mediator.LocationInfo is null ? "<null>" : _mediator.LocationInfo.FullName) + "  fileName: " + _mediator.GetResourceFileName(culture));
                     }
                 }
             }
@@ -80,7 +80,7 @@ namespace System.Resources
 
             // If we have a moduleDir, check there first.  Get module fully 
             // qualified name, append path to that.
-            if (_mediator.ModuleDir != null)
+            if (_mediator.ModuleDir is object)
             {
                 string path = Path.Combine(_mediator.ModuleDir, fileName);
                 if (File.Exists(path))
@@ -101,7 +101,7 @@ namespace System.Resources
         {
             Debug.Assert(file != null, "file shouldn't be null; check caller");
 
-            if (_mediator.UserResourceSet == null)
+            if (_mediator.UserResourceSet is null)
             {
                 return new RuntimeResourceSet(file);
             }

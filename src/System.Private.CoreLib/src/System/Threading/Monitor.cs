@@ -152,7 +152,7 @@ namespace System.Threading
 
         public static bool IsEntered(object obj)
         {
-            if (obj == null)
+            if (obj is null)
                 throw new ArgumentNullException(nameof(obj));
 
             return IsEnteredNative(obj);
@@ -177,7 +177,7 @@ namespace System.Threading
 
         public static bool Wait(object obj, int millisecondsTimeout, bool exitContext)
         {
-            if (obj == null)
+            if (obj is null)
                 throw (new ArgumentNullException(nameof(obj)));
             return ObjWait(exitContext, millisecondsTimeout, obj);
         }
@@ -212,7 +212,7 @@ namespace System.Threading
 
         public static void Pulse(object obj)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 throw new ArgumentNullException(nameof(obj));
             }
@@ -227,7 +227,7 @@ namespace System.Threading
 
         public static void PulseAll(object obj)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 throw new ArgumentNullException(nameof(obj));
             }

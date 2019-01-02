@@ -62,7 +62,7 @@ namespace System.Diagnostics.Tracing
                 var fieldAttribute = Statics.GetCustomAttribute<EventFieldAttribute>(propertyInfo);
 
                 string propertyName =
-                    fieldAttribute != null && fieldAttribute.Name != null
+                    fieldAttribute is object && fieldAttribute.Name is object
                     ? fieldAttribute.Name
                     : Statics.ShouldOverrideFieldName(propertyInfo.Name)
                     ? propertyTypeInfo.Name
@@ -85,7 +85,7 @@ namespace System.Diagnostics.Tracing
                 this.tags |= typeInfo.Tags;
             }
 
-            if (eventAttrib != null)
+            if (eventAttrib is object)
             {
                 this.level = (EventLevel)Statics.Combine((int)eventAttrib.Level, (int)this.level);
                 this.opcode = (EventOpcode)Statics.Combine((int)eventAttrib.Opcode, (int)this.opcode);
@@ -94,7 +94,7 @@ namespace System.Diagnostics.Tracing
                 this.name = eventAttrib.Name;
             }
 
-            if (this.name == null)
+            if (this.name is null)
             {
                 this.name = dataType.Name;
             }

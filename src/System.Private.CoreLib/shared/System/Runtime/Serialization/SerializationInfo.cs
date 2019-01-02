@@ -32,7 +32,7 @@ namespace System.Runtime.Serialization
                 throw new ArgumentNullException(nameof(type));
             }
 
-            if (converter == null)
+            if (converter is null)
             {
                 throw new ArgumentNullException(nameof(converter));
             }
@@ -371,7 +371,7 @@ namespace System.Runtime.Serialization
 
             value = GetElement(name, out foundType);
 
-            if (ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
+            if (ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value is null)
             {
                 return value;
             }
@@ -389,10 +389,10 @@ namespace System.Runtime.Serialization
             Debug.Assert(type.IsRuntimeImplemented(), "[SerializationInfo.GetValue]type is not a runtime type");
 
             value = GetElementNoThrow(name, out foundType);
-            if (value == null)
+            if (value is null)
                 return null;
 
-            if (ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
+            if (ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value is null)
             {
                 return value;
             }
@@ -509,7 +509,7 @@ namespace System.Runtime.Serialization
         {
             Type foundType;
             object value = GetElement(name, out foundType);
-            return ReferenceEquals(foundType, typeof(string)) || value == null ? (string)value : _converter.ToString(value);
+            return ReferenceEquals(foundType, typeof(string)) || value is null ? (string)value : _converter.ToString(value);
         }
     }
 }

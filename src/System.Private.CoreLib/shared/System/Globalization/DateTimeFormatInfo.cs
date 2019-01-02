@@ -168,7 +168,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_name == null)
+                if (_name is null)
                 {
                     _name = _cultureData.CultureName;
                 }
@@ -180,7 +180,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_cultureInfo == null)
+                if (_cultureInfo is null)
                 {
                     _cultureInfo = CultureInfo.GetCultureInfo(this.CultureName);
                 }
@@ -193,7 +193,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_langName == null)
+                if (_langName is null)
                 {
                     _langName = _cultureData.SISO639LANGNAME;
                 }
@@ -318,10 +318,10 @@ namespace System.Globalization
             if (this.firstDayOfWeek == -1) { this.firstDayOfWeek = cultureData.IFIRSTDAYOFWEEK; }
             if (this.calendarWeekRule == -1) { this.calendarWeekRule = cultureData.IFIRSTWEEKOFYEAR; }
 
-            if (this.amDesignator == null) { this.amDesignator = cultureData.SAM1159; }
-            if (this.pmDesignator == null) { this.pmDesignator = cultureData.SPM2359; }
-            if (this.timeSeparator == null) { this.timeSeparator = cultureData.TimeSeparator; }
-            if (this.dateSeparator == null) { this.dateSeparator = cultureData.DateSeparator(calendarId); }
+            if (this.amDesignator is null) { this.amDesignator = cultureData.SAM1159; }
+            if (this.pmDesignator is null) { this.pmDesignator = cultureData.SPM2359; }
+            if (this.timeSeparator is null) { this.timeSeparator = cultureData.TimeSeparator; }
+            if (this.dateSeparator is null) { this.dateSeparator = cultureData.DateSeparator(calendarId); }
 
             this.allLongTimePatterns = _cultureData.LongTimes;
             Debug.Assert(this.allLongTimePatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some long time patterns");
@@ -348,7 +348,7 @@ namespace System.Globalization
         {
             get
             {
-                if (s_invariantInfo == null)
+                if (s_invariantInfo is null)
                 {
                     DateTimeFormatInfo info = new DateTimeFormatInfo();
                     info.Calendar.SetReadOnlyState(true);
@@ -370,7 +370,7 @@ namespace System.Globalization
                 if (!culture._isInherited)
                 {
                     DateTimeFormatInfo info = culture._dateTimeInfo;
-                    if (info != null)
+                    if (info is object)
                     {
                         return info;
                     }
@@ -380,7 +380,7 @@ namespace System.Globalization
         }
 
         public static DateTimeFormatInfo GetInstance(IFormatProvider provider) =>
-            provider == null ? CurrentInfo :
+            provider is null ? CurrentInfo :
             provider is CultureInfo cultureProvider && !cultureProvider._isInherited ? cultureProvider.DateTimeFormat :
             provider is DateTimeFormatInfo info ? info :
             provider.GetFormat(typeof(DateTimeFormatInfo)) is DateTimeFormatInfo info2 ? info2 :
@@ -407,7 +407,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.amDesignator == null)
+                if (this.amDesignator is null)
                 {
                     this.amDesignator = _cultureData.SAM1159;
                 }
@@ -419,7 +419,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
@@ -442,7 +442,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value));
                 }
@@ -458,7 +458,7 @@ namespace System.Globalization
                         // We can use this one, so do so.
 
                         // Clean related properties if we already had a calendar set
-                        if (calendar != null)
+                        if (calendar is object)
                         {
                             // clean related properties which are affected by the calendar setting,
                             // so that they will be refreshed when they are accessed next time.
@@ -529,7 +529,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.optionalCalendars == null)
+                if (this.optionalCalendars is null)
                 {
                     this.optionalCalendars = _cultureData.CalendarIds;
                 }
@@ -548,7 +548,7 @@ namespace System.Globalization
 
         public int GetEra(string eraName)
         {
-            if (eraName == null)
+            if (eraName is null)
             {
                 throw new ArgumentNullException(nameof(eraName),
                     SR.ArgumentNull_String);
@@ -606,7 +606,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.m_eraNames == null)
+                if (this.m_eraNames is null)
                 {
                     this.m_eraNames = _cultureData.EraNames(Calendar.ID); ;
                 }
@@ -645,7 +645,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.m_abbrevEraNames == null)
+                if (this.m_abbrevEraNames is null)
                 {
                     this.m_abbrevEraNames = _cultureData.AbbrevEraNames(Calendar.ID);
                 }
@@ -677,7 +677,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.m_abbrevEnglishEraNames == null)
+                if (this.m_abbrevEnglishEraNames is null)
                 {
                     Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.AbbreviatedEnglishEraNames] Expected Calendar.ID > 0");
                     this.m_abbrevEnglishEraNames = _cultureData.AbbreviatedEnglishEraNames(Calendar.ID);
@@ -692,7 +692,7 @@ namespace System.Globalization
         {
             get
             {
-                if (dateSeparator == null)
+                if (dateSeparator is null)
                 {
                     dateSeparator = _cultureData.DateSeparator(Calendar.ID);
                 }
@@ -704,7 +704,7 @@ namespace System.Globalization
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
 
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value), SR.ArgumentNull_String);
                 }
@@ -776,7 +776,7 @@ namespace System.Globalization
         {
             get
             {
-                if (fullDateTimePattern == null)
+                if (fullDateTimePattern is null)
                 {
                     fullDateTimePattern = LongDatePattern + " " + LongTimePattern;
                 }
@@ -787,7 +787,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
@@ -807,7 +807,7 @@ namespace System.Globalization
             get
             {
                 // Initialize our long date pattern from the 1st array value if not set
-                if (this.longDatePattern == null)
+                if (this.longDatePattern is null)
                 {
                     // Initialize our data
                     this.longDatePattern = this.UnclonedLongDatePatterns[0];
@@ -820,7 +820,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
@@ -847,7 +847,7 @@ namespace System.Globalization
             get
             {
                 // Initialize our long time pattern from the 1st array value if not set
-                if (this.longTimePattern == null)
+                if (this.longTimePattern is null)
                 {
                     // Initialize our data
                     this.longTimePattern = this.UnclonedLongTimePatterns[0];
@@ -860,7 +860,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
@@ -885,7 +885,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.monthDayPattern == null)
+                if (this.monthDayPattern is null)
                 {
                     Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.MonthDayPattern] Expected calID > 0");
                     this.monthDayPattern = _cultureData.MonthDay(Calendar.ID);
@@ -898,7 +898,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
@@ -913,7 +913,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.pmDesignator == null)
+                if (this.pmDesignator is null)
                 {
                     this.pmDesignator = _cultureData.SPM2359;
                 }
@@ -925,7 +925,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
@@ -955,7 +955,7 @@ namespace System.Globalization
             get
             {
                 // Initialize our short date pattern from the 1st array value if not set
-                if (this.shortDatePattern == null)
+                if (this.shortDatePattern is null)
                 {
                     // Initialize our data
                     this.shortDatePattern = this.UnclonedShortDatePatterns[0];
@@ -968,7 +968,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
 
@@ -996,7 +996,7 @@ namespace System.Globalization
             get
             {
                 // Initialize our short time pattern from the 1st array value if not set
-                if (this.shortTimePattern == null)
+                if (this.shortTimePattern is null)
                 {
                     // Initialize our data
                     this.shortTimePattern = this.UnclonedShortTimePatterns[0];
@@ -1008,7 +1008,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
@@ -1045,7 +1045,7 @@ namespace System.Globalization
         {
             get
             {
-                if (generalShortTimePattern == null)
+                if (generalShortTimePattern is null)
                 {
                     generalShortTimePattern = ShortDatePattern + " " + ShortTimePattern;
                 }
@@ -1064,7 +1064,7 @@ namespace System.Globalization
         {
             get
             {
-                if (generalLongTimePattern == null)
+                if (generalLongTimePattern is null)
                 {
                     generalLongTimePattern = ShortDatePattern + " " + LongTimePattern;
                 }
@@ -1083,7 +1083,7 @@ namespace System.Globalization
         {
             get
             {
-                if (dateTimeOffsetPattern == null)
+                if (dateTimeOffsetPattern is null)
                 {
                     string dateTimePattern = ShortDatePattern + " " + LongTimePattern;
 
@@ -1144,7 +1144,7 @@ namespace System.Globalization
         {
             get
             {
-                if (timeSeparator == null)
+                if (timeSeparator is null)
                 {
                     timeSeparator = _cultureData.TimeSeparator;
                 }
@@ -1157,7 +1157,7 @@ namespace System.Globalization
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
 
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value), SR.ArgumentNull_String);
                 }
@@ -1186,7 +1186,7 @@ namespace System.Globalization
             get
             {
                 // Initialize our year/month pattern from the 1st array value if not set
-                if (this.yearMonthPattern == null)
+                if (this.yearMonthPattern is null)
                 {
                     // Initialize our data
                     this.yearMonthPattern = this.UnclonedYearMonthPatterns[0];
@@ -1198,7 +1198,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
@@ -1241,7 +1241,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_Array);
@@ -1269,7 +1269,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_Array);
@@ -1295,7 +1295,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_Array);
@@ -1323,7 +1323,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_Array);
@@ -1350,7 +1350,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_Array);
@@ -1440,7 +1440,7 @@ namespace System.Globalization
         {
             if (abbreviated)
             {
-                if (this.m_genitiveAbbreviatedMonthNames == null)
+                if (this.m_genitiveAbbreviatedMonthNames is null)
                 {
                     this.m_genitiveAbbreviatedMonthNames = _cultureData.AbbreviatedGenitiveMonthNames(this.Calendar.ID);
                     Debug.Assert(this.m_genitiveAbbreviatedMonthNames.Length == 13,
@@ -1449,7 +1449,7 @@ namespace System.Globalization
                 return (this.m_genitiveAbbreviatedMonthNames);
             }
 
-            if (this.genitiveMonthNames == null)
+            if (this.genitiveMonthNames is null)
             {
                 this.genitiveMonthNames = _cultureData.GenitiveMonthNames(this.Calendar.ID);
                 Debug.Assert(this.genitiveMonthNames.Length == 13,
@@ -1467,7 +1467,7 @@ namespace System.Globalization
         //
         internal string[] internalGetLeapYearMonthNames(/*bool abbreviated*/)
         {
-            if (this.leapYearMonthNames == null)
+            if (this.leapYearMonthNames is null)
             {
                 Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.internalGetLeapYearMonthNames] Expected Calendar.ID > 0");
                 this.leapYearMonthNames = _cultureData.LeapYearMonthNames(Calendar.ID);
@@ -1755,7 +1755,7 @@ namespace System.Globalization
         {
             get
             {
-                if (allYearMonthPatterns == null)
+                if (allYearMonthPatterns is null)
                 {
                     Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.UnclonedYearMonthPatterns] Expected Calendar.ID > 0");
                     this.allYearMonthPatterns = _cultureData.YearMonths(this.Calendar.ID);
@@ -1774,7 +1774,7 @@ namespace System.Globalization
         {
             get
             {
-                if (allShortDatePatterns == null)
+                if (allShortDatePatterns is null)
                 {
                     Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.UnclonedShortDatePatterns] Expected Calendar.ID > 0");
                     this.allShortDatePatterns = _cultureData.ShortDates(this.Calendar.ID);
@@ -1792,7 +1792,7 @@ namespace System.Globalization
         {
             get
             {
-                if (allLongDatePatterns == null)
+                if (allLongDatePatterns is null)
                 {
                     Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.UnclonedLongDatePatterns] Expected Calendar.ID > 0");
                     this.allLongDatePatterns = _cultureData.LongDates(this.Calendar.ID);
@@ -1810,7 +1810,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.allShortTimePatterns == null)
+                if (this.allShortTimePatterns is null)
                 {
                     this.allShortTimePatterns = _cultureData.ShortTimes;
                     Debug.Assert(this.allShortTimePatterns.Length > 0,
@@ -1827,7 +1827,7 @@ namespace System.Globalization
         {
             get
             {
-                if (this.allLongTimePatterns == null)
+                if (this.allLongTimePatterns is null)
                 {
                     this.allLongTimePatterns = _cultureData.LongTimes;
                     Debug.Assert(this.allLongTimePatterns.Length > 0,
@@ -1840,7 +1840,7 @@ namespace System.Globalization
 
         public static DateTimeFormatInfo ReadOnly(DateTimeFormatInfo dtfi)
         {
-            if (dtfi == null)
+            if (dtfi is null)
             {
                 throw new ArgumentNullException(nameof(dtfi));
             }
@@ -1900,7 +1900,7 @@ namespace System.Globalization
             if (IsReadOnly)
                 throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
 
-            if (patterns == null)
+            if (patterns is null)
             {
                 throw new ArgumentNullException(nameof(patterns), SR.ArgumentNull_Array);
             }
@@ -1967,7 +1967,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_Array);
@@ -1993,7 +1993,7 @@ namespace System.Globalization
             {
                 if (IsReadOnly)
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_Array);
@@ -2016,7 +2016,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_decimalSeparator == null)
+                if (_decimalSeparator is null)
                 {
                     CultureData cultureDataWithoutUserOverrides = _cultureData.UseUserOverride ?
                         CultureData.GetCultureData(_cultureData.CultureName, false) :
@@ -2035,7 +2035,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_fullTimeSpanPositivePattern == null)
+                if (_fullTimeSpanPositivePattern is null)
                 {
                     _fullTimeSpanPositivePattern = "d':'h':'mm':'ss'" + DecimalSeparator + "'FFFFFFF";
                 }
@@ -2051,7 +2051,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_fullTimeSpanNegativePattern == null)
+                if (_fullTimeSpanNegativePattern is null)
                     _fullTimeSpanNegativePattern = "'-'" + FullTimeSpanPositivePattern;
                 return _fullTimeSpanNegativePattern;
             }
@@ -2064,7 +2064,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_compareInfo == null)
+                if (_compareInfo is null)
                 {
                     // We use the regular GetCompareInfo here to make sure the created CompareInfo object is stored in the
                     // CompareInfo cache. otherwise we would just create CompareInfo using _cultureData.
@@ -2254,7 +2254,7 @@ namespace System.Globalization
         internal static DateTimeFormatInfo GetJapaneseCalendarDTFI()
         {
             DateTimeFormatInfo temp = s_jajpDTFI;
-            if (temp == null)
+            if (temp is null)
             {
                 temp = new CultureInfo("ja-JP", false).DateTimeFormat;
                 temp.Calendar = JapaneseCalendar.GetDefaultInstance();
@@ -2270,7 +2270,7 @@ namespace System.Globalization
         internal static DateTimeFormatInfo GetTaiwanCalendarDTFI()
         {
             DateTimeFormatInfo temp = s_zhtwDTFI;
-            if (temp == null)
+            if (temp is null)
             {
                 temp = new CultureInfo("zh-TW", false).DateTimeFormat;
                 temp.Calendar = TaiwanCalendar.GetDefaultInstance();
@@ -2290,7 +2290,7 @@ namespace System.Globalization
         internal TokenHashValue[] CreateTokenHashTable()
         {
             TokenHashValue[] temp = _dtfiTokenHash;
-            if (temp == null)
+            if (temp is null)
             {
                 temp = new TokenHashValue[TOKEN_HASH_SIZE];
 
@@ -2378,7 +2378,7 @@ namespace System.Globalization
                 bool useDateSepAsIgnorableSymbol = false;
 
                 string monthPostfix = null;
-                if (dateWords != null)
+                if (dateWords is object)
                 {
                     // There are DateWords.  It could be a real date word (such as "de"), or a monthPostfix.
                     // The monthPostfix starts with '\xfffe' (MonthPostfixChar), followed by the real monthPostfix.
@@ -2560,7 +2560,7 @@ namespace System.Globalization
                 str = GetMonthName(i);
                 if (str.Length > 0)
                 {
-                    if (monthPostfix != null)
+                    if (monthPostfix is object)
                     {
                         // Insert the month name with the postfix first, so it can be matched first.
                         InsertHash(temp, str + monthPostfix, TokenType.MonthToken, i);
@@ -2701,14 +2701,14 @@ namespace System.Globalization
             int i = 0;
 
             TokenHashValue[] hashTable = _dtfiTokenHash;
-            if (hashTable == null)
+            if (hashTable is null)
             {
                 hashTable = CreateTokenHashTable();
             }
             do
             {
                 value = hashTable[hashcode];
-                if (value == null)
+                if (value is null)
                 {
                     // Not found.
                     break;
@@ -2781,14 +2781,14 @@ namespace System.Globalization
                 // Remember this slot
                 TokenHashValue temp = hashTable[hashcode];
 
-                if (temp != null && this.Culture.TextInfo.ToLower(temp.tokenString[0]) != ch)
+                if (temp is object && this.Culture.TextInfo.ToLower(temp.tokenString[0]) != ch)
                 {
                     continue;
                 }
                 // Put the previous slot into this slot.
                 hashTable[hashcode] = previousNode;
                 //// Console.WriteLine("  Move {0} to slot {1}", previousNode.tokenString, hashcode);
-                if (temp == null)
+                if (temp is null)
                 {
                     // Done
                     return;
@@ -2801,7 +2801,7 @@ namespace System.Globalization
         private void InsertHash(TokenHashValue[] hashTable, string str, TokenType tokenType, int tokenValue)
         {
             // The month of the 13th month is allowed to be null, so make sure that we ignore null value here.
-            if (str == null || str.Length == 0)
+            if (str is null || str.Length == 0)
             {
                 return;
             }
@@ -2822,7 +2822,7 @@ namespace System.Globalization
             do
             {
                 value = hashTable[hashcode];
-                if (value == null)
+                if (value is null)
                 {
                     //// Console.WriteLine("   Put Key: {0} in {1}", str, hashcode);
                     hashTable[hashcode] = new TokenHashValue(str, tokenType, tokenValue);

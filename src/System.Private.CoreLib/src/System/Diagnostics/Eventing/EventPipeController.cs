@@ -74,7 +74,7 @@ namespace System.Diagnostics.Tracing
             {
                 Initializing = true;
 
-                if (s_controllerInstance == null)
+                if (s_controllerInstance is null)
                 {
                     if (Config_EnableEventPipe > 0)
                     {
@@ -135,7 +135,7 @@ namespace System.Diagnostics.Tracing
                         // Check for null here because it's possible that the configuration contains a process filter
                         // that doesn't match the current process.  IF this occurs, we should't enable tracing.
                         EventPipeConfiguration config = BuildConfigFromFile(m_configFilePath);
-                        if (config != null)
+                        if (config is object)
                         {
                             EventPipe.Enable(config);
                         }
@@ -297,10 +297,10 @@ namespace System.Diagnostics.Tracing
         {
             string appName = null;
             Assembly entryAssembly = Assembly.GetEntryAssembly();
-            if (entryAssembly != null)
+            if (entryAssembly is object)
             {
                 AssemblyName assemblyName = entryAssembly.GetName();
-                if (assemblyName != null)
+                if (assemblyName is object)
                 {
                     appName = assemblyName.Name;
                 }
@@ -371,7 +371,7 @@ namespace System.Diagnostics.Tracing
             get
             {
                 string stringValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
-                if ((stringValue == null) || (!int.TryParse(stringValue, out int value)))
+                if ((stringValue is null) || (!int.TryParse(stringValue, out int value)))
                 {
                     value = 0;
                 }
@@ -387,7 +387,7 @@ namespace System.Diagnostics.Tracing
             get
             {
                 string stringValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
-                if ((stringValue == null) || (!uint.TryParse(stringValue, out uint value)))
+                if ((stringValue is null) || (!uint.TryParse(stringValue, out uint value)))
                 {
                     value = DefaultCircularBufferMB;
                 }
@@ -401,7 +401,7 @@ namespace System.Diagnostics.Tracing
             get
             {
                 string stringValue = CompatibilitySwitch.GetValueInternal("EventPipeOutputPath");
-                if (stringValue == null)
+                if (stringValue is null)
                 {
                     stringValue = ".";
                 }

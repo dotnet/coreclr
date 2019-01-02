@@ -99,7 +99,7 @@ namespace System.Text
         public override unsafe int GetByteCount(char[] chars, int index, int count)
         {
             // Validate input parameters
-            if (chars == null)
+            if (chars is null)
                 throw new ArgumentNullException(nameof(chars), SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
@@ -158,8 +158,8 @@ namespace System.Text
         public override unsafe int GetBytes(string s, int charIndex, int charCount,
                                               byte[] bytes, int byteIndex)
         {
-            if (s == null || bytes == null)
-                throw new ArgumentNullException((s == null ? nameof(s) : nameof(bytes)), SR.ArgumentNull_Array);
+            if (s is null || bytes is null)
+                throw new ArgumentNullException((s is null ? nameof(s) : nameof(bytes)), SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
                 throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -194,8 +194,8 @@ namespace System.Text
                                                byte[] bytes, int byteIndex)
         {
             // Validate parameters
-            if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)), SR.ArgumentNull_Array);
+            if (chars is null || bytes is null)
+                throw new ArgumentNullException((chars is null ? nameof(chars) : nameof(bytes)), SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
                 throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -246,7 +246,7 @@ namespace System.Text
         public override unsafe int GetCharCount(byte[] bytes, int index, int count)
         {
             // Validate Parameters
-            if (bytes == null)
+            if (bytes is null)
                 throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
@@ -290,8 +290,8 @@ namespace System.Text
                                               char[] chars, int charIndex)
         {
             // Validate Parameters
-            if (bytes == null || chars == null)
-                throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
+            if (bytes is null || chars is null)
+                throw new ArgumentNullException(bytes is null ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
 
             if (byteIndex < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -342,7 +342,7 @@ namespace System.Text
         public override unsafe string GetString(byte[] bytes, int index, int count)
         {
             // Validate Parameters
-            if (bytes == null)
+            if (bytes is null)
                 throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
@@ -378,7 +378,7 @@ namespace System.Text
             EncoderFallbackBuffer fallbackBuffer = null;
             char* charsForFallback;
 
-            if (encoder != null)
+            if (encoder is object)
             {
                 highSurrogate = encoder._charLeftOver;
                 fallbackBuffer = encoder.FallbackBuffer;
@@ -470,7 +470,7 @@ namespace System.Text
             }
 
             // May have to do our last surrogate
-            if ((encoder == null || encoder.MustFlush) && highSurrogate > 0)
+            if ((encoder is null || encoder.MustFlush) && highSurrogate > 0)
             {
                 // We have to do the fallback for the lonely high surrogate
                 charsForFallback = chars;
@@ -513,7 +513,7 @@ namespace System.Text
             EncoderFallbackBuffer fallbackBuffer = null;
             char* charsForFallback;
 
-            if (encoder != null)
+            if (encoder is object)
             {
                 highSurrogate = encoder._charLeftOver;
                 fallbackBuffer = encoder.FallbackBuffer;
@@ -668,7 +668,7 @@ namespace System.Text
             }
 
             // May have to do our last surrogate
-            if ((encoder == null || encoder.MustFlush) && highSurrogate > 0)
+            if ((encoder is null || encoder.MustFlush) && highSurrogate > 0)
             {
                 // We have to do the fallback for the lonely high surrogate
                 charsForFallback = chars;
@@ -683,7 +683,7 @@ namespace System.Text
             Debug.Assert(highSurrogate == 0 || (encoder != null && !encoder.MustFlush),
                 "[UTF32Encoding.GetBytes]Expected encoder to be flushed.");
 
-            if (encoder != null)
+            if (encoder is object)
             {
                 // Remember our left over surrogate (or 0 if flushing)
                 encoder._charLeftOver = highSurrogate;
@@ -716,7 +716,7 @@ namespace System.Text
             DecoderFallbackBuffer fallbackBuffer = null;
 
             // See if there's anything in our decoder
-            if (decoder != null)
+            if (decoder is object)
             {
                 readCount = decoder.readByteCount;
                 iChar = (uint)decoder.iChar;
@@ -801,7 +801,7 @@ namespace System.Text
             }
 
             // See if we have something left over that has to be decoded
-            if (readCount > 0 && (decoder == null || decoder.MustFlush))
+            if (readCount > 0 && (decoder is null || decoder.MustFlush))
             {
                 // Oops, there's something left over with no place to go.
                 byte[] fallbackBytes = new byte[readCount];
@@ -864,7 +864,7 @@ namespace System.Text
             char* charsForFallback;
 
             // See if there's anything in our decoder
-            if (decoder != null)
+            if (decoder is object)
             {
                 readCount = decoder.readByteCount;
                 iChar = (uint)decoder.iChar;
@@ -994,7 +994,7 @@ namespace System.Text
             }
 
             // See if we have something left over that has to be decoded
-            if (readCount > 0 && (decoder == null || decoder.MustFlush))
+            if (readCount > 0 && (decoder is null || decoder.MustFlush))
             {
                 // Oops, there's something left over with no place to go.
                 byte[] fallbackBytes = new byte[readCount];
@@ -1037,7 +1037,7 @@ namespace System.Text
             }
 
             // Remember any left over stuff, clearing buffer as well for MustFlush
-            if (decoder != null)
+            if (decoder is object)
             {
                 decoder.iChar = (int)iChar;
                 decoder.readByteCount = readCount;
@@ -1160,7 +1160,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             UTF32Encoding that = value as UTF32Encoding;
-            if (that != null)
+            if (that is object)
             {
                 return (_emitUTF32ByteOrderMark == that._emitUTF32ByteOrderMark) &&
                        (_bigEndian == that._bigEndian) &&
@@ -1193,7 +1193,7 @@ namespace System.Text
             {
                 this.iChar = 0;
                 this.readByteCount = 0;
-                if (_fallbackBuffer != null)
+                if (_fallbackBuffer is object)
                     _fallbackBuffer.Reset();
             }
 

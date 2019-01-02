@@ -53,7 +53,7 @@ namespace System.Reflection.Emit
 
         public override bool Equals(object obj)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 return false;
             }
@@ -169,7 +169,7 @@ namespace System.Reflection.Emit
                                  ref StackCrawlMark stackMark,
                                  IEnumerable<CustomAttributeBuilder> unsafeAssemblyAttributes)
         {
-            if (name == null)
+            if (name is null)
             {
                 throw new ArgumentNullException(nameof(name));
             }
@@ -185,7 +185,7 @@ namespace System.Reflection.Emit
             // assembly. Currently, we look for any attribute which modifies the security transparency
             // of the assembly.
             List<CustomAttributeBuilder> assemblyAttributes = null;
-            if (unsafeAssemblyAttributes != null)
+            if (unsafeAssemblyAttributes is object)
             {
                 // Create a copy to ensure that it cannot be modified from another thread
                 // as it is used further below.
@@ -202,7 +202,7 @@ namespace System.Reflection.Emit
             // We need to do this before setting any CustomAttribute
             InitManifestModule();
 
-            if (assemblyAttributes != null)
+            if (assemblyAttributes is object)
             {
                 foreach (CustomAttributeBuilder assemblyAttribute in assemblyAttributes)
                 {
@@ -319,7 +319,7 @@ namespace System.Reflection.Emit
             bool emitSymbolInfo,         // specify if emit symbol info or not
             ref StackCrawlMark stackMark)
         {
-            if (name == null)
+            if (name is null)
             {
                 throw new ArgumentNullException(nameof(name));
             }
@@ -371,14 +371,14 @@ namespace System.Reflection.Emit
 
         internal void CheckContext(params Type[][] typess)
         {
-            if (typess == null)
+            if (typess is null)
             {
                 return;
             }
 
             foreach (Type[] types in typess)
             {
-                if (types != null)
+                if (types is object)
                 {
                     CheckContext(types);
                 }
@@ -387,19 +387,19 @@ namespace System.Reflection.Emit
 
         internal void CheckContext(params Type[] types)
         {
-            if (types == null)
+            if (types is null)
             {
                 return;
             }
 
             foreach (Type type in types)
             {
-                if (type == null)
+                if (type is null)
                 {
                     continue;
                 }
 
-                if (type.Module == null || type.Module.Assembly == null)
+                if (type.Module is null || type.Module.Assembly is null)
                 {
                     throw new ArgumentException(SR.Argument_TypeNotValid);
                 }
@@ -559,7 +559,7 @@ namespace System.Reflection.Emit
         /// <param name="name">The name of module for the look up.</param>
         private ModuleBuilder GetDynamicModuleNoLock(string name)
         {
-            if (name == null)
+            if (name is null)
             {
                 throw new ArgumentNullException(nameof(name));
             }
@@ -588,7 +588,7 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(con));
             }
-            if (binaryAttribute == null)
+            if (binaryAttribute is null)
             {
                 throw new ArgumentNullException(nameof(binaryAttribute));
             }
@@ -615,7 +615,7 @@ namespace System.Reflection.Emit
         /// </summary>
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
-            if (customBuilder == null)
+            if (customBuilder is null)
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }

@@ -39,7 +39,7 @@ namespace System
 #endif
         private string Ctor(char[] value)
         {
-            if (value == null || value.Length == 0)
+            if (value is null || value.Length == 0)
                 return Empty;
 
             string result = FastAllocateString(value.Length);
@@ -62,7 +62,7 @@ namespace System
 #endif
         private string Ctor(char[] value, int startIndex, int length)
         {
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
             if (startIndex < 0)
@@ -242,7 +242,7 @@ namespace System
 #endif
         private unsafe string Ctor(sbyte* value, int startIndex, int length, Encoding enc)
         {
-            if (enc == null)
+            if (enc is null)
                 return new string(value, startIndex, length);
 
             if (length < 0)
@@ -342,7 +342,7 @@ namespace System
 
         public static string Create<TState>(int length, TState state, SpanAction<char, TState> action)
         {
-            if (action == null)
+            if (action is null)
                 throw new ArgumentNullException(nameof(action));
 
             if (length <= 0)
@@ -359,7 +359,7 @@ namespace System
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator ReadOnlySpan<char>(string value) =>
-            value != null ? new ReadOnlySpan<char>(ref value.GetRawStringData(), value.Length) : default;
+            value is object ? new ReadOnlySpan<char>(ref value.GetRawStringData(), value.Length) : default;
 
         public object Clone()
         {
@@ -368,7 +368,7 @@ namespace System
 
         public static unsafe string Copy(string str)
         {
-            if (str == null)
+            if (str is null)
                 throw new ArgumentNullException(nameof(str));
 
             string result = FastAllocateString(str.Length);
@@ -384,7 +384,7 @@ namespace System
         //
         public unsafe void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count)
         {
-            if (destination == null)
+            if (destination is null)
                 throw new ArgumentNullException(nameof(destination));
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NegativeCount);
@@ -441,12 +441,12 @@ namespace System
             // for the same test cost.
             // Ternary operator returning true/false prevents redundant asm generation:
             // https://github.com/dotnet/coreclr/issues/914
-            return (value == null || 0u >= (uint)value.Length) ? true : false;
+            return (value is null || 0u >= (uint)value.Length) ? true : false;
         }
 
         public static bool IsNullOrWhiteSpace(string value)
         {
-            if (value == null) return true;
+            if (value is null) return true;
 
             for (int i = 0; i < value.Length; i++)
             {

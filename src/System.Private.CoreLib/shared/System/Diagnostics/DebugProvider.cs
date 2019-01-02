@@ -41,7 +41,7 @@ namespace System.Diagnostics
         {
             lock (s_lock)
             {
-                if (message == null)
+                if (message is null)
                 {
                     WriteCore(string.Empty);
                     return;

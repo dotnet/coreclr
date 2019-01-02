@@ -105,10 +105,10 @@ namespace System.Buffers
             {
                 // First try to get it from TLS if possible.
                 T[][] tlsBuckets = t_tlsBuckets;
-                if (tlsBuckets != null)
+                if (tlsBuckets is object)
                 {
                     buffer = tlsBuckets[bucketIndex];
-                    if (buffer != null)
+                    if (buffer is object)
                     {
                         tlsBuckets[bucketIndex] = null;
                         if (log.IsEnabled())
@@ -121,10 +121,10 @@ namespace System.Buffers
 
                 // We couldn't get a buffer from TLS, so try the global stack.
                 PerCoreLockedStacks b = _buckets[bucketIndex];
-                if (b != null)
+                if (b is object)
                 {
                     buffer = b.TryPop();
-                    if (buffer != null)
+                    if (buffer is object)
                     {
                         if (log.IsEnabled())
                         {
@@ -158,7 +158,7 @@ namespace System.Buffers
 
         public override void Return(T[] array, bool clearArray = false)
         {
-            if (array == null)
+            if (array is null)
             {
                 throw new ArgumentNullException(nameof(array));
             }
@@ -187,7 +187,7 @@ namespace System.Buffers
                 // helps to keep LIFO access such that the most recently pushed stack will
                 // be in TLS and the first to be popped next.
                 T[][] tlsBuckets = t_tlsBuckets;
-                if (tlsBuckets == null)
+                if (tlsBuckets is null)
                 {
                     t_tlsBuckets = tlsBuckets = new T[NumBuckets][];
                     tlsBuckets[bucketIndex] = array;
@@ -205,7 +205,7 @@ namespace System.Buffers
                     T[] prev = tlsBuckets[bucketIndex];
                     tlsBuckets[bucketIndex] = array;
 
-                    if (prev != null)
+                    if (prev is object)
                     {
                         PerCoreLockedStacks stackBucket = _buckets[bucketIndex] ?? CreatePerCoreLockedStacks(bucketIndex);
                         stackBucket.TryPush(prev);
@@ -247,7 +247,7 @@ namespace System.Buffers
                         for (int i = 0; i < buckets.Length; i++)
                         {
                             T[] buffer = Interlocked.Exchange(ref buckets[i], null);
-                            if (buffer != null)
+                            if (buffer is object)
                             {
                                 // As we don't want to take a perf hit in the rent path it
                                 // is possible that a buffer could be rented as we "free" it.

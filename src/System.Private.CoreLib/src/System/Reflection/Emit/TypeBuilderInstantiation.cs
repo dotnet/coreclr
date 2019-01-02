@@ -16,7 +16,7 @@ namespace System.Reflection.Emit
     {
         public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo)
         {
-            if (typeInfo == null) return false;
+            if (typeInfo is null) return false;
             return IsAssignableFrom(typeInfo.AsType());
         }
 
@@ -28,12 +28,12 @@ namespace System.Reflection.Emit
             if (!type.IsGenericTypeDefinition)
                 throw new InvalidOperationException();
 
-            if (typeArguments == null)
+            if (typeArguments is null)
                 throw new ArgumentNullException(nameof(typeArguments));
 
             foreach (Type t in typeArguments)
             {
-                if (t == null)
+                if (t is null)
                     throw new ArgumentNullException(nameof(typeArguments));
             }
 
@@ -109,7 +109,7 @@ namespace System.Reflection.Emit
         {
             get
             {
-                if (m_strFullQualName == null)
+                if (m_strFullQualName is null)
                     m_strFullQualName = TypeNameBuilder.ToString(this, TypeNameBuilder.Format.FullName);
                 return m_strFullQualName;
             }
@@ -154,12 +154,12 @@ namespace System.Reflection.Emit
             {
                 Type typeBldrBase = m_type.BaseType;
 
-                if (typeBldrBase == null)
+                if (typeBldrBase is null)
                     return null;
 
                 TypeBuilderInstantiation typeBldrBaseAs = typeBldrBase as TypeBuilderInstantiation;
 
-                if (typeBldrBaseAs == null)
+                if (typeBldrBaseAs is null)
                     return typeBldrBase;
 
                 return typeBldrBaseAs.Substitute(GetGenericArguments());

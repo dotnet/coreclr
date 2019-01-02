@@ -37,7 +37,7 @@ namespace System
         {
             TypeValuesAndNames entry = enumType.GenericCache as TypeValuesAndNames;
 
-            if (entry == null || (getNames && entry.Names == null))
+            if (entry is null || (getNames && entry.Names is null))
             {
                 ulong[] values = null;
                 string[] names = null;
@@ -387,7 +387,7 @@ namespace System
             {
                 if (throwOnFailure)
                 {
-                    throw value == null ?
+                    throw value is null ?
                         new ArgumentNullException(nameof(value)) :
                         new ArgumentException(SR.Arg_MustContainEnumInfo, nameof(value));
                 }
@@ -466,7 +466,7 @@ namespace System
             {
                 if (throwOnFailure)
                 {
-                    throw value == null ?
+                    throw value is null ?
                         new ArgumentNullException(nameof(value)) :
                         new ArgumentException(SR.Arg_MustContainEnumInfo, nameof(value));
                 }
@@ -857,7 +857,7 @@ namespace System
 
         public static object ToObject(Type enumType, object value)
         {
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
             // Delegate rest of error checking to the other functions
@@ -913,10 +913,10 @@ namespace System
         {
             RuntimeType rtType = ValidateRuntimeType(enumType);
 
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
-            if (format == null)
+            if (format is null)
                 throw new ArgumentNullException(nameof(format));
             
             // If the value is an Enum then we need to extract the underlying value from it
@@ -1141,7 +1141,7 @@ namespace System
             const int retIncompatibleMethodTables = 2;  // indicates that the method tables did not match
             const int retInvalidEnumType = 3; // indicates that the enum was of an unknown/unsupported underlying type
 
-            if (this == null)
+            if (this is null)
                 throw new NullReferenceException();
 
             int ret = InternalCompareTo(this, target);
@@ -1210,7 +1210,7 @@ namespace System
         [Intrinsic]
         public bool HasFlag(Enum flag)
         {
-            if (flag == null)
+            if (flag is null)
                 throw new ArgumentNullException(nameof(flag));
 
             if (!this.GetType().IsEquivalentTo(flag.GetType()))

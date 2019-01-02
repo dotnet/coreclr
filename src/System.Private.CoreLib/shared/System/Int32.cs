@@ -30,7 +30,7 @@ namespace System
         // 
         public int CompareTo(object value)
         {
-            if (value == null)
+            if (value is null)
             {
                 return 1;
             }
@@ -103,14 +103,14 @@ namespace System
 
         public static int Parse(string s)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseInt32(s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo);
         }
 
         public static int Parse(string s, NumberStyles style)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseInt32(s, style, NumberFormatInfo.CurrentInfo);
         }
 
@@ -120,7 +120,7 @@ namespace System
         // 
         public static int Parse(string s, IFormatProvider provider)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseInt32(s, NumberStyles.Integer, NumberFormatInfo.GetInstance(provider));
         }
 
@@ -131,7 +131,7 @@ namespace System
         public static int Parse(string s, NumberStyles style, IFormatProvider provider)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseInt32(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
@@ -146,7 +146,7 @@ namespace System
         // 
         public static bool TryParse(string s, out int result)
         {
-            if (s == null)
+            if (s is null)
             {
                 result = 0;
                 return false;
@@ -167,7 +167,7 @@ namespace System
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
 
-            if (s == null)
+            if (s is null)
             {
                 result = 0;
                 return false;

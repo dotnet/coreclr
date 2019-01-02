@@ -78,7 +78,7 @@ namespace System.Diagnostics.Tracing
         {
             get
             {
-                return Log != null;
+                return Log is object;
             }
         }
 
@@ -555,7 +555,7 @@ namespace System.Diagnostics.Tracing
 
         private static string GetName(Assembly assembly)
         {
-            if (assembly == null)
+            if (assembly is null)
                 return "<<NULL>>";
             else
                 return assembly.FullName;

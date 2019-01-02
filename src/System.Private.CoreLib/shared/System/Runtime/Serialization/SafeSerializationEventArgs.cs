@@ -18,7 +18,7 @@ namespace System.Runtime.Serialization
 
         public void AddSerializedState(ISafeSerializationData serializedState)
         {
-            if (serializedState == null)
+            if (serializedState is null)
                 throw new ArgumentNullException(nameof(serializedState));
             if (!serializedState.GetType().IsSerializable)
                 throw new ArgumentException(SR.Format(SR.Serialization_NonSerType, serializedState.GetType(), serializedState.GetType().Assembly.FullName));

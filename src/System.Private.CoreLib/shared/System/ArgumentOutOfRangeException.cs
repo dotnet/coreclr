@@ -77,10 +77,10 @@ namespace System
             get
             {
                 string s = base.Message;
-                if (_actualValue != null)
+                if (_actualValue is object)
                 {
                     string valueMessage = SR.Format(SR.ArgumentOutOfRange_ActualValue, _actualValue.ToString());
-                    if (s == null)
+                    if (s is null)
                         return valueMessage;
                     return s + Environment.NewLine + valueMessage;
                 }

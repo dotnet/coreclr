@@ -325,11 +325,11 @@ namespace System.Threading.Tasks
         internal static Task<TResult> StartNew(Task parent, Func<TResult> function, CancellationToken cancellationToken,
             TaskCreationOptions creationOptions, InternalTaskOptions internalOptions, TaskScheduler scheduler)
         {
-            if (function == null)
+            if (function is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.function);
             }
-            if (scheduler == null)
+            if (scheduler is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
@@ -345,11 +345,11 @@ namespace System.Threading.Tasks
         internal static Task<TResult> StartNew(Task parent, Func<object, TResult> function, object state, CancellationToken cancellationToken,
             TaskCreationOptions creationOptions, InternalTaskOptions internalOptions, TaskScheduler scheduler)
         {
-            if (function == null)
+            if (function is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.function);
             }
-            if (scheduler == null)
+            if (scheduler is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
@@ -376,7 +376,7 @@ namespace System.Threading.Tasks
             get
             {
                 Delegate d = m_action;
-                return d != null ? d.Method.ToString() : "{null}";
+                return d is object ? d.Method.ToString() : "{null}";
             }
         }
 
@@ -405,7 +405,7 @@ namespace System.Threading.Tasks
                 // FinishStageTwo, omitting everything that doesn't pertain to TrySetResult.
                 Interlocked.Exchange(ref m_stateFlags, m_stateFlags | TASK_STATE_RAN_TO_COMPLETION);
                 ContingentProperties props = m_contingentProperties;
-                if (props != null)
+                if (props is object)
                 {
                     NotifyParentIfPotentiallyAttachedTask();
                     props.SetCompleted();
@@ -428,7 +428,7 @@ namespace System.Threading.Tasks
             Debug.Assert(!IsCompleted, "The promise must not yet be completed.");
 
             // If we have a parent, we need to notify it of the completion.  Take the slow path to handle that.
-            if (m_contingentProperties?.m_parent != null)
+            if (m_contingentProperties?.m_parent is object)
             {
                 bool success = TrySetResult(result);
 
@@ -551,9 +551,9 @@ namespace System.Threading.Tasks
 #if DEBUG
             var ceAsEdi = cancellationException as ExceptionDispatchInfo;
             Debug.Assert(
-                cancellationException == null ||
+                cancellationException is null ||
                 cancellationException is OperationCanceledException ||
-                (ceAsEdi != null && ceAsEdi.SourceException is OperationCanceledException),
+                (ceAsEdi is object && ceAsEdi.SourceException is OperationCanceledException),
                 "Expected null or an OperationCanceledException");
 #endif
 
@@ -598,13 +598,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var func = m_action as Func<TResult>;
-            if (func != null)
+            if (func is object)
             {
                 m_result = func();
                 return;
             }
             var funcWithState = m_action as Func<object, TResult>;
-            if (funcWithState != null)
+            if (funcWithState is object)
             {
                 m_result = funcWithState(m_stateObject);
                 return;
@@ -794,12 +794,12 @@ namespace System.Threading.Tasks
         internal Task ContinueWith(Action<Task<TResult>> continuationAction, TaskScheduler scheduler, CancellationToken cancellationToken,
                                    TaskContinuationOptions continuationOptions)
         {
-            if (continuationAction == null)
+            if (continuationAction is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationAction);
             }
 
-            if (scheduler == null)
+            if (scheduler is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
@@ -987,12 +987,12 @@ namespace System.Threading.Tasks
         internal Task ContinueWith(Action<Task<TResult>, object> continuationAction, object state, TaskScheduler scheduler, CancellationToken cancellationToken,
                                    TaskContinuationOptions continuationOptions)
         {
-            if (continuationAction == null)
+            if (continuationAction is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationAction);
             }
 
-            if (scheduler == null)
+            if (scheduler is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
@@ -1203,12 +1203,12 @@ namespace System.Threading.Tasks
         internal Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, TNewResult> continuationFunction, TaskScheduler scheduler,
             CancellationToken cancellationToken, TaskContinuationOptions continuationOptions)
         {
-            if (continuationFunction == null)
+            if (continuationFunction is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             }
 
-            if (scheduler == null)
+            if (scheduler is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
@@ -1426,12 +1426,12 @@ namespace System.Threading.Tasks
         internal Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, object, TNewResult> continuationFunction, object state,
             TaskScheduler scheduler, CancellationToken cancellationToken, TaskContinuationOptions continuationOptions)
         {
-            if (continuationFunction == null)
+            if (continuationFunction is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             }
 
-            if (scheduler == null)
+            if (scheduler is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }

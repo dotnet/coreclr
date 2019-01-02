@@ -136,13 +136,13 @@ namespace System
 
         public int CompareTo(object version)
         {
-            if (version == null)
+            if (version is null)
             {
                 return 1;
             }
 
             Version v = version as Version;
-            if (v == null)
+            if (v is null)
             {
                 throw new ArgumentException(SR.Arg_MustBeVersion);
             }
@@ -295,7 +295,7 @@ namespace System
 
         public static Version Parse(string input)
         {
-            if (input == null)
+            if (input is null)
             {
                 throw new ArgumentNullException(nameof(input));
             }
@@ -308,7 +308,7 @@ namespace System
 
         public static bool TryParse(string input, out Version result)
         {
-            if (input == null)
+            if (input is null)
             {
                 result = null;
                 return false;

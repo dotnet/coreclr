@@ -56,7 +56,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
         public RegionInfo(string name)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
 
             if (name.Length == 0) //The InvariantCulture has no matching region
@@ -69,7 +69,7 @@ namespace System.Globalization
             // For CoreCLR we only want the region names that are full culture names
             //
             _cultureData = CultureData.GetCultureDataForRegion(name, true);
-            if (_cultureData == null)
+            if (_cultureData is null)
                 throw new ArgumentException(
                     string.Format(
                         CultureInfo.CurrentCulture,
@@ -138,7 +138,7 @@ namespace System.Globalization
             get
             {
                 RegionInfo temp = s_currentRegionInfo;
-                if (temp == null)
+                if (temp is null)
                 {
                     temp = new RegionInfo(CultureInfo.CurrentCulture._cultureData);
 
@@ -361,7 +361,7 @@ namespace System.Globalization
         public override bool Equals(object value)
         {
             RegionInfo that = value as RegionInfo;
-            if (that != null)
+            if (that is object)
             {
                 return this.Name.Equals(that.Name);
             }

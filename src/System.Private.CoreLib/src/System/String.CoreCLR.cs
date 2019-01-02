@@ -81,7 +81,7 @@ namespace System
 
         public static string Intern(string str)
         {
-            if (str == null)
+            if (str is null)
             {
                 throw new ArgumentNullException(nameof(str));
             }
@@ -91,7 +91,7 @@ namespace System
 
         public static string IsInterned(string str)
         {
-            if (str == null)
+            if (str is null)
             {
                 throw new ArgumentNullException(nameof(str));
             }

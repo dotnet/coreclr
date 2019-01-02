@@ -139,7 +139,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public int GetMany(T[] items)
         {
-            if (items == null)
+            if (items is null)
             {
                 return 0;
             }

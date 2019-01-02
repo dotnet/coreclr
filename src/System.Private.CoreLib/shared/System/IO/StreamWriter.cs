@@ -98,9 +98,9 @@ namespace System.IO
         public StreamWriter(Stream stream, Encoding encoding, int bufferSize, bool leaveOpen)
             : base(null) // Ask for CurrentCulture all the time
         {
-            if (stream == null || encoding == null)
+            if (stream is null || encoding is null)
             {
-                throw new ArgumentNullException(stream == null ? nameof(stream) : nameof(encoding));
+                throw new ArgumentNullException(stream is null ? nameof(stream) : nameof(encoding));
             }
             if (!stream.CanWrite)
             {
@@ -131,9 +131,9 @@ namespace System.IO
 
         public StreamWriter(string path, bool append, Encoding encoding, int bufferSize)
         { 
-            if (path == null)
+            if (path is null)
                 throw new ArgumentNullException(nameof(path));
-            if (encoding == null)
+            if (encoding is null)
                 throw new ArgumentNullException(nameof(encoding));
             if (path.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyPath);
@@ -182,7 +182,7 @@ namespace System.IO
                 // Also, we never close the handles for stdout & friends.  So we can safely 
                 // write any buffered data to those streams even during finalization, which 
                 // is generally the right thing to do.
-                if (_stream != null)
+                if (_stream is object)
                 {
                     // Note: flush on the underlying stream can throw (ex., low disk space)
                     if (disposing /* || (LeaveOpen && stream is __ConsoleStream) */)
@@ -202,7 +202,7 @@ namespace System.IO
         private void CloseStreamFromDispose(bool disposing)
         {
             // Dispose of our resources if this StreamWriter is closable. 
-            if (!LeaveOpen && _stream != null)
+            if (!LeaveOpen && _stream is object)
             {
                 try
                 {
@@ -239,7 +239,7 @@ namespace System.IO
             Debug.Assert(GetType() == typeof(StreamWriter));
             try
             {
-                if (_stream != null)
+                if (_stream is object)
                 {
                     await FlushAsync().ConfigureAwait(false);
                 }
@@ -264,7 +264,7 @@ namespace System.IO
             // the user explicitly calls Flush (though not if AutoFlush is true).
             // This is required to flush any dangling characters from our UTF-7 
             // and UTF-8 encoders.  
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }
@@ -362,7 +362,7 @@ namespace System.IO
         [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void Write(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -421,7 +421,7 @@ namespace System.IO
                 // make local copies of instance state to protect against potential concurrent misuse.
 
                 char[] charBuffer = _charBuffer;
-                if (charBuffer == null)
+                if (charBuffer is null)
                 {
                     throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
                 }
@@ -632,7 +632,7 @@ namespace System.IO
                 return base.WriteAsync(value);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }
@@ -699,9 +699,9 @@ namespace System.IO
                 return base.WriteAsync(value);
             }
 
-            if (value != null)
+            if (value is object)
             {
-                if (_stream == null)
+                if (_stream is null)
                 {
                     throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
                 }
@@ -783,7 +783,7 @@ namespace System.IO
 
         public override Task WriteAsync(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -809,7 +809,7 @@ namespace System.IO
                 return base.WriteAsync(buffer, index, count);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }
@@ -830,7 +830,7 @@ namespace System.IO
                 return base.WriteAsync(buffer, cancellationToken);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }
@@ -909,7 +909,7 @@ namespace System.IO
                 return base.WriteLineAsync();
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }
@@ -934,7 +934,7 @@ namespace System.IO
                 return base.WriteLineAsync(value);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }
@@ -950,7 +950,7 @@ namespace System.IO
 
         public override Task WriteLineAsync(string value)
         {
-            if (value == null)
+            if (value is null)
             {
                 return WriteLineAsync();
             }
@@ -964,7 +964,7 @@ namespace System.IO
                 return base.WriteLineAsync(value);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }
@@ -980,7 +980,7 @@ namespace System.IO
 
         public override Task WriteLineAsync(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -1006,7 +1006,7 @@ namespace System.IO
                 return base.WriteLineAsync(buffer, index, count);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }
@@ -1026,7 +1026,7 @@ namespace System.IO
                 return base.WriteLineAsync(buffer, cancellationToken);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }
@@ -1060,7 +1060,7 @@ namespace System.IO
             // the user explicitly calls Flush (though not if AutoFlush is true).
             // This is required to flush any dangling characters from our UTF-7 
             // and UTF-8 encoders.  
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
             }

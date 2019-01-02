@@ -73,7 +73,7 @@ namespace System.Resources
             {
                 satellite = GetSatelliteAssembly(lookForCulture, ref stackMark);
 
-                if (satellite == null)
+                if (satellite is null)
                 {
                     bool raiseException = (culture.HasInvariantCultureName && (_mediator.FallbackLoc == UltimateResourceFallbackLocation.Satellite));
                     // didn't find satellite, give error if necessary
@@ -89,7 +89,7 @@ namespace System.Resources
             string fileName = _mediator.GetResourceFileName(lookForCulture);
 
             // 3. If we identified an assembly to search; look in manifest resource stream for resource file
-            if (satellite != null)
+            if (satellite is object)
             {
                 // Handle case in here where someone added a callback for assembly load events.
                 // While no other threads have called into GetResourceSet, our own thread can!
@@ -104,11 +104,11 @@ namespace System.Resources
             }
 
             // 4a. Found a stream; create a ResourceSet if possible
-            if (createIfNotExists && stream != null && rs == null)
+            if (createIfNotExists && stream is object && rs is null)
             {
                 rs = CreateResourceSet(stream, satellite);
             }
-            else if (stream == null && tryParents)
+            else if (stream is null && tryParents)
             {
                 // 4b. Didn't find stream; give error if necessary
                 bool raiseException = culture.HasInvariantCultureName;
@@ -251,7 +251,7 @@ namespace System.Resources
                         resourceSetArgs[0] = reader;
 
                         Type resSetType;
-                        if (_mediator.UserResourceSet == null)
+                        if (_mediator.UserResourceSet is null)
                         {
                             Debug.Assert(resSetTypeName != null, "We should have a ResourceSet type name from the custom resource file here.");
                             resSetType = Type.GetType(resSetTypeName, true, false);
@@ -273,7 +273,7 @@ namespace System.Resources
                 }
             }
 
-            if (_mediator.UserResourceSet == null)
+            if (_mediator.UserResourceSet is null)
             {
                 return new RuntimeResourceSet(store, permitDeserialization:true);
             }
@@ -317,7 +317,7 @@ namespace System.Resources
                                         && (_mediator.CallingAssembly == _mediator.MainAssembly);
 
             Stream stream = satellite.GetManifestResourceStream(_mediator.LocationInfo, fileName, canSkipSecurityCheck, ref stackMark);
-            if (stream == null)
+            if (stream is null)
             {
                 stream = CaseInsensitiveManifestResourceStreamLookup(satellite, fileName);
             }
@@ -336,13 +336,13 @@ namespace System.Resources
             Debug.Assert(name != null, "name shouldn't be null; check caller");
 
             StringBuilder sb = new StringBuilder();
-            if (_mediator.LocationInfo != null)
+            if (_mediator.LocationInfo is object)
             {
                 string nameSpace = _mediator.LocationInfo.Namespace;
-                if (nameSpace != null)
+                if (nameSpace is object)
                 {
                     sb.Append(nameSpace);
-                    if (name != null)
+                    if (name is object)
                         sb.Append(Type.Delimiter);
                 }
             }
@@ -354,7 +354,7 @@ namespace System.Resources
             {
                 if (string.Equals(existingName, givenName, StringComparison.InvariantCultureIgnoreCase))
                 {
-                    if (canonicalName == null)
+                    if (canonicalName is null)
                     {
                         canonicalName = existingName;
                     }
@@ -365,7 +365,7 @@ namespace System.Resources
                 }
             }
 
-            if (canonicalName == null)
+            if (canonicalName is null)
             {
                 return null;
             }
@@ -432,20 +432,20 @@ namespace System.Resources
             Debug.Assert(readerTypeName != null, "readerTypeName shouldn't be null; check caller");
             Debug.Assert(resSetTypeName != null, "resSetTypeName shouldn't be null; check caller");
 
-            if (_mediator.UserResourceSet != null)
+            if (_mediator.UserResourceSet is object)
                 return false;
 
             // Ignore the actual version of the ResourceReader and 
             // RuntimeResourceSet classes.  Let those classes deal with
             // versioning themselves.
 
-            if (readerTypeName != null)
+            if (readerTypeName is object)
             {
                 if (!ResourceManager.IsDefaultType(readerTypeName, ResourceManager.ResReaderTypeName))
                     return false;
             }
 
-            if (resSetTypeName != null)
+            if (resSetTypeName is object)
             {
                 if (!ResourceManager.IsDefaultType(resSetTypeName, ResourceManager.ResSetTypeName))
                     return false;
@@ -464,7 +464,7 @@ namespace System.Resources
         private void HandleSatelliteMissing()
         {
             string satAssemName = _mediator.MainAssembly.GetSimpleName() + ".resources.dll";
-            if (_mediator.SatelliteContractVersion != null)
+            if (_mediator.SatelliteContractVersion is object)
             {
                 satAssemName += ", Version=" + _mediator.SatelliteContractVersion.ToString();
             }
@@ -504,7 +504,7 @@ namespace System.Resources
             // We really don't think this should happen - we always
             // expect the neutral locale's resources to be present.
             string resName = string.Empty;
-            if (_mediator.LocationInfo != null && _mediator.LocationInfo.Namespace != null)
+            if (_mediator.LocationInfo is object && _mediator.LocationInfo.Namespace is object)
                 resName = _mediator.LocationInfo.Namespace + Type.Delimiter;
             resName += fileName;
             throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_NoNeutralAsm, resName, _mediator.MainAssembly.GetSimpleName()));

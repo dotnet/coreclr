@@ -28,7 +28,7 @@ namespace System.Runtime.InteropServices
             // As an optimization, we skip the "is string?" check below if typeof(T) is not char,
             // as Memory<T> / ROM<T> can't possibly contain a string instance in this case.
 
-            if (obj != null && (typeof(T) != typeof(char) || obj.GetType() != typeof(string)))
+            if (obj is object && (typeof(T) != typeof(char) || obj.GetType() != typeof(string)))
             {
                 if (RuntimeHelpers.ObjectHasComponentSize(obj))
                 {
@@ -86,7 +86,7 @@ namespace System.Runtime.InteropServices
         {
             TManager localManager; // Use register for null comparison rather than byref
             manager = localManager = memory.GetObjectStartLength(out _, out _) as TManager;
-            return manager != null;
+            return manager is object;
         }
 
         /// <summary>
@@ -108,7 +108,7 @@ namespace System.Runtime.InteropServices
 
             Debug.Assert(length >= 0);
 
-            if (manager == null)
+            if (manager is null)
             {
                 start = default;
                 length = default;
@@ -295,7 +295,7 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Memory<T> CreateFromPinnedArray<T>(T[] array, int start, int length)
         {
-            if (array == null)
+            if (array is null)
             {
                 if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException();

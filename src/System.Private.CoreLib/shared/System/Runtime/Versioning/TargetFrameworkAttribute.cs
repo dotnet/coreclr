@@ -25,7 +25,7 @@ namespace System.Runtime.Versioning
         // The frameworkName parameter is intended to be the string form of a FrameworkName instance.
         public TargetFrameworkAttribute(string frameworkName)
         {
-            if (frameworkName == null)
+            if (frameworkName is null)
                 throw new ArgumentNullException(nameof(frameworkName));
             _frameworkName = frameworkName;
         }

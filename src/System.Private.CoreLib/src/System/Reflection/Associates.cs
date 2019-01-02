@@ -51,7 +51,7 @@ namespace System.Reflection
             IntPtr[] genericArgumentHandles = null;
             int genericArgumentCount = 0;
             RuntimeType[] genericArguments = declaredType.GetTypeHandleInternal().GetInstantiationInternal();
-            if (genericArguments != null)
+            if (genericArguments is object)
             {
                 genericArgumentCount = genericArguments.Length;
                 genericArgumentHandles = new IntPtr[genericArguments.Length];
@@ -191,7 +191,7 @@ namespace System.Reflection
                     removeOn = associateMethod;
                 else
                 {
-                    if (otherList == null)
+                    if (otherList is null)
                         otherList = new List<MethodInfo>(cAssociates);
                     otherList.Add(associateMethod);
                 }
@@ -203,7 +203,7 @@ namespace System.Reflection
 
             composedOfAllPrivateMethods = (attributes & Attributes.ComposedOfAllPrivateMethods) != 0;
 
-            other = (otherList != null) ? otherList.ToArray() : null;
+            other = (otherList is object) ? otherList.ToArray() : null;
         }
     }
 }

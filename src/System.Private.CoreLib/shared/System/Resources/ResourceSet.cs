@@ -69,7 +69,7 @@ namespace System.Resources
 
         public ResourceSet(IResourceReader reader)
         {
-            if (reader == null)
+            if (reader is null)
                 throw new ArgumentNullException(nameof(reader));
             Reader = reader;
             CommonInit();
@@ -97,7 +97,7 @@ namespace System.Resources
                 // Close the Reader in a thread-safe way.
                 IResourceReader copyOfReader = Reader;
                 Reader = null;
-                if (copyOfReader != null)
+                if (copyOfReader is object)
                     copyOfReader.Close();
             }
             Reader = null;
@@ -140,7 +140,7 @@ namespace System.Resources
         private IDictionaryEnumerator GetEnumeratorHelper()
         {
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
-            if (copyOfTable == null)
+            if (copyOfTable is null)
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
             return copyOfTable.GetEnumerator();
         }
@@ -177,7 +177,7 @@ namespace System.Resources
             }
 
             // case-sensitive lookup succeeded
-            if (s != null || !ignoreCase)
+            if (s is object || !ignoreCase)
             {
                 return s;
             }
@@ -205,7 +205,7 @@ namespace System.Resources
         {
             object obj = GetObjectInternal(name);
 
-            if (obj != null || !ignoreCase)
+            if (obj is object || !ignoreCase)
                 return obj;
 
             return GetCaseInsensitiveObjectInternal(name);
@@ -225,12 +225,12 @@ namespace System.Resources
 
         private object GetObjectInternal(string name)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
 
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
 
-            if (copyOfTable == null)
+            if (copyOfTable is null)
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
             return copyOfTable[name];
@@ -240,11 +240,11 @@ namespace System.Resources
         {
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
 
-            if (copyOfTable == null)
+            if (copyOfTable is null)
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
             Hashtable caseTable = _caseInsensitiveTable;  // Avoid a race condition with Close
-            if (caseTable == null)
+            if (caseTable is null)
             {
                 caseTable = new Hashtable(StringComparer.OrdinalIgnoreCase);
 

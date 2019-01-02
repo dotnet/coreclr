@@ -97,7 +97,7 @@ namespace System.Diagnostics.Tracing
         {
             TraceLoggingMetadataCollector result = this;
 
-            if (name != null || // Normal.
+            if (name is object || // Normal.
                 this.BeginningBufferedArray) // Error, FieldMetadata's constructor will throw the appropriate exception.
             {
                 var newGroup = new FieldMetadata(
@@ -321,7 +321,7 @@ namespace System.Diagnostics.Tracing
             this.bufferedArrayFieldCount++;
             this.impl.fields.Add(fieldMetadata);
 
-            if (this.currentGroup != null)
+            if (this.currentGroup is object)
             {
                 this.currentGroup.IncrementStructFieldCount();
             }

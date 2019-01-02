@@ -78,7 +78,7 @@ namespace System
 
         public static string Concat(params object[] args)
         {
-            if (args == null)
+            if (args is null)
             {
                 throw new ArgumentNullException(nameof(args));
             }
@@ -143,7 +143,7 @@ namespace System
 
         public static string Concat<T>(IEnumerable<T> values)
         {
-            if (values == null)
+            if (values is null)
                 throw new ArgumentNullException(nameof(values));
 
             if (typeof(T) == typeof(char))
@@ -213,7 +213,7 @@ namespace System
                     {
                         currentValue = en.Current;
 
-                        if (currentValue != null)
+                        if (currentValue is object)
                         {
                             result.Append(currentValue.ToString());
                         }
@@ -227,7 +227,7 @@ namespace System
 
         public static string Concat(IEnumerable<string> values)
         {
-            if (values == null)
+            if (values is null)
                 throw new ArgumentNullException(nameof(values));
 
             using (IEnumerator<string> en = values.GetEnumerator())
@@ -343,7 +343,7 @@ namespace System
 
         public static string Concat(params string[] values)
         {
-            if (values == null)
+            if (values is null)
                 throw new ArgumentNullException(nameof(values));
 
             if (values.Length <= 1)
@@ -365,7 +365,7 @@ namespace System
             for (int i = 0; i < values.Length; i++)
             {
                 string value = values[i];
-                if (value != null)
+                if (value is object)
                 {
                     totalLengthLong += value.Length;
                 }
@@ -426,11 +426,11 @@ namespace System
 
         public static string Format(string format, params object[] args)
         {
-            if (args == null)
+            if (args is null)
             {
                 // To preserve the original exception behavior, throw an exception about format if both
                 // args and format are null. The actual null check for format is in FormatHelper.
-                throw new ArgumentNullException((format == null) ? nameof(format) : nameof(args));
+                throw new ArgumentNullException((format is null) ? nameof(format) : nameof(args));
             }
 
             return FormatHelper(null, format, new ParamsArray(args));
@@ -453,11 +453,11 @@ namespace System
 
         public static string Format(IFormatProvider provider, string format, params object[] args)
         {
-            if (args == null)
+            if (args is null)
             {
                 // To preserve the original exception behavior, throw an exception about format if both
                 // args and format are null. The actual null check for format is in FormatHelper.
-                throw new ArgumentNullException((format == null) ? nameof(format) : nameof(args));
+                throw new ArgumentNullException((format is null) ? nameof(format) : nameof(args));
             }
 
             return FormatHelper(provider, format, new ParamsArray(args));
@@ -465,7 +465,7 @@ namespace System
 
         private static string FormatHelper(IFormatProvider provider, string format, ParamsArray args)
         {
-            if (format == null)
+            if (format is null)
                 throw new ArgumentNullException(nameof(format));
 
             return StringBuilderCache.GetStringAndRelease(
@@ -476,7 +476,7 @@ namespace System
 
         public string Insert(int startIndex, string value)
         {
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
             if (startIndex < 0 || startIndex > this.Length)
                 throw new ArgumentOutOfRangeException(nameof(startIndex));
@@ -512,7 +512,7 @@ namespace System
 
         public static string Join(char separator, params string[] value)
         {
-            if (value == null)
+            if (value is null)
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -542,7 +542,7 @@ namespace System
         //
         public static string Join(string separator, params string[] value)
         {
-            if (value == null)
+            if (value is null)
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -571,7 +571,7 @@ namespace System
 
         public static string Join(string separator, IEnumerable<string> values)
         {
-            if (values == null)
+            if (values is null)
             {
                 throw new ArgumentNullException(nameof(values));
             }
@@ -620,7 +620,7 @@ namespace System
 
         private static unsafe string JoinCore(char* separator, int separatorLength, object[] values)
         {
-            if (values == null)
+            if (values is null)
             {
                 throw new ArgumentNullException(nameof(values));
             }
@@ -644,7 +644,7 @@ namespace System
             {
                 result.Append(separator, separatorLength);
                 object value = values[i];
-                if (value != null)
+                if (value is object)
                 {
                     result.Append(value.ToString());
                 }
@@ -655,7 +655,7 @@ namespace System
 
         private static unsafe string JoinCore<T>(char* separator, int separatorLength, IEnumerable<T> values)
         {
-            if (values == null)
+            if (values is null)
             {
                 throw new ArgumentNullException(nameof(values));
             }
@@ -694,7 +694,7 @@ namespace System
                     currentValue = en.Current;
 
                     result.Append(separator, separatorLength);
-                    if (currentValue != null)
+                    if (currentValue is object)
                     {
                         result.Append(currentValue.ToString());
                     }
@@ -712,7 +712,7 @@ namespace System
             Debug.Assert(separator != null);
             Debug.Assert(separatorLength >= 0);
 
-            if (value == null)
+            if (value is null)
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -747,7 +747,7 @@ namespace System
             for (int i = startIndex, end = startIndex + count; i < end; i++)
             {
                 string currentValue = value[i];
-                if (currentValue != null)
+                if (currentValue is object)
                 {
                     totalLength += currentValue.Length;
                     if (totalLength < 0) // Check for overflow
@@ -770,7 +770,7 @@ namespace System
                 // We range check again to avoid buffer overflows if this happens.
 
                 string currentValue = value[i];
-                if (currentValue != null)
+                if (currentValue is object)
                 {
                     int valueLen = currentValue.Length;
                     if (valueLen > totalLength - copiedLength)
@@ -939,14 +939,14 @@ namespace System
 
         private unsafe string ReplaceCore(string oldValue, string newValue, CultureInfo culture, CompareOptions options)
         {
-            if (oldValue == null)
+            if (oldValue is null)
                 throw new ArgumentNullException(nameof(oldValue));
             if (oldValue.Length == 0)
                 throw new ArgumentException(SR.Argument_StringZeroLength, nameof(oldValue));
 
             // If they asked to replace oldValue with a null, replace all occurrences
             // with the empty string.
-            if (newValue == null)
+            if (newValue is null)
                 newValue = string.Empty;
 
             CultureInfo referenceCulture = culture ?? CultureInfo.CurrentCulture;
@@ -1059,13 +1059,13 @@ namespace System
 
         public string Replace(string oldValue, string newValue)
         {
-            if (oldValue == null)
+            if (oldValue is null)
                 throw new ArgumentNullException(nameof(oldValue));
             if (oldValue.Length == 0)
                 throw new ArgumentException(SR.Argument_StringZeroLength, nameof(oldValue));
 
             // Api behavior: if newValue is null, instances of oldValue are to be removed.
-            if (newValue == null)
+            if (newValue is null)
                 newValue = string.Empty;
 
             Span<int> initialSpan = stackalloc int[StackallocIntBufferSizeLimit];
@@ -1276,9 +1276,9 @@ namespace System
 
             bool omitEmptyEntries = (options == StringSplitOptions.RemoveEmptyEntries);
 
-            bool singleSeparator = separator != null;
+            bool singleSeparator = separator is object;
 
-            if (!singleSeparator && (separators == null || separators.Length == 0))
+            if (!singleSeparator && (separators is null || separators.Length == 0))
             {
                 return SplitInternal((char[])null, count, options);
             }
@@ -1647,7 +1647,7 @@ namespace System
         // Creates a copy of this string in lower case.  The culture is set by culture.
         public string ToLower(CultureInfo culture)
         {
-            if (culture == null)
+            if (culture is null)
             {
                 throw new ArgumentNullException(nameof(culture));
             }
@@ -1668,7 +1668,7 @@ namespace System
         // Creates a copy of this string in upper case.  The culture is set by culture.
         public string ToUpper(CultureInfo culture)
         {
-            if (culture == null)
+            if (culture is null)
             {
                 throw new ArgumentNullException(nameof(culture));
             }
@@ -1692,7 +1692,7 @@ namespace System
         // Removes a set of characters from the beginning and end of this string.
         public unsafe string Trim(params char[] trimChars)
         {
-            if (trimChars == null || trimChars.Length == 0)
+            if (trimChars is null || trimChars.Length == 0)
             {
                 return TrimWhiteSpaceHelper(TrimType.Both);
             }
@@ -1711,7 +1711,7 @@ namespace System
         // Removes a set of characters from the beginning of this string.
         public unsafe string TrimStart(params char[] trimChars)
         {
-            if (trimChars == null || trimChars.Length == 0)
+            if (trimChars is null || trimChars.Length == 0)
             {
                 return TrimWhiteSpaceHelper(TrimType.Head);
             }
@@ -1730,7 +1730,7 @@ namespace System
         // Removes a set of characters from the end of this string.
         public unsafe string TrimEnd(params char[] trimChars)
         {
-            if (trimChars == null || trimChars.Length == 0)
+            if (trimChars is null || trimChars.Length == 0)
             {
                 return TrimWhiteSpaceHelper(TrimType.Tail);
             }

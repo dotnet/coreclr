@@ -29,11 +29,11 @@ namespace System.Globalization
             const string LOCALE_NAME_SYSTEM_DEFAULT = "!x-sys-default-locale";
 
             string strDefault = CultureData.GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNAME);
-            if (strDefault == null)
+            if (strDefault is null)
             {
                 strDefault = CultureData.GetLocaleInfoEx(LOCALE_NAME_SYSTEM_DEFAULT, LOCALE_SNAME);
 
-                if (strDefault == null)
+                if (strDefault is null)
                 {
                     // If system default doesn't work, use invariant
                     return CultureInfo.InvariantCulture;
@@ -97,7 +97,7 @@ namespace System.Globalization
             {
                 ts_IsDoingAppXCultureInfoLookup = true;
 
-                if (s_WindowsRuntimeResourceManager == null)
+                if (s_WindowsRuntimeResourceManager is null)
                 {
                     s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
                 }
@@ -114,7 +114,7 @@ namespace System.Globalization
 
         internal static bool SetCultureInfoForUserPreferredLanguageInAppX(CultureInfo ci)
         {
-            if (s_WindowsRuntimeResourceManager == null)
+            if (s_WindowsRuntimeResourceManager is null)
             {
                 s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
             }

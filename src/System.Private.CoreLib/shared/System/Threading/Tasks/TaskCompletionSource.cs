@@ -151,7 +151,7 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
         public bool TrySetException(Exception exception)
         {
-            if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
+            if (exception is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
 
             bool rval = _task.TrySetException(exception);
             if (!rval && !_task.IsCompleted) SpinUntilCompleted();
@@ -180,12 +180,12 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
         public bool TrySetException(IEnumerable<Exception> exceptions)
         {
-            if (exceptions == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exceptions);
+            if (exceptions is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exceptions);
 
             List<Exception> defensiveCopy = new List<Exception>();
             foreach (Exception e in exceptions)
             {
-                if (e == null)
+                if (e is null)
                     ThrowHelper.ThrowArgumentException(ExceptionResource.TaskCompletionSourceT_TrySetException_NullException, ExceptionArgument.exceptions);
                 defensiveCopy.Add(e);
             }
@@ -217,7 +217,7 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
         public void SetException(Exception exception)
         {
-            if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
+            if (exception is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
 
             if (!TrySetException(exception))
             {

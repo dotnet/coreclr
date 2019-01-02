@@ -21,7 +21,7 @@ namespace System.Collections.Concurrent
         /// <param name="collection">A collection to browse in the debugger.</param>
         public IProducerConsumerCollectionDebugView(IProducerConsumerCollection<T> collection)
         {
-            if (collection == null)
+            if (collection is null)
             {
                 throw new ArgumentNullException(nameof(collection));
             }

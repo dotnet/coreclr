@@ -206,7 +206,7 @@ namespace System.Globalization
 
         public static double GetNumericValue(string s, int index)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -224,7 +224,7 @@ namespace System.Globalization
 
         public static int GetDecimalDigitValue(string s, int index)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -244,7 +244,7 @@ namespace System.Globalization
 
         public static int GetDigitValue(string s, int index)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -264,7 +264,7 @@ namespace System.Globalization
 
         public static UnicodeCategory GetUnicodeCategory(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
@@ -332,7 +332,7 @@ namespace System.Globalization
 
         internal static BidiCategory GetBidiCategory(string s, int index)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
 
             if (((uint)index) >= ((uint)s.Length))

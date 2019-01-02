@@ -52,7 +52,7 @@ namespace System.IO
         {
             get
             {
-                if (_internalFormatProvider == null)
+                if (_internalFormatProvider is null)
                 {
                     return CultureInfo.CurrentCulture;
                 }
@@ -122,7 +122,7 @@ namespace System.IO
             get { return CoreNewLineStr; }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     value = Environment.NewLine;
                 }
@@ -147,7 +147,7 @@ namespace System.IO
         //
         public virtual void Write(char[] buffer)
         {
-            if (buffer != null)
+            if (buffer is object)
             {
                 Write(buffer, 0, buffer.Length);
             }
@@ -159,7 +159,7 @@ namespace System.IO
         //
         public virtual void Write(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -270,7 +270,7 @@ namespace System.IO
         //
         public virtual void Write(string value)
         {
-            if (value != null)
+            if (value is object)
             {
                 Write(value.ToCharArray());
             }
@@ -284,10 +284,10 @@ namespace System.IO
         //
         public virtual void Write(object value)
         {
-            if (value != null)
+            if (value is object)
             {
                 IFormattable f = value as IFormattable;
-                if (f != null)
+                if (f is object)
                 {
                     Write(f.ToString(null, FormatProvider));
                 }
@@ -303,7 +303,7 @@ namespace System.IO
         /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
         public virtual void Write(StringBuilder value)
         {
-            if (value != null)
+            if (value is object)
             {
                 foreach (ReadOnlyMemory<char> chunk in value.GetChunks())
                     Write(chunk);
@@ -467,7 +467,7 @@ namespace System.IO
         //
         public virtual void WriteLine(string value)
         {
-            if (value != null)
+            if (value is object)
             {
                 Write(value);
             }
@@ -489,7 +489,7 @@ namespace System.IO
         //
         public virtual void WriteLine(object value)
         {
-            if (value == null)
+            if (value is null)
             {
                 WriteLine();
             }
@@ -498,7 +498,7 @@ namespace System.IO
                 // Call WriteLine(value.ToString), not Write(Object), WriteLine().
                 // This makes calls to WriteLine(Object) atomic.
                 IFormattable f = value as IFormattable;
-                if (f != null)
+                if (f is object)
                 {
                     WriteLine(f.ToString(null, FormatProvider));
                 }
@@ -573,7 +573,7 @@ namespace System.IO
         {
             return
                 cancellationToken.IsCancellationRequested ? Task.FromCanceled(cancellationToken) :
-                value == null ? Task.CompletedTask :
+                value is null ? Task.CompletedTask :
                 WriteAsyncCore(value, cancellationToken);
 
             async Task WriteAsyncCore(StringBuilder sb, CancellationToken ct)
@@ -587,7 +587,7 @@ namespace System.IO
 
         public Task WriteAsync(char[] buffer)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 return Task.CompletedTask;
             }
@@ -647,7 +647,7 @@ namespace System.IO
         {
             return
                 cancellationToken.IsCancellationRequested ? Task.FromCanceled(cancellationToken) :
-                value == null ? WriteAsync(CoreNewLine, cancellationToken) :
+                value is null ? WriteAsync(CoreNewLine, cancellationToken) :
                 WriteLineAsyncCore(value, cancellationToken);
 
             async Task WriteLineAsyncCore(StringBuilder sb, CancellationToken ct)
@@ -662,7 +662,7 @@ namespace System.IO
 
         public Task WriteLineAsync(char[] buffer)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 return WriteLineAsync();
             }
@@ -749,7 +749,7 @@ namespace System.IO
 
         public static TextWriter Synchronized(TextWriter writer)
         {
-            if (writer == null)
+            if (writer is null)
                 throw new ArgumentNullException(nameof(writer));
 
             return writer is SyncTextWriter ? writer : new SyncTextWriter(writer);

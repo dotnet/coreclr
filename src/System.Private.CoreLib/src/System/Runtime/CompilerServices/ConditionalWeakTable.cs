@@ -101,7 +101,7 @@ namespace System.Runtime.CompilerServices
         //--------------------------------------------------------------------------------------------
         public bool TryGetValue(TKey key, out TValue value)
         {
-            if (key == null)
+            if (key is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
@@ -121,7 +121,7 @@ namespace System.Runtime.CompilerServices
         //--------------------------------------------------------------------------------------------
         public void Add(TKey key, TValue value)
         {
-            if (key == null)
+            if (key is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
@@ -147,7 +147,7 @@ namespace System.Runtime.CompilerServices
         //--------------------------------------------------------------------------------------------
         public void AddOrUpdate(TKey key, TValue value)
         {
-            if (key == null)
+            if (key is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
@@ -180,7 +180,7 @@ namespace System.Runtime.CompilerServices
         //--------------------------------------------------------------------------------------------
         public bool Remove(TKey key)
         {
-            if (key == null)
+            if (key is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
@@ -239,7 +239,7 @@ namespace System.Runtime.CompilerServices
         {
             // key is validated by TryGetValue
 
-            if (createValueCallback == null)
+            if (createValueCallback is null)
             {
                 throw new ArgumentNullException(nameof(createValueCallback));
             }
@@ -298,7 +298,7 @@ namespace System.Runtime.CompilerServices
             lock (_lock)
             {
                 Container c = _container;
-                return c == null || c.FirstFreeEntry == 0 ?
+                return c is null || c.FirstFreeEntry == 0 ?
                     ((IEnumerable<KeyValuePair<TKey, TValue>>)Array.Empty<KeyValuePair<TKey, TValue>>()).GetEnumerator() :
                     new Enumerator(this);
             }
@@ -354,7 +354,7 @@ namespace System.Runtime.CompilerServices
                 // Use an interlocked operation to ensure that only one thread can get access to
                 // the _table for disposal and thus only decrement the ref count once.
                 ConditionalWeakTable<TKey, TValue> table = Interlocked.Exchange(ref _table, null);
-                if (table != null)
+                if (table is object)
                 {
                     // Ensure we don't keep the last current alive unnecessarily
                     _current = default;
@@ -375,7 +375,7 @@ namespace System.Runtime.CompilerServices
             {
                 // Start by getting the current table.  If it's already been disposed, it will be null.
                 ConditionalWeakTable<TKey, TValue> table = _table;
-                if (table != null)
+                if (table is object)
                 {
                     // Once have the table, we need to lock to synchronize with other operations on
                     // the table, like adding.
@@ -386,7 +386,7 @@ namespace System.Runtime.CompilerServices
                         // due to there being at least one active enumerator.  If the table (or rather its
                         // container at the time) has already been finalized, this will be null.
                         Container c = table._container;
-                        if (c != null)
+                        if (c is object)
                         {
                             // We have the container.  Find the next entry to return, if there is one.
                             // We need to loop as we may try to get an entry that's already been removed
@@ -626,7 +626,7 @@ namespace System.Runtime.CompilerServices
                     oKey = _entries[index].depHnd.GetPrimaryAndSecondary(out oValue);
                     GC.KeepAlive(this); // ensure we don't get finalized while accessing DependentHandles.
 
-                    if (oKey != null)
+                    if (oKey is object)
                     {
                         key = Unsafe.As<TKey>(oKey);
                         value = Unsafe.As<TValue>(oValue);
@@ -711,7 +711,7 @@ namespace System.Runtime.CompilerServices
                 bool hasExpiredEntries = false;
                 int newSize = _buckets.Length;
 
-                if (_parent == null || _parent._activeEnumeratorRefCount == 0)
+                if (_parent is null || _parent._activeEnumeratorRefCount == 0)
                 {
                     // If any expired or removed keys exist, we won't resize.
                     // If there any active enumerators, though, we don't want
@@ -759,7 +759,7 @@ namespace System.Runtime.CompilerServices
                 }
                 Entry[] newEntries = new Entry[newSize];
                 int newEntriesIndex = 0;
-                bool activeEnumerators = _parent != null && _parent._activeEnumeratorRefCount > 0;
+                bool activeEnumerators = _parent is object && _parent._activeEnumeratorRefCount > 0;
 
                 // Migrate existing entries to the new table.
                 if (activeEnumerators)
@@ -855,7 +855,7 @@ namespace System.Runtime.CompilerServices
                 // don't bother. (Despite its name, Environment.HasShutdownStart also returns true if the current
                 // AD is finalizing.)  We also skip doing anything if the container is invalid, including if someone
                 // the container object was allocated but its associated table never set.
-                if (Environment.HasShutdownStarted || _invalid || _parent == null)
+                if (Environment.HasShutdownStarted || _invalid || _parent is null)
                 {
                     return;
                 }
@@ -886,7 +886,7 @@ namespace System.Runtime.CompilerServices
                 _entries = null;
                 _buckets = null;
 
-                if (entries != null)
+                if (entries is object)
                 {
                     for (int entriesIndex = 0; entriesIndex < entries.Length; entriesIndex++)
                     {
@@ -895,7 +895,7 @@ namespace System.Runtime.CompilerServices
                         //   to another container that replaced this one), then it should be freed.
                         // - If this container had the entry removed, then even if in general ownership was transferred to
                         //   another container, removed entries are not, therefore this container must free them.
-                        if (_oldKeepAlive == null || entries[entriesIndex].HashCode == -1)
+                        if (_oldKeepAlive is null || entries[entriesIndex].HashCode == -1)
                         {
                             entries[entriesIndex].depHnd.Free();
                         }

@@ -9,7 +9,7 @@ namespace System.Resources
     {
         public NeutralResourcesLanguageAttribute(string cultureName)
         {
-            if (cultureName == null)
+            if (cultureName is null)
                 throw new ArgumentNullException(nameof(cultureName));
 
             CultureName = cultureName;
@@ -18,7 +18,7 @@ namespace System.Resources
 
         public NeutralResourcesLanguageAttribute(string cultureName, UltimateResourceFallbackLocation location)
         {
-            if (cultureName == null)
+            if (cultureName is null)
                 throw new ArgumentNullException(nameof(cultureName));
             if (!Enum.IsDefined(typeof(UltimateResourceFallbackLocation), location))
                 throw new ArgumentException(SR.Format(SR.Arg_InvalidNeutralResourcesLanguage_FallbackLoc, location));

@@ -60,14 +60,14 @@ namespace System.Globalization
 
         public string GetAscii(string unicode, int index)
         {
-            if (unicode == null)
+            if (unicode is null)
                 throw new ArgumentNullException(nameof(unicode));
             return GetAscii(unicode, index, unicode.Length - index);
         }
 
         public string GetAscii(string unicode, int index, int count)
         {
-            if (unicode == null)
+            if (unicode is null)
                 throw new ArgumentNullException(nameof(unicode));
             if (index < 0 || count < 0)
                 throw new ArgumentOutOfRangeException((index < 0) ? nameof(index) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -107,14 +107,14 @@ namespace System.Globalization
 
         public string GetUnicode(string ascii, int index)
         {
-            if (ascii == null)
+            if (ascii is null)
                 throw new ArgumentNullException(nameof(ascii));
             return GetUnicode(ascii, index, ascii.Length - index);
         }
 
         public string GetUnicode(string ascii, int index, int count)
         {
-            if (ascii == null)
+            if (ascii is null)
                 throw new ArgumentNullException(nameof(ascii));
             if (index < 0 || count < 0)
                 throw new ArgumentOutOfRangeException((index < 0) ? nameof(index) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -147,7 +147,7 @@ namespace System.Globalization
         {
             IdnMapping that = obj as IdnMapping;
             return
-                that != null &&
+                that is object &&
                 _allowUnassigned == that._allowUnassigned &&
                 _useStd3AsciiRules == that._useStd3AsciiRules;
         }

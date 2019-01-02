@@ -335,7 +335,7 @@ namespace System.Globalization
             Debug.Assert(dtfi != null);
 
             bool resultBuilderIsPooled = false;
-            if (result == null)
+            if (result is null)
             {
                 result = StringBuilderCache.Acquire(InternalGlobalizationHelper.StringBuilderDefaultCapacity);
                 resultBuilderIsPooled = true;

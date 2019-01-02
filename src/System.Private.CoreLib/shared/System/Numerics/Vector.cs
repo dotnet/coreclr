@@ -391,7 +391,7 @@ namespace System.Numerics
         public unsafe Vector(T[] values, int index)
             : this()
         {
-            if (values == null)
+            if (values is null)
             {
                 // Match the JIT's exception type here. For perf, a NullReference is thrown instead of an ArgumentNull.
                 throw new NullReferenceException(SR.Arg_NullArgumentNullRef);
@@ -832,7 +832,7 @@ namespace System.Numerics
         [Intrinsic]
         public unsafe void CopyTo(T[] destination, int startIndex)
         {
-            if (destination == null)
+            if (destination is null)
             {
                 // Match the JIT's exception type here. For perf, a NullReference is thrown instead of an ArgumentNull.
                 throw new NullReferenceException(SR.Arg_NullArgumentNullRef);

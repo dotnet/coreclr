@@ -24,12 +24,12 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         public static FormattableString Create(string format, params object[] arguments)
         {
-            if (format == null)
+            if (format is null)
             {
                 throw new ArgumentNullException(nameof(format));
             }
 
-            if (arguments == null)
+            if (arguments is null)
             {
                 throw new ArgumentNullException(nameof(arguments));
             }

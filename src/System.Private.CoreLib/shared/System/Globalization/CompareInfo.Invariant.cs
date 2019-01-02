@@ -210,7 +210,7 @@ namespace System.Globalization
 
         private unsafe SortKey InvariantCreateSortKey(string source, CompareOptions options)
         {
-            if (source == null) { throw new ArgumentNullException(nameof(source)); }
+            if (source is null) { throw new ArgumentNullException(nameof(source)); }
 
             if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
             {

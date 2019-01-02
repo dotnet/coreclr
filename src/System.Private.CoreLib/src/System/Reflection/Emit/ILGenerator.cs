@@ -150,7 +150,7 @@ namespace System.Reflection.Emit
         #region Internal Members
         internal virtual void RecordTokenFixup()
         {
-            if (m_RelocFixupList == null)
+            if (m_RelocFixupList is null)
                 m_RelocFixupList = new int[DefaultFixupArraySize];
             else if (m_RelocFixupList.Length <= m_RelocFixupCount)
                 m_RelocFixupList = EnlargeArray(m_RelocFixupList);
@@ -350,7 +350,7 @@ namespace System.Reflection.Emit
             // Notes the label, position, and instruction size of a new fixup.  Expands
             // all of the fixup arrays as appropriate.
 
-            if (m_fixupData == null)
+            if (m_fixupData is null)
             {
                 m_fixupData = new __FixupData[DefaultFixupArraySize];
             }
@@ -397,7 +397,7 @@ namespace System.Reflection.Emit
         {
             if (m_RelocFixupCount == 0)
             {
-                Debug.Assert(m_RelocFixupList == null);
+                Debug.Assert(m_RelocFixupList is null);
                 return null;
             }
 
@@ -492,7 +492,7 @@ namespace System.Reflection.Emit
         {
             int stackchange = 0;
             SignatureHelper sig;
-            if (optionalParameterTypes != null)
+            if (optionalParameterTypes is object)
             {
                 if ((callingConvention & CallingConventions.VarArgs) == 0)
                 {
@@ -514,10 +514,10 @@ namespace System.Reflection.Emit
             if (returnType != typeof(void))
                 stackchange++;
             // Pop off arguments if any.
-            if (parameterTypes != null)
+            if (parameterTypes is object)
                 stackchange -= parameterTypes.Length;
             // Pop off vararg arguments.
-            if (optionalParameterTypes != null)
+            if (optionalParameterTypes is object)
                 stackchange -= optionalParameterTypes.Length;
             // Pop the this parameter if the method has a this parameter.
             if ((callingConvention & CallingConventions.HasThis) == CallingConventions.HasThis)
@@ -539,7 +539,7 @@ namespace System.Reflection.Emit
 
             ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
 
-            if (parameterTypes != null)
+            if (parameterTypes is object)
             {
                 cParams = parameterTypes.Length;
             }
@@ -549,7 +549,7 @@ namespace System.Reflection.Emit
                 unmanagedCallConv,
                 returnType);
 
-            if (parameterTypes != null)
+            if (parameterTypes is object)
             {
                 for (i = 0; i < cParams; i++)
                 {
@@ -562,7 +562,7 @@ namespace System.Reflection.Emit
                 stackchange++;
 
             // Pop off arguments if any.
-            if (parameterTypes != null)
+            if (parameterTypes is object)
                 stackchange -= cParams;
 
             // Pop the native function pointer.
@@ -595,7 +595,7 @@ namespace System.Reflection.Emit
                 stackchange++;
             // Pop the parameters.
             Type[] parameters = methodInfo.GetParameterTypes();
-            if (parameters != null)
+            if (parameters is object)
                 stackchange -= parameters.Length;
 
             // Pop the this parameter if the method is non-static and the
@@ -603,7 +603,7 @@ namespace System.Reflection.Emit
             if (!(methodInfo is SymbolMethod) && methodInfo.IsStatic == false && !(opcode.Equals(OpCodes.Newobj)))
                 stackchange--;
             // Pop the optional parameters off the stack.
-            if (optionalParameterTypes != null)
+            if (optionalParameterTypes is object)
                 stackchange -= optionalParameterTypes.Length;
             UpdateStackSize(opcode, stackchange);
 
@@ -613,7 +613,7 @@ namespace System.Reflection.Emit
 
         public virtual void Emit(OpCode opcode, SignatureHelper signature)
         {
-            if (signature == null)
+            if (signature is null)
                 throw new ArgumentNullException(nameof(signature));
 
             int stackchange = 0;
@@ -677,7 +677,7 @@ namespace System.Reflection.Emit
                                 "Unexpected opcode encountered for StackBehaviour of VarPop.");
 
                 Type[] parameters = con.GetParameterTypes();
-                if (parameters != null)
+                if (parameters is object)
                     stackchange -= parameters.Length;
             }
             UpdateStackSize(opcode, stackchange);
@@ -694,7 +694,7 @@ namespace System.Reflection.Emit
 
             int tempVal = 0;
             ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
-            if (opcode == OpCodes.Ldtoken && cls != null && cls.IsGenericTypeDefinition)
+            if (opcode == OpCodes.Ldtoken && cls is object && cls.IsGenericTypeDefinition)
             {
                 // This gets the token for the generic type definition if cls is one.
                 tempVal = modBuilder.GetTypeToken(cls).Token;
@@ -783,7 +783,7 @@ namespace System.Reflection.Emit
 
         public virtual void Emit(OpCode opcode, Label[] labels)
         {
-            if (labels == null)
+            if (labels is null)
                 throw new ArgumentNullException(nameof(labels));
 
             // Emitting a switch table
@@ -831,7 +831,7 @@ namespace System.Reflection.Emit
         {
             // Puts the opcode onto the IL stream followed by the information for local variable local.
 
-            if (local == null)
+            if (local is null)
             {
                 throw new ArgumentNullException(nameof(local));
             }
@@ -929,12 +929,12 @@ namespace System.Reflection.Emit
             // EndExceptionBlock
 
             // Delay init
-            if (m_exceptions == null)
+            if (m_exceptions is null)
             {
                 m_exceptions = new __ExceptionInfo[DefaultExceptionArraySize];
             }
 
-            if (m_currExcStack == null)
+            if (m_currExcStack is null)
             {
                 m_currExcStack = new __ExceptionInfo[DefaultExceptionArraySize];
             }
@@ -1031,7 +1031,7 @@ namespace System.Reflection.Emit
 
             if (current.GetCurrentState() == __ExceptionInfo.State_Filter)
             {
-                if (exceptionType != null)
+                if (exceptionType is object)
                 {
                     throw new ArgumentException(SR.Argument_ShouldNotSpecifyExceptionType);
                 }
@@ -1041,7 +1041,7 @@ namespace System.Reflection.Emit
             else
             {
                 // execute this branch if previous clause is Catch or Fault
-                if (exceptionType == null)
+                if (exceptionType is null)
                 {
                     throw new ArgumentNullException(nameof(exceptionType));
                 }
@@ -1108,7 +1108,7 @@ namespace System.Reflection.Emit
             // Mark Label.
 
             // Delay init the lable array in case we dont use it
-            if (m_labelList == null)
+            if (m_labelList is null)
             {
                 m_labelList = new int[DefaultLabelArraySize];
             }
@@ -1303,7 +1303,7 @@ namespace System.Reflection.Emit
             // Specifying the namespace to be used in evaluating locals and watches
             // for the current active lexical scope.
 
-            if (usingNamespace == null)
+            if (usingNamespace is null)
                 throw new ArgumentNullException(nameof(usingNamespace));
 
             if (usingNamespace.Length == 0)

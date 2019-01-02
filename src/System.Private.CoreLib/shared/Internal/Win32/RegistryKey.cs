@@ -37,7 +37,7 @@ namespace Internal.Win32
 
         void IDisposable.Dispose()
         {
-            if (_hkey != null)
+            if (_hkey is object)
             {
                 _hkey.Dispose();
             }
@@ -207,7 +207,7 @@ namespace Internal.Win32
             }
             finally
             {
-                if (name != null)
+                if (name is object)
                     ArrayPool<char>.Shared.Return(name);
             }
 
@@ -410,7 +410,7 @@ namespace Internal.Win32
                             }
                             cur = nextNull + 1;
 
-                            if (toAdd != null)
+                            if (toAdd is object)
                             {
                                 if (strings.Length == stringsCount)
                                 {
@@ -436,10 +436,10 @@ namespace Internal.Win32
         // so this is a cut-down version that supports on that.
         internal void SetValue(string name, string value)
         {
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
-            if (name != null && name.Length > MaxValueLength)
+            if (name is object && name.Length > MaxValueLength)
                 throw new ArgumentException(SR.Arg_RegValStrLenBug, nameof(name));
 
             int ret = Interop.Advapi32.RegSetValueEx(_hkey,
@@ -460,7 +460,7 @@ namespace Internal.Win32
             switch (errorCode)
             {
                 case Interop.Errors.ERROR_ACCESS_DENIED:
-                    if (str != null)
+                    if (str is object)
                         throw new UnauthorizedAccessException(SR.Format(SR.UnauthorizedAccess_RegistryKeyGeneric_Key, str));
                     else
                         throw new UnauthorizedAccessException();

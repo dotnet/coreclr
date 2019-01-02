@@ -62,7 +62,7 @@ namespace System.Reflection
         {
             // This is interesting there are two paths into the impl.  One that validates
             //  type as non-null and one where type may be null.
-            if (types == null)
+            if (types is null)
                 return typeImpl.GetMethod(name, bindingAttr);
             else
                 return typeImpl.GetMethod(name, bindingAttr, binder, callConvention, types, modifiers);
@@ -84,7 +84,7 @@ namespace System.Reflection
         protected override PropertyInfo GetPropertyImpl(string name, BindingFlags bindingAttr, Binder binder,
                         Type returnType, Type[] types, ParameterModifier[] modifiers)
         {
-            if (returnType is null && types == null)
+            if (returnType is null && types is null)
                 return typeImpl.GetProperty(name, bindingAttr);
             else
                 return typeImpl.GetProperty(name, bindingAttr, binder, returnType, types, modifiers);

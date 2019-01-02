@@ -42,7 +42,7 @@ namespace System.Reflection
                     // first take care of all the NO_INVOKE cases. 
                     if (ContainsGenericParameters ||
                          IsDisallowedByRefType(ReturnType) ||
-                         (declaringType != null && declaringType.ContainsGenericParameters) ||
+                         (declaringType is object && declaringType.ContainsGenericParameters) ||
                          ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
                         // We don't need other flags if this method cannot be invoked
@@ -51,7 +51,7 @@ namespace System.Reflection
                     else
                     {
                         // Check for byref-like types
-                        if ((declaringType != null && declaringType.IsByRefLike) || ReturnType.IsByRefLike)
+                        if ((declaringType is object && declaringType.IsByRefLike) || ReturnType.IsByRefLike)
                             invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_CONTAINS_STACK_POINTERS;
                     }
 
@@ -108,7 +108,7 @@ namespace System.Reflection
 
         private ParameterInfo[] FetchNonReturnParameters()
         {
-            if (m_parameters == null)
+            if (m_parameters is null)
                 m_parameters = RuntimeParameterInfo.GetParameters(this, this, Signature);
 
             return m_parameters;
@@ -116,7 +116,7 @@ namespace System.Reflection
 
         private ParameterInfo FetchReturnParameter()
         {
-            if (m_returnParameter == null)
+            if (m_returnParameter is null)
                 m_returnParameter = RuntimeParameterInfo.GetReturnParameter(this, this, Signature);
 
             return m_returnParameter;
@@ -138,7 +138,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_signature == null)
+                if (m_signature is null)
                     m_signature = new Signature(this, m_declaringType);
 
                 return m_signature;
@@ -154,7 +154,7 @@ namespace System.Reflection
 
             RuntimeType parent = (RuntimeType)m_declaringType.BaseType;
 
-            if (parent == null)
+            if (parent is null)
                 return null;
 
             int slot = RuntimeMethodHandle.GetSlot(this);
@@ -177,7 +177,7 @@ namespace System.Reflection
         #region Object Overrides
         public override string ToString()
         {
-            if (m_toString == null)
+            if (m_toString is null)
             {
                 var sbName = new ValueStringBuilder(MethodNameBufferSize);
 
@@ -256,12 +256,12 @@ namespace System.Reflection
 
         public override object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType, inherit);
@@ -269,12 +269,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType, inherit);
@@ -291,7 +291,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_name == null)
+                if (m_name is null)
                     m_name = RuntimeMethodHandle.GetName(this);
 
                 return m_name;
@@ -394,7 +394,7 @@ namespace System.Reflection
         public override MethodBody GetMethodBody()
         {
             RuntimeMethodBody mb = RuntimeMethodHandle.GetMethodBody(this, ReflectedTypeInternal);
-            if (mb != null)
+            if (mb is object)
                 mb._methodBase = this;
             return mb;
         }
@@ -408,7 +408,7 @@ namespace System.Reflection
             {
                 if (!m_declaringType.IsInstanceOfType(target))
                 {
-                    if (target == null)
+                    if (target is null)
                         throw new TargetException(SR.RFLCT_Targ_StatMethReqTarg);
                     else
                         throw new TargetException(SR.RFLCT_Targ_ITargMismatch);
@@ -457,7 +457,7 @@ namespace System.Reflection
             object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
 
             bool wrapExceptions = (invokeAttr & BindingFlags.DoNotWrapExceptions) == 0;
-            if (arguments == null || arguments.Length == 0)
+            if (arguments is null || arguments.Length == 0)
                 return RuntimeMethodHandle.InvokeMethod(obj, null, Signature, false, wrapExceptions);
             else
             {
@@ -479,7 +479,7 @@ namespace System.Reflection
 
             // get the signature 
             int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters != null) ? parameters.Length : 0;
+            int actualCount = (parameters is object) ? parameters.Length : 0;
 
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
 
@@ -527,7 +527,7 @@ namespace System.Reflection
 
         public override MethodInfo GetBaseDefinition()
         {
-            if (!IsVirtual || IsStatic || m_declaringType == null || m_declaringType.IsInterface)
+            if (!IsVirtual || IsStatic || m_declaringType is null || m_declaringType.IsInterface)
                 return this;
 
             int slot = RuntimeMethodHandle.GetSlot(this);
@@ -546,7 +546,7 @@ namespace System.Reflection
                 baseDeclaringType = declaringType;
 
                 declaringType = (RuntimeType)declaringType.BaseType;
-            } while (declaringType != null);
+            } while (declaringType is object);
 
             return (MethodInfo)RuntimeType.GetMethodBase(baseDeclaringType, baseMethodHandle);
         }
@@ -583,18 +583,18 @@ namespace System.Reflection
         private Delegate CreateDelegateInternal(Type delegateType, object firstArgument, DelegateBindingFlags bindingFlags)
         {
             // Validate the parameters.
-            if (delegateType == null)
+            if (delegateType is null)
                 throw new ArgumentNullException(nameof(delegateType));
 
             RuntimeType rtType = delegateType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(delegateType));
 
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(delegateType));
 
             Delegate d = Delegate.CreateDelegateInternal(rtType, this, firstArgument, bindingFlags);
-            if (d == null)
+            if (d is null)
             {
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);
             }
@@ -607,7 +607,7 @@ namespace System.Reflection
         #region Generics
         public override MethodInfo MakeGenericMethod(params Type[] methodInstantiation)
         {
-            if (methodInstantiation == null)
+            if (methodInstantiation is null)
                 throw new ArgumentNullException(nameof(methodInstantiation));
 
             RuntimeType[] methodInstantionRuntimeType = new RuntimeType[methodInstantiation.Length];
@@ -620,12 +620,12 @@ namespace System.Reflection
             {
                 Type methodInstantiationElem = methodInstantiation[i];
 
-                if (methodInstantiationElem == null)
+                if (methodInstantiationElem is null)
                     throw new ArgumentNullException();
 
                 RuntimeType rtMethodInstantiationElem = methodInstantiationElem as RuntimeType;
 
-                if (rtMethodInstantiationElem == null)
+                if (rtMethodInstantiationElem is null)
                 {
                     Type[] methodInstantiationCopy = new Type[methodInstantiation.Length];
                     for (int iCopy = 0; iCopy < methodInstantiation.Length; iCopy++)
@@ -666,7 +666,7 @@ namespace System.Reflection
         {
             Type[] types = RuntimeMethodHandle.GetMethodInstantiationPublic(this);
 
-            if (types == null)
+            if (types is null)
             {
                 types = Array.Empty<Type>();
             }
@@ -695,7 +695,7 @@ namespace System.Reflection
         {
             get
             {
-                if (DeclaringType != null && DeclaringType.ContainsGenericParameters)
+                if (DeclaringType is object && DeclaringType.ContainsGenericParameters)
                     return true;
 
                 if (!IsGenericMethod)
@@ -718,7 +718,7 @@ namespace System.Reflection
         {
             IRuntimeMethodInfo method = RuntimeMethodHandle.GetCurrentMethod(ref stackMark);
 
-            if (method == null)
+            if (method is null)
                 return null;
 
             return RuntimeType.GetMethodBase(method);

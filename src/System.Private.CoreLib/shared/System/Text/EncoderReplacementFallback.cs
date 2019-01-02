@@ -21,7 +21,7 @@ namespace System.Text
         public EncoderReplacementFallback(string replacement)
         {
             // Must not be null
-            if (replacement == null)
+            if (replacement is null)
                 throw new ArgumentNullException(nameof(replacement));
 
             // Make sure it doesn't have bad surrogate pairs
@@ -88,7 +88,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             EncoderReplacementFallback that = value as EncoderReplacementFallback;
-            if (that != null)
+            if (that is object)
             {
                 return (_strDefault == that._strDefault);
             }

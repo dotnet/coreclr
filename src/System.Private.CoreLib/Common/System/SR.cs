@@ -39,7 +39,7 @@ namespace System
             try { resourceString = InternalGetResourceString(resourceKey); }
             catch (MissingManifestResourceException) { }
 
-            if (defaultString != null && resourceKey.Equals(resourceString, StringComparison.Ordinal))
+            if (defaultString is object && resourceKey.Equals(resourceString, StringComparison.Ordinal))
             {
                 return defaultString;
             }
@@ -54,7 +54,7 @@ namespace System
 
         private static string InternalGetResourceString(string key)
         {
-            if (key == null || key.Length == 0)
+            if (key is null || key.Length == 0)
             {
                 Debug.Fail("SR::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
                 return key;
@@ -86,7 +86,7 @@ namespace System
 
                 // Are we recursively looking up the same resource?  Note - our backout code will set
                 // the ResourceHelper's currentlyLoading stack to null if an exception occurs.
-                if (_currentlyLoading != null && _currentlyLoading.Count > 0 && _currentlyLoading.LastIndexOf(key) != -1)
+                if (_currentlyLoading is object && _currentlyLoading.Count > 0 && _currentlyLoading.LastIndexOf(key) != -1)
                 {
                     // We can start infinitely recursing for one resource lookup,
                     // then during our failure reporting, start infinitely recursing again.
@@ -102,7 +102,7 @@ namespace System
                     string message = $"Infinite recursion during resource lookup within {System.CoreLib.Name}.  This may be a bug in {System.CoreLib.Name}, or potentially in certain extensibility points such as assembly resolve events or CultureInfo names.  Resource name: {key}";
                     Environment.FailFast(message);
                 }
-                if (_currentlyLoading == null)
+                if (_currentlyLoading is null)
                     _currentlyLoading = new List<string>();
 
                 // Call class constructors preemptively, so that we cannot get into an infinite
@@ -120,7 +120,7 @@ namespace System
 
                 _currentlyLoading.Add(key); // Push
 
-                if (ResourceManager == null)
+                if (ResourceManager is null)
                 {
                     ResourceManager = new ResourceManager(SR.ResourceType);
                 }
@@ -151,7 +151,7 @@ namespace System
 
         internal static string Format(string resourceFormat, params object[] args)
         {
-            if (args != null)
+            if (args is object)
             {
                 if (UsingResourceKeys())
                 {

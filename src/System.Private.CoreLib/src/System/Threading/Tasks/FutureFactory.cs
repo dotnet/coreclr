@@ -53,7 +53,7 @@ namespace System.Threading.Tasks
         {
             get
             {
-                if (m_defaultScheduler == null) return TaskScheduler.Current;
+                if (m_defaultScheduler is null) return TaskScheduler.Current;
                 else return m_defaultScheduler;
             }
         }
@@ -61,8 +61,8 @@ namespace System.Threading.Tasks
         // sister method to above property -- avoids a TLS lookup
         private TaskScheduler GetDefaultScheduler(Task currTask)
         {
-            if (m_defaultScheduler != null) return m_defaultScheduler;
-            else if ((currTask != null)
+            if (m_defaultScheduler is object) return m_defaultScheduler;
+            else if ((currTask is object)
                 && ((currTask.CreationOptions & TaskCreationOptions.HideScheduler) == 0)
                 )
                 return currTask.ExecutingTaskScheduler;
@@ -524,7 +524,7 @@ namespace System.Threading.Tasks
 
             try
             {
-                if (endFunction != null)
+                if (endFunction is object)
                 {
                     result = endFunction(iar);
                 }
@@ -537,11 +537,11 @@ namespace System.Threading.Tasks
             catch (Exception e) { ex = e; }
             finally
             {
-                if (oce != null)
+                if (oce is object)
                 {
                     promise.TrySetCanceled(oce.CancellationToken, oce);
                 }
-                else if (ex != null)
+                else if (ex is object)
                 {
                     bool bWonSetException = promise.TrySetException(ex);
                     if (bWonSetException && ex is ThreadAbortException)
@@ -659,15 +659,15 @@ namespace System.Threading.Tasks
             TaskCreationOptions creationOptions,
             TaskScheduler scheduler)
         {
-            if (asyncResult == null)
+            if (asyncResult is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.asyncResult);
 
-            if (endFunction == null && endAction == null)
+            if (endFunction is null && endAction is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.endMethod);
 
             Debug.Assert((endFunction != null) != (endAction != null), "Both endFunction and endAction were non-null");
 
-            if (scheduler == null)
+            if (scheduler is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
 
             TaskFactory.CheckFromAsyncOptions(creationOptions, false);
@@ -781,10 +781,10 @@ namespace System.Threading.Tasks
             Func<IAsyncResult, TResult> endFunction, Action<IAsyncResult> endAction,
             object state, TaskCreationOptions creationOptions)
         {
-            if (beginMethod == null)
+            if (beginMethod is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.beginMethod);
 
-            if (endFunction == null && endAction == null)
+            if (endFunction is null && endAction is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.endMethod);
 
             Debug.Assert((endFunction != null) != (endAction != null), "Both endFunction and endAction were non-null");
@@ -903,10 +903,10 @@ namespace System.Threading.Tasks
             Func<IAsyncResult, TResult> endFunction, Action<IAsyncResult> endAction,
             TArg1 arg1, object state, TaskCreationOptions creationOptions)
         {
-            if (beginMethod == null)
+            if (beginMethod is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.beginMethod);
 
-            if (endFunction == null && endAction == null)
+            if (endFunction is null && endAction is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.endFunction);
 
             Debug.Assert((endFunction != null) != (endAction != null), "Both endFunction and endAction were non-null");
@@ -1032,10 +1032,10 @@ namespace System.Threading.Tasks
             Func<IAsyncResult, TResult> endFunction, Action<IAsyncResult> endAction,
             TArg1 arg1, TArg2 arg2, object state, TaskCreationOptions creationOptions)
         {
-            if (beginMethod == null)
+            if (beginMethod is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.beginMethod);
 
-            if (endFunction == null && endAction == null)
+            if (endFunction is null && endAction is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.endMethod);
 
             Debug.Assert((endFunction != null) != (endAction != null), "Both endFunction and endAction were non-null");
@@ -1169,10 +1169,10 @@ namespace System.Threading.Tasks
             Func<IAsyncResult, TResult> endFunction, Action<IAsyncResult> endAction,
             TArg1 arg1, TArg2 arg2, TArg3 arg3, object state, TaskCreationOptions creationOptions)
         {
-            if (beginMethod == null)
+            if (beginMethod is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.beginMethod);
 
-            if (endFunction == null && endAction == null)
+            if (endFunction is null && endAction is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.endMethod);
 
             Debug.Assert((endFunction != null) != (endAction != null), "Both endFunction and endAction were non-null");
@@ -1297,17 +1297,17 @@ namespace System.Threading.Tasks
             internal static void CompleteFromAsyncResult(IAsyncResult asyncResult)
             {
                 // Validate argument
-                if (asyncResult == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.asyncResult);
+                if (asyncResult is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.asyncResult);
 
                 var promise = asyncResult.AsyncState as FromAsyncTrimPromise<TInstance>;
-                if (promise == null) ThrowHelper.ThrowArgumentException(ExceptionResource.InvalidOperation_WrongAsyncResultOrEndCalledMultiple, ExceptionArgument.asyncResult);
+                if (promise is null) ThrowHelper.ThrowArgumentException(ExceptionResource.InvalidOperation_WrongAsyncResultOrEndCalledMultiple, ExceptionArgument.asyncResult);
 
                 // Grab the relevant state and then null it out so that the task doesn't hold onto the state unnecessarily
                 var thisRef = promise.m_thisRef;
                 var endMethod = promise.m_endMethod;
                 promise.m_thisRef = default;
                 promise.m_endMethod = null;
-                if (endMethod == null) ThrowHelper.ThrowArgumentException(ExceptionResource.InvalidOperation_WrongAsyncResultOrEndCalledMultiple, ExceptionArgument.asyncResult);
+                if (endMethod is null) ThrowHelper.ThrowArgumentException(ExceptionResource.InvalidOperation_WrongAsyncResultOrEndCalledMultiple, ExceptionArgument.asyncResult);
 
                 // Complete the promise.  If the IAsyncResult completed synchronously,
                 // we'll instead complete the promise at the call site.
@@ -1395,7 +1395,7 @@ namespace System.Threading.Tasks
         /// <paramref name="tasks"/> array is empty.</exception>
         public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAllImpl(tasks, continuationFunction, null, m_defaultContinuationOptions, m_defaultCancellationToken, DefaultScheduler);
         }
@@ -1423,7 +1423,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction, CancellationToken cancellationToken)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAllImpl(tasks, continuationFunction, null, m_defaultContinuationOptions, cancellationToken, DefaultScheduler);
         }
@@ -1457,7 +1457,7 @@ namespace System.Threading.Tasks
         /// </remarks>
         public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction, TaskContinuationOptions continuationOptions)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAllImpl(tasks, continuationFunction, null, continuationOptions, m_defaultCancellationToken, DefaultScheduler);
         }
@@ -1502,7 +1502,7 @@ namespace System.Threading.Tasks
         public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction,
             CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAllImpl(tasks, continuationFunction, null, continuationOptions, cancellationToken, scheduler);
         }
@@ -1526,7 +1526,7 @@ namespace System.Threading.Tasks
         /// <paramref name="tasks"/> array is empty.</exception>
         public Task<TResult> ContinueWhenAll<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>[], TResult> continuationFunction)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAllImpl<TAntecedentResult>(tasks, continuationFunction, null, m_defaultContinuationOptions, m_defaultCancellationToken, DefaultScheduler);
         }
@@ -1556,7 +1556,7 @@ namespace System.Threading.Tasks
         public Task<TResult> ContinueWhenAll<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>[], TResult> continuationFunction,
             CancellationToken cancellationToken)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAllImpl<TAntecedentResult>(tasks, continuationFunction, null, m_defaultContinuationOptions, cancellationToken, DefaultScheduler);
         }
@@ -1592,7 +1592,7 @@ namespace System.Threading.Tasks
         public Task<TResult> ContinueWhenAll<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>[], TResult> continuationFunction,
             TaskContinuationOptions continuationOptions)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAllImpl<TAntecedentResult>(tasks, continuationFunction, null, continuationOptions, m_defaultCancellationToken, DefaultScheduler);
         }
@@ -1638,7 +1638,7 @@ namespace System.Threading.Tasks
         public Task<TResult> ContinueWhenAll<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>[], TResult> continuationFunction,
             CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAllImpl<TAntecedentResult>(tasks, continuationFunction, null, continuationOptions, cancellationToken, scheduler);
         }
@@ -1652,10 +1652,10 @@ namespace System.Threading.Tasks
         {
             // check arguments
             TaskFactory.CheckMultiTaskContinuationOptions(continuationOptions);
-            if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
+            if (tasks is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
             //ArgumentNullException of continuationFunction or continuationAction is checked by the caller
             Debug.Assert((continuationFunction != null) != (continuationAction != null), "Expected exactly one of endFunction/endAction to be non-null");
-            if (scheduler == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
+            if (scheduler is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
 
             // Check tasks array and make defensive copy
             Task<TAntecedentResult>[] tasksCopy = TaskFactory.CheckMultiContinuationTasksAndCopy<TAntecedentResult>(tasks);
@@ -1672,7 +1672,7 @@ namespace System.Threading.Tasks
             var starter = TaskFactory.CommonCWAllLogic(tasksCopy);
 
             // returned continuation task, off of starter
-            if (continuationFunction != null)
+            if (continuationFunction is object)
             {
                 return starter.ContinueWith<TResult>(
                    // use a cached delegate
@@ -1681,7 +1681,7 @@ namespace System.Threading.Tasks
             }
             else
             {
-                Debug.Assert(continuationAction != null);
+                Debug.Assert(continuationAction is object);
 
                 return starter.ContinueWith<TResult>(
                    // use a cached delegate
@@ -1698,10 +1698,10 @@ namespace System.Threading.Tasks
         {
             // check arguments
             TaskFactory.CheckMultiTaskContinuationOptions(continuationOptions);
-            if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
+            if (tasks is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
             //ArgumentNullException of continuationFunction or continuationAction is checked by the caller
             Debug.Assert((continuationFunction != null) != (continuationAction != null), "Expected exactly one of endFunction/endAction to be non-null");
-            if (scheduler == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
+            if (scheduler is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
 
             // Check tasks array and make defensive copy
             Task[] tasksCopy = TaskFactory.CheckMultiContinuationTasksAndCopy(tasks);
@@ -1718,7 +1718,7 @@ namespace System.Threading.Tasks
             var starter = TaskFactory.CommonCWAllLogic(tasksCopy);
 
             // returned continuation task, off of starter
-            if (continuationFunction != null)
+            if (continuationFunction is object)
             {
                 return starter.ContinueWith(
                     //the following delegate avoids closure capture as much as possible
@@ -1769,7 +1769,7 @@ namespace System.Threading.Tasks
         /// <paramref name="tasks"/> array is empty.</exception>
         public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAnyImpl(tasks, continuationFunction, null, m_defaultContinuationOptions, m_defaultCancellationToken, DefaultScheduler);
         }
@@ -1797,7 +1797,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction, CancellationToken cancellationToken)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAnyImpl(tasks, continuationFunction, null, m_defaultContinuationOptions, cancellationToken, DefaultScheduler);
         }
@@ -1831,7 +1831,7 @@ namespace System.Threading.Tasks
         /// </remarks>
         public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction, TaskContinuationOptions continuationOptions)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAnyImpl(tasks, continuationFunction, null, continuationOptions, m_defaultCancellationToken, DefaultScheduler);
         }
@@ -1876,7 +1876,7 @@ namespace System.Threading.Tasks
         public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction,
             CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAnyImpl(tasks, continuationFunction, null, continuationOptions, cancellationToken, scheduler);
         }
@@ -1900,7 +1900,7 @@ namespace System.Threading.Tasks
         /// <paramref name="tasks"/> array is empty.</exception>
         public Task<TResult> ContinueWhenAny<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>, TResult> continuationFunction)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAnyImpl<TAntecedentResult>(tasks, continuationFunction, null, m_defaultContinuationOptions, m_defaultCancellationToken, DefaultScheduler);
         }
@@ -1930,7 +1930,7 @@ namespace System.Threading.Tasks
         public Task<TResult> ContinueWhenAny<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>, TResult> continuationFunction,
             CancellationToken cancellationToken)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAnyImpl<TAntecedentResult>(tasks, continuationFunction, null, m_defaultContinuationOptions, cancellationToken, DefaultScheduler);
         }
@@ -1966,7 +1966,7 @@ namespace System.Threading.Tasks
         public Task<TResult> ContinueWhenAny<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>, TResult> continuationFunction,
             TaskContinuationOptions continuationOptions)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAnyImpl<TAntecedentResult>(tasks, continuationFunction, null, continuationOptions, m_defaultCancellationToken, DefaultScheduler);
         }
@@ -2012,7 +2012,7 @@ namespace System.Threading.Tasks
         public Task<TResult> ContinueWhenAny<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>, TResult> continuationFunction,
             CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
         {
-            if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
+            if (continuationFunction is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
 
             return ContinueWhenAnyImpl<TAntecedentResult>(tasks, continuationFunction, null, continuationOptions, cancellationToken, scheduler);
         }
@@ -2025,12 +2025,12 @@ namespace System.Threading.Tasks
         {
             // check arguments
             TaskFactory.CheckMultiTaskContinuationOptions(continuationOptions);
-            if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
+            if (tasks is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
             if (tasks.Length == 0) ThrowHelper.ThrowArgumentException(ExceptionResource.Task_MultiTaskContinuation_EmptyTaskList, ExceptionArgument.tasks);
 
             //ArgumentNullException of continuationFunction or continuationAction is checked by the caller
             Debug.Assert((continuationFunction != null) != (continuationAction != null), "Expected exactly one of endFunction/endAction to be non-null");
-            if (scheduler == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
+            if (scheduler is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
 
             // Call common ContinueWhenAny() setup logic, extract starter
             Task<Task> starter = TaskFactory.CommonCWAnyLogic(tasks);
@@ -2044,7 +2044,7 @@ namespace System.Threading.Tasks
             }
 
             // returned continuation task, off of starter
-            if (continuationFunction != null)
+            if (continuationFunction is object)
             {
                 return starter.ContinueWith(
                      //the following delegate avoids closure capture as much as possible
@@ -2072,11 +2072,11 @@ namespace System.Threading.Tasks
         {
             // check arguments
             TaskFactory.CheckMultiTaskContinuationOptions(continuationOptions);
-            if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
+            if (tasks is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
             if (tasks.Length == 0) ThrowHelper.ThrowArgumentException(ExceptionResource.Task_MultiTaskContinuation_EmptyTaskList, ExceptionArgument.tasks);
             //ArgumentNullException of continuationFunction or continuationAction is checked by the caller
             Debug.Assert((continuationFunction != null) != (continuationAction != null), "Expected exactly one of endFunction/endAction to be non-null");
-            if (scheduler == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
+            if (scheduler is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
 
             // Call common ContinueWhenAny setup logic, extract starter
             var starter = TaskFactory.CommonCWAnyLogic(tasks);
@@ -2090,7 +2090,7 @@ namespace System.Threading.Tasks
             }
 
             // returned continuation task, off of starter
-            if (continuationFunction != null)
+            if (continuationFunction is object)
             {
                 return starter.ContinueWith<TResult>(
                     // Use a cached delegate

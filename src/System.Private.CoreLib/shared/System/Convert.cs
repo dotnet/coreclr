@@ -159,9 +159,9 @@ namespace System
         // the object's implementation of IConvertible.
         public static TypeCode GetTypeCode(object value)
         {
-            if (value == null) return TypeCode.Empty;
+            if (value is null) return TypeCode.Empty;
             IConvertible temp = value as IConvertible;
-            if (temp != null)
+            if (temp is object)
             {
                 return temp.GetTypeCode();
             }
@@ -174,7 +174,7 @@ namespace System
         {
             if (value == System.DBNull.Value) return true;
             IConvertible convertible = value as IConvertible;
-            return convertible != null ? convertible.GetTypeCode() == TypeCode.DBNull : false;
+            return convertible is object ? convertible.GetTypeCode() == TypeCode.DBNull : false;
         }
 
         // Converts the given object to the given type. In general, this method is
@@ -196,13 +196,13 @@ namespace System
 
         public static object ChangeType(object value, TypeCode typeCode, IFormatProvider provider)
         {
-            if (value == null && (typeCode == TypeCode.Empty || typeCode == TypeCode.String || typeCode == TypeCode.Object))
+            if (value is null && (typeCode == TypeCode.Empty || typeCode == TypeCode.String || typeCode == TypeCode.Object))
             {
                 return null;
             }
 
             IConvertible v = value as IConvertible;
-            if (v == null)
+            if (v is null)
             {
                 throw new InvalidCastException(SR.InvalidCast_IConvertible);
             }
@@ -321,7 +321,7 @@ namespace System
                 throw new ArgumentNullException(nameof(conversionType));
             }
 
-            if (value == null)
+            if (value is null)
             {
                 if (conversionType.IsValueType)
                 {
@@ -331,7 +331,7 @@ namespace System
             }
 
             IConvertible ic = value as IConvertible;
-            if (ic == null)
+            if (ic is null)
             {
                 if (value.GetType() == conversionType)
                 {
@@ -397,12 +397,12 @@ namespace System
         // Conversions to Boolean
         public static bool ToBoolean(object value)
         {
-            return value == null ? false : ((IConvertible)value).ToBoolean(null);
+            return value is null ? false : ((IConvertible)value).ToBoolean(null);
         }
 
         public static bool ToBoolean(object value, IFormatProvider provider)
         {
-            return value == null ? false : ((IConvertible)value).ToBoolean(provider);
+            return value is null ? false : ((IConvertible)value).ToBoolean(provider);
         }
 
 
@@ -465,14 +465,14 @@ namespace System
 
         public static bool ToBoolean(string value)
         {
-            if (value == null)
+            if (value is null)
                 return false;
             return bool.Parse(value);
         }
 
         public static bool ToBoolean(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return false;
             return bool.Parse(value);
         }
@@ -505,12 +505,12 @@ namespace System
 
         public static char ToChar(object value)
         {
-            return value == null ? (char)0 : ((IConvertible)value).ToChar(null);
+            return value is null ? (char)0 : ((IConvertible)value).ToChar(null);
         }
 
         public static char ToChar(object value, IFormatProvider provider)
         {
-            return value == null ? (char)0 : ((IConvertible)value).ToChar(provider);
+            return value is null ? (char)0 : ((IConvertible)value).ToChar(provider);
         }
 
         public static char ToChar(bool value)
@@ -584,7 +584,7 @@ namespace System
 
         public static char ToChar(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
             if (value.Length != 1)
@@ -628,13 +628,13 @@ namespace System
         [CLSCompliant(false)]
         public static sbyte ToSByte(object value)
         {
-            return value == null ? (sbyte)0 : ((IConvertible)value).ToSByte(null);
+            return value is null ? (sbyte)0 : ((IConvertible)value).ToSByte(null);
         }
 
         [CLSCompliant(false)]
         public static sbyte ToSByte(object value, IFormatProvider provider)
         {
-            return value == null ? (sbyte)0 : ((IConvertible)value).ToSByte(provider);
+            return value is null ? (sbyte)0 : ((IConvertible)value).ToSByte(provider);
         }
 
         [CLSCompliant(false)]
@@ -726,7 +726,7 @@ namespace System
         [CLSCompliant(false)]
         public static sbyte ToSByte(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return sbyte.Parse(value, CultureInfo.CurrentCulture);
         }
@@ -750,12 +750,12 @@ namespace System
 
         public static byte ToByte(object value)
         {
-            return value == null ? (byte)0 : ((IConvertible)value).ToByte(null);
+            return value is null ? (byte)0 : ((IConvertible)value).ToByte(null);
         }
 
         public static byte ToByte(object value, IFormatProvider provider)
         {
-            return value == null ? (byte)0 : ((IConvertible)value).ToByte(provider);
+            return value is null ? (byte)0 : ((IConvertible)value).ToByte(provider);
         }
 
         public static byte ToByte(bool value)
@@ -837,14 +837,14 @@ namespace System
 
         public static byte ToByte(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return byte.Parse(value, CultureInfo.CurrentCulture);
         }
 
         public static byte ToByte(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return byte.Parse(value, NumberStyles.Integer, provider);
         }
@@ -862,12 +862,12 @@ namespace System
 
         public static short ToInt16(object value)
         {
-            return value == null ? (short)0 : ((IConvertible)value).ToInt16(null);
+            return value is null ? (short)0 : ((IConvertible)value).ToInt16(null);
         }
 
         public static short ToInt16(object value, IFormatProvider provider)
         {
-            return value == null ? (short)0 : ((IConvertible)value).ToInt16(provider);
+            return value is null ? (short)0 : ((IConvertible)value).ToInt16(provider);
         }
 
         public static short ToInt16(bool value)
@@ -947,14 +947,14 @@ namespace System
 
         public static short ToInt16(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return short.Parse(value, CultureInfo.CurrentCulture);
         }
 
         public static short ToInt16(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return short.Parse(value, NumberStyles.Integer, provider);
         }
@@ -973,13 +973,13 @@ namespace System
         [CLSCompliant(false)]
         public static ushort ToUInt16(object value)
         {
-            return value == null ? (ushort)0 : ((IConvertible)value).ToUInt16(null);
+            return value is null ? (ushort)0 : ((IConvertible)value).ToUInt16(null);
         }
 
         [CLSCompliant(false)]
         public static ushort ToUInt16(object value, IFormatProvider provider)
         {
-            return value == null ? (ushort)0 : ((IConvertible)value).ToUInt16(provider);
+            return value is null ? (ushort)0 : ((IConvertible)value).ToUInt16(provider);
         }
 
 
@@ -1071,7 +1071,7 @@ namespace System
         [CLSCompliant(false)]
         public static ushort ToUInt16(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return ushort.Parse(value, CultureInfo.CurrentCulture);
         }
@@ -1079,7 +1079,7 @@ namespace System
         [CLSCompliant(false)]
         public static ushort ToUInt16(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return ushort.Parse(value, NumberStyles.Integer, provider);
         }
@@ -1097,12 +1097,12 @@ namespace System
 
         public static int ToInt32(object value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToInt32(null);
+            return value is null ? 0 : ((IConvertible)value).ToInt32(null);
         }
 
         public static int ToInt32(object value, IFormatProvider provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToInt32(provider);
+            return value is null ? 0 : ((IConvertible)value).ToInt32(provider);
         }
 
 
@@ -1200,14 +1200,14 @@ namespace System
 
         public static int ToInt32(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return int.Parse(value, CultureInfo.CurrentCulture);
         }
 
         public static int ToInt32(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return int.Parse(value, NumberStyles.Integer, provider);
         }
@@ -1226,13 +1226,13 @@ namespace System
         [CLSCompliant(false)]
         public static uint ToUInt32(object value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToUInt32(null);
+            return value is null ? 0 : ((IConvertible)value).ToUInt32(null);
         }
 
         [CLSCompliant(false)]
         public static uint ToUInt32(object value, IFormatProvider provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToUInt32(provider);
+            return value is null ? 0 : ((IConvertible)value).ToUInt32(provider);
         }
 
 
@@ -1329,7 +1329,7 @@ namespace System
         [CLSCompliant(false)]
         public static uint ToUInt32(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return uint.Parse(value, CultureInfo.CurrentCulture);
         }
@@ -1337,7 +1337,7 @@ namespace System
         [CLSCompliant(false)]
         public static uint ToUInt32(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return uint.Parse(value, NumberStyles.Integer, provider);
         }
@@ -1355,12 +1355,12 @@ namespace System
 
         public static long ToInt64(object value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToInt64(null);
+            return value is null ? 0 : ((IConvertible)value).ToInt64(null);
         }
 
         public static long ToInt64(object value, IFormatProvider provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToInt64(provider);
+            return value is null ? 0 : ((IConvertible)value).ToInt64(provider);
         }
 
 
@@ -1437,14 +1437,14 @@ namespace System
 
         public static long ToInt64(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return long.Parse(value, CultureInfo.CurrentCulture);
         }
 
         public static long ToInt64(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return long.Parse(value, NumberStyles.Integer, provider);
         }
@@ -1462,13 +1462,13 @@ namespace System
         [CLSCompliant(false)]
         public static ulong ToUInt64(object value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToUInt64(null);
+            return value is null ? 0 : ((IConvertible)value).ToUInt64(null);
         }
 
         [CLSCompliant(false)]
         public static ulong ToUInt64(object value, IFormatProvider provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToUInt64(provider);
+            return value is null ? 0 : ((IConvertible)value).ToUInt64(provider);
         }
 
         [CLSCompliant(false)]
@@ -1557,7 +1557,7 @@ namespace System
         [CLSCompliant(false)]
         public static ulong ToUInt64(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return ulong.Parse(value, CultureInfo.CurrentCulture);
         }
@@ -1565,7 +1565,7 @@ namespace System
         [CLSCompliant(false)]
         public static ulong ToUInt64(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return ulong.Parse(value, NumberStyles.Integer, provider);
         }
@@ -1583,12 +1583,12 @@ namespace System
 
         public static float ToSingle(object value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToSingle(null);
+            return value is null ? 0 : ((IConvertible)value).ToSingle(null);
         }
 
         public static float ToSingle(object value, IFormatProvider provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToSingle(provider);
+            return value is null ? 0 : ((IConvertible)value).ToSingle(provider);
         }
 
         [CLSCompliant(false)]
@@ -1657,14 +1657,14 @@ namespace System
 
         public static float ToSingle(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return float.Parse(value, CultureInfo.CurrentCulture);
         }
 
         public static float ToSingle(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return float.Parse(value, NumberStyles.Float | NumberStyles.AllowThousands, provider);
         }
@@ -1687,12 +1687,12 @@ namespace System
 
         public static double ToDouble(object value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToDouble(null);
+            return value is null ? 0 : ((IConvertible)value).ToDouble(null);
         }
 
         public static double ToDouble(object value, IFormatProvider provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToDouble(provider);
+            return value is null ? 0 : ((IConvertible)value).ToDouble(provider);
         }
 
 
@@ -1762,14 +1762,14 @@ namespace System
 
         public static double ToDouble(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return double.Parse(value, CultureInfo.CurrentCulture);
         }
 
         public static double ToDouble(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0;
             return double.Parse(value, NumberStyles.Float | NumberStyles.AllowThousands, provider);
         }
@@ -1791,12 +1791,12 @@ namespace System
 
         public static decimal ToDecimal(object value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToDecimal(null);
+            return value is null ? 0 : ((IConvertible)value).ToDecimal(null);
         }
 
         public static decimal ToDecimal(object value, IFormatProvider provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToDecimal(provider);
+            return value is null ? 0 : ((IConvertible)value).ToDecimal(provider);
         }
 
         [CLSCompliant(false)]
@@ -1860,14 +1860,14 @@ namespace System
 
         public static decimal ToDecimal(string value)
         {
-            if (value == null)
+            if (value is null)
                 return 0m;
             return decimal.Parse(value, CultureInfo.CurrentCulture);
         }
 
         public static decimal ToDecimal(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return 0m;
             return decimal.Parse(value, NumberStyles.Number, provider);
         }
@@ -1899,24 +1899,24 @@ namespace System
 
         public static DateTime ToDateTime(object value)
         {
-            return value == null ? DateTime.MinValue : ((IConvertible)value).ToDateTime(null);
+            return value is null ? DateTime.MinValue : ((IConvertible)value).ToDateTime(null);
         }
 
         public static DateTime ToDateTime(object value, IFormatProvider provider)
         {
-            return value == null ? DateTime.MinValue : ((IConvertible)value).ToDateTime(provider);
+            return value is null ? DateTime.MinValue : ((IConvertible)value).ToDateTime(provider);
         }
 
         public static DateTime ToDateTime(string value)
         {
-            if (value == null)
+            if (value is null)
                 return new DateTime(0);
             return DateTime.Parse(value, CultureInfo.CurrentCulture);
         }
 
         public static DateTime ToDateTime(string value, IFormatProvider provider)
         {
-            if (value == null)
+            if (value is null)
                 return new DateTime(0);
             return DateTime.Parse(value, provider);
         }
@@ -2003,12 +2003,12 @@ namespace System
         public static string ToString(object value, IFormatProvider provider)
         {
             IConvertible ic = value as IConvertible;
-            if (ic != null)
+            if (ic is object)
                 return ic.ToString(provider);
             IFormattable formattable = value as IFormattable;
-            if (formattable != null)
+            if (formattable is object)
                 return formattable.ToString(null, provider);
-            return value == null ? string.Empty : value.ToString();
+            return value is null ? string.Empty : value.ToString();
         }
 
         public static string ToString(bool value)
@@ -2184,7 +2184,7 @@ namespace System
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
 
-            if (value == null)
+            if (value is null)
             {
                 return 0;
             }
@@ -2207,7 +2207,7 @@ namespace System
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
 
-            if (value == null)
+            if (value is null)
             {
                 return 0;
             }
@@ -2232,7 +2232,7 @@ namespace System
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
 
-            if (value == null)
+            if (value is null)
             {
                 return 0;
             }
@@ -2258,7 +2258,7 @@ namespace System
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
 
-            if (value == null)
+            if (value is null)
             {
                 return 0;
             }
@@ -2279,7 +2279,7 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            return value != null ?
+            return value is object ?
                 ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.IsTight) :
                 0;
         }
@@ -2295,7 +2295,7 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            return value != null ?
+            return value is object ?
                 (uint)ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.TreatAsUnsigned | ParseNumbers.IsTight) :
                 0;
         }
@@ -2310,7 +2310,7 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            return value != null ?
+            return value is object ?
                 ParseNumbers.StringToLong(value.AsSpan(), fromBase, ParseNumbers.IsTight) :
                 0;
         }
@@ -2326,7 +2326,7 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            return value != null ?
+            return value is object ?
                 (ulong)ParseNumbers.StringToLong(value.AsSpan(), fromBase, ParseNumbers.TreatAsUnsigned | ParseNumbers.IsTight) :
                 0;
         }
@@ -2373,7 +2373,7 @@ namespace System
 
         public static string ToBase64String(byte[] inArray)
         {
-            if (inArray == null)
+            if (inArray is null)
             {
                 throw new ArgumentNullException(nameof(inArray));
             }
@@ -2382,7 +2382,7 @@ namespace System
 
         public static string ToBase64String(byte[] inArray, Base64FormattingOptions options)
         {
-            if (inArray == null)
+            if (inArray is null)
             {
                 throw new ArgumentNullException(nameof(inArray));
             }
@@ -2396,7 +2396,7 @@ namespace System
 
         public static string ToBase64String(byte[] inArray, int offset, int length, Base64FormattingOptions options)
         {
-            if (inArray == null)
+            if (inArray is null)
                 throw new ArgumentNullException(nameof(inArray));
             if (length < 0)
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_Index);
@@ -2444,9 +2444,9 @@ namespace System
         public static unsafe int ToBase64CharArray(byte[] inArray, int offsetIn, int length, char[] outArray, int offsetOut, Base64FormattingOptions options)
         {
             //Do data verfication
-            if (inArray == null)
+            if (inArray is null)
                 throw new ArgumentNullException(nameof(inArray));
-            if (outArray == null)
+            if (outArray is null)
                 throw new ArgumentNullException(nameof(outArray));
             if (length < 0)
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_Index);
@@ -2624,7 +2624,7 @@ namespace System
         {
             // "s" is an unfortunate parameter name, but we need to keep it for backward compat.
 
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
 
 
@@ -2639,7 +2639,7 @@ namespace System
 
         public static bool TryFromBase64String(string s, Span<byte> bytes, out int bytesWritten)
         {
-            if (s == null)
+            if (s is null)
             {
                 throw new ArgumentNullException(nameof(s));
             }
@@ -2774,7 +2774,7 @@ namespace System
         /// <returns>The array of bytes represented by the specified Base64 encoding characters.</returns>
         public static byte[] FromBase64CharArray(char[] inArray, int offset, int length)
         {
-            if (inArray == null)
+            if (inArray is null)
                 throw new ArgumentNullException(nameof(inArray));
 
             if (length < 0)

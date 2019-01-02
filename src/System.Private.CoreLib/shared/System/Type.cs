@@ -25,7 +25,7 @@ namespace System
         public abstract Assembly Assembly { get; }
         public abstract new Module Module { get; }
 
-        public bool IsNested => DeclaringType != null;
+        public bool IsNested => DeclaringType is object;
         public override Type DeclaringType => null;
         public virtual MethodBase DeclaringMethod => null;
 
@@ -123,7 +123,7 @@ namespace System
         public ConstructorInfo GetConstructor(BindingFlags bindingAttr, Binder binder, Type[] types, ParameterModifier[] modifiers) => GetConstructor(bindingAttr, binder, CallingConventions.Any, types, modifiers);
         public ConstructorInfo GetConstructor(BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
         {
-            if (types == null)
+            if (types is null)
                 throw new ArgumentNullException(nameof(types));
             for (int i = 0; i < types.Length; i++)
             {
@@ -159,7 +159,7 @@ namespace System
         public MethodInfo GetMethod(string name) => GetMethod(name, Type.DefaultLookup);
         public MethodInfo GetMethod(string name, BindingFlags bindingAttr)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
             return GetMethodImpl(name, bindingAttr, null, CallingConventions.Any, null, null);
         }
@@ -169,9 +169,9 @@ namespace System
         public MethodInfo GetMethod(string name, BindingFlags bindingAttr, Binder binder, Type[] types, ParameterModifier[] modifiers) => GetMethod(name, bindingAttr, binder, CallingConventions.Any, types, modifiers);
         public MethodInfo GetMethod(string name, BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
-            if (types == null)
+            if (types is null)
                 throw new ArgumentNullException(nameof(types));
             for (int i = 0; i < types.Length; i++)
             {
@@ -188,11 +188,11 @@ namespace System
         public MethodInfo GetMethod(string name, int genericParameterCount, BindingFlags bindingAttr, Binder binder, Type[] types, ParameterModifier[] modifiers) => GetMethod(name, genericParameterCount, bindingAttr, binder, CallingConventions.Any, types, modifiers);
         public MethodInfo GetMethod(string name, int genericParameterCount, BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
             if (genericParameterCount < 0)
                 throw new ArgumentException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(genericParameterCount));
-            if (types == null)
+            if (types is null)
                 throw new ArgumentNullException(nameof(types));
             for (int i = 0; i < types.Length; i++)
             {
@@ -216,14 +216,14 @@ namespace System
         public PropertyInfo GetProperty(string name) => GetProperty(name, Type.DefaultLookup);
         public PropertyInfo GetProperty(string name, BindingFlags bindingAttr)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
             return GetPropertyImpl(name, bindingAttr, null, null, null, null);
         }
 
         public PropertyInfo GetProperty(string name, Type returnType)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
             if (returnType is null)
                 throw new ArgumentNullException(nameof(returnType));
@@ -235,9 +235,9 @@ namespace System
         public PropertyInfo GetProperty(string name, Type returnType, Type[] types, ParameterModifier[] modifiers) => GetProperty(name, Type.DefaultLookup, null, returnType, types, modifiers);
         public PropertyInfo GetProperty(string name, BindingFlags bindingAttr, Binder binder, Type returnType, Type[] types, ParameterModifier[] modifiers)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
-            if (types == null)
+            if (types is null)
                 throw new ArgumentNullException(nameof(types));
             return GetPropertyImpl(name, bindingAttr, binder, returnType, types, modifiers);
         }
@@ -260,7 +260,7 @@ namespace System
 
         public static Type[] GetTypeArray(object[] args)
         {
-            if (args == null)
+            if (args is null)
                 throw new ArgumentNullException(nameof(args));
 
             Type[] cls = new Type[args.Length];
@@ -314,7 +314,7 @@ namespace System
 
         public virtual InterfaceMapping GetInterfaceMap(Type interfaceType) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
 
-        public virtual bool IsInstanceOfType(object o) => o == null ? false : IsAssignableFrom(o.GetType());
+        public virtual bool IsInstanceOfType(object o) => o is null ? false : IsAssignableFrom(o.GetType());
         public virtual bool IsEquivalentTo(Type other) => this == other;
 
         public virtual Type GetEnumUnderlyingType()
@@ -323,7 +323,7 @@ namespace System
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
             FieldInfo[] fields = GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (fields == null || fields.Length != 1)
+            if (fields is null || fields.Length != 1)
                 throw new ArgumentException(SR.Argument_InvalidEnum, "enumType");
 
             return fields[0].FieldType;
@@ -371,7 +371,7 @@ namespace System
         {
             get
             {
-                if (s_defaultBinder == null)
+                if (s_defaultBinder is null)
                 {
                     DefaultBinder binder = new DefaultBinder();
                     Interlocked.CompareExchange<Binder>(ref s_defaultBinder, binder, null);

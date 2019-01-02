@@ -43,7 +43,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal ConstantSplittableMap(IReadOnlyDictionary<TKey, TValue> data)
         {
-            if (data == null)
+            if (data is null)
                 throw new ArgumentNullException(nameof(data));
 
             firstItemIndex = 0;

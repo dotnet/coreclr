@@ -126,7 +126,7 @@ namespace System
         private static int GenerateSeed()
         {
             Random rnd = t_threadRandom;
-            if (rnd == null)
+            if (rnd is null)
             {
                 int seed;
                 lock (s_globalRandom)
@@ -245,7 +245,7 @@ namespace System
         ==============================================================================*/
         public virtual void NextBytes(byte[] buffer)
         {
-            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (buffer is null) throw new ArgumentNullException(nameof(buffer));
             for (int i = 0; i < buffer.Length; i++)
             {
                 buffer[i] = (byte)InternalSample();

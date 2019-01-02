@@ -72,7 +72,7 @@ namespace System.Text
         {
             get
             {
-                if (m_webName == null)
+                if (m_webName is null)
                 {
                     m_webName = CreateString(EncodingTable.codePageDataPtr[m_dataIndex].Names, 0);
                 }
@@ -92,7 +92,7 @@ namespace System.Text
         {
             get
             {
-                if (m_headerName == null)
+                if (m_headerName is null)
                 {
                     m_headerName = CreateString(EncodingTable.codePageDataPtr[m_dataIndex].Names, 1);
                 }
@@ -104,7 +104,7 @@ namespace System.Text
         {
             get
             {
-                if (m_bodyName == null)
+                if (m_bodyName is null)
                 {
                     m_bodyName = CreateString(EncodingTable.codePageDataPtr[m_dataIndex].Names, 2);
                 }

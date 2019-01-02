@@ -103,7 +103,7 @@ namespace System.Threading.Tasks
         public ConcurrentExclusiveSchedulerPair(TaskScheduler taskScheduler, int maxConcurrencyLevel, int maxItemsPerTask)
         {
             // Validate arguments
-            if (taskScheduler == null) throw new ArgumentNullException(nameof(taskScheduler));
+            if (taskScheduler is null) throw new ArgumentNullException(nameof(taskScheduler));
             if (maxConcurrencyLevel == 0 || maxConcurrencyLevel < -1) throw new ArgumentOutOfRangeException(nameof(maxConcurrencyLevel));
             if (maxItemsPerTask == 0 || maxItemsPerTask < -1) throw new ArgumentOutOfRangeException(nameof(maxItemsPerTask));
 
@@ -161,7 +161,7 @@ namespace System.Threading.Tasks
         private bool CompletionRequested
         {
             // ValueLock not needed, but it's ok if it's held
-            get { return m_completionState != null && Volatile.Read(ref m_completionState.m_completionRequested); }
+            get { return m_completionState is object && Volatile.Read(ref m_completionState.m_completionRequested); }
         }
 
         /// <summary>Sets that completion has been requested.</summary>
@@ -194,7 +194,7 @@ namespace System.Threading.Tasks
                 // Now, only allow shutdown if an exception occurred or if there are no more tasks to process.
                 var cs = EnsureCompletionStateInitialized();
                 return
-                    (cs.m_exceptions != null && cs.m_exceptions.Count > 0) ||
+                    (cs.m_exceptions is object && cs.m_exceptions.Count > 0) ||
                     (m_concurrentTaskScheduler.m_tasks.IsEmpty && m_exclusiveTaskScheduler.m_tasks.IsEmpty);
             }
         }
@@ -217,7 +217,7 @@ namespace System.Threading.Tasks
                     Debug.Assert(!localThis.m_completionState.Task.IsCompleted, "Completion should only happen once.");
 
                     List<Exception> exceptions = localThis.m_completionState.m_exceptions;
-                    bool success = (exceptions != null && exceptions.Count > 0) ?
+                    bool success = (exceptions is object && exceptions.Count > 0) ?
                         localThis.m_completionState.TrySetException(exceptions) :
                         localThis.m_completionState.TrySetResult(default);
                     Debug.Assert(success, "Expected to complete completion task.");
@@ -237,7 +237,7 @@ namespace System.Threading.Tasks
 
             // Store the faulted task's exceptions
             var cs = EnsureCompletionStateInitialized();
-            if (cs.m_exceptions == null) cs.m_exceptions = new List<Exception>();
+            if (cs.m_exceptions is null) cs.m_exceptions = new List<Exception>();
             cs.m_exceptions.AddRange(faultedTask.Exception.InnerExceptions);
 
             // Now that we're doomed, request completion
@@ -741,7 +741,7 @@ namespace System.Threading.Tasks
             get
             {
                 // If our completion task is done, so are we.
-                if (m_completionState != null && m_completionState.Task.IsCompleted) return ProcessingMode.Completed;
+                if (m_completionState is object && m_completionState.Task.IsCompleted) return ProcessingMode.Completed;
 
                 // Otherwise, summarize our current state.
                 var mode = ProcessingMode.NotCurrentlyProcessing;

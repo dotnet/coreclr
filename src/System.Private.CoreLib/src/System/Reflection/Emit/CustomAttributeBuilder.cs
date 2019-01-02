@@ -106,15 +106,15 @@ namespace System.Reflection.Emit
         {
             if (con is null)
                 throw new ArgumentNullException(nameof(con));
-            if (constructorArgs == null)
+            if (constructorArgs is null)
                 throw new ArgumentNullException(nameof(constructorArgs));
-            if (namedProperties == null)
+            if (namedProperties is null)
                 throw new ArgumentNullException(nameof(namedProperties));
-            if (propertyValues == null)
+            if (propertyValues is null)
                 throw new ArgumentNullException(nameof(propertyValues));
-            if (namedFields == null)
+            if (namedFields is null)
                 throw new ArgumentNullException(nameof(namedFields));
-            if (fieldValues == null)
+            if (fieldValues is null)
                 throw new ArgumentNullException(nameof(fieldValues));
             if (namedProperties.Length != propertyValues.Length)
                 throw new ArgumentException(SR.Arg_ArrayLengthsDiffer, "namedProperties, propertyValues");
@@ -152,7 +152,7 @@ namespace System.Reflection.Emit
             for (i = 0; i < paramTypes.Length; i++)
             {
                 object constructorArg = constructorArgs[i];
-                if (constructorArg == null)
+                if (constructorArg is null)
                 {
                     if (paramTypes[i].IsValueType)
                     {
@@ -188,7 +188,7 @@ namespace System.Reflection.Emit
                 // Allow null for non-primitive types only.
                 Type propType = property.PropertyType;
                 object propertyValue = propertyValues[i];
-                if (propertyValue == null && propType.IsValueType)
+                if (propertyValue is null && propType.IsValueType)
                     throw new ArgumentNullException("propertyValues[" + i + "]");
 
                 // Validate property type.
@@ -221,7 +221,7 @@ namespace System.Reflection.Emit
 
                 // Make sure the property's type can take the given value.
                 // Note that there will be no coersion.
-                if (propertyValue != null)
+                if (propertyValue is object)
                 {
                     VerifyTypeAndPassedObjectType(propType, propertyValue.GetType(), $"{nameof(propertyValues)}[{i}]");
                 }
@@ -246,7 +246,7 @@ namespace System.Reflection.Emit
                 // Allow null for non-primitive types only.
                 Type fldType = namedField.FieldType;
                 object fieldValue = fieldValues[i];
-                if (fieldValue == null && fldType.IsValueType)
+                if (fieldValue is null && fldType.IsValueType)
                     throw new ArgumentNullException("fieldValues[" + i + "]");
 
                 // Validate field type.
@@ -275,7 +275,7 @@ namespace System.Reflection.Emit
 
                 // Make sure the field's type can take the given value.
                 // Note that there will be no coersion.
-                if (fieldValue != null)
+                if (fieldValue is object)
                 {
                     VerifyTypeAndPassedObjectType(fldType, fieldValue.GetType(), $"{nameof(fieldValues)}[{i}]");
                 }
@@ -438,26 +438,26 @@ namespace System.Reflection.Emit
             }
             else if (type == typeof(string))
             {
-                if (value == null)
+                if (value is null)
                     writer.Write((byte)0xff);
                 else
                     EmitString(writer, (string)value);
             }
             else if (type == typeof(Type))
             {
-                if (value == null)
+                if (value is null)
                     writer.Write((byte)0xff);
                 else
                 {
                     string typeName = TypeNameBuilder.ToString((Type)value, TypeNameBuilder.Format.AssemblyQualifiedName);
-                    if (typeName == null)
+                    if (typeName is null)
                         throw new ArgumentException(SR.Format(SR.Argument_InvalidTypeForCA, value.GetType()));
                     EmitString(writer, typeName);
                 }
             }
             else if (type.IsArray)
             {
-                if (value == null)
+                if (value is null)
                     writer.Write((uint)0xffffffff);
                 else
                 {
@@ -519,7 +519,7 @@ namespace System.Reflection.Emit
                 // TypeBuilder), so we need to canonicalize this case back to Type. If we have a null value we follow the convention
                 // used by C# and emit a null typed as a string (it doesn't really matter what type we pick as long as it's a
                 // reference type).
-                Type ot = value == null ? typeof(string) : value is Type ? typeof(Type) : value.GetType();
+                Type ot = value is null ? typeof(string) : value is Type ? typeof(Type) : value.GetType();
 
                 // value cannot be a "System.Object" object.
                 // If we allow this we will get into an infinite recursion
@@ -533,7 +533,7 @@ namespace System.Reflection.Emit
             {
                 string typename = "null";
 
-                if (value != null)
+                if (value is object)
                     typename = value.GetType().ToString();
 
                 throw new ArgumentException(SR.Format(SR.Argument_BadParameterTypeForCAB, typename));

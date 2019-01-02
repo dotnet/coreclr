@@ -52,9 +52,9 @@ namespace System
         {
             get
             {
-                return ClassName == null ? base.Message : 
+                return ClassName is null ? base.Message : 
                     SR.Format(SR.MissingMethod_Name, ClassName + "." + MemberName + 
-                        (Signature != null ? " " + FormatSignature(Signature) : string.Empty));
+                        (Signature is object ? " " + FormatSignature(Signature) : string.Empty));
             }
         }
     }

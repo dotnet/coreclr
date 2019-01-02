@@ -380,7 +380,7 @@ namespace System
 
                 // individual AdjustmentRule array elements do not require semicolons
                 AdjustmentRule rule = GetNextAdjustmentRuleValue();
-                while (rule != null)
+                while (rule is object)
                 {
                     rules.Add(rule);
                     count++;

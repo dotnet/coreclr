@@ -11,7 +11,7 @@ namespace System.Runtime.InteropServices
     {
         public DispatchWrapper(object obj)
         {
-            if (obj != null)
+            if (obj is object)
             {
                 // Make sure this guy has an IDispatch
                 IntPtr pdisp = Marshal.GetIDispatchForObject(obj);

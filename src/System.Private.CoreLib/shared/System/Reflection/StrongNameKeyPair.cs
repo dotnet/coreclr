@@ -12,7 +12,7 @@ namespace System.Reflection
         // Build key pair from file.
         public StrongNameKeyPair(FileStream keyPairFile)
         {
-            if (keyPairFile == null)
+            if (keyPairFile is null)
                 throw new ArgumentNullException(nameof(keyPairFile));
 
             int length = (int)keyPairFile.Length;
@@ -23,7 +23,7 @@ namespace System.Reflection
         // Build key pair from byte array in memory.
         public StrongNameKeyPair(byte[] keyPairArray)
         {
-            if (keyPairArray == null)
+            if (keyPairArray is null)
                 throw new ArgumentNullException(nameof(keyPairArray));
         }
 

@@ -509,7 +509,7 @@ namespace System.StubHelpers
         {
             if (!Environment.IsWinRTSupported)
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);
-            if (managed == null)
+            if (managed is null)
                 throw new ArgumentNullException(); // We don't have enough information to get the argument name 
 
             IntPtr hstring;
@@ -529,7 +529,7 @@ namespace System.StubHelpers
         {
             if (!Environment.IsWinRTSupported)
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);
-            if (managed == null)
+            if (managed is null)
                 throw new ArgumentNullException();  // We don't have enough information to get the argument name 
 
             // The string must also be pinned by the caller to ConvertToNativeReference, which also owns
@@ -708,7 +708,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToNative_DateTime(ref DateTimeOffset[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 DateTimeNative* nativeBuffer = *(DateTimeNative**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -720,7 +720,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToNative_Type(ref System.Type[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 TypeNameNative* nativeBuffer = *(TypeNameNative**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -732,7 +732,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToNative_Exception(ref Exception[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 int* nativeBuffer = *(int**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -745,7 +745,7 @@ namespace System.StubHelpers
         internal static unsafe void ConvertContentsToNative_Nullable<T>(ref Nullable<T>[] managedArray, IntPtr pNativeHome)
             where T : struct
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 IntPtr* nativeBuffer = *(IntPtr**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -757,7 +757,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToNative_KeyValuePair<K, V>(ref KeyValuePair<K, V>[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 IntPtr* nativeBuffer = *(IntPtr**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -775,7 +775,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToManaged_DateTime(ref DateTimeOffset[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 DateTimeNative* nativeBuffer = *(DateTimeNative**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -787,7 +787,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToManaged_Type(ref System.Type[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 TypeNameNative* nativeBuffer = *(TypeNameNative**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -799,7 +799,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToManaged_Exception(ref Exception[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 int* nativeBuffer = *(int**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -812,7 +812,7 @@ namespace System.StubHelpers
         internal static unsafe void ConvertContentsToManaged_Nullable<T>(ref Nullable<T>[] managedArray, IntPtr pNativeHome)
             where T : struct
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 IntPtr* nativeBuffer = *(IntPtr**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -824,7 +824,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToManaged_KeyValuePair<K, V>(ref KeyValuePair<K, V>[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray != null)
+            if (managedArray is object)
             {
                 IntPtr* nativeBuffer = *(IntPtr**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -1126,7 +1126,7 @@ namespace System.StubHelpers
 
         internal IntPtr ConvertToNative(object pManagedHome, int dwFlags)
         {
-            if (pManagedHome == null)
+            if (pManagedHome is null)
                 return IntPtr.Zero;
 
             if (pManagedHome is ArrayWithOffset)
@@ -1220,7 +1220,7 @@ namespace System.StubHelpers
         {
             if (pNativeHome != IntPtr.Zero)
             {
-                if (layoutType != null)
+                if (layoutType is object)
                 {
                     // this must happen regardless of BackPropAction
                     Marshal.DestroyStructure(pNativeHome, layoutType);
@@ -1302,7 +1302,7 @@ namespace System.StubHelpers
             }
 
             string typeName;
-            if (managedType != null)
+            if (managedType is object)
             {
                 if (managedType.GetType() != typeof(System.RuntimeType))
                 {   // The type should be exactly System.RuntimeType (and not its child System.ReflectionOnlyType, or other System.Type children)
@@ -1311,7 +1311,7 @@ namespace System.StubHelpers
 
                 bool isPrimitive;
                 string winrtTypeName = WinRTTypeNameConverter.ConvertToWinRTTypeName(managedType, out isPrimitive);
-                if (winrtTypeName != null)
+                if (winrtTypeName is object)
                 {
                     // Must be a WinRT type, either in a WinMD or a Primitive
                     typeName = winrtTypeName;
@@ -1387,7 +1387,7 @@ namespace System.StubHelpers
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);
             }
 
-            if (ex == null)
+            if (ex is null)
                 return 0;  // S_OK;
 
             return ex._HResult;
@@ -1469,7 +1469,7 @@ namespace System.StubHelpers
         {
             DestroyCore();
             CleanupWorkListElement next = m_Next;
-            while (next != null)
+            while (next is object)
             {
                 next.DestroyCore();
                 next = next.m_Next;
@@ -1478,7 +1478,7 @@ namespace System.StubHelpers
         
         public static void AddToCleanupList(ref CleanupWorkListElement list, CleanupWorkListElement newElement)
         {
-            if (list == null)
+            if (list is null)
             {
                 list = newElement;
             }
@@ -1575,7 +1575,7 @@ namespace System.StubHelpers
 
         internal static void DestroyCleanupList(ref CleanupWorkListElement pCleanupWorkList)
         {
-            if (pCleanupWorkList != null)
+            if (pCleanupWorkList is object)
             {
                 pCleanupWorkList.Destroy();
                 pCleanupWorkList = null;
@@ -1622,7 +1622,7 @@ namespace System.StubHelpers
         // AddRefs the SH and returns the underlying unmanaged handle.
         internal static IntPtr SafeHandleAddRef(SafeHandle pHandle, ref bool success)
         {
-            if (pHandle == null)
+            if (pHandle is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.pHandle, ExceptionResource.ArgumentNull_SafeHandle);
             }
@@ -1634,7 +1634,7 @@ namespace System.StubHelpers
         // Releases the SH (to be called from finally block).
         internal static void SafeHandleRelease(SafeHandle pHandle)
         {
-            if (pHandle == null)
+            if (pHandle is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.pHandle, ExceptionResource.ArgumentNull_SafeHandle);
             }

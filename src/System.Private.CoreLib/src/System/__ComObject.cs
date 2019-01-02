@@ -56,7 +56,7 @@ namespace System
             lock (this)
             {
                 // If the map hasn't been allocated, then there can be no data for the specified key.
-                if (m_ObjectToDataMap != null)
+                if (m_ObjectToDataMap is object)
                 {
                     // Look up the data in the map.
                     data = m_ObjectToDataMap[key];
@@ -77,7 +77,7 @@ namespace System
             lock (this)
             {
                 // If the map hasn't been allocated yet, allocate it.
-                if (m_ObjectToDataMap == null)
+                if (m_ObjectToDataMap is null)
                 {
                     m_ObjectToDataMap = new Hashtable();
                 }
@@ -102,7 +102,7 @@ namespace System
             lock (this)
             {
                 // If the map hasn't been allocated, then there is nothing to do.
-                if (m_ObjectToDataMap != null)
+                if (m_ObjectToDataMap is object)
                 {
                     foreach (object o in m_ObjectToDataMap.Values)
                     {
@@ -131,7 +131,7 @@ namespace System
         {
             // Check to see if we already have a cached event provider for this type.
             object provider = GetData(t);
-            if (provider != null)
+            if (provider is object)
             {
                 return provider;
             }

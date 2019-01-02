@@ -111,7 +111,7 @@ namespace System.Threading
                 ThrowIfDisposed();
 
                 // Return the handle if it was already allocated.
-                if (_kernelEvent != null)
+                if (_kernelEvent is object)
                 {
                     return _kernelEvent;
                 }
@@ -346,7 +346,7 @@ namespace System.Threading
             // Dispose() is not thread-safe and should not be called concurrently with CancelAfter().
 
             TimerQueueTimer timer = _timer;
-            if (timer == null)
+            if (timer is null)
             {
                 // Lazily initialize the timer in a thread-safe fashion.
                 // Initially set to "never go off" because we don't want to take a
@@ -354,7 +354,7 @@ namespace System.Threading
                 // cancelling the token before it (the timer) can be disposed.
                 timer = new TimerQueueTimer(s_timerCallback, this, Timeout.UnsignedInfinite, Timeout.UnsignedInfinite, flowExecutionContext: false);
                 TimerQueueTimer currentTimer = Interlocked.CompareExchange(ref _timer, timer, null);
-                if (currentTimer != null)
+                if (currentTimer is object)
                 {
                     // We did not initialize the timer.  Dispose the new timer.
                     timer.Close();
@@ -417,7 +417,7 @@ namespace System.Threading
                 // happen at the same time the external entity is requesting cancellation).
 
                 TimerQueueTimer timer = _timer;
-                if (timer != null)
+                if (timer is object)
                 {
                     _timer = null;
                     timer.Close(); // TimerQueueTimer.Close is thread-safe
@@ -430,10 +430,10 @@ namespace System.Threading
                 // interlocked exchange it to be null, and then we check whether cancellation is currently
                 // in progress.  NotifyCancellation will only try to set the event if it exists after it's
                 // transitioned to and while it's in the NotifyingState.
-                if (_kernelEvent != null)
+                if (_kernelEvent is object)
                 {
                     ManualResetEvent mre = Interlocked.Exchange(ref _kernelEvent, null);
-                    if (mre != null && _state != NotifyingState)
+                    if (mre is object && _state != NotifyingState)
                     {
                         mre.Dispose();
                     }
@@ -484,7 +484,7 @@ namespace System.Threading
 
                 // Get the partitions...
                 CallbackPartition[] partitions = _callbackPartitions;
-                if (partitions == null)
+                if (partitions is null)
                 {
                     partitions = new CallbackPartition[s_numPartitions];
                     partitions = Interlocked.CompareExchange(ref _callbackPartitions, partitions, null) ?? partitions;
@@ -494,7 +494,7 @@ namespace System.Threading
                 int partitionIndex = Environment.CurrentManagedThreadId & s_numPartitionsMask;
                 Debug.Assert(partitionIndex < partitions.Length, $"Expected {partitionIndex} to be less than {partitions.Length}");
                 CallbackPartition partition = partitions[partitionIndex];
-                if (partition == null)
+                if (partition is null)
                 {
                     partition = new CallbackPartition(this);
                     partition = Interlocked.CompareExchange(ref partitions[partitionIndex], partition, null) ?? partition;
@@ -512,7 +512,7 @@ namespace System.Threading
 
                     // Get a node, from the free list if possible or else a new one.
                     node = partition.FreeNodeList;
-                    if (node != null)
+                    if (node is object)
                     {
                         partition.FreeNodeList = node.Next;
                         Debug.Assert(node.Prev == null, "Nodes in the free list should all have a null Prev");
@@ -532,7 +532,7 @@ namespace System.Threading
 
                     // Add it to the callbacks list.
                     node.Next = partition.Callbacks;
-                    if (node.Next != null)
+                    if (node.Next is object)
                     {
                         node.Next.Prev = node;
                     }
@@ -567,7 +567,7 @@ namespace System.Threading
             {
                 // Dispose of the timer, if any.  Dispose may be running concurrently here, but TimerQueueTimer.Close is thread-safe.
                 TimerQueueTimer timer = _timer;
-                if (timer != null)
+                if (timer is object)
                 {
                     _timer = null;
                     timer.Close();
@@ -600,7 +600,7 @@ namespace System.Threading
             // If there are no callbacks to run, we can safely exit.  Any race conditions to lazy initialize it
             // will see IsCancellationRequested and will then run the callback themselves.
             CallbackPartition[] partitions = Interlocked.Exchange(ref _callbackPartitions, null);
-            if (partitions == null)
+            if (partitions is null)
             {
                 Interlocked.Exchange(ref _state, NotifyingCompleteState);
                 return;
@@ -614,7 +614,7 @@ namespace System.Threading
                 // This is intended to help with nesting scenarios so that child enlisters cancel before their parents.
                 foreach (CallbackPartition partition in partitions)
                 {
-                    if (partition == null)
+                    if (partition is null)
                     {
                         // Uninitialized partition. Nothing to do.
                         continue;
@@ -632,7 +632,7 @@ namespace System.Threading
                         {
                             // Pop the next registration from the callbacks list.
                             node = partition.Callbacks;
-                            if (node == null)
+                            if (node is null)
                             {
                                 // No more registrations to process.
                                 break;
@@ -640,7 +640,7 @@ namespace System.Threading
                             else
                             {
                                 Debug.Assert(node.Prev == null);
-                                if (node.Next != null) node.Next.Prev = null;
+                                if (node.Next is object) node.Next.Prev = null;
                                 partition.Callbacks = node.Next;
                             }
 
@@ -663,7 +663,7 @@ namespace System.Threading
                         // target sync context if there is one.
                         try
                         {
-                            if (node.SynchronizationContext != null)
+                            if (node.SynchronizationContext is object)
                             {
                                 // Transition to the target syncContext and continue there.
                                 node.SynchronizationContext.Send(s =>
@@ -700,7 +700,7 @@ namespace System.Threading
                 Interlocked.MemoryBarrier(); // for safety, prevent reorderings crossing this point and seeing inconsistent state.
             }
 
-            if (exceptionList != null)
+            if (exceptionList is object)
             {
                 Debug.Assert(exceptionList.Count > 0, $"Expected {exceptionList.Count} > 0");
                 throw new AggregateException(exceptionList);
@@ -753,7 +753,7 @@ namespace System.Threading
         /// <exception cref="System.ArgumentNullException"><paramref name="tokens"/> is null.</exception>
         public static CancellationTokenSource CreateLinkedTokenSource(params CancellationToken[] tokens)
         {
-            if (tokens == null)
+            if (tokens is null)
             {
                 throw new ArgumentNullException(nameof(tokens));
             }
@@ -889,7 +889,7 @@ namespace System.Threading
                 }
 
                 CancellationTokenRegistration[] linkingRegistrations = _linkingRegistrations;
-                if (linkingRegistrations != null)
+                if (linkingRegistrations is object)
                 {
                     _linkingRegistrations = null; // release for GC once we're done enumerating
                     for (int i = 0; i < linkingRegistrations.Length; i++)
@@ -954,7 +954,7 @@ namespace System.Threading
                         node.Prev.Next = node.Next;
                     }
 
-                    if (node.Next != null)
+                    if (node.Next is object)
                     {
                         node.Next.Prev = node.Prev;
                     }
@@ -1003,7 +1003,7 @@ namespace System.Threading
             public void ExecuteCallback()
             {
                 ExecutionContext context = ExecutionContext;
-                if (context != null)
+                if (context is object)
                 {
                     ExecutionContext.RunInternal(context, s =>
                     {

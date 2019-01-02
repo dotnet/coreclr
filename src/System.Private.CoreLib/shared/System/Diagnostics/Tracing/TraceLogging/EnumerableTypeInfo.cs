@@ -38,7 +38,7 @@ namespace System.Diagnostics.Tracing
 
             var count = 0;
             IEnumerable enumerable = (IEnumerable)value.ReferenceValue;
-            if (enumerable != null)
+            if (enumerable is object)
             {
                 foreach (var element in enumerable)
                 {

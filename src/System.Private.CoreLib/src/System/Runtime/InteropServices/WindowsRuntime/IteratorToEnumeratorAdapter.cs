@@ -51,7 +51,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 typeof(IEnumerable<T>).TypeHandle.Value,
                 out fUseString);
 
-            if (target != null)
+            if (target is object)
             {
                 return (Unsafe.As<GetEnumerator_Delegate<T>>(target))();
             }

@@ -70,7 +70,7 @@ namespace System.Diagnostics.Tracing
 
         private static string Serialize(ReadOnlyCollection<string> payloadName, ReadOnlyCollection<object> payload, string eventMessage)
         {
-            if (payloadName == null || payload == null )
+            if (payloadName is null || payload is null )
                 return string.Empty;
 
             if (payloadName.Count == 0 || payload.Count == 0)
@@ -181,7 +181,7 @@ namespace System.Diagnostics.Tracing
         private void LogOnEventWritten(EventWrittenEventArgs eventData)
         {
             string payload = "";
-            if (eventData.Payload != null)
+            if (eventData.Payload is object)
             {
                 try{
                     payload = Serialize(eventData.PayloadNames, eventData.Payload, eventData.Message);

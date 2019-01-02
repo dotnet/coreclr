@@ -131,9 +131,9 @@ namespace System.IO
 
         public StreamReader(Stream stream, Encoding encoding, bool detectEncodingFromByteOrderMarks, int bufferSize, bool leaveOpen)
         {
-            if (stream == null || encoding == null)
+            if (stream is null || encoding is null)
             {
-                throw new ArgumentNullException(stream == null ? nameof(stream) : nameof(encoding));
+                throw new ArgumentNullException(stream is null ? nameof(stream) : nameof(encoding));
             }
             if (!stream.CanRead)
             {
@@ -169,9 +169,9 @@ namespace System.IO
 
         public StreamReader(string path, Encoding encoding, bool detectEncodingFromByteOrderMarks, int bufferSize)
         {
-            if (path == null)
+            if (path is null)
                 throw new ArgumentNullException(nameof(path));
-            if (encoding == null)
+            if (encoding is null)
                 throw new ArgumentNullException(nameof(encoding));
             if (path.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyPath);
@@ -224,14 +224,14 @@ namespace System.IO
             {
                 // Note that Stream.Close() can potentially throw here. So we need to 
                 // ensure cleaning up internal resources, inside the finally block.  
-                if (!LeaveOpen && disposing && (_stream != null))
+                if (!LeaveOpen && disposing && (_stream is object))
                 {
                     _stream.Close();
                 }
             }
             finally
             {
-                if (!LeaveOpen && (_stream != null))
+                if (!LeaveOpen && (_stream is object))
                 {
                     _stream = null;
                     _encoding = null;
@@ -276,7 +276,7 @@ namespace System.IO
             _charPos = 0;
             // in general we'd like to have an invariant that encoding isn't null. However,
             // for startup improvements for NullStreamReader, we want to delay load encoding. 
-            if (_encoding != null)
+            if (_encoding is object)
             {
                 _decoder = _encoding.GetDecoder();
             }
@@ -287,7 +287,7 @@ namespace System.IO
         {
             get
             {
-                if (_stream == null)
+                if (_stream is null)
                 {
                     throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
                 }
@@ -307,7 +307,7 @@ namespace System.IO
 
         public override int Peek()
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -326,7 +326,7 @@ namespace System.IO
 
         public override int Read()
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -347,7 +347,7 @@ namespace System.IO
 
         public override int Read(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -369,7 +369,7 @@ namespace System.IO
         
         private int ReadSpan(Span<char> buffer)
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -418,7 +418,7 @@ namespace System.IO
 
         public override string ReadToEnd()
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -438,7 +438,7 @@ namespace System.IO
 
         public override int ReadBlock(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -450,7 +450,7 @@ namespace System.IO
             {
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             }
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -800,7 +800,7 @@ namespace System.IO
         //
         public override string ReadLine()
         {
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -827,7 +827,7 @@ namespace System.IO
                     if (ch == '\r' || ch == '\n')
                     {
                         string s;
-                        if (sb != null)
+                        if (sb is object)
                         {
                             sb.Append(_charBuffer, _charPos, i - _charPos);
                             s = sb.ToString();
@@ -849,7 +849,7 @@ namespace System.IO
                     i++;
                 } while (i < _charLen);
                 i = _charLen - _charPos;
-                if (sb == null)
+                if (sb is null)
                 {
                     sb = new StringBuilder(i + 80);
                 }
@@ -870,7 +870,7 @@ namespace System.IO
                 return base.ReadLineAsync();
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -909,7 +909,7 @@ namespace System.IO
                     {
                         string s;
 
-                        if (sb != null)
+                        if (sb is object)
                         {
                             sb.Append(tmpCharBuffer, tmpCharPos, i - tmpCharPos);
                             s = sb.ToString();
@@ -937,7 +937,7 @@ namespace System.IO
                 } while (i < tmpCharLen);
 
                 i = tmpCharLen - tmpCharPos;
-                if (sb == null)
+                if (sb is null)
                 {
                     sb = new StringBuilder(i + 80);
                 }
@@ -958,7 +958,7 @@ namespace System.IO
                 return base.ReadToEndAsync();
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -988,7 +988,7 @@ namespace System.IO
 
         public override Task<int> ReadAsync(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -1010,7 +1010,7 @@ namespace System.IO
                 return base.ReadAsync(buffer, index, count);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -1031,7 +1031,7 @@ namespace System.IO
                 return base.ReadAsync(buffer, cancellationToken);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -1219,7 +1219,7 @@ namespace System.IO
 
         public override Task<int> ReadBlockAsync(char[] buffer, int index, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             }
@@ -1241,7 +1241,7 @@ namespace System.IO
                 return base.ReadBlockAsync(buffer, index, count);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }
@@ -1263,7 +1263,7 @@ namespace System.IO
                 return base.ReadBlockAsync(buffer, cancellationToken);
             }
 
-            if (_stream == null)
+            if (_stream is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
             }

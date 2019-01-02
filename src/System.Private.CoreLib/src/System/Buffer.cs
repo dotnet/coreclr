@@ -50,7 +50,7 @@ namespace System
         public static int ByteLength(Array array)
         {
             // Is the array present?
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
 
             // Is it of primitive types?
@@ -72,7 +72,7 @@ namespace System
         public static byte GetByte(Array array, int index)
         {
             // Is the array present?
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
 
             // Is it of primitive types?
@@ -98,7 +98,7 @@ namespace System
         public static void SetByte(Array array, int index, byte value)
         {
             // Is the array present?
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
 
             // Is it of primitive types?

@@ -141,7 +141,7 @@ namespace System.Threading.Tasks
             {
                 int hresult = Microsoft.Win32.UnsafeNativeMethods.RoGetActivationFactory(ClassId, ref guid, out factory);
 
-                if (hresult < 0 || factory == null) return; //This prevents having an exception thrown in case IAsyncCausalityTracerStatics isn't registered.
+                if (hresult < 0 || factory is null) return; //This prevents having an exception thrown in case IAsyncCausalityTracerStatics isn't registered.
 
                 s_TracerFactory = (WFD.IAsyncCausalityTracerStatics)factory;
 

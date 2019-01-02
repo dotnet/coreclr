@@ -80,7 +80,7 @@ namespace System.Globalization
 
         internal static Calendar GetDefaultInstance()
         {
-            if (s_defaultInstance == null)
+            if (s_defaultInstance is null)
             {
                 s_defaultInstance = new GregorianCalendar();
             }

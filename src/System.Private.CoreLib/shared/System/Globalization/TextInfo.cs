@@ -59,7 +59,7 @@ namespace System.Globalization
         {
             get
             {
-                if (s_Invariant == null)
+                if (s_Invariant is null)
                     s_Invariant = new TextInfo(CultureData.Invariant);
                 return s_Invariant;
             }
@@ -127,7 +127,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
         public static TextInfo ReadOnly(TextInfo textInfo)
         {
-            if (textInfo == null) { throw new ArgumentNullException(nameof(textInfo)); }
+            if (textInfo is null) { throw new ArgumentNullException(nameof(textInfo)); }
             if (textInfo.IsReadOnly) { return textInfo; }
 
             TextInfo clonedTextInfo = (TextInfo)(textInfo.MemberwiseClone());
@@ -161,7 +161,7 @@ namespace System.Globalization
         {
             get
             {
-                if (_listSeparator == null)
+                if (_listSeparator is null)
                 {
                     _listSeparator = _cultureData.SLIST;
                 }
@@ -170,7 +170,7 @@ namespace System.Globalization
 
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value), SR.ArgumentNull_String);
                 }
@@ -199,7 +199,7 @@ namespace System.Globalization
 
         public virtual string ToLower(string str)
         {
-            if (str == null) { throw new ArgumentNullException(nameof(str)); }
+            if (str is null) { throw new ArgumentNullException(nameof(str)); }
 
             if (GlobalizationMode.Invariant)
             {
@@ -592,7 +592,7 @@ namespace System.Globalization
 
         public virtual string ToUpper(string str)
         {
-            if (str == null) { throw new ArgumentNullException(nameof(str)); }
+            if (str is null) { throw new ArgumentNullException(nameof(str)); }
 
             if (GlobalizationMode.Invariant)
             {
@@ -656,7 +656,7 @@ namespace System.Globalization
         {
             TextInfo that = obj as TextInfo;
 
-            if (that != null)
+            if (that is object)
             {
                 return CultureName.Equals(that.CultureName);
             }
@@ -707,7 +707,7 @@ namespace System.Globalization
         //
         public unsafe string ToTitleCase(string str)
         {
-            if (str == null)
+            if (str is null)
             {
                 throw new ArgumentNullException(nameof(str));
             }
@@ -770,7 +770,7 @@ namespace System.Globalization
                             i++;
                             if (hasLowerCase)
                             {
-                                if (lowercaseData == null)
+                                if (lowercaseData is null)
                                 {
                                     lowercaseData = ToLower(str);
                                 }
@@ -802,7 +802,7 @@ namespace System.Globalization
                     {
                         if (hasLowerCase)
                         {
-                            if (lowercaseData == null)
+                            if (lowercaseData is null)
                             {
                                 lowercaseData = ToLower(str);
                             }

@@ -237,7 +237,7 @@ namespace System.Diagnostics
             StringBuilder sb = new StringBuilder(255);
             bool includeFileInfoIfAvailable;
 
-            if (_method != null)
+            if (_method is object)
             {
                 sb.Append(_method.Name);
 
@@ -279,7 +279,7 @@ namespace System.Diagnostics
 
                 sb.Append(" in file:line:column ");
 
-                bool useFileName = (_fileName != null);
+                bool useFileName = (_fileName is object);
 
                 if (!useFileName)
                     sb.Append("<filename unknown>");

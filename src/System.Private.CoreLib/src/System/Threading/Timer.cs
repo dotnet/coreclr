@@ -147,7 +147,7 @@ namespace System.Threading
                 return true;
             }
 
-            if (m_appDomainTimer == null || m_appDomainTimer.IsInvalid)
+            if (m_appDomainTimer is null || m_appDomainTimer.IsInvalid)
             {
                 Debug.Assert(!m_isAppDomainTimerScheduled);
                 Debug.Assert(m_id >= 0 && m_id < Instances.Length && this == Instances[m_id]);
@@ -252,7 +252,7 @@ namespace System.Threading
                 TimerQueueTimer timer = m_shortTimers;
                 for (int listNum = 0; listNum < 2; listNum++) // short == 0, long == 1
                 {
-                    while (timer != null)
+                    while (timer is object)
                     {
                         Debug.Assert(timer.m_dueTime != Timeout.UnsignedInfinite, "A timer in the list must have a valid due time.");
 
@@ -309,7 +309,7 @@ namespace System.Threading
 
                             // If this is the first timer, we'll fire it on this thread (after processing
                             // all others). Otherwise, queue it to the ThreadPool.
-                            if (timerToFireOnThisThread == null)
+                            if (timerToFireOnThisThread is null)
                             {
                                 timerToFireOnThisThread = timer;
                             }
@@ -352,7 +352,7 @@ namespace System.Threading
                         int remaining = m_currentAbsoluteThreshold - nowTicks;
                         if (remaining > 0)
                         {
-                            if (m_shortTimers == null && m_longTimers != null)
+                            if (m_shortTimers is null && m_longTimers is object)
                             {
                                 // We don't have any short timers left and we haven't examined the long list,
                                 // which means we likely don't have an accurate nextAppDomainTimerDuration.
@@ -434,7 +434,7 @@ namespace System.Threading
             // Use timer.m_short to decide to which list to add.
             ref TimerQueueTimer listHead = ref timer.m_short ? ref m_shortTimers : ref m_longTimers;
             timer.m_next = listHead;
-            if (timer.m_next != null)
+            if (timer.m_next is object)
             {
                 timer.m_next.m_prev = timer;
             }
@@ -445,7 +445,7 @@ namespace System.Threading
         private void UnlinkTimer(TimerQueueTimer timer)
         {
             TimerQueueTimer t = timer.m_next;
-            if (t != null)
+            if (t is object)
             {
                 t.m_prev = timer.m_prev;
             }
@@ -462,7 +462,7 @@ namespace System.Threading
             }
 
             t = timer.m_prev;
-            if (t != null)
+            if (t is object)
             {
                 t.m_next = timer.m_next;
             }
@@ -663,7 +663,7 @@ namespace System.Threading
                 // There are callbacks queued or running, so we need to store a Task<bool>
                 // that'll be used to signal the caller when all callbacks complete. Do so as long as
                 // there wasn't a previous CloseAsync call that did.
-                if (notifyWhenNoCallbacksRunning == null)
+                if (notifyWhenNoCallbacksRunning is null)
                 {
                     var t = new Task<bool>((object)null, TaskCreationOptions.RunContinuationsAsynchronously);
                     m_notifyWhenNoCallbacksRunning = t;
@@ -697,7 +697,7 @@ namespace System.Threading
             lock (m_associatedTimerQueue)
             {
                 m_callbacksRunning--;
-                if (m_canceled && m_callbacksRunning == 0 && m_notifyWhenNoCallbacksRunning != null)
+                if (m_canceled && m_callbacksRunning == 0 && m_notifyWhenNoCallbacksRunning is object)
                     shouldSignal = true;
             }
 
@@ -727,7 +727,7 @@ namespace System.Threading
 
             // Call directly if EC flow is suppressed
             ExecutionContext context = m_executionContext;
-            if (context == null)
+            if (context is null)
             {
                 m_timerCallback(m_state);
             }
@@ -895,7 +895,7 @@ namespace System.Threading
                                 uint period,
                                 bool flowExecutionContext = true)
         {
-            if (callback == null)
+            if (callback is null)
                 throw new ArgumentNullException(nameof(TimerCallback));
 
             m_timer = new TimerHolder(new TimerQueueTimer(callback, state, dueTime, period, flowExecutionContext));
@@ -938,7 +938,7 @@ namespace System.Threading
 
         public bool Dispose(WaitHandle notifyObject)
         {
-            if (notifyObject == null)
+            if (notifyObject is null)
                 throw new ArgumentNullException(nameof(notifyObject));
 
             return m_timer.Close(notifyObject);

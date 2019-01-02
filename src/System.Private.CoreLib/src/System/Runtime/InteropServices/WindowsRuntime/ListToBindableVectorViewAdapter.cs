@@ -23,7 +23,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal ListToBindableVectorViewAdapter(IList list)
         {
-            if (list == null)
+            if (list is null)
                 throw new ArgumentNullException(nameof(list));
 
 

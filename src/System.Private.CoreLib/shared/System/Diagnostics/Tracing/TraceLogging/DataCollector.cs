@@ -146,7 +146,7 @@ namespace System.Diagnostics.Tracing
         internal unsafe void AddNullTerminatedString(string value)
         {
             // Treat null strings as empty strings.
-            if (value == null)
+            if (value is null)
             {
                 value = string.Empty;
             }
@@ -279,7 +279,7 @@ namespace System.Diagnostics.Tracing
         private void EnsureBuffer()
         {
             var required = this.bufferPos;
-            if (this.buffer == null || this.buffer.Length < required)
+            if (this.buffer is null || this.buffer.Length < required)
             {
                 this.GrowBuffer(required);
             }
@@ -288,7 +288,7 @@ namespace System.Diagnostics.Tracing
         private void EnsureBuffer(int additionalSize)
         {
             var required = this.bufferPos + additionalSize;
-            if (this.buffer == null || this.buffer.Length < required)
+            if (this.buffer is null || this.buffer.Length < required)
             {
                 this.GrowBuffer(required);
             }
@@ -296,7 +296,7 @@ namespace System.Diagnostics.Tracing
 
         private void GrowBuffer(int required)
         {
-            var newSize = this.buffer == null ? 64 : this.buffer.Length;
+            var newSize = this.buffer is null ? 64 : this.buffer.Length;
 
             do
             {

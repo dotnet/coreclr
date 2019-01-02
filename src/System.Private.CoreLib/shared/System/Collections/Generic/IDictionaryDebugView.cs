@@ -12,7 +12,7 @@ namespace System.Collections.Generic
 
         public IDictionaryDebugView(IDictionary<K, V> dictionary)
         {
-            if (dictionary == null)
+            if (dictionary is null)
                 throw new ArgumentNullException(nameof(dictionary));
 
             _dict = dictionary;
@@ -36,7 +36,7 @@ namespace System.Collections.Generic
 
         public DictionaryKeyCollectionDebugView(ICollection<TKey> collection)
         {
-            if (collection == null)
+            if (collection is null)
                 throw new ArgumentNullException(nameof(collection));
 
             _collection = collection;
@@ -60,7 +60,7 @@ namespace System.Collections.Generic
 
         public DictionaryValueCollectionDebugView(ICollection<TValue> collection)
         {
-            if (collection == null)
+            if (collection is null)
                 throw new ArgumentNullException(nameof(collection));
 
             _collection = collection;

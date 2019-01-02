@@ -60,7 +60,7 @@ namespace System
             get
             {
                 string name = ObjectName;
-                if (name == null || name.Length == 0)
+                if (name is null || name.Length == 0)
                     return base.Message;
 
                 string objectDisposed = SR.Format(SR.ObjectDisposed_ObjectName_Name, name);
@@ -72,7 +72,7 @@ namespace System
         {
             get
             {
-                if (_objectName == null)
+                if (_objectName is null)
                 {
                     return string.Empty;
                 }

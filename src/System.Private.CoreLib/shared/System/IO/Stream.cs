@@ -323,7 +323,7 @@ namespace System.IO
             }, state, this, buffer, offset, count, callback);
 
             // Schedule it
-            if (semaphoreTask != null)
+            if (semaphoreTask is object)
                 RunReadWriteTaskWhenReady(semaphoreTask, asyncResult);
             else
                 RunReadWriteTask(asyncResult);
@@ -334,12 +334,12 @@ namespace System.IO
 
         public virtual int EndRead(IAsyncResult asyncResult)
         {
-            if (asyncResult == null)
+            if (asyncResult is null)
                 throw new ArgumentNullException(nameof(asyncResult));
 
             var readTask = _activeReadWriteTask;
 
-            if (readTask == null)
+            if (readTask is null)
             {
                 throw new ArgumentException(SR.InvalidOperation_WrongAsyncResultOrEndReadCalledMultiple);
             }
@@ -486,7 +486,7 @@ namespace System.IO
             }, state, this, buffer, offset, count, callback);
 
             // Schedule it
-            if (semaphoreTask != null)
+            if (semaphoreTask is object)
                 RunReadWriteTaskWhenReady(semaphoreTask, asyncResult);
             else
                 RunReadWriteTask(asyncResult);
@@ -539,11 +539,11 @@ namespace System.IO
 
         public virtual void EndWrite(IAsyncResult asyncResult)
         {
-            if (asyncResult == null)
+            if (asyncResult is null)
                 throw new ArgumentNullException(nameof(asyncResult));
 
             var writeTask = _activeReadWriteTask;
-            if (writeTask == null)
+            if (writeTask is null)
             {
                 throw new ArgumentException(SR.InvalidOperation_WrongAsyncResultOrEndWriteCalledMultiple);
             }
@@ -624,7 +624,7 @@ namespace System.IO
                 // - Capture an ExecutionContext under which to invoke the handler
                 // - Add this task as its own completion handler so that the Invoke method
                 //   will run the callback when this task completes.
-                if (callback != null)
+                if (callback is object)
                 {
                     _callback = callback;
                     _context = ExecutionContext.Capture();
@@ -648,7 +648,7 @@ namespace System.IO
                 // directly, passing in the completed task as the IAsyncResult.
                 // If there is one, process it with ExecutionContext.Run.
                 var context = _context;
-                if (context == null)
+                if (context is null)
                 {
                     var callback = _callback;
                     _callback = null;
@@ -659,7 +659,7 @@ namespace System.IO
                     _context = null;
 
                     var invokeAsyncCallback = s_invokeAsyncCallback;
-                    if (invokeAsyncCallback == null) s_invokeAsyncCallback = invokeAsyncCallback = InvokeAsyncCallback; // benign race condition
+                    if (invokeAsyncCallback is null) s_invokeAsyncCallback = invokeAsyncCallback = InvokeAsyncCallback; // benign race condition
 
                     ExecutionContext.RunInternal(context, invokeAsyncCallback, this);
                 }
@@ -792,7 +792,7 @@ namespace System.IO
 
         public static Stream Synchronized(Stream stream)
         {
-            if (stream == null)
+            if (stream is null)
                 throw new ArgumentNullException(nameof(stream));
             if (stream is SyncStream)
                 return stream;
@@ -824,7 +824,7 @@ namespace System.IO
                 asyncResult = new SynchronousAsyncResult(ex, state, isWrite: false);
             }
 
-            if (callback != null)
+            if (callback is object)
             {
                 callback(asyncResult);
             }
@@ -856,7 +856,7 @@ namespace System.IO
                 asyncResult = new SynchronousAsyncResult(ex, state, isWrite: true);
             }
 
-            if (callback != null)
+            if (callback is object)
             {
                 callback(asyncResult);
             }
@@ -932,7 +932,7 @@ namespace System.IO
 
             public override int EndRead(IAsyncResult asyncResult)
             {
-                if (asyncResult == null)
+                if (asyncResult is null)
                     throw new ArgumentNullException(nameof(asyncResult));
 
                 return BlockingEndRead(asyncResult);
@@ -947,7 +947,7 @@ namespace System.IO
 
             public override void EndWrite(IAsyncResult asyncResult)
             {
-                if (asyncResult == null)
+                if (asyncResult is null)
                     throw new ArgumentNullException(nameof(asyncResult));
 
                 BlockingEndWrite(asyncResult);
@@ -1072,14 +1072,14 @@ namespace System.IO
 
             internal void ThrowIfError()
             {
-                if (_exceptionInfo != null)
+                if (_exceptionInfo is object)
                     _exceptionInfo.Throw();
             }
 
             internal static int EndRead(IAsyncResult asyncResult)
             {
                 SynchronousAsyncResult ar = asyncResult as SynchronousAsyncResult;
-                if (ar == null || ar._isWrite)
+                if (ar is null || ar._isWrite)
                     throw new ArgumentException(SR.Arg_WrongAsyncResult);
 
                 if (ar._endXxxCalled)
@@ -1094,7 +1094,7 @@ namespace System.IO
             internal static void EndWrite(IAsyncResult asyncResult)
             {
                 SynchronousAsyncResult ar = asyncResult as SynchronousAsyncResult;
-                if (ar == null || !ar._isWrite)
+                if (ar is null || !ar._isWrite)
                     throw new ArgumentException(SR.Arg_WrongAsyncResult);
 
                 if (ar._endXxxCalled)
@@ -1115,7 +1115,7 @@ namespace System.IO
 
             internal SyncStream(Stream stream)
             {
-                if (stream == null)
+                if (stream is null)
                     throw new ArgumentNullException(nameof(stream));
                 _stream = stream;
             }
@@ -1269,7 +1269,7 @@ namespace System.IO
 
             public override int EndRead(IAsyncResult asyncResult)
             {
-                if (asyncResult == null)
+                if (asyncResult is null)
                     throw new ArgumentNullException(nameof(asyncResult));
 
                 lock (_stream)
@@ -1330,7 +1330,7 @@ namespace System.IO
 
             public override void EndWrite(IAsyncResult asyncResult)
             {
-                if (asyncResult == null)
+                if (asyncResult is null)
                     throw new ArgumentNullException(nameof(asyncResult));
 
                 lock (_stream)

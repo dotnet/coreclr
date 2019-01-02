@@ -31,7 +31,7 @@ namespace System.Reflection
 
         public MethodInfo GetMethod(string name)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
 
             return GetMethodImpl(name, Module.DefaultLookup, null, CallingConventions.Any, null, null);
@@ -40,9 +40,9 @@ namespace System.Reflection
         public MethodInfo GetMethod(string name, Type[] types) => GetMethod(name, Module.DefaultLookup, null, CallingConventions.Any, types, null);
         public MethodInfo GetMethod(string name, BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
         {
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
-            if (types == null)
+            if (types is null)
                 throw new ArgumentNullException(nameof(types));
             for (int i = 0; i < types.Length; i++)
             {
@@ -75,7 +75,7 @@ namespace System.Reflection
             int cnt = 0;
             for (int i = 0; i < c.Length; i++)
             {
-                if (filter != null && !filter(c[i], filterCriteria))
+                if (filter is object && !filter(c[i], filterCriteria))
                     c[i] = null;
                 else
                     cnt++;

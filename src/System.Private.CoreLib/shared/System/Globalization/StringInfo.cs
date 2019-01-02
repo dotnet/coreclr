@@ -35,7 +35,7 @@ namespace System.Globalization
         public override bool Equals(object value)
         {
             StringInfo that = value as StringInfo;
-            if (that != null)
+            if (that is object)
             {
                 return (_str.Equals(that._str));
             }
@@ -256,7 +256,7 @@ namespace System.Globalization
             //
             // Validate parameters.
             //
-            if (str == null)
+            if (str is null)
             {
                 throw new ArgumentNullException(nameof(str));
             }
@@ -286,7 +286,7 @@ namespace System.Globalization
             //
             // Validate parameters.
             //
-            if (str == null)
+            if (str is null)
             {
                 throw new ArgumentNullException(nameof(str));
             }
@@ -314,7 +314,7 @@ namespace System.Globalization
 
         public static int[] ParseCombiningCharacters(string str)
         {
-            if (str == null)
+            if (str is null)
             {
                 throw new ArgumentNullException(nameof(str));
             }

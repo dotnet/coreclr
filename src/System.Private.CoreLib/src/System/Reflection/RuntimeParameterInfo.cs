@@ -68,7 +68,7 @@ namespace System.Reflection
                     if (fetchReturnParameter == true && position == -1)
                     {
                         // more than one return parameter?
-                        if (returnParameter != null)
+                        if (returnParameter is object)
                             throw new BadImageFormatException(SR.BadImageFormat_ParameterSignatureMismatch);
 
                         returnParameter = new RuntimeParameterInfo(sig, scope, tkParamDef, position, attr, member);
@@ -88,7 +88,7 @@ namespace System.Reflection
             // Fill in empty ParameterInfos for those without tokens
             if (fetchReturnParameter)
             {
-                if (returnParameter == null)
+                if (returnParameter is null)
                 {
                     returnParameter = new RuntimeParameterInfo(sig, MetadataImport.EmptyImport, 0, -1, (ParameterAttributes)0, member);
                 }
@@ -131,7 +131,7 @@ namespace System.Reflection
         {
             get
             {
-                MethodBase result = m_originalMember != null ? m_originalMember : MemberImpl as MethodBase;
+                MethodBase result = m_originalMember is object ? m_originalMember : MemberImpl as MethodBase;
                 Debug.Assert(result != null);
                 return result;
             }
@@ -166,7 +166,7 @@ namespace System.Reflection
             // The original owner should always be a method, because this method is only used to 
             // change the owner from a method to a property.
             m_originalMember = accessor.MemberImpl as MethodBase;
-            Debug.Assert(m_originalMember != null);
+            Debug.Assert(m_originalMember is object);
 
             // Populate all the caches -- we inherit this behavior from RTM
             NameImpl = accessor.Name;
@@ -221,7 +221,7 @@ namespace System.Reflection
             get
             {
                 // only instance of ParameterInfo has ClassImpl, all its subclasses don't
-                if (ClassImpl == null)
+                if (ClassImpl is null)
                 {
                     RuntimeType parameterType;
                     if (PositionImpl == -1)
@@ -327,13 +327,13 @@ namespace System.Reflection
                         CustomAttributeData.Filter(
                             CustomAttributeData.GetCustomAttributes(this), typeof(DateTimeConstantAttribute), 0);
 
-                    if (value.ArgumentType != null)
+                    if (value.ArgumentType is object)
                         return new DateTime((long)value.Value);
                 }
                 else
                 {
                     object[] dt = GetCustomAttributes(typeof(DateTimeConstantAttribute), false);
-                    if (dt != null && dt.Length != 0)
+                    if (dt is object && dt.Length != 0)
                         return ((DateTimeConstantAttribute)dt[0]).Value;
                 }
             }
@@ -517,7 +517,7 @@ namespace System.Reflection
 
         public override object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             if (MdToken.IsNullToken(m_tkParamDef))
@@ -525,7 +525,7 @@ namespace System.Reflection
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -533,7 +533,7 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             if (MdToken.IsNullToken(m_tkParamDef))
@@ -541,7 +541,7 @@ namespace System.Reflection
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);

@@ -49,7 +49,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     m_tokens.Clear();
                     m_invokeList = null;
 
-                    if (value != null)
+                    if (value is object)
                     {
                         AddEventHandlerNoLock(value);
                     }
@@ -60,7 +60,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public EventRegistrationToken AddEventHandler(T handler)
         {
             // Windows Runtime allows null handlers.  Assign those a token value of 0 for easy identity
-            if (handler == null)
+            if (handler is null)
             {
                 return new EventRegistrationToken(0);
             }
@@ -185,7 +185,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public void RemoveEventHandler(T handler)
         {
             // To match the Windows Runtime behaivor when adding a null handler, removing one is a no-op
-            if (handler == null)
+            if (handler is null)
             {
                 return;
             }
@@ -244,7 +244,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public static EventRegistrationTokenTable<T> GetOrCreateEventRegistrationTokenTable(ref EventRegistrationTokenTable<T> refEventTable)
         {
-            if (refEventTable == null)
+            if (refEventTable is null)
             {
                 Interlocked.CompareExchange(ref refEventTable, new EventRegistrationTokenTable<T>(), null);
             }

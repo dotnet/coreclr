@@ -40,11 +40,11 @@ namespace System.Text
 
             set
             {
-                if (value == null)
+                if (value is null)
                     throw new ArgumentNullException(nameof(value));
 
                 // Can't change fallback if buffer is wrong
-                if (_fallbackBuffer != null && _fallbackBuffer.Remaining > 0)
+                if (_fallbackBuffer is object && _fallbackBuffer.Remaining > 0)
                     throw new ArgumentException(
                       SR.Argument_FallbackBufferNotEmpty, nameof(value));
 
@@ -59,9 +59,9 @@ namespace System.Text
         {
             get
             {
-                if (_fallbackBuffer == null)
+                if (_fallbackBuffer is null)
                 {
-                    if (_fallback != null)
+                    if (_fallback is object)
                         _fallbackBuffer = _fallback.CreateFallbackBuffer();
                     else
                         _fallbackBuffer = DecoderFallback.ReplacementFallback.CreateFallbackBuffer();
@@ -75,7 +75,7 @@ namespace System.Text
         {
             get
             {
-                return _fallbackBuffer != null;
+                return _fallbackBuffer is object;
             }
         }
 
@@ -252,8 +252,8 @@ namespace System.Text
                                       out int bytesUsed, out int charsUsed, out bool completed)
         {
             // Validate parameters
-            if (bytes == null || chars == null)
-                throw new ArgumentNullException((bytes == null ? nameof(bytes) : nameof(chars)),
+            if (bytes is null || chars is null)
+                throw new ArgumentNullException((bytes is null ? nameof(bytes) : nameof(chars)),
                       SR.ArgumentNull_Array);
 
             if (byteIndex < 0 || byteCount < 0)
@@ -281,7 +281,7 @@ namespace System.Text
                 {
                     charsUsed = GetChars(bytes, byteIndex, bytesUsed, chars, charIndex, flush);
                     completed = (bytesUsed == byteCount &&
-                        (_fallbackBuffer == null || _fallbackBuffer.Remaining == 0));
+                        (_fallbackBuffer is null || _fallbackBuffer.Remaining == 0));
                     return;
                 }
 
@@ -326,7 +326,7 @@ namespace System.Text
                 {
                     charsUsed = GetChars(bytes, bytesUsed, chars, charCount, flush);
                     completed = (bytesUsed == byteCount &&
-                        (_fallbackBuffer == null || _fallbackBuffer.Remaining == 0));
+                        (_fallbackBuffer is null || _fallbackBuffer.Remaining == 0));
                     return;
                 }
 

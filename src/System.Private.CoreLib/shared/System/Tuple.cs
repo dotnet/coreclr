@@ -122,11 +122,11 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null) return false;
+            if (other is null) return false;
 
             Tuple<T1> objTuple = other as Tuple<T1>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 return false;
             }
@@ -141,11 +141,11 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             Tuple<T1> objTuple = other as Tuple<T1>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
@@ -225,11 +225,11 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null) return false;
+            if (other is null) return false;
 
             Tuple<T1, T2> objTuple = other as Tuple<T1, T2>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 return false;
             }
@@ -244,11 +244,11 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             Tuple<T1, T2> objTuple = other as Tuple<T1, T2>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
@@ -343,11 +343,11 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null) return false;
+            if (other is null) return false;
 
             Tuple<T1, T2, T3> objTuple = other as Tuple<T1, T2, T3>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 return false;
             }
@@ -362,11 +362,11 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             Tuple<T1, T2, T3> objTuple = other as Tuple<T1, T2, T3>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
@@ -472,11 +472,11 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null) return false;
+            if (other is null) return false;
 
             Tuple<T1, T2, T3, T4> objTuple = other as Tuple<T1, T2, T3, T4>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 return false;
             }
@@ -491,11 +491,11 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             Tuple<T1, T2, T3, T4> objTuple = other as Tuple<T1, T2, T3, T4>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
@@ -612,11 +612,11 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null) return false;
+            if (other is null) return false;
 
             Tuple<T1, T2, T3, T4, T5> objTuple = other as Tuple<T1, T2, T3, T4, T5>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 return false;
             }
@@ -631,11 +631,11 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             Tuple<T1, T2, T3, T4, T5> objTuple = other as Tuple<T1, T2, T3, T4, T5>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
@@ -763,11 +763,11 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null) return false;
+            if (other is null) return false;
 
             Tuple<T1, T2, T3, T4, T5, T6> objTuple = other as Tuple<T1, T2, T3, T4, T5, T6>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 return false;
             }
@@ -782,11 +782,11 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             Tuple<T1, T2, T3, T4, T5, T6> objTuple = other as Tuple<T1, T2, T3, T4, T5, T6>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
@@ -925,11 +925,11 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null) return false;
+            if (other is null) return false;
 
             Tuple<T1, T2, T3, T4, T5, T6, T7> objTuple = other as Tuple<T1, T2, T3, T4, T5, T6, T7>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 return false;
             }
@@ -944,11 +944,11 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             Tuple<T1, T2, T3, T4, T5, T6, T7> objTuple = other as Tuple<T1, T2, T3, T4, T5, T6, T7>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
@@ -1103,11 +1103,11 @@ namespace System
 
         bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
         {
-            if (other == null) return false;
+            if (other is null) return false;
 
             Tuple<T1, T2, T3, T4, T5, T6, T7, TRest> objTuple = other as Tuple<T1, T2, T3, T4, T5, T6, T7, TRest>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 return false;
             }
@@ -1122,11 +1122,11 @@ namespace System
 
         int IStructuralComparable.CompareTo(object other, IComparer comparer)
         {
-            if (other == null) return 1;
+            if (other is null) return 1;
 
             Tuple<T1, T2, T3, T4, T5, T6, T7, TRest> objTuple = other as Tuple<T1, T2, T3, T4, T5, T6, T7, TRest>;
 
-            if (objTuple == null)
+            if (objTuple is null)
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), nameof(other));
             }

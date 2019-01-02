@@ -543,7 +543,7 @@ namespace System.Diagnostics.Contracts
         {
             if (fromInclusive > toExclusive)
                 throw new ArgumentException(SR.Argument_ToExclusiveLessThanFromExclusive);
-            if (predicate == null)
+            if (predicate is null)
                 throw new ArgumentNullException(nameof(predicate));
 
             for (int i = fromInclusive; i < toExclusive; i++)
@@ -564,9 +564,9 @@ namespace System.Diagnostics.Contracts
         [Pure]
         public static bool ForAll<T>(IEnumerable<T> collection, Predicate<T> predicate)
         {
-            if (collection == null)
+            if (collection is null)
                 throw new ArgumentNullException(nameof(collection));
-            if (predicate == null)
+            if (predicate is null)
                 throw new ArgumentNullException(nameof(predicate));
 
             foreach (T t in collection)
@@ -593,7 +593,7 @@ namespace System.Diagnostics.Contracts
         {
             if (fromInclusive > toExclusive)
                 throw new ArgumentException(SR.Argument_ToExclusiveLessThanFromExclusive);
-            if (predicate == null)
+            if (predicate is null)
                 throw new ArgumentNullException(nameof(predicate));
 
             for (int i = fromInclusive; i < toExclusive; i++)
@@ -613,9 +613,9 @@ namespace System.Diagnostics.Contracts
         [Pure]
         public static bool Exists<T>(IEnumerable<T> collection, Predicate<T> predicate)
         {
-            if (collection == null)
+            if (collection is null)
                 throw new ArgumentNullException(nameof(collection));
-            if (predicate == null)
+            if (predicate is null)
                 throw new ArgumentNullException(nameof(predicate));
 
             foreach (T t in collection)

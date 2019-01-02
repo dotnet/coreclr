@@ -96,11 +96,11 @@ namespace System.Globalization
         internal static EraInfo[] GetEraInfo()
         {
             // See if we need to build it
-            if (japaneseEraInfo == null)
+            if (japaneseEraInfo is null)
             {
                 japaneseEraInfo = GetJapaneseEras();
                 // See if we have to use the built-in eras
-                if (japaneseEraInfo == null)
+                if (japaneseEraInfo is null)
                 {
                     // We know about some built-in ranges
                     EraInfo[] defaultEraRanges = new EraInfo[4];
@@ -135,7 +135,7 @@ namespace System.Globalization
 
         internal static Calendar GetDefaultInstance()
         {
-            if (s_defaultInstance == null)
+            if (s_defaultInstance is null)
             {
                 s_defaultInstance = new JapaneseCalendar();
             }

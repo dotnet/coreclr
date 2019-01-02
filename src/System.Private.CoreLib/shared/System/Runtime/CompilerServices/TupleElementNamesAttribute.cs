@@ -39,7 +39,7 @@ namespace System.Runtime.CompilerServices
         /// </remarks>
         public TupleElementNamesAttribute(string[] transformNames)
         {
-            if (transformNames == null)
+            if (transformNames is null)
             {
                 throw new ArgumentNullException(nameof(transformNames));
             }

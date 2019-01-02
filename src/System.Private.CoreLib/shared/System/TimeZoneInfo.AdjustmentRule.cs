@@ -45,7 +45,7 @@ namespace System
                 (DaylightTransitionEnd != default && DaylightTransitionEnd.TimeOfDay != DateTime.MinValue.AddMilliseconds(1));
 
             public bool Equals(AdjustmentRule other) =>
-                other != null &&
+                other is object &&
                 _dateStart == other._dateStart &&
                 _dateEnd == other._dateEnd &&
                 _daylightDelta == other._daylightDelta &&
@@ -227,7 +227,7 @@ namespace System
 
             void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {
-                if (info == null)
+                if (info is null)
                 {
                     throw new ArgumentNullException(nameof(info));
                 }
@@ -243,7 +243,7 @@ namespace System
 
             private AdjustmentRule(SerializationInfo info, StreamingContext context)
             {
-                if (info == null)
+                if (info is null)
                 {
                     throw new ArgumentNullException(nameof(info));
                 }
@@ -255,13 +255,13 @@ namespace System
                 _daylightTransitionEnd = (TransitionTime)info.GetValue("DaylightTransitionEnd", typeof(TransitionTime)); // Do not rename (binary serialization)
 
                 object o = info.GetValueNoThrow("BaseUtcOffsetDelta", typeof(TimeSpan)); // Do not rename (binary serialization)
-                if (o != null)
+                if (o is object)
                 {
                     _baseUtcOffsetDelta = (TimeSpan)o;
                 }
 
                 o = info.GetValueNoThrow("NoDaylightTransitions", typeof(bool)); // Do not rename (binary serialization)
-                if (o != null)
+                if (o is object)
                 {
                     _noDaylightTransitions = (bool)o;
                 }

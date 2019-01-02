@@ -41,20 +41,20 @@ namespace System.Reflection
                     //
                     // first take care of all the NO_INVOKE cases. 
                     if (declaringType == typeof(void) ||
-                         (declaringType != null && declaringType.ContainsGenericParameters) ||
+                         (declaringType is object && declaringType.ContainsGenericParameters) ||
                          ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
                         // We don't need other flags if this method cannot be invoked
                         invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE;
                     }
-                    else if (IsStatic || declaringType != null && declaringType.IsAbstract)
+                    else if (IsStatic || declaringType is object && declaringType.IsAbstract)
                     {
                         invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_NO_CTOR_INVOKE;
                     }
                     else
                     {
                         // Check for byref-like types
-                        if (declaringType != null && declaringType.IsByRefLike)
+                        if (declaringType is object && declaringType.IsByRefLike)
                             invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_CONTAINS_STACK_POINTERS;
 
                         // Check for attempt to create a delegate class.
@@ -106,7 +106,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_signature == null)
+                if (m_signature is null)
                     m_signature = new Signature(this, m_declaringType);
 
                 return m_signature;
@@ -123,12 +123,12 @@ namespace System.Reflection
 
         private void CheckConsistency(object target)
         {
-            if (target == null && IsStatic)
+            if (target is null && IsStatic)
                 return;
 
             if (!m_declaringType.IsInstanceOfType(target))
             {
-                if (target == null)
+                if (target is null)
                     throw new TargetException(SR.RFLCT_Targ_StatMethReqTarg);
 
                 throw new TargetException(SR.RFLCT_Targ_ITargMismatch);
@@ -141,7 +141,7 @@ namespace System.Reflection
         #region Object Overrides
         public override string ToString()
         {
-            if (m_toString == null)
+            if (m_toString is null)
             {
                 var sbName = new ValueStringBuilder(MethodNameBufferSize);
 
@@ -169,12 +169,12 @@ namespace System.Reflection
 
         public override object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -182,12 +182,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
@@ -246,7 +246,7 @@ namespace System.Reflection
 
         internal override ParameterInfo[] GetParametersNoCopy()
         {
-            if (m_parameters == null)
+            if (m_parameters is null)
                 m_parameters = RuntimeParameterInfo.GetParameters(this, this, Signature);
 
             return m_parameters;
@@ -295,7 +295,7 @@ namespace System.Reflection
 
         internal static void CheckCanCreateInstance(Type declaringType, bool isVarArg)
         {
-            if (declaringType == null)
+            if (declaringType is null)
                 throw new ArgumentNullException(nameof(declaringType));
 
             // ctor is declared on interface class
@@ -356,7 +356,7 @@ namespace System.Reflection
 
             // get the signature
             int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters != null) ? parameters.Length : 0;
+            int actualCount = (parameters is object) ? parameters.Length : 0;
             if (formalCount != actualCount)
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 
@@ -377,7 +377,7 @@ namespace System.Reflection
         public override MethodBody GetMethodBody()
         {
             RuntimeMethodBody mb = RuntimeMethodHandle.GetMethodBody(this, ReflectedTypeInternal);
-            if (mb != null)
+            if (mb is object)
                 mb._methodBase = this;
             return mb;
         }
@@ -401,7 +401,7 @@ namespace System.Reflection
         {
             get
             {
-                return (DeclaringType != null && DeclaringType.ContainsGenericParameters);
+                return (DeclaringType is object && DeclaringType.ContainsGenericParameters);
             }
         }
         #endregion
@@ -423,7 +423,7 @@ namespace System.Reflection
             Signature sig = Signature;
 
             int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters != null) ? parameters.Length : 0;
+            int actualCount = (parameters is object) ? parameters.Length : 0;
             if (formalCount != actualCount)
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 

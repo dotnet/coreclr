@@ -40,11 +40,11 @@ namespace System.Text
 
             set
             {
-                if (value == null)
+                if (value is null)
                     throw new ArgumentNullException(nameof(value));
 
                 // Can't change fallback if buffer is wrong
-                if (_fallbackBuffer != null && _fallbackBuffer.Remaining > 0)
+                if (_fallbackBuffer is object && _fallbackBuffer.Remaining > 0)
                     throw new ArgumentException(
                       SR.Argument_FallbackBufferNotEmpty, nameof(value));
 
@@ -59,9 +59,9 @@ namespace System.Text
         {
             get
             {
-                if (_fallbackBuffer == null)
+                if (_fallbackBuffer is null)
                 {
-                    if (_fallback != null)
+                    if (_fallback is object)
                         _fallbackBuffer = _fallback.CreateFallbackBuffer();
                     else
                         _fallbackBuffer = EncoderFallback.ReplacementFallback.CreateFallbackBuffer();
@@ -75,7 +75,7 @@ namespace System.Text
         {
             get
             {
-                return _fallbackBuffer != null;
+                return _fallbackBuffer is object;
             }
         }
 
@@ -93,7 +93,7 @@ namespace System.Text
             char[] charTemp = { };
             byte[] byteTemp = new byte[GetByteCount(charTemp, 0, 0, true)];
             GetBytes(charTemp, 0, 0, byteTemp, 0, true);
-            if (_fallbackBuffer != null)
+            if (_fallbackBuffer is object)
                 _fallbackBuffer.Reset();
         }
 
@@ -246,8 +246,8 @@ namespace System.Text
                                       out int charsUsed, out int bytesUsed, out bool completed)
         {
             // Validate parameters
-            if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
+            if (chars is null || bytes is null)
+                throw new ArgumentNullException((chars is null ? nameof(chars) : nameof(bytes)),
                       SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
@@ -277,7 +277,7 @@ namespace System.Text
                 {
                     bytesUsed = GetBytes(chars, charIndex, charsUsed, bytes, byteIndex, flush);
                     completed = (charsUsed == charCount &&
-                        (_fallbackBuffer == null || _fallbackBuffer.Remaining == 0));
+                        (_fallbackBuffer is null || _fallbackBuffer.Remaining == 0));
                     return;
                 }
 
@@ -320,7 +320,7 @@ namespace System.Text
                 {
                     bytesUsed = GetBytes(chars, charsUsed, bytes, byteCount, flush);
                     completed = (charsUsed == charCount &&
-                        (_fallbackBuffer == null || _fallbackBuffer.Remaining == 0));
+                        (_fallbackBuffer is null || _fallbackBuffer.Remaining == 0));
                     return;
                 }
 

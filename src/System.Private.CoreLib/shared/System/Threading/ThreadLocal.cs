@@ -91,7 +91,7 @@ namespace System.Threading
         /// </exception>
         public ThreadLocal(Func<T> valueFactory)
         {
-            if (valueFactory == null)
+            if (valueFactory is null)
                 throw new ArgumentNullException(nameof(valueFactory));
 
             Initialize(valueFactory, false);
@@ -111,7 +111,7 @@ namespace System.Threading
         /// </exception>
         public ThreadLocal(Func<T> valueFactory, bool trackAllValues)
         {
-            if (valueFactory == null)
+            if (valueFactory is null)
                 throw new ArgumentNullException(nameof(valueFactory));
 
             Initialize(valueFactory, trackAllValues);
@@ -185,11 +185,11 @@ namespace System.Threading
                 }
                 _initialized = false;
 
-                for (LinkedSlot linkedSlot = _linkedSlot._next; linkedSlot != null; linkedSlot = linkedSlot._next)
+                for (LinkedSlot linkedSlot = _linkedSlot._next; linkedSlot is object; linkedSlot = linkedSlot._next)
                 {
                     LinkedSlotVolatile[] slotArray = linkedSlot._slotArray;
 
-                    if (slotArray == null)
+                    if (slotArray is null)
                     {
                         // The thread that owns this slotArray has already finished.
                         continue;
@@ -258,7 +258,7 @@ namespace System.Threading
                 //
                 // Attempt to get the value using the fast path
                 //
-                if (slotArray != null   // Has the slot array been initialized?
+                if (slotArray is object   // Has the slot array been initialized?
                     && id >= 0   // Is the ID non-negative (i.e., instance is not disposed)?
                     && id < slotArray.Length   // Is the table large enough?
                     && (slot = slotArray[id].Value) != null   // Has a LinkedSlot object has been allocated for this ID?
@@ -282,7 +282,7 @@ namespace System.Threading
                 int id = ~_idComplement;
 
                 // Attempt to set the value using the fast path
-                if (slotArray != null   // Has the slot array been initialized?
+                if (slotArray is object   // Has the slot array been initialized?
                     && id >= 0   // Is the ID non-negative (i.e., instance is not disposed)?
                     && id < slotArray.Length   // Is the table large enough?
                     && (slot = slotArray[id].Value) != null   // Has a LinkedSlot object has been allocated for this ID?
@@ -316,7 +316,7 @@ namespace System.Threading
 
             // Determine the initial value
             T value;
-            if (_valueFactory == null)
+            if (_valueFactory is null)
             {
                 value = default;
             }
@@ -346,7 +346,7 @@ namespace System.Threading
             }
 
             // If a slot array has not been created on this thread yet, create it.
-            if (slotArray == null)
+            if (slotArray is null)
             {
                 slotArray = new LinkedSlotVolatile[GetNewTableSize(id + 1)];
                 ts_finalizationHelper = new FinalizationHelper(slotArray, _trackAllValues);
@@ -363,7 +363,7 @@ namespace System.Threading
 
             // If we are using the slot in this table for the first time, create a new LinkedSlot and add it into
             // the linked list for this ThreadLocal instance.
-            if (slotArray[id].Value == null)
+            if (slotArray[id].Value is null)
             {
                 CreateLinkedSlot(slotArray, id, value);
             }
@@ -413,7 +413,7 @@ namespace System.Threading
                 linkedSlot._previous = _linkedSlot;
                 linkedSlot._value = value;
 
-                if (firstRealNode != null)
+                if (firstRealNode is object)
                 {
                     firstRealNode._previous = linkedSlot;
                 }
@@ -442,7 +442,7 @@ namespace System.Threading
                 }
 
                 var list = GetValuesAsList(); // returns null if disposed
-                if (list == null) throw new ObjectDisposedException(SR.ThreadLocal_Disposed);
+                if (list is null) throw new ObjectDisposedException(SR.ThreadLocal_Disposed);
                 return list;
             }
         }
@@ -458,7 +458,7 @@ namespace System.Threading
             }
 
             // Walk over the linked list of slots and gather the values associated with this ThreadLocal instance.
-            for (LinkedSlot linkedSlot = _linkedSlot._next; linkedSlot != null; linkedSlot = linkedSlot._next)
+            for (LinkedSlot linkedSlot = _linkedSlot._next; linkedSlot is object; linkedSlot = linkedSlot._next)
             {
                 // We can safely read linkedSlot.Value. Even if this ThreadLocal has been disposed in the meantime, the LinkedSlot
                 // objects will never be assigned to another ThreadLocal instance.
@@ -474,7 +474,7 @@ namespace System.Threading
             get
             {
                 int count = 0;
-                for (LinkedSlot linkedSlot = _linkedSlot._next; linkedSlot != null; linkedSlot = linkedSlot._next)
+                for (LinkedSlot linkedSlot = _linkedSlot._next; linkedSlot is object; linkedSlot = linkedSlot._next)
                 {
                     count++;
                 }
@@ -499,7 +499,7 @@ namespace System.Threading
                 }
 
                 LinkedSlotVolatile[] slotArray = ts_slotArray;
-                return slotArray != null && id < slotArray.Length && slotArray[id].Value != null;
+                return slotArray is object && id < slotArray.Length && slotArray[id].Value is object;
             }
         }
 
@@ -514,7 +514,7 @@ namespace System.Threading
                 int id = ~_idComplement;
 
                 LinkedSlot slot;
-                if (slotArray == null || id >= slotArray.Length || (slot = slotArray[id].Value) == null || !_initialized)
+                if (slotArray is null || id >= slotArray.Length || (slot = slotArray[id].Value) == null || !_initialized)
                     return default;
                 return slot._value;
             }
@@ -548,7 +548,7 @@ namespace System.Threading
                 for (int i = 0; i < table.Length; i++)
                 {
                     LinkedSlot linkedSlot = table[i].Value;
-                    if (linkedSlot != null && linkedSlot._slotArray != null)
+                    if (linkedSlot is object && linkedSlot._slotArray is object)
                     {
                         linkedSlot._slotArray = newTable;
                         newTable[i] = table[i];
@@ -723,7 +723,7 @@ namespace System.Threading
                 for (int i = 0; i < slotArray.Length; i++)
                 {
                     LinkedSlot linkedSlot = slotArray[i].Value;
-                    if (linkedSlot == null)
+                    if (linkedSlot is null)
                     {
                         // This slot in the table is empty
                         continue;
@@ -740,7 +740,7 @@ namespace System.Threading
                         // the table will be have been removed, and so the table can get GC'd.
                         lock (s_idManager)
                         {
-                            if (linkedSlot._next != null)
+                            if (linkedSlot._next is object)
                             {
                                 linkedSlot._next._previous = linkedSlot._previous;
                             }

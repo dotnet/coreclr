@@ -54,13 +54,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var action = m_action as Action<Task>;
-            if (action != null)
+            if (action is object)
             {
                 action(antecedent);
                 return;
             }
             var actionWithState = m_action as Action<Task, object>;
-            if (actionWithState != null)
+            if (actionWithState is object)
             {
                 actionWithState(antecedent, m_stateObject);
                 return;
@@ -101,13 +101,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var func = m_action as Func<Task, TResult>;
-            if (func != null)
+            if (func is object)
             {
                 m_result = func(antecedent);
                 return;
             }
             var funcWithState = m_action as Func<Task, object, TResult>;
-            if (funcWithState != null)
+            if (funcWithState is object)
             {
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
@@ -148,13 +148,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var action = m_action as Action<Task<TAntecedentResult>>;
-            if (action != null)
+            if (action is object)
             {
                 action(antecedent);
                 return;
             }
             var actionWithState = m_action as Action<Task<TAntecedentResult>, object>;
-            if (actionWithState != null)
+            if (actionWithState is object)
             {
                 actionWithState(antecedent, m_stateObject);
                 return;
@@ -195,13 +195,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var func = m_action as Func<Task<TAntecedentResult>, TResult>;
-            if (func != null)
+            if (func is object)
             {
                 m_result = func(antecedent);
                 return;
             }
             var funcWithState = m_action as Func<Task<TAntecedentResult>, object, TResult>;
-            if (funcWithState != null)
+            if (funcWithState is object)
             {
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
@@ -363,7 +363,7 @@ namespace System.Threading.Tasks
 
         internal override Delegate[] GetDelegateContinuationsForDebugger()
         {
-            if (m_task.m_action == null)
+            if (m_task.m_action is null)
             {
                 return m_task.GetDelegateContinuationsForDebugger();
             }
@@ -457,7 +457,7 @@ namespace System.Threading.Tasks
         private static ContextCallback GetPostActionCallback()
         {
             ContextCallback callback = s_postActionCallback;
-            if (callback == null) { s_postActionCallback = callback = PostAction; } // lazily initialize SecurityCritical delegate
+            if (callback is null) { s_postActionCallback = callback = PostAction; } // lazily initialize SecurityCritical delegate
             return callback;
         }
     }
@@ -615,12 +615,12 @@ namespace System.Threading.Tasks
                 // If there's a SynchronizationContext, we'll be conservative and say 
                 // this is a bad location to inline.
                 var ctx = SynchronizationContext.Current;
-                if (ctx != null && ctx.GetType() != typeof(SynchronizationContext)) return false;
+                if (ctx is object && ctx.GetType() != typeof(SynchronizationContext)) return false;
 
                 // Similarly, if there's a non-default TaskScheduler, we'll be conservative
                 // and say this is a bad location to inline.
                 var sched = TaskScheduler.InternalCurrent;
-                return sched == null || sched == TaskScheduler.Default;
+                return sched is null || sched == TaskScheduler.Default;
             }
         }
 
@@ -629,7 +629,7 @@ namespace System.Threading.Tasks
             var etwLog = TplEtwProvider.Log;
             ExecutionContext context = m_capturedContext;
 
-            if (!etwLog.IsEnabled() && context == null)
+            if (!etwLog.IsEnabled() && context is null)
             {
                 m_action();
                 return;
@@ -649,7 +649,7 @@ namespace System.Threading.Tasks
                 ExecutionContext.CheckThreadPoolAndContextsAreDefault();
                 // If there's no execution context or Default, just invoke the delegate as ThreadPool is on Default context.
                 // We don't have to use ExecutionContext.Run for the Default context here as there is no extra processing after the delegate
-                if (context == null || context.IsDefault)
+                if (context is null || context.IsDefault)
                 {
                     m_action();
                 }
@@ -691,10 +691,10 @@ namespace System.Threading.Tasks
             var prevCurrentTask = currentTask;
             try
             {
-                if (prevCurrentTask != null) currentTask = null;
+                if (prevCurrentTask is object) currentTask = null;
 
                 ExecutionContext context = m_capturedContext;
-                if (context == null)
+                if (context is null)
                 {
                     // If there's no captured context, just run the callback directly.
                     callback(state);
@@ -712,7 +712,7 @@ namespace System.Threading.Tasks
             finally
             {
                 // Restore the current task information
-                if (prevCurrentTask != null) currentTask = prevCurrentTask;
+                if (prevCurrentTask is object) currentTask = prevCurrentTask;
             }
         }
 
@@ -742,7 +742,7 @@ namespace System.Threading.Tasks
             // Otherwise, run it, making sure that t_currentTask is null'd out appropriately during the execution
             try
             {
-                if (prevCurrentTask != null) currentTask = null;
+                if (prevCurrentTask is object) currentTask = null;
                 action();
             }
             catch (Exception exception)
@@ -751,7 +751,7 @@ namespace System.Threading.Tasks
             }
             finally
             {
-                if (prevCurrentTask != null) currentTask = prevCurrentTask;
+                if (prevCurrentTask is object) currentTask = prevCurrentTask;
             }
         }
 
@@ -794,7 +794,7 @@ namespace System.Threading.Tasks
             // Otherwise, run it, making sure that t_currentTask is null'd out appropriately during the execution
             try
             {
-                if (prevCurrentTask != null) currentTask = null;
+                if (prevCurrentTask is object) currentTask = null;
                 box.MoveNext();
             }
             catch (Exception exception)
@@ -803,7 +803,7 @@ namespace System.Threading.Tasks
             }
             finally
             {
-                if (prevCurrentTask != null) currentTask = prevCurrentTask;
+                if (prevCurrentTask is object) currentTask = prevCurrentTask;
             }
         }
 
@@ -815,7 +815,7 @@ namespace System.Threading.Tasks
             AwaitTaskContinuation atc = new AwaitTaskContinuation(action, flowExecutionContext: false);
 
             var etwLog = TplEtwProvider.Log;
-            if (etwLog.IsEnabled() && task != null)
+            if (etwLog.IsEnabled() && task is object)
             {
                 atc.m_continuationId = Task.NewId();
                 etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, atc.m_continuationId);

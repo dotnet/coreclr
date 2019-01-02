@@ -24,14 +24,14 @@ namespace System.Collections.Generic
             StringBuilder s = StringBuilderCache.Acquire();
             s.Append('[');
 
-            if (key != null)
+            if (key is object)
             {
                 s.Append(key);
             }
 
             s.Append(", ");
 
-            if (value != null)
+            if (value is object)
             {
                 s.Append(value);
             }

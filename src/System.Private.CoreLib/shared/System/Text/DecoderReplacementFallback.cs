@@ -18,7 +18,7 @@ namespace System.Text
 
         public DecoderReplacementFallback(string replacement)
         {
-            if (replacement == null)
+            if (replacement is null)
                 throw new ArgumentNullException(nameof(replacement));
 
             // Make sure it doesn't have bad surrogate pairs
@@ -85,7 +85,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             DecoderReplacementFallback that = value as DecoderReplacementFallback;
-            if (that != null)
+            if (that is object)
             {
                 return (_strDefault == that._strDefault);
             }

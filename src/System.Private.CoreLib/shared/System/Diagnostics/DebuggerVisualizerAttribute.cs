@@ -26,7 +26,7 @@ namespace System.Diagnostics
 
         public DebuggerVisualizerAttribute(string visualizerTypeName, Type visualizerObjectSource)
         {
-            if (visualizerObjectSource == null)
+            if (visualizerObjectSource is null)
             {
                 throw new ArgumentNullException(nameof(visualizerObjectSource));
             }
@@ -37,7 +37,7 @@ namespace System.Diagnostics
 
         public DebuggerVisualizerAttribute(Type visualizer)
         {
-            if (visualizer == null)
+            if (visualizer is null)
             {
                 throw new ArgumentNullException(nameof(visualizer));
             }
@@ -47,11 +47,11 @@ namespace System.Diagnostics
 
         public DebuggerVisualizerAttribute(Type visualizer, Type visualizerObjectSource)
         {
-            if (visualizer == null)
+            if (visualizer is null)
             {
                 throw new ArgumentNullException(nameof(visualizer));
             }
-            if (visualizerObjectSource == null)
+            if (visualizerObjectSource is null)
             {
                 throw new ArgumentNullException(nameof(visualizerObjectSource));
             }
@@ -62,7 +62,7 @@ namespace System.Diagnostics
 
         public DebuggerVisualizerAttribute(Type visualizer, string visualizerObjectSourceTypeName)
         {
-            if (visualizer == null)
+            if (visualizer is null)
             {
                 throw new ArgumentNullException(nameof(visualizer));
             }
@@ -82,7 +82,7 @@ namespace System.Diagnostics
             get => _target;
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value));
                 }

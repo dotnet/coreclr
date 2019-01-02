@@ -1664,7 +1664,7 @@ namespace System.Globalization
         /// <summary>Common private ParseExactMultiple method called by both ParseExactMultiple and TryParseExactMultiple.</summary>
         private static bool TryParseExactMultipleTimeSpan(ReadOnlySpan<char> input, string[] formats, IFormatProvider formatProvider, TimeSpanStyles styles, ref TimeSpanResult result)
         {
-            if (formats == null)
+            if (formats is null)
             {
                 return result.SetArgumentNullFailure(nameof(formats));
             }

@@ -32,7 +32,7 @@ namespace System
             BindingFlags bindingAttr, MethodBase[] match, ref object[] args,
             ParameterModifier[] modifiers, CultureInfo cultureInfo, string[] names, out object state)
         {
-            if (match == null || match.Length == 0)
+            if (match is null || match.Length == 0)
                 throw new ArgumentException(SR.Arg_EmptyArray, nameof(match));
 
             MethodBase[] candidates = (MethodBase[])match.Clone();
@@ -57,7 +57,7 @@ namespace System
                 // args.Length + 1 takes into account the possibility of a last paramArray that can be omitted
                 paramOrder[i] = new int[(par.Length > args.Length) ? par.Length : args.Length];
 
-                if (names == null)
+                if (names is null)
                 {
                     // Default mapping
                     for (j = 0; j < args.Length; j++)
@@ -186,7 +186,7 @@ namespace System
 #endregion
 
                 Type pCls = null;
-                int argsToCheck = (paramArrayType != null) ? par.Length - 1 : args.Length;
+                int argsToCheck = (paramArrayType is object) ? par.Length - 1 : args.Length;
 
 #region Match method by parameter type
                 for (j = 0; j < argsToCheck; j++)
@@ -240,7 +240,7 @@ namespace System
 #endregion
                 }
 
-                if (paramArrayType != null && j == par.Length - 1)
+                if (paramArrayType is object && j == par.Length - 1)
                 {
 #region Check that excess arguments can be placed in the param array
                     for (; j < args.Length; j++)
@@ -289,7 +289,7 @@ namespace System
             if (CurIdx == 1)
             {
 #region Found only one method
-                if (names != null)
+                if (names is object)
                 {
                     state = new BinderState((int[])paramOrder[0].Clone(), args.Length, paramArrayTypes[0] != null);
                     ReorderParams(paramOrder[0], args);
@@ -370,7 +370,7 @@ namespace System
                 throw new AmbiguousMatchException(SR.Arg_AmbiguousMatchException);
 
             // Reorder (if needed)
-            if (names != null)
+            if (names is object)
             {
                 state = new BinderState((int[])paramOrder[currentMin].Clone(), args.Length, paramArrayTypes[currentMin] != null);
                 ReorderParams(paramOrder[currentMin], args);
@@ -433,7 +433,7 @@ namespace System
         // if value is null then we have no way to select a field
         public sealed override FieldInfo BindToField(BindingFlags bindingAttr, FieldInfo[] match, object value, CultureInfo cultureInfo)
         {
-            if (match == null)
+            if (match is null)
             {
                 throw new ArgumentNullException(nameof(match));
             }
@@ -536,7 +536,7 @@ namespace System
             types = realTypes;
 
             // We don't automatically jump out on exact match.
-            if (match == null || match.Length == 0)
+            if (match is null || match.Length == 0)
                 throw new ArgumentException(SR.Arg_EmptyArray, nameof(match));
 
             MethodBase[] candidates = (MethodBase[])match.Clone();
@@ -618,7 +618,7 @@ namespace System
                     Type[] indexes, ParameterModifier[] modifiers)
         {
             // Allow a null indexes array. But if it is not null, every element must be non-null as well.
-            if (indexes != null)
+            if (indexes is object)
             {
                 foreach (Type index in indexes)
                 {
@@ -627,7 +627,7 @@ namespace System
                 }
             }
 
-            if (match == null || match.Length == 0)
+            if (match is null || match.Length == 0)
                 throw new ArgumentException(SR.Arg_EmptyArray, nameof(match));
 
             PropertyInfo[] candidates = (PropertyInfo[])match.Clone();
@@ -636,10 +636,10 @@ namespace System
 
             // Find all the properties that can be described by type indexes parameter
             int CurIdx = 0;
-            int indexesLength = (indexes != null) ? indexes.Length : 0;
+            int indexesLength = (indexes is object) ? indexes.Length : 0;
             for (i = 0; i < candidates.Length; i++)
             {
-                if (indexes != null)
+                if (indexes is object)
                 {
                     ParameterInfo[] par = candidates[i].GetIndexParameters();
                     if (par.Length != indexesLength)
@@ -671,7 +671,7 @@ namespace System
 
                 if (j == indexesLength)
                 {
-                    if (returnType != null)
+                    if (returnType is object)
                     {
                         if (candidates[i].PropertyType.IsPrimitive)
                         {
@@ -702,7 +702,7 @@ namespace System
             for (i = 1; i < CurIdx; i++)
             {
                 int newMin = FindMostSpecificType(candidates[currentMin].PropertyType, candidates[i].PropertyType, returnType);
-                if (newMin == 0 && indexes != null)
+                if (newMin == 0 && indexes is object)
                     newMin = FindMostSpecific(candidates[currentMin].GetIndexParameters(),
                                               paramOrder,
                                               null,
@@ -773,7 +773,7 @@ namespace System
         //  Binder and is used by RuntimeType.)
         public static MethodBase ExactBinding(MethodBase[] match, Type[] types, ParameterModifier[] modifiers)
         {
-            if (match == null)
+            if (match is null)
                 throw new ArgumentNullException(nameof(match));
 
             MethodBase[] aExactMatches = new MethodBase[match.Length];
@@ -816,11 +816,11 @@ namespace System
         //  Binder and is used by RuntimeType.)
         public static PropertyInfo ExactPropertyBinding(PropertyInfo[] match, Type returnType, Type[] types, ParameterModifier[] modifiers)
         {
-            if (match == null)
+            if (match is null)
                 throw new ArgumentNullException(nameof(match));
 
             PropertyInfo bestMatch = null;
-            int typesLength = (types != null) ? types.Length : 0;
+            int typesLength = (types is object) ? types.Length : 0;
             for (int i = 0; i < match.Length; i++)
             {
                 ParameterInfo[] par = match[i].GetIndexParameters();
@@ -835,7 +835,7 @@ namespace System
                 }
                 if (j < typesLength)
                     continue;
-                if (returnType != null && returnType != match[i].PropertyType)
+                if (returnType is object && returnType != match[i].PropertyType)
                     continue;
 
                 if (bestMatch is null)
@@ -866,7 +866,7 @@ namespace System
 
             for (int i = 0; i < types.Length; i++)
             {
-                if (args != null && args[i] == Type.Missing)
+                if (args is object && args[i] == Type.Missing)
                     continue;
 
                 Type c1, c2;
@@ -908,7 +908,7 @@ namespace System
             {
                 // if we cannot tell which is a better match based on parameter types (p1Less == p2Less),
                 // let's see which one has the most matches without using the params array (the longer one wins).
-                if (!p1Less && args != null)
+                if (!p1Less && args is object)
                 {
                     if (p1.Length > p2.Length)
                     {
@@ -1112,7 +1112,7 @@ namespace System
             {
                 depth++;
                 currentType = currentType.BaseType;
-            } while (currentType != null);
+            } while (currentType is object);
 
             return depth;
         }

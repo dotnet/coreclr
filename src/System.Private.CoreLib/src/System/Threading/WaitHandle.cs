@@ -72,7 +72,7 @@ namespace System.Threading
         [Obsolete("Use the SafeWaitHandle property instead.")]
         public virtual IntPtr Handle
         {
-            get { return _waitHandle == null ? InvalidHandle : _waitHandle.DangerousGetHandle(); }
+            get { return _waitHandle is null ? InvalidHandle : _waitHandle.DangerousGetHandle(); }
             set
             {
                 if (value == InvalidHandle)
@@ -83,7 +83,7 @@ namespace System.Threading
                     // ideally do these things:
                     // *) Expose a settable SafeHandle property on WaitHandle.
                     // *) Expose a settable OwnsHandle property on SafeHandle.
-                    if (_waitHandle != null)
+                    if (_waitHandle is object)
                     {
                         _waitHandle.SetHandleAsInvalid();
                         _waitHandle = null;
@@ -101,7 +101,7 @@ namespace System.Threading
         {
             get
             {
-                if (_waitHandle == null)
+                if (_waitHandle is null)
                 {
                     _waitHandle = new SafeWaitHandle(InvalidHandle, false);
                 }
@@ -118,7 +118,7 @@ namespace System.Threading
                 try { }
                 finally
                 {
-                    if (value == null)
+                    if (value is null)
                     {
                         _waitHandle = null;
                         waitHandle = InvalidHandle;
@@ -175,7 +175,7 @@ namespace System.Threading
 
         internal static bool InternalWaitOne(SafeHandle waitableSafeHandle, long millisecondsTimeout, bool hasThreadAffinity, bool exitContext)
         {
-            if (waitableSafeHandle == null)
+            if (waitableSafeHandle is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_Generic);
             }
@@ -192,7 +192,7 @@ namespace System.Threading
         {
             // version of waitone without fast application switch (FAS) support
             // This is required to support the Wait which FAS needs (otherwise recursive dependency comes in)
-            if (_waitHandle == null)
+            if (_waitHandle is null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_Generic);
             }
@@ -223,7 +223,7 @@ namespace System.Threading
 
         public static bool WaitAll(WaitHandle[] waitHandles, int millisecondsTimeout, bool exitContext)
         {
-            if (waitHandles == null)
+            if (waitHandles is null)
             {
                 throw new ArgumentNullException(nameof(waitHandles), SR.ArgumentNull_Waithandles);
             }
@@ -253,7 +253,7 @@ namespace System.Threading
             {
                 WaitHandle waitHandle = waitHandles[i];
 
-                if (waitHandle == null)
+                if (waitHandle is null)
                     throw new ArgumentNullException("waitHandles[" + i + "]", SR.ArgumentNull_ArrayElement);
 
                 internalWaitHandles[i] = waitHandle;
@@ -321,7 +321,7 @@ namespace System.Threading
 
         public static int WaitAny(WaitHandle[] waitHandles, int millisecondsTimeout, bool exitContext)
         {
-            if (waitHandles == null)
+            if (waitHandles is null)
             {
                 throw new ArgumentNullException(nameof(waitHandles), SR.ArgumentNull_Waithandles);
             }
@@ -342,7 +342,7 @@ namespace System.Threading
             {
                 WaitHandle waitHandle = waitHandles[i];
 
-                if (waitHandle == null)
+                if (waitHandle is null)
                     throw new ArgumentNullException("waitHandles[" + i + "]", SR.ArgumentNull_ArrayElement);
 
                 internalWaitHandles[i] = waitHandle;
@@ -493,7 +493,7 @@ namespace System.Threading
 
         protected virtual void Dispose(bool explicitDisposing)
         {
-            if (_waitHandle != null)
+            if (_waitHandle is object)
             {
                 _waitHandle.Close();
             }

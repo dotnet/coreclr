@@ -33,7 +33,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_syncRoot == null)
+                if (m_syncRoot is null)
                 {
                     Interlocked.CompareExchange<object>(ref m_syncRoot, new object(), null);
                 }
@@ -92,7 +92,7 @@ namespace System.Reflection
                     null); // strong name key pair
 
             Module manifestModule = ManifestModule;
-            if (manifestModule != null)
+            if (manifestModule is object)
             {
                 if (manifestModule.MDStreamVersion > 0x10000)
                 {
@@ -111,7 +111,7 @@ namespace System.Reflection
             get
             {
                 // If called by Object.ToString(), return val may be NULL.
-                if (m_fullname == null)
+                if (m_fullname is null)
                 {
                     string s = null;
                     GetFullName(GetNativeHandle(), JitHelpers.GetStringHandleOnStack(ref s));
@@ -132,7 +132,7 @@ namespace System.Reflection
                 IRuntimeMethodInfo methodHandle = null;
                 GetEntryPoint(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref methodHandle));
 
-                if (methodHandle == null)
+                if (methodHandle is null)
                     return null;
 
                 return (MethodInfo)RuntimeType.GetMethodBase(methodHandle);
@@ -150,7 +150,7 @@ namespace System.Reflection
         public override Type GetType(string name, bool throwOnError, bool ignoreCase)
         {
             // throw on null strings regardless of the value of "throwOnError"
-            if (name == null)
+            if (name is null)
                 throw new ArgumentNullException(nameof(name));
 
             RuntimeType type = null;
@@ -232,12 +232,12 @@ namespace System.Reflection
 
         public override object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -245,12 +245,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
@@ -276,7 +276,7 @@ namespace System.Reflection
             RuntimeAssembly assembly;
             AssemblyName an = CreateAssemblyName(assemblyString, out assembly);
 
-            if (assembly != null)
+            if (assembly is object)
             {
                 // The assembly was returned from ResolveAssemblyEvent
                 return assembly;
@@ -292,7 +292,7 @@ namespace System.Reflection
             string assemblyString,
             out RuntimeAssembly assemblyFromResolveEvent)
         {
-            if (assemblyString == null)
+            if (assemblyString is null)
                 throw new ArgumentNullException(nameof(assemblyString));
 
             if ((assemblyString.Length == 0) ||
@@ -326,13 +326,13 @@ namespace System.Reflection
             bool throwOnFileNotFound,
             IntPtr ptrLoadContextBinder = default)
         {
-            if (assemblyRef == null)
+            if (assemblyRef is null)
                 throw new ArgumentNullException(nameof(assemblyRef));
 
 #if FEATURE_APPX
             if (ApplicationModel.IsUap)
             {
-                if (assemblyRef.CodeBase != null)
+                if (assemblyRef.CodeBase is object)
                 {
                     throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFrom"));
                 }
@@ -387,7 +387,7 @@ namespace System.Reflection
         public override FileStream GetFile(string name)
         {
             RuntimeModule m = (RuntimeModule)GetModule(name);
-            if (m == null)
+            if (m is null)
                 return null;
 
             return new FileStream(m.GetFullyQualifiedName(),
@@ -500,7 +500,7 @@ namespace System.Reflection
 
         private static string VerifyCodeBase(string codebase)
         {
-            if (codebase == null)
+            if (codebase is null)
                 return null;
 
             int len = codebase.Length;
@@ -533,23 +533,23 @@ namespace System.Reflection
             ref StackCrawlMark stackMark)
         {
             StringBuilder sb = new StringBuilder();
-            if (type == null)
+            if (type is null)
             {
-                if (name == null)
+                if (name is null)
                     throw new ArgumentNullException(nameof(type));
             }
             else
             {
                 string nameSpace = type.Namespace;
-                if (nameSpace != null)
+                if (nameSpace is object)
                 {
                     sb.Append(nameSpace);
-                    if (name != null)
+                    if (name is object)
                         sb.Append(Type.Delimiter);
                 }
             }
 
-            if (name != null)
+            if (name is object)
                 sb.Append(name);
 
             return GetManifestResourceStream(sb.ToString(), ref stackMark, skipSecurityCheck);
@@ -604,7 +604,7 @@ namespace System.Reflection
 
             GetLocale(GetNativeHandle(), JitHelpers.GetStringHandleOnStack(ref locale));
 
-            if (locale == null)
+            if (locale is null)
                 return CultureInfo.InvariantCulture;
 
             return new CultureInfo(locale);
@@ -661,13 +661,13 @@ namespace System.Reflection
         private RuntimeModule OnModuleResolveEvent(string moduleName)
         {
             ModuleResolveEventHandler moduleResolve = _ModuleResolve;
-            if (moduleResolve == null)
+            if (moduleResolve is null)
                 return null;
 
             foreach (ModuleResolveEventHandler handler in moduleResolve.GetInvocationList())
             {
                 RuntimeModule ret = (RuntimeModule)handler(this, new ResolveEventArgs(moduleName, this));
-                if (ret != null)
+                if (ret is object)
                     return ret;
             }
 
@@ -694,7 +694,7 @@ namespace System.Reflection
                                                        Version version,
                                                        ref StackCrawlMark stackMark)
         {
-            if (culture == null)
+            if (culture is null)
                 throw new ArgumentNullException(nameof(culture));
 
 
@@ -714,7 +714,7 @@ namespace System.Reflection
             an.SetPublicKey(GetPublicKey());
             an.Flags = GetFlags() | AssemblyNameFlags.PublicKey;
 
-            if (version == null)
+            if (version is null)
                 an.Version = GetVersion();
             else
                 an.Version = version;
@@ -726,7 +726,7 @@ namespace System.Reflection
                                 IntPtr.Zero,
                                 throwOnFileNotFound);
 
-            if (retAssembly == this || (retAssembly == null && throwOnFileNotFound))
+            if (retAssembly == this || (retAssembly is null && throwOnFileNotFound))
             {
                 throw new FileNotFoundException(string.Format(culture, SR.IO_FileNotFound_FileName, an.Name));
             }
@@ -780,7 +780,7 @@ namespace System.Reflection
                 try
                 {
                     GetForwardedType(this, mdtExternalType, pType);
-                    if (type == null)
+                    if (type is null)
                         continue;  // mdtExternalType was not a forwarder entry.
                 }
                 catch (Exception e)
@@ -791,7 +791,7 @@ namespace System.Reflection
 
                 Debug.Assert((type != null) != (exception != null)); // Exactly one of these must be non-null.
 
-                if (type != null)
+                if (type is object)
                 {
                     types.Add(type);
                     AddPublicNestedTypes(type, types, exceptions);

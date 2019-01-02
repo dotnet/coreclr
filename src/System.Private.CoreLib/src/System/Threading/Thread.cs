@@ -58,7 +58,7 @@ namespace System.Threading
         {
             _startArg = obj;
             ExecutionContext context = _executionContext;
-            if (context != null)
+            if (context is object)
             {
                 ExecutionContext.RunInternal(context, _ccb, (object)this);
             }
@@ -72,7 +72,7 @@ namespace System.Threading
         internal void ThreadStart()
         {
             ExecutionContext context = _executionContext;
-            if (context != null)
+            if (context is object)
             {
                 ExecutionContext.RunInternal(context, _ccb, (object)this);
             }
@@ -145,7 +145,7 @@ namespace System.Threading
         =========================================================================*/
         public Thread(ThreadStart start)
         {
-            if (start == null)
+            if (start is null)
             {
                 throw new ArgumentNullException(nameof(start));
             }
@@ -154,7 +154,7 @@ namespace System.Threading
 
         internal Thread(ThreadStart start, int maxStackSize)
         {
-            if (start == null)
+            if (start is null)
             {
                 throw new ArgumentNullException(nameof(start));
             }
@@ -164,7 +164,7 @@ namespace System.Threading
         }
         public Thread(ParameterizedThreadStart start)
         {
-            if (start == null)
+            if (start is null)
             {
                 throw new ArgumentNullException(nameof(start));
             }
@@ -173,7 +173,7 @@ namespace System.Threading
 
         internal Thread(ParameterizedThreadStart start, int maxStackSize)
         {
-            if (start == null)
+            if (start is null)
             {
                 throw new ArgumentNullException(nameof(start));
             }
@@ -240,7 +240,7 @@ namespace System.Threading
             // Attach current thread's security principal object to the new
             // thread. Be careful not to bind the current thread to a principal
             // if it's not already bound.
-            if (m_Delegate != null)
+            if (m_Delegate is object)
             {
                 // If we reach here with a null delegate, something is broken. But we'll let the StartInternal method take care of
                 // reporting an error. Just make sure we don't try to dereference a null delegate.
@@ -415,7 +415,7 @@ namespace System.Threading
                 // If you add more pre-conditions to this method, check to see if you also need to 
                 // add them to CultureInfo.DefaultThreadCurrentUICulture.set.
 
-                if (CultureInfo.s_currentThreadUICulture == null && CultureInfo.s_currentThreadCulture == null)
+                if (CultureInfo.s_currentThreadUICulture is null && CultureInfo.s_currentThreadCulture is null)
                     nativeInitCultureAccessors();
 
                 CultureInfo.CurrentUICulture = value;
@@ -448,7 +448,7 @@ namespace System.Threading
                 // If you add more pre-conditions to this method, check to see if you also need to 
                 // add them to CultureInfo.DefaultThreadCurrentCulture.set.
 
-                if (CultureInfo.s_currentThreadUICulture == null && CultureInfo.s_currentThreadCulture == null)
+                if (CultureInfo.s_currentThreadUICulture is null && CultureInfo.s_currentThreadCulture is null)
                     nativeInitCultureAccessors();
                 
                 CultureInfo.CurrentCulture = value;
@@ -479,11 +479,11 @@ namespace System.Threading
             {
                 lock (this)
                 {
-                    if (m_Name != null)
+                    if (m_Name is object)
                         throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
                     m_Name = value;
 
-                    InformThreadNameChange(GetNativeHandle(), value, (value != null) ? value.Length : 0);
+                    InformThreadNameChange(GetNativeHandle(), value, (value is object) ? value.Length : 0);
                 }
             }
         }

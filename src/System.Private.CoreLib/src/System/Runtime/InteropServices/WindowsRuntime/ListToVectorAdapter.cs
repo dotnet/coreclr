@@ -64,7 +64,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // Note: This list is not really read-only - you could QI for a modifiable
             // list.  We gain some perf by doing this.  We believe this is acceptable.
             IReadOnlyList<T> roList = _this as IReadOnlyList<T>;
-            if (roList == null)
+            if (roList is null)
             {
                 roList = new ReadOnlyCollection<T>(_this);
             }
@@ -184,7 +184,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             IList<T> _this = Unsafe.As<IList<T>>(this);
             _this.Clear();
 
-            if (items != null)
+            if (items is object)
             {
                 foreach (T item in items)
                 {
@@ -218,7 +218,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             EnsureIndexInt32(startIndex, sourceList.Count);
 
-            if (items == null)
+            if (items is null)
             {
                 return 0;
             }

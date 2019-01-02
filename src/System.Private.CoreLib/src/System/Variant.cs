@@ -289,7 +289,7 @@ namespace System
                 return;
             }
 
-            if (obj == null)
+            if (obj is null)
             {
                 this = Empty;
                 return;
@@ -345,7 +345,7 @@ namespace System
                 obj = (object)(((BStrWrapper)obj).WrappedObject);
             }
 
-            if (obj != null)
+            if (obj is object)
             {
                 SetFieldsObject(obj);
             }
@@ -424,11 +424,11 @@ namespace System
         {
             IConvertible ic = o as IConvertible;
 
-            if (o == null)
+            if (o is null)
             {
                 v = Empty;
             }
-            else if (ic == null)
+            else if (ic is null)
             {
                 // This path should eventually go away. But until
                 // the work is done to have all of our wrapper types implement
@@ -531,7 +531,7 @@ namespace System
         internal static void MarshalHelperCastVariant(object pValue, int vt, ref Variant v)
         {
             IConvertible iv = pValue as IConvertible;
-            if (iv == null)
+            if (iv is null)
             {
                 switch (vt)
                 {
@@ -552,7 +552,7 @@ namespace System
                         break;
 
                     case 8: /*VT_BSTR*/
-                        if (pValue == null)
+                        if (pValue is null)
                         {
                             v = new Variant(null);
                             v.m_flags = CV_STRING;

@@ -43,7 +43,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span(T[] array)
         {
-            if (array == null)
+            if (array is null)
             {
                 this = default;
                 return; // returns default
@@ -70,7 +70,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span(T[] array, int start, int length)
         {
-            if (array == null)
+            if (array is null)
             {
                 if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException();

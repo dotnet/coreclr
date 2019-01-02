@@ -17,7 +17,7 @@ namespace System.Reflection
             if (genericTypeDefinition is null)
                 throw new ArgumentNullException(nameof(genericTypeDefinition));
 
-            if (typeArguments == null)
+            if (typeArguments is null)
                 throw new ArgumentNullException(nameof(typeArguments));
 
             typeArguments = (Type[])(typeArguments.Clone());

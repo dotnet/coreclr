@@ -51,7 +51,7 @@ namespace System.Threading.Tasks
                 // For asynchronous completion we need to schedule a callback.  Whether we can use the Task as the IAsyncResult
                 // depends on whether the Task's AsyncState has reference equality with the requested state.
                 asyncResult = task.AsyncState == state ? (IAsyncResult)task : new TaskWrapperAsyncResult(task, state, completedSynchronously: false);
-                if (callback != null)
+                if (callback is object)
                 {
                     InvokeCallbackWhenTaskCompletes(task, callback, asyncResult);
                 }
@@ -67,7 +67,7 @@ namespace System.Threading.Tasks
 
             // If the IAsyncResult is our task-wrapping IAsyncResult, extract the Task.
             var twar = asyncResult as TaskWrapperAsyncResult;
-            if (twar != null)
+            if (twar is object)
             {
                 task = twar.Task;
                 Debug.Assert(task != null, "TaskWrapperAsyncResult should never wrap a null Task.");
@@ -79,7 +79,7 @@ namespace System.Threading.Tasks
             }
 
             // Make sure we actually got a task, then complete the operation by waiting on it.
-            if (task == null)
+            if (task is null)
             {
                 throw new ArgumentNullException();
             }
@@ -95,7 +95,7 @@ namespace System.Threading.Tasks
 
             // If the IAsyncResult is our task-wrapping IAsyncResult, extract the Task.
             var twar = asyncResult as TaskWrapperAsyncResult;
-            if (twar != null)
+            if (twar is object)
             {
                 task = twar.Task as Task<TResult>;
                 Debug.Assert(twar.Task != null, "TaskWrapperAsyncResult should never wrap a null Task.");
@@ -107,7 +107,7 @@ namespace System.Threading.Tasks
             }
 
             // Make sure we actually got a task, then complete the operation by waiting on it.
-            if (task == null)
+            if (task is null)
             {
                 throw new ArgumentNullException();
             }

@@ -12,7 +12,7 @@ namespace System.Collections.Generic
 
         public ICollectionDebugView(ICollection<T> collection)
         {
-            if (collection == null)
+            if (collection is null)
             {
                 throw new ArgumentNullException(nameof(collection));
             }

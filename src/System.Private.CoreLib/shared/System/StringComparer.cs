@@ -90,7 +90,7 @@ namespace System
 
         public static StringComparer Create(CultureInfo culture, bool ignoreCase)
         {
-            if (culture == null)
+            if (culture is null)
             {
                 throw new ArgumentNullException(nameof(culture));
             }
@@ -100,7 +100,7 @@ namespace System
 
         public static StringComparer Create(CultureInfo culture, CompareOptions options)
         {
-            if (culture == null)
+            if (culture is null)
             {
                 throw new ArgumentException(nameof(culture));
             }
@@ -111,21 +111,21 @@ namespace System
         public int Compare(object x, object y)
         {
             if (x == y) return 0;
-            if (x == null) return -1;
-            if (y == null) return 1;
+            if (x is null) return -1;
+            if (y is null) return 1;
 
             string sa = x as string;
-            if (sa != null)
+            if (sa is object)
             {
                 string sb = y as string;
-                if (sb != null)
+                if (sb is object)
                 {
                     return Compare(sa, sb);
                 }
             }
 
             IComparable ia = x as IComparable;
-            if (ia != null)
+            if (ia is object)
             {
                 return ia.CompareTo(y);
             }
@@ -136,13 +136,13 @@ namespace System
         public new bool Equals(object x, object y)
         {
             if (x == y) return true;
-            if (x == null || y == null) return false;
+            if (x is null || y is null) return false;
 
             string sa = x as string;
-            if (sa != null)
+            if (sa is object)
             {
                 string sb = y as string;
-                if (sb != null)
+                if (sb is object)
                 {
                     return Equals(sa, sb);
                 }
@@ -152,13 +152,13 @@ namespace System
 
         public int GetHashCode(object obj)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 throw new ArgumentNullException(nameof(obj));
             }
 
             string s = obj as string;
-            if (s != null)
+            if (s is object)
             {
                 return GetHashCode(s);
             }
@@ -198,7 +198,7 @@ namespace System
             bool ignoreCase = info.GetBoolean("_ignoreCase");
 
             var obj = info.GetValueNoThrow("_options", typeof(CompareOptions));
-            if (obj != null)
+            if (obj is object)
                 _options = (CompareOptions)obj;
 
             // fix up the _options value in case we are getting old serialized object not having _options
@@ -208,21 +208,21 @@ namespace System
         public override int Compare(string x, string y)
         {
             if (object.ReferenceEquals(x, y)) return 0;
-            if (x == null) return -1;
-            if (y == null) return 1;
+            if (x is null) return -1;
+            if (y is null) return 1;
             return _compareInfo.Compare(x, y, _options);
         }
 
         public override bool Equals(string x, string y)
         {
             if (object.ReferenceEquals(x, y)) return true;
-            if (x == null || y == null) return false;
+            if (x is null || y is null) return false;
             return _compareInfo.Compare(x, y, _options) == 0;
         }
 
         public override int GetHashCode(string obj)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 throw new ArgumentNullException(nameof(obj));
             }
@@ -234,7 +234,7 @@ namespace System
         {
             CultureAwareComparer comparer = obj as CultureAwareComparer;
             return
-                comparer != null &&
+                comparer is object &&
                 _options == comparer._options &&
                 _compareInfo.Equals(comparer._compareInfo);
         }
@@ -267,9 +267,9 @@ namespace System
         {
             if (ReferenceEquals(x, y))
                 return 0;
-            if (x == null)
+            if (x is null)
                 return -1;
-            if (y == null)
+            if (y is null)
                 return 1;
 
             if (_ignoreCase)
@@ -284,7 +284,7 @@ namespace System
         {
             if (ReferenceEquals(x, y))
                 return true;
-            if (x == null || y == null)
+            if (x is null || y is null)
                 return false;
 
             if (_ignoreCase)
@@ -300,7 +300,7 @@ namespace System
 
         public override int GetHashCode(string obj)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
             }
@@ -317,7 +317,7 @@ namespace System
         public override bool Equals(object obj)
         {
             OrdinalComparer comparer = obj as OrdinalComparer;
-            if (comparer == null)
+            if (comparer is null)
             {
                 return false;
             }
@@ -344,7 +344,7 @@ namespace System
 
         public override int GetHashCode(string obj)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
             }
@@ -389,7 +389,7 @@ namespace System
 
         public override int GetHashCode(string obj)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
             }

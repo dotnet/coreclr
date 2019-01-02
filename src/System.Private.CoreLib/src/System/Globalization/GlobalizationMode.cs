@@ -19,7 +19,7 @@ namespace System.Globalization
             {
                 // Linux doesn't support environment variable names include dots
                 string switchValue = Environment.GetEnvironmentVariable("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT");
-                if (switchValue != null)
+                if (switchValue is object)
                 {
                     ret = bool.IsTrueStringIgnoreCase(switchValue) || switchValue.Equals("1");
                 }

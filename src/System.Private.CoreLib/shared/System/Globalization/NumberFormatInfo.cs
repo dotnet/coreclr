@@ -84,7 +84,7 @@ namespace System.Globalization
 
         private static void VerifyDecimalSeparator(string decSep, string propertyName)
         {
-            if (decSep == null)
+            if (decSep is null)
             {
                 throw new ArgumentNullException(propertyName,
                         SR.ArgumentNull_String);
@@ -98,7 +98,7 @@ namespace System.Globalization
 
         private static void VerifyGroupSeparator(string groupSep, string propertyName)
         {
-            if (groupSep == null)
+            if (groupSep is null)
             {
                 throw new ArgumentNullException(propertyName,
                         SR.ArgumentNull_String);
@@ -107,7 +107,7 @@ namespace System.Globalization
 
         private static void VerifyNativeDigits(string[] nativeDig, string propertyName)
         {
-            if (nativeDig == null)
+            if (nativeDig is null)
             {
                 throw new ArgumentNullException(propertyName, SR.ArgumentNull_Array);
             }
@@ -172,7 +172,7 @@ namespace System.Globalization
 
         internal NumberFormatInfo(CultureData cultureData)
         {
-            if (cultureData != null)
+            if (cultureData is object)
             {
                 // We directly use fields here since these data is coming from data table or Win32, so we
                 // don't need to verify their values (except for invalid parsing situations).
@@ -199,7 +199,7 @@ namespace System.Globalization
         {
             get
             {
-                if (s_invariantInfo == null)
+                if (s_invariantInfo is null)
                 {
                     // Lazy create the invariant info. This cannot be done in a .cctor because exceptions can
                     // be thrown out of a .cctor stack that will need this.
@@ -214,7 +214,7 @@ namespace System.Globalization
 
         public static NumberFormatInfo GetInstance(IFormatProvider formatProvider)
         {
-            return formatProvider == null ?
+            return formatProvider is null ?
                 CurrentInfo : // Fast path for a null provider
                 GetProviderNonNull(formatProvider);
 
@@ -314,7 +314,7 @@ namespace System.Globalization
             }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(CurrencyGroupSizes));
                 }
@@ -336,7 +336,7 @@ namespace System.Globalization
             }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(NumberGroupSizes));
                 }
@@ -357,7 +357,7 @@ namespace System.Globalization
             }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(PercentGroupSizes));
                 }
@@ -386,7 +386,7 @@ namespace System.Globalization
             get { return currencySymbol; }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(CurrencySymbol),
                         SR.ArgumentNull_String);
@@ -407,7 +407,7 @@ namespace System.Globalization
                 if (!culture._isInherited)
                 {
                     NumberFormatInfo info = culture._numInfo;
-                    if (info != null)
+                    if (info is object)
                     {
                         return info;
                     }
@@ -425,7 +425,7 @@ namespace System.Globalization
             }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(NaNSymbol),
                         SR.ArgumentNull_String);
@@ -538,7 +538,7 @@ namespace System.Globalization
             }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(NegativeInfinitySymbol),
                         SR.ArgumentNull_String);
@@ -554,7 +554,7 @@ namespace System.Globalization
             get { return negativeSign; }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(NegativeSign),
                         SR.ArgumentNull_String);
@@ -640,7 +640,7 @@ namespace System.Globalization
             }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(PositiveInfinitySymbol),
                         SR.ArgumentNull_String);
@@ -656,7 +656,7 @@ namespace System.Globalization
             get { return positiveSign; }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(PositiveSign),
                         SR.ArgumentNull_String);
@@ -721,7 +721,7 @@ namespace System.Globalization
             }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(PercentSymbol),
                         SR.ArgumentNull_String);
@@ -737,7 +737,7 @@ namespace System.Globalization
             get { return perMilleSymbol; }
             set
             {
-                if (value == null)
+                if (value is null)
                 {
                     throw new ArgumentNullException(nameof(PerMilleSymbol),
                         SR.ArgumentNull_String);
@@ -776,7 +776,7 @@ namespace System.Globalization
 
         public static NumberFormatInfo ReadOnly(NumberFormatInfo nfi)
         {
-            if (nfi == null)
+            if (nfi is null)
             {
                 throw new ArgumentNullException(nameof(nfi));
             }

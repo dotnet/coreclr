@@ -79,7 +79,7 @@ namespace System.Buffers
         /// <summary>
         /// Converts a classic .NET format string into a StandardFormat
         /// </summary>
-        public static StandardFormat Parse(string format) => format == null ? default : Parse(format.AsSpan());
+        public static StandardFormat Parse(string format) => format is null ? default : Parse(format.AsSpan());
 
         /// <summary>
         /// Tries to convert a <see cref="ReadOnlySpan{Char}"/> into a StandardFormat. A return value indicates whether the conversion succeeded or failed.

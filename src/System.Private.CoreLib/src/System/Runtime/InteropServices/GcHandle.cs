@@ -206,7 +206,7 @@ namespace System.Runtime.InteropServices
             GCHandle hnd;
 
             // Check that o is a GCHandle first
-            if (o == null || !(o is GCHandle))
+            if (o is null || !(o is GCHandle))
                 return false;
             else
                 hnd = (GCHandle)o;

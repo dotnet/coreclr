@@ -135,7 +135,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
             }
 
-            if (value == null)
+            if (value is null)
             {
                 value = string.Empty;
             }
@@ -194,7 +194,7 @@ namespace System.Text
 
         private StringBuilder(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
@@ -227,7 +227,7 @@ namespace System.Text
             }
 
             // Check values and set defaults
-            if (persistedString == null)
+            if (persistedString is null)
             {
                 persistedString = string.Empty;
             }
@@ -258,7 +258,7 @@ namespace System.Text
 
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
@@ -289,7 +289,7 @@ namespace System.Text
                 Debug.Assert(currentBlock.m_ChunkOffset >= 0);
 
                 StringBuilder prevBlock = currentBlock.m_ChunkPrevious;
-                if (prevBlock == null)
+                if (prevBlock is null)
                 {
                     Debug.Assert(currentBlock.m_ChunkOffset == 0);
                     break;
@@ -390,7 +390,7 @@ namespace System.Text
                         }
                         chunk = chunk.m_ChunkPrevious;
                     }
-                    while (chunk != null);
+                    while (chunk is object);
 
                     return result;
                 }
@@ -462,7 +462,7 @@ namespace System.Text
                     throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_SmallCapacity);
                 }
 
-                if (value == 0 && m_ChunkPrevious == null)
+                if (value == 0 && m_ChunkPrevious is null)
                 {
                     m_ChunkLength = 0;
                     m_ChunkOffset = 0;
@@ -527,7 +527,7 @@ namespace System.Text
                         return chunk.m_ChunkChars[indexInBlock];
                     }
                     chunk = chunk.m_ChunkPrevious;
-                    if (chunk == null)
+                    if (chunk is null)
                     {
                         throw new IndexOutOfRangeException();
                     }
@@ -549,7 +549,7 @@ namespace System.Text
                         return;
                     }
                     chunk = chunk.m_ChunkPrevious;
-                    if (chunk == null)
+                    if (chunk is null)
                     {
                         throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
                     }
@@ -612,7 +612,7 @@ namespace System.Text
                 if (_currentChunk == _firstChunk)
                     return false;
 
-                if (_manyChunks != null)
+                if (_manyChunks is object)
                     return _manyChunks.MoveNext(ref _currentChunk);
 
                 StringBuilder next = _firstChunk;
@@ -649,7 +649,7 @@ namespace System.Text
             private static int ChunkCount(StringBuilder stringBuilder)
             {
                 int ret = 0;
-                while (stringBuilder != null)
+                while (stringBuilder is object)
                 {
                     ret++;
                     stringBuilder = stringBuilder.m_ChunkPrevious;
@@ -753,7 +753,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(charCount), SR.ArgumentOutOfRange_GenericPositive);
             }
 
-            if (value == null)
+            if (value is null)
             {
                 if (startIndex == 0 && charCount == 0)
                 {
@@ -789,7 +789,7 @@ namespace System.Text
         /// <param name="value">The string to append.</param>
         public StringBuilder Append(string value)
         {
-            if (value != null)
+            if (value is object)
             {
                 // We could have just called AppendHelper here; this is a hand-specialization of that code.
                 char[] chunkChars = m_ChunkChars;
@@ -859,7 +859,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_GenericPositive);
             }
 
-            if (value == null)
+            if (value is null)
             {
                 if (startIndex == 0 && count == 0)
                 {
@@ -890,7 +890,7 @@ namespace System.Text
 
         public StringBuilder Append(StringBuilder value)
         {
-            if (value != null && value.Length != 0)
+            if (value is object && value.Length != 0)
             {
                 return AppendCore(value, 0, value.Length);
             }
@@ -909,7 +909,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_GenericPositive);
             }
 
-            if (value == null)
+            if (value is null)
             {
                 if (startIndex == 0 && count == 0)
                 {
@@ -971,7 +971,7 @@ namespace System.Text
 
         public void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count)
         {
-            if (destination == null)
+            if (destination is null)
             {
                 throw new ArgumentNullException(nameof(destination));
             }
@@ -1179,7 +1179,7 @@ namespace System.Text
             return Append(value.ToString());
         }
 
-        public StringBuilder Append(object value) => (value == null) ? this : Append(value.ToString());
+        public StringBuilder Append(object value) => (value is null) ? this : Append(value.ToString());
 
         public StringBuilder Append(char[] value)
         {
@@ -1262,7 +1262,7 @@ namespace System.Text
             Debug.Assert(separator != null);
             Debug.Assert(separatorLength >= 0);
 
-            if (values == null)
+            if (values is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.values);
             }
@@ -1275,7 +1275,7 @@ namespace System.Text
                 }
 
                 var value = en.Current;
-                if (value != null)
+                if (value is object)
                 {
                     Append(value.ToString());
                 }
@@ -1284,7 +1284,7 @@ namespace System.Text
                 {
                     Append(separator, separatorLength);
                     value = en.Current;
-                    if (value != null)
+                    if (value is object)
                     {
                         Append(value.ToString());
                     }
@@ -1295,7 +1295,7 @@ namespace System.Text
 
         private unsafe StringBuilder AppendJoinCore<T>(char* separator, int separatorLength, T[] values)
         {
-            if (values == null)
+            if (values is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.values);
             }
@@ -1330,7 +1330,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
 
-            if (value != null)
+            if (value is object)
             {
                 unsafe
                 {
@@ -1366,7 +1366,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
 
-            if (value != null)
+            if (value is object)
                 Insert(index, value, 0, value.Length);
             return this;
         }
@@ -1379,7 +1379,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
 
-            if (value == null)
+            if (value is null)
             {
                 if (startIndex == 0 && charCount == 0)
                 {
@@ -1433,7 +1433,7 @@ namespace System.Text
         [CLSCompliant(false)]
         public StringBuilder Insert(int index, ulong value) => Insert(index, value.ToString(), 1);
 
-        public StringBuilder Insert(int index, object value) => (value == null) ? this : Insert(index, value.ToString(), 1);
+        public StringBuilder Insert(int index, object value) => (value is null) ? this : Insert(index, value.ToString(), 1);
 
         public StringBuilder Insert(int index, ReadOnlySpan<char> value)
         {
@@ -1461,11 +1461,11 @@ namespace System.Text
 
         public StringBuilder AppendFormat(string format, params object[] args)
         {
-            if (args == null)
+            if (args is null)
             {
                 // To preserve the original exception behavior, throw an exception about format if both
                 // args and format are null. The actual null check for format is in AppendFormatHelper.
-                string paramName = (format == null) ? nameof(format) : nameof(args);
+                string paramName = (format is null) ? nameof(format) : nameof(args);
                 throw new ArgumentNullException(paramName);
             }
 
@@ -1480,11 +1480,11 @@ namespace System.Text
 
         public StringBuilder AppendFormat(IFormatProvider provider, string format, params object[] args)
         {
-            if (args == null)
+            if (args is null)
             {
                 // To preserve the original exception behavior, throw an exception about format if both
                 // args and format are null. The actual null check for format is in AppendFormatHelper.
-                string paramName = (format == null) ? nameof(format) : nameof(args);
+                string paramName = (format is null) ? nameof(format) : nameof(args);
                 throw new ArgumentNullException(paramName);
             }
 
@@ -1502,7 +1502,7 @@ namespace System.Text
 
         internal StringBuilder AppendFormatHelper(IFormatProvider provider, string format, ParamsArray args)
         {
-            if (format == null)
+            if (format is null)
             {
                 throw new ArgumentNullException(nameof(format));
             }
@@ -1513,7 +1513,7 @@ namespace System.Text
             StringBuilder unescapedItemFormat = null;
 
             ICustomFormatter cf = null;
-            if (provider != null)
+            if (provider is object)
             {
                 cf = (ICustomFormatter)provider.GetFormat(typeof(ICustomFormatter));
             }
@@ -1679,7 +1679,7 @@ namespace System.Text
 
                             // Reaching here means the brace has been escaped
                             // so we need to build up the format string in segments
-                            if (unescapedItemFormat == null)
+                            if (unescapedItemFormat is null)
                             {
                                 unescapedItemFormat = new StringBuilder();
                             }
@@ -1688,7 +1688,7 @@ namespace System.Text
                         }
                     }
 
-                    if (unescapedItemFormat == null || unescapedItemFormat.Length == 0)
+                    if (unescapedItemFormat is null || unescapedItemFormat.Length == 0)
                     {
                         if (startPos != pos)
                         {
@@ -1708,16 +1708,16 @@ namespace System.Text
                 // Construct the output for this arg hole.
                 pos++;
                 string s = null;
-                if (cf != null)
+                if (cf is object)
                 {
-                    if (itemFormatSpan.Length != 0 && itemFormat == null)
+                    if (itemFormatSpan.Length != 0 && itemFormat is null)
                     {
                         itemFormat = new string(itemFormatSpan);
                     }
                     s = cf.Format(itemFormat, arg, provider);
                 }
 
-                if (s == null)
+                if (s is null)
                 {
                     // If arg is ISpanFormattable and the beginning doesn't need padding,
                     // try formatting it into the remaining current chunk.
@@ -1738,19 +1738,19 @@ namespace System.Text
                     // Otherwise, fallback to trying IFormattable or calling ToString.
                     if (arg is IFormattable formattableArg)
                     {
-                        if (itemFormatSpan.Length != 0 && itemFormat == null)
+                        if (itemFormatSpan.Length != 0 && itemFormat is null)
                         {
                             itemFormat = new string(itemFormatSpan);
                         }
                         s = formattableArg.ToString(itemFormat, provider);
                     }
-                    else if (arg != null)
+                    else if (arg is object)
                     {
                         s = arg.ToString();
                     }
                 }
                 // Append it to the final output of the Format String.
-                if (s == null) s = string.Empty;
+                if (s is null) s = string.Empty;
                 int pad = width - s.Length;
                 if (!leftJustify && pad > 0) Append(' ', pad);
                 Append(s);
@@ -1777,7 +1777,7 @@ namespace System.Text
         /// <param name="sb">The other builder.</param>
         public bool Equals(StringBuilder sb)
         {
-            if (sb == null)
+            if (sb is null)
                 return false;
             if (Length != sb.Length)
                 return false;
@@ -1796,7 +1796,7 @@ namespace System.Text
                 while (thisChunkIndex < 0)
                 {
                     thisChunk = thisChunk.m_ChunkPrevious;
-                    if (thisChunk == null)
+                    if (thisChunk is null)
                         break;
                     thisChunkIndex = thisChunk.m_ChunkLength + thisChunkIndex;
                 }
@@ -1804,7 +1804,7 @@ namespace System.Text
                 while (sbChunkIndex < 0)
                 {
                     sbChunk = sbChunk.m_ChunkPrevious;
-                    if (sbChunk == null)
+                    if (sbChunk is null)
                         break;
                     sbChunkIndex = sbChunk.m_ChunkLength + sbChunkIndex;
                 }
@@ -1841,7 +1841,7 @@ namespace System.Text
                     return false;
 
                 sbChunk = sbChunk.m_ChunkPrevious;
-            } while (sbChunk != null);
+            } while (sbChunk is object);
 
             Debug.Assert(offset == Length);
             return true;
@@ -1869,7 +1869,7 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Index);
             }
-            if (oldValue == null)
+            if (oldValue is null)
             {
                 throw new ArgumentNullException(nameof(oldValue));
             }
@@ -1896,7 +1896,7 @@ namespace System.Text
                     // Push it on the replacements array (with growth), we will do all replacements in a
                     // given chunk in one operation below (see ReplaceAllInChunk) so we don't have to slide
                     // many times.
-                    if (replacements == null)
+                    if (replacements is null)
                     {
                         replacements = new int[5];
                     }
@@ -2157,7 +2157,7 @@ namespace System.Text
                 if (indexInChunk >= chunk.m_ChunkLength)
                 {
                     chunk = Next(chunk);
-                    if (chunk == null)
+                    if (chunk is null)
                         return false;
                     indexInChunk = 0;
                 }
@@ -2495,7 +2495,7 @@ namespace System.Text
             m_ChunkChars = new char[size];
             m_MaxCapacity = maxCapacity;
             m_ChunkPrevious = previousBlock;
-            if (previousBlock != null)
+            if (previousBlock is object)
             {
                 m_ChunkOffset = previousBlock.m_ChunkOffset + previousBlock.m_ChunkLength;
             }
@@ -2527,7 +2527,7 @@ namespace System.Text
             {
                 if (endIndex - chunk.m_ChunkOffset >= 0)
                 {
-                    if (endChunk == null)
+                    if (endChunk is null)
                     {
                         endChunk = chunk;
                         endIndexInChunk = endIndex - endChunk.m_ChunkOffset;

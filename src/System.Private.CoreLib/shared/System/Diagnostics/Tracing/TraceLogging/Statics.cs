@@ -124,7 +124,7 @@ namespace System.Diagnostics.Tracing
                 current |= (byte)(more ? 0x80 : 0x00);
                 tagsLeft = tagsLeft << 7;
 
-                if (metadata != null)
+                if (metadata is object)
                 {
                     metadata[pos] = current;
                 }
@@ -174,7 +174,7 @@ namespace System.Diagnostics.Tracing
 
         public static void CheckName(string name)
         {
-            if (name != null && 0 <= name.IndexOf('\0'))
+            if (name is object && 0 <= name.IndexOf('\0'))
             {
                 throw new ArgumentOutOfRangeException(nameof(name));
             }
@@ -491,7 +491,7 @@ namespace System.Diagnostics.Tracing
                     }
 #endif
 
-                    if (elementType != null)
+                    if (elementType is object)
                     {
                         // ambiguous match. report no match at all.
                         elementType = null;
@@ -538,7 +538,7 @@ namespace System.Diagnostics.Tracing
             recursionCheck.Add(dataType);
 
             var eventAttrib = Statics.GetCustomAttribute<EventDataAttribute>(dataType);
-            if (eventAttrib != null ||
+            if (eventAttrib is object ||
                 Statics.GetCustomAttribute<CompilerGeneratedAttribute>(dataType) != null ||
                 IsGenericMatch(dataType, typeof(KeyValuePair<,>)))
             {
@@ -709,7 +709,7 @@ namespace System.Diagnostics.Tracing
                 else
                 {
                     var elementType = FindEnumerableElementType(dataType);
-                    if (elementType != null)
+                    if (elementType is object)
                     {
                         result = new EnumerableTypeInfo(dataType, TraceLoggingTypeInfo.GetInstance(elementType, recursionCheck));
                     }

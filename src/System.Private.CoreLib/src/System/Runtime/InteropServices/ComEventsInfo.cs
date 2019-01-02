@@ -54,7 +54,7 @@ namespace System.Runtime.InteropServices
         internal static ComEventsInfo FromObject(object rcw)
         {
             ComEventsInfo eventsInfo = Find(rcw);
-            if (eventsInfo == null)
+            if (eventsInfo is null)
             {
                 eventsInfo = new ComEventsInfo(rcw);
                 Marshal.SetComObjectData(rcw, typeof(ComEventsInfo), eventsInfo);

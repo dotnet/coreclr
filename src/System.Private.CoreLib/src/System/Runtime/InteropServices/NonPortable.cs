@@ -13,7 +13,7 @@ namespace System.Runtime.InteropServices
     {
         public static int GetHRForException(Exception e)
         {
-            return (e != null) ? e.HResult : 0;
+            return (e is object) ? e.HResult : 0;
         }
 
         public static int AddRef(IntPtr pUnk)
@@ -85,7 +85,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr GetHINSTANCE(Module m)
         {
-            if (m == null)
+            if (m is null)
             {
                 throw new ArgumentNullException(nameof(m));
             }
@@ -165,7 +165,7 @@ namespace System.Runtime.InteropServices
 
         public static bool IsComObject(object o)
         {
-            if (o == null)
+            if (o is null)
             {
                 throw new ArgumentNullException(nameof(o));
             }
@@ -175,7 +175,7 @@ namespace System.Runtime.InteropServices
 
         public static bool IsTypeVisibleFromCom(Type t)
         {
-            if (t == null)
+            if (t is null)
             {
                 throw new ArgumentNullException(nameof(t));
             }

@@ -94,7 +94,7 @@ namespace System.Diagnostics.Tracing
                             (EventLevel)descriptor.Level,
                             descriptor.Version,
                             eventTypes);
-                        uint metadataLength = (metadataBlob != null) ? (uint)metadataBlob.Length : 0;
+                        uint metadataLength = (metadataBlob is object) ? (uint)metadataBlob.Length : 0;
 
                         unsafe
                         {

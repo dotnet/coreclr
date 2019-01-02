@@ -16,7 +16,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         public static Exception AttachRestrictedErrorInfo(Exception e)
         {
             // If there is no exception, then the restricted error info doesn't apply to it
-            if (e != null)
+            if (e is object)
             {
                 try
                 {
@@ -27,7 +27,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
                     // error info as a convention in order to provide extended debugging information for the ErrorCode
                     // property.
                     IRestrictedErrorInfo restrictedErrorInfo = UnsafeNativeMethods.GetRestrictedErrorInfo();
-                    if (restrictedErrorInfo != null)
+                    if (restrictedErrorInfo is object)
                     {
                         string description;
                         string restrictedDescription;

@@ -59,7 +59,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // void CopyTo(Array array, int index)
         internal void CopyTo(Array array, int arrayIndex)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
 
             // ICollection expects the destination array to be single-dimensional.

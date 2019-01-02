@@ -57,7 +57,7 @@ namespace System.Collections.Generic
             // underlying IComparables, etc) that are bogus.
             try
             {
-                if (comparer == null)
+                if (comparer is null)
                 {
                     comparer = Comparer<T>.Default;
                 }
@@ -78,7 +78,7 @@ namespace System.Collections.Generic
         {
             try
             {
-                if (comparer == null)
+                if (comparer is null)
                 {
                     comparer = Comparer<T>.Default;
                 }
@@ -342,7 +342,7 @@ namespace System.Collections.Generic
 
             try
             {
-                if (comparer == null || comparer == Comparer<T>.Default)
+                if (comparer is null || comparer == Comparer<T>.Default)
                 {
                     IntrospectiveSort(keys, index, length);
                 }
@@ -368,7 +368,7 @@ namespace System.Collections.Generic
 
             try
             {
-                if (comparer == null || comparer == Comparer<T>.Default)
+                if (comparer is null || comparer == Comparer<T>.Default)
                 {
                     return BinarySearch(array, index, length, value);
                 }
@@ -634,7 +634,7 @@ namespace System.Collections.Generic
             // underlying IComparables, etc) that are bogus.
             try
             {
-                if (comparer == null || comparer == Comparer<TKey>.Default)
+                if (comparer is null || comparer == Comparer<TKey>.Default)
                 {
                     comparer = Comparer<TKey>.Default;
                 }
@@ -880,7 +880,7 @@ namespace System.Collections.Generic
             // underlying IComparables, etc) that are bogus.
             try
             {
-                if (comparer == null || comparer == Comparer<TKey>.Default)
+                if (comparer is null || comparer == Comparer<TKey>.Default)
                 {
                     IntrospectiveSort(keys, values, index, length);
                 }

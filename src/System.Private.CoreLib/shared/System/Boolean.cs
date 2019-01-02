@@ -154,7 +154,7 @@ namespace System
         // 
         public int CompareTo(object obj)
         {
-            if (obj == null)
+            if (obj is null)
             {
                 return 1;
             }
@@ -216,7 +216,7 @@ namespace System
         // 
         public static bool Parse(string value)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value is null) throw new ArgumentNullException(nameof(value));
             return Parse(value.AsSpan());
         }
 
@@ -227,7 +227,7 @@ namespace System
         // 
         public static bool TryParse(string value, out bool result)
         {
-            if (value == null)
+            if (value is null)
             {
                 result = false;
                 return false;

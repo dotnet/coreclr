@@ -104,7 +104,7 @@ namespace System.Diagnostics
             t_reentrancy++;
             try
             {
-                if (s_getSourceLineInfo == null)
+                if (s_getSourceLineInfo is null)
                 {
                     Type symbolsType = Type.GetType(
                         "System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
@@ -172,13 +172,13 @@ namespace System.Diagnostics
 
         public virtual int GetOffset(int i) { return rgiOffset[i]; }
         public virtual int GetILOffset(int i) { return rgiILOffset[i]; }
-        public virtual string GetFilename(int i) { return rgFilename == null ? null : rgFilename[i]; }
-        public virtual int GetLineNumber(int i) { return rgiLineNumber == null ? 0 : rgiLineNumber[i]; }
-        public virtual int GetColumnNumber(int i) { return rgiColumnNumber == null ? 0 : rgiColumnNumber[i]; }
+        public virtual string GetFilename(int i) { return rgFilename is null ? null : rgFilename[i]; }
+        public virtual int GetLineNumber(int i) { return rgiLineNumber is null ? 0 : rgiLineNumber[i]; }
+        public virtual int GetColumnNumber(int i) { return rgiColumnNumber is null ? 0 : rgiColumnNumber[i]; }
 
         public virtual bool IsLastFrameFromForeignExceptionStackTrace(int i)
         {
-            return (rgiLastFrameFromForeignExceptionStackTrace == null) ? false : rgiLastFrameFromForeignExceptionStackTrace[i];
+            return (rgiLastFrameFromForeignExceptionStackTrace is null) ? false : rgiLastFrameFromForeignExceptionStackTrace[i];
         }
 
         public virtual int GetNumberOfFrames() { return iFrameCount; }

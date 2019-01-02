@@ -244,7 +244,7 @@ namespace System
         //
         public Decimal(int[] bits)
         {
-            if (bits == null)
+            if (bits is null)
                 throw new ArgumentNullException(nameof(bits));
             if (bits.Length == 4)
             {
@@ -346,7 +346,7 @@ namespace System
         // 
         public int CompareTo(object value)
         {
-            if (value == null)
+            if (value is null)
                 return 1;
             if (!(value is decimal))
                 throw new ArgumentException(SR.Arg_MustBeDecimal);
@@ -449,27 +449,27 @@ namespace System
         //
         public static decimal Parse(string s)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseDecimal(s, NumberStyles.Number, NumberFormatInfo.CurrentInfo);
         }
 
         public static decimal Parse(string s, NumberStyles style)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseDecimal(s, style, NumberFormatInfo.CurrentInfo);
         }
 
         public static decimal Parse(string s, IFormatProvider provider)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseDecimal(s, NumberStyles.Number, NumberFormatInfo.GetInstance(provider));
         }
 
         public static decimal Parse(string s, NumberStyles style, IFormatProvider provider)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseDecimal(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
@@ -481,7 +481,7 @@ namespace System
 
         public static bool TryParse(string s, out decimal result)
         {
-            if (s == null)
+            if (s is null)
             {
                 result = 0;
                 return false;
@@ -499,7 +499,7 @@ namespace System
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
 
-            if (s == null)
+            if (s is null)
             {
                 result = 0;
                 return false;
@@ -531,7 +531,7 @@ namespace System
 
         internal static void GetBytes(in decimal d, byte[] buffer)
         {
-            Debug.Assert((buffer != null && buffer.Length >= 16), "[GetBytes]buffer != null && buffer.Length >= 16");
+            Debug.Assert((buffer is object && buffer.Length >= 16), "[GetBytes]buffer is object && buffer.Length >= 16");
             buffer[0] = (byte)d.lo;
             buffer[1] = (byte)(d.lo >> 8);
             buffer[2] = (byte)(d.lo >> 16);
@@ -555,7 +555,7 @@ namespace System
 
         internal static decimal ToDecimal(byte[] buffer)
         {
-            Debug.Assert((buffer != null && buffer.Length >= 16), "[ToDecimal]buffer != null && buffer.Length >= 16");
+            Debug.Assert((buffer is object && buffer.Length >= 16), "[ToDecimal]buffer is object && buffer.Length >= 16");
             int lo = ((int)buffer[0]) | ((int)buffer[1] << 8) | ((int)buffer[2] << 16) | ((int)buffer[3] << 24);
             int mid = ((int)buffer[4]) | ((int)buffer[5] << 8) | ((int)buffer[6] << 16) | ((int)buffer[7] << 24);
             int hi = ((int)buffer[8]) | ((int)buffer[9] << 8) | ((int)buffer[10] << 16) | ((int)buffer[11] << 24);

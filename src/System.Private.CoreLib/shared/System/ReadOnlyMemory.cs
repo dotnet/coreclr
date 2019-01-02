@@ -42,7 +42,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlyMemory(T[] array)
         {
-            if (array == null)
+            if (array is null)
             {
                 this = default;
                 return; // returns default
@@ -68,7 +68,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlyMemory(T[] array, int start, int length)
         {
-            if (array == null)
+            if (array is null)
             {
                 if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException();
@@ -201,7 +201,7 @@ namespace System
                 // Copy this field into a local so that it can't change out from under us mid-operation.
 
                 object tmpObject = _object;
-                if (tmpObject != null)
+                if (tmpObject is object)
                 {
                     if (typeof(T) == typeof(char) && tmpObject.GetType() == typeof(string))
                     {
@@ -305,7 +305,7 @@ namespace System
             // and we're not required to keep this as safe as the other Span-based APIs.
 
             object tmpObject = _object;
-            if (tmpObject != null)
+            if (tmpObject is object)
             {
                 if (typeof(T) == typeof(char) && tmpObject is string s)
                 {
@@ -384,7 +384,7 @@ namespace System
         {
             // We use RuntimeHelpers.GetHashCode instead of Object.GetHashCode because the hash
             // code is based on object identity and referential equality, not deep equality (as common with string).
-            return (_object != null) ? HashCode.Combine(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
+            return (_object is object) ? HashCode.Combine(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
         }
         
         /// <summary>Gets the state of the memory as individual fields.</summary>

@@ -19,7 +19,7 @@ namespace System.Reflection
             MethodBase m = RuntimeType.GetMethodBase(handle.GetMethodInfo());
 
             Type declaringType = m.DeclaringType;
-            if (declaringType != null && declaringType.IsGenericType)
+            if (declaringType is object && declaringType.IsGenericType)
                 throw new ArgumentException(string.Format(
                     CultureInfo.CurrentCulture, SR.Argument_MethodDeclaringTypeGeneric,
                     m, declaringType.GetGenericTypeDefinition()));
@@ -115,7 +115,7 @@ namespace System.Reflection
 
                 if (arg == Type.Missing)
                 {
-                    if (p == null)
+                    if (p is null)
                         p = GetParametersNoCopy();
                     if (p[i].DefaultValue == System.DBNull.Value)
                         throw new ArgumentException(SR.Arg_VarMissNull, nameof(parameters));

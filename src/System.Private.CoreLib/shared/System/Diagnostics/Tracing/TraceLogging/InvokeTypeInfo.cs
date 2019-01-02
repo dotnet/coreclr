@@ -41,13 +41,13 @@ namespace System.Diagnostics.Tracing
             EventFieldFormat format)
         {
             var groupCollector = collector.AddGroup(name);
-            if (this.properties != null)
+            if (this.properties is object)
             {
                 foreach (var property in this.properties)
                 {
                     var propertyFormat = EventFieldFormat.Default;
                     var propertyAttribute = property.fieldAttribute;
-                    if (propertyAttribute != null)
+                    if (propertyAttribute is object)
                     {
                         groupCollector.Tags = propertyAttribute.Tags;
                         propertyFormat = propertyAttribute.Format;
@@ -63,7 +63,7 @@ namespace System.Diagnostics.Tracing
 
         public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value)
         {
-            if (this.properties != null)
+            if (this.properties is object)
             {
                 foreach (var property in this.properties)
                 {
@@ -74,7 +74,7 @@ namespace System.Diagnostics.Tracing
 
         public override object GetData(object value)
         {
-            if (this.properties != null)
+            if (this.properties is object)
             {
                 var membersNames = new List<string>();
                 var memebersValues = new List<object>();

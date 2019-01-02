@@ -124,7 +124,7 @@ namespace System
         //
         public int CompareTo(object value)
         {
-            if (value == null)
+            if (value is null)
             {
                 return 1;
             }
@@ -264,27 +264,27 @@ namespace System
 
         public static double Parse(string s)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseDouble(s, NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo);
         }
 
         public static double Parse(string s, NumberStyles style)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseDouble(s, style, NumberFormatInfo.CurrentInfo);
         }
 
         public static double Parse(string s, IFormatProvider provider)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseDouble(s, NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.GetInstance(provider));
         }
 
         public static double Parse(string s, NumberStyles style, IFormatProvider provider)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            if (s is null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseDouble(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
@@ -306,7 +306,7 @@ namespace System
 
         public static bool TryParse(string s, out double result)
         {
-            if (s == null)
+            if (s is null)
             {
                 result = 0;
                 return false;
@@ -324,7 +324,7 @@ namespace System
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
 
-            if (s == null)
+            if (s is null)
             {
                 result = 0;
                 return false;

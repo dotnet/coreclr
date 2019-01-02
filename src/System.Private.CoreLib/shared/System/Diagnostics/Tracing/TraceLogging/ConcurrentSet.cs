@@ -33,7 +33,7 @@ namespace System.Diagnostics.Tracing
             ItemType item;
             var oldItems = this.items;
 
-            if (oldItems != null)
+            if (oldItems is object)
             {
                 var lo = 0;
                 var hi = oldItems.Length;
@@ -74,7 +74,7 @@ namespace System.Diagnostics.Tracing
 
         Retry:
 
-            if (oldItems == null)
+            if (oldItems is null)
             {
                 newItems = new ItemType[] { newItem };
             }

@@ -39,7 +39,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IMap<K, V> _this_map = _this as IMap<K, V>;
-            if (_this_map != null)
+            if (_this_map is object)
             {
                 uint size = _this_map.Size;
 
@@ -76,7 +76,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
-            if (_this_dictionary != null)
+            if (_this_dictionary is object)
             {
                 _this_dictionary.Add(item.Key, item.Value);
             }
@@ -93,7 +93,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IMap<K, V> _this_map = _this as IMap<K, V>;
-            if (_this_map != null)
+            if (_this_map is object)
             {
                 _this_map.Clear();
             }
@@ -110,7 +110,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
-            if (_this_dictionary != null)
+            if (_this_dictionary is object)
             {
                 V value;
                 bool hasKey = _this_dictionary.TryGetValue(item.Key, out value);
@@ -132,7 +132,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // void CopyTo(T[] array, int arrayIndex)
         internal void CopyTo<K, V>(KeyValuePair<K, V>[] array, int arrayIndex)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
 
             if (arrayIndex < 0)
@@ -158,7 +158,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
-            if (_this_dictionary != null)
+            if (_this_dictionary is object)
             {
                 return _this_dictionary.Remove(item.Key);
             }

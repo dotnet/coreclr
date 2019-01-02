@@ -180,7 +180,7 @@ namespace System.IO
 
         public FileStream(string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, FileOptions options)
         {
-            if (path == null)
+            if (path is null)
                 throw new ArgumentNullException(nameof(path), SR.ArgumentNull_Path);
             if (path.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
@@ -196,7 +196,7 @@ namespace System.IO
             else if (tempshare < FileShare.None || tempshare > (FileShare.ReadWrite | FileShare.Delete))
                 badArg = nameof(share);
 
-            if (badArg != null)
+            if (badArg is object)
                 throw new ArgumentOutOfRangeException(badArg, SR.ArgumentOutOfRange_Enum);
 
             // NOTE: any change to FileOptions enum needs to be matched here in the error validation
@@ -321,7 +321,7 @@ namespace System.IO
 
         public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -369,7 +369,7 @@ namespace System.IO
             }
 
             Task<int> t = ReadAsyncInternal(buffer, cancellationToken, out int synchronousResult);
-            return t != null ?
+            return t is object ?
                 new ValueTask<int>(t) :
                 new ValueTask<int>(synchronousResult);
         }
@@ -378,12 +378,12 @@ namespace System.IO
         {
             Task<int> t = ReadAsyncInternal(new Memory<byte>(array, offset, count), cancellationToken, out int synchronousResult);
 
-            if (t == null)
+            if (t is null)
             {
                 t = _lastSynchronouslyCompletedTask;
                 Debug.Assert(t == null || t.IsCompletedSuccessfully, "Cached task should have completed successfully");
 
-                if (t == null || t.Result != synchronousResult)
+                if (t is null || t.Result != synchronousResult)
                 {
                     _lastSynchronouslyCompletedTask = t = Task.FromResult(synchronousResult);
                 }
@@ -429,7 +429,7 @@ namespace System.IO
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -520,7 +520,7 @@ namespace System.IO
         /// <param name="count">The maximum number of bytes to read or write.</param>
         private void ValidateReadWriteArgs(byte[] array, int offset, int count)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array), SR.ArgumentNull_Buffer);
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -691,7 +691,7 @@ namespace System.IO
         private byte[] GetBuffer()
         {
             Debug.Assert(_buffer == null || _buffer.Length == _bufferLength);
-            if (_buffer == null)
+            if (_buffer is null)
             {
                 _buffer = new byte[_bufferLength];
                 OnBufferAllocated();
@@ -811,7 +811,7 @@ namespace System.IO
 
         public override IAsyncResult BeginRead(byte[] array, int offset, int numBytes, AsyncCallback callback, object state)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -831,7 +831,7 @@ namespace System.IO
 
         public override IAsyncResult BeginWrite(byte[] array, int offset, int numBytes, AsyncCallback callback, object state)
         {
-            if (array == null)
+            if (array is null)
                 throw new ArgumentNullException(nameof(array));
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -851,7 +851,7 @@ namespace System.IO
 
         public override int EndRead(IAsyncResult asyncResult)
         {
-            if (asyncResult == null)
+            if (asyncResult is null)
                 throw new ArgumentNullException(nameof(asyncResult));
 
             if (!IsAsync)
@@ -862,7 +862,7 @@ namespace System.IO
 
         public override void EndWrite(IAsyncResult asyncResult)
         {
-            if (asyncResult == null)
+            if (asyncResult is null)
                 throw new ArgumentNullException(nameof(asyncResult));
 
             if (!IsAsync)

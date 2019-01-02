@@ -179,11 +179,11 @@ namespace System.Threading.Tasks
             TaskScheduler ets = task.ExecutingTaskScheduler;
 
             // Delegate cross-scheduler inlining requests to target scheduler
-            if (ets != this && ets != null) return ets.TryRunInline(task, taskWasPreviouslyQueued);
+            if (ets != this && ets is object) return ets.TryRunInline(task, taskWasPreviouslyQueued);
 
             StackGuard currentStackGuard;
-            if ((ets == null) ||
-                (task.m_action == null) ||
+            if ((ets is null) ||
+                (task.m_action is null) ||
                 task.IsDelegateInvoked ||
                 task.IsCanceled ||
                 (currentStackGuard = Task.CurrentStackGuard).TryBeginInliningScope() == false)
@@ -311,7 +311,7 @@ namespace System.Threading.Tasks
         private void AddToActiveTaskSchedulers()
         {
             ConditionalWeakTable<TaskScheduler, object> activeTaskSchedulers = s_activeTaskSchedulers;
-            if (activeTaskSchedulers == null)
+            if (activeTaskSchedulers is null)
             {
                 Interlocked.CompareExchange(ref s_activeTaskSchedulers, new ConditionalWeakTable<TaskScheduler, object>(), null);
                 activeTaskSchedulers = s_activeTaskSchedulers;
@@ -358,7 +358,7 @@ namespace System.Threading.Tasks
             get
             {
                 Task currentTask = Task.InternalCurrent;
-                return ((currentTask != null)
+                return ((currentTask is object)
                     && ((currentTask.CreationOptions & TaskCreationOptions.HideScheduler) == 0)
                     ) ? currentTask.ExecutingTaskScheduler : null;
             }
@@ -496,12 +496,12 @@ namespace System.Threading.Tasks
             // at the moment. We should let the debugger receive that exception so that it can indicate it in the UI
             IEnumerable<Task> activeTasksSource = GetScheduledTasks();
 
-            if (activeTasksSource == null)
+            if (activeTasksSource is null)
                 return null;
 
             // If it can be cast to an array, use it directly
             Task[] activeTasksArray = activeTasksSource as Task[];
-            if (activeTasksArray == null)
+            if (activeTasksArray is null)
             {
                 activeTasksArray = (new List<Task>(activeTasksSource)).ToArray();
             }
@@ -526,7 +526,7 @@ namespace System.Threading.Tasks
         /// <returns>An array of <see cref="System.Threading.Tasks.TaskScheduler">TaskScheduler</see> instances.</returns> 
         internal static TaskScheduler[] GetTaskSchedulersForDebugger()
         {
-            if (s_activeTaskSchedulers == null)
+            if (s_activeTaskSchedulers is null)
             {
                 // No schedulers were tracked.  Just give back the default.
                 return new TaskScheduler[] { s_defaultTaskScheduler };
@@ -600,7 +600,7 @@ namespace System.Threading.Tasks
             SynchronizationContext synContext = SynchronizationContext.Current;
 
             // make sure we have a synccontext to work with
-            if (synContext == null)
+            if (synContext is null)
             {
                 throw new InvalidOperationException(SR.TaskScheduler_FromCurrentSynchronizationContext_NoCurrent);
             }

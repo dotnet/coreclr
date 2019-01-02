@@ -60,7 +60,7 @@ namespace System
 
         protected Exception(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
                 throw new ArgumentNullException(nameof(info));
 
             _className = info.GetString("ClassName"); // Do not rename (binary serialization)
@@ -84,7 +84,7 @@ namespace System
             _watsonBuckets = (object)info.GetValueNoThrow("WatsonBuckets", typeof(byte[])); // Do not rename (binary serialization)
 
 
-            if (_className == null || HResult == 0)
+            if (_className is null || HResult == 0)
                 throw new SerializationException(SR.Serialization_InsufficientState);
 
             // If we are constructing a new exception after a cross-appdomain call...
@@ -111,9 +111,9 @@ namespace System
         {
             get
             {
-                if (_message == null)
+                if (_message is null)
                 {
-                    if (_className == null)
+                    if (_className is null)
                     {
                         _className = GetClassName();
                     }
@@ -130,7 +130,7 @@ namespace System
         {
             get
             {
-                if (_data == null)
+                if (_data is null)
                     if (IsImmutableAgileException(this))
                         _data = new EmptyReadOnlyDictionaryInternal();
                     else
@@ -180,7 +180,7 @@ namespace System
             bool hasrestrictedLanguageErrorObject = false)
         {
             IDictionary dict = Data;
-            if (dict != null)
+            if (dict is object)
             {
                 dict.Add("RestrictedDescription", restrictedError);
                 dict.Add("RestrictedErrorReference", restrictedErrorReference);
@@ -188,7 +188,7 @@ namespace System
 
                 // Keep the error object alive so that user could retrieve error information
                 // using Data["RestrictedErrorReference"]
-                dict.Add("__RestrictedErrorObject", (restrictedErrorObject == null ? null : new __RestrictedErrorObject(restrictedErrorObject)));
+                dict.Add("__RestrictedErrorObject", (restrictedErrorObject is null ? null : new __RestrictedErrorObject(restrictedErrorObject)));
                 dict.Add("__HasRestrictedLanguageErrorObject", hasrestrictedLanguageErrorObject);
             }
         }
@@ -196,12 +196,12 @@ namespace System
         internal bool TryGetRestrictedLanguageErrorObject(out object restrictedErrorObject)
         {
             restrictedErrorObject = null;
-            if (Data != null && Data.Contains("__HasRestrictedLanguageErrorObject"))
+            if (Data is object && Data.Contains("__HasRestrictedLanguageErrorObject"))
             {
                 if (Data.Contains("__RestrictedErrorObject"))
                 {
                     __RestrictedErrorObject restrictedObject = Data["__RestrictedErrorObject"] as __RestrictedErrorObject;
-                    if (restrictedObject != null)
+                    if (restrictedObject is object)
                         restrictedErrorObject = restrictedObject.RealErrorObject;
                 }
                 return (bool)Data["__HasRestrictedLanguageErrorObject"];
@@ -214,7 +214,7 @@ namespace System
         private string GetClassName()
         {
             // Will include namespace but not full instantiation and assembly name.
-            if (_className == null)
+            if (_className is null)
                 _className = GetType().ToString();
 
             return _className;
@@ -228,7 +228,7 @@ namespace System
             Exception inner = InnerException;
             Exception back = this;
 
-            while (inner != null)
+            while (inner is object)
             {
                 back = inner;
                 inner = inner.InnerException;
@@ -253,7 +253,7 @@ namespace System
             IRuntimeMethodInfo method = GetMethodFromStackTrace(_stackTrace);
 
             // Under certain race conditions when exceptions are re-used, this can be null
-            if (method == null)
+            if (method is null)
                 return null;
 
             return RuntimeType.GetMethodBase(method);
@@ -263,11 +263,11 @@ namespace System
         {
             get
             {
-                if (_exceptionMethod != null)
+                if (_exceptionMethod is object)
                 {
                     return _exceptionMethod;
                 }
-                if (_stackTrace == null)
+                if (_stackTrace is null)
                 {
                     return null;
                 }
@@ -299,11 +299,11 @@ namespace System
             string remoteStackTraceString = _remoteStackTraceString;
 
             // if no stack trace, try to get one
-            if (stackTraceString != null)
+            if (stackTraceString is object)
             {
                 return remoteStackTraceString + stackTraceString;
             }
-            if (_stackTrace == null)
+            if (_stackTrace is null)
             {
                 return remoteStackTraceString;
             }
@@ -336,7 +336,7 @@ namespace System
         {
             get
             {
-                if (_source == null)
+                if (_source is null)
                 {
                     StackTrace st = new StackTrace(this, true);
                     if (st.FrameCount > 0)
@@ -348,10 +348,10 @@ namespace System
 
                         RuntimeModule rtModule = module as RuntimeModule;
 
-                        if (rtModule == null)
+                        if (rtModule is null)
                         {
                             System.Reflection.Emit.ModuleBuilder moduleBuilder = module as System.Reflection.Emit.ModuleBuilder;
-                            if (moduleBuilder != null)
+                            if (moduleBuilder is object)
                                 rtModule = moduleBuilder.InternalModule;
                             else
                                 throw new ArgumentException(SR.Argument_MustBeRuntimeReflectionObject);
@@ -376,7 +376,7 @@ namespace System
             string message = (needMessage ? Message : null);
             string s;
 
-            if (message == null || message.Length <= 0)
+            if (message is null || message.Length <= 0)
             {
                 s = GetClassName();
             }
@@ -385,14 +385,14 @@ namespace System
                 s = GetClassName() + ": " + message;
             }
 
-            if (_innerException != null)
+            if (_innerException is object)
             {
                 s = s + " ---> " + _innerException.ToString(needFileLineInfo, needMessage) + Environment.NewLine +
                 "   " + SR.Exception_EndOfInnerExceptionStack;
             }
 
             string stackTrace = GetStackTrace(needFileLineInfo);
-            if (stackTrace != null)
+            if (stackTrace is object)
             {
                 s += Environment.NewLine + stackTrace;
             }
@@ -408,16 +408,16 @@ namespace System
 
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
+            if (info is null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
 
             string tempStackTraceString = _stackTraceString;
 
-            if (_stackTrace != null)
+            if (_stackTrace is object)
             {
-                if (tempStackTraceString == null)
+                if (tempStackTraceString is null)
                 {
                     tempStackTraceString = Environment.GetStackTrace(this, true);
                 }
@@ -427,7 +427,7 @@ namespace System
                 }
             }
 
-            if (_source == null)
+            if (_source is null)
             {
                 _source = Source; // Set the Source information correctly before serialization
             }
@@ -493,7 +493,7 @@ namespace System
                 tmpStackTraceString = StackTrace;
             }
 
-            if (tmpStackTraceString != null && tmpStackTraceString.Length > 0)
+            if (tmpStackTraceString is object && tmpStackTraceString.Length > 0)
             {
                 _remoteStackTraceString = tmpStackTraceString + Environment.NewLine;
             }
@@ -528,7 +528,7 @@ namespace System
 
         internal object DeepCopyStackTrace(object currentStackTrace)
         {
-            if (currentStackTrace != null)
+            if (currentStackTrace is object)
             {
                 return CopyStackTrace(currentStackTrace);
             }
@@ -540,7 +540,7 @@ namespace System
 
         internal object DeepCopyDynamicMethods(object currentDynamicMethods)
         {
-            if (currentDynamicMethods != null)
+            if (currentDynamicMethods is object)
             {
                 return CopyDynamicMethods(currentDynamicMethods);
             }
@@ -574,8 +574,8 @@ namespace System
                     //
                     // Since deep copying can throw on OOM, try to get the copies
                     // outside the lock.
-                    object _stackTraceCopy = (dispatchState.StackTrace == null) ? null : DeepCopyStackTrace(dispatchState.StackTrace);
-                    object _dynamicMethodsCopy = (dispatchState.DynamicMethods == null) ? null : DeepCopyDynamicMethods(dispatchState.DynamicMethods);
+                    object _stackTraceCopy = (dispatchState.StackTrace is null) ? null : DeepCopyStackTrace(dispatchState.StackTrace);
+                    object _dynamicMethodsCopy = (dispatchState.DynamicMethods is null) ? null : DeepCopyDynamicMethods(dispatchState.DynamicMethods);
 
                     // Finally, restore the information. 
                     //

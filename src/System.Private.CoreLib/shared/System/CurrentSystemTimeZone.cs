@@ -65,7 +65,7 @@ namespace System
             DaylightTime daylightTime = GetDaylightChanges(time.Year);
             isAmbiguousLocalDst = false;
 
-            if (daylightTime == null || daylightTime.Delta.Ticks == 0)
+            if (daylightTime is null || daylightTime.Delta.Ticks == 0)
             {
                 return offset.Ticks;
             }
@@ -170,7 +170,7 @@ namespace System
                 }
             }
 
-            if (currentDaylightChanges == null)
+            if (currentDaylightChanges is null)
             {
                 currentDaylightChanges = new DaylightTime(DateTime.MinValue, DateTime.MinValue, TimeSpan.Zero);
             }

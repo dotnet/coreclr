@@ -41,7 +41,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             InternalEncoderBestFitFallback that = value as InternalEncoderBestFitFallback;
-            if (that != null)
+            if (that is object)
             {
                 return (_encoding.CodePage == that._encoding.CodePage);
             }
@@ -68,7 +68,7 @@ namespace System.Text
         {
             get
             {
-                if (s_InternalSyncObject == null)
+                if (s_InternalSyncObject is null)
                 {
                     object o = new object();
                     Interlocked.CompareExchange<object>(ref s_InternalSyncObject, o, null);
@@ -82,13 +82,13 @@ namespace System.Text
         {
             _oFallback = fallback;
 
-            if (_oFallback._arrayBestFit == null)
+            if (_oFallback._arrayBestFit is null)
             {
                 // Lock so we don't confuse ourselves.
                 lock (InternalSyncObject)
                 {
                     // Double check before we do it again.
-                    if (_oFallback._arrayBestFit == null)
+                    if (_oFallback._arrayBestFit is null)
                         _oFallback._arrayBestFit = fallback._encoding.GetBestFitUnicodeToBytesData();
                 }
             }

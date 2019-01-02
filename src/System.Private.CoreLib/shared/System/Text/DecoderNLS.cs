@@ -55,7 +55,7 @@ namespace System.Text
         public override unsafe int GetCharCount(byte[] bytes, int index, int count, bool flush)
         {
             // Validate Parameters
-            if (bytes == null)
+            if (bytes is null)
                 throw new ArgumentNullException(nameof(bytes),
                     SR.ArgumentNull_Array);
 
@@ -101,8 +101,8 @@ namespace System.Text
                                              char[] chars, int charIndex, bool flush)
         {
             // Validate Parameters
-            if (bytes == null || chars == null)
-                throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
+            if (bytes is null || chars is null)
+                throw new ArgumentNullException(bytes is null ? nameof(bytes) : nameof(chars),
                     SR.ArgumentNull_Array);
 
             if (byteIndex < 0 || byteCount < 0)
@@ -154,8 +154,8 @@ namespace System.Text
                                               out int bytesUsed, out int charsUsed, out bool completed)
         {
             // Validate parameters
-            if (bytes == null || chars == null)
-                throw new ArgumentNullException((bytes == null ? nameof(bytes) : nameof(chars)),
+            if (bytes is null || chars is null)
+                throw new ArgumentNullException((bytes is null ? nameof(bytes) : nameof(chars)),
                       SR.ArgumentNull_Array);
 
             if (byteIndex < 0 || byteCount < 0)
@@ -211,7 +211,7 @@ namespace System.Text
 
             // Its completed if they've used what they wanted AND if they didn't want flush or if we are flushed
             completed = (bytesUsed == byteCount) && (!flush || !this.HasState) &&
-                               (_fallbackBuffer == null || _fallbackBuffer.Remaining == 0);
+                               (_fallbackBuffer is null || _fallbackBuffer.Remaining == 0);
 
             // Our data thingy are now full, we can return
         }

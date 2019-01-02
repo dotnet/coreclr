@@ -25,7 +25,7 @@ namespace System
             System.Diagnostics.Tracing.EventPipeController.Initialize();
 
             string startupHooksVariable = (string)AppContext.GetData("STARTUP_HOOKS");
-            if (startupHooksVariable == null)
+            if (startupHooksVariable is null)
             {
                 return;
             }

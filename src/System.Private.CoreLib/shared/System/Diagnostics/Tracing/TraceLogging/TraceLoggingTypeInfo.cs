@@ -34,7 +34,7 @@ namespace System.Diagnostics.Tracing
 
         internal TraceLoggingTypeInfo(Type dataType)
         {
-            if (dataType == null)
+            if (dataType is null)
             {
                 throw new ArgumentNullException(nameof(dataType));
             }
@@ -52,12 +52,12 @@ namespace System.Diagnostics.Tracing
             EventKeywords keywords,
             EventTags tags)
         {
-            if (dataType == null)
+            if (dataType is null)
             {
                 throw new ArgumentNullException(nameof(dataType));
             }
 
-            if (name == null)
+            if (name is null)
             {
                 throw new ArgumentNullException(nameof(name));
             }
@@ -192,7 +192,7 @@ namespace System.Diagnostics.Tracing
             TraceLoggingTypeInfo instance;
             if (!cache.TryGetValue(type, out instance))
             {
-                if (recursionCheck == null)
+                if (recursionCheck is null)
                     recursionCheck = new List<Type>();
                 var recursionCheckCount = recursionCheck.Count;
                 instance = Statics.CreateDefaultTypeInfo(type, recursionCheck);

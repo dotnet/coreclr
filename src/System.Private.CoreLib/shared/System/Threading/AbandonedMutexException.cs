@@ -68,7 +68,7 @@ namespace System.Threading
         private void SetupException(int location, WaitHandle handle)
         {
             _mutexIndex = location;
-            if (handle != null)
+            if (handle is object)
                 _mutex = handle as Mutex;
         }
 

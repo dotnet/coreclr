@@ -37,7 +37,7 @@ namespace System.Runtime.InteropServices.CustomMarshalers
 
         public IntPtr MarshalManagedToNative(object ManagedObj)
         {
-            if (ManagedObj == null)
+            if (ManagedObj is null)
             {
                 throw new ArgumentNullException(nameof(ManagedObj));
             }
