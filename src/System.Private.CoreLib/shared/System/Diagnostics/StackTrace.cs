@@ -9,7 +9,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security;
 using System.Text;
-using System.Threading;
 
 namespace System.Diagnostics
 {
@@ -20,10 +19,11 @@ namespace System.Diagnostics
     /// StackTrace, we use an InheritanceDemand to prevent partially-trusted
     /// subclasses.
     /// </summary>
-    public class StackTrace
+    public partial class StackTrace
     {
-        private int m_iNumOfFrames;
         public const int METHODS_TO_SKIP = 0;
+
+        private int m_iNumOfFrames;
         private int m_iMethodsToSkip;
         
         /// <summary>
@@ -36,9 +36,7 @@ namespace System.Diagnostics
         /// </summary>
         public StackTrace()
         {
-            m_iNumOfFrames = 0;
-            m_iMethodsToSkip = 0;
-            CaptureStackTrace(METHODS_TO_SKIP, false, null, null);
+            CaptureStackTrace(METHODS_TO_SKIP, false);
         }
 
         /// <summary>
@@ -46,9 +44,7 @@ namespace System.Diagnostics
         /// </summary>
         public StackTrace(bool fNeedFileInfo)
         {
-            m_iNumOfFrames = 0;
-            m_iMethodsToSkip = 0;
-            CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo, null, null);
+            CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo);
         }
 
         /// <summary>
@@ -61,10 +57,7 @@ namespace System.Diagnostics
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            m_iNumOfFrames = 0;
-            m_iMethodsToSkip = 0;
-
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, false, null, null);
+            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, false);
         }
 
         /// <summary>
@@ -77,10 +70,7 @@ namespace System.Diagnostics
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            m_iNumOfFrames = 0;
-            m_iMethodsToSkip = 0;
-
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo, null, null);
+            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo);
         }
 
         /// <summary>
@@ -91,9 +81,7 @@ namespace System.Diagnostics
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
 
-            m_iNumOfFrames = 0;
-            m_iMethodsToSkip = 0;
-            CaptureStackTrace(METHODS_TO_SKIP, false, null, e);
+            InitializeForExceptionFrameIndex(e, METHODS_TO_SKIP, false);
         }
 
         /// <summary>
@@ -104,9 +92,7 @@ namespace System.Diagnostics
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
 
-            m_iNumOfFrames = 0;
-            m_iMethodsToSkip = 0;
-            CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo, null, e);
+            InitializeForExceptionFrameIndex(e, METHODS_TO_SKIP, fNeedFileInfo);
         }
 
         /// <summary>
@@ -122,10 +108,7 @@ namespace System.Diagnostics
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            m_iNumOfFrames = 0;
-            m_iMethodsToSkip = 0;
-
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, false, null, e);
+            InitializeForExceptionFrameIndex(e, skipFrames + METHODS_TO_SKIP, false);
         }
 
         /// <summary>
@@ -141,10 +124,7 @@ namespace System.Diagnostics
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            m_iNumOfFrames = 0;
-            m_iMethodsToSkip = 0;
-
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo, null, e);
+            InitializeForExceptionFrameIndex(e, skipFrames + METHODS_TO_SKIP, fNeedFileInfo);
         }
 
         /// <summary>
@@ -154,102 +134,7 @@ namespace System.Diagnostics
         public StackTrace(StackFrame frame)
         {
             _stackFrames = new StackFrame[] { frame };
-            m_iMethodsToSkip = 0;
             m_iNumOfFrames = 1;
-        }
-
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void GetStackFramesInternal(StackFrameHelper sfh, int iSkip, bool fNeedFileInfo, Exception e);
-
-        internal static int CalculateFramesToSkip(StackFrameHelper StackF, int iNumFrames)
-        {
-            int iRetVal = 0;
-            string PackageName = "System.Diagnostics";
-
-            // Check if this method is part of the System.Diagnostics
-            // package. If so, increment counter keeping track of 
-            // System.Diagnostics functions
-            for (int i = 0; i < iNumFrames; i++)
-            {
-                MethodBase mb = StackF.GetMethodBase(i);
-                if (mb != null)
-                {
-                    Type t = mb.DeclaringType;
-                    if (t == null)
-                        break;
-                    string ns = t.Namespace;
-                    if (ns == null)
-                        break;
-                    if (!string.Equals(ns, PackageName, StringComparison.Ordinal))
-                        break;
-                }
-                iRetVal++;
-            }
-
-            return iRetVal;
-        }
-
-        /// <summary>
-        /// Retrieves an object with stack trace information encoded.
-        /// It leaves out the first "iSkip" lines of the stacktrace.
-        /// </summary>
-        private void CaptureStackTrace(int iSkip, bool fNeedFileInfo, Thread targetThread, Exception e)
-        {
-            m_iMethodsToSkip += iSkip;
-
-            StackFrameHelper StackF = new StackFrameHelper(targetThread);
-            
-            StackF.InitializeSourceInfo(0, fNeedFileInfo, e);
-
-            m_iNumOfFrames = StackF.GetNumberOfFrames();
-
-            if (m_iMethodsToSkip > m_iNumOfFrames)
-                m_iMethodsToSkip = m_iNumOfFrames;
-
-            if (m_iNumOfFrames != 0)
-            {
-                _stackFrames = new StackFrame[m_iNumOfFrames];
-
-                for (int i = 0; i < m_iNumOfFrames; i++)
-                {
-                    bool fDummy1 = true;
-                    bool fDummy2 = true;
-                    StackFrame sfTemp = new StackFrame(fDummy1, fDummy2);
-
-                    sfTemp.SetMethodBase(StackF.GetMethodBase(i));
-                    sfTemp.SetOffset(StackF.GetOffset(i));
-                    sfTemp.SetILOffset(StackF.GetILOffset(i));
-
-                    sfTemp.SetIsLastFrameFromForeignExceptionStackTrace(StackF.IsLastFrameFromForeignExceptionStackTrace(i));
-
-                    if (fNeedFileInfo)
-                    {
-                        sfTemp.SetFileName(StackF.GetFilename(i));
-                        sfTemp.SetLineNumber(StackF.GetLineNumber(i));
-                        sfTemp.SetColumnNumber(StackF.GetColumnNumber(i));
-                    }
-
-                    _stackFrames[i] = sfTemp;
-                }
-
-                // CalculateFramesToSkip skips all frames in the System.Diagnostics namespace,
-                // but this is not desired if building a stack trace from an exception.
-                if (e == null)
-                    m_iMethodsToSkip += CalculateFramesToSkip(StackF, m_iNumOfFrames);
-
-                m_iNumOfFrames -= m_iMethodsToSkip;
-                if (m_iNumOfFrames < 0)
-                {
-                    m_iNumOfFrames = 0;
-                }
-            }
-
-            // In case this is the same object being re-used, set frames to null
-            else
-            {
-                _stackFrames = null;
-            }
         }
 
         /// <summary>
@@ -266,7 +151,7 @@ namespace System.Diagnostics
         /// </summary>
         public virtual StackFrame GetFrame(int index)
         {
-            if ((_stackFrames != null) && (index < m_iNumOfFrames) && (index >= 0))
+            if (_stackFrames != null && index < m_iNumOfFrames && index >= 0)
                 return _stackFrames[index + m_iMethodsToSkip];
 
             return null;
@@ -295,8 +180,13 @@ namespace System.Diagnostics
         /// </summary>
         public override string ToString()
         {
+#if CORERT
+            // default behavior in RT did not have trailing newline  
+            return ToString(TraceFormat.Normal);
+#else
             // Include a trailing newline for backwards compatibility
             return ToString(TraceFormat.TrailingNewLine);
+#endif
         }
 
         /// <summary>
@@ -307,7 +197,6 @@ namespace System.Diagnostics
         {
             Normal,
             TrailingNewLine,        // include a trailing new line character
-            NoResourceLookup    // to prevent infinite resource recusion
         }
 
         /// <summary>
@@ -317,14 +206,8 @@ namespace System.Diagnostics
         internal string ToString(TraceFormat traceFormat)
         {
             bool displayFilenames = true;   // we'll try, but demand may fail
-            string word_At = "at";
-            string inFileLineNum = "in {0}:line {1}";
-
-            if (traceFormat != TraceFormat.NoResourceLookup)
-            {
-                word_At = SR.Word_At;
-                inFileLineNum = SR.StackTrace_InFileLineNumber;
-            }
+            string word_At = SR.Word_At;
+            string inFileLineNum = SR.StackTrace_InFileLineNumber;
 
             bool fFirstFrame = true;
             StringBuilder sb = new StringBuilder(255);
@@ -372,9 +255,9 @@ namespace System.Diagnostics
                     sb.Append(mb.Name);
 
                     // deal with the generic portion of the method
-                    if (mb is MethodInfo && ((MethodInfo)mb).IsGenericMethod)
+                    if (mb is MethodInfo mi && mi.IsGenericMethod)
                     {
-                        Type[] typars = ((MethodInfo)mb).GetGenericArguments();
+                        Type[] typars = mi.GetGenericArguments();
                         sb.Append('[');
                         int k = 0;
                         bool fFirstTyParam = true;
@@ -426,9 +309,9 @@ namespace System.Diagnostics
                     if (methodChanged)
                     {
                         // Append original method name e.g. +MoveNext()
-                        sb.Append("+");
+                        sb.Append('+');
                         sb.Append(methodName);
-                        sb.Append("()");
+                        sb.Append('(').Append(')');
                     }
 
                     // source location printing
