@@ -25,7 +25,11 @@ namespace System.Text
         public override bool Equals(object value)
         {
             EncodingInfo that = value as EncodingInfo;
-            return CodePage == that?.CodePage;
+            if (that != null)
+            {
+                return this.CodePage == that.CodePage;
+            }
+            return false;
         }
 
         public override int GetHashCode()
