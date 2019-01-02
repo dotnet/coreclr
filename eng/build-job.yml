@@ -53,6 +53,17 @@ jobs:
 
     steps:
 
+    # Build packages and publish official build
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.proj
+          displayName: Restore blob feed tasks
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        # TODO: pass publish feed url and access token in from the internal pipeline
+        - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore -projects $(Build.SourcesDirectory)\eng\empty.proj
+          displayName: Restore blob feed tasks
+
+
     # Install native dependencies
     #
     # This is only required for non-docker builds.
