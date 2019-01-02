@@ -88,7 +88,7 @@ namespace System
 
         public string ToString(string format, IFormatProvider provider)
         {
-            if (m_value < 0 && format is object && format.Length > 0 && (format[0] == 'X' || format[0] == 'x'))
+            if (m_value < 0 && !(format is null) && format.Length > 0 && (format[0] == 'X' || format[0] == 'x'))
             {
                 uint temp = (uint)(m_value & 0x000000FF);
                 return Number.FormatUInt32(temp, format, provider);

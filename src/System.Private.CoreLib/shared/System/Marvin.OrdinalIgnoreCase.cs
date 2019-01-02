@@ -85,7 +85,7 @@ namespace System
             int hash = ComputeHash32(ref Unsafe.As<char, byte>(ref MemoryMarshal.GetReference(scratch)), charsWritten * 2, p0, p1);
 
             // Return the borrowed array if necessary.
-            if (borrowedArr is object)
+            if (!(borrowedArr is null))
             {
                 ArrayPool<char>.Shared.Return(borrowedArr);
             }

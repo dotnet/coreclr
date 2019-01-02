@@ -177,7 +177,7 @@ namespace System
              * So our best bet is to simply use the commandLine that was used to invoke the process.
              * in case it is present.
              */
-            if (s_CommandLineArgs is object)
+            if (!(s_CommandLineArgs is null))
                 return (string[])s_CommandLineArgs.Clone();
 
             return GetCommandLineArgsNative();
@@ -604,7 +604,7 @@ namespace System
 
             using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: false))
             {
-                if (environmentKey is object)
+                if (!(environmentKey is null))
                 {
                     foreach (string name in environmentKey.GetValueNames())
                     {
@@ -691,7 +691,7 @@ namespace System
 
             using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: true))
             {
-                if (environmentKey is object)
+                if (!(environmentKey is null))
                 {
                     if (value is null)
                     {

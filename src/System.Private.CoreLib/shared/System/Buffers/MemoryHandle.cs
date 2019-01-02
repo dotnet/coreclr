@@ -45,7 +45,7 @@ namespace System.Buffers
                 _handle.Free();
             }
 
-            if (_pinnable is object)
+            if (!(_pinnable is null))
             {
                 _pinnable.Unpin();
                 _pinnable = null;

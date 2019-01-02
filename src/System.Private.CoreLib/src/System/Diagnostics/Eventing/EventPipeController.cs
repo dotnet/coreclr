@@ -135,7 +135,7 @@ namespace System.Diagnostics.Tracing
                         // Check for null here because it's possible that the configuration contains a process filter
                         // that doesn't match the current process.  IF this occurs, we should't enable tracing.
                         EventPipeConfiguration config = BuildConfigFromFile(m_configFilePath);
-                        if (config is object)
+                        if (!(config is null))
                         {
                             EventPipe.Enable(config);
                         }
@@ -297,10 +297,10 @@ namespace System.Diagnostics.Tracing
         {
             string appName = null;
             Assembly entryAssembly = Assembly.GetEntryAssembly();
-            if (entryAssembly is object)
+            if (!(entryAssembly is null))
             {
                 AssemblyName assemblyName = entryAssembly.GetName();
-                if (assemblyName is object)
+                if (!(assemblyName is null))
                 {
                     appName = assemblyName.Name;
                 }

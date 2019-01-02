@@ -70,7 +70,7 @@ namespace System
             // Call the worker method that has more performant but less user friendly signature.
             T o = this.Target;
             target = o;
-            return o is object;
+            return !(o is null);
         }
 
         public void SetTarget(T target)

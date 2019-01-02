@@ -147,7 +147,7 @@ namespace System.Globalization
         {
             IdnMapping that = obj as IdnMapping;
             return
-                that is object &&
+                !(that is null) &&
                 _allowUnassigned == that._allowUnassigned &&
                 _useStd3AsciiRules == that._useStd3AsciiRules;
         }

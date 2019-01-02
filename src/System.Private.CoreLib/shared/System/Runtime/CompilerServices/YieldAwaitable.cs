@@ -86,7 +86,7 @@ namespace System.Runtime.CompilerServices
                 // as if there wasn't a SynchronizationContext, since that's what it
                 // logically represents.
                 var syncCtx = SynchronizationContext.Current;
-                if (syncCtx is object && syncCtx.GetType() != typeof(SynchronizationContext))
+                if (!(syncCtx is null) && syncCtx.GetType() != typeof(SynchronizationContext))
                 {
                     syncCtx.Post(s_sendOrPostCallbackRunAction, continuation);
                 }
@@ -117,7 +117,7 @@ namespace System.Runtime.CompilerServices
 
             void IStateMachineBoxAwareAwaiter.AwaitUnsafeOnCompleted(IAsyncStateMachineBox box)
             {
-                Debug.Assert(box is object);
+                Debug.Assert(!(box is null));
 
                 // If tracing is enabled, delegate the Action-based implementation.
                 if (TplEtwProvider.Log.IsEnabled())
@@ -130,7 +130,7 @@ namespace System.Runtime.CompilerServices
                 // an IAsyncStateMachineBox instead of an Action, and only for flowContext:false.
 
                 SynchronizationContext syncCtx = SynchronizationContext.Current;
-                if (syncCtx is object && syncCtx.GetType() != typeof(SynchronizationContext))
+                if (!(syncCtx is null) && syncCtx.GetType() != typeof(SynchronizationContext))
                 {
                     syncCtx.Post(s => ((IAsyncStateMachineBox)s).MoveNext(), box);
                 }
@@ -157,7 +157,7 @@ namespace System.Runtime.CompilerServices
                 int continuationId = Task.NewId();
                 Task currentTask = Task.InternalCurrent;
                 // fire the correlation ETW event
-                TplEtwProvider.Log.AwaitTaskContinuationScheduled(TaskScheduler.Current.Id, (currentTask is object) ? currentTask.Id : 0, continuationId);
+                TplEtwProvider.Log.AwaitTaskContinuationScheduled(TaskScheduler.Current.Id, (!(currentTask is null)) ? currentTask.Id : 0, continuationId);
 
                 return AsyncMethodBuilderCore.CreateContinuationWrapper(continuation, (innerContinuation,continuationIdTask) =>
                 {

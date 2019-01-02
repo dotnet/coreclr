@@ -136,7 +136,7 @@ namespace System
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptions"/> is
         /// null.</exception>
         private AggregateException(string message, IList<Exception> innerExceptions)
-            : base(message, innerExceptions is object && innerExceptions.Count > 0 ? innerExceptions[0] : null)
+            : base(message, !(innerExceptions is null) && innerExceptions.Count > 0 ? innerExceptions[0] : null)
         {
             if (innerExceptions is null)
             {
@@ -213,7 +213,7 @@ namespace System
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptionInfos"/> is
         /// null.</exception>
         private AggregateException(string message, IList<ExceptionDispatchInfo> innerExceptionInfos)
-            : base(message, innerExceptionInfos is object && innerExceptionInfos.Count > 0 && innerExceptionInfos[0] != null ?
+            : base(message, !(innerExceptionInfos is null) && innerExceptionInfos.Count > 0 && innerExceptionInfos[0] != null ?
                                 innerExceptionInfos[0].SourceException : null)
         {
             if (innerExceptionInfos is null)
@@ -229,7 +229,7 @@ namespace System
             for (int i = 0; i < exceptionsCopy.Length; i++)
             {
                 var edi = innerExceptionInfos[i];
-                if (edi is object) exceptionsCopy[i] = edi.SourceException;
+                if (!(edi is null)) exceptionsCopy[i] = edi.SourceException;
 
                 if (exceptionsCopy[i] == null)
                 {
@@ -294,7 +294,7 @@ namespace System
             // Recursively traverse the inner exceptions as long as the inner exception of type AggregateException and has only one inner exception
             Exception back = this;
             AggregateException backAsAggregate = this;
-            while (backAsAggregate is object && backAsAggregate.InnerExceptions.Count == 1)
+            while (!(backAsAggregate is null) && backAsAggregate.InnerExceptions.Count == 1)
             {
                 back = back.InnerException;
                 backAsAggregate = back as AggregateException;
@@ -355,7 +355,7 @@ namespace System
             }
 
             // If there are unhandled exceptions remaining, throw them.
-            if (unhandledExceptions is object)
+            if (!(unhandledExceptions is null))
             {
                 throw new AggregateException(Message, unhandledExceptions);
             }
@@ -403,7 +403,7 @@ namespace System
 
                     // If this exception is an aggregate, keep it around for later.  Otherwise,
                     // simply add it to the list of flattened exceptions to be returned.
-                    if (currentInnerAsAggregate is object)
+                    if (!(currentInnerAsAggregate is null))
                     {
                         exceptionsToFlatten.Add(currentInnerAsAggregate);
                     }

@@ -27,7 +27,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Assert(propertyName != null);
 
             IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy is object)
+            if (!(proxy is null))
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
@@ -62,7 +62,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Assert(propertyName != null);
 
             IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy is object)
+            if (!(proxy is null))
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
@@ -84,7 +84,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal static unsafe void GetType(object target, TypeNameNative* pIndexedParamType)
         {
             IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy is object)
+            if (!(proxy is null))
                 target = proxy.GetTarget();
 
             SystemTypeMarshaler.ConvertToNative(target.GetType(), pIndexedParamType);
@@ -151,22 +151,22 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             //
             // QI and figure out the right flags
             //
-            if (target as IList is object)
+            if (target is IList)
                 supportFlags |= InterfaceForwardingSupport.IBindableVector;
 
             // NOTE: We need to use the directed type here
             // If we use IVector_Raw<T1> here, it derives from a different IIterable<T> which the runtime
             // doesn't recognize, and therefore IEnumerable cast won't be able to take advantage of this QI
-            if (target as IList<T1> != null)
+            if (target is IList<T1>)
                 supportFlags |= InterfaceForwardingSupport.IVector;
 
-            if (target as IBindableVectorView is object)
+            if (target is IBindableVectorView)
                 supportFlags |= InterfaceForwardingSupport.IBindableVectorView;
 
             // NOTE: We need to use the redirected type here
             // If we use IVector_Raw<T1> here, it derives from a different IIterable<T> which the runtime
             // doesn't recognize, and therefore IEnumerable cast won't be able to take advantage of this QI
-            if (target as IReadOnlyList<T2> != null)
+            if (target is IReadOnlyList<T2>)
                 supportFlags |= InterfaceForwardingSupport.IVectorView;
 
             // Verify IEnumerable last because the first few QIs might succeed and we need
@@ -174,7 +174,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // forward it manually)
             // For example, if we try to shoot in the dark by trying IVector<IInspectable> and it 
             // succeeded, IEnumerable needs to know that
-            if (target as IEnumerable is object)
+            if (target is IEnumerable)
                 supportFlags |= InterfaceForwardingSupport.IBindableIterableOrIIterable;
 
             return new ICustomPropertyProviderProxy<T1, T2>(target, supportFlags);
@@ -242,7 +242,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         object IBindableVector.GetAt(uint index)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
-            if (bindableVector is object)
+            if (!(bindableVector is null))
             {
                 // IBindableVector -> IBindableVector
                 return bindableVector.GetAt(index);
@@ -259,7 +259,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             get
             {
                 IBindableVector bindableVector = GetIBindableVectorNoThrow();
-                if (bindableVector is object)
+                if (!(bindableVector is null))
                 {
                     // IBindableVector -> IBindableVector
                     return bindableVector.Size;
@@ -275,7 +275,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         IBindableVectorView IBindableVector.GetView()
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
-            if (bindableVector is object)
+            if (!(bindableVector is null))
             {
                 // IBindableVector -> IBindableVector
                 return bindableVector.GetView();
@@ -323,7 +323,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         bool IBindableVector.IndexOf(object value, out uint index)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
-            if (bindableVector is object)
+            if (!(bindableVector is null))
             {
                 // IBindableVector -> IBindableVector
                 return bindableVector.IndexOf(value, out index);
@@ -338,7 +338,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         void IBindableVector.SetAt(uint index, object value)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
-            if (bindableVector is object)
+            if (!(bindableVector is null))
             {
                 // IBindableVector -> IBindableVector
                 bindableVector.SetAt(index, value);
@@ -353,7 +353,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         void IBindableVector.InsertAt(uint index, object value)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
-            if (bindableVector is object)
+            if (!(bindableVector is null))
             {
                 // IBindableVector -> IBindableVector
                 bindableVector.InsertAt(index, value);
@@ -368,7 +368,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         void IBindableVector.RemoveAt(uint index)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
-            if (bindableVector is object)
+            if (!(bindableVector is null))
             {
                 // IBindableVector -> IBindableVector
                 bindableVector.RemoveAt(index);
@@ -383,7 +383,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         void IBindableVector.Append(object value)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
-            if (bindableVector is object)
+            if (!(bindableVector is null))
             {
                 // IBindableVector -> IBindableVector
                 bindableVector.Append(value);
@@ -398,7 +398,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         void IBindableVector.RemoveAtEnd()
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
-            if (bindableVector is object)
+            if (!(bindableVector is null))
             {
                 // IBindableVector -> IBindableVector
                 bindableVector.RemoveAtEnd();
@@ -413,7 +413,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         void IBindableVector.Clear()
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
-            if (bindableVector is object)
+            if (!(bindableVector is null))
             {
                 // IBindableVector -> IBindableVector
                 bindableVector.Clear();
@@ -448,7 +448,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         object IBindableVectorView.GetAt(uint index)
         {
             IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
-            if (bindableVectorView is object)
+            if (!(bindableVectorView is null))
                 return bindableVectorView.GetAt(index);
             else
                 return GetVectorViewOfT().GetAt(index);
@@ -459,7 +459,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             get
             {
                 IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
-                if (bindableVectorView is object)
+                if (!(bindableVectorView is null))
                     return bindableVectorView.Size;
                 else
                     return GetVectorViewOfT().Size;
@@ -469,7 +469,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         bool IBindableVectorView.IndexOf(object value, out uint index)
         {
             IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
-            if (bindableVectorView is object)
+            if (!(bindableVectorView is null))
                 return bindableVectorView.IndexOf(value, out index);
             else
                 return GetVectorViewOfT().IndexOf(ConvertTo<T2>(value), out index);
@@ -478,7 +478,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         IBindableIterator IBindableIterable.First()
         {
             IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
-            if (bindableVectorView is object)
+            if (!(bindableVectorView is null))
                 return bindableVectorView.First();
             else
                 return new IteratorOfTToIteratorAdapter<T2>(GetVectorViewOfT().First());

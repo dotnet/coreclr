@@ -41,7 +41,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             InternalDecoderBestFitFallback that = value as InternalDecoderBestFitFallback;
-            if (that is object)
+            if (!(that is null))
             {
                 return (_encoding.CodePage == that._encoding.CodePage);
             }

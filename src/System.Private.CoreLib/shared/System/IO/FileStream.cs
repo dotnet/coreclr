@@ -196,7 +196,7 @@ namespace System.IO
             else if (tempshare < FileShare.None || tempshare > (FileShare.ReadWrite | FileShare.Delete))
                 badArg = nameof(share);
 
-            if (badArg is object)
+            if (!(badArg is null))
                 throw new ArgumentOutOfRangeException(badArg, SR.ArgumentOutOfRange_Enum);
 
             // NOTE: any change to FileOptions enum needs to be matched here in the error validation
@@ -369,7 +369,7 @@ namespace System.IO
             }
 
             Task<int> t = ReadAsyncInternal(buffer, cancellationToken, out int synchronousResult);
-            return t is object ?
+            return !(t is null) ?
                 new ValueTask<int>(t) :
                 new ValueTask<int>(synchronousResult);
         }

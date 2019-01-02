@@ -227,12 +227,12 @@ namespace System.Reflection.Emit
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         private static RuntimeModule GetDynamicMethodsModule()
         {
-            if (s_anonymouslyHostedDynamicMethodsModule is object)
+            if (!(s_anonymouslyHostedDynamicMethodsModule is null))
                 return s_anonymouslyHostedDynamicMethodsModule;
 
             lock (s_anonymouslyHostedDynamicMethodsModuleLock)
             {
-                if (s_anonymouslyHostedDynamicMethodsModule is object)
+                if (!(s_anonymouslyHostedDynamicMethodsModule is null))
                     return s_anonymouslyHostedDynamicMethodsModule;
 
                 AssemblyName assemblyName = new AssemblyName("Anonymously Hosted DynamicMethods Assembly");
@@ -264,7 +264,7 @@ namespace System.Reflection.Emit
             DynamicMethod.CheckConsistency(attributes, callingConvention);
 
             // check and store the signature
-            if (signature is object)
+            if (!(signature is null))
             {
                 m_parameterTypes = new RuntimeType[signature.Length];
                 for (int i = 0; i < signature.Length; i++)
@@ -301,15 +301,15 @@ namespace System.Reflection.Emit
                 Debug.Assert(m == null || !m.Equals(s_anonymouslyHostedDynamicMethodsModule), "The user cannot explicitly use this assembly");
                 Debug.Assert(m == null || owner is null, "m and owner cannot both be set");
 
-                if (m is object)
+                if (!(m is null))
                     m_module = m.ModuleHandle.GetRuntimeModule(); // this returns the underlying module for all RuntimeModule and ModuleBuilder objects.
                 else
                 {
                     RuntimeType rtOwner = null;
-                    if (owner is object)
+                    if (!(owner is null))
                         rtOwner = owner.UnderlyingSystemType as RuntimeType;
 
-                    if (rtOwner is object)
+                    if (!(rtOwner is null))
                     {
                         if (rtOwner.HasElementType || rtOwner.ContainsGenericParameters
                             || rtOwner.IsGenericParameter || rtOwner.IsInterface)
@@ -377,7 +377,7 @@ namespace System.Reflection.Emit
                 {
                     if (m_methodHandle is null)
                     {
-                        if (m_DynamicILInfo is object)
+                        if (!(m_DynamicILInfo is null))
                             m_DynamicILInfo.GetCallableMethod(m_module, this);
                         else
                         {
@@ -455,7 +455,7 @@ namespace System.Reflection.Emit
 
             // verify arguments
             int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters is object) ? parameters.Length : 0;
+            int actualCount = (!(parameters is null)) ? parameters.Length : 0;
             if (formalCount != actualCount)
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 

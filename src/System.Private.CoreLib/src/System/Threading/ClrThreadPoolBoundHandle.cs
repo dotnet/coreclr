@@ -181,7 +181,7 @@ namespace System.Threading
             {
                 ThreadPoolBoundHandleOverlapped overlapped = preAllocated._overlapped;
 
-                if (overlapped._boundHandle is object)
+                if (!(overlapped._boundHandle is null))
                     throw new ArgumentException(SR.Argument_PreAllocatedAlreadyAllocated, nameof(preAllocated));
 
                 overlapped._boundHandle = this;
@@ -231,7 +231,7 @@ namespace System.Threading
             if (wrapper._boundHandle != this)
                 throw new ArgumentException(SR.Argument_NativeOverlappedWrongBoundHandle, nameof(overlapped));
 
-            if (wrapper._preAllocated is object)
+            if (!(wrapper._preAllocated is null))
                 wrapper._preAllocated.Release();
             else
                 Overlapped.Free(overlapped);

@@ -90,7 +90,7 @@ namespace System.Reflection.Emit
             if (mod is null)
                 throw new ArgumentNullException(nameof(mod));
 
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
             {
                 foreach (Type t in parameterTypes)
                 {
@@ -140,7 +140,7 @@ namespace System.Reflection.Emit
 
             m_callingConvention = callingConvention;
 
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
             {
                 m_parameterTypes = new Type[parameterTypes.Length];
                 Array.Copy(parameterTypes, 0, m_parameterTypes, 0, parameterTypes.Length);
@@ -296,7 +296,7 @@ namespace System.Reflection.Emit
                 //
                 symWriter.OpenScope(0);
 
-                if (m_symCustomAttrs is object)
+                if (!(m_symCustomAttrs is null))
                 {
                     foreach (SymCustomAttr symCustomAttr in m_symCustomAttrs)
                         dynMod.GetSymWriter().SetSymAttribute(
@@ -305,7 +305,7 @@ namespace System.Reflection.Emit
                             symCustomAttr.m_data);
                 }
 
-                if (m_localSymInfo is object)
+                if (!(m_localSymInfo is null))
                     m_localSymInfo.EmitLocalSymInfo(symWriter);
                 il.m_ScopeTree.EmitScopeTree(symWriter);
                 il.m_LineNumberInfo.EmitLineNumberInfo(symWriter);
@@ -377,7 +377,7 @@ namespace System.Reflection.Emit
             if (m_parameterTypes is null)
                 m_parameterTypes = Array.Empty<Type>();
 
-            m_signature = SignatureHelper.GetMethodSigHelper(m_module, m_callingConvention, m_inst is object ? m_inst.Length : 0,
+            m_signature = SignatureHelper.GetMethodSigHelper(m_module, m_callingConvention, !(m_inst is null) ? m_inst.Length : 0,
                 m_returnType is null ? typeof(void) : m_returnType, m_returnTypeRequiredCustomModifiers, m_returnTypeOptionalCustomModifiers,
                 m_parameterTypes, m_parameterTypeRequiredCustomModifiers, m_parameterTypeOptionalCustomModifiers);
 
@@ -387,13 +387,13 @@ namespace System.Reflection.Emit
         // Returns a buffer whose initial signatureLength bytes contain encoded local signature.
         internal byte[] GetLocalSignature(out int signatureLength)
         {
-            if (m_localSignature is object)
+            if (!(m_localSignature is null))
             {
                 signatureLength = m_localSignature.Length;
                 return m_localSignature;
             }
 
-            if (m_ilGenerator is object)
+            if (!(m_ilGenerator is null))
             {
                 if (m_ilGenerator.m_localCount != 0)
                 {
@@ -407,7 +407,7 @@ namespace System.Reflection.Emit
 
         internal int GetMaxStack()
         {
-            if (m_ilGenerator is object)
+            if (!(m_ilGenerator is null))
             {
                 return m_ilGenerator.GetMaxStackSize() + ExceptionHandlerCount;
             }
@@ -425,7 +425,7 @@ namespace System.Reflection.Emit
 
         internal int ExceptionHandlerCount
         {
-            get { return m_exceptions is object ? m_exceptions.Length : 0; }
+            get { return !(m_exceptions is null) ? m_exceptions.Length : 0; }
         }
 
         internal int CalculateNumberOfExceptions(__ExceptionInfo[] excp)
@@ -447,7 +447,7 @@ namespace System.Reflection.Emit
 
         internal bool IsTypeCreated()
         {
-            return (m_containingType is object && m_containingType.IsCreated());
+            return (!(m_containingType is null) && m_containingType.IsCreated());
         }
 
         internal TypeBuilder GetTypeBuilder()
@@ -661,7 +661,7 @@ namespace System.Reflection.Emit
 
         public override MethodInfo GetGenericMethodDefinition() { if (!IsGenericMethod) throw new InvalidOperationException(); return this; }
 
-        public override bool IsGenericMethod { get { return m_inst is object; } }
+        public override bool IsGenericMethod { get { return !(m_inst is null); } }
 
         public override Type[] GetGenericArguments() { return m_inst; }
 
@@ -679,7 +679,7 @@ namespace System.Reflection.Emit
             if (names.Length == 0)
                 throw new ArgumentException(SR.Arg_EmptyArray, nameof(names));
 
-            if (m_inst is object)
+            if (!(m_inst is null))
                 throw new InvalidOperationException(SR.InvalidOperation_GenericParametersAlreadySet);
 
             for (int i = 0; i < names.Length; i++)
@@ -762,7 +762,7 @@ namespace System.Reflection.Emit
             int token = TypeBuilder.DefineMethod(m_module.GetNativeHandle(), m_containingType.MetadataTokenInternal, m_strName, sigBytes, sigLength, Attributes);
             m_tkMethod = new MethodToken(token);
 
-            if (m_inst is object)
+            if (!(m_inst is null))
                 foreach (GenericTypeParameterBuilder tb in m_inst)
                     if (!tb.m_type.IsCreated()) tb.m_type.CreateType();
 
@@ -801,12 +801,12 @@ namespace System.Reflection.Emit
 
             ThrowIfGeneric();
 
-            if (returnType is object)
+            if (!(returnType is null))
             {
                 m_returnType = returnType;
             }
 
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
             {
                 m_parameterTypes = new Type[parameterTypes.Length];
                 Array.Copy(parameterTypes, 0, m_parameterTypes, 0, parameterTypes.Length);

@@ -228,7 +228,7 @@ namespace System
             object[] resultList;
             int followCount = 1;
             object[] followList = dFollow._invocationList as object[];
-            if (followList is object)
+            if (!(followList is null))
                 followCount = (int)dFollow._invocationCount;
 
             int resultCount;
@@ -453,7 +453,7 @@ namespace System
             {
                 var t = _invocationList as Delegate;
 
-                if (t is object)
+                if (!(t is null))
                 {
                     // this is a secure/wrapper delegate so we need to unwrap and check the inner one
                     return t.GetHashCode();
@@ -494,7 +494,7 @@ namespace System
                 else
                 {
                     object[] invocationList = _invocationList as object[];
-                    if (invocationList is object)
+                    if (!(invocationList is null))
                     {
                         int invocationCount = (int)_invocationCount;
                         return ((Delegate)invocationList[invocationCount - 1]).GetTarget();
@@ -502,7 +502,7 @@ namespace System
                     else
                     {
                         Delegate receiver = _invocationList as Delegate;
-                        if (receiver is object)
+                        if (!(receiver is null))
                             return receiver.GetTarget();
                     }
                 }
@@ -512,17 +512,17 @@ namespace System
 
         protected override MethodInfo GetMethodImpl()
         {
-            if (_invocationCount != (IntPtr)0 && _invocationList is object)
+            if (_invocationCount != (IntPtr)0 && !(_invocationList is null))
             {
                 // multicast case
                 object[] invocationList = _invocationList as object[];
-                if (invocationList is object)
+                if (!(invocationList is null))
                 {
                     int index = (int)_invocationCount - 1;
                     return ((Delegate)invocationList[index]).Method;
                 }
                 MulticastDelegate innerDelegate = _invocationList as MulticastDelegate;
-                if (innerDelegate is object)
+                if (!(innerDelegate is null))
                 {
                     // must be a secure/wrapper delegate
                     return innerDelegate.GetMethodImpl();

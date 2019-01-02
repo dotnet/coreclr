@@ -186,7 +186,7 @@ namespace System
 #endregion
 
                 Type pCls = null;
-                int argsToCheck = (paramArrayType is object) ? par.Length - 1 : args.Length;
+                int argsToCheck = (!(paramArrayType is null)) ? par.Length - 1 : args.Length;
 
 #region Match method by parameter type
                 for (j = 0; j < argsToCheck; j++)
@@ -240,7 +240,7 @@ namespace System
 #endregion
                 }
 
-                if (paramArrayType is object && j == par.Length - 1)
+                if (!(paramArrayType is null) && j == par.Length - 1)
                 {
 #region Check that excess arguments can be placed in the param array
                     for (; j < args.Length; j++)
@@ -289,7 +289,7 @@ namespace System
             if (CurIdx == 1)
             {
 #region Found only one method
-                if (names is object)
+                if (!(names is null))
                 {
                     state = new BinderState((int[])paramOrder[0].Clone(), args.Length, paramArrayTypes[0] != null);
                     ReorderParams(paramOrder[0], args);
@@ -370,7 +370,7 @@ namespace System
                 throw new AmbiguousMatchException(SR.Arg_AmbiguousMatchException);
 
             // Reorder (if needed)
-            if (names is object)
+            if (!(names is null))
             {
                 state = new BinderState((int[])paramOrder[currentMin].Clone(), args.Length, paramArrayTypes[currentMin] != null);
                 ReorderParams(paramOrder[currentMin], args);
@@ -618,7 +618,7 @@ namespace System
                     Type[] indexes, ParameterModifier[] modifiers)
         {
             // Allow a null indexes array. But if it is not null, every element must be non-null as well.
-            if (indexes is object)
+            if (!(indexes is null))
             {
                 foreach (Type index in indexes)
                 {
@@ -636,10 +636,10 @@ namespace System
 
             // Find all the properties that can be described by type indexes parameter
             int CurIdx = 0;
-            int indexesLength = (indexes is object) ? indexes.Length : 0;
+            int indexesLength = (!(indexes is null)) ? indexes.Length : 0;
             for (i = 0; i < candidates.Length; i++)
             {
-                if (indexes is object)
+                if (!(indexes is null))
                 {
                     ParameterInfo[] par = candidates[i].GetIndexParameters();
                     if (par.Length != indexesLength)
@@ -671,7 +671,7 @@ namespace System
 
                 if (j == indexesLength)
                 {
-                    if (returnType is object)
+                    if (!(returnType is null))
                     {
                         if (candidates[i].PropertyType.IsPrimitive)
                         {
@@ -702,7 +702,7 @@ namespace System
             for (i = 1; i < CurIdx; i++)
             {
                 int newMin = FindMostSpecificType(candidates[currentMin].PropertyType, candidates[i].PropertyType, returnType);
-                if (newMin == 0 && indexes is object)
+                if (newMin == 0 && !(indexes is null))
                     newMin = FindMostSpecific(candidates[currentMin].GetIndexParameters(),
                                               paramOrder,
                                               null,
@@ -820,7 +820,7 @@ namespace System
                 throw new ArgumentNullException(nameof(match));
 
             PropertyInfo bestMatch = null;
-            int typesLength = (types is object) ? types.Length : 0;
+            int typesLength = (!(types is null)) ? types.Length : 0;
             for (int i = 0; i < match.Length; i++)
             {
                 ParameterInfo[] par = match[i].GetIndexParameters();
@@ -835,7 +835,7 @@ namespace System
                 }
                 if (j < typesLength)
                     continue;
-                if (returnType is object && returnType != match[i].PropertyType)
+                if (!(returnType is null) && returnType != match[i].PropertyType)
                     continue;
 
                 if (bestMatch is null)
@@ -866,7 +866,7 @@ namespace System
 
             for (int i = 0; i < types.Length; i++)
             {
-                if (args is object && args[i] == Type.Missing)
+                if (!(args is null) && args[i] == Type.Missing)
                     continue;
 
                 Type c1, c2;
@@ -908,7 +908,7 @@ namespace System
             {
                 // if we cannot tell which is a better match based on parameter types (p1Less == p2Less),
                 // let's see which one has the most matches without using the params array (the longer one wins).
-                if (!p1Less && args is object)
+                if (!p1Less && !(args is null))
                 {
                     if (p1.Length > p2.Length)
                     {
@@ -1112,7 +1112,7 @@ namespace System
             {
                 depth++;
                 currentType = currentType.BaseType;
-            } while (currentType is object);
+            } while (!(currentType is null));
 
             return depth;
         }

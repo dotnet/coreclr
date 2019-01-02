@@ -492,7 +492,7 @@ namespace System.Reflection.Emit
         {
             int stackchange = 0;
             SignatureHelper sig;
-            if (optionalParameterTypes is object)
+            if (!(optionalParameterTypes is null))
             {
                 if ((callingConvention & CallingConventions.VarArgs) == 0)
                 {
@@ -514,10 +514,10 @@ namespace System.Reflection.Emit
             if (returnType != typeof(void))
                 stackchange++;
             // Pop off arguments if any.
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
                 stackchange -= parameterTypes.Length;
             // Pop off vararg arguments.
-            if (optionalParameterTypes is object)
+            if (!(optionalParameterTypes is null))
                 stackchange -= optionalParameterTypes.Length;
             // Pop the this parameter if the method has a this parameter.
             if ((callingConvention & CallingConventions.HasThis) == CallingConventions.HasThis)
@@ -539,7 +539,7 @@ namespace System.Reflection.Emit
 
             ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
 
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
             {
                 cParams = parameterTypes.Length;
             }
@@ -549,7 +549,7 @@ namespace System.Reflection.Emit
                 unmanagedCallConv,
                 returnType);
 
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
             {
                 for (i = 0; i < cParams; i++)
                 {
@@ -562,7 +562,7 @@ namespace System.Reflection.Emit
                 stackchange++;
 
             // Pop off arguments if any.
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
                 stackchange -= cParams;
 
             // Pop the native function pointer.
@@ -595,7 +595,7 @@ namespace System.Reflection.Emit
                 stackchange++;
             // Pop the parameters.
             Type[] parameters = methodInfo.GetParameterTypes();
-            if (parameters is object)
+            if (!(parameters is null))
                 stackchange -= parameters.Length;
 
             // Pop the this parameter if the method is non-static and the
@@ -603,7 +603,7 @@ namespace System.Reflection.Emit
             if (!(methodInfo is SymbolMethod) && methodInfo.IsStatic == false && !(opcode.Equals(OpCodes.Newobj)))
                 stackchange--;
             // Pop the optional parameters off the stack.
-            if (optionalParameterTypes is object)
+            if (!(optionalParameterTypes is null))
                 stackchange -= optionalParameterTypes.Length;
             UpdateStackSize(opcode, stackchange);
 
@@ -677,7 +677,7 @@ namespace System.Reflection.Emit
                                 "Unexpected opcode encountered for StackBehaviour of VarPop.");
 
                 Type[] parameters = con.GetParameterTypes();
-                if (parameters is object)
+                if (!(parameters is null))
                     stackchange -= parameters.Length;
             }
             UpdateStackSize(opcode, stackchange);
@@ -694,7 +694,7 @@ namespace System.Reflection.Emit
 
             int tempVal = 0;
             ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
-            if (opcode == OpCodes.Ldtoken && cls is object && cls.IsGenericTypeDefinition)
+            if (opcode == OpCodes.Ldtoken && !(cls is null) && cls.IsGenericTypeDefinition)
             {
                 // This gets the token for the generic type definition if cls is one.
                 tempVal = modBuilder.GetTypeToken(cls).Token;
@@ -1031,7 +1031,7 @@ namespace System.Reflection.Emit
 
             if (current.GetCurrentState() == __ExceptionInfo.State_Filter)
             {
-                if (exceptionType is object)
+                if (!(exceptionType is null))
                 {
                     throw new ArgumentException(SR.Argument_ShouldNotSpecifyExceptionType);
                 }

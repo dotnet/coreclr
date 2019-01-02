@@ -820,7 +820,7 @@ namespace System
             int lo = index;
             int hi = index + length - 1;
             object[] objArray = array as object[];
-            if (objArray is object)
+            if (!(objArray is null))
             {
                 while (lo <= hi)
                 {
@@ -942,7 +942,7 @@ namespace System
         // 
         public void CopyTo(Array array, int index)
         {
-            if (array is object && array.Rank != 1)
+            if (!(array is null) && array.Rank != 1)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             // Note: Array.Copy throws a RankException and we want a consistent ArgumentException for all the IList CopyTo methods.
             Array.Copy(this, GetLowerBound(0), array, index, Length);
@@ -1274,7 +1274,7 @@ namespace System
 
             object[] objArray = array as object[];
             int endIndex = startIndex + count;
-            if (objArray is object)
+            if (!(objArray is null))
             {
                 if (value is null)
                 {
@@ -1288,7 +1288,7 @@ namespace System
                     for (int i = startIndex; i < endIndex; i++)
                     {
                         object obj = objArray[i];
-                        if (obj is object && obj.Equals(value)) return i;
+                        if (!(obj is null) && obj.Equals(value)) return i;
                     }
                 }
             }
@@ -1436,7 +1436,7 @@ namespace System
 
             object[] objArray = array as object[];
             int endIndex = startIndex - count + 1;
-            if (objArray is object)
+            if (!(objArray is null))
             {
                 if (value is null)
                 {
@@ -1450,7 +1450,7 @@ namespace System
                     for (int i = startIndex; i >= endIndex; i--)
                     {
                         object obj = objArray[i];
-                        if (obj is object && obj.Equals(value)) return i;
+                        if (!(obj is null) && obj.Equals(value)) return i;
                     }
                 }
             }
@@ -1600,7 +1600,7 @@ namespace System
                 return;
 
             object[] objArray = array as object[];
-            if (objArray is object)
+            if (!(objArray is null))
             {
                 Array.Reverse<object>(objArray, index, length);
             }
@@ -1750,17 +1750,17 @@ namespace System
         {
             if (keys is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
-            if (keys.Rank != 1 || (items is object && items.Rank != 1))
+            if (keys.Rank != 1 || (!(items is null) && items.Rank != 1))
                 ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
             int keysLowerBound = keys.GetLowerBound(0);
-            if (items is object && keysLowerBound != items.GetLowerBound(0))
+            if (!(items is null) && keysLowerBound != items.GetLowerBound(0))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_LowerBoundsMustMatch);
             if (index < keysLowerBound)
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
 
-            if (keys.Length - (index - keysLowerBound) < length || (items is object && (index - keysLowerBound) > items.Length - length))
+            if (keys.Length - (index - keysLowerBound) < length || (!(items is null) && (index - keysLowerBound) > items.Length - length))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
 
@@ -1775,9 +1775,9 @@ namespace System
 
                 object[] objKeys = keys as object[];
                 object[] objItems = null;
-                if (objKeys is object)
+                if (!(objKeys is null))
                     objItems = items as object[];
-                if (objKeys is object && (items is null || objItems is object))
+                if (!(objKeys is null) && (items is null || !(objItems is null)))
                 {
                     SorterObjectArray sorter = new SorterObjectArray(objKeys, objItems, comparer);
                     sorter.Sort(index, length);
@@ -1864,7 +1864,7 @@ namespace System
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            if (keys.Length - index < length || (items is object && index > items.Length - length))
+            if (keys.Length - index < length || (!(items is null) && index > items.Length - length))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
             if (length > 1)
@@ -1949,7 +1949,7 @@ namespace System
                         object temp = keys[a];
                         keys[a] = keys[b];
                         keys[b] = temp;
-                        if (items is object)
+                        if (!(items is null))
                         {
                             object item = items[a];
                             items[a] = items[b];
@@ -1965,7 +1965,7 @@ namespace System
                 keys[i] = keys[j];
                 keys[j] = t;
 
-                if (items is object)
+                if (!(items is null))
                 {
                     object item = items[i];
                     items[i] = items[j];
@@ -2085,7 +2085,7 @@ namespace System
             private void DownHeap(int i, int n, int lo)
             {
                 object d = keys[lo + i - 1];
-                object dt = (items is object) ? items[lo + i - 1] : null;
+                object dt = (!(items is null)) ? items[lo + i - 1] : null;
                 int child;
                 while (i <= n / 2)
                 {
@@ -2097,12 +2097,12 @@ namespace System
                     if (!(comparer.Compare(d, keys[lo + child - 1]) < 0))
                         break;
                     keys[lo + i - 1] = keys[lo + child - 1];
-                    if (items is object)
+                    if (!(items is null))
                         items[lo + i - 1] = items[lo + child - 1];
                     i = child;
                 }
                 keys[lo + i - 1] = d;
-                if (items is object)
+                if (!(items is null))
                     items[lo + i - 1] = dt;
             }
 
@@ -2114,16 +2114,16 @@ namespace System
                 {
                     j = i;
                     t = keys[i + 1];
-                    ti = (items is object) ? items[i + 1] : null;
+                    ti = (!(items is null)) ? items[i + 1] : null;
                     while (j >= lo && comparer.Compare(t, keys[j]) < 0)
                     {
                         keys[j + 1] = keys[j];
-                        if (items is object)
+                        if (!(items is null))
                             items[j + 1] = items[j];
                         j--;
                     }
                     keys[j + 1] = t;
-                    if (items is object)
+                    if (!(items is null))
                         items[j + 1] = ti;
                 }
             }
@@ -2155,7 +2155,7 @@ namespace System
                         object key = keys.GetValue(a);
                         keys.SetValue(keys.GetValue(b), a);
                         keys.SetValue(key, b);
-                        if (items is object)
+                        if (!(items is null))
                         {
                             object item = items.GetValue(a);
                             items.SetValue(items.GetValue(b), a);
@@ -2171,7 +2171,7 @@ namespace System
                 keys.SetValue(keys.GetValue(j), i);
                 keys.SetValue(t1, j);
 
-                if (items is object)
+                if (!(items is null))
                 {
                     object t2 = items.GetValue(i);
                     items.SetValue(items.GetValue(j), i);
@@ -2291,7 +2291,7 @@ namespace System
             private void DownHeap(int i, int n, int lo)
             {
                 object d = keys.GetValue(lo + i - 1);
-                object dt = (items is object) ? items.GetValue(lo + i - 1) : null;
+                object dt = (!(items is null)) ? items.GetValue(lo + i - 1) : null;
                 int child;
                 while (i <= n / 2)
                 {
@@ -2305,12 +2305,12 @@ namespace System
                         break;
 
                     keys.SetValue(keys.GetValue(lo + child - 1), lo + i - 1);
-                    if (items is object)
+                    if (!(items is null))
                         items.SetValue(items.GetValue(lo + child - 1), lo + i - 1);
                     i = child;
                 }
                 keys.SetValue(d, lo + i - 1);
-                if (items is object)
+                if (!(items is null))
                     items.SetValue(dt, lo + i - 1);
             }
 
@@ -2322,18 +2322,18 @@ namespace System
                 {
                     j = i;
                     t = keys.GetValue(i + 1);
-                    dt = (items is object) ? items.GetValue(i + 1) : null;
+                    dt = (!(items is null)) ? items.GetValue(i + 1) : null;
 
                     while (j >= lo && comparer.Compare(t, keys.GetValue(j)) < 0)
                     {
                         keys.SetValue(keys.GetValue(j), j + 1);
-                        if (items is object)
+                        if (!(items is null))
                             items.SetValue(items.GetValue(j), j + 1);
                         j--;
                     }
 
                     keys.SetValue(t, j + 1);
-                    if (items is object)
+                    if (!(items is null))
                         items.SetValue(dt, j + 1);
                 }
             }
@@ -2656,7 +2656,7 @@ namespace System
 
             internal SZGenericArrayEnumerator(T[] array)
             {
-                Debug.Assert(array is object);
+                Debug.Assert(!(array is null));
 
                 _array = array;
                 _index = -1;

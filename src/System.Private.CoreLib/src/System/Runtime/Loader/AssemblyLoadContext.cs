@@ -90,7 +90,7 @@ namespace System.Runtime.Loader
         {
             // Use the _unloadLock as a guard to detect the corner case when the constructor of the AssemblyLoadContext was not executed
             // e.g. due to the JIT failing to JIT it.
-            if (_unloadLock is object)
+            if (!(_unloadLock is null))
             {
                 // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
                 Debug.Assert(IsCollectible);
@@ -182,7 +182,7 @@ namespace System.Runtime.Loader
                         nameof(nativeImagePath));
                 }
 
-                if (assemblyPath is object && PathInternal.IsPartiallyQualified(assemblyPath))
+                if (!(assemblyPath is null) && PathInternal.IsPartiallyQualified(assemblyPath))
                 {
                     throw new ArgumentException(SR.GetResourceString("Argument_AbsolutePathRequired"),
                         nameof(assemblyPath));
@@ -226,7 +226,7 @@ namespace System.Runtime.Loader
 
                 // Get the symbol stream in byte[] if provided
                 byte[] arrSymbols = null;
-                if (assemblySymbols is object)
+                if (!(assemblySymbols is null))
                 {
                     iSymbolLength = (int) assemblySymbols.Length;
                     arrSymbols = new byte[iSymbolLength];
@@ -296,13 +296,13 @@ namespace System.Runtime.Loader
 
             Func<AssemblyLoadContext, AssemblyName, Assembly> assemblyResolveHandler = Resolving;
 
-            if (assemblyResolveHandler is object)
+            if (!(assemblyResolveHandler is null))
             {
                 // Loop through the event subscribers and return the first non-null Assembly instance
                 foreach (Func<AssemblyLoadContext, AssemblyName, Assembly> handler in assemblyResolveHandler.GetInvocationList())
                 {
                     resolvedAssembly = handler(this, assemblyName);
-                    if (resolvedAssembly is object)
+                    if (!(resolvedAssembly is null))
                     {
                         break;
                     }
@@ -321,7 +321,7 @@ namespace System.Runtime.Loader
             // which is a RuntimeAssembly instance. However, since Assembly type can be used build any other artifact (e.g. AssemblyBuilder),
             // we need to check for RuntimeAssembly.
             RuntimeAssembly rtLoadedAssembly = assembly as RuntimeAssembly;
-            if (rtLoadedAssembly is object)
+            if (!(rtLoadedAssembly is null))
             {
                 loadedSimpleName = rtLoadedAssembly.GetSimpleName();
             }
@@ -338,7 +338,7 @@ namespace System.Runtime.Loader
             string simpleName = assemblyName.Name;
             Assembly assembly = Load(assemblyName);
 
-            if (assembly is object)
+            if (!(assembly is null))
             {
                 assembly = ValidateAssemblyNameWithSimpleName(assembly, simpleName);
             }
@@ -352,7 +352,7 @@ namespace System.Runtime.Loader
 
             // Invoke the AssemblyResolve event callbacks if wired up
             Assembly assembly = GetFirstResolvedAssembly(assemblyName);
-            if (assembly is object)
+            if (!(assembly is null))
             {
                 assembly = ValidateAssemblyNameWithSimpleName(assembly, simpleName);
             }
@@ -460,7 +460,7 @@ namespace System.Runtime.Loader
             RuntimeAssembly rtAsm = assembly as RuntimeAssembly;
 
             // We only support looking up load context for runtime assemblies.
-            if (rtAsm is object)
+            if (!(rtAsm is null))
             {
                 IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(rtAsm);
                 if (ptrAssemblyLoadContext == IntPtr.Zero)
@@ -571,7 +571,7 @@ namespace System.Runtime.Loader
             {
                 Assembly asm = handler(null /* AppDomain */, args);
                 RuntimeAssembly ret = GetRuntimeAssembly(asm);
-                if (ret is object)
+                if (!(ret is null))
                     return ret;
             }
 

@@ -111,7 +111,7 @@ namespace System.Threading
                 ThrowIfDisposed();
 
                 // Return the handle if it was already allocated.
-                if (_kernelEvent is object)
+                if (!(_kernelEvent is null))
                 {
                     return _kernelEvent;
                 }
@@ -354,7 +354,7 @@ namespace System.Threading
                 // cancelling the token before it (the timer) can be disposed.
                 timer = new TimerQueueTimer(s_timerCallback, this, Timeout.UnsignedInfinite, Timeout.UnsignedInfinite, flowExecutionContext: false);
                 TimerQueueTimer currentTimer = Interlocked.CompareExchange(ref _timer, timer, null);
-                if (currentTimer is object)
+                if (!(currentTimer is null))
                 {
                     // We did not initialize the timer.  Dispose the new timer.
                     timer.Close();
@@ -417,7 +417,7 @@ namespace System.Threading
                 // happen at the same time the external entity is requesting cancellation).
 
                 TimerQueueTimer timer = _timer;
-                if (timer is object)
+                if (!(timer is null))
                 {
                     _timer = null;
                     timer.Close(); // TimerQueueTimer.Close is thread-safe
@@ -430,10 +430,10 @@ namespace System.Threading
                 // interlocked exchange it to be null, and then we check whether cancellation is currently
                 // in progress.  NotifyCancellation will only try to set the event if it exists after it's
                 // transitioned to and while it's in the NotifyingState.
-                if (_kernelEvent is object)
+                if (!(_kernelEvent is null))
                 {
                     ManualResetEvent mre = Interlocked.Exchange(ref _kernelEvent, null);
-                    if (mre is object && _state != NotifyingState)
+                    if (!(mre is null) && _state != NotifyingState)
                     {
                         mre.Dispose();
                     }
@@ -512,7 +512,7 @@ namespace System.Threading
 
                     // Get a node, from the free list if possible or else a new one.
                     node = partition.FreeNodeList;
-                    if (node is object)
+                    if (!(node is null))
                     {
                         partition.FreeNodeList = node.Next;
                         Debug.Assert(node.Prev == null, "Nodes in the free list should all have a null Prev");
@@ -532,7 +532,7 @@ namespace System.Threading
 
                     // Add it to the callbacks list.
                     node.Next = partition.Callbacks;
-                    if (node.Next is object)
+                    if (!(node.Next is null))
                     {
                         node.Next.Prev = node;
                     }
@@ -567,7 +567,7 @@ namespace System.Threading
             {
                 // Dispose of the timer, if any.  Dispose may be running concurrently here, but TimerQueueTimer.Close is thread-safe.
                 TimerQueueTimer timer = _timer;
-                if (timer is object)
+                if (!(timer is null))
                 {
                     _timer = null;
                     timer.Close();
@@ -640,7 +640,7 @@ namespace System.Threading
                             else
                             {
                                 Debug.Assert(node.Prev == null);
-                                if (node.Next is object) node.Next.Prev = null;
+                                if (!(node.Next is null)) node.Next.Prev = null;
                                 partition.Callbacks = node.Next;
                             }
 
@@ -663,7 +663,7 @@ namespace System.Threading
                         // target sync context if there is one.
                         try
                         {
-                            if (node.SynchronizationContext is object)
+                            if (!(node.SynchronizationContext is null))
                             {
                                 // Transition to the target syncContext and continue there.
                                 node.SynchronizationContext.Send(s =>
@@ -700,7 +700,7 @@ namespace System.Threading
                 Interlocked.MemoryBarrier(); // for safety, prevent reorderings crossing this point and seeing inconsistent state.
             }
 
-            if (exceptionList is object)
+            if (!(exceptionList is null))
             {
                 Debug.Assert(exceptionList.Count > 0, $"Expected {exceptionList.Count} > 0");
                 throw new AggregateException(exceptionList);
@@ -889,7 +889,7 @@ namespace System.Threading
                 }
 
                 CancellationTokenRegistration[] linkingRegistrations = _linkingRegistrations;
-                if (linkingRegistrations is object)
+                if (!(linkingRegistrations is null))
                 {
                     _linkingRegistrations = null; // release for GC once we're done enumerating
                     for (int i = 0; i < linkingRegistrations.Length; i++)
@@ -954,7 +954,7 @@ namespace System.Threading
                         node.Prev.Next = node.Next;
                     }
 
-                    if (node.Next is object)
+                    if (!(node.Next is null))
                     {
                         node.Next.Prev = node.Prev;
                     }
@@ -1003,7 +1003,7 @@ namespace System.Threading
             public void ExecuteCallback()
             {
                 ExecutionContext context = ExecutionContext;
-                if (context is object)
+                if (!(context is null))
                 {
                     ExecutionContext.RunInternal(context, s =>
                     {

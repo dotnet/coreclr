@@ -28,7 +28,7 @@ namespace System.Runtime.InteropServices
             // As an optimization, we skip the "is string?" check below if typeof(T) is not char,
             // as Memory<T> / ROM<T> can't possibly contain a string instance in this case.
 
-            if (obj is object && (typeof(T) != typeof(char) || obj.GetType() != typeof(string)))
+            if (!(obj is null) && (typeof(T) != typeof(char) || obj.GetType() != typeof(string)))
             {
                 if (RuntimeHelpers.ObjectHasComponentSize(obj))
                 {
@@ -86,7 +86,7 @@ namespace System.Runtime.InteropServices
         {
             TManager localManager; // Use register for null comparison rather than byref
             manager = localManager = memory.GetObjectStartLength(out _, out _) as TManager;
-            return manager is object;
+            return !(manager is null);
         }
 
         /// <summary>

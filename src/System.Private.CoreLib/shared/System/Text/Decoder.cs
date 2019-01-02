@@ -44,7 +44,7 @@ namespace System.Text
                     throw new ArgumentNullException(nameof(value));
 
                 // Can't change fallback if buffer is wrong
-                if (_fallbackBuffer is object && _fallbackBuffer.Remaining > 0)
+                if (!(_fallbackBuffer is null) && _fallbackBuffer.Remaining > 0)
                     throw new ArgumentException(
                       SR.Argument_FallbackBufferNotEmpty, nameof(value));
 
@@ -61,7 +61,7 @@ namespace System.Text
             {
                 if (_fallbackBuffer is null)
                 {
-                    if (_fallback is object)
+                    if (!(_fallback is null))
                         _fallbackBuffer = _fallback.CreateFallbackBuffer();
                     else
                         _fallbackBuffer = DecoderFallback.ReplacementFallback.CreateFallbackBuffer();
@@ -75,7 +75,7 @@ namespace System.Text
         {
             get
             {
-                return _fallbackBuffer is object;
+                return !(_fallbackBuffer is null);
             }
         }
 

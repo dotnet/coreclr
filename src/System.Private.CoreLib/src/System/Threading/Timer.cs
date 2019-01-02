@@ -252,7 +252,7 @@ namespace System.Threading
                 TimerQueueTimer timer = m_shortTimers;
                 for (int listNum = 0; listNum < 2; listNum++) // short == 0, long == 1
                 {
-                    while (timer is object)
+                    while (!(timer is null))
                     {
                         Debug.Assert(timer.m_dueTime != Timeout.UnsignedInfinite, "A timer in the list must have a valid due time.");
 
@@ -352,7 +352,7 @@ namespace System.Threading
                         int remaining = m_currentAbsoluteThreshold - nowTicks;
                         if (remaining > 0)
                         {
-                            if (m_shortTimers is null && m_longTimers is object)
+                            if (m_shortTimers is null && !(m_longTimers is null))
                             {
                                 // We don't have any short timers left and we haven't examined the long list,
                                 // which means we likely don't have an accurate nextAppDomainTimerDuration.
@@ -434,7 +434,7 @@ namespace System.Threading
             // Use timer.m_short to decide to which list to add.
             ref TimerQueueTimer listHead = ref timer.m_short ? ref m_shortTimers : ref m_longTimers;
             timer.m_next = listHead;
-            if (timer.m_next is object)
+            if (!(timer.m_next is null))
             {
                 timer.m_next.m_prev = timer;
             }
@@ -445,7 +445,7 @@ namespace System.Threading
         private void UnlinkTimer(TimerQueueTimer timer)
         {
             TimerQueueTimer t = timer.m_next;
-            if (t is object)
+            if (!(t is null))
             {
                 t.m_prev = timer.m_prev;
             }
@@ -462,7 +462,7 @@ namespace System.Threading
             }
 
             t = timer.m_prev;
-            if (t is object)
+            if (!(t is null))
             {
                 t.m_next = timer.m_next;
             }
@@ -697,7 +697,7 @@ namespace System.Threading
             lock (m_associatedTimerQueue)
             {
                 m_callbacksRunning--;
-                if (m_canceled && m_callbacksRunning == 0 && m_notifyWhenNoCallbacksRunning is object)
+                if (m_canceled && m_callbacksRunning == 0 && !(m_notifyWhenNoCallbacksRunning is null))
                     shouldSignal = true;
             }
 

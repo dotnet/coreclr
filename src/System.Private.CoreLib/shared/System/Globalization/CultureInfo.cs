@@ -410,7 +410,7 @@ namespace System.Globalization
             {
 #if ENABLE_WINRT
                 WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
-                if (callbacks is object && callbacks.IsAppxModel())
+                if (!(callbacks is null) && callbacks.IsAppxModel())
                 {
                     return (CultureInfo)callbacks.GetUserDefaultCulture();
                 }
@@ -419,18 +419,18 @@ namespace System.Globalization
                 if (ApplicationModel.IsUap)
                 {
                     CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
-                    if (culture is object)
+                    if (!(culture is null))
                         return culture;
                 }
 #endif
 
-                if (s_currentThreadCulture is object)
+                if (!(s_currentThreadCulture is null))
                 {
                     return s_currentThreadCulture;
                 }
 
                 CultureInfo ci = s_DefaultThreadCurrentCulture;
-                if (ci is object)
+                if (!(ci is null))
                 {
                     return ci;
                 }
@@ -447,7 +447,7 @@ namespace System.Globalization
 
 #if ENABLE_WINRT
                 WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
-                if (callbacks is object && callbacks.IsAppxModel())
+                if (!(callbacks is null) && callbacks.IsAppxModel())
                 {
                     callbacks.SetGlobalDefaultCulture(value);
                     return;
@@ -478,7 +478,7 @@ namespace System.Globalization
             {
 #if ENABLE_WINRT
                 WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
-                if (callbacks is object && callbacks.IsAppxModel())
+                if (!(callbacks is null) && callbacks.IsAppxModel())
                 {
                     return (CultureInfo)callbacks.GetUserDefaultCulture();
                 }
@@ -487,18 +487,18 @@ namespace System.Globalization
                 if (ApplicationModel.IsUap)
                 {
                     CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
-                    if (culture is object)
+                    if (!(culture is null))
                         return culture;
                 }
 #endif
 
-                if (s_currentThreadUICulture is object)
+                if (!(s_currentThreadUICulture is null))
                 {
                     return s_currentThreadUICulture;
                 }
 
                 CultureInfo ci = s_DefaultThreadCurrentUICulture;
-                if (ci is object)
+                if (!(ci is null))
                 {
                     return ci;
                 }
@@ -517,7 +517,7 @@ namespace System.Globalization
 
 #if ENABLE_WINRT
                 WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
-                if (callbacks is object && callbacks.IsAppxModel())
+                if (!(callbacks is null) && callbacks.IsAppxModel())
                 {
                     callbacks.SetGlobalDefaultCulture(value);
                     return;
@@ -577,7 +577,7 @@ namespace System.Globalization
                 // If you add more pre-conditions to this method, check to see if you also need to
                 // add them to Thread.CurrentUICulture.set.
 
-                if (value is object)
+                if (!(value is null))
                 {
                     CultureInfo.VerifyCultureName(value, true);
                 }
@@ -881,7 +881,7 @@ namespace System.Globalization
 
             CultureInfo that = value as CultureInfo;
 
-            if (that is object)
+            if (!(that is null))
             {
                 // using CompareInfo to verify the data passed through the constructor
                 // CultureInfo(String cultureName, String textAndCompareCultureName)
@@ -1171,11 +1171,11 @@ namespace System.Globalization
             //they've already been allocated.  If this is a derived type, we'll take a more generic codepath.
             if (!_isInherited)
             {
-                if (_dateTimeInfo is object)
+                if (!(_dateTimeInfo is null))
                 {
                     ci._dateTimeInfo = (DateTimeFormatInfo)_dateTimeInfo.Clone();
                 }
-                if (_numInfo is object)
+                if (!(_numInfo is null))
                 {
                     ci._numInfo = (NumberFormatInfo)_numInfo.Clone();
                 }
@@ -1186,12 +1186,12 @@ namespace System.Globalization
                 ci.NumberFormat = (NumberFormatInfo)this.NumberFormat.Clone();
             }
 
-            if (_textInfo is object)
+            if (!(_textInfo is null))
             {
                 ci._textInfo = (TextInfo)_textInfo.Clone();
             }
 
-            if (_calendar is object)
+            if (!(_calendar is null))
             {
                 ci._calendar = (Calendar)_calendar.Clone();
             }
@@ -1218,11 +1218,11 @@ namespace System.Globalization
                 //they've already been allocated.  If this is a derived type, we'll take a more generic codepath.
                 if (!ci._isInherited)
                 {
-                    if (ci._dateTimeInfo is object)
+                    if (!(ci._dateTimeInfo is null))
                     {
                         newInfo._dateTimeInfo = DateTimeFormatInfo.ReadOnly(ci._dateTimeInfo);
                     }
-                    if (ci._numInfo is object)
+                    if (!(ci._numInfo is null))
                     {
                         newInfo._numInfo = NumberFormatInfo.ReadOnly(ci._numInfo);
                     }
@@ -1234,12 +1234,12 @@ namespace System.Globalization
                 }
             }
 
-            if (ci._textInfo is object)
+            if (!(ci._textInfo is null))
             {
                 newInfo._textInfo = TextInfo.ReadOnly(ci._textInfo);
             }
 
-            if (ci._calendar is object)
+            if (!(ci._calendar is null))
             {
                 newInfo._calendar = Calendar.ReadOnly(ci._calendar);
             }
@@ -1286,12 +1286,12 @@ namespace System.Globalization
             // Temporary hashtable for the names.
             Dictionary<string, CultureInfo> tempNameHT = s_NameCachedCultures;
 
-            if (name is object)
+            if (!(name is null))
             {
                 name = CultureData.AnsiToLower(name);
             }
 
-            if (altName is object)
+            if (!(altName is null))
             {
                 altName = CultureData.AnsiToLower(altName);
             }
@@ -1312,7 +1312,7 @@ namespace System.Globalization
                         ret = tempNameHT.TryGetValue(lcid == 0 ? name : name + '\xfffd' + altName, out retval);
                     }
 
-                    if (ret && retval is object)
+                    if (ret && !(retval is null))
                     {
                         return retval;
                     }
@@ -1337,7 +1337,7 @@ namespace System.Globalization
                     {
                         ret = tempLcidHT.TryGetValue(lcid, out retval);
                     }
-                    if (ret && retval is object)
+                    if (ret && !(retval is null))
                     {
                         return retval;
                     }

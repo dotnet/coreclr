@@ -279,7 +279,7 @@ namespace System
                 // Copy this field into a local so that it can't change out from under us mid-operation.
 
                 object tmpObject = _object;
-                if (tmpObject is object)
+                if (!(tmpObject is null))
                 {
                     if (typeof(T) == typeof(char) && tmpObject.GetType() == typeof(string))
                     {
@@ -390,7 +390,7 @@ namespace System
             // and we're not required to keep this as safe as the other Span-based APIs.
 
             object tmpObject = _object;
-            if (tmpObject is object)
+            if (!(tmpObject is null))
             {
                 if (typeof(T) == typeof(char) && tmpObject is string s)
                 {
@@ -474,7 +474,7 @@ namespace System
         {
             // We use RuntimeHelpers.GetHashCode instead of Object.GetHashCode because the hash
             // code is based on object identity and referential equality, not deep equality (as common with string).
-            return (_object is object) ? HashCode.Combine(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
+            return (!(_object is null)) ? HashCode.Combine(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
         }
     }
 }

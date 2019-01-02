@@ -60,15 +60,15 @@ namespace System.Collections
 
             string sa = a as string;
             string sb = b as string;
-            if (sa is object && sb is object)
+            if (!(sa is null) && !(sb is null))
                 return _compareInfo.Compare(sa, sb);
 
             IComparable ia = a as IComparable;
-            if (ia is object)
+            if (!(ia is null))
                 return ia.CompareTo(b);
 
             IComparable ib = b as IComparable;
-            if (ib is object)
+            if (!(ib is null))
                 return -ib.CompareTo(a);
 
             throw new ArgumentException(SR.Argument_ImplementIComparable);

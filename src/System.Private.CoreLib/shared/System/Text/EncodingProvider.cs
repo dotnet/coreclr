@@ -18,7 +18,7 @@ namespace System.Text
         public virtual Encoding GetEncoding(string name, EncoderFallback encoderFallback, DecoderFallback decoderFallback)
         {
             Encoding enc = GetEncoding(name);
-            if (enc is object)
+            if (!(enc is null))
             {
                 enc = (Encoding)GetEncoding(name).Clone();
                 enc.EncoderFallback = encoderFallback;
@@ -31,7 +31,7 @@ namespace System.Text
         public virtual Encoding GetEncoding(int codepage, EncoderFallback encoderFallback, DecoderFallback decoderFallback)
         {
             Encoding enc = GetEncoding(codepage);
-            if (enc is object)
+            if (!(enc is null))
             {
                 enc = (Encoding)GetEncoding(codepage).Clone();
                 enc.EncoderFallback = encoderFallback;
@@ -75,7 +75,7 @@ namespace System.Text
             foreach (EncodingProvider provider in providers)
             {
                 Encoding enc = provider.GetEncoding(codepage);
-                if (enc is object)
+                if (!(enc is null))
                     return enc;
             }
 
@@ -91,7 +91,7 @@ namespace System.Text
             foreach (EncodingProvider provider in providers)
             {
                 Encoding enc = provider.GetEncoding(encodingName);
-                if (enc is object)
+                if (!(enc is null))
                     return enc;
             }
 
@@ -107,7 +107,7 @@ namespace System.Text
             foreach (EncodingProvider provider in providers)
             {
                 Encoding encing = provider.GetEncoding(codepage, enc, dec);
-                if (encing is object)
+                if (!(encing is null))
                     return encing;
             }
 
@@ -123,7 +123,7 @@ namespace System.Text
             foreach (EncodingProvider provider in providers)
             {
                 Encoding encoding = provider.GetEncoding(encodingName, enc, dec);
-                if (encoding is object)
+                if (!(encoding is null))
                     return encoding;
             }
 

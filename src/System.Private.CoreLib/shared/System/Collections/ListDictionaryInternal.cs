@@ -41,7 +41,7 @@ namespace System.Collections
                 }
                 DictionaryNode node = head;
 
-                while (node is object)
+                while (!(node is null))
                 {
                     if (node.key.Equals(key))
                     {
@@ -62,7 +62,7 @@ namespace System.Collections
                 version++;
                 DictionaryNode last = null;
                 DictionaryNode node;
-                for (node = head; node is object; node = node.next)
+                for (node = head; !(node is null); node = node.next)
                 {
                     if (node.key.Equals(key))
                     {
@@ -70,7 +70,7 @@ namespace System.Collections
                     }
                     last = node;
                 }
-                if (node is object)
+                if (!(node is null))
                 {
                     // Found it
                     node.value = value;
@@ -80,7 +80,7 @@ namespace System.Collections
                 DictionaryNode newNode = new DictionaryNode();
                 newNode.key = key;
                 newNode.value = value;
-                if (last is object)
+                if (!(last is null))
                 {
                     last.next = newNode;
                 }
@@ -153,7 +153,7 @@ namespace System.Collections
             version++;
             DictionaryNode last = null;
             DictionaryNode node;
-            for (node = head; node is object; node = node.next)
+            for (node = head; !(node is null); node = node.next)
             {
                 if (node.key.Equals(key))
                 {
@@ -161,7 +161,7 @@ namespace System.Collections
                 }
                 last = node;
             }
-            if (node is object)
+            if (!(node is null))
             {
                 // Found it
                 node.value = value;
@@ -171,7 +171,7 @@ namespace System.Collections
             DictionaryNode newNode = new DictionaryNode();
             newNode.key = key;
             newNode.value = value;
-            if (last is object)
+            if (!(last is null))
             {
                 last.next = newNode;
             }
@@ -195,7 +195,7 @@ namespace System.Collections
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
-            for (DictionaryNode node = head; node is object; node = node.next)
+            for (DictionaryNode node = head; !(node is null); node = node.next)
             {
                 if (node.key.Equals(key))
                 {
@@ -219,7 +219,7 @@ namespace System.Collections
             if (array.Length - index < this.Count)
                 throw new ArgumentException(SR.ArgumentOutOfRange_Index, nameof(index));
 
-            for (DictionaryNode node = head; node is object; node = node.next)
+            for (DictionaryNode node = head; !(node is null); node = node.next)
             {
                 array.SetValue(new DictionaryEntry(node.key, node.value), index);
                 index++;
@@ -245,7 +245,7 @@ namespace System.Collections
             version++;
             DictionaryNode last = null;
             DictionaryNode node;
-            for (node = head; node is object; node = node.next)
+            for (node = head; !(node is null); node = node.next)
             {
                 if (node.key.Equals(key))
                 {
@@ -341,12 +341,12 @@ namespace System.Collections
                 }
                 else
                 {
-                    if (current is object)
+                    if (!(current is null))
                     {
                         current = current.next;
                     }
                 }
-                return (current is object);
+                return (!(current is null));
             }
 
             public void Reset()
@@ -382,7 +382,7 @@ namespace System.Collections
                     throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
                 if (array.Length - index < list.Count)
                     throw new ArgumentException(SR.ArgumentOutOfRange_Index, nameof(index));
-                for (DictionaryNode node = list.head; node is object; node = node.next)
+                for (DictionaryNode node = list.head; !(node is null); node = node.next)
                 {
                     array.SetValue(isKeys ? node.key : node.value, index);
                     index++;
@@ -394,7 +394,7 @@ namespace System.Collections
                 get
                 {
                     int count = 0;
-                    for (DictionaryNode node = list.head; node is object; node = node.next)
+                    for (DictionaryNode node = list.head; !(node is null); node = node.next)
                     {
                         count++;
                     }
@@ -466,12 +466,12 @@ namespace System.Collections
                     }
                     else
                     {
-                        if (current is object)
+                        if (!(current is null))
                         {
                             current = current.next;
                         }
                     }
-                    return (current is object);
+                    return (!(current is null));
                 }
 
                 public void Reset()

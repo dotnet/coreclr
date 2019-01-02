@@ -32,13 +32,13 @@ namespace System.Collections
             if (b is null)
                 return 1;
 
-            if (_comparer is object)
+            if (!(_comparer is null))
             {
                 return _comparer.Compare(a, b);
             }
 
             IComparable ia = a as IComparable;
-            if (ia is object)
+            if (!(ia is null))
             {
                 return ia.CompareTo(b);
             }
@@ -53,7 +53,7 @@ namespace System.Collections
                 throw new ArgumentNullException(nameof(obj));
             }
 
-            return _hcp is object ?
+            return !(_hcp is null) ?
                 _hcp.GetHashCode(obj) :
                 obj.GetHashCode();
         }

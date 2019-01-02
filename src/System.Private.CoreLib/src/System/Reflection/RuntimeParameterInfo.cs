@@ -68,7 +68,7 @@ namespace System.Reflection
                     if (fetchReturnParameter == true && position == -1)
                     {
                         // more than one return parameter?
-                        if (returnParameter is object)
+                        if (!(returnParameter is null))
                             throw new BadImageFormatException(SR.BadImageFormat_ParameterSignatureMismatch);
 
                         returnParameter = new RuntimeParameterInfo(sig, scope, tkParamDef, position, attr, member);
@@ -131,7 +131,7 @@ namespace System.Reflection
         {
             get
             {
-                MethodBase result = m_originalMember is object ? m_originalMember : MemberImpl as MethodBase;
+                MethodBase result = !(m_originalMember is null) ? m_originalMember : MemberImpl as MethodBase;
                 Debug.Assert(result != null);
                 return result;
             }
@@ -166,7 +166,7 @@ namespace System.Reflection
             // The original owner should always be a method, because this method is only used to 
             // change the owner from a method to a property.
             m_originalMember = accessor.MemberImpl as MethodBase;
-            Debug.Assert(m_originalMember is object);
+            Debug.Assert(!(m_originalMember is null));
 
             // Populate all the caches -- we inherit this behavior from RTM
             NameImpl = accessor.Name;
@@ -327,13 +327,13 @@ namespace System.Reflection
                         CustomAttributeData.Filter(
                             CustomAttributeData.GetCustomAttributes(this), typeof(DateTimeConstantAttribute), 0);
 
-                    if (value.ArgumentType is object)
+                    if (!(value.ArgumentType is null))
                         return new DateTime((long)value.Value);
                 }
                 else
                 {
                     object[] dt = GetCustomAttributes(typeof(DateTimeConstantAttribute), false);
-                    if (dt is object && dt.Length != 0)
+                    if (!(dt is null) && dt.Length != 0)
                         return ((DateTimeConstantAttribute)dt[0]).Value;
                 }
             }

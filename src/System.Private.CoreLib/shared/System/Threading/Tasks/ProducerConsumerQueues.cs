@@ -228,7 +228,7 @@ namespace System.Threading.Tasks
                 return TryDequeue(out result); // will only recur once for this dequeue operation
             }
 
-            if (segment.m_next is object && segment.m_state.m_first == segment.m_state.m_last)
+            if (!(segment.m_next is null) && segment.m_state.m_first == segment.m_state.m_last)
             {
                 segment = segment.m_next;
                 array = segment.m_array;
@@ -269,7 +269,7 @@ namespace System.Threading.Tasks
         /// <remarks>WARNING: This should only be used for debugging purposes.  It is not safe to be used concurrently.</remarks>
         public IEnumerator<T> GetEnumerator()
         {
-            for (Segment segment = m_head; segment is object; segment = segment.m_next)
+            for (Segment segment = m_head; !(segment is null); segment = segment.m_next)
             {
                 for (int pt = segment.m_state.m_first;
                     pt != segment.m_state.m_last;
@@ -290,7 +290,7 @@ namespace System.Threading.Tasks
             get
             {
                 int count = 0;
-                for (Segment segment = m_head; segment is object; segment = segment.m_next)
+                for (Segment segment = m_head; !(segment is null); segment = segment.m_next)
                 {
                     int arraySize = segment.m_array.Length;
                     int first, last;

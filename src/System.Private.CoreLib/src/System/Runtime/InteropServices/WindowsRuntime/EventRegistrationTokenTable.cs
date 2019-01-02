@@ -49,7 +49,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     m_tokens.Clear();
                     m_invokeList = null;
 
-                    if (value is object)
+                    if (!(value is null))
                     {
                         AddEventHandlerNoLock(value);
                     }

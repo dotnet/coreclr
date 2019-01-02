@@ -25,7 +25,7 @@ namespace System
         public abstract Assembly Assembly { get; }
         public abstract new Module Module { get; }
 
-        public bool IsNested => DeclaringType is object;
+        public bool IsNested => !(DeclaringType is null);
         public override Type DeclaringType => null;
         public virtual MethodBase DeclaringMethod => null;
 
@@ -42,7 +42,7 @@ namespace System
         public virtual bool IsConstructedGenericType { get { throw NotImplemented.ByDesign; } }
         public virtual bool IsGenericParameter => false;
         public virtual bool IsGenericTypeParameter => IsGenericParameter && DeclaringMethod is null;
-        public virtual bool IsGenericMethodParameter => IsGenericParameter && DeclaringMethod is object;
+        public virtual bool IsGenericMethodParameter => IsGenericParameter && !(DeclaringMethod is null);
         public virtual bool IsGenericType => false;
         public virtual bool IsGenericTypeDefinition => false;
 
@@ -281,7 +281,7 @@ namespace System
         }
         protected virtual TypeCode GetTypeCodeImpl()
         {
-            if (this != UnderlyingSystemType && (UnderlyingSystemType is object))
+            if (this != UnderlyingSystemType && (!(UnderlyingSystemType is null)))
                 return Type.GetTypeCode(UnderlyingSystemType);
 
             return TypeCode.Object;

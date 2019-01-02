@@ -27,7 +27,7 @@ namespace System.Diagnostics.Tracing.Internal
         public static string GetResourceString(string key, params object[] args)
         {
             string fmt = rm.GetString(key);
-            if (fmt is object)
+            if (!(fmt is null))
                 return string.Format(fmt, args);
 
             string sargs = string.Empty;

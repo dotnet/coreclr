@@ -129,7 +129,7 @@ namespace System
             {
                 RuntimeAssembly assemblyFromResolveEvent;
                 AssemblyName assemblyName = RuntimeAssembly.CreateAssemblyName(assemblyString, out assemblyFromResolveEvent);
-                if (assemblyFromResolveEvent is object)
+                if (!(assemblyFromResolveEvent is null))
                 {
                     // Assembly was resolved via AssemblyResolve event
                     assembly = assemblyFromResolveEvent;
@@ -160,7 +160,7 @@ namespace System
                                                 culture,
                                                 activationAttributes);
 
-            return (o is object) ? new ObjectHandle(o) : null;          
+            return (!(o is null)) ? new ObjectHandle(o) : null;          
         }
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName)
@@ -211,7 +211,7 @@ namespace System
                                                 culture,
                                                 activationAttributes);
 
-            return (o is object) ? new ObjectHandle(o) : null;
+            return (!(o is null)) ? new ObjectHandle(o) : null;
         }
 
         public static T CreateInstance<T>()

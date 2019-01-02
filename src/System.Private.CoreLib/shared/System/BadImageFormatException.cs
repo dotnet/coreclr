@@ -100,16 +100,16 @@ namespace System
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (_fileName is object && _fileName.Length != 0)
+            if (!(_fileName is null) && _fileName.Length != 0)
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, _fileName);
 
-            if (InnerException is object)
+            if (!(InnerException is null))
                 s = s + " ---> " + InnerException.ToString();
 
-            if (StackTrace is object)
+            if (!(StackTrace is null))
                 s += Environment.NewLine + StackTrace;
 
-            if (_fusionLog is object)
+            if (!(_fusionLog is null))
             {
                 if (s is null)
                     s = " ";

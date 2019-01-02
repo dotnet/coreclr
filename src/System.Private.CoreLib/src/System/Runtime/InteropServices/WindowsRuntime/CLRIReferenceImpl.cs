@@ -30,7 +30,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public override string ToString()
         {
-            if (_value is object)
+            if (_value != null)
             {
                 return _value.ToString();
             }
@@ -85,7 +85,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public override string ToString()
         {
-            if (_value is object)
+            if (!(_value is null))
             {
                 return _value.ToString();
             }

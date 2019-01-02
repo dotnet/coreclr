@@ -41,20 +41,20 @@ namespace System.Reflection
                     //
                     // first take care of all the NO_INVOKE cases. 
                     if (declaringType == typeof(void) ||
-                         (declaringType is object && declaringType.ContainsGenericParameters) ||
+                         (!(declaringType is null) && declaringType.ContainsGenericParameters) ||
                          ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
                         // We don't need other flags if this method cannot be invoked
                         invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE;
                     }
-                    else if (IsStatic || declaringType is object && declaringType.IsAbstract)
+                    else if (IsStatic || !(declaringType is null) && declaringType.IsAbstract)
                     {
                         invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_NO_CTOR_INVOKE;
                     }
                     else
                     {
                         // Check for byref-like types
-                        if (declaringType is object && declaringType.IsByRefLike)
+                        if (!(declaringType is null) && declaringType.IsByRefLike)
                             invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_CONTAINS_STACK_POINTERS;
 
                         // Check for attempt to create a delegate class.
@@ -356,7 +356,7 @@ namespace System.Reflection
 
             // get the signature
             int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters is object) ? parameters.Length : 0;
+            int actualCount = (!(parameters is null)) ? parameters.Length : 0;
             if (formalCount != actualCount)
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 
@@ -377,7 +377,7 @@ namespace System.Reflection
         public override MethodBody GetMethodBody()
         {
             RuntimeMethodBody mb = RuntimeMethodHandle.GetMethodBody(this, ReflectedTypeInternal);
-            if (mb is object)
+            if (!(mb is null))
                 mb._methodBase = this;
             return mb;
         }
@@ -401,7 +401,7 @@ namespace System.Reflection
         {
             get
             {
-                return (DeclaringType is object && DeclaringType.ContainsGenericParameters);
+                return (!(DeclaringType is null) && DeclaringType.ContainsGenericParameters);
             }
         }
         #endregion
@@ -423,7 +423,7 @@ namespace System.Reflection
             Signature sig = Signature;
 
             int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters is object) ? parameters.Length : 0;
+            int actualCount = (!(parameters is null)) ? parameters.Length : 0;
             if (formalCount != actualCount)
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 

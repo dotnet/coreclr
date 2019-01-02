@@ -757,7 +757,7 @@ namespace System.Runtime.InteropServices
             }
 
             MethodInfo[] mi = c.GetMethods();
-            if (mi is object)
+            if (!(mi is null))
             {
                 for (int i = 0; i < mi.Length; i++)
                 {
@@ -1501,7 +1501,7 @@ namespace System.Runtime.InteropServices
             object[] objects = GetObjectsForNativeVariants(aSrcNativeVariant, cVars);
             T[] result = null;
 
-            if (objects is object)
+            if (!(objects is null))
             {
                 result = new T[objects.Length];
                 Array.Copy(objects, result, objects.Length);

@@ -98,7 +98,7 @@ namespace System.Collections
                 if (!key.GetType().IsSerializable)
                     throw new ArgumentException(SR.Argument_NotSerializable, nameof(key));
 
-                if ((value is object) && (!value.GetType().IsSerializable))
+                if ((!(value is null)) && (!value.GetType().IsSerializable))
                     throw new ArgumentException(SR.Argument_NotSerializable, nameof(value));
 
                 throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
@@ -136,7 +136,7 @@ namespace System.Collections
             if (!key.GetType().IsSerializable)
                 throw new ArgumentException(SR.Argument_NotSerializable, nameof(key));
 
-            if ((value is object) && (!value.GetType().IsSerializable))
+            if ((!(value is null)) && (!value.GetType().IsSerializable))
                 throw new ArgumentException(SR.Argument_NotSerializable, nameof(value));
 
             throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);

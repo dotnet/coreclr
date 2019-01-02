@@ -39,7 +39,7 @@ namespace System
             try { resourceString = InternalGetResourceString(resourceKey); }
             catch (MissingManifestResourceException) { }
 
-            if (defaultString is object && resourceKey.Equals(resourceString, StringComparison.Ordinal))
+            if (!(defaultString is null) && resourceKey.Equals(resourceString, StringComparison.Ordinal))
             {
                 return defaultString;
             }
@@ -86,7 +86,7 @@ namespace System
 
                 // Are we recursively looking up the same resource?  Note - our backout code will set
                 // the ResourceHelper's currentlyLoading stack to null if an exception occurs.
-                if (_currentlyLoading is object && _currentlyLoading.Count > 0 && _currentlyLoading.LastIndexOf(key) != -1)
+                if (!(_currentlyLoading is null) && _currentlyLoading.Count > 0 && _currentlyLoading.LastIndexOf(key) != -1)
                 {
                     // We can start infinitely recursing for one resource lookup,
                     // then during our failure reporting, start infinitely recursing again.
@@ -151,7 +151,7 @@ namespace System
 
         internal static string Format(string resourceFormat, params object[] args)
         {
-            if (args is object)
+            if (!(args is null))
             {
                 if (UsingResourceKeys())
                 {

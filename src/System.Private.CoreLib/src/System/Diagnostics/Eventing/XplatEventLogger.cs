@@ -181,7 +181,7 @@ namespace System.Diagnostics.Tracing
         private void LogOnEventWritten(EventWrittenEventArgs eventData)
         {
             string payload = "";
-            if (eventData.Payload is object)
+            if (!(eventData.Payload is null))
             {
                 try{
                     payload = Serialize(eventData.PayloadNames, eventData.Payload, eventData.Message);

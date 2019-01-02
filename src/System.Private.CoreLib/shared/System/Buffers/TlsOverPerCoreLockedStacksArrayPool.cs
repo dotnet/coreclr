@@ -105,10 +105,10 @@ namespace System.Buffers
             {
                 // First try to get it from TLS if possible.
                 T[][] tlsBuckets = t_tlsBuckets;
-                if (tlsBuckets is object)
+                if (!(tlsBuckets is null))
                 {
                     buffer = tlsBuckets[bucketIndex];
-                    if (buffer is object)
+                    if (!(buffer is null))
                     {
                         tlsBuckets[bucketIndex] = null;
                         if (log.IsEnabled())
@@ -121,10 +121,10 @@ namespace System.Buffers
 
                 // We couldn't get a buffer from TLS, so try the global stack.
                 PerCoreLockedStacks b = _buckets[bucketIndex];
-                if (b is object)
+                if (!(b is null))
                 {
                     buffer = b.TryPop();
-                    if (buffer is object)
+                    if (!(buffer is null))
                     {
                         if (log.IsEnabled())
                         {
@@ -205,7 +205,7 @@ namespace System.Buffers
                     T[] prev = tlsBuckets[bucketIndex];
                     tlsBuckets[bucketIndex] = array;
 
-                    if (prev is object)
+                    if (!(prev is null))
                     {
                         PerCoreLockedStacks stackBucket = _buckets[bucketIndex] ?? CreatePerCoreLockedStacks(bucketIndex);
                         stackBucket.TryPush(prev);
@@ -247,7 +247,7 @@ namespace System.Buffers
                         for (int i = 0; i < buckets.Length; i++)
                         {
                             T[] buffer = Interlocked.Exchange(ref buckets[i], null);
-                            if (buffer is object)
+                            if (!(buffer is null))
                             {
                                 // As we don't want to take a perf hit in the rent path it
                                 // is possible that a buffer could be rented as we "free" it.

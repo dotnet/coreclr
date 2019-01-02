@@ -75,12 +75,12 @@ namespace System.Runtime.InteropServices
 
             Exception innerException = InnerException;
 
-            if (innerException is object)
+            if (!(innerException is null))
             {
                 s = s + " ---> " + innerException.ToString();
             }
 
-            if (StackTrace is object)
+            if (!(StackTrace is null))
                 s += Environment.NewLine + StackTrace;
 
             return s;

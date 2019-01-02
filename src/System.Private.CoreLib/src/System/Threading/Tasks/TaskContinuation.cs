@@ -54,13 +54,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var action = m_action as Action<Task>;
-            if (action is object)
+            if (!(action is null))
             {
                 action(antecedent);
                 return;
             }
             var actionWithState = m_action as Action<Task, object>;
-            if (actionWithState is object)
+            if (!(actionWithState is null))
             {
                 actionWithState(antecedent, m_stateObject);
                 return;
@@ -101,13 +101,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var func = m_action as Func<Task, TResult>;
-            if (func is object)
+            if (!(func is null))
             {
                 m_result = func(antecedent);
                 return;
             }
             var funcWithState = m_action as Func<Task, object, TResult>;
-            if (funcWithState is object)
+            if (!(funcWithState is null))
             {
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
@@ -148,13 +148,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var action = m_action as Action<Task<TAntecedentResult>>;
-            if (action is object)
+            if (!(action is null))
             {
                 action(antecedent);
                 return;
             }
             var actionWithState = m_action as Action<Task<TAntecedentResult>, object>;
-            if (actionWithState is object)
+            if (!(actionWithState is null))
             {
                 actionWithState(antecedent, m_stateObject);
                 return;
@@ -195,13 +195,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var func = m_action as Func<Task<TAntecedentResult>, TResult>;
-            if (func is object)
+            if (!(func is null))
             {
                 m_result = func(antecedent);
                 return;
             }
             var funcWithState = m_action as Func<Task<TAntecedentResult>, object, TResult>;
-            if (funcWithState is object)
+            if (!(funcWithState is null))
             {
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
@@ -615,7 +615,7 @@ namespace System.Threading.Tasks
                 // If there's a SynchronizationContext, we'll be conservative and say 
                 // this is a bad location to inline.
                 var ctx = SynchronizationContext.Current;
-                if (ctx is object && ctx.GetType() != typeof(SynchronizationContext)) return false;
+                if (!(ctx is null) && ctx.GetType() != typeof(SynchronizationContext)) return false;
 
                 // Similarly, if there's a non-default TaskScheduler, we'll be conservative
                 // and say this is a bad location to inline.
@@ -691,7 +691,7 @@ namespace System.Threading.Tasks
             var prevCurrentTask = currentTask;
             try
             {
-                if (prevCurrentTask is object) currentTask = null;
+                if (!(prevCurrentTask is null)) currentTask = null;
 
                 ExecutionContext context = m_capturedContext;
                 if (context is null)
@@ -712,7 +712,7 @@ namespace System.Threading.Tasks
             finally
             {
                 // Restore the current task information
-                if (prevCurrentTask is object) currentTask = prevCurrentTask;
+                if (!(prevCurrentTask is null)) currentTask = prevCurrentTask;
             }
         }
 
@@ -742,7 +742,7 @@ namespace System.Threading.Tasks
             // Otherwise, run it, making sure that t_currentTask is null'd out appropriately during the execution
             try
             {
-                if (prevCurrentTask is object) currentTask = null;
+                if (!(prevCurrentTask is null)) currentTask = null;
                 action();
             }
             catch (Exception exception)
@@ -751,7 +751,7 @@ namespace System.Threading.Tasks
             }
             finally
             {
-                if (prevCurrentTask is object) currentTask = prevCurrentTask;
+                if (!(prevCurrentTask is null)) currentTask = prevCurrentTask;
             }
         }
 
@@ -794,7 +794,7 @@ namespace System.Threading.Tasks
             // Otherwise, run it, making sure that t_currentTask is null'd out appropriately during the execution
             try
             {
-                if (prevCurrentTask is object) currentTask = null;
+                if (!(prevCurrentTask is null)) currentTask = null;
                 box.MoveNext();
             }
             catch (Exception exception)
@@ -803,7 +803,7 @@ namespace System.Threading.Tasks
             }
             finally
             {
-                if (prevCurrentTask is object) currentTask = prevCurrentTask;
+                if (!(prevCurrentTask is null)) currentTask = prevCurrentTask;
             }
         }
 
@@ -815,7 +815,7 @@ namespace System.Threading.Tasks
             AwaitTaskContinuation atc = new AwaitTaskContinuation(action, flowExecutionContext: false);
 
             var etwLog = TplEtwProvider.Log;
-            if (etwLog.IsEnabled() && task is object)
+            if (etwLog.IsEnabled() && !(task is null))
             {
                 atc.m_continuationId = Task.NewId();
                 etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, atc.m_continuationId);

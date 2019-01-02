@@ -146,7 +146,7 @@ namespace System.Diagnostics.Tracing
         {
             Debug.Assert(Monitor.IsEntered(m_dispatchControlLock));
 
-            if(m_dispatchTask is object)
+            if(!(m_dispatchTask is null))
             {
                 m_stopDispatchTask = true;
                 m_dispatchTask.Wait();

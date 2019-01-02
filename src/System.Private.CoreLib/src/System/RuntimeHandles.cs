@@ -40,7 +40,7 @@ namespace System
         {
             Type type = typeStart;
 
-            if (genericArgs is object)
+            if (!(genericArgs is null))
             {
                 type = type.MakeGenericType(genericArgs);
             }
@@ -81,7 +81,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return m_type is object ? m_type.GetHashCode() : 0;
+            return !(m_type is null) ? m_type.GetHashCode() : 0;
         }
 
         public override bool Equals(object obj)
@@ -102,7 +102,7 @@ namespace System
         {
             get
             {
-                return m_type is object ? m_type.m_handle : IntPtr.Zero;
+                return !(m_type is null) ? m_type.m_handle : IntPtr.Zero;
             }
         }
 
@@ -741,7 +741,7 @@ namespace System
         {
             get
             {
-                return m_value is object ? m_value.Value.Value : IntPtr.Zero;
+                return !(m_value is null) ? m_value.Value.Value : IntPtr.Zero;
             }
         }
 
@@ -1074,7 +1074,7 @@ namespace System
         {
             get
             {
-                return m_ptr is object ? m_ptr.Value.Value : IntPtr.Zero;
+                return !(m_ptr is null) ? m_ptr.Value.Value : IntPtr.Zero;
             }
         }
 
@@ -1197,7 +1197,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return m_ptr is object ? m_ptr.GetHashCode() : 0;
+            return !(m_ptr is null) ? m_ptr.GetHashCode() : 0;
         }
 
         public override bool Equals(object obj)

@@ -87,7 +87,7 @@ namespace System.Buffers
                 {
                     // Attempt to rent from the bucket.  If we get a buffer from it, return it.
                     buffer = _buckets[i].Rent();
-                    if (buffer is object)
+                    if (!(buffer is null))
                     {
                         if (log.IsEnabled())
                         {

@@ -305,7 +305,7 @@ namespace System
                         state |= StateSign | StateParens;
                         number.IsNegative = true;
                     }
-                    else if (currSymbol is object && (next = MatchChars(p, strEnd, currSymbol)) != null)
+                    else if (!(currSymbol is null) && (next = MatchChars(p, strEnd, currSymbol)) != null)
                     {
                         state |= StateCurrency;
                         currSymbol = null;
@@ -439,7 +439,7 @@ namespace System
                         {
                             state &= ~StateParens;
                         }
-                        else if (currSymbol is object && (next = MatchChars(p, strEnd, currSymbol)) != null)
+                        else if (!(currSymbol is null) && (next = MatchChars(p, strEnd, currSymbol)) != null)
                         {
                             currSymbol = null;
                             p = next - 1;

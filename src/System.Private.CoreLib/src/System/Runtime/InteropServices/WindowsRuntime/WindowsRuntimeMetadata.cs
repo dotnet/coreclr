@@ -22,7 +22,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal static string[] OnDesignerNamespaceResolve(string namespaceName)
         {
             EventHandler<DesignerNamespaceResolveEventArgs> eventHandler = DesignerNamespaceResolve;
-            if (eventHandler is object)
+            if (!(eventHandler is null))
             {
                 foreach (EventHandler<DesignerNamespaceResolveEventArgs> handler in eventHandler.GetInvocationList())
                 {

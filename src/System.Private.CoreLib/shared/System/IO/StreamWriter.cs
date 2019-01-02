@@ -182,7 +182,7 @@ namespace System.IO
                 // Also, we never close the handles for stdout & friends.  So we can safely 
                 // write any buffered data to those streams even during finalization, which 
                 // is generally the right thing to do.
-                if (_stream is object)
+                if (!(_stream is null))
                 {
                     // Note: flush on the underlying stream can throw (ex., low disk space)
                     if (disposing /* || (LeaveOpen && stream is __ConsoleStream) */)
@@ -202,7 +202,7 @@ namespace System.IO
         private void CloseStreamFromDispose(bool disposing)
         {
             // Dispose of our resources if this StreamWriter is closable. 
-            if (!LeaveOpen && _stream is object)
+            if (!LeaveOpen && !(_stream is null))
             {
                 try
                 {
@@ -239,7 +239,7 @@ namespace System.IO
             Debug.Assert(GetType() == typeof(StreamWriter));
             try
             {
-                if (_stream is object)
+                if (!(_stream is null))
                 {
                     await FlushAsync().ConfigureAwait(false);
                 }
@@ -699,7 +699,7 @@ namespace System.IO
                 return base.WriteAsync(value);
             }
 
-            if (value is object)
+            if (!(value is null))
             {
                 if (_stream is null)
                 {

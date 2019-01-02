@@ -147,7 +147,7 @@ namespace System.IO
         //
         public virtual void Write(char[] buffer)
         {
-            if (buffer is object)
+            if (!(buffer is null))
             {
                 Write(buffer, 0, buffer.Length);
             }
@@ -270,7 +270,7 @@ namespace System.IO
         //
         public virtual void Write(string value)
         {
-            if (value is object)
+            if (!(value is null))
             {
                 Write(value.ToCharArray());
             }
@@ -284,10 +284,10 @@ namespace System.IO
         //
         public virtual void Write(object value)
         {
-            if (value is object)
+            if (!(value is null))
             {
                 IFormattable f = value as IFormattable;
-                if (f is object)
+                if (!(f is null))
                 {
                     Write(f.ToString(null, FormatProvider));
                 }
@@ -303,7 +303,7 @@ namespace System.IO
         /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
         public virtual void Write(StringBuilder value)
         {
-            if (value is object)
+            if (!(value is null))
             {
                 foreach (ReadOnlyMemory<char> chunk in value.GetChunks())
                     Write(chunk);
@@ -467,7 +467,7 @@ namespace System.IO
         //
         public virtual void WriteLine(string value)
         {
-            if (value is object)
+            if (!(value is null))
             {
                 Write(value);
             }
@@ -498,7 +498,7 @@ namespace System.IO
                 // Call WriteLine(value.ToString), not Write(Object), WriteLine().
                 // This makes calls to WriteLine(Object) atomic.
                 IFormattable f = value as IFormattable;
-                if (f is object)
+                if (!(f is null))
                 {
                     WriteLine(f.ToString(null, FormatProvider));
                 }

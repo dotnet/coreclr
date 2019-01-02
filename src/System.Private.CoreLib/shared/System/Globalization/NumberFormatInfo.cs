@@ -172,7 +172,7 @@ namespace System.Globalization
 
         internal NumberFormatInfo(CultureData cultureData)
         {
-            if (cultureData is object)
+            if (!(cultureData is null))
             {
                 // We directly use fields here since these data is coming from data table or Win32, so we
                 // don't need to verify their values (except for invalid parsing situations).
@@ -407,7 +407,7 @@ namespace System.Globalization
                 if (!culture._isInherited)
                 {
                     NumberFormatInfo info = culture._numInfo;
-                    if (info is object)
+                    if (!(info is null))
                     {
                         return info;
                     }

@@ -32,7 +32,7 @@ namespace System.Reflection
                     INVOCATION_FLAGS invocationFlags = 0;
 
                     // first take care of all the NO_INVOKE cases
-                    if (declaringType is object && declaringType.ContainsGenericParameters)
+                    if (!(declaringType is null) && declaringType.ContainsGenericParameters)
                     {
                         invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE;
                     }
@@ -210,7 +210,7 @@ namespace System.Reflection
 
             if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE) != 0)
             {
-                if (declaringType is object && DeclaringType.ContainsGenericParameters)
+                if (!(declaringType is null) && DeclaringType.ContainsGenericParameters)
                     throw new InvalidOperationException(SR.Arg_UnboundGenField);
 
                 throw new FieldAccessException();
@@ -246,7 +246,7 @@ namespace System.Reflection
 
             if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE) != 0)
             {
-                if (declaringType is object && declaringType.ContainsGenericParameters)
+                if (!(declaringType is null) && declaringType.ContainsGenericParameters)
                     throw new InvalidOperationException(SR.Arg_UnboundGenField);
 
                 throw new FieldAccessException();

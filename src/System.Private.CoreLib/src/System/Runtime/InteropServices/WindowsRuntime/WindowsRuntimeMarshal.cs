@@ -97,7 +97,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             int count = 0;
 
-            if (ManagedEventRegistrationImpl.s_eventRegistrations is object)
+            if (!(ManagedEventRegistrationImpl.s_eventRegistrations is null))
             {
                 lock (ManagedEventRegistrationImpl.s_eventRegistrations)
                 {
@@ -106,7 +106,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
             }
 
-            if (NativeOrStaticEventRegistrationImpl.s_eventRegistrations is object)
+            if (!(NativeOrStaticEventRegistrationImpl.s_eventRegistrations is null))
             {
                 lock (NativeOrStaticEventRegistrationImpl.s_eventRegistrations)
                 {
@@ -171,7 +171,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             public void CopyTo(List<EventRegistrationToken> tokens)
             {
                 tokens.Add(firstToken);
-                if (restTokens is object)
+                if (!(restTokens is null))
                     tokens.AddRange(restTokens);
             }
         }
@@ -714,7 +714,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         // Note that inside TryGetValueWithValueEquality we assumes that any delegate
                         // with the same value equality would have the same hash code
                         object key = FindEquivalentKeyUnsafe(registrationTokens, handler, out tokens);
-                        Debug.Assert((key is object && tokens is object) || (key is null && tokens is null),
+                        Debug.Assert((!(key is null) && !(tokens is null)) || (key is null && tokens is null),
                                         "key and tokens must be both null or non-null");
                         if (tokens is null)
                         {
@@ -1057,10 +1057,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal static Exception GetExceptionForHR(int hresult, Exception innerException, string messageResource)
         {
             Exception e = null;
-            if (innerException is object)
+            if (!(innerException is null))
             {
                 string message = innerException.Message;
-                if (message is null && messageResource is object)
+                if (message is null && !(messageResource is null))
                 {
                     message = SR.GetResourceString(messageResource);
                 }
@@ -1068,7 +1068,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             else
             {
-                string message = (messageResource is object ? SR.GetResourceString(messageResource): null);
+                string message = (!(messageResource is null) ? SR.GetResourceString(messageResource): null);
                 e = new Exception(message);
             }
 
@@ -1136,7 +1136,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return false;
             }
 
-            if (e is object)
+            if (!(e is null))
             {
                 IntPtr exceptionIUnknown = IntPtr.Zero;
                 IntPtr exceptionIErrorInfo = IntPtr.Zero;
@@ -1158,7 +1158,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                             if (RoOriginateLanguageException(Marshal.GetHRForException_WinRT(e), e.Message, exceptionIErrorInfo))
                             {
                                 IRestrictedErrorInfo restrictedError = UnsafeNativeMethods.GetRestrictedErrorInfo();
-                                if (restrictedError is object)
+                                if (!(restrictedError is null))
                                 {
                                     RoReportUnhandledError(restrictedError);
                                     return true;

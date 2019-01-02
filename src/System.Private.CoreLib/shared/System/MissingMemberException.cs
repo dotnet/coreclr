@@ -61,7 +61,7 @@ namespace System
                 else
                 {
                     // do any desired fixups to classname here.
-                    return SR.Format(SR.MissingMember_Name, ClassName + "." + MemberName + (Signature is object ? " " + FormatSignature(Signature) : string.Empty));
+                    return SR.Format(SR.MissingMember_Name, ClassName + "." + MemberName + (!(Signature is null) ? " " + FormatSignature(Signature) : string.Empty));
                 }
             }
         }

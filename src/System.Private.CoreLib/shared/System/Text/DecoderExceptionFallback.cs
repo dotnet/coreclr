@@ -32,7 +32,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             DecoderExceptionFallback that = value as DecoderExceptionFallback;
-            if (that is object)
+            if (!(that is null))
             {
                 return (true);
             }

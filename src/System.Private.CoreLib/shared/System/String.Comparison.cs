@@ -308,12 +308,12 @@ namespace System
             int lengthA = length;
             int lengthB = length;
 
-            if (strA is object)
+            if (!(strA is null))
             {
                 lengthA = Math.Min(lengthA, strA.Length - indexA);
             }
 
-            if (strB is object)
+            if (!(strB is null))
             {
                 lengthB = Math.Min(lengthB, strB.Length - indexB);
             }
@@ -348,12 +348,12 @@ namespace System
             int lengthA = length;
             int lengthB = length;
 
-            if (strA is object)
+            if (!(strA is null))
             {
                 lengthA = Math.Min(lengthA, strA.Length - indexA);
             }
 
-            if (strB is object)
+            if (!(strB is null))
             {
                 lengthB = Math.Min(lengthB, strB.Length - indexB);
             }

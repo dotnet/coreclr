@@ -59,13 +59,13 @@ namespace System.Runtime.InteropServices
 
             Exception _innerException = InnerException;
 
-            if (_innerException is object)
+            if (!(_innerException is null))
             {
                 s = s + " ---> " + _innerException.ToString();
             }
 
 
-            if (StackTrace is object)
+            if (!(StackTrace is null))
                 s += Environment.NewLine + StackTrace;
 
             return s;

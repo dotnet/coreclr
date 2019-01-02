@@ -397,7 +397,7 @@ namespace System.Diagnostics.Tracing
 
             // first look for sessions that have gone away (or have changed)
             // (present in the m_liveSessions but not in the new liveSessionList)
-            if (m_liveSessions is object)
+            if (!(m_liveSessions is null))
             {
                 foreach (SessionInfo s in m_liveSessions)
                 {
@@ -410,7 +410,7 @@ namespace System.Diagnostics.Tracing
             }
             // next look for sessions that were created since the last callback  (or have changed)
             // (present in the new liveSessionList but not in m_liveSessions)
-            if (liveSessionList is object)
+            if (!(liveSessionList is null))
             {
                 foreach (SessionInfo s in liveSessionList)
                 {
@@ -530,7 +530,7 @@ namespace System.Diagnostics.Tracing
 
             using (var key = Registry.LocalMachine.OpenSubKey(regKey))
             {
-                if (key is object)
+                if (!(key is null))
                 {
                     foreach (string valueName in key.GetValueNames())
                     {
@@ -545,7 +545,7 @@ namespace System.Diagnostics.Tracing
                                 (new RegistryPermission(RegistryPermissionAccess.Read, regKey)).Assert();
 #endif
                                 var data = key.GetValue(valueName) as byte[];
-                                if (data is object)
+                                if (!(data is null))
                                 {
                                     var dataAsString = System.Text.Encoding.UTF8.GetString(data);
                                     int keywordIdx = dataAsString.IndexOf("EtwSessionKeyword", StringComparison.Ordinal);
@@ -616,7 +616,7 @@ namespace System.Diagnostics.Tracing
                 using (var key = Registry.LocalMachine.OpenSubKey(regKey))
                 {
                     data =  key?.GetValue(valueName, null) as byte[];
-                    if (data is object)
+                    if (!(data is null))
                     {
                         // We only used the persisted data from the registry for updates.   
                         command = ControllerCommand.Update;
@@ -759,7 +759,7 @@ namespace System.Diagnostics.Tracing
             string sRet = data as string;
             byte[] blobRet = null;
 
-            if (sRet is object)
+            if (!(sRet is null))
             {
                 dataDescriptor->Size = ((uint)sRet.Length + 1) * 2;
             }
@@ -1014,7 +1014,7 @@ namespace System.Diagnostics.Tracing
                             object supportedRefObj;
                             supportedRefObj = EncodeObject(ref eventPayload[index], ref userDataPtr, ref currentBuffer, ref totalEventSize);
 
-                            if (supportedRefObj is object)
+                            if (!(supportedRefObj is null))
                             {
                                 // EncodeObject advanced userDataPtr to the next empty slot
                                 int idx = (int)(userDataPtr - userData - 1);

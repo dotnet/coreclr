@@ -61,8 +61,8 @@ namespace System.Threading.Tasks
         // sister method to above property -- avoids a TLS lookup
         private TaskScheduler GetDefaultScheduler(Task currTask)
         {
-            if (m_defaultScheduler is object) return m_defaultScheduler;
-            else if ((currTask is object)
+            if (!(m_defaultScheduler is null)) return m_defaultScheduler;
+            else if ((!(currTask is null))
                 && ((currTask.CreationOptions & TaskCreationOptions.HideScheduler) == 0)
                 )
                 return currTask.ExecutingTaskScheduler;
@@ -524,7 +524,7 @@ namespace System.Threading.Tasks
 
             try
             {
-                if (endFunction is object)
+                if (!(endFunction is null))
                 {
                     result = endFunction(iar);
                 }
@@ -537,11 +537,11 @@ namespace System.Threading.Tasks
             catch (Exception e) { ex = e; }
             finally
             {
-                if (oce is object)
+                if (!(oce is null))
                 {
                     promise.TrySetCanceled(oce.CancellationToken, oce);
                 }
-                else if (ex is object)
+                else if (!(ex is null))
                 {
                     bool bWonSetException = promise.TrySetException(ex);
                     if (bWonSetException && ex is ThreadAbortException)
@@ -1672,7 +1672,7 @@ namespace System.Threading.Tasks
             var starter = TaskFactory.CommonCWAllLogic(tasksCopy);
 
             // returned continuation task, off of starter
-            if (continuationFunction is object)
+            if (!(continuationFunction is null))
             {
                 return starter.ContinueWith<TResult>(
                    // use a cached delegate
@@ -1681,7 +1681,7 @@ namespace System.Threading.Tasks
             }
             else
             {
-                Debug.Assert(continuationAction is object);
+                Debug.Assert(!(continuationAction is null));
 
                 return starter.ContinueWith<TResult>(
                    // use a cached delegate
@@ -1718,7 +1718,7 @@ namespace System.Threading.Tasks
             var starter = TaskFactory.CommonCWAllLogic(tasksCopy);
 
             // returned continuation task, off of starter
-            if (continuationFunction is object)
+            if (!(continuationFunction is null))
             {
                 return starter.ContinueWith(
                     //the following delegate avoids closure capture as much as possible
@@ -2044,7 +2044,7 @@ namespace System.Threading.Tasks
             }
 
             // returned continuation task, off of starter
-            if (continuationFunction is object)
+            if (!(continuationFunction is null))
             {
                 return starter.ContinueWith(
                      //the following delegate avoids closure capture as much as possible
@@ -2090,7 +2090,7 @@ namespace System.Threading.Tasks
             }
 
             // returned continuation task, off of starter
-            if (continuationFunction is object)
+            if (!(continuationFunction is null))
             {
                 return starter.ContinueWith<TResult>(
                     // Use a cached delegate

@@ -32,7 +32,7 @@ namespace System.Threading
         public void Dispose()
         {
             CancellationTokenSource.CallbackNode node = _node;
-            if (node is object && !node.Partition.Unregister(_id, node))
+            if (!(node is null) && !node.Partition.Unregister(_id, node))
             {
                 WaitForCallbackIfNecessary();
             }
@@ -48,7 +48,7 @@ namespace System.Threading
         public ValueTask DisposeAsync()
         {
             CancellationTokenSource.CallbackNode node = _node;
-            return node is object && !node.Partition.Unregister(_id, node) ?
+            return !(node is null) && !node.Partition.Unregister(_id, node) ?
                 WaitForCallbackIfNecessaryAsync() :
                 default;
         }
@@ -63,7 +63,7 @@ namespace System.Threading
             get
             {
                 CancellationTokenSource.CallbackNode node = _node;
-                return node is object ?
+                return !(node is null) ?
                     new CancellationToken(node.Partition.Source) : // avoid CTS.Token, which throws after disposal
                     default;
             }
@@ -76,7 +76,7 @@ namespace System.Threading
         public bool Unregister()
         {
             CancellationTokenSource.CallbackNode node = _node;
-            return node is object && node.Partition.Unregister(_id, node);
+            return !(node is null) && node.Partition.Unregister(_id, node);
         }
 
         private void WaitForCallbackIfNecessary()
@@ -165,6 +165,6 @@ namespace System.Threading
         /// Serves as a hash function for a <see cref="T:System.Threading.CancellationTokenRegistration">CancellationTokenRegistration.</see>.
         /// </summary>
         /// <returns>A hash code for the current <see cref="T:System.Threading.CancellationTokenRegistration">CancellationTokenRegistration</see> instance.</returns>
-        public override int GetHashCode() => _node is object ? _node.GetHashCode() ^ _id.GetHashCode()  : _id.GetHashCode();
+        public override int GetHashCode() => !(_node is null) ? _node.GetHashCode() ^ _id.GetHashCode()  : _id.GetHashCode();
     }
 }

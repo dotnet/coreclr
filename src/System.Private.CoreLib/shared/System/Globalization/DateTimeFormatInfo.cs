@@ -370,7 +370,7 @@ namespace System.Globalization
                 if (!culture._isInherited)
                 {
                     DateTimeFormatInfo info = culture._dateTimeInfo;
-                    if (info is object)
+                    if (!(info is null))
                     {
                         return info;
                     }
@@ -458,7 +458,7 @@ namespace System.Globalization
                         // We can use this one, so do so.
 
                         // Clean related properties if we already had a calendar set
-                        if (calendar is object)
+                        if (!(calendar is null))
                         {
                             // clean related properties which are affected by the calendar setting,
                             // so that they will be refreshed when they are accessed next time.
@@ -2378,7 +2378,7 @@ namespace System.Globalization
                 bool useDateSepAsIgnorableSymbol = false;
 
                 string monthPostfix = null;
-                if (dateWords is object)
+                if (!(dateWords is null))
                 {
                     // There are DateWords.  It could be a real date word (such as "de"), or a monthPostfix.
                     // The monthPostfix starts with '\xfffe' (MonthPostfixChar), followed by the real monthPostfix.
@@ -2560,7 +2560,7 @@ namespace System.Globalization
                 str = GetMonthName(i);
                 if (str.Length > 0)
                 {
-                    if (monthPostfix is object)
+                    if (!(monthPostfix is null))
                     {
                         // Insert the month name with the postfix first, so it can be matched first.
                         InsertHash(temp, str + monthPostfix, TokenType.MonthToken, i);
@@ -2781,7 +2781,7 @@ namespace System.Globalization
                 // Remember this slot
                 TokenHashValue temp = hashTable[hashcode];
 
-                if (temp is object && this.Culture.TextInfo.ToLower(temp.tokenString[0]) != ch)
+                if (!(temp is null) && this.Culture.TextInfo.ToLower(temp.tokenString[0]) != ch)
                 {
                     continue;
                 }

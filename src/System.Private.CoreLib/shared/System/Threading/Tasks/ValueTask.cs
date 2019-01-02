@@ -394,7 +394,7 @@ namespace System.Threading.Tasks
             object obj = _obj;
             Debug.Assert(obj == null || obj is Task || obj is IValueTaskSource);
 
-            if (obj is object)
+            if (!(obj is null))
             {
                 if (obj is Task t)
                 {
@@ -532,8 +532,8 @@ namespace System.Threading.Tasks
 
         /// <summary>Returns the hash code for this instance.</summary>
         public override int GetHashCode() =>
-            _obj is object ? _obj.GetHashCode() :
-            _result is object ? _result.GetHashCode() :
+            !(_obj is null) ? _obj.GetHashCode() :
+            _result != null ? _result.GetHashCode() :
             0;
 
         /// <summary>Returns a value indicating whether this value is equal to a specified <see cref="object"/>.</summary>
@@ -543,7 +543,7 @@ namespace System.Threading.Tasks
 
         /// <summary>Returns a value indicating whether this value is equal to a specified <see cref="ValueTask{TResult}"/> value.</summary>
         public bool Equals(ValueTask<TResult> other) =>
-            _obj is object || other._obj is object ?
+            !(_obj is null) || !(other._obj is null) ?
                 _obj == other._obj && _token == other._token :
                 EqualityComparer<TResult>.Default.Equals(_result, other._result);
 
@@ -873,7 +873,7 @@ namespace System.Threading.Tasks
             if (IsCompletedSuccessfully)
             {
                 TResult result = Result;
-                if (result is object)
+                if (result != null)
                 {
                     return result.ToString();
                 }

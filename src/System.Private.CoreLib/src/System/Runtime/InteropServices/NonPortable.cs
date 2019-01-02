@@ -13,7 +13,7 @@ namespace System.Runtime.InteropServices
     {
         public static int GetHRForException(Exception e)
         {
-            return (e is object) ? e.HResult : 0;
+            return (!(e is null)) ? e.HResult : 0;
         }
 
         public static int AddRef(IntPtr pUnk)

@@ -12,7 +12,7 @@ namespace System.Text
         {
             int count = 0;
             StringBuilder head = this, current = this;
-            while (current is object)
+            while (!(current is null))
             {
                 if (count < maxChunksToShow)
                 {

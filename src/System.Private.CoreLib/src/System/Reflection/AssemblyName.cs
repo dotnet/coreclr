@@ -362,19 +362,19 @@ namespace System.Reflection
         {
             _name = name;
 
-            if (publicKey is object)
+            if (!(publicKey is null))
             {
                 _publicKey = new byte[publicKey.Length];
                 Array.Copy(publicKey, _publicKey, publicKey.Length);
             }
 
-            if (publicKeyToken is object)
+            if (!(publicKeyToken is null))
             {
                 _publicKeyToken = new byte[publicKeyToken.Length];
                 Array.Copy(publicKeyToken, _publicKeyToken, publicKeyToken.Length);
             }
 
-            if (version is object)
+            if (!(version is null))
                 _version = (Version)version.Clone();
 
             _cultureInfo = cultureInfo;
@@ -508,7 +508,7 @@ namespace System.Reflection
                 if (prevInputPos != i)
                 {
                     // need to fill up the dest array ?
-                    if (prevInputPos != start || dest is object)
+                    if (prevInputPos != start || !(dest is null))
                         dest = EnsureDestinationSize(pStr, dest, i, 0, 0, ref destPos, prevInputPos);
                 }
             }
@@ -527,7 +527,7 @@ namespace System.Reflection
                 // allocating or reallocating array by ensuring enough space based on maxCharsToAdd.
                 char[] newresult = new char[destPos + (currentInputPos - prevInputPos) + minReallocateChars];
 
-                if (dest is object && destPos != 0)
+                if (!(dest is null) && destPos != 0)
                     Buffer.BlockCopy(dest, 0, newresult, 0, destPos << 1);
                 dest = newresult;
             }

@@ -100,7 +100,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             UTF7Encoding that = value as UTF7Encoding;
-            if (that is object)
+            if (!(that is null))
             {
                 return (_allowOptionals == that._allowOptionals) &&
                        (EncoderFallback.Equals(that.EncoderFallback)) &&
@@ -423,7 +423,7 @@ namespace System.Text
             Encoding.EncodingByteBuffer buffer = new Encoding.EncodingByteBuffer(
                 this, encoder, bytes, byteCount, chars, charCount);
 
-            if (encoder is object)
+            if (!(encoder is null))
             {
                 bits = encoder.bits;
                 bitCount = encoder.bitCount;
@@ -534,7 +534,7 @@ namespace System.Text
 
             // Do we have an encoder we're allowed to use?
             // bytes == null if counting, so don't use encoder then
-            if (bytes != null && encoder is object)
+            if (bytes != null && !(encoder is null))
             {
                 // We already cleared bits & bitcount for mustflush case
                 encoder.bits = bits;
@@ -572,7 +572,7 @@ namespace System.Text
             int bits = 0;
             int bitCount = -1;
             bool firstByte = false;
-            if (decoder is object)
+            if (!(decoder is null))
             {
                 bits = decoder.bits;
                 bitCount = decoder.bitCount;
@@ -697,7 +697,7 @@ namespace System.Text
             }
 
             // Stick stuff in the decoder if we can (chars == null if counting, so don't store decoder)
-            if (chars != null && decoder is object)
+            if (chars != null && !(decoder is null))
             {
                 // MustFlush?  (Could've been cleared by ThrowCharsOverflow if Convert & didn't reach end of buffer)
                 if (decoder.MustFlush)
@@ -801,7 +801,7 @@ namespace System.Text
                 this.bits = 0;
                 this.bitCount = -1;
                 this.firstByte = false;
-                if (_fallbackBuffer is object)
+                if (!(_fallbackBuffer is null))
                     _fallbackBuffer.Reset();
             }
 
@@ -835,7 +835,7 @@ namespace System.Text
             {
                 this.bitCount = -1;
                 this.bits = 0;
-                if (_fallbackBuffer is object)
+                if (!(_fallbackBuffer is null))
                     _fallbackBuffer.Reset();
             }
 
@@ -876,7 +876,7 @@ namespace System.Text
             public override bool Equals(object value)
             {
                 DecoderUTF7Fallback that = value as DecoderUTF7Fallback;
-                if (that is object)
+                if (!(that is null))
                 {
                     return true;
                 }

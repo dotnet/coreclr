@@ -213,7 +213,7 @@ namespace System.Collections.ObjectModel
         IDictionaryEnumerator IDictionary.GetEnumerator()
         {
             IDictionary d = m_dictionary as IDictionary;
-            if (d is object)
+            if (!(d is null))
             {
                 return d.GetEnumerator();
             }
@@ -295,14 +295,14 @@ namespace System.Collections.ObjectModel
             }
 
             KeyValuePair<TKey, TValue>[] pairs = array as KeyValuePair<TKey, TValue>[];
-            if (pairs is object)
+            if (!(pairs is null))
             {
                 m_dictionary.CopyTo(pairs, index);
             }
             else
             {
                 DictionaryEntry[] dictEntryArray = array as DictionaryEntry[];
-                if (dictEntryArray is object)
+                if (!(dictEntryArray is null))
                 {
                     foreach (var item in m_dictionary)
                     {
@@ -344,7 +344,7 @@ namespace System.Collections.ObjectModel
                 if (m_syncRoot is null)
                 {
                     ICollection c = m_dictionary as ICollection;
-                    if (c is object)
+                    if (!(c is null))
                     {
                         m_syncRoot = c.SyncRoot;
                     }
@@ -514,7 +514,7 @@ namespace System.Collections.ObjectModel
                     if (m_syncRoot is null)
                     {
                         ICollection c = m_collection as ICollection;
-                        if (c is object)
+                        if (!(c is null))
                         {
                             m_syncRoot = c.SyncRoot;
                         }
@@ -623,7 +623,7 @@ namespace System.Collections.ObjectModel
                     if (m_syncRoot is null)
                     {
                         ICollection c = m_collection as ICollection;
-                        if (c is object)
+                        if (!(c is null))
                         {
                             m_syncRoot = c.SyncRoot;
                         }
@@ -675,14 +675,14 @@ namespace System.Collections.ObjectModel
 
             // Easy out if the ICollection<T> implements the non-generic ICollection
             ICollection nonGenericCollection = collection as ICollection;
-            if (nonGenericCollection is object)
+            if (!(nonGenericCollection is null))
             {
                 nonGenericCollection.CopyTo(array, index);
                 return;
             }
 
             T[] items = array as T[];
-            if (items is object)
+            if (!(items is null))
             {
                 collection.CopyTo(items, index);
             }

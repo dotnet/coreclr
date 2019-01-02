@@ -161,7 +161,7 @@ namespace System
         {
             if (value is null) return TypeCode.Empty;
             IConvertible temp = value as IConvertible;
-            if (temp is object)
+            if (!(temp is null))
             {
                 return temp.GetTypeCode();
             }
@@ -174,7 +174,7 @@ namespace System
         {
             if (value == System.DBNull.Value) return true;
             IConvertible convertible = value as IConvertible;
-            return convertible is object ? convertible.GetTypeCode() == TypeCode.DBNull : false;
+            return !(convertible is null) ? convertible.GetTypeCode() == TypeCode.DBNull : false;
         }
 
         // Converts the given object to the given type. In general, this method is
@@ -2003,10 +2003,10 @@ namespace System
         public static string ToString(object value, IFormatProvider provider)
         {
             IConvertible ic = value as IConvertible;
-            if (ic is object)
+            if (!(ic is null))
                 return ic.ToString(provider);
             IFormattable formattable = value as IFormattable;
-            if (formattable is object)
+            if (!(formattable is null))
                 return formattable.ToString(null, provider);
             return value is null ? string.Empty : value.ToString();
         }
@@ -2279,7 +2279,7 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            return value is object ?
+            return !(value is null) ?
                 ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.IsTight) :
                 0;
         }
@@ -2295,7 +2295,7 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            return value is object ?
+            return !(value is null) ?
                 (uint)ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.TreatAsUnsigned | ParseNumbers.IsTight) :
                 0;
         }
@@ -2310,7 +2310,7 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            return value is object ?
+            return !(value is null) ?
                 ParseNumbers.StringToLong(value.AsSpan(), fromBase, ParseNumbers.IsTight) :
                 0;
         }
@@ -2326,7 +2326,7 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            return value is object ?
+            return !(value is null) ?
                 (ulong)ParseNumbers.StringToLong(value.AsSpan(), fromBase, ParseNumbers.TreatAsUnsigned | ParseNumbers.IsTight) :
                 0;
         }

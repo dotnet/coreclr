@@ -224,7 +224,7 @@ namespace System.Threading
                 {
                     object unused = LocalPop();
                     Debug.Assert(unused == null || unused == obj);
-                    return unused is object;
+                    return !(unused is null);
                 }
 
                 // Else, do an O(N) search for the work item. The theory of work stealing and our
@@ -481,7 +481,7 @@ namespace System.Threading
         internal bool LocalFindAndPop(object callback)
         {
             ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
-            return tl is object && tl.workStealingQueue.LocalFindAndPop(callback);
+            return !(tl is null) && tl.workStealingQueue.LocalFindAndPop(callback);
         }
 
         public object Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref bool missedSteal)
@@ -505,7 +505,7 @@ namespace System.Threading
                     if (otherQueue != localWsq && otherQueue.CanSteal)
                     {
                         callback = otherQueue.TrySteal(ref missedSteal);
-                        if (callback is object)
+                        if (!(callback is null))
                         {
                             break;
                         }
@@ -779,7 +779,7 @@ namespace System.Threading
             RuntimeHelpers.PrepareConstrainedRegions();
 
             m_internalWaitObject = waitObject;
-            if (waitObject is object)
+            if (!(waitObject is null))
             {
                 m_internalWaitObject.SafeWaitHandle.DangerousAddRef(ref bReleaseNeeded);
             }
@@ -1190,7 +1190,7 @@ namespace System.Threading
         {
             RegisteredWaitHandle registeredWaitHandle = new RegisteredWaitHandle();
 
-            if (callBack is object)
+            if (!(callBack is null))
             {
                 _ThreadPoolWaitOrTimerCallback callBackHelper = new _ThreadPoolWaitOrTimerCallback(callBack, state, compressStack);
                 state = (object)callBackHelper;
@@ -1435,13 +1435,13 @@ namespace System.Threading
             // Enumerate each local queue
             foreach (ThreadPoolWorkQueue.WorkStealingQueue wsq in ThreadPoolWorkQueue.WorkStealingQueueList.Queues)
             {
-                if (wsq is object && wsq.m_array is object)
+                if (!(wsq is null) && !(wsq.m_array is null))
                 {
                     object[] items = wsq.m_array;
                     for (int i = 0; i < items.Length; i++)
                     {
                         object item = items[i];
-                        if (item is object)
+                        if (!(item is null))
                         {
                             yield return item;
                         }
@@ -1453,13 +1453,13 @@ namespace System.Threading
         internal static IEnumerable<object> GetLocallyQueuedWorkItems()
         {
             ThreadPoolWorkQueue.WorkStealingQueue wsq = ThreadPoolWorkQueueThreadLocals.threadLocals.workStealingQueue;
-            if (wsq is object && wsq.m_array is object)
+            if (!(wsq is null) && !(wsq.m_array is null))
             {
                 object[] items = wsq.m_array;
                 for (int i = 0; i < items.Length; i++)
                 {
                     object item = items[i];
-                    if (item is object)
+                    if (!(item is null))
                         yield return item;
                 }
             }

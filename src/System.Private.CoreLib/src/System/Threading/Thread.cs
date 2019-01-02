@@ -58,7 +58,7 @@ namespace System.Threading
         {
             _startArg = obj;
             ExecutionContext context = _executionContext;
-            if (context is object)
+            if (!(context is null))
             {
                 ExecutionContext.RunInternal(context, _ccb, (object)this);
             }
@@ -72,7 +72,7 @@ namespace System.Threading
         internal void ThreadStart()
         {
             ExecutionContext context = _executionContext;
-            if (context is object)
+            if (!(context is null))
             {
                 ExecutionContext.RunInternal(context, _ccb, (object)this);
             }
@@ -240,7 +240,7 @@ namespace System.Threading
             // Attach current thread's security principal object to the new
             // thread. Be careful not to bind the current thread to a principal
             // if it's not already bound.
-            if (m_Delegate is object)
+            if (!(m_Delegate is null))
             {
                 // If we reach here with a null delegate, something is broken. But we'll let the StartInternal method take care of
                 // reporting an error. Just make sure we don't try to dereference a null delegate.
@@ -479,11 +479,11 @@ namespace System.Threading
             {
                 lock (this)
                 {
-                    if (m_Name is object)
+                    if (!(m_Name is null))
                         throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
                     m_Name = value;
 
-                    InformThreadNameChange(GetNativeHandle(), value, (value is object) ? value.Length : 0);
+                    InformThreadNameChange(GetNativeHandle(), value, (!(value is null)) ? value.Length : 0);
                 }
             }
         }

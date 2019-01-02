@@ -184,7 +184,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             IList<T> _this = Unsafe.As<IList<T>>(this);
             _this.Clear();
 
-            if (items is object)
+            if (!(items is null))
             {
                 foreach (T item in items)
                 {

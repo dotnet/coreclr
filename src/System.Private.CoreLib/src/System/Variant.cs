@@ -345,7 +345,7 @@ namespace System
                 obj = (object)(((BStrWrapper)obj).WrappedObject);
             }
 
-            if (obj is object)
+            if (!(obj is null))
             {
                 SetFieldsObject(obj);
             }

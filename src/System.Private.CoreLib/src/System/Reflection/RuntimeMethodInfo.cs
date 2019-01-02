@@ -42,7 +42,7 @@ namespace System.Reflection
                     // first take care of all the NO_INVOKE cases. 
                     if (ContainsGenericParameters ||
                          IsDisallowedByRefType(ReturnType) ||
-                         (declaringType is object && declaringType.ContainsGenericParameters) ||
+                         (!(declaringType is null) && declaringType.ContainsGenericParameters) ||
                          ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
                         // We don't need other flags if this method cannot be invoked
@@ -51,7 +51,7 @@ namespace System.Reflection
                     else
                     {
                         // Check for byref-like types
-                        if ((declaringType is object && declaringType.IsByRefLike) || ReturnType.IsByRefLike)
+                        if ((!(declaringType is null) && declaringType.IsByRefLike) || ReturnType.IsByRefLike)
                             invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_CONTAINS_STACK_POINTERS;
                     }
 
@@ -394,7 +394,7 @@ namespace System.Reflection
         public override MethodBody GetMethodBody()
         {
             RuntimeMethodBody mb = RuntimeMethodHandle.GetMethodBody(this, ReflectedTypeInternal);
-            if (mb is object)
+            if (!(mb is null))
                 mb._methodBase = this;
             return mb;
         }
@@ -479,7 +479,7 @@ namespace System.Reflection
 
             // get the signature 
             int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters is object) ? parameters.Length : 0;
+            int actualCount = (!(parameters is null)) ? parameters.Length : 0;
 
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
 
@@ -546,7 +546,7 @@ namespace System.Reflection
                 baseDeclaringType = declaringType;
 
                 declaringType = (RuntimeType)declaringType.BaseType;
-            } while (declaringType is object);
+            } while (!(declaringType is null));
 
             return (MethodInfo)RuntimeType.GetMethodBase(baseDeclaringType, baseMethodHandle);
         }
@@ -695,7 +695,7 @@ namespace System.Reflection
         {
             get
             {
-                if (DeclaringType is object && DeclaringType.ContainsGenericParameters)
+                if (!(DeclaringType is null) && DeclaringType.ContainsGenericParameters)
                     return true;
 
                 if (!IsGenericMethod)

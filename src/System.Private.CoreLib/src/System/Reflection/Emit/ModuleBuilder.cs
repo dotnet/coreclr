@@ -228,7 +228,7 @@ namespace System.Reflection.Emit
             int tkResolution = 0;
             string typeName = type.FullName;
 
-            if (enclosingType is object)
+            if (!(enclosingType is null))
             {
                 tkResolution = GetTypeRefNested(enclosingType, refedModule, strRefedModuleFileName);
                 typeName = UnmangleTypeName(typeName);
@@ -334,7 +334,7 @@ namespace System.Reflection.Emit
         private static RuntimeModule GetRuntimeModuleFromModule(Module m)
         {
             ModuleBuilder mb = m as ModuleBuilder;
-            if (mb is object)
+            if (!(mb is null))
             {
                 return mb.InternalModule;
             }
@@ -359,7 +359,7 @@ namespace System.Reflection.Emit
                 cGenericParameters = method.GetGenericArguments().Length;
             }
 
-            if (optionalParameterTypes is object)
+            if (!(optionalParameterTypes is null))
             {
                 if ((method.CallingConvention & CallingConventions.VarArgs) == 0)
                 {
@@ -393,7 +393,7 @@ namespace System.Reflection.Emit
 
                     if (method.IsGenericMethod)
                     {
-                        Debug.Assert(masmi is object);
+                        Debug.Assert(!(masmi is null));
 
                         methDef = masmi.GetGenericMethodDefinition();
                         methDef = methDef.Module.ResolveMethod(
@@ -453,7 +453,7 @@ namespace System.Reflection.Emit
         {
             SignatureHelper sig = SignatureHelper.GetMethodSigHelper(this, call, returnType, cGenericParameters);
 
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
             {
                 foreach (Type t in parameterTypes)
                 {
@@ -461,7 +461,7 @@ namespace System.Reflection.Emit
                 }
             }
 
-            if (optionalParameterTypes is object)
+            if (!(optionalParameterTypes is null))
             {
                 int i = 0;
                 foreach (Type type in optionalParameterTypes)
@@ -532,7 +532,7 @@ namespace System.Reflection.Emit
                 EnumBuilder enumBldr = builder as EnumBuilder;
                 TypeBuilder tmpTypeBldr;
 
-                if (enumBldr is object)
+                if (!(enumBldr is null))
                     tmpTypeBldr = enumBldr.m_typeBuilder;
                 else
                     tmpTypeBldr = (TypeBuilder)builder;
@@ -577,7 +577,7 @@ namespace System.Reflection.Emit
 
             // Module.GetType() will verify className.                
             Type baseType = InternalModule.GetType(className, throwOnError, ignoreCase);
-            if (baseType is object)
+            if (!(baseType is null))
                 return baseType;
 
             // Now try to see if we contain a TypeBuilder for this type or not.
@@ -627,7 +627,7 @@ namespace System.Reflection.Emit
 
             baseName = baseName.Replace(@"\\", @"\").Replace(@"\[", @"[").Replace(@"\*", @"*").Replace(@"\&", @"&");
 
-            if (parameters is object)
+            if (!(parameters is null))
             {
                 // try to see if reflection can find the base type. It can be such that reflection
                 // does not support the complex format string yet!
@@ -1061,9 +1061,9 @@ namespace System.Reflection.Emit
                 GenericTypeParameterBuilder paramBuilder = null;
 
                 EnumBuilder enumBuilder = type as EnumBuilder;
-                typeBuilder = enumBuilder is object ? enumBuilder.m_typeBuilder : type as TypeBuilder;
+                typeBuilder = !(enumBuilder is null) ? enumBuilder.m_typeBuilder : type as TypeBuilder;
 
-                if (typeBuilder is object)
+                if (!(typeBuilder is null))
                 {
                     // If the type is defined in this module, just return the token.
                     return typeBuilder.TypeToken;
@@ -1260,7 +1260,7 @@ namespace System.Reflection.Emit
                 }
 
                 if (!Equals(methodInfoUnbound.Module)
-                    || (methodInfoUnbound.DeclaringType is object && methodInfoUnbound.DeclaringType.IsGenericType))
+                    || (!(methodInfoUnbound.DeclaringType is null) && methodInfoUnbound.DeclaringType.IsGenericType))
                 {
                     tk = GetMemberRefToken(methodInfoUnbound, null);
                 }
@@ -1389,7 +1389,7 @@ namespace System.Reflection.Emit
 
             if (field is FieldBuilder fdBuilder)
             {
-                if (field.DeclaringType is object && field.DeclaringType.IsGenericType)
+                if (!(field.DeclaringType is null) && field.DeclaringType.IsGenericType)
                 {
                     byte[] sig = SignatureHelper.GetTypeSigToken(this, field.DeclaringType).InternalGetSignature(out int length);
                     tr = GetTokenFromTypeSpec(sig, length);
@@ -1420,7 +1420,7 @@ namespace System.Reflection.Emit
                     throw new InvalidOperationException(SR.InvalidOperation_CannotImportGlobalFromDifferentModule);
                 }
 
-                if (field.DeclaringType is object && field.DeclaringType.IsGenericType)
+                if (!(field.DeclaringType is null) && field.DeclaringType.IsGenericType)
                 {
                     byte[] sig = SignatureHelper.GetTypeSigToken(this, field.DeclaringType).InternalGetSignature(out int length);
                     tr = GetTokenFromTypeSpec(sig, length);

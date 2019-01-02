@@ -45,7 +45,7 @@ namespace System
                 (DaylightTransitionEnd != default && DaylightTransitionEnd.TimeOfDay != DateTime.MinValue.AddMilliseconds(1));
 
             public bool Equals(AdjustmentRule other) =>
-                other is object &&
+                !(other is null) &&
                 _dateStart == other._dateStart &&
                 _dateEnd == other._dateEnd &&
                 _daylightDelta == other._daylightDelta &&
@@ -255,13 +255,13 @@ namespace System
                 _daylightTransitionEnd = (TransitionTime)info.GetValue("DaylightTransitionEnd", typeof(TransitionTime)); // Do not rename (binary serialization)
 
                 object o = info.GetValueNoThrow("BaseUtcOffsetDelta", typeof(TimeSpan)); // Do not rename (binary serialization)
-                if (o is object)
+                if (!(o is null))
                 {
                     _baseUtcOffsetDelta = (TimeSpan)o;
                 }
 
                 o = info.GetValueNoThrow("NoDaylightTransitions", typeof(bool)); // Do not rename (binary serialization)
-                if (o is object)
+                if (!(o is null))
                 {
                     _noDaylightTransitions = (bool)o;
                 }

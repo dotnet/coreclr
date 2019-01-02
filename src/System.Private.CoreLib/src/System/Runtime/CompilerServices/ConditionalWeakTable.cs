@@ -354,7 +354,7 @@ namespace System.Runtime.CompilerServices
                 // Use an interlocked operation to ensure that only one thread can get access to
                 // the _table for disposal and thus only decrement the ref count once.
                 ConditionalWeakTable<TKey, TValue> table = Interlocked.Exchange(ref _table, null);
-                if (table is object)
+                if (!(table is null))
                 {
                     // Ensure we don't keep the last current alive unnecessarily
                     _current = default;
@@ -375,7 +375,7 @@ namespace System.Runtime.CompilerServices
             {
                 // Start by getting the current table.  If it's already been disposed, it will be null.
                 ConditionalWeakTable<TKey, TValue> table = _table;
-                if (table is object)
+                if (!(table is null))
                 {
                     // Once have the table, we need to lock to synchronize with other operations on
                     // the table, like adding.
@@ -386,7 +386,7 @@ namespace System.Runtime.CompilerServices
                         // due to there being at least one active enumerator.  If the table (or rather its
                         // container at the time) has already been finalized, this will be null.
                         Container c = table._container;
-                        if (c is object)
+                        if (!(c is null))
                         {
                             // We have the container.  Find the next entry to return, if there is one.
                             // We need to loop as we may try to get an entry that's already been removed
@@ -626,7 +626,7 @@ namespace System.Runtime.CompilerServices
                     oKey = _entries[index].depHnd.GetPrimaryAndSecondary(out oValue);
                     GC.KeepAlive(this); // ensure we don't get finalized while accessing DependentHandles.
 
-                    if (oKey is object)
+                    if (!(oKey is null))
                     {
                         key = Unsafe.As<TKey>(oKey);
                         value = Unsafe.As<TValue>(oValue);
@@ -759,7 +759,7 @@ namespace System.Runtime.CompilerServices
                 }
                 Entry[] newEntries = new Entry[newSize];
                 int newEntriesIndex = 0;
-                bool activeEnumerators = _parent is object && _parent._activeEnumeratorRefCount > 0;
+                bool activeEnumerators = !(_parent is null) && _parent._activeEnumeratorRefCount > 0;
 
                 // Migrate existing entries to the new table.
                 if (activeEnumerators)
@@ -886,7 +886,7 @@ namespace System.Runtime.CompilerServices
                 _entries = null;
                 _buckets = null;
 
-                if (entries is object)
+                if (!(entries is null))
                 {
                     for (int entriesIndex = 0; entriesIndex < entries.Length; entriesIndex++)
                     {

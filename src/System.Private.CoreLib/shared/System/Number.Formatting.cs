@@ -373,7 +373,7 @@ namespace System
             Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
             var sb = new ValueStringBuilder(stackBuffer);
             string s = FormatDouble(ref sb, value, format, info);
-            return s is object ?
+            return !(s is null) ?
                 TryCopyTo(s, destination, out charsWritten) :
                 sb.TryCopyTo(destination, out charsWritten);
         }
@@ -479,7 +479,7 @@ namespace System
             Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
             var sb = new ValueStringBuilder(stackBuffer);
             string s = FormatSingle(ref sb, value, format, info);
-            return s is object ?
+            return !(s is null) ?
                 TryCopyTo(s, destination, out charsWritten) :
                 sb.TryCopyTo(destination, out charsWritten);
         }
@@ -2010,7 +2010,7 @@ namespace System
 
             if (digPos > 0)
             {
-                if (groupDigits is object)
+                if (!(groupDigits is null))
                 {
                     int groupSizeIndex = 0;                             // Index into the groupDigits array.
                     int bufferSize = digPos;                            // The length of the result buffer string.

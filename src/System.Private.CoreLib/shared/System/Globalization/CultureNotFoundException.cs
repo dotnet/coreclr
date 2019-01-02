@@ -93,7 +93,7 @@ namespace System.Globalization
         {
             get
             {
-                return InvalidCultureId is object ?
+                return !(InvalidCultureId is null) ?
                     string.Format(CultureInfo.InvariantCulture, "{0} (0x{0:x4})", (int)InvalidCultureId) :
                     InvalidCultureName;
             }
@@ -104,7 +104,7 @@ namespace System.Globalization
             get
             {
                 string s = base.Message;
-                if (_invalidCultureId is object || _invalidCultureName is object)
+                if (!(_invalidCultureId is null) || !(_invalidCultureName is null))
                 {
                     string valueMessage = SR.Format(SR.Argument_CultureInvalidIdentifier, FormatedInvalidCultureId);
                     if (s is null)

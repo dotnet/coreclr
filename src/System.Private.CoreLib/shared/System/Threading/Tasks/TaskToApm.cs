@@ -51,7 +51,7 @@ namespace System.Threading.Tasks
                 // For asynchronous completion we need to schedule a callback.  Whether we can use the Task as the IAsyncResult
                 // depends on whether the Task's AsyncState has reference equality with the requested state.
                 asyncResult = task.AsyncState == state ? (IAsyncResult)task : new TaskWrapperAsyncResult(task, state, completedSynchronously: false);
-                if (callback is object)
+                if (!(callback is null))
                 {
                     InvokeCallbackWhenTaskCompletes(task, callback, asyncResult);
                 }
@@ -67,7 +67,7 @@ namespace System.Threading.Tasks
 
             // If the IAsyncResult is our task-wrapping IAsyncResult, extract the Task.
             var twar = asyncResult as TaskWrapperAsyncResult;
-            if (twar is object)
+            if (!(twar is null))
             {
                 task = twar.Task;
                 Debug.Assert(task != null, "TaskWrapperAsyncResult should never wrap a null Task.");
@@ -95,7 +95,7 @@ namespace System.Threading.Tasks
 
             // If the IAsyncResult is our task-wrapping IAsyncResult, extract the Task.
             var twar = asyncResult as TaskWrapperAsyncResult;
-            if (twar is object)
+            if (!(twar is null))
             {
                 task = twar.Task as Task<TResult>;
                 Debug.Assert(twar.Task != null, "TaskWrapperAsyncResult should never wrap a null Task.");

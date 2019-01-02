@@ -708,7 +708,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToNative_DateTime(ref DateTimeOffset[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 DateTimeNative* nativeBuffer = *(DateTimeNative**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -720,7 +720,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToNative_Type(ref System.Type[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 TypeNameNative* nativeBuffer = *(TypeNameNative**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -732,7 +732,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToNative_Exception(ref Exception[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 int* nativeBuffer = *(int**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -745,7 +745,7 @@ namespace System.StubHelpers
         internal static unsafe void ConvertContentsToNative_Nullable<T>(ref Nullable<T>[] managedArray, IntPtr pNativeHome)
             where T : struct
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 IntPtr* nativeBuffer = *(IntPtr**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -757,7 +757,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToNative_KeyValuePair<K, V>(ref KeyValuePair<K, V>[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 IntPtr* nativeBuffer = *(IntPtr**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -775,7 +775,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToManaged_DateTime(ref DateTimeOffset[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 DateTimeNative* nativeBuffer = *(DateTimeNative**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -787,7 +787,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToManaged_Type(ref System.Type[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 TypeNameNative* nativeBuffer = *(TypeNameNative**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -799,7 +799,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToManaged_Exception(ref Exception[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 int* nativeBuffer = *(int**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -812,7 +812,7 @@ namespace System.StubHelpers
         internal static unsafe void ConvertContentsToManaged_Nullable<T>(ref Nullable<T>[] managedArray, IntPtr pNativeHome)
             where T : struct
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 IntPtr* nativeBuffer = *(IntPtr**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -824,7 +824,7 @@ namespace System.StubHelpers
 
         internal static unsafe void ConvertContentsToManaged_KeyValuePair<K, V>(ref KeyValuePair<K, V>[] managedArray, IntPtr pNativeHome)
         {
-            if (managedArray is object)
+            if (!(managedArray is null))
             {
                 IntPtr* nativeBuffer = *(IntPtr**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
@@ -1220,7 +1220,7 @@ namespace System.StubHelpers
         {
             if (pNativeHome != IntPtr.Zero)
             {
-                if (layoutType is object)
+                if (!(layoutType is null))
                 {
                     // this must happen regardless of BackPropAction
                     Marshal.DestroyStructure(pNativeHome, layoutType);
@@ -1302,7 +1302,7 @@ namespace System.StubHelpers
             }
 
             string typeName;
-            if (managedType is object)
+            if (!(managedType is null))
             {
                 if (managedType.GetType() != typeof(System.RuntimeType))
                 {   // The type should be exactly System.RuntimeType (and not its child System.ReflectionOnlyType, or other System.Type children)
@@ -1311,7 +1311,7 @@ namespace System.StubHelpers
 
                 bool isPrimitive;
                 string winrtTypeName = WinRTTypeNameConverter.ConvertToWinRTTypeName(managedType, out isPrimitive);
-                if (winrtTypeName is object)
+                if (!(winrtTypeName is null))
                 {
                     // Must be a WinRT type, either in a WinMD or a Primitive
                     typeName = winrtTypeName;
@@ -1469,7 +1469,7 @@ namespace System.StubHelpers
         {
             DestroyCore();
             CleanupWorkListElement next = m_Next;
-            while (next is object)
+            while (!(next is null))
             {
                 next.DestroyCore();
                 next = next.m_Next;
@@ -1575,7 +1575,7 @@ namespace System.StubHelpers
 
         internal static void DestroyCleanupList(ref CleanupWorkListElement pCleanupWorkList)
         {
-            if (pCleanupWorkList is object)
+            if (!(pCleanupWorkList is null))
             {
                 pCleanupWorkList.Destroy();
                 pCleanupWorkList = null;

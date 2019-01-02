@@ -49,7 +49,7 @@ namespace System
 
         public void Dispose()
         {
-            if (_str is object)
+            if (!(_str is null))
                 _index = _str.Length;
             _str = null;
         }

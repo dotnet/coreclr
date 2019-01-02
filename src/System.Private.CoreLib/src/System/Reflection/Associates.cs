@@ -51,7 +51,7 @@ namespace System.Reflection
             IntPtr[] genericArgumentHandles = null;
             int genericArgumentCount = 0;
             RuntimeType[] genericArguments = declaredType.GetTypeHandleInternal().GetInstantiationInternal();
-            if (genericArguments is object)
+            if (!(genericArguments is null))
             {
                 genericArgumentCount = genericArguments.Length;
                 genericArgumentHandles = new IntPtr[genericArguments.Length];
@@ -203,7 +203,7 @@ namespace System.Reflection
 
             composedOfAllPrivateMethods = (attributes & Attributes.ComposedOfAllPrivateMethods) != 0;
 
-            other = (otherList is object) ? otherList.ToArray() : null;
+            other = (!(otherList is null)) ? otherList.ToArray() : null;
         }
     }
 }

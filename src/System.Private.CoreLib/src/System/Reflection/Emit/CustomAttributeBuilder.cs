@@ -221,7 +221,7 @@ namespace System.Reflection.Emit
 
                 // Make sure the property's type can take the given value.
                 // Note that there will be no coersion.
-                if (propertyValue is object)
+                if (!(propertyValue is null))
                 {
                     VerifyTypeAndPassedObjectType(propType, propertyValue.GetType(), $"{nameof(propertyValues)}[{i}]");
                 }
@@ -275,7 +275,7 @@ namespace System.Reflection.Emit
 
                 // Make sure the field's type can take the given value.
                 // Note that there will be no coersion.
-                if (fieldValue is object)
+                if (!(fieldValue is null))
                 {
                     VerifyTypeAndPassedObjectType(fldType, fieldValue.GetType(), $"{nameof(fieldValues)}[{i}]");
                 }
@@ -533,7 +533,7 @@ namespace System.Reflection.Emit
             {
                 string typename = "null";
 
-                if (value is object)
+                if (!(value is null))
                     typename = value.GetType().ToString();
 
                 throw new ArgumentException(SR.Format(SR.Argument_BadParameterTypeForCAB, typename));

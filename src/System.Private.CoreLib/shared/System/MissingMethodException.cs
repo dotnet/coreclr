@@ -54,7 +54,7 @@ namespace System
             {
                 return ClassName is null ? base.Message : 
                     SR.Format(SR.MissingMethod_Name, ClassName + "." + MemberName + 
-                        (Signature is object ? " " + FormatSignature(Signature) : string.Empty));
+                        (!(Signature is null) ? " " + FormatSignature(Signature) : string.Empty));
             }
         }
     }

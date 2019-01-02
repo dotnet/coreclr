@@ -149,7 +149,7 @@ namespace System.Text
                 {
                     // Nothing left in input buffer
                     // No input, return 0 if mustflush is false
-                    if (this.encoder is object && !this.encoder.MustFlush)
+                    if (!(this.encoder is null) && !this.encoder.MustFlush)
                     {
                         // Done, nothing to fallback
                         if (this.setEncoder)

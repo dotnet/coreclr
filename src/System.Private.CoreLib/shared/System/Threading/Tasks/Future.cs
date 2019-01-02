@@ -376,7 +376,7 @@ namespace System.Threading.Tasks
             get
             {
                 Delegate d = m_action;
-                return d is object ? d.Method.ToString() : "{null}";
+                return !(d is null) ? d.Method.ToString() : "{null}";
             }
         }
 
@@ -405,7 +405,7 @@ namespace System.Threading.Tasks
                 // FinishStageTwo, omitting everything that doesn't pertain to TrySetResult.
                 Interlocked.Exchange(ref m_stateFlags, m_stateFlags | TASK_STATE_RAN_TO_COMPLETION);
                 ContingentProperties props = m_contingentProperties;
-                if (props is object)
+                if (!(props is null))
                 {
                     NotifyParentIfPotentiallyAttachedTask();
                     props.SetCompleted();
@@ -428,7 +428,7 @@ namespace System.Threading.Tasks
             Debug.Assert(!IsCompleted, "The promise must not yet be completed.");
 
             // If we have a parent, we need to notify it of the completion.  Take the slow path to handle that.
-            if (m_contingentProperties?.m_parent is object)
+            if (!(m_contingentProperties?.m_parent is null))
             {
                 bool success = TrySetResult(result);
 
@@ -553,7 +553,7 @@ namespace System.Threading.Tasks
             Debug.Assert(
                 cancellationException is null ||
                 cancellationException is OperationCanceledException ||
-                (ceAsEdi is object && ceAsEdi.SourceException is OperationCanceledException),
+                (!(ceAsEdi is null) && ceAsEdi.SourceException is OperationCanceledException),
                 "Expected null or an OperationCanceledException");
 #endif
 
@@ -598,13 +598,13 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var func = m_action as Func<TResult>;
-            if (func is object)
+            if (!(func is null))
             {
                 m_result = func();
                 return;
             }
             var funcWithState = m_action as Func<object, TResult>;
-            if (funcWithState is object)
+            if (!(funcWithState is null))
             {
                 m_result = funcWithState(m_stateObject);
                 return;

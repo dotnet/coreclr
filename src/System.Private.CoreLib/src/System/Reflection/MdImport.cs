@@ -261,7 +261,7 @@ namespace System.Reflection
             get
             {
                 Debug.Assert(0 <= index && index < Length);
-                if (largeResult is object)
+                if (!(largeResult is null))
                     return largeResult[index];
 
                 fixed (int* p = smallResult)

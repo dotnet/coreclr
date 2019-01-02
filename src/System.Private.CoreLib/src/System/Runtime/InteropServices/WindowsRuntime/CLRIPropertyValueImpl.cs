@@ -67,7 +67,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public override string ToString()
         {
-            if (_data is object)
+            if (!(_data is null))
             {
                 return _data.ToString();
             }
@@ -401,7 +401,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // If the property type is IInspectable, and we have a nested IPropertyValue, then we need
             // to pass along the request to coerce the value.
             IPropertyValue ipv = value as IPropertyValue;
-            if (type == PropertyType.Inspectable && ipv is object)
+            if (type == PropertyType.Inspectable && !(ipv is null))
             {
                 if (typeof(T) == typeof(byte))
                 {

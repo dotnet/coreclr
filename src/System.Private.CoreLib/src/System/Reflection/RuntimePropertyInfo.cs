@@ -262,7 +262,7 @@ namespace System.Reflection
             if (Associates.IncludeAccessor(m_setterMethod, nonPublic))
                 accessorList.Add(m_setterMethod);
 
-            if (m_otherMethod is object)
+            if (!(m_otherMethod is null))
             {
                 for (int i = 0; i < m_otherMethod.Length; i++)
                 {
@@ -322,7 +322,7 @@ namespace System.Reflection
 
                 // First try to get the Get method.
                 MethodInfo m = GetGetMethod(true);
-                if (m is object)
+                if (!(m is null))
                 {
                     // There is a Get method so use it.
                     methParams = m.GetParametersNoCopy();
@@ -333,7 +333,7 @@ namespace System.Reflection
                     // If there is no Get method then use the Set method.
                     m = GetSetMethod(true);
 
-                    if (m is object)
+                    if (!(m is null))
                     {
                         methParams = m.GetParametersNoCopy();
                         numParams = methParams.Length - 1;
@@ -421,7 +421,7 @@ namespace System.Reflection
 
             object[] args = null;
 
-            if (index is object)
+            if (!(index is null))
             {
                 args = new object[index.Length + 1];
 

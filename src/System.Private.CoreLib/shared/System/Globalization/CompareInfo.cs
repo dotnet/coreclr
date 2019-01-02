@@ -1373,7 +1373,7 @@ namespace System.Globalization
         {
             CompareInfo that = value as CompareInfo;
 
-            if (that is object)
+            if (!(that is null))
             {
                 return this.Name == that.Name;
             }

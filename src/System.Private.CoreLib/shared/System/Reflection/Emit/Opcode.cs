@@ -145,7 +145,7 @@ namespace System.Reflection.Emit
                 }
 
                 string name = Volatile.Read(ref nameCache[idx]);
-                if (name is object)
+                if (!(name is null))
                     return name;
 
                 // Create ilasm style name from the enum value name.

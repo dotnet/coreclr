@@ -77,7 +77,7 @@ namespace System.Reflection
                     {
                         args = ((MethodBase)MemberImpl).GetParametersNoCopy();
 
-                        if (args is object && PositionImpl < args.Length)
+                        if (!(args is null) && PositionImpl < args.Length)
                             return args[PositionImpl];
                         else
                             throw new SerializationException(SR.Serialization_BadParameterInfo);
@@ -86,7 +86,7 @@ namespace System.Reflection
                 case MemberTypes.Property:
                     args = ((PropertyInfo)MemberImpl).GetIndexParameters();
 
-                    if (args is object && PositionImpl > -1 && PositionImpl < args.Length)
+                    if (!(args is null) && PositionImpl > -1 && PositionImpl < args.Length)
                         return args[PositionImpl];
                     else
                         throw new SerializationException(SR.Serialization_BadParameterInfo);

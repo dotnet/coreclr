@@ -66,7 +66,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 typeof(IReadOnlyList<T>).TypeHandle.Value,
                 out fUseString);
 
-            if (target is object)
+            if (!(target is null))
             {
                 return (Unsafe.As<Indexer_Get_Delegate<T>>(target))(index);
             }

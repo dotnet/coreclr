@@ -173,7 +173,7 @@ namespace System.Diagnostics
             for (int i = 0; i < iNumFrames; i++)
             {
                 MethodBase mb = StackF.GetMethodBase(i);
-                if (mb is object)
+                if (!(mb is null))
                 {
                     Type t = mb.DeclaringType;
                     if (t is null)
@@ -266,7 +266,7 @@ namespace System.Diagnostics
         /// </summary>
         public virtual StackFrame GetFrame(int index)
         {
-            if ((_stackFrames is object) && (index < m_iNumOfFrames) && (index >= 0))
+            if ((!(_stackFrames is null)) && (index < m_iNumOfFrames) && (index >= 0))
                 return _stackFrames[index + m_iMethodsToSkip];
 
             return null;
@@ -332,7 +332,7 @@ namespace System.Diagnostics
             {
                 StackFrame sf = GetFrame(iFrameIndex);
                 MethodBase mb = sf.GetMethod();
-                if (mb is object && (ShowInStackTrace(mb) || 
+                if (!(mb is null) && (ShowInStackTrace(mb) || 
                                    (iFrameIndex == m_iNumOfFrames - 1))) // Don't filter last frame
                 {
                     // We want a newline at the end of every line except for the last
@@ -347,7 +347,7 @@ namespace System.Diagnostics
                     Type declaringType = mb.DeclaringType;
                     string methodName = mb.Name;
                     bool methodChanged = false;
-                    if (declaringType is object && declaringType.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false))
+                    if (!(declaringType is null) && declaringType.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false))
                     {
                         isAsync = typeof(IAsyncStateMachine).IsAssignableFrom(declaringType);
                         if (isAsync || typeof(IEnumerator).IsAssignableFrom(declaringType))
@@ -358,7 +358,7 @@ namespace System.Diagnostics
 
                     // if there is a type (non global method) print it
                     // ResolveStateMachineMethod may have set declaringType to null
-                    if (declaringType is object)
+                    if (!(declaringType is null))
                     {
                         // Append t.FullName, replacing '+' with '.'
                         string fullName = declaringType.FullName;
@@ -401,7 +401,7 @@ namespace System.Diagnostics
                         // The parameter info cannot be loaded, so we don't
                         // append the parameter list.
                     }
-                    if (pi is object)
+                    if (!(pi is null))
                     {
                         // arguments printing
                         sb.Append('(');
@@ -414,7 +414,7 @@ namespace System.Diagnostics
                                 fFirstParam = false;
 
                             string typeName = "<UnknownType>";
-                            if (pi[j].ParameterType is object)
+                            if (!(pi[j].ParameterType is null))
                                 typeName = pi[j].ParameterType.Name;
                             sb.Append(typeName);
                             sb.Append(' ');
@@ -452,7 +452,7 @@ namespace System.Diagnostics
                             displayFilenames = false;
                         }
 
-                        if (fileName is object)
+                        if (!(fileName is null))
                         {
                             // tack on " in c:\tmp\MyFile.cs:line 5"
                             sb.Append(' ');

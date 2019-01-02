@@ -276,7 +276,7 @@ namespace System.Globalization
         {
             // Skip any whitespaces so we will start from a letter.
             int newIndex = SkipWhiteSpacesAndNonLetter(pattern, index);
-            if (newIndex != index && formatPostfix is object)
+            if (newIndex != index && !(formatPostfix is null))
             {
                 // There are whitespaces. This will not be a postfix.
                 formatPostfix = null;
@@ -318,7 +318,7 @@ namespace System.Globalization
                 {
                     // Found a whitespace.  We have to add the current date word/postfix.
                     AddDateWordOrPostfix(formatPostfix, dateWord.ToString());
-                    if (formatPostfix is object)
+                    if (!(formatPostfix is null))
                     {
                         // Done with postfix.  The rest will be regular date word.
                         formatPostfix = null;
@@ -540,7 +540,7 @@ namespace System.Globalization
             }
 
             string[] result = null;
-            if (m_dateWords is object && m_dateWords.Count > 0)
+            if (!(m_dateWords is null) && m_dateWords.Count > 0)
             {
                 result = new string[m_dateWords.Count];
                 for (i = 0; i < m_dateWords.Count; i++)

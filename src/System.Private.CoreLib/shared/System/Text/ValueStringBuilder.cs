@@ -270,7 +270,7 @@ namespace System.Text
 
             char[] toReturn = _arrayToReturnToPool;
             _chars = _arrayToReturnToPool = poolArray;
-            if (toReturn is object)
+            if (!(toReturn is null))
             {
                 ArrayPool<char>.Shared.Return(toReturn);
             }
@@ -281,7 +281,7 @@ namespace System.Text
         {
             char[] toReturn = _arrayToReturnToPool;
             this = default; // for safety, to avoid using pooled array if this instance is erroneously appended to again
-            if (toReturn is object)
+            if (!(toReturn is null))
             {
                 ArrayPool<char>.Shared.Return(toReturn);
             }

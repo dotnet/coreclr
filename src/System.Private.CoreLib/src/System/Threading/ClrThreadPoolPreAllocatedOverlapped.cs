@@ -87,7 +87,7 @@ namespace System.Threading
 
         unsafe void IDeferredDisposable.OnFinalRelease(bool disposed)
         {
-            if (_overlapped is object)
+            if (!(_overlapped is null))
             {
                 if (disposed)
                 {

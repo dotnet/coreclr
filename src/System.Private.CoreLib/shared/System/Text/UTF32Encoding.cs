@@ -378,7 +378,7 @@ namespace System.Text
             EncoderFallbackBuffer fallbackBuffer = null;
             char* charsForFallback;
 
-            if (encoder is object)
+            if (!(encoder is null))
             {
                 highSurrogate = encoder._charLeftOver;
                 fallbackBuffer = encoder.FallbackBuffer;
@@ -513,7 +513,7 @@ namespace System.Text
             EncoderFallbackBuffer fallbackBuffer = null;
             char* charsForFallback;
 
-            if (encoder is object)
+            if (!(encoder is null))
             {
                 highSurrogate = encoder._charLeftOver;
                 fallbackBuffer = encoder.FallbackBuffer;
@@ -683,7 +683,7 @@ namespace System.Text
             Debug.Assert(highSurrogate == 0 || (encoder != null && !encoder.MustFlush),
                 "[UTF32Encoding.GetBytes]Expected encoder to be flushed.");
 
-            if (encoder is object)
+            if (!(encoder is null))
             {
                 // Remember our left over surrogate (or 0 if flushing)
                 encoder._charLeftOver = highSurrogate;
@@ -716,7 +716,7 @@ namespace System.Text
             DecoderFallbackBuffer fallbackBuffer = null;
 
             // See if there's anything in our decoder
-            if (decoder is object)
+            if (!(decoder is null))
             {
                 readCount = decoder.readByteCount;
                 iChar = (uint)decoder.iChar;
@@ -864,7 +864,7 @@ namespace System.Text
             char* charsForFallback;
 
             // See if there's anything in our decoder
-            if (decoder is object)
+            if (!(decoder is null))
             {
                 readCount = decoder.readByteCount;
                 iChar = (uint)decoder.iChar;
@@ -1037,7 +1037,7 @@ namespace System.Text
             }
 
             // Remember any left over stuff, clearing buffer as well for MustFlush
-            if (decoder is object)
+            if (!(decoder is null))
             {
                 decoder.iChar = (int)iChar;
                 decoder.readByteCount = readCount;
@@ -1160,7 +1160,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             UTF32Encoding that = value as UTF32Encoding;
-            if (that is object)
+            if (!(that is null))
             {
                 return (_emitUTF32ByteOrderMark == that._emitUTF32ByteOrderMark) &&
                        (_bigEndian == that._bigEndian) &&
@@ -1193,7 +1193,7 @@ namespace System.Text
             {
                 this.iChar = 0;
                 this.readByteCount = 0;
-                if (_fallbackBuffer is object)
+                if (!(_fallbackBuffer is null))
                     _fallbackBuffer.Reset();
             }
 

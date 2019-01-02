@@ -125,7 +125,7 @@ namespace System.Reflection
         public static Assembly Load(AssemblyName assemblyRef)
         {
             AssemblyName modifiedAssemblyRef = null;
-            if (assemblyRef is object && assemblyRef.CodeBase is object)
+            if (!(assemblyRef is null) && !(assemblyRef.CodeBase is null))
             {
                 modifiedAssemblyRef = (AssemblyName)assemblyRef.Clone();
                 modifiedAssemblyRef.CodeBase = null;
@@ -145,7 +145,7 @@ namespace System.Reflection
         internal static Assembly Load(AssemblyName assemblyRef, IntPtr ptrLoadContextBinder)
         {
             AssemblyName modifiedAssemblyRef = null;
-            if (assemblyRef is object && assemblyRef.CodeBase is object)
+            if (!(assemblyRef is null) && !(assemblyRef.CodeBase is null))
             {
                 modifiedAssemblyRef = (AssemblyName)assemblyRef.Clone();
                 modifiedAssemblyRef.CodeBase = null;
@@ -175,7 +175,7 @@ namespace System.Reflection
 
             AssemblyLoadContext alc = new IndividualAssemblyLoadContext();
             MemoryStream assemblyStream = new MemoryStream(rawAssembly);
-            MemoryStream symbolStream = (rawSymbolStore is object) ? new MemoryStream(rawSymbolStore) : null;
+            MemoryStream symbolStream = (!(rawSymbolStore is null)) ? new MemoryStream(rawSymbolStore) : null;
             return alc.LoadFromStream(assemblyStream, symbolStream);
         }
 

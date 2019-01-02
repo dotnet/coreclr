@@ -560,7 +560,7 @@ namespace System.Threading.Tasks
             if (IsEnabled(EventLevel.Warning, Keywords.AsyncMethod))
             {
                 IAsyncStateMachine stateMachine = stateMachineBox.GetStateMachineObject();
-                if (stateMachine is object)
+                if (!(stateMachine is null))
                 {
                     string description = AsyncMethodBuilderCore.GetAsyncStateMachineDescription(stateMachine);
                     IncompleteAsyncMethod(description);

@@ -31,7 +31,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             EncoderExceptionFallback that = value as EncoderExceptionFallback;
-            if (that is object)
+            if (!(that is null))
             {
                 return (true);
             }

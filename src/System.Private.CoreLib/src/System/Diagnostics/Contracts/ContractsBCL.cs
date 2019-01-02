@@ -265,7 +265,7 @@ namespace System.Runtime.CompilerServices
             {
                 displayMessage = GetDisplayMessage(failureKind, userMessage, conditionText);
                 EventHandler<ContractFailedEventArgs> contractFailedEventLocal = contractFailedEvent;
-                if (contractFailedEventLocal is object)
+                if (!(contractFailedEventLocal is null))
                 {
                     eventArgs = new ContractFailedEventArgs(failureKind, displayMessage, conditionText, innerException);
                     foreach (EventHandler<ContractFailedEventArgs> handler in contractFailedEventLocal.GetInvocationList())
@@ -290,7 +290,7 @@ namespace System.Runtime.CompilerServices
             }
             finally
             {
-                if (eventArgs is object && eventArgs.Handled)
+                if (!(eventArgs is null) && eventArgs.Handled)
                 {
                     returnValue = null; // handled
                 }

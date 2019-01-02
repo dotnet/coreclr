@@ -69,7 +69,7 @@ namespace System
             // an event handler is removed between now and then.
             Action<T> handler = _handler;
             EventHandler<T> changedEvent = ProgressChanged;
-            if (handler is object || changedEvent is object)
+            if (!(handler is null) || !(changedEvent is null))
             {
                 // Post the processing to the sync context.
                 // (If T is a value type, it will get boxed here.)
@@ -90,8 +90,8 @@ namespace System
             Action<T> handler = _handler;
             EventHandler<T> changedEvent = ProgressChanged;
 
-            if (handler is object) handler(value);
-            if (changedEvent is object) changedEvent(this, value);
+            if (!(handler is null)) handler(value);
+            if (!(changedEvent is null)) changedEvent(this, value);
         }
     }
 

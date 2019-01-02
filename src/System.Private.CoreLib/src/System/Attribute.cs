@@ -41,7 +41,7 @@ namespace System
 
 
             PropertyInfo baseProp = GetParentDefinition(element, indexParamTypes);
-            while (baseProp is object)
+            while (!(baseProp is null))
             {
                 attributes = GetCustomAttributes(baseProp, type, false);
                 AddAttributesToList(attributeList, attributes, types);
@@ -70,7 +70,7 @@ namespace System
 
                 PropertyInfo baseProp = GetParentDefinition(element, indexParamTypes);
 
-                while (baseProp is object)
+                while (!(baseProp is null))
                 {
                     if (baseProp.IsDefined(attributeType, false))
                         return true;
@@ -97,7 +97,7 @@ namespace System
             {
                 rtPropAccessor = rtPropAccessor.GetParentDefinition();
 
-                if (rtPropAccessor is object)
+                if (!(rtPropAccessor is null))
                 {
                     // There is a public overload of Type.GetProperty that takes both a BingingFlags enum and a return type.
                     // However, we cannot use that because it doesn't accept null for "types".
@@ -134,7 +134,7 @@ namespace System
                 CopyToArrayList(attributeList, attributes, types);
 
                 EventInfo baseEvent = GetParentDefinition(element);
-                while (baseEvent is object)
+                while (!(baseEvent is null))
                 {
                     attributes = GetCustomAttributes(baseEvent, type, false);
                     AddAttributesToList(attributeList, attributes, types);
@@ -158,7 +158,7 @@ namespace System
             if (add is RuntimeMethodInfo rtAdd)
             {
                 rtAdd = rtAdd.GetParentDefinition();
-                if (rtAdd is object)
+                if (!(rtAdd is null))
                     return rtAdd.DeclaringType.GetEvent(ev.Name);
             }
             return null;
@@ -181,7 +181,7 @@ namespace System
 
                 EventInfo baseEvent = GetParentDefinition(element);
 
-                while (baseEvent is object)
+                while (!(baseEvent is null))
                 {
                     if (baseEvent.IsDefined(attributeType, false))
                         return true;
@@ -265,7 +265,7 @@ namespace System
 
             ParameterInfo baseParam = GetParentDefinition(param);
 
-            while (baseParam is object)
+            while (!(baseParam is null))
             {
                 objAttr = baseParam.GetCustomAttributes(type, false);
 
@@ -332,7 +332,7 @@ namespace System
 
             ParameterInfo baseParam = GetParentDefinition(param);
 
-            while (baseParam is object)
+            while (!(baseParam is null))
             {
                 object[] objAttr = baseParam.GetCustomAttributes(type, false);
 
@@ -904,14 +904,14 @@ namespace System
                     // different hashcodes for arrays with the same contents.
                     // Since we do deep comparisons of arrays in Equals(), this means Equals and GetHashCode will
                     // be inconsistent for arrays. Therefore, we ignore hashes of arrays.
-                    if (fieldValue is object && !fieldValue.GetType().IsArray)
+                    if (!(fieldValue is null) && !fieldValue.GetType().IsArray)
                         vThis = fieldValue;
 
-                    if (vThis is object)
+                    if (!(vThis is null))
                         break;
                 }
 
-                if (vThis is object)
+                if (!(vThis is null))
                     return vThis.GetHashCode();
 
                 type = type.BaseType;

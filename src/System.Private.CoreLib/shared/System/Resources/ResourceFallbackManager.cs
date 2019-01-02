@@ -32,7 +32,7 @@ namespace System.Resources
 
         internal ResourceFallbackManager(CultureInfo startingCulture, CultureInfo neutralResourcesCulture, bool useParents)
         {
-            if (startingCulture is object)
+            if (!(startingCulture is null))
             {
                 m_startingCulture = startingCulture;
             }
@@ -59,7 +59,7 @@ namespace System.Resources
             CultureInfo currentCulture = m_startingCulture;
             do
             {
-                if (m_neutralResourcesCulture is object && currentCulture.Name == m_neutralResourcesCulture.Name)
+                if (!(m_neutralResourcesCulture is null) && currentCulture.Name == m_neutralResourcesCulture.Name)
                 {
                     // Return the invariant culture all the time, even if the UltimateResourceFallbackLocation
                     // is a satellite assembly.  This is fixed up later in ManifestBasedResourceGroveler::UltimateFallbackFixup.

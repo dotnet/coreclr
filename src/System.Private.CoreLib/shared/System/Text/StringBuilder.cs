@@ -390,7 +390,7 @@ namespace System.Text
                         }
                         chunk = chunk.m_ChunkPrevious;
                     }
-                    while (chunk is object);
+                    while (!(chunk is null));
 
                     return result;
                 }
@@ -612,7 +612,7 @@ namespace System.Text
                 if (_currentChunk == _firstChunk)
                     return false;
 
-                if (_manyChunks is object)
+                if (!(_manyChunks is null))
                     return _manyChunks.MoveNext(ref _currentChunk);
 
                 StringBuilder next = _firstChunk;
@@ -649,7 +649,7 @@ namespace System.Text
             private static int ChunkCount(StringBuilder stringBuilder)
             {
                 int ret = 0;
-                while (stringBuilder is object)
+                while (!(stringBuilder is null))
                 {
                     ret++;
                     stringBuilder = stringBuilder.m_ChunkPrevious;
@@ -789,7 +789,7 @@ namespace System.Text
         /// <param name="value">The string to append.</param>
         public StringBuilder Append(string value)
         {
-            if (value is object)
+            if (!(value is null))
             {
                 // We could have just called AppendHelper here; this is a hand-specialization of that code.
                 char[] chunkChars = m_ChunkChars;
@@ -890,7 +890,7 @@ namespace System.Text
 
         public StringBuilder Append(StringBuilder value)
         {
-            if (value is object && value.Length != 0)
+            if (!(value is null) && value.Length != 0)
             {
                 return AppendCore(value, 0, value.Length);
             }
@@ -1275,7 +1275,7 @@ namespace System.Text
                 }
 
                 var value = en.Current;
-                if (value is object)
+                if (value != null)
                 {
                     Append(value.ToString());
                 }
@@ -1284,7 +1284,7 @@ namespace System.Text
                 {
                     Append(separator, separatorLength);
                     value = en.Current;
-                    if (value is object)
+                    if (value != null)
                     {
                         Append(value.ToString());
                     }
@@ -1330,7 +1330,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
 
-            if (value is object)
+            if (!(value is null))
             {
                 unsafe
                 {
@@ -1366,7 +1366,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
 
-            if (value is object)
+            if (!(value is null))
                 Insert(index, value, 0, value.Length);
             return this;
         }
@@ -1513,7 +1513,7 @@ namespace System.Text
             StringBuilder unescapedItemFormat = null;
 
             ICustomFormatter cf = null;
-            if (provider is object)
+            if (!(provider is null))
             {
                 cf = (ICustomFormatter)provider.GetFormat(typeof(ICustomFormatter));
             }
@@ -1708,7 +1708,7 @@ namespace System.Text
                 // Construct the output for this arg hole.
                 pos++;
                 string s = null;
-                if (cf is object)
+                if (!(cf is null))
                 {
                     if (itemFormatSpan.Length != 0 && itemFormat is null)
                     {
@@ -1744,7 +1744,7 @@ namespace System.Text
                         }
                         s = formattableArg.ToString(itemFormat, provider);
                     }
-                    else if (arg is object)
+                    else if (!(arg is null))
                     {
                         s = arg.ToString();
                     }
@@ -1841,7 +1841,7 @@ namespace System.Text
                     return false;
 
                 sbChunk = sbChunk.m_ChunkPrevious;
-            } while (sbChunk is object);
+            } while (!(sbChunk is null));
 
             Debug.Assert(offset == Length);
             return true;
@@ -2495,7 +2495,7 @@ namespace System.Text
             m_ChunkChars = new char[size];
             m_MaxCapacity = maxCapacity;
             m_ChunkPrevious = previousBlock;
-            if (previousBlock is object)
+            if (!(previousBlock is null))
             {
                 m_ChunkOffset = previousBlock.m_ChunkOffset + previousBlock.m_ChunkLength;
             }

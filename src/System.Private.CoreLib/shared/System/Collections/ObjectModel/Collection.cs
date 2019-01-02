@@ -216,7 +216,7 @@ namespace System.Collections.ObjectModel
             }
 
             T[] tArray = array as T[];
-            if (tArray is object)
+            if (!(tArray is null))
             {
                 items.CopyTo(tArray, index);
             }
@@ -295,7 +295,7 @@ namespace System.Collections.ObjectModel
                 // collection does not implement IList.  Note that Array implements
                 // IList, and therefore T[] and U[] will be fixed-size.
                 IList list = items as IList;
-                if (list is object)
+                if (!(list is null))
                 {
                     return list.IsFixedSize;
                 }

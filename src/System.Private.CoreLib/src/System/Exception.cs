@@ -180,7 +180,7 @@ namespace System
             bool hasrestrictedLanguageErrorObject = false)
         {
             IDictionary dict = Data;
-            if (dict is object)
+            if (!(dict is null))
             {
                 dict.Add("RestrictedDescription", restrictedError);
                 dict.Add("RestrictedErrorReference", restrictedErrorReference);
@@ -196,12 +196,12 @@ namespace System
         internal bool TryGetRestrictedLanguageErrorObject(out object restrictedErrorObject)
         {
             restrictedErrorObject = null;
-            if (Data is object && Data.Contains("__HasRestrictedLanguageErrorObject"))
+            if (!(Data is null) && Data.Contains("__HasRestrictedLanguageErrorObject"))
             {
                 if (Data.Contains("__RestrictedErrorObject"))
                 {
                     __RestrictedErrorObject restrictedObject = Data["__RestrictedErrorObject"] as __RestrictedErrorObject;
-                    if (restrictedObject is object)
+                    if (!(restrictedObject is null))
                         restrictedErrorObject = restrictedObject.RealErrorObject;
                 }
                 return (bool)Data["__HasRestrictedLanguageErrorObject"];
@@ -228,7 +228,7 @@ namespace System
             Exception inner = InnerException;
             Exception back = this;
 
-            while (inner is object)
+            while (!(inner is null))
             {
                 back = inner;
                 inner = inner.InnerException;
@@ -263,7 +263,7 @@ namespace System
         {
             get
             {
-                if (_exceptionMethod is object)
+                if (!(_exceptionMethod is null))
                 {
                     return _exceptionMethod;
                 }
@@ -299,7 +299,7 @@ namespace System
             string remoteStackTraceString = _remoteStackTraceString;
 
             // if no stack trace, try to get one
-            if (stackTraceString is object)
+            if (!(stackTraceString is null))
             {
                 return remoteStackTraceString + stackTraceString;
             }
@@ -351,7 +351,7 @@ namespace System
                         if (rtModule is null)
                         {
                             System.Reflection.Emit.ModuleBuilder moduleBuilder = module as System.Reflection.Emit.ModuleBuilder;
-                            if (moduleBuilder is object)
+                            if (!(moduleBuilder is null))
                                 rtModule = moduleBuilder.InternalModule;
                             else
                                 throw new ArgumentException(SR.Argument_MustBeRuntimeReflectionObject);
@@ -385,14 +385,14 @@ namespace System
                 s = GetClassName() + ": " + message;
             }
 
-            if (_innerException is object)
+            if (!(_innerException is null))
             {
                 s = s + " ---> " + _innerException.ToString(needFileLineInfo, needMessage) + Environment.NewLine +
                 "   " + SR.Exception_EndOfInnerExceptionStack;
             }
 
             string stackTrace = GetStackTrace(needFileLineInfo);
-            if (stackTrace is object)
+            if (!(stackTrace is null))
             {
                 s += Environment.NewLine + stackTrace;
             }
@@ -415,7 +415,7 @@ namespace System
 
             string tempStackTraceString = _stackTraceString;
 
-            if (_stackTrace is object)
+            if (!(_stackTrace is null))
             {
                 if (tempStackTraceString is null)
                 {
@@ -493,7 +493,7 @@ namespace System
                 tmpStackTraceString = StackTrace;
             }
 
-            if (tmpStackTraceString is object && tmpStackTraceString.Length > 0)
+            if (!(tmpStackTraceString is null) && tmpStackTraceString.Length > 0)
             {
                 _remoteStackTraceString = tmpStackTraceString + Environment.NewLine;
             }
@@ -528,7 +528,7 @@ namespace System
 
         internal object DeepCopyStackTrace(object currentStackTrace)
         {
-            if (currentStackTrace is object)
+            if (!(currentStackTrace is null))
             {
                 return CopyStackTrace(currentStackTrace);
             }
@@ -540,7 +540,7 @@ namespace System
 
         internal object DeepCopyDynamicMethods(object currentDynamicMethods)
         {
-            if (currentDynamicMethods is object)
+            if (!(currentDynamicMethods is null))
             {
                 return CopyDynamicMethods(currentDynamicMethods);
             }

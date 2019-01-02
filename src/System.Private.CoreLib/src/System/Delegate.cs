@@ -171,7 +171,7 @@ namespace System
                 return unchecked((int)((long)this._methodPtrAux));
             */
             if (_methodPtrAux == IntPtr.Zero)
-                return ( _target is object ? RuntimeHelpers.GetHashCode(_target) * 33 : 0) + GetType().GetHashCode();
+                return ( !(_target is null) ? RuntimeHelpers.GetHashCode(_target) * 33 : 0) + GetType().GetHashCode();
             else
                 return GetType().GetHashCode();
         }
@@ -242,7 +242,7 @@ namespace System
                         // walking won't be we compare using the generic type definition forms instead.
                         Type currentType = _target.GetType();
                         Type targetType = declaringType.GetGenericTypeDefinition();
-                        while (currentType is object)
+                        while (!(currentType is null))
                         {
                             if (currentType.IsGenericType &&
                                 currentType.GetGenericTypeDefinition() == targetType)

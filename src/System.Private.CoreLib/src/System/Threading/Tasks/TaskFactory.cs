@@ -51,7 +51,7 @@ namespace System.Threading.Tasks
         {
             return
                 m_defaultScheduler ??
-                (currTask is object && (currTask.CreationOptions & TaskCreationOptions.HideScheduler) == 0 ? currTask.ExecutingTaskScheduler :
+                (!(currTask is null) && (currTask.CreationOptions & TaskCreationOptions.HideScheduler) == 0 ? currTask.ExecutingTaskScheduler :
                  TaskScheduler.Default);
         }
 
@@ -2335,7 +2335,7 @@ namespace System.Threading.Tasks
                     for (int i = 0; i < numTasks; i++)
                     {
                         var task = tasks[i];
-                        if (task is object && // if an element was erroneously nulled out concurrently, just skip it; worst case is we don't remove a continuation
+                        if (!(task is null) && // if an element was erroneously nulled out concurrently, just skip it; worst case is we don't remove a continuation
                             !task.IsCompleted) task.RemoveContinuation(this);
                     }
                     _tasks = null;

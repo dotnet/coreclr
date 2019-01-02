@@ -175,14 +175,14 @@ namespace System.Diagnostics.Tracing
         public void Encode(ref int pos, byte[] metadata)
         {
             // Write out the null terminated UTF8 encoded name
-            if (metadata is object)
+            if (!(metadata is null))
             {
                 Encoding.UTF8.GetBytes(this.name, 0, this.name.Length, metadata, pos);
             }
             pos += this.nameSize;
 
             // Write 1 byte for inType
-            if (metadata is object)
+            if (!(metadata is null))
             {
                 metadata[pos] = this.inType;
             }
@@ -191,7 +191,7 @@ namespace System.Diagnostics.Tracing
             // If InTypeChainFlag set, then write out the outType
             if (0 != (this.inType & Statics.InTypeChainFlag))
             {
-                if (metadata is object)
+                if (!(metadata is null))
                 {
                     metadata[pos] = this.outType;
                 }
@@ -207,7 +207,7 @@ namespace System.Diagnostics.Tracing
             // If InTypeFixedCountFlag set, write out the fixedCount (2 bytes little endian)
             if (0 != (this.inType & Statics.InTypeFixedCountFlag))
             {
-                if (metadata is object)
+                if (!(metadata is null))
                 {
                     metadata[pos + 0] = unchecked((byte)this.fixedCount);
                     metadata[pos + 1] = (byte)(this.fixedCount >> 8);
@@ -218,7 +218,7 @@ namespace System.Diagnostics.Tracing
                 if (Statics.InTypeCustomCountFlag == (this.inType & Statics.InTypeCountMask) &&
                     this.fixedCount != 0)
                 {
-                    if (metadata is object)
+                    if (!(metadata is null))
                     {
                         Buffer.BlockCopy(this.custom, 0, metadata, pos, this.fixedCount);
                     }

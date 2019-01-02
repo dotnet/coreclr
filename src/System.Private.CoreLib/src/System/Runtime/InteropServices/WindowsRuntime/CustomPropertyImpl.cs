@@ -84,7 +84,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             // Forward to the right object if we are dealing with a proxy
             IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy is object)
+            if (!(proxy is null))
             {
                 target = proxy.GetTarget();
             }

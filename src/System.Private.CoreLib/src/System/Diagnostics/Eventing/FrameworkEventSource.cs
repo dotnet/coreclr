@@ -78,7 +78,7 @@ namespace System.Diagnostics.Tracing
         {
             get
             {
-                return Log is object;
+                return !(Log is null);
             }
         }
 

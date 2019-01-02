@@ -243,7 +243,7 @@ namespace System.Reflection.Emit
             m_sigDone = false;
             m_sizeLoc = NO_SIZE_IN_SIG;
 
-            if (m_module is null && mod is object)
+            if (m_module is null && !(mod is null))
                 throw new ArgumentException(SR.NotSupported_MustBeModuleBuilder);
         }
 
@@ -290,7 +290,7 @@ namespace System.Reflection.Emit
 
             Debug.Assert(clsArgument != null);
 
-            if (optionalCustomModifiers is object)
+            if (!(optionalCustomModifiers is null))
             {
                 for (int i = 0; i < optionalCustomModifiers.Length; i++)
                 {
@@ -313,7 +313,7 @@ namespace System.Reflection.Emit
                 }
             }
 
-            if (requiredCustomModifiers is object)
+            if (!(requiredCustomModifiers is null))
             {
                 for (int i = 0; i < requiredCustomModifiers.Length; i++)
                 {
@@ -344,7 +344,7 @@ namespace System.Reflection.Emit
         {
             if (clsArgument.IsGenericParameter)
             {
-                if (clsArgument.DeclaringMethod is object)
+                if (!(clsArgument.DeclaringMethod is null))
                     AddElementType(CorElementType.ELEMENT_TYPE_MVAR);
                 else
                     AddElementType(CorElementType.ELEMENT_TYPE_VAR);
@@ -781,13 +781,13 @@ namespace System.Reflection.Emit
 
         public void AddArguments(Type[] arguments, Type[][] requiredCustomModifiers, Type[][] optionalCustomModifiers)
         {
-            if (requiredCustomModifiers is object && (arguments is null || requiredCustomModifiers.Length != arguments.Length))
+            if (!(requiredCustomModifiers is null) && (arguments is null || requiredCustomModifiers.Length != arguments.Length))
                 throw new ArgumentException(SR.Format(SR.Argument_MismatchedArrays, nameof(requiredCustomModifiers), nameof(arguments)));
 
-            if (optionalCustomModifiers is object && (arguments is null || optionalCustomModifiers.Length != arguments.Length))
+            if (!(optionalCustomModifiers is null) && (arguments is null || optionalCustomModifiers.Length != arguments.Length))
                 throw new ArgumentException(SR.Format(SR.Argument_MismatchedArrays, nameof(optionalCustomModifiers), nameof(arguments)));
 
-            if (arguments is object)
+            if (!(arguments is null))
             {
                 for (int i = 0; i < arguments.Length; i++)
                 {

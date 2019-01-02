@@ -65,7 +65,7 @@ namespace System.Threading
             }
             set
             {
-                ExecutionContext.SetLocalValue(this, value, m_valueChangedHandler is object);
+                ExecutionContext.SetLocalValue(this, value, !(m_valueChangedHandler is null));
             }
         }
 
@@ -125,7 +125,7 @@ namespace System.Threading
 
         public static bool IsEmpty(IAsyncLocalValueMap asyncLocalValueMap)
         {
-            Debug.Assert(asyncLocalValueMap is object);
+            Debug.Assert(!(asyncLocalValueMap is null));
             Debug.Assert(asyncLocalValueMap == Empty || asyncLocalValueMap.GetType() != typeof(EmptyAsyncLocalValueMap));
 
             return asyncLocalValueMap == Empty;
@@ -135,7 +135,7 @@ namespace System.Threading
         {
             // If the value isn't null or a null value may not be treated as nonexistent, then create a new one-element map
             // to store the key/value pair.  Otherwise, use the empty map.
-            return value is object || !treatNullValueAsNonexistent ?
+            return !(value is null) || !treatNullValueAsNonexistent ?
                 new OneElementAsyncLocalValueMap(key, value) :
                 Empty;
         }
@@ -147,7 +147,7 @@ namespace System.Threading
             {
                 // If the value isn't null or a null value may not be treated as nonexistent, then create a new one-element map
                 // to store the key/value pair.  Otherwise, use the empty map.
-                return value is object || !treatNullValueAsNonexistent ?
+                return !(value is null) || !treatNullValueAsNonexistent ?
                     new OneElementAsyncLocalValueMap(key, value) :
                     (IAsyncLocalValueMap)this;
             }
@@ -172,7 +172,7 @@ namespace System.Threading
 
             public IAsyncLocalValueMap Set(IAsyncLocal key, object value, bool treatNullValueAsNonexistent)
             {
-                if (value is object || !treatNullValueAsNonexistent)
+                if (!(value is null) || !treatNullValueAsNonexistent)
                 {
                     // If the key matches one already contained in this map, then create a new one-element map with the updated
                     // value, otherwise create a two-element map with the additional key/value.
@@ -219,7 +219,7 @@ namespace System.Threading
 
             public IAsyncLocalValueMap Set(IAsyncLocal key, object value, bool treatNullValueAsNonexistent)
             {
-                if (value is object || !treatNullValueAsNonexistent)
+                if (!(value is null) || !treatNullValueAsNonexistent)
                 {
                     // If the key matches one already contained in this map, then create a new two-element map with the updated
                     // value, otherwise create a three-element map with the additional key/value.
@@ -274,7 +274,7 @@ namespace System.Threading
 
             public IAsyncLocalValueMap Set(IAsyncLocal key, object value, bool treatNullValueAsNonexistent)
             {
-                if (value is object || !treatNullValueAsNonexistent)
+                if (!(value is null) || !treatNullValueAsNonexistent)
                 {
                     // If the key matches one already contained in this map, then create a new three-element map with the
                     // updated value.
@@ -354,7 +354,7 @@ namespace System.Threading
                     if (ReferenceEquals(key, _keyValues[i].Key))
                     {
                         // The key is in the map.
-                        if (value is object || !treatNullValueAsNonexistent)
+                        if (!(value is null) || !treatNullValueAsNonexistent)
                         {
                             // Create a new map of the same size that has all of the same pairs, with this new key/value pair
                             // overwriting the old.
@@ -440,7 +440,7 @@ namespace System.Threading
 
                 // If the value being set exists, create a new many map, copy all of the elements from this one,
                 // and then store the new key/value pair into it.  This is the most common case.
-                if (value is object || !treatNullValueAsNonexistent)
+                if (!(value is null) || !treatNullValueAsNonexistent)
                 {
                     var map = new ManyElementAsyncLocalValueMap(count + (containsKey ? 0 : 1));
                     foreach (KeyValuePair<IAsyncLocal, object> pair in this)

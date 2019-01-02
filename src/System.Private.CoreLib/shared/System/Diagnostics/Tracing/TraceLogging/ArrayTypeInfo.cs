@@ -37,7 +37,7 @@ namespace System.Diagnostics.Tracing
 
             var count = 0;
             Array array = (Array)value.ReferenceValue;
-            if (array is object)
+            if (!(array is null))
             {
                 count = array.Length;
                 for (int i = 0; i < array.Length; i++)

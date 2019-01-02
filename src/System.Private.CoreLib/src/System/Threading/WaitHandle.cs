@@ -83,7 +83,7 @@ namespace System.Threading
                     // ideally do these things:
                     // *) Expose a settable SafeHandle property on WaitHandle.
                     // *) Expose a settable OwnsHandle property on SafeHandle.
-                    if (_waitHandle is object)
+                    if (!(_waitHandle is null))
                     {
                         _waitHandle.SetHandleAsInvalid();
                         _waitHandle = null;
@@ -493,7 +493,7 @@ namespace System.Threading
 
         protected virtual void Dispose(bool explicitDisposing)
         {
-            if (_waitHandle is object)
+            if (!(_waitHandle is null))
             {
                 _waitHandle.Close();
             }

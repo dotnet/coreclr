@@ -97,7 +97,7 @@ namespace System.Resources
                 // Close the Reader in a thread-safe way.
                 IResourceReader copyOfReader = Reader;
                 Reader = null;
-                if (copyOfReader is object)
+                if (!(copyOfReader is null))
                     copyOfReader.Close();
             }
             Reader = null;
@@ -177,7 +177,7 @@ namespace System.Resources
             }
 
             // case-sensitive lookup succeeded
-            if (s is object || !ignoreCase)
+            if (!(s is null) || !ignoreCase)
             {
                 return s;
             }
@@ -205,7 +205,7 @@ namespace System.Resources
         {
             object obj = GetObjectInternal(name);
 
-            if (obj is object || !ignoreCase)
+            if (!(obj is null) || !ignoreCase)
                 return obj;
 
             return GetCaseInsensitiveObjectInternal(name);

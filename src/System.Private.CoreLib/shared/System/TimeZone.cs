@@ -78,7 +78,7 @@ namespace System
         //with the CurrentTimeZone property above.
         internal static void ResetTimeZone()
         {
-            if (currentTimeZone is object)
+            if (!(currentTimeZone is null))
             {
                 lock (InternalSyncObject)
                 {

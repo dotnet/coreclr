@@ -53,7 +53,7 @@ namespace System
 
                 if (thisResult is null)
                 {
-                    if (thatResult is object)
+                    if (!(thatResult is null))
                         return false;
                 }
                 else

@@ -547,7 +547,7 @@ namespace System.Reflection.Emit
 
         protected override bool HasElementTypeImpl()
         {
-            return m_baseType is object;
+            return !(m_baseType is null);
         }
 
         public override Type UnderlyingSystemType

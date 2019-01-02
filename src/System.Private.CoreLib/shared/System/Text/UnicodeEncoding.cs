@@ -378,7 +378,7 @@ namespace System.Text
             EncoderFallbackBuffer fallbackBuffer = null;
             char* charsForFallback;
 
-            if (encoder is object)
+            if (!(encoder is null))
             {
                 charLeftOver = encoder._charLeftOver;
 
@@ -670,7 +670,7 @@ namespace System.Text
             char* charsForFallback;
 
             // Get our encoder, but don't clear it yet.
-            if (encoder is object)
+            if (!(encoder is null))
             {
                 charLeftOver = encoder._charLeftOver;
 
@@ -847,7 +847,7 @@ namespace System.Text
                     if (bytes + 3 >= byteEnd)
                     {
                         // Not enough room to add this surrogate pair
-                        if (fallbackBuffer is object && fallbackBuffer.bFallingBack)
+                        if (!(fallbackBuffer is null) && fallbackBuffer.bFallingBack)
                         {
                             // These must have both been from the fallbacks.
                             // Both of these MUST have been from a fallback because if the 1st wasn't
@@ -920,7 +920,7 @@ namespace System.Text
                 if (bytes + 1 >= byteEnd)
                 {
                     // Couldn't add this char
-                    if (fallbackBuffer is object && fallbackBuffer.bFallingBack)
+                    if (!(fallbackBuffer is null) && fallbackBuffer.bFallingBack)
                         fallbackBuffer.MovePrevious();                     // Not using this fallback char
                     else
                     {
@@ -986,7 +986,7 @@ namespace System.Text
             }
 
             // Not flushing, remember it in the encoder
-            if (encoder is object)
+            if (!(encoder is null))
             {
                 encoder._charLeftOver = charLeftOver;
                 encoder._charsUsed = (int)(chars - charStart);
@@ -1024,7 +1024,7 @@ namespace System.Text
             // For fallback we may need a fallback buffer
             DecoderFallbackBuffer fallbackBuffer = null;
 
-            if (decoder is object)
+            if (!(decoder is null))
             {
                 lastByte = decoder.lastByte;
                 lastChar = decoder.lastChar;
@@ -1346,7 +1346,7 @@ namespace System.Text
             char lastChar = (char)0;
 
             // Get our decoder (but don't clear it yet)
-            if (decoder is object)
+            if (!(decoder is null))
             {
                 lastByte = decoder.lastByte;
                 lastChar = decoder.lastChar;
@@ -1742,7 +1742,7 @@ namespace System.Text
         End:
 
             // Remember our decoder if we must
-            if (decoder is object)
+            if (!(decoder is null))
             {
                 Debug.Assert((decoder.MustFlush == false) || ((lastChar == (char)0) && (lastByte == -1)),
                     "[UnicodeEncoding.GetChars] Expected no left over chars or bytes if flushing"
@@ -1843,7 +1843,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             UnicodeEncoding that = value as UnicodeEncoding;
-            if (that is object)
+            if (!(that is null))
             {
                 //
                 // Big Endian Unicode has different code page (1201) than small Endian one (1200),
@@ -1879,7 +1879,7 @@ namespace System.Text
             {
                 lastByte = -1;
                 lastChar = '\0';
-                if (_fallbackBuffer is object)
+                if (!(_fallbackBuffer is null))
                     _fallbackBuffer.Reset();
             }
 

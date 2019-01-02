@@ -80,7 +80,7 @@ namespace System.Resources
 
             // If we have a moduleDir, check there first.  Get module fully 
             // qualified name, append path to that.
-            if (_mediator.ModuleDir is object)
+            if (!(_mediator.ModuleDir is null))
             {
                 string path = Path.Combine(_mediator.ModuleDir, fileName);
                 if (File.Exists(path))

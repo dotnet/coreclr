@@ -170,7 +170,7 @@ namespace System.Runtime.CompilerServices
                 // completed task's CancellationToken if it has one, including that CT in the OCE.
                 case TaskStatus.Canceled:
                     var oceEdi = task.GetCancellationExceptionDispatchInfo();
-                    if (oceEdi is object)
+                    if (!(oceEdi is null))
                     {
                         oceEdi.Throw();
                         Debug.Fail("Throw() should have thrown");
@@ -276,10 +276,10 @@ namespace System.Runtime.CompilerServices
                 // If this task's continuation is another task, get it.
                 var continuationTask = AsyncMethodBuilderCore.TryGetContinuationTask(continuation);
                 etwLog.TaskWaitBegin(
-                    (currentTaskAtBegin is object ? currentTaskAtBegin.m_taskScheduler.Id : TaskScheduler.Default.Id),
-                    (currentTaskAtBegin is object ? currentTaskAtBegin.Id : 0),
+                    (!(currentTaskAtBegin is null) ? currentTaskAtBegin.m_taskScheduler.Id : TaskScheduler.Default.Id),
+                    (!(currentTaskAtBegin is null) ? currentTaskAtBegin.Id : 0),
                     task.Id, TplEtwProvider.TaskWaitBehavior.Asynchronous,
-                    (continuationTask is object ? continuationTask.Id : 0));
+                    (!(continuationTask is null) ? continuationTask.Id : 0));
             }
 #else
             Debug.Assert(TaskTrace.Enabled, "Should only be used when ETW tracing is enabled");
@@ -287,8 +287,8 @@ namespace System.Runtime.CompilerServices
             // ETW event for Task Wait Begin
             var currentTaskAtBegin = Task.InternalCurrent;
             TaskTrace.TaskWaitBegin_Asynchronous(
-                (currentTaskAtBegin is object ? currentTaskAtBegin.m_taskScheduler.Id : TaskScheduler.Default.Id),
-                (currentTaskAtBegin is object ? currentTaskAtBegin.Id : 0),
+                (!(currentTaskAtBegin is null) ? currentTaskAtBegin.m_taskScheduler.Id : TaskScheduler.Default.Id),
+                (!(currentTaskAtBegin is null) ? currentTaskAtBegin.Id : 0),
                 task.Id);
 #endif
 
@@ -314,8 +314,8 @@ namespace System.Runtime.CompilerServices
                 {
                     var currentTaskAtEnd = Task.InternalCurrent;
                     innerEtwLog.TaskWaitEnd(
-                        (currentTaskAtEnd is object ? currentTaskAtEnd.m_taskScheduler.Id : TaskScheduler.Default.Id),
-                        (currentTaskAtEnd is object ? currentTaskAtEnd.Id : 0),
+                        (!(currentTaskAtEnd is null) ? currentTaskAtEnd.m_taskScheduler.Id : TaskScheduler.Default.Id),
+                        (!(currentTaskAtEnd is null) ? currentTaskAtEnd.Id : 0),
                         innerTask.Id);
 
                     // Ensure the continuation runs under the activity ID of the task that completed for the
@@ -342,8 +342,8 @@ namespace System.Runtime.CompilerServices
                 {
                     var currentTaskAtEnd = Task.InternalCurrent;
                     TaskTrace.TaskWaitEnd(
-                        (currentTaskAtEnd is object ? currentTaskAtEnd.m_taskScheduler.Id : TaskScheduler.Default.Id),
-                        (currentTaskAtEnd is object ? currentTaskAtEnd.Id : 0),
+                        (!(currentTaskAtEnd is null) ? currentTaskAtEnd.m_taskScheduler.Id : TaskScheduler.Default.Id),
+                        (!(currentTaskAtEnd is null) ? currentTaskAtEnd.Id : 0),
                         task.Id);
                 }
 

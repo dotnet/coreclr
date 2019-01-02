@@ -84,7 +84,7 @@ namespace System.Diagnostics.Tracing
                 etwLog.DebugFacilityMessage("OnStartEnterActivityState", ActivityInfo.LiveActivities(currentActivity));
             }
 
-            if (currentActivity is object)
+            if (!(currentActivity is null))
             {
                 // Stop activity tracking if we reached the maximum allowed depth 
                 if (currentActivity.m_level >= MAX_ACTIVITY_DEPTH)
@@ -99,7 +99,7 @@ namespace System.Diagnostics.Tracing
                 if ((options & EventActivityOptions.Recursive) == 0)
                 {
                     ActivityInfo existingActivity = FindActiveActivity(fullActivityName, currentActivity);
-                    if (existingActivity is object)
+                    if (!(existingActivity is null))
                     {
                         OnStop(providerName, activityName, task, ref activityId);
                         currentActivity = m_current.Value;
@@ -175,7 +175,7 @@ namespace System.Diagnostics.Tracing
 
                 // See if there are any orphans that need to be stopped.  
                 ActivityInfo orphan = currentActivity;
-                while (orphan != activityToStop && orphan is object)
+                while (orphan != activityToStop && !(orphan is null))
                 {
                     if (orphan.m_stopped != 0)      // Skip dead activities.
                     {
@@ -253,7 +253,7 @@ namespace System.Diagnostics.Tracing
         private ActivityInfo FindActiveActivity(string name, ActivityInfo startLocation)
         {
             var activity = startLocation;
-            while (activity is object)
+            while (!(activity is null))
             {
                 if (name == activity.m_name && activity.m_stopped == 0)
                     return activity;
@@ -298,7 +298,7 @@ namespace System.Diagnostics.Tracing
                 m_eventOptions = options;
                 m_creator = creator;
                 m_uniqueId = uniqueId;
-                m_level = creator is object ? creator.m_level + 1 : 0;
+                m_level = !(creator is null) ? creator.m_level + 1 : 0;
                 m_activityIdToRestore = activityIDToRestore;
 
                 // Create a nice GUID that encodes the chain of activities that started this one.
@@ -365,7 +365,7 @@ namespace System.Diagnostics.Tracing
                 fixed (Guid* outPtr = &idRet)
                 {
                     int activityPathGuidOffsetStart = 0;
-                    if (m_creator is object)
+                    if (!(m_creator is null))
                     {
                         activityPathGuidOffsetStart = m_creator.m_activityPathGuidOffset;
                         idRet = m_creator.m_guid;
@@ -399,7 +399,7 @@ namespace System.Diagnostics.Tracing
             private unsafe void CreateOverflowGuid(Guid* outPtr)
             {
                 // Search backwards for an ancestor that has sufficient space to put the ID.  
-                for (ActivityInfo ancestor = m_creator; ancestor is object; ancestor = ancestor.m_creator)
+                for (ActivityInfo ancestor = m_creator; !(ancestor is null); ancestor = ancestor.m_creator)
                 {
                     if (ancestor.m_activityPathGuidOffset <= 10)  // we need at least 2 bytes.  
                     {
@@ -554,7 +554,7 @@ namespace System.Diagnostics.Tracing
 
             // Are we popping off a value?   (we have a prev, and it creator is cur) 
             // Then check if we should use the GUID at the time of the start event
-            if (prev is object && prev.m_creator == cur)
+            if (!(prev is null) && prev.m_creator == cur)
             {
                 // If the saved activity ID is not the same as the creator activity
                 // that takes precedence (it means someone explicitly did a SetActivityID)
@@ -570,7 +570,7 @@ namespace System.Diagnostics.Tracing
             // setting the activity to current ActivityInfo.  However that activity 
             // might be dead, in which case we should skip it, so we never set 
             // the ID to dead things.   
-            while (cur is object)
+            while (!(cur is null))
             {
                 // We found a live activity (typically the first time), set it to that.  
                 if (cur.m_stopped == 0)

@@ -47,7 +47,7 @@ namespace System.IO
         // is null, any existing extension is removed from path.
         public static string ChangeExtension(string path, string extension)
         {
-            if (path is object)
+            if (!(path is null))
             {
                 string s = path;
                 for (int i = path.Length - 1; i >= 0; i--)
@@ -61,7 +61,7 @@ namespace System.IO
                     if (PathInternal.IsDirectorySeparator(ch)) break;
                 }
 
-                if (extension is object && path.Length != 0)
+                if (!(extension is null) && path.Length != 0)
                 {
                     s = (extension.Length == 0 || extension[0] != '.') ?
                         s + "." + extension :
@@ -278,7 +278,7 @@ namespace System.IO
         /// </summary>
         public static bool HasExtension(string path)
         {
-            if (path is object)
+            if (!(path is null))
             {
                 return HasExtension(path.AsSpan());
             }

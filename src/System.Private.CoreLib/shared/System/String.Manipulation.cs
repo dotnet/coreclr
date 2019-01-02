@@ -213,7 +213,7 @@ namespace System
                     {
                         currentValue = en.Current;
 
-                        if (currentValue is object)
+                        if (currentValue != null)
                         {
                             result.Append(currentValue.ToString());
                         }
@@ -365,7 +365,7 @@ namespace System
             for (int i = 0; i < values.Length; i++)
             {
                 string value = values[i];
-                if (value is object)
+                if (!(value is null))
                 {
                     totalLengthLong += value.Length;
                 }
@@ -644,7 +644,7 @@ namespace System
             {
                 result.Append(separator, separatorLength);
                 object value = values[i];
-                if (value is object)
+                if (!(value is null))
                 {
                     result.Append(value.ToString());
                 }
@@ -694,7 +694,7 @@ namespace System
                     currentValue = en.Current;
 
                     result.Append(separator, separatorLength);
-                    if (currentValue is object)
+                    if (currentValue != null)
                     {
                         result.Append(currentValue.ToString());
                     }
@@ -747,7 +747,7 @@ namespace System
             for (int i = startIndex, end = startIndex + count; i < end; i++)
             {
                 string currentValue = value[i];
-                if (currentValue is object)
+                if (!(currentValue is null))
                 {
                     totalLength += currentValue.Length;
                     if (totalLength < 0) // Check for overflow
@@ -770,7 +770,7 @@ namespace System
                 // We range check again to avoid buffer overflows if this happens.
 
                 string currentValue = value[i];
-                if (currentValue is object)
+                if (!(currentValue is null))
                 {
                     int valueLen = currentValue.Length;
                     if (valueLen > totalLength - copiedLength)
@@ -1276,7 +1276,7 @@ namespace System
 
             bool omitEmptyEntries = (options == StringSplitOptions.RemoveEmptyEntries);
 
-            bool singleSeparator = separator is object;
+            bool singleSeparator = !(separator is null);
 
             if (!singleSeparator && (separators is null || separators.Length == 0))
             {

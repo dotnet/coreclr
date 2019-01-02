@@ -79,7 +79,7 @@ namespace System
                 get
                 {
                     Debug.Assert(index < Count);
-                    return (_items is object) ? _items[index] : _item;
+                    return (!(_items is null)) ? _items[index] : _item;
                 }
             }
 
@@ -691,7 +691,7 @@ namespace System
                             }
 
                             declaringType = RuntimeTypeHandle.GetBaseType(declaringType);
-                        } while (declaringType is object);
+                        } while (!(declaringType is null));
                     }
 
                     return list.ToArray();
@@ -763,7 +763,7 @@ namespace System
                     while (RuntimeTypeHandle.IsGenericVariable(declaringType))
                         declaringType = declaringType.GetBaseType();
 
-                    while (declaringType is object)
+                    while (!(declaringType is null))
                     {
                         PopulateRtFields(filter, declaringType, ref list);
 
@@ -789,7 +789,7 @@ namespace System
                     {
                         Type[] interfaces = RuntimeTypeHandle.GetInterfaces(ReflectedType);
 
-                        if (interfaces is object)
+                        if (!(interfaces is null))
                         {
                             for (int i = 0; i < interfaces.Length; i++)
                             {
@@ -966,7 +966,7 @@ namespace System
                     {
                         Type[] ifaces = RuntimeTypeHandle.GetInterfaces(declaringType);
 
-                        if (ifaces is object)
+                        if (!(ifaces is null))
                         {
                             for (int i = 0; i < ifaces.Length; i++)
                             {
@@ -1112,7 +1112,7 @@ namespace System
                             declaringType = declaringType.GetBaseType();
 
                         // Populate associates off of the class hierarchy
-                        while (declaringType is object)
+                        while (!(declaringType is null))
                         {
                             PopulateEvents(filter, declaringType, csEventInfos, ref list);
                             declaringType = RuntimeTypeHandle.GetBaseType(declaringType);
@@ -1167,7 +1167,7 @@ namespace System
                         #endregion
 
                         #region Remove Duplicates
-                        if (csEventInfos is object)
+                        if (!(csEventInfos is null))
                         {
                             string name = eventInfo.Name;
 
@@ -1216,7 +1216,7 @@ namespace System
                         {
                             PopulateProperties(filter, declaringType, csPropertyInfos, usedSlots, ref list);
                             declaringType = RuntimeTypeHandle.GetBaseType(declaringType);
-                        } while (declaringType is object);
+                        } while (!(declaringType is null));
                     }
                     else
                     {
@@ -1280,7 +1280,7 @@ namespace System
                             tkProperty, declaringType, m_runtimeTypeCache, out isPrivate);
 
                         // If this is a class, not an interface
-                        if (usedSlots is object)
+                        if (!(usedSlots is null))
                         {
                             #region Remove Privates
                             if (declaringType != ReflectedType && isPrivate)
@@ -1303,7 +1303,7 @@ namespace System
                                 associateMethod = propertyInfo.GetSetMethod();
                             }
 
-                            if (associateMethod is object)
+                            if (!(associateMethod is null))
                             {
                                 int slot = RuntimeMethodHandle.GetSlot((RuntimeMethodInfo)associateMethod);
 
@@ -1323,7 +1323,7 @@ namespace System
                             // For backward compatibility, even if the vtable slots don't match, we will still treat
                             // a property as duplicate if the names and signatures match.
 
-                            if (csPropertyInfos is object)
+                            if (!(csPropertyInfos is null))
                             {
                                 string name = propertyInfo.Name;
                                 List<RuntimePropertyInfo> cache;
@@ -1380,14 +1380,14 @@ namespace System
                     {
                         case MemberListType.CaseSensitive:
                             list = m_csMemberInfos[name];
-                            if (list is object)
+                            if (!(list is null))
                                 return list;
 
                             return Populate(name, listType, cacheType);
 
                         case MemberListType.CaseInsensitive:
                             list = m_cisMemberInfos[name];
-                            if (list is object)
+                            if (!(list is null))
                                 return list;
 
                             return Populate(name, listType, cacheType);
@@ -1565,7 +1565,7 @@ namespace System
                 {
                     CustomAttributeData attr = null;
                     Type DefaultMemberAttrType = typeof(DefaultMemberAttribute);
-                    for (RuntimeType t = m_runtimeType; t is object; t = t.GetBaseType())
+                    for (RuntimeType t = m_runtimeType; !(t is null); t = t.GetBaseType())
                     {
                         IList<CustomAttributeData> attrs = CustomAttributeData.GetCustomAttributes(t);
                         for (int i = 0; i < attrs.Count; i++)
@@ -1577,7 +1577,7 @@ namespace System
                             }
                         }
 
-                        if (attr is object)
+                        if (!(attr is null))
                         {
                             m_defaultMemberName = attr.ConstructorArguments[0].Value as string;
                             break;
@@ -1604,7 +1604,7 @@ namespace System
                     RuntimeMethodHandle.GetAttributes(genericMethod), (BindingFlags)(-1), la);
 
                 RuntimeMethodInfo crmi;
-                if (la is object)
+                if (!(la is null))
                 {
                     crmi = la.m_methodInstantiations[rmi];
                 }
@@ -1612,7 +1612,7 @@ namespace System
                 {
                     crmi = s_methodInstantiations[rmi];
                 }
-                if (crmi is object)
+                if (!(crmi is null))
                     return crmi;
 
                 if (s_methodInstantiationsLock is null)
@@ -1624,17 +1624,17 @@ namespace System
                 {
                     Monitor.Enter(s_methodInstantiationsLock, ref lockTaken);
 
-                    if (la is object)
+                    if (!(la is null))
                     {
                         crmi = la.m_methodInstantiations[rmi];
-                        if (crmi is object)
+                        if (!(crmi is null))
                             return crmi;
                         la.m_methodInstantiations[rmi] = rmi;
                     }
                     else
                     {
                         crmi = s_methodInstantiations[rmi];
-                        if (crmi is object)
+                        if (!(crmi is null))
                             return crmi;
                         s_methodInstantiations[rmi] = rmi;
                     }
@@ -1745,7 +1745,7 @@ namespace System
             {
                 Resolver resolver = RuntimeMethodHandle.GetResolver(methodHandle);
 
-                if (resolver is object)
+                if (!(resolver is null))
                     return resolver.GetDynamicMethod();
 
                 return null;
@@ -1768,7 +1768,7 @@ namespace System
                     // GetMember has a side effect of populating the member cache of reflectedType,
                     // doing so will ensure we construct the correct MethodInfo/ConstructorInfo objects.
                     // Without this the reflectedType.Cache.GetMethod call below may return a MethodInfo
-                    // object whose ReflectedType is string[] and DeclaringType is object[]. That would
+                    // object whose ReflectedType is string[] and !(DeclaringType is null)[]. That would
                     // be (arguabally) incorrect because string[] is not a subclass of object[].
                     MethodBase[] methodBases = reflectedType.GetMember(
                         RuntimeMethodHandle.GetName(methodHandle), MemberTypes.Constructor | MemberTypes.Method,
@@ -1795,7 +1795,7 @@ namespace System
 
                     RuntimeType baseType = reflectedType;
 
-                    while (baseType is object)
+                    while (!(baseType is null))
                     {
                         RuntimeType baseDefinition = baseType;
 
@@ -2065,7 +2065,7 @@ namespace System
             prefixLookup = false;
             ignoreCase = false;
 
-            if (name is object)
+            if (!(name is null))
             {
                 if ((bindingFlags & BindingFlags.IgnoreCase) != 0)
                 {
@@ -2200,7 +2200,7 @@ namespace System
         private static bool FilterApplyType(
             Type type, BindingFlags bindingFlags, string name, bool prefixLookup, string ns)
         {
-            Debug.Assert(type is object);
+            Debug.Assert(!(type is null));
             Debug.Assert(type is RuntimeType);
 
             bool isPublic = type.IsNestedPublic || type.IsPublic;
@@ -2209,7 +2209,7 @@ namespace System
             if (!FilterApplyBase(type, bindingFlags, isPublic, type.IsNestedAssembly, isStatic, name, prefixLookup))
                 return false;
 
-            if (ns is object && ns != type.Namespace)
+            if (!(ns is null) && ns != type.Namespace)
                 return false;
 
             return true;
@@ -2256,7 +2256,7 @@ namespace System
             }
 
             // Check if argumentTypes supplied
-            if (argumentTypes is object)
+            if (!(argumentTypes is null))
             {
                 ParameterInfo[] parameterInfos = methodBase.GetParametersNoCopy();
 
@@ -2340,7 +2340,7 @@ namespace System
                             for (int i = 0; i < parameterInfos.Length; i++)
                             {
                                 // a null argument type implies a null arg which is always a perfect match
-                                if (argumentTypes[i] is object && !argumentTypes[i].MatchesParameterTypeExactly(parameterInfos[i]))
+                                if (!(argumentTypes[i] is null) && !argumentTypes[i].MatchesParameterTypeExactly(parameterInfos[i]))
                                     return false;
                             }
                         }
@@ -2398,7 +2398,7 @@ namespace System
                 {
                     cache = new RuntimeTypeCache(this);
                     RuntimeTypeCache existingCache = GCHandle.InternalCompareExchange(m_cache, cache, null, false) as RuntimeTypeCache;
-                    if (existingCache is object)
+                    if (!(existingCache is null))
                         cache = existingCache;
                 }
 
@@ -2806,7 +2806,7 @@ namespace System
                 {
                     PropertyInfo firstCandidate = candidates[0];
 
-                    if (returnType is object && !returnType.IsEquivalentTo(firstCandidate.PropertyType))
+                    if (!(returnType is null) && !returnType.IsEquivalentTo(firstCandidate.PropertyType))
                         return null;
 
                     return firstCandidate;
@@ -2847,7 +2847,7 @@ namespace System
                 RuntimeEventInfo eventInfo = cache[i];
                 if ((bindingAttr & eventInfo.BindingFlags) == eventInfo.BindingFlags)
                 {
-                    if (match is object)
+                    if (!(match is null))
                         throw new AmbiguousMatchException(SR.Arg_AmbiguousMatchException);
 
                     match = eventInfo;
@@ -2876,7 +2876,7 @@ namespace System
                 RuntimeFieldInfo fieldInfo = cache[i];
                 if ((bindingAttr & fieldInfo.BindingFlags) == fieldInfo.BindingFlags)
                 {
-                    if (match is object)
+                    if (!(match is null))
                     {
                         if (ReferenceEquals(fieldInfo.DeclaringType, match.DeclaringType))
                             throw new AmbiguousMatchException(SR.Arg_AmbiguousMatchException);
@@ -2923,7 +2923,7 @@ namespace System
                 RuntimeType iface = cache[i];
                 if (FilterApplyType(iface, bindingAttr, name, false, ns))
                 {
-                    if (match is object)
+                    if (!(match is null))
                         throw new AmbiguousMatchException(SR.Arg_AmbiguousMatchException);
 
                     match = iface;
@@ -2953,7 +2953,7 @@ namespace System
                 RuntimeType nestedType = cache[i];
                 if (FilterApplyType(nestedType, bindingAttr, name, false, ns))
                 {
-                    if (match is object)
+                    if (!(match is null))
                         throw new AmbiguousMatchException(SR.Arg_AmbiguousMatchException);
 
                     match = nestedType;
@@ -3151,7 +3151,7 @@ namespace System
 
             RuntimeType baseType = GetBaseType();
 
-            while (baseType is object)
+            while (!(baseType is null))
             {
                 if (baseType == rtType)
                     return true;
@@ -3732,14 +3732,14 @@ namespace System
             {
                 RuntimeType valueType;
                 Pointer pointer = value as Pointer;
-                if (pointer is object)
+                if (!(pointer is null))
                     valueType = (RuntimeType)pointer.GetPointerType();
                 else
                     valueType = (RuntimeType)value.GetType();
 
                 if (CanValueSpecialCast(valueType, this))
                 {
-                    if (pointer is object)
+                    if (!(pointer is null))
                         return pointer.GetPointerValue();
                     else
                         return value;
@@ -3755,7 +3755,7 @@ namespace System
         // Factored out of CheckValue to reduce code complexity.
         private object TryChangeType(object value, Binder binder, CultureInfo culture, bool needsSpecialCast)
         {
-            if (binder is object && binder != Type.DefaultBinder)
+            if (!(binder is null) && binder != Type.DefaultBinder)
             {
                 value = binder.ChangeType(value, this, culture);
                 if (IsInstanceOfType(value))
@@ -3773,14 +3773,14 @@ namespace System
                 {
                     RuntimeType valueType;
                     Pointer pointer = value as Pointer;
-                    if (pointer is object)
+                    if (!(pointer is null))
                         valueType = (RuntimeType)pointer.GetPointerType();
                     else
                         valueType = (RuntimeType)value.GetType();
 
                     if (CanValueSpecialCast(valueType, this))
                     {
-                        if (pointer is object)
+                        if (!(pointer is null))
                             return pointer.GetPointerValue();
                         else
                             return value;
@@ -3799,7 +3799,7 @@ namespace System
             MemberInfo[] members = null;
 
             string defaultMemberName = GetDefaultMemberName();
-            if (defaultMemberName is object)
+            if (!(defaultMemberName is null))
             {
                 members = GetMember(defaultMemberName);
             }
@@ -3833,9 +3833,9 @@ namespace System
             }
 
             // There must not be more named parameters than provided arguments
-            if (namedParams is object)
+            if (!(namedParams is null))
             {
-                if (providedArgs is object)
+                if (!(providedArgs is null))
                 {
                     if (namedParams.Length > providedArgs.Length)
                         throw new ArgumentException(SR.Arg_NamedParamTooBig, nameof(namedParams));
@@ -3848,7 +3848,7 @@ namespace System
             }
 
 #if FEATURE_COMINTEROP && FEATURE_USE_LCID
-            if (target is object && target.GetType().IsCOMObject)
+            if (!(target is null) && target.GetType().IsCOMObject)
             {
                 if ((bindingFlags & ClassicBindingMask) == 0)
                     throw new ArgumentException(SR.Arg_COMAccess, nameof(bindingFlags));
@@ -3881,10 +3881,10 @@ namespace System
             }
 #endif // FEATURE_COMINTEROP && FEATURE_USE_LCID
 
-            if (namedParams is object && Array.IndexOf(namedParams, null) != -1)
+            if (!(namedParams is null) && Array.IndexOf(namedParams, null) != -1)
                 throw new ArgumentException(SR.Arg_NamedParamNull, nameof(namedParams));
 
-            int argCnt = (providedArgs is object) ? providedArgs.Length : 0;
+            int argCnt = (!(providedArgs is null)) ? providedArgs.Length : 0;
 
             if (binder is null)
                 binder = DefaultBinder;
@@ -3962,7 +3962,7 @@ namespace System
                     selFld = binder.BindToField(bindingFlags, flds, IsGetField ? Empty.Value : providedArgs[0], culture);
                 }
 
-                if (selFld is object)
+                if (!(selFld is null))
                 {
                     // Invocation on a field
                     if (selFld.FieldType.IsArray || ReferenceEquals(selFld.FieldType, typeof(Array)))
@@ -4088,7 +4088,7 @@ namespace System
                     }
                 }
 
-                if (results is object)
+                if (!(results is null))
                 {
                     Debug.Assert(results.Count > 1);
                     finalists = new MethodInfo[results.Count];
@@ -4140,7 +4140,7 @@ namespace System
                     }
                 }
 
-                if (results is object)
+                if (!(results is null))
                 {
                     Debug.Assert(results.Count > 1);
                     finalists = new MethodInfo[results.Count];
@@ -4148,7 +4148,7 @@ namespace System
                 }
             }
 
-            if (finalist is object)
+            if (!(finalist is null))
             {
                 // Invoke
                 if (finalists is null &&
@@ -4179,7 +4179,7 @@ namespace System
 
                 object result = ((MethodInfo)invokeMethod).Invoke(target, bindingFlags, binder, providedArgs, culture);
 
-                if (state is object)
+                if (!(state is null))
                     binder.ReorderArgumentArray(ref providedArgs, state);
 
                 return result;
@@ -4370,7 +4370,7 @@ namespace System
 
                 MethodBase[] cons = new MethodBase[matches.Count];
                 matches.CopyTo(cons);
-                if (cons is object && cons.Length == 0)
+                if (!(cons is null) && cons.Length == 0)
                     cons = null;
 
                 if (cons is null)
@@ -4408,7 +4408,7 @@ namespace System
                 else
                 {
                     server = ((ConstructorInfo)invokeMethod).Invoke(bindingAttr, binder, args, culture);
-                    if (state is object)
+                    if (!(state is null))
                         binder.ReorderArgumentArray(ref args, state);
                 }
             }
@@ -4473,7 +4473,7 @@ namespace System
                 for (int i = 0; i < CacheSize; i++)
                 {
                     ActivatorCacheEntry ace = Volatile.Read(ref cache[index]);
-                    if (ace is object && ace._type == t) //check for type match..
+                    if (!(ace is null) && ace._type == t) //check for type match..
                     {
                         if (!ace._isFullyInitialized)
                             InitializeCacheEntry(ace);
@@ -4537,11 +4537,11 @@ namespace System
         {
             // Call the cached 
             ActivatorCacheEntry cacheEntry = s_ActivatorCache?.GetEntry(this);
-            if (cacheEntry is object)
+            if (!(cacheEntry is null))
             {
                 if (publicOnly)
                 {
-                    if (cacheEntry._ctor is object &&
+                    if (!(cacheEntry._ctor is null) &&
                         (cacheEntry._ctorAttributes & MethodAttributes.MemberAccessMask) != MethodAttributes.Public)
                     {
                         throw new MissingMethodException(SR.Format(SR.Arg_NoDefCTor, this));
@@ -4551,7 +4551,7 @@ namespace System
                 // Allocate empty object and call the default constructor if present.
                 object instance = RuntimeTypeHandle.Allocate(this);
                 Debug.Assert(cacheEntry._ctor != null || IsValueType);
-                if (cacheEntry._ctor is object)
+                if (!(cacheEntry._ctor is null))
                 {
                     try
                     {
@@ -4645,7 +4645,7 @@ namespace System
                 }
 
                 aParamMod = new ParameterModifier[] { paramMod };
-                if (aArgsWrapperTypes is object)
+                if (!(aArgsWrapperTypes is null))
                 {
                     WrapArgsForInvokeCall(aArgs, aArgsWrapperTypes);
                 }
@@ -4671,7 +4671,7 @@ namespace System
             }
 
             // If the return type is _not_ of the proper type, then convert it.
-            if (ret is object)
+            if (!(ret is null))
             {
                 if (!ReferenceEquals(retType, ret.GetType()))
                 {
@@ -4955,7 +4955,7 @@ namespace System.Reflection
             Table newTable = new Table(newSize);
 
             Table oldTable = m_Table;
-            if (oldTable is object)
+            if (!(oldTable is null))
             {
                 K[] keys = oldTable.m_keys;
                 V[] values = oldTable.m_values;
@@ -4964,7 +4964,7 @@ namespace System.Reflection
                 {
                     K key = keys[i];
 
-                    if (key is object)
+                    if (!(key is null))
                     {
                         newTable.Insert(key, values[i]);
                     }
@@ -4981,7 +4981,7 @@ namespace System.Reflection
             {
                 Table table = m_Table;
 
-                if (table is object)
+                if (!(table is null))
                 {
                     int requiredSize = 2 * (table.m_count + 1);
                     if (requiredSize >= table.m_keys.Length)
@@ -5012,7 +5012,7 @@ namespace System.Reflection
                     // This volatile read has to be first. It is reading the atomically published result.
                     K hit = Volatile.Read(ref keys[index]);
 
-                    if (hit is object)
+                    if (!(hit is null))
                     {
                         if (hit.Equals(key))
                             return table.m_values[index];

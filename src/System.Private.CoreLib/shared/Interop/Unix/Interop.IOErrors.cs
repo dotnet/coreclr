@@ -15,7 +15,7 @@ internal static partial class Interop
         Debug.Assert(errorInfo.Error != Error.SUCCESS);
         Debug.Assert(errorInfo.Error != Error.EINTR, "EINTR errors should be handled by the native shim and never bubble up to managed code");
 
-        if (errorRewriter is object)
+        if (!(errorRewriter is null))
         {
             errorInfo = errorRewriter(errorInfo);
         }

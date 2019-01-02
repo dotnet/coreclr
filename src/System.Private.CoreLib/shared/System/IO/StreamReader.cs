@@ -224,14 +224,14 @@ namespace System.IO
             {
                 // Note that Stream.Close() can potentially throw here. So we need to 
                 // ensure cleaning up internal resources, inside the finally block.  
-                if (!LeaveOpen && disposing && (_stream is object))
+                if (!LeaveOpen && disposing && (!(_stream is null)))
                 {
                     _stream.Close();
                 }
             }
             finally
             {
-                if (!LeaveOpen && (_stream is object))
+                if (!LeaveOpen && (!(_stream is null)))
                 {
                     _stream = null;
                     _encoding = null;
@@ -276,7 +276,7 @@ namespace System.IO
             _charPos = 0;
             // in general we'd like to have an invariant that encoding isn't null. However,
             // for startup improvements for NullStreamReader, we want to delay load encoding. 
-            if (_encoding is object)
+            if (!(_encoding is null))
             {
                 _decoder = _encoding.GetDecoder();
             }
@@ -827,7 +827,7 @@ namespace System.IO
                     if (ch == '\r' || ch == '\n')
                     {
                         string s;
-                        if (sb is object)
+                        if (!(sb is null))
                         {
                             sb.Append(_charBuffer, _charPos, i - _charPos);
                             s = sb.ToString();
@@ -909,7 +909,7 @@ namespace System.IO
                     {
                         string s;
 
-                        if (sb is object)
+                        if (!(sb is null))
                         {
                             sb.Append(tmpCharBuffer, tmpCharPos, i - tmpCharPos);
                             s = sb.ToString();

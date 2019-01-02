@@ -122,7 +122,7 @@ namespace System.Threading.Tasks.Sources
             if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0)
             {
                 SynchronizationContext sc = SynchronizationContext.Current;
-                if (sc is object && sc.GetType() != typeof(SynchronizationContext))
+                if (!(sc is null) && sc.GetType() != typeof(SynchronizationContext))
                 {
                     _capturedContext = sc;
                 }
@@ -151,7 +151,7 @@ namespace System.Threading.Tasks.Sources
                 oldContinuation = Interlocked.CompareExchange(ref _continuation, continuation, null);
             }
 
-            if (oldContinuation is object)
+            if (!(oldContinuation is null))
             {
                 // Operation already completed, so we need to queue the supplied callback.
                 if (!ReferenceEquals(oldContinuation, ManualResetValueTaskSourceCoreShared.s_sentinel))
@@ -162,7 +162,7 @@ namespace System.Threading.Tasks.Sources
                 switch (_capturedContext)
                 {
                     case null:
-                        if (_executionContext is object)
+                        if (!(_executionContext is null))
                         {
                             ThreadPool.QueueUserWorkItem(continuation, state, preferLocal: true);
                         }
@@ -206,9 +206,9 @@ namespace System.Threading.Tasks.Sources
             }
             _completed = true;
 
-            if (_continuation is object || Interlocked.CompareExchange(ref _continuation, ManualResetValueTaskSourceCoreShared.s_sentinel, null) != null)
+            if (!(_continuation is null) || Interlocked.CompareExchange(ref _continuation, ManualResetValueTaskSourceCoreShared.s_sentinel, null) != null)
             {
-                if (_executionContext is object)
+                if (!(_executionContext is null))
                 {
                     ExecutionContext.RunInternal(
                         _executionContext,
@@ -234,7 +234,7 @@ namespace System.Threading.Tasks.Sources
                 case null:
                     if (RunContinuationsAsynchronously)
                     {
-                        if (_executionContext is object)
+                        if (!(_executionContext is null))
                         {
                             ThreadPool.QueueUserWorkItem(_continuation, _continuationState, preferLocal: true);
                         }

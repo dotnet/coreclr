@@ -179,7 +179,7 @@ namespace System.Threading.Tasks
             TaskScheduler ets = task.ExecutingTaskScheduler;
 
             // Delegate cross-scheduler inlining requests to target scheduler
-            if (ets != this && ets is object) return ets.TryRunInline(task, taskWasPreviouslyQueued);
+            if (ets != this && !(ets is null)) return ets.TryRunInline(task, taskWasPreviouslyQueued);
 
             StackGuard currentStackGuard;
             if ((ets is null) ||
@@ -358,7 +358,7 @@ namespace System.Threading.Tasks
             get
             {
                 Task currentTask = Task.InternalCurrent;
-                return ((currentTask is object)
+                return ((!(currentTask is null))
                     && ((currentTask.CreationOptions & TaskCreationOptions.HideScheduler) == 0)
                     ) ? currentTask.ExecutingTaskScheduler : null;
             }

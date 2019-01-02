@@ -305,7 +305,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// If eventName is non-null then we logged a start event 
         /// </summary>
-        private bool StartEventWasFired { get { return eventName is object; } }
+        private bool StartEventWasFired { get { return !(eventName is null); } }
 
         private readonly EventSource eventSource;
         private EventSourceOptions startStopOptions;

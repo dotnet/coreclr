@@ -45,7 +45,7 @@ namespace System.Text
         public override void Reset()
         {
             _charLeftOver = (char)0;
-            if (_fallbackBuffer is object)
+            if (!(_fallbackBuffer is null))
                 _fallbackBuffer.Reset();
         }
 

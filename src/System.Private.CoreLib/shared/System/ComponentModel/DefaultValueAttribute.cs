@@ -227,9 +227,9 @@ namespace System.ComponentModel
 
             DefaultValueAttribute other = obj as DefaultValueAttribute;
 
-            if (other is object)
+            if (!(other is null))
             {
-                if (Value is object)
+                if (!(Value is null))
                 {
                     return Value.Equals(other.Value);
                 }

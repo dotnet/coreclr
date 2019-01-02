@@ -148,7 +148,7 @@ namespace System.Collections.ObjectModel
             }
 
             T[] items = array as T[];
-            if (items is object)
+            if (!(items is null))
             {
                 list.CopyTo(items, index);
             }

@@ -39,7 +39,7 @@ namespace System.Reflection.Emit
 
             // The ParameterTypes are also a bit interesting in that they may be unbaked TypeBuilders.
             m_returnType = returnType;
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
             {
                 m_parameterTypes = new Type[parameterTypes.Length];
                 Array.Copy(parameterTypes, 0, m_parameterTypes, 0, parameterTypes.Length);

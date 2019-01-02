@@ -21,7 +21,7 @@ namespace System.Threading
         private void CreateEventCore(bool initialState, EventResetMode mode, string name, out bool createdNew)
         {
 #if !PLATFORM_WINDOWS
-            if (name is object)
+            if (!(name is null))
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
 #endif
             uint eventFlags = initialState ? Interop.Kernel32.CREATE_EVENT_INITIAL_SET : 0;
@@ -34,7 +34,7 @@ namespace System.Threading
             if (handle.IsInvalid)
             {
                 handle.SetHandleAsInvalid();
-                if (name is object && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
+                if (!(name is null) && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
@@ -62,7 +62,7 @@ namespace System.Threading
                     return OpenExistingResult.NameNotFound;
                 if (errorCode == Interop.Errors.ERROR_PATH_NOT_FOUND)
                     return OpenExistingResult.PathNotFound;
-                if (name is object && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
+                if (!(name is null) && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     return OpenExistingResult.NameInvalid;
 
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);

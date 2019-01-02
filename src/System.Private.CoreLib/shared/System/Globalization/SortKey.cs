@@ -137,7 +137,7 @@ namespace System.Globalization
         {
             SortKey that = value as SortKey;
 
-            if (that is object)
+            if (!(that is null))
             {
                 return Compare(this, that) == 0;
             }

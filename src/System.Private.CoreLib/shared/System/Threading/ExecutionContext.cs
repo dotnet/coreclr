@@ -114,10 +114,10 @@ namespace System.Threading
         public static bool IsFlowSuppressed()
         {
             ExecutionContext executionContext = Thread.CurrentThread.ExecutionContext;
-            return executionContext is object && executionContext.m_isFlowSuppressed;
+            return !(executionContext is null) && executionContext.m_isFlowSuppressed;
         }
 
-        internal bool HasChangeNotifications => m_localChangeNotifications is object;
+        internal bool HasChangeNotifications => !(m_localChangeNotifications is null);
 
         internal bool IsDefault => m_isDefault;
 
@@ -156,7 +156,7 @@ namespace System.Threading
             ExecutionContext previousExecutionCtx = previousExecutionCtx0;
             SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
 
-            if (executionContext is object && executionContext.m_isDefault)
+            if (!(executionContext is null) && executionContext.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
@@ -166,7 +166,7 @@ namespace System.Threading
             {
                 // Restore changed ExecutionContext
                 currentThread0.ExecutionContext = executionContext;
-                if ((executionContext is object && executionContext.HasChangeNotifications) ||
+                if ((!(executionContext is null) && executionContext.HasChangeNotifications) ||
                     (previousExecutionCtx0 != null && previousExecutionCtx0.HasChangeNotifications))
                 {
                     // There are change notifications; trigger any affected
@@ -240,7 +240,7 @@ namespace System.Threading
             ExecutionContext previousExecutionCtx = previousExecutionCtx0;
             SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
 
-            if (executionContext is object && executionContext.m_isDefault)
+            if (!(executionContext is null) && executionContext.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
@@ -250,7 +250,7 @@ namespace System.Threading
             {
                 // Restore changed ExecutionContext
                 currentThread0.ExecutionContext = executionContext;
-                if ((executionContext is object && executionContext.HasChangeNotifications) ||
+                if ((!(executionContext is null) && executionContext.HasChangeNotifications) ||
                     (previousExecutionCtx0 != null && previousExecutionCtx0.HasChangeNotifications))
                 {
                     // There are change notifications; trigger any affected
@@ -305,12 +305,12 @@ namespace System.Threading
             CheckThreadPoolAndContextsAreDefault();
             // ThreadPool starts on Default Context so we don't need to save the "previous" state as we know it is Default (null)
 
-            if (executionContext is object && executionContext.m_isDefault)
+            if (!(executionContext is null) && executionContext.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
             }
-            else if (executionContext is object)
+            else if (!(executionContext is null))
             {
                 // Non-Default context to restore
                 threadPoolThread.ExecutionContext = executionContext;
@@ -341,7 +341,7 @@ namespace System.Threading
 
             // Restore changed SynchronizationContext back to Default
             currentThread.SynchronizationContext = null;
-            if (currentExecutionCtx is object)
+            if (!(currentExecutionCtx is null))
             {
                 // The EC always needs to be reset for this overload, as it will flow back to the caller if it performs 
                 // extra work prior to returning to the Dispatch loop. For example for Task-likes it will flow out of await points
@@ -390,7 +390,7 @@ namespace System.Threading
             currentThread.SynchronizationContext = null;
             currentThread.ExecutionContext = null;
 
-            if (currentExecutionCtx is object && currentExecutionCtx.HasChangeNotifications)
+            if (!(currentExecutionCtx is null) && currentExecutionCtx.HasChangeNotifications)
             {
                 OnValuesChanged(currentExecutionCtx, nextExecutionCtx: null);
 
@@ -422,7 +422,7 @@ namespace System.Threading
             // Fire Change Notifications
             try
             {
-                if (previousChangeNotifications is object && nextChangeNotifications is object)
+                if (!(previousChangeNotifications is null) && !(nextChangeNotifications is null))
                 {
                     // Notifications can't exist without values
                     Debug.Assert(previousExecutionCtx.m_localValues != null);
@@ -457,7 +457,7 @@ namespace System.Threading
                         }
                     }
                 }
-                else if (previousChangeNotifications is object)
+                else if (!(previousChangeNotifications is null))
                 {
                     // Notifications can't exist without values
                     Debug.Assert(previousExecutionCtx.m_localValues != null);
@@ -465,7 +465,7 @@ namespace System.Threading
                     foreach (IAsyncLocal local in previousChangeNotifications)
                     {
                         previousExecutionCtx.m_localValues.TryGetValue(local, out object previousValue);
-                        if (previousValue is object)
+                        if (!(previousValue is null))
                         {
                             local.OnValueChanged(previousValue, null, contextChanged: true);
                         }
@@ -479,7 +479,7 @@ namespace System.Threading
                     foreach (IAsyncLocal local in nextChangeNotifications)
                     {
                         nextExecutionCtx.m_localValues.TryGetValue(local, out object currentValue);
-                        if (currentValue is object)
+                        if (!(currentValue is null))
                         {
                             local.OnValueChanged(null, currentValue, contextChanged: true);
                         }
@@ -518,7 +518,7 @@ namespace System.Threading
 
             object previousValue = null;
             bool hadPreviousValue = false;
-            if (current is object)
+            if (!(current is null))
             {
                 hadPreviousValue = current.m_localValues.TryGetValue(local, out previousValue);
             }
@@ -538,7 +538,7 @@ namespace System.Threading
             IAsyncLocal[] newChangeNotifications = null;
             IAsyncLocalValueMap newValues;
             bool isFlowSuppressed = false;
-            if (current is object)
+            if (!(current is null))
             {
                 isFlowSuppressed = current.m_isFlowSuppressed;
                 newValues = current.m_localValues.Set(local, newValue, treatNullValueAsNonexistent: !needChangeNotifications);

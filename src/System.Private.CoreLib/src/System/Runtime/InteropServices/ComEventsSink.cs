@@ -46,7 +46,7 @@ namespace System.Runtime.InteropServices
         internal static ComEventsSink Find(ComEventsSink sinks, ref Guid iid)
         {
             ComEventsSink sink = sinks;
-            while (sink is object && sink._iidSourceItf != iid)
+            while (!(sink is null) && sink._iidSourceItf != iid)
             {
                 sink = sink._next;
             }
@@ -62,7 +62,7 @@ namespace System.Runtime.InteropServices
 
         internal static ComEventsSink RemoveAll(ComEventsSink sinks)
         {
-            while (sinks is object)
+            while (!(sinks is null))
             {
                 sinks.Unadvise();
                 sinks = sinks._next;
@@ -83,10 +83,10 @@ namespace System.Runtime.InteropServices
             else
             {
                 ComEventsSink current = sinks;
-                while (current is object && current._next != sink)
+                while (!(current is null) && current._next != sink)
                     current = current._next;
 
-                if (current is object)
+                if (!(current is null))
                 {
                     current._next = sink._next;
                 }

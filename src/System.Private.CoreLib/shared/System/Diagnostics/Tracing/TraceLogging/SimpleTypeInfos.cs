@@ -294,7 +294,7 @@ namespace System.Diagnostics.Tracing
         {
             // It's not currently possible to get the HasValue property of a nullable type through reflection when the
             // value is null. Instead, we simply check that the nullable is not null.
-            var hasValue = value.ReferenceValue is object;
+            var hasValue = !(value.ReferenceValue is null);
             collector.AddScalar(hasValue);
             var val = hasValue ? valueGetter(value) : valueInfo.PropertyValueFactory(Activator.CreateInstance(valueInfo.DataType));
             this.valueInfo.WriteData(collector, val);

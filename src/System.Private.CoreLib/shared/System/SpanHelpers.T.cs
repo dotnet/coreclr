@@ -57,7 +57,7 @@ namespace System
 
             IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
 
-            if (default(T) != null || value is object)
+            if (default(T) != null || value != null)
             {
                 while (length >= 8)
                 {
@@ -127,7 +127,7 @@ namespace System
             Debug.Assert(length >= 0);
 
             IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
-            if (default(T) != null || value is object)
+            if (default(T) != null || value != null)
             {
                 while (length >= 8)
                 {
@@ -484,7 +484,7 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            if (default(T) != null || value is object)
+            if (default(T) != null || value != null)
             {
                 while (length >= 8)
                 {

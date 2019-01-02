@@ -52,7 +52,7 @@ namespace System.IO
 
                 // The _preallocatedOverlapped is null if the internal buffer was never created, so we check for 
                 // a non-null bytes before using the stream's _preallocatedOverlapped
-                _overlapped = bytes is object && _stream.CompareExchangeCurrentOverlappedOwner(this, null) == null ?
+                _overlapped = !(bytes is null) && _stream.CompareExchangeCurrentOverlappedOwner(this, null) == null ?
                     _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(_stream._preallocatedOverlapped) :
                     _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(s_ioCallback, this, bytes);
                 Debug.Assert(_overlapped != null, "AllocateNativeOverlapped returned null");
@@ -138,7 +138,7 @@ namespace System.IO
                 // overlapped was already in use by another operation).
                 object state = ThreadPoolBoundHandle.GetNativeOverlappedState(pOverlapped);
                 FileStream fs = state as FileStream;
-                FileStreamCompletionSource completionSource = fs is object ?
+                FileStreamCompletionSource completionSource = !(fs is null) ?
                     fs._currentOverlappedOwner :
                     (FileStreamCompletionSource)state;
                 Debug.Assert(completionSource._overlapped == pOverlapped, "Overlaps don't match");

@@ -80,7 +80,7 @@ namespace System.IO
             _isMemoryStream = (_stream.GetType() == typeof(MemoryStream));
             _leaveOpen = leaveOpen;
 
-            Debug.Assert(_decoder is object, "[BinaryReader.ctor]_decoder!=null");
+            Debug.Assert(!(_decoder is null), "[BinaryReader.ctor]_decoder!=null");
         }
 
         public virtual Stream BaseStream
@@ -97,7 +97,7 @@ namespace System.IO
             {
                 Stream copyOfStream = _stream;
                 _stream = null;
-                if (copyOfStream is object && !_leaveOpen)
+                if (!(copyOfStream is null) && !_leaveOpen)
                 {
                     copyOfStream.Close();
                 }
@@ -460,7 +460,7 @@ namespace System.IO
 
         private int InternalReadChars(Span<char> buffer)
         {
-            Debug.Assert(_stream is object);
+            Debug.Assert(!(_stream is null));
 
             int numBytes = 0;
             int index = 0;
@@ -651,7 +651,7 @@ namespace System.IO
 
         protected virtual void FillBuffer(int numBytes)
         {
-            if (_buffer is object && (numBytes < 0 || numBytes > _buffer.Length))
+            if (!(_buffer is null) && (numBytes < 0 || numBytes > _buffer.Length))
             {
                 throw new ArgumentOutOfRangeException(nameof(numBytes), SR.ArgumentOutOfRange_BinaryReaderFillBuffer);
             }

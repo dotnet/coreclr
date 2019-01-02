@@ -656,7 +656,7 @@ namespace System.Globalization
         {
             TextInfo that = obj as TextInfo;
 
-            if (that is object)
+            if (!(that is null))
             {
                 return CultureName.Equals(that.CultureName);
             }

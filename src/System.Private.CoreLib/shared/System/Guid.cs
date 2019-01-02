@@ -185,7 +185,7 @@ namespace System
         }
 
         public static Guid Parse(string input) =>
-            Parse(input is object ? (ReadOnlySpan<char>)input : throw new ArgumentNullException(nameof(input)));
+            Parse(!(input is null) ? (ReadOnlySpan<char>)input : throw new ArgumentNullException(nameof(input)));
 
         public static Guid Parse(ReadOnlySpan<char> input)
         {
@@ -224,8 +224,8 @@ namespace System
 
         public static Guid ParseExact(string input, string format) =>
             ParseExact(
-                input is object ? (ReadOnlySpan<char>)input : throw new ArgumentNullException(nameof(input)),
-                format is object ? (ReadOnlySpan<char>)format : throw new ArgumentNullException(nameof(format)));
+                !(input is null) ? (ReadOnlySpan<char>)input : throw new ArgumentNullException(nameof(input)),
+                !(format is null) ? (ReadOnlySpan<char>)format : throw new ArgumentNullException(nameof(format)));
 
         public static Guid ParseExact(ReadOnlySpan<char> input, ReadOnlySpan<char> format)
         {

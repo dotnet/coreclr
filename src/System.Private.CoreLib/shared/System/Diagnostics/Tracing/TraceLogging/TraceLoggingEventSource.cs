@@ -696,7 +696,7 @@ namespace System.Diagnostics.Tracing
 #endif // FEATURE_MANAGED_ETW
 
                             // TODO enable filtering for listeners.
-                            if (m_Dispatchers is object)
+                            if (!(m_Dispatchers is null))
                             {
                                 var eventData = (EventPayload)(eventTypes.typeInfos[0].GetData(data));
                                 WriteToAllListeners(eventName, ref descriptor, nameInfo.tags, pActivityId, pRelatedActivityId, eventData);
@@ -744,7 +744,7 @@ namespace System.Diagnostics.Tracing
             if (pChildActivityId != null)
                 eventCallbackArgs.RelatedActivityId = *pChildActivityId;
 
-            if (payload is object)
+            if (!(payload is null))
             {
                 eventCallbackArgs.Payload = new ReadOnlyCollection<object>((IList<object>)payload.Values);
                 eventCallbackArgs.PayloadNames = new ReadOnlyCollection<string>((IList<string>)payload.Keys);
@@ -775,7 +775,7 @@ namespace System.Diagnostics.Tracing
         private void InitializeProviderMetadata()
         {
 #if FEATURE_MANAGED_ETW
-            if (m_traits is object)
+            if (!(m_traits is null))
             {
                 List<byte> traitMetaData = new List<byte>(100);
                 for (int i = 0; i < m_traits.Length - 1; i += 2)

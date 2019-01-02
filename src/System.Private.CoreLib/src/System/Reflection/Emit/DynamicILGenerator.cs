@@ -71,7 +71,7 @@ namespace System.Reflection.Emit
                     throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(meth));
 
                 RuntimeType declaringType = rtMeth.GetRuntimeType();
-                if (declaringType is object && (declaringType.IsGenericType || declaringType.IsArray))
+                if (!(declaringType is null) && (declaringType.IsGenericType || declaringType.IsArray))
                     token = GetTokenFor(rtMeth, declaringType);
                 else
                     token = GetTokenFor(rtMeth);
@@ -123,7 +123,7 @@ namespace System.Reflection.Emit
             RuntimeType declaringType = rtConstructor.GetRuntimeType();
             int token;
 
-            if (declaringType is object && (declaringType.IsGenericType || declaringType.IsArray))
+            if (!(declaringType is null) && (declaringType.IsGenericType || declaringType.IsArray))
                 // need to sort out the stack size story
                 token = GetTokenFor(rtConstructor, declaringType);
             else
@@ -197,7 +197,7 @@ namespace System.Reflection.Emit
         {
             int stackchange = 0;
             SignatureHelper sig;
-            if (optionalParameterTypes is object)
+            if (!(optionalParameterTypes is null))
                 if ((callingConvention & CallingConventions.VarArgs) == 0)
 
                     throw new InvalidOperationException(SR.InvalidOperation_NotAVarArgCallingConvention);
@@ -214,10 +214,10 @@ namespace System.Reflection.Emit
             if (returnType != typeof(void))
                 stackchange++;
             // Pop off arguments if any.
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
                 stackchange -= parameterTypes.Length;
             // Pop off vararg arguments.
-            if (optionalParameterTypes is object)
+            if (!(optionalParameterTypes is null))
                 stackchange -= optionalParameterTypes.Length;
             // Pop the this parameter if the method has a this parameter.
             if ((callingConvention & CallingConventions.HasThis) == CallingConventions.HasThis)
@@ -237,12 +237,12 @@ namespace System.Reflection.Emit
             int i;
             SignatureHelper sig;
 
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
                 cParams = parameterTypes.Length;
 
             sig = SignatureHelper.GetMethodSigHelper(unmanagedCallConv, returnType);
 
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
                 for (i = 0; i < cParams; i++)
                     sig.AddArgument(parameterTypes[i]);
 
@@ -251,7 +251,7 @@ namespace System.Reflection.Emit
                 stackchange++;
 
             // Pop off arguments if any.
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
                 stackchange -= cParams;
 
             // Pop the native function pointer.
@@ -276,7 +276,7 @@ namespace System.Reflection.Emit
             if (methodInfo.ContainsGenericParameters)
                 throw new ArgumentException(SR.Argument_GenericsInvalid, nameof(methodInfo));
 
-            if (methodInfo.DeclaringType is object && methodInfo.DeclaringType.ContainsGenericParameters)
+            if (!(methodInfo.DeclaringType is null) && methodInfo.DeclaringType.ContainsGenericParameters)
                 throw new ArgumentException(SR.Argument_GenericsInvalid, nameof(methodInfo));
 
             int tk;
@@ -297,7 +297,7 @@ namespace System.Reflection.Emit
             if (!(methodInfo is SymbolMethod) && methodInfo.IsStatic == false && !(opcode.Equals(OpCodes.Newobj)))
                 stackchange--;
             // Pop the optional parameters off the stack.
-            if (optionalParameterTypes is object)
+            if (!(optionalParameterTypes is null))
                 stackchange -= optionalParameterTypes.Length;
             UpdateStackSize(opcode, stackchange);
 
@@ -365,7 +365,7 @@ namespace System.Reflection.Emit
 
             if (current.GetCurrentState() == __ExceptionInfo.State_Filter)
             {
-                if (exceptionType is object)
+                if (!(exceptionType is null))
                 {
                     throw new ArgumentException(SR.Argument_ShouldNotSpecifyExceptionType);
                 }
@@ -431,7 +431,7 @@ namespace System.Reflection.Emit
         {
             Type[] parameterTypes;
 
-            if (optionalParameterTypes is object && (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0)
+            if (!(optionalParameterTypes is null) && (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0)
                 throw new InvalidOperationException(SR.InvalidOperation_NotAVarArgCallingConvention);
 
             RuntimeMethodInfo rtMeth = methodInfo as RuntimeMethodInfo;
@@ -440,7 +440,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(methodInfo));
 
             ParameterInfo[] paramInfo = methodInfo.GetParametersNoCopy();
-            if (paramInfo is object && paramInfo.Length != 0)
+            if (!(paramInfo is null) && paramInfo.Length != 0)
             {
                 parameterTypes = new Type[paramInfo.Length];
                 for (int i = 0; i < paramInfo.Length; i++)
@@ -456,7 +456,7 @@ namespace System.Reflection.Emit
                                                      parameterTypes,
                                                      optionalParameterTypes);
 
-            if (rtMeth is object)
+            if (!(rtMeth is null))
                 return GetTokenForVarArgMethod(rtMeth, sig);
             else
                 return GetTokenForVarArgMethod(dm, sig);
@@ -469,12 +469,12 @@ namespace System.Reflection.Emit
                                                 Type[] optionalParameterTypes)
         {
             SignatureHelper sig = SignatureHelper.GetMethodSigHelper(call, returnType);
-            if (parameterTypes is object)
+            if (!(parameterTypes is null))
             {
                 foreach (Type t in parameterTypes)
                     sig.AddArgument(t);
             }
-            if (optionalParameterTypes is object && optionalParameterTypes.Length != 0)
+            if (!(optionalParameterTypes is null) && optionalParameterTypes.Length != 0)
             {
                 // add the sentinel
                 sig.AddSentinel();
@@ -711,7 +711,7 @@ namespace System.Reflection.Emit
             ref int stackSize, ref int initLocals, ref int EHCount)
         {
             stackSize = m_stackSize;
-            if (m_exceptionHeader is object && m_exceptionHeader.Length != 0)
+            if (!(m_exceptionHeader is null) && m_exceptionHeader.Length != 0)
             {
                 if (m_exceptionHeader.Length < 4)
                     throw new FormatException();
@@ -948,10 +948,10 @@ namespace System.Reflection.Emit
             IRuntimeMethodInfo methodReal = method.GetMethodInfo();
             RuntimeMethodHandleInternal rmhi = methodReal.Value;
 
-            if (methodReal is object && !RuntimeMethodHandle.IsDynamicMethod(rmhi))
+            if (!(methodReal is null) && !RuntimeMethodHandle.IsDynamicMethod(rmhi))
             {
                 RuntimeType type = RuntimeMethodHandle.GetDeclaringType(rmhi);
-                if ((type is object) && RuntimeTypeHandle.HasInstantiation(type))
+                if ((!(type is null)) && RuntimeTypeHandle.HasInstantiation(type))
                 {
                     // Do we really need to retrieve this much info just to throw an exception?
                     MethodBase m = RuntimeType.GetMethodBase(methodReal);

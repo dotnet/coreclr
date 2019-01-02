@@ -219,23 +219,23 @@ namespace System.Reflection.Emit
                                                     int[] endColumns)
             {
                 int spCount = 0;
-                if (offsets is object)
+                if (!(offsets is null))
                 {
                     spCount = offsets.Length;
                 }
-                else if (lines is object)
+                else if (!(lines is null))
                 {
                     spCount = lines.Length;
                 }
-                else if (columns is object)
+                else if (!(columns is null))
                 {
                     spCount = columns.Length;
                 }
-                else if (endLines is object)
+                else if (!(endLines is null))
                 {
                     spCount = endLines.Length;
                 }
-                else if (endColumns is object)
+                else if (!(endColumns is null))
                 {
                     spCount = endColumns.Length;
                 }
@@ -243,11 +243,11 @@ namespace System.Reflection.Emit
                 {
                     return;
                 }
-                if ((offsets is object && offsets.Length != spCount) ||
-                     (lines is object && lines.Length != spCount) ||
-                     (columns is object && columns.Length != spCount) ||
-                     (endLines is object && endLines.Length != spCount) ||
-                     (endColumns is object && endColumns.Length != spCount))
+                if ((!(offsets is null) && offsets.Length != spCount) ||
+                     (!(lines is null) && lines.Length != spCount) ||
+                     (!(columns is null) && columns.Length != spCount) ||
+                     (!(endLines is null) && endLines.Length != spCount) ||
+                     (!(endColumns is null) && endColumns.Length != spCount))
                 {
                     throw new ArgumentException();
                 }

@@ -336,7 +336,7 @@ namespace System.Runtime.Serialization
             Debug.Assert(index < _types.Length, "[SerializationInfo.GetElement]index<_types.Length");
 
             foundType = _types[index];
-            Debug.Assert(foundType is object, "[SerializationInfo.GetElement]foundType!=null");
+            Debug.Assert(!(foundType is null), "[SerializationInfo.GetElement]foundType!=null");
             return _values[index];
         }
 
@@ -353,7 +353,7 @@ namespace System.Runtime.Serialization
             Debug.Assert(index < _types.Length, "[SerializationInfo.GetElement]index<_types.Length");
 
             foundType = _types[index];
-            Debug.Assert(foundType is object, "[SerializationInfo.GetElement]foundType!=null");
+            Debug.Assert(!(foundType is null), "[SerializationInfo.GetElement]foundType!=null");
             return _values[index];
         }
 
@@ -385,7 +385,7 @@ namespace System.Runtime.Serialization
             Type foundType;
             object value;
 
-            Debug.Assert(type is object, "[SerializationInfo.GetValue]type ==null");
+            Debug.Assert(!(type is null), "[SerializationInfo.GetValue]type ==null");
             Debug.Assert(type.IsRuntimeImplemented(), "[SerializationInfo.GetValue]type is not a runtime type");
 
             value = GetElementNoThrow(name, out foundType);

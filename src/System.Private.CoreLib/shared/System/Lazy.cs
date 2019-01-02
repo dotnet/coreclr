@@ -92,7 +92,7 @@ namespace System
 
         internal void ThrowException()
         {
-            Debug.Assert(_exceptionDispatch is object, "execution path is invalid");
+            Debug.Assert(!(_exceptionDispatch is null), "execution path is invalid");
 
             _exceptionDispatch.Throw();
         }
@@ -130,7 +130,7 @@ namespace System
             return state.GetMode();
         }
 
-        internal static bool GetIsValueFaulted(LazyHelper state) => state?._exceptionDispatch is object;
+        internal static bool GetIsValueFaulted(LazyHelper state) => !(state?._exceptionDispatch is null);
 
         internal static LazyHelper Create(LazyThreadSafetyMode mode, bool useDefaultConstructor)
         {
@@ -396,7 +396,7 @@ namespace System
             // we have to create a copy of state here, and use the copy exclusively from here on in
             // so as to ensure thread safety.
             var state = _state;
-            if (state is object) 
+            if (!(state is null)) 
             {
                 switch (state.State)
                 {

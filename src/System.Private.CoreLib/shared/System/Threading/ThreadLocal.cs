@@ -185,7 +185,7 @@ namespace System.Threading
                 }
                 _initialized = false;
 
-                for (LinkedSlot linkedSlot = _linkedSlot._next; linkedSlot is object; linkedSlot = linkedSlot._next)
+                for (LinkedSlot linkedSlot = _linkedSlot._next; !(linkedSlot is null); linkedSlot = linkedSlot._next)
                 {
                     LinkedSlotVolatile[] slotArray = linkedSlot._slotArray;
 
@@ -258,7 +258,7 @@ namespace System.Threading
                 //
                 // Attempt to get the value using the fast path
                 //
-                if (slotArray is object   // Has the slot array been initialized?
+                if (!(slotArray is null)   // Has the slot array been initialized?
                     && id >= 0   // Is the ID non-negative (i.e., instance is not disposed)?
                     && id < slotArray.Length   // Is the table large enough?
                     && (slot = slotArray[id].Value) != null   // Has a LinkedSlot object has been allocated for this ID?
@@ -282,7 +282,7 @@ namespace System.Threading
                 int id = ~_idComplement;
 
                 // Attempt to set the value using the fast path
-                if (slotArray is object   // Has the slot array been initialized?
+                if (!(slotArray is null)   // Has the slot array been initialized?
                     && id >= 0   // Is the ID non-negative (i.e., instance is not disposed)?
                     && id < slotArray.Length   // Is the table large enough?
                     && (slot = slotArray[id].Value) != null   // Has a LinkedSlot object has been allocated for this ID?
@@ -413,7 +413,7 @@ namespace System.Threading
                 linkedSlot._previous = _linkedSlot;
                 linkedSlot._value = value;
 
-                if (firstRealNode is object)
+                if (!(firstRealNode is null))
                 {
                     firstRealNode._previous = linkedSlot;
                 }
@@ -458,7 +458,7 @@ namespace System.Threading
             }
 
             // Walk over the linked list of slots and gather the values associated with this ThreadLocal instance.
-            for (LinkedSlot linkedSlot = _linkedSlot._next; linkedSlot is object; linkedSlot = linkedSlot._next)
+            for (LinkedSlot linkedSlot = _linkedSlot._next; !(linkedSlot is null); linkedSlot = linkedSlot._next)
             {
                 // We can safely read linkedSlot.Value. Even if this ThreadLocal has been disposed in the meantime, the LinkedSlot
                 // objects will never be assigned to another ThreadLocal instance.
@@ -474,7 +474,7 @@ namespace System.Threading
             get
             {
                 int count = 0;
-                for (LinkedSlot linkedSlot = _linkedSlot._next; linkedSlot is object; linkedSlot = linkedSlot._next)
+                for (LinkedSlot linkedSlot = _linkedSlot._next; !(linkedSlot is null); linkedSlot = linkedSlot._next)
                 {
                     count++;
                 }
@@ -499,7 +499,7 @@ namespace System.Threading
                 }
 
                 LinkedSlotVolatile[] slotArray = ts_slotArray;
-                return slotArray is object && id < slotArray.Length && slotArray[id].Value is object;
+                return !(slotArray is null) && id < slotArray.Length && !(slotArray[id].Value is null);
             }
         }
 
@@ -548,7 +548,7 @@ namespace System.Threading
                 for (int i = 0; i < table.Length; i++)
                 {
                     LinkedSlot linkedSlot = table[i].Value;
-                    if (linkedSlot is object && linkedSlot._slotArray is object)
+                    if (!(linkedSlot is null) && !(linkedSlot._slotArray is null))
                     {
                         linkedSlot._slotArray = newTable;
                         newTable[i] = table[i];
@@ -740,7 +740,7 @@ namespace System.Threading
                         // the table will be have been removed, and so the table can get GC'd.
                         lock (s_idManager)
                         {
-                            if (linkedSlot._next is object)
+                            if (!(linkedSlot._next is null))
                             {
                                 linkedSlot._next._previous = linkedSlot._previous;
                             }

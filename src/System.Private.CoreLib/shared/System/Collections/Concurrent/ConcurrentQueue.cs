@@ -81,7 +81,7 @@ namespace System.Collections.Concurrent
             // be a power of 2 in length.
             int length = InitialSegmentLength;
             var c = collection as ICollection<T>;
-            if (c is object)
+            if (!(c is null))
             {
                 int count = c.Count;
                 if (count > length)
@@ -144,7 +144,7 @@ namespace System.Collections.Concurrent
         {
             // Special-case when the Array is actually a T[], taking a faster path
             T[] szArray = array as T[];
-            if (szArray is object)
+            if (!(szArray is null))
             {
                 CopyTo(szArray, index);
                 return;
@@ -780,7 +780,7 @@ namespace System.Collections.Concurrent
 
                 // The current segment was empty at the moment we checked.
 
-                if (next is object)
+                if (!(next is null))
                 {
                     // If prior to the peek there was already a next segment, then
                     // during the peek no additional items could have been enqueued

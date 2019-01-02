@@ -109,7 +109,7 @@ namespace System.Reflection.Emit
 
             // Append namespace + nesting + name
             List<Type> nestings = new List<Type>();
-            for (Type t = rootType; t is object; t = t.IsGenericParameter ? null : t.DeclaringType)
+            for (Type t = rootType; !(t is null); t = t.IsGenericParameter ? null : t.DeclaringType)
                 nestings.Add(t);
 
             for (int i = nestings.Count - 1; i >= 0; i--)
@@ -117,7 +117,7 @@ namespace System.Reflection.Emit
                 Type enclosingType = nestings[i];
                 string name = enclosingType.Name;
 
-                if (i == nestings.Count - 1 && enclosingType.Namespace is object && enclosingType.Namespace.Length != 0)
+                if (i == nestings.Count - 1 && !(enclosingType.Namespace is null) && enclosingType.Namespace.Length != 0)
                     name = enclosingType.Namespace + "." + name;
 
                 AddName(name);

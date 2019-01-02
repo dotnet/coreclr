@@ -85,7 +85,7 @@ namespace System.Collections.Generic
         public Dictionary(IDictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
         public Dictionary(IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer) :
-            this(dictionary is object ? dictionary.Count : 0, comparer)
+            this(!(dictionary is null) ? dictionary.Count : 0, comparer)
         {
             if (dictionary is null)
             {
@@ -351,7 +351,7 @@ namespace System.Collections.Generic
             info.AddValue(ComparerName, _comparer ?? EqualityComparer<TKey>.Default, typeof(IEqualityComparer<TKey>));
             info.AddValue(HashSizeName, _buckets is null ? 0 : _buckets.Length); // This is the length of the bucket array
 
-            if (_buckets is object)
+            if (!(_buckets is null))
             {
                 var array = new KeyValuePair<TKey, TValue>[Count];
                 CopyTo(array, 0);
@@ -370,7 +370,7 @@ namespace System.Collections.Generic
             int[] buckets = _buckets;
             Entry[] entries = _entries;
             int collisionCount = 0;
-            if (buckets is object)
+            if (!(buckets is null))
             {
                 IEqualityComparer<TKey> comparer = _comparer;
                 if (comparer is null)
@@ -762,7 +762,7 @@ namespace System.Collections.Generic
             int[] buckets = _buckets;
             Entry[] entries = _entries;
             int collisionCount = 0;
-            if (buckets is object)
+            if (!(buckets is null))
             {
                 int hashCode = (_comparer?.GetHashCode(key) ?? key.GetHashCode()) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;
@@ -827,7 +827,7 @@ namespace System.Collections.Generic
             int[] buckets = _buckets;
             Entry[] entries = _entries;
             int collisionCount = 0;
-            if (buckets is object)
+            if (!(buckets is null))
             {
                 int hashCode = (_comparer?.GetHashCode(key) ?? key.GetHashCode()) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;

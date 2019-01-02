@@ -444,7 +444,7 @@ namespace System.Text
 
             int ch = 0;
 
-            if (baseEncoder is object)
+            if (!(baseEncoder is null))
             {
                 UTF8Encoder encoder = (UTF8Encoder)baseEncoder;
                 ch = encoder.surrogateChar;
@@ -469,7 +469,7 @@ namespace System.Text
                     if (ch == 0)
                     {
                         // Unroll any fallback that happens at the end
-                        ch = fallbackBuffer is object ? fallbackBuffer.InternalGetNextChar() : 0;
+                        ch = !(fallbackBuffer is null) ? fallbackBuffer.InternalGetNextChar() : 0;
                         if (ch > 0)
                         {
                             byteCount++;
@@ -479,7 +479,7 @@ namespace System.Text
                     else
                     {
                         // Case of surrogates in the fallback.
-                        if (fallbackBuffer is object && fallbackBuffer.bFallingBack)
+                        if (!(fallbackBuffer is null) && fallbackBuffer.bFallingBack)
                         {
                             Debug.Assert(ch >= 0xD800 && ch <= 0xDBFF,
                                 "[UTF8Encoding.GetBytes]expected high surrogate, not 0x" + ((int)ch).ToString("X4", CultureInfo.InvariantCulture));
@@ -509,7 +509,7 @@ namespace System.Text
                     {
                         break;
                     }
-                    if (baseEncoder is object && !baseEncoder.MustFlush)
+                    if (!(baseEncoder is null) && !baseEncoder.MustFlush)
                     {
                         break;
                     }
@@ -552,7 +552,7 @@ namespace System.Text
                 }
 
                 // If we've used a fallback, then we have to check for it
-                if (fallbackBuffer is object)
+                if (!(fallbackBuffer is null))
                 {
                     ch = fallbackBuffer.InternalGetNextChar();
                     if (ch > 0)
@@ -632,7 +632,7 @@ namespace System.Text
 
 #if FASTLOOP
                 // If still have fallback don't do fast loop
-                if (fallbackBuffer is object && (ch = fallbackBuffer.InternalGetNextChar()) != 0)
+                if (!(fallbackBuffer is null) && (ch = fallbackBuffer.InternalGetNextChar()) != 0)
                 {
                     // We're reserving 1 byte for each char by default
                     byteCount++;
@@ -863,7 +863,7 @@ namespace System.Text
 
             // assume that JIT will en-register pSrc, pTarget and ch
 
-            if (baseEncoder is object)
+            if (!(baseEncoder is null))
             {
                 encoder = (UTF8Encoder)baseEncoder;
                 ch = encoder.surrogateChar;
@@ -890,7 +890,7 @@ namespace System.Text
                     if (ch == 0)
                     {
                         // Check if there's anything left to get out of the fallback buffer
-                        ch = fallbackBuffer is object ? fallbackBuffer.InternalGetNextChar() : 0;
+                        ch = !(fallbackBuffer is null) ? fallbackBuffer.InternalGetNextChar() : 0;
                         if (ch > 0)
                         {
                             goto ProcessChar;
@@ -899,7 +899,7 @@ namespace System.Text
                     else
                     {
                         // Case of leftover surrogates in the fallback buffer
-                        if (fallbackBuffer is object && fallbackBuffer.bFallingBack)
+                        if (!(fallbackBuffer is null) && fallbackBuffer.bFallingBack)
                         {
                             Debug.Assert(ch >= 0xD800 && ch <= 0xDBFF,
                                 "[UTF8Encoding.GetBytes]expected high surrogate, not 0x" + ((int)ch).ToString("X4", CultureInfo.InvariantCulture));
@@ -960,7 +960,7 @@ namespace System.Text
                 }
 
                 // If we've used a fallback, then we have to check for it
-                if (fallbackBuffer is object)
+                if (!(fallbackBuffer is null))
                 {
                     ch = fallbackBuffer.InternalGetNextChar();
                     if (ch > 0) goto ProcessChar;
@@ -1028,7 +1028,7 @@ namespace System.Text
                 if (pTarget > pAllocatedBufferEnd - bytesNeeded)
                 {
                     // Left over surrogate from last time will cause pSrc == chars, so we'll throw
-                    if (fallbackBuffer is object && fallbackBuffer.bFallingBack)
+                    if (!(fallbackBuffer is null) && fallbackBuffer.bFallingBack)
                     {
                         fallbackBuffer.MovePrevious();              // Didn't use this fallback char
                         if (ch > 0xFFFF)
@@ -1089,7 +1089,7 @@ namespace System.Text
 
 #if FASTLOOP
                 // If still have fallback don't do fast loop
-                if (fallbackBuffer is object && (ch = fallbackBuffer.InternalGetNextChar()) != 0)
+                if (!(fallbackBuffer is null) && (ch = fallbackBuffer.InternalGetNextChar()) != 0)
                     goto ProcessChar;
 
                 int availableChars = PtrDiff(pEnd, pSrc);
@@ -1296,7 +1296,7 @@ namespace System.Text
             }
 
             // Do we have to set the encoder bytes?
-            if (encoder is object)
+            if (!(encoder is null))
             {
                 Debug.Assert(!encoder.MustFlush || ch == 0,
                     "[UTF8Encoding.GetBytes] Expected no mustflush or 0 leftover ch " + ch.ToString("X2", CultureInfo.InvariantCulture));
@@ -1342,7 +1342,7 @@ namespace System.Text
             int ch = 0;
             DecoderFallbackBuffer fallback = null;
 
-            if (baseDecoder is object)
+            if (!(baseDecoder is null))
             {
                 UTF8Decoder decoder = (UTF8Decoder)baseDecoder;
                 ch = decoder.bits;
@@ -1784,7 +1784,7 @@ namespace System.Text
             DecoderFallbackBuffer fallback = null;
             byte* pSrcForFallback;
             char* pTargetForFallback;
-            if (baseDecoder is object)
+            if (!(baseDecoder is null))
             {
                 UTF8Decoder decoder = (UTF8Decoder)baseDecoder;
                 ch = decoder.bits;
@@ -2338,7 +2338,7 @@ namespace System.Text
                 ch = 0;
             }
 
-            if (baseDecoder is object)
+            if (!(baseDecoder is null))
             {
                 UTF8Decoder decoder = (UTF8Decoder)baseDecoder;
 
@@ -2556,7 +2556,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             UTF8Encoding that = value as UTF8Encoding;
-            if (that is object)
+            if (!(that is null))
             {
                 return (_emitUTF8Identifier == that._emitUTF8Identifier) &&
                        (EncoderFallback.Equals(that.EncoderFallback)) &&
@@ -2588,7 +2588,7 @@ namespace System.Text
 
             {
                 this.surrogateChar = 0;
-                if (_fallbackBuffer is object)
+                if (!(_fallbackBuffer is null))
                     _fallbackBuffer.Reset();
             }
 
@@ -2616,7 +2616,7 @@ namespace System.Text
             public override void Reset()
             {
                 this.bits = 0;
-                if (_fallbackBuffer is object)
+                if (!(_fallbackBuffer is null))
                     _fallbackBuffer.Reset();
             }
 

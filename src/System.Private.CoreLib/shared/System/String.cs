@@ -359,7 +359,7 @@ namespace System
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator ReadOnlySpan<char>(string value) =>
-            value is object ? new ReadOnlySpan<char>(ref value.GetRawStringData(), value.Length) : default;
+            !(value is null) ? new ReadOnlySpan<char>(ref value.GetRawStringData(), value.Length) : default;
 
         public object Clone()
         {

@@ -75,7 +75,7 @@ namespace System.Reflection
             int cnt = 0;
             for (int i = 0; i < c.Length; i++)
             {
-                if (filter is object && !filter(c[i], filterCriteria))
+                if (!(filter is null) && !filter(c[i], filterCriteria))
                     c[i] = null;
                 else
                     cnt++;

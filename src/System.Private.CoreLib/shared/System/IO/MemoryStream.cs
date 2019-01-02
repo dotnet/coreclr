@@ -410,7 +410,7 @@ namespace System.IO
                 var t = _lastReadTask;
                 Debug.Assert(t == null || t.Status == TaskStatus.RanToCompletion,
                     "Expected that a stored last task completed successfully");
-                return (t is object && t.Result == n) ? t : (_lastReadTask = Task.FromResult<int>(n));
+                return (!(t is null) && t.Result == n) ? t : (_lastReadTask = Task.FromResult<int>(n));
             }
             catch (OperationCanceledException oce)
             {

@@ -19,7 +19,7 @@ namespace System.Reflection
             MethodBase m = RuntimeType.GetMethodBase(handle.GetMethodInfo());
 
             Type declaringType = m.DeclaringType;
-            if (declaringType is object && declaringType.IsGenericType)
+            if (!(declaringType is null) && declaringType.IsGenericType)
                 throw new ArgumentException(string.Format(
                     CultureInfo.CurrentCulture, SR.Argument_MethodDeclaringTypeGeneric,
                     m, declaringType.GetGenericTypeDefinition()));

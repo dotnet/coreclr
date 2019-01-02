@@ -160,7 +160,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             {
                 Assembly assem = Assembly.LoadFrom(assemblyName);
                 Type t = assem.GetType(typeName);
-                if (t is object)
+                if (!(t is null))
                 {
                     return t;
                 }
@@ -216,7 +216,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 }
 
                 ppvObject = Activator.CreateInstance(this.classType);
-                if (pUnkOuter is object)
+                if (!(pUnkOuter is null))
                 {
                     try
                     {

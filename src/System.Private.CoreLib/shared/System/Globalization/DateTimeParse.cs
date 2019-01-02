@@ -1987,7 +1987,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
 
             if (raw.timeMark == TM.NotSet)
             {
-                if (dtfi.AMDesignator is object && dtfi.PMDesignator is object)
+                if (!(dtfi.AMDesignator is null) && !(dtfi.PMDesignator is null))
                 {
                     if (dtfi.AMDesignator.Length == 0 && dtfi.PMDesignator.Length != 0)
                     {
@@ -3524,7 +3524,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             {
                 int[] eras = dtfi.Calendar.Eras;
 
-                if (eras is object)
+                if (!(eras is null))
                 {
                     for (int i = 0; i < eras.Length; i++)
                     {

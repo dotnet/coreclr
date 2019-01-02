@@ -185,7 +185,7 @@ namespace System.Reflection.Emit
             // assembly. Currently, we look for any attribute which modifies the security transparency
             // of the assembly.
             List<CustomAttributeBuilder> assemblyAttributes = null;
-            if (unsafeAssemblyAttributes is object)
+            if (!(unsafeAssemblyAttributes is null))
             {
                 // Create a copy to ensure that it cannot be modified from another thread
                 // as it is used further below.
@@ -202,7 +202,7 @@ namespace System.Reflection.Emit
             // We need to do this before setting any CustomAttribute
             InitManifestModule();
 
-            if (assemblyAttributes is object)
+            if (!(assemblyAttributes is null))
             {
                 foreach (CustomAttributeBuilder assemblyAttribute in assemblyAttributes)
                 {
@@ -378,7 +378,7 @@ namespace System.Reflection.Emit
 
             foreach (Type[] types in typess)
             {
-                if (types is object)
+                if (!(types is null))
                 {
                     CheckContext(types);
                 }

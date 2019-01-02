@@ -115,17 +115,17 @@ namespace System
             if (y is null) return 1;
 
             string sa = x as string;
-            if (sa is object)
+            if (!(sa is null))
             {
                 string sb = y as string;
-                if (sb is object)
+                if (!(sb is null))
                 {
                     return Compare(sa, sb);
                 }
             }
 
             IComparable ia = x as IComparable;
-            if (ia is object)
+            if (!(ia is null))
             {
                 return ia.CompareTo(y);
             }
@@ -139,10 +139,10 @@ namespace System
             if (x is null || y is null) return false;
 
             string sa = x as string;
-            if (sa is object)
+            if (!(sa is null))
             {
                 string sb = y as string;
-                if (sb is object)
+                if (!(sb is null))
                 {
                     return Equals(sa, sb);
                 }
@@ -158,7 +158,7 @@ namespace System
             }
 
             string s = obj as string;
-            if (s is object)
+            if (!(s is null))
             {
                 return GetHashCode(s);
             }
@@ -198,7 +198,7 @@ namespace System
             bool ignoreCase = info.GetBoolean("_ignoreCase");
 
             var obj = info.GetValueNoThrow("_options", typeof(CompareOptions));
-            if (obj is object)
+            if (!(obj is null))
                 _options = (CompareOptions)obj;
 
             // fix up the _options value in case we are getting old serialized object not having _options
@@ -234,7 +234,7 @@ namespace System
         {
             CultureAwareComparer comparer = obj as CultureAwareComparer;
             return
-                comparer is object &&
+                !(comparer is null) &&
                 _options == comparer._options &&
                 _compareInfo.Equals(comparer._compareInfo);
         }

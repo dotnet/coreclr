@@ -73,7 +73,7 @@ namespace System
 
             SafeTypeNameParserHandle handle = CreateTypeNameParser(typeName, throwOnError);
 
-            if (handle is object)
+            if (!(handle is null))
             {
                 // If we get here the typeName must have been successfully parsed.
                 // Let's construct the Type object.
@@ -152,7 +152,7 @@ namespace System
             SafeTypeNameParserHandle[] typeArguments = GetTypeArguments();
 
             Type[] types = null;
-            if (typeArguments is object)
+            if (!(typeArguments is null))
             {
                 types = new Type[typeArguments.Length];
                 for (int i = 0; i < typeArguments.Length; i++)
@@ -230,7 +230,7 @@ namespace System
             string OuterMostTypeName = EscapeTypeName(names[0]);
 
             // Resolve the top level type.
-            if (typeResolver is object)
+            if (!(typeResolver is null))
             {
                 type = typeResolver(assembly, OuterMostTypeName, ignoreCase);
 
@@ -256,7 +256,7 @@ namespace System
             }
 
             // Resolve nested types.
-            if (type is object)
+            if (!(type is null))
             {
                 BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public;
                 if (ignoreCase)

@@ -360,7 +360,7 @@ namespace System.Collections.Generic
         // compatible array type.  
         void ICollection.CopyTo(Array array, int arrayIndex)
         {
-            if ((array is object) && (array.Rank != 1))
+            if ((!(array is null)) && (array.Rank != 1))
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             }

@@ -231,7 +231,7 @@ namespace System.Threading
         /// </summary>
         private void EnsureLockObjectCreated()
         {
-            if (m_lock is object)
+            if (!(m_lock is null))
                 return;
 
             object newObj = new object();
@@ -323,7 +323,7 @@ namespace System.Threading
             //Design-decision: do not set the event if we are in cancellation -> better to deadlock than to wake up waiters incorrectly
             //It would be preferable to wake up the event and have it throw OCE. This requires MRE to implement cancellation logic
 
-            if (eventObj is object && !duringCancellation)
+            if (!(eventObj is null) && !duringCancellation)
             {
                 // We must surround this call to Set in a lock.  The reason is fairly subtle.
                 // Sometimes a thread will issue a Wait and wake up after we have set m_state,
@@ -338,7 +338,7 @@ namespace System.Threading
 
                 lock (eventObj)
                 {
-                    if (m_eventObj is object)
+                    if (!(m_eventObj is null))
                     {
                         // If somebody is waiting, we must set the event.
                         m_eventObj.Set();
@@ -362,7 +362,7 @@ namespace System.Threading
         {
             ThrowIfDisposed();
             // If there's an event, reset it.
-            if (m_eventObj is object)
+            if (!(m_eventObj is null))
             {
                 m_eventObj.Reset();
             }
@@ -657,7 +657,7 @@ namespace System.Threading
                 // We will dispose of the event object.  We do this under a lock to protect
                 // against the race condition outlined in the Set method above.
                 ManualResetEvent eventObj = m_eventObj;
-                if (eventObj is object)
+                if (!(eventObj is null))
                 {
                     lock (eventObj)
                     {

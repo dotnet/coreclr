@@ -173,7 +173,7 @@ namespace System
             bool isAmbiguous = false;
             int? ruleIndex;
             AdjustmentRule rule = GetAdjustmentRuleForAmbiguousOffsets(adjustedTime, out ruleIndex);
-            if (rule is object && rule.HasDaylightSaving)
+            if (!(rule is null) && rule.HasDaylightSaving)
             {
                 DaylightTimeStruct daylightTime = GetDaylightTime(adjustedTime.Year, rule, ruleIndex);
                 isAmbiguous = GetIsAmbiguousTime(adjustedTime, rule, daylightTime);
@@ -233,7 +233,7 @@ namespace System
             bool isAmbiguous = false;
             int? ruleIndex;
             AdjustmentRule rule = GetAdjustmentRuleForAmbiguousOffsets(adjustedTime, out ruleIndex);
-            if (rule is object && rule.HasDaylightSaving)
+            if (!(rule is null) && rule.HasDaylightSaving)
             {
                 DaylightTimeStruct daylightTime = GetDaylightTime(adjustedTime.Year, rule, ruleIndex);
                 isAmbiguous = GetIsAmbiguousTime(adjustedTime, rule, daylightTime);
@@ -266,7 +266,7 @@ namespace System
         private AdjustmentRule GetAdjustmentRuleForAmbiguousOffsets(DateTime adjustedTime, out int? ruleIndex)
         {
             AdjustmentRule rule = GetAdjustmentRuleForTime(adjustedTime, out ruleIndex);
-            if (rule is object && rule.NoDaylightTransitions && !rule.HasDaylightSaving)
+            if (!(rule is null) && rule.NoDaylightTransitions && !rule.HasDaylightSaving)
             {
                 // When using NoDaylightTransitions rules, each rule is only for one offset.
                 // When looking for the Daylight savings rules, and we found the non-DST rule,
@@ -420,7 +420,7 @@ namespace System
 
             int? ruleIndex;
             AdjustmentRule rule = GetAdjustmentRuleForTime(adjustedTime, out ruleIndex);
-            if (rule is object && rule.HasDaylightSaving)
+            if (!(rule is null) && rule.HasDaylightSaving)
             {
                 DaylightTimeStruct daylightTime = GetDaylightTime(adjustedTime.Year, rule, ruleIndex);
                 return GetIsAmbiguousTime(adjustedTime, rule, daylightTime);
@@ -506,7 +506,7 @@ namespace System
             //
             int? ruleIndex;
             AdjustmentRule rule = GetAdjustmentRuleForTime(adjustedTime, out ruleIndex);
-            if (rule is object && rule.HasDaylightSaving)
+            if (!(rule is null) && rule.HasDaylightSaving)
             {
                 DaylightTimeStruct daylightTime = GetDaylightTime(adjustedTime.Year, rule, ruleIndex);
                 return GetIsDaylightSavings(adjustedTime, rule, daylightTime, flags);
@@ -531,7 +531,7 @@ namespace System
                 int? ruleIndex;
                 AdjustmentRule rule = GetAdjustmentRuleForTime(dateTime, out ruleIndex);
 
-                if (rule is object && rule.HasDaylightSaving)
+                if (!(rule is null) && rule.HasDaylightSaving)
                 {
                     DaylightTimeStruct daylightTime = GetDaylightTime(dateTime.Year, rule, ruleIndex);
                     isInvalid = GetIsInvalidTime(dateTime, rule, daylightTime);
@@ -676,7 +676,7 @@ namespace System
             AdjustmentRule sourceRule = sourceTimeZone.GetAdjustmentRuleForTime(dateTime, out sourceRuleIndex);
             TimeSpan sourceOffset = sourceTimeZone.BaseUtcOffset;
 
-            if (sourceRule is object)
+            if (!(sourceRule is null))
             {
                 sourceOffset = sourceOffset + sourceRule.BaseUtcOffsetDelta;
                 if (sourceRule.HasDaylightSaving)
@@ -766,7 +766,7 @@ namespace System
         /// String objects (DisplayName, StandardName, DaylightName).
         /// </summary>
         public bool Equals(TimeZoneInfo other) =>
-            other is object &&
+            !(other is null) &&
             string.Equals(_id, other._id, StringComparison.OrdinalIgnoreCase) &&
             HasSameRules(other);
 
@@ -806,7 +806,7 @@ namespace System
                     cachedData._allSystemTimeZonesRead = true;
 
                     List<TimeZoneInfo> list;
-                    if (cachedData._systemTimeZones is object)
+                    if (!(cachedData._systemTimeZones is null))
                     {
                         // return a collection of the cached system time zones
                         list = new List<TimeZoneInfo>(cachedData._systemTimeZones.Values);
@@ -854,7 +854,7 @@ namespace System
 
             sameRules =
                 (currentRules is null && otherRules is null) ||
-                (currentRules is object && otherRules is object);
+                (!(currentRules is null) && !(otherRules is null));
 
             if (!sameRules)
             {
@@ -862,7 +862,7 @@ namespace System
                 return false;
             }
 
-            if (currentRules is object)
+            if (!(currentRules is null))
             {
                 if (currentRules.Length != otherRules.Length)
                 {
@@ -1380,7 +1380,7 @@ namespace System
                 AdjustmentRule previousYearRule = zone.GetAdjustmentRuleForTime(
                     new DateTime(daylightTime.Start.Year - 1, 12, 31),
                     out previousYearRuleIndex);
-                if (previousYearRule is object && previousYearRule.IsEndDateMarkerForEndOfYear())
+                if (!(previousYearRule is null) && previousYearRule.IsEndDateMarkerForEndOfYear())
                 {
                     DaylightTimeStruct previousDaylightTime = zone.GetDaylightTime(
                         daylightTime.Start.Year - 1, 
@@ -1407,7 +1407,7 @@ namespace System
                 AdjustmentRule nextYearRule = zone.GetAdjustmentRuleForTime(
                     new DateTime(daylightTime.End.Year + 1, 1, 1),
                     out nextYearRuleIndex);
-                if (nextYearRule is object && nextYearRule.IsStartDateMarkerForBeginningOfYear())
+                if (!(nextYearRule is null) && nextYearRule.IsStartDateMarkerForBeginningOfYear())
                 {
                     if (nextYearRule.IsEndDateMarkerForEndOfYear())
                     {
@@ -1679,7 +1679,7 @@ namespace System
             int? ruleIndex;
             AdjustmentRule rule = zone.GetAdjustmentRuleForTime(time, out ruleIndex);
 
-            if (rule is object)
+            if (!(rule is null))
             {
                 baseOffset = baseOffset + rule.BaseUtcOffsetDelta;
                 if (rule.HasDaylightSaving)
@@ -1750,7 +1750,7 @@ namespace System
                 year = targetTime.Year;
             }
 
-            if (rule is object)
+            if (!(rule is null))
             {
                 baseOffset = baseOffset + rule.BaseUtcOffsetDelta;
                 if (rule.HasDaylightSaving)
@@ -1846,7 +1846,7 @@ namespace System
             TimeZoneInfo match = null;
 
             // check the cache
-            if (cachedData._systemTimeZones is object)
+            if (!(cachedData._systemTimeZones is null))
             {
                 if (cachedData._systemTimeZones.TryGetValue(id, out match))
                 {
@@ -1951,7 +1951,7 @@ namespace System
             // are sorted in chronological order
             //
 
-            if (adjustmentRules is object && adjustmentRules.Length != 0)
+            if (!(adjustmentRules is null) && adjustmentRules.Length != 0)
             {
                 adjustmentRulesSupportDst = true;
                 AdjustmentRule prev = null;
@@ -1971,7 +1971,7 @@ namespace System
                         throw new InvalidTimeZoneException(SR.ArgumentOutOfRange_UtcOffsetAndDaylightDelta);
                     }
 
-                    if (prev is object && current.DateStart <= prev.DateEnd)
+                    if (!(prev is null) && current.DateStart <= prev.DateEnd)
                     {
                         // verify the rules are in chronological order and the DateStart/DateEnd do not overlap
                         throw new InvalidTimeZoneException(SR.Argument_AdjustmentRulesOutOfOrder);

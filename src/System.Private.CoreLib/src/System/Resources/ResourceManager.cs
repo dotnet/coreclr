@@ -271,7 +271,7 @@ namespace System.Resources
             MainAssembly = assembly;
             BaseNameField = baseName;
 
-            if (usingResourceSet is object && (usingResourceSet != s_minResourceSet) && !(usingResourceSet.IsSubclassOf(s_minResourceSet)))
+            if (!(usingResourceSet is null) && (usingResourceSet != s_minResourceSet) && !(usingResourceSet.IsSubclassOf(s_minResourceSet)))
                 throw new ArgumentException(SR.Arg_ResMgrNotResSet, nameof(usingResourceSet));
             _userResourceSet = usingResourceSet;
 
@@ -416,12 +416,12 @@ namespace System.Resources
         internal ResourceSet GetFirstResourceSet(CultureInfo culture)
         {
             // Logic from ResourceFallbackManager.GetEnumerator()
-            if (_neutralResourcesCulture is object && culture.Name == _neutralResourcesCulture.Name)
+            if (!(_neutralResourcesCulture is null) && culture.Name == _neutralResourcesCulture.Name)
             {
                 culture = CultureInfo.InvariantCulture;
             }
 
-            if (_lastUsedResourceCache is object)
+            if (!(_lastUsedResourceCache is null))
             {
                 lock (_lastUsedResourceCache)
                 {
@@ -433,7 +433,7 @@ namespace System.Resources
             // Look in the ResourceSet table
             Dictionary<string, ResourceSet> localResourceSets = _resourceSets;
             ResourceSet rs = null;
-            if (localResourceSets is object)
+            if (!(localResourceSets is null))
             {
                 lock (localResourceSets)
                 {
@@ -441,10 +441,10 @@ namespace System.Resources
                 }
             }
 
-            if (rs is object)
+            if (!(rs is null))
             {
                 // update the cache with the most recent ResourceSet
-                if (_lastUsedResourceCache is object)
+                if (!(_lastUsedResourceCache is null))
                 {
                     lock (_lastUsedResourceCache)
                     {
@@ -474,7 +474,7 @@ namespace System.Resources
 
             Dictionary<string, ResourceSet> localResourceSets = _resourceSets;
             ResourceSet rs;
-            if (localResourceSets is object)
+            if (!(localResourceSets is null))
             {
                 lock (localResourceSets)
                 {
@@ -490,7 +490,7 @@ namespace System.Resources
                 string fileName = GetResourceFileName(culture);
                 RuntimeAssembly mainAssembly = (RuntimeAssembly)MainAssembly;
                 Stream stream = mainAssembly.GetManifestResourceStream(_locationInfo, fileName, _callingAssembly == MainAssembly, ref stackMark);
-                if (createIfNotExists && stream is object)
+                if (createIfNotExists && !(stream is null))
                 {
                     rs = ((ManifestBasedResourceGroveler)resourceGroveler).CreateResourceSet(stream, MainAssembly);
                     AddResourceSet(localResourceSets, culture.Name, ref rs);
@@ -563,14 +563,14 @@ namespace System.Resources
                                                            tryParents, createIfNotExists, ref stackMark);
 
                 // found a ResourceSet; we're done
-                if (rs is object)
+                if (!(rs is null))
                 {
                     foundCulture = currentCultureInfo;
                     break;
                 }
             }
 
-            if (rs is object && foundCulture is object)
+            if (!(rs is null) && !(foundCulture is null))
             {
                 // add entries to the cache for the cultures we have gone through
 
@@ -732,7 +732,7 @@ namespace System.Resources
             {
                 // Check to see if the assembly is under PLATFORM_RESOURCE_ROOTS. If it is, then we should use satellite assembly lookup for it.
                 string platformResourceRoots = (string)(AppContext.GetData("PLATFORM_RESOURCE_ROOTS"));
-                if ((platformResourceRoots is object) && (platformResourceRoots != string.Empty))
+                if ((!(platformResourceRoots is null)) && (platformResourceRoots != string.Empty))
                 {
                     string resourceAssemblyPath = resourcesAssembly.Location;
 
@@ -771,7 +771,7 @@ namespace System.Resources
             if (resourcesAssembly is null)
                 resourcesAssembly = _callingAssembly;
 
-            if (resourcesAssembly is object)
+            if (!(resourcesAssembly is null))
             {
                 if (resourcesAssembly != typeof(object).Assembly) // We are not loading resources for mscorlib
                 {
@@ -903,7 +903,7 @@ namespace System.Resources
                 {
                     // Always throw if we did not fully succeed in initializing the WinRT Resource Manager.
 
-                    if (_PRIExceptionInfo is object && _PRIExceptionInfo.PackageSimpleName is object && _PRIExceptionInfo.ResWFile is object)
+                    if (!(_PRIExceptionInfo is null) && !(_PRIExceptionInfo.PackageSimpleName is null) && !(_PRIExceptionInfo.ResWFile is null))
                         throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_ResWFileNotLoaded, _PRIExceptionInfo.ResWFile, _PRIExceptionInfo.PackageSimpleName));
 
                     throw new MissingManifestResourceException(SR.MissingManifestResource_NoPRIresources);
@@ -924,10 +924,10 @@ namespace System.Resources
 
                 ResourceSet last = GetFirstResourceSet(culture);
 
-                if (last is object)
+                if (!(last is null))
                 {
                     string value = last.GetString(name, _ignoreCase);
-                    if (value is object)
+                    if (!(value is null))
                         return value;
                 }
 
@@ -945,10 +945,10 @@ namespace System.Resources
                     if (rs != last)
                     {
                         string value = rs.GetString(name, _ignoreCase);
-                        if (value is object)
+                        if (!(value is null))
                         {
                             // update last used ResourceSet
-                            if (_lastUsedResourceCache is object)
+                            if (!(_lastUsedResourceCache is null))
                             {
                                 lock (_lastUsedResourceCache)
                                 {
@@ -996,14 +996,14 @@ namespace System.Resources
             }
 
             ResourceSet last = GetFirstResourceSet(culture);
-            if (last is object)
+            if (!(last is null))
             {
                 object value = last.GetObject(name, _ignoreCase);
 
-                if (value is object)
+                if (!(value is null))
                 {
                     UnmanagedMemoryStream stream = value as UnmanagedMemoryStream;
-                    if (stream is object && wrapUnmanagedMemStream)
+                    if (!(stream is null) && wrapUnmanagedMemStream)
                         return new UnmanagedMemoryStreamWrapper(stream);
                     else
                         return value;
@@ -1029,10 +1029,10 @@ namespace System.Resources
                 if (rs != last)
                 {
                     object value = rs.GetObject(name, _ignoreCase);
-                    if (value is object)
+                    if (!(value is null))
                     {
                         // update the last used ResourceSet
-                        if (_lastUsedResourceCache is object)
+                        if (!(_lastUsedResourceCache is null))
                         {
                             lock (_lastUsedResourceCache)
                             {
@@ -1042,7 +1042,7 @@ namespace System.Resources
                         }
 
                         UnmanagedMemoryStream stream = value as UnmanagedMemoryStream;
-                        if (stream is object && wrapUnmanagedMemStream)
+                        if (!(stream is null) && wrapUnmanagedMemStream)
                             return new UnmanagedMemoryStreamWrapper(stream);
                         else
                             return value;
@@ -1064,7 +1064,7 @@ namespace System.Resources
         {
             object obj = GetObject(name, culture, false);
             UnmanagedMemoryStream ums = obj as UnmanagedMemoryStream;
-            if (ums is null && obj is object)
+            if (ums is null && !(obj is null))
                 throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResourceNotStream_Name, name));
             return ums;
         }

@@ -258,7 +258,7 @@ namespace System.Text
         public static Encoding GetEncoding(int codepage)
         {
             Encoding result = EncodingProvider.GetEncodingFromProvider(codepage);
-            if (result is object)
+            if (!(result is null))
                 return result;
 
             //
@@ -309,7 +309,7 @@ namespace System.Text
         {
             Encoding baseEncoding = EncodingProvider.GetEncodingFromProvider(codepage, encoderFallback, decoderFallback);
 
-            if (baseEncoding is object)
+            if (!(baseEncoding is null))
                 return baseEncoding;
 
             // Get the default encoding (which is cached and read only)
@@ -328,7 +328,7 @@ namespace System.Text
         public static Encoding GetEncoding(string name)
         {
             Encoding baseEncoding = EncodingProvider.GetEncodingFromProvider(name);
-            if (baseEncoding is object)
+            if (!(baseEncoding is null))
                 return baseEncoding;
 
             //
@@ -346,7 +346,7 @@ namespace System.Text
             EncoderFallback encoderFallback, DecoderFallback decoderFallback)
         {
             Encoding baseEncoding = EncodingProvider.GetEncodingFromProvider(name, encoderFallback, decoderFallback);
-            if (baseEncoding is object)
+            if (!(baseEncoding is null))
                 return baseEncoding;
 
             //
@@ -1244,7 +1244,7 @@ namespace System.Text
         public override bool Equals(object value)
         {
             Encoding that = value as Encoding;
-            if (that is object)
+            if (!(that is null))
                 return (_codePage == that._codePage) &&
                        (EncoderFallback.Equals(that.EncoderFallback)) &&
                        (DecoderFallback.Equals(that.DecoderFallback));
@@ -1281,7 +1281,7 @@ namespace System.Text
         {
             if (encoder is null || encoder._throwOnOverflow || nothingEncoded)
             {
-                if (encoder is object && encoder.InternalHasFallbackBuffer)
+                if (!(encoder is null) && encoder.InternalHasFallbackBuffer)
                     encoder.FallbackBuffer.InternalReset();
                 // Special message to include fallback type in case fallback's GetMaxCharCount is broken
                 // This happens if user has implemented an encoder fallback with a broken GetMaxCharCount
@@ -1304,7 +1304,7 @@ namespace System.Text
         {
             if (decoder is null || decoder._throwOnOverflow || nothingDecoded)
             {
-                if (decoder is object && decoder.InternalHasFallbackBuffer)
+                if (!(decoder is null) && decoder.InternalHasFallbackBuffer)
                     decoder.FallbackBuffer.InternalReset();
 
                 // Special message to include fallback type in case fallback's GetMaxCharCount is broken

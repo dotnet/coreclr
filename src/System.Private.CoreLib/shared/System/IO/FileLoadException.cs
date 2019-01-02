@@ -60,16 +60,16 @@ namespace System.IO
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (FileName is object && FileName.Length != 0)
+            if (!(FileName is null) && FileName.Length != 0)
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, FileName);
 
-            if (InnerException is object)
+            if (!(InnerException is null))
                 s = s + " ---> " + InnerException.ToString();
 
-            if (StackTrace is object)
+            if (!(StackTrace is null))
                 s += Environment.NewLine + StackTrace;
 
-            if (FusionLog is object)
+            if (!(FusionLog is null))
             {
                 if (s is null)
                     s = " ";

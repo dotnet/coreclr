@@ -320,7 +320,7 @@ namespace System.Globalization
             // First check if GetCultureData() can find it (ie: its a real culture)
             //
             CultureData retVal = GetCultureData(cultureName, useUserOverride);
-            if (retVal is object && (retVal.IsNeutralCulture == false)) return retVal;
+            if (!(retVal is null) && (retVal.IsNeutralCulture == false)) return retVal;
 
             //
             // Not a specific culture, perhaps it's region-only name
@@ -345,7 +345,7 @@ namespace System.Globalization
                 {
                     tempHashTable.TryGetValue(hashName, out retVal);
                 }
-                if (retVal is object)
+                if (!(retVal is null))
                 {
                     return retVal;
                 }
@@ -374,7 +374,7 @@ namespace System.Globalization
             }
 
             // If we found one we can use, then cache it for next time
-            if (retVal is object && (retVal.IsNeutralCulture == false))
+            if (!(retVal is null) && (retVal.IsNeutralCulture == false))
             {
                 // first add it to the cache
                 lock (s_lock)
@@ -599,7 +599,7 @@ namespace System.Globalization
                 {
                     ret = tempHashTable.TryGetValue(hashName, out retVal);
                 }
-                if (ret && retVal is object)
+                if (ret && !(retVal is null))
                 {
                     return retVal;
                 }
@@ -905,7 +905,7 @@ namespace System.Globalization
                             // if DefaultThreadCurrentUICulture was set
                             CultureInfo ci;
 
-                            if (CultureInfo.DefaultThreadCurrentUICulture is object &&
+                            if (!(CultureInfo.DefaultThreadCurrentUICulture is null) &&
                                 ((ci = GetUserDefaultCulture()) != null) &&
                                 !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
                             {
@@ -1076,7 +1076,7 @@ namespace System.Globalization
                     // if DefaultThreadCurrentUICulture was set
                     CultureInfo ci;
 
-                    if (CultureInfo.DefaultThreadCurrentUICulture is object &&
+                    if (!(CultureInfo.DefaultThreadCurrentUICulture is null) &&
                         ((ci = GetUserDefaultCulture()) != null) &&
                         !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
                     {
@@ -2200,7 +2200,7 @@ namespace System.Globalization
                         }
                         break;
                     default:
-                        if (result is object)
+                        if (!(result is null))
                         {
                             result.Append(str[i]);
                         }

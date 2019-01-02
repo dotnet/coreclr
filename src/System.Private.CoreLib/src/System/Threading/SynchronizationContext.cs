@@ -177,7 +177,7 @@ namespace System.Threading
             // System.Runtime.WindowsRuntime to get a corresponding SynchronizationContext.
             //
             object dispatcher = GetWinRTDispatcherForCurrentThread();
-            if (dispatcher is object)
+            if (!(dispatcher is null))
                 return GetWinRTSynchronizationContext(dispatcher);
 
             return null;

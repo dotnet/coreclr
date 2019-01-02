@@ -52,7 +52,7 @@ namespace System.Globalization
         public override bool Equals(object obj)
         {
             SortVersion n = obj as SortVersion;
-            if (n is object)
+            if (!(n is null))
             {
                 return this.Equals(n);
             }

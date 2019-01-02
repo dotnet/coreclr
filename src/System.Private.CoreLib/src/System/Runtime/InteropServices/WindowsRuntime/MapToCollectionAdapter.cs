@@ -39,7 +39,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IMap<K, V> _this_map = _this as IMap<K, V>;
-            if (_this_map is object)
+            if (!(_this_map is null))
             {
                 uint size = _this_map.Size;
 
@@ -76,7 +76,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
-            if (_this_dictionary is object)
+            if (!(_this_dictionary is null))
             {
                 _this_dictionary.Add(item.Key, item.Value);
             }
@@ -93,7 +93,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IMap<K, V> _this_map = _this as IMap<K, V>;
-            if (_this_map is object)
+            if (!(_this_map is null))
             {
                 _this_map.Clear();
             }
@@ -110,7 +110,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
-            if (_this_dictionary is object)
+            if (!(_this_dictionary is null))
             {
                 V value;
                 bool hasKey = _this_dictionary.TryGetValue(item.Key, out value);
@@ -158,7 +158,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             object _this = Unsafe.As<object>(this);
 
             IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
-            if (_this_dictionary is object)
+            if (!(_this_dictionary is null))
             {
                 return _this_dictionary.Remove(item.Key);
             }

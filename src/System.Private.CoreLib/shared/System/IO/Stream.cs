@@ -323,7 +323,7 @@ namespace System.IO
             }, state, this, buffer, offset, count, callback);
 
             // Schedule it
-            if (semaphoreTask is object)
+            if (!(semaphoreTask is null))
                 RunReadWriteTaskWhenReady(semaphoreTask, asyncResult);
             else
                 RunReadWriteTask(asyncResult);
@@ -486,7 +486,7 @@ namespace System.IO
             }, state, this, buffer, offset, count, callback);
 
             // Schedule it
-            if (semaphoreTask is object)
+            if (!(semaphoreTask is null))
                 RunReadWriteTaskWhenReady(semaphoreTask, asyncResult);
             else
                 RunReadWriteTask(asyncResult);
@@ -624,7 +624,7 @@ namespace System.IO
                 // - Capture an ExecutionContext under which to invoke the handler
                 // - Add this task as its own completion handler so that the Invoke method
                 //   will run the callback when this task completes.
-                if (callback is object)
+                if (!(callback is null))
                 {
                     _callback = callback;
                     _context = ExecutionContext.Capture();
@@ -824,7 +824,7 @@ namespace System.IO
                 asyncResult = new SynchronousAsyncResult(ex, state, isWrite: false);
             }
 
-            if (callback is object)
+            if (!(callback is null))
             {
                 callback(asyncResult);
             }
@@ -856,7 +856,7 @@ namespace System.IO
                 asyncResult = new SynchronousAsyncResult(ex, state, isWrite: true);
             }
 
-            if (callback is object)
+            if (!(callback is null))
             {
                 callback(asyncResult);
             }
@@ -1072,7 +1072,7 @@ namespace System.IO
 
             internal void ThrowIfError()
             {
-                if (_exceptionInfo is object)
+                if (!(_exceptionInfo is null))
                     _exceptionInfo.Throw();
             }
 

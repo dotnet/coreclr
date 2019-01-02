@@ -50,7 +50,7 @@ namespace System
                 else
                 {
                     // do any desired fixups to classname here.
-                    return SR.Format(SR.MissingField_Name, (Signature is object ? FormatSignature(Signature) + " " : "") + ClassName + "." + MemberName);
+                    return SR.Format(SR.MissingField_Name, (!(Signature is null) ? FormatSignature(Signature) + " " : "") + ClassName + "." + MemberName);
                 }
             }
         }

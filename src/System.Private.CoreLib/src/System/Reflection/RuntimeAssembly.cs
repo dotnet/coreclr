@@ -92,7 +92,7 @@ namespace System.Reflection
                     null); // strong name key pair
 
             Module manifestModule = ManifestModule;
-            if (manifestModule is object)
+            if (!(manifestModule is null))
             {
                 if (manifestModule.MDStreamVersion > 0x10000)
                 {
@@ -276,7 +276,7 @@ namespace System.Reflection
             RuntimeAssembly assembly;
             AssemblyName an = CreateAssemblyName(assemblyString, out assembly);
 
-            if (assembly is object)
+            if (!(assembly is null))
             {
                 // The assembly was returned from ResolveAssemblyEvent
                 return assembly;
@@ -332,7 +332,7 @@ namespace System.Reflection
 #if FEATURE_APPX
             if (ApplicationModel.IsUap)
             {
-                if (assemblyRef.CodeBase is object)
+                if (!(assemblyRef.CodeBase is null))
                 {
                     throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFrom"));
                 }
@@ -541,15 +541,15 @@ namespace System.Reflection
             else
             {
                 string nameSpace = type.Namespace;
-                if (nameSpace is object)
+                if (!(nameSpace is null))
                 {
                     sb.Append(nameSpace);
-                    if (name is object)
+                    if (!(name is null))
                         sb.Append(Type.Delimiter);
                 }
             }
 
-            if (name is object)
+            if (!(name is null))
                 sb.Append(name);
 
             return GetManifestResourceStream(sb.ToString(), ref stackMark, skipSecurityCheck);
@@ -667,7 +667,7 @@ namespace System.Reflection
             foreach (ModuleResolveEventHandler handler in moduleResolve.GetInvocationList())
             {
                 RuntimeModule ret = (RuntimeModule)handler(this, new ResolveEventArgs(moduleName, this));
-                if (ret is object)
+                if (!(ret is null))
                     return ret;
             }
 
@@ -791,7 +791,7 @@ namespace System.Reflection
 
                 Debug.Assert((type != null) != (exception != null)); // Exactly one of these must be non-null.
 
-                if (type is object)
+                if (!(type is null))
                 {
                     types.Add(type);
                     AddPublicNestedTypes(type, types, exceptions);

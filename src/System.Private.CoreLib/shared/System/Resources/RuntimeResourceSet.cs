@@ -216,7 +216,7 @@ namespace System.Resources
                 lock (Reader)
                 {
                     _resCache = null;
-                    if (_defaultReader is object)
+                    if (!(_defaultReader is null))
                     {
                         _defaultReader.Close();
                         _defaultReader = null;
@@ -293,7 +293,7 @@ namespace System.Resources
                 if (Reader is null)
                     throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
-                if (_defaultReader is object)
+                if (!(_defaultReader is null))
                 {
                     // Find the offset within the data section
                     int dataPos = -1;
@@ -334,7 +334,7 @@ namespace System.Resources
                         }
                     }
 
-                    if (value is object || !ignoreCase)
+                    if (!(value is null) || !ignoreCase)
                     {
                         return value;  // may be null
                     }
@@ -386,7 +386,7 @@ namespace System.Resources
                 object obj = null;
                 bool found = false;
                 bool keyInWrongCase = false;
-                if (_defaultReader is object)
+                if (!(_defaultReader is null))
                 {
                     if (_resCache.TryGetValue(key, out resLocation))
                     {
