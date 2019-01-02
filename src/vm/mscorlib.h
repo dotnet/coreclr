@@ -795,6 +795,8 @@ DEFINE_METHOD(STRING,               STRLEN,                 strlen,             
 DEFINE_PROPERTY(STRING,             LENGTH,                 Length,                     Int)
 
 DEFINE_CLASS(STRING_BUILDER,        Text,                   StringBuilder)
+DEFINE_FIELD(STRING_BUILDER,        M_CHUNK_CHARS,          m_ChunkChars)
+DEFINE_FIELD(STRING_BUILDER,        M_CHUNK_PREVIOUS,       m_ChunkPrevious)
 DEFINE_PROPERTY(STRING_BUILDER,     LENGTH,                 Length,                     Int)
 DEFINE_PROPERTY(STRING_BUILDER,     CAPACITY,               Capacity,                   Int)
 DEFINE_METHOD(STRING_BUILDER,       CTOR_INT,               .ctor,                      IM_Int_RetVoid)

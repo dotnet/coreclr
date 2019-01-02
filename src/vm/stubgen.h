@@ -75,6 +75,11 @@ struct LocalDesc
         bIsCopyConstructed = TRUE;
     }
 
+    void MakeArray()
+    {
+        ChangeType(ELEMENT_TYPE_SZARRAY);
+    }
+
     void ChangeType(CorElementType elemType)
     {
         LIMITED_METHOD_CONTRACT;

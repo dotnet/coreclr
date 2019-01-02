@@ -2057,10 +2057,21 @@ public:
     }
 
     virtual LocalDesc GetManagedType();
+	void EmitTryPinBuffer(ILCodeStream * pslILEmit, ILCodeLabel * marshalledLabel);
+	virtual void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit);
+    virtual void EmitConvertSpaceCLRToNativeTemp(ILCodeStream* pslILEmit);
     virtual void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit);
     virtual void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit);
     virtual void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit);
     virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit);
+
+private:
+    static bool CanTryUsePinnedBuffer(DWORD dwMarshalFlags)
+    {
+        return IsCLRToNative(dwMarshalFlags) && !IsByref(dwMarshalFlags);
+    }
+
+    DWORD m_dwPinnedBuffer = LOCAL_NUM_UNUSED;
 };
 
 class ILCSTRBufferMarshaler : public ILOptimizedAllocMarshaler
