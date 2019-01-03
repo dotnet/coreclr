@@ -3803,6 +3803,10 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         EmitLoadManagedValue(m_pcsMarshal);
         m_pcsMarshal->EmitSTLOC(dwPinnedLocal);
         m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
+        m_pcsMarshal->EmitLDLEN();
+        m_pcsMarshal->EmitBRFALSE(pNullRefLabel);
+        
+        m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
         m_pcsMarshal->EmitLDC(0);
         m_pcsMarshal->EmitLDELEMA(m_pcsMarshal->GetToken(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle()));
         m_pcsMarshal->EmitCONV_I();

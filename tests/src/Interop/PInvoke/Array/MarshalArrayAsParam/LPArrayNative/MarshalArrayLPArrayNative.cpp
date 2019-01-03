@@ -316,7 +316,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Int_InOut_Null(int *pActual)
 
 extern "C" DLL_EXPORT BOOL CStyle_Array_Int_InOut_ZeroLength(int *pActual)
 {
-	CHECK_PARAM_NOT_EMPTY(pActual);
+	CHECK_PARAM_EMPTY(pActual);
 	return true;
 }
 
@@ -476,7 +476,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Int_Out_Null(int *pActual)
 
 extern "C" DLL_EXPORT BOOL CStyle_Array_Int_Out_ZeroLength(int *pActual)
 {
-	CHECK_PARAM_NOT_EMPTY(pActual);
+	CHECK_PARAM_EMPTY(pActual);
 	return true;
 }
 
