@@ -221,14 +221,13 @@ namespace System.Threading.Tasks
          Level = EventLevel.Informational, Keywords = Keywords.TaskTransfer | Keywords.Tasks)]
         public void TaskScheduled(
             int OriginatingTaskSchedulerID, int OriginatingTaskID,  // PFX_COMMON_EVENT_HEADER
-            int TaskID, int CreatingTaskID, int TaskCreationOptions)
+            int TaskID, int CreatingTaskID, int TaskCreationOptions, int appDomain = appDomainID)
         {
             // IsEnabled() call is an inlined quick check that makes this very fast when provider is off 
             if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.TaskTransfer | Keywords.Tasks))
             {
                 unsafe
                 {
-                    int appDomain = appDomainID;
                     EventData* eventPayload = stackalloc EventData[6];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&OriginatingTaskSchedulerID));
