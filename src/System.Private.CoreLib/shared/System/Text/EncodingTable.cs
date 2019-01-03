@@ -3,8 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 
 namespace System.Text
 {
@@ -16,7 +16,7 @@ namespace System.Text
     internal static partial class EncodingTable
     {
         private static readonly Hashtable s_nameToCodePage = Hashtable.Synchronized(new Hashtable(StringComparer.OrdinalIgnoreCase));
-        private static readonly Dictionary<int, CodePageDataItem> s_codePageToCodePageData = new Dictionary<int, CodePageDataItem>();
+        private static CodePageDataItem[] s_codePageToCodePageData;
 
         /*=================================GetCodePageFromName==========================
         **Action: Given a encoding name, return the correct code page number for this encoding.
@@ -122,43 +122,64 @@ namespace System.Text
 
         internal static CodePageDataItem GetCodePageDataItem(int codePage)
         {
-            CodePageDataItem data;
-            lock (s_codePageToCodePageData)
+            if (s_codePageToCodePageData == null)
             {
-                if (s_codePageToCodePageData.TryGetValue(codePage, out data))
-                    return data;
+                Interlocked.CompareExchange(ref s_codePageToCodePageData, new CodePageDataItem[s_mappedCodePages.Length], null);
             }
 
-            data = InternalGetCodePageDataItem(codePage);
-
-            lock (s_codePageToCodePageData)
+            // Keep in sync with s_mappedCodePages
+            int index;
+            switch (codePage)
             {
-                if (!s_codePageToCodePageData.TryAdd(codePage, data))
-                    data = s_codePageToCodePageData[codePage];
+                case 1200: // utf-16
+                    index = 0;
+                    break;
+                case 1201: // utf-16be
+                    index = 1;
+                    break;
+                case 12000: // utf-32
+                    index = 2;
+                    break;
+                case 12001: // utf-32be
+                    index = 3;
+                    break;
+                case 20127: // us-ascii
+                    index = 4;
+                    break;
+                case 28591: // iso-8859-1
+                    index = 5;
+                    break;
+                case 65000: // utf-7
+                    index = 6;
+                    break;
+                case 65001: // utf-8
+                    index = 7;
+                    break;
+                default:
+                    return null;
+            }
+
+            CodePageDataItem data = s_codePageToCodePageData[index];
+            if (data == null)
+            {
+                Interlocked.CompareExchange(ref s_codePageToCodePageData[index], InternalGetCodePageDataItem(codePage, index), null);
+                data = s_codePageToCodePageData[index];
             }
 
             return data;
         }
 
-        private static CodePageDataItem InternalGetCodePageDataItem(int codePage)
+        private static CodePageDataItem InternalGetCodePageDataItem(int codePage, int index)
         {
-            for (int i = 0; i < s_mappedCodePages.Length; i++)
-            {
-                if (s_mappedCodePages[i] == codePage)
-                {
-                    int uiFamilyCodePage = s_uiFamilyCodePages[i];
-                    string webName = s_webNames.Substring(s_webNameIndices[i], s_webNameIndices[i + 1] - s_webNameIndices[i]);
-                    // All supported code pages have identical header names, and body names.
-                    string headerName = webName;
-                    string bodyName = webName;
-                    string displayName = GetDisplayName(codePage, i);
-                    uint flags = s_flags[i];
+            int uiFamilyCodePage = s_uiFamilyCodePages[index];
+            string webName = s_webNames.Substring(s_webNameIndices[index], s_webNameIndices[index + 1] - s_webNameIndices[index]);
+            // All supported code pages have identical header names, and body names.
+            string headerName = webName;
+            string bodyName = webName;
+            string displayName = GetDisplayName(codePage, index);
+            uint flags = s_flags[index];
 
-                    return new CodePageDataItem(codePage, uiFamilyCodePage, webName, headerName, bodyName, displayName, flags);
-                }
-            }
-
-            return null;
+            return new CodePageDataItem(codePage, uiFamilyCodePage, webName, headerName, bodyName, displayName, flags);
         }
 
         private static string GetDisplayName(int codePage, int englishNameIndex)
