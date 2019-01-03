@@ -2057,7 +2057,7 @@ public:
     }
 
     virtual LocalDesc GetManagedType();
-	virtual void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit);
+    virtual void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit);
     virtual void EmitConvertSpaceCLRToNativeTemp(ILCodeStream* pslILEmit);
     virtual void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit);
     virtual void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit);
@@ -2066,7 +2066,7 @@ public:
     virtual void EmitClearNative(ILCodeStream* pslILEmit);
 
 private:
-	void EmitTryPinBuffer(ILCodeStream * pslILEmit, ILCodeLabel * marshalledLabel);
+    void EmitTryPinBuffer(ILCodeStream * pslILEmit, ILCodeLabel * marshalledLabel);
     bool CanTryUsePinnedBuffer()
     {
         return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags);

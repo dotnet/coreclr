@@ -60,23 +60,27 @@ struct LocalDesc
 
     void MakeByRef()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_BYREF);
     }
 
     void MakePinned()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_PINNED);
     }
 
     // makes the LocalDesc semantically equivalent to ET_TYPE_CMOD_REQD<IsCopyConstructed>/ET_TYPE_CMOD_REQD<NeedsCopyConstructorModifier>
     void MakeCopyConstructedPointer()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_PTR);
         bIsCopyConstructed = TRUE;
     }
 
     void MakeArray()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_SZARRAY);
     }
 
@@ -600,7 +604,7 @@ public:
     void EmitLDC        (DWORD_PTR uConst);
     void EmitLDC_R4     (UINT32 uConst);
     void EmitLDC_R8     (UINT64 uConst);
-    void EmitLDELEMA   (int token);
+    void EmitLDELEMA    (int token);
     void EmitLDELEM_REF ();
     void EmitLDFLD      (int token);
     void EmitLDFLDA     (int token);
