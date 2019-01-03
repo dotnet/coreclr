@@ -1647,7 +1647,7 @@ EEMarshalingData *LoaderAllocator::GetMarshalingData()
 
         if (!m_pMarshalingData)
         {
-            m_pMarshalingData = new (GetLowFrequencyHeap()) EEMarshalingData(this, &m_crstLoaderAllocator);
+            m_pMarshalingData = new (GetLowFrequencyHeap()) EEMarshalingData(this, &m_InteropDataCrst);
         }
     }
 
