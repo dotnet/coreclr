@@ -9419,8 +9419,7 @@ DECLARE_API(DumpLog)
     return Status;
 }
 
-#ifdef TRACE_GC
-
+#ifndef FEATURE_PAL
 DECLARE_API (DumpGCLog)
 {
     INIT_API_NODAC();
@@ -9433,6 +9432,10 @@ DECLARE_API (DumpGCLog)
     }
 
     const char* fileName = "GCLog.txt";
+    int iLogSize = 1024*1024;
+    BYTE* bGCLog = NULL;
+    int iRealLogSize = iLogSize - 1;
+    DWORD dwWritten = 0;
 
     while (isspace (*args))
         args ++;
@@ -9477,8 +9480,7 @@ DECLARE_API (DumpGCLog)
         goto exit;
     }
 
-    int iLogSize = 1024*1024;
-    BYTE* bGCLog = new NOTHROW BYTE[iLogSize];
+    bGCLog = new NOTHROW BYTE[iLogSize];
     if (bGCLog == NULL)
     {
         ReportOOM();
@@ -9491,7 +9493,6 @@ DECLARE_API (DumpGCLog)
         ExtOut("failed to read memory from %08x\n", dwAddr);
     }
 
-    int iRealLogSize = iLogSize - 1;
     while (iRealLogSize >= 0)
     {
         if (bGCLog[iRealLogSize] != '*')
@@ -9502,12 +9503,16 @@ DECLARE_API (DumpGCLog)
         iRealLogSize--;
     }
 
-    DWORD dwWritten = 0;
     WriteFile (hGCLog, bGCLog, iRealLogSize + 1, &dwWritten, NULL);
 
     Status = S_OK;
 
 exit:
+
+    if (bGCLog != NULL)
+    {
+        delete [] bGCLog;
+    }
 
     if (hGCLog != INVALID_HANDLE_VALUE)
     {
@@ -9523,9 +9528,7 @@ exit:
 
     return Status;
 }
-#endif //TRACE_GC
 
-#ifndef FEATURE_PAL
 DECLARE_API (DumpGCConfigLog)
 {
     INIT_API();
