@@ -40,9 +40,9 @@ jobs:
       ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
         name: dnceng-linux-internal-temp
       ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: Hosted Mac Internal
+        name: Hosted Mac Internal Sierra
       ${{ if and(eq(parameters.osGroup, 'OSX'), eq(variables['System.TeamProject'], 'public')) }}:
-        name: Hosted MacOS
+        name: Hosted Mac Internal Sierra
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
         name: dotnet-internal-temp
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
