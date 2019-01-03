@@ -1,8 +1,10 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+using System.Buffers.Binary;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace System.Diagnostics.Tracing
 {
@@ -29,27 +31,34 @@ namespace System.Diagnostics.Tracing
                 Type parameterType = parameters[i].ParameterType;
                 if (parameterType == typeof(IntPtr))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<IntPtr>(payload);
+                    if (IntPtr.Size == 8)
+                    {
+                        decodedFields[i] = (IntPtr)BinaryPrimitives.ReadInt64LittleEndian(payload);
+                    }
+                    else
+                    {
+                        decodedFields[i] = (IntPtr)BinaryPrimitives.ReadInt32LittleEndian(payload);
+                    }
                     payload = payload.Slice(IntPtr.Size);
                 }
                 else if (parameterType == typeof(int))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<int>(payload);
+                    decodedFields[i] = BinaryPrimitives.ReadInt32LittleEndian(payload);
                     payload = payload.Slice(sizeof(int));
                 }
                 else if (parameterType == typeof(uint))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<uint>(payload);
+                    decodedFields[i] = BinaryPrimitives.ReadUInt32LittleEndian(payload);
                     payload = payload.Slice(sizeof(uint));
                 }
                 else if (parameterType == typeof(long))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<long>(payload);
+                    decodedFields[i] = BinaryPrimitives.ReadInt64LittleEndian(payload);
                     payload = payload.Slice(sizeof(long));
                 }
                 else if (parameterType == typeof(ulong))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<ulong>(payload);
+                    decodedFields[i] = BinaryPrimitives.ReadUInt64LittleEndian(payload);
                     payload = payload.Slice(sizeof(ulong));
                 }
                 else if (parameterType == typeof(byte))
@@ -64,28 +73,28 @@ namespace System.Diagnostics.Tracing
                 }
                 else if (parameterType == typeof(short))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<short>(payload);
+                    decodedFields[i] = BinaryPrimitives.ReadInt16LittleEndian(payload);
                     payload = payload.Slice(sizeof(short));
                 }
                 else if (parameterType == typeof(ushort))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<ushort>(payload);
+                    decodedFields[i] = BinaryPrimitives.ReadUInt16LittleEndian(payload);
                     payload = payload.Slice(sizeof(ushort));
                 }
                 else if (parameterType == typeof(float))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<float>(payload);
+                    decodedFields[i] = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(payload));
                     payload = payload.Slice(sizeof(float));
                 }
                 else if (parameterType == typeof(double))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<double>(payload);
+                    decodedFields[i] = BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64LittleEndian(payload));
                     payload = payload.Slice(sizeof(double));
                 }
                 else if (parameterType == typeof(bool))
                 {
                     // The manifest defines a bool as a 32bit type (WIN32 BOOL), not 1 bit as CLR Does.
-                    decodedFields[i] = (MemoryMarshal.Read<int>(payload) == 1);
+                    decodedFields[i] = (BinaryPrimitives.ReadInt32LittleEndian(payload) == 1);
                     payload = payload.Slice(sizeof(int));
                 }
                 else if (parameterType == typeof(Guid))
@@ -96,16 +105,23 @@ namespace System.Diagnostics.Tracing
                 }
                 else if (parameterType == typeof(char))
                 {
-                    decodedFields[i] = MemoryMarshal.Read<char>(payload);
+                    decodedFields[i] = (char)BinaryPrimitives.ReadUInt16LittleEndian(payload);
                     payload = payload.Slice(sizeof(char));
                 }
                 else if (parameterType == typeof(string))
                 {
                     ReadOnlySpan<char> charPayload = MemoryMarshal.Cast<byte, char>(payload);
                     int charCount = charPayload.IndexOf('\0');
-                    string val = new string(charCount >= 0 ? charPayload.Slice(0, charCount) : charPayload);
-                    payload = payload.Slice((val.Length + 1) * sizeof(char));
-                    decodedFields[i] = val;
+                    if (charCount < 0)
+                    {
+                        payload = default;
+                    }
+                    else
+                    {
+                        charPayload = charPayload.Slice(0, charCount);
+                        payload = payload.Slice((charCount + 1) * sizeof(char));
+                    }
+                    decodedFields[i] = BitConverter.IsLittleEndian ? new string(charPayload) : Encoding.Unicode.GetString(MemoryMarshal.Cast<char, byte>(charPayload));
                 }
                 else
                 {
