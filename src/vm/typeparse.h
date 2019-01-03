@@ -440,7 +440,6 @@ private:
                                     
         BOOL bProhibitAssemblyQualifiedName,
                                     
-        StackCrawlMark* pStackMark, 
         Assembly* pRequestingAssembly, 
         ICLRPrivBinder * pPrivHostBinder,
         BOOL bLoadTypeFromPartialNameHack,

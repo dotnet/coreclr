@@ -1141,7 +1141,6 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         /*pAssemblyGetType =*/ NULL, 
         /*fEnableCASearchRules = */ TRUE, 
         /*fProhibitAsmQualifiedName = */ FALSE, 
-        NULL, 
         pRequestingAssembly, 
         nullptr,
         FALSE,
@@ -1192,6 +1191,10 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
       COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
 
     DWORD error = (DWORD)-1;
+    Assembly* pRequestingAssembly = NULL;
+
+    if (pStackMark)
+        pRequestingAssembly = SystemDomain::GetCallersAssembly(pStackMark); 
 
     /* Partial name workaround loading must not load a collectible type */
     if (bLoadTypeFromPartialNameHack)
@@ -1230,8 +1233,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         pAssemblyGetType ? pAssemblyGetType->GetAssembly() : NULL, 
         /*fEnableCASearchRules = */TRUE, 
         bProhibitAsmQualifiedName, 
-        pStackMark, 
-        NULL, 
+        pRequestingAssembly, 
         pPrivHostBinder,
         bLoadTypeFromPartialNameHack,
         pKeepAlive);      
@@ -1260,8 +1262,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
             pAssemblyGetType ? pAssemblyGetType->GetAssembly() : NULL, 
             /*fEnableCASearchRules = */TRUE, 
             bProhibitAsmQualifiedName, 
-            pStackMark, 
-            NULL, 
+            pRequestingAssembly, 
             pPrivHostBinder,
             bLoadTypeFromPartialNameHack,
             pKeepAlive);      
@@ -1320,7 +1321,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         COMPlusThrow(kArgumentException, IDS_EE_CANNOT_HAVE_ASSEMBLY_SPEC);
     }
 
-    return pTypeName->GetTypeWorker(bThrowIfNotFound, /*bIgnoreCase = */FALSE, pAssembly, /*fEnableCASearchRules = */FALSE, FALSE, NULL, NULL, 
+    return pTypeName->GetTypeWorker(bThrowIfNotFound, /*bIgnoreCase = */FALSE, pAssembly, /*fEnableCASearchRules = */FALSE, FALSE, NULL, 
         nullptr, // pPrivHostBinder
         FALSE, NULL /* cannot find a collectible type unless it is in assembly */);
 }
@@ -1387,7 +1388,6 @@ TypeHandle TypeName::GetTypeFromAsm()
         /*fEnableCASearchRules = */FALSE, 
         FALSE, 
         NULL, 
-        NULL, 
         nullptr, // pPrivHostBinder
         FALSE, 
         NULL /* cannot find a collectible type */);
@@ -1409,7 +1409,6 @@ TypeHandle TypeName::GetTypeFromAsm()
 
     BOOL fEnableCASearchRules,
     BOOL bProhibitAsmQualifiedName,
-    StackCrawlMark* pStackMark, 
     Assembly* pRequestingAssembly, 
     ICLRPrivBinder * pPrivHostBinder,
     BOOL bLoadTypeFromPartialNameHack,
@@ -1464,9 +1463,6 @@ TypeHandle TypeName::GetTypeFromAsm()
             }
         }
 
-        if (!pRequestingAssembly && pStackMark)
-            pRequestingAssembly = SystemDomain::GetCallersAssembly(pStackMark);
-
         SString * pssOuterTypeName = NULL;
         if (GetNames().GetCount() > 0)
         {
@@ -1513,9 +1509,6 @@ TypeHandle TypeName::GetTypeFromAsm()
     // Otherwise look in the caller's assembly then the system assembly
     else if (fEnableCASearchRules)
     {
-        if (!pRequestingAssembly && pStackMark)
-            pRequestingAssembly = SystemDomain::GetCallersAssembly(pStackMark); 
-        
         // Look for type in caller's assembly
         if (pRequestingAssembly)
             th = GetTypeHaveAssembly(pRequestingAssembly, bThrowIfNotFound, bIgnoreCase, pKeepAlive);
@@ -1584,7 +1577,7 @@ TypeHandle TypeName::GetTypeFromAsm()
         {
             TypeHandle thGenericArg = m_genericArguments[i]->GetTypeWorker(
                 bThrowIfNotFound, bIgnoreCase,
-                pAssemblyGetType, fEnableCASearchRules, bProhibitAsmQualifiedName, pStackMark, pRequestingAssembly, 
+                pAssemblyGetType, fEnableCASearchRules, bProhibitAsmQualifiedName, pRequestingAssembly, 
                 pPrivHostBinder,
                 bLoadTypeFromPartialNameHack, 
                 (pKeepAlive != NULL) ? &gc.keepAlive : NULL /* Only pass a keepalive parameter if we were passed a keepalive parameter */);
