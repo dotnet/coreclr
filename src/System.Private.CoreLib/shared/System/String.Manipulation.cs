@@ -344,7 +344,7 @@ namespace System
         // TODO: Expose publicly: https://github.com/dotnet/corefx/issues/34330.
         internal static string Concat(ReadOnlySpan<char> str0, ReadOnlySpan<char> str1)
         {
-            string result = FastAllocateString(str0.Length + str1.Length);
+            string result = FastAllocateString(checked(str0.Length + str1.Length));
             Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
 
             str0.CopyTo(resultSpan);
@@ -356,7 +356,7 @@ namespace System
         // TODO: Expose publicly: https://github.com/dotnet/corefx/issues/34330.
         internal static string Concat(ReadOnlySpan<char> str0, ReadOnlySpan<char> str1, ReadOnlySpan<char> str2)
         {
-            string result = FastAllocateString(str0.Length + str1.Length + str2.Length);
+            string result = FastAllocateString(checked(str0.Length + str1.Length + str2.Length));
             Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
 
             str0.CopyTo(resultSpan);
@@ -373,7 +373,7 @@ namespace System
         // TODO: Expose publicly: https://github.com/dotnet/corefx/issues/34330.
         internal static string Concat(ReadOnlySpan<char> str0, ReadOnlySpan<char> str1, ReadOnlySpan<char> str2, ReadOnlySpan<char> str3)
         {
-            string result = FastAllocateString(str0.Length + str1.Length + str2.Length + str3.Length);
+            string result = FastAllocateString(checked(str0.Length + str1.Length + str2.Length + str3.Length));
             Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
 
             str0.CopyTo(resultSpan);
