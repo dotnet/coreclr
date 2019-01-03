@@ -142,10 +142,27 @@ namespace System.Text
         /// </summary>
         /// <param name="chunk">A reference to the internal chunk.</param>
         /// <returns>Returns <c>true</c> if this StringBuilder only has one chunk; otherwise false.</returns>
+        /// <remarks>
+        /// This method is used by the marshalling system to determine if this StringBuilder can be passed to native
+        /// by only having its buffer pinned.
+        /// </remarks>
         internal bool IsSingleChunk(out char[] chunk)
         {
             chunk = m_ChunkChars;
             return m_ChunkPrevious == null;
+        }
+
+        /// <summary>
+        /// Updates the length of this StringBuilder with the assumption that this is the only chunk.
+        /// </summary>
+        /// <param name="length">The length of the string in the chunk.</param>
+        /// <remarks>
+        /// This method is used by the marshalling system when the StringBuilder is pinned to update the length.
+        /// </remarks>
+        internal void UpdateLengthOfSingleChunk(int length)
+        {
+            System.Diagnostics.Debug.Assert(m_ChunkPrevious == null);
+            m_ChunkLength = length;
         }
     }
 }
