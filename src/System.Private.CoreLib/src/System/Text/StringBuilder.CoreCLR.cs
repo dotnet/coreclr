@@ -136,5 +136,16 @@ namespace System.Text
             }
             while (currentSrc != null);
         }
+
+        /// <summary>
+        /// Checks if this StringBuilder contains only one chunk (char buffer).
+        /// </summary>
+        /// <param name="chunk">A reference to the internal chunk.</param>
+        /// <returns>Returns <c>true</c> if this StringBuilder only has one chunk; otherwise false.</returns>
+        internal bool IsSingleChunk(out char[] chunk)
+        {
+            chunk = m_ChunkChars;
+            return m_ChunkPrevious == null;
+        }
     }
 }

@@ -665,7 +665,6 @@ LocalDesc ILWSTRBufferMarshaler::GetManagedType()
 void ILWSTRBufferMarshaler::EmitTryPinBuffer(ILCodeStream * pslILEmit, ILCodeLabel * marshalledLabel)
 {
     ILCodeLabel* noPinLabel = pslILEmit->NewCodeLabel();
-    int previousChunkField = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__STRING_BUILDER__M_CHUNK_PREVIOUS));
 
     // pinned char[] pinnedArray
     LocalDesc locDesc = LocalDesc(ELEMENT_TYPE_CHAR);
@@ -683,21 +682,17 @@ void ILWSTRBufferMarshaler::EmitTryPinBuffer(ILCodeStream * pslILEmit, ILCodeLab
     EmitLoadManagedValue(pslILEmit);
     pslILEmit->EmitBRFALSE(marshalledLabel);
 
-    // if (buffer.m_previousChunk == null)
+    // if (buffer.IsSingleChunk(out pinnedArray))
     EmitLoadManagedValue(pslILEmit);
-    pslILEmit->EmitLDFLD(previousChunkField);
+    pslILEmit->EmitLDLOCA(m_dwPinnedBuffer);
+    // bool StringBuffer.IsSingleChunk(out char[] chunk)
+    pslILEmit->EmitCALL(METHOD__STRING_BUILDER__IS_SINGLE_CHUNK, 2, 1);
     pslILEmit->EmitBRFALSE(noPinLabel);
-
-    int chunkCharsField = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__STRING_BUILDER__M_CHUNK_CHARS));
-    // pinnedArray = buffer.m_chunkChars
-    EmitLoadManagedValue(pslILEmit);
-    pslILEmit->EmitLDFLD(chunkCharsField);
-    pslILEmit->EmitSTLOC(m_dwPinnedBuffer);
 
     // native = (char*)pinnedArray[0]
     pslILEmit->EmitLDLOC(m_dwPinnedBuffer);
     pslILEmit->EmitLDC(0);
-    pslILEmit->EmitLDELEM_REF();
+    pslILEmit->EmitLDELEMA(pslILEmit->GetToken(MscorlibBinder::GetClass(CLASS__CHAR)));
     pslILEmit->EmitCONV_I();
     EmitStoreNativeValue(pslILEmit);
 
@@ -708,6 +703,9 @@ void ILWSTRBufferMarshaler::EmitTryPinBuffer(ILCodeStream * pslILEmit, ILCodeLab
 
     pslILEmit->EmitBR(marshalledLabel);
     pslILEmit->EmitLabel(noPinLabel);
+    // pinned buffer == null -> unable to pin
+    pslILEmit->EmitLDNULL();
+    pslILEmit->EmitSTLOC(m_dwPinnedBuffer);
 }
 
 void ILWSTRBufferMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit)
@@ -938,7 +936,22 @@ void ILWSTRBufferMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEm
     // void System.Text.StringBuilder.ReplaceBuffer(char* newBuffer, int newLength);
     pslILEmit->EmitCALL(METHOD__STRING_BUILDER__REPLACE_BUFFER_INTERNAL, 3, 0);
     pslILEmit->EmitLabel(marshalFinishedLabel);
-}        
+}
+
+void ILWSTRBufferMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
+{
+    ILCodeLabel* pinnedLabel = pslILEmit->NewCodeLabel();
+
+    if (m_dwPinnedBuffer != LOCAL_NUM_UNUSED)
+    {
+        pslILEmit->EmitLDLOC(m_dwPinnedBuffer);
+        pslILEmit->EmitBRTRUE(pinnedLabel);
+    }
+
+    ILOptimizedAllocMarshaler::EmitClearNative(pslILEmit);
+
+    pslILEmit->EmitLabel(pinnedLabel);
+}
 
 LocalDesc ILCSTRBufferMarshaler::GetManagedType()
 {

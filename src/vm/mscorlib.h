@@ -795,8 +795,6 @@ DEFINE_METHOD(STRING,               STRLEN,                 strlen,             
 DEFINE_PROPERTY(STRING,             LENGTH,                 Length,                     Int)
 
 DEFINE_CLASS(STRING_BUILDER,        Text,                   StringBuilder)
-DEFINE_FIELD(STRING_BUILDER,        M_CHUNK_CHARS,          m_ChunkChars)
-DEFINE_FIELD(STRING_BUILDER,        M_CHUNK_PREVIOUS,       m_ChunkPrevious)
 DEFINE_PROPERTY(STRING_BUILDER,     LENGTH,                 Length,                     Int)
 DEFINE_PROPERTY(STRING_BUILDER,     CAPACITY,               Capacity,                   Int)
 DEFINE_METHOD(STRING_BUILDER,       CTOR_INT,               .ctor,                      IM_Int_RetVoid)
@@ -804,6 +802,7 @@ DEFINE_METHOD(STRING_BUILDER,       TO_STRING,              ToString,           
 DEFINE_METHOD(STRING_BUILDER,       INTERNAL_COPY,          InternalCopy,               IM_IntPtr_Int_RetVoid)
 DEFINE_METHOD(STRING_BUILDER,       REPLACE_BUFFER_INTERNAL,ReplaceBufferInternal,      IM_PtrChar_Int_RetVoid)
 DEFINE_METHOD(STRING_BUILDER,       REPLACE_BUFFER_ANSI_INTERNAL,ReplaceBufferAnsiInternal, IM_PtrSByt_Int_RetVoid)
+DEFINE_METHOD(STRING_BUILDER,       IS_SINGLE_CHUNK,         IsSingleChunk,              IM_RefArrChar_RetBool)
 
 DEFINE_CLASS(STRONG_NAME_KEY_PAIR,  Reflection,             StrongNameKeyPair)
 

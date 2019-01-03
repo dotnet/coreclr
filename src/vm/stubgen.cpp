@@ -1314,6 +1314,11 @@ void ILCodeStream::EmitLDC_R8(UINT64 uConst)
 #endif // _WIN64
     Emit(CEE_LDC_R8, 1, (UINT_PTR)uConst);
 }
+void ILCodeStream::EmitLDELEMA(int token)
+{
+    WRAPPER_NO_CONTRACT;
+    Emit(CEE_LDELEMA, -1, token);
+}
 void ILCodeStream::EmitLDELEM_REF()
 {
     WRAPPER_NO_CONTRACT;
