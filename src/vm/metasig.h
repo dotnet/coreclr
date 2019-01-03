@@ -371,7 +371,7 @@ DEFINE_METASIG_T(SM(UInt_UInt_PtrNativeOverlapped_RetVoid, K K P(g(NATIVEOVERLAP
 DEFINE_METASIG(IM(Long_RetVoid, l, v))
 DEFINE_METASIG(IM(IntPtr_Int_RetVoid, I i, v))
 DEFINE_METASIG(IM(IntInt_RetArrByte, i i, a(b)))
-DEFINE_METASIG(IM(RefArrChar_RetBool, r(a(u)), F))
+DEFINE_METASIG(IM(RetArrChar, _, a(u)))
 DEFINE_METASIG(IM(RetIntPtr, _, I))
 DEFINE_METASIG(IM(RetInt, _, i))
 DEFINE_METASIG_T(IM(RetAssemblyName, _, C(ASSEMBLY_NAME)))

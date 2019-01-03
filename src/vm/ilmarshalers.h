@@ -2067,9 +2067,9 @@ public:
 
 private:
 	void EmitTryPinBuffer(ILCodeStream * pslILEmit, ILCodeLabel * marshalledLabel);
-    static bool CanTryUsePinnedBuffer(DWORD dwMarshalFlags)
+    bool CanTryUsePinnedBuffer()
     {
-        return IsCLRToNative(dwMarshalFlags) && !IsByref(dwMarshalFlags);
+        return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags);
     }
 
     DWORD m_dwPinnedBuffer = LOCAL_NUM_UNUSED;

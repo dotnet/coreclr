@@ -802,7 +802,7 @@ DEFINE_METHOD(STRING_BUILDER,       TO_STRING,              ToString,           
 DEFINE_METHOD(STRING_BUILDER,       INTERNAL_COPY,          InternalCopy,               IM_IntPtr_Int_RetVoid)
 DEFINE_METHOD(STRING_BUILDER,       REPLACE_BUFFER_INTERNAL,ReplaceBufferInternal,      IM_PtrChar_Int_RetVoid)
 DEFINE_METHOD(STRING_BUILDER,       REPLACE_BUFFER_ANSI_INTERNAL,ReplaceBufferAnsiInternal, IM_PtrSByt_Int_RetVoid)
-DEFINE_METHOD(STRING_BUILDER,       IS_SINGLE_CHUNK,         IsSingleChunk,              IM_RefArrChar_RetBool)
+DEFINE_METHOD(STRING_BUILDER,       TRY_GET_SINGLE_CHUNK,   TryGetSingleChunk,          IM_RetArrChar)
 DEFINE_METHOD(STRING_BUILDER,       UPDATE_LENGTH_OF_SINGLE_CHUNK, UpdateLengthOfSingleChunk, IM_Int_RetVoid)
 
 DEFINE_CLASS(STRONG_NAME_KEY_PAIR,  Reflection,             StrongNameKeyPair)

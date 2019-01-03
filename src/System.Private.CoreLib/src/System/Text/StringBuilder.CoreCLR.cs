@@ -138,18 +138,16 @@ namespace System.Text
         }
 
         /// <summary>
-        /// Checks if this StringBuilder contains only one chunk (char buffer).
+        /// Checks if this StringBuilder contains only one chunk (char buffer). If it is only one chunk, get that chunk.
         /// </summary>
-        /// <param name="chunk">A reference to the internal chunk.</param>
-        /// <returns>Returns <c>true</c> if this StringBuilder only has one chunk; otherwise false.</returns>
+        /// <returns>Returns the chunk if it is the only chunk. If it is not the only chunk, returns <c>null</c>.</returns>
         /// <remarks>
         /// This method is used by the marshalling system to determine if this StringBuilder can be passed to native
         /// by only having its buffer pinned.
         /// </remarks>
-        internal bool IsSingleChunk(out char[] chunk)
+        internal char[] TryGetSingleChunk()
         {
-            chunk = m_ChunkChars;
-            return m_ChunkPrevious == null;
+            return m_ChunkPrevious == null ? m_ChunkChars : null;
         }
 
         /// <summary>
@@ -161,7 +159,7 @@ namespace System.Text
         /// </remarks>
         internal void UpdateLengthOfSingleChunk(int length)
         {
-            System.Diagnostics.Debug.Assert(m_ChunkPrevious == null);
+            System.Diagnostics.Debug.Assert(TryGetSingleChunk() != null);
             m_ChunkLength = length;
         }
     }

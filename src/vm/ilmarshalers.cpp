@@ -682,11 +682,13 @@ void ILWSTRBufferMarshaler::EmitTryPinBuffer(ILCodeStream * pslILEmit, ILCodeLab
     EmitLoadManagedValue(pslILEmit);
     pslILEmit->EmitBRFALSE(marshalledLabel);
 
-    // if (buffer.IsSingleChunk(out pinnedArray))
+    // pinnedArray = managed.TryGetSingleChunk()
     EmitLoadManagedValue(pslILEmit);
-    pslILEmit->EmitLDLOCA(m_dwPinnedBuffer);
-    // bool StringBuffer.IsSingleChunk(out char[] chunk)
-    pslILEmit->EmitCALL(METHOD__STRING_BUILDER__IS_SINGLE_CHUNK, 2, 1);
+    // char[] StringBuilder.TryGetSingleChunk()
+    pslILEmit->EmitCALL(METHOD__STRING_BUILDER__TRY_GET_SINGLE_CHUNK, 1, 1);
+    pslILEmit->EmitSTLOC(m_dwPinnedBuffer);
+    // if (pinnedArray == null)
+    pslILEmit->EmitLDLOC(m_dwPinnedBuffer);
     pslILEmit->EmitBRFALSE(noPinLabel);
 
     // native = (char*)pinnedArray[0]
@@ -703,15 +705,12 @@ void ILWSTRBufferMarshaler::EmitTryPinBuffer(ILCodeStream * pslILEmit, ILCodeLab
 
     pslILEmit->EmitBR(marshalledLabel);
     pslILEmit->EmitLabel(noPinLabel);
-    // pinned buffer == null -> unable to pin
-    pslILEmit->EmitLDNULL();
-    pslILEmit->EmitSTLOC(m_dwPinnedBuffer);
 }
 
 void ILWSTRBufferMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit)
 {
     ILCodeLabel* marshalledLabel = pslILEmit->NewCodeLabel();
-    if (CanTryUsePinnedBuffer(m_dwMarshalFlags))
+    if (CanTryUsePinnedBuffer())
     {
         EmitTryPinBuffer(pslILEmit, marshalledLabel);
     }
@@ -722,7 +721,7 @@ void ILWSTRBufferMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStr
 void ILWSTRBufferMarshaler::EmitConvertSpaceCLRToNativeTemp(ILCodeStream* pslILEmit)
 {
     ILCodeLabel* marshalledLabel = pslILEmit->NewCodeLabel();
-    if (CanTryUsePinnedBuffer(m_dwMarshalFlags))
+    if (CanTryUsePinnedBuffer())
     {
         EmitTryPinBuffer(pslILEmit, marshalledLabel);
     }
