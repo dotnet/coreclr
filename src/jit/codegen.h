@@ -330,12 +330,12 @@ protected:
 
     static int genGetSlotSizeForRegsInMask(regMaskTP regsMask);
 
-    int genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
-                                        int       spDelta,
-                                        int spOffset DEBUGARG(bool isRegsToSaveCountOdd));
-    int genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
-                                           int       spDelta,
-                                           int spOffset DEBUGARG(bool isRegsToRestoreCountOdd));
+    void genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
+                                         int       spDelta,
+                                         int spOffset DEBUGARG(bool isRegsToSaveCountOdd));
+    void genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
+                                            int       spDelta,
+                                            int spOffset DEBUGARG(bool isRegsToRestoreCountOdd));
 
     void genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowestCalleeSavedOffset, int spDelta);
     void genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, int lowestCalleeSavedOffset, int spDelta);

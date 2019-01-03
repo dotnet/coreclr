@@ -454,12 +454,22 @@ void CodeGen::genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* reg
             regNumber reg2     = genRegNumFromMask(reg2Mask);
             if (reg2 == REG_NEXT(reg1))
             {
-                isPairSave = true;
+                if (genIsValidFloatReg(reg1) == genIsValidFloatReg(reg2))
+                {
+                    isPairSave = true;
 
-                regsMask &= ~reg2Mask;
-                regsCount -= 1;
+                    regsMask &= ~reg2Mask;
+                    regsCount -= 1;
 
-                regStack->Push(RegPair(reg1, reg2));
+                    regStack->Push(RegPair(reg1, reg2));
+                }
+#ifdef DEBUG
+                else
+                {
+                    // Can't save int and float registers in one pair.
+                    assert(genIsValidIntReg(reg1) && genIsValidFloatReg(reg2));
+                }
+#endif // DEBUG
             }
         }
         if (!isPairSave)
@@ -529,25 +539,19 @@ bool CodeGen::genCanUseSaveNextPair(RegPair curr, RegPair next)
 // Return value:
 //   stack slot size in bytes.
 //
+// Note: Because int and float register type sizes match we can call this function with a mask that includes both.
+//
 // static
 int CodeGen::genGetSlotSizeForRegsInMask(regMaskTP regsMask)
 {
     assert((regsMask & (RBM_CALLEE_SAVED | RBM_LR)) == regsMask); // Do not expect anything else.
 
-    bool isIntMask = ((regsMask & RBM_ALLFLOAT) == 0);
-#ifdef DEBUG
-    bool isFloatMask = ((regsMask & RBM_ALLFLOAT) == regsMask);
-    // Has to be either int or float.
-    assert(isIntMask != isFloatMask);
-#endif // DEBUG
-
-    int slotSize = isIntMask ? REGSIZE_BYTES : FPSAVE_REGSIZE_BYTES;
-    return slotSize;
+    assert(REGSIZE_BYTES == FPSAVE_REGSIZE_BYTES);
+    return REGSIZE_BYTES;
 }
 
 //------------------------------------------------------------------------
 // genSaveCalleeSavedRegisterGroup: Saves the group of registers described by the mask.
-// All registers in the mask must be the same type (int or float).
 //
 // Arguments:
 //   regsMask             - a mask of registers for prolog generation;
@@ -555,12 +559,9 @@ int CodeGen::genGetSlotSizeForRegsInMask(regMaskTP regsMask)
 //   spOffset             - the offset from SP that is the beginning of the callee-saved register area;
 //   isRegsToSaveCountOdd - (DEBUG only) true if number of registers to save is odd.
 //
-// Return Value:
-//   SP offset after saving registers from this group.
-//
-int CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
-                                             int       spDelta,
-                                             int spOffset DEBUGARG(bool isRegsToSaveCountOdd))
+void CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
+                                              int       spDelta,
+                                              int spOffset DEBUGARG(bool isRegsToSaveCountOdd))
 {
     const int slotSize = genGetSlotSizeForRegsInMask(regsMask);
 
@@ -594,7 +595,6 @@ int CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
 
         spDelta = 0; // We've now changed SP already, if necessary; don't do it again.
     }
-    return spOffset;
 }
 
 //------------------------------------------------------------------------
@@ -652,45 +652,20 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
 
     int spOffset = lowestCalleeSavedOffset; // this is the offset *after* we change SP.
 
-    regMaskTP maskSaveRegsFloat = regsToSaveMask & RBM_ALLFLOAT;
-    regMaskTP maskSaveRegsInt   = regsToSaveMask & ~maskSaveRegsFloat;
-
-    bool floatSavesSp = (maskSaveRegsInt == 0);
-
-    if (maskSaveRegsInt != 0)
-    {
-        assert(!floatSavesSp); // We always change SP only once with the first save/last load.
-
-        // Save the integer registers.
-        spOffset = genSaveCalleeSavedRegisterGroup(maskSaveRegsInt, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
-    }
-
-    if (maskSaveRegsFloat != 0)
-    {
-        int floatSpDelta = floatSavesSp ? spDelta : 0;
-
-        // Save the floating-point/SIMD registers
-        spOffset =
-            genSaveCalleeSavedRegisterGroup(maskSaveRegsFloat, floatSpDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
-        spDelta = 0;
-    }
+    genSaveCalleeSavedRegisterGroup(regsToSaveMask, spDelta, spOffset DEBUGARG(isRegsToSaveCountOdd));
 }
 
 //------------------------------------------------------------------------
-// genRestoreCalleeSavedRegisterGroup: Saves the group of registers described by the mask.
-// All registers in the mask must be the same type (int or float).
+// genRestoreCalleeSavedRegisterGroup: Restores the group of registers described by the mask.
 //
 // Arguments:
 //   regsMask             - a mask of registers for epilog generation;
 //   spDelta              - if non-zero, the amount to add to SP after the last register restore (or together with it);
 //   spOffset             - the offset from SP that is the beginning of the callee-saved register area;
 //
-// Return Value:
-//   SP offset after restoring registers from this group.
-//
-int CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
-                                                int       spDelta,
-                                                int spOffset DEBUGARG(bool isRegsToRestoreCountOdd))
+void CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
+                                                 int       spDelta,
+                                                 int spOffset DEBUGARG(bool isRegsToRestoreCountOdd))
 {
     const int slotSize = genGetSlotSizeForRegsInMask(regsMask);
 
@@ -730,7 +705,6 @@ int CodeGen::genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
         genCheckSPOffset(isRegsToRestoreCountOdd, spOffset, slotSize);
     }
 #endif // DEBUG
-    return spOffset;
 }
 
 //------------------------------------------------------------------------
@@ -794,30 +768,7 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
                                                                                  // predecrement to find the offset to
                                                                                  // load from.
 
-    // We want to restore in the opposite order we saved, so the unwind codes match. Be careful to handle odd numbers of
-    // callee-saved registers properly.
-
-    regMaskTP maskRestoreRegsFloat = regsToRestoreMask & RBM_ALLFLOAT;
-    regMaskTP maskRestoreRegsInt   = regsToRestoreMask & ~maskRestoreRegsFloat;
-
-    bool floatRestoresSp = (maskRestoreRegsInt == 0);
-
-    if (maskRestoreRegsFloat != 0)
-    {
-        int floatSpDelta = floatRestoresSp ? spDelta : 0;
-        // Restore the floating-point/SIMD registers
-        spOffset = genRestoreCalleeSavedRegisterGroup(maskRestoreRegsFloat, floatSpDelta,
-                                                      spOffset DEBUGARG(isRegsToRestoreCountOdd));
-    }
-
-    if (maskRestoreRegsInt != 0)
-    {
-        assert(!floatRestoresSp); // We always change SP only once with the first save/last load.
-
-        // Restore the integer registers
-        spOffset =
-            genRestoreCalleeSavedRegisterGroup(maskRestoreRegsInt, spDelta, spOffset DEBUGARG(isRegsToRestoreCountOdd));
-    }
+    genRestoreCalleeSavedRegisterGroup(regsToRestoreMask, spDelta, spOffset DEBUGARG(isRegsToRestoreCountOdd));
 }
 
 // clang-format off
