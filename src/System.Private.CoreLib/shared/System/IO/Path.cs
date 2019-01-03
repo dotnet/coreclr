@@ -74,23 +74,11 @@ namespace System.IO
             {
                 return path.Substring(0, subLength);
             }
-            else if (extension.StartsWith('.'))
-            {
-                string result = string.FastAllocateString(subLength + extension.Length);
-                Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
-                path.AsSpan(0, subLength).CopyTo(resultSpan);
-                extension.AsSpan().CopyTo(resultSpan.Slice(subLength));
-                return result;
-            }
-            else
-            {
-                string result = string.FastAllocateString(subLength + 1 + extension.Length);
-                Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
-                path.AsSpan(0, subLength).CopyTo(resultSpan);
-                resultSpan[subLength] = '.';
-                extension.AsSpan().CopyTo(resultSpan.Slice(subLength + 1));
-                return result;
-            }
+
+            ReadOnlySpan<char> subpath = path.AsSpan(0, subLength);
+            return extension.StartsWith('.') ?
+                string.Concat(subpath, extension) :
+                string.Concat(subpath, ".", extension);
         }
 
         /// <summary>
