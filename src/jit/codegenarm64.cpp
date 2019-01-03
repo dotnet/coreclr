@@ -490,25 +490,25 @@ void CodeGen::genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* reg
 //   regStack - a regStack instance to set useSaveNextPair.
 //
 // Notes:
-// We can use save_next for RegPair(N, N+1) only when we have sequence like (N-2, N-1), (N, N+1), (N+2, N+3).
-// In this case in the prolog save_next for (N, N+1) refers to save_pair(N-2, N-1),
-// in the epilog it refers to save_pair(N+2, N+3).
+// We can use save_next for RegPair(N, N+1) only when we have sequence like (N-2, N-1), (N, N+1).
+// In this case in the prolog save_next for (N, N+1) refers to save_pair(N-2, N-1);
+// in the epilog the unwinder will search for the first save_pair (N-2, N-1)
+// and then go back to the first save_next (N, N+1) to restore it first.
 //
 // static
 void CodeGen::genSetUseSaveNextPairs(ArrayStack<RegPair>* regStack)
 {
-    for (int i = 1; i < regStack->Height() - 1; ++i)
+    for (int i = 1; i < regStack->Height(); ++i)
     {
         RegPair& curr = regStack->BottomRef(i);
         RegPair  prev = regStack->Bottom(i - 1);
-        RegPair  next = regStack->Bottom(i + 1);
 
-        if (prev.reg2 == REG_NA || curr.reg2 == REG_NA || next.reg2 == REG_NA)
+        if (prev.reg2 == REG_NA || curr.reg2 == REG_NA)
         {
             continue;
         }
 
-        if (genCanUseSaveNextPair(prev, curr) && genCanUseSaveNextPair(curr, next))
+        if (genCanUseSaveNextPair(prev, curr))
         {
             curr.useSaveNextPair = true;
         }
