@@ -21,9 +21,9 @@ FOR /f "tokens=1*" %%x IN ("%*") DO (
     if /i "!param:~0,12!" == "-AzureToken="   (set v=!param:~12!&set __MSBuildArgs=!__MSBuildArgs! /p:CloudDropAccessToken=!v!)
     if /i "!param:~0,11!" == "-BuildArch="    (set v=!param:~11!&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildArch=!v!)
     if /i "!param:~0,11!" == "-BuildType="    (set v=!param:~11!&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildType=!v!)
-    if /i "!param:~0,11!" == "-Container="    (set v=!param:~11!&set __MSBuildArgs=!__MSBuildArgs! /p:__ContainerName=!v!)
-    if /i "!param:!" == "-PublishPackages"    (set v=!param:~17!&set __MSBuildArgs=!__MSBuildArgs! /p:__PublishPackages=true)
-    if /i "!param:!" == "-PublishSymbols"     (set v=!param:~16!&set __MSBuildArgs=!__MSBuildArgs! /p:__PublishSymbols=true)
+    if /i "!param:~0,11!" == "-Container="    (set v=!param:~11!&set __MSBuildArgs=!__MSBuildArgs! /p:ContainerName=!v!)
+    if /i "!param!" == "-PublishPackages"     (set __MSBuildArgs=!__MSBuildArgs! /p:__PublishPackages=true)
+    if /i "!param!" == "-PublishSymbols"      (set __MSBuildArgs=!__MSBuildArgs! /p:__PublishSymbols=true)
     REM all other arguments get passed through to msbuild unchanged.
     if /i not "!param:~0,1!" == "-"           (set __MSBuildArgs=!__MSBuildArgs! !param!)
 
