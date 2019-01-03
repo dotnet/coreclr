@@ -916,18 +916,22 @@ void ILWSTRBufferMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEm
     STANDARD_VM_CONTRACT;
 
     ILCodeLabel* marshalFinishedLabel = pslILEmit->NewCodeLabel();
+    ILCodeLabel* replaceBufferLabel = pslILEmit->NewCodeLabel();
 
     if (m_dwPinnedBuffer != LOCAL_NUM_UNUSED)
     {
         pslILEmit->EmitLDLOC(m_dwPinnedBuffer);
-        pslILEmit->EmitBRTRUE(marshalFinishedLabel);
+        pslILEmit->EmitBRFALSE(replaceBufferLabel);
         
         EmitLoadManagedValue(pslILEmit);
         EmitLoadNativeValue(pslILEmit);
         // static int System.String.wcslen(char *ptr)
         pslILEmit->EmitCALL(METHOD__STRING__WCSLEN, 1, 1);
         pslILEmit->EmitCALL(METHOD__STRING_BUILDER__UPDATE_LENGTH_OF_SINGLE_CHUNK, 2, 0);
+        pslILEmit->EmitBR(marshalFinishedLabel);
     }
+
+    pslILEmit->EmitLabel(replaceBufferLabel);
 
     EmitLoadNativeValue(pslILEmit);
     pslILEmit->EmitBRFALSE(marshalFinishedLabel);
