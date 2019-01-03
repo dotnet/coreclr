@@ -230,6 +230,13 @@ namespace NetClient
                 this.server.Reverse_SB_LPWStr_OutAttr(local, actual);
                 Assert.AreEqual(expected, actual.ToString());
                 Assert.AreEqual(expected, local.ToString());
+
+                local = new StringBuilder(s.Length / 2);
+                actual = new StringBuilder(s.Length);
+                local.Append(s);
+                this.server.Reverse_SB_LPWStr_OutAttr(local, actual);
+                Assert.AreEqual(expected, actual.ToString());
+                Assert.AreEqual(expected, local.ToString());
             }
         }
 
