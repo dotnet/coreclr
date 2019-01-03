@@ -505,6 +505,11 @@ namespace System
             return d;
         }
 
+        // Non-inline call to the virtual Equals so operator== only inlines to the ReferenceEquals 
+        // and doesn't include the virtual Equals preamble as well as part of the inline.
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private bool Equals(Delegate o) => Equals((object)o);
+
         // Force inline as the true/false ternary takes it above ALWAYS_INLINE size even though the asm ends up smaller
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(Delegate d1, Delegate d2)

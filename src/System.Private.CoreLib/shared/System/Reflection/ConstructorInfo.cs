@@ -22,6 +22,11 @@ namespace System.Reflection
         public override bool Equals(object obj) => base.Equals(obj);
         public override int GetHashCode() => base.GetHashCode();
 
+        // Non-inline call to the virtual Equals so operator== only inlines to the ReferenceEquals 
+        // and doesn't include the virtual Equals preamble as well as part of the inline.
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private bool Equals(ConstructorInfo o) => Equals((object)o);
+
         // Force inline as the true/false ternary takes it above ALWAYS_INLINE size even though the asm ends up smaller
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(ConstructorInfo left, ConstructorInfo right)
