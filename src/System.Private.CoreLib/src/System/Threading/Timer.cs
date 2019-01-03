@@ -733,22 +733,20 @@ namespace System.Threading
             }
             else
             {
+                TimerQueueTimer timer = this;
                 if (isThreadPool)
                 {
-                    ExecutionContext.RunFromThreadPoolDispatchLoop(Thread.CurrentThread, context, s_callCallbackInContext, this);
+                    ExecutionContext.RunFromThreadPoolDispatchLoop(Thread.CurrentThread, context, s_callCallbackInContext, ref timer);
                 }
                 else
                 {
-                    ExecutionContext.RunInternal(context, s_callCallbackInContext, this);
+                    ExecutionContext.RunInternal(context, s_callCallbackInContext, ref timer);
                 }
             }
         }
 
-        private static readonly ContextCallback s_callCallbackInContext = state =>
-        {
-            TimerQueueTimer t = (TimerQueueTimer)state;
-            t.m_timerCallback(t.m_state);
-        };
+        private static readonly ContextCallback<TimerQueueTimer> s_callCallbackInContext =
+            (ref TimerQueueTimer timer) => timer.m_timerCallback(timer.m_state);
     }
 
     // TimerHolder serves as an intermediary between Timer and TimerQueueTimer, releasing the TimerQueueTimer 

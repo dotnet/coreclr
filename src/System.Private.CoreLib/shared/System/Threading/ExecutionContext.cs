@@ -123,7 +123,6 @@ namespace System.Threading
 
         public static void Run(ExecutionContext executionContext, ContextCallback callback, object state)
         {
-            // Note: ExecutionContext.Run is an extremely hot function and used by every await, ThreadPool execution, etc.
             if (executionContext == null)
             {
                 ThrowNullContext();
@@ -299,7 +298,7 @@ namespace System.Threading
             edi?.Throw();
         }
 
-        internal static void RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, object state)
+        internal static void RunFromThreadPoolDispatchLoop<TState>(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback<TState> callback, ref TState state)
         {
             Debug.Assert(threadPoolThread == Thread.CurrentThread);
             CheckThreadPoolAndContextsAreDefault();
@@ -324,7 +323,7 @@ namespace System.Threading
             ExceptionDispatchInfo edi = null;
             try
             {
-                callback.Invoke(state);
+                callback.Invoke(ref state);
             }
             catch (Exception ex)
             {

@@ -2438,13 +2438,14 @@ namespace System.Threading.Tasks
                     else
                     {
                         // Invoke it under the captured ExecutionContext
+                        Task task = this;
                         if (threadPoolThread is null)
                         {
-                            ExecutionContext.RunInternal(ec, s_ecCallback, this);
+                            ExecutionContext.RunInternal(ec, s_ecCallback, ref task);
                         }
                         else
                         {
-                            ExecutionContext.RunFromThreadPoolDispatchLoop(threadPoolThread, ec, s_ecCallback, this);
+                            ExecutionContext.RunFromThreadPoolDispatchLoop(threadPoolThread, ec, s_ecCallback, ref task);
                         }
                     }
                 }
@@ -2485,7 +2486,7 @@ namespace System.Threading.Tasks
             }
         }
 
-        private static readonly ContextCallback s_ecCallback = obj => ((Task)obj).InnerInvoke();
+        private static readonly ContextCallback<Task> s_ecCallback = (ref Task task) => task.InnerInvoke();
 
         /// <summary>
         /// The actual code which invokes the body of the task. This can be overridden in derived types.
