@@ -68,6 +68,11 @@ struct LocalDesc
         ChangeType(ELEMENT_TYPE_PINNED);
     }
 
+    void MakeArray()
+    {
+        ChangeType(ELEMENT_TYPE_SZARRAY);
+    }
+
     // makes the LocalDesc semantically equivalent to ET_TYPE_CMOD_REQD<IsCopyConstructed>/ET_TYPE_CMOD_REQD<NeedsCopyConstructorModifier>
     void MakeCopyConstructedPointer()
     {
@@ -595,6 +600,7 @@ public:
     void EmitLDC        (DWORD_PTR uConst);
     void EmitLDC_R4     (UINT32 uConst);
     void EmitLDC_R8     (UINT64 uConst);
+    void EmitLDELEMA    (int token);
     void EmitLDELEM_REF ();
     void EmitLDFLD      (int token);
     void EmitLDFLDA     (int token);

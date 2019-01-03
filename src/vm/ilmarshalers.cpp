@@ -3785,10 +3785,6 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         // the other.  Since there is no enforcement of this, apps blithely depend
         // on it.  
         //
-        
-        // The base offset should only be 0 for System.Array parameters for which
-        // OleVariant::GetMarshalerForVarType(vt) should never return NULL.
-        _ASSERTE(m_pargs->na.m_optionalbaseoffset != 0);
 
         EmitSetupSigAndDefaultHomesCLRToNative();
 
@@ -3807,9 +3803,9 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         EmitLoadManagedValue(m_pcsMarshal);
         m_pcsMarshal->EmitSTLOC(dwPinnedLocal);
         m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
+        m_pcsMarshal->EmitLDC(0);
+        m_pcsMarshal->EmitLDELEMA(m_pcsMarshal->GetToken(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle()));
         m_pcsMarshal->EmitCONV_I();
-        m_pcsMarshal->EmitLDC(m_pargs->na.m_optionalbaseoffset);
-        m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
         if (g_pConfig->InteropLogArguments())

@@ -2973,6 +2973,13 @@ public:
         m_dwSavedSizeArg = LOCAL_NUM_UNUSED;
     }
 
+    virtual LocalDesc GetManagedType()
+    {
+        LocalDesc type = LocalDesc(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle());
+        type.MakeArray();
+        return type;
+    }
+
     virtual void EmitMarshalArgumentCLRToNative();
     virtual void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit);
     virtual void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit);
