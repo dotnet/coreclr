@@ -1071,7 +1071,7 @@ void DebuggerJitInfo::SetBoundaries(ULONG32 cMap, ICorDebugInfo::OffsetMapping *
     CodeVersionManager *pCodeVersionManager = m_fd->GetCodeVersionManager();
     InstrumentedILOffsetMapping mapping;
 
-    NativeCodeVersion nativeVersion = pCodeVersionManager->GetNativeCodeVersion(m_fd, m_addrOfCode);
+    NativeCodeVersion nativeVersion = pCodeVersionManager->GetNativeCodeVersion(m_fd, (PCODE)CORDB_ADDRESS_TO_PTR(m_addrOfCode));
     _ASSERTE(!nativeVersion.IsNull());
     ILCodeVersion ilVersion = nativeVersion.GetILCodeVersion();
     if (ilVersion.GetVersionId() > 0)
