@@ -15,6 +15,11 @@
 
 class EventPipeBufferList;
 
+
+// Thread local storage of EventPipeBufferList
+// This is the per-thread object that contains a pointer to an object in m_pPerThreadBufferList above.
+//thread_local Volatile<bool> m_threadEventWriteInProgress;
+
 class EventPipeBufferManager
 {
 
@@ -36,6 +41,7 @@ private:
 
     // Lock to protect access to the per-thread buffer list and total allocation size.
     SpinLock m_lock;
+
 
 #ifdef _DEBUG
     // For debugging purposes.
@@ -113,6 +119,7 @@ private:
     // True if this thread is owned by a thread.
     // If it is false, then this buffer can be de-allocated after it is drained.
     Volatile<bool> m_ownedByThread;
+
 
 #ifdef _DEBUG
     // For diagnostics, keep the thread pointer.

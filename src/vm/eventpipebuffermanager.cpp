@@ -57,9 +57,9 @@ EventPipeBufferManager::~EventPipeBufferManager()
                 Thread *pThread = NULL;
                 while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
                 {
-                    if (pThread->GetEventPipeBufferList() == pThreadBufferList)
+                    if (pThreadBufferList)
                     {
-                        pThread->SetEventPipeBufferList(NULL);
+                        //pThread->SetEventPipeBufferList(NULL);
                         break;
                     }
                 }
@@ -95,7 +95,11 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
     // Determine if the requesting thread has at least one buffer.
     // If not, we guarantee that each thread gets at least one (to prevent thrashing when the circular buffer size is too small).
     bool allocateNewBuffer = false;
-    EventPipeBufferList *pThreadBufferList = pThread->GetEventPipeBufferList();
+
+    //EventPipeBufferList *pThreadBufferList = pThread->GetEventPipeBufferList();
+    EventPipeBufferList *pThreadBufferList = GetThreadBufferList();;
+
+
     if(pThreadBufferList == NULL)
     {
         pThreadBufferList = new (nothrow) EventPipeBufferList(this);
@@ -111,7 +115,8 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
         }
 
         m_pPerThreadBufferList->InsertTail(pElem);
-        pThread->SetEventPipeBufferList(pThreadBufferList);
+        SetThreadBufferList(pThreadBufferList);
+        //pThread->SetEventPipeBufferList(pThreadBufferList);
         allocateNewBuffer = true;
     }
 
@@ -327,6 +332,8 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     }
 
     // The event is still enabled.  Mark that the thread is now writing an event.
+    //m_threadEventWriteInProgress = true;
+
     pThread->SetEventWriteInProgress(true);
 
     // Check one more time to make sure that the event is still enabled.
@@ -341,7 +348,9 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     // See if the thread already has a buffer to try.
     bool allocNewBuffer = false;
     EventPipeBuffer *pBuffer = NULL;
-    EventPipeBufferList *pThreadBufferList = pThread->GetEventPipeBufferList();
+
+    EventPipeBufferList *pThreadBufferList = GetThreadBufferList();
+
     if(pThreadBufferList == NULL)
     {
         allocNewBuffer = true;
@@ -554,7 +563,7 @@ void EventPipeBufferManager::DeAllocateBuffers()
         while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
         {
             // Get the thread's buffer list.
-            EventPipeBufferList *pBufferList = pThread->GetEventPipeBufferList();
+            EventPipeBufferList *pBufferList = GetThreadBufferList();
             if(pBufferList != NULL)
             {
                 // Attempt to free the buffer list.
@@ -592,7 +601,8 @@ void EventPipeBufferManager::DeAllocateBuffers()
                     }
 
                     // Remove the list reference from the thread.
-                    pThread->SetEventPipeBufferList(NULL);
+                    SetThreadBufferList(NULL);
+                    //pThread->SetEventPipeBufferList(NULL);
 
                     // Now that all of the list elements have been freed, free the list itself.
                     delete(pBufferList);

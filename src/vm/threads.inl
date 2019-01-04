@@ -39,6 +39,16 @@ EXTERN_C inline AppDomain* STDCALL GetAppDomain()
     return AppDomain::GetCurrentDomain();
 }
 
+EXTERN_C inline EventPipeBufferList* STDCALL GetThreadBufferList()
+{
+    return gCurrentThreadInfo.m_pThreadBufferList;
+}
+
+EXTERN_C inline void STDCALL SetThreadBufferList(EventPipeBufferList* bl)
+{
+    gCurrentThreadInfo.m_pThreadBufferList = bl;
+}
+
 #endif // !DACCESS_COMPILE
 
 inline void Thread::IncLockCount()
