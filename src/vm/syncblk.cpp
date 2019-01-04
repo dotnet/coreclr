@@ -2211,7 +2211,7 @@ DEBUG_NOINLINE void ObjHeader::EnterSpinLock()
             {
                 if  (! (m_SyncBlockValue & BIT_SBLK_SPIN_LOCK))
                     break;
-                YieldProcessorNormalized(); // indicate to the processor that we are spining
+                YieldProcessorNormalized(); // indicate to the processor that we are spinning
             }
             if  (m_SyncBlockValue & BIT_SBLK_SPIN_LOCK)
                 __SwitchToThread(0, ++dwSwitchCount);

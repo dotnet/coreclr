@@ -251,7 +251,7 @@ SpinLock::SpinToAcquire()
              ulSpins < i;
              ulSpins++)
         {
-            YieldProcessorNormalized(normalizationInfo); // indicate to the processor that we are spining 
+            YieldProcessorNormalized(normalizationInfo); // indicate to the processor that we are spinning 
 
             // Note: Must use Volatile to ensure the lock is
             // refetched from memory.

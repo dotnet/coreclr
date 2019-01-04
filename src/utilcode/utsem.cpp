@@ -20,7 +20,6 @@ Revision History:
 
 #include <utsem.h>
 #include "contract.h"
-#include "yieldprocessornormalized.h"
 
 // Consider replacing this with a #ifdef INTEROP_DEBUGGING
 #if !defined(SELF_NO_HOST) && defined(_TARGET_X86_) && !defined(FEATURE_PAL)

@@ -4,8 +4,6 @@
 
 #include "common.h"
 
-#include "yieldprocessornormalized.h"
-
 static Volatile<bool> s_isYieldProcessorNormalizedInitialized = false;
 static CrstStatic s_initializeYieldProcessorNormalizedCrst;
 
@@ -53,7 +51,7 @@ static void InitializeYieldProcessorNormalized()
         // low microsecond range.
         for (int i = 0; i < 1000; ++i)
         {
-            YieldProcessor();
+            System_YieldProcessor();
         }
         yieldCount += 1000;
 
