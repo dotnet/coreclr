@@ -576,12 +576,11 @@ namespace System
                 {
                     return _members.Count > 0 && _members[0].Value.Equals(s_operations.Zero) ?
                         _members[0].Name :
-                        "0";
+                        value.ToString();
                 }
 
-                // Walk from largest to smallest. It's common to have a flags enum with a single
-                // value that matches a single entry, in which case we can just return the existing
-                // name string.
+                // It's common to have a flags enum with a single value that matches a single entry,
+                // in which case we can just return the existing name string.
                 if (_members.TryGetValue(value, out EnumMemberInternal member))
                 {
                     return member.Name;
@@ -597,15 +596,16 @@ namespace System
                 // into our span.
                 int index = _members.Count - 1;
                 int resultLength = 0, foundItemsCount = 0;
+                TUnderlying tempValue = value;
                 while (index >= 0)
                 {
                     TUnderlying currentValue = _members[index].Value;
-                    if (s_operations.And(value, currentValue).Equals(currentValue))
+                    if (s_operations.And(tempValue, currentValue).Equals(currentValue))
                     {
-                        value = s_operations.Subtract(value, currentValue);
+                        tempValue = s_operations.Subtract(tempValue, currentValue);
                         foundItems[foundItemsCount++] = index;
                         resultLength = checked(resultLength + _members[index].Name.Length);
-                        if (value.Equals(s_operations.Zero))
+                        if (tempValue.Equals(s_operations.Zero))
                         {
                             break;
                         }
@@ -616,11 +616,10 @@ namespace System
 
                 // If we exhausted looking through all the values and we still have
                 // a non-zero result, we couldn't match the result to only named values.
-                // In that case, we return null and let the call site just generate
-                // a string for the integral value.
-                if (!value.Equals(s_operations.Zero))
+                // In that case, we return a string for the integral value.
+                if (!tempValue.Equals(s_operations.Zero))
                 {
-                    return null;
+                    return value.ToString();
                 }
 
                 // We know what strings to concatenate.  Do so.
@@ -693,9 +692,10 @@ namespace System
                     char firstNonWhitespaceChar = value[0];
                     if (char.IsInRange(firstNonWhitespaceChar, '0', '9') || firstNonWhitespaceChar == '-' || firstNonWhitespaceChar == '+')
                     {
-                        status = s_operations.TryParse(value, out result);
+                        status = s_operations.TryParse(value, out localResult);
                         if (status != Number.ParsingStatus.Failed)
                         {
+                            result = status == Number.ParsingStatus.OK ? localResult : default;
                             return status;
                         }
                     }
@@ -1599,9 +1599,9 @@ namespace System
             #region ToHexStr
             public string ToHexStr(byte value) => Number.Int32ToHexStr(value, '7', 2);
 
-            public string ToHexStr(sbyte value) => Number.Int32ToHexStr(value, '7', 2);
+            public string ToHexStr(sbyte value) => Number.Int32ToHexStr((byte)value, '7', 2);
 
-            public string ToHexStr(short value) => Number.Int32ToHexStr(value, '7', 4);
+            public string ToHexStr(short value) => Number.Int32ToHexStr((ushort)value, '7', 4);
 
             public string ToHexStr(ushort value) => Number.Int32ToHexStr(value, '7', 4);
 
