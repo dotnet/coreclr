@@ -2266,7 +2266,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "tests\\scripts\\run-gc-reliability-framework.cmd ${arch} ${configuration}"
                         }
                         else {
-                            def buildCommandsStr = "tests\\runtest.cmd ${runtestArguments}\r\n"
+                            def buildCommandsStr = "call tests\\runtest.cmd ${runtestArguments}\r\n"
                             if (!isBuildOnly) {
                                 // If we ran the tests, collect the test logs collected by xunit. We want to do this even if the tests fail, so we
                                 // must do it in the same batch file as the test run.
@@ -3142,7 +3142,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                 // Run runtest.cmd
                 // Do not run generate layout. It will delete the correct CORE_ROOT, and we do not have a correct product
                 // dir to copy from.
-                def runtestCommand = "%WORKSPACE%\\tests\\runtest.cmd ${architecture} ${configuration} skipgeneratelayout"
+                def runtestCommand = "call %WORKSPACE%\\tests\\runtest.cmd ${architecture} ${configuration} skipgeneratelayout"
 
                 addCommand("${runtestCommand}")
                 addCommand("set saved_errorlevel=%errorlevel%")
