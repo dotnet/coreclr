@@ -475,6 +475,11 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # Some architectures (e.g., ARM) assume char type is unsigned while CoreCLR assumes char is signed
   # as x64 does. It has been causing issues in ARM (https://github.com/dotnet/coreclr/issues/4746)
   add_compile_options(-fsigned-char)
+
+  # Specify the minimum supported version of macOS
+  if(CLR_CMAKE_PLATFORM_DARWIN)
+    add_compile_options(-mmacosx-version-min=10.12)
+  endif(CLR_CMAKE_PLATFORM_DARWIN)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_PLATFORM_UNIX_ARM)
