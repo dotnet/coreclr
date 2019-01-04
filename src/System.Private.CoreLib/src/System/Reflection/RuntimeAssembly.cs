@@ -689,6 +689,7 @@ namespace System.Reflection
             return InternalGetSatelliteAssembly(name, culture, version, true);
         }
 
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         internal RuntimeAssembly InternalGetSatelliteAssembly(string name,
                                                               CultureInfo culture,
                                                               Version version,
