@@ -465,13 +465,13 @@ def create_and_use_test_env(_os, env, func):
 
             if _os == "Windows_NT":
                 file_header = \
-    """@REM Temporary test env for test run.
-    @echo on
-    """
+"""@REM Temporary test env for test run.
+@echo on
+"""
             else:
                 file_header = \
-    """# Temporary test env for test run.
-    """
+"""# Temporary test env for test run.
+"""
 
             test_env.write(file_header)
             contents += file_header
@@ -502,8 +502,8 @@ def create_and_use_test_env(_os, env, func):
 
             if _os == "Windows_NT":
                 file_suffix = \
-    """@echo off
-    """
+"""@echo off
+"""
                 test_env.write(file_suffix)
                 contents += file_suffix
 
