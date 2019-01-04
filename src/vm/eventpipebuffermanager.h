@@ -56,7 +56,7 @@ private:
     // Allocate a new buffer for the specified thread.
     // This function will store the buffer in the thread's buffer list for future use and also return it here.
     // A NULL return value means that a buffer could not be allocated.
-    EventPipeBuffer* AllocateBufferForThread(EventPipeSession &session, Thread *pThread, unsigned int requestSize);
+    EventPipeBuffer* AllocateBufferForThread(EventPipeSession &session, unsigned int requestSize);
 
     // Add a buffer to the thread buffer list.
     void AddBufferToThreadBufferList(EventPipeBufferList *pThreadBuffers, EventPipeBuffer *pBuffer);

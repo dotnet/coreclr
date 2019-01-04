@@ -54,13 +54,16 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(pThread != NULL);
         PRECONDITION(((size_t)m_pCurrent % AlignmentSize) == 0);
     }
     CONTRACTL_END;
 
     // Calculate the size of the event.
     unsigned int eventSize = sizeof(EventPipeEventInstance) + payload.GetSize();
+    DWORD osThreadId;
+    LPCGUID pThreadActivityID;
+    GUID incomingMVID;
+    ZeroMemory(&incomingMVID, sizeof(GUID));
 
     // Make sure we have enough space to write the event.
     if(m_pCurrent + eventSize >= m_pLimit)
@@ -68,21 +71,53 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
         return false;
     }
 
+    if (pThread == NULL)
+    {
+        // if pthread is NULL, it's likely we are running in GC thread which is not a Thread object, so it can't have an activity ID set anyway
+        pThreadActivityID = NULL;
+        // For ThreadID just get the Current Thread ID
+        osThreadId = ::GetCurrentThreadId();
+    }
+    else
+    {
+        osThreadId = pThread->GetOSThreadId();
+    }
+
     // Calculate the location of the data payload.
     BYTE *pDataDest = m_pCurrent + sizeof(EventPipeEventInstance);
+    EventPipeEventInstance *pInstance;
 
     bool success = true;
     EX_TRY
     {
-        // Placement-new the EventPipeEventInstance.
-        EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
+        LPCGUID pThreadActivityID = pActivityId;
+
+
+        if (pThread == NULL)
+        {
+                    // Placement-new the EventPipeEventInstance.
+        pInstance = new (m_pCurrent) EventPipeEventInstance(
             session,
             event,
-            pThread->GetOSThreadId(),
+            osThreadId,
+            pDataDest,
+            payload.GetSize(),
+            NULL,
+            pRelatedActivityId);
+        }
+        else 
+        {
+                    // Placement-new the EventPipeEventInstance.
+            pInstance = new (m_pCurrent) EventPipeEventInstance(
+            session,
+            event,
+            osThreadId,
             pDataDest,
             payload.GetSize(),
             pActivityId,
             pRelatedActivityId);
+        }
+
 
         // Copy the stack if a separate stack trace was provided.
         if(pStack != NULL)

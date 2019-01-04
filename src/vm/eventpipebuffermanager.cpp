@@ -77,14 +77,13 @@ EventPipeBufferManager::~EventPipeBufferManager()
     }
 }
 
-EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSession &session, Thread *pThread, unsigned int requestSize)
+EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSession &session, unsigned int requestSize)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(pThread != NULL);
         PRECONDITION(requestSize > 0);
     }
     CONTRACTL_END;
@@ -334,7 +333,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     // The event is still enabled.  Mark that the thread is now writing an event.
     //m_threadEventWriteInProgress = true;
 
-    pThread->SetEventWriteInProgress(true);
+    //pThread->SetEventWriteInProgress(true);
 
     // Check one more time to make sure that the event is still enabled.
     // We do this because we might be trying to disable tracing and free buffers, so we
@@ -383,7 +382,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         // to switch to preemptive mode here.
 
         unsigned int requestSize = sizeof(EventPipeEventInstance) + payload.GetSize();
-        pBuffer = AllocateBufferForThread(session, pThread, requestSize);
+        pBuffer = AllocateBufferForThread(session, requestSize);
     }
 
     // Try to write the event after we allocated (or stole) a buffer.
@@ -395,7 +394,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     }
 
     // Mark that the thread is no longer writing an event.
-     pThread->SetEventWriteInProgress(false);
+     //pThread->SetEventWriteInProgress(false);
 
 #ifdef _DEBUG
     if(!allocNewBuffer)

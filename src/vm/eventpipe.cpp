@@ -751,11 +751,13 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
 
     // Get the current thread;
     Thread *pThread = GetThread();
+    /*
     if(pThread == NULL)
     {
         // We can't write an event without the thread object.
         return;
     }
+    */
 
     if(s_pConfig == NULL)
     {
