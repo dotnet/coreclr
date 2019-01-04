@@ -60,22 +60,26 @@ struct LocalDesc
 
     void MakeByRef()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_BYREF);
     }
 
     void MakePinned()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_PINNED);
     }
 
     void MakeArray()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_SZARRAY);
     }
 
     // makes the LocalDesc semantically equivalent to ET_TYPE_CMOD_REQD<IsCopyConstructed>/ET_TYPE_CMOD_REQD<NeedsCopyConstructorModifier>
     void MakeCopyConstructedPointer()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_PTR);
         bIsCopyConstructed = TRUE;
     }
