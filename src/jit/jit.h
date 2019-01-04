@@ -6,6 +6,7 @@
 #ifndef _JIT_H_
 #define _JIT_H_
 /*****************************************************************************/
+// dummy change
 
 //
 // clr.sln only defines _DEBUG
