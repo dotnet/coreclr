@@ -375,7 +375,7 @@ public:
         BOOL bThrowIfNotFound,
         BOOL bIgnoreCase,
         BOOL bProhibitAssemblyQualifiedName,
-        StackCrawlMark* pStackMark,
+        Assembly* pRequestingAssembly,
         BOOL bLoadTypeFromPartialNameHack,
         OBJECTREF *pKeepAlive,
         ICLRPrivBinder * pPrivHostBinder = nullptr);

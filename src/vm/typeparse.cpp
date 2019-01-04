@@ -1180,7 +1180,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     BOOL bThrowIfNotFound, 
     BOOL bIgnoreCase, 
     BOOL bProhibitAsmQualifiedName,
-    StackCrawlMark* pStackMark, 
+    Assembly* pRequestingAssembly, 
     BOOL bLoadTypeFromPartialNameHack,
     OBJECTREF *pKeepAlive,
     ICLRPrivBinder * pPrivHostBinder)
@@ -1191,10 +1191,6 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
       COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
 
     DWORD error = (DWORD)-1;
-    Assembly* pRequestingAssembly = NULL;
-
-    if (pStackMark)
-        pRequestingAssembly = SystemDomain::GetCallersAssembly(pStackMark); 
 
     /* Partial name workaround loading must not load a collectible type */
     if (bLoadTypeFromPartialNameHack)
@@ -1228,15 +1224,15 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     BOOL bPeriodPrefix = szTypeName[0] == W('.');
     
     TypeHandle result = pTypeName->GetTypeWorker(
-        bPeriodPrefix ? FALSE : bThrowIfNotFound, 
-        bIgnoreCase, 
-        pAssemblyGetType ? pAssemblyGetType->GetAssembly() : NULL, 
-        /*fEnableCASearchRules = */TRUE, 
-        bProhibitAsmQualifiedName, 
-        pRequestingAssembly, 
+        bPeriodPrefix ? FALSE : bThrowIfNotFound,
+        bIgnoreCase,
+        pAssemblyGetType ? pAssemblyGetType->GetAssembly() : NULL,
+        /*fEnableCASearchRules = */TRUE,
+        bProhibitAsmQualifiedName,
+        pRequestingAssembly,
         pPrivHostBinder,
         bLoadTypeFromPartialNameHack,
-        pKeepAlive);      
+        pKeepAlive);
 
     if (bPeriodPrefix && result.IsNull())
     {
@@ -1257,15 +1253,15 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         }
         
         result = pTypeName->GetTypeWorker(
-            bThrowIfNotFound, 
-            bIgnoreCase, 
-            pAssemblyGetType ? pAssemblyGetType->GetAssembly() : NULL, 
-            /*fEnableCASearchRules = */TRUE, 
-            bProhibitAsmQualifiedName, 
-            pRequestingAssembly, 
+            bThrowIfNotFound,
+            bIgnoreCase,
+            pAssemblyGetType ? pAssemblyGetType->GetAssembly() : NULL,
+            /*fEnableCASearchRules = */TRUE,
+            bProhibitAsmQualifiedName,
+            pRequestingAssembly,
             pPrivHostBinder,
             bLoadTypeFromPartialNameHack,
-            pKeepAlive);      
+            pKeepAlive);
     }
 
     return result;
