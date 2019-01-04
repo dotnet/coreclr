@@ -695,8 +695,8 @@ namespace System.Reflection
                                                               Version version,
                                                               bool throwOnFileNotFound)
         {
-            // This stack crawl mark is never used, so the value could be anything and this method
-            // doesn't need a DynamicSecurityMethod attribute.
+            // This stack crawl mark is never used because the requesting assembly is explicitly specified,
+            // so the value could be anything.
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             AssemblyName an = new AssemblyName();
 
