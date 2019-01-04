@@ -910,8 +910,7 @@ void DestroyThread(Thread *th)
 #ifdef FEATURE_PERFTRACING
     // Before the thread dies, mark its buffers as no longer owned
     // so that they can be cleaned up after the thread dies.
-    // TODO: Can delete this?
-    EventPipeBufferList *pBufferList = GetThreadEventBufferList(); // th->GetEventPipeBufferList();
+    EventPipeBufferList *pBufferList = GetThreadEventBufferList();
     if(pBufferList != NULL)
     {
         pBufferList->SetOwnedByThread(false);
