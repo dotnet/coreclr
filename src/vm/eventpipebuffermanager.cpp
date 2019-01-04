@@ -95,7 +95,6 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
     // If not, we guarantee that each thread gets at least one (to prevent thrashing when the circular buffer size is too small).
     bool allocateNewBuffer = false;
 
-    //EventPipeBufferList *pThreadBufferList = pThread->GetEventPipeBufferList();
     EventPipeBufferList *pThreadBufferList = GetThreadBufferList();;
 
 
@@ -115,7 +114,6 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
 
         m_pPerThreadBufferList->InsertTail(pElem);
         SetThreadBufferList(pThreadBufferList);
-        //pThread->SetEventPipeBufferList(pThreadBufferList);
         allocateNewBuffer = true;
     }
 
@@ -331,9 +329,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     }
 
     // The event is still enabled.  Mark that the thread is now writing an event.
-    //m_threadEventWriteInProgress = true;
-
-    //pThread->SetEventWriteInProgress(true);
+    SetEventWriteInProgress(true);
 
     // Check one more time to make sure that the event is still enabled.
     // We do this because we might be trying to disable tracing and free buffers, so we
@@ -394,7 +390,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     }
 
     // Mark that the thread is no longer writing an event.
-     //pThread->SetEventWriteInProgress(false);
+    SetEventWriteInProgress(false);
 
 #ifdef _DEBUG
     if(!allocNewBuffer)

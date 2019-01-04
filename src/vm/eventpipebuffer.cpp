@@ -61,9 +61,6 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
     // Calculate the size of the event.
     unsigned int eventSize = sizeof(EventPipeEventInstance) + payload.GetSize();
     DWORD osThreadId;
-    LPCGUID pThreadActivityID;
-    GUID incomingMVID;
-    ZeroMemory(&incomingMVID, sizeof(GUID));
 
     // Make sure we have enough space to write the event.
     if(m_pCurrent + eventSize >= m_pLimit)
@@ -73,10 +70,10 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
 
     if (pThread == NULL)
     {
-        // if pthread is NULL, it's likely we are running in GC thread which is not a Thread object, so it can't have an activity ID set anyway
-        pThreadActivityID = NULL;
         // For ThreadID just get the Current Thread ID
         osThreadId = ::GetCurrentThreadId();
+
+        // TODO: Does this work on cross plat? 
     }
     else
     {
@@ -92,30 +89,30 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
     {
         LPCGUID pThreadActivityID = pActivityId;
 
+        // Placement-new the EventPipeEventInstance.
 
         if (pThread == NULL)
         {
-                    // Placement-new the EventPipeEventInstance.
-        pInstance = new (m_pCurrent) EventPipeEventInstance(
-            session,
-            event,
-            osThreadId,
-            pDataDest,
-            payload.GetSize(),
-            NULL,
-            pRelatedActivityId);
-        }
-        else 
-        {
-                    // Placement-new the EventPipeEventInstance.
+            // if pthread is NULL, it's likely we are running in something like a GC thread which is not a Thread object, so it can't have an activity ID set anyway
             pInstance = new (m_pCurrent) EventPipeEventInstance(
-            session,
-            event,
-            osThreadId,
-            pDataDest,
-            payload.GetSize(),
-            pActivityId,
-            pRelatedActivityId);
+                session,
+                event,
+                osThreadId,
+                pDataDest,
+                payload.GetSize(),
+                NULL,
+                pRelatedActivityId);
+        }
+        else
+        {
+            pInstance = new (m_pCurrent) EventPipeEventInstance(
+                session,
+                event,
+                osThreadId,
+                pDataDest,
+                payload.GetSize(),
+                pActivityId,
+                pRelatedActivityId);
         }
 
 

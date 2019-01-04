@@ -909,13 +909,13 @@ void DestroyThread(Thread *th)
 #ifdef FEATURE_PERFTRACING
     // Before the thread dies, mark its buffers as no longer owned
     // so that they can be cleaned up after the thread dies.
-    /* TODO: Can delete this?
+    // TODO: Can delete this?
     EventPipeBufferList *pBufferList = GetThreadBufferList(); // th->GetEventPipeBufferList();
     if(pBufferList != NULL)
     {
         pBufferList->SetOwnedByThread(false);
     }
-    */
+    
 #endif // FEATURE_PERFTRACING
 
     if (g_fEEShutDown == 0) 
@@ -1039,13 +1039,13 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
 #ifdef FEATURE_PERFTRACING
     // Before the thread dies, mark its buffers as no longer owned
     // so that they can be cleaned up after the thread dies.
-    /*
-    EventPipeBufferList *pBufferList = m_pEventPipeBufferList.Load();
+    
+    EventPipeBufferList *pBufferList = GetThreadBufferList();
     if(pBufferList != NULL)
     {
         pBufferList->SetOwnedByThread(false);
     }
-    */
+    
 #endif // FEATURE_PERFTRACING
 
     FastInterlockOr((ULONG*)&m_State, (int) (Thread::TS_Detached | Thread::TS_ReportDead));
@@ -1667,8 +1667,6 @@ Thread::Thread()
     m_pAllLoggedTypes = NULL;
 
 #ifdef FEATURE_PERFTRACING
-//    m_pEventPipeBufferList = NULL;
-    m_eventWriteInProgress = false;
     memset(&m_activityId, 0, sizeof(m_activityId));
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;

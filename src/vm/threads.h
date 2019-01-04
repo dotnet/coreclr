@@ -5008,9 +5008,6 @@ public:
 #ifdef FEATURE_PERFTRACING
 private:
 
-    // Whether or not the thread is currently writing an event.
-    Volatile<bool> m_eventWriteInProgress;
-
     // SampleProfiler thread state.  This is set on suspension and cleared before restart.
     // True if the thread was in cooperative mode.  False if it was in preemptive when the suspension started.
     Volatile<ULONG> m_gcModeOnSuspension;
@@ -5020,19 +5017,6 @@ private:
     GUID m_activityId;
 
 public:
-
-    bool GetEventWriteInProgress() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_eventWriteInProgress;
-    }
-
-    void SetEventWriteInProgress(bool value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_eventWriteInProgress = value;
-    }
-
     bool GetGCModeOnSuspension()
     {
         LIMITED_METHOD_CONTRACT;
@@ -7027,6 +7011,7 @@ struct ThreadLocalInfo
     AppDomain* m_pAppDomain; // This field is read only by the SOS plugin to get the AppDomain
     void** m_EETlsData; // ClrTlsInfo::data
     EventPipeBufferList* m_pThreadBufferList;
+    bool m_threadEventWriteInProgress;
 };
 
 class ThreadStateHolder

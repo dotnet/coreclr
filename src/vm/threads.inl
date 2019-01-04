@@ -49,6 +49,16 @@ EXTERN_C inline void STDCALL SetThreadBufferList(EventPipeBufferList* bl)
     gCurrentThreadInfo.m_pThreadBufferList = bl;
 }
 
+EXTERN_C inline void STDCALL GetEventWriteInProgress()
+{
+    return gCurrentThreadInfo.m_threadEventWriteInProgress;
+}
+
+EXTERN_C inline void STDCALL SetEventWriteInProgress(bool p)
+{
+    gCurrentThreadInfo.m_threadEventWriteInProgress = p;
+}
+
 #endif // !DACCESS_COMPILE
 
 inline void Thread::IncLockCount()
