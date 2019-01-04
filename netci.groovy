@@ -2280,14 +2280,25 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "build.cmd ${lowerConfiguration} arm64 linuxmscorlib"
                         }
 
-                        // Zip up the tests directory so that we don't use so much space/time copying
-                        // 10s of thousands of files around.
-                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
-
                         if (!isJitStressScenario(scenario)) {
+                            // Zip up the tests directory so that we don't use so much space/time copying
+                            // 10s of thousands of files around.
+                            buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
+
                             // For Windows, pull full test results and test drops for x86/x64.
                             // No need to pull for stress mode scenarios (downstream builds use the default scenario)
                             Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip", "bin/Product/**/.nuget/**")
+                        } else {
+                            if (!isBuildOnly) {
+                                // Otherwise, if we ran the tests, collect the test logs collected by xunit.
+                                // Above, this is included in tests.zip. For consistency, it would be nicer to always put
+                                // the Reports directory in its own ZIP file, but that would mean somehow excluding it from
+                                // the tests.zip file above..
+
+                                buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}\\Reports', '.\\bin\\tests\\testReports.zip')\"";
+
+                                Utilities.addArchival(newJob, "bin/tests/testReports.zip", "")
+                            }
                         }
 
                         if (scenario == 'jitdiff') {
@@ -3139,6 +3150,12 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                 addCommand("exit /b %errorlevel%")
 
                 batchFile(buildCommands)
+
+                // Collect the test logs collected by xunit.
+
+                buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Reports', '.\\bin\\tests\\testReports.zip')\"";
+
+                Utilities.addArchival(newJob, "bin/tests/testReports.zip", "")
             } // non-corefx testing
         } // steps
     } // job
