@@ -4628,7 +4628,11 @@ LocalDesc ILHiddenLengthArrayMarshaler::GetNativeType()
 LocalDesc ILHiddenLengthArrayMarshaler::GetManagedType()
 {
     LIMITED_METHOD_CONTRACT;
-    return LocalDesc(ELEMENT_TYPE_OBJECT);
+
+    LocalDesc managedType = LocalDesc(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle());
+    managedType.MakeArray();
+
+    return managedType;
 }
 
 void ILHiddenLengthArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
@@ -4683,11 +4687,16 @@ void ILHiddenLengthArrayMarshaler::EmitMarshalArgumentCLRToNative()
         EmitLoadManagedValue(m_pcsMarshal);
         m_pcsMarshal->EmitSTLOC(dwPinnedLocal);
 
-        // native = pinnedLocal + dataOffset
+        // if (pinnedLocal.Length == 0) goto MarshalDone
         m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
+        m_pcsMarshal->EmitLDLEN();
+        m_pcsMarshal->EmitBRFALSE(pMarshalDoneLabel);
+        
+        // native = &pinnedLocal[0]
+        m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
+        m_pcsMarshal->EmitLDC(0);
+        m_pcsMarshal->EmitLDELEMA(m_pcsMarshal->GetToken(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle()));
         m_pcsMarshal->EmitCONV_I();
-        m_pcsMarshal->EmitLDC(m_pargs->na.m_optionalbaseoffset);
-        m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
         if (g_pConfig->InteropLogArguments())
@@ -4978,11 +4987,6 @@ bool ILHiddenLengthArrayMarshaler::CanUsePinnedArray()
     }
 
     if (IsRetval(m_dwMarshalFlags))
-    {
-        return false;
-    }
-
-    if (m_pargs->na.m_optionalbaseoffset == 0)
     {
         return false;
     }
