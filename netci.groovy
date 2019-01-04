@@ -3154,13 +3154,12 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                 // Collect the test logs collected by xunit.
 
                 buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Reports', '.\\bin\\tests\\testReports.zip')\"";
-
-                Utilities.addArchival(newJob, "bin/tests/testReports.zip", "")
             } // non-corefx testing
         } // steps
     } // job
 
     if (!isCoreFxScenario(scenario)) {
+        Utilities.addArchival(newJob, "bin/tests/testReports.zip", "")
         Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml', true)
     }
 
