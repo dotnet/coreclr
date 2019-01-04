@@ -72,8 +72,6 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
     {
         // For ThreadID just get the Current Thread ID
         osThreadId = ::GetCurrentThreadId();
-
-        // TODO: Does this work on cross plat? 
     }
     else
     {
