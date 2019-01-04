@@ -2593,7 +2593,6 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                     //
                     // Finally, SIMDScalarLoads aren't supported because these intrinsics
                     // take an actual scalar value, rather than taking a vector and only
-                    // operating on the lower bits.ther than taking a vector and only
                     // operating on the lower bits.
 
                     assert(supportsAlignedSIMDLoads == false);
@@ -2654,45 +2653,29 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                 case NI_Base_Vector128_CreateScalarUnsafe:
                 case NI_Base_Vector256_CreateScalarUnsafe:
                 {
-                    // These intrinsics need to go down this code path even though they
-                    // don't care about the value of the upper bits. This is because we
-                    // can't know for certain that the 32-bit read that would happen
-                    // won't result in an AV.
-
-                    assert(supportsSIMDScalarLoads == false);
-
-                    // These intrinsics require the contained operand to be the same
-                    // size as the baseType for the containing node.
+                    // These intrinsics require the contained operand to be the same size as the widened
+                    // baseType (genActualType(baseType) of the containing node. This is because codegen 
+                    // uses `emitActualTypeSize(baseType)`.
                     //
-                    // If it isn't, we can't mark the node as contained because it
-                    // might avoid a zero or sign-extension that should have otherwise
-                    // occurred.
+                    // If it isn't, we can't mark the node as contained because:
+                    //   1) it might avoid a zero or sign-extension that should have otherwise
+                    //      occurred (i.e. the upper bits of the operand, read as the baseType,
+                    //      may not be the zero/sign-extended value of the actual operand).
+                    //   2) it might lead to an AV if the upper bits are not accessible.
                     //
-                    // We need this even though there are overloads that explicitly
-                    // take byte/sbyte/int16/uint16, since the user may be calling
-                    // the int32/uint32 overload with an explicit cast.
+                    // Note that explicit casts from a wider operand will be reflected in the IR,
+                    // and those will fail the IsContainableMemoryOp check.
                     //
                     // Finally, SIMDScalarLoads aren't supported because these intrinsics
                     // take an actual scalar value, rather than taking a vector and only
-                    // operating on the lower bits.ther than taking a vector and only
                     // operating on the lower bits.
 
-                    const unsigned expectedSize = genTypeSize(containingNode->gtSIMDBaseType);
-                    const unsigned operandSize  = genTypeSize(node->TypeGet());
+                    assert(supportsSIMDScalarLoads == false);
+
+                    const unsigned expectedSize = genTypeSize(genActualType(containingNode->gtSIMDBaseType));
+                    const unsigned operandSize = genTypeSize(node->TypeGet());
 
                     supportsGeneralLoads = (operandSize == expectedSize);
-
-                    if (!supportsGeneralLoads && ((expectedSize == 1) || (expectedSize == 2)))
-                    {
-                        // The scalar intrinsics that take an 8-bit or 16-bit operand
-                        // should also support general loads when the operand is 32-
-                        // bits in order to handle the case where we have a stack-spilled
-                        // value. This should be safe to do since loads from other 32-
-                        // bit locations (such as fields) should be coming to us in the
-                        // form of a CAST node and will fail the IsContainableMemoryOp check.
-
-                        supportsGeneralLoads = (operandSize == 4);
-                    }
                     break;
                 }
 
