@@ -309,7 +309,8 @@ ThreadLocalInfo gCurrentThreadInfo =
                                                   NULL,    // m_pThread
                                                   NULL,    // m_pAppDomain
                                                   NULL,    // m_EETlsData
-                                                  NULL,    // m_pThreadBufferList
+                                                  NULL,    // m_pThreadEventBufferList
+                                                  false,   // m_threadEventWriteInProgress
                                               };
 } // extern "C"
 
@@ -910,7 +911,7 @@ void DestroyThread(Thread *th)
     // Before the thread dies, mark its buffers as no longer owned
     // so that they can be cleaned up after the thread dies.
     // TODO: Can delete this?
-    EventPipeBufferList *pBufferList = GetThreadBufferList(); // th->GetEventPipeBufferList();
+    EventPipeBufferList *pBufferList = GetThreadEventBufferList(); // th->GetEventPipeBufferList();
     if(pBufferList != NULL)
     {
         pBufferList->SetOwnedByThread(false);
@@ -1040,7 +1041,7 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
     // Before the thread dies, mark its buffers as no longer owned
     // so that they can be cleaned up after the thread dies.
     
-    EventPipeBufferList *pBufferList = GetThreadBufferList();
+    EventPipeBufferList *pBufferList = GetThreadEventBufferList();
     if(pBufferList != NULL)
     {
         pBufferList->SetOwnedByThread(false);

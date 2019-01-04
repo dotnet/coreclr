@@ -15,11 +15,6 @@
 
 class EventPipeBufferList;
 
-
-// Thread local storage of EventPipeBufferList
-// This is the per-thread object that contains a pointer to an object in m_pPerThreadBufferList above.
-//thread_local Volatile<bool> m_threadEventWriteInProgress;
-
 class EventPipeBufferManager
 {
 

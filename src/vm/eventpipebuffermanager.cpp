@@ -57,9 +57,9 @@ EventPipeBufferManager::~EventPipeBufferManager()
                 Thread *pThread = NULL;
                 while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
                 {
-                    if (pThreadBufferList)
+                    if (pThreadBufferList == GetThreadEventBufferList())
                     {
-                        //pThread->SetEventPipeBufferList(NULL);
+                        SetThreadEventBufferList(NULL);
                         break;
                     }
                 }
@@ -94,9 +94,7 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
     // Determine if the requesting thread has at least one buffer.
     // If not, we guarantee that each thread gets at least one (to prevent thrashing when the circular buffer size is too small).
     bool allocateNewBuffer = false;
-
-    EventPipeBufferList *pThreadBufferList = GetThreadBufferList();;
-
+    EventPipeBufferList *pThreadBufferList = GetThreadEventBufferList();
 
     if(pThreadBufferList == NULL)
     {
@@ -113,7 +111,7 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
         }
 
         m_pPerThreadBufferList->InsertTail(pElem);
-        SetThreadBufferList(pThreadBufferList);
+        SetThreadEventBufferList(pThreadBufferList);
         allocateNewBuffer = true;
     }
 
@@ -344,7 +342,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     bool allocNewBuffer = false;
     EventPipeBuffer *pBuffer = NULL;
 
-    EventPipeBufferList *pThreadBufferList = GetThreadBufferList();
+    EventPipeBufferList *pThreadBufferList = GetThreadEventBufferList();
 
     if(pThreadBufferList == NULL)
     {
@@ -558,13 +556,13 @@ void EventPipeBufferManager::DeAllocateBuffers()
         while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
         {
             // Get the thread's buffer list.
-            EventPipeBufferList *pBufferList = GetThreadBufferList();
+            EventPipeBufferList *pBufferList = GetThreadEventBufferList();
             if(pBufferList != NULL)
             {
                 // Attempt to free the buffer list.
                 // If the thread is using its buffer list skip it.
                 // This means we will leak a single buffer, but if tracing is re-enabled, that buffer can be used again.
-                if(!pThread->GetEventWriteInProgress())
+                if(GetEventWriteInProgress())
                 {
                     EventPipeBuffer *pBuffer = pBufferList->GetAndRemoveHead();
                     while(pBuffer != NULL)
@@ -596,8 +594,7 @@ void EventPipeBufferManager::DeAllocateBuffers()
                     }
 
                     // Remove the list reference from the thread.
-                    SetThreadBufferList(NULL);
-                    //pThread->SetEventPipeBufferList(NULL);
+                    SetThreadEventBufferList(NULL);
 
                     // Now that all of the list elements have been freed, free the list itself.
                     delete(pBufferList);

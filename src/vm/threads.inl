@@ -39,17 +39,17 @@ EXTERN_C inline AppDomain* STDCALL GetAppDomain()
     return AppDomain::GetCurrentDomain();
 }
 
-EXTERN_C inline EventPipeBufferList* STDCALL GetThreadBufferList()
+EXTERN_C inline EventPipeBufferList* STDCALL GetThreadEventBufferList()
 {
-    return gCurrentThreadInfo.m_pThreadBufferList;
+    return gCurrentThreadInfo.m_pThreadEventBufferList;
 }
 
-EXTERN_C inline void STDCALL SetThreadBufferList(EventPipeBufferList* bl)
+EXTERN_C inline void STDCALL SetThreadEventBufferList(EventPipeBufferList* bl)
 {
-    gCurrentThreadInfo.m_pThreadBufferList = bl;
+    gCurrentThreadInfo.m_pThreadEventBufferList = bl;
 }
 
-EXTERN_C inline void STDCALL GetEventWriteInProgress()
+EXTERN_C inline bool STDCALL GetEventWriteInProgress()
 {
     return gCurrentThreadInfo.m_threadEventWriteInProgress;
 }
