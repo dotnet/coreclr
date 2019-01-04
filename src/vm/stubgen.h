@@ -105,22 +105,40 @@ struct LocalDesc
             THROWS;
             GC_TRIGGERS;
             MODE_ANY;
-            PRECONDITION(cbType == 1);    // this only works on 1-element types for now
         }
         CONTRACTL_END;
+
+        bool lastElementTypeIsValueType = false;
         
         if (ElementType[0] == ELEMENT_TYPE_VALUETYPE)
         {
-            return true;
+            lastElementTypeIsValueType = true;
         }
         else if ((ElementType[0] == ELEMENT_TYPE_INTERNAL) &&
                     (InternalToken.IsNativeValueType() ||
                      InternalToken.GetMethodTable()->IsValueType()))
         {
-            return true;
+            lastElementTypeIsValueType = true;
         }
 
-        return false;
+        if (!lastElementTypeIsValueType)
+        {
+             return false;
+        }
+
+        // verify that the prefix element types don't make the type a non-value type
+        // this only works on LocalDescs with the prefixes exposed in the Add* methods above.
+        for (size_t i = 0; i < cbType - 1; i++) 
+        {
+            if (ElementType[i] == ELEMENT_TYPE_BYREF
+                || ElementType[i] == ELEMENT_TYPE_SZARRAY
+                || ElementType[i] == ELEMENT_TYPE_PTR)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 };
 
