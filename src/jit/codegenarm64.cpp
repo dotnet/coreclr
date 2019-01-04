@@ -454,6 +454,7 @@ void CodeGen::genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* reg
             regNumber reg2     = genRegNumFromMask(reg2Mask);
             if (reg2 == REG_NEXT(reg1))
             {
+                // Both registers must have the same type to be saved as pair.
                 if (genIsValidFloatReg(reg1) == genIsValidFloatReg(reg2))
                 {
                     isPairSave = true;
@@ -463,13 +464,6 @@ void CodeGen::genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* reg
 
                     regStack->Push(RegPair(reg1, reg2));
                 }
-#ifdef DEBUG
-                else
-                {
-                    // Can't save int and float registers in one pair.
-                    assert(genIsValidIntReg(reg1) && genIsValidFloatReg(reg2));
-                }
-#endif // DEBUG
             }
         }
         if (!isPairSave)
@@ -508,26 +502,19 @@ void CodeGen::genSetUseSaveNextPairs(ArrayStack<RegPair>* regStack)
             continue;
         }
 
-        if (genCanUseSaveNextPair(prev, curr))
+        if (REG_NEXT(prev.reg2) != curr.reg1)
         {
-            curr.useSaveNextPair = true;
+            continue;
         }
-    }
-}
 
-//------------------------------------------------------------------------
-// genCanUseSaveNextPair: Check that the curr regPair is adjusted to the next.
-//
-// Arguments:
-//   curr - a RegPair with 2 regs that we want to check;
-//   next - the next RegPair from the stack, also have to have 2 regs.
-//
-// static
-bool CodeGen::genCanUseSaveNextPair(RegPair curr, RegPair next)
-{
-    assert(REG_NEXT(curr.reg1) == curr.reg2);
-    assert(REG_NEXT(next.reg1) == next.reg2);
-    return (REG_NEXT(curr.reg2) == next.reg1);
+        if (genIsValidFloatReg(prev.reg2) != genIsValidFloatReg(curr.reg1))
+        {
+            // It is possible to support changing of the last int pair with the first float pair,
+            // but it is very rare case and it would require superfluous changes in the unwinder.
+            continue;
+        }
+        curr.useSaveNextPair = true;
+    }
 }
 
 //------------------------------------------------------------------------
@@ -546,7 +533,7 @@ int CodeGen::genGetSlotSizeForRegsInMask(regMaskTP regsMask)
 {
     assert((regsMask & (RBM_CALLEE_SAVED | RBM_LR)) == regsMask); // Do not expect anything else.
 
-    assert(REGSIZE_BYTES == FPSAVE_REGSIZE_BYTES);
+    static_assert_no_msg(REGSIZE_BYTES == FPSAVE_REGSIZE_BYTES);
     return REGSIZE_BYTES;
 }
 

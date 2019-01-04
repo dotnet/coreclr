@@ -326,7 +326,6 @@ protected:
 
     static void genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack);
     static void genSetUseSaveNextPairs(ArrayStack<RegPair>* regStack);
-    static bool genCanUseSaveNextPair(RegPair curr, RegPair next);
 
     static int genGetSlotSizeForRegsInMask(regMaskTP regsMask);
 
