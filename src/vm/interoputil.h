@@ -137,7 +137,7 @@ void FillExceptionData(
 
 //---------------------------------------------------------------------------
 //returns true if pImport has DefaultDllImportSearchPathsAttribute
-//if true, also returns dllImportSearchPathFlag and searchAssemblyDirectory values.
+//if true, also returns dllImportSearchPathFlags and searchAssemblyDirectory values.
 BOOL GetDefaultDllImportSearchPathsAttributeValue(IMDInternalImport *pImport, mdToken token, DWORD * pDlImportSearchPathFlag);
 
 //---------------------------------------------------------------------------
