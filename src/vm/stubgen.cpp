@@ -1592,10 +1592,18 @@ void ILCodeStream::EmitSTIND_T(LocalDesc* pType)
 {
     CONTRACTL
     {
-        PRECONDITION(pType->cbType == 1);
+        PRECONDITION(pType->cbType >= 1);
     }
     CONTRACTL_END;
-    
+
+    CorElementType elementType = ELEMENT_TYPE_END;
+
+    bool onlyFoundModifiers = true;
+    for(size_t i = 0; i < pType->cbType && onlyFoundModifiers; i++)
+    {
+        elementType = (CorElementType)pType->ElementType[i];
+        onlyFoundModifiers = (elementType == ELEMENT_TYPE_PINNED);
+    }
     switch (pType->ElementType[0])
     {
         case ELEMENT_TYPE_I1:       EmitSTIND_I1(); break;
