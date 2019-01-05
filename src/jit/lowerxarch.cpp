@@ -2654,7 +2654,7 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                 case NI_Base_Vector256_CreateScalarUnsafe:
                 {
                     // These intrinsics require the contained operand to be the same size as the widened
-                    // baseType (genActualType(baseType) of the containing node. This is because codegen 
+                    // baseType (genActualType(baseType) of the containing node. This is because codegen
                     // uses `emitActualTypeSize(baseType)`.
                     //
                     // If it isn't, we can't mark the node as contained because:
@@ -2673,7 +2673,7 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                     assert(supportsSIMDScalarLoads == false);
 
                     const unsigned expectedSize = genTypeSize(genActualType(containingNode->gtSIMDBaseType));
-                    const unsigned operandSize = genTypeSize(node->TypeGet());
+                    const unsigned operandSize  = genTypeSize(node->TypeGet());
 
                     supportsGeneralLoads = (operandSize == expectedSize);
                     break;
