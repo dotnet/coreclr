@@ -1074,7 +1074,7 @@ void DebuggerJitInfo::SetBoundaries(ULONG32 cMap, ICorDebugInfo::OffsetMapping *
     NativeCodeVersion nativeVersion = pCodeVersionManager->GetNativeCodeVersion(m_fd, (PCODE)CORDB_ADDRESS_TO_PTR(m_addrOfCode));
     _ASSERTE(!nativeVersion.IsNull());
     ILCodeVersion ilVersion = nativeVersion.GetILCodeVersion();
-    if (ilVersion.GetVersionId() > 0)
+    if (!ilVersion.IsDefaultVersion())
     {
         // Did the current rejit provide a map?
         const InstrumentedILOffsetMapping *pReJitMap = ilVersion.GetInstrumentedILMap();
