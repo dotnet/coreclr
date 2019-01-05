@@ -31,8 +31,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Assert(target != null);
             Debug.Assert(propertyName != null);
 
-            IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy != null)
+            if (target is IGetProxyTarget proxy)
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
@@ -66,8 +65,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Assert(target != null);
             Debug.Assert(propertyName != null);
 
-            IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy != null)
+            if (target is IGetProxyTarget proxy)
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
@@ -88,8 +86,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal static unsafe void GetType(object target, TypeNameNative* pIndexedParamType)
         {
-            IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy != null)
+            if (target is IGetProxyTarget proxy)
                 target = proxy.GetTarget();
 
             SystemTypeMarshaler.ConvertToNative(target.GetType(), pIndexedParamType);
