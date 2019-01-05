@@ -444,6 +444,81 @@ COR_IL_MAP* ProfilerFunctionControl::GetInstrumentedMapEntries()
 // The more read-only inspection-y stuff follows the block.
 
 #ifndef DACCESS_COMPILE
+NativeImageInliningIterator::NativeImageInliningIterator() :
+        m_pModule(NULL),
+        m_pInlinee(NULL),
+        m_dynamicBuffer(NULL),
+        m_dynamicBufferSize(0),
+        m_currentPos(-1)
+{
+
+}
+
+HRESULT NativeImageInliningIterator::Reset(Module *pModule, MethodDesc *pInlinee)
+{
+    _ASSERTE(pModule != NULL);
+    _ASSERTE(pInlinee != NULL);
+
+    m_pModule = pModule;
+    m_pInlinee = pInlinee;
+
+    HRESULT hr = S_OK;
+    EX_TRY
+    {
+        // Trying to use the existing buffer
+        BOOL incompleteData;
+        Module *inlineeModule = m_pInlinee->GetModule();
+        mdMethodDef mdInlinee = m_pInlinee->GetMemberDef();
+        COUNT_T methodsAvailable = m_pModule->GetNativeOrReadyToRunInliners(inlineeModule, mdInlinee, m_dynamicBufferSize, m_dynamicBuffer, &incompleteData);
+
+        // If the existing buffer is not large enough, reallocate.
+        if (methodsAvailable > m_dynamicBufferSize)
+        {
+            COUNT_T newSize = max(methodsAvailable, s_bufferSize);
+            m_dynamicBuffer = new MethodInModule[newSize];
+            m_dynamicBufferSize = newSize;
+
+            methodsAvailable = m_pModule->GetNativeOrReadyToRunInliners(inlineeModule, mdInlinee, m_dynamicBufferSize, m_dynamicBuffer, &incompleteData);
+            _ASSERTE(methodsAvailable <= m_dynamicBufferSize);
+        }
+    }
+    EX_CATCH_HRESULT(hr);
+
+    if (FAILED(hr))
+    {
+        m_currentPos = -1;
+    }
+    else
+    {
+        m_currentPos = 0;
+    }
+
+    return hr;
+}
+
+BOOL NativeImageInliningIterator::Next()
+{
+    if (m_currentPos < 0)
+    {
+        return FALSE;
+    }
+
+    m_currentPos++;
+    return m_currentPos < m_dynamicBufferSize;
+}
+
+MethodDesc *NativeImageInliningIterator::GetMethodDesc()
+{
+    if (m_currentPos == -1 || m_currentPos >= m_dynamicBufferSize)
+    {
+        return NULL;
+    }
+
+    MethodInModule mm = m_dynamicBuffer[m_currentPos];
+    Module *pModule = mm.m_module;
+    mdMethodDef mdInliner = mm.m_methodDef;
+    return pModule->LookupMethodDef(mdInliner);
+}
 
 //---------------------------------------------------------------------------------------
 //
@@ -467,19 +542,20 @@ COR_IL_MAP* ProfilerFunctionControl::GetInstrumentedMapEntries()
 HRESULT ReJitManager::RequestReJIT(
     ULONG       cFunctions,
     ModuleID    rgModuleIDs[],
-    mdMethodDef rgMethodDefs[])
+    mdMethodDef rgMethodDefs[],
+    BOOL fInlinees)
 {
-    return ReJitManager::UpdateActiveILVersions(cFunctions, rgModuleIDs, rgMethodDefs, NULL, FALSE);
+    return ReJitManager::UpdateActiveILVersions(cFunctions, rgModuleIDs, rgMethodDefs, NULL, FALSE, fInlinees);
 }
 
-
-    // static
+// static
 HRESULT ReJitManager::UpdateActiveILVersions(
     ULONG       cFunctions,
     ModuleID    rgModuleIDs[],
     mdMethodDef rgMethodDefs[],
     HRESULT     rgHrStatuses[],
-    BOOL        fIsRevert)
+    BOOL        fIsRevert,
+    BOOL        fInlinees)
 {
     CONTRACTL
     {
@@ -554,56 +630,24 @@ HRESULT ReJitManager::UpdateActiveILVersions(
             }
         }
 
-        CodeVersionManager * pCodeVersionManager = pModule->GetCodeVersionManager();
-        _ASSERTE(pCodeVersionManager != NULL);
-        CodeActivationBatch * pCodeActivationBatch = mgrToCodeActivationBatch.Lookup(pCodeVersionManager);
-        if (pCodeActivationBatch == NULL)
+        hr = UpdateActiveILVersion(&mgrToCodeActivationBatch, pModule, rgMethodDefs[i], fIsRevert);
+        if (FAILED(hr))
         {
-            pCodeActivationBatch = new (nothrow)CodeActivationBatch(pCodeVersionManager);
-            if (pCodeActivationBatch == NULL)
-            {
-                return E_OUTOFMEMORY;
-            }
+            return hr;
+        }
 
-            hr = S_OK;
-            EX_TRY
-            {
-                // This guy throws when out of memory, but remains internally
-                // consistent (without adding the new element)
-                mgrToCodeActivationBatch.Add(pCodeActivationBatch);
-            }
-            EX_CATCH_HRESULT(hr);
-
-            _ASSERT(hr == S_OK || hr == E_OUTOFMEMORY);
+        if (fInlinees)
+        {
+            hr = UpdateNativeInlinerActiveILVersions(&mgrToCodeActivationBatch, pMD, fIsRevert);
             if (FAILED(hr))
             {
                 return hr;
             }
-        }
 
-        {
-            CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
-
-            // Bind the il code version
-            ILCodeVersion* pILCodeVersion = pCodeActivationBatch->m_methodsToActivate.Append();
-            if (pILCodeVersion == NULL)
+            hr = UpdateJitInlinerActiveILVersions(&mgrToCodeActivationBatch, pMD, fIsRevert);
+            if (FAILED(hr))
             {
-                return E_OUTOFMEMORY;
-            }
-            if (fIsRevert)
-            {
-                // activate the original version
-                *pILCodeVersion = ILCodeVersion(pModule, rgMethodDefs[i]);
-            }
-            else
-            {
-                // activate an unused or new IL version
-                hr = ReJitManager::BindILVersion(pCodeVersionManager, pModule, rgMethodDefs[i], pILCodeVersion);
-                if (FAILED(hr))
-                {
-                    _ASSERTE(hr == E_OUTOFMEMORY);
-                    return hr;
-                }
+                return hr;
             }
         }
     }   // for (ULONG i = 0; i < cFunctions; i++)
@@ -686,6 +730,194 @@ HRESULT ReJitManager::UpdateActiveILVersions(
 }
 
 // static
+HRESULT ReJitManager::UpdateActiveILVersion(
+        SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
+        Module *    pModule,
+        mdMethodDef methodDef,
+        BOOL        fIsRevert)
+{
+    _ASSERTE(pMgrToCodeActivationBatch != NULL);
+    _ASSERTE(pModule != NULL);
+    _ASSERTE(methodDef != mdTokenNil);
+
+    HRESULT hr = S_OK;
+
+    CodeVersionManager * pCodeVersionManager = pModule->GetCodeVersionManager();
+    _ASSERTE(pCodeVersionManager != NULL);
+    CodeActivationBatch * pCodeActivationBatch = pMgrToCodeActivationBatch->Lookup(pCodeVersionManager);
+    if (pCodeActivationBatch == NULL)
+    {
+        pCodeActivationBatch = new (nothrow)CodeActivationBatch(pCodeVersionManager);
+        if (pCodeActivationBatch == NULL)
+        {
+            return E_OUTOFMEMORY;
+        }
+
+        hr = S_OK;
+        EX_TRY
+        {
+            // This guy throws when out of memory, but remains internally
+            // consistent (without adding the new element)
+            pMgrToCodeActivationBatch->Add(pCodeActivationBatch);
+        }
+        EX_CATCH_HRESULT(hr);
+
+        _ASSERT(hr == S_OK || hr == E_OUTOFMEMORY);
+        if (FAILED(hr))
+        {
+            return hr;
+        }
+    }
+
+    {
+        CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+
+        // Bind the il code version
+        ILCodeVersion* pILCodeVersion = pCodeActivationBatch->m_methodsToActivate.Append();
+        if (pILCodeVersion == NULL)
+        {
+            return E_OUTOFMEMORY;
+        }
+        if (fIsRevert)
+        {
+            // activate the original version
+            *pILCodeVersion = ILCodeVersion(pModule, methodDef);
+        }
+        else
+        {
+            // activate an unused or new IL version
+            hr = ReJitManager::BindILVersion(pCodeVersionManager, pModule, methodDef, pILCodeVersion);
+            if (FAILED(hr))
+            {
+                _ASSERTE(hr == E_OUTOFMEMORY);
+                return hr;
+            }
+        }
+    }
+
+    return hr;
+}
+
+// static
+HRESULT ReJitManager::UpdateNativeInlinerActiveILVersions(
+        SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
+        MethodDesc *pInlinee,
+        BOOL        fIsRevert)
+{
+    _ASSERTE(pMgrToCodeActivationBatch != NULL);
+    _ASSERTE(pInlinee != NULL);
+    
+    HRESULT hr = S_OK;
+    // Iterate through all modules, for any that are NGEN or R2R need to check if there are inliners there and call 
+    // RequestReJIT on them
+    // TODO: is the default domain enough for coreclr?
+    AppDomain::AssemblyIterator domainAssemblyIterator = SystemDomain::System()->DefaultDomain()->IterateAssembliesEx((AssemblyIterationFlags) (kIncludeLoaded));
+    CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
+    NativeImageInliningIterator inlinerIter;
+    while (domainAssemblyIterator.Next(pDomainAssembly.This()))
+    {
+        _ASSERTE(pDomainAssembly != NULL);
+        _ASSERTE(pDomainAssembly->GetAssembly() != NULL);
+
+        DomainModuleIterator domainModuleIterator = pDomainAssembly->IterateModules(kModIterIncludeLoaded);
+        while (domainModuleIterator.Next())
+        {
+            Module * pCurModule = domainModuleIterator.GetModule();
+            if (pCurModule->HasNativeOrReadyToRunInlineTrackingMap())
+            {
+                inlinerIter.Reset(pCurModule, pInlinee);
+
+                MethodDesc *pInliner = NULL;
+                while (inlinerIter.Next())
+                {
+                    pInliner = inlinerIter.GetMethodDesc();
+                    {
+                        CodeVersionManager *pCodeVersionManager = pCurModule->GetCodeVersionManager();
+                        CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+                        ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pInliner);
+                        if (!ilVersion.HasDefaultIL())
+                        {
+                            // This method has already been ReJITted, no need to request another ReJIT at this point.
+                            // The ReJITted method will be in the JIT inliner check below.
+                            continue;
+                        }
+                    }
+
+                    hr = UpdateActiveILVersion(pMgrToCodeActivationBatch, pInliner->GetModule(), pInliner->GetMemberDef(), fIsRevert);
+                    if (FAILED(hr))
+                    {
+                        ReportReJITError(pInliner->GetModule(), pInliner->GetMemberDef(), NULL, hr);
+                    }
+                }
+            }
+        }
+    }
+
+    return S_OK;
+}
+
+// static
+HRESULT ReJitManager::UpdateJitInlinerActiveILVersions(
+        SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
+        MethodDesc *pInlinee,
+        BOOL        fIsRevert)
+{
+    _ASSERTE(pMgrToCodeActivationBatch != NULL);
+    _ASSERTE(pInlinee != NULL);
+
+    HRESULT hr = S_OK;
+
+    Module *pModule = pInlinee->GetModule();
+    if (pModule->HasJitInlineTrackingMap())
+    {
+        // InlineSArray can throw, need to guard against it.
+        InlineSArray<MethodDesc *, 10> inliners;
+        auto lambda = [&](MethodDesc *inliner, MethodDesc *inlinee)
+        {
+            _ASSERTE(!inliner->IsNoMetadata());
+
+            if (inliner->IsIL())
+            {
+                EX_TRY
+                {
+                    inliners.Append(inliner);
+                }
+                EX_CATCH_HRESULT(hr);
+
+                return SUCCEEDED(hr);
+            }
+
+            // Keep going
+            return true;
+        };
+
+        JITInlineTrackingMap *pMap = pModule->GetJitInlineTrackingMap();
+        pMap->VisitInliners(pInlinee, lambda);
+        if (FAILED(hr))
+        {
+            return hr;
+        }
+
+        EX_TRY
+        {
+            for (auto it = inliners.Begin(); it != inliners.End(); ++it)
+            {
+                Module *inlinerModule = (*it)->GetModule();
+                mdMethodDef inlinerMethodDef = (*it)->GetMemberDef();
+                hr = UpdateActiveILVersion(pMgrToCodeActivationBatch, inlinerModule, inlinerMethodDef, fIsRevert);
+                if (FAILED(hr))
+                {
+                    ReportReJITError(inlinerModule, inlinerMethodDef, NULL, hr);
+                }
+            }
+        }
+        EX_CATCH_HRESULT(hr);
+    }
+
+    return hr;
+}
+
+// static
 HRESULT ReJitManager::BindILVersion(
     CodeVersionManager* pCodeVersionManager,
     PTR_Module pModule,
@@ -755,7 +987,8 @@ HRESULT ReJitManager::RequestRevert(
     ULONG       cFunctions,
     ModuleID    rgModuleIDs[],
     mdMethodDef rgMethodDefs[],
-    HRESULT     rgHrStatuses[])
+    HRESULT     rgHrStatuses[],
+    BOOL fInlinees)
 {
     CONTRACTL
     {
@@ -766,7 +999,7 @@ HRESULT ReJitManager::RequestRevert(
     }
     CONTRACTL_END;
 
-    return UpdateActiveILVersions(cFunctions, rgModuleIDs, rgMethodDefs, rgHrStatuses, TRUE);
+    return UpdateActiveILVersions(cFunctions, rgModuleIDs, rgMethodDefs, rgHrStatuses, TRUE, fInlinees);
 }
 
 // static

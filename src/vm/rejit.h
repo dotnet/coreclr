@@ -69,7 +69,27 @@ protected:
 
 #endif  // FEATURE_REJIT
 
+#ifndef DACCESS_COMPILE
+// Used to walk the NGEN/R2R inlining data
+class NativeImageInliningIterator
+{
+public:
+    NativeImageInliningIterator();
 
+    HRESULT Reset(Module *pInlineeModule, MethodDesc *pInlinee);
+    BOOL Next();
+    MethodDesc *GetMethodDesc();
+
+private:
+    Module *m_pModule;
+    MethodDesc *m_pInlinee;
+    NewArrayHolder<MethodInModule> m_dynamicBuffer;
+    COUNT_T m_dynamicBufferSize;
+    COUNT_T m_currentPos;
+
+    const COUNT_T s_bufferSize = 10;
+};
+#endif // DACCESS_COMPILE
 
 //---------------------------------------------------------------------------------------
 // The big honcho.  One of these per AppDomain, plus one for the
@@ -80,6 +100,7 @@ class ReJitManager
 {
     friend class ClrDataAccess;
     friend class DacDbiInterfaceImpl;
+    friend class CEEInfo;
 
 private:
 
@@ -101,13 +122,15 @@ public:
     static HRESULT RequestReJIT(
         ULONG       cFunctions,
         ModuleID    rgModuleIDs[],
-        mdMethodDef rgMethodDefs[]);
+        mdMethodDef rgMethodDefs[],
+        BOOL fInlinees);
     
     static HRESULT RequestRevert(
         ULONG       cFunctions,
         ModuleID    rgModuleIDs[],
         mdMethodDef rgMethodDefs[],
-        HRESULT     rgHrStatuses[]);
+        HRESULT     rgHrStatuses[],
+        BOOL fInlinees);
 
     static HRESULT ConfigureILCodeVersion(ILCodeVersion ilCodeVersion);
     static CORJIT_FLAGS JitFlagsFromProfCodegenFlags(DWORD dwCodegenFlags);
@@ -130,7 +153,8 @@ private:
         ModuleID    rgModuleIDs[],
         mdMethodDef rgMethodDefs[],
         HRESULT     rgHrStatuses[],
-        BOOL        fIsRevert);
+        BOOL        fIsRevert,
+        BOOL        fInlinees);
 
     struct CodeActivationBatch
     {
@@ -153,6 +177,22 @@ private:
         static count_t Hash(key_t k) { return (count_t)(SIZE_T)k; }
         static bool IsNull(const element_t &e) { return (e == NULL); }
     };
+
+    static HRESULT ReJitManager::UpdateActiveILVersion(
+        SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
+        Module *    pModule,
+        mdMethodDef methodDef,
+        BOOL        fIsRevert);
+
+    static HRESULT UpdateNativeInlinerActiveILVersions(
+        SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
+        MethodDesc *pInlinee,
+        BOOL        fIsRevert);
+    
+    static HRESULT UpdateJitInlinerActiveILVersions(
+        SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
+        MethodDesc *pInlinee,
+        BOOL        fIsRevert);
 
     static HRESULT BindILVersion(
         CodeVersionManager* pCodeVersionManager,

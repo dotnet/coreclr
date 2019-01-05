@@ -3921,7 +3921,43 @@ interface ICorProfilerInfo9 : ICorProfilerInfo8
 
     //Given the native code start address, return the the blocks of virtual memory that store this code (method code is not necessarily stored in a single contiguous memory region)
     HRESULT GetCodeInfo4(UINT_PTR pNativeCodeStartAddress, ULONG32 cCodeInfos, ULONG32* pcCodeInfos, COR_PRF_CODE_INFO codeInfos[]);
-}
+};
+
+[
+    object,
+    uuid(3f2b07a0-715c-4e06-bc40-b47e615846aa),
+    pointer_default(unique),
+    local
+]
+interface ICorProfilerInfo10 : ICorProfilerInfo9
+{
+
+    /*
+     * This method will ReJIT the methods requested, as well as any inliners
+     * of the methods requested.
+     * 
+     * RequestReJIT does not do any tracking of inlined methods. The profiler
+     * was expected to track inlining and call RequestReJIT for all inliners
+     * to make sure every instance of an inlined method was ReJITted.
+     * This poses a problem with ReJIT on attach, since the profiler was
+     * not present to monitor inlining. This method can be called to guarantee
+     * that the full set of inliners will be ReJITted as well.
+     */
+    HRESULT RequestReJITWithInlining(
+                [in]                       ULONG       cFunctions,
+                [in, size_is(cFunctions)]  ModuleID    moduleIds[],
+                [in, size_is(cFunctions)]  mdMethodDef methodIds[]);
+
+    /*
+     * This method will revert the function, as well as any inliner that was 
+     * ReJITted, to the original IL.
+     */
+    HRESULT RequestRevertWithInlining(
+                [in]                       ULONG       cFunctions,
+                [in, size_is(cFunctions)]  ModuleID    moduleIds[],
+                [in, size_is(cFunctions)]  mdMethodDef methodIds[],
+                [out, size_is(cFunctions)] HRESULT     status[]);
+};
 
 [
     object,

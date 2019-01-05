@@ -35,7 +35,8 @@
 #include "eetoprofinterfaceimpl.h"
 #include "eetoprofinterfaceimpl.inl"
 #include "profilepriv.h"
-#endif
+#include "rejit.h"
+#endif // PROFILING_SUPPORTED
 #include "ecall.h"
 #include "generics.h"
 #include "typestring.h"
@@ -8008,57 +8009,93 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
     }
 
 #ifdef PROFILING_SUPPORTED
-    if (CORProfilerPresent())
     {
-        // #rejit
-        // 
-        // Currently the rejit path is the only path which sets this.
-        // If we get more reasons to set this then we may need to change
-        // the failure reason message or disambiguate them.
-        if (!m_allowInlining)
-        {
-            result = INLINE_FAIL;
-            szFailReason = "ReJIT request disabled inlining from caller";
-            goto exit;
-        }
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+        // Need to hold the ReJIT lock between when we check if a method should be inlined and
+        // when we report the inlining or there could be a race condition where a method is ReJITted after
+        // checking if it has default IL and before we report the inlining.
+        CrstHolder ch(&(ReJitManager::s_csGlobalRequest));
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
-        // If the profiler has set a mask preventing inlining, always return
-        // false to the jit.
-        if (CORProfilerDisableInlining())
+        if (CORProfilerPresent())
         {
-            result = INLINE_FAIL;
-            szFailReason = "Profiler disabled inlining globally";
-            goto exit;
-        }
-
-        // If the profiler wishes to be notified of JIT events and the result from
-        // the above tests will cause a function to be inlined, we need to tell the
-        // profiler that this inlining is going to take place, and give them a
-        // chance to prevent it.
-        {
-            BEGIN_PIN_PROFILER(CORProfilerTrackJITInfo());
-            if (pCaller->IsILStub() || pCallee->IsILStub())
+            // #rejit
+            // 
+            // Currently the rejit path is the only path which sets this.
+            // If we get more reasons to set this then we may need to change
+            // the failure reason message or disambiguate them.
+            if (!m_allowInlining)
             {
-                // do nothing
+                result = INLINE_FAIL;
+                szFailReason = "ReJIT request disabled inlining from caller";
+                goto exit;
             }
-            else
+
+            // If the profiler has set a mask preventing inlining, always return
+            // false to the jit.
+            if (CORProfilerDisableInlining())
             {
-                BOOL fShouldInline;
+                result = INLINE_FAIL;
+                szFailReason = "Profiler disabled inlining globally";
+                goto exit;
+            }
 
-                HRESULT hr = g_profControlBlock.pProfInterface->JITInlining(
-                    (FunctionID)pCaller,
-                    (FunctionID)pCallee,
-                    &fShouldInline);
-
-                if (SUCCEEDED(hr) && !fShouldInline)
+#if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+            if (CORProfilerEnableRejit())
+            {
+                // TODO: this is a breaking change, profilers could have purposefully only made certain inlinings fail before. Need
+                // to think about if it is an important scenario.
+                CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
+                CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+                ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pCallee);
+                if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
                 {
                     result = INLINE_FAIL;
-                    szFailReason = "Profiler disabled inlining locally";
+                    szFailReason = "ReJIT methods cannot be inlined.";
                     goto exit;
                 }
             }
-            END_PIN_PROFILER();
+#endif // defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
+            // If the profiler wishes to be notified of JIT events and the result from
+            // the above tests will cause a function to be inlined, we need to tell the
+            // profiler that this inlining is going to take place, and give them a
+            // chance to prevent it.
+            {
+                BEGIN_PIN_PROFILER(CORProfilerTrackJITInfo());
+                if (pCaller->IsILStub() || pCallee->IsILStub())
+                {
+                    // do nothing
+                }
+                else
+                {
+                    BOOL fShouldInline;
+                    HRESULT hr = g_profControlBlock.pProfInterface->JITInlining(
+                        (FunctionID)pCaller,
+                        (FunctionID)pCallee,
+                        &fShouldInline);
+
+                    if (SUCCEEDED(hr) && !fShouldInline)
+                    {
+                        result = INLINE_FAIL;
+                        szFailReason = "Profiler disabled inlining locally";
+                        goto exit;
+                    }
+                }
+                END_PIN_PROFILER();
+            }
         }
+
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+        // NOTE: this section needs to remain as the last bit of code before the exit block below.
+        // If more checks are added after this we will potentially over report inlinings.
+
+        // Since we exit early for INLINE_FAIL, it always should be INLINE_PASS at this point.
+        _ASSERTE(result == INLINE_PASS);
+        // We don't want to track the chain of methods, so intentionally use m_pMethodBeingCompiled
+        // to just track the methods that pCallee is eventually inlined in
+        pCallee->GetModule()->AddInlining(pOrigCaller, pCallee);
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     }
 #endif // PROFILING_SUPPORTED
 

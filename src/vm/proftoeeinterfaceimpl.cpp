@@ -6790,6 +6790,105 @@ HRESULT ProfToEEInterfaceImpl::GetCodeInfo4(UINT_PTR pNativeCodeStartAddress,
                                     codeInfos);
 }
 
+HRESULT ProfToEEInterfaceImpl::RequestReJITWithInlining(
+            ULONG       cFunctions,
+            ModuleID    moduleIds[],
+            mdMethodDef methodIds[])
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        CAN_TAKE_LOCK;
+        PRECONDITION(CheckPointer(moduleIds, NULL_OK));
+        PRECONDITION(CheckPointer(methodIds, NULL_OK));
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EETriggers | kP2EEAllowableAfterAttach,
+        (LF_CORPROF, 
+         LL_INFO1000, 
+         "**PROF: RequestReJITWithInlining.\n"));
+
+    if (!g_profControlBlock.pProfInterface->IsCallback4Supported())
+    {
+        return CORPROF_E_CALLBACK4_REQUIRED;
+    }
+
+    if (!CORProfilerEnableRejit())
+    {
+        return CORPROF_E_REJIT_NOT_ENABLED;
+    }
+
+    // Request at least 1 method to reJIT!
+    if ((cFunctions == 0) || (moduleIds == NULL) || (methodIds == NULL))
+    {
+        return E_INVALIDARG;
+    }
+
+    // Remember the profiler is doing this, as that means we must never detach it!
+    g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
+    
+    GCX_PREEMP();
+    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, TRUE);
+}
+
+/*
+ * This method will revert the function, as well as any inliner that was 
+ * ReJITted, to the original IL.
+ */
+HRESULT ProfToEEInterfaceImpl::RequestRevertWithInlining(
+            ULONG       cFunctions,
+            ModuleID    moduleIds[],
+            mdMethodDef methodIds[],
+            HRESULT     rgHrStatuses[])
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        CAN_TAKE_LOCK;
+        PRECONDITION(CheckPointer(moduleIds, NULL_OK));
+        PRECONDITION(CheckPointer(methodIds, NULL_OK));
+        PRECONDITION(CheckPointer(rgHrStatuses, NULL_OK));
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach | kP2EETriggers,
+        (LF_CORPROF, 
+         LL_INFO1000, 
+         "**PROF: RequestRevert.\n"));
+
+    if (!CORProfilerEnableRejit())
+    {
+        return CORPROF_E_REJIT_NOT_ENABLED;
+    }
+
+    // Request at least 1 method to revert!
+    if ((cFunctions == 0) || (moduleIds == NULL) || (methodIds == NULL))
+    {
+        return E_INVALIDARG;
+    }
+
+    // Remember the profiler is doing this, as that means we must never detach it!
+    g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
+
+    // Initialize the status array
+    if (rgHrStatuses != NULL)
+    {
+        memset(rgHrStatuses, 0, sizeof(HRESULT) * cFunctions);
+        _ASSERTE(S_OK == rgHrStatuses[0]);
+    }
+
+
+    GCX_PREEMP();
+    return ReJitManager::RequestRevert(cFunctions, moduleIds, methodIds, rgHrStatuses, TRUE);
+}
+
 /*
  * GetObjectReferences
  * 
@@ -8645,7 +8744,7 @@ HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
     g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
     
     GCX_PREEMP();
-    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds);
+    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, FALSE);
 }
 
 HRESULT ProfToEEInterfaceImpl::RequestRevert(ULONG       cFunctions,  // in
@@ -8703,7 +8802,7 @@ HRESULT ProfToEEInterfaceImpl::RequestRevert(ULONG       cFunctions,  // in
     }
 
     GCX_PREEMP();
-    return ReJitManager::RequestRevert(cFunctions, moduleIds, methodIds, rgHrStatuses);
+    return ReJitManager::RequestRevert(cFunctions, moduleIds, methodIds, rgHrStatuses, FALSE);
 }
 
 
@@ -9650,7 +9749,7 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
         return CORPROF_E_DATAINCOMPLETE;
     }
 
-    if (!inlinersModule->HasInlineTrackingMap())
+    if (!inlinersModule->HasNativeOrReadyToRunInlineTrackingMap())
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -9663,14 +9762,14 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
     EX_TRY
     {
         // Trying to use static buffer
-        COUNT_T methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
+        COUNT_T methodsAvailable = inlinersModule->GetNativeOrReadyToRunInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
 
         // If static buffer is not enough, allocate an array.
         if (methodsAvailable > staticBufferSize)
         {
             DWORD dynamicBufferSize = methodsAvailable;
             dynamicBuffer = methodsBuffer = new MethodInModule[dynamicBufferSize];
-            methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
+            methodsAvailable = inlinersModule->GetNativeOrReadyToRunInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
             if (methodsAvailable > dynamicBufferSize)
             {
                 _ASSERTE(!"Ngen image inlining info changed, this shouldn't be possible.");
