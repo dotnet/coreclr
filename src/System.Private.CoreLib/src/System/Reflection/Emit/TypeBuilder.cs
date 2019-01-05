@@ -2033,12 +2033,17 @@ namespace System.Reflection.Emit
             {
                 // Check for global typebuilder
                 if (((m_tdType.Token & 0x00FFFFFF) != 0) && ((tkParent & 0x00FFFFFF) != 0))
+                {
                     SetParentType(m_module.GetNativeHandle(), m_tdType.Token, tkParent);
+                }
 
                 if (m_inst != null)
-                    foreach (Type tb in m_inst)
-                        if (tb is GenericTypeParameterBuilder)
-                            ((GenericTypeParameterBuilder)tb).m_type.CreateType();
+                {
+                    foreach (GenericTypeParameterBuilder tb in m_inst)
+                    {
+                        tb?.m_type.CreateType();
+                    }
+                }
             }
 
             byte[] body;
