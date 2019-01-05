@@ -342,7 +342,7 @@ namespace System
 
             if (v == null)
                 return this;
-            if (v._invocationList as object[] == null)
+            if (!(v._invocationList is object[]))
             {
                 if (!(_invocationList is object[] invocationList))
                 {
