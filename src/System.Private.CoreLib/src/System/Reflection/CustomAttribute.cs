@@ -1440,36 +1440,35 @@ namespace System.Reflection
             RuntimeModule decoratedModule, int decoratedMetadataToken,
             RuntimeType attributeFilterType, bool mustBeInheritable, ref RuntimeType.ListBuilder<object> derivedAttributes)
         {
-            MetadataImport scope = decoratedModule.MetadataImport;
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
 
-            if (attributeFilterType == null && car.Length == 0)
+            if (attributeFilterType is null && car.Length == 0)
+            {
                 return;
+            }
 
+            MetadataImport scope = decoratedModule.MetadataImport;
             for (int i = 0; i < car.Length; i++)
             {
-                object attribute = null;
                 CustomAttributeRecord caRecord = car[i];
-
-                IRuntimeMethodInfo ctor = null;
-                RuntimeType attributeType = null;
-                bool ctorHasParameters, isVarArg;
-                int cNamedArgs = 0;
 
                 IntPtr blobStart = caRecord.blob.Signature;
                 IntPtr blobEnd = (IntPtr)((byte*)blobStart + caRecord.blob.Length);
-                int blobLen = (int)((byte*)blobEnd - (byte*)blobStart);
 
                 if (!FilterCustomAttributeRecord(caRecord, scope,
                                                  decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable,
                                                  ref derivedAttributes,
-                                                 out attributeType, out ctor, out ctorHasParameters, out isVarArg))
+                                                 out RuntimeType attributeType, out IRuntimeMethodInfo ctor, out bool ctorHasParameters, out bool isVarArg))
+                {
                     continue;
+                }
 
                 // Leverage RuntimeConstructorInfo standard .ctor verfication
                 RuntimeConstructorInfo.CheckCanCreateInstance(attributeType, isVarArg);
 
                 // Create custom attribute object
+                int cNamedArgs;
+                object attribute;
                 if (ctorHasParameters)
                 {
                     attribute = CreateCaObject(decoratedModule, attributeType, ctor, ref blobStart, blobEnd, out cNamedArgs);
@@ -1479,8 +1478,11 @@ namespace System.Reflection
                     attribute = RuntimeTypeHandle.CreateCaInstance(attributeType, ctor);
 
                     // It is allowed by the ECMA spec to have an empty signature blob
+                    int blobLen = (int)((byte*)blobEnd - (byte*)blobStart);
                     if (blobLen == 0)
+                    {
                         cNamedArgs = 0;
+                    }
                     else
                     {
                         // Metadata is always written in little-endian format. Must account for this on
@@ -1491,7 +1493,10 @@ namespace System.Reflection
                         const int CustomAttributeVersion = 0x0001;
 #endif
                         if (Marshal.ReadInt16(blobStart) != CustomAttributeVersion)
+                        {
                             throw new CustomAttributeFormatException();
+                        }
+
                         blobStart = (IntPtr)((byte*)blobStart + 2); // skip version prefix
 
                         cNamedArgs = Marshal.ReadInt16(blobStart);
@@ -1504,32 +1509,24 @@ namespace System.Reflection
 
                 for (int j = 0; j < cNamedArgs; j++)
                 {
-                    #region // Initialize named properties and fields
-                    string name;
-                    bool isProperty;
-                    RuntimeType type;
-                    object value;
-
-                    GetPropertyOrFieldData(decoratedModule, ref blobStart, blobEnd, out name, out isProperty, out type, out value);
+                    GetPropertyOrFieldData(decoratedModule, ref blobStart, blobEnd, out string name, out bool isProperty, out RuntimeType type, out object value);
 
                     try
                     {
                         if (isProperty)
                         {
-                            #region // Initialize property
-                            if (type == null && value != null)
+                            if (type is null && value != null)
                             {
                                 type = (RuntimeType)value.GetType();
                                 if (type == Type_RuntimeType)
+                                {
                                     type = Type_Type;
+                                }
                             }
 
-                            PropertyInfo property = null;
-
-                            if (type == null)
-                                property = attributeType.GetProperty(name);
-                            else
-                                property = attributeType.GetProperty(name, type, Type.EmptyTypes);
+                            PropertyInfo property = type is null ? 
+                                attributeType.GetProperty(name) : 
+                                attributeType.GetProperty(name, type, Type.EmptyTypes);
 
                             // Did we get a valid property reference?
                             if (property == null)
@@ -1543,10 +1540,11 @@ namespace System.Reflection
 
                             // Public properties may have non-public setter methods
                             if (!setMethod.IsPublic)
+                            {
                                 continue;
+                            }
 
                             setMethod.Invoke(attribute, BindingFlags.Default, null, new object[] { value }, null);
-                            #endregion
                         }
                         else
                         {
@@ -1560,11 +1558,12 @@ namespace System.Reflection
                             string.Format(CultureInfo.CurrentUICulture,
                                 isProperty ? SR.RFLCT_InvalidPropFail : SR.RFLCT_InvalidFieldFail, name), e);
                     }
-                    #endregion
                 }
 
                 if (blobStart != blobEnd)
+                {
                     throw new CustomAttributeFormatException();
+                }
 
                 attributes.Add(attribute);
             }
@@ -1726,9 +1725,7 @@ namespace System.Reflection
                     throw new FormatException(string.Format(
                         CultureInfo.CurrentUICulture, SR.Format_AttributeUsage, attributeType));
 
-                AttributeTargets targets;
-                bool inherited, allowMultiple;
-                ParseAttributeUsageAttribute(caRecord.blob, out targets, out inherited, out allowMultiple);
+                ParseAttributeUsageAttribute(caRecord.blob, out AttributeTargets targets, out bool inherited, out bool allowMultiple);
                 attributeUsageAttribute = new AttributeUsageAttribute(targets, allowMultiple, inherited);
             }
 
