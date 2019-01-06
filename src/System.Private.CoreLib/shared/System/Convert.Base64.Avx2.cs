@@ -8,7 +8,7 @@ using System.Runtime.Intrinsics.X86;
 
 namespace System
 {
-    public static partial class Convert2
+    public static partial class Convert
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe void StoreAsTwoByteString(Vector256<byte> input, Vector256<byte> asciiToStringMask, byte* output)
