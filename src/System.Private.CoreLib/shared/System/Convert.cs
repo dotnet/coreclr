@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security;
 using System.Diagnostics;
+using System.Runtime.Intrinsics.X86;
 
 namespace System
 {
@@ -2428,8 +2429,15 @@ namespace System
                 fixed (byte* bytesPtr = &MemoryMarshal.GetReference(bytes))
                 fixed (char* charsPtr = result)
                 {
-                    int charsWritten = ConvertToBase64Array(charsPtr, bytesPtr, 0, bytes.Length, insertLineBreaks);
-                    Debug.Assert(result.Length == charsWritten, $"Expected {result.Length} == {charsWritten}");
+                    if (bytes.Length >= 32 && Avx2.IsSupported)
+                    {
+                        EncodeBase64Avx(bytesPtr, bytes.Length, (byte*)charsPtr, result.Length);
+                    }
+                    else
+                    {
+                        int charsWritten = ConvertToBase64Array(charsPtr, bytesPtr, 0, bytes.Length, insertLineBreaks);
+                        Debug.Assert(result.Length == charsWritten, $"Expected {result.Length} == {charsWritten}");
+                    }
                 }
             }
 
