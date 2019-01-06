@@ -2429,9 +2429,9 @@ namespace System
                 fixed (byte* bytesPtr = &MemoryMarshal.GetReference(bytes))
                 fixed (char* charsPtr = result)
                 {
-                    if (bytes.Length >= 32 && Avx2.IsSupported)
+                    if (bytes.Length >= 48 && Avx2.IsSupported)
                     {
-                        EncodeBase64Avx(bytesPtr, bytes.Length, (byte*)charsPtr, result.Length);
+                        EncodeBase64Avx(bytesPtr, bytes.Length, (byte*)charsPtr, result.Length * 2);
                     }
                     else
                     {
