@@ -8,8 +8,25 @@ using System.Runtime.Intrinsics.X86;
 
 namespace System
 {
-    public static partial class Convert
+    public static partial class Convert2
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe void StoreAsTwoByteString(Vector256<byte> input, Vector256<byte> asciiToStringMask, byte* output)
+        {
+            // Convert 1-byte string (input) to a 2-byte string
+            // E.g. "1,2,3,4,5..." to "1,0,2,0,3,0,4,0,5,0..."
+            // I am not sure it's the most efficient way to do it:
+
+            Vector256<byte> permuteLeft = Avx2.Permute4x64(input.AsUInt64(), 0x10 /* _MM_SHUFFLE(0, 1, 0, 0) */).AsByte();
+            Vector256<byte> resultLeft =  Avx2.Shuffle(permuteLeft, asciiToStringMask);
+
+            Vector256<byte> perfmuteRight = Avx2.Permute4x64(input.AsUInt64(), 0x32 /* _MM_SHUFFLE(0, 3, 0, 2) */).AsByte();
+            Vector256<byte> resultRight = Avx2.Shuffle(perfmuteRight, asciiToStringMask);
+
+            Avx.Store(output, resultLeft);
+            Avx.Store(output + Vector256<byte>.Count, resultRight);
+        }
+
         private static unsafe void EncodeBase64Avx(byte* input, int inputLength, byte* output, int outputLength)
         {
             // Based on "Base64 encoding with SIMD instructions" article by Wojciech Muła
@@ -50,15 +67,7 @@ namespace System
                 Vector256<ushort> indices = Avx2.Or(t1, t3);
                 Vector256<byte> result = LookupPshufb(indices.AsByte(), shiftLut.AsByte());
 
-                // Convert ASCII to 2-byte string
-                // E.g. "1,2,3,4,5..." to "1,0,2,0,3,0,4,0,5,0..."
-                // I am not sure it's the most efficient way to do it:
-
-                var resultLeft =  Avx2.Shuffle(Avx2.Permute4x64(result.AsUInt64(), 0x10 /* _MM_SHUFFLE(0, 1, 0, 0) */).AsByte(), asciiToStringMask);
-                var resultRight = Avx2.Shuffle(Avx2.Permute4x64(result.AsUInt64(), 0x32 /* _MM_SHUFFLE(0, 3, 0, 2) */).AsByte(), asciiToStringMask);
-
-                Avx.Store(outputCurrent, resultLeft);
-                Avx.Store(outputCurrent + Vector256<byte>.Count, resultRight);
+                StoreAsTwoByteString(result, asciiToStringMask, outputCurrent);
                 outputCurrent += Vector256<byte>.Count * 2;
             }
 
@@ -92,7 +101,6 @@ namespace System
             Vector256<byte> result = Avx2.SubtractSaturate(input, Vector256.Create((byte)51));
             Vector256<sbyte> less =  Avx2.CompareGreaterThan(Vector256.Create((sbyte)26), input.AsSByte());
             result = Avx2.Or(result, Avx2.And(less.AsByte(), Vector256.Create((byte)13)));
-
             result = Avx2.Shuffle(shiftLut, result.AsByte());
             return Avx2.Add(result, input);
         }
