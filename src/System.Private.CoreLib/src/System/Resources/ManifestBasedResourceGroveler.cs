@@ -329,24 +329,14 @@ namespace System.Resources
             Debug.Assert(satellite != null, "satellite shouldn't be null; check caller");
             Debug.Assert(name != null, "name shouldn't be null; check caller");
 
-            StringBuilder sb = new StringBuilder();
-            if (_mediator.LocationInfo != null)
-            {
-                string nameSpace = _mediator.LocationInfo.Namespace;
-                if (nameSpace != null)
-                {
-                    sb.Append(nameSpace);
-                    if (name != null)
-                        sb.Append(Type.Delimiter);
-                }
-            }
-            sb.Append(name);
+            string nameSpace = _mediator.LocationInfo?.Namespace;
+            string delimiter = (nameSpace != null && name != null) ? Type.Delimiter.ToString() : null;
+            string resourceName = string.Concat(nameSpace, delimiter, name);
 
-            string givenName = sb.ToString();
             string canonicalName = null;
             foreach (string existingName in satellite.GetManifestResourceNames())
             {
-                if (string.Equals(existingName, givenName, StringComparison.InvariantCultureIgnoreCase))
+                if (string.Equals(existingName, resourceName, StringComparison.InvariantCultureIgnoreCase))
                 {
                     if (canonicalName == null)
                     {
@@ -354,7 +344,7 @@ namespace System.Resources
                     }
                     else
                     {
-                        throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_MultipleBlobs, givenName, satellite.ToString()));
+                        throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_MultipleBlobs, resourceName, satellite.ToString()));
                     }
                 }
             }

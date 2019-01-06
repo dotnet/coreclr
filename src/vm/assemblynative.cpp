@@ -558,7 +558,7 @@ INT32 QCALLTYPE AssemblyNative::GetFlags(QCall::AssemblyHandle pAssembly)
     return retVal;
 }
 
-BYTE * QCALLTYPE AssemblyNative::GetResource(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, UINT64 * length)
+BYTE * QCALLTYPE AssemblyNative::GetResource(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, DWORD * length)
 {
     QCALL_CONTRACT;
 
@@ -578,13 +578,9 @@ BYTE * QCALLTYPE AssemblyNative::GetResource(QCall::AssemblyHandle pAssembly, LP
     if (*pNameUTF8 == '\0')
         COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
 
-    DWORD  cbResource;
-    if (pAssembly->GetResource(pNameUTF8, &cbResource,
-                               &pbInMemoryResource, NULL, NULL,
-                               NULL, FALSE))
-    {
-        *length = cbResource;
-    }
+    pAssembly->GetResource(pNameUTF8, length,
+                           &pbInMemoryResource, NULL, NULL,
+                           NULL, FALSE);
 
     END_QCALL;
 

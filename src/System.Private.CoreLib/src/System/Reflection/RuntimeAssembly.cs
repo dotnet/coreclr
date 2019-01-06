@@ -198,45 +198,29 @@ namespace System.Reflection
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern unsafe byte* GetResource(RuntimeAssembly assembly,
                                                        string resourceName,
-                                                       out ulong length);
+                                                       out uint length);
 
         // Load a resource based on the NameSpace of the type.
         public override Stream GetManifestResourceStream(Type type, string name)
         {
-            StringBuilder sb = new StringBuilder();
-            if (type == null)
-            {
-                if (name == null)
-                    throw new ArgumentNullException(nameof(type));
-            }
-            else
-            {
-                string nameSpace = type.Namespace;
-                if (nameSpace != null)
-                {
-                    sb.Append(nameSpace);
-                    if (name != null)
-                        sb.Append(Type.Delimiter);
-                }
-            }
+            if (type == null && name == null)
+                throw new ArgumentNullException(nameof(type));
 
-            if (name != null)
-                sb.Append(name);
+            string nameSpace = type?.Namespace;
+            string delimiter = (nameSpace != null && name != null) ? Type.Delimiter.ToString() : null;
+            string resourceName = string.Concat(nameSpace, delimiter, name);
 
-            return GetManifestResourceStream(sb.ToString());
+            return GetManifestResourceStream(resourceName);
         }
 
         public unsafe override Stream GetManifestResourceStream(string name)
         {
-            ulong length = 0;
+            uint length = 0;
             byte* pbInMemoryResource = GetResource(GetNativeHandle(), name, out length);
 
             if (pbInMemoryResource != null)
             {
-                if (length > long.MaxValue)
-                    throw new NotImplementedException(SR.NotImplemented_ResourcesLongerThanInt64Max);
-
-                return new UnmanagedMemoryStream(pbInMemoryResource, (long)length, (long)length, FileAccess.Read);
+                return new UnmanagedMemoryStream(pbInMemoryResource, length, length, FileAccess.Read);
             }
 
             return null;
