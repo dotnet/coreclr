@@ -986,6 +986,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.FTruncate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.GetCwd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.GetRandomBytes.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.GetSystemTimeAsTicks.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.LockFileRegion.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.LSeek.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.MksTemps.cs" />
