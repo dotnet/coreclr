@@ -123,25 +123,24 @@
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\RuntimeThread.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\Win32Native.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\__Canon.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Activator.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\AppContext.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\AppContext.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ArgIterator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Array.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Attribute.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Attribute.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BadImageFormatException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\ByReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\CLRConfig.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\EmptyReadOnlyDictionaryInternal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\ArraySortHelper.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\Comparer.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\Comparer.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\ComparerHelpers.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\EqualityComparer.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\EqualityComparer.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyDictionary.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DefaultBinder.CanConvert.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Delegate.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\Contracts.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\ContractsBCL.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debugger.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\EditAndContinueHelper.cs" />
@@ -167,7 +166,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Environment.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Exception.cs" />
     <Compile Include="$(BclSourcesRoot)\System\GC.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Internal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileLoadException.CoreCLR.cs" />
@@ -178,8 +176,7 @@
     <Compile Include="$(BclSourcesRoot)\System\mda.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MissingMemberException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MulticastDelegate.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Numerics\Hashing\HashHelpers.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Object.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Object.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\OleAutBinder.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Assembly.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\AssemblyName.cs" />
@@ -254,7 +251,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RuntimeFeature.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RuntimeHelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TypeDependencyAttribute.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\ExceptionServices\ExceptionDispatchInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\GcSettings.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ArrayWithOffset.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Attributes.cs" />
@@ -279,7 +275,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\ITypeInfo2.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\ITypeLib.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\ITypeLib2.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CriticalHandle.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CriticalHandle.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CurrencyWrapper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ErrorWrapper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Expando\IExpando.cs" />
@@ -292,9 +288,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\InvalidComObjectException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\InvalidOleVariantTypeException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Marshal.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeLibrary.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NonPortable.cs" Condition="'$(FeatureCominterop)' != 'true'" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\PInvokeMap.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\PInvokeMarshal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeArrayRankMismatchException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeArrayTypeMismatchException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeHandle.cs" />
@@ -311,13 +306,7 @@
     <Compile Include="$(BclSourcesRoot)\System\StartupHookProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\StubHelpers.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\CodePageDataItem.cs" Condition="'$(FeatureCoreFxGlobalization)' != 'true'" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\CodePageDataItem.Unix.cs" Condition="'$(FeatureCoreFxGlobalization)' == 'true'" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\EncodingTable.cs" Condition="'$(FeatureCoreFxGlobalization)' != 'true'" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\EncodingTable.Unix.cs" Condition="'$(FeatureCoreFxGlobalization)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilder.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenRegistration.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenSource.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandleOverlapped.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolPreAllocatedOverlapped.cs" />
@@ -326,22 +315,16 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\Overlapped.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\AsyncCausalityTracer.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\future.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\FutureFactory.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\ProducerConsumerQueues.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\Task.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskContinuation.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskExceptionHolder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskFactory.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskScheduler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\ThreadPoolTaskScheduler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TPLETWProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Thread.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Timer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Volatile.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\WaitHandle.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\ThrowHelper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Type.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TypedReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TypeLoadException.cs" />
@@ -426,7 +409,6 @@
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\DateTime.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
   </ItemGroup>
@@ -434,8 +416,6 @@
     <Compile Include="$(BclSourcesRoot)\System\DateTime.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Kernel32\Interop.GetSystemDirectoryW.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ApplicationModel.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\DebugProvider.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Environment.Windows.cs" />

@@ -2465,7 +2465,8 @@ public:
 
     GenTreeCast* gtNewCastNodeL(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType);
 
-    GenTreeAllocObj* gtNewAllocObjNode(unsigned int helper, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
+    GenTreeAllocObj* gtNewAllocObjNode(
+        unsigned int helper, bool helperHasSideEffects, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
 
     GenTreeAllocObj* gtNewAllocObjNode(CORINFO_RESOLVED_TOKEN* pResolvedToken, BOOL useParent);
 
@@ -3459,14 +3460,10 @@ protected:
                              CORINFO_METHOD_HANDLE method,
                              CORINFO_SIG_INFO*     sig,
                              bool                  mustExpand);
-    GenTree* impBMI1Intrinsic(NamedIntrinsic        intrinsic,
-                              CORINFO_METHOD_HANDLE method,
-                              CORINFO_SIG_INFO*     sig,
-                              bool                  mustExpand);
-    GenTree* impBMI2Intrinsic(NamedIntrinsic        intrinsic,
-                              CORINFO_METHOD_HANDLE method,
-                              CORINFO_SIG_INFO*     sig,
-                              bool                  mustExpand);
+    GenTree* impBMI1OrBMI2Intrinsic(NamedIntrinsic        intrinsic,
+                                    CORINFO_METHOD_HANDLE method,
+                                    CORINFO_SIG_INFO*     sig,
+                                    bool                  mustExpand);
     GenTree* impFMAIntrinsic(NamedIntrinsic        intrinsic,
                              CORINFO_METHOD_HANDLE method,
                              CORINFO_SIG_INFO*     sig,
@@ -4507,6 +4504,7 @@ public:
         }
         else
         {
+            assert(elemTyp != TYP_STRUCT);
             elemTyp = varTypeUnsignedToSigned(elemTyp);
             return CORINFO_CLASS_HANDLE(size_t(elemTyp) << 1 | 0x1);
         }
@@ -7900,6 +7898,7 @@ private:
                               CORINFO_CLASS_HANDLE  clsHnd,
                               CORINFO_METHOD_HANDLE method,
                               CORINFO_SIG_INFO*     sig,
+                              unsigned              methodFlags,
                               int                   memberRef);
 
     GenTree* getOp1ForConstructor(OPCODE opcode, GenTree* newobjThis, CORINFO_CLASS_HANDLE clsHnd);

@@ -1397,11 +1397,11 @@ class CultureInfoBaseObject : public Object
     friend class MscorlibBinder;
 
 private:
-    OBJECTREF compareInfo;
-    OBJECTREF textInfo;
-    OBJECTREF numInfo;
-    OBJECTREF dateTimeInfo;
-    OBJECTREF calendar;
+    OBJECTREF _compareInfo;
+    OBJECTREF _textInfo;
+    OBJECTREF _numInfo;
+    OBJECTREF _dateTimeInfo;
+    OBJECTREF _calendar;
     OBJECTREF _cultureData;
     OBJECTREF _consoleFallbackCulture;
     STRINGREF _name;                       // "real" name - en-US, de-DE_phoneb or fj-FJ
@@ -1410,7 +1410,6 @@ private:
     CULTUREINFOBASEREF _parent;
     CLR_BOOL _isReadOnly;
     CLR_BOOL _isInherited;
-    CLR_BOOL _useUserOverride;
 
 public:
     CULTUREINFOBASEREF GetParent()
@@ -1507,15 +1506,6 @@ public:
     OBJECTREF GetDelegate()                   { LIMITED_METHOD_CONTRACT; return m_Delegate; }
     void      SetDelegate(OBJECTREF delegate);
 
-    CULTUREINFOBASEREF GetCurrentUserCulture();
-    CULTUREINFOBASEREF GetCurrentUICulture();
-    OBJECTREF GetManagedThreadCulture(BOOL bUICulture);
-    void ResetManagedThreadCulture(BOOL bUICulture);
-    void ResetCurrentUserCulture();
-    void ResetCurrentUICulture();
-
-
-
     OBJECTREF GetSynchronizationContext()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1526,13 +1516,6 @@ public:
     // created first.  InitExisting is our "constructor" for the pathway where an
     // existing physical thread is later exposed.
     void      InitExisting();
-
-    void ResetCulture()
-    {
-        LIMITED_METHOD_CONTRACT;
-        ResetCurrentUserCulture();
-        ResetCurrentUICulture();
-    }
 
     void ResetName()
     {

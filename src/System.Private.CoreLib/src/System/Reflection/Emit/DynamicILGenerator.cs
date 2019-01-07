@@ -23,7 +23,7 @@ namespace System.Reflection.Emit
         internal DynamicScope m_scope;
         private int m_methodSigToken;
 
-        internal unsafe DynamicILGenerator(DynamicMethod method, byte[] methodSignature, int size)
+        internal DynamicILGenerator(DynamicMethod method, byte[] methodSignature, int size)
             : base(method, size)
         {
             m_scope = new DynamicScope();
@@ -753,7 +753,7 @@ namespace System.Reflection.Emit
             return m_localSignature;
         }
 
-        internal override unsafe byte[] GetRawEHInfo()
+        internal override byte[] GetRawEHInfo()
         {
             return m_exceptionHeader;
         }
@@ -822,24 +822,21 @@ namespace System.Reflection.Emit
                 return;
             }
 
-            GenericMethodInfo gmi = handle as GenericMethodInfo;
-            if (gmi != null)
+            if (handle is GenericMethodInfo gmi)
             {
                 methodHandle = gmi.m_methodHandle.Value;
                 typeHandle = gmi.m_context.Value;
                 return;
             }
 
-            GenericFieldInfo gfi = handle as GenericFieldInfo;
-            if (gfi != null)
+            if (handle is GenericFieldInfo gfi)
             {
                 fieldHandle = gfi.m_fieldHandle.Value;
                 typeHandle = gfi.m_context.Value;
                 return;
             }
 
-            VarArgMethod vaMeth = handle as VarArgMethod;
-            if (vaMeth != null)
+            if (handle is VarArgMethod vaMeth)
             {
                 if (vaMeth.m_dynamicMethod == null)
                 {
@@ -916,7 +913,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        internal unsafe DynamicScope()
+        internal DynamicScope()
         {
             m_tokens = new List<object>();
             m_tokens.Add(null);
@@ -949,9 +946,7 @@ namespace System.Reflection.Emit
             if (fromMethod == 0)
                 return (byte[])this[token];
 
-            VarArgMethod vaMethod = this[token] as VarArgMethod;
-
-            if (vaMethod == null)
+            if (!(this[token] is VarArgMethod vaMethod))
                 return null;
 
             return vaMethod.m_signature.GetSignature(true);
