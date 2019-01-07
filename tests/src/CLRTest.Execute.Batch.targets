@@ -88,7 +88,7 @@ REM
 REM TieredCompilation will use minopts. Therefore it is also included in this
 REM set. Unlike the rest, TieredCompilation=0 should run the JitOptimizationSensitive
 REM tests. The following cannot run the test.
-REN
+REM
 REM     TieredCompilation=1
 REM     TieredCompilation=
 IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMinOpts%"=="" IF "%COMPlus_TailcallStress%"=="" goto :Compatible
@@ -382,7 +382,14 @@ $(BatchCLRTestArgPrep)
 $(BatchCLRTestExitCodePrep)
 
 REM The __TestEnv variable may be used to specify something to run before the test.
-IF NOT "%__TestEnv%"=="" call %__TestEnv%
+IF NOT "%__TestEnv%"=="" (
+    call %__TestEnv%
+    IF NOT "!ERRORLEVEL!"=="0" (
+        ECHO CALLING __TestEnv SCRIPT FAILED
+        popd
+        Exit /b 1
+    )
+)
 
 REM Environment Variables
 $(BatchEnvironmentVariables)

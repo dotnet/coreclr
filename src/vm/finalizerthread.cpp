@@ -175,12 +175,10 @@ Object * FinalizerThread::DoOneFinalization(Object* fobj, Thread* pThread,int bi
                 CallFinalizer(fobj);
             }
         }
-        pThread->InternalReset(FALSE);
+        pThread->InternalReset();
     } 
     else 
     {
-        _ASSERTE(targetAppDomain->GetDefaultContext());
-
         if (!currentDomain->IsDefaultDomain())
         {
             // this means we are in some other domain, so need to return back out through the DoADCallback
@@ -204,7 +202,7 @@ Object * FinalizerThread::DoOneFinalization(Object* fobj, Thread* pThread,int bi
                                                       &args,
                                                       pThreadTurnAround);
             }
-            pThread->InternalReset(FALSE);
+            pThread->InternalReset();
             // process the object we got back or be done if we got back null
             pReturnObject = OBJECTREFToObject(args.fobj);
             GCPROTECT_END();

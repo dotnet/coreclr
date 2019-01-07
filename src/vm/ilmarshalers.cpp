@@ -316,11 +316,10 @@ void ILWSTRMarshaler::EmitCheckManagedStringLength(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
 
+    // Note: The maximum size of managed string is under 2GB bytes. This cannot overflow.
     pslILEmit->EmitCALL(METHOD__STRING__GET_LENGTH, 1, 1);
     pslILEmit->EmitLDC(1);
     pslILEmit->EmitADD();
-    pslILEmit->EmitDUP();
-    pslILEmit->EmitCALL(METHOD__STUBHELPERS__CHECK_STRING_LENGTH, 1, 0);
     pslILEmit->EmitDUP();
     pslILEmit->EmitADD();           // (length+1) * sizeof(WCHAR)
 }
@@ -629,8 +628,8 @@ void ILUTF8BufferMarshaler::EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit)
     if (IsIn(m_dwMarshalFlags) || IsCLRToNative(m_dwMarshalFlags))
     {
         EmitLoadNativeValue(pslILEmit);
-        // static int System.StubHelpers.StubHelpers.strlen(sbyte* ptr)
-        pslILEmit->EmitCALL(METHOD__STUBHELPERS__STRLEN, 1, 1);
+        // static int System.String.strlen(byte* ptr)
+        pslILEmit->EmitCALL(METHOD__STRING__STRLEN, 1, 1);
     }
     else
     {
@@ -773,17 +772,9 @@ void ILWSTRBufferMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEm
     pslILEmit->EmitCALL(METHOD__STRING_BUILDER__GET_LENGTH, 1, 1);
 
     // stack: StringBuilder length
-
-    // if (!fConvertSpaceJustCalled)
-    {
-        // we don't need to double-check the length because the length
-        // must be smaller than the capacity and the capacity was already
-        // checked by EmitConvertSpaceCLRToNative
-        
-        pslILEmit->EmitDUP();
-        // static void StubHelpers.CheckStringLength(int length)
-        pslILEmit->EmitCALL(METHOD__STUBHELPERS__CHECK_STRING_LENGTH, 1, 0);
-    }
+    pslILEmit->EmitDUP();
+    // static void StubHelpers.CheckStringLength(int length)
+    pslILEmit->EmitCALL(METHOD__STUBHELPERS__CHECK_STRING_LENGTH, 1, 0);
 
     // stack: StringBuilder length 
 
@@ -895,12 +886,12 @@ void ILCSTRBufferMarshaler::EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit)
     // stack: capacity
 
     pslILEmit->EmitLDSFLD(pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__MARSHAL__SYSTEM_MAX_DBCS_CHAR_SIZE)));
-    pslILEmit->EmitMUL();
+    pslILEmit->EmitMUL_OVF();
 
     // stack: capacity_in_bytes
 
     pslILEmit->EmitLDC(1);  
-    pslILEmit->EmitADD();
+    pslILEmit->EmitADD_OVF();
 
     // stack: offset_of_secret_null
 
@@ -909,7 +900,7 @@ void ILCSTRBufferMarshaler::EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit)
     pslILEmit->EmitSTLOC(dwTmpOffsetOfSecretNull); // make sure the stack is empty for localloc
 
     pslILEmit->EmitLDC(3);
-    pslILEmit->EmitADD();
+    pslILEmit->EmitADD_OVF();
 
     // stack: alloc_size_in_bytes
     ILCodeLabel *pAllocRejoin = pslILEmit->NewCodeLabel(); 
@@ -1034,8 +1025,8 @@ void ILCSTRBufferMarshaler::EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit)
     if (IsIn(m_dwMarshalFlags) || IsCLRToNative(m_dwMarshalFlags))
     {
         EmitLoadNativeValue(pslILEmit);
-        // static int System.StubHelpers.StubHelpers.strlen(sbyte* ptr)
-        pslILEmit->EmitCALL(METHOD__STUBHELPERS__STRLEN, 1, 1);
+        // static int System.String.strlen(byte* ptr)
+        pslILEmit->EmitCALL(METHOD__STRING__STRLEN, 1, 1);
     }
     else
     {
@@ -1063,8 +1054,8 @@ void ILCSTRBufferMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEm
     EmitLoadNativeValue(pslILEmit);
 
     pslILEmit->EmitDUP();
-    // static int System.StubHelpers.StubHelpers.strlen(sbyte* ptr)
-    pslILEmit->EmitCALL(METHOD__STUBHELPERS__STRLEN, 1, 1);
+    // static int System.String.strlen(byte* ptr)
+    pslILEmit->EmitCALL(METHOD__STRING__STRLEN, 1, 1);
     
     // void System.Text.StringBuilder.ReplaceBuffer(sbyte* newBuffer, int newLength);
     pslILEmit->EmitCALL(METHOD__STRING_BUILDER__REPLACE_BUFFER_ANSI_INTERNAL, 3, 0);
@@ -2194,7 +2185,7 @@ void ILCSTRMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
 
         // (String.Length + 2) * GetMaxDBCSCharByteSize()
         pslILEmit->EmitLDSFLD(pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__MARSHAL__SYSTEM_MAX_DBCS_CHAR_SIZE)));
-        pslILEmit->EmitMUL();
+        pslILEmit->EmitMUL_OVF();
 
         // BufSize = (String.Length + 2) * GetMaxDBCSCharByteSize()
         pslILEmit->EmitSTLOC(dwBufSize);
@@ -2448,7 +2439,7 @@ void ILBlittablePtrMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslIL
 
     ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
     UINT uNativeSize = m_pargs->m_pMT->GetNativeSize();
-    int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__PINNING_HELPER__M_DATA));
+    int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__RAW_DATA__DATA));
 
     EmitLoadNativeValue(pslILEmit);
     pslILEmit->EmitBRFALSE(pNullRefLabel);
@@ -2470,7 +2461,7 @@ void ILBlittablePtrMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslIL
     
     ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
     UINT uNativeSize = m_pargs->m_pMT->GetNativeSize();
-    int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__PINNING_HELPER__M_DATA));
+    int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__RAW_DATA__DATA));
     
     EmitLoadManagedValue(pslILEmit);
     pslILEmit->EmitBRFALSE(pNullRefLabel);

@@ -118,6 +118,7 @@ Assembly::Assembly(BaseDomain *pDomain, PEAssembly* pFile, DebuggerAssemblyContr
     m_pLoaderAllocator(NULL),
     m_isDisabledPrivateReflection(0),
 #ifdef FEATURE_COMINTEROP
+    m_pITypeLib(NULL),
     m_winMDStatus(WinMDStatus_Unknown),
     m_pManifestWinMDImport(NULL),
 #endif // FEATURE_COMINTEROP
@@ -274,6 +275,11 @@ Assembly::~Assembly()
     if (m_pManifestWinMDImport)
     {
         m_pManifestWinMDImport->Release();
+    }
+
+    if (m_pITypeLib != nullptr && m_pITypeLib != Assembly::InvalidTypeLib)
+    {
+        m_pITypeLib->Release();
     }
 #endif // FEATURE_COMINTEROP
 }
@@ -1849,7 +1855,6 @@ BOOL Assembly::FileNotFound(HRESULT hr)
 BOOL Assembly::GetResource(LPCSTR szName, DWORD *cbResource,
                               PBYTE *pbInMemoryResource, Assembly** pAssemblyRef,
                               LPCSTR *szFileName, DWORD *dwLocation,
-                              StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                               BOOL fSkipRaiseResolveEvent)
 {
     CONTRACTL
@@ -1863,9 +1868,9 @@ BOOL Assembly::GetResource(LPCSTR szName, DWORD *cbResource,
     DomainAssembly *pAssembly = NULL;
     BOOL result = GetDomainAssembly()->GetResource(szName, cbResource,
                                                    pbInMemoryResource, &pAssembly,
-                                                   szFileName, dwLocation, pStackMark, fSkipSecurityCheck,
+                                                   szFileName, dwLocation,
                                                    fSkipRaiseResolveEvent);
-    if (result && pAssemblyRef != NULL && pAssembly!=NULL)
+    if (result && pAssemblyRef != NULL && pAssembly != NULL)
         *pAssemblyRef = pAssembly->GetAssembly();
 
     return result;
@@ -1982,6 +1987,51 @@ BOOL Assembly::IsInstrumentedHelper()
     return false;    
 }
 #endif // FEATURE_PREJIT
+
+
+#ifdef FEATURE_COMINTEROP
+
+ITypeLib * const Assembly::InvalidTypeLib = (ITypeLib *)-1;
+
+ITypeLib* Assembly::GetTypeLib()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END
+
+    ITypeLib *pTlb = m_pITypeLib;
+    if (pTlb != nullptr && pTlb != Assembly::InvalidTypeLib)
+        pTlb->AddRef();
+
+    return pTlb;
+} // ITypeLib* Assembly::GetTypeLib()
+
+bool Assembly::TrySetTypeLib(_In_ ITypeLib *pNew)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        FORBID_FAULT;
+        PRECONDITION(CheckPointer(pNew));
+    }
+    CONTRACTL_END
+
+    ITypeLib *pOld = InterlockedCompareExchangeT(&m_pITypeLib, pNew, nullptr);
+    if (pOld != nullptr)
+        return false;
+
+    if (pNew != Assembly::InvalidTypeLib)
+        pNew->AddRef();
+
+    return true;
+} // void Assembly::SetTypeLib()
+
+#endif // FEATURE_COMINTEROP
 
 //***********************************************************
 // Add an assembly to the assemblyref list. pAssemEmitter specifies where

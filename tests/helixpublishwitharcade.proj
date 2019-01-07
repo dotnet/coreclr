@@ -1,71 +1,70 @@
 <Project Sdk="Microsoft.DotNet.Helix.Sdk" DefaultTargets="SubmitTestsToHelix">
 
-  <!-- This project uses the helix SDK ,documented at
+  <!-- This project uses the helix SDK, documented at
        https://github.com/dotnet/arcade/tree/master/src/Microsoft.DotNet.Helix/Sdk,
        to send test jobs to helix. -->
 
   <Import Project="..\dir.props" />
 
   <PropertyGroup>
-    <!-- TODO: pick appropriate helix source and type. -->
-    <HelixSource>pr/coreclr/master</HelixSource>
-    <HelixType>test/stuff</HelixType>
-    <HelixBuild>$(BUILD_BUILDNUMBER)</HelixBuild>
+    <HelixArchitecture>$(BuildArch)</HelixArchitecture>
+    <HelixConfiguration>$(BuildType)</HelixConfiguration>
 
-    <!-- TODO: add target queues for rhel and linux-musl -->
-    <!-- TODO: why don't we currently run tests on windows x86? -->
-    <HelixTargetQueues Condition=" '$(BuildOS)' == 'Windows_NT' ">
-      Windows.10.Amd64;
-      Windows.10.Nano.Amd64;
-      Windows.10.Amd64.Core;
-      Windows.7.Amd64;
-      Windows.81.Amd64
-    </HelixTargetQueues>
-    <HelixTargetQueues Condition=" '$(BuildOS)' == 'Linux' ">
-      debian.82.amd64;
-      fedora.27.amd64;
-      fedora.28.amd64;
-      redhat.73.amd64;
-      ubuntu.1404.amd64;
-      ubuntu.1604.amd64;
-      ubuntu.1804.amd64;
-      opensuse.423.amd64;
-      sles.12.amd64
-    </HelixTargetQueues>
-    <HelixTargetQueues Condition=" '$(BuildOS)' == 'OSX' ">
-      osx.1012.amd64;
-      osx.1013.amd64
-    </HelixTargetQueues>
+    <IsExternal>$(_IsExternal)</IsExternal>
+    <IsExternal Condition=" '$(IsExternal)' == '' ">true</IsExternal>
 
-    <EnableXUnitReporter>true</EnableXUnitReporter>
+    <Creator Condition=" '$(IsExternal)' == 'true' ">$(_Creator)</Creator>
+    <HelixAccessToken Condition=" '$(IsExternal)' != 'true' ">$(_HelixAccessToken)</HelixAccessToken>
+    <HelixTargetQueues>$(_HelixTargetQueues)</HelixTargetQueues>
+
+    <EnableAzurePipelinesReporter>$(_PublishTestResults)</EnableAzurePipelinesReporter>
+    <EnableAzurePipelinesReporter Condition=" '$(EnableAzurePipelinesReporter)' == '' ">false</EnableAzurePipelinesReporter>
+
+    <HelixBuild>$(_HelixBuild)</HelixBuild>
+    <HelixSource>$(_HelixSource)</HelixSource>
+    <HelixType>$(_HelixType)</HelixType>
+
+    <TimeoutInMinutes>$(_TimeoutInMinutes)</TimeoutInMinutes>
+    <TimeoutInMinutes Condition=" '$(TimeoutInMinutes)' == '' ">5</TimeoutInMinutes>
+
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
-    <SourceDirectory>$(MSBuildProjectDirectory)/..</SourceDirectory>
+    <CoreRootDirectory>$(TestWorkingDir)\Tests\Core_Root</CoreRootDirectory>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(TargetsWindows)' == 'true' ">
+    <HelixPythonPath>%HELIX_PYTHONPATH%</HelixPythonPath>
+    <RunnerScript>%HELIX_CORRELATION_PAYLOAD%\runtest_helix.py</RunnerScript>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(TargetsWindows)' != 'true' ">
+    <HelixPythonPath>$HELIX_PYTHONPATH</HelixPythonPath>
+    <RunnerScript>$HELIX_CORRELATION_PAYLOAD/runtest_helix.py</RunnerScript>
   </PropertyGroup>
 
   <ItemGroup>
-    <HelixCorrelationPayload Include="$(SourceDirectory)\bin\tests\*\archive\Core_Root\*.zip">
-      <PayloadArchive>%(Identity)</PayloadArchive>
-    </HelixCorrelationPayload>
+    <HelixCorrelationPayload Include="$(CoreRootDirectory)" />
+    <XUnitWrapperDlls Include="$(TestWorkingDir)\**\*.XUnitWrapper.dll" />
   </ItemGroup>
+
+  <Target Name="CopyRunnerScriptToCoreRootDirectory" BeforeTargets="SubmitTestsToHelix">
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)\runtest_helix.py" DestinationFolder="$(CoreRootDirectory)" />
+  </Target>
 
   <Target Name="SubmitTestsToHelix">
     <ItemGroup>
-      <Scenarios Include="$(Scenarios)" />
+      <Scenarios Include="$(_Scenarios.Split(','))" />
       <ProjectsToBuild Include="$(MSBuildProjectFile)">
-        <Properties>Scenario=%(Scenarios.Identity)</Properties>
+        <Properties>Scenario=%(_Scenarios.Identity)</Properties>
       </ProjectsToBuild>
     </ItemGroup>
-
     <PropertyGroup>
       <BuildInParallel>false</BuildInParallel>
       <BuildInParallel Condition=" '@(ProjectsToBuild->Count())' > '1' ">true</BuildInParallel>
     </PropertyGroup>
-
     <MSBuild Projects="@(ProjectsToBuild)" Targets="Test" BuildInParallel="$(BuildInParallel)" StopOnFirstFailure="false" UnloadProjectsOnCompletion="true" />
   </Target>
 
-  <Target Name="BuildHelixWorkItem"
-          BeforeTargets="Test">
+  <Target Name="BuildHelixWorkItem" BeforeTargets="Test">
     <PropertyGroup>
       <!-- The "normal" scenario is just a way to include the default
            (empty) scenario when specifying multiple scenarios at
@@ -73,18 +72,17 @@
            job names will not have a scenario prefix and the runtest
            script doesn't have to define a "normal" scenario. -->
       <Scenario Condition=" '$(Scenario)' == 'normal' "></Scenario>
-      <ScenarioPrefix Condition=" '$(Scenario)' == '' " />
-      <ScenarioPrefix Condition=" '$(Scenario)' != '' ">$(Scenario) </ScenarioPrefix>
+      <TestRunNamePrefix Condition=" '$(Scenario)' == '' ">$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
+      <TestRunNamePrefix Condition=" '$(Scenario)' != '' ">$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
     </PropertyGroup>
     <ItemGroup>
-      <TestZipFiles Include="$(SourceDirectory)\bin\tests\*\archive\tests\*.zip" />
-      <HelixWorkItem Include="@(TestZipFiles->'$(ScenarioPrefix)%(FileName)')" >
-        <PayloadArchive>%(Identity)</PayloadArchive>
-        <Command Condition=" '$(Scenario)' == '' ">python runtest_helix.py -wrapper %(FileName).dll</Command>
-        <Command Condition=" '$(Scenario)' != '' ">python runtest_helix.py -scenario $(Scenario) -wrapper %(FileName).dll</Command>
+      <HelixWorkItem Include="@(XUnitWrapperDlls->'%(FileName)'->Replace('.XUnitWrapper', ''))">
+        <PayloadDirectory>%(RootDir)%(Directory)</PayloadDirectory>
+        <Command Condition=" '$(Scenario)' == '' ">$(HelixPythonPath) $(RunnerScript) -wrapper %(FileName)%(Extension)</Command>
+        <Command Condition=" '$(Scenario)' != '' ">$(HelixPythonPath) $(RunnerScript) -wrapper %(FileName)%(Extension) -scenario $(Scenario)</Command>
+        <Timeout>$([System.TimeSpan]::FromMinutes($(TimeoutInMinutes)))</Timeout>
       </HelixWorkItem>
     </ItemGroup>
-
   </Target>
 
 </Project>

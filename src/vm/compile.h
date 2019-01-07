@@ -338,7 +338,8 @@ class CEECompileInfo : public ICorCompileInfo
                              SString                &result);
 
     void GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, 
-                       GCRefMapBuilder * pBuilder);
+                       GCRefMapBuilder * pBuilder,
+                       bool isDispatchCell);
 
     void CompressDebugInfo(
                                     IN ICorDebugInfo::OffsetMapping * pOffsetMapping,
@@ -790,7 +791,6 @@ class CompilationDomain : public AppDomain,
     PEAssembly *BindAssemblySpec(
         AssemblySpec *pSpec,
         BOOL fThrowOnFileNotFound,
-        StackCrawlMark *pCallerStackMark = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
 
     BOOL CanEagerBindToZapFile(Module *targetModule, BOOL limitToHardBindList = TRUE);

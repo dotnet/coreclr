@@ -2318,86 +2318,12 @@ const char* Compiler::compLocalVarName(unsigned varNum, unsigned offs)
 #endif // DEBUG
 /*****************************************************************************/
 
-#ifdef _TARGET_XARCH_
-static bool configEnableISA(InstructionSet isa)
-{
-    switch (isa)
-    {
-        case InstructionSet_AVX2:
-            if (JitConfig.EnableAVX2() == 0)
-            {
-                return false;
-            }
-            __fallthrough;
-        case InstructionSet_AVX:
-            if (JitConfig.EnableAVX() == 0)
-            {
-                return false;
-            }
-            __fallthrough;
-        case InstructionSet_SSE42:
-            if (JitConfig.EnableSSE42() == 0)
-            {
-                return false;
-            }
-            __fallthrough;
-        case InstructionSet_SSE41:
-            if (JitConfig.EnableSSE41() == 0)
-            {
-                return false;
-            }
-            __fallthrough;
-        case InstructionSet_SSSE3:
-            if (JitConfig.EnableSSSE3() == 0)
-            {
-                return false;
-            }
-            __fallthrough;
-        case InstructionSet_SSE3:
-            if (JitConfig.EnableSSE3() == 0)
-            {
-                return false;
-            }
-            __fallthrough;
-        case InstructionSet_SSE2:
-            if (JitConfig.EnableSSE2() == 0)
-            {
-                return false;
-            }
-            __fallthrough;
-        case InstructionSet_SSE:
-            if (JitConfig.EnableSSE() == 0)
-            {
-                return false;
-            }
-            __fallthrough;
-        case InstructionSet_Base:
-            return (JitConfig.EnableHWIntrinsic() != 0);
-
-        // TODO:  BMI1/BMI2 actually don't depend on AVX, they depend on the VEX encoding; which is currently controlled
-        // by InstructionSet_AVX
-        case InstructionSet_BMI1:
-            return JitConfig.EnableBMI1() != 0 && configEnableISA(InstructionSet_AVX);
-        case InstructionSet_BMI2:
-            return JitConfig.EnableBMI2() != 0 && configEnableISA(InstructionSet_AVX);
-        case InstructionSet_FMA:
-            return JitConfig.EnableFMA() != 0 && configEnableISA(InstructionSet_AVX);
-        case InstructionSet_AES:
-            return JitConfig.EnableAES() != 0 && configEnableISA(InstructionSet_SSE2);
-        case InstructionSet_LZCNT:
-            return JitConfig.EnableLZCNT() != 0;
-        case InstructionSet_PCLMULQDQ:
-            return JitConfig.EnablePCLMULQDQ() != 0 && configEnableISA(InstructionSet_SSE2);
-        case InstructionSet_POPCNT:
-            return JitConfig.EnablePOPCNT() != 0 && configEnableISA(InstructionSet_SSE42);
-        default:
-            return false;
-    }
-}
-#endif // _TARGET_XARCH_
-
 void Compiler::compSetProcessor()
 {
+    //
+    // NOTE: This function needs to be kept in sync with EEJitManager::SetCpuInfo() in vm\codemap.cpp
+    //
+
     const JitFlags& jitFlags = *opts.jitFlags;
 
 #if defined(_TARGET_ARM_)
@@ -2440,149 +2366,142 @@ void Compiler::compSetProcessor()
 
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT))
     {
-        if (configEnableISA(InstructionSet_Base))
+#ifdef FEATURE_CORECLR
+        if (JitConfig.EnableHWIntrinsic())
         {
             opts.setSupportedISA(InstructionSet_Base);
-        }
-        if (configEnableISA(InstructionSet_SSE))
-        {
-            opts.setSupportedISA(InstructionSet_SSE);
+
+            if (JitConfig.EnableSSE())
+            {
+                opts.setSupportedISA(InstructionSet_SSE);
 #ifdef _TARGET_AMD64_
-            opts.setSupportedISA(InstructionSet_SSE_X64);
-#endif
-        }
-        if (configEnableISA(InstructionSet_SSE2))
-        {
-            opts.setSupportedISA(InstructionSet_SSE2);
+                opts.setSupportedISA(InstructionSet_SSE_X64);
+#endif // _TARGET_AMD64_
+
+                if (JitConfig.EnableSSE2())
+                {
+                    opts.setSupportedISA(InstructionSet_SSE2);
 #ifdef _TARGET_AMD64_
-            opts.setSupportedISA(InstructionSet_SSE2_X64);
-#endif
-        }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT))
-        {
-            if (configEnableISA(InstructionSet_LZCNT))
+                    opts.setSupportedISA(InstructionSet_SSE2_X64);
+#endif // _TARGET_AMD64_
+
+                    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES) && JitConfig.EnableAES())
+                    {
+                        opts.setSupportedISA(InstructionSet_AES);
+                    }
+
+                    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ) && JitConfig.EnablePCLMULQDQ())
+                    {
+                        opts.setSupportedISA(InstructionSet_PCLMULQDQ);
+                    }
+
+                    // We need to additionaly check that COMPlus_EnableSSE3_4 is set, as that
+                    // is a prexisting config flag that controls the SSE3+ ISAs
+                    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3) && JitConfig.EnableSSE3() &&
+                        JitConfig.EnableSSE3_4())
+                    {
+                        opts.setSupportedISA(InstructionSet_SSE3);
+
+                        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3) && JitConfig.EnableSSSE3())
+                        {
+                            opts.setSupportedISA(InstructionSet_SSSE3);
+
+                            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41) && JitConfig.EnableSSE41())
+                            {
+                                opts.setSupportedISA(InstructionSet_SSE41);
+#ifdef _TARGET_AMD64_
+                                opts.setSupportedISA(InstructionSet_SSE41_X64);
+#endif // _TARGET_AMD64_
+
+                                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42) && JitConfig.EnableSSE42())
+                                {
+                                    opts.setSupportedISA(InstructionSet_SSE42);
+#ifdef _TARGET_AMD64_
+                                    opts.setSupportedISA(InstructionSet_SSE42_X64);
+#endif // _TARGET_AMD64_
+
+                                    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT) && JitConfig.EnablePOPCNT())
+                                    {
+                                        opts.setSupportedISA(InstructionSet_POPCNT);
+#ifdef _TARGET_AMD64_
+                                        opts.setSupportedISA(InstructionSet_POPCNT_X64);
+#endif // _TARGET_AMD64_
+                                    }
+
+                                    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX) && JitConfig.EnableAVX())
+                                    {
+                                        opts.setSupportedISA(InstructionSet_AVX);
+
+                                        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FMA) && JitConfig.EnableFMA())
+                                        {
+                                            opts.setSupportedISA(InstructionSet_FMA);
+                                        }
+
+                                        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2) && JitConfig.EnableAVX2())
+                                        {
+                                            opts.setSupportedISA(InstructionSet_AVX2);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT) && JitConfig.EnableLZCNT())
             {
                 opts.setSupportedISA(InstructionSet_LZCNT);
 #ifdef _TARGET_AMD64_
                 opts.setSupportedISA(InstructionSet_LZCNT_X64);
-#endif
+#endif // _TARGET_AMD64_
             }
-        }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT))
-        {
-            if (configEnableISA(InstructionSet_POPCNT))
-            {
-                opts.setSupportedISA(InstructionSet_POPCNT);
-#ifdef _TARGET_AMD64_
-                opts.setSupportedISA(InstructionSet_POPCNT_X64);
-#endif
-            }
-        }
 
-        // There are currently two sets of flags that control SSE3 through SSE4.2 support:
-        // These are the general EnableSSE3_4 flag and the individual ISA flags. We need to
-        // check both for any given ISA.
-        if (JitConfig.EnableSSE3_4())
-        {
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3))
+            // We currently need to also check that AVX is supported as that controls the support for the VEX encoding
+            // in the emitter.
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1) && JitConfig.EnableBMI1() &&
+                compSupports(InstructionSet_AVX))
             {
-                if (configEnableISA(InstructionSet_SSE3))
-                {
-                    opts.setSupportedISA(InstructionSet_SSE3);
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41))
-            {
-                if (configEnableISA(InstructionSet_SSE41))
-                {
-                    opts.setSupportedISA(InstructionSet_SSE41);
+                opts.setSupportedISA(InstructionSet_BMI1);
 #ifdef _TARGET_AMD64_
-                    opts.setSupportedISA(InstructionSet_SSE41_X64);
-#endif
-                }
+                opts.setSupportedISA(InstructionSet_BMI1_X64);
+#endif // _TARGET_AMD64_
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42))
-            {
-                if (configEnableISA(InstructionSet_SSE42))
-                {
-                    opts.setSupportedISA(InstructionSet_SSE42);
-#ifdef _TARGET_AMD64_
-                    opts.setSupportedISA(InstructionSet_SSE42_X64);
-#endif
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3))
-            {
-                if (configEnableISA(InstructionSet_SSSE3))
-                {
-                    opts.setSupportedISA(InstructionSet_SSSE3);
-                }
-            }
-            // AES and PCLMULQDQ requires 0x660F38/A encoding that is
-            // only used by SSSE3 and above ISAs
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
-            {
-                if (configEnableISA(InstructionSet_AES))
-                {
-                    opts.setSupportedISA(InstructionSet_AES);
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
-            {
-                if (configEnableISA(InstructionSet_PCLMULQDQ))
-                {
-                    opts.setSupportedISA(InstructionSet_PCLMULQDQ);
-                }
-            }
-        }
 
-        // There are currently two sets of flags that control instruction sets that require the VEX encoding:
-        // These are the general EnableAVX flag and the individual ISA flags. We need to
-        // check both for any given isa.
-        if (JitConfig.EnableAVX())
-        {
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX))
+            // We currently need to also check that AVX is supported as that controls the support for the VEX encoding
+            // in the emitter.
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2) && JitConfig.EnableBMI2() &&
+                compSupports(InstructionSet_AVX))
             {
-                if (configEnableISA(InstructionSet_AVX))
-                {
-                    opts.setSupportedISA(InstructionSet_AVX);
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FMA))
-            {
-                if (configEnableISA(InstructionSet_FMA))
-                {
-                    opts.setSupportedISA(InstructionSet_FMA);
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
-            {
-                if (configEnableISA(InstructionSet_AVX2))
-                {
-                    opts.setSupportedISA(InstructionSet_AVX2);
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1))
-            {
-                if (configEnableISA(InstructionSet_BMI1))
-                {
-                    opts.setSupportedISA(InstructionSet_BMI1);
+                opts.setSupportedISA(InstructionSet_BMI2);
 #ifdef _TARGET_AMD64_
-                    opts.setSupportedISA(InstructionSet_BMI1_X64);
-#endif
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2))
-            {
-                if (configEnableISA(InstructionSet_BMI2))
-                {
-                    opts.setSupportedISA(InstructionSet_BMI2);
-#ifdef _TARGET_AMD64_
-                    opts.setSupportedISA(InstructionSet_BMI2_X64);
-#endif
-                }
+                opts.setSupportedISA(InstructionSet_BMI2_X64);
+#endif // _TARGET_AMD64_
             }
         }
+#else  // !FEATURE_CORECLR
+        // If this is not FEATURE_CORECLR, the only flags supported by the VM are AVX and AVX2.
+        // Furthermore, the only two configurations supported by the desktop JIT are SSE2 and AVX2,
+        // so if the latter is set, we also check all the in-between options.
+        // Note that the EnableSSE2 and EnableSSE flags are only checked by HW Intrinsic code,
+        // so the System.Numerics.Vector support doesn't depend on those flags.
+        // However, if any of these are disabled, we will not enable AVX2.
+        //
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX) && jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2) &&
+            (JitConfig.EnableAVX2() != 0) && (JitConfig.EnableAVX() != 0) && (JitConfig.EnableSSE42() != 0) &&
+            (JitConfig.EnableSSE41() != 0) && (JitConfig.EnableSSSE3() != 0) && (JitConfig.EnableSSE3() != 0) &&
+            (JitConfig.EnableSSE2() != 0) && (JitConfig.EnableSSE() != 0) && (JitConfig.EnableSSE3_4() != 0))
+        {
+            opts.setSupportedISA(InstructionSet_SSE);
+            opts.setSupportedISA(InstructionSet_SSE2);
+            opts.setSupportedISA(InstructionSet_SSE3);
+            opts.setSupportedISA(InstructionSet_SSSE3);
+            opts.setSupportedISA(InstructionSet_SSE41);
+            opts.setSupportedISA(InstructionSet_SSE42);
+            opts.setSupportedISA(InstructionSet_AVX);
+            opts.setSupportedISA(InstructionSet_AVX2);
+        }
+#endif // !FEATURE_CORECLR
     }
 
     if (!compIsForInlining())
@@ -2594,17 +2513,9 @@ void Compiler::compSetProcessor()
             codeGen->getEmitter()->SetContainsAVX(false);
             codeGen->getEmitter()->SetContains256bitAVX(false);
         }
-        else if (compSupports(InstructionSet_SSSE3) || compSupports(InstructionSet_SSE41) ||
-                 compSupports(InstructionSet_SSE42) || compSupports(InstructionSet_AES) ||
-                 compSupports(InstructionSet_PCLMULQDQ))
-        {
-            // Emitter::UseSSE4 controls whether we support the 4-byte encoding for certain
-            // instructions. We need to check if either is supported independently, since
-            // it is currently possible to enable/disable them separately.
-            codeGen->getEmitter()->SetUseSSE4(true);
-        }
     }
-#endif
+#endif // _TARGET_XARCH_
+
 #if defined(_TARGET_ARM64_)
     // There is no JitFlag for Base instructions handle manually
     opts.setSupportedISA(InstructionSet_Base);
@@ -4314,7 +4225,8 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
     // Always do the layout even if returning early. Callers might
     // depend on us to do the layout.
     unsigned frameSize = lvaFrameSize(curState);
-    JITDUMP("\ncompRsvdRegCheck\n"
+    JITDUMP("\n"
+            "compRsvdRegCheck\n"
             "  frame size  = %6d\n"
             "  compArgSize = %6d\n",
             frameSize, compArgSize);
@@ -9275,8 +9187,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
             case GT_LCL_FLD_ADDR:
             case GT_STORE_LCL_FLD:
             case GT_STORE_LCL_VAR:
-            case GT_REG_VAR:
-
                 if (tree->gtFlags & GTF_VAR_DEF)
                 {
                     chars += printf("[VAR_DEF]");
@@ -9311,13 +9221,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                     chars += printf("[VAR_CSE_REF]");
                 }
 #endif
-                if (op == GT_REG_VAR)
-                {
-                    if (tree->gtFlags & GTF_REG_BIRTH)
-                    {
-                        chars += printf("[REG_BIRTH]");
-                    }
-                }
                 break;
 
             case GT_NOP:
@@ -9953,8 +9856,6 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_VAR:
         case GT_LCL_VAR_ADDR:
         case GT_STORE_LCL_VAR:
-        case GT_REG_VAR:
-
             lclNum = tree->gtLclVarCommon.gtLclNum;
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
@@ -10009,19 +9910,6 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                                 break;
                         }
                     }
-                }
-            }
-
-            if (op == GT_REG_VAR)
-            {
-                if (isFloatRegType(tree->gtType))
-                {
-                    assert(tree->gtRegVar.gtRegNum == tree->gtRegNum);
-                    chars += printf("(FPV%u)", tree->gtRegNum);
-                }
-                else
-                {
-                    chars += printf("(%s)", comp->compRegVarName(tree->gtRegVar.gtRegNum));
                 }
             }
 

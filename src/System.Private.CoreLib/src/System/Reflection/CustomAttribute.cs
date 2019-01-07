@@ -251,7 +251,7 @@ namespace System.Reflection
         #endregion
 
         #region Internal Static Members
-        internal static unsafe CustomAttributeRecord[] GetCustomAttributeRecords(RuntimeModule module, int targetToken)
+        internal static CustomAttributeRecord[] GetCustomAttributeRecords(RuntimeModule module, int targetToken)
         {
             MetadataImport scope = module.MetadataImport;
 
@@ -1416,7 +1416,7 @@ namespace System.Reflection
             return false;
         }
 
-        private static unsafe object[] GetCustomAttributes(
+        private static object[] GetCustomAttributes(
             RuntimeModule decoratedModule, int decoratedMetadataToken, int pcaCount, RuntimeType attributeFilterType)
         {
             RuntimeType.ListBuilder<object> attributes = new RuntimeType.ListBuilder<object>();
@@ -1435,7 +1435,7 @@ namespace System.Reflection
             return result;
         }
 
-        private static unsafe void AddCustomAttributes(
+        private static void AddCustomAttributes(
             ref RuntimeType.ListBuilder<object> attributes,
             RuntimeModule decoratedModule, int decoratedMetadataToken,
             RuntimeType attributeFilterType, bool mustBeInheritable, ref RuntimeType.ListBuilder<object> derivedAttributes)
@@ -1524,12 +1524,12 @@ namespace System.Reflection
                                     type = Type_Type;
                             }
 
-                            RuntimePropertyInfo property = null;
+                            PropertyInfo property = null;
 
                             if (type == null)
-                                property = attributeType.GetProperty(name) as RuntimePropertyInfo;
+                                property = attributeType.GetProperty(name);
                             else
-                                property = attributeType.GetProperty(name, type, Type.EmptyTypes) as RuntimePropertyInfo;
+                                property = attributeType.GetProperty(name, type, Type.EmptyTypes);
 
                             // Did we get a valid property reference?
                             if (property == null)
@@ -1539,7 +1539,7 @@ namespace System.Reflection
                                         isProperty ? SR.RFLCT_InvalidPropFail : SR.RFLCT_InvalidFieldFail, name));
                             }
 
-                            RuntimeMethodInfo setMethod = property.GetSetMethod(true) as RuntimeMethodInfo;
+                            MethodInfo setMethod = property.GetSetMethod(true);
 
                             // Public properties may have non-public setter methods
                             if (!setMethod.IsPublic)
@@ -1550,10 +1550,8 @@ namespace System.Reflection
                         }
                         else
                         {
-                            RtFieldInfo field = attributeType.GetField(name) as RtFieldInfo;
-
-                            field.CheckConsistency(attribute);
-                            field.UnsafeSetValue(attribute, value, BindingFlags.Default, Type.DefaultBinder, null);
+                            FieldInfo field = attributeType.GetField(name);
+                            field.SetValue(attribute, value, BindingFlags.Default, Type.DefaultBinder, null);
                         }
                     }
                     catch (Exception e)
@@ -1572,7 +1570,7 @@ namespace System.Reflection
             }
         }
 
-        private static unsafe bool FilterCustomAttributeRecord(
+        private static bool FilterCustomAttributeRecord(
             CustomAttributeRecord caRecord,
             MetadataImport scope,
             RuntimeModule decoratedModule,
@@ -1616,7 +1614,15 @@ namespace System.Reflection
             if (ctorHasParameters)
             {
                 // Resolve method ctor token found in decorated decoratedModule scope
-                ctor = decoratedModule.ResolveMethod(caRecord.tkCtor, attributeType.GenericTypeArguments, null).MethodHandle.GetMethodInfo();
+                // See https://github.com/dotnet/coreclr/issues/21456 for why we fast-path non-generics here (fewer allocations)
+                if (attributeType.IsGenericType)
+                {
+                    ctor = decoratedModule.ResolveMethod(caRecord.tkCtor, attributeType.GenericTypeArguments, null).MethodHandle.GetMethodInfo();
+                }
+                else
+                {
+                    ctor = ModuleHandle.ResolveMethodHandleInternal(decoratedModule.GetNativeHandle(), caRecord.tkCtor);
+                }
             }
             else
             {
