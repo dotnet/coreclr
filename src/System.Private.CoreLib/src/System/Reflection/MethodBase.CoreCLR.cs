@@ -121,12 +121,13 @@ namespace System.Reflection
                         p = GetParametersNoCopy();
                     }
 
-                    if (p[i].DefaultValue == DBNull.Value)
+                    object defaultValue = p[i].DefaultValue;
+                    if (defaultValue == DBNull.Value)
                     {
                         throw new ArgumentException(SR.Arg_VarMissNull, nameof(parameters));
                     }
 
-                    arg = p[i].DefaultValue;
+                    arg = defaultValue;
                 }
 
                 copyOfParameters[i] = argRT.CheckValue(arg, binder, culture, invokeAttr);
