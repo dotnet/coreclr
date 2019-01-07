@@ -14,7 +14,7 @@ namespace System
         {
             get
             {
-                return new DateTime(((ulong)(GetSystemTimeAsFileTime() + FileTimeOffset)) | KindUtc);
+                return new DateTime(((ulong)(Interop.Sys.GetSystemTimeAsTicks() + DateTime.UnixEpochTicks)) | KindUtc);
             }
         }
 
@@ -23,8 +23,5 @@ namespace System
 
         // IsValidTimeWithLeapSeconds is not expected to be called at all for now on non-Windows platforms
         internal static bool IsValidTimeWithLeapSeconds(int year, int month, int day, int hour, int minute, int second, DateTimeKind kind) => false;
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern long GetSystemTimeAsFileTime();
     }
 }
