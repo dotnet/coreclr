@@ -262,7 +262,7 @@ FCIMPL0(FC_BOOL_RET, ThreadPoolNative::NotifyRequestComplete)
         }
 
         if (needReset)
-            pThread->InternalReset(FALSE, TRUE, TRUE, FALSE);
+            pThread->InternalReset(TRUE, TRUE, FALSE);
 
         HELPER_METHOD_FRAME_END();    
     }
@@ -391,7 +391,7 @@ FCIMPL5(LPVOID, ThreadPoolNative::CorRegisterWaitForSingleObject,
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);  // Eventually calls BEGIN_SO_INTOLERANT_CODE_NOTHROW
 
     if(gc.waitObject == NULL)
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Obj"));
+        COMPlusThrow(kArgumentNullException);
 
     _ASSERTE(gc.registeredWaitObject != NULL);
 

@@ -239,9 +239,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/readytorun/r2rdump/R2RDumpTest/*">
             <Issue>19441</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/DevDiv_736188/DevDiv_736188/*">
-            <Issue>21363</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <ItemGroup Condition="'$(XunitTestBinBase)' != ''">
@@ -601,6 +598,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/v2.1/b152292/b152292/*">
             <Issue>20358</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_19361/GitHub_19361/*">
+            <Issue>20232</Issue>
         </ExcludeList>
     </ItemGroup>
     
