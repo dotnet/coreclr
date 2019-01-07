@@ -536,7 +536,6 @@ namespace System.Reflection
             out int constructorToken,
             out ConstArray signature)
         {
-
             _GetCustomAttributeProps(m_metadataImport2, customAttributeToken,
                 out constructorToken, out signature);
         }
