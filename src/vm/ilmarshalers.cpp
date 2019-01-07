@@ -3810,8 +3810,9 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         m_pcsMarshal->EmitSTLOC(dwPinnedLocal);
         m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
         m_pcsMarshal->EmitCONV_I();
-        m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
-        m_pcsMarshal->EmitCALL(METHOD__ARRAY__GET_DATA_PTR_OFFSET_INTERNAL, 1, 1);
+        // Optimize marshalling by emitting the data ptr offset directly into the IL stream
+        // instead of doing an FCall to recalulate it each time.
+        m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMT));
         m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
@@ -4688,10 +4689,17 @@ void ILHiddenLengthArrayMarshaler::EmitMarshalArgumentCLRToNative()
         m_pcsMarshal->EmitSTLOC(dwPinnedLocal);
 
         // native = pinnedLocal + dataOffset
+
+        // COMPAT: We cannot generate the same code that the C# compiler generates for
+        // a fixed() statement on an array since we need to provide a non-null value
+        // for a 0-length array. For compat reasons, we need to preserve old behavior.
+        EmitLoadManagedValue(m_pcsMarshal);
+        m_pcsMarshal->EmitSTLOC(dwPinnedLocal);
         m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
         m_pcsMarshal->EmitCONV_I();
-        m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
-        m_pcsMarshal->EmitCALL(METHOD__ARRAY__GET_DATA_PTR_OFFSET_INTERNAL, 1, 1);
+        // Optimize marshalling by emitting the data ptr offset directly into the IL stream
+        // instead of doing an FCall to recalulate it each time.
+        m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMT));
         m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 

@@ -82,8 +82,8 @@ struct OverrideProcArgs
 
         struct
         {
-            VARTYPE         m_vt;
             MethodTable*    m_pMT;
+            VARTYPE         m_vt;
 #ifdef FEATURE_COMINTEROP
             SIZE_T          m_cbElementSize;
             WinMDAdapter::RedirectedTypeIndex m_redirectedTypeIndex;
