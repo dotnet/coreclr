@@ -3729,7 +3729,7 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
 #endif // FEATURE_COMINTEROP
             )
             {
-                // Each of these types is non-blittable and according to its managed size should be returned in a return buffer on x86 in stdcall.
+                // Each of these types are non-blittable and according to its managed size should be returned in a return buffer on x86 in stdcall.
                 // However, its native size is small enough to be returned by-value.
                 // We don't know the native type representation early enough to get this correct, so we throw an exception here.
                 COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
