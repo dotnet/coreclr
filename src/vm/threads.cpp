@@ -309,8 +309,6 @@ ThreadLocalInfo gCurrentThreadInfo =
                                                   NULL,    // m_pThread
                                                   NULL,    // m_pAppDomain
                                                   NULL,    // m_EETlsData
-                                                  NULL,    // m_pThreadEventBufferList
-                                                  false,   // m_threadEventWriteInProgress
                                               };
 } // extern "C"
 
@@ -907,17 +905,6 @@ void DestroyThread(Thread *th)
 #endif // _TARGET_X86_
 #endif // WIN64EXCEPTIONS
 
-#ifdef FEATURE_PERFTRACING
-    // Before the thread dies, mark its buffers as no longer owned
-    // so that they can be cleaned up after the thread dies.
-    EventPipeBufferList *pBufferList = GetThreadEventBufferList();
-    if(pBufferList != NULL)
-    {
-        pBufferList->SetOwnedByThread(false);
-    }
-    
-#endif // FEATURE_PERFTRACING
-
     if (g_fEEShutDown == 0) 
     {
         th->SetThreadState(Thread::TS_ReportDead);
@@ -1035,18 +1022,6 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
 #ifdef ENABLE_CONTRACTS_DATA
     m_pClrDebugState = NULL;
 #endif //ENABLE_CONTRACTS_DATA
-
-#ifdef FEATURE_PERFTRACING
-    // Before the thread dies, mark its buffers as no longer owned
-    // so that they can be cleaned up after the thread dies.
-    
-    EventPipeBufferList *pBufferList = GetThreadEventBufferList();
-    if(pBufferList != NULL)
-    {
-        pBufferList->SetOwnedByThread(false);
-    }
-    
-#endif // FEATURE_PERFTRACING
 
     FastInterlockOr((ULONG*)&m_State, (int) (Thread::TS_Detached | Thread::TS_ReportDead));
     // Do not touch Thread object any more.  It may be destroyed.

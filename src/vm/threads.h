@@ -7010,8 +7010,6 @@ struct ThreadLocalInfo
     Thread* m_pThread;
     AppDomain* m_pAppDomain; // This field is read only by the SOS plugin to get the AppDomain
     void** m_EETlsData; // ClrTlsInfo::data
-    EventPipeBufferList* m_pThreadEventBufferList;
-    bool m_threadEventWriteInProgress;
 };
 
 class ThreadStateHolder

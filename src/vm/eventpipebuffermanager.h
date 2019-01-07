@@ -15,6 +15,14 @@
 
 class EventPipeBufferList;
 
+EXTERN_C struct ThreadEventBufferList;
+
+#ifndef __llvm__
+EXTERN_C __declspec(thread) ThreadEventBufferList gCurrentThreadEventBufferList;
+#else // !__llvm__
+EXTERN_C __thread ThreadEventBufferList gCurrentThreadEventBufferList;
+#endif // !__llvm__
+
 class EventPipeBufferManager
 {
 
@@ -115,6 +123,8 @@ private:
     // If it is false, then this buffer can be de-allocated after it is drained.
     Volatile<bool> m_ownedByThread;
 
+    // True if a thread is writing something to this list
+    Volatile<bool> m_threadEventWriteInProgress;
 
 #ifdef _DEBUG
     // For diagnostics, keep the thread pointer.
@@ -155,6 +165,10 @@ public:
     // The default value is true.
     void SetOwnedByThread(bool value);
 
+    bool GetThreadEventWriteInProgress();
+
+    void SetThreadEventWriteInProgress(bool value);
+
 #ifdef _DEBUG
     // Get the thread associated with this list.
     Thread* GetThread();
@@ -164,6 +178,32 @@ public:
     bool EnsureConsistency();
 #endif // _DEBUG
 };
+
+// This struct is a TLS wrapper around a pointer to thread-specific EventPipeBufferList
+// The struct wrapper is present mainly because we need a way to free the EventPipeBufferList
+// when the thread that owns it dies. Placing this struct as a TLS variable will call ~ThreadEventBufferList()
+// when the thread dies so we can free EventPipeBufferList in the destructor.  
+struct ThreadEventBufferList
+{
+    EventPipeBufferList* m_pThreadEventBufferList;
+
+~ThreadEventBufferList()
+{
+    // TODO: Move the cleanup code to here
+    m_pThreadEventBufferList = NULL;
+}
+
+};
+
+EXTERN_C inline EventPipeBufferList* STDCALL GetThreadEventBufferList()
+{
+    return gCurrentThreadEventBufferList.m_pThreadEventBufferList;
+}
+
+EXTERN_C inline void STDCALL SetThreadEventBufferList(EventPipeBufferList* bl)
+{
+    gCurrentThreadEventBufferList.m_pThreadEventBufferList = bl;
+}
 
 #endif // FEATURE_PERFTRACING
 

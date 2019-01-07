@@ -326,9 +326,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         return false;
     }
 
-    // The event is still enabled.  Mark that the thread is now writing an event.
-    SetEventWriteInProgress(true);
-
     // Check one more time to make sure that the event is still enabled.
     // We do this because we might be trying to disable tracing and free buffers, so we
     // must make sure that the event is enabled after we mark that we're writing to avoid
@@ -360,6 +357,9 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         }
         else
         {
+            // The event is still enabled.  Mark that the thread is now writing an event.
+            pThreadBufferList->SetThreadEventWriteInProgress(true);
+
             // Attempt to write the event to the buffer.  If this fails, we should allocate a new buffer.
             allocNewBuffer = !pBuffer->WriteEvent(pEventThread, session, event, payload, pActivityId, pRelatedActivityId, pStack);
         }
@@ -384,11 +384,15 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     // This is the second time if this thread did have one or more buffers, but they were full.
     if(allocNewBuffer && pBuffer != NULL)
     {
+        // By this point, a new buffer list has been allocated so we should fetch it again before using it.
+        pThreadBufferList = GetThreadEventBufferList();
+        // The event is still enabled.  Mark that the thread is now writing an event.
+        pThreadBufferList->SetThreadEventWriteInProgress(true);
         allocNewBuffer = !pBuffer->WriteEvent(pEventThread, session, event, payload, pActivityId, pRelatedActivityId, pStack);
     }
 
     // Mark that the thread is no longer writing an event.
-    SetEventWriteInProgress(false);
+    pThreadBufferList->SetThreadEventWriteInProgress(false);
 
 #ifdef _DEBUG
     if(!allocNewBuffer)
@@ -562,7 +566,7 @@ void EventPipeBufferManager::DeAllocateBuffers()
                 // Attempt to free the buffer list.
                 // If the thread is using its buffer list skip it.
                 // This means we will leak a single buffer, but if tracing is re-enabled, that buffer can be used again.
-                if(GetEventWriteInProgress())
+                if(pBufferList->GetThreadEventWriteInProgress())
                 {
                     EventPipeBuffer *pBuffer = pBufferList->GetAndRemoveHead();
                     while(pBuffer != NULL)
@@ -680,6 +684,7 @@ EventPipeBufferList::EventPipeBufferList(EventPipeBufferManager *pManager)
     m_bufferCount = 0;
     m_pReadBuffer = NULL;
     m_ownedByThread = true;
+    m_threadEventWriteInProgress = false;
 
 #ifdef _DEBUG
     m_pCreatingThread = GetThread();
@@ -885,6 +890,18 @@ void EventPipeBufferList::SetOwnedByThread(bool value)
     m_ownedByThread = value;
 }
 
+bool EventPipeBufferList::GetThreadEventWriteInProgress()
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_threadEventWriteInProgress;
+}
+
+void EventPipeBufferList::SetThreadEventWriteInProgress(bool value)
+{
+    LIMITED_METHOD_CONTRACT;
+    m_threadEventWriteInProgress = value;
+}
+
 #ifdef _DEBUG
 Thread* EventPipeBufferList::GetThread()
 {
@@ -961,5 +978,16 @@ bool EventPipeBufferList::EnsureConsistency()
     return true;
 }
 #endif // _DEBUG
+
+extern "C" {
+#ifndef __llvm__
+__declspec(thread)
+#else // !__llvm__
+__thread 
+#endif // !__llvm__
+ThreadEventBufferList gCurrentThreadEventBufferList = {
+                                                          NULL,    // m_pThreadEventBufferList
+                                                      };
+} // extern "C"
 
 #endif // FEATURE_PERFTRACING

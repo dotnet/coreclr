@@ -70,7 +70,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
 
     if (pThread == NULL)
     {
-        // For ThreadID just get the Current Thread ID
+        // For ThreadID just get the current OS thread ID
         osThreadId = ::GetCurrentThreadId();
     }
     else
@@ -89,30 +89,16 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
 
         // Placement-new the EventPipeEventInstance.
 
-        if (pThread == NULL)
-        {
-            // if pthread is NULL, it's likely we are running in something like a GC thread which is not a Thread object, so it can't have an activity ID set anyway
-            pInstance = new (m_pCurrent) EventPipeEventInstance(
-                session,
-                event,
-                osThreadId,
-                pDataDest,
-                payload.GetSize(),
-                NULL,
-                pRelatedActivityId);
-        }
-        else
-        {
-            pInstance = new (m_pCurrent) EventPipeEventInstance(
-                session,
-                event,
-                osThreadId,
-                pDataDest,
-                payload.GetSize(),
-                pActivityId,
-                pRelatedActivityId);
-        }
-
+        // if pthread is NULL, it's likely we are running in something like a GC thread which is not a Thread object, so it can't have an activity ID set anyway
+        pInstance = new (m_pCurrent) EventPipeEventInstance(
+            session,
+            event,
+            osThreadId,
+            pDataDest,
+            payload.GetSize(),
+            (pThread == NULL) ? NULL : pActivityId,
+            pRelatedActivityId);
+       
 
         // Copy the stack if a separate stack trace was provided.
         if(pStack != NULL)
