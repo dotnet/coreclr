@@ -236,7 +236,7 @@ namespace System.Reflection
 
             CustomAttributeData[] customAttributes = new CustomAttributeData[records.Length];
             for (int i = 0; i < records.Length; i++)
-                customAttributes[i] = new CustomAttributeData(module, records[i]);
+                customAttributes[i] = new CustomAttributeData(module, in records[i]);
 
             return Array.AsReadOnly(customAttributes);
         }
@@ -258,8 +258,7 @@ namespace System.Reflection
 
             for (int i = 0; i < records.Length; i++)
             {
-                scope.GetCustomAttributeProps(
-                    tkCustomAttributeTokens[i], out records[i].tkCtor.Value, out records[i].blob);
+                scope.GetCustomAttributeRecord(tkCustomAttributeTokens[i], out records[i]);
             }
 
             return records;
@@ -292,7 +291,7 @@ namespace System.Reflection
         {
         }
 
-        private CustomAttributeData(RuntimeModule scope, CustomAttributeRecord caRecord)
+        private CustomAttributeData(RuntimeModule scope, in CustomAttributeRecord caRecord)
         {
             m_scope = scope;
             m_ctor = (RuntimeConstructorInfo)RuntimeType.GetMethodBase(scope, caRecord.tkCtor);
@@ -847,10 +846,17 @@ namespace System.Reflection
         public object Value => m_value;
     }
 
-    internal struct CustomAttributeRecord
+    [StructLayout(LayoutKind.Auto)]
+    internal readonly struct CustomAttributeRecord
     {
-        internal ConstArray blob;
-        internal MetadataToken tkCtor;
+        internal readonly ConstArray blob;
+        internal readonly MetadataToken tkCtor;
+
+        public CustomAttributeRecord(int token, ConstArray blob)
+        {
+            tkCtor = new MetadataToken(token);
+            this.blob = blob;
+        }
     }
 
     internal enum CustomAttributeEncoding : int
@@ -1306,9 +1312,7 @@ namespace System.Reflection
 
                 for (int i = 0; i < car.Length; i++)
                 {
-                    CustomAttributeRecord caRecord = car[i];
-
-                    if (FilterCustomAttributeRecord(caRecord, scope,
+                    if (FilterCustomAttributeRecord(car[i].tkCtor, in scope,
                         decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable, ref derivedAttributes,
                         out _, out _, out _, out _))
                         return true;
@@ -1321,9 +1325,7 @@ namespace System.Reflection
 
                 for (int i = 0; i < car.Length; i++)
                 {
-                    CustomAttributeRecord caRecord = car[i];
-
-                    if (caRecord.tkCtor == attributeCtorToken)
+                    if (car[i].tkCtor == attributeCtorToken)
                         return true;
                 }
             }
@@ -1365,12 +1367,12 @@ namespace System.Reflection
             MetadataImport scope = decoratedModule.MetadataImport;
             for (int i = 0; i < car.Length; i++)
             {
-                CustomAttributeRecord caRecord = car[i];
+                ref CustomAttributeRecord caRecord = ref car[i];
 
                 IntPtr blobStart = caRecord.blob.Signature;
                 IntPtr blobEnd = (IntPtr)((byte*)blobStart + caRecord.blob.Length);
 
-                if (!FilterCustomAttributeRecord(caRecord, scope,
+                if (!FilterCustomAttributeRecord(caRecord.tkCtor, in scope,
                                                  decoratedModule, decoratedMetadataToken, attributeFilterType, mustBeInheritable,
                                                  ref derivedAttributes,
                                                  out RuntimeType attributeType, out IRuntimeMethodInfo ctor, out bool ctorHasParameters, out bool isVarArg))
@@ -1485,8 +1487,8 @@ namespace System.Reflection
         }
 
         private static bool FilterCustomAttributeRecord(
-            CustomAttributeRecord caRecord,
-            MetadataImport scope,
+            MetadataToken caCtorToken,
+            in MetadataImport scope,
             RuntimeModule decoratedModule,
             MetadataToken decoratedToken,
             RuntimeType attributeFilterType,
@@ -1502,7 +1504,7 @@ namespace System.Reflection
             isVarArg = false;
 
             // Resolve attribute type from ctor parent token found in decorated decoratedModule scope
-            attributeType = decoratedModule.ResolveType(scope.GetParentToken(caRecord.tkCtor), null, null) as RuntimeType;
+            attributeType = decoratedModule.ResolveType(scope.GetParentToken(caCtorToken), null, null) as RuntimeType;
 
             // Test attribute type against user provided attribute type filter
             if (!(attributeFilterType.IsAssignableFrom(attributeType)))
@@ -1521,7 +1523,7 @@ namespace System.Reflection
             }
 
             // Resolve the attribute ctor
-            ConstArray ctorSig = scope.GetMethodSignature(caRecord.tkCtor);
+            ConstArray ctorSig = scope.GetMethodSignature(caCtorToken);
             isVarArg = (ctorSig[0] & 0x05) != 0;
             ctorHasParameters = ctorSig[1] != 0;
 
@@ -1531,11 +1533,11 @@ namespace System.Reflection
                 // See https://github.com/dotnet/coreclr/issues/21456 for why we fast-path non-generics here (fewer allocations)
                 if (attributeType.IsGenericType)
                 {
-                    ctor = decoratedModule.ResolveMethod(caRecord.tkCtor, attributeType.GenericTypeArguments, null).MethodHandle.GetMethodInfo();
+                    ctor = decoratedModule.ResolveMethod(caCtorToken, attributeType.GenericTypeArguments, null).MethodHandle.GetMethodInfo();
                 }
                 else
                 {
-                    ctor = ModuleHandle.ResolveMethodHandleInternal(decoratedModule.GetNativeHandle(), caRecord.tkCtor);
+                    ctor = ModuleHandle.ResolveMethodHandleInternal(decoratedModule.GetNativeHandle(), caCtorToken);
                 }
             }
             else
@@ -1630,7 +1632,7 @@ namespace System.Reflection
 
             for (int i = 0; i < car.Length; i++)
             {
-                CustomAttributeRecord caRecord = car[i];
+                ref CustomAttributeRecord caRecord = ref car[i];
                 RuntimeType attributeType = decoratedModule.ResolveType(scope.GetParentToken(caRecord.tkCtor), null, null) as RuntimeType;
 
                 if (attributeType != (RuntimeType)typeof(AttributeUsageAttribute))
