@@ -310,6 +310,9 @@ public class Managed
     [DllImport("MarshalStructAsParam")]
     static extern ManyInts GetMultiplesOf(int i);
 
+    [DllImport("MarshalStructAsParam")]
+    static extern MultipleBool GetBools(bool b1, bool b2);
+
     #region Marshal struct method in PInvoke
     [SecuritySafeCritical]
     unsafe private static void MarshalStructAsParam_AsSeqByVal(StructID id)
@@ -2325,6 +2328,12 @@ public class Managed
                 Console.WriteLine("Structure of 20 ints returned from native to managed failed.");
             }
             i++;
+        }
+
+        MultipleBool bools = GetBools(true, true);
+        if (!bools.b1 || !bools.b2)
+        {
+            Console.WriteLine("Structure of two bools marshalled to BOOLs returned from native to managed failed");
         }
     }
 }

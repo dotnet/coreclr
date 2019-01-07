@@ -1154,7 +1154,12 @@ extern "C" DLL_EXPORT ManyInts STDMETHODCALLTYPE GetMultiplesOf(int value)
     return multiples;
 }
 
-extern "C" DLL_EXPORT LongStructPack16Explicit GetLongStruct(LONG64 val1, LONG64 val2)
+extern "C" DLL_EXPORT LongStructPack16Explicit STDMETHODCALLTYPE GetLongStruct(LONG64 val1, LONG64 val2)
 {
     return {val1, val2};
+}
+
+extern "C" DLL_EXPORT MultipleBools STDMETHODCALLTYPE GetBools(BOOL b1, BOOL b2)
+{
+    return {b1, b2};
 }

@@ -329,3 +329,11 @@ public struct ManyInts
         yield return i20;
     }
 }
+
+
+[StructLayout(LayoutKind.Sequential)]
+public struct MultipleBool
+{
+    public bool b1;
+    public bool b2;
+}

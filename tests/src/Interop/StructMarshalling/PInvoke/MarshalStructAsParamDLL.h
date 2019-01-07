@@ -850,3 +850,9 @@ struct ManyInts
     int i19;
     int i20;
 };
+
+struct MultipleBools
+{
+    BOOL b1;
+    BOOL b2;
+};
