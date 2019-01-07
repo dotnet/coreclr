@@ -41,38 +41,38 @@ namespace System.Diagnostics
             return iRetVal;
         }
 
-        private void InitializeForExceptionFrameIndex(Exception exception, int skipFrames, bool needFileInfo)
+        private void InitializeForException(Exception exception, int skipFrames, bool fNeedFileInfo)
         {
-            CaptureStackTrace(skipFrames, needFileInfo, exception);
+            CaptureStackTrace(skipFrames, fNeedFileInfo, exception);
         }
 
-        private void InitializeForThreadFrameIndex(int skipFrames, bool needFileInfo)
+        private void InitializeForCurrentThread(int skipFrames, bool fNeedFileInfo)
         {
-            CaptureStackTrace(skipFrames, needFileInfo, null);
+            CaptureStackTrace(skipFrames, fNeedFileInfo, null);
         }
 
         /// <summary>
         /// Retrieves an object with stack trace information encoded.
         /// It leaves out the first "iSkip" lines of the stacktrace.
         /// </summary>
-        private void CaptureStackTrace(int iSkip, bool fNeedFileInfo, Exception e)
+        private void CaptureStackTrace(int skipFrames, bool fNeedFileInfo, Exception e)
         {
-            m_iMethodsToSkip = iSkip;
+            _methodsToSkip = skipFrames;
 
             StackFrameHelper StackF = new StackFrameHelper(null);
-            
+
             StackF.InitializeSourceInfo(0, fNeedFileInfo, e);
 
-            m_iNumOfFrames = StackF.GetNumberOfFrames();
+            _numOfFrames = StackF.GetNumberOfFrames();
 
-            if (m_iMethodsToSkip > m_iNumOfFrames)
-                m_iMethodsToSkip = m_iNumOfFrames;
+            if (_methodsToSkip > _numOfFrames)
+                _methodsToSkip = _numOfFrames;
 
-            if (m_iNumOfFrames != 0)
+            if (_numOfFrames != 0)
             {
-                _stackFrames = new StackFrame[m_iNumOfFrames];
+                _stackFrames = new StackFrame[_numOfFrames];
 
-                for (int i = 0; i < m_iNumOfFrames; i++)
+                for (int i = 0; i < _numOfFrames; i++)
                 {
                     bool fDummy1 = true;
                     bool fDummy2 = true;
@@ -97,12 +97,12 @@ namespace System.Diagnostics
                 // CalculateFramesToSkip skips all frames in the System.Diagnostics namespace,
                 // but this is not desired if building a stack trace from an exception.
                 if (e == null)
-                    m_iMethodsToSkip += CalculateFramesToSkip(StackF, m_iNumOfFrames);
+                    _methodsToSkip += CalculateFramesToSkip(StackF, _numOfFrames);
 
-                m_iNumOfFrames -= m_iMethodsToSkip;
-                if (m_iNumOfFrames < 0)
+                _numOfFrames -= _methodsToSkip;
+                if (_numOfFrames < 0)
                 {
-                    m_iNumOfFrames = 0;
+                    _numOfFrames = 0;
                 }
             }
         }
