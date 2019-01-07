@@ -292,8 +292,6 @@ namespace System
         {
             private static readonly TUnderlyingOperations s_operations = new TUnderlyingOperations(); // Should this be cached?
 
-            private static readonly EnumCache<TUnderlying, TUnderlyingOperations> s_cache = new EnumCache<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             private static TUnderlying ToUnderlying(TEnum value) => Unsafe.As<TEnum, TUnderlying>(ref value);
 
@@ -311,17 +309,28 @@ namespace System
                 return enumValue;
             }
 
+            private EnumCache<TUnderlying, TUnderlyingOperations> _cache;
+
+            public EnumCache<TUnderlying, TUnderlyingOperations> Cache
+            {
+                get
+                {
+                    EnumCache<TUnderlying, TUnderlyingOperations> cache = _cache;
+                    return cache ?? Interlocked.CompareExchange(ref _cache, (cache = new EnumCache<TUnderlying, TUnderlyingOperations>(typeof(TEnum))), null) ?? cache;
+                }
+            }
+
             public Type UnderlyingType { get; } = typeof(TUnderlying); // Should this be cached?
 
             public TypeCode TypeCode { get; } = Type.GetTypeCode(typeof(TUnderlying)); // Should this be cached?
 
-            public IReadOnlyList<string> Names => s_cache._members.Names;
+            public IReadOnlyList<string> Names => Cache._members.Names;
 
-            public TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(s_cache.Parse(value, ignoreCase));
+            public TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(Cache.Parse(value, ignoreCase));
 
             public bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result)
             {
-                bool success = s_cache.TryParse(value, ignoreCase, out TUnderlying underlying);
+                bool success = Cache.TryParse(value, ignoreCase, out TUnderlying underlying);
                 result = ToEnum(underlying);
                 return success;
             }
@@ -345,18 +354,18 @@ namespace System
             {
                 Debug.Assert(value != null);
 
-                return s_cache.Format(value is TUnderlying underlyingValue ? underlyingValue : ToUnderlying(ToEnum(value)), format);
+                return Cache.Format(value is TUnderlying underlyingValue ? underlyingValue : ToUnderlying(ToEnum(value)), format);
             }
 
             public int GetHashCode(Enum value) => ToUnderlying((TEnum)value).GetHashCode();
 
-            public string GetName(object value) => value is TEnum enumValue ? s_cache.GetName(ToUnderlying(enumValue)) : s_cache.GetName(value);
+            public string GetName(object value) => value is TEnum enumValue ? Cache.GetName(ToUnderlying(enumValue)) : Cache.GetName(value);
 
             public object GetUnderlyingValue(Enum value) => ToUnderlying((TEnum)value);
 
             public Array GetValues()
             {
-                EnumCache<TUnderlying, TUnderlyingOperations>.EnumMembers members = s_cache._members;
+                EnumCache<TUnderlying, TUnderlyingOperations>.EnumMembers members = Cache._members;
                 TEnum[] array = new TEnum[members.Count];
                 int i = 0;
                 foreach (EnumCache<TUnderlying, TUnderlyingOperations>.EnumMemberInternal member in members)
@@ -374,9 +383,9 @@ namespace System
                 return s_operations.And(ToUnderlying((TEnum)value), underlyingFlag).Equals(underlyingFlag);
             }
 
-            public bool IsDefined(object value) => value is TEnum enumValue ? s_cache.IsDefined(ToUnderlying(enumValue)) : s_cache.IsDefined(value);
+            public bool IsDefined(object value) => value is TEnum enumValue ? Cache.IsDefined(ToUnderlying(enumValue)) : Cache.IsDefined(value);
 
-            object IEnumBridge.Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(s_cache.Parse(value, ignoreCase));
+            object IEnumBridge.Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(Cache.Parse(value, ignoreCase));
 
             public bool ToBoolean(Enum value) => s_operations.ToBoolean(ToUnderlying((TEnum)value));
 
@@ -407,9 +416,9 @@ namespace System
 
             public float ToSingle(Enum value) => s_operations.ToSingle(ToUnderlying((TEnum)value));
 
-            public string ToString(Enum value) => s_cache.ToString(ToUnderlying((TEnum)value));
+            public string ToString(Enum value) => Cache.ToString(ToUnderlying((TEnum)value));
 
-            public string ToString(Enum value, string format) => s_cache.ToString(ToUnderlying((TEnum)value), format);
+            public string ToString(Enum value, string format) => Cache.ToString(ToUnderlying((TEnum)value), format);
 
             public ushort ToUInt16(Enum value) => s_operations.ToUInt16(ToUnderlying((TEnum)value));
 
@@ -419,7 +428,7 @@ namespace System
 
             public bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result)
             {
-                bool success = s_cache.TryParse(value, ignoreCase, out TUnderlying underlyingResult);
+                bool success = Cache.TryParse(value, ignoreCase, out TUnderlying underlyingResult);
                 result = success ? (object)ToEnum(underlyingResult) : null;
                 return success;
             }
