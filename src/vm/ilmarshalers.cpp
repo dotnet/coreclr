@@ -3785,10 +3785,6 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         // the other.  Since there is no enforcement of this, apps blithely depend
         // on it.  
         //
-        
-        // The base offset should only be 0 for System.Array parameters for which
-        // OleVariant::GetMarshalerForVarType(vt) should never return NULL.
-        _ASSERTE(m_pargs->na.m_optionalbaseoffset != 0);
 
         EmitSetupSigAndDefaultHomesCLRToNative();
 
@@ -3804,11 +3800,18 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         EmitLoadManagedValue(m_pcsMarshal);
         m_pcsMarshal->EmitBRFALSE(pNullRefLabel);
 
+        // COMPAT: We cannot generate the same code that the C# compiler generates for
+        // a fixed() statement on an array since we need to provide a non-null value
+        // for a 0-length array. For compat reasons, we need to preserve old behavior.
+        // Additionally, we need to ensure that we do not pass non-null for a zero-length
+        // array when interacting with GDI/GDI+ since they fail on null arrays but succeed
+        // on 0-length arrays.
         EmitLoadManagedValue(m_pcsMarshal);
         m_pcsMarshal->EmitSTLOC(dwPinnedLocal);
         m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
         m_pcsMarshal->EmitCONV_I();
-        m_pcsMarshal->EmitLDC(m_pargs->na.m_optionalbaseoffset);
+        m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
+        m_pcsMarshal->EmitCALL(METHOD__ARRAY__GET_DATA_PTR_OFFSET_INTERNAL, 1, 1);
         m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
@@ -4628,6 +4631,7 @@ LocalDesc ILHiddenLengthArrayMarshaler::GetNativeType()
 LocalDesc ILHiddenLengthArrayMarshaler::GetManagedType()
 {
     LIMITED_METHOD_CONTRACT;
+
     return LocalDesc(ELEMENT_TYPE_OBJECT);
 }
 
@@ -4686,7 +4690,8 @@ void ILHiddenLengthArrayMarshaler::EmitMarshalArgumentCLRToNative()
         // native = pinnedLocal + dataOffset
         m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
         m_pcsMarshal->EmitCONV_I();
-        m_pcsMarshal->EmitLDC(m_pargs->na.m_optionalbaseoffset);
+        m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
+        m_pcsMarshal->EmitCALL(METHOD__ARRAY__GET_DATA_PTR_OFFSET_INTERNAL, 1, 1);
         m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
@@ -4978,11 +4983,6 @@ bool ILHiddenLengthArrayMarshaler::CanUsePinnedArray()
     }
 
     if (IsRetval(m_dwMarshalFlags))
-    {
-        return false;
-    }
-
-    if (m_pargs->na.m_optionalbaseoffset == 0)
     {
         return false;
     }
