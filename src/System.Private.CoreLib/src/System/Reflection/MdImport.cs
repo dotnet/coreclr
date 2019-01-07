@@ -531,7 +531,7 @@ namespace System.Reflection
             out int constructorToken,
             out ConstArray signature);
 
-        public void GetCustomAttributeRecord(
+        public void GetCustomAttributeProps(
             int customAttributeToken,
             out int constructorToken,
             out ConstArray signature)

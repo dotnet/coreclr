@@ -258,7 +258,7 @@ namespace System.Reflection
 
             for (int i = 0; i < records.Length; i++)
             {
-                scope.GetCustomAttributeRecord(tkCustomAttributeTokens[i], 
+                scope.GetCustomAttributeProps(tkCustomAttributeTokens[i], 
                     out records[i].tkCtor.Value, out records[i].blob);
             }
 
