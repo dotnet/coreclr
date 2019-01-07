@@ -3798,7 +3798,7 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         EmitStoreNativeValue(m_pcsMarshal);
 
         EmitLoadManagedValue(m_pcsMarshal);
-        m_pcsMarshal->EmitBRFALSE(pNullRefLabel);
+        m_pcsMarshal->EmitBRFALSE(pNullRefLabel);        
 
         // COMPAT: We cannot generate the same code that the C# compiler generates for
         // a fixed() statement on an array since we need to provide a non-null value
@@ -3811,8 +3811,8 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         m_pcsMarshal->EmitLDLOC(dwPinnedLocal);
         m_pcsMarshal->EmitCONV_I();
         // Optimize marshalling by emitting the data ptr offset directly into the IL stream
-        // instead of doing an FCall to recalulate it each time.
-        m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMT));
+        // instead of doing an FCall to recalulate it each time when possible.
+        m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
         m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
@@ -4699,7 +4699,7 @@ void ILHiddenLengthArrayMarshaler::EmitMarshalArgumentCLRToNative()
         m_pcsMarshal->EmitCONV_I();
         // Optimize marshalling by emitting the data ptr offset directly into the IL stream
         // instead of doing an FCall to recalulate it each time.
-        m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMT));
+        m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
         m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
@@ -5139,7 +5139,7 @@ MethodDesc *ILHiddenLengthArrayMarshaler::GetExactMarshalerMethod(MethodDesc *pG
         pGenericMD,
         pGenericMD->GetMethodTable(),
         FALSE,                                 // forceBoxedEntryPoint
-        m_pargs->na.m_pMT->GetInstantiation(), // methodInst
+        m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().GetInstantiation(), // methodInst
         FALSE,                                 // allowInstParam
         TRUE);                                 // forceRemotableMethod
 }

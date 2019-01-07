@@ -3037,7 +3037,6 @@ HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, TypeHa
     {
         // Retrieve the extra information associated with the native array marshaling.
         m_args.na.m_vt  = m_arrayElementType;
-        m_args.na.m_pMT = !m_hndArrayElemType.IsTypeDesc() ? m_hndArrayElemType.AsMethodTable() : NULL;
         m_countParamIdx = pParamInfo->m_CountParamIdx;
         m_multiplier    = pParamInfo->m_Multiplier;
         m_additive      = pParamInfo->m_Additive;
@@ -3046,7 +3045,6 @@ HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, TypeHa
     else if (m_type == MARSHAL_TYPE_HIDDENLENGTHARRAY)
     {
         m_args.na.m_vt  = m_arrayElementType;
-        m_args.na.m_pMT = m_hndArrayElemType.AsMethodTable();
         m_args.na.m_cbElementSize = arrayMarshalInfo.GetElementSize();
         m_args.na.m_redirectedTypeIndex = arrayMarshalInfo.GetRedirectedTypeIndex();
     }
