@@ -1,23 +1,23 @@
 Build CoreCLR on Linux
 ======================
 
-This guide will walk you through building CoreCLR on Linux.  Before building there is environment setup that needs to happen to pull in all the dependencies required by the build.  There are two suggested ways to go about doing this. First you are able to use the docker environments provided by https://github.com/dotnet/dotnet-buildtools-prereqs-docker, or you can set up the environment yourself. The documentation will go over both ways of building; however, in general prefer docker if you are able. 
+This guide will walk you through building CoreCLR on Linux.  Before building there is environment setup that needs to happen to pull in all the dependencies required by the build.  There are two suggested ways to go about doing this. First you are able to use the Docker environments provided by https://github.com/dotnet/dotnet-buildtools-prereqs-docker, or you can set up the environment yourself. The documentation will go over both ways of building. Note that using docker only allows you to leverage our existing images which have a setup environment.
 
-[Build using docker](#Build-using-docker)
+[Build using Docker](#Build-using-Docker)
 
 [Build with own environment](#Environment)
 
-Build using docker
+Build using Docker
 ==================
 
-Install Docker, see https://docs.docker.com/install/linux/docker-ce/ubuntu/ 
+Install Docker, see https://docs.docker.com/install/
 
-Building using docker will require that you choose the correct image for your environment. Note that the OS is strictly speaking not extremely important, for example if you are on Ubuntu 18.04 and build using the Ubuntu 16.04 x64 image there should be no issues. The target arch is more important, as building arm32 using the x64 image will not work, there will be missing rootfs components required by the build. See [Docker Images](#Docker-Images) for more information on choosing an image to build with.
+Building using Docker will require that you choose the correct image for your environment. Note that the OS is strictly speaking not extremely important, for example if you are on Ubuntu 18.04 and build using the Ubuntu 16.04 x64 image there should be no issues. The target architecture is more important, as building arm32 using the x64 image will not work, there will be missing rootfs components required by the build. See [Docker Images](#Docker-Images) for more information on choosing an image to build with.
 
 Once you have chosen an image the build is one command run from the root of the coreclr repository:
 
 ```sh
-docker run --rm -v <path/to/coreclr/repo>:/coreclr -w /coreclr microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-c103199-20180628134544 ./build.sh
+docker run --rm -v /home/dotnet-bot/coreclr:/coreclr -w /coreclr microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-c103199-20180628134544 ./build.sh
 ```
 
 Dissecting the command:
@@ -32,13 +32,13 @@ Dissecting the command:
 
 `./build.sh: command to be run in the container`
 
-If you are attempting to cross build for arm/arm64 then use the crossrootfs location to set the ROOTFS_DIR. The command would add -e ROOTFS_DIR=<crossrootfs location>. See [Docker Images](#Docker-Images) for the crossrootfs location.
+If you are attempting to cross build for arm/arm64 then use the crossrootfs location to set the ROOTFS_DIR. The command would add `-e ROOTFS_DIR=<crossrootfs location>`. See [Docker Images](#Docker-Images) for the crossrootfs location.
 
 ```sh
-docker run --rm -v <path/to/coreclr/repo>:/coreclr -w /coreclr -e ROOTFS_DIR=/crossrootfs/arm64 microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921 ./build.sh arm64
+docker run --rm -v /home/dotnet-bot/coreclr:/coreclr -w /coreclr -e ROOTFS_DIR=/crossrootfs/arm64 microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921 ./build.sh arm64
 ```
 
-Note that instructions on building the crossrootfs location can be found at https://github.com/dotnet/coreclr/blob/master/Documentation/building/cross-building.md. These instructions are suggested only if there are plans to change the rootfs, or the docker images for arm/arm64 are insufficient for you build.
+Note that instructions on building the crossrootfs location can be found at https://github.com/dotnet/coreclr/blob/master/Documentation/building/cross-building.md. These instructions are suggested only if there are plans to change the rootfs, or the Docker images for arm/arm64 are insufficient for you build.
 
 Docker Images
 =============
@@ -133,8 +133,10 @@ After the build is completed, there should some files placed in `bin/Product/Lin
 * `libcoreclr.so`: The CoreCLR runtime itself.
 * `System.Private.CoreLib.dll`: Microsoft Core Library.
 
-Create the coreOverlay
+Create the Core_Root
 ===================
+
+The Core_Root folder will have the built binaries, from `build.sh` and it will also include the CoreFX packages required to run tests.
 
 ```
 ./build-test.sh generatelayoutonly
@@ -145,10 +147,9 @@ After the build is complete you will be able to find the output in the `bin/test
 Running a single test
 ===================
 
-After `build-test.sh` is run, corerun from the Core_Root folder is ready to be run. This can be done by using the full absolute path to corerun, or by setting
-an environment variable to the Core_Root folder.
+After `build-test.sh` is run, corerun from the Core_Root folder is ready to be run. This can be done by using the full absolute path to corerun, or by setting an environment variable to the Core_Root folder.
 
 ```sh
-export CORE_ROOT=/path/to/coreclr/bin/tests/Linux.x64.Debug/Tests/Core_Root
+export CORE_ROOT=/home/dotnet-bot/coreclr/bin/tests/Linux.x64.Debug/Tests/Core_Root
 $CORE_ROOT/corerun hello_world.dll
 ```

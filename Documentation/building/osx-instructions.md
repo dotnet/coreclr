@@ -57,10 +57,12 @@ After the build has completed, there should some files placed in `bin/Product/OS
 - `libcoreclr.dylib`: The CoreCLR runtime itself.
 - `System.Private.CoreLib.dll`: Microsoft Core Library.
 
-Create the coreOverlay
+Create the Core_Root
 ===================
 
-```sh
+The Core_Root folder will have the built binaries, from `build.sh` and it will also include the CoreFX packages required to run tests.
+
+```
 ./build-test.sh generatelayoutonly
 ```
 
