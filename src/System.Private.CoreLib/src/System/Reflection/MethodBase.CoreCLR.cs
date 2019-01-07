@@ -108,24 +108,33 @@ namespace System.Reflection
             object[] copyOfParameters = new object[parameters.Length];
 
             ParameterInfo[] p = null;
+            RuntimeType[] runtimeTypes = sig.Arguments;
             for (int i = 0; i < parameters.Length; i++)
             {
                 object arg = parameters[i];
-                RuntimeType argRT = sig.Arguments[i];
+                RuntimeType argRT = runtimeTypes[i];
 
                 if (arg == Type.Missing)
                 {
-                    if (p == null)
+                    if (p is null)
+                    {
                         p = GetParametersNoCopy();
-                    if (p[i].DefaultValue == System.DBNull.Value)
+                    }
+
+                    if (p[i].DefaultValue == DBNull.Value)
+                    {
                         throw new ArgumentException(SR.Arg_VarMissNull, nameof(parameters));
+                    }
+
                     arg = p[i].DefaultValue;
                 }
+
                 copyOfParameters[i] = argRT.CheckValue(arg, binder, culture, invokeAttr);
             }
 
             return copyOfParameters;
         }
+
         #endregion
     }
 }

@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Security;
 using System.Text;
 using System.Threading;
@@ -14,65 +15,72 @@ namespace System.Reflection
 {
     internal sealed class RuntimeMethodInfo : MethodInfo, IRuntimeMethodInfo
     {
-        #region Private Data Members
-        private IntPtr m_handle;
-        private RuntimeTypeCache m_reflectedTypeCache;
+        private readonly IntPtr m_handle;
+        private readonly RuntimeTypeCache m_reflectedTypeCache;
         private string m_name;
         private string m_toString;
         private ParameterInfo[] m_parameters;
         private ParameterInfo m_returnParameter;
-        private BindingFlags m_bindingFlags;
-        private MethodAttributes m_methodAttributes;
+        private readonly BindingFlags m_bindingFlags;
+        private readonly MethodAttributes m_methodAttributes;
         private Signature m_signature;
-        private RuntimeType m_declaringType;
+        private readonly RuntimeType m_declaringType;
         private object m_keepalive;
         private INVOCATION_FLAGS m_invocationFlags;
 
-        internal INVOCATION_FLAGS InvocationFlags
+        private INVOCATION_FLAGS InvocationFlags
         {
+            // Aggressive inline as only called from two places, , and always called, and one is determining which exception to throw
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if ((m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) == 0)
+                INVOCATION_FLAGS invocationFlags = m_invocationFlags;
+                if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) == 0)
                 {
-                    INVOCATION_FLAGS invocationFlags = INVOCATION_FLAGS.INVOCATION_FLAGS_UNKNOWN;
-
-                    Type declaringType = DeclaringType;
-
-                    //
-                    // first take care of all the NO_INVOKE cases. 
-                    if (ContainsGenericParameters ||
-                         IsDisallowedByRefType(ReturnType) ||
-                         (declaringType != null && declaringType.ContainsGenericParameters) ||
-                         ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
-                    {
-                        // We don't need other flags if this method cannot be invoked
-                        invocationFlags = INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE;
-                    }
-                    else
-                    {
-                        // Check for byref-like types
-                        if ((declaringType != null && declaringType.IsByRefLike) || ReturnType.IsByRefLike)
-                            invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_CONTAINS_STACK_POINTERS;
-                    }
-
-                    m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED;
+                    invocationFlags = InitializeInvocationFlags();
                 }
 
-                return m_invocationFlags;
+                return invocationFlags;
             }
         }
 
-        private bool IsDisallowedByRefType(Type type)
+        private INVOCATION_FLAGS InitializeInvocationFlags()
+        {
+            INVOCATION_FLAGS invocationFlags = INVOCATION_FLAGS.INVOCATION_FLAGS_UNKNOWN;
+            Type declaringType = DeclaringType;
+
+            //
+            // first take care of all the NO_INVOKE cases. 
+            if (ContainsGenericParameters ||
+                 IsDisallowedByRefType(ReturnType) ||
+                 (declaringType != null && declaringType.ContainsGenericParameters) ||
+                 ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
+            {
+                // We don't need other flags if this method cannot be invoked
+                invocationFlags = INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE;
+            }
+            else
+            {
+                // Check for byref-like types
+                if ((declaringType != null && declaringType.IsByRefLike) || ReturnType.IsByRefLike)
+                    invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_CONTAINS_STACK_POINTERS;
+            }
+
+            m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED;
+            return invocationFlags;
+        }
+
+        private static bool IsDisallowedByRefType(Type type)
         {
             if (!type.IsByRef)
+            {
                 return false;
+            }
 
             Type elementType = type.GetElementType();
             return elementType.IsByRefLike || elementType == typeof(void);
         }
-        #endregion
 
-        #region Constructor
         internal RuntimeMethodInfo(
             RuntimeMethodHandleInternal handle, RuntimeType declaringType,
             RuntimeTypeCache reflectedTypeCache, MethodAttributes methodAttributes, BindingFlags bindingFlags, object keepalive)
@@ -87,7 +95,6 @@ namespace System.Reflection
             m_reflectedTypeCache = reflectedTypeCache;
             m_methodAttributes = methodAttributes;
         }
-        #endregion
 
         #region Private Methods
         RuntimeMethodHandleInternal IRuntimeMethodInfo.Value
@@ -418,71 +425,76 @@ namespace System.Reflection
             }
         }
 
-        private void ThrowNoInvokeException()
+        private Exception GetNoInvokeException()
         {
             // method is on a class that contains stack pointers
             if ((InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_CONTAINS_STACK_POINTERS) != 0)
             {
-                throw new NotSupportedException();
+                return new NotSupportedException();
             }
             // method is vararg
             else if ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs)
             {
-                throw new NotSupportedException();
+                return new NotSupportedException();
             }
             // method is generic or on a generic class
             else if (DeclaringType.ContainsGenericParameters || ContainsGenericParameters)
             {
-                throw new InvalidOperationException(SR.Arg_UnboundGenParam);
+                return new InvalidOperationException(SR.Arg_UnboundGenParam);
             }
             // method is abstract class
             else if (IsAbstract)
             {
-                throw new MemberAccessException();
+                return new MemberAccessException();
             }
             else if (ReturnType.IsByRef)
             {
                 Type elementType = ReturnType.GetElementType();
                 if (elementType.IsByRefLike)
-                    throw new NotSupportedException(SR.NotSupported_ByRefToByRefLikeReturn);    
+                    return new NotSupportedException(SR.NotSupported_ByRefToByRefLikeReturn);
                 if (elementType == typeof(void))
-                    throw new NotSupportedException(SR.NotSupported_ByRefToVoidReturn);
+                    return new NotSupportedException(SR.NotSupported_ByRefToVoidReturn);
             }
 
-            throw new TargetException();
+            return new TargetException();
         }
 
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
+        private void ThrowNoInvokeException()
+        {
+            throw GetNoInvokeException();
+        }
+
+        [DebuggerStepThrough]
+        [DebuggerHidden]
         public override object Invoke(object obj, BindingFlags invokeAttr, Binder binder, object[] parameters, CultureInfo culture)
         {
             object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
 
             bool wrapExceptions = (invokeAttr & BindingFlags.DoNotWrapExceptions) == 0;
             if (arguments == null || arguments.Length == 0)
+            {
                 return RuntimeMethodHandle.InvokeMethod(obj, null, Signature, false, wrapExceptions);
+            }
             else
             {
                 object retValue = RuntimeMethodHandle.InvokeMethod(obj, arguments, Signature, false, wrapExceptions);
 
                 // copy out. This should be made only if ByRef are present.
                 for (int index = 0; index < arguments.Length; index++)
+                {
                     parameters[index] = arguments[index];
+                }
 
                 return retValue;
             }
         }
 
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
+        [DebuggerStepThrough]
+        [DebuggerHidden]
+        // Aggressive inline as only called from once place, and always called
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private object[] InvokeArgumentsCheck(object obj, BindingFlags invokeAttr, Binder binder, object[] parameters, CultureInfo culture)
         {
-            Signature sig = Signature;
-
-            // get the signature 
-            int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters != null) ? parameters.Length : 0;
-
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
 
             // INVOCATION_FLAGS_CONTAINS_STACK_POINTERS means that the struct (either the declaring type or the return type)
@@ -494,13 +506,15 @@ namespace System.Reflection
             // check basic method consistency. This call will throw if there are problems in the target/method relationship
             CheckConsistency(obj);
 
+            // get the signature 
+            Signature sig = Signature;
+            int actualCount = parameters?.Length ?? 0;
+            int formalCount = sig.Arguments.Length;
+
             if (formalCount != actualCount)
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 
-            if (actualCount != 0)
-                return CheckArguments(parameters, binder, invokeAttr, culture, sig);
-            else
-                return null;
+            return actualCount > 0 ? CheckArguments(parameters, binder, invokeAttr, culture, sig) : null;
         }
 
         #endregion
@@ -521,7 +535,7 @@ namespace System.Reflection
             get
             {
                 FetchReturnParameter();
-                return m_returnParameter as ParameterInfo;
+                return m_returnParameter;
             }
         }
 
