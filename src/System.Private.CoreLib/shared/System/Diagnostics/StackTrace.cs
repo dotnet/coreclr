@@ -202,7 +202,6 @@ namespace System.Diagnostics
         /// </summary>
         internal string ToString(TraceFormat traceFormat)
         {
-            bool displayFilenames = true;   // we'll try, but demand may fail
             string word_At = SR.Word_At;
             string inFileLineNum = SR.StackTrace_InFileLineNumber;
 
@@ -312,25 +311,11 @@ namespace System.Diagnostics
                     }
 
                     // source location printing
-                    if (displayFilenames && (sf.GetILOffset() != -1))
+                    if (sf.GetILOffset() != -1)
                     {
                         // If we don't have a PDB or PDB-reading is disabled for the module,
                         // then the file name will be null.
-                        string fileName = null;
-
-                        // Getting the filename from a StackFrame is a privileged operation - we won't want
-                        // to disclose full path names to arbitrarily untrusted code.  Rather than just omit
-                        // this we could probably trim to just the filename so it's still mostly usefull.
-                        try
-                        {
-                            fileName = sf.GetFileName();
-                        }
-                        catch (SecurityException)
-                        {
-                            // If the demand for displaying filenames fails, then it won't
-                            // succeed later in the loop.  Avoid repeated exceptions by not trying again.
-                            displayFilenames = false;
-                        }
+                        string fileName = sf.GetFileName();
 
                         if (fileName != null)
                         {
