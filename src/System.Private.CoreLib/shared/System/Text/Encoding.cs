@@ -1190,8 +1190,7 @@ namespace System.Text
 
         public override bool Equals(object value)
         {
-            Encoding that = value as Encoding;
-            if (that != null)
+            if (value is Encoding that)
                 return (_codePage == that._codePage) &&
                        (EncoderFallback.Equals(that.EncoderFallback)) &&
                        (DecoderFallback.Equals(that.DecoderFallback));
@@ -1459,7 +1458,7 @@ namespace System.Text
                 return true;
             }
 
-            internal unsafe bool AddChar(char ch)
+            internal bool AddChar(char ch)
             {
                 return AddChar(ch, 1);
             }
@@ -1515,7 +1514,7 @@ namespace System.Text
                 }
             }
 
-            internal unsafe bool Fallback(byte fallbackByte)
+            internal bool Fallback(byte fallbackByte)
             {
                 // Build our buffer
                 byte[] byteBuffer = new byte[] { fallbackByte };
@@ -1524,7 +1523,7 @@ namespace System.Text
                 return Fallback(byteBuffer);
             }
 
-            internal unsafe bool Fallback(byte byte1, byte byte2)
+            internal bool Fallback(byte byte1, byte byte2)
             {
                 // Build our buffer
                 byte[] byteBuffer = new byte[] { byte1, byte2 };
@@ -1533,7 +1532,7 @@ namespace System.Text
                 return Fallback(byteBuffer);
             }
 
-            internal unsafe bool Fallback(byte byte1, byte byte2, byte byte3, byte byte4)
+            internal bool Fallback(byte byte1, byte byte2, byte byte3, byte byte4)
             {
                 // Build our buffer
                 byte[] byteBuffer = new byte[] { byte1, byte2, byte3, byte4 };
@@ -1566,7 +1565,7 @@ namespace System.Text
                 return true;
             }
 
-            internal unsafe int Count
+            internal int Count
             {
                 get
                 {
@@ -1634,34 +1633,34 @@ namespace System.Text
                 return true;
             }
 
-            internal unsafe bool AddByte(byte b1)
+            internal bool AddByte(byte b1)
             {
                 return (AddByte(b1, 0));
             }
 
-            internal unsafe bool AddByte(byte b1, byte b2)
+            internal bool AddByte(byte b1, byte b2)
             {
                 return (AddByte(b1, b2, 0));
             }
 
-            internal unsafe bool AddByte(byte b1, byte b2, int moreBytesExpected)
+            internal bool AddByte(byte b1, byte b2, int moreBytesExpected)
             {
                 return (AddByte(b1, 1 + moreBytesExpected) && AddByte(b2, moreBytesExpected));
             }
 
-            internal unsafe bool AddByte(byte b1, byte b2, byte b3)
+            internal bool AddByte(byte b1, byte b2, byte b3)
             {
                 return AddByte(b1, b2, b3, (int)0);
             }
 
-            internal unsafe bool AddByte(byte b1, byte b2, byte b3, int moreBytesExpected)
+            internal bool AddByte(byte b1, byte b2, byte b3, int moreBytesExpected)
             {
                 return (AddByte(b1, 2 + moreBytesExpected) &&
                         AddByte(b2, 1 + moreBytesExpected) &&
                         AddByte(b3, moreBytesExpected));
             }
 
-            internal unsafe bool AddByte(byte b1, byte b2, byte b3, byte b4)
+            internal bool AddByte(byte b1, byte b2, byte b3, byte b4)
             {
                 return (AddByte(b1, 3) &&
                         AddByte(b2, 2) &&
@@ -1724,7 +1723,7 @@ namespace System.Text
                 }
             }
 
-            internal unsafe int Count
+            internal int Count
             {
                 get
                 {
