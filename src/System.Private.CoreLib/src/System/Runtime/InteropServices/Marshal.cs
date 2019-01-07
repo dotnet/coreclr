@@ -1546,6 +1546,10 @@ namespace System.Runtime.InteropServices
             {
                 throw new ArgumentNullException(nameof(type));
             }
+            if (!(type is RuntimeType))
+            {
+                throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
+            }
 
             return type.GUID;
         }
