@@ -10,13 +10,75 @@ namespace System
 {
     public static partial class Convert
     {
+        // Based on "Base64 encoding with SIMD instructions" article by Wojciech Muła
+        // http://0x80.pl/notesen/2016-01-12-sse-base64-encoding.html
+
+
+        // SSSE3-based implementation
+
+        private static unsafe void EncodeBase64Sse(byte* input, int inputLength, byte* output, int outputLength)
+        {
+            byte* outputCurrent = output;
+            int stride = 4 * 3;
+
+            Vector128<byte> shuffleMask = Vector128.Create((byte)1, 0, 2, 1, 4, 3, 5, 4, 7, 6, 8, 7, 10, 9, 11, 10);
+            Vector128<byte> shiftLut = Vector128.Create(18229723555195321415UL, 72503040736508UL).AsByte();
+            Vector128<byte> asciiToStringMaskLo = Vector128.Create(0, 0x80, 1, 0x80, 2, 0x80, 3, 0x80, 4, 0x80, 5, 0x80, 6, 0x80, 7, 0x80);
+            Vector128<byte> asciiToStringMaskHi = Vector128.Create(8, 0x80, 9, 0x80, 10, 0x80, 11, 0x80, 12, 0x80, 13, 0x80, 14, 0x80, 15, 0x80);
+
+            int i = 0;
+            for (; i < inputLength - stride - 1; i += stride)
+            {
+                Vector128<byte> inputVector = Sse2.LoadVector128(input + i);
+                inputVector = Ssse3.Shuffle(inputVector, shuffleMask);
+
+                Vector128<byte> t0 = Sse2.And(inputVector, Vector128.Create(0x0fc0fc00).AsByte());
+                Vector128<byte> t1 = Sse2.MultiplyHigh(t0.AsUInt16(), Vector128.Create(0x04000040).AsUInt16()).AsByte();
+                Vector128<byte> t2 = Sse2.And(inputVector, Vector128.Create(0x003f03f0).AsByte());
+                Vector128<byte> t3 = Sse2.MultiplyLow(t2.AsUInt16(), Vector128.Create(0x01000010).AsUInt16()).AsByte();
+                Vector128<byte> indices = Sse2.Or(t1, t3);
+
+                Vector128<byte> result = Sse2.SubtractSaturate(indices, Vector128.Create((byte)51));
+                Vector128<sbyte> compareResult = Sse2.CompareGreaterThan(Vector128.Create((sbyte)26), indices.AsSByte());
+                result = Sse2.Or(result, Sse2.And(compareResult.AsByte(), Vector128.Create((byte)13)));
+                result = Ssse3.Shuffle(shiftLut, result);
+                result = Sse2.Add(result, indices);
+
+                // save as two-bytes string
+                Sse2.Store(outputCurrent, Ssse3.Shuffle(result, asciiToStringMaskLo));
+                outputCurrent += Vector128<byte>.Count;
+                Sse2.Store(outputCurrent, Ssse3.Shuffle(result, asciiToStringMaskHi));
+                outputCurrent += Vector128<byte>.Count;
+            }
+
+            // Handle cases when inputLength is not a multiple of 24
+            if (i != inputLength)
+            {
+                ConvertToBase64Array((char*)outputCurrent, input, i, inputLength - i, false);
+                return;
+            }
+
+            // or the result needs '='-paddings (when inputLength % 3 != 0)
+            int lengthmod3 = (inputLength) % 3;
+            if (lengthmod3 == 1)
+            {
+                output[outputLength - 4] = 61;
+                output[outputLength - 3] = 0;
+                output[outputLength - 2] = 61;
+                output[outputLength - 1] = 0;
+            }
+            else if (lengthmod3 == 2)
+            {
+                output[outputLength - 2] = 61;
+                output[outputLength - 1] = 0;
+            }
+        }
+
+
+        // AVX2-based implementation
+
         private static unsafe void EncodeBase64Avx(byte* input, int inputLength, byte* output, int outputLength)
         {
-            // Based on "Base64 encoding with SIMD instructions" article by Wojciech Muła
-            // http://0x80.pl/notesen/2016-01-12-sse-base64-encoding.html
-            // Encode - https://github.com/WojciechMula/base64simd/blob/master/encode/encode.avx2.cpp
-            // Lookup - https://github.com/WojciechMula/base64simd/blob/master/encode/lookup.avx2.cpp (lookup_pshufb_improved)
-
             byte* outputCurrent = output;
             int stride = 2 * 4 * 3;
 
@@ -91,5 +153,7 @@ namespace System
             Avx.Store(output, resultLeft);
             Avx.Store(output + Vector256<byte>.Count, resultRight);
         }
+
+
     }
 } 
