@@ -236,7 +236,7 @@ namespace System.Reflection
 
             CustomAttributeData[] customAttributes = new CustomAttributeData[records.Length];
             for (int i = 0; i < records.Length; i++)
-                customAttributes[i] = new CustomAttributeData(module, in records[i]);
+                customAttributes[i] = new CustomAttributeData(module, records[i].tkCtor, in records[i].blob);
 
             return Array.AsReadOnly(customAttributes);
         }
@@ -258,7 +258,8 @@ namespace System.Reflection
 
             for (int i = 0; i < records.Length; i++)
             {
-                scope.GetCustomAttributeRecord(tkCustomAttributeTokens[i], out records[i]);
+                scope.GetCustomAttributeRecord(tkCustomAttributeTokens[i], 
+                    out records[i].tkCtor.Value, out records[i].blob);
             }
 
             return records;
@@ -291,10 +292,10 @@ namespace System.Reflection
         {
         }
 
-        private CustomAttributeData(RuntimeModule scope, in CustomAttributeRecord caRecord)
+        private CustomAttributeData(RuntimeModule scope, MetadataToken caCtorToken, in ConstArray blob)
         {
             m_scope = scope;
-            m_ctor = (RuntimeConstructorInfo)RuntimeType.GetMethodBase(scope, caRecord.tkCtor);
+            m_ctor = (RuntimeConstructorInfo)RuntimeType.GetMethodBase(scope, caCtorToken);
 
             ParameterInfo[] parameters = m_ctor.GetParametersNoCopy();
             m_ctorParams = new CustomAttributeCtorParameter[parameters.Length];
@@ -315,7 +316,7 @@ namespace System.Reflection
             fields.CopyTo(m_members, 0);
             properties.CopyTo(m_members, fields.Length);
 
-            CustomAttributeEncodedArgument.ParseAttributeArguments(caRecord.blob, ref m_ctorParams, ref m_namedParams, m_scope);
+            CustomAttributeEncodedArgument.ParseAttributeArguments(blob, ref m_ctorParams, ref m_namedParams, m_scope);
         }
         #endregion
 
@@ -847,10 +848,10 @@ namespace System.Reflection
     }
 
     [StructLayout(LayoutKind.Auto)]
-    internal readonly struct CustomAttributeRecord
+    internal struct CustomAttributeRecord
     {
-        internal readonly ConstArray blob;
-        internal readonly MetadataToken tkCtor;
+        internal ConstArray blob;
+        internal MetadataToken tkCtor;
 
         public CustomAttributeRecord(int token, ConstArray blob)
         {

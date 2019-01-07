@@ -2,20 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
 using System;
-using System.Reflection;
 using System.Globalization;
-using System.Threading;
 using System.Diagnostics;
-using System.Collections;
 using System.Runtime.CompilerServices;
-using System.Security;
-using System.Text;
 using System.Runtime.InteropServices;
-using System.Configuration.Assemblies;
-using System.Runtime.Versioning;
 
 namespace System.Reflection
 {
@@ -162,6 +153,10 @@ namespace System.Reflection
 
     internal readonly struct ConstArray
     {
+        // Keep the definition in sync with vm\ManagedMdImport.hpp
+        internal readonly int m_length;
+        internal readonly IntPtr m_constArray;
+
         public IntPtr Signature => m_constArray;
         public int Length => m_length;
 
@@ -179,13 +174,12 @@ namespace System.Reflection
             }
         }
 
-        // Keep the definition in sync with vm\ManagedMdImport.hpp
-        internal readonly int m_length;
-        internal readonly IntPtr m_constArray;
     }
 
-    internal readonly struct MetadataToken
+    internal struct MetadataToken
     {
+        public int Value;
+
         public static implicit operator int(MetadataToken token) => token.Value;
         public static implicit operator MetadataToken(int token) => new MetadataToken(token);
 
@@ -202,7 +196,6 @@ namespace System.Reflection
 
         public static bool IsNullToken(int token) => (token & 0x00FFFFFF) == 0;
 
-        public readonly int Value;
 
         public MetadataToken(int token) { Value = token; }
 
@@ -540,13 +533,12 @@ namespace System.Reflection
 
         public void GetCustomAttributeRecord(
             int customAttributeToken,
-            out CustomAttributeRecord record)
+            out int constructorToken,
+            out ConstArray signature)
         {
 
             _GetCustomAttributeProps(m_metadataImport2, customAttributeToken,
-                out int token, out ConstArray signature);
-
-            record = new CustomAttributeRecord(token, signature);
+                out constructorToken, out signature);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
