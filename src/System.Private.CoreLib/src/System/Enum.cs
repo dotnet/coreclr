@@ -12,18 +12,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Internal.Runtime.CompilerServices;
 
-// The code below includes partial support for float/double and
-// pointer sized enums.
-//
-// The type loader does not prohibit such enums, and older versions of
-// the ECMA spec include them as possible enum types.
-//
-// However there are many things broken throughout the stack for
-// float/double/intptr/uintptr enums. There was a conscious decision
-// made to not fix the whole stack to work well for them because of
-// the right behavior is often unclear, and it is hard to test and
-// very low value because of such enums cannot be expressed in C#.
-
 namespace System
 {
     [Serializable]
@@ -70,6 +58,13 @@ namespace System
         private static IEnumBridge CreateEnumBridge(Type enumType)
         {
             Type underlyingType = GetUnderlyingTypeInternal(enumType);
+            
+            // Allow underlying type of another enum type as is done in a Reflection.Emit test
+            if (underlyingType?.IsEnum == true && underlyingType != enumType)
+            {
+                underlyingType = GetUnderlyingType(underlyingType);
+            }
+
             return underlyingType != null ? (IEnumBridge)Activator.CreateInstance(typeof(EnumBridge<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations))) : null;
         }
 
