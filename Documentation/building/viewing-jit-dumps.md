@@ -63,7 +63,7 @@ The first thing to do is setup the .NET Core app we want to dump. Here are the s
     ```shell
     # Windows
     robocopy /e <coreclr path>\bin\Product\Windows_NT.<arch>.Release <app root>\bin\Release\netcoreapp3.0\<rid>\publish > NUL
-    copy <coreclr path>\bin\Product\Windows_NT.<arch>.Debug\clrjit.dll <app root>\bin\Release\netcoreapp3.0\<rid>\publish > NUL
+    copy /y <coreclr path>\bin\Product\Windows_NT.<arch>.Debug\clrjit.dll <app root>\bin\Release\netcoreapp3.0\<rid>\publish > NUL
 
     # Unix
     cp -rT <coreclr path>/bin/Product/<OS>.<arch>.Release <app root>/bin/Release/netcoreapp3.0/<rid>/publish
@@ -106,6 +106,9 @@ These can be set in one of three ways:
    ```shell
    # Windows
    set COMPlus_JitDump=Main
+   
+   # Powershell
+   $env:COMPlus_JitDump="Main"
 
    # Unix
    export COMPlus_JitDump=Main
