@@ -106,7 +106,8 @@ jobs:
     osGroup: Windows_NT
     osIdentifier: Windows_NT
     # TODO: add Windows.10.Nano.Amd64.Open when https://github.com/dotnet/coreclr/issues/21693 is resolved
-    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.7.Amd64.Open,Windows.81.Amd64.Open'
+    # TODO: add Windows.7.Amd64.Open when https://github.com/dotnet/coreclr/issues/21796 is resolved
+    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.81.Amd64.Open'
     helixQueuesInternal: 'Windows.10.Amd64,Windows.10.Nano.Amd64,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
@@ -117,7 +118,8 @@ jobs:
     osGroup: Windows_NT
     osIdentifier: Windows_NT
     # TODO: add Windows.10.Nano.Amd64.Open when https://github.com/dotnet/coreclr/issues/21693 is resolved
-    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.7.Amd64.Open,Windows.81.Amd64.Open'
+    # TODO: add Windows.7.Amd64.Open when https://github.com/dotnet/coreclr/issues/21796 is resolved
+    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.81.Amd64.Open'
     helixQueuesInternal: 'Windows.10.Amd64,Windows.10.Nano.Amd64,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
