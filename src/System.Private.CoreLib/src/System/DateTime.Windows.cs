@@ -13,19 +13,31 @@ namespace System
         private unsafe delegate void GetSystemTimeAsFileTimeDelegate(long* lpSystemTimeAsFileTime);
 
         internal static readonly bool s_systemSupportsLeapSeconds = SystemSupportsLeapSeconds();
+        internal static readonly bool s_systemSupportsPreciseSystemTime = SystemSupportsPreciseSystemTime();
         private static GetSystemTimeAsFileTimeDelegate _getSystemTimeAsFileTime;
 
-        public static DateTime UtcNow
+        public static unsafe DateTime UtcNow
         {
             get
             {
+                long timestamp;
+
+                if (s_systemSupportsPreciseSystemTime)
+                {
+                    Interop.Kernel32.GetSystemTimePreciseAsFileTime(&timestamp);
+                }
+                else
+                {
+                    Interop.Kernel32.GetSystemTimeAsFileTime(&timestamp);
+                }
+
                 if (s_systemSupportsLeapSeconds)
                 {
-                    GetSystemTimeWithLeapSecondsHandling(out FullSystemTime time);
+                    GetSystemTimeWithLeapSecondsHandling(timestamp, out FullSystemTime time);
                     return CreateDateTimeFromSystemTime(in time);
                 }
 
-                return new DateTime(((ulong)(GetSystemTimeAsFileTime() + FileTimeOffset)) | KindUtc);
+                return new DateTime(((ulong)(timestamp + FileTimeOffset)) | KindUtc);
             }
         }
 
@@ -117,10 +129,8 @@ namespace System
             return false;
         }
 
-        private static unsafe void GetSystemTimeWithLeapSecondsHandling(out FullSystemTime time)
+        private static unsafe void GetSystemTimeWithLeapSecondsHandling(long timestamp, out FullSystemTime time)
         {
-            long timestamp = GetSystemTimeAsFileTime();
-
             if (!FileTimeToSystemTime(timestamp, out time))
             {
                 Interop.Kernel32.GetSystemTime(ref time.systemTime);
@@ -136,7 +146,7 @@ namespace System
             }
         }
 
-        private static unsafe GetSystemTimeAsFileTimeDelegate InitializeGetSystemTimeAsFileTime()
+        private static unsafe bool SystemSupportsPreciseSystemTime()
         {
             if (Environment.IsWindows8OrAbove)
             {
@@ -155,25 +165,10 @@ namespace System
                 long preciseSystemTimeResult;
                 Interop.Kernel32.GetSystemTimePreciseAsFileTime(&preciseSystemTimeResult);
 
-                if (Math.Abs(preciseSystemTimeResult - systemTimeResult) <= 100 * TimeSpan.TicksPerMillisecond)
-                {
-                    return Interop.Kernel32.GetSystemTimePreciseAsFileTime;
-                }
-
-                // Too much difference.  Don't use GetSystemTimePreciseAsFileTime.
+                return Math.Abs(preciseSystemTimeResult - systemTimeResult) <= 100 * TicksPerMillisecond;
             }
 
-            return Interop.Kernel32.GetSystemTimeAsFileTime;
-        }
-
-        private static unsafe long GetSystemTimeAsFileTime()
-        {
-            LazyInitializer.EnsureInitialized(ref _getSystemTimeAsFileTime, InitializeGetSystemTimeAsFileTime);
-
-            long timestamp;
-            _getSystemTimeAsFileTime(&timestamp);
-
-            return timestamp;
+            return false;
         }
 
         // FullSystemTime struct is the SYSTEMTIME struct with extra hundredNanoSecond field to store more precise time.
