@@ -1594,9 +1594,9 @@ void fgArgInfo::ArgsComplete()
                 else if (isMultiRegArg && varTypeIsSIMD(argx->TypeGet()))
                 {
                     // SIMD types do not need the optimization below due to their sizes
-                    if (argx->OperIsSIMDorHWintrinsic() ||
+                    if (argx->OperIsSimdOrHWintrinsic() ||
                         (argx->OperIs(GT_OBJ) && argx->AsObj()->gtOp1->OperIs(GT_ADDR) &&
-                         argx->AsObj()->gtOp1->gtOp.gtOp1->OperIsSIMDorHWintrinsic()))
+                         argx->AsObj()->gtOp1->gtOp.gtOp1->OperIsSimdOrHWintrinsic()))
                     {
                         curArgTabEntry->needTmp = true;
                     }
@@ -8936,7 +8936,7 @@ GenTree* Compiler::fgMorphOneAsgBlockOp(GenTree* tree)
     // in codegen.
     // TODO-1stClassStructs: This is here to preserve old behavior.
     // It should be eliminated.
-    if (src->OperIsSIMDorHWintrinsic())
+    if (src->OperIsSimdOrHWintrinsic())
     {
         return nullptr;
     }
@@ -9856,13 +9856,13 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
         if (varTypeIsSIMD(asgType))
         {
             if ((indirTree != nullptr) && (lclNode == nullptr) && (indirTree->Addr()->OperGet() == GT_ADDR) &&
-                (indirTree->Addr()->gtGetOp1()->OperIsSIMDorHWintrinsic()))
+                (indirTree->Addr()->gtGetOp1()->OperIsSimdOrHWintrinsic()))
             {
                 assert(!isDest);
                 needsIndirection = false;
                 effectiveVal     = indirTree->Addr()->gtGetOp1();
             }
-            if (effectiveVal->OperIsSIMDorHWintrinsic())
+            if (effectiveVal->OperIsSimdOrHWintrinsic())
             {
                 needsIndirection = false;
             }

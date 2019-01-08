@@ -1518,7 +1518,7 @@ public:
         return OperIsHWIntrinsic(gtOper);
     }
 
-    bool OperIsSIMDorHWintrinsic() const
+    bool OperIsSimdOrHWintrinsic() const
     {
         return OperIsSIMD() || OperIsHWIntrinsic();
     }

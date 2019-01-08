@@ -357,7 +357,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
                 addr->ClearContained();
             }
         }
-        else if (!source->IsMultiRegCall() && !source->OperIsSIMDorHWintrinsic())
+        else if (!source->IsMultiRegCall() && !source->OperIsSimdOrHWintrinsic())
         {
             assert(source->IsLocal());
             MakeSrcContained(blkNode, source);
