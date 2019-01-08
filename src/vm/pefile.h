@@ -47,8 +47,6 @@ class PEModule;
 class PEAssembly;
 class SimpleRWLock;
 
-class CLRPrivBinderLoadFile;
-
 typedef VPTR(PEModule) PTR_PEModule;
 typedef VPTR(PEAssembly) PTR_PEAssembly;
 
@@ -285,7 +283,6 @@ public:
     BOOL GetResource(LPCSTR szName, DWORD *cbResource,
                      PBYTE *pbInMemoryResource, DomainAssembly** pAssemblyRef,
                      LPCSTR *szFileName, DWORD *dwLocation, 
-                     StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                      BOOL fSkipRaiseResolveEvent, DomainAssembly* pDomainAssembly,
                      AppDomain* pAppDomain);
 #ifndef DACCESS_COMPILE
@@ -333,10 +330,6 @@ public:
 #ifdef FEATURE_PREJIT 
     BOOL CanUseNativeImage() { LIMITED_METHOD_CONTRACT; return m_fCanUseNativeImage; }
     void SetCannotUseNativeImage() { LIMITED_METHOD_CONTRACT; m_fCanUseNativeImage = FALSE; }
-    void SetNativeImageUsedExclusively() { LIMITED_METHOD_CONTRACT; m_flags|=PEFILE_NATIVE_IMAGE_USED_EXCLUSIVELY; }
-    BOOL IsNativeImageUsedExclusively() { LIMITED_METHOD_CONTRACT; return m_flags&PEFILE_NATIVE_IMAGE_USED_EXCLUSIVELY; }
-    void SetSafeToHardBindTo() { LIMITED_METHOD_CONTRACT; m_flags|=PEFILE_SAFE_TO_HARDBINDTO; }
-    BOOL IsSafeToHardBindTo() { LIMITED_METHOD_CONTRACT; return m_flags&PEFILE_SAFE_TO_HARDBINDTO; }
 
     BOOL IsNativeLoaded();
     PEImage *GetNativeImageWithRef();
@@ -382,9 +375,7 @@ public:
     static void GetNGENDebugFlags(BOOL *fAllowOpt);
 #endif
 
-#ifdef FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
     static BOOL ShouldTreatNIAsMSIL();
-#endif // FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
             
 #endif  // FEATURE_PREJIT
 
@@ -430,9 +421,7 @@ protected:
 
 #ifdef FEATURE_PREJIT        
         PEFILE_HAS_NATIVE_IMAGE_METADATA = 0x200,
-        PEFILE_NATIVE_IMAGE_USED_EXCLUSIVELY =0x1000,
-        PEFILE_SAFE_TO_HARDBINDTO     = 0x4000, // NGEN-only flag
-#endif        
+#endif
     };
 
     // ------------------------------------------------------------
@@ -560,19 +549,6 @@ public:
         return HasOpenedILimage() &&  GetOpenedILimage()->HasLoadedLayout();
     }
 
-    BOOL IsDesignerBindingContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        DWORD binderFlags = BINDER_NONE;
-
-        HRESULT hr = E_FAIL;
-        if (HasHostAssembly())
-            hr = GetHostAssembly()->GetBinderFlags(&binderFlags);
-
-        return hr == S_OK ? binderFlags & BINDER_DESIGNER_BINDING_CONTEXT : FALSE;
-    }
-
     LPCWSTR GetPathForErrorMessages();
 
     static PEFile* Dummy();
@@ -669,14 +645,12 @@ class PEAssembly : public PEFile
     static PEAssembly *OpenMemory(
         PEAssembly *pParentAssembly,
         const void *flat,
-        COUNT_T size, 
-        CLRPrivBinderLoadFile* pBinderToUse = NULL);
+        COUNT_T size);
 
     static PEAssembly *DoOpenMemory(
         PEAssembly *pParentAssembly,
         const void *flat,
-        COUNT_T size,
-        CLRPrivBinderLoadFile* pBinderToUse);
+        COUNT_T size);
 
   private:
     // Private helpers for crufty exception handling reasons
@@ -687,9 +661,6 @@ class PEAssembly : public PEFile
     // ------------------------------------------------------------
     // binding & source
     // ------------------------------------------------------------
-
-    BOOL IsSourceGAC();
-    BOOL IsProfileAssembly();
 
     ULONG HashIdentity();
 
@@ -780,13 +751,10 @@ class PEAssembly : public PEFile
     // ------------------------------------------------------------
 
     PTR_PEFile               m_creator;
-    BOOL m_bIsFromGAC;
-    BOOL m_bIsOnTpaList;
     // Using a separate entry and not m_pHostAssembly because otherwise
     // HasHostAssembly becomes true that trips various other code paths resulting in bad
     // things
     SString                  m_sTextualIdentity;
-    int                      m_fProfileAssembly; // Tri-state cache
 
   public:
     PTR_PEFile GetCreator()

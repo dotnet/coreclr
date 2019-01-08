@@ -41,6 +41,7 @@ Abstract:
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -432,6 +433,7 @@ DWORD
 PALAPI
 PAL_RegisterForRuntimeStartup(
     IN DWORD dwProcessId,
+    IN LPCWSTR lpApplicationGroupId,
     IN PPAL_STARTUP_CALLBACK pfnCallback,
     IN PVOID parameter,
     OUT PVOID *ppUnregisterToken);
@@ -452,7 +454,7 @@ PALIMPORT
 LPCSTR
 PALAPI
 PAL_GetApplicationGroupId();
-#endif // __APPLE__
+#endif
 
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
 
@@ -462,6 +464,7 @@ PALAPI
 PAL_GetTransportPipeName(
     OUT char *name,
     IN DWORD id,
+    IN const char *applicationGroupId, 
     IN const char *suffix);
 
 PALIMPORT
@@ -2552,6 +2555,8 @@ OpenFileMappingW(
 #define OpenFileMapping OpenFileMappingA
 #endif
 
+typedef INT_PTR (PALAPI *FARPROC)();
+
 PALIMPORT
 LPVOID
 PALAPI
@@ -2604,8 +2609,21 @@ PALIMPORT
 HMODULE
 PALAPI
 PAL_RegisterLibraryDirect(
-        IN void *dl_handle,
+        IN NATIVE_LIBRARY_HANDLE dl_handle,
         IN LPCWSTR lpLibFileName);
+
+PALIMPORT
+BOOL
+PALAPI
+PAL_FreeLibraryDirect(
+        IN NATIVE_LIBRARY_HANDLE dl_handle);
+
+PALIMPORT
+FARPROC
+PALAPI
+PAL_GetProcAddressDirect(
+        IN NATIVE_LIBRARY_HANDLE dl_handle,
+        IN LPCSTR lpProcName);
 
 /*++
 Function:
@@ -2649,8 +2667,6 @@ PAL_LOADUnloadPEFile(void * ptr);
 #define LoadLibrary LoadLibraryA
 #define LoadLibraryEx LoadLibraryExA
 #endif
-
-typedef INT_PTR (PALAPI *FARPROC)();
 
 PALIMPORT
 FARPROC
@@ -3114,24 +3130,6 @@ VOID
 PALAPI
 DebugBreak(
        VOID);
-
-PALIMPORT
-int
-PALAPI
-lstrlenA(
-     IN LPCSTR lpString);
-
-PALIMPORT
-int
-PALAPI
-lstrlenW(
-     IN LPCWSTR lpString);
-
-#ifdef UNICODE
-#define lstrlen lstrlenW
-#else
-#define lstrlen lstrlenA
-#endif
 
 PALIMPORT
 DWORD
@@ -4468,11 +4466,10 @@ unsigned int __cdecl _rotr(unsigned int value, int shift)
 #endif // !__has_builtin(_rotr)
 
 PALIMPORT int __cdecl abs(int);
-#ifndef PAL_STDCPP_COMPAT
-PALIMPORT LONG __cdecl labs(LONG);
-#endif // !PAL_STDCPP_COMPAT
 // clang complains if this is declared with __int64
 PALIMPORT long long __cdecl llabs(long long);
+#ifndef PAL_STDCPP_COMPAT
+PALIMPORT LONG __cdecl labs(LONG);
 
 PALIMPORT int __cdecl _signbit(double);
 PALIMPORT int __cdecl _finite(double);
@@ -4539,6 +4536,7 @@ PALIMPORT float __cdecl sinhf(float);
 PALIMPORT float __cdecl sqrtf(float);
 PALIMPORT float __cdecl tanf(float);
 PALIMPORT float __cdecl tanhf(float);
+#endif // !PAL_STDCPP_COMPAT
 
 #ifndef PAL_STDCPP_COMPAT
 

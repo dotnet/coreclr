@@ -116,7 +116,7 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override string ImageRuntimeVersion => RuntimeEnvironment.GetSystemVersion();
+        public override string ImageRuntimeVersion => Assembly.GetExecutingAssembly().ImageRuntimeVersion;
 
         #endregion
     }
@@ -164,8 +164,7 @@ namespace System.Reflection.Emit
 
         #region Constructor
 
-        internal AssemblyBuilder(AppDomain domain,
-                                 AssemblyName name,
+        internal AssemblyBuilder(AssemblyName name,
                                  AssemblyBuilderAccess access,
                                  ref StackCrawlMark stackMark,
                                  IEnumerable<CustomAttributeBuilder> unsafeAssemblyAttributes)
@@ -193,10 +192,9 @@ namespace System.Reflection.Emit
                 assemblyAttributes = new List<CustomAttributeBuilder>(unsafeAssemblyAttributes);
             }
 
-            _internalAssemblyBuilder = (InternalAssemblyBuilder)nCreateDynamicAssembly(domain,
-                                                                                        name,
-                                                                                        ref stackMark,
-                                                                                        access);
+            _internalAssemblyBuilder = (InternalAssemblyBuilder)nCreateDynamicAssembly(name,
+                                                                                       ref stackMark,
+                                                                                       access);
 
             _assemblyData = new AssemblyBuilderData(_internalAssemblyBuilder, access);
 
@@ -261,8 +259,7 @@ namespace System.Reflection.Emit
 
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern Assembly nCreateDynamicAssembly(AppDomain domain,
-                                                              AssemblyName name,
+        private static extern Assembly nCreateDynamicAssembly(AssemblyName name,
                                                               ref StackCrawlMark stackMark,
                                                               AssemblyBuilderAccess access);
 
@@ -277,8 +274,7 @@ namespace System.Reflection.Emit
             lock (typeof(AssemblyBuilderLock))
             {
                 // We can only create dynamic assemblies in the current domain
-                return new AssemblyBuilder(AppDomain.CurrentDomain,
-                                           name,
+                return new AssemblyBuilder(name,
                                            access,
                                            ref stackMark,
                                            unsafeAssemblyAttributes);
@@ -527,21 +523,17 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetLoadedModules(getResourceModules);
         }
         
-        [DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public override Assembly GetSatelliteAssembly(CultureInfo culture)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return InternalAssembly.InternalGetSatelliteAssembly(culture, null, ref stackMark);
+            return InternalAssembly.GetSatelliteAssembly(culture, null);
         }
 
         /// <sumary> 
         /// Useful for binding to a very specific version of a satellite assembly
         /// </sumary>
-        [DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public override Assembly GetSatelliteAssembly(CultureInfo culture, Version version)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return InternalAssembly.InternalGetSatelliteAssembly(culture, version, ref stackMark);
+            return InternalAssembly.GetSatelliteAssembly(culture, version);
         }
 
         public override bool IsDynamic => true;

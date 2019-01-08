@@ -524,9 +524,10 @@ BOOL interceptor_ICJI::checkMethodModifier(CORINFO_METHOD_HANDLE hMethod, LPCSTR
 
 // returns the "NEW" helper optimized for "newCls."
 CorInfoHelpFunc interceptor_ICJI::getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                                               CORINFO_METHOD_HANDLE   callerHandle)
+                                               CORINFO_METHOD_HANDLE   callerHandle,
+                                               bool* pHasSideEffects)
 {
-    return original_ICorJitInfo->getNewHelper(pResolvedToken, callerHandle);
+    return original_ICorJitInfo->getNewHelper(pResolvedToken, callerHandle, pHasSideEffects);
 }
 
 // returns the newArr (1-Dim array) helper optimized for "arrayCls."
@@ -1037,12 +1038,13 @@ const char* interceptor_ICJI::getMethodName(CORINFO_METHOD_HANDLE ftn,       /* 
     return original_ICorJitInfo->getMethodName(ftn, moduleName);
 }
 
-const char* interceptor_ICJI::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,          /* IN */
-                                                        const char**          className,    /* OUT */
-                                                        const char**          namespaceName /* OUT */
+const char* interceptor_ICJI::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,                /* IN */
+                                                        const char**          className,          /* OUT */
+                                                        const char**          namespaceName,      /* OUT */
+                                                        const char**          enclosingClassName /* OUT */
                                                         )
 {
-    return original_ICorJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName);
+    return original_ICorJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName, enclosingClassName);
 }
 
 // this function is for debugging only.  It returns a value that

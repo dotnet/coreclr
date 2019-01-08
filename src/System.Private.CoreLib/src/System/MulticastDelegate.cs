@@ -2,16 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.Diagnostics;
-using System.Reflection.Emit;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
+
 using Internal.Runtime.CompilerServices;
 
 namespace System
 {
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [ClassInterface(ClassInterfaceType.None)]
+    [ComVisible(true)]
     public abstract class MulticastDelegate : Delegate
     {
         // This is set under 3 circumstances
@@ -42,7 +44,7 @@ namespace System
 
         internal bool InvocationListLogicallyNull()
         {
-            return (_invocationList == null) || (_invocationList is LoaderAllocator) || (_invocationList is DynamicResolver);
+            return (_invocationList == null) || (_invocationList is LoaderAllocator) || (_invocationList is System.Reflection.Emit.DynamicResolver);
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
@@ -231,8 +233,7 @@ namespace System
                 followCount = (int)dFollow._invocationCount;
 
             int resultCount;
-            object[] invocationList = _invocationList as object[];
-            if (invocationList == null)
+            if (!(_invocationList is object[] invocationList))
             {
                 resultCount = 1 + followCount;
                 resultList = new object[resultCount];
@@ -341,10 +342,9 @@ namespace System
 
             if (v == null)
                 return this;
-            if (v._invocationList as object[] == null)
+            if (!(v._invocationList is object[]))
             {
-                object[] invocationList = _invocationList as object[];
-                if (invocationList == null)
+                if (!(_invocationList is object[] invocationList))
                 {
                     // they are both not real Multicast
                     if (this.Equals(value))
@@ -373,8 +373,7 @@ namespace System
             }
             else
             {
-                object[] invocationList = _invocationList as object[];
-                if (invocationList != null)
+                if (_invocationList is object[] invocationList)
                 {
                     int invocationCount = (int)_invocationCount;
                     int vInvocationCount = (int)v._invocationCount;
@@ -409,8 +408,7 @@ namespace System
         public override sealed Delegate[] GetInvocationList()
         {
             Delegate[] del;
-            object[] invocationList = _invocationList as object[];
-            if (invocationList == null)
+            if (!(_invocationList is object[] invocationList))
             {
                 del = new Delegate[1];
                 del[0] = this;
@@ -427,24 +425,36 @@ namespace System
             return del;
         }
 
+        // Force inline as the true/false ternary takes it above ALWAYS_INLINE size even though the asm ends up smaller
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(MulticastDelegate d1, MulticastDelegate d2)
         {
-            if (ReferenceEquals(d1, d2))
+            // Test d2 first to allow branch elimination when inlined for null checks (== null)
+            // so it can become a simple test
+            if (d2 is null)
             {
-                return true;
+                // return true/false not the test result https://github.com/dotnet/coreclr/issues/914
+                return (d1 is null) ? true : false;
             }
 
-            return d1 is null ? false : d1.Equals(d2);
+            return ReferenceEquals(d2, d1) ? true : d2.Equals((object)d1);
         }
 
+        // Force inline as the true/false ternary takes it above ALWAYS_INLINE size even though the asm ends up smaller
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator !=(MulticastDelegate d1, MulticastDelegate d2)
         {
-            if (ReferenceEquals(d1, d2))
+            // Can't call the == operator as it will call object==
+
+            // Test d2 first to allow branch elimination when inlined for not null checks (!= null)
+            // so it can become a simple test
+            if (d2 is null)
             {
-                return false;
+                // return true/false not the test result https://github.com/dotnet/coreclr/issues/914
+                return (d1 is null) ? false : true;
             }
 
-            return d1 is null ? true : !d1.Equals(d2);
+            return ReferenceEquals(d2, d1) ? false : !d2.Equals(d1);
         }
 
         public override sealed int GetHashCode()
@@ -454,17 +464,14 @@ namespace System
 
             if (_invocationCount != (IntPtr)0)
             {
-                var t = _invocationList as Delegate;
-
-                if (t != null)
+                if (_invocationList is Delegate t)
                 {
                     // this is a secure/wrapper delegate so we need to unwrap and check the inner one
                     return t.GetHashCode();
                 }
             }
 
-            object[] invocationList = _invocationList as object[];
-            if (invocationList == null)
+            if (!(_invocationList is object[] invocationList))
             {
                 return base.GetHashCode();
             }
@@ -496,16 +503,14 @@ namespace System
                 }
                 else
                 {
-                    object[] invocationList = _invocationList as object[];
-                    if (invocationList != null)
+                    if (_invocationList is object[] invocationList)
                     {
                         int invocationCount = (int)_invocationCount;
                         return ((Delegate)invocationList[invocationCount - 1]).GetTarget();
                     }
                     else
                     {
-                        Delegate receiver = _invocationList as Delegate;
-                        if (receiver != null)
+                        if (_invocationList is Delegate receiver)
                             return receiver.GetTarget();
                     }
                 }
@@ -518,8 +523,7 @@ namespace System
             if (_invocationCount != (IntPtr)0 && _invocationList != null)
             {
                 // multicast case
-                object[] invocationList = _invocationList as object[];
-                if (invocationList != null)
+                if (_invocationList is object[] invocationList)
                 {
                     int index = (int)_invocationCount - 1;
                     return ((Delegate)invocationList[index]).Method;

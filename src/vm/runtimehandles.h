@@ -106,8 +106,6 @@ public:
 
 class MdUtf8String {
 public:
-    static FCDECL3(FC_BOOL_RET, EqualsCaseSensitive, LPCUTF8 szLhs, LPCUTF8 szRhs, INT32 stringNumBytes);
-
     static
     BOOL QCALLTYPE EqualsCaseInsensitive(LPCUTF8 szLhs, LPCUTF8 szRhs, INT32 stringNumBytes);
 
@@ -312,6 +310,8 @@ public:
     
     static
     void * QCALLTYPE GetFunctionPointer(MethodDesc * pMethod);
+
+    static BOOL QCALLTYPE GetIsCollectible(MethodDesc * pMethod);
 
     static FCDECL1(INT32, GetAttributes, MethodDesc *pMethod);
     static FCDECL1(INT32, GetImplAttributes, ReflectMethodObject *pMethodUNSAFE);

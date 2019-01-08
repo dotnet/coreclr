@@ -53,14 +53,13 @@ namespace System.Threading.Tasks
 
             // Invoke the delegate
             Debug.Assert(m_action != null);
-            var action = m_action as Action<Task>;
-            if (action != null)
+            if (m_action is Action<Task> action)
             {
                 action(antecedent);
                 return;
             }
-            var actionWithState = m_action as Action<Task, object>;
-            if (actionWithState != null)
+
+            if (m_action is Action<Task, object> actionWithState)
             {
                 actionWithState(antecedent, m_stateObject);
                 return;
@@ -100,14 +99,13 @@ namespace System.Threading.Tasks
 
             // Invoke the delegate
             Debug.Assert(m_action != null);
-            var func = m_action as Func<Task, TResult>;
-            if (func != null)
+            if (m_action is Func<Task, TResult> func)
             {
                 m_result = func(antecedent);
                 return;
             }
-            var funcWithState = m_action as Func<Task, object, TResult>;
-            if (funcWithState != null)
+
+            if (m_action is Func<Task, object, TResult> funcWithState)
             {
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
@@ -147,14 +145,13 @@ namespace System.Threading.Tasks
 
             // Invoke the delegate
             Debug.Assert(m_action != null);
-            var action = m_action as Action<Task<TAntecedentResult>>;
-            if (action != null)
+            if (m_action is Action<Task<TAntecedentResult>> action)
             {
                 action(antecedent);
                 return;
             }
-            var actionWithState = m_action as Action<Task<TAntecedentResult>, object>;
-            if (actionWithState != null)
+
+            if (m_action is Action<Task<TAntecedentResult>, object> actionWithState)
             {
                 actionWithState(antecedent, m_stateObject);
                 return;
@@ -194,14 +191,13 @@ namespace System.Threading.Tasks
 
             // Invoke the delegate
             Debug.Assert(m_action != null);
-            var func = m_action as Func<Task<TAntecedentResult>, TResult>;
-            if (func != null)
+            if (m_action is Func<Task<TAntecedentResult>, TResult> func)
             {
                 m_result = func(antecedent);
                 return;
             }
-            var funcWithState = m_action as Func<Task<TAntecedentResult>, object, TResult>;
-            if (funcWithState != null)
+
+            if (m_action is Func<Task<TAntecedentResult>, object, TResult> funcWithState)
             {
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
@@ -223,7 +219,7 @@ namespace System.Threading.Tasks
     {
         /// <summary>Inlines or schedules the continuation.</summary>
         /// <param name="completedTask">The antecedent task that has completed.</param>
-        /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
+        /// <param name="bCanInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
         internal abstract void Run(Task completedTask, bool bCanInlineContinuationTask);
 
         /// <summary>Tries to run the task on the current thread, if possible; otherwise, schedules it.</summary>
@@ -395,7 +391,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Inlines or schedules the continuation.</summary>
-        /// <param name="ignored">The antecedent task, which is ignored.</param>
+        /// <param name="task">The antecedent task, which is ignored.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
         internal sealed override void Run(Task task, bool canInlineContinuationTask)
         {
@@ -565,7 +561,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Inlines or schedules the continuation onto the default scheduler.</summary>
-        /// <param name="ignored">The antecedent task, which is ignored.</param>
+        /// <param name="task">The antecedent task, which is ignored.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
         internal override void Run(Task task, bool canInlineContinuationTask)
         {
@@ -809,6 +805,7 @@ namespace System.Threading.Tasks
 
         /// <summary>Schedules the action to be executed.  No ExecutionContext work is performed used.</summary>
         /// <param name="action">The action to invoke or queue.</param>
+        /// <param name="task">The task scheduling the action.</param>
         internal static void UnsafeScheduleAction(Action action, Task task)
         {
             AwaitTaskContinuation atc = new AwaitTaskContinuation(action, flowExecutionContext: false);
@@ -835,7 +832,7 @@ namespace System.Threading.Tasks
             // If unhandled error reporting APIs are available use those, otherwise since this 
             // would have executed on the thread pool otherwise, let it propagate there.
 
-            if (!(exc is ThreadAbortException || exc is AppDomainUnloadedException))
+            if (!(exc is ThreadAbortException))
             {
 #if FEATURE_COMINTEROP
                 if (!WindowsRuntimeMarshal.ReportUnhandledError(exc))

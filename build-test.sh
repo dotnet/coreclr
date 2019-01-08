@@ -11,12 +11,7 @@ initHostDistroRid()
 
     if [ "$__HostOS" == "Linux" ]; then
         if [ -e /etc/redhat-release ]; then
-            local redhatRelease=$(</etc/redhat-release)
-            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
-                __HostDistroRid="rhel.6-$__HostArch"
-            else
-                __PortableBuild=1
-            fi
+            __PortableBuild=1
         elif [ -e /etc/os-release ]; then
             source /etc/os-release
             if [[ $ID == "alpine" ]]; then
@@ -66,6 +61,7 @@ initTargetDistroRid()
         fi
     else
         export __DistroRid="$__HostDistroRid"
+        export __RuntimeId="$__HostDistroRid"
     fi
 
     if [ "$ID.$VERSION_ID" == "ubuntu.16.04" ]; then

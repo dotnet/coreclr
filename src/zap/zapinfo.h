@@ -550,7 +550,7 @@ public:
 
     unsigned getClassNumInstanceFields(CORINFO_CLASS_HANDLE cls);
 
-    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
+    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects = NULL);
     CorInfoHelpFunc getCastingHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fThrowing);
     CorInfoHelpFunc getNewArrHelper(CORINFO_CLASS_HANDLE arrayCls);
     CorInfoHelpFunc getSharedCCtorHelper(CORINFO_CLASS_HANDLE clsHnd);
@@ -634,7 +634,8 @@ public:
                                         const char **moduleName);
     const char* getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,
                                           const char **className,
-                                          const char **namespaceName);
+                                          const char **namespaceName,
+                                          const char **enclosingClassName);
 
     unsigned getMethodHash(CORINFO_METHOD_HANDLE ftn);
     DWORD getMethodAttribs(CORINFO_METHOD_HANDLE ftn);

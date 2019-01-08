@@ -371,11 +371,37 @@ GenTree* ObjectAllocator::MorphAllocObjNodeIntoHelperCall(GenTreeAllocObj* alloc
 {
     assert(allocObj != nullptr);
 
-    GenTree* op1 = allocObj->gtGetOp1();
+    GenTree*     op1                  = allocObj->gtGetOp1();
+    unsigned int helper               = allocObj->gtNewHelper;
+    bool         helperHasSideEffects = allocObj->gtHelperHasSideEffects;
 
-    const bool morphArgs = false;
-    GenTree*   helperCall =
-        comp->fgMorphIntoHelperCall(allocObj, allocObj->gtNewHelper, comp->gtNewArgList(op1), morphArgs);
+    GenTreeArgList* args;
+#ifdef FEATURE_READYTORUN_COMPILER
+    CORINFO_CONST_LOOKUP entryPoint = allocObj->gtEntryPoint;
+    if (helper == CORINFO_HELP_READYTORUN_NEW)
+    {
+        args = nullptr;
+    }
+    else
+#endif
+    {
+        args = comp->gtNewArgList(op1);
+    }
+
+    const bool morphArgs  = false;
+    GenTree*   helperCall = comp->fgMorphIntoHelperCall(allocObj, allocObj->gtNewHelper, args, morphArgs);
+    if (helperHasSideEffects)
+    {
+        helperCall->gtCall.gtCallMoreFlags |= GTF_CALL_M_ALLOC_SIDE_EFFECTS;
+    }
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    if (entryPoint.addr != nullptr)
+    {
+        assert(comp->opts.IsReadyToRun());
+        helperCall->gtCall.setEntryPoint(entryPoint);
+    }
+#endif
 
     return helperCall;
 }
@@ -579,14 +605,12 @@ bool ObjectAllocator::CanLclVarEscapeViaParentStack(ArrayStack<GenTree*>* parent
 
                 if (asCall->gtCallType == CT_HELPER)
                 {
-                    const CorInfoHelpFunc helperNum = comp->eeGetHelperNum(asCall->gtCallMethHnd);
+                    // TODO-ObjectStackAllocation: Special-case helpers here that
+                    // 1. Don't make objects escape.
+                    // 2. Protect objects as interior (GCPROTECT_BEGININTERIOR() instead of GCPROTECT_BEGIN()).
+                    // 3. Don't check that the object is in the heap in ValidateInner.
 
-                    if (Compiler::s_helperCallProperties.IsPure(helperNum))
-                    {
-                        // Pure helpers don't modify the heap.
-                        // TODO-ObjectStackAllocation: We may be able to special-case more helpers here.
-                        canLclVarEscapeViaParentStack = false;
-                    }
+                    canLclVarEscapeViaParentStack = true;
                 }
                 break;
             }

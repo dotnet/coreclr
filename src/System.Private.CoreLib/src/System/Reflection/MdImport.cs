@@ -2,61 +2,52 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
 using System;
-using System.Reflection;
 using System.Globalization;
-using System.Threading;
 using System.Diagnostics;
-using System.Collections;
 using System.Runtime.CompilerServices;
-using System.Security;
-using System.Text;
 using System.Runtime.InteropServices;
-using System.Configuration.Assemblies;
-using System.Runtime.Versioning;
 
 namespace System.Reflection
 {
     internal enum CorElementType : byte
     {
-        End = 0x00,
-        Void = 0x01,
-        Boolean = 0x02,
-        Char = 0x03,
-        I1 = 0x04,
-        U1 = 0x05,
-        I2 = 0x06,
-        U2 = 0x07,
-        I4 = 0x08,
-        U4 = 0x09,
-        I8 = 0x0A,
-        U8 = 0x0B,
-        R4 = 0x0C,
-        R8 = 0x0D,
-        String = 0x0E,
-        Ptr = 0x0F,
-        ByRef = 0x10,
-        ValueType = 0x11,
-        Class = 0x12,
-        Var = 0x13,
-        Array = 0x14,
-        GenericInst = 0x15,
-        TypedByRef = 0x16,
-        I = 0x18,
-        U = 0x19,
-        FnPtr = 0x1B,
-        Object = 0x1C,
-        SzArray = 0x1D,
-        MVar = 0x1E,
-        CModReqd = 0x1F,
-        CModOpt = 0x20,
-        Internal = 0x21,
-        Max = 0x22,
-        Modifier = 0x40,
-        Sentinel = 0x41,
-        Pinned = 0x45,
+        ELEMENT_TYPE_END = 0x00,
+        ELEMENT_TYPE_VOID = 0x01,
+        ELEMENT_TYPE_BOOLEAN = 0x02,
+        ELEMENT_TYPE_CHAR = 0x03,
+        ELEMENT_TYPE_I1 = 0x04,
+        ELEMENT_TYPE_U1 = 0x05,
+        ELEMENT_TYPE_I2 = 0x06,
+        ELEMENT_TYPE_U2 = 0x07,
+        ELEMENT_TYPE_I4 = 0x08,
+        ELEMENT_TYPE_U4 = 0x09,
+        ELEMENT_TYPE_I8 = 0x0A,
+        ELEMENT_TYPE_U8 = 0x0B,
+        ELEMENT_TYPE_R4 = 0x0C,
+        ELEMENT_TYPE_R8 = 0x0D,
+        ELEMENT_TYPE_STRING = 0x0E,
+        ELEMENT_TYPE_PTR = 0x0F,
+        ELEMENT_TYPE_BYREF = 0x10,
+        ELEMENT_TYPE_VALUETYPE = 0x11,
+        ELEMENT_TYPE_CLASS = 0x12,
+        ELEMENT_TYPE_VAR = 0x13,
+        ELEMENT_TYPE_ARRAY = 0x14,
+        ELEMENT_TYPE_GENERICINST = 0x15,
+        ELEMENT_TYPE_TYPEDBYREF = 0x16,
+        ELEMENT_TYPE_I = 0x18,
+        ELEMENT_TYPE_U = 0x19,
+        ELEMENT_TYPE_FNPTR = 0x1B,
+        ELEMENT_TYPE_OBJECT = 0x1C,
+        ELEMENT_TYPE_SZARRAY = 0x1D,
+        ELEMENT_TYPE_MVAR = 0x1E,
+        ELEMENT_TYPE_CMOD_REQD = 0x1F,
+        ELEMENT_TYPE_CMOD_OPT = 0x20,
+        ELEMENT_TYPE_INTERNAL = 0x21,
+        ELEMENT_TYPE_MAX = 0x22,
+        ELEMENT_TYPE_MODIFIER = 0x40,
+        ELEMENT_TYPE_SENTINEL = 0x41,
+        ELEMENT_TYPE_PINNED = 0x45,
     }
 
     [Flags()]
@@ -160,10 +151,15 @@ namespace System.Reflection
         Invalid = 0x7FFFFFFF,
     }
 
-    internal struct ConstArray
+    internal readonly struct ConstArray
     {
-        public IntPtr Signature { get { return m_constArray; } }
-        public int Length { get { return m_length; } }
+        // Keep the definition in sync with vm\ManagedMdImport.hpp
+        internal readonly int m_length;
+        internal readonly IntPtr m_constArray;
+
+        public IntPtr Signature => m_constArray;
+        public int Length => m_length;
+
         public byte this[int index]
         {
             get
@@ -178,19 +174,15 @@ namespace System.Reflection
             }
         }
 
-        // Keep the definition in sync with vm\ManagedMdImport.hpp
-        internal int m_length;
-        internal IntPtr m_constArray;
     }
 
     internal struct MetadataToken
     {
-        #region Implicit Cast Operators
-        public static implicit operator int(MetadataToken token) { return token.Value; }
-        public static implicit operator MetadataToken(int token) { return new MetadataToken(token); }
-        #endregion
+        public int Value;
 
-        #region Public Static Members
+        public static implicit operator int(MetadataToken token) => token.Value;
+        public static implicit operator MetadataToken(int token) => new MetadataToken(token);
+
         public static bool IsTokenOfType(int token, params MetadataTokenType[] types)
         {
             for (int i = 0; i < types.Length; i++)
@@ -202,43 +194,30 @@ namespace System.Reflection
             return false;
         }
 
-        public static bool IsNullToken(int token)
-        {
-            return (token & 0x00FFFFFF) == 0;
-        }
-        #endregion
+        public static bool IsNullToken(int token) => (token & 0x00FFFFFF) == 0;
 
-        #region Public Data Members
-        public int Value;
-        #endregion
 
-        #region Constructor
         public MetadataToken(int token) { Value = token; }
-        #endregion
 
-        #region Public Members
-        public bool IsGlobalTypeDefToken { get { return (Value == 0x02000001); } }
-        public MetadataTokenType TokenType { get { return (MetadataTokenType)(Value & 0xFF000000); } }
-        public bool IsTypeRef { get { return TokenType == MetadataTokenType.TypeRef; } }
-        public bool IsTypeDef { get { return TokenType == MetadataTokenType.TypeDef; } }
-        public bool IsFieldDef { get { return TokenType == MetadataTokenType.FieldDef; } }
-        public bool IsMethodDef { get { return TokenType == MetadataTokenType.MethodDef; } }
-        public bool IsMemberRef { get { return TokenType == MetadataTokenType.MemberRef; } }
-        public bool IsEvent { get { return TokenType == MetadataTokenType.Event; } }
-        public bool IsProperty { get { return TokenType == MetadataTokenType.Property; } }
-        public bool IsParamDef { get { return TokenType == MetadataTokenType.ParamDef; } }
-        public bool IsTypeSpec { get { return TokenType == MetadataTokenType.TypeSpec; } }
-        public bool IsMethodSpec { get { return TokenType == MetadataTokenType.MethodSpec; } }
-        public bool IsString { get { return TokenType == MetadataTokenType.String; } }
-        public bool IsSignature { get { return TokenType == MetadataTokenType.Signature; } }
-        public bool IsModule { get { return TokenType == MetadataTokenType.Module; } }
-        public bool IsAssembly { get { return TokenType == MetadataTokenType.Assembly; } }
-        public bool IsGenericPar { get { return TokenType == MetadataTokenType.GenericPar; } }
-        #endregion
+        public bool IsGlobalTypeDefToken => (Value == 0x02000001);
+        public MetadataTokenType TokenType => (MetadataTokenType)(Value & 0xFF000000);
+        public bool IsTypeRef => TokenType == MetadataTokenType.TypeRef;
+        public bool IsTypeDef => TokenType == MetadataTokenType.TypeDef;
+        public bool IsFieldDef => TokenType == MetadataTokenType.FieldDef;
+        public bool IsMethodDef => TokenType == MetadataTokenType.MethodDef;
+        public bool IsMemberRef => TokenType == MetadataTokenType.MemberRef;
+        public bool IsEvent => TokenType == MetadataTokenType.Event;
+        public bool IsProperty => TokenType == MetadataTokenType.Property;
+        public bool IsParamDef => TokenType == MetadataTokenType.ParamDef;
+        public bool IsTypeSpec => TokenType == MetadataTokenType.TypeSpec;
+        public bool IsMethodSpec => TokenType == MetadataTokenType.MethodSpec;
+        public bool IsString => TokenType == MetadataTokenType.String;
+        public bool IsSignature => TokenType == MetadataTokenType.Signature;
+        public bool IsModule => TokenType == MetadataTokenType.Module;
+        public bool IsAssembly => TokenType == MetadataTokenType.Assembly;
+        public bool IsGenericPar => TokenType == MetadataTokenType.GenericPar;
 
-        #region Object Overrides
-        public override string ToString() { return string.Format(CultureInfo.InvariantCulture, "0x{0:x8}", Value); }
-        #endregion
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, "0x{0:x8}", Value);
     }
 
     internal unsafe struct MetadataEnumResult
@@ -270,12 +249,10 @@ namespace System.Reflection
         }
     }
 
-    internal struct MetadataImport
+    internal readonly struct MetadataImport
     {
-        #region Private Data Members
-        private IntPtr m_metadataImport2;
-        private object m_keepalive;
-        #endregion
+        private readonly IntPtr m_metadataImport2;
+        private readonly object m_keepalive;
 
         #region Override methods from Object
         internal static readonly MetadataImport EmptyImport = new MetadataImport((IntPtr)0, null);
@@ -338,39 +315,39 @@ namespace System.Reflection
 
         #region FCalls
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern unsafe void _Enum(IntPtr scope, int type, int parent, out MetadataEnumResult result);
+        private static extern void _Enum(IntPtr scope, int type, int parent, out MetadataEnumResult result);
 
-        public unsafe void Enum(MetadataTokenType type, int parent, out MetadataEnumResult result)
+        public void Enum(MetadataTokenType type, int parent, out MetadataEnumResult result)
         {
             _Enum(m_metadataImport2, (int)type, parent, out result);
         }
 
-        public unsafe void EnumNestedTypes(int mdTypeDef, out MetadataEnumResult result)
+        public void EnumNestedTypes(int mdTypeDef, out MetadataEnumResult result)
         {
             Enum(MetadataTokenType.TypeDef, mdTypeDef, out result);
         }
 
-        public unsafe void EnumCustomAttributes(int mdToken, out MetadataEnumResult result)
+        public void EnumCustomAttributes(int mdToken, out MetadataEnumResult result)
         {
             Enum(MetadataTokenType.CustomAttribute, mdToken, out result);
         }
 
-        public unsafe void EnumParams(int mdMethodDef, out MetadataEnumResult result)
+        public void EnumParams(int mdMethodDef, out MetadataEnumResult result)
         {
             Enum(MetadataTokenType.ParamDef, mdMethodDef, out result);
         }
 
-        public unsafe void EnumFields(int mdTypeDef, out MetadataEnumResult result)
+        public void EnumFields(int mdTypeDef, out MetadataEnumResult result)
         {
             Enum(MetadataTokenType.FieldDef, mdTypeDef, out result);
         }
 
-        public unsafe void EnumProperties(int mdTypeDef, out MetadataEnumResult result)
+        public void EnumProperties(int mdTypeDef, out MetadataEnumResult result)
         {
             Enum(MetadataTokenType.Property, mdTypeDef, out result);
         }
 
-        public unsafe void EnumEvents(int mdTypeDef, out MetadataEnumResult result)
+        public void EnumEvents(int mdTypeDef, out MetadataEnumResult result)
         {
             Enum(MetadataTokenType.Event, mdTypeDef, out result);
         }
@@ -394,20 +371,9 @@ namespace System.Reflection
             int length;
             _GetUserString(m_metadataImport2, mdToken, &name, out length);
 
-            if (name == null)
-                return null;
-
-            char[] c = new char[length];
-            for (int i = 0; i < c.Length; i++)
-            {
-#if ALIGN_ACCESS
-                c[i] = (char)Marshal.ReadInt16( (IntPtr) (((char*)name) + i) );
-#else
-                c[i] = ((char*)name)[i];
-#endif
-            }
-
-            return new string(c);
+            return name != null ?
+                new string((char*)name, 0, length) :
+                null;
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

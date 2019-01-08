@@ -213,11 +213,11 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* 09F7AAE2-07DF-4433-B8C5-BA864CCABDA3 */
-    0x9f7aae2,
-    0x7df,
-    0x4433,
-    {0xb8, 0xc5, 0xba, 0x86, 0x4c, 0xca, 0xbd, 0xa3}
+SELECTANY const GUID JITEEVersionIdentifier = { /* 8903fe7b-a82a-4e2e-b691-f58430b485d1 */
+    0x8903fe7b,
+    0xa82a,
+    0x4e2e,
+    {0xb6, 0x91, 0xf5, 0x84, 0x30, 0xb4, 0x85, 0xd1}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -396,7 +396,10 @@ enum CorInfoHelpFunc
     CORINFO_HELP_NEW_CROSSCONTEXT,  // cross context new object
     CORINFO_HELP_NEWFAST,
     CORINFO_HELP_NEWSFAST,          // allocator for small, non-finalizer, non-array object
+    CORINFO_HELP_NEWSFAST_FINALIZE, // allocator for small, finalizable, non-array object
     CORINFO_HELP_NEWSFAST_ALIGN8,   // allocator for small, non-finalizer, non-array object, 8 byte aligned
+    CORINFO_HELP_NEWSFAST_ALIGN8_VC,// allocator for small, value class, 8 byte aligned
+    CORINFO_HELP_NEWSFAST_ALIGN8_FINALIZE, // allocator for small, finalizable, non-array object, 8 byte aligned
     CORINFO_HELP_NEW_MDARR,         // multi-dim array helper (with or without lower bounds - dimensions passed in as vararg)
     CORINFO_HELP_NEW_MDARR_NONVARARG,// multi-dim array helper (with or without lower bounds - dimensions passed in as unmanaged array)
     CORINFO_HELP_NEWARR_1_DIRECT,   // helper for any one dimensional array creation
@@ -2447,7 +2450,8 @@ public:
     // returns the "NEW" helper optimized for "newCls."
     virtual CorInfoHelpFunc getNewHelper(
             CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CORINFO_METHOD_HANDLE    callerHandle
+            CORINFO_METHOD_HANDLE    callerHandle,
+            bool *                   pHasSideEffects = NULL /* OUT */
             ) = 0;
 
     // returns the newArr (1-Dim array) helper optimized for "arrayCls."
@@ -2894,12 +2898,14 @@ public:
             ) = 0;
 
     // Return method name as in metadata, or nullptr if there is none,
-    // and optionally return the class and namespace names as in metadata.
+    // and optionally return the class, enclosing class, and namespace names 
+    // as in metadata.
     // Suitable for non-debugging use.
     virtual const char* getMethodNameFromMetadata(
-            CORINFO_METHOD_HANDLE       ftn,            /* IN */
-            const char                **className,      /* OUT */
-            const char                **namespaceName   /* OUT */
+            CORINFO_METHOD_HANDLE       ftn,                  /* IN */
+            const char                **className,            /* OUT */
+            const char                **namespaceName,        /* OUT */
+            const char                **enclosingClassName   /* OUT */
             ) = 0;
 
     // this function is for debugging only.  It returns a value that

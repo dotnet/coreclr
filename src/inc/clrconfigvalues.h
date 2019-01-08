@@ -306,6 +306,7 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCCompactRatio, W("GCCompactRatio"), 0, "Sp
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCPollType, W("GCPollType"), "")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCRetainVM, W("GCRetainVM"), 0, "When set we put the segments that should be deleted on a standby list (instead of releasing them back to the OS) which will be considered to satisfy new segment requests (note that the same thing can be specified via API which is the supported way)")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCSegmentSize, W("GCSegmentSize"), "Specifies the managed heap segment size")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCLOHThreshold, W("GCLOHThreshold"), 0, "Specifies the size that will make objects go on LOH")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCLOHCompact, W("GCLOHCompact"), "Specifies the LOH compaction mode")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_gcAllowVeryLargeObjects, W("gcAllowVeryLargeObjects"), 1, "Allow allocation of 2GB+ objects on GC heap")
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_GCStress, W("GCStress"), 0, "Trigger GCs at regular intervals", CLRConfig::REGUTIL_default)
@@ -319,8 +320,12 @@ RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_HeapVerify, W("HeapVerify"), 
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_SetupGcCoverage, W("SetupGcCoverage"), "This doesn't appear to be a config flag", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCNumaAware, W("GCNumaAware"), 1, "Specifies if to enable GC NUMA aware")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCCpuGroup, W("GCCpuGroup"), 0, "Specifies if to enable GC to support CPU groups")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCHeapCount, W("GCHeapCount"), 0, "")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCNoAffinitize, W("GCNoAffinitize"), 0, "")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCHeapCount, W("GCHeapCount"), 0, "")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCNoAffinitize, W("GCNoAffinitize"), 0, "")
+// this config is only in effect if the process is not running in multiple CPU groups.
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapAffinitizeMask, W("GCHeapAffinitizeMask"), "Specifies processor mask for Server GC threads")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCProvModeStress, W("GCProvModeStress"), 0, "Stress the provisional modes")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCHighMemPercent, W("GCHighMemPercent"), 0, "Specifies the percent for GC to consider as high memory")
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_GCName, W("GCName"), "")
 
 ///
@@ -443,12 +448,7 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_InterpreterFallback, W("InterpreterFallback"),
 ///
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_APIThreadStress, W("APIThreadStress"), "Used to test Loader for race conditions")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_ForceLog, W("ForceLog"), "Fusion flag to enforce assembly binding log. Heavily used and documented in MSDN and BLOGS.")
-RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_LoaderOptimization, W("LoaderOptimization"), "Controls code sharing behavior")
 RETAIL_CONFIG_STRING_INFO(INTERNAL_CoreClrBinderLog, W("CoreClrBinderLog"), "Debug flag that enabled detailed log for new binder (similar to stress logging).")
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_DisableIJWVersionCheck, W("DisableIJWVersionCheck"), 0, "Don't perform the new version check that prevents unsupported IJW in-proc SxS.")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_EnableFastBindClosure, W("EnableFastBindClosure"), 0, "If set to >0 the binder uses CFastAssemblyBindingClosure instances")
-RETAIL_CONFIG_DWORD_INFO(INTERNAL_DisableFXClosureWalk, W("DisableFXClosureWalk"), 0, "Disable full closure walks even in the presence of FX binding redirects")
-CONFIG_DWORD_INFO(INTERNAL_TagAssemblyNames, W("TagAssemblyNames"), 0, "Enable CAssemblyName::_tag field for more convenient debugging.")
 RETAIL_CONFIG_STRING_INFO(INTERNAL_WinMDPath, W("WinMDPath"), "Path for Windows WinMD files")
 
 ///
@@ -527,15 +527,12 @@ CONFIG_DWORD_INFO_EX(INTERNAL_NGenOnlyOneMethod, W("NGenOnlyOneMethod"), 0, "", 
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenOrder, W("NgenOrder"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_partialNGenStress, W("partialNGenStress"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_ZapDoNothing, W("ZapDoNothing"), 0, "", CLRConfig::REGUTIL_default)
-RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_HardPrejitEnabled, W("HardPrejitEnabled"), "")
-RETAIL_CONFIG_DWORD_INFO_EX(INTERNAL_EnableHardbinding, W("EnableHardbinding"), 0, "Enables the use of hardbinding", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureMask, W("NgenForceFailureMask"), -1, "Bitmask used to control which locations will check and raise the failure (defaults to bits: -1)", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureCount, W("NgenForceFailureCount"), 0, "If set to >0 and we have IBC data we will force a failure after we reference an IBC data item <value> times", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureKind, W("NgenForceFailureKind"), 1, "If set to 1, We will throw a TypeLoad exception; If set to 2, We will cause an A/V", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_NGenEnableCreatePdb, W("NGenEnableCreatePdb"), 0, "If set to >0 ngen.exe displays help on, recognizes createpdb in the command line")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_NGenSimulateDiskFull, W("NGenSimulateDiskFull"), 0, "If set to 1, ngen will throw a Disk full exception in ZapWriter.cpp:Save()")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_PartialNGen, W("PartialNGen"), -1, "Generate partial NGen images")
-RETAIL_CONFIG_DWORD_INFO(INTERNAL_NgenAllowMscorlibSoftbind, W("NgenAllowMscorlibSoftbind"), 0, "Disable forced hard-binding to mscorlib")
 
 CONFIG_DWORD_INFO(INTERNAL_NoASLRForNgen, W("NoASLRForNgen"), 0, "Turn off IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE bit in generated ngen images. Makes nidump output repeatable from run to run.")
 
@@ -816,7 +813,6 @@ RETAIL_CONFIG_STRING_INFO_DIRECT_ACCESS(UNSUPPORTED_ShimDatabaseVersion, W("Shim
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_SleepOnExit, W("SleepOnExit"), 0, "Used for lrak detection. I'd say deprecated by umdh.")
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_StubLinkerUnwindInfoVerificationOn, W("StubLinkerUnwindInfoVerificationOn"), "")
 RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_SuccessExit, W("SuccessExit"), 0, "", CLRConfig::REGUTIL_default)
-CONFIG_DWORD_INFO(INTERNAL_SupressAllowUntrustedCallerChecks, W("SupressAllowUntrustedCallerChecks"), 0, "Disable APTCA")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_SymbolReadingPolicy, W("SymbolReadingPolicy"), "Specifies when PDBs may be read")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TestDataConsistency, W("TestDataConsistency"), FALSE, "Allows ensuring the left side is not holding locks (and may thus be in an inconsistent state) when inspection occurs")
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_ThreadGuardPages, W("ThreadGuardPages"), 0, "", CLRConfig::REGUTIL_default)

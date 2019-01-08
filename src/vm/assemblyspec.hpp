@@ -216,15 +216,12 @@ class AssemblySpec  : public BaseAssemblySpec
         BOOL fThrowOnFileNotFound,
         CoreBindResult* pBindResult,
         BOOL fNgenExplicitBind = FALSE, 
-        BOOL fExplicitBindToNativeImage = FALSE,
-        StackCrawlMark *pCallerStackMark  = NULL );
+        BOOL fExplicitBindToNativeImage = FALSE);
 
     Assembly *LoadAssembly(FileLoadLevel targetLevel, 
-                           BOOL fThrowOnFileNotFound = TRUE,
-                           StackCrawlMark *pCallerStackMark = NULL);
+                           BOOL fThrowOnFileNotFound = TRUE);
     DomainAssembly *LoadDomainAssembly(FileLoadLevel targetLevel,
-                                       BOOL fThrowOnFileNotFound = TRUE,
-                                       StackCrawlMark *pCallerStackMark = NULL);
+                                       BOOL fThrowOnFileNotFound = TRUE);
 
     //****************************************************************************************
     //
@@ -244,7 +241,7 @@ class AssemblySpec  : public BaseAssemblySpec
     void MatchRetargetedPublicKeys(Assembly *pAssembly);
   public:
     void MatchPublicKeys(Assembly *pAssembly);
-    PEAssembly *ResolveAssemblyFile(AppDomain *pAppDomain, BOOL fPreBind);
+    PEAssembly *ResolveAssemblyFile(AppDomain *pAppDomain);
 
     AppDomain *GetAppDomain() 
     {

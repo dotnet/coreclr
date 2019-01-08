@@ -674,9 +674,7 @@ namespace System
                 return true;
             }
 
-            Array o = other as Array;
-
-            if (o == null || o.Length != this.Length)
+            if (!(other is Array o) || o.Length != this.Length)
             {
                 return false;
             }
@@ -819,8 +817,7 @@ namespace System
 
             int lo = index;
             int hi = index + length - 1;
-            object[] objArray = array as object[];
-            if (objArray != null)
+            if (array is object[] objArray)
             {
                 while (lo <= hi)
                 {
@@ -1341,14 +1338,34 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (startIndex < 0 || startIndex > array.Length)
+            if ((uint)startIndex > (uint)array.Length)
             {
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
-            if (count < 0 || count > array.Length - startIndex)
+            if ((uint)count > (uint)(array.Length - startIndex))
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
+            }
+
+            if (typeof(T) == typeof(byte))
+            {
+                int result = SpanHelpers.IndexOf(
+                    ref Unsafe.Add(ref array.GetRawSzArrayData(), startIndex),
+                    Unsafe.As<T, byte>(ref value),
+                    count);
+
+                return (result >= 0 ? startIndex : 0) + result;
+            }
+
+            if (typeof(T) == typeof(char))
+            {
+                int result = SpanHelpers.IndexOf(
+                    ref Unsafe.Add(ref Unsafe.As<byte, char>(ref array.GetRawSzArrayData()), startIndex),
+                    Unsafe.As<T, char>(ref value),
+                    count);
+
+                return (result >= 0 ? startIndex : 0) + result;
             }
 
             return EqualityComparer<T>.Default.IndexOf(array, value, startIndex, count);
@@ -1499,7 +1516,7 @@ namespace System
             }
 
             // Make sure we're not out of range            
-            if (startIndex < 0 || startIndex >= array.Length)
+            if ((uint)startIndex >= (uint)array.Length)
             {
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
@@ -1508,6 +1525,28 @@ namespace System
             if (count < 0 || startIndex - count + 1 < 0)
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
+            }
+
+            if (typeof(T) == typeof(byte))
+            {
+                int endIndex = startIndex - count + 1;
+                int result = SpanHelpers.LastIndexOf(
+                    ref Unsafe.Add(ref array.GetRawSzArrayData(), endIndex),
+                    Unsafe.As<T, byte>(ref value),
+                    count);
+
+                return (result >= 0 ? endIndex : 0) + result;
+            }
+
+            if (typeof(T) == typeof(char))
+            {
+                int endIndex = startIndex - count + 1;
+                int result = SpanHelpers.LastIndexOf(
+                    ref Unsafe.Add(ref Unsafe.As<byte, char>(ref array.GetRawSzArrayData()), endIndex),
+                    Unsafe.As<T, char>(ref value),
+                    count);
+
+                return (result >= 0 ? endIndex : 0) + result;
             }
 
             return EqualityComparer<T>.Default.LastIndexOf(array, value, startIndex, count);
@@ -1557,8 +1596,7 @@ namespace System
             if (r)
                 return;
 
-            object[] objArray = array as object[];
-            if (objArray != null)
+            if (array is object[] objArray)
             {
                 Array.Reverse<object>(objArray, index, length);
             }
@@ -2623,16 +2661,15 @@ namespace System
             public bool MoveNext()
             {
                 int index = _index + 1;
-                bool result = index < _array.Length;
-                
-                if (result)
+                if ((uint)index >= (uint)_array.Length)
                 {
-                    _index = index;
+                    _index = _array.Length;
+                    return false;
                 }
-
-                return result;
+                _index = index;
+                return true;
             }
-    
+
             public T Current
             {
                 get

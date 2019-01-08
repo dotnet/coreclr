@@ -15,8 +15,9 @@ using System.Collections.Generic;
 using System.Text;
 using System.Security;
 using System.Runtime.CompilerServices;
-
 using System.Diagnostics.Tracing;
+
+using Internal.Runtime.CompilerServices;
 
 namespace System.Threading.Tasks
 {
@@ -31,6 +32,8 @@ namespace System.Threading.Tasks
         internal bool TasksSetActivityIds;        // This keyword is set
         internal bool Debug;
         private bool DebugActivityId;
+
+        private const int DefaultAppDomainID = 1;
 
         /// <summary>
         /// Get callbacks when the ETW sends us commands`
@@ -218,7 +221,7 @@ namespace System.Threading.Tasks
          Level = EventLevel.Informational, Keywords = Keywords.TaskTransfer | Keywords.Tasks)]
         public void TaskScheduled(
             int OriginatingTaskSchedulerID, int OriginatingTaskID,  // PFX_COMMON_EVENT_HEADER
-            int TaskID, int CreatingTaskID, int TaskCreationOptions, int appDomain)
+            int TaskID, int CreatingTaskID, int TaskCreationOptions, int appDomain = DefaultAppDomainID)
         {
             // IsEnabled() call is an inlined quick check that makes this very fast when provider is off 
             if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.TaskTransfer | Keywords.Tasks))
@@ -320,9 +323,10 @@ namespace System.Threading.Tasks
         /// <param name="OriginatingTaskID">The task ID.</param>
         /// <param name="TaskID">The task ID.</param>
         /// <param name="Behavior">Configured behavior for the wait.</param>
-        /// <param name="ContinueWithTaskID">If known, if 'TaskID' has a 'continueWith' task, mention give its ID here.  
-        ///      0 means unknown.   This allows better visualization of the common sequential chaining case.</param>
-        /// </summary>
+        /// <param name="ContinueWithTaskID">
+        /// If known, if 'TaskID' has a 'continueWith' task, mention give its ID here.  
+        /// 0 means unknown.   This allows better visualization of the common sequential chaining case.
+        /// </param>
         [Event(TASKWAITBEGIN_ID, Version = 3, Task = TplEtwProvider.Tasks.TaskWait, Opcode = EventOpcode.Send,
          Level = EventLevel.Informational, Keywords = Keywords.TaskTransfer | Keywords.Tasks)]
         public void TaskWaitBegin(
@@ -383,8 +387,6 @@ namespace System.Threading.Tasks
         /// <summary>
         /// Fired when the work (method) associated with a TaskWaitEnd completes
         /// </summary>
-        /// <param name="OriginatingTaskSchedulerID">The scheduler ID.</param>
-        /// <param name="OriginatingTaskID">The task ID.</param>
         /// <param name="TaskID">The task ID.</param>
         [Event(TASKWAITCONTINUATIONCOMPLETE_ID,
          Level = EventLevel.Verbose, Keywords = Keywords.TaskStops)]
@@ -398,8 +400,6 @@ namespace System.Threading.Tasks
         /// <summary>
         /// Fired when the work (method) associated with a TaskWaitEnd completes
         /// </summary>
-        /// <param name="OriginatingTaskSchedulerID">The scheduler ID.</param>
-        /// <param name="OriginatingTaskID">The task ID.</param>
         /// <param name="TaskID">The task ID.</param>
         [Event(TASKWAITCONTINUATIONSTARTED_ID,
          Level = EventLevel.Verbose, Keywords = Keywords.TaskStops)]
@@ -415,7 +415,6 @@ namespace System.Threading.Tasks
         /// </summary>
         /// <param name="OriginatingTaskSchedulerID">The scheduler ID.</param>
         /// <param name="OriginatingTaskID">The task ID.</param>
-        /// <param name="TaskID">The activityId for the continuation.</param>
         [Event(AWAITTASKCONTINUATIONSCHEDULED_ID, Task = Tasks.AwaitTaskContinuationScheduled, Opcode = EventOpcode.Send,
          Level = EventLevel.Informational, Keywords = Keywords.TaskTransfer | Keywords.Tasks)]
         public void AwaitTaskContinuationScheduled(
@@ -518,7 +517,7 @@ namespace System.Threading.Tasks
         }
 
         [NonEvent]
-        public unsafe void RunningContinuation(int TaskID, object Object) { RunningContinuation(TaskID, (long)*((void**)JitHelpers.UnsafeCastToStackPointer(ref Object))); }
+        public unsafe void RunningContinuation(int TaskID, object Object) { RunningContinuation(TaskID, (long)*((void**)Unsafe.AsPointer(ref Object))); }
         [Event(20, Keywords = Keywords.Debug)]
         private void RunningContinuation(int TaskID, long Object)
         {
@@ -527,7 +526,7 @@ namespace System.Threading.Tasks
         }
 
         [NonEvent]
-        public unsafe void RunningContinuationList(int TaskID, int Index, object Object) { RunningContinuationList(TaskID, Index, (long)*((void**)JitHelpers.UnsafeCastToStackPointer(ref Object))); }
+        public unsafe void RunningContinuationList(int TaskID, int Index, object Object) { RunningContinuationList(TaskID, Index, (long)*((void**)Unsafe.AsPointer(ref Object))); }
 
         [Event(21, Keywords = Keywords.Debug)]
         public void RunningContinuationList(int TaskID, int Index, long Object)
@@ -586,9 +585,8 @@ namespace System.Threading.Tasks
             // using the last 8 bytes  as the provider GUID for this provider.  
             // These were generated by CreateGuid, and are reasonably random (and thus unlikley to collide
             uint pid = EventSource.s_currentPid;
-            int appDomainID = System.Threading.Thread.GetDomainID();
             return new Guid(taskID,
-                            (short)appDomainID, (short)(appDomainID >> 16),
+                            (short)DefaultAppDomainID, (short)(DefaultAppDomainID >> 16),
                             (byte)pid, (byte)(pid >> 8), (byte)(pid >> 16), (byte)(pid >> 24),
                             0xff, 0xdc, 0xd7, 0xb5);
         }

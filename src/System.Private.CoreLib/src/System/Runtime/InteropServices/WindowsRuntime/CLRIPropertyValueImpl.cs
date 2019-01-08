@@ -9,6 +9,8 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security;
 
+using Internal.Runtime.CompilerServices;
+
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     internal class CLRIPropertyValueImpl : IPropertyValue
@@ -308,8 +310,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
 
             // Make sure we have an array to begin with
-            Array dataArray = _data as Array;
-            if (dataArray == null)
+            if (!(_data is Array dataArray))
             {
                 throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, this.Type, typeof (T).MakeArrayType().Name), HResults.TYPE_E_TYPEMISMATCH);
             }
@@ -398,8 +399,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             // If the property type is IInspectable, and we have a nested IPropertyValue, then we need
             // to pass along the request to coerce the value.
-            IPropertyValue ipv = value as IPropertyValue;
-            if (type == PropertyType.Inspectable && ipv != null)
+            if (type == PropertyType.Inspectable && value is IPropertyValue ipv)
             {
                 if (typeof(T) == typeof(byte))
                 {
@@ -477,7 +477,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return false;
         }
 
-        // Unbox the data stored in the property value to a structurally equivilent type
+        // Unbox the data stored in the property value to a structurally equivalent type
         private unsafe T Unbox<T>(Type expectedBoxedType) where T : struct
         {
             Debug.Assert(expectedBoxedType != null);
@@ -490,9 +490,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             T unboxed = new T();
 
-            fixed (byte* pData = &JitHelpers.GetPinningHelper(_data).m_data)
+            fixed (byte* pData = &_data.GetRawData())
             {
-                byte* pUnboxed = (byte*)JitHelpers.UnsafeCastToStackPointer(ref unboxed);
+                byte* pUnboxed = (byte*)Unsafe.AsPointer(ref unboxed);
                 Buffer.Memcpy(pUnboxed, pData, Marshal.SizeOf(unboxed));
             }
 
@@ -505,8 +505,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Assert(expectedArrayElementType != null);
             Debug.Assert(Marshal.SizeOf(expectedArrayElementType) == Marshal.SizeOf(typeof(T)));
 
-            Array dataArray = _data as Array;
-            if (dataArray == null || _data.GetType().GetElementType() != expectedArrayElementType)
+            if (!(_data is Array dataArray) || _data.GetType().GetElementType() != expectedArrayElementType)
             {
                 throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, _data.GetType(), expectedArrayElementType.MakeArrayType().Name), HResults.TYPE_E_TYPEMISMATCH);
             }
@@ -515,15 +514,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (converted.Length > 0)
             {
-                fixed (byte* dataPin = &JitHelpers.GetPinningHelper(dataArray).m_data)
+                fixed (byte* dataPin = &dataArray.GetRawData())
+                fixed (byte* convertedPin = &converted.GetRawData())
                 {
-                    fixed (byte* convertedPin = &JitHelpers.GetPinningHelper(converted).m_data)
-                    {
-                        byte* pData = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(dataArray, 0);
-                        byte* pConverted = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(converted, 0);
+                    byte* pData = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(dataArray, 0);
+                    byte* pConverted = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(converted, 0);
 
-                        Buffer.Memcpy(pConverted, pData, checked(Marshal.SizeOf(typeof(T)) * converted.Length));
-                    }
+                    Buffer.Memcpy(pConverted, pData, checked(Marshal.SizeOf(typeof(T)) * converted.Length));
                 }
             }
 

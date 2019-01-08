@@ -37,6 +37,18 @@ namespace System.Threading
         public static bool enableWorkerTracking;
 
         public static readonly ThreadPoolWorkQueue workQueue = new ThreadPoolWorkQueue();
+
+        /// <summary>Shim used to invoke <see cref="IAsyncStateMachineBox.MoveNext"/> of the supplied <see cref="IAsyncStateMachineBox"/>.</summary>
+        internal static readonly Action<object> s_invokeAsyncStateMachineBox = state =>
+        {
+            if (!(state is IAsyncStateMachineBox box))
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                return;
+            }
+
+            box.MoveNext();
+        };
     }
 
     [StructLayout(LayoutKind.Sequential)] // enforce layout so that padding reduces false sharing
@@ -390,9 +402,16 @@ namespace System.Threading
             loggingEnabled = FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool | FrameworkEventSource.Keywords.ThreadTransfer);
         }
 
-        public ThreadPoolWorkQueueThreadLocals EnsureCurrentThreadHasQueue() =>
-            ThreadPoolWorkQueueThreadLocals.threadLocals ??
-            (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
+        public ThreadPoolWorkQueueThreadLocals GetOrCreateThreadLocals() =>
+            ThreadPoolWorkQueueThreadLocals.threadLocals ?? CreateThreadLocals();
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private ThreadPoolWorkQueueThreadLocals CreateThreadLocals()
+        {
+            Debug.Assert(ThreadPoolWorkQueueThreadLocals.threadLocals == null);
+
+            return (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
+        }
 
         internal void EnsureThreadRequested()
         {
@@ -533,7 +552,7 @@ namespace System.Threading
                 //
                 // Use operate on workQueue local to try block so it can be enregistered 
                 ThreadPoolWorkQueue workQueue = outerWorkQueue;
-                ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
+                ThreadPoolWorkQueueThreadLocals tl = workQueue.GetOrCreateThreadLocals();
                 Thread currentThread = tl.currentThread;
 
                 // Start on clean ExecutionContext and SynchronizationContext
@@ -904,12 +923,6 @@ namespace System.Threading
     public delegate void WaitCallback(object state);
 
     public delegate void WaitOrTimerCallback(object state, bool timedOut);  // signaled or timed out
-
-    /// <summary>Represents a work item that can be executed by the ThreadPool.</summary>
-    public interface IThreadPoolWorkItem
-    {
-        void Execute();
-    }
 
     //
     // This type is necessary because VS 2010's debugger looks for a method named _ThreadPoolWaitCallbacck.PerformWaitCallback
@@ -1326,12 +1339,29 @@ namespace System.Threading
             return true;
         }
 
-        // TODO: https://github.com/dotnet/corefx/issues/32547. Make public.
-        internal static bool UnsafeQueueUserWorkItem<TState>(Action<TState> callBack, TState state, bool preferLocal)
+        public static bool UnsafeQueueUserWorkItem<TState>(Action<TState> callBack, TState state, bool preferLocal)
         {
             if (callBack == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
+            }
+
+            // If the callback is the runtime-provided invocation of an IAsyncStateMachineBox,
+            // then we can queue the Task state directly to the ThreadPool instead of 
+            // wrapping it in a QueueUserWorkItemCallback.
+            //
+            // This occurs when user code queues its provided continuation to the ThreadPool;
+            // internally we call UnsafeQueueUserWorkItemInternal directly for Tasks.
+            if (ReferenceEquals(callBack, ThreadPoolGlobals.s_invokeAsyncStateMachineBox))
+            {
+                if (!(state is IAsyncStateMachineBox))
+                {
+                    // The provided state must be the internal IAsyncStateMachineBox (Task) type
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.state);
+                }
+
+                UnsafeQueueUserWorkItemInternal((object)state, preferLocal);
+                return true;
             }
 
             EnsureVMInitialized();

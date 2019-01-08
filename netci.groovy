@@ -2266,7 +2266,18 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "tests\\scripts\\run-gc-reliability-framework.cmd ${arch} ${configuration}"
                         }
                         else {
-                            buildCommands += "tests\\runtest.cmd ${runtestArguments}"
+                            def buildCommandsStr = "call tests\\runtest.cmd ${runtestArguments}\r\n"
+                            if (!isBuildOnly) {
+                                // If we ran the tests, collect the test logs collected by xunit. We want to do this even if the tests fail, so we
+                                // must do it in the same batch file as the test run.
+
+                                buildCommandsStr += "set saved_errorlevel=%errorlevel%\r\n"
+                                buildCommandsStr += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}\\Reports', '.\\bin\\tests\\testReports.zip')\"\r\n";
+                                buildCommandsStr += "exit /b %saved_errorlevel%\r\n"
+
+                                Utilities.addArchival(newJob, "bin/tests/testReports.zip", "")
+                            }
+                            buildCommands += buildCommandsStr
                         }
                     } // end if (!isBuildOnly)
 
@@ -2280,11 +2291,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "build.cmd ${lowerConfiguration} arm64 linuxmscorlib"
                         }
 
-                        // Zip up the tests directory so that we don't use so much space/time copying
-                        // 10s of thousands of files around.
-                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
-
                         if (!isJitStressScenario(scenario)) {
+                            // Zip up the tests directory so that we don't use so much space/time copying
+                            // 10s of thousands of files around.
+                            buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
+
                             // For Windows, pull full test results and test drops for x86/x64.
                             // No need to pull for stress mode scenarios (downstream builds use the default scenario)
                             Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip", "bin/Product/**/.nuget/**")
@@ -2508,11 +2519,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // Add some useful information to the log file. Ignore return codes.
                     buildCommands += "uname -a || true"
 
-                    def additionalOpts = ""
-                    if (architecture == 'arm') {
-                        additionalOpts = "-e CAC_ROOTFS_DIR=/crossrootfs/x86"
-                    }
-
                     // Cross build the Ubuntu/arm product using docker with a docker image that contains the correct
                     // Ubuntu cross-compilation toolset (running on a Ubuntu x64 host).
                     // For CoreFX testing, we only need the product build; we don't need to generate the layouts. The product
@@ -2520,7 +2526,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // ZIP up the generated CoreFX runtime and tests.
 
                     def dockerImage = getDockerImageName(architecture, os, true)
-                    def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${additionalOpts} ${dockerImage} "
+                    def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${dockerImage} "
 
                     buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross"
 
@@ -3136,12 +3142,18 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                 // Run runtest.cmd
                 // Do not run generate layout. It will delete the correct CORE_ROOT, and we do not have a correct product
                 // dir to copy from.
-                def runtestCommand = "%WORKSPACE%\\tests\\runtest.cmd ${architecture} ${configuration} skipgeneratelayout"
+                def runtestCommand = "call %WORKSPACE%\\tests\\runtest.cmd ${architecture} ${configuration} skipgeneratelayout"
 
                 addCommand("${runtestCommand}")
+                addCommand("set saved_errorlevel=%errorlevel%")
 
-                // Use the smarty errorlevel as the script errorlevel.
-                addCommand("exit /b %errorlevel%")
+                // Collect the test logs collected by xunit. Ignore errors here. We want to collect these even if the run
+                // failed for some reason, so it needs to be in this batch file.
+
+                addCommand("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Reports', '.\\bin\\tests\\testReports.zip')\"");
+
+                // Use the runtest.cmd errorlevel as the script errorlevel.
+                addCommand("exit /b %saved_errorlevel%")
 
                 batchFile(buildCommands)
             } // non-corefx testing
@@ -3149,6 +3161,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
     } // job
 
     if (!isCoreFxScenario(scenario)) {
+        Utilities.addArchival(newJob, "bin/tests/testReports.zip", "")
         Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml', true)
     }
 

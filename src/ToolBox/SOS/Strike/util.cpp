@@ -1177,16 +1177,6 @@ void GetStaticFieldPTR(DWORD_PTR* pOutPtr, DacpDomainLocalModuleData* pDLMD, Dac
     }
     else
     {
-        if (pFlags && pMTD->bIsShared)
-        {
-            BYTE flags;
-            DWORD_PTR pTargetFlags = (DWORD_PTR) pDLMD->pClassData + RidFromToken(pMTD->cl) - 1;            
-            move_xp (flags, pTargetFlags);
-
-            *pFlags = flags;
-        }
-               
-        
         *pOutPtr = dwTmp;            
     }
     return;
@@ -1314,7 +1304,7 @@ void DisplaySharedStatic(ULONG64 dwModuleDomainID, DacpMethodTableData* pMT, Dac
     ExtOut(" <<\n");
 }
 
-void DisplayThreadStatic (DacpModuleData* pModule, DacpMethodTableData* pMT, DacpFieldDescData *pFD, BOOL fIsShared)
+void DisplayThreadStatic(DacpModuleData* pModule, DacpMethodTableData* pMT, DacpFieldDescData *pFD)
 {
     SIZE_T dwModuleIndex = (SIZE_T)pModule->dwModuleIndex;
     SIZE_T dwModuleDomainID = (SIZE_T)pModule->dwModuleID;
@@ -1336,31 +1326,6 @@ void DisplayThreadStatic (DacpModuleData* pModule, DacpMethodTableData* pMT, Dac
         if (vThread.osThreadId != 0)
         {   
             CLRDATA_ADDRESS appDomainAddr = vThread.domain;
-
-            // Get the DLM (we need this to check the ClassInit flags).
-            // It's annoying that we have to issue one request for
-            // domain-neutral modules and domain-specific modules.
-            DacpDomainLocalModuleData vDomainLocalModule;                
-            if (fIsShared)
-            {
-                if (g_sos->GetDomainLocalModuleDataFromAppDomain(appDomainAddr, (int)dwModuleDomainID, &vDomainLocalModule) != S_OK)
-                {
-                    // Not initialized, go to next thread
-                    // and continue looping
-                    CurThread = vThread.nextThread;
-                    continue;
-                }
-            }
-            else
-            {
-                if (g_sos->GetDomainLocalModuleDataFromModule(pMT->Module, &vDomainLocalModule) != S_OK)
-                {
-                    // Not initialized, go to next thread
-                    // and continue looping
-                    CurThread = vThread.nextThread;
-                    continue;
-                }
-            }
 
             // Get the TLM
             DacpThreadLocalModuleData vThreadLocalModule;
@@ -1384,17 +1349,6 @@ void DisplayThreadStatic (DacpModuleData* pModule, DacpMethodTableData* pMT, Dac
                 continue;
             }
 
-            Flags = 0;
-            GetDLMFlags(&vDomainLocalModule, pMT, &Flags);
-
-            if ((Flags&1) == 0) 
-            {
-                // Not initialized, go to next thread
-                // and continue looping
-                CurThread = vThread.nextThread;
-                continue;
-            }
-            
             ExtOut(" %x:", vThread.osThreadId);
             DisplayDataMember(pFD, dwTmp, FALSE);               
         }
@@ -1506,8 +1460,6 @@ void DisplayFields(CLRDATA_ADDRESS cdaMT, DacpMethodTableData *pMTD, DacpMethodT
         numInstanceFields = 0;
     }
     
-    BOOL fIsShared = pMTD->bIsShared;
-
     if (pMTD->ParentMethodTable)
     {
         DacpMethodTableData vParentMethTable;
@@ -1555,7 +1507,7 @@ void DisplayFields(CLRDATA_ADDRESS cdaMT, DacpMethodTableData *pMTD, DacpMethodT
         dwAddr = vFieldDesc.NextField;
 
         DWORD offset = vFieldDesc.dwOffset;
-        if(!((vFieldDesc.bIsThreadLocal || fIsShared) && vFieldDesc.bIsStatic))
+        if(!(vFieldDesc.bIsThreadLocal && vFieldDesc.bIsStatic))
         {
             if (!bValueClass)
             {
@@ -1597,10 +1549,7 @@ void DisplayFields(CLRDATA_ADDRESS cdaMT, DacpMethodTableData *pMTD, DacpMethodT
         if (vFieldDesc.bIsStatic && vFieldDesc.bIsThreadLocal)
         {
             numStaticFields ++;
-            if (fIsShared)
-                ExtOut("%8s %" POINTERSIZE "s", "shared", vFieldDesc.bIsThreadLocal ? "TLstatic" : "CLstatic");
-            else
-                ExtOut("%8s ", vFieldDesc.bIsThreadLocal ? "TLstatic" : "CLstatic");
+            ExtOut("%8s ", vFieldDesc.bIsThreadLocal ? "TLstatic" : "CLstatic");
 
             NameForToken_s(TokenFromRid(vFieldDesc.mb, mdtFieldDef), pImport, g_mdName, mdNameLen, false);
             ExtOut(" %S\n", g_mdName);
@@ -1616,7 +1565,7 @@ void DisplayFields(CLRDATA_ADDRESS cdaMT, DacpMethodTableData *pMTD, DacpMethodT
                     DacpModuleData vModule;
                     if (vModule.Request(g_sos,pMTD->Module) == S_OK)
                     {
-                        DisplayThreadStatic(&vModule, pMTD, &vFieldDesc, fIsShared);
+                        DisplayThreadStatic(&vModule, pMTD, &vFieldDesc);
                     }
                 }
             }
@@ -1626,47 +1575,24 @@ void DisplayFields(CLRDATA_ADDRESS cdaMT, DacpMethodTableData *pMTD, DacpMethodT
         {
             numStaticFields ++;
 
-            if (fIsShared)
+            ExtOut("%8s ", "static");
+
+            DacpDomainLocalModuleData vDomainLocalModule;
+
+            // The MethodTable isn't shared, so the module must not be loaded domain neutral.  We can
+            // get the specific DomainLocalModule instance without needing to know the AppDomain in advance.
+            if (g_sos->GetDomainLocalModuleDataFromModule(pMTD->Module, &vDomainLocalModule) != S_OK)
             {
-                ExtOut("%8s %" POINTERSIZE "s", "shared", "static");
-
-                NameForToken_s(TokenFromRid(vFieldDesc.mb, mdtFieldDef), pImport, g_mdName, mdNameLen, false);
-                ExtOut(" %S\n", g_mdName);
-
-                if (IsMiniDumpFile())
-                {
-                    ExtOut(" <no information>\n");
-                }
-                else
-                {
-                    DacpModuleData vModule;
-                    if (vModule.Request(g_sos,pMTD->Module) == S_OK)
-                    {
-                        DisplaySharedStatic(vModule.dwModuleID, pMTD, &vFieldDesc);
-                    }
-                }
+                ExtOut(" <no information>\n");
             }
             else
             {
-                ExtOut("%8s ", "static");
-                
-                DacpDomainLocalModuleData vDomainLocalModule;
-                
-                // The MethodTable isn't shared, so the module must not be loaded domain neutral.  We can
-                // get the specific DomainLocalModule instance without needing to know the AppDomain in advance.
-                if (g_sos->GetDomainLocalModuleDataFromModule(pMTD->Module, &vDomainLocalModule) != S_OK)
-                {
-                    ExtOut(" <no information>\n");
-                }
-                else
-                {
-                    DWORD_PTR dwTmp;
-                    GetStaticFieldPTR(&dwTmp, &vDomainLocalModule, pMTD, &vFieldDesc);
-                    DisplayDataMember(&vFieldDesc, dwTmp);
+                DWORD_PTR dwTmp;
+                GetStaticFieldPTR(&dwTmp, &vDomainLocalModule, pMTD, &vFieldDesc);
+                DisplayDataMember(&vFieldDesc, dwTmp);
 
-                    NameForToken_s(TokenFromRid(vFieldDesc.mb, mdtFieldDef), pImport, g_mdName, mdNameLen, false);
-                    ExtOut(" %S\n", g_mdName);
-                }
+                NameForToken_s(TokenFromRid(vFieldDesc.mb, mdtFieldDef), pImport, g_mdName, mdNameLen, false);
+                ExtOut(" %S\n", g_mdName);
             }
         }
         else
@@ -2753,7 +2679,8 @@ DWORD_PTR *ModuleFromName(__in_opt LPSTR mName, int *numModule)
     ArrayHolder<CLRDATA_ADDRESS> pAssemblyArray = NULL;
     ArrayHolder<CLRDATA_ADDRESS> pModules = NULL;
     int arrayLength = 0;
-    if (!ClrSafeInt<int>::addition(adsData.DomainCount, 2, arrayLength))
+    int numSpecialDomains = (adsData.sharedDomain != NULL) ? 2 : 1;
+    if (!ClrSafeInt<int>::addition(adsData.DomainCount, numSpecialDomains, arrayLength))
     {
         ExtOut("<integer overflow>\n");
         return NULL;
@@ -2767,8 +2694,11 @@ DWORD_PTR *ModuleFromName(__in_opt LPSTR mName, int *numModule)
     }
 
     pArray[0] = adsData.systemDomain;
-    pArray[1] = adsData.sharedDomain;
-    if (g_sos->GetAppDomainList(adsData.DomainCount, pArray.GetPtr()+2, NULL)!=S_OK)
+    if (adsData.sharedDomain != NULL)
+    {
+        pArray[1] = adsData.sharedDomain;
+    }
+    if (g_sos->GetAppDomainList(adsData.DomainCount, pArray.GetPtr()+numSpecialDomains, NULL)!=S_OK)
     {
         ExtOut("Unable to get array of AppDomains\n");
         return NULL;
@@ -2794,7 +2724,7 @@ DWORD_PTR *ModuleFromName(__in_opt LPSTR mName, int *numModule)
     char fileName[sizeof(StringData)/2];
     
     // Search all domains to find a module
-    for (int n = 0; n < adsData.DomainCount+2; n++)
+    for (int n = 0; n < adsData.DomainCount+numSpecialDomains; n++)
     {
         if (IsInterrupt())
         {
@@ -3532,7 +3462,8 @@ void GetDomainList (DWORD_PTR *&domainList, int &numDomain)
     // Do prefast integer checks before the malloc.
     size_t AllocSize;
     LONG DomainAllocCount;
-    if (!ClrSafeInt<LONG>::addition(adsData.DomainCount, 2, DomainAllocCount) ||
+    LONG NumExtraDomains = (adsData.sharedDomain != NULL) ? 2 : 1;
+    if (!ClrSafeInt<LONG>::addition(adsData.DomainCount, NumExtraDomains, DomainAllocCount) ||
         !ClrSafeInt<size_t>::multiply(DomainAllocCount, sizeof(PVOID), AllocSize) ||
         (domainList = new DWORD_PTR[DomainAllocCount]) == NULL)
     {
@@ -3540,7 +3471,10 @@ void GetDomainList (DWORD_PTR *&domainList, int &numDomain)
     }
 
     domainList[numDomain++] = (DWORD_PTR) adsData.systemDomain;
-    domainList[numDomain++] = (DWORD_PTR) adsData.sharedDomain;
+    if (adsData.sharedDomain != NULL)
+    {
+        domainList[numDomain++] = (DWORD_PTR) adsData.sharedDomain;
+    }
     
     CLRDATA_ADDRESS *pArray = new CLRDATA_ADDRESS[adsData.DomainCount];
     if (pArray==NULL)

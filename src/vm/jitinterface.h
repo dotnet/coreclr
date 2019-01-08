@@ -516,8 +516,8 @@ public:
     // considered when checking visibility rules.
     
 
-    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
-    static CorInfoHelpFunc getNewHelperStatic(MethodTable * pMT);
+    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects = NULL);
+    static CorInfoHelpFunc getNewHelperStatic(MethodTable * pMT, bool * pHasSideEffects = NULL);
 
     CorInfoHelpFunc getNewArrHelper(CORINFO_CLASS_HANDLE arrayCls);
     static CorInfoHelpFunc getNewArrHelperStatic(TypeHandle clsHnd);
@@ -689,7 +689,7 @@ public:
 
     // ICorMethodInfo stuff
     const char* getMethodName (CORINFO_METHOD_HANDLE ftnHnd, const char** scopeName);
-    const char* getMethodNameFromMetadata (CORINFO_METHOD_HANDLE ftnHnd, const char** className, const char** namespaceName);
+    const char* getMethodNameFromMetadata (CORINFO_METHOD_HANDLE ftnHnd, const char** className, const char** namespaceName, const char **enclosingClassName);
     unsigned getMethodHash (CORINFO_METHOD_HANDLE ftnHnd);
 
     DWORD getMethodAttribs (CORINFO_METHOD_HANDLE ftnHnd);

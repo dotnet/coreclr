@@ -17,8 +17,6 @@
 #include "eeconfig.h" // This is here even for retail & free builds...
 #include "../../dlls/mscorrc/resource.h"
 
-
-#include "context.h"
 #include "vars.hpp"
 #include <limits.h>
 #include "ilformatter.h"
@@ -953,6 +951,7 @@ Debugger::Debugger()
     m_pLazyData(NULL),
     m_defines(_defines),
     m_isBlockedOnGarbageCollectionEvent(FALSE),
+    m_willBlockOnGarbageCollectionEvent(FALSE),
     m_isGarbageCollectionEventsEnabled(FALSE),
     m_isGarbageCollectionEventsEnabledLatch(FALSE)
 {
@@ -5382,21 +5381,11 @@ DebuggerModule* Debugger::LookupOrCreateModule(Module* pModule, AppDomain *pAppD
     // with a matching appdomain id
     // it.
 
-    _ASSERTE( SystemDomain::SystemAssembly()->IsDomainNeutral() );
-
     DebuggerModule* dmod = NULL;
 
     if (m_pModules != NULL)
     {
-        if (pModule->GetAssembly()->IsDomainNeutral())
-        {
-            // We have to make sure to lookup the module with the app domain parameter if the module lives in a shared assembly
-            dmod = m_pModules->GetModule(pModule, pAppDomain);
-        }
-        else
-        {
-            dmod = m_pModules->GetModule(pModule);
-        }
+        dmod = m_pModules->GetModule(pModule);
     }
 
     // If it doesn't exist, create it.
@@ -6001,7 +5990,20 @@ bool Debugger::ThreadsAtUnsafePlaces(void)
     return (m_threadsAtUnsafePlaces != 0);
 }
 
-void Debugger::BeforeGarbageCollection()
+void Debugger::SuspendForGarbageCollectionStarted()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+    
+    this->m_isGarbageCollectionEventsEnabledLatch = this->m_isGarbageCollectionEventsEnabled;
+    this->m_willBlockOnGarbageCollectionEvent = this->m_isGarbageCollectionEventsEnabledLatch;
+}
+
+void Debugger::SuspendForGarbageCollectionCompleted()
 {
     CONTRACTL
     {
@@ -6010,12 +6012,11 @@ void Debugger::BeforeGarbageCollection()
     }
     CONTRACTL_END;
 
-    this->m_isGarbageCollectionEventsEnabledLatch = this->m_isGarbageCollectionEventsEnabled;
-
     if (!CORDebuggerAttached() || !this->m_isGarbageCollectionEventsEnabledLatch)
     {
         return;
     }
+    this->m_isBlockedOnGarbageCollectionEvent = TRUE; 
 
     Thread* pThread = GetThread();
 
@@ -6024,8 +6025,6 @@ void Debugger::BeforeGarbageCollection()
 
     {
         Debugger::DebuggerLockHolder dbgLockHolder(this);
-
-        this->m_isBlockedOnGarbageCollectionEvent = true;
 
         DebuggerIPCEvent* ipce1 = m_pRCThread->GetIPCEventSendBuffer();
         InitIPCEvent(ipce1,
@@ -6041,7 +6040,7 @@ void Debugger::BeforeGarbageCollection()
     ResetEvent(this->GetGarbageCollectionBlockerEvent());
 }
 
-void Debugger::AfterGarbageCollection()
+void Debugger::ResumeForGarbageCollectionStarted()
 {
     CONTRACTL
     {
@@ -6075,7 +6074,8 @@ void Debugger::AfterGarbageCollection()
 
     WaitForSingleObject(this->GetGarbageCollectionBlockerEvent(), INFINITE);
     ResetEvent(this->GetGarbageCollectionBlockerEvent());
-    this->m_isBlockedOnGarbageCollectionEvent = false;
+    this->m_isBlockedOnGarbageCollectionEvent = FALSE;
+    this->m_willBlockOnGarbageCollectionEvent = FALSE;
 }
 
 #ifdef FEATURE_DATABREAKPOINT
@@ -10041,11 +10041,7 @@ void Debugger::UnloadModule(Module* pRuntimeModule,
 
         // Remove all patches that apply to this module/AppDomain combination
         AppDomain* domainToRemovePatchesIn = NULL;  // all domains by default
-        if( pRuntimeModule->GetAssembly()->IsDomainNeutral() )
-        {
-            // Deactivate all the patches specific to the AppDomain being unloaded
-            domainToRemovePatchesIn = pAppDomain;
-        }
+
         // Note that we'll explicitly NOT delete DebuggerControllers, so that
         // the Right Side can delete them later.
         DebuggerController::RemovePatchesFromModule(pRuntimeModule, domainToRemovePatchesIn);
@@ -10053,27 +10049,24 @@ void Debugger::UnloadModule(Module* pRuntimeModule,
         // Deactive all JMC functions in this module.  We don't do this for shared assemblies
         // because JMC status is not maintained on a per-AppDomain basis and we don't
         // want to change the JMC behavior of the module in other domains.
-        if( !pRuntimeModule->GetAssembly()->IsDomainNeutral() )
+        LOG((LF_CORDB, LL_EVERYTHING, "Setting all JMC methods to false:\n"));
+        DebuggerDataLockHolder debuggerDataLockHolder(this);
+        DebuggerMethodInfoTable * pTable = GetMethodInfoTable();
+        if (pTable != NULL)
         {
-            LOG((LF_CORDB, LL_EVERYTHING, "Setting all JMC methods to false:\n"));
-            DebuggerDataLockHolder debuggerDataLockHolder(this);
-            DebuggerMethodInfoTable * pTable = GetMethodInfoTable();
-            if (pTable != NULL)
-            {
-                HASHFIND info;
+            HASHFIND info;
 
-                for (DebuggerMethodInfo *dmi = pTable->GetFirstMethodInfo(&info);
-                    dmi != NULL;
-                    dmi = pTable->GetNextMethodInfo(&info))
+            for (DebuggerMethodInfo *dmi = pTable->GetFirstMethodInfo(&info);
+                dmi != NULL;
+                dmi = pTable->GetNextMethodInfo(&info))
+            {
+                if (dmi->m_module == pRuntimeModule)
                 {
-                    if (dmi->m_module == pRuntimeModule)
-                    {
-                        dmi->SetJMCStatus(false);
-                    }
+                    dmi->SetJMCStatus(false);
                 }
             }
-            LOG((LF_CORDB, LL_EVERYTHING, "Done clearing JMC methods!\n"));
         }
+        LOG((LF_CORDB, LL_EVERYTHING, "Done clearing JMC methods!\n"));
 
         // Delete the Left Side representation of the module.
         if (m_pModules != NULL)
@@ -10757,9 +10750,9 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
     if ((pEvent->type & DB_IPCE_TYPE_MASK) == DB_IPCE_ASYNC_BREAK ||
         (pEvent->type & DB_IPCE_TYPE_MASK) == DB_IPCE_ATTACHING ||
-        this->m_isBlockedOnGarbageCollectionEvent)
+        this->m_willBlockOnGarbageCollectionEvent)
     {
-        if (!this->m_isBlockedOnGarbageCollectionEvent)
+        if (!this->m_willBlockOnGarbageCollectionEvent && !this->m_stopped)
         {
             lockedThreadStore = true;
             ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_FOR_DEBUGGER);
@@ -10826,7 +10819,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                 _ASSERTE(ThreadHoldsLock());
 
                 // Simply trap all Runtime threads if we're not already trying to.
-                if (!m_isBlockedOnGarbageCollectionEvent && !m_trappingRuntimeThreads)
+                if (!m_willBlockOnGarbageCollectionEvent && !m_trappingRuntimeThreads)
                 {
                     // If the RS sent an Async-break, then that's an explicit request.
                     m_RSRequestedSync = TRUE;
@@ -11358,14 +11351,23 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
         // the detach reply before the process exits if the main thread is near exiting.
         m_pRCThread->SendIPCReply();
 
-        // Let the process run free now... there is no debugger to bother it anymore.
-        fContinue = ResumeThreads(NULL);
+        if (this->m_isBlockedOnGarbageCollectionEvent)
+        {
+            this->m_stopped = FALSE;
+            SetEvent(this->GetGarbageCollectionBlockerEvent());
+        }
+        else
+        {
+            // Let the process run free now... there is no debugger to bother it anymore.
+            fContinue = ResumeThreads(pEvent->vmAppDomain.GetRawPtr());
 
-        //
-        // Go ahead and release the TSL now that we're continuing. This ensures that we've held
-        // the thread store lock the entire time the Runtime was just stopped.
-        //
-        ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_FOR_DEBUGGER);
+            //
+            // Go ahead and release the TSL now that we're continuing. This ensures that we've held
+            // the thread store lock the entire time the Runtime was just stopped.
+            //
+            ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_FOR_DEBUGGER);
+        }
+
         break;
 
 #ifndef DACCESS_COMPILE

@@ -196,8 +196,10 @@ HRESULT EEConfig::Init()
     iGCForceCompact = 0;
     iGCHoardVM = 0;
     iGCLOHCompactionMode = 0;
+    iGCLOHThreshold = 0;
     iGCHeapCount = 0;
     iGCNoAffinitize = 0;
+    iGCAffinityMask = 0;
 
 #ifdef GCTRIMCOMMIT
     iGCTrimCommit = 0;
@@ -230,8 +232,6 @@ HRESULT EEConfig::Init()
 
     fNgenBindOptimizeNonGac = false;
     fStressLog = false;
-    fCacheBindingFailures = true;
-    fDisableCommitThreadStack = false;
     fProbeForStackOverflow = true;
     
     INDEBUG(fStressLog = true;)
@@ -253,7 +253,6 @@ HRESULT EEConfig::Init()
     fJitVerificationDisable= false;
     fVerifierOff           = false;
 
-    fDoAllowUntrustedCallerChecks = true;
 #ifdef ENABLE_STARTUP_DELAY
     iStartupDelayMS = 0;
 #endif
@@ -300,15 +299,7 @@ HRESULT EEConfig::Init()
 
     iRequireZaps = REQUIRE_ZAPS_NONE;
 
-    // new loader behavior switches
-
-    m_fDeveloperInstallation = false;
-
     pZapSet = DEFAULT_ZAP_SET;
-
-#ifdef FEATURE_LOADER_OPTIMIZATION
-    dwSharePolicy = AppDomain::SHARE_POLICY_UNSPECIFIED;
-#endif
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     dwDisableStackwalkCache = 0;
@@ -316,8 +307,6 @@ HRESULT EEConfig::Init()
     dwDisableStackwalkCache = 1;
 #endif // _TARGET_X86_
 
-    fUseNewCrossDomainRemoting = 1;
-    
     szZapBBInstr     = NULL;
     szZapBBInstrDir  = NULL;
 
@@ -330,7 +319,6 @@ HRESULT EEConfig::Init()
     m_TraceWrapper = 0;
 #endif
 
-    iNgenHardBind = NGEN_HARD_BIND_DEFAULT;
 #ifdef _DEBUG
     dwNgenForceFailureMask  = 0;
     dwNgenForceFailureCount = 0;
@@ -836,9 +824,13 @@ HRESULT EEConfig::sync()
 #endif //STRESS_HEAP
 
 #ifdef _WIN64
+    iGCAffinityMask = GetConfigULONGLONG_DontUse_(CLRConfig::EXTERNAL_GCHeapAffinitizeMask, iGCAffinityMask);
+    if (!iGCAffinityMask) iGCAffinityMask =  Configuration::GetKnobULONGLONGValue(W("System.GC.HeapAffinitizeMask"));
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigULONGLONG_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
     if (!iGCgen0size) iGCgen0size = GetConfigULONGLONG_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
 #else
+    iGCAffinityMask = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_GCHeapAffinitizeMask, iGCAffinityMask);
+    if (!iGCAffinityMask) iGCAffinityMask = Configuration::GetKnobDWORDValue(W("System.GC.HeapAffinitizeMask"), 0);
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
 #endif //_WIN64
@@ -847,6 +839,12 @@ HRESULT EEConfig::sync()
         iGCHoardVM = g_IGCHoardVM;
     else
         iGCHoardVM = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCRetainVM);
+
+    if (!iGCLOHThreshold)
+    {
+        iGCLOHThreshold = Configuration::GetKnobDWORDValue(W("System.GC.LOHThreshold"), CLRConfig::EXTERNAL_GCLOHThreshold);
+        iGCLOHThreshold = max (iGCLOHThreshold, LARGE_OBJECT_SIZE);
+    }
 
     if (!iGCLOHCompactionMode) iGCLOHCompactionMode = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCLOHCompact, iGCLOHCompactionMode);
 
@@ -897,8 +895,8 @@ HRESULT EEConfig::sync()
 
     iGCForceCompact     =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_gcForceCompact, iGCForceCompact);
     iGCNoAffinitize = Configuration::GetKnobBooleanValue(W("System.GC.NoAffinitize"), 
-                                                         CLRConfig::UNSUPPORTED_GCNoAffinitize);
-    iGCHeapCount = Configuration::GetKnobDWORDValue(W("System.GC.HeapCount"), CLRConfig::UNSUPPORTED_GCHeapCount);
+                                                         CLRConfig::EXTERNAL_GCNoAffinitize);
+    iGCHeapCount = Configuration::GetKnobDWORDValue(W("System.GC.HeapCount"), CLRConfig::EXTERNAL_GCHeapCount);
 
     fStressLog        =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_StressLog, fStressLog) != 0;
     fForceEnc         =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_ForceEnc, fForceEnc) != 0;
@@ -953,10 +951,6 @@ HRESULT EEConfig::sync()
                 pForbidZapsExcludeList = new AssemblyNamesList(wszZapForbidExcludeList);
         }
     }
-#endif
-
-#ifdef FEATURE_LOADER_OPTIMIZATION
-    dwSharePolicy           = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_LoaderOptimization, dwSharePolicy);
 #endif
 
 #ifdef FEATURE_DOUBLE_ALIGNMENT_HINT
@@ -1130,10 +1124,6 @@ HRESULT EEConfig::sync()
 #ifdef TEST_DATA_CONSISTENCY
     fTestDataConsistency = (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TestDataConsistency) !=0);
 #endif
-
-    fDoAllowUntrustedCallerChecks =  
-        (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_SupressAllowUntrustedCallerChecks) != 1);
-
 
     m_SuspendThreadDeadlockTimeoutMs = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_SuspendThreadDeadlockTimeoutMs);
     m_SuspendDeadlockTimeout = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_SuspendDeadlockTimeout);

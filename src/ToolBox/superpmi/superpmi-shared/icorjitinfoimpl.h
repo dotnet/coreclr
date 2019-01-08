@@ -360,7 +360,7 @@ CORINFO_FIELD_HANDLE getFieldInClass(CORINFO_CLASS_HANDLE clsHnd, INT num);
 BOOL checkMethodModifier(CORINFO_METHOD_HANDLE hMethod, LPCSTR modifier, BOOL fOptional);
 
 // returns the "NEW" helper optimized for "newCls."
-CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
+CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool* pHasSideEffects = NULL /* OUT */);
 
 // returns the newArr (1-Dim array) helper optimized for "arrayCls."
 CorInfoHelpFunc getNewArrHelper(CORINFO_CLASS_HANDLE arrayCls);
@@ -716,7 +716,8 @@ const char* getMethodName(CORINFO_METHOD_HANDLE ftn,       /* IN */
 // Suitable for non-debugging use.
 const char* getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,       /* IN */
                                       const char**          className, /* OUT */
-                                      const char**          namespaceName /* OUT */
+                                      const char**          namespaceName, /* OUT */
+                                      const char**          enclosingClassName /* OUT */
                                       );
 
 // this function is for debugging only.  It returns a value that

@@ -31,25 +31,6 @@
 #include "eventtrace.h"
 #include "invokeutil.h"
 
-
-FCIMPL3(FC_BOOL_RET, MdUtf8String::EqualsCaseSensitive, LPCUTF8 szLhs, LPCUTF8 szRhs, INT32 stringNumBytes)
-{
-    CONTRACTL {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(szLhs));
-        PRECONDITION(CheckPointer(szRhs));
-    }
-    CONTRACTL_END;
-
-    // Important: the string in pSsz isn't null terminated so the length must be used
-    // when performing operations on the string.
-
-    // At this point, both the left and right strings are guaranteed to have the
-    // same length.
-    FC_RETURN_BOOL(strncmp(szLhs, szRhs, stringNumBytes) == 0);
-}
-FCIMPLEND
-
 BOOL QCALLTYPE MdUtf8String::EqualsCaseInsensitive(LPCUTF8 szLhs, LPCUTF8 szRhs, INT32 stringNumBytes)
 {
     QCALL_CONTRACT;
@@ -504,17 +485,6 @@ FCIMPL1(AssemblyBaseObject*, RuntimeTypeHandle::GetAssembly, ReflectClassBaseObj
         Module *pModule = refType->GetType().GetAssembly()->GetManifestModule();
 
             pDomainFile = pModule->FindDomainFile(GetAppDomain());
-#ifdef FEATURE_LOADER_OPTIMIZATION        
-        if (pDomainFile == NULL)
-        {
-            HELPER_METHOD_FRAME_BEGIN_RET_1(refType);
-            
-            pDomainFile = GetAppDomain()->LoadDomainNeutralModuleDependency(pModule, FILE_LOADED);
-
-            HELPER_METHOD_FRAME_END();
-        }
-#endif // FEATURE_LOADER_OPTIMIZATION        
-
 
     FC_RETURN_ASSEMBLY_OBJECT((DomainAssembly *)pDomainFile, refType);
 }
@@ -1118,7 +1088,7 @@ PVOID QCALLTYPE RuntimeTypeHandle::GetGCHandle(EnregisteredTypeHandle pTypeHandl
 
     TypeHandle th = TypeHandle::FromPtr(pTypeHandle);
     assert(handleType >= HNDTYPE_WEAK_SHORT && handleType <= HNDTYPE_WEAK_WINRT);
-    objHandle = th.GetDomain()->CreateTypedHandle(NULL, static_cast<HandleType>(handleType));
+    objHandle = AppDomain::GetCurrentDomain()->CreateTypedHandle(NULL, static_cast<HandleType>(handleType));
     th.GetLoaderAllocator()->RegisterHandleForCleanup(objHandle);
 
     END_QCALL;
@@ -1446,7 +1416,8 @@ void QCALLTYPE RuntimeTypeHandle::GetTypeByName(LPCWSTR pwzClassName, BOOL bThro
             COMPlusThrowArgumentNull(W("className"),W("ArgumentNull_String"));
 
     {
-        typeHandle = TypeName::GetTypeManaged(pwzClassName, NULL, bThrowOnError, bIgnoreCase, /*bProhibitAsmQualifiedName =*/ FALSE, pStackMark,
+        typeHandle = TypeName::GetTypeManaged(pwzClassName, NULL, bThrowOnError, bIgnoreCase, /*bProhibitAsmQualifiedName =*/ FALSE,
+                                              SystemDomain::GetCallersAssembly(pStackMark),
                                               bLoadTypeFromPartialNameHack, (OBJECTREF*)keepAlive.m_ppObject,
                                               pPrivHostBinder);
     }
@@ -1742,6 +1713,21 @@ void * QCALLTYPE RuntimeMethodHandle::GetFunctionPointer(MethodDesc * pMethod)
     END_QCALL;
 
     return funcPtr;
+}
+
+BOOL QCALLTYPE RuntimeMethodHandle::GetIsCollectible(MethodDesc * pMethod)
+{
+    QCALL_CONTRACT;
+
+    BOOL isCollectible = FALSE;
+
+    BEGIN_QCALL;
+
+    isCollectible = pMethod->GetLoaderAllocator()->IsCollectible();
+
+    END_QCALL;
+
+    return isCollectible;
 }
     
 FCIMPL1(LPCUTF8, RuntimeMethodHandle::GetUtf8Name, MethodDesc *pMethod) {

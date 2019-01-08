@@ -2,20 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
+
 namespace System
 {
-    using System;
-    using System.Reflection;
-    using System.Runtime;
-    using System.Threading;
-    using System.Runtime.Serialization;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-    using System.Diagnostics;
-
-    [ClassInterface(ClassInterfaceType.AutoDual)]
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [ClassInterface(ClassInterfaceType.None)]
+    [ComVisible(true)]
     public abstract class Delegate : ICloneable, ISerializable
     {
         // _target is the object we will invoke on
@@ -60,7 +56,7 @@ namespace System
         // This constructor is called from a class to generate a 
         // delegate based upon a static method name and the Type object
         // for the class defining the method.
-        protected unsafe Delegate(Type target, string method)
+        protected Delegate(Type target, string method)
         {
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
@@ -509,20 +505,32 @@ namespace System
             return d;
         }
 
+        // Force inline as the true/false ternary takes it above ALWAYS_INLINE size even though the asm ends up smaller
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(Delegate d1, Delegate d2)
         {
-            if ((object)d1 == null)
-                return (object)d2 == null;
+            // Test d2 first to allow branch elimination when inlined for null checks (== null)
+            // so it can become a simple test
+            if (d2 is null)
+            {
+                // return true/false not the test result https://github.com/dotnet/coreclr/issues/914
+                return (d1 is null) ? true : false;
+            }
 
-            return d1.Equals(d2);
+            return ReferenceEquals(d2, d1) ? true : d2.Equals((object)d1);
         }
 
         public static bool operator !=(Delegate d1, Delegate d2)
         {
-            if ((object)d1 == null)
-                return (object)d2 != null;
+            // Test d2 first to allow branch elimination when inlined for not null checks (!= null)
+            // so it can become a simple test
+            if (d2 is null)
+            {
+                // return true/false not the test result https://github.com/dotnet/coreclr/issues/914
+                return (d1 is null) ? false : true;
+            }
 
-            return !d1.Equals(d2);
+            return ReferenceEquals(d2, d1) ? false : !d2.Equals(d1);
         }
 
         //
@@ -540,7 +548,7 @@ namespace System
 
         // V2 internal API.
         // This is Critical because it skips the security check when creating the delegate.
-        internal static unsafe Delegate CreateDelegateNoSecurityCheck(Type type, object target, RuntimeMethodHandle method)
+        internal static Delegate CreateDelegateNoSecurityCheck(Type type, object target, RuntimeMethodHandle method)
         {
             // Validate the parameters.
             if (type == null)

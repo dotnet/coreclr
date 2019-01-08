@@ -768,11 +768,12 @@ BOOL interceptor_ICJI::checkMethodModifier(CORINFO_METHOD_HANDLE hMethod, LPCSTR
 
 // returns the "NEW" helper optimized for "newCls."
 CorInfoHelpFunc interceptor_ICJI::getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                                               CORINFO_METHOD_HANDLE   callerHandle)
+                                               CORINFO_METHOD_HANDLE   callerHandle,
+                                               bool* pHasSideEffects)
 {
     mc->cr->AddCall("getNewHelper");
-    CorInfoHelpFunc temp = original_ICorJitInfo->getNewHelper(pResolvedToken, callerHandle);
-    mc->recGetNewHelper(pResolvedToken, callerHandle, temp);
+    CorInfoHelpFunc temp = original_ICorJitInfo->getNewHelper(pResolvedToken, callerHandle, pHasSideEffects);
+    mc->recGetNewHelper(pResolvedToken, callerHandle, pHasSideEffects, temp);
     return temp;
 }
 
@@ -1481,14 +1482,15 @@ const char* interceptor_ICJI::getMethodName(CORINFO_METHOD_HANDLE ftn,       /* 
     return temp;
 }
 
-const char* interceptor_ICJI::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,          /* IN */
-                                                        const char**          className,    /* OUT */
-                                                        const char**          namespaceName /* OUT */
+const char* interceptor_ICJI::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,                  /* IN */
+                                                        const char**          className,            /* OUT */
+                                                        const char**          namespaceName,        /* OUT */
+                                                        const char**          enclosingClassName   /* OUT */
                                                         )
 {
     mc->cr->AddCall("getMethodNameFromMetadata");
-    const char* temp = original_ICorJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName);
-    mc->recGetMethodNameFromMetadata(ftn, (char*)temp, className, namespaceName);
+    const char* temp = original_ICorJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName, enclosingClassName);
+    mc->recGetMethodNameFromMetadata(ftn, (char*)temp, className, namespaceName, enclosingClassName);
     return temp;
 }
 

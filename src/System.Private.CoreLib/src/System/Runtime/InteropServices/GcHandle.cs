@@ -2,17 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+using System.Runtime.CompilerServices;
+using System.Threading;
+#if BIT64
+using nint = System.Int64;
+#else
+using nint = System.Int32;
+#endif
+using Internal.Runtime.CompilerServices;
+
 namespace System.Runtime.InteropServices
 {
-    using System;
-    using System.Runtime.CompilerServices;
-    using System.Threading;
-#if BIT64
-    using nint = System.Int64;
-#else
-    using nint = System.Int32;
-#endif
-
     // These are the types of handles used by the EE.  
     // IMPORTANT: These must match the definitions in ObjectHandle.h in the EE. 
     // IMPORTANT: If new values are added to the enum the GCHandle::MaxHandleType
@@ -59,7 +60,7 @@ namespace System.Runtime.InteropServices
         {
             // Make sure the type parameter is within the valid range for the enum.
             if ((uint)type > (uint)MaxHandleType)
-                ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum();
+                ThrowHelper.ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum();
 
             IntPtr handle = InternalAlloc(value, type);
 
@@ -247,13 +248,19 @@ namespace System.Runtime.InteropServices
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void InternalFree(IntPtr handle);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern object InternalGet(IntPtr handle);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void InternalSet(IntPtr handle, object value, bool isPinned);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern object InternalCompareExchange(IntPtr handle, object value, object oldValue, bool isPinned);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern IntPtr InternalAddrOfPinnedObject(IntPtr handle);
+
+#if DEBUG
+        // The runtime performs additional checks in debug builds
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern object InternalGet(IntPtr handle);
+#else
+        internal static unsafe object InternalGet(IntPtr handle) => Unsafe.As<IntPtr, object>(ref *(IntPtr*)handle);
+#endif
 
         // The actual integer handle value that the EE uses internally.
         private IntPtr m_handle;
@@ -268,24 +275,14 @@ namespace System.Runtime.InteropServices
         {
             // Check if the handle was never initialized or was freed.
             if (m_handle == IntPtr.Zero)
-                ThrowInvalidOperationException_HandleIsNotInitialized();
+                ThrowHelper.ThrowInvalidOperationException_HandleIsNotInitialized();
         }
 
         private static void ValidateHandle(IntPtr handle)
         {
             // Check if the handle was never initialized or was freed.
             if (handle == IntPtr.Zero)
-                ThrowInvalidOperationException_HandleIsNotInitialized();
-        }
-
-        private static void ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum()
-        {
-            throw ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.type, ExceptionResource.ArgumentOutOfRange_Enum);
-        }
-
-        private static void ThrowInvalidOperationException_HandleIsNotInitialized()
-        {
-            throw ThrowHelper.GetInvalidOperationException(ExceptionResource.InvalidOperation_HandleIsNotInitialized);
+                ThrowHelper.ThrowInvalidOperationException_HandleIsNotInitialized();
         }
     }
 }

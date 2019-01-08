@@ -2,26 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
+using System.Threading;
 
 namespace System
 {
-    using System;
-    using System.Reflection;
-    using System.Reflection.Emit;
-    using System.Runtime;
-    using System.Runtime.ConstrainedExecution;
-    using System.Diagnostics;
-    using System.Runtime.Serialization;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.InteropServices;
-    using System.Threading;
-    using System.Runtime.Versioning;
-    using System.Text;
-    using System.Globalization;
-    using System.Security;
-    using Microsoft.Win32.SafeHandles;
-    using StackCrawlMark = System.Threading.StackCrawlMark;
-
     public unsafe struct RuntimeTypeHandle : ISerializable
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
@@ -47,7 +36,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsInstanceOfType(RuntimeType type, object o);
 
-        internal static unsafe Type GetTypeHelper(Type typeStart, Type[] genericArgs, IntPtr pModifiers, int cModifiers)
+        internal static Type GetTypeHelper(Type typeStart, Type[] genericArgs, IntPtr pModifiers, int cModifiers)
         {
             Type type = typeStart;
 
@@ -61,13 +50,13 @@ namespace System
                 int* arModifiers = (int*)pModifiers.ToPointer();
                 for (int i = 0; i < cModifiers; i++)
                 {
-                    if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.Ptr)
+                    if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ELEMENT_TYPE_PTR)
                         type = type.MakePointerType();
 
-                    else if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ByRef)
+                    else if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ELEMENT_TYPE_BYREF)
                         type = type.MakeByRefType();
 
-                    else if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.SzArray)
+                    else if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ELEMENT_TYPE_SZARRAY)
                         type = type.MakeArrayType();
 
                     else
@@ -128,13 +117,13 @@ namespace System
         internal static bool IsTypeDefinition(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            if (!((corElemType >= CorElementType.Void && corElemType < CorElementType.Ptr) ||
-                    corElemType == CorElementType.ValueType ||
-                    corElemType == CorElementType.Class ||
-                    corElemType == CorElementType.TypedByRef ||
-                    corElemType == CorElementType.I ||
-                    corElemType == CorElementType.U ||
-                    corElemType == CorElementType.Object))
+            if (!((corElemType >= CorElementType.ELEMENT_TYPE_VOID && corElemType < CorElementType.ELEMENT_TYPE_PTR) ||
+                    corElemType == CorElementType.ELEMENT_TYPE_VALUETYPE ||
+                    corElemType == CorElementType.ELEMENT_TYPE_CLASS ||
+                    corElemType == CorElementType.ELEMENT_TYPE_TYPEDBYREF ||
+                    corElemType == CorElementType.ELEMENT_TYPE_I ||
+                    corElemType == CorElementType.ELEMENT_TYPE_U ||
+                    corElemType == CorElementType.ELEMENT_TYPE_OBJECT))
                 return false;
 
             if (HasInstantiation(type) && !IsGenericTypeDefinition(type))
@@ -146,42 +135,42 @@ namespace System
         internal static bool IsPrimitive(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType >= CorElementType.Boolean && corElemType <= CorElementType.R8) ||
-                    corElemType == CorElementType.I ||
-                    corElemType == CorElementType.U;
+            return (corElemType >= CorElementType.ELEMENT_TYPE_BOOLEAN && corElemType <= CorElementType.ELEMENT_TYPE_R8) ||
+                    corElemType == CorElementType.ELEMENT_TYPE_I ||
+                    corElemType == CorElementType.ELEMENT_TYPE_U;
         }
 
         internal static bool IsByRef(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.ByRef);
+            return (corElemType == CorElementType.ELEMENT_TYPE_BYREF);
         }
 
         internal static bool IsPointer(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.Ptr);
+            return (corElemType == CorElementType.ELEMENT_TYPE_PTR);
         }
 
         internal static bool IsArray(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.Array || corElemType == CorElementType.SzArray);
+            return (corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY);
         }
 
         internal static bool IsSZArray(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.SzArray);
+            return (corElemType == CorElementType.ELEMENT_TYPE_SZARRAY);
         }
 
         internal static bool HasElementType(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
 
-            return ((corElemType == CorElementType.Array || corElemType == CorElementType.SzArray) // IsArray
-                   || (corElemType == CorElementType.Ptr)                                          // IsPointer
-                   || (corElemType == CorElementType.ByRef));                                      // IsByRef
+            return ((corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY) // IsArray
+                   || (corElemType == CorElementType.ELEMENT_TYPE_PTR)                                          // IsPointer
+                   || (corElemType == CorElementType.ELEMENT_TYPE_BYREF));                                      // IsByRef
         }
 
         internal static IntPtr[] CopyRuntimeTypeHandles(RuntimeTypeHandle[] inHandles, out int length)
@@ -802,6 +791,10 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetIsCollectible(RuntimeMethodHandleInternal handle);
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern bool IsCAVisibleFromDecoratedType(
             RuntimeTypeHandle attrTypeHandle,
             IRuntimeMethodInfo attrCtor,
@@ -1105,7 +1098,7 @@ namespace System
             return handle.Value == Value;
         }
 
-        public unsafe bool Equals(RuntimeFieldHandle handle)
+        public bool Equals(RuntimeFieldHandle handle)
         {
             return handle.Value == Value;
         }
@@ -1126,7 +1119,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void* _GetUtf8Name(RuntimeFieldHandleInternal field);
 
-        internal static unsafe MdUtf8String GetUtf8Name(RuntimeFieldHandleInternal field) { return new MdUtf8String(_GetUtf8Name(field)); }
+        internal static MdUtf8String GetUtf8Name(RuntimeFieldHandleInternal field) { return new MdUtf8String(_GetUtf8Name(field)); }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool MatchesNameHash(RuntimeFieldHandleInternal handle, uint hash);
@@ -1179,7 +1172,7 @@ namespace System
         public static readonly ModuleHandle EmptyHandle = GetEmptyMH();
         #endregion
 
-        unsafe private static ModuleHandle GetEmptyMH()
+        private static ModuleHandle GetEmptyMH()
         {
             return new ModuleHandle();
         }
@@ -1217,7 +1210,7 @@ namespace System
             return handle.m_ptr == m_ptr;
         }
 
-        public unsafe bool Equals(ModuleHandle handle)
+        public bool Equals(ModuleHandle handle)
         {
             return handle.m_ptr == m_ptr;
         }
@@ -1233,7 +1226,7 @@ namespace System
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern IRuntimeMethodInfo GetDynamicMethod(DynamicMethod method, RuntimeModule module, string name, byte[] sig, Resolver resolver);
+        internal static extern IRuntimeMethodInfo GetDynamicMethod(System.Reflection.Emit.DynamicMethod method, RuntimeModule module, string name, byte[] sig, Resolver resolver);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int GetToken(RuntimeModule module);
@@ -1526,7 +1519,7 @@ namespace System
         internal abstract byte[] GetCodeInfo(ref int stackSize, ref int initLocals, ref int EHCount);
         internal abstract byte[] GetLocalsSignature();
         internal abstract unsafe void GetEHInfo(int EHNumber, void* exception);
-        internal abstract unsafe byte[] GetRawEHInfo();
+        internal abstract byte[] GetRawEHInfo();
         // token resolution
         internal abstract string GetStringLiteral(int token);
         internal abstract void ResolveToken(int token, out IntPtr typeHandle, out IntPtr methodHandle, out IntPtr fieldHandle);

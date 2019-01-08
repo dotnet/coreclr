@@ -231,6 +231,7 @@ DEFINE_METASIG(SM(PtrByte_IntPtr_RetVoid, P(b) I, v))
 DEFINE_METASIG(SM(Str_Bool_Bool_RefInt_RetArrByte, s F F r(i), a(b) ))
 DEFINE_METASIG(SM(ArrByte_Int_PtrByte_Int_Int_RetVoid, a(b) i P(b) i i, v))
 DEFINE_METASIG(SM(PtrByte_Int_ArrByte_Int_Int_RetVoid, P(b) i a(b) i i, v))
+DEFINE_METASIG(SM(PtrByte_RetInt, P(b), i))
 DEFINE_METASIG(SM(PtrSByt_RetInt, P(B), i))
 DEFINE_METASIG(SM(IntPtr_RetIntPtr, I, I))
 DEFINE_METASIG(SM(UIntPtr_RetIntPtr, U, I))
@@ -394,8 +395,6 @@ DEFINE_METASIG_T(IM(RetCultureInfo, _, C(CULTURE_INFO)))
 DEFINE_METASIG_T(IM(RetCausalityTraceLevel, _, g(CAUSALITY_TRACE_LEVEL)))
 #endif // FEATURE_COMINTEROP
 
-DEFINE_METASIG_T(SM(RetThread, _, C(THREAD)))
-
 DEFINE_METASIG(IM(Bool_RetIntPtr, F, I))
 DEFINE_METASIG_T(IM(Bool_RetMethodInfo, F, C(METHOD_INFO)))
 DEFINE_METASIG(SM(Bool_RetStr, F, s))
@@ -423,7 +422,8 @@ DEFINE_METASIG(IM(Obj_Int_RetIntPtr, j i, I))
 
 DEFINE_METASIG(IM(Char_Char_RetStr, u u, s))
 DEFINE_METASIG(IM(Char_Int_RetVoid, u i, v))
-DEFINE_METASIG_T(IM(CultureInfo_RetVoid, C(CULTURE_INFO), v))
+DEFINE_METASIG_T(SM(RetCultureInfo, _, C(CULTURE_INFO)))
+DEFINE_METASIG_T(SM(CultureInfo_RetVoid, C(CULTURE_INFO), v))
 DEFINE_METASIG(IM(Dbl_RetVoid, d, v))
 DEFINE_METASIG(IM(Flt_RetVoid, f, v))
 DEFINE_METASIG(IM(Int_RetInt, i, i))
@@ -437,7 +437,6 @@ DEFINE_METASIG(IM(Int_Int_Int_Int_RetVoid, i i i i, v))
 DEFINE_METASIG_T(IM(Obj_EventArgs_RetVoid, j C(EVENT_ARGS), v))
 DEFINE_METASIG_T(IM(Obj_UnhandledExceptionEventArgs_RetVoid, j C(UNHANDLED_EVENTARGS), v))
 
-DEFINE_METASIG_T(IM(Assembly_RetVoid, C(ASSEMBLY), v))
 DEFINE_METASIG_T(IM(Assembly_RetBool, C(ASSEMBLY), F))
 DEFINE_METASIG_T(IM(AssemblyBase_RetBool, C(ASSEMBLYBASE), F))
 DEFINE_METASIG_T(IM(Exception_RetVoid, C(EXCEPTION), v))
@@ -474,9 +473,8 @@ DEFINE_METASIG(IM(Int_VoidPtr_RetVoid, i P(v), v))
 DEFINE_METASIG(IM(VoidPtr_RetVoid, P(v), v))
 
 DEFINE_METASIG_T(IM(Str_RetModule, s, C(MODULE)))
-DEFINE_METASIG_T(IM(Assembly_Str_RetAssembly, C(ASSEMBLY) s, C(ASSEMBLY)))
+DEFINE_METASIG_T(SM(Assembly_Str_RetAssembly, C(ASSEMBLY) s, C(ASSEMBLY)))
 DEFINE_METASIG_T(SM(Str_Bool_RetAssembly, s F, C(ASSEMBLY)))
-DEFINE_METASIG_T(IM(Str_Str_Str_Assembly_Assembly_RetVoid, s s s C(ASSEMBLY) C(ASSEMBLY), v))
 DEFINE_METASIG(IM(Str_Str_Obj_RetVoid, s s j, v))
 DEFINE_METASIG(IM(Str_Str_Str_Obj_RetVoid, s s s j, v))
 DEFINE_METASIG(IM(Str_Str_Str_Obj_Bool_RetVoid, s s s j F, v))
@@ -486,7 +484,7 @@ DEFINE_METASIG_T(IM(Str_RetPropertyInfo, s, C(PROPERTY_INFO)))
 DEFINE_METASIG(SM(Str_RetStr, s, s))
 DEFINE_METASIG_T(SM(Str_CultureInfo_RetStr, s C(CULTURE_INFO), s))
 DEFINE_METASIG_T(SM(Str_CultureInfo_RefBool_RetStr, s C(CULTURE_INFO) r(F), s))
-DEFINE_METASIG(IM(Str_ArrStr_ArrStr_RetVoid, s a(s) a(s), v))
+DEFINE_METASIG(SM(PtrPtrChar_PtrPtrChar_Int_RetVoid, P(P(u)) P(P(u)) i, v))
 DEFINE_METASIG(SM(ArrStr_RetVoid, a(s), v))
 DEFINE_METASIG(IM(Str_RetVoid, s, v))
 DEFINE_METASIG(SM(RefBool_RefBool_RetVoid, r(F) r(F), v))
@@ -540,19 +538,9 @@ DEFINE_METASIG_T(SM(LicenseInteropHelper_AllocateAndValidateLicense, g(RT_TYPE_H
 DEFINE_METASIG_T(SM(LicenseInteropHelper_RequestLicKey, g(RT_TYPE_HANDLE) r(I), i))
 DEFINE_METASIG_T(IM(LicenseInteropHelper_GetLicInfo, g(RT_TYPE_HANDLE) r(i) r(i), v))
 
-// App Domain related defines
-DEFINE_METASIG(IM(Bool_Str_Str_ArrStr_ArrStr_RetVoid, F s s a(s) a(s), v))
-DEFINE_METASIG_T(SM(Str_RetAppDomain, s, C(APP_DOMAIN)))
-DEFINE_METASIG_T(SM(Str_AppDomainSetup_ArrStr_ArrStr_RetObj, s C(APPDOMAIN_SETUP) a(s) a(s), j))
-#ifdef FEATURE_COMINTEROP
-// System.AppDomain.OnReflectionOnlyNamespaceResolveEvent
-DEFINE_METASIG_T(IM(Assembly_Str_RetArrAssembly, C(ASSEMBLY) s, a(C(ASSEMBLY))))
-// System.AppDomain.OnDesignerNamespaceResolveEvent
-DEFINE_METASIG(IM(Str_RetArrStr, s, a(s)))
-#endif //FEATURE_COMINTEROP
-
-// Object Clone 
-DEFINE_METASIG(SM(Obj_OutStr_OutStr_OutArrStr_OutArrObj_RetObj, j r(s) r(s) r(a(s)) r(a(j)), j))
+DEFINE_METASIG_T(SM(Assembly_RetVoid, C(ASSEMBLY), v))
+DEFINE_METASIG_T(SM(Assembly_Str_RetArrAssembly, C(ASSEMBLY) s, a(C(ASSEMBLY))))
+DEFINE_METASIG(SM(Str_RetArrStr, s, a(s)))
 
 // Execution Context
 DEFINE_METASIG_T(SM(SyncCtx_ArrIntPtr_Bool_Int_RetInt, C(SYNCHRONIZATION_CONTEXT) a(I) F i, i))

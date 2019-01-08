@@ -4809,7 +4809,7 @@ HRESULT ProfToEEInterfaceImpl::GetThreadContext(ThreadID threadId,
     Thread *pThread = reinterpret_cast<Thread *>(threadId);
 
     // Get the context for the Thread* provided
-    Context *pContext = pThread->GetContext();
+    AppDomain *pContext = pThread->GetDomain(); // Context is same as AppDomain in CoreCLR
     _ASSERTE(pContext);
 
     // If there's no current context, return incomplete info
@@ -5695,8 +5695,6 @@ HRESULT ProfToEEInterfaceImpl::GetAppDomainInfo(AppDomainID appDomainId,
     LPCWSTR szFriendlyName;
     if (pDomain == SystemDomain::System())
         szFriendlyName = g_pwBaseLibrary;
-    else if (pDomain == SharedDomain::GetDomain())
-        szFriendlyName = W("EE Shared Assembly Repository");
     else
         szFriendlyName = ((AppDomain*)pDomain)->GetFriendlyNameForDebugger();
 

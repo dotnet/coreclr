@@ -115,38 +115,32 @@ namespace System
 
 #if FEATURE_WIN32_REGISTRY
         // This is only used by RegistryKey on Windows.
-        public static string ExpandEnvironmentVariables(string name)
+        internal static string ExpandEnvironmentVariables(string name)
         {
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
+            Debug.Assert(name != null);
 
             if (name.Length == 0)
             {
                 return name;
             }
 
-            int currentSize = 100;
-            StringBuilder blob = new StringBuilder(currentSize); // A somewhat reasonable default size
+            Span<char> initialBuffer = stackalloc char[128];
+            var builder = new ValueStringBuilder(initialBuffer);
 
-            int size;
-
-            blob.Length = 0;
-            size = Win32Native.ExpandEnvironmentStrings(name, blob, currentSize);
-            if (size == 0)
-                Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
-
-            while (size > currentSize)
+            uint length;
+            while ((length = Win32Native.ExpandEnvironmentStringsW(name, ref builder.GetPinnableReference(), (uint)builder.Capacity)) > builder.Capacity)
             {
-                currentSize = size;
-                blob.Capacity = currentSize;
-                blob.Length = 0;
-
-                size = Win32Native.ExpandEnvironmentStrings(name, blob, currentSize);
-                if (size == 0)
-                    Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
+                builder.EnsureCapacity((int)length);
             }
 
-            return blob.ToString();
+            if (length == 0)
+            {
+                Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
+            }
+
+            // length includes the null terminator
+            builder.Length = (int)length - 1;
+            return builder.ToString();
         }
 #endif // FEATURE_WIN32_REGISTRY
 
@@ -192,7 +186,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern string[] GetCommandLineArgsNative();
 
-        private static string[] s_CommandLineArgs = null;
+        private static string[] s_CommandLineArgs;
         private static void SetCommandLineArgs(string[] cmdLineArgs)
         {
             s_CommandLineArgs = cmdLineArgs;
@@ -278,39 +272,52 @@ namespace System
         }
 
 #if !FEATURE_PAL
-        private static Lazy<bool> s_IsWindows8OrAbove = new Lazy<bool>(() => 
+        internal static bool IsWindows8OrAbove => WindowsVersion.IsWindows8OrAbove;
+
+        // Seperate type so a .cctor is not created for Enviroment which then would be triggered during startup
+        private static class WindowsVersion
         {
-            unsafe
+            // Cache the value in readonly static that can be optimized out by the JIT
+            internal readonly static bool IsWindows8OrAbove = GetIsWindows8OrAbove();
+
+            private static bool GetIsWindows8OrAbove()
             {
-                ulong conditionMask = Win32Native.VerSetConditionMask(0, Win32Native.VER_MAJORVERSION, Win32Native.VER_GREATER_EQUAL);
-                conditionMask = Win32Native.VerSetConditionMask(conditionMask, Win32Native.VER_MINORVERSION, Win32Native.VER_GREATER_EQUAL);
-                conditionMask = Win32Native.VerSetConditionMask(conditionMask, Win32Native.VER_SERVICEPACKMAJOR, Win32Native.VER_GREATER_EQUAL);
-                conditionMask = Win32Native.VerSetConditionMask(conditionMask, Win32Native.VER_SERVICEPACKMINOR, Win32Native.VER_GREATER_EQUAL);
+                bool isWindows8OrAbove;
+                unsafe
+                {
+                    ulong conditionMask = Win32Native.VerSetConditionMask(0, Win32Native.VER_MAJORVERSION, Win32Native.VER_GREATER_EQUAL);
+                    conditionMask = Win32Native.VerSetConditionMask(conditionMask, Win32Native.VER_MINORVERSION, Win32Native.VER_GREATER_EQUAL);
+                    conditionMask = Win32Native.VerSetConditionMask(conditionMask, Win32Native.VER_SERVICEPACKMAJOR, Win32Native.VER_GREATER_EQUAL);
+                    conditionMask = Win32Native.VerSetConditionMask(conditionMask, Win32Native.VER_SERVICEPACKMINOR, Win32Native.VER_GREATER_EQUAL);
 
-                // Windows 8 version is 6.2
-                var version = new Win32Native.OSVERSIONINFOEX();
-                version.dwOSVersionInfoSize = sizeof(Win32Native.OSVERSIONINFOEX);
-                version.dwMajorVersion = 6;
-                version.dwMinorVersion = 2;
-                version.wServicePackMajor = 0;
-                version.wServicePackMinor = 0;
+                    // Windows 8 version is 6.2
+                    var version = new Win32Native.OSVERSIONINFOEX();
+                    version.dwOSVersionInfoSize = sizeof(Win32Native.OSVERSIONINFOEX);
+                    version.dwMajorVersion = 6;
+                    version.dwMinorVersion = 2;
+                    version.wServicePackMajor = 0;
+                    version.wServicePackMinor = 0;
 
-                return Win32Native.VerifyVersionInfoW(ref version,
-                           Win32Native.VER_MAJORVERSION | Win32Native.VER_MINORVERSION | Win32Native.VER_SERVICEPACKMAJOR | Win32Native.VER_SERVICEPACKMINOR,
-                           conditionMask);
+                    isWindows8OrAbove = Win32Native.VerifyVersionInfoW(ref version,
+                               Win32Native.VER_MAJORVERSION | Win32Native.VER_MINORVERSION | Win32Native.VER_SERVICEPACKMAJOR | Win32Native.VER_SERVICEPACKMINOR,
+                               conditionMask);
+                }
+
+                return isWindows8OrAbove;
             }
-        });
-        internal static bool IsWindows8OrAbove => s_IsWindows8OrAbove.Value;
+        }
 #endif
-        
-#if FEATURE_COMINTEROP
-        // Does the current version of Windows have Windows Runtime suppport?
-        private static Lazy<bool> s_IsWinRTSupported = new Lazy<bool>(() =>
-        {
-            return WinRTSupported();
-        });
 
-        internal static bool IsWinRTSupported => s_IsWinRTSupported.Value;
+#if FEATURE_COMINTEROP
+        // Seperate type so a .cctor is not created for Enviroment which then would be triggered during startup
+        private static class WinRT
+        {
+            // Cache the value in readonly static that can be optimized out by the JIT
+            public readonly static bool IsSupported = WinRTSupported();
+        }
+
+        // Does the current version of Windows have Windows Runtime suppport?
+        internal static bool IsWinRTSupported => WinRT.IsSupported;
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -482,7 +489,7 @@ namespace System
                 return GetEnvironmentVariableCore(variable);
 
 #if FEATURE_WIN32_REGISTRY
-            if (AppDomain.IsAppXModel())
+            if (ApplicationModel.IsUap)
 #endif
             {
                 return null;
@@ -570,7 +577,7 @@ namespace System
         internal static IEnumerable<KeyValuePair<string, string>> EnumerateEnvironmentVariablesFromRegistry(EnvironmentVariableTarget target)
         {
 #if FEATURE_WIN32_REGISTRY
-            if (AppDomain.IsAppXModel())
+            if (ApplicationModel.IsUap)
 #endif
             {
                 // Without registry support we have nothing to return
@@ -646,7 +653,7 @@ namespace System
             }
 
 #if FEATURE_WIN32_REGISTRY
-            if (AppDomain.IsAppXModel())
+            if (ApplicationModel.IsUap)
 #endif
             {
                 // other targets ignored

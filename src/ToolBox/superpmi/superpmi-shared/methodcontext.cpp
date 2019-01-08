@@ -1001,57 +1001,68 @@ const char* MethodContext::repGetMethodName(CORINFO_METHOD_HANDLE ftn, const cha
 void MethodContext::recGetMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,
                                                  char*                 methodName,
                                                  const char**          className,
-                                                 const char**          namespaceName)
+                                                 const char**          namespaceName,
+                                                 const char**          enclosingClassName)
 {
     if (GetMethodNameFromMetadata == nullptr)
-        GetMethodNameFromMetadata = new LightWeightMap<DLDD, DDD>();
-    DDD  value;
-    DLDD key;
-    key.A = (DWORDLONG)ftn;
-    key.B = (className != nullptr);
-    key.C = (namespaceName != nullptr);
+        GetMethodNameFromMetadata = new LightWeightMap<Agnostic_CORINFO_METHODNAME_TOKENin, Agnostic_CORINFO_METHODNAME_TOKENout>();
+    Agnostic_CORINFO_METHODNAME_TOKENout  value;
+    Agnostic_CORINFO_METHODNAME_TOKENin key;
+    key.ftn = (DWORDLONG)ftn;
+    key.className = (className != nullptr);
+    key.namespaceName = (namespaceName != nullptr);
+    key.enclosingClassName = (enclosingClassName != nullptr);
 
     if (methodName != nullptr)
-        value.A = GetMethodNameFromMetadata->AddBuffer((unsigned char*)methodName, (DWORD)strlen(methodName) + 1);
+        value.methodName = GetMethodNameFromMetadata->AddBuffer((unsigned char*)methodName, (DWORD)strlen(methodName) + 1);
     else
-        value.A = (DWORD)-1;
+        value.methodName = (DWORD)-1;
 
     if ((className != nullptr) && (*className != nullptr))
-        value.B = GetMethodNameFromMetadata->AddBuffer((unsigned char*)*className, (DWORD)strlen(*className) + 1);
+        value.className = GetMethodNameFromMetadata->AddBuffer((unsigned char*)*className, (DWORD)strlen(*className) + 1);
     else
-        value.B = (DWORD)-1;
+        value.className = (DWORD)-1;
 
     if ((namespaceName != nullptr) && (*namespaceName != nullptr))
-        value.C =
+        value.namespaceName =
             GetMethodNameFromMetadata->AddBuffer((unsigned char*)*namespaceName, (DWORD)strlen(*namespaceName) + 1);
     else
-        value.C = (DWORD)-1;
+        value.namespaceName = (DWORD)-1;
+
+    if ((enclosingClassName != nullptr) && (*enclosingClassName != nullptr))
+        value.enclosingClassName =
+            GetMethodNameFromMetadata->AddBuffer((unsigned char*)*enclosingClassName, (DWORD)strlen(*enclosingClassName) + 1);
+    else
+        value.enclosingClassName = (DWORD)-1;
 
     GetMethodNameFromMetadata->Add(key, value);
     DEBUG_REC(dmpGetMethodNameFromMetadata(key, value));
 }
 
-void MethodContext::dmpGetMethodNameFromMetadata(DLDD key, DDD value)
+void MethodContext::dmpGetMethodNameFromMetadata(Agnostic_CORINFO_METHODNAME_TOKENin key, Agnostic_CORINFO_METHODNAME_TOKENout value)
 {
-    unsigned char* methodName    = (unsigned char*)GetMethodName->GetBuffer(value.A);
-    unsigned char* className     = (unsigned char*)GetMethodName->GetBuffer(value.B);
-    unsigned char* namespaceName = (unsigned char*)GetMethodName->GetBuffer(value.C);
-    printf("GetMethodNameFromMetadata key - ftn-%016llX classNonNull-%u namespaceNonNull-%u, value meth-'%s', "
-           "class-'%s', namespace-'%s'",
-           key.A, key.B, key.C, methodName, className, namespaceName);
+    unsigned char* methodName    = (unsigned char*)GetMethodName->GetBuffer(value.methodName);
+    unsigned char* className     = (unsigned char*)GetMethodName->GetBuffer(value.className);
+    unsigned char* namespaceName = (unsigned char*)GetMethodName->GetBuffer(value.namespaceName);
+    unsigned char* enclosingClassName = (unsigned char*)GetMethodName->GetBuffer(value.enclosingClassName);
+    printf("GetMethodNameFromMetadata key - ftn-%016llX classNonNull-%u namespaceNonNull-%u nclosingClassNonNull-%u, value meth-'%s', "
+           "class-'%s', namespace-'%s' enclosingClass-'%s'",
+           key.ftn, key.className, key.namespaceName, key.enclosingClassName, methodName, className, namespaceName, enclosingClassName);
     GetMethodNameFromMetadata->Unlock();
 }
 
 const char* MethodContext::repGetMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,
                                                         const char**          moduleName,
-                                                        const char**          namespaceName)
+                                                        const char**          namespaceName,
+                                                        const char**          enclosingClassName)
 {
     const char* result = nullptr;
-    DDD         value;
-    DLDD        key;
-    key.A = (DWORDLONG)ftn;
-    key.B = (moduleName != nullptr);
-    key.C = (namespaceName != nullptr);
+    Agnostic_CORINFO_METHODNAME_TOKENout value;
+    Agnostic_CORINFO_METHODNAME_TOKENin key;
+    key.ftn = (DWORDLONG)ftn;
+    key.className = (moduleName != nullptr);
+    key.namespaceName = (namespaceName != nullptr);
+    key.enclosingClassName = (enclosingClassName != nullptr);
 
     int itemIndex = -1;
     if (GetMethodNameFromMetadata != nullptr)
@@ -1066,16 +1077,21 @@ const char* MethodContext::repGetMethodNameFromMetadata(CORINFO_METHOD_HANDLE ft
     else
     {
         value  = GetMethodNameFromMetadata->Get(key);
-        result = (const char*)GetMethodNameFromMetadata->GetBuffer(value.A);
+        result = (const char*)GetMethodNameFromMetadata->GetBuffer(value.methodName);
 
         if (moduleName != nullptr)
         {
-            *moduleName = (const char*)GetMethodNameFromMetadata->GetBuffer(value.B);
+            *moduleName = (const char*)GetMethodNameFromMetadata->GetBuffer(value.className);
         }
 
         if (namespaceName != nullptr)
         {
-            *namespaceName = (const char*)GetMethodNameFromMetadata->GetBuffer(value.C);
+            *namespaceName = (const char*)GetMethodNameFromMetadata->GetBuffer(value.namespaceName);
+        }
+
+        if (enclosingClassName != nullptr)
+        {
+            *enclosingClassName = (const char*)GetMethodNameFromMetadata->GetBuffer(value.enclosingClassName);
         }
     }
     DEBUG_REP(dmpGetMethodNameFromMetadata(key, value));
@@ -2884,10 +2900,11 @@ bool MethodContext::repGetMethodInfo(CORINFO_METHOD_HANDLE ftn, CORINFO_METHOD_I
 
 void MethodContext::recGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                     CORINFO_METHOD_HANDLE   callerHandle,
+                                    bool* pHasSideEffects,
                                     CorInfoHelpFunc         result)
 {
     if (GetNewHelper == nullptr)
-        GetNewHelper = new LightWeightMap<Agnostic_GetNewHelper, DWORD>();
+        GetNewHelper = new LightWeightMap<Agnostic_GetNewHelper, DD>();
 
     Agnostic_GetNewHelper key;
     ZeroMemory(&key, sizeof(Agnostic_GetNewHelper)); // We use the input structs as a key and use memcmp to compare.. so
@@ -2895,15 +2912,20 @@ void MethodContext::recGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     key.hClass       = (DWORDLONG)pResolvedToken->hClass;
     key.callerHandle = (DWORDLONG)callerHandle;
 
-    GetNewHelper->Add(key, (DWORD)result);
-    DEBUG_REC(dmpGetNewHelper(key, (DWORD)result));
+    DD value;
+    value.A = (pHasSideEffects != nullptr) ? (DWORD)(*pHasSideEffects ? 1 : 0) : (DWORD)0;
+    value.B = (DWORD)result;
+
+    GetNewHelper->Add(key, value);
+    DEBUG_REC(dmpGetNewHelper(key, value));
 }
-void MethodContext::dmpGetNewHelper(const Agnostic_GetNewHelper& key, DWORD value)
+void MethodContext::dmpGetNewHelper(const Agnostic_GetNewHelper& key, DD value)
 {
-    printf("GetNewHelper key cls-%016llX chan-%016llX, value res-%u", key.hClass, key.callerHandle, value);
+    printf("GetNewHelper key cls-%016llX chan-%016llX, hasSideEffects-%u, value res-%u", key.hClass, key.callerHandle, value.A, value.B);
 }
 CorInfoHelpFunc MethodContext::repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                                               CORINFO_METHOD_HANDLE   callerHandle)
+                                               CORINFO_METHOD_HANDLE   callerHandle,
+                                               bool* pHasSideEffects)
 {
     Agnostic_GetNewHelper key;
     ZeroMemory(&key, sizeof(Agnostic_GetNewHelper)); // We use the input structs as a key and use memcmp to compare.. so
@@ -2913,9 +2935,17 @@ CorInfoHelpFunc MethodContext::repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolved
 
     AssertCodeMsg(GetNewHelper != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX", (DWORDLONG)key.hClass);
     AssertCodeMsg(GetNewHelper->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX", (DWORDLONG)key.hClass);
-    CorInfoHelpFunc value = (CorInfoHelpFunc)GetNewHelper->Get(key);
+
+    DD value;
+    value = GetNewHelper->Get(key);
+    if (pHasSideEffects != nullptr)
+    {
+        *pHasSideEffects = (value.A == 0) ? false : true;
+    }
+    CorInfoHelpFunc result = (CorInfoHelpFunc)value.B;
+
     DEBUG_REP(dmpGetNewHelper(key, value));
-    return value;
+    return result;
 }
 
 void MethodContext::recEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolvedToken,

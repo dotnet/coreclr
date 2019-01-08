@@ -10,8 +10,6 @@
     <OutputType>Exe</OutputType>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <!-- Issue 21057, https://github.com/dotnet/coreclr/issues/21057 -->
-    <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' "></PropertyGroup>
@@ -29,12 +27,11 @@
     <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <PropertyGroup>
-    <CrossGenTest>false</CrossGenTest>
     <CLRTestBatchPreCommands>
       <![CDATA[
 $(CLRTestBatchPreCommands)
 set COMPlus_TieredCompilation=0
-set COMPlus_JitMinOpts=0
+set COMPlus_JITMinOpts=0
 set COMPlus_JitDebuggable=0
 set COMPlus_JitStressModeNamesNot=STRESS_RANDOM_INLINE
 set COMPlus_JitObjectStackAllocation=1
@@ -44,7 +41,7 @@ set COMPlus_JitObjectStackAllocation=1
       <![CDATA[
 $(BashCLRTestPreCommands)
 export COMPlus_TieredCompilation=0
-export COMPlus_JitMinOpts=0
+export COMPlus_JITMinOpts=0
 export COMPlus_JitDebuggable=0
 export COMPlus_JitStressModeNamesNot=STRESS_RANDOM_INLINE
 export COMPlus_JitObjectStackAllocation=1

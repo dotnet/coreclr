@@ -112,7 +112,7 @@ namespace JIT.HardwareIntrinsics.X86
             _data2 = {NextValueOp2};
         }
 
-        public bool IsSupported => {Isa}.IsSupported && (Environment.Is64BitProcess || ((typeof({RetBaseType}) != typeof(long)) && (typeof({RetBaseType}) != typeof(ulong))));
+        public bool IsSupported => {Isa}.IsSupported;
 
         public bool Succeeded { get; set; }
 
@@ -158,7 +158,7 @@ namespace JIT.HardwareIntrinsics.X86
             TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
 
             var data1 = Unsafe.ReadUnaligned<{Op1BaseType}>(ref Unsafe.As<{Op1BaseType}, byte>(ref _data1));
-            var data2 = Unsafe.ReadUnaligned<{Op2BaseType}>(ref Unsafe.As<{Op1BaseType}, byte>(ref _data2));
+            var data2 = Unsafe.ReadUnaligned<{Op2BaseType}>(ref Unsafe.As<{Op2BaseType}, byte>(ref _data2));
             var result = {Isa}.{Method}(data1, data2);
 
             ValidateResult(data1, data2, result);
@@ -204,7 +204,7 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
 
-            Succeeded = false;
+            bool succeeded = false;
 
             try
             {
@@ -212,7 +212,12 @@ namespace JIT.HardwareIntrinsics.X86
             }
             catch (PlatformNotSupportedException)
             {
-                Succeeded = true;
+                succeeded = true;
+            }
+
+            if (!succeeded)
+            {
+                Succeeded = false;
             }
         }
 
@@ -229,6 +234,8 @@ namespace JIT.HardwareIntrinsics.X86
                 TestLibrary.TestFramework.LogInformation($"   right: {right}");
                 TestLibrary.TestFramework.LogInformation($"  result: {result}");
                 TestLibrary.TestFramework.LogInformation(string.Empty);
+
+                Succeeded = false;
             }
         }
     }

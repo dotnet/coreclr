@@ -1501,7 +1501,12 @@ MethodTableBuilder::BuildMethodTableThrowing(
         if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics.Arm.Arm64") == 0)
 #else
         // All the funtions in System.Runtime.Intrinsics.X86 are hardware intrinsics.
-        if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics.X86") == 0)
+        if (bmtInternal->pType->IsNested())
+        {
+            IfFailThrow(GetMDImport()->GetNameOfTypeDef(bmtInternal->pType->GetEnclosingTypeToken(), NULL, &nameSpace));
+        }
+        
+        if (hr == S_OK && (strcmp(nameSpace, "System.Runtime.Intrinsics.X86") == 0))
 #endif
         {
             if (IsCompilationProcess())
@@ -5115,7 +5120,7 @@ MethodTableBuilder::InitNewMethodDesc(
     }
 
     // Check for methods marked as [Intrinsic]
-    if (GetModule()->IsSystem())
+    if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
     {
         HRESULT hr = GetMDImport()->GetCustomAttributeByName(pMethod->GetMethodSignature().GetToken(),
             g_CompilerServicesIntrinsicAttribute,
@@ -10153,7 +10158,7 @@ MethodTableBuilder::SetupMethodTable2(
         {
             Module * pModule = GetModule();
             Module * pParentModule = GetParentMethodTable()->GetModule();
-            if (pModule != pParentModule && !pModule->HasUnconditionalActiveDependency(pParentModule))
+            if (pModule != pParentModule)
             {
                 pMT->SetHasModuleDependencies();
             }
@@ -11433,7 +11438,12 @@ void MethodTableBuilder::CheckForTypeEquivalence(
 
     if (bmtProp->fIsTypeEquivalent)
     {
-        BOOL fTypeEquivalentNotPermittedDueToType = !(((IsComImport() || bmtProp->fComEventItfType) && IsInterface()) || IsValueClass() || IsDelegate());
+        BOOL comImportOrEventInterface = IsComImport();
+#ifdef FEATURE_COMINTEROP
+        comImportOrEventInterface = comImportOrEventInterface || bmtProp->fComEventItfType;
+#endif // FEATURE_COMINTEROP
+
+        BOOL fTypeEquivalentNotPermittedDueToType = !((comImportOrEventInterface && IsInterface()) || IsValueClass() || IsDelegate());
         BOOL fTypeEquivalentNotPermittedDueToGenerics = bmtGenerics->HasInstantiation();
 
         if (fTypeEquivalentNotPermittedDueToType || fTypeEquivalentNotPermittedDueToGenerics)

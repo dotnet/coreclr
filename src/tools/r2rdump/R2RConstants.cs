@@ -32,6 +32,14 @@ namespace R2RDump
     };
 
     /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/corcompile.h">src/inc/corcompile.h</a> CorCompileImportFlags
+    /// </summary>
+    public enum CORCOMPILE_FIXUP_BLOB_KIND
+    {
+        ENCODE_MODULE_OVERRIDE = 0x80,     /* When the high bit is set, override of the module immediately follows */
+    }
+
+    /// <summary>
     /// Constants for method and field encoding
     /// </summary>
     [Flags]
@@ -223,10 +231,10 @@ namespace R2RDump
         READYTORUN_HELPER_Dbl2ULngOvf = 0xD7,
 
         // Floating point ops
-        READYTORUN_HELPER_DblRem = 0xE0,
-        READYTORUN_HELPER_FltRem = 0xE1,
-        READYTORUN_HELPER_DblRound = 0xE2,
-        READYTORUN_HELPER_FltRound = 0xE3,
+        READYTORUN_HELPER_FltRem = 0xE0,
+        READYTORUN_HELPER_DblRem = 0xE1,
+        READYTORUN_HELPER_FltRound = 0xE2,
+        READYTORUN_HELPER_DblRound = 0xE3,
 
         // Personality rountines
         READYTORUN_HELPER_PersonalityRoutine = 0xF0,

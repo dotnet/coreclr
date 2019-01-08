@@ -354,19 +354,19 @@ namespace System.Reflection.Emit
 
                 switch (corType)
                 {
-                    case CorElementType.I1:
-                    case CorElementType.U1:
-                    case CorElementType.Boolean:
-                    case CorElementType.I2:
-                    case CorElementType.U2:
-                    case CorElementType.Char:
-                    case CorElementType.I4:
-                    case CorElementType.U4:
-                    case CorElementType.R4:
-                    case CorElementType.I8:
-                    case CorElementType.U8:
-                    case CorElementType.R8:
-                        fixed (byte* pData = &JitHelpers.GetPinningHelper(value).m_data)
+                    case CorElementType.ELEMENT_TYPE_I1:
+                    case CorElementType.ELEMENT_TYPE_U1:
+                    case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                    case CorElementType.ELEMENT_TYPE_I2:
+                    case CorElementType.ELEMENT_TYPE_U2:
+                    case CorElementType.ELEMENT_TYPE_CHAR:
+                    case CorElementType.ELEMENT_TYPE_I4:
+                    case CorElementType.ELEMENT_TYPE_U4:
+                    case CorElementType.ELEMENT_TYPE_R4:
+                    case CorElementType.ELEMENT_TYPE_I8:
+                    case CorElementType.ELEMENT_TYPE_U8:
+                    case CorElementType.ELEMENT_TYPE_R8:
+                        fixed (byte* pData = &value.GetRawData())
                             SetConstantValue(module.GetNativeHandle(), tk, (int)corType, pData);
                         break;
 
@@ -374,13 +374,13 @@ namespace System.Reflection.Emit
                         if (type == typeof(string))
                         {
                             fixed (char* pString = (string)value)
-                                SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.String, pString);
+                                SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.ELEMENT_TYPE_STRING, pString);
                         }
                         else if (type == typeof(DateTime))
                         {
                             //date is a I8 representation
                             long ticks = ((DateTime)value).Ticks;
-                            SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.I8, &ticks);
+                            SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.ELEMENT_TYPE_I8, &ticks);
                         }
                         else
                         {
@@ -395,7 +395,7 @@ namespace System.Reflection.Emit
                 // (See ECMA-335 II.15.4.1.4 "The .param directive" and II.22.9 "Constant" for details.)
                 // This is how the Roslyn compilers generally encode `default(TValueType)` default values.
 
-                SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.Class, null);
+                SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.ELEMENT_TYPE_CLASS, null);
             }
         }
 
@@ -1496,34 +1496,34 @@ namespace System.Reflection.Emit
                 switch (nativeCallConv)
                 {
                     case CallingConvention.Winapi:
-                        linkFlags = (int)PInvokeMap.CallConvWinapi;
+                        linkFlags = (int)PInvokeAttributes.CallConvWinapi;
                         break;
                     case CallingConvention.Cdecl:
-                        linkFlags = (int)PInvokeMap.CallConvCdecl;
+                        linkFlags = (int)PInvokeAttributes.CallConvCdecl;
                         break;
                     case CallingConvention.StdCall:
-                        linkFlags = (int)PInvokeMap.CallConvStdcall;
+                        linkFlags = (int)PInvokeAttributes.CallConvStdcall;
                         break;
                     case CallingConvention.ThisCall:
-                        linkFlags = (int)PInvokeMap.CallConvThiscall;
+                        linkFlags = (int)PInvokeAttributes.CallConvThiscall;
                         break;
                     case CallingConvention.FastCall:
-                        linkFlags = (int)PInvokeMap.CallConvFastcall;
+                        linkFlags = (int)PInvokeAttributes.CallConvFastcall;
                         break;
                 }
                 switch (nativeCharSet)
                 {
                     case CharSet.None:
-                        linkFlags |= (int)PInvokeMap.CharSetNotSpec;
+                        linkFlags |= (int)PInvokeAttributes.CharSetNotSpec;
                         break;
                     case CharSet.Ansi:
-                        linkFlags |= (int)PInvokeMap.CharSetAnsi;
+                        linkFlags |= (int)PInvokeAttributes.CharSetAnsi;
                         break;
                     case CharSet.Unicode:
-                        linkFlags |= (int)PInvokeMap.CharSetUnicode;
+                        linkFlags |= (int)PInvokeAttributes.CharSetUnicode;
                         break;
                     case CharSet.Auto:
-                        linkFlags |= (int)PInvokeMap.CharSetAuto;
+                        linkFlags |= (int)PInvokeAttributes.CharSetAuto;
                         break;
                 }
 
@@ -2033,16 +2033,18 @@ namespace System.Reflection.Emit
             {
                 // Check for global typebuilder
                 if (((m_tdType.Token & 0x00FFFFFF) != 0) && ((tkParent & 0x00FFFFFF) != 0))
+                {
                     SetParentType(m_module.GetNativeHandle(), m_tdType.Token, tkParent);
+                }
 
                 if (m_inst != null)
-                    foreach (Type tb in m_inst)
-                        if (tb is GenericTypeParameterBuilder)
-                            ((GenericTypeParameterBuilder)tb).m_type.CreateType();
+                {
+                    foreach (GenericTypeParameterBuilder tb in m_inst)
+                    {
+                        tb.m_type.CreateType();
+                    }
+                }
             }
-
-            byte[] body;
-            MethodAttributes methodAttrs;
 
             if (!m_isHiddenGlobalType)
             {
@@ -2060,11 +2062,10 @@ namespace System.Reflection.Emit
             {
                 MethodBuilder meth = m_listMethods[i];
 
-
                 if (meth.IsGenericMethodDefinition)
                     meth.GetToken(); // Doubles as "CreateMethod" for MethodBuilder -- analogous to CreateType()
 
-                methodAttrs = meth.Attributes;
+                MethodAttributes methodAttrs = meth.Attributes;
 
                 // Any of these flags in the implemenation flags is set, we will not attach the IL method body
                 if (((meth.GetMethodImplementationFlags() & (MethodImplAttributes.CodeTypeMask | MethodImplAttributes.PreserveSig | MethodImplAttributes.Unmanaged)) != MethodImplAttributes.IL) ||
@@ -2073,8 +2074,7 @@ namespace System.Reflection.Emit
                     continue;
                 }
 
-                int sigLength;
-                byte[] localSig = meth.GetLocalSignature(out sigLength);
+                byte[] localSig = meth.GetLocalSignature(out int sigLength);
 
                 // Check that they haven't declared an abstract method on a non-abstract class
                 if (((methodAttrs & MethodAttributes.Abstract) != 0) && ((m_iAttr & TypeAttributes.Abstract) == 0))
@@ -2082,7 +2082,7 @@ namespace System.Reflection.Emit
                     throw new InvalidOperationException(SR.InvalidOperation_BadTypeAttributesNotAbstract);
                 }
 
-                body = meth.GetBody();
+                byte[] body = meth.GetBody();
 
                 // If this is an abstract method or an interface, we don't need to set the IL.
 

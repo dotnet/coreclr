@@ -61,7 +61,7 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
         if(!pThread->IsRealThreadPoolResetNeeded())
         {
             pThread->ResetManagedThreadObjectInCoopMode(ThreadNative::PRIORITY_NORMAL);
-            pThread->InternalReset(FALSE, TRUE, FALSE, FALSE);  
+            pThread->InternalReset(TRUE, FALSE, FALSE);  
             if(ThreadpoolMgr::ShouldGrowCompletionPortThreadpool(ThreadpoolMgr::CPThreadCounter.DangerousGetDirtyCounts()))
             {
                 //We may have to create a CP thread, go back to the Vm, and process the packet there.
@@ -107,7 +107,6 @@ FCIMPL1(LPOVERLAPPED, AllocateNativeOverlapped, OverlappedDataObject* overlapped
         g_pOverlappedDataClass = MscorlibBinder::GetClass(CLASS__OVERLAPPEDDATA);
         // We have optimization to avoid creating event if IO is in default domain.  This depends on default domain 
         // can not be unloaded.
-        _ASSERTE(IsSingleAppDomain());
         _ASSERTE(SystemDomain::System()->DefaultDomain()->GetId().m_dwId == DefaultADID);
     }
 

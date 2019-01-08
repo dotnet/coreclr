@@ -122,71 +122,15 @@ public:
         IAssemblyName * pAssemblyName,
         ICLRPrivAssembly ** ppAssembly);
 
-    // Implements interface method code:ICLRPrivBinder::VerifyBind.
-    STDMETHOD(VerifyBind)(
-        IAssemblyName *        pAssemblyName, 
-        ICLRPrivAssembly *     pAssembly, 
-        ICLRPrivAssemblyInfo * pAssemblyInfo);
-
-    // Implements interface method code:ICLRPrivBinder::GetBinderFlags
-    STDMETHOD(GetBinderFlags)(
-        DWORD *pBinderFlags)
-    {
-        STATIC_CONTRACT_WRAPPER;
-
-        if (pBinderFlags == NULL)
-            return E_INVALIDARG;
-
-        HRESULT hr = S_OK;
-
-        if (m_pParentBinder != NULL)
-            hr = m_pParentBinder->GetBinderFlags(pBinderFlags);
-        else
-            *pBinderFlags = BINDER_NONE;
-
-        return hr;
-    }
-
     // Implements interface method code:ICLRPrivBinder::GetBinderID.
     STDMETHOD(GetBinderID)(
         UINT_PTR * pBinderId);
-
-    STDMETHOD(FindAssemblyBySpec)(
-        LPVOID pvAppDomain,
-        LPVOID pvAssemblySpec,
-        HRESULT * pResult,
-        ICLRPrivAssembly ** ppAssembly)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-#ifndef DACCESS_COMPILE
-        // CLRPrivBinderWinRT instances only have parent binders in Metro processes (not in classic).
-        _ASSERTE((AppX::IsAppXProcess()) == (m_pParentBinder != nullptr));
-#endif
-
-        if (m_pParentBinder != NULL)
-        {
-            return m_pParentBinder->FindAssemblyBySpec(pvAppDomain, pvAssemblySpec, pResult, ppAssembly);
-        }
-        else
-        {
-            // Note: should never get here if caller is Module::GetAssemblyIfLoaded, but can
-            // be called from AssemblySpec::LoadDomainAssembly..
-            return FindWinRTAssemblyBySpec(pvAppDomain, pvAssemblySpec, pResult, ppAssembly);
-        }
-    }
 
     STDMETHOD(GetLoaderAllocator)(
         LPVOID * pLoaderAllocator)
     {
         return E_FAIL;
     }
-
-    HRESULT FindWinRTAssemblyBySpec(
-        LPVOID pvAppDomain,
-        LPVOID pvAssemblySpec,
-        HRESULT * pResult,
-        ICLRPrivAssembly ** ppAssembly);
 
 
     //=============================================================================================
@@ -210,26 +154,23 @@ public:
     // Binds WinRT assemblies only.
     HRESULT BindWinRTAssemblyByName(
         IAssemblyName * pIAssemblyName,
-        CLRPrivAssemblyWinRT ** ppAssembly,
-        BOOL fPreBind = FALSE);
+        CLRPrivAssemblyWinRT ** ppAssembly);
 
     // Binds WinRT assemblies only.
     HRESULT BindWinRTAssemblyByName(
         IAssemblyName * pIAssemblyName,
-        ICLRPrivAssembly ** ppPrivAssembly,
-        BOOL fPreBind = FALSE);
+        ICLRPrivAssembly ** ppPrivAssembly);
 
     // Binds WinRT assemblies only.
     HRESULT BindWinRTAssemblyByName(
         IAssemblyName * pIAssemblyName,
-        IBindResult ** ppIBindResult,
-        BOOL fPreBind = FALSE);
+        IBindResult ** ppIBindResult);
 
     HRESULT GetAssemblyAndTryFindNativeImage(SString &sWinmdFilename, LPCWSTR pwzSimpleName, BINDER_SPACE::Assembly ** ppAssembly);
     // On Phone the application's APP_PATH CoreCLR hosting config property is used as the app
     // package graph for RoResolveNamespace to find 3rd party WinMDs.  This method wires up
     // the app paths so the WinRT binder will find 3rd party WinMDs.
-    HRESULT SetApplicationContext(BINDER_SPACE::ApplicationContext *pApplicationContext, SString &appLocalWinMD);
+    HRESULT SetApplicationContext(BINDER_SPACE::ApplicationContext *pApplicationContext, LPCWSTR pwzAppLocalWinMD);
     // Finds assembly with WinRT type if it is already loaded
     // Note: This method could implement interface code:ICLRPrivWinRtTypeBinder if it is ever needed
     PTR_Assembly FindAssemblyForTypeIfLoaded(
@@ -351,24 +292,6 @@ public:
         return m_pBinder->BindAssemblyByName(pAssemblyName, ppAssembly);
     }
     
-    // Implements interface method code:ICLRPrivBinder::VerifyBind.
-    STDMETHOD(VerifyBind)(
-        IAssemblyName *        pAssemblyName, 
-        ICLRPrivAssembly *     pAssembly, 
-        ICLRPrivAssemblyInfo * pAssemblyInfo)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        return m_pBinder->VerifyBind(pAssemblyName, pAssembly, pAssemblyInfo);
-    }
-
-    // Implements interface method code:ICLRPrivBinder::GetBinderFlags
-    STDMETHOD(GetBinderFlags)(
-        DWORD *pBinderFlags)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        return m_pBinder->GetBinderFlags(pBinderFlags);
-    }
-
     // Implements interface method code:ICLRPrivBinder::GetBinderID.
     STDMETHOD(GetBinderID)(
         UINT_PTR * pBinderId)
@@ -377,17 +300,6 @@ public:
         return m_pBinder->GetBinderID(pBinderId);
     }
     
-    // Implements code:ICLRPrivBinder::FindAssemblyBySpec
-    STDMETHOD(FindAssemblyBySpec)(
-        LPVOID pvAppDomain,
-        LPVOID pvAssemblySpec,
-        HRESULT * pResult,
-        ICLRPrivAssembly ** ppAssembly)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        return m_pBinder->FindAssemblyBySpec(pvAppDomain, pvAssemblySpec, pResult, ppAssembly);
-    }
-
     STDMETHOD(GetLoaderAllocator)(
         LPVOID * pLoaderAllocator)
     {

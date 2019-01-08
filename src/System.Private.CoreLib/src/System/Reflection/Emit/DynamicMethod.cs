@@ -235,11 +235,6 @@ namespace System.Reflection.Emit
                 if (s_anonymouslyHostedDynamicMethodsModule != null)
                     return s_anonymouslyHostedDynamicMethodsModule;
 
-                ConstructorInfo transparencyCtor = typeof(SecurityTransparentAttribute).GetConstructor(Type.EmptyTypes);
-                CustomAttributeBuilder transparencyAttribute = new CustomAttributeBuilder(transparencyCtor, Array.Empty<object>());
-                List<CustomAttributeBuilder> assemblyAttributes = new List<CustomAttributeBuilder>();
-                assemblyAttributes.Add(transparencyAttribute);
-
                 AssemblyName assemblyName = new AssemblyName("Anonymously Hosted DynamicMethods Assembly");
                 StackCrawlMark stackMark = StackCrawlMark.LookForMe;
 
@@ -247,9 +242,7 @@ namespace System.Reflection.Emit
                     assemblyName,
                     AssemblyBuilderAccess.Run,
                     ref stackMark,
-                    assemblyAttributes);
-
-                AppDomain.PublishAnonymouslyHostedDynamicMethodsAssembly(assembly.GetNativeHandle());
+                    null);
 
                 // this always gets the internal module.
                 s_anonymouslyHostedDynamicMethodsModule = (InternalModuleBuilder)assembly.ManifestModule;
@@ -258,7 +251,7 @@ namespace System.Reflection.Emit
             return s_anonymouslyHostedDynamicMethodsModule;
         }
 
-        private unsafe void Init(string name,
+        private void Init(string name,
                                  MethodAttributes attributes,
                                  CallingConventions callingConvention,
                                  Type returnType,
@@ -376,7 +369,7 @@ namespace System.Reflection.Emit
         }
 
         // This is guaranteed to return a valid handle
-        internal unsafe RuntimeMethodHandle GetMethodDescriptor()
+        internal RuntimeMethodHandle GetMethodDescriptor()
         {
             if (m_methodHandle == null)
             {

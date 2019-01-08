@@ -1,18 +1,30 @@
-resources:
-  repositories:
-  # shared library repository
-  - repository: arcade
-    type: github
-    ${{ if ne(variables['System.TeamProject'], 'public') }}:
-      endpoint: DotNet-Bot GitHub Internal Connection
-    ${{ if eq(variables['System.TeamProject'], 'public') }}:
-      endpoint: DotNet-Bot GitHub Connection
-    name: dotnet/arcade
-    ref: refs/heads/master
+
+# Temporarily set a build number format that includes a large revision
+# number that won't conflict with buildpipeline official builds.
+name: $(Date:yyyyMMdd)$(Rev:.7r)
 
 variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
+resources:
+  containers:
+  - container: ubuntu_1404_arm_cross_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420
+
+  - container: ubuntu_1604_arm64_cross_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921
+
+  - container: ubuntu_1604_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-c103199-20180628134544
+
+  - container: musl_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-WithNode-f4d3fe3-20181220200247
+
+  - container: centos7_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:centos-7-d485f41-20173404063424
+
+  - container: centos6_x64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:centos-6-376e1a3-20174311014331
 
 jobs:
 
@@ -70,86 +82,108 @@ jobs:
 ##                                            |  (passed-in jobTemplate)  |                    (arcade)
 ##                                            \------> test-job.yml ------/
 
-
-
-#
-# Debug build
-#
-
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: debug
+# TODO: simplify logic surrounding official build/ci. See
+# https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
 
 #
-# Checked build
+# Debug build (CI)
 #
-
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: checked
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: debug
 
 #
-# Release build
+# Checked build (CI)
 #
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: checked
 
+#
+# Release build (Official Build)
+#
 - template: eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: release
+    jobParameters:
+      # Publishing packages to blob feeds sometimes takes a long time
+      # due to waiting for an exclusive lock on the feed.
+      # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
+      timeoutInMinutes: 120
 
 #
 # Checked test builds
 #
 
-# Pri0
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    jobParameters:
-      priority: 0
+# Pri0 (PullRequest)
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 0
+        timeoutInMinutes: 120
 
-# Pri1
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    jobParameters:
-      priority: 1
-      scenarios: 'normal;jitstress2'
+# Pri1 (CI)
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        timeoutInMinutes: 240
 
-# Pri1 crossgen
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    jobParameters:
-      priority: 1
-      crossgen: true
-      scenarios: 'normal;jitstress2'
+# Pri1 crossgen (CI)
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        crossgen: true
+        timeoutInMinutes: 240
+
+# Pri1 (Manual)
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'Manual')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        priority: 1
+        scenarios: 'normal,jitstress1,jitstress2,gcstress0x3,gcstress0xc'
+        timeoutInMinutes: 300
 
 #
-# Release test builds
+# Release test builds (Official Build)
 #
 
 # Pri1
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: release
-    jobParameters:
-      priority: 1
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: release
+      jobParameters:
+        priority: 1
 
-# Pri1 crossgen
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: release
-    jobParameters:
-      priority: 1
-      crossgen: true
+# Pri1 crossgen (Official Build)
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: release
+      jobParameters:
+        priority: 1
+        crossgen: true
 
 
 # Publish build information to Build Assets Registry
@@ -159,23 +193,21 @@ jobs:
 # registry. Its dependencies should be updated to include all of the
 # official builds if we add more platform/arch combinations.
 
-# TODO: Enable publish to BAR
-#- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-#  - template: /eng/common/templates/phases/publish-build-assets.yml@arcade
-#- phase: publish_bar
-#  displayName: publish to BAR (empty currently)
-#  queue:
-#    name: Hosted VS2017
-#  dependsOn:
-#  - build_Linux_x64_release
-#  - build_OSX_x64_release
-#  - build_Windows_NT_x64_release
-#  - build_Windows_NT_x86_release
-#  - build_Windows_NT_arm_release
-#  - build_Windows_NT_arm64_release
-  # TODO: enable these builds
-  #  - build_rhel_x64_release
-  #  - build_alpine_x64_release
-  #  - build_crossbuild_arm_release
-  #  - build_crossbuild_arm64_release
-
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: /eng/common/templates/job/publish-build-assets.yml
+    parameters:
+      configuration: Release
+      pool:
+        name: dotnet-internal-temp
+      dependsOn:
+      - build_Linux_arm_release
+      - build_Linux_arm64_release
+      - build_Linux_musl_x64_release
+      - build_Linux_rhel6_x64_release
+      - build_Linux_rhel7_x64_release
+      - build_Linux_x64_release
+      - build_OSX_x64_release
+      - build_Windows_NT_x64_release
+      - build_Windows_NT_x86_release
+      - build_Windows_NT_arm_release
+      - build_Windows_NT_arm64_release

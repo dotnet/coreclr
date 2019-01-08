@@ -437,15 +437,15 @@ var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, u
             size         = Vector256SizeBytes;
             JITDUMP("  Known type Vector256<ulong>\n");
         }
-        else if (typeHnd == m_simdHandleCache->Vector256FloatHandle)
-        {
-            simdBaseType = TYP_FLOAT;
-            size         = Vector256SizeBytes;
-            JITDUMP("  Known type Vector256<float>\n");
-        }
         else
 #endif // defined(_TARGET_XARCH)
-            if (typeHnd == m_simdHandleCache->Vector128DoubleHandle)
+            if (typeHnd == m_simdHandleCache->Vector128FloatHandle)
+        {
+            simdBaseType = TYP_FLOAT;
+            size         = Vector128SizeBytes;
+            JITDUMP("  Known type Vector128<float>\n");
+        }
+        else if (typeHnd == m_simdHandleCache->Vector128DoubleHandle)
         {
             simdBaseType = TYP_DOUBLE;
             size         = Vector128SizeBytes;
@@ -499,7 +499,14 @@ var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, u
             size         = Vector128SizeBytes;
             JITDUMP("  Known type Vector128<ulong>\n");
         }
+        else
 #if defined(_TARGET_ARM64_)
+            if (typeHnd == m_simdHandleCache->Vector64FloatHandle)
+        {
+            simdBaseType = TYP_FLOAT;
+            size         = Vector64SizeBytes;
+            JITDUMP("  Known type Vector64<float>\n");
+        }
         else if (typeHnd == m_simdHandleCache->Vector64IntHandle)
         {
             simdBaseType = TYP_INT;
@@ -1119,7 +1126,7 @@ GenTreeSIMD* Compiler::impSIMDGetFixed(var_types simdType, var_types baseType, u
 // impSIMDLongRelOpEqual: transforms operands and returns the SIMD intrinsic to be applied on
 // transformed operands to obtain == comparison result.
 //
-// Argumens:
+// Arguments:
 //    typeHnd  -  type handle of SIMD vector
 //    size     -  SIMD vector size
 //    op1      -  in-out parameter; first operand
@@ -1163,7 +1170,7 @@ SIMDIntrinsicID Compiler::impSIMDLongRelOpEqual(CORINFO_CLASS_HANDLE typeHnd,
 // impSIMDLongRelOpGreaterThan: transforms operands and returns the SIMD intrinsic to be applied on
 // transformed operands to obtain > comparison result.
 //
-// Argumens:
+// Arguments:
 //    typeHnd  -  type handle of SIMD vector
 //    size     -  SIMD vector size
 //    pOp1     -  in-out parameter; first operand
@@ -1259,7 +1266,7 @@ SIMDIntrinsicID Compiler::impSIMDLongRelOpGreaterThan(CORINFO_CLASS_HANDLE typeH
 // impSIMDLongRelOpGreaterThanOrEqual: transforms operands and returns the SIMD intrinsic to be applied on
 // transformed operands to obtain >= comparison result.
 //
-// Argumens:
+// Arguments:
 //    typeHnd  -  type handle of SIMD vector
 //    size     -  SIMD vector size
 //    pOp1      -  in-out parameter; first operand
@@ -1315,7 +1322,7 @@ SIMDIntrinsicID Compiler::impSIMDLongRelOpGreaterThanOrEqual(CORINFO_CLASS_HANDL
 // impSIMDInt32OrSmallIntRelOpGreaterThanOrEqual: transforms operands and returns the SIMD intrinsic to be applied on
 // transformed operands to obtain >= comparison result in case of integer base type vectors
 //
-// Argumens:
+// Arguments:
 //    typeHnd  -  type handle of SIMD vector
 //    size     -  SIMD vector size
 //    baseType -  base type of SIMD vector
@@ -1376,7 +1383,7 @@ SIMDIntrinsicID Compiler::impSIMDIntegralRelOpGreaterThanOrEqual(
 // Transforms operands and returns the SIMD intrinsic to be applied on
 // transformed operands to obtain given relop result.
 //
-// Argumens:
+// Arguments:
 //    relOpIntrinsicId - Relational operator SIMD intrinsic
 //    typeHnd          - type handle of SIMD vector
 //    size             -  SIMD vector size
@@ -1717,7 +1724,7 @@ GenTree* Compiler::impSIMDAbs(CORINFO_CLASS_HANDLE typeHnd, var_types baseType, 
 
 // Creates a GT_SIMD tree for Select operation
 //
-// Argumens:
+// Arguments:
 //    typeHnd          -  type handle of SIMD vector
 //    baseType         -  base type of SIMD vector
 //    size             -  SIMD vector size
@@ -1777,7 +1784,7 @@ GenTree* Compiler::impSIMDSelect(
 
 // Creates a GT_SIMD tree for Min/Max operation
 //
-// Argumens:
+// Arguments:
 //    IntrinsicId      -  SIMD intrinsic Id, either Min or Max
 //    typeHnd          -  type handle of SIMD vector
 //    baseType         -  base type of SIMD vector
@@ -2254,7 +2261,7 @@ GenTree* Compiler::createAddressNodeForSIMDInit(GenTree* tree, unsigned simdSize
 
 void Compiler::impMarkContiguousSIMDFieldAssignments(GenTree* stmt)
 {
-    if (!featureSIMD || opts.MinOpts())
+    if (!featureSIMD || opts.OptimizationDisabled())
     {
         return;
     }
@@ -2342,14 +2349,24 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
                                     CORINFO_CLASS_HANDLE  clsHnd,
                                     CORINFO_METHOD_HANDLE methodHnd,
                                     CORINFO_SIG_INFO*     sig,
+                                    unsigned              methodFlags,
                                     int                   memberRef)
 {
     assert(featureSIMD);
 
+    // Exit early if we are not in one of the SIMD types.
     if (!isSIMDClass(clsHnd))
     {
         return nullptr;
     }
+
+#ifdef FEATURE_CORECLR
+    // For coreclr, we also exit early if the method is not a JIT Intrinsic (which requires the [Intrinsic] attribute).
+    if ((methodFlags & CORINFO_FLG_JIT_INTRINSIC) == 0)
+    {
+        return nullptr;
+    }
+#endif // FEATURE_CORECLR
 
     // Get base type and intrinsic Id
     var_types                baseType = TYP_UNKNOWN;
@@ -2871,6 +2888,18 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
             // op2 is the second operand
             op2 = impSIMDPopStack(simdType);
             op1 = impSIMDPopStack(simdType, instMethod);
+
+#ifdef _TARGET_XARCH_
+            if (simdIntrinsicID == SIMDIntrinsicBitwiseAndNot)
+            {
+                // XARCH implements SIMDIntrinsicBitwiseAndNot as ~op1 & op2, while the
+                // software implementation does op1 & ~op2, so we need to swap the operands
+
+                GenTree* tmp = op2;
+                op2          = op1;
+                op1          = tmp;
+            }
+#endif // _TARGET_XARCH_
 
             simdTree = gtNewSIMDNode(simdType, op1, op2, simdIntrinsicID, baseType, size);
             retVal   = simdTree;

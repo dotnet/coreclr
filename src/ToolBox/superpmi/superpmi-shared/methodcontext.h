@@ -95,6 +95,20 @@ public:
         DWORD     B;
         DWORD     C;
     };
+    struct Agnostic_CORINFO_METHODNAME_TOKENin
+    {
+        DWORDLONG ftn;
+        DWORD     className;
+        DWORD     namespaceName;
+        DWORD     enclosingClassName;
+    };
+    struct Agnostic_CORINFO_METHODNAME_TOKENout
+    {
+        DWORD methodName;
+        DWORD className;
+        DWORD namespaceName;
+        DWORD enclosingClassName;
+    };
     struct Agnostic_CORINFO_RESOLVED_TOKENin
     {
         DWORDLONG tokenContext;
@@ -625,11 +639,13 @@ public:
     void recGetMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,
                                       char*                 methodname,
                                       const char**          moduleName,
-                                      const char**          namespaceName);
-    void dmpGetMethodNameFromMetadata(DLDD key, DDD value);
+                                      const char**          namespaceName,
+                                      const char**          enclosingClassName);
+    void dmpGetMethodNameFromMetadata(Agnostic_CORINFO_METHODNAME_TOKENin key, Agnostic_CORINFO_METHODNAME_TOKENout value);
     const char* repGetMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,
                                              const char**          className,
-                                             const char**          namespaceName);
+                                             const char**          namespaceName,
+                                             const char**          enclosingClassName);
 
     void recGetJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes, DWORD result);
     void dmpGetJitFlags(DWORD key, DD value);
@@ -862,9 +878,10 @@ public:
 
     void recGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                          CORINFO_METHOD_HANDLE   callerHandle,
+                         bool* pHasSideEffects,
                          CorInfoHelpFunc         result);
-    void dmpGetNewHelper(const Agnostic_GetNewHelper& key, DWORD value);
-    CorInfoHelpFunc repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
+    void dmpGetNewHelper(const Agnostic_GetNewHelper& key, DD value);
+    CorInfoHelpFunc repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects);
 
     void recEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolvedToken,
                                BOOL                          fEmbedParent,

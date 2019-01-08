@@ -26,11 +26,16 @@ import os
 import re
 import shutil
 import subprocess
-import urllib
-import urllib2
 import sys
 import tarfile
 import zipfile
+
+# Version specific imports
+
+if sys.version_info.major < 3:
+    import urllib
+else:
+    import urllib.request
 
 ##########################################################################
 # Globals
@@ -44,7 +49,7 @@ Jitutils_url = 'https://github.com/dotnet/jitutils.git'
 # The Docker file and possibly options should be hoisted out to a text file to be shared between scripts.
 
 Docker_name_arm32 = 'microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420'
-Docker_opts_arm32 = '-e ROOTFS_DIR=/crossrootfs/arm -e CAC_ROOTFS_DIR=/crossrootfs/x86'
+Docker_opts_arm32 = '-e ROOTFS_DIR=/crossrootfs/arm'
 
 Docker_name_arm64 = 'microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921'
 Docker_opts_arm64 = '-e ROOTFS_DIR=/crossrootfs/arm64'
@@ -67,7 +72,7 @@ Clr_os = 'Windows_NT' if Is_windows else Unix_name_map[os.uname()[0]]
 ##########################################################################
 
 def del_rw(action, name, exc):
-    os.chmod(name, 0651)
+    os.chmod(name, 0o651)
     os.remove(name)
 
 ##########################################################################
@@ -221,7 +226,7 @@ def log(message):
         message (str): message to be printed
     """
 
-    print '[%s]: %s' % (sys.argv[0], message)
+    print('[%s]: %s' % (sys.argv[0], message))
 
 def copy_files(source_dir, target_dir):
     """ Copy any files in the source_dir to the target_dir.
@@ -313,7 +318,7 @@ def baseline_build():
                 dockerOpts = Docker_opts_arm64
 
             dockerCmd = 'docker run -i --rm -v %s:%s -w %s %s %s ' % (baseCoreClrPath, baseCoreClrPath, baseCoreClrPath, dockerOpts, dockerFile)
-            buildOpts = 'cross crosscomponent'
+            buildOpts = 'cross'
             scriptPath = baseCoreClrPath
 
         # Build a checked baseline jit 
@@ -453,10 +458,8 @@ def do_pmi_diffs():
     log('Downloading: %s => %s' % (dotnetcliUrl, dotnetcliFilename))
 
     if not testing:
-        response = urllib2.urlopen(dotnetcliUrl)
-        request_url = response.geturl()
-        testfile = urllib.URLopener()
-        testfile.retrieve(request_url, dotnetcliFilename)
+        urlretrieve = urllib.urlretrieve if sys.version_info.major < 3 else urllib.request.urlretrieve
+        urlretrieve(dotnetcliUrl, dotnetcliFilename)
 
         if not os.path.isfile(dotnetcliFilename):
             log('ERROR: Did not download .Net CLI')
@@ -483,6 +486,11 @@ def do_pmi_diffs():
 
     log('Add %s to my PATH' % dotnetcliPath)
     my_env["PATH"] = dotnetcliPath + os.pathsep + my_env["PATH"]
+
+    # To aid diagnosing problems, do "dotnet --info" to output to any capturing logfile.
+
+    command = ["dotnet", "--info"]
+    returncode = run_command(command, my_env)
 
     # Clone jitutils
 

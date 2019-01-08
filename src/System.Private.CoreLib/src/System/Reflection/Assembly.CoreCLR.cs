@@ -5,9 +5,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Configuration.Assemblies;
-using StackCrawlMark = System.Threading.StackCrawlMark;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Runtime.Loader;
+using StackCrawlMark = System.Threading.StackCrawlMark;
 
 namespace System.Reflection
 {
@@ -82,7 +84,7 @@ namespace System.Reflection
                 {
                     if (!s_LoadFromResolveHandlerSetup)
                     {
-                        AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(LoadFromResolveHandler);
+                        AssemblyLoadContext.AssemblyResolve += LoadFromResolveHandler;
                         s_LoadFromResolveHandlerSetup = true;
                     }
                 }
@@ -160,14 +162,17 @@ namespace System.Reflection
         // Loads the assembly with a COFF based IMAGE containing
         // an emitted assembly. The assembly is loaded into a fully isolated ALC with resolution fully deferred to the AssemblyLoadContext.Default.
         // The second parameter is the raw bytes representing the symbol store that matches the assembly.
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Assembly Load(byte[] rawAssembly,
                                     byte[] rawSymbolStore)
         {
-            AppDomain.CheckLoadByteArraySupported();
-
             if (rawAssembly == null)
                 throw new ArgumentNullException(nameof(rawAssembly));
+
+#if FEATURE_APPX
+            if (ApplicationModel.IsUap)
+                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.Load(byte[], ...)"));
+#endif
+
             AssemblyLoadContext alc = new IndividualAssemblyLoadContext();
             MemoryStream assemblyStream = new MemoryStream(rawAssembly);
             MemoryStream symbolStream = (rawSymbolStore != null) ? new MemoryStream(rawSymbolStore) : null;
@@ -178,11 +183,13 @@ namespace System.Reflection
 
         public static Assembly LoadFile(string path)
         {
-            AppDomain.CheckLoadFileSupported();
-
-            Assembly result = null;
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
+
+#if FEATURE_APPX
+            if (ApplicationModel.IsUap)
+                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFile"));
+#endif
 
             if (PathInternal.IsPartiallyQualified(path))
             {
@@ -191,6 +198,7 @@ namespace System.Reflection
 
             string normalizedPath = Path.GetFullPath(path);
 
+            Assembly result = null;
             lock (s_loadfile)
             {
                 if (s_loadfile.TryGetValue(normalizedPath, out result))
@@ -202,12 +210,22 @@ namespace System.Reflection
             return result;
         }
 
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetExecutingAssembly(StackCrawlMarkHandle stackMark, ObjectHandleOnStack retAssembly);
+
+        internal static RuntimeAssembly GetExecutingAssembly(ref StackCrawlMark stackMark)
+        {
+            RuntimeAssembly retAssembly = null;
+            GetExecutingAssembly(JitHelpers.GetStackCrawlMarkHandle(ref stackMark), JitHelpers.GetObjectHandleOnStack(ref retAssembly));
+            return retAssembly;
+        }
+
         // Get the assembly that the current code is running from.
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod 
         public static Assembly GetExecutingAssembly()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeAssembly.GetExecutingAssembly(ref stackMark);
+            return GetExecutingAssembly(ref stackMark);
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
@@ -217,15 +235,23 @@ namespace System.Reflection
             // because of inlining, tail calls, etc. As a result GetCallingAssembly is not 
             // guaranteed to return the correct result. It's also documented as such.
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCallersCaller;
-            return RuntimeAssembly.GetExecutingAssembly(ref stackMark);
+            return GetExecutingAssembly(ref stackMark);
         }
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetEntryAssembly(ObjectHandleOnStack retAssembly);
+
+        // internal test hook
+        private static bool s_forceNullEntryPoint = false;
 
         public static Assembly GetEntryAssembly()
         {
-            AppDomainManager domainManager = AppDomain.CurrentDomain.DomainManager;
-            if (domainManager == null)
-                domainManager = new AppDomainManager();
-            return domainManager.EntryAssembly;
+            if (s_forceNullEntryPoint)
+                return null;
+
+            RuntimeAssembly entryAssembly = null;
+            GetEntryAssembly(JitHelpers.GetObjectHandleOnStack(ref entryAssembly));
+            return entryAssembly;
         }
     }
 }

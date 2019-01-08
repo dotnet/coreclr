@@ -190,17 +190,11 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/eh/FinallyExec/nonlocalexitinroot/*">
             <Issue>times out</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/opt/ObjectStackAllocation/ObjectStackAllocationTests/*">
+          <Issue>21376</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/devdiv_902271/DevDiv_902271/*">
             <Issue>times out</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/SIMD/Matrix4x4_r/*">
-            <Issue>19537</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/SIMD/Matrix4x4_ro/*">
-            <Issue>19537</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/General/Vector64/Vector64_ro/*">
-            <Issue>21064</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -244,18 +238,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/readytorun/r2rdump/R2RDumpTest/*">
             <Issue>19441</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/General/Vector64_1/Vector64_1_r/*">
-            <Issue>21064</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/General/Vector64_1/Vector64_1_ro/*">
-            <Issue>21064</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/General/Vector128_1/Vector128_1_r/*">
-            <Issue>21064</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/General/Vector128_1/Vector128_1_ro/*">
-            <Issue>21064</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -337,6 +319,9 @@
     <!-- Windows arm32 specific excludes -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and ('$(BuildArch)' == 'arm' or '$(AltJitArch)' == 'arm') and '$(TargetsWindows)' == 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NETClients/Primitives/NETClientPrimitives/*">
+            <Issue>20682</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NETClients/Primitives/NETClientPrimitivesInALC/*">
             <Issue>20682</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NativeClients/Primitives/*">
@@ -614,6 +599,9 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/v2.1/b152292/b152292/*">
             <Issue>20358</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_19361/GitHub_19361/*">
+            <Issue>20232</Issue>
+        </ExcludeList>
     </ItemGroup>
     
 
@@ -822,6 +810,9 @@
     <!-- The following are tests that fail on non-Windows, which we must not run when building against packages -->
 
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildTestsAgainstPackages)' == 'true' and '$(TargetsWindows)' != 'true'">
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/MarshalAPI/NativeLibrary/NativeLibraryTests/*">
+            <Issue>Issue building native components for the test. Since tests are currently built on Windows, the native components end up at Core_Root instead of Test directory, which is not suitable for the test.</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/CoreMangLib/cti/system/byte/ByteToString3/*">
             <Issue>needs triage</Issue>
         </ExcludeList>

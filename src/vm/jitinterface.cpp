@@ -1583,8 +1583,7 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
                 fieldAccessor = intrinsicAccessor;
             }
             else
-            if (// Domain neutral access.
-                m_pMethodBeingCompiled->IsDomainNeutral() || m_pMethodBeingCompiled->IsZapped() || IsCompilingForNGen() ||
+            if (m_pMethodBeingCompiled->IsZapped() || IsCompilingForNGen() ||
                 // Static fields are not pinned in collectible types. We will always access 
                 // them using a helper since the address cannot be embeded into the code.
                 pFieldMT->Collectible() ||
@@ -4121,12 +4120,12 @@ CorInfoInitClassResult CEEInfo::initClass(
 
     MethodDesc *methodBeingCompiled = m_pMethodBeingCompiled;
 
-    BOOL fMethodDomainNeutral = methodBeingCompiled->IsDomainNeutral() || methodBeingCompiled->IsZapped() || IsCompilingForNGen();
+    BOOL fMethodZappedOrNGen = methodBeingCompiled->IsZapped() || IsCompilingForNGen();
 
     MethodTable *pTypeToInitMT = typeToInitTH.AsMethodTable();
 
     // This should be the most common early-out case.
-    if (fMethodDomainNeutral)
+    if (fMethodZappedOrNGen)
     {
         if (pTypeToInitMT->IsClassPreInited())
         {
@@ -4243,7 +4242,7 @@ CorInfoInitClassResult CEEInfo::initClass(
         }
     }
 
-    if (fMethodDomainNeutral)
+    if (fMethodZappedOrNGen)
     {
         // Well, because of code sharing we can't do anything at coge generation time.
         // We have to do it at runtime.
@@ -5992,7 +5991,7 @@ bool __stdcall TrackAllocationsEnabled()
 }
 
 /***********************************************************************/
-CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle)
+CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects)
 {
     CONTRACTL {
         SO_TOLERANT;
@@ -6018,7 +6017,7 @@ CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, C
     }
 
     MethodTable* pMT = VMClsHnd.AsMethodTable();
-    result = getNewHelperStatic(pMT);
+    result = getNewHelperStatic(pMT, pHasSideEffects);
 
     _ASSERTE(result != CORINFO_HELP_UNDEF);
         
@@ -6028,23 +6027,43 @@ CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, C
 }
 
 /***********************************************************************/
-CorInfoHelpFunc CEEInfo::getNewHelperStatic(MethodTable * pMT)
+CorInfoHelpFunc CEEInfo::getNewHelperStatic(MethodTable * pMT, bool * pHasSideEffects)
 {
     STANDARD_VM_CONTRACT;
 
 
     // Slow helper is the default
     CorInfoHelpFunc helper = CORINFO_HELP_NEWFAST;
+    BOOL hasFinalizer = pMT->HasFinalizer();
+    BOOL isComObjectType = pMT->IsComObjectType();
 
+    if (pHasSideEffects != nullptr)
+    {
+        if (isComObjectType)
+        {
+            *pHasSideEffects = true;
+        }
+        else
+#ifdef FEATURE_READYTORUN_COMPILER
+        if (IsReadyToRunCompilation())
+        {
+            *pHasSideEffects = hasFinalizer || !pMT->IsInheritanceChainFixedInCurrentVersionBubble();
+        }
+        else
+#endif
+        {
+            *pHasSideEffects = !!hasFinalizer;
+        }
+    }
 
-    if (pMT->IsComObjectType())
+    if (isComObjectType)
     {
         // Use slow helper
         _ASSERTE(helper == CORINFO_HELP_NEWFAST);
     }
     else
     if ((pMT->GetBaseSize() >= LARGE_OBJECT_SIZE) || 
-        pMT->HasFinalizer())
+        hasFinalizer)
     {
         // Use slow helper
         _ASSERTE(helper == CORINFO_HELP_NEWFAST);
@@ -6608,7 +6627,7 @@ const char* CEEInfo::getMethodName (CORINFO_METHOD_HANDLE ftnHnd, const char** s
     return result;
 }
 
-const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, const char** className, const char** namespaceName)
+const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, const char** className, const char** namespaceName, const char **enclosingClassName)
 {
     CONTRACTL {
         SO_TOLERANT;
@@ -6620,6 +6639,7 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
     const char* result = NULL;
     const char* classResult = NULL;
     const char* namespaceResult = NULL;
+    const char* enclosingResult = NULL;
 
     JIT_TO_EE_TRANSITION();
 
@@ -6628,10 +6648,16 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
 
     if (!IsNilToken(token))
     {
-        if (!FAILED(ftn->GetMDImport()->GetNameOfMethodDef(token, &result)))
+        MethodTable* pMT = ftn->GetMethodTable();
+        IMDInternalImport* pMDImport = pMT->GetMDImport();
+
+        IfFailThrow(pMDImport->GetNameOfMethodDef(token, &result));
+        IfFailThrow(pMDImport->GetNameOfTypeDef(pMT->GetCl(), &classResult, &namespaceResult));
+        // Query enclosingClassName when the method is in a nested class
+        // and get the namespace of enclosing classes (nested class's namespace is empty)
+        if (pMT->GetClass()->IsNested())
         {
-            MethodTable* pMT = ftn->GetMethodTable();
-            classResult = pMT->GetFullyQualifiedNameInfo(&namespaceResult);
+            IfFailThrow(pMDImport->GetNameOfTypeDef(pMT->GetEnclosingCl(), &enclosingResult, &namespaceResult));
         }
     }
 
@@ -6644,6 +6670,11 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
     {
         *namespaceName = namespaceResult;
     }
+
+    if (enclosingClassName != NULL)
+    {
+        *enclosingClassName = enclosingResult;
+    } 
 
     EE_TO_JIT_TRANSITION();
     
@@ -6963,18 +6994,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
     // Compare tokens to cover all generic instantiations
     // The body of the first method is simply ret Arg0. The second one first casts the arg to I4.
 
-    if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__UNSAFE_CAST_TO_STACKPTR)->GetMemberDef())
-    {
-        // Return the argument that was passed in converted to IntPtr
-        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_I, CEE_RET };
-        methInfo->ILCode = const_cast<BYTE*>(ilcode);
-        methInfo->ILCodeSize = sizeof(ilcode);
-        methInfo->maxStack = 1;
-        methInfo->EHcount = 0;
-        methInfo->options = (CorInfoOptions)0;
-        return true;
-    }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST)->GetMemberDef()) 
+    if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__ENUM_EQUALS)->GetMemberDef()) 
     {
         // Normally we would follow the above pattern and unconditionally replace the IL,
         // relying on generic type constraints to guarantee that it will only ever be instantiated
@@ -7001,19 +7021,20 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
             et == ELEMENT_TYPE_I2 ||
             et == ELEMENT_TYPE_U2 ||
             et == ELEMENT_TYPE_I1 ||
-            et == ELEMENT_TYPE_U1)
+            et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_I8 ||
+            et == ELEMENT_TYPE_U8)
         {
-            // Cast to I4 and return the argument that was passed in.
-            static const BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_I4, CEE_RET };
+            static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_PREFIX1, (CEE_CEQ & 0xFF), CEE_RET };
             methInfo->ILCode = const_cast<BYTE*>(ilcode);
             methInfo->ILCodeSize = sizeof(ilcode);
-            methInfo->maxStack = 1;
+            methInfo->maxStack = 2;
             methInfo->EHcount = 0;
             methInfo->options = (CorInfoOptions)0;
             return true;
         }
     }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST_LONG)->GetMemberDef()) 
+    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__ENUM_COMPARE_TO)->GetMemberDef())
     {
         // The the comment above on why this is is not an unconditional replacement.  This case handles
         // Enums backed by 8 byte values.
@@ -7023,14 +7044,43 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
 
         _ASSERTE(inst.GetNumArgs() == 1);
         CorElementType et = inst[0].GetVerifierCorElementType();
-        if (et == ELEMENT_TYPE_I8 ||
+        if (et == ELEMENT_TYPE_I4 ||
+            et == ELEMENT_TYPE_U4 ||
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_U2 ||
+            et == ELEMENT_TYPE_I1 ||
+            et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_I8 ||
             et == ELEMENT_TYPE_U8)
         {
-            // Cast to I8 and return the argument that was passed in.
-            static const BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_I8, CEE_RET };
-            methInfo->ILCode = const_cast<BYTE*>(ilcode);
-            methInfo->ILCodeSize = sizeof(ilcode);
-            methInfo->maxStack = 1;
+            static BYTE ilcode[8][9];
+
+            TypeHandle thUnderlyingType = MscorlibBinder::GetElementType(et);
+
+            TypeHandle thIComparable = TypeHandle(MscorlibBinder::GetClass(CLASS__ICOMPARABLEGENERIC)).Instantiate(Instantiation(&thUnderlyingType, 1));
+
+            MethodDesc * pCompareToMD = thUnderlyingType.AsMethodTable()->GetMethodDescForInterfaceMethod(
+                thIComparable, MscorlibBinder::GetMethod(METHOD__ICOMPARABLEGENERIC__COMPARE_TO), TRUE /* throwOnConflict */);
+
+            // Call CompareTo method on the primitive type
+            int tokCompareTo = pCompareToMD->GetMemberDef();
+
+            int index = (et - ELEMENT_TYPE_I1);
+            _ASSERTE(index < _countof(ilcode));
+
+            ilcode[index][0] = CEE_LDARGA_S;
+            ilcode[index][1] = 0;
+            ilcode[index][2] = CEE_LDARG_1;
+            ilcode[index][3] = CEE_CALL;
+            ilcode[index][4] = (BYTE)(tokCompareTo);
+            ilcode[index][5] = (BYTE)(tokCompareTo >> 8);
+            ilcode[index][6] = (BYTE)(tokCompareTo >> 16);
+            ilcode[index][7] = (BYTE)(tokCompareTo >> 24);
+            ilcode[index][8] = CEE_RET;
+
+            methInfo->ILCode = const_cast<BYTE*>(ilcode[index]);
+            methInfo->ILCodeSize = sizeof(ilcode[index]);
+            methInfo->maxStack = 2;
             methInfo->EHcount = 0;
             methInfo->options = (CorInfoOptions)0;
             return true;
@@ -7038,16 +7088,16 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
     }
     else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
     {
-        mdToken tokArrayPinningHelper = MscorlibBinder::GetField(FIELD__ARRAY_PINNING_HELPER__M_ARRAY_DATA)->GetMemberDef();
+        mdToken tokRawSzArrayData = MscorlibBinder::GetField(FIELD__RAW_SZARRAY_DATA__DATA)->GetMemberDef();
 
         static BYTE ilcode[] = { CEE_LDARG_0,
                                  CEE_LDFLDA,0,0,0,0,
                                  CEE_RET };
 
-        ilcode[2] = (BYTE)(tokArrayPinningHelper);
-        ilcode[3] = (BYTE)(tokArrayPinningHelper >> 8);
-        ilcode[4] = (BYTE)(tokArrayPinningHelper >> 16);
-        ilcode[5] = (BYTE)(tokArrayPinningHelper >> 24);
+        ilcode[2] = (BYTE)(tokRawSzArrayData);
+        ilcode[3] = (BYTE)(tokRawSzArrayData >> 8);
+        ilcode[4] = (BYTE)(tokRawSzArrayData >> 16);
+        ilcode[5] = (BYTE)(tokRawSzArrayData >> 24);
 
         methInfo->ILCode = const_cast<BYTE*>(ilcode);
         methInfo->ILCodeSize = sizeof(ilcode);
@@ -9123,15 +9173,10 @@ CORINFO_CLASS_HANDLE CEEInfo::getDefaultEqualityComparerClassHelper(CORINFO_CLAS
             case ELEMENT_TYPE_U2:
             case ELEMENT_TYPE_I4:
             case ELEMENT_TYPE_U4:
-            {
-                targetClass = MscorlibBinder::GetClass(CLASS__ENUM_EQUALITYCOMPARER);
-                break;
-            }
-
             case ELEMENT_TYPE_I8:
             case ELEMENT_TYPE_U8:
             {
-                targetClass = MscorlibBinder::GetClass(CLASS__LONG_ENUM_EQUALITYCOMPARER);
+                targetClass = MscorlibBinder::GetClass(CLASS__ENUM_EQUALITYCOMPARER);
                 break;
             }
 
@@ -10958,23 +11003,7 @@ void CEEJitInfo::addActiveDependency(CORINFO_MODULE_HANDLE moduleFrom,CORINFO_MO
     Module *dependency = (Module *)moduleTo;
     _ASSERTE(!dependency->IsSystem());
 
-    if (m_pMethodBeingCompiled->IsLCGMethod())
-    {
-        // The context module of the m_pMethodBeingCompiled is irrelevant.  Rather than tracking
-        // the dependency, we just do immediate activation.
-        dependency->EnsureActive();
-    }
-    else
-    {
-#ifdef FEATURE_LOADER_OPTIMIZATION
-        Module *context = (Module *)moduleFrom;
-
-        // Record active dependency for loader.
-        context->AddActiveDependency(dependency, FALSE);
-#else
-        dependency->EnsureActive();
-#endif
-    }
+    dependency->EnsureActive();
 
     // EE_TO_JIT_TRANSITION();
 }
@@ -13970,11 +13999,35 @@ InfoAccessType CEEInfo::emptyStringLiteral(void ** ppValue)
 void* CEEInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
                                   void **ppIndirection)
 {
-    LIMITED_METHOD_CONTRACT;
-    _ASSERTE(isVerifyOnly());
+    CONTRACTL{
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    void *result = NULL;
+
     if (ppIndirection != NULL)
         *ppIndirection = NULL;
-    return (void *)0x10;
+
+    // Do not bother with initialization if we are only verifying the method.
+    if (isVerifyOnly())
+    {
+        return (void *)0x10;
+    }
+
+    JIT_TO_EE_TRANSITION();
+
+    FieldDesc* field = (FieldDesc*)fieldHnd;
+
+    _ASSERTE(field->IsRVA());
+
+    result = field->GetStaticAddressHandle(NULL);
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
 }
 
 CORINFO_CLASS_HANDLE CEEInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
