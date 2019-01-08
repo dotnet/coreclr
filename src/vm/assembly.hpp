@@ -413,7 +413,6 @@ public:
     BOOL GetResource(LPCSTR szName, DWORD *cbResource,
                      PBYTE *pbInMemoryResource, Assembly **pAssemblyRef,
                      LPCSTR *szFileName, DWORD *dwLocation,
-                     StackCrawlMark *pStackMark = NULL, BOOL fSkipSecurityCheck = FALSE,
                      BOOL fSkipRaiseResolveEvent = FALSE);
 
     //****************************************************************************************
@@ -454,6 +453,16 @@ public:
     BOOL IsInstrumented();
     BOOL IsInstrumentedHelper();
 #endif // FEATURE_PREJIT
+
+#ifdef FEATURE_COMINTEROP
+    static ITypeLib * const InvalidTypeLib;
+
+    // Get any cached ITypeLib* for the assembly.
+    ITypeLib *GetTypeLib();
+
+    // Try to set the ITypeLib*, if one is not already cached.
+    bool TrySetTypeLib(_In_ ITypeLib *pTlb);
+#endif // FEATURE_COMINTEROP
 
 #ifndef DACCESS_COMPILE
 
@@ -604,6 +613,8 @@ private:
     DWORD                 m_isDisabledPrivateReflection;
 
 #ifdef FEATURE_COMINTEROP
+    // If a TypeLib is ever required for this module, cache the pointer here.
+    ITypeLib              *m_pITypeLib;
     InteropAttributeStatus m_InteropAttributeStatus;
 
     WinMDStatus            m_winMDStatus;

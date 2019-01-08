@@ -203,9 +203,7 @@ public:
         return true;
     }
 
-#ifdef _TARGET_AMD64_
     UNATIVE_OFFSET GetFuncletPrologOffset(emitter* emit) const;
-#endif // _TARGET_AMD64_
 
 #ifdef DEBUG
     void Print() const;
@@ -427,7 +425,6 @@ public:
 #endif // DEBUG
 
 #ifdef _TARGET_XARCH_
-        SetUseSSE4(false);
         SetUseVEXEncoding(false);
 #endif // _TARGET_XARCH_
     }

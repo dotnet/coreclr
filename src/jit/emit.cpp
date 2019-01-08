@@ -51,7 +51,6 @@ int emitLocation::GetInsNum() const
     return emitGetInsNumFromCodePos(codePos);
 }
 
-#ifdef _TARGET_AMD64_
 // Get the instruction offset in the current instruction group, which must be a funclet prolog group.
 // This is used to find an instruction offset used in unwind data.
 // TODO-AMD64-Bug?: We only support a single main function prolog group, but allow for multiple funclet prolog
@@ -65,7 +64,6 @@ UNATIVE_OFFSET emitLocation::GetFuncletPrologOffset(emitter* emit) const
 
     return emit->emitCurIGsize;
 }
-#endif // _TARGET_AMD64_
 
 #ifdef DEBUG
 void emitLocation::Print() const
@@ -6734,7 +6732,8 @@ target_ssize_t emitter::emitGetInsSC(instrDesc* id)
         regNumber baseReg;
         int       offs = id->idAddr()->iiaLclVar.lvaOffset();
 #if defined(_TARGET_ARM_)
-        int adr = emitComp->lvaFrameAddress(varNum, id->idIsLclFPBase(), &baseReg, offs);
+        int adr =
+            emitComp->lvaFrameAddress(varNum, id->idIsLclFPBase(), &baseReg, offs, CodeGen::instIsFP(id->idIns()));
         int dsp = adr + offs;
         if ((id->idIns() == INS_sub) || (id->idIns() == INS_subw))
             dsp = -dsp;

@@ -527,7 +527,12 @@ namespace System.Runtime.CompilerServices
             where TStateMachine : IAsyncStateMachine
         {
             /// <summary>Delegate used to invoke on an ExecutionContext when passed an instance of this box type.</summary>
-            private static readonly ContextCallback s_callback = s => ((AsyncStateMachineBox<TStateMachine>)s).StateMachine.MoveNext();
+            private static readonly ContextCallback s_callback = s =>
+            {
+                Debug.Assert(s is AsyncStateMachineBox<TStateMachine>);
+                // Only used privately to pass directly to EC.Run
+                Unsafe.As<AsyncStateMachineBox<TStateMachine>>(s).StateMachine.MoveNext();
+            };
 
             /// <summary>A delegate to the <see cref="MoveNext()"/> method.</summary>
             private Action _moveNextAction;
@@ -731,8 +736,7 @@ namespace System.Runtime.CompilerServices
             Task<TResult> task = this.Task;
 
             // If the exception represents cancellation, cancel the task.  Otherwise, fault the task.
-            var oce = exception as OperationCanceledException;
-            bool successfullySet = oce != null ?
+            bool successfullySet = exception is OperationCanceledException oce ?
                 task.TrySetCanceled(oce.CancellationToken, oce) :
                 task.TrySetException(exception);
 

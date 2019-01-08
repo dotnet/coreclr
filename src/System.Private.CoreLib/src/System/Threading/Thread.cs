@@ -131,14 +131,6 @@ namespace System.Threading
 #pragma warning restore 414
 #pragma warning restore 169
 
-
-        // Do not move! Order of above fields needs to be preserved for alignment
-        // with native code
-        // See code:#threadCultureInfo
-        [ThreadStatic]
-        internal static CultureInfo m_CurrentCulture;
-        [ThreadStatic]
-        internal static CultureInfo m_CurrentUICulture;
         [ThreadStatic]
         private static Thread t_currentThread;
 
@@ -202,7 +194,7 @@ namespace System.Threading
         }
 
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
-        internal unsafe ThreadHandle GetNativeHandle()
+        internal ThreadHandle GetNativeHandle()
         {
             IntPtr thread = DONT_USE_InternalThread;
 
@@ -377,122 +369,12 @@ namespace System.Threading
         private extern void StartupSetApartmentStateInternal();
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
-        // #threadCultureInfo
-        //
-        // Background:
-        // In the desktop runtime, we allow a thread's cultures to travel with the thread
-        // across AppDomain boundaries. Furthermore we update the native thread with the
-        // culture of the managed thread. Because of security concerns and potential SxS
-        // effects, in Silverlight we are making the changes listed below. 
-        // 
-        // Silverlight Changes:
-        // - thread instance member cultures (CurrentCulture and CurrentUICulture) 
-        //   confined within AppDomains
-        // - changes to these properties don't affect the underlying native thread
-        // 
-        // Implementation notes:
-        // In Silverlight, culture members thread static (per Thread, per AppDomain). 
-        //
-        // Quirks:
-        // An interesting side-effect of isolating cultures within an AppDomain is that we
-        // now need to special case resource lookup for mscorlib, which transitions to the 
-        // default domain to lookup resources. See Environment.cs for more details.
-        // 
-
-        // As the culture can be customized object then we cannot hold any 
-        // reference to it before we check if it is safe because the app domain 
-        // owning this customized culture may get unloaded while executing this 
-        // code. To achieve that we have to do the check using nativeGetSafeCulture 
-        // as the thread cannot get interrupted during the FCALL. 
-        // If the culture is safe (not customized or created in current app domain) 
-        // then the FCALL will return a reference to that culture otherwise the 
-        // FCALL will return failure. In case of failure we'll return the default culture.
-        // If the app domain owning a customized culture that is set to the thread and this
-        // app domain get unloaded there is a code to clean up the culture from the thread
-        // using the code in AppDomain::ReleaseDomainStores.
-
-        public CultureInfo CurrentUICulture
-        {
-            get
-            {
-                return CultureInfo.CurrentUICulture;
-            }
-
-            set
-            {
-                // If you add more pre-conditions to this method, check to see if you also need to 
-                // add them to CultureInfo.DefaultThreadCurrentUICulture.set.
-
-                if (m_CurrentUICulture == null && m_CurrentCulture == null)
-                    nativeInitCultureAccessors();
-
-                CultureInfo.CurrentUICulture = value;
-            }
-        }
-
-        // This returns the exposed context for a given context ID.
-
-        // As the culture can be customized object then we cannot hold any 
-        // reference to it before we check if it is safe because the app domain 
-        // owning this customized culture may get unloaded while executing this 
-        // code. To achieve that we have to do the check using nativeGetSafeCulture 
-        // as the thread cannot get interrupted during the FCALL. 
-        // If the culture is safe (not customized or created in current app domain) 
-        // then the FCALL will return a reference to that culture otherwise the 
-        // FCALL will return failure. In case of failure we'll return the default culture.
-        // If the app domain owning a customized culture that is set to the thread and this
-        // app domain get unloaded there is a code to clean up the culture from the thread
-        // using the code in AppDomain::ReleaseDomainStores.
-
-        public CultureInfo CurrentCulture
-        {
-            get
-            {
-                return CultureInfo.CurrentCulture;
-            }
-
-            set
-            {
-                // If you add more pre-conditions to this method, check to see if you also need to 
-                // add them to CultureInfo.DefaultThreadCurrentCulture.set.
-
-                if (m_CurrentCulture == null && m_CurrentUICulture == null)
-                    nativeInitCultureAccessors();
-                
-                CultureInfo.CurrentCulture = value;
-            }
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void nativeInitCultureAccessors();
-
-        /*======================================================================
-        ** Returns the current domain in which current thread is running.
-        ======================================================================*/
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern AppDomain GetDomainInternal();
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern AppDomain GetFastDomainInternal();
-
-        internal static AppDomain GetDomain()
-        {
-
-            AppDomain ad;
-            ad = GetFastDomainInternal();
-            if (ad == null)
-                ad = GetDomainInternal();
-
-            return ad;
-        }
-
-
         /*
          *  This returns a unique id to identify an appdomain.
          */
         internal static int GetDomainID()
         {
-            return GetDomain().GetId();
+            return 1;
         }
 
 

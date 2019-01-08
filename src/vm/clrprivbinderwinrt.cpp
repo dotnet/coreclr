@@ -330,7 +330,7 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
                 // native image for this WinRT assembly.
                 // The WinRT team has said that WinMDs will have the same simple name as the filename.
                 // 
-                IfFailGo(pAssemblyDefName->SetProperty(ASM_NAME_NAME, wszFileNameStripped, (lstrlenW(wszFileNameStripped) + 1) * sizeof(WCHAR)));
+                IfFailGo(pAssemblyDefName->SetProperty(ASM_NAME_NAME, wszFileNameStripped, (DWORD)((wcslen(wszFileNameStripped) + 1) * sizeof(WCHAR))));
 
                 NewHolder<CoreBindResult> pBindResult(new CoreBindResult());
                 StackSString sAssemblyPath(pResource->GetPath());
@@ -338,9 +338,7 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
 
                 IfFailGo(GetAssemblyAndTryFindNativeImage(sAssemblyPath, wszFileNameStripped, &pBinderAssembly));
 
-                // We have set bInGac to TRUE here because the plan is full trust for WinRT.  If this changes, we may need to check with
-                // AppDomain to verify trust based on the WinMD's path
-                pBindResult->Init(pBinderAssembly, TRUE);
+                pBindResult->Init(pBinderAssembly);
                 NewHolder<CLRPrivAssemblyWinRT> pNewAssembly(
                     new CLRPrivAssemblyWinRT(this, pResource, pBindResult, fIsWindowsNamespace));
                 
@@ -1134,31 +1132,6 @@ HRESULT CLRPrivAssemblyWinRT::GetImageResource(
 }
 
 //=====================================================================================================================
-// Implements interface method code:ICLRPrivBinder::VerifyBind.
-// 
-HRESULT CLRPrivBinderWinRT::VerifyBind(
-    IAssemblyName *        pAssemblyName, 
-    ICLRPrivAssembly *     pAssembly, 
-    ICLRPrivAssemblyInfo * pAssemblyInfo)
-{
-    STANDARD_BIND_CONTRACT;
-    HRESULT hr = S_OK;
-
-    VALIDATE_ARG_RET(pAssemblyInfo != nullptr);
-    
-    UINT_PTR binderID;
-    IfFailRet(pAssembly->GetBinderID(&binderID));
-    if (binderID != reinterpret_cast<UINT_PTR>(this))
-    {
-        return pAssembly->VerifyBind(pAssemblyName, pAssembly, pAssemblyInfo);
-    }
-    
-    // Since WinRT types are bound by type name and not assembly name, assembly-level version validation
-    // does not make sense here. Just return S_OK.
-    return S_OK;
-}
-
-//=====================================================================================================================
 // Implements interface method code:ICLRPrivBinder::GetBinderID.
 // 
 HRESULT CLRPrivBinderWinRT::GetBinderID(
@@ -1168,17 +1141,6 @@ HRESULT CLRPrivBinderWinRT::GetBinderID(
 
     *pBinderId = reinterpret_cast<UINT_PTR>(this);
     return S_OK;
-}
-
-//=====================================================================================================================
-HRESULT CLRPrivBinderWinRT::FindWinRTAssemblyBySpec(
-    LPVOID pvAppDomain,
-    LPVOID pvAssemblySpec,
-    HRESULT * pResult,
-    ICLRPrivAssembly ** ppAssembly)
-{
-    STATIC_CONTRACT_WRAPPER;
-    return E_FAIL; 
 }
 
 

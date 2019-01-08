@@ -106,6 +106,9 @@ public:
     void FirePinObjectAtGCTime(void* object, uint8_t** ppObject) = 0;
 
     virtual
+    void FirePinPlugAtGCTime(uint8_t* plug_start, uint8_t* plug_end, uint8_t* gapBeforeSize) = 0;
+
+    virtual
     void FireGCPerHeapHistory_V3(void *freeListAllocated,
                                  void *freeListRejected,
                                  void *endOfSegAllocated,
@@ -128,6 +131,8 @@ public:
     void FireBGC1stNonConEnd() = 0;
     virtual
     void FireBGC1stConEnd() = 0;
+    virtual
+    void FireBGC1stSweepEnd(uint32_t genNumber) = 0;
     virtual
     void FireBGC2ndNonConBegin() = 0;
     virtual
@@ -427,6 +432,9 @@ public:
 
     virtual
     void AnalyzeSurvivorsFinished(int condemnedGeneration) = 0;
+
+    virtual 
+    void VerifySyncTableEntry() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

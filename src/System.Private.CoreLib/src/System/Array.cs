@@ -674,9 +674,7 @@ namespace System
                 return true;
             }
 
-            Array o = other as Array;
-
-            if (o == null || o.Length != this.Length)
+            if (!(other is Array o) || o.Length != this.Length)
             {
                 return false;
             }
@@ -819,8 +817,7 @@ namespace System
 
             int lo = index;
             int hi = index + length - 1;
-            object[] objArray = array as object[];
-            if (objArray != null)
+            if (array is object[] objArray)
             {
                 while (lo <= hi)
                 {
@@ -1599,8 +1596,7 @@ namespace System
             if (r)
                 return;
 
-            object[] objArray = array as object[];
-            if (objArray != null)
+            if (array is object[] objArray)
             {
                 Array.Reverse<object>(objArray, index, length);
             }
@@ -2665,16 +2661,15 @@ namespace System
             public bool MoveNext()
             {
                 int index = _index + 1;
-                bool result = index < _array.Length;
-                
-                if (result)
+                if ((uint)index >= (uint)_array.Length)
                 {
-                    _index = index;
+                    _index = _array.Length;
+                    return false;
                 }
-
-                return result;
+                _index = index;
+                return true;
             }
-    
+
             public T Current
             {
                 get

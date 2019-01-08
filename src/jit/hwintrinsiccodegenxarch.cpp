@@ -330,11 +330,9 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
             break;
         case InstructionSet_BMI1:
         case InstructionSet_BMI1_X64:
-            genBMI1Intrinsic(node);
-            break;
         case InstructionSet_BMI2:
         case InstructionSet_BMI2_X64:
-            genBMI2Intrinsic(node);
+            genBMI1OrBMI2Intrinsic(node);
             break;
         case InstructionSet_FMA:
             genFMAIntrinsic(node);
@@ -624,19 +622,40 @@ void CodeGen::genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, i
 // Arguments:
 //    node - The hardware intrinsic node
 //    ins  - The instruction being generated
+//    attr - The emit attribute for the instruciton being generated
 //
 void CodeGen::genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr)
 {
-    var_types targetType = node->TypeGet();
-    regNumber targetReg  = node->gtRegNum;
-    GenTree*  op1        = node->gtGetOp1();
-    GenTree*  op2        = node->gtGetOp2();
-    emitter*  emit       = getEmitter();
+    regNumber targetReg = node->gtRegNum;
+    GenTree*  op1       = node->gtGetOp1();
+    GenTree*  op2       = node->gtGetOp2();
+    regNumber op1Reg    = op1->gtRegNum;
+
+    assert(targetReg != REG_NA);
+    assert(op1Reg != REG_NA);
+
+    genHWIntrinsic_R_R_RM(node, ins, attr, targetReg, op1Reg, op2);
+}
+
+//------------------------------------------------------------------------
+// genHWIntrinsic_R_R_RM: Generates the code for a hardware intrinsic node that takes a register operand, a
+//                        register/memory operand, and that returns a value in register
+//
+// Arguments:
+//    node - The hardware intrinsic node
+//    ins  - The instruction being generated
+//    attr - The emit attribute for the instruciton being generated
+//    targetReg - The register allocated to the result
+//    op1Reg    - The register allocated to the first operand
+//    op2       - Another operand that maybe in register or memory
+//
+void CodeGen::genHWIntrinsic_R_R_RM(
+    GenTreeHWIntrinsic* node, instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, GenTree* op2)
+{
+    emitter* emit = getEmitter();
 
     // TODO-XArch-CQ: Commutative operations can have op1 be contained
     // TODO-XArch-CQ: Non-VEX encoded instructions can have both ops contained
-
-    regNumber op1Reg = op1->gtRegNum;
 
     assert(targetReg != REG_NA);
     assert(op1Reg != REG_NA);
@@ -1247,6 +1266,9 @@ void CodeGen::genHWIntrinsicJumpTableFallback(NamedIntrinsic            intrinsi
 // Arguments:
 //    node - The hardware intrinsic node
 //
+// Note:
+//    We currently assume that all base intrinsics only have a single operand.
+//
 void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
 {
     NamedIntrinsic intrinsicId = node->gtHWIntrinsicId;
@@ -1254,29 +1276,111 @@ void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
     var_types      targetType  = node->TypeGet();
     var_types      baseType    = node->gtSIMDBaseType;
 
-    assert(node->gtGetOp1() == nullptr);
-    assert(node->gtGetOp2() == nullptr);
-    assert(baseType >= TYP_BYTE && baseType <= TYP_DOUBLE);
+    assert(compiler->compSupports(InstructionSet_SSE));
+    assert((baseType >= TYP_BYTE) && (baseType <= TYP_DOUBLE));
 
-    emitter* emit = getEmitter();
-    emitAttr attr = EA_ATTR(node->gtSIMDSize);
+    GenTree*  op1    = node->gtGetOp1();
+    regNumber op1Reg = REG_NA;
+
+    if (op1 != nullptr)
+    {
+        assert(!op1->OperIsList());
+        op1Reg = op1->gtRegNum;
+        genConsumeOperands(node);
+    }
+
+    assert(node->gtGetOp2() == nullptr);
+
+    emitter*    emit = getEmitter();
+    emitAttr    attr = EA_ATTR(node->gtSIMDSize);
+    instruction ins  = HWIntrinsicInfo::lookupIns(intrinsicId, baseType);
 
     switch (intrinsicId)
     {
-        case NI_Base_Vector128_Zero:
+        case NI_Base_Vector128_CreateScalarUnsafe:
+        case NI_Base_Vector256_CreateScalarUnsafe:
         {
-            // When SSE2 is supported, we generate pxor for integral types otherwise just use xorps
-            instruction ins =
-                (compiler->compSupports(InstructionSet_SSE2) && varTypeIsIntegral(baseType)) ? INS_pxor : INS_xorps;
-            emit->emitIns_SIMD_R_R_R(ins, attr, targetReg, targetReg, targetReg);
+            if (varTypeIsIntegral(baseType))
+            {
+                genHWIntrinsic_R_RM(node, ins, emitActualTypeSize(baseType));
+            }
+            else
+            {
+                assert(varTypeIsFloating(baseType));
+
+                attr = emitTypeSize(baseType);
+
+                if (op1->isContained() || op1->isUsedFromSpillTemp())
+                {
+                    genHWIntrinsic_R_RM(node, ins, attr);
+                }
+                else if (targetReg != op1Reg)
+                {
+                    // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
+                    emit->emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+                }
+            }
             break;
         }
 
+        case NI_Base_Vector128_ToScalar:
+        case NI_Base_Vector256_ToScalar:
+        {
+            assert(varTypeIsFloating(baseType));
+
+            attr = emitTypeSize(TYP_SIMD16);
+
+            if (op1->isContained() || op1->isUsedFromSpillTemp())
+            {
+                genHWIntrinsic_R_RM(node, ins, attr);
+            }
+            else if (targetReg != op1Reg)
+            {
+                // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
+                emit->emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+            }
+            break;
+        }
+
+        case NI_Base_Vector128_ToVector256:
+        {
+            // ToVector256 has zero-extend semantics in order to ensure it is deterministic
+            // We always emit a move to the target register, even when op1Reg == targetReg,
+            // in order to ensure that Bits MAXVL-1:128 are zeroed.
+
+            attr = emitTypeSize(TYP_SIMD16);
+
+            if (op1->isContained() || op1->isUsedFromSpillTemp())
+            {
+                genHWIntrinsic_R_RM(node, ins, attr);
+            }
+            else
+            {
+                // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
+                emit->emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+            }
+            break;
+        }
+
+        case NI_Base_Vector128_ToVector256Unsafe:
+        case NI_Base_Vector256_GetLower:
+        {
+            if (op1->isContained() || op1->isUsedFromSpillTemp())
+            {
+                genHWIntrinsic_R_RM(node, ins, attr);
+            }
+            else if (targetReg != op1Reg)
+            {
+                // Just use movaps for reg->reg moves as it has zero-latency on modern CPUs
+                emit->emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+            }
+            break;
+        }
+
+        case NI_Base_Vector128_Zero:
         case NI_Base_Vector256_Zero:
         {
-            // When AVX2 is supported, we generate pxor for integral types otherwise just use xorps
-            instruction ins =
-                (compiler->compSupports(InstructionSet_AVX2) && varTypeIsIntegral(baseType)) ? INS_pxor : INS_xorps;
+            assert(op1 == nullptr);
             emit->emitIns_SIMD_R_R_R(ins, attr, targetReg, targetReg, targetReg);
             break;
         }
@@ -2134,18 +2238,17 @@ void CodeGen::genAESIntrinsic(GenTreeHWIntrinsic* node)
 }
 
 //------------------------------------------------------------------------
-// genBMI1Intrinsic: Generates the code for a BMI1 hardware intrinsic node
+// genBMI1OrBMI2Intrinsic: Generates the code for a BMI1 and BMI2 hardware intrinsic node
 //
 // Arguments:
 //    node - The hardware intrinsic node
 //
-void CodeGen::genBMI1Intrinsic(GenTreeHWIntrinsic* node)
+void CodeGen::genBMI1OrBMI2Intrinsic(GenTreeHWIntrinsic* node)
 {
     NamedIntrinsic intrinsicId = node->gtHWIntrinsicId;
     regNumber      targetReg   = node->gtRegNum;
     GenTree*       op1         = node->gtGetOp1();
     GenTree*       op2         = node->gtGetOp2();
-    var_types      baseType    = node->gtSIMDBaseType;
     var_types      targetType  = node->TypeGet();
     instruction    ins         = HWIntrinsicInfo::lookupIns(intrinsicId, targetType);
     emitter*       emit        = getEmitter();
@@ -2162,9 +2265,16 @@ void CodeGen::genBMI1Intrinsic(GenTreeHWIntrinsic* node)
     {
         case NI_BMI1_AndNot:
         case NI_BMI1_X64_AndNot:
+        case NI_BMI1_BitFieldExtract:
+        case NI_BMI1_X64_BitFieldExtract:
+        case NI_BMI2_ParallelBitDeposit:
+        case NI_BMI2_ParallelBitExtract:
+        case NI_BMI2_X64_ParallelBitDeposit:
+        case NI_BMI2_X64_ParallelBitExtract:
+        case NI_BMI2_ZeroHighBits:
+        case NI_BMI2_X64_ZeroHighBits:
         {
             assert(op2 != nullptr);
-            assert(op1->TypeGet() == op2->TypeGet());
             assert((targetType == TYP_INT) || (targetType == TYP_LONG));
             genHWIntrinsic_R_R_RM(node, ins, emitTypeSize(node->TypeGet()));
             break;
@@ -2192,52 +2302,62 @@ void CodeGen::genBMI1Intrinsic(GenTreeHWIntrinsic* node)
             break;
         }
 
-        default:
+        case NI_BMI2_MultiplyNoFlags:
+        case NI_BMI2_X64_MultiplyNoFlags:
         {
-            unreached();
-            break;
-        }
-    }
+            int numArgs = HWIntrinsicInfo::lookupNumArgs(node);
+            assert(numArgs == 2 || numArgs == 3);
 
-    genProduceReg(node);
-}
+            regNumber op1Reg = REG_NA;
+            regNumber op2Reg = REG_NA;
+            regNumber op3Reg = REG_NA;
+            regNumber lowReg = REG_NA;
 
-//------------------------------------------------------------------------
-// genBMI2Intrinsic: Generates the code for a BMI2 hardware intrinsic node
-//
-// Arguments:
-//    node - The hardware intrinsic node
-//
-void CodeGen::genBMI2Intrinsic(GenTreeHWIntrinsic* node)
-{
-    NamedIntrinsic intrinsicId = node->gtHWIntrinsicId;
-    regNumber      targetReg   = node->gtRegNum;
-    GenTree*       op1         = node->gtGetOp1();
-    GenTree*       op2         = node->gtGetOp2();
-    var_types      baseType    = node->gtSIMDBaseType;
-    var_types      targetType  = node->TypeGet();
-    instruction    ins         = HWIntrinsicInfo::lookupIns(intrinsicId, targetType);
-    emitter*       emit        = getEmitter();
+            if (numArgs == 2)
+            {
+                op1Reg = op1->gtRegNum;
+                op2Reg = op2->gtRegNum;
+                lowReg = targetReg;
+            }
+            else
+            {
+                GenTreeArgList* argList = op1->AsArgList();
+                op1                     = argList->Current();
+                genConsumeRegs(op1);
+                op1Reg  = op1->gtRegNum;
+                argList = argList->Rest();
+                op2     = argList->Current();
+                genConsumeRegs(op2);
+                op2Reg       = op2->gtRegNum;
+                argList      = argList->Rest();
+                GenTree* op3 = argList->Current();
+                genConsumeRegs(op3);
+                op3Reg = op3->gtRegNum;
+                assert(op3Reg != op1Reg);
+                assert(op3Reg != targetReg);
+                assert(op3Reg != REG_EDX);
+                lowReg = node->GetSingleTempReg();
+                assert(op3Reg != lowReg);
+                assert(lowReg != targetReg);
+            }
 
-    assert(targetReg != REG_NA);
-    assert(op1 != nullptr);
+            emitAttr attr = emitTypeSize(targetType);
+            // mov the first operand into implicit source operand EDX/RDX
+            if (op1Reg != REG_EDX)
+            {
+                assert(op2Reg != REG_EDX);
+                emit->emitIns_R_R(INS_mov, attr, REG_EDX, op1Reg);
+            }
 
-    if (!op1->OperIsList())
-    {
-        genConsumeOperands(node);
-    }
+            // generate code for MULX
+            genHWIntrinsic_R_R_RM(node, ins, attr, targetReg, lowReg, op2);
 
-    switch (intrinsicId)
-    {
-        case NI_BMI2_ParallelBitDeposit:
-        case NI_BMI2_ParallelBitExtract:
-        case NI_BMI2_X64_ParallelBitDeposit:
-        case NI_BMI2_X64_ParallelBitExtract:
-        {
-            assert(op2 != nullptr);
-            assert(op1->TypeGet() == op2->TypeGet());
-            assert((targetType == TYP_INT) || (targetType == TYP_LONG));
-            genHWIntrinsic_R_R_RM(node, ins, emitTypeSize(node->TypeGet()));
+            // If requires the lower half result, store in the memory opinted by op3
+            if (numArgs == 3)
+            {
+                emit->emitIns_AR_R(INS_mov, attr, lowReg, op3Reg, 0);
+            }
+
             break;
         }
 

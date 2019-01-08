@@ -337,6 +337,7 @@ InlineContext::InlineContext(InlineStrategy* strategy)
     , m_CodeSizeEstimate(0)
     , m_Success(true)
     , m_Devirtualized(false)
+    , m_Guarded(false)
     , m_Unboxed(false)
 #if defined(DEBUG) || defined(INLINE_DATA)
     , m_Policy(nullptr)
@@ -397,18 +398,19 @@ void InlineContext::Dump(unsigned indent)
         const char* inlineReason  = InlGetObservationString(m_Observation);
         const char* inlineResult  = m_Success ? "" : "FAILED: ";
         const char* devirtualized = m_Devirtualized ? " devirt" : "";
+        const char* guarded       = m_Guarded ? " guarded" : "";
         const char* unboxed       = m_Unboxed ? " unboxed" : "";
 
         if (m_Offset == BAD_IL_OFFSET)
         {
-            printf("%*s[%u IL=???? TR=%06u %08X] [%s%s%s%s] %s\n", indent, "", m_Ordinal, m_TreeID, calleeToken,
-                   inlineResult, inlineReason, devirtualized, unboxed, calleeName);
+            printf("%*s[%u IL=???? TR=%06u %08X] [%s%s%s%s%s] %s\n", indent, "", m_Ordinal, m_TreeID, calleeToken,
+                   inlineResult, inlineReason, guarded, devirtualized, unboxed, calleeName);
         }
         else
         {
             IL_OFFSET offset = jitGetILoffs(m_Offset);
-            printf("%*s[%u IL=%04d TR=%06u %08X] [%s%s%s%s] %s\n", indent, "", m_Ordinal, offset, m_TreeID, calleeToken,
-                   inlineResult, inlineReason, devirtualized, unboxed, calleeName);
+            printf("%*s[%u IL=%04d TR=%06u %08X] [%s%s%s%s%s] %s\n", indent, "", m_Ordinal, offset, m_TreeID,
+                   calleeToken, inlineResult, inlineReason, guarded, devirtualized, unboxed, calleeName);
         }
     }
 
@@ -657,6 +659,22 @@ InlineResult::InlineResult(Compiler* compiler, CORINFO_METHOD_HANDLE method, con
 
 void InlineResult::Report()
 {
+
+#ifdef DEBUG
+    // If this is a failure of a specific inline candidate and we haven't captured
+    // a failing observation yet, do so now.
+    if (IsFailure() && (m_Call != nullptr))
+    {
+        // compiler should have revoked candidacy on the call by now
+        assert((m_Call->gtFlags & GTF_CALL_INLINE_CANDIDATE) == 0);
+
+        if (m_Call->gtInlineObservation == InlineObservation::CALLEE_UNUSED_INITIAL)
+        {
+            m_Call->gtInlineObservation = m_Policy->GetObservation();
+        }
+    }
+#endif // DEBUG
+
     // If we weren't actually inlining, user may have suppressed
     // reporting via setReported(). If so, do nothing.
     if (m_Reported)
@@ -680,17 +698,6 @@ void InlineResult::Report()
 
         JITDUMP(format, m_Description, ResultString(), ReasonString(), caller, callee);
     }
-
-    // If the inline failed, leave information on the call so we can
-    // later recover what observation lead to the failure.
-    if (IsFailure() && (m_Call != nullptr))
-    {
-        // compiler should have revoked candidacy on the call by now
-        assert((m_Call->gtFlags & GTF_CALL_INLINE_CANDIDATE) == 0);
-
-        m_Call->gtInlineObservation = m_Policy->GetObservation();
-    }
-
 #endif // DEBUG
 
     // Was the result NEVER? If so we might want to propagate this to
@@ -1205,6 +1212,7 @@ InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
     calleeContext->m_Observation   = inlineInfo->inlineResult->GetObservation();
     calleeContext->m_Success       = true;
     calleeContext->m_Devirtualized = originalCall->IsDevirtualized();
+    calleeContext->m_Guarded       = originalCall->IsGuarded();
     calleeContext->m_Unboxed       = originalCall->IsUnboxed();
 
 #if defined(DEBUG) || defined(INLINE_DATA)
@@ -1266,6 +1274,7 @@ InlineContext* InlineStrategy::NewFailure(GenTreeStmt* stmt, InlineResult* inlin
     failedContext->m_Callee        = inlineResult->GetCallee();
     failedContext->m_Success       = false;
     failedContext->m_Devirtualized = originalCall->IsDevirtualized();
+    failedContext->m_Guarded       = originalCall->IsGuarded();
     failedContext->m_Unboxed       = originalCall->IsUnboxed();
 
     assert(InlIsValidObservation(failedContext->m_Observation));
