@@ -52,6 +52,15 @@ typedef struct  { TestStruct	 arr[ARRAY_SIZE];		}	S_StructArray;
 
 typedef struct  { BOOL		 arr[ARRAY_SIZE];		}	S_BOOLArray;
 
+enum class TestEnum : int32_t
+{
+    Red = 1,
+    Green,
+    Blue
+};
+
+typedef struct { TestEnum arr[3]; } EnregisterableNonBlittable;
+
 /*----------------------------------------------------------------------------
 helper function
 ----------------------------------------------------------------------------*/
@@ -241,6 +250,12 @@ extern "C" DLL_EXPORT BOOL __cdecl TakeStructArraySeqStructByVal( S_StructArray 
     TestStruct *expected = InitTestStruct();
     return TestStructEquals( s.arr,expected );
 }
+
+extern "C" DLL_EXPORT BOOL __cdecl TakeEnregistrableNonBlittableSeqStructByVal(EnregisterableNonBlittable s, TestEnum values[])
+{
+    return s.arr[0] == values[0] && s.arr[1] == values[1] && s.arr[2] == values[2];
+}
+
 
 /*----------------------------------------------------------------------------
 marshal sequential class

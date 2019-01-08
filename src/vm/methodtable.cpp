@@ -3077,7 +3077,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
             }
 
             accumulatedSizeForEightByte += fieldSize;
-            while (accumulatedSizeForEightByte >= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
+            if (accumulatedSizeForEightByte >= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
             {
                 // Save data for this eightbyte.
                 helperPtr->eightByteSizes[currentEightByte] = SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
@@ -3087,8 +3087,14 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
                 currentEightByte++;
                 _ASSERTE(currentEightByte <= CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
 
-                currentEightByteOffset = offset + fieldSize;
+                currentEightByteOffset = offset + Min(fieldSize, (unsigned int)SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
                 accumulatedSizeForEightByte -= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
+
+                // If a field is large enough to span multiple eightbytes, then set the eightbyte classification to the field's classification.
+                if (accumulatedSizeForEightByte > 0)
+                {
+                    helperPtr->eightByteClassifications[currentEightByte] = fieldClassificationType;
+                }
             }
 
             _ASSERTE(accumulatedSizeForEightByte < SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
