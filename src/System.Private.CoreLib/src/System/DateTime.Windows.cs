@@ -10,11 +10,8 @@ namespace System
 {
     public readonly partial struct DateTime
     {
-        private unsafe delegate void GetSystemTimeAsFileTimeDelegate(long* lpSystemTimeAsFileTime);
-
         internal static readonly bool s_systemSupportsLeapSeconds = SystemSupportsLeapSeconds();
         internal static readonly bool s_systemSupportsPreciseSystemTime = SystemSupportsPreciseSystemTime();
-        private static GetSystemTimeAsFileTimeDelegate _getSystemTimeAsFileTime;
 
         public static unsafe DateTime UtcNow
         {
