@@ -76,6 +76,38 @@ namespace System.Collections.Generic
         }
 
         /// <summary>
+        /// Creates the default <see cref="Comparer{T}"/> for an enum type.
+        /// </summary>
+        /// <param name="enumType">The enum type to create the default comparer for.</param>
+        private static object TryCreateEnumComparer(RuntimeType enumType)
+        {
+            Debug.Assert(enumType != null);
+            Debug.Assert(enumType.IsEnum);
+
+            // Explicitly call Enum.GetUnderlyingType here. Although GetTypeCode
+            // ends up doing this anyway, we end up avoiding an unnecessary P/Invoke
+            // and virtual method call.
+            TypeCode underlyingTypeCode = Type.GetTypeCode(Enum.GetUnderlyingType(enumType));
+            
+            // Depending on the enum type, we need to special case the comparers so that we avoid boxing.
+            // Specialize differently for signed/unsigned types so we avoid problems with large numbers.
+            switch (underlyingTypeCode)
+            {
+                case TypeCode.SByte:
+                case TypeCode.Int16:
+                case TypeCode.Int32:
+                case TypeCode.Byte:
+                case TypeCode.UInt16:
+                case TypeCode.UInt32:
+                case TypeCode.Int64:
+                case TypeCode.UInt64:
+                    return RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumComparer<>), enumType);
+            }
+            
+            return null;
+        }
+
+        /// <summary>
         /// Creates the default <see cref="EqualityComparer{T}"/>.
         /// </summary>
         /// <param name="type">The type to create the default equality comparer for.</param>
@@ -131,6 +163,37 @@ namespace System.Collections.Generic
             if (typeof(IEquatable<>).MakeGenericType(embeddedType).IsAssignableFrom(embeddedType))
             {
                 return RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(NullableEqualityComparer<int>), embeddedType);
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// Creates the default <see cref="EqualityComparer{T}"/> for an enum type.
+        /// </summary>
+        /// <param name="enumType">The enum type to create the default equality comparer for.</param>
+        private static object TryCreateEnumEqualityComparer(RuntimeType enumType)
+        {
+            Debug.Assert(enumType != null);
+            Debug.Assert(enumType.IsEnum);
+
+            // See the METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST and METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST_LONG cases in getILIntrinsicImplementation
+            // for how we cast the enum types to integral values in the comparer without boxing.
+
+            TypeCode underlyingTypeCode = Type.GetTypeCode(Enum.GetUnderlyingType(enumType));
+
+            // Depending on the enum type, we need to special case the comparers so that we avoid boxing.
+            switch (underlyingTypeCode)
+            {
+                case TypeCode.Int32:
+                case TypeCode.UInt32:
+                case TypeCode.SByte:
+                case TypeCode.Byte:
+                case TypeCode.Int16:
+                case TypeCode.Int64:
+                case TypeCode.UInt64:
+                case TypeCode.UInt16:
+                    return RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumEqualityComparer<>), enumType);
             }
             
             return null;

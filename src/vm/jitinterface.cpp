@@ -5990,7 +5990,7 @@ bool __stdcall TrackAllocationsEnabled()
 }
 
 /***********************************************************************/
-CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle)
+CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects)
 {
     CONTRACTL {
         SO_TOLERANT;
@@ -6016,7 +6016,7 @@ CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, C
     }
 
     MethodTable* pMT = VMClsHnd.AsMethodTable();
-    result = getNewHelperStatic(pMT);
+    result = getNewHelperStatic(pMT, pHasSideEffects);
 
     _ASSERTE(result != CORINFO_HELP_UNDEF);
         
@@ -6026,23 +6026,43 @@ CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, C
 }
 
 /***********************************************************************/
-CorInfoHelpFunc CEEInfo::getNewHelperStatic(MethodTable * pMT)
+CorInfoHelpFunc CEEInfo::getNewHelperStatic(MethodTable * pMT, bool * pHasSideEffects)
 {
     STANDARD_VM_CONTRACT;
 
 
     // Slow helper is the default
     CorInfoHelpFunc helper = CORINFO_HELP_NEWFAST;
+    BOOL hasFinalizer = pMT->HasFinalizer();
+    BOOL isComObjectType = pMT->IsComObjectType();
 
+    if (pHasSideEffects != nullptr)
+    {
+        if (isComObjectType)
+        {
+            *pHasSideEffects = true;
+        }
+        else
+#ifdef FEATURE_READYTORUN_COMPILER
+        if (IsReadyToRunCompilation())
+        {
+            *pHasSideEffects = hasFinalizer || !pMT->IsInheritanceChainFixedInCurrentVersionBubble();
+        }
+        else
+#endif
+        {
+            *pHasSideEffects = !!hasFinalizer;
+        }
+    }
 
-    if (pMT->IsComObjectType())
+    if (isComObjectType)
     {
         // Use slow helper
         _ASSERTE(helper == CORINFO_HELP_NEWFAST);
     }
     else
     if ((pMT->GetBaseSize() >= LARGE_OBJECT_SIZE) || 
-        pMT->HasFinalizer())
+        hasFinalizer)
     {
         // Use slow helper
         _ASSERTE(helper == CORINFO_HELP_NEWFAST);
@@ -6973,29 +6993,110 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
     // Compare tokens to cover all generic instantiations
     // The body of the first method is simply ret Arg0. The second one first casts the arg to I4.
 
-    if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__UNSAFE_CAST_TO_STACKPTR)->GetMemberDef())
+    if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__ENUM_EQUALS)->GetMemberDef()) 
     {
-        // Return the argument that was passed in converted to IntPtr
-        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_I, CEE_RET };
-        methInfo->ILCode = const_cast<BYTE*>(ilcode);
-        methInfo->ILCodeSize = sizeof(ilcode);
-        methInfo->maxStack = 1;
-        methInfo->EHcount = 0;
-        methInfo->options = (CorInfoOptions)0;
-        return true;
+        // Normally we would follow the above pattern and unconditionally replace the IL,
+        // relying on generic type constraints to guarantee that it will only ever be instantiated
+        // on the type/size of argument we expect.
+        //
+        // However C#/CLR does not support restricting a generic type to be an Enum, so the best
+        // we can do is constrain it to be a value type.  This is fine for run time, since we only
+        // ever create instantiations on 4 byte or less Enums. But during NGen we may compile instantiations
+        // on other value types (to be specific, every value type instatiation of EqualityComparer
+        // because of its TypeDependencyAttribute; here again we would like to restrict this to
+        // 4 byte or less Enums but cannot).
+        //
+        // This IL is invalid for those instantiations, and replacing it would lead to all sorts of
+        // errors at NGen time.  So we only replace it for instantiations where it would be valid, 
+        // leaving the others, which we should never execute, with the C# implementation of throwing.
+
+        _ASSERTE(ftn->HasMethodInstantiation());
+        Instantiation inst = ftn->GetMethodInstantiation();
+
+        _ASSERTE(inst.GetNumArgs() == 1);
+        CorElementType et = inst[0].GetVerifierCorElementType();
+        if (et == ELEMENT_TYPE_I4 ||
+            et == ELEMENT_TYPE_U4 ||
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_U2 ||
+            et == ELEMENT_TYPE_I1 ||
+            et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_I8 ||
+            et == ELEMENT_TYPE_U8)
+        {
+            static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_PREFIX1, (CEE_CEQ & 0xFF), CEE_RET };
+            methInfo->ILCode = const_cast<BYTE*>(ilcode);
+            methInfo->ILCodeSize = sizeof(ilcode);
+            methInfo->maxStack = 2;
+            methInfo->EHcount = 0;
+            methInfo->options = (CorInfoOptions)0;
+            return true;
+        }
+    }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__ENUM_COMPARE_TO)->GetMemberDef())
+    {
+        // The the comment above on why this is is not an unconditional replacement.  This case handles
+        // Enums backed by 8 byte values.
+
+        _ASSERTE(ftn->HasMethodInstantiation());
+        Instantiation inst = ftn->GetMethodInstantiation();
+
+        _ASSERTE(inst.GetNumArgs() == 1);
+        CorElementType et = inst[0].GetVerifierCorElementType();
+        if (et == ELEMENT_TYPE_I4 ||
+            et == ELEMENT_TYPE_U4 ||
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_U2 ||
+            et == ELEMENT_TYPE_I1 ||
+            et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_I8 ||
+            et == ELEMENT_TYPE_U8)
+        {
+            static BYTE ilcode[8][9];
+
+            TypeHandle thUnderlyingType = MscorlibBinder::GetElementType(et);
+
+            TypeHandle thIComparable = TypeHandle(MscorlibBinder::GetClass(CLASS__ICOMPARABLEGENERIC)).Instantiate(Instantiation(&thUnderlyingType, 1));
+
+            MethodDesc * pCompareToMD = thUnderlyingType.AsMethodTable()->GetMethodDescForInterfaceMethod(
+                thIComparable, MscorlibBinder::GetMethod(METHOD__ICOMPARABLEGENERIC__COMPARE_TO), TRUE /* throwOnConflict */);
+
+            // Call CompareTo method on the primitive type
+            int tokCompareTo = pCompareToMD->GetMemberDef();
+
+            int index = (et - ELEMENT_TYPE_I1);
+            _ASSERTE(index < _countof(ilcode));
+
+            ilcode[index][0] = CEE_LDARGA_S;
+            ilcode[index][1] = 0;
+            ilcode[index][2] = CEE_LDARG_1;
+            ilcode[index][3] = CEE_CALL;
+            ilcode[index][4] = (BYTE)(tokCompareTo);
+            ilcode[index][5] = (BYTE)(tokCompareTo >> 8);
+            ilcode[index][6] = (BYTE)(tokCompareTo >> 16);
+            ilcode[index][7] = (BYTE)(tokCompareTo >> 24);
+            ilcode[index][8] = CEE_RET;
+
+            methInfo->ILCode = const_cast<BYTE*>(ilcode[index]);
+            methInfo->ILCodeSize = sizeof(ilcode[index]);
+            methInfo->maxStack = 2;
+            methInfo->EHcount = 0;
+            methInfo->options = (CorInfoOptions)0;
+            return true;
+        }
     }
     else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
     {
-        mdToken tokArrayPinningHelper = MscorlibBinder::GetField(FIELD__ARRAY_PINNING_HELPER__M_ARRAY_DATA)->GetMemberDef();
+        mdToken tokRawSzArrayData = MscorlibBinder::GetField(FIELD__RAW_SZARRAY_DATA__DATA)->GetMemberDef();
 
         static BYTE ilcode[] = { CEE_LDARG_0,
                                  CEE_LDFLDA,0,0,0,0,
                                  CEE_RET };
 
-        ilcode[2] = (BYTE)(tokArrayPinningHelper);
-        ilcode[3] = (BYTE)(tokArrayPinningHelper >> 8);
-        ilcode[4] = (BYTE)(tokArrayPinningHelper >> 16);
-        ilcode[5] = (BYTE)(tokArrayPinningHelper >> 24);
+        ilcode[2] = (BYTE)(tokRawSzArrayData);
+        ilcode[3] = (BYTE)(tokRawSzArrayData >> 8);
+        ilcode[4] = (BYTE)(tokRawSzArrayData >> 16);
+        ilcode[5] = (BYTE)(tokRawSzArrayData >> 24);
 
         methInfo->ILCode = const_cast<BYTE*>(ilcode);
         methInfo->ILCodeSize = sizeof(ilcode);

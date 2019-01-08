@@ -84,7 +84,7 @@
 //     actually exist yet. To support this methods can have code:Precode that is an entry point that exists
 //     and will call the JIT compiler if the code does not yet exist.
 //     
-//  * NGEN - NGen stands for Native code GENeration and it is the runtime way of precomiling IL and IL
+//  * NGEN - NGen stands for Native code GENeration and it is the runtime way of precompiling IL and IL
 //      Meta-data into native code and runtime data structures. At compilation time the most
 //      fundamental data structures is the code:ZapNode which represents something that needs to go into the
 //      NGEN image.
@@ -153,9 +153,6 @@
 #include "apithreadstress.h"
 #include "perflog.h"
 #include "../dlls/mscorrc/resource.h"
-#ifdef FEATURE_USE_LCID
-#include "nlsinfo.h"
-#endif 
 #include "util.hpp"
 #include "shimload.h"
 #include "comthreadpool.h"
@@ -2688,7 +2685,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
         InlineSString<LOCALE_NAME_MAX_LENGTH> sCulture;
         InlineSString<LOCALE_NAME_MAX_LENGTH> sParentCulture;
 
-
+#if 0 // Enable and test if/once the unmanaged runtime is localized
         Thread * pThread = GetThread();
 
         // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
@@ -2713,36 +2710,33 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
             // and we don't want them moving on us.
             GCX_COOP();
 
-            THREADBASEREF pThreadBase = (THREADBASEREF)pThread->GetExposedObjectRaw();
+            CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
 
-            if (pThreadBase != NULL)
+            if (pCurrentCulture != NULL)
             {
-                CULTUREINFOBASEREF pCurrentCulture = pThreadBase->GetCurrentUICulture();
+                STRINGREF cultureName = pCurrentCulture->GetName();
 
-                if (pCurrentCulture != NULL)
+                if (cultureName != NULL)
                 {
-                    STRINGREF cultureName = pCurrentCulture->GetName();
+                    sCulture.Set(cultureName->GetBuffer(),cultureName->GetStringLength());
+                }
 
-                    if (cultureName != NULL)
+                CULTUREINFOBASEREF pParentCulture = pCurrentCulture->GetParent();
+
+                if (pParentCulture != NULL)
+                {
+                    STRINGREF parentCultureName = pParentCulture->GetName();
+
+                    if (parentCultureName != NULL)
                     {
-                        sCulture.Set(cultureName->GetBuffer(),cultureName->GetStringLength());
+                        sParentCulture.Set(parentCultureName->GetBuffer(),parentCultureName->GetStringLength());
                     }
 
-                    CULTUREINFOBASEREF pParentCulture = pCurrentCulture->GetParent();
-
-                    if (pParentCulture != NULL)
-                    {
-                        STRINGREF parentCultureName = pParentCulture->GetName();
-
-                        if (parentCultureName != NULL)
-                        {
-                            sParentCulture.Set(parentCultureName->GetBuffer(),parentCultureName->GetStringLength());
-                        }
-
-                    }
                 }
             }
         }
+#endif
+
         // If the lazily-initialized cultureinfo structures aren't initialized yet, we'll
         // need to do the lookup the hard way.
         if (sCulture.IsEmpty() || sParentCulture.IsEmpty())
@@ -2837,6 +2831,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
 
     Thread * pThread = GetThread();
 
+#if 0 // Enable and test if/once the unmanaged runtime is localized
     // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
     // indefinately. We want to ensure a clean exit so rather than take the risk of hang we take a risk of the error resource not
     // getting localized with a non-default thread-specific culture.
@@ -2859,21 +2854,18 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         // and we don't want them moving on us.
         GCX_COOP();
 
-        THREADBASEREF pThreadBase = (THREADBASEREF)pThread->GetExposedObjectRaw();
-        if (pThreadBase != NULL)
+        CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
+
+        if (pCurrentCulture != NULL)
         {
-            CULTUREINFOBASEREF pCurrentCulture = pThreadBase->GetCurrentUICulture();
+            STRINGREF cultureName = pCurrentCulture->GetName();
+            _ASSERT(cultureName != NULL);
 
-            if (pCurrentCulture != NULL)
-            {
-                STRINGREF cultureName = pCurrentCulture->GetName();
-                _ASSERT(cultureName != NULL);
-
-                if ((Result = ::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
-                    Result = (int)UICULTUREID_DONTCARE;
-            }
+            if ((Result = ::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
+                Result = (int)UICULTUREID_DONTCARE;
         }
     }
+#endif
 
     if (Result == (int)UICULTUREID_DONTCARE)
     {
@@ -2912,6 +2904,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
 
     Thread * pThread = GetThread();
 
+#if 0 // Enable and test if/once the unmanaged runtime is localized
     // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
     // indefinately. We want to ensure a clean exit so rather than take the risk of hang we take a risk of the error resource not
     // getting localized with a non-default thread-specific culture.
@@ -2935,29 +2928,25 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         // and we don't want them moving on us.
         GCX_COOP();
 
-        THREADBASEREF pThreadBase = (THREADBASEREF)pThread->GetExposedObjectRaw();
-        if (pThreadBase != NULL)
+        CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
+
+        if (pCurrentCulture != NULL)
         {
-            CULTUREINFOBASEREF pCurrentCulture = pThreadBase->GetCurrentUICulture();
+            STRINGREF currentCultureName = pCurrentCulture->GetName();
 
-            if (pCurrentCulture != NULL)
+            if (currentCultureName != NULL)
             {
-                STRINGREF currentCultureName = pCurrentCulture->GetName();
-
-                if (currentCultureName != NULL)
+                int cchCurrentCultureNameResult = currentCultureName->GetStringLength();
+                if (cchCurrentCultureNameResult < LOCALE_NAME_MAX_LENGTH)
                 {
-                    int cchCurrentCultureNameResult = currentCultureName->GetStringLength();
-                    if (cchCurrentCultureNameResult < LOCALE_NAME_MAX_LENGTH)
-                    {
-                        memcpy(*pLocale, currentCultureName->GetBuffer(), cchCurrentCultureNameResult*sizeof(WCHAR));
-                        (*pLocale)[cchCurrentCultureNameResult]='\0';
-                        Result=cchCurrentCultureNameResult;
-                    }
+                    memcpy(*pLocale, currentCultureName->GetBuffer(), cchCurrentCultureNameResult*sizeof(WCHAR));
+                    (*pLocale)[cchCurrentCultureNameResult]='\0';
+                    Result=cchCurrentCultureNameResult;
                 }
-
             }
         }
     }
+#endif
     if (Result == 0)
     {
 #ifndef FEATURE_PAL

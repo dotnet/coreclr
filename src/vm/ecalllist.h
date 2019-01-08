@@ -188,7 +188,7 @@ FCFuncStart(gSafeHandleFuncs)
 FCFuncEnd()
 
 FCFuncStart(gCriticalHandleFuncs)
-    FCFuncElement("FireCustomerDebugProbe", CriticalHandle::FireCustomerDebugProbe)
+    FCFuncElement("ReleaseHandleFailed", CriticalHandle::FireCustomerDebugProbe)
 FCFuncEnd()
 
 FCFuncStart(gTypedReferenceFuncs)
@@ -222,9 +222,6 @@ FCFuncEnd()
 
 FCFuncStart(gJitHelpers)
     FCFuncElement("UnsafeSetArrayElement", JitHelpers::UnsafeSetArrayElement)
-#ifdef _DEBUG
-    FCFuncElement("IsAddressInStack", ReflectionInvocation::IsAddressInStack)
-#endif
 FCFuncEnd()
 
 FCFuncStart(gCOMTypeHandleFuncs)
@@ -452,7 +449,6 @@ FCFuncEnd()
 #endif
 
 FCFuncStart(gMdUtf8String)
-    FCFuncElement("EqualsCaseSensitive", MdUtf8String::EqualsCaseSensitive)
     QCFuncElement("EqualsCaseInsensitive", MdUtf8String::EqualsCaseInsensitive)
     QCFuncElement("HashCaseInsensitive", MdUtf8String::HashCaseInsensitive)
 FCFuncEnd()
@@ -677,7 +673,6 @@ FCFuncEnd()
 FCFuncStart(gThreadFuncs)
     FCDynamic("InternalGetCurrentThread", CORINFO_INTRINSIC_Illegal, ECall::InternalGetCurrentThread)
     FCFuncElement("StartInternal", ThreadNative::Start)
-    QCFuncElement("nativeInitCultureAccessors", ThreadNative::nativeInitCultureAccessors)
 #undef Sleep
     FCFuncElement("SleepInternal", ThreadNative::Sleep)
 #define Sleep(a) Dont_Use_Sleep(a)
@@ -747,15 +742,6 @@ FCFuncEnd()
 FCFuncStart(gClrConfig)
     QCFuncElement("GetConfigBoolValue", ClrConfigNative::GetConfigBoolValue)
 FCFuncEnd()
-
-#if !defined(FEATURE_COREFX_GLOBALIZATION)
-FCFuncStart(gEncodingTableFuncs)
-    FCFuncElement("GetNumEncodingItems", COMNlsInfo::nativeGetNumEncodingItems)
-    FCFuncElement("GetEncodingData", COMNlsInfo::nativeGetEncodingTableDataPointer)
-    FCFuncElement("GetCodePageData", COMNlsInfo::nativeGetCodePageTableDataPointer)
-    FCFuncElement("nativeCompareOrdinalIgnoreCaseWC", COMString::FCCompareOrdinalIgnoreCaseWC)
-FCFuncEnd()
-#endif // !defined(FEATURE_COREFX_GLOBALIZATION)
 
 FCFuncStart(gArrayFuncs)
     FCFuncElement("get_Rank", ArrayNative::GetRank)
@@ -846,11 +832,6 @@ FCFuncStart(gInteropMarshalFuncs)
     FCFuncElement("GetDelegateForFunctionPointerInternal", MarshalNative::GetDelegateForFunctionPointerInternal)
     FCFuncElement("GetFunctionPointerForDelegateInternal", MarshalNative::GetFunctionPointerForDelegateInternal)
 
-    QCFuncElement("LoadLibraryFromPath", MarshalNative::LoadLibraryFromPath)
-    QCFuncElement("LoadLibraryByName", MarshalNative::LoadLibraryByName)
-    QCFuncElement("FreeNativeLibrary", MarshalNative::FreeNativeLibrary)
-    QCFuncElement("GetNativeLibraryExport", MarshalNative::GetNativeLibraryExport)
-
 #ifdef FEATURE_COMINTEROP
     FCFuncElement("GetHRForException", MarshalNative::GetHRForException)
     FCFuncElement("GetHRForException_WinRT", MarshalNative::GetHRForException_WinRT)
@@ -883,6 +864,13 @@ FCFuncStart(gInteropMarshalFuncs)
     FCFuncElement("ChangeWrapperHandleStrength", MarshalNative::ChangeWrapperHandleStrength)
     FCFuncElement("CleanupUnusedObjectsInCurrentContext", MarshalNative::CleanupUnusedObjectsInCurrentContext)
 #endif // FEATURE_COMINTEROP
+FCFuncEnd()
+
+FCFuncStart(gInteropNativeLibraryFuncs)
+    QCFuncElement("LoadFromPath", NativeLibraryNative::LoadFromPath)
+    QCFuncElement("LoadByName", NativeLibraryNative::LoadByName)
+    QCFuncElement("FreeLib", NativeLibraryNative::FreeLib)
+    QCFuncElement("GetSymbol", NativeLibraryNative::GetSymbol)
 FCFuncEnd()
 
 FCFuncStart(gArrayWithOffsetFuncs)
@@ -1098,7 +1086,6 @@ FCFuncStart(gStubHelperFuncs)
     FCFuncElement("FmtClassUpdateCLRInternal", StubHelpers::FmtClassUpdateCLRInternal)
     FCFuncElement("LayoutDestroyNativeInternal", StubHelpers::LayoutDestroyNativeInternal)
     FCFuncElement("AllocateInternal", StubHelpers::AllocateInternal)
-    FCFuncElement("strlen", StubHelpers::AnsiStrlen)
     FCFuncElement("MarshalToUnmanagedVaListInternal", StubHelpers::MarshalToUnmanagedVaListInternal)
     FCFuncElement("MarshalToManagedVaListInternal", StubHelpers::MarshalToManagedVaListInternal)
     FCFuncElement("CalcVaListSize", StubHelpers::CalcVaListSize)
@@ -1251,9 +1238,6 @@ FCClassElement("Debugger", "System.Diagnostics", gDiagnosticsDebugger)
 FCClassElement("DefaultBinder", "System", gCOMDefaultBinderFuncs)
 FCClassElement("Delegate", "System", gDelegateFuncs)
 FCClassElement("DependentHandle", "System.Runtime.CompilerServices", gDependentHandleFuncs)
-#if !defined(FEATURE_COREFX_GLOBALIZATION)
-FCClassElement("EncodingTable", "System.Text", gEncodingTableFuncs)
-#endif // !defined(FEATURE_COREFX_GLOBALIZATION)
 FCClassElement("Enum", "System", gEnumFuncs)
 FCClassElement("Environment", "System", gEnvironmentFuncs)
 #if defined(FEATURE_PERFTRACING)
@@ -1296,6 +1280,7 @@ FCClassElement("MngdSafeArrayMarshaler", "System.StubHelpers", gMngdSafeArrayMar
 FCClassElement("ModuleBuilder", "System.Reflection.Emit", gCOMModuleBuilderFuncs)
 FCClassElement("ModuleHandle", "System", gCOMModuleHandleFuncs)
 FCClassElement("Monitor", "System.Threading", gMonitorFuncs)
+FCClassElement("NativeLibrary", "System.Runtime.InteropServices", gInteropNativeLibraryFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("OAVariantLib", "Microsoft.Win32", gOAVariantFuncs)
 #endif

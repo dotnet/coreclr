@@ -301,7 +301,23 @@ class LclVarDsc
 {
 public:
     // The constructor. Most things can just be zero'ed.
-    LclVarDsc();
+    //
+    // Initialize the ArgRegs to REG_STK.
+    // Morph will update if this local is passed in a register.
+    LclVarDsc()
+        : _lvArgReg(REG_STK)
+        ,
+#if FEATURE_MULTIREG_ARGS
+        _lvOtherArgReg(REG_STK)
+        ,
+#endif // FEATURE_MULTIREG_ARGS
+#if ASSERTION_PROP
+        lvRefBlks(BlockSetOps::UninitVal())
+        ,
+#endif // ASSERTION_PROP
+        lvPerSsaData()
+    {
+    }
 
     // note this only packs because var_types is a typedef of unsigned char
     var_types lvType : 5; // TYP_INT/LONG/FLOAT/DOUBLE/REF
@@ -1979,50 +1995,50 @@ public:
         pEHNodeDsc ehnFilterNode; // if this is a try node and has a filter, otherwise 0
         pEHNodeDsc ehnEquivalent; // if blockType=tryNode, start offset and end offset is same,
 
-        inline void ehnSetTryNodeType()
+        void ehnSetTryNodeType()
         {
             ehnBlockType = TryNode;
         }
-        inline void ehnSetFilterNodeType()
+        void ehnSetFilterNodeType()
         {
             ehnBlockType = FilterNode;
         }
-        inline void ehnSetHandlerNodeType()
+        void ehnSetHandlerNodeType()
         {
             ehnBlockType = HandlerNode;
         }
-        inline void ehnSetFinallyNodeType()
+        void ehnSetFinallyNodeType()
         {
             ehnBlockType = FinallyNode;
         }
-        inline void ehnSetFaultNodeType()
+        void ehnSetFaultNodeType()
         {
             ehnBlockType = FaultNode;
         }
 
-        inline BOOL ehnIsTryBlock()
+        BOOL ehnIsTryBlock()
         {
             return ehnBlockType == TryNode;
         }
-        inline BOOL ehnIsFilterBlock()
+        BOOL ehnIsFilterBlock()
         {
             return ehnBlockType == FilterNode;
         }
-        inline BOOL ehnIsHandlerBlock()
+        BOOL ehnIsHandlerBlock()
         {
             return ehnBlockType == HandlerNode;
         }
-        inline BOOL ehnIsFinallyBlock()
+        BOOL ehnIsFinallyBlock()
         {
             return ehnBlockType == FinallyNode;
         }
-        inline BOOL ehnIsFaultBlock()
+        BOOL ehnIsFaultBlock()
         {
             return ehnBlockType == FaultNode;
         }
 
         // returns true if there is any overlap between the two nodes
-        static inline BOOL ehnIsOverlap(pEHNodeDsc node1, pEHNodeDsc node2)
+        static BOOL ehnIsOverlap(pEHNodeDsc node1, pEHNodeDsc node2)
         {
             if (node1->ehnStartOffset < node2->ehnStartOffset)
             {
@@ -2035,7 +2051,7 @@ public:
         }
 
         // fails with BADCODE if inner is not completely nested inside outer
-        static inline BOOL ehnIsNested(pEHNodeDsc inner, pEHNodeDsc outer)
+        static BOOL ehnIsNested(pEHNodeDsc inner, pEHNodeDsc outer)
         {
             return ((inner->ehnStartOffset >= outer->ehnStartOffset) && (inner->ehnEndOffset <= outer->ehnEndOffset));
         }
@@ -2465,7 +2481,10 @@ public:
 
     GenTreeCast* gtNewCastNodeL(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType);
 
-    GenTree* gtNewAllocObjNode(unsigned int helper, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
+    GenTreeAllocObj* gtNewAllocObjNode(
+        unsigned int helper, bool helperHasSideEffects, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
+
+    GenTreeAllocObj* gtNewAllocObjNode(CORINFO_RESOLVED_TOKEN* pResolvedToken, BOOL useParent);
 
     GenTree* gtNewRuntimeLookup(CORINFO_GENERIC_HANDLE hnd, CorInfoGenericHandleType hndTyp, GenTree* lookupTree);
 
@@ -3053,7 +3072,7 @@ public:
 #endif
 
 #ifdef _TARGET_ARM_
-    int lvaFrameAddress(int varNum, bool mustBeFPBased, regNumber* pBaseReg, int addrModeOffset);
+    int lvaFrameAddress(int varNum, bool mustBeFPBased, regNumber* pBaseReg, int addrModeOffset, bool isFloatUsage);
 #else
     int lvaFrameAddress(int varNum, bool* pFPbased);
 #endif
@@ -3301,7 +3320,7 @@ public:
     CORINFO_CLASS_HANDLE impGetObjectClass();
 
     // Returns underlying type of handles returned by ldtoken instruction
-    inline var_types GetRuntimeHandleUnderlyingType()
+    var_types GetRuntimeHandleUnderlyingType()
     {
         // RuntimeTypeHandle is backed by raw pointer on CoreRT and by object reference on other runtimes
         return IsTargetAbi(CORINFO_CORERT_ABI) ? TYP_I_IMPL : TYP_REF;
@@ -3457,14 +3476,10 @@ protected:
                              CORINFO_METHOD_HANDLE method,
                              CORINFO_SIG_INFO*     sig,
                              bool                  mustExpand);
-    GenTree* impBMI1Intrinsic(NamedIntrinsic        intrinsic,
-                              CORINFO_METHOD_HANDLE method,
-                              CORINFO_SIG_INFO*     sig,
-                              bool                  mustExpand);
-    GenTree* impBMI2Intrinsic(NamedIntrinsic        intrinsic,
-                              CORINFO_METHOD_HANDLE method,
-                              CORINFO_SIG_INFO*     sig,
-                              bool                  mustExpand);
+    GenTree* impBMI1OrBMI2Intrinsic(NamedIntrinsic        intrinsic,
+                                    CORINFO_METHOD_HANDLE method,
+                                    CORINFO_SIG_INFO*     sig,
+                                    bool                  mustExpand);
     GenTree* impFMAIntrinsic(NamedIntrinsic        intrinsic,
                              CORINFO_METHOD_HANDLE method,
                              CORINFO_SIG_INFO*     sig,
@@ -4248,7 +4263,7 @@ public:
 
     GenTreeCall* fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls);
 
-    inline bool backendRequiresLocalVarLifetimes()
+    bool backendRequiresLocalVarLifetimes()
     {
         return !opts.MinOpts() || m_pLinearScan->willEnregisterLocalVars();
     }
@@ -4505,6 +4520,7 @@ public:
         }
         else
         {
+            assert(elemTyp != TYP_STRUCT);
             elemTyp = varTypeUnsignedToSigned(elemTyp);
             return CORINFO_CLASS_HANDLE(size_t(elemTyp) << 1 | 0x1);
         }
@@ -6938,13 +6954,13 @@ public:
     GenTree* eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig);
 
     // Returns the page size for the target machine as reported by the EE.
-    inline target_size_t eeGetPageSize()
+    target_size_t eeGetPageSize()
     {
         return (target_size_t)eeGetEEInfo()->osPageSize;
     }
 
     // Returns the frame size at which we will generate a loop to probe the stack.
-    inline target_size_t getVeryLargeFrameSize()
+    target_size_t getVeryLargeFrameSize()
     {
 #ifdef _TARGET_ARM_
         // The looping probe code is 40 bytes, whereas the straight-line probing for
@@ -7016,12 +7032,12 @@ public:
 
     VirtualStubParamInfo* virtualStubParamInfo;
 
-    inline bool IsTargetAbi(CORINFO_RUNTIME_ABI abi)
+    bool IsTargetAbi(CORINFO_RUNTIME_ABI abi)
     {
         return eeGetEEInfo()->targetAbi == abi;
     }
 
-    inline bool generateCFIUnwindCodes()
+    bool generateCFIUnwindCodes()
     {
 #if defined(_TARGET_UNIX_)
         return IsTargetAbi(CORINFO_CORERT_ABI);
@@ -7485,10 +7501,6 @@ private:
                      DWORD                 cfiCodeBytes,
                      const CFI_CODE* const pCfiCode);
 #endif
-#if defined(_TARGET_ARM_)
-    bool unwindCfiEpilogFormed; // Avoid duplicated unwind info for methods with multiple epilogs (we expect and require
-                                // all the epilogs to be precisely the same)
-#endif
 
 #endif // _TARGET_UNIX_
 
@@ -7650,7 +7662,7 @@ private:
                     unreached();
             }
         }
-        assert(simdType == getSIMDVectorType());
+        assert(emitTypeSize(simdType) <= maxSIMDStructBytes());
         switch (simdBaseType)
         {
             case TYP_FLOAT:
@@ -7902,6 +7914,7 @@ private:
                               CORINFO_CLASS_HANDLE  clsHnd,
                               CORINFO_METHOD_HANDLE method,
                               CORINFO_SIG_INFO*     sig,
+                              unsigned              methodFlags,
                               int                   memberRef);
 
     GenTree* getOp1ForConstructor(OPCODE opcode, GenTree* newobjThis, CORINFO_CLASS_HANDLE clsHnd);
@@ -8262,27 +8275,37 @@ public:
 #ifdef DEBUG
         bool compMinOptsIsUsed;
 
-        inline bool MinOpts()
+        bool MinOpts()
         {
             assert(compMinOptsIsSet);
             compMinOptsIsUsed = true;
             return compMinOpts;
         }
-        inline bool IsMinOptsSet()
+        bool IsMinOptsSet()
         {
             return compMinOptsIsSet;
         }
 #else  // !DEBUG
-        inline bool MinOpts()
+        bool MinOpts()
         {
             return compMinOpts;
         }
-        inline bool IsMinOptsSet()
+        bool IsMinOptsSet()
         {
             return compMinOptsIsSet;
         }
 #endif // !DEBUG
-        inline void SetMinOpts(bool val)
+
+        bool OptimizationDisabled()
+        {
+            return MinOpts() || compDbgCode;
+        }
+        bool OptimizationEnabled()
+        {
+            return !OptimizationDisabled();
+        }
+
+        void SetMinOpts(bool val)
         {
             assert(!compMinOptsIsUsed);
             assert(!compMinOptsIsSet || (compMinOpts == val));
@@ -8291,18 +8314,18 @@ public:
         }
 
         // true if the CLFLG_* for an optimization is set.
-        inline bool OptEnabled(unsigned optFlag)
+        bool OptEnabled(unsigned optFlag)
         {
             return !!(compFlags & optFlag);
         }
 
 #ifdef FEATURE_READYTORUN_COMPILER
-        inline bool IsReadyToRun()
+        bool IsReadyToRun()
         {
             return jitFlags->IsSet(JitFlags::JIT_FLAG_READYTORUN);
         }
 #else
-        inline bool IsReadyToRun()
+        bool IsReadyToRun()
         {
             return false;
         }
@@ -8310,20 +8333,20 @@ public:
 
         // true if we should use the PINVOKE_{BEGIN,END} helpers instead of generating
         // PInvoke transitions inline (e.g. when targeting CoreRT).
-        inline bool ShouldUsePInvokeHelpers()
+        bool ShouldUsePInvokeHelpers()
         {
             return jitFlags->IsSet(JitFlags::JIT_FLAG_USE_PINVOKE_HELPERS);
         }
 
         // true if we should use insert the REVERSE_PINVOKE_{ENTER,EXIT} helpers in the method
         // prolog/epilog
-        inline bool IsReversePInvoke()
+        bool IsReversePInvoke()
         {
             return jitFlags->IsSet(JitFlags::JIT_FLAG_REVERSE_PINVOKE);
         }
 
         // true if we must generate code compatible with JIT32 quirks
-        inline bool IsJit32Compat()
+        bool IsJit32Compat()
         {
 #if defined(_TARGET_X86_)
             return jitFlags->IsSet(JitFlags::JIT_FLAG_DESKTOP_QUIRKS);
@@ -8333,7 +8356,7 @@ public:
         }
 
         // true if we must generate code compatible with Jit64 quirks
-        inline bool IsJit64Compat()
+        bool IsJit64Compat()
         {
 #if defined(_TARGET_AMD64_)
             return jitFlags->IsSet(JitFlags::JIT_FLAG_DESKTOP_QUIRKS);
@@ -9549,7 +9572,7 @@ public:
     //
     // Returns:
     //    True if the `GT_IND` node represents an array access; false otherwise.
-    inline bool TryGetArrayInfo(GenTreeIndir* indir, ArrayInfo* arrayInfo)
+    bool TryGetArrayInfo(GenTreeIndir* indir, ArrayInfo* arrayInfo)
     {
         if ((indir->gtFlags & GTF_IND_ARR_INDEX) == 0)
         {
@@ -9646,25 +9669,6 @@ public:
     bool killGCRefs(GenTree* tree);
 
 }; // end of class Compiler
-
-// LclVarDsc constructor. Uses Compiler, so must come after Compiler definition.
-inline LclVarDsc::LclVarDsc()
-    : // Initialize the ArgRegs to REG_STK.
-    // The morph will do the right thing to change
-    // to the right register if passed in register.
-    _lvArgReg(REG_STK)
-    ,
-#if FEATURE_MULTIREG_ARGS
-    _lvOtherArgReg(REG_STK)
-    ,
-#endif // FEATURE_MULTIREG_ARGS
-#if ASSERTION_PROP
-    lvRefBlks(BlockSetOps::UninitVal())
-    ,
-#endif // ASSERTION_PROP
-    lvPerSsaData()
-{
-}
 
 //---------------------------------------------------------------------------------------------------------------------
 // GenTreeVisitor: a flexible tree walker implemented using the curiosly-recurring-template pattern.
