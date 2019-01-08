@@ -19186,7 +19186,6 @@ void Compiler::impMarkInlineCandidate(GenTree*               callNode,
         inlineResult.NoteFatal(InlineObservation::CALLSITE_IS_CALL_TO_HELPER);
         return;
     }
-
     /* Ignore indirect calls */
     if (call->gtCallType == CT_INDIRECT)
     {
