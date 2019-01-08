@@ -2583,7 +2583,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
     // No struct register passing with explicit layout. There may be cases where explicit layout may be still
     // eligible for register struct passing, but it is hard to tell the real intent. Make it simple and just 
     // unconditionally disable register struct passing for explicit layout.
-    if (GetClass()->HasExplicitFieldOffsetLayout())
+    if (GetClass()->HasExplicitFieldOffsetLayout() && GetClass()->HasOverLayedField())
     {
         LOG((LF_JIT, LL_EVERYTHING, "%*s**** ClassifyEightBytesWithNativeLayout: struct %s has explicit layout; will not be enregistered\n",
             nestingLevel * 5, "", this->GetDebugClassName()));
