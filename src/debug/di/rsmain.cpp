@@ -2006,6 +2006,7 @@ HRESULT Cordb::CreateObject(CorDebugInterfaceVersion iDebuggerVersion, DWORD pid
         cbMultiByte = WideCharToMultiByte(CP_ACP, 0, lpApplicationGroupId, -1, applicationGroupId, cbMultiByte, NULL, NULL);
         if (cbMultiByte == 0)
         {
+            delete [] applicationGroupId;
             return E_FAIL;
         }
     }
