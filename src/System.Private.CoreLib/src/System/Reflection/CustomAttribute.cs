@@ -768,7 +768,7 @@ namespace System.Reflection
             Type type = value.GetType();
             if (type.IsEnum)
             {
-                return Enum.GetBridge(type).GetUnderlyingValue((Enum)value);
+                return Enum.GetCache(type).GetUnderlyingValue((Enum)value);
             }
             return value;
         }

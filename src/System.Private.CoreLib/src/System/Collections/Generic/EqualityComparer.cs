@@ -333,23 +333,23 @@ namespace System.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(T x, T y)
         {
-            Enum.IEnumBridge<T> bridge = Enum.EnumBridge<T>.Bridge;
-            if (bridge == null)
+            Enum.IEnumCache<T> cache = Enum.EnumCache<T>.Cache;
+            if (cache == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            return bridge.Equals(x, y);
+            return cache.Equals(x, y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode(T obj)
         {
-            Enum.IEnumBridge<T> bridge = Enum.EnumBridge<T>.Bridge;
-            if (bridge == null)
+            Enum.IEnumCache<T> cache = Enum.EnumCache<T>.Cache;
+            if (cache == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            return bridge.GetHashCode(obj);
+            return cache.GetHashCode(obj);
         }
 
         // Equals method for the comparer itself.
@@ -361,15 +361,15 @@ namespace System.Collections.Generic
 
         internal override int IndexOf(T[] array, T value, int startIndex, int count)
         {
-            Enum.IEnumBridge<T> bridge = Enum.EnumBridge<T>.Bridge;
-            if (bridge == null)
+            Enum.IEnumCache<T> cache = Enum.EnumCache<T>.Cache;
+            if (cache == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
             int endIndex = startIndex + count;
             for (int i = startIndex; i < endIndex; i++)
             {
-                if (bridge.Equals(value, array[i]))
+                if (cache.Equals(value, array[i]))
                 {
                     return i;
                 }
@@ -379,15 +379,15 @@ namespace System.Collections.Generic
 
         internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
         {
-            Enum.IEnumBridge<T> bridge = Enum.EnumBridge<T>.Bridge;
-            if (bridge == null)
+            Enum.IEnumCache<T> cache = Enum.EnumCache<T>.Cache;
+            if (cache == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
             int endIndex = startIndex - count + 1;
             for (int i = startIndex; i >= endIndex; i--)
             {
-                if (bridge.Equals(value, array[i]))
+                if (cache.Equals(value, array[i]))
                 {
                     return i;
                 }

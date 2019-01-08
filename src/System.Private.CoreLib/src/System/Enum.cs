@@ -23,7 +23,7 @@ namespace System
         #endregion
 
         #region Private Static Methods
-        internal static IEnumBridge GetBridge(Type enumType)
+        internal static IEnumCache GetCache(Type enumType)
         {
             if (enumType == null)
             {
@@ -40,35 +40,22 @@ namespace System
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             }
 
-            return GetBridge(rtType);
+            return GetCache(rtType);
         }
 
-        internal static IEnumBridge GetBridge(RuntimeType rtType)
+        internal static IEnumCache GetCache(RuntimeType rtType)
         {
             Debug.Assert(rtType.IsEnum);
-            if (!(rtType.GenericCache is IEnumBridge bridge))
+            if (!(rtType.GenericCache is IEnumCache cache))
             {
-                bridge = (IEnumBridge)typeof(EnumBridge<>).MakeGenericType(rtType).GetField(nameof(EnumBridge<DayOfWeek>.Bridge), BindingFlags.Static | BindingFlags.Public).GetValue(null);
-                rtType.GenericCache = bridge ?? throw new ArgumentException(SR.Argument_InvalidEnum, "enumType");
+                cache = (IEnumCache)typeof(EnumCache<>).MakeGenericType(rtType).GetField(nameof(EnumCache<DayOfWeek>.Cache), BindingFlags.Static | BindingFlags.Public).GetValue(null);
+                rtType.GenericCache = cache ?? throw new ArgumentException(SR.Argument_InvalidEnum, "enumType");
             }
 
-            return bridge;
+            return cache;
         }
 
-        private static IEnumBridge CreateEnumBridge(Type enumType)
-        {
-            Type underlyingType = GetUnderlyingTypeInternal(enumType);
-            
-            // Allow underlying type of another enum type as is done in a Reflection.Emit test
-            if (underlyingType?.IsEnum == true && underlyingType != enumType)
-            {
-                underlyingType = GetUnderlyingType(underlyingType);
-            }
-
-            return underlyingType != null ? (IEnumBridge)Activator.CreateInstance(typeof(EnumBridge<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations))) : null;
-        }
-
-        private static Type GetUnderlyingTypeInternal(Type enumType)
+        private static IEnumCache CreateEnumCache(Type enumType)
         {
             if (!enumType.IsEnum)
             {
@@ -81,7 +68,15 @@ namespace System
                 return null;
             }
 
-            return fields[0].FieldType;
+            Type underlyingType = fields[0].FieldType;
+            
+            // Allow underlying type of another enum type as is done in a System.Reflection.Emit test
+            if (underlyingType.IsEnum && underlyingType != enumType)
+            {
+                underlyingType = GetUnderlyingType(underlyingType);
+            }
+
+            return (IEnumCache)Activator.CreateInstance(typeof(EnumCache<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations)));
         }
 
         internal static ulong ToUInt64(object value, bool throwInvalidOperationException = true)
@@ -147,7 +142,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            return GetBridge(enumType).Parse(value.AsSpan(), ignoreCase);
+            return GetCache(enumType).Parse(value.AsSpan(), ignoreCase);
         }
 
         public static TEnum Parse<TEnum>(string value) where TEnum : struct =>
@@ -160,45 +155,45 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            IEnumBridge<TEnum> bridge = EnumBridge<TEnum>.Bridge;
-            if (bridge == null)
+            IEnumCache<TEnum> cache = EnumCache<TEnum>.Cache;
+            if (cache == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            return bridge.Parse(value.AsSpan(), ignoreCase);
+            return cache.Parse(value.AsSpan(), ignoreCase);
         }
 
         public static bool TryParse(Type enumType, string value, out object result) =>
             TryParse(enumType, value, ignoreCase: false, out result);
 
         public static bool TryParse(Type enumType, string value, bool ignoreCase, out object result) =>
-            GetBridge(enumType).TryParse(value.AsSpan(), ignoreCase, out result);
+            GetCache(enumType).TryParse(value.AsSpan(), ignoreCase, out result);
 
         public static bool TryParse<TEnum>(string value, out TEnum result) where TEnum : struct =>
             TryParse(value, ignoreCase: false, out result);
 
         public static bool TryParse<TEnum>(string value, bool ignoreCase, out TEnum result) where TEnum : struct
         {
-            IEnumBridge<TEnum> bridge = EnumBridge<TEnum>.Bridge;
-            if (bridge == null)
+            IEnumCache<TEnum> cache = EnumCache<TEnum>.Cache;
+            if (cache == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            return bridge.TryParse(value, ignoreCase, out result);
+            return cache.TryParse(value, ignoreCase, out result);
         }
 
         public static Type GetUnderlyingType(Type enumType) =>
-            GetBridge(enumType).UnderlyingType;
+            GetCache(enumType).UnderlyingType;
 
         public static Array GetValues(Type enumType) =>
-            GetBridge(enumType).GetValues();
+            GetCache(enumType).GetValues();
 
         public static string GetName(Type enumType, object value) =>
-            GetBridge(enumType).GetName(value);
+            GetCache(enumType).GetName(value);
 
         public static string[] GetNames(Type enumType)
         {
-            IReadOnlyList<string> names = GetBridge(enumType).Names;
+            IReadOnlyList<string> names = GetCache(enumType).Names;
             string[] namesArray = new string[names.Count];
             int i = 0;
             foreach (string name in names)
@@ -216,11 +211,11 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            return GetBridge(enumType).ToObject(value);
+            return GetCache(enumType).ToObject(value);
         }
 
         public static bool IsDefined(Type enumType, object value) =>
-            GetBridge(enumType).IsDefined(value);
+            GetCache(enumType).IsDefined(value);
 
         public static string Format(Type enumType, object value, string format)
         {
@@ -229,18 +224,18 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            return GetBridge(enumType).Format(value, format);
+            return GetCache(enumType).Format(value, format);
         }
         #endregion
 
         #region Definitions
-        #region EnumBridge
-        internal static class EnumBridge<TEnum>
+        #region EnumCache
+        internal static class EnumCache<TEnum>
         {
-            public readonly static IEnumBridge<TEnum> Bridge = (IEnumBridge<TEnum>)CreateEnumBridge(typeof(TEnum));
+            public readonly static IEnumCache<TEnum> Cache = (IEnumCache<TEnum>)CreateEnumCache(typeof(TEnum));
         }
 
-        internal interface IEnumBridge
+        internal interface IEnumCache
         {
             Type UnderlyingType { get; }
             TypeCode TypeCode { get; }
@@ -276,7 +271,7 @@ namespace System
             bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result);
         }
 
-        internal interface IEnumBridge<TEnum> : IEnumBridge
+        internal interface IEnumCache<TEnum> : IEnumCache
         {
             int CompareTo(TEnum value, TEnum other);
             bool Equals(TEnum value, TEnum other);
@@ -285,7 +280,7 @@ namespace System
             bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result);
         }
 
-        private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperations> : IEnumBridge<TEnum>
+        private sealed class EnumCache<TEnum, TUnderlying, TUnderlyingOperations> : IEnumCache<TEnum>
             where TEnum : struct, Enum
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
@@ -309,14 +304,15 @@ namespace System
                 return enumValue;
             }
 
-            private EnumCache<TUnderlying, TUnderlyingOperations> _cache;
+            private EnumMembers<TUnderlying, TUnderlyingOperations> _members;
 
-            public EnumCache<TUnderlying, TUnderlyingOperations> Cache
+            // Lazy caching of members
+            public EnumMembers<TUnderlying, TUnderlyingOperations> Members
             {
                 get
                 {
-                    EnumCache<TUnderlying, TUnderlyingOperations> cache = _cache;
-                    return cache ?? Interlocked.CompareExchange(ref _cache, (cache = new EnumCache<TUnderlying, TUnderlyingOperations>(typeof(TEnum))), null) ?? cache;
+                    EnumMembers<TUnderlying, TUnderlyingOperations> members = _members;
+                    return members ?? Interlocked.CompareExchange(ref _members, (members = new EnumMembers<TUnderlying, TUnderlyingOperations>(typeof(TEnum))), null) ?? members;
                 }
             }
 
@@ -324,13 +320,13 @@ namespace System
 
             public TypeCode TypeCode { get; } = Type.GetTypeCode(typeof(TUnderlying)); // Should this be cached?
 
-            public IReadOnlyList<string> Names => Cache._members.Names;
+            public IReadOnlyList<string> Names => Members.Names;
 
-            public TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(Cache.Parse(value, ignoreCase));
+            public TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(Members.Parse(value, ignoreCase));
 
             public bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result)
             {
-                bool success = Cache.TryParse(value, ignoreCase, out TUnderlying underlying);
+                bool success = Members.TryParse(value, ignoreCase, out TUnderlying underlying);
                 result = ToEnum(underlying);
                 return success;
             }
@@ -354,21 +350,21 @@ namespace System
             {
                 Debug.Assert(value != null);
 
-                return Cache.Format(value is TUnderlying underlyingValue ? underlyingValue : ToUnderlying(ToEnum(value)), format);
+                return Members.Format(value is TUnderlying underlyingValue ? underlyingValue : ToUnderlying(ToEnum(value)), format);
             }
 
             public int GetHashCode(Enum value) => ToUnderlying((TEnum)value).GetHashCode();
 
-            public string GetName(object value) => value is TEnum enumValue ? Cache.GetName(ToUnderlying(enumValue)) : Cache.GetName(value);
+            public string GetName(object value) => value is TEnum enumValue ? Members.GetName(ToUnderlying(enumValue)) : Members.GetName(value);
 
             public object GetUnderlyingValue(Enum value) => ToUnderlying((TEnum)value);
 
             public Array GetValues()
             {
-                EnumCache<TUnderlying, TUnderlyingOperations>.EnumMembers members = Cache._members;
+                EnumMembers<TUnderlying, TUnderlyingOperations> members = Members;
                 TEnum[] array = new TEnum[members.Count];
                 int i = 0;
-                foreach (EnumCache<TUnderlying, TUnderlyingOperations>.EnumMemberInternal member in members)
+                foreach (EnumMembers<TUnderlying, TUnderlyingOperations>.EnumMemberInternal member in members)
                 {
                     array[i++] = ToEnum(member.Value);
                 }
@@ -383,9 +379,9 @@ namespace System
                 return s_operations.And(ToUnderlying((TEnum)value), underlyingFlag).Equals(underlyingFlag);
             }
 
-            public bool IsDefined(object value) => value is TEnum enumValue ? Cache.IsDefined(ToUnderlying(enumValue)) : Cache.IsDefined(value);
+            public bool IsDefined(object value) => value is TEnum enumValue ? Members.IsDefined(ToUnderlying(enumValue)) : Members.IsDefined(value);
 
-            object IEnumBridge.Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(Cache.Parse(value, ignoreCase));
+            object IEnumCache.Parse(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(Members.Parse(value, ignoreCase));
 
             public bool ToBoolean(Enum value) => s_operations.ToBoolean(ToUnderlying((TEnum)value));
 
@@ -416,9 +412,9 @@ namespace System
 
             public float ToSingle(Enum value) => s_operations.ToSingle(ToUnderlying((TEnum)value));
 
-            public string ToString(Enum value) => Cache.ToString(ToUnderlying((TEnum)value));
+            public string ToString(Enum value) => Members.ToString(ToUnderlying((TEnum)value));
 
-            public string ToString(Enum value, string format) => Cache.ToString(ToUnderlying((TEnum)value), format);
+            public string ToString(Enum value, string format) => Members.ToString(ToUnderlying((TEnum)value), format);
 
             public ushort ToUInt16(Enum value) => s_operations.ToUInt16(ToUnderlying((TEnum)value));
 
@@ -428,43 +424,80 @@ namespace System
 
             public bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result)
             {
-                bool success = Cache.TryParse(value, ignoreCase, out TUnderlying underlyingResult);
+                bool success = Members.TryParse(value, ignoreCase, out TUnderlying underlyingResult);
                 result = success ? (object)ToEnum(underlyingResult) : null;
                 return success;
             }
         }
         #endregion
 
-        #region EnumCache
-        private sealed class EnumCache<TUnderlying, TUnderlyingOperations>
+        #region EnumMembers
+        private sealed class EnumMembers<TUnderlying, TUnderlyingOperations>
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
             private static readonly TUnderlyingOperations s_operations = new TUnderlyingOperations(); // Should this be cached?
 
+            private struct Entry
+            {
+                public uint NameHashCode;
+                public string Name;
+                public TUnderlying Value;
+                public int NextInValueBucket;
+                public int NextInNameBucket;
+            }
+
+            public readonly struct EnumMemberInternal
+            {
+                public readonly string Name;
+                public readonly TUnderlying Value;
+
+                public EnumMemberInternal(string name, TUnderlying value)
+                {
+                    Value = value;
+                    Name = name;
+                }
+            }
+            
             private readonly Type _enumType;
-
             private readonly bool _isFlagEnum;
+            private readonly int[] _valueBuckets;
+            private readonly int[] _nameBuckets;
+            private readonly Entry[] _entries;
+            private NameCollection _names;
+            private int _count;
 
-            internal readonly EnumMembers _members;
+            public int Count => _count;
 
-            public EnumCache(Type enumType)
+            // Lazy initialization of name collection
+            public NameCollection Names
+            {
+                get
+                {
+                    NameCollection names = _names;
+                    return names ?? Interlocked.CompareExchange(ref _names, (names = new NameCollection(this)), null) ?? names;
+                }
+            }
+
+            public EnumMembers(Type enumType)
             {
                 _enumType = enumType;
                 _isFlagEnum = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
 
                 FieldInfo[] fields = enumType.GetFields(BindingFlags.Public | BindingFlags.Static);
-                EnumMembers members = new EnumMembers(fields.Length);
+
+                int size = HashHelpers.GetPrime(fields.Length);
+                _valueBuckets = new int[size];
+                _nameBuckets = new int[size];
+                _entries = new Entry[size];
                 foreach (FieldInfo field in fields)
                 {
                     TUnderlying value = (TUnderlying)field.GetRawConstantValue();
-                    EnumMemberInternal member = new EnumMemberInternal(value, field.Name);
-                    members.Add(member);
+                    Add(field.Name, value);
                 }
-                _members = members;
             }
 
-            public string GetName(TUnderlying value) => _members.TryGetValue(value, out EnumMemberInternal member) ? member.Name : null;
+            public string GetName(TUnderlying value) => TryGetName(value, out string name) ? name : null;
 
             public string GetName(object value)
             {
@@ -478,7 +511,7 @@ namespace System
                 return s_operations.IsInValueRange(uint64Value) ? GetName(s_operations.ToObject(uint64Value)) : null;
             }
 
-            public bool IsDefined(TUnderlying value) => _members.IndexOf(value) >= 0;
+            public bool IsDefined(TUnderlying value) => IndexOf(value) >= 0;
 
             public bool IsDefined(object value)
             {
@@ -489,7 +522,7 @@ namespace System
                     case TUnderlying underlyingValue:
                         return IsDefined(underlyingValue);
                     case string str:
-                        return _members.TryGetValue(str.AsSpan(), ignoreCase: false, out _);
+                        return TryGetValue(str.AsSpan(), ignoreCase: false, out _);
                     case null:
                         throw new ArgumentNullException(nameof(value));
                     default:
@@ -529,9 +562,9 @@ namespace System
                     return ToStringFlags(value);
                 }
 
-                if (_members.TryGetValue(value, out EnumMemberInternal member))
+                if (TryGetName(value, out string name))
                 {
-                    return member.Name;
+                    return name;
                 }
                 return value.ToString();
             }
@@ -578,16 +611,16 @@ namespace System
                 // we can just return "0".
                 if (value.Equals(s_operations.Zero))
                 {
-                    return _members.Count > 0 && _members[0].Value.Equals(s_operations.Zero) ?
-                        _members[0].Name :
+                    return _count > 0 && _entries[0].Value.Equals(s_operations.Zero) ?
+                        _entries[0].Name :
                         value.ToString();
                 }
 
                 // It's common to have a flags enum with a single value that matches a single entry,
                 // in which case we can just return the existing name string.
-                if (_members.TryGetValue(value, out EnumMemberInternal member))
+                if (TryGetName(value, out string name))
                 {
-                    return member.Name;
+                    return name;
                 }
 
                 // With a ulong result value, regardless of the enum's base type, the maximum
@@ -598,17 +631,17 @@ namespace System
 
                 // Now look for multiple matches, storing the indices of the values
                 // into our span.
-                int index = _members.Count - 1;
+                int index = _count - 1;
                 int resultLength = 0, foundItemsCount = 0;
                 TUnderlying tempValue = value;
                 while (index >= 0)
                 {
-                    TUnderlying currentValue = _members[index].Value;
+                    TUnderlying currentValue = _entries[index].Value;
                     if (s_operations.And(tempValue, currentValue).Equals(currentValue))
                     {
                         tempValue = s_operations.Subtract(tempValue, currentValue);
                         foundItems[foundItemsCount++] = index;
-                        resultLength = checked(resultLength + _members[index].Name.Length);
+                        resultLength = checked(resultLength + _entries[index].Name.Length);
                         if (tempValue.Equals(s_operations.Zero))
                         {
                             break;
@@ -633,7 +666,7 @@ namespace System
                 string result = string.FastAllocateString(checked(resultLength + (SeparatorStringLength * (foundItemsCount - 1))));
 
                 Span<char> resultSpan = MemoryMarshal.CreateSpan(ref result.GetRawStringData(), result.Length);
-                string name = _members[foundItems[--foundItemsCount]].Name;
+                name = _entries[foundItems[--foundItemsCount]].Name;
                 name.AsSpan().CopyTo(resultSpan);
                 resultSpan = resultSpan.Slice(name.Length);
                 while (--foundItemsCount >= 0)
@@ -642,7 +675,7 @@ namespace System
                     resultSpan[1] = ' ';
                     resultSpan = resultSpan.Slice(2);
 
-                    name = _members[foundItems[foundItemsCount]].Name;
+                    name = _entries[foundItems[foundItemsCount]].Name;
                     name.AsSpan().CopyTo(resultSpan);
                     resultSpan = resultSpan.Slice(name.Length);
                 }
@@ -728,9 +761,9 @@ namespace System
                             break;
                         }
 
-                        if (_members.TryGetValue(subvalue, ignoreCase, out EnumMemberInternal member))
+                        if (TryGetValue(subvalue, ignoreCase, out TUnderlying underlyingValue))
                         {
-                            localResult = s_operations.Or(localResult, member.Value);
+                            localResult = s_operations.Or(localResult, underlyingValue);
                         }
                         else
                         {
@@ -744,261 +777,220 @@ namespace System
                 return status;
             }
 
-            public readonly struct EnumMemberInternal
+            private int IndexOf(TUnderlying value)
             {
-                public readonly TUnderlying Value;
-                public readonly string Name;
-
-                public EnumMemberInternal(TUnderlying value, string name)
+                uint hashCode = (uint)value.GetHashCode();
+                int index = _valueBuckets[(int)(hashCode % (uint)_valueBuckets.Length)] - 1;
+                while (index >= 0)
                 {
-                    Value = value;
-                    Name = name;
+                    Entry entry = _entries[index];
+                    if (value.Equals(entry.Value))
+                    {
+                        return index;
+                    }
+                    index = entry.NextInValueBucket;
                 }
+                return index;
             }
 
-            public sealed class EnumMembers
+            private bool TryGetName(TUnderlying value, out string name)
             {
-                private struct Entry
+                int index = IndexOf(value);
+                if (index >= 0)
                 {
-                    public uint NameHashCode;
-                    public EnumMemberInternal Member;
-                    public int NextInValueBucket;
-                    public int NextInNameBucket;
+                    name = _entries[index].Name;
+                    return true;
                 }
+                name = default;
+                return false;
+            }
 
-                private int[] _valueBuckets;
-                private int[] _nameBuckets;
-                private Entry[] _entries;
-                private NameCollection _names;
-                private int _count;
-
-                public EnumMembers(int capacity)
+            private bool TryGetValue(ReadOnlySpan<char> name, bool ignoreCase, out TUnderlying value)
+            {
+                uint hashCode = (uint)string.GetHashCodeOrdinalIgnoreCase(name);
+                int index = _nameBuckets[(int)(hashCode % (uint)_nameBuckets.Length)] - 1;
+                bool found = false;
+                value = default;
+                while (index >= 0)
                 {
-                    Debug.Assert(capacity >= 0);
-
-                    int size = HashHelpers.GetPrime(capacity);
-                    
-                    _valueBuckets = new int[size];
-                    _nameBuckets = new int[size];
-                    _entries = new Entry[size];
-                }
-
-                public int Count => _count;
-
-                public NameCollection Names
-                {
-                    get
+                    Entry entry = _entries[index];
+                    if (hashCode == entry.NameHashCode)
                     {
-                        NameCollection names = _names;
-                        return names ?? Interlocked.CompareExchange(ref _names, (names = new NameCollection(this)), null) ?? names;
-                    }
-                }
-
-                public EnumMemberInternal this[int index]
-                {
-                    get
-                    {
-                        Debug.Assert(index >= 0 && index < Count);
-                        return _entries[index].Member;
-                    }
-                }
-
-                public int IndexOf(TUnderlying value)
-                {
-                    uint hashCode = (uint)value.GetHashCode();
-                    int index = _valueBuckets[(int)(hashCode % (uint)_valueBuckets.Length)] - 1;
-                    while (index >= 0)
-                    {
-                        Entry entry = _entries[index];
-                        if (value.Equals(entry.Member.Value))
+                        ReadOnlySpan<char> entryName = entry.Name.AsSpan();
+                        if (name.EqualsOrdinal(entryName))
                         {
-                            return index;
+                            value = entry.Value;
+                            found = true;
+                            break;
                         }
-                        index = entry.NextInValueBucket;
-                    }
-                    return index;
-                }
-
-                public bool TryGetValue(TUnderlying value, out EnumMemberInternal member)
-                {
-                    int index = IndexOf(value);
-                    if (index >= 0)
-                    {
-                        member = _entries[index].Member;
-                        return true;
-                    }
-                    member = default;
-                    return false;
-                }
-
-                public bool TryGetValue(ReadOnlySpan<char> name, bool ignoreCase, out EnumMemberInternal member)
-                {
-                    uint hashCode = (uint)string.GetHashCodeOrdinalIgnoreCase(name);
-                    int index = _nameBuckets[(int)(hashCode % (uint)_nameBuckets.Length)] - 1;
-                    bool found = false;
-                    member = default;
-                    while (index >= 0)
-                    {
-                        Entry entry = _entries[index];
-                        if (hashCode == entry.NameHashCode)
+                        else if (ignoreCase && name.EqualsOrdinalIgnoreCase(entryName))
                         {
-                            ReadOnlySpan<char> entryName = entry.Member.Name.AsSpan();
-                            if (name.EqualsOrdinal(entryName))
-                            {
-                                member = entry.Member;
-                                found = true;
-                                break;
-                            }
-                            else if (ignoreCase && name.EqualsOrdinalIgnoreCase(entryName))
-                            {
-                                member = entry.Member;
-                                found = true;
-                            }
+                            value = entry.Value;
+                            found = true;
                         }
-                        index = entry.NextInNameBucket;
                     }
-                    return found;
+                    index = entry.NextInNameBucket;
+                }
+                return found;
+            }
+
+            private void Add(string name, TUnderlying value)
+            {
+                Debug.Assert(_count < _entries.Length);
+
+                bool addToValueBucket = true;
+                int index = IndexOf(value);
+                if (index < 0)
+                {
+                    index = _count;
+                    ulong valueAsUInt64 = s_operations.ToUInt64Unchecked(value);
+                    for (; index > 0; --index)
+                    {
+                        if (valueAsUInt64.CompareTo(s_operations.ToUInt64Unchecked(_entries[index - 1].Value)) > 0)
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    ++index;
+                    while (index < _count && value.Equals(_entries[index].Value))
+                    {
+                        ++index;
+                    }
+                    addToValueBucket = false;
                 }
 
-                public void Add(EnumMemberInternal member)
+                // Increment and move indices >= index
+                for (int i = _count - 1; i >= index; --i)
                 {
-                    Debug.Assert(Count < _entries.Length);
-
-                    bool addToValueBucket = true;
-                    int index = IndexOf(member.Value);
-                    if (index < 0)
+                    Entry e = _entries[i];
+                    _entries[i + 1] = e; 
+                    ref int b = ref _valueBuckets[(int)((uint)e.Value.GetHashCode() % (uint)_valueBuckets.Length)];
+                    if (b == i + 1)
                     {
-                        index = _count;
-                        for (; index > 0; --index)
-                        {
-                            if (s_operations.ToUInt64Unchecked(member.Value).CompareTo(s_operations.ToUInt64Unchecked(_entries[index - 1].Member.Value)) > 0)
-                            {
-                                break;
-                            }
-                        }
+                        ++b;
                     }
                     else
                     {
-                        ++index;
-                        while (index < _count && member.Value.Equals(_entries[index].Member.Value))
+                        int j = b - 1;
+                        do
                         {
-                            ++index;
-                        }
-                        addToValueBucket = false;
-                    }
-
-                    // Increment and move indices >= index
-                    for (int i = _count - 1; i >= index; --i)
-                    {
-                        Entry e = _entries[i];
-                        _entries[i + 1] = e; 
-                        ref int b = ref _valueBuckets[(int)((uint)e.Member.Value.GetHashCode() % (uint)_valueBuckets.Length)];
-                        if (b == i + 1)
-                        {
-                            ++b;
-                        }
-                        else
-                        {
-                            int j = b - 1;
-                            do
+                            ref Entry nextEntry = ref _entries[j];
+                            if (nextEntry.NextInValueBucket == i)
                             {
-                                ref Entry nextEntry = ref _entries[j];
-                                if (nextEntry.NextInValueBucket == i)
-                                {
-                                    ++nextEntry.NextInValueBucket;
-                                    break;
-                                }
-                                j = nextEntry.NextInValueBucket;
-                            } while (j >= 0); // member might not be in bucket if is duplicate
-                        }
-                        b = ref _nameBuckets[(int)(_entries[i].NameHashCode % (uint)_nameBuckets.Length)];
-                        if (b == i + 1)
-                        {
-                            ++b;
-                        }
-                        else
-                        {
-                            int j = b - 1;
-                            while (true)
-                            {
-                                ref Entry nextEntry = ref _entries[j];
-                                if (nextEntry.NextInNameBucket == i)
-                                {
-                                    ++nextEntry.NextInNameBucket;
-                                    break;
-                                }
-                                j = nextEntry.NextInNameBucket;
+                                ++nextEntry.NextInValueBucket;
+                                break;
                             }
-                        }
+                            j = nextEntry.NextInValueBucket;
+                        } while (j >= 0); // member might not be in bucket if is duplicate
                     }
-
-                    ref Entry entry = ref _entries[index];
-                    entry.Member = member;
-                    if (addToValueBucket)
+                    b = ref _nameBuckets[(int)(_entries[i].NameHashCode % (uint)_nameBuckets.Length)];
+                    if (b == i + 1)
                     {
-                        ref int valueBucket = ref _valueBuckets[(int)((uint)member.Value.GetHashCode() % (uint)_valueBuckets.Length)];
-                        entry.NextInValueBucket = valueBucket - 1;
-                        valueBucket = index + 1;
+                        ++b;
                     }
-                    entry.NameHashCode = (uint)member.Name.GetHashCodeOrdinalIgnoreCase();
-                    ref int nameBucket = ref _nameBuckets[(int)(entry.NameHashCode % (uint)_nameBuckets.Length)];
-                    entry.NextInNameBucket = nameBucket - 1;
-                    nameBucket = index + 1;
-                    ++_count;
-                }
-
-                public Enumerator GetEnumerator() => new Enumerator(this);
-
-                public struct Enumerator
-                {
-                    private readonly EnumMembers _members;
-                    private int _index;
-                    private EnumMemberInternal _current;
-
-                    internal Enumerator(EnumMembers members)
+                    else
                     {
-                        _members = members;
-                        _index = 0;
-                        _current = default;
-                    }
-
-                    public EnumMemberInternal Current => _current;
-
-                    public bool MoveNext()
-                    {
-                        if (_index < _members._count)
+                        int j = b - 1;
+                        while (true)
                         {
-                            _current = _members._entries[_index++].Member;
-                            return true;
+                            ref Entry nextEntry = ref _entries[j];
+                            if (nextEntry.NextInNameBucket == i)
+                            {
+                                ++nextEntry.NextInNameBucket;
+                                break;
+                            }
+                            j = nextEntry.NextInNameBucket;
                         }
-                        _current = default;
-                        return false;
                     }
                 }
 
-                public sealed class NameCollection : IReadOnlyList<string>
+                ref Entry entry = ref _entries[index];
+                entry.Name = name;
+                entry.Value = value;
+                if (addToValueBucket)
                 {
-                    private readonly EnumMembers _members;
-
-                    internal NameCollection(EnumMembers members)
-                    {
-                        _members = members;
-                    }
-
-                    public int Count => _members.Count;
-
-                    public string this[int index] => _members[index].Name;
-
-                    public IEnumerator<string> GetEnumerator()
-                    {
-                        foreach (EnumMemberInternal member in _members)
-                        {
-                            yield return member.Name;
-                        }
-                    }
-
-                    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+                    ref int valueBucket = ref _valueBuckets[(int)((uint)value.GetHashCode() % (uint)_valueBuckets.Length)];
+                    entry.NextInValueBucket = valueBucket - 1;
+                    valueBucket = index + 1;
                 }
+                entry.NameHashCode = (uint)name.GetHashCodeOrdinalIgnoreCase();
+                ref int nameBucket = ref _nameBuckets[(int)(entry.NameHashCode % (uint)_nameBuckets.Length)];
+                entry.NextInNameBucket = nameBucket - 1;
+                nameBucket = index + 1;
+                ++_count;
+            }
+
+            public Enumerator GetEnumerator() => new Enumerator(this);
+
+            public struct Enumerator
+            {
+                private readonly EnumMembers<TUnderlying, TUnderlyingOperations> _members;
+                private int _index;
+                private EnumMemberInternal _current;
+
+                public EnumMemberInternal Current => _current;
+
+                internal Enumerator(EnumMembers<TUnderlying, TUnderlyingOperations> members)
+                {
+                    Debug.Assert(members != null);
+
+                    _members = members;
+                    _index = 0;
+                    _current = default;
+                }
+
+                public bool MoveNext()
+                {
+                    if (_index < _members._count)
+                    {
+                        Entry entry = _members._entries[_index++];
+                        _current = new EnumMemberInternal(entry.Name, entry.Value);
+                        return true;
+                    }
+                    _current = default;
+                    return false;
+                }
+            }
+
+            public sealed class NameCollection : IReadOnlyList<string>
+            {
+                private readonly EnumMembers<TUnderlying, TUnderlyingOperations> _members;
+
+                public int Count => _members._count;
+
+                public string this[int index]
+                {
+                    get
+                    {
+                        if ((uint)index > (uint)_members._count)
+                        {
+                            ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+                        }
+                        return _members._entries[index].Name;
+                    }
+                }
+
+                internal NameCollection(EnumMembers<TUnderlying, TUnderlyingOperations> members)
+                {
+                    Debug.Assert(members != null);
+
+                    _members = members;
+                }
+
+                public IEnumerator<string> GetEnumerator()
+                {
+                    Entry[] entries = _members._entries;
+                    int count = _members._count;
+                    for (int i = 0; i < count; ++i)
+                    {
+                        yield return entries[i].Name;
+                    }
+                }
+
+                IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
             }
         }
         #endregion
@@ -1012,7 +1004,6 @@ namespace System
             TUnderlying And(TUnderlying left, TUnderlying right);
             int CompareTo(TUnderlying left, TUnderlying right);
             bool IsInValueRange(ulong value);
-            bool LessThan(TUnderlying left, TUnderlying right);
             TUnderlying Or(TUnderlying left, TUnderlying right);
             TUnderlying Subtract(TUnderlying left, TUnderlying right);
             bool ToBoolean(TUnderlying value);
@@ -1244,50 +1235,6 @@ namespace System
                 return true;
 #else
                 return value <= uint.MaxValue;
-#endif
-            }
-            #endregion
-
-            #region LessThan
-            public bool LessThan(byte left, byte right) => left < right;
-
-            public bool LessThan(sbyte left, sbyte right) => left < right;
-
-            public bool LessThan(short left, short right) => left < right;
-
-            public bool LessThan(ushort left, ushort right) => left < right;
-
-            public bool LessThan(int left, int right) => left < right;
-
-            public bool LessThan(uint left, uint right) => left < right;
-
-            public bool LessThan(long left, long right) => left < right;
-
-            public bool LessThan(ulong left, ulong right) => left < right;
-
-            public bool LessThan(bool left, bool right) => !left & right;
-
-            public bool LessThan(char left, char right) => left < right;
-
-            public bool LessThan(float left, float right) => BitConverter.SingleToInt32Bits(left) < BitConverter.SingleToInt32Bits(right);
-
-            public bool LessThan(double left, double right) => BitConverter.DoubleToInt64Bits(left) < BitConverter.DoubleToInt64Bits(right);
-
-            public bool LessThan(IntPtr left, IntPtr right)
-            {
-#if BIT64
-                return (long)left < (long)right;
-#else
-                return (int)left < (int)right;
-#endif
-            }
-
-            public bool LessThan(UIntPtr left, UIntPtr right)
-            {
-#if BIT64
-                return (ulong)left < (ulong)right;
-#else
-                return (uint)left < (uint)right;
 #endif
             }
             #endregion
@@ -2188,14 +2135,14 @@ namespace System
 
         #region Object Overrides
         public override bool Equals(object obj) =>
-            GetBridge((RuntimeType)GetType()).Equals(this, obj);
+            GetCache((RuntimeType)GetType()).Equals(this, obj);
 
         public override int GetHashCode()
         {
             // CONTRACT with the runtime: GetHashCode of enum types is implemented as GetHashCode of the underlying type.
             // The runtime can bypass calls to Enum::GetHashCode and call the underlying type's GetHashCode directly
             // to avoid boxing the enum.
-            return GetBridge((RuntimeType)GetType()).GetHashCode(this);
+            return GetCache((RuntimeType)GetType()).GetHashCode(this);
         }
 
         public override string ToString()
@@ -2207,7 +2154,7 @@ namespace System
             // pure powers of 2 OR-ed together, you return a hex value
 
             // Try to see if its one of the enum values, then we return a String back else the value
-            return GetBridge((RuntimeType)GetType()).ToString(this);
+            return GetCache((RuntimeType)GetType()).ToString(this);
         }
         #endregion
 
@@ -2219,12 +2166,12 @@ namespace System
 
         #region IComparable
         public int CompareTo(object target) =>
-            target != null ? GetBridge((RuntimeType)GetType()).CompareTo(this, target) : 1;
+            target != null ? GetCache((RuntimeType)GetType()).CompareTo(this, target) : 1;
         #endregion
 
         #region Public Methods
         public string ToString(string format) =>
-            GetBridge((RuntimeType)GetType()).ToString(this, format);
+            GetCache((RuntimeType)GetType()).ToString(this, format);
 
         [Obsolete("The provider argument is not used. Please use ToString().")]
         public string ToString(IFormatProvider provider) =>
@@ -2238,52 +2185,52 @@ namespace System
                 throw new ArgumentNullException(nameof(flag));
             }
 
-            return GetBridge((RuntimeType)GetType()).HasFlag(this, flag);
+            return GetCache((RuntimeType)GetType()).HasFlag(this, flag);
         }
         #endregion
 
         #region IConvertable
         public TypeCode GetTypeCode() =>
-            GetBridge((RuntimeType)GetType()).TypeCode;
+            GetCache((RuntimeType)GetType()).TypeCode;
 
         bool IConvertible.ToBoolean(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToBoolean(this);
+            GetCache((RuntimeType)GetType()).ToBoolean(this);
 
         char IConvertible.ToChar(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToChar(this);
+            GetCache((RuntimeType)GetType()).ToChar(this);
 
         sbyte IConvertible.ToSByte(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToSByte(this);
+            GetCache((RuntimeType)GetType()).ToSByte(this);
 
         byte IConvertible.ToByte(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToByte(this);
+            GetCache((RuntimeType)GetType()).ToByte(this);
 
         short IConvertible.ToInt16(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToInt16(this);
+            GetCache((RuntimeType)GetType()).ToInt16(this);
 
         ushort IConvertible.ToUInt16(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToUInt16(this);
+            GetCache((RuntimeType)GetType()).ToUInt16(this);
 
         int IConvertible.ToInt32(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToInt32(this);
+            GetCache((RuntimeType)GetType()).ToInt32(this);
 
         uint IConvertible.ToUInt32(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToUInt32(this);
+            GetCache((RuntimeType)GetType()).ToUInt32(this);
 
         long IConvertible.ToInt64(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToInt64(this);
+            GetCache((RuntimeType)GetType()).ToInt64(this);
 
         ulong IConvertible.ToUInt64(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToUInt64(this);
+            GetCache((RuntimeType)GetType()).ToUInt64(this);
 
         float IConvertible.ToSingle(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToSingle(this);
+            GetCache((RuntimeType)GetType()).ToSingle(this);
 
         double IConvertible.ToDouble(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToDouble(this);
+            GetCache((RuntimeType)GetType()).ToDouble(this);
 
         decimal IConvertible.ToDecimal(IFormatProvider provider) =>
-            GetBridge((RuntimeType)GetType()).ToDecimal(this);
+            GetCache((RuntimeType)GetType()).ToDecimal(this);
 
         DateTime IConvertible.ToDateTime(IFormatProvider provider)
         {
@@ -2297,31 +2244,31 @@ namespace System
         #region ToObject
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, sbyte value) =>
-            GetBridge(enumType).ToObject((ulong)value);
+            GetCache(enumType).ToObject((ulong)value);
 
         public static object ToObject(Type enumType, short value) =>
-            GetBridge(enumType).ToObject((ulong)value);
+            GetCache(enumType).ToObject((ulong)value);
 
         public static object ToObject(Type enumType, int value) =>
-            GetBridge(enumType).ToObject((ulong)value);
+            GetCache(enumType).ToObject((ulong)value);
 
         public static object ToObject(Type enumType, byte value) =>
-            GetBridge(enumType).ToObject(value);
+            GetCache(enumType).ToObject(value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, ushort value) =>
-            GetBridge(enumType).ToObject(value);
+            GetCache(enumType).ToObject(value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, uint value) =>
-            GetBridge(enumType).ToObject(value);
+            GetCache(enumType).ToObject(value);
 
         public static object ToObject(Type enumType, long value) =>
-            GetBridge(enumType).ToObject((ulong)value);
+            GetCache(enumType).ToObject((ulong)value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, ulong value) =>
-            GetBridge(enumType).ToObject(value);
+            GetCache(enumType).ToObject(value);
         #endregion
     }
 }
