@@ -981,13 +981,23 @@ bool EventPipeBufferList::EnsureConsistency()
 
 extern "C" {
 #ifndef __llvm__
-__declspec(thread)
+__declspec(thread) ThreadEventBufferList gCurrentThreadEventBufferList = { NULL };
 #else // !__llvm__
-__thread 
+thread_local ThreadEventBufferList gCurrentThreadEventBufferList = { NULL };
 #endif // !__llvm__
-ThreadEventBufferList gCurrentThreadEventBufferList = {
-                                                          NULL,    // m_pThreadEventBufferList
-                                                      };
 } // extern "C"
+
+
+EXTERN_C inline EventPipeBufferList* STDCALL GetThreadEventBufferList()
+{
+    return gCurrentThreadEventBufferList.m_pThreadEventBufferList;
+}
+
+EXTERN_C inline void STDCALL SetThreadEventBufferList(EventPipeBufferList* bl)
+{
+    gCurrentThreadEventBufferList.m_pThreadEventBufferList = bl;
+}
+
+
 
 #endif // FEATURE_PERFTRACING

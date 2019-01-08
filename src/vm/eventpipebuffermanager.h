@@ -15,13 +15,21 @@
 
 class EventPipeBufferList;
 
-EXTERN_C struct ThreadEventBufferList;
+// This struct is a TLS wrapper around a pointer to thread-specific EventPipeBufferList
+// The struct wrapper is present mainly because we need a way to free the EventPipeBufferList
+// when the thread that owns it dies. Placing this struct as a TLS variable will call ~ThreadEventBufferList()
+// when the thread dies so we can free EventPipeBufferList in the destructor.  
+struct ThreadEventBufferList
+{
+    EventPipeBufferList* m_pThreadEventBufferList;
 
-#ifndef __llvm__
-EXTERN_C __declspec(thread) ThreadEventBufferList gCurrentThreadEventBufferList;
-#else // !__llvm__
-EXTERN_C __thread ThreadEventBufferList gCurrentThreadEventBufferList;
-#endif // !__llvm__
+~ThreadEventBufferList()
+{
+    // TODO: Move the cleanup code to here
+    m_pThreadEventBufferList = NULL;
+}
+
+};
 
 class EventPipeBufferManager
 {
@@ -179,31 +187,8 @@ public:
 #endif // _DEBUG
 };
 
-// This struct is a TLS wrapper around a pointer to thread-specific EventPipeBufferList
-// The struct wrapper is present mainly because we need a way to free the EventPipeBufferList
-// when the thread that owns it dies. Placing this struct as a TLS variable will call ~ThreadEventBufferList()
-// when the thread dies so we can free EventPipeBufferList in the destructor.  
-struct ThreadEventBufferList
-{
-    EventPipeBufferList* m_pThreadEventBufferList;
-
-~ThreadEventBufferList()
-{
-    // TODO: Move the cleanup code to here
-    m_pThreadEventBufferList = NULL;
-}
-
-};
-
-EXTERN_C inline EventPipeBufferList* STDCALL GetThreadEventBufferList()
-{
-    return gCurrentThreadEventBufferList.m_pThreadEventBufferList;
-}
-
-EXTERN_C inline void STDCALL SetThreadEventBufferList(EventPipeBufferList* bl)
-{
-    gCurrentThreadEventBufferList.m_pThreadEventBufferList = bl;
-}
+EXTERN_C inline EventPipeBufferList* STDCALL GetThreadEventBufferList();
+EXTERN_C inline void STDCALL SetThreadEventBufferList(EventPipeBufferList* bl);
 
 #endif // FEATURE_PERFTRACING
 
