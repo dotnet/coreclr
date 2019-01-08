@@ -2699,6 +2699,23 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case VT_R8:
                 fieldClassificationType = SystemVClassificationTypeSSE;
                 break;
+            case VT_RECORD:
+            {
+                MethodTable* pFieldMT = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementMethodTable();
+
+                bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
+                helperPtr->inEmbeddedStruct = true;
+                bool structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
+                helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
+
+                if (!structRet)
+                {
+                    // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
+                    return false;
+                }
+
+                continue;
+            }
             case VT_DECIMAL:
             case VT_DATE:
             case VT_BSTR:
@@ -2709,7 +2726,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case VT_HRESULT:
             case VT_CARRAY:
             case VT_USERDEFINED:
-            case VT_RECORD:
             case VT_FILETIME:
             case VT_BLOB:
             case VT_STREAM:

@@ -136,6 +136,18 @@ public struct EnregisterableNonBlittable_Seq
     [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
     public TestEnum[] arr;
 }
+
+public struct SimpleStruct
+{
+    public int fld;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct EnregisterableUserType
+{
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+    public SimpleStruct[] arr;
+}
 #endregion
 
 #region sequential class definition
@@ -536,6 +548,9 @@ class Test
     [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
     static extern bool TakeEnregistrableNonBlittableSeqStructByVal(EnregisterableNonBlittable_Seq s, TestEnum[] values);
 
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeEnregisterableUserTypeStructByVal(EnregisterableUserType s, SimpleStruct[] values);
+
     //for RunTest2
     [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
     static extern bool TakeIntArraySeqClassByVal([In]C_INTArray_Seq c, int size);
@@ -856,6 +871,18 @@ class Test
         };
 
         Assert.IsTrue(TakeEnregistrableNonBlittableSeqStructByVal(s15, s15.arr), "EnregisterableNonBlittableSeqStructByVal");
+
+        EnregisterableUserType s16 = new EnregisterableUserType
+        {
+            arr = new SimpleStruct[3]
+            {
+                new SimpleStruct { fld = 10 },
+                new SimpleStruct { fld = 25 },
+                new SimpleStruct { fld = 40 }
+            }
+        };
+
+        Assert.IsTrue(TakeEnregisterableUserTypeStructByVal(s16, s16.arr), "TakeEnregisterableUserTypeStructByVal");
     }
 
     static void RunTest2(string report)
