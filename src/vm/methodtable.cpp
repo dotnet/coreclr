@@ -3119,7 +3119,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
                         currentEightByte++;
                         _ASSERTE(currentEightByte <= CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
                         currentEightByteOffset += SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
-                        accumulatedSizeForEightByte -= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
+                        accumulatedSizeForEightByte = 0;
                     }
                 }
             }
