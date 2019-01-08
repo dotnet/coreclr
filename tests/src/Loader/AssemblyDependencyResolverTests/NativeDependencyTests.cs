@@ -263,7 +263,7 @@ namespace ComponentDependencyResolverTests
                 ComponentDependencyResolver resolver = new ComponentDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
-                string result = resolver.ResolveUnmanagedDllPath(lookupName);
+                string result = resolver.ResolveUnmanagedDllToPath(lookupName);
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     if (resolvesOnOSes.HasFlag(OS.Windows))

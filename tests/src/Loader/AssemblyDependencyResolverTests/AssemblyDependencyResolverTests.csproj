@@ -16,8 +16,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="ComponentDependencyResolver.cs" />
-    <Compile Include="ComponentDependencyResolverTests.cs" />
+    <Compile Include="AssemblyDependencyResolver.cs" />
+    <Compile Include="AssemblyDependencyResolverTests.cs" />
     <Compile Include="HostPolicyMock.cs" />
     <Compile Include="InvalidHostingTest.cs" />
     <Compile Include="NativeDependencyTests.cs" />

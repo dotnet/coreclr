@@ -6,18 +6,18 @@ namespace ComponentDependencyResolverTests
     /// <summary>
     /// Temporary until the actual public API gets propagated through CoreFX.
     /// </summary>
-    public class ComponentDependencyResolver
+    public class AssemblyDependencyResolver
     {
         private object _implementation;
         private Type _implementationType;
         private MethodInfo _resolveAssemblyPathInfo;
         private MethodInfo _resolveUnmanagedDllPathInfo;
 
-        public ComponentDependencyResolver(string componentAssemblyPath)
+        public AssemblyDependencyResolver(string componentAssemblyPath)
         {
-            _implementationType = typeof(object).Assembly.GetType("System.Runtime.Loader.ComponentDependencyResolver");
-            _resolveAssemblyPathInfo = _implementationType.GetMethod("ResolveAssemblyPath");
-            _resolveUnmanagedDllPathInfo = _implementationType.GetMethod("ResolveUnmanagedDllPath");
+            _implementationType = typeof(object).Assembly.GetType("System.Runtime.Loader.AssemblyDependencyResolver");
+            _resolveAssemblyPathInfo = _implementationType.GetMethod("ResolveAssemblyToPath");
+            _resolveUnmanagedDllPathInfo = _implementationType.GetMethod("ResolveUnmanagedDllToPath");
 
             try
             {
@@ -29,7 +29,7 @@ namespace ComponentDependencyResolverTests
             }
         }
 
-        public string ResolveAssemblyPath(AssemblyName assemblyName)
+        public string ResolveAssemblyToPath(AssemblyName assemblyName)
         {
             try
             {
@@ -41,7 +41,7 @@ namespace ComponentDependencyResolverTests
             }
         }
 
-        public string ResolveUnmanagedDllPath(string unmanagedDllName)
+        public string ResolveUnmanagedDllToPath(string unmanagedDllName)
         {
             try
             {

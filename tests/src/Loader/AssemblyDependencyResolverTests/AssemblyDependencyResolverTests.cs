@@ -115,7 +115,7 @@ namespace ComponentDependencyResolverTests
 
                     Assert.Equal(
                         assemblyDependencyPath,
-                        resolver.ResolveAssemblyPath(new AssemblyName("AssemblyDependency")));
+                        resolver.ResolveAssemblyToPath(new AssemblyName("AssemblyDependency")));
 
                     // After everything is done, the error writer should be reset to the original value.
                     Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
@@ -136,7 +136,7 @@ namespace ComponentDependencyResolverTests
                 ComponentDependencyResolver resolver = new ComponentDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
-                Assert.Null(resolver.ResolveAssemblyPath(new AssemblyName("AssemblyWithNoRecord")));
+                Assert.Null(resolver.ResolveAssemblyToPath(new AssemblyName("AssemblyWithNoRecord")));
             }
         }
 
@@ -153,7 +153,7 @@ namespace ComponentDependencyResolverTests
                 ComponentDependencyResolver resolver = new ComponentDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
-                Assert.Null(resolver.ResolveAssemblyPath(new AssemblyName("NonExistingAssembly")));
+                Assert.Null(resolver.ResolveAssemblyToPath(new AssemblyName("NonExistingAssembly")));
             }
         }
 
@@ -171,7 +171,7 @@ namespace ComponentDependencyResolverTests
 
                 Assert.Equal(
                     enResourcePath,
-                    resolver.ResolveAssemblyPath(new AssemblyName("TestComponent.resources, Culture=en")));
+                    resolver.ResolveAssemblyToPath(new AssemblyName("TestComponent.resources, Culture=en")));
             }
         }
 
@@ -190,10 +190,10 @@ namespace ComponentDependencyResolverTests
 
                 Assert.Equal(
                     enResourcePath,
-                    resolver.ResolveAssemblyPath(new AssemblyName("TestComponent.resources, Culture=en")));
+                    resolver.ResolveAssemblyToPath(new AssemblyName("TestComponent.resources, Culture=en")));
                 Assert.Equal(
                     csResourcePath,
-                    resolver.ResolveAssemblyPath(new AssemblyName("TestComponent.resources, Culture=cs")));
+                    resolver.ResolveAssemblyToPath(new AssemblyName("TestComponent.resources, Culture=cs")));
             }
         }
 
@@ -212,10 +212,10 @@ namespace ComponentDependencyResolverTests
 
                 Assert.Equal(
                     enResourcePath,
-                    resolver.ResolveAssemblyPath(new AssemblyName("TestComponent.resources, Culture=en")));
+                    resolver.ResolveAssemblyToPath(new AssemblyName("TestComponent.resources, Culture=en")));
                 Assert.Equal(
                     frResourcePath,
-                    resolver.ResolveAssemblyPath(new AssemblyName("TestComponent.resources, Culture=fr")));
+                    resolver.ResolveAssemblyToPath(new AssemblyName("TestComponent.resources, Culture=fr")));
             }
         }
 
@@ -233,7 +233,7 @@ namespace ComponentDependencyResolverTests
 
                 Assert.Equal(
                     neutralAssemblyPath,
-                    resolver.ResolveAssemblyPath(new AssemblyName("NeutralAssembly, Culture=neutral")));
+                    resolver.ResolveAssemblyToPath(new AssemblyName("NeutralAssembly, Culture=neutral")));
             }
         }
 
@@ -252,7 +252,7 @@ namespace ComponentDependencyResolverTests
 
                 Assert.Equal(
                     nativeLibraryPath,
-                    resolver.ResolveUnmanagedDllPath("Single"));
+                    resolver.ResolveUnmanagedDllToPath("Single"));
             }
         }
 
@@ -272,10 +272,10 @@ namespace ComponentDependencyResolverTests
 
                 Assert.Equal(
                     oneNativeLibraryPath,
-                    resolver.ResolveUnmanagedDllPath("One"));
+                    resolver.ResolveUnmanagedDllToPath("One"));
                 Assert.Equal(
                     twoNativeLibraryPath,
-                    resolver.ResolveUnmanagedDllPath("Two"));
+                    resolver.ResolveUnmanagedDllToPath("Two"));
             }
         }
 

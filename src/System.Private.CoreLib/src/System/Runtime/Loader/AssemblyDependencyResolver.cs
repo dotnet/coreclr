@@ -7,7 +7,7 @@ using Internal.IO;
 
 namespace System.Runtime.Loader
 {
-    public sealed class ComponentDependencyResolver
+    public sealed class AssemblyDependencyResolver
     {
         /// <summary>
         /// The name of the neutral culture (same value as in Variables::Init in CoreCLR)
@@ -22,9 +22,9 @@ namespace System.Runtime.Loader
         private readonly Dictionary<string, string> _assemblyPaths;
         private readonly string[] _nativeSearchPaths;
         private readonly string[] _resourceSearchPaths;
-        private readonly string[] _componentDirectorySearchPaths;
+        private readonly string[] _assemblyDirectorySearchPaths;
 
-        public ComponentDependencyResolver(string componentAssemblyPath)
+        public AssemblyDependencyResolver(string componentAssemblyPath)
         {
             string assemblyPathsList = null;
             string nativeSearchPathsList = null;
@@ -65,18 +65,18 @@ namespace System.Runtime.Loader
             }
             catch (EntryPointNotFoundException entryPointNotFoundException)
             {
-                throw new InvalidOperationException(SR.ComponentDependencyResolver_FailedToLoadHostpolicy, entryPointNotFoundException);
+                throw new InvalidOperationException(SR.AssemblyDependencyResolver_FailedToLoadHostpolicy, entryPointNotFoundException);
             }
             catch (DllNotFoundException dllNotFoundException)
             {
-                throw new InvalidOperationException(SR.ComponentDependencyResolver_FailedToLoadHostpolicy, dllNotFoundException);
+                throw new InvalidOperationException(SR.AssemblyDependencyResolver_FailedToLoadHostpolicy, dllNotFoundException);
             }
 
             if (returnCode != 0)
             {
                 // Something went wrong - report a failure
                 throw new InvalidOperationException(SR.Format(
-                    SR.ComponentDependencyResolver_FailedToResolveDependencies,
+                    SR.AssemblyDependencyResolver_FailedToResolveDependencies,
                     componentAssemblyPath,
                     returnCode,
                     errorMessage.ToString()));
@@ -95,10 +95,10 @@ namespace System.Runtime.Loader
             _nativeSearchPaths = SplitPathsList(nativeSearchPathsList);
             _resourceSearchPaths = SplitPathsList(resourceSearchPathsList);
 
-            _componentDirectorySearchPaths = new string[1] { Path.GetDirectoryName(componentAssemblyPath) };
+            _assemblyDirectorySearchPaths = new string[1] { Path.GetDirectoryName(componentAssemblyPath) };
         }
 
-        public string ResolveAssemblyPath(AssemblyName assemblyName)
+        public string ResolveAssemblyToPath(AssemblyName assemblyName)
         {
             // Determine if the assembly name is for a satellite assembly or not
             // This is the same logic as in AssemblyBinder::BindByTpaList in CoreCLR
@@ -144,7 +144,7 @@ namespace System.Runtime.Loader
             return null;
         }
 
-        public string ResolveUnmanagedDllPath(string unmanagedDllName)
+        public string ResolveUnmanagedDllToPath(string unmanagedDllName)
         {
             string[] searchPaths;
             if (unmanagedDllName.Contains(Path.DirectorySeparatorChar))
@@ -152,7 +152,7 @@ namespace System.Runtime.Loader
                 // Library names with absolute or relative path can't be resolved
                 // using the component .deps.json as that defines simple names.
                 // So instead use the component directory as the lookup path.
-                searchPaths = _componentDirectorySearchPaths;
+                searchPaths = _assemblyDirectorySearchPaths;
             }
             else
             {

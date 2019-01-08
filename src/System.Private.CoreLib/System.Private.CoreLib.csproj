@@ -280,7 +280,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UnknownWrapper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\VariantWrapper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.cs" />
-	<Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\ComponentDependencyResolver.cs" />
+	<Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyDependencyResolver.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\MemoryFailPoint.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterServices.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
