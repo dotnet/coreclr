@@ -2632,6 +2632,12 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         DWORD fieldOffset = pFieldMarshaler->GetExternalOffset();
         unsigned normalizedFieldOffset = fieldOffset + startOffsetOfStruct;
 
+        if (normalizedFieldOffset % pFieldMarshaler->AlignmentRequirement() != 0)
+        {
+            LOG((LF_JIT, LL_EVERYTHING, "%*s**** ClassifyEightBytesWithNativeLayout: struct %s has unaligned fields; will not be enregistered\n",
+                nestingLevel * 5, "", this->GetDebugClassName()));
+        }
+
         unsigned int fieldNativeSize = pFieldMarshaler->NativeSize();
 
         _ASSERTE(fieldNativeSize != (unsigned int)-1);
