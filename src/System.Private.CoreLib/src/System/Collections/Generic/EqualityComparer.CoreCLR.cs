@@ -184,28 +184,24 @@ namespace System.Collections.Generic
 
     public sealed partial class EnumEqualityComparer<T> : EqualityComparer<T> where T : struct, Enum
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(T x, T y)
-        {
-            return System.Runtime.CompilerServices.JitHelpers.EnumEquals(x, y);
-        }
-
         internal override int IndexOf(T[] array, T value, int startIndex, int count)
         {
+            Enum.IEnumCache<T> cache = Enum.EnumCache<T>.Cache;
             int endIndex = startIndex + count;
             for (int i = startIndex; i < endIndex; i++)
             {
-                if (System.Runtime.CompilerServices.JitHelpers.EnumEquals(array[i], value)) return i;
+                if (cache.Equals(array[i], value)) return i;
             }
             return -1;
         }
 
         internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
         {
+            Enum.IEnumCache<T> cache = Enum.EnumCache<T>.Cache;
             int endIndex = startIndex - count + 1;
             for (int i = startIndex; i >= endIndex; i--)
             {
-                if (System.Runtime.CompilerServices.JitHelpers.EnumEquals(array[i], value)) return i;
+                if (cache.Equals(array[i], value)) return i;
             }
             return -1;
         }

@@ -85,20 +85,6 @@ namespace System.Runtime.CompilerServices
             return new StackCrawlMarkHandle((IntPtr)Unsafe.AsPointer(ref stackMark));
         }
 
-        internal static bool EnumEquals<T>(T x, T y) where T : struct, Enum
-        {
-            // The body of this function will be replaced by the EE with unsafe code
-            // See getILIntrinsicImplementation for how this happens.
-            return x.Equals(y);
-        }
-
-        internal static int EnumCompareTo<T>(T x, T y) where T : struct, Enum
-        {
-            // The body of this function will be replaced by the EE with unsafe code
-            // See getILIntrinsicImplementation for how this happens.
-            return x.CompareTo(y);
-        }
-
         // Set the given element in the array without any type or range checks
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void UnsafeSetArrayElement(object[] target, int index, object element);
