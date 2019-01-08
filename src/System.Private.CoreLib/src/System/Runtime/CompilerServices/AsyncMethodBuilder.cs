@@ -425,6 +425,7 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the async state machine.</typeparam>
         /// <param name="stateMachine">The state machine.</param>
         /// <returns>The "boxed" state machine.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private IAsyncStateMachineBox GetStateMachineBox<TStateMachine>(
             ref TStateMachine stateMachine)
             where TStateMachine : IAsyncStateMachine
@@ -454,6 +455,7 @@ namespace System.Runtime.CompilerServices
         /// <param name="stateMachine">The state machine.</param>
         /// <param name="currentContext">The current <see cref="ExecutionContext"/> to initialize the state machine with.</param>
         /// <returns>The "boxed" state machine.</returns>
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private IAsyncStateMachineBox CreateStateMachineBox<TStateMachine>(ref TStateMachine stateMachine,
             ExecutionContext currentContext) where TStateMachine : IAsyncStateMachine
         {
