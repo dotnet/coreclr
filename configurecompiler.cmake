@@ -478,7 +478,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
 
   # Specify the minimum supported version of macOS
   if(CLR_CMAKE_PLATFORM_DARWIN)
-    add_compile_options(-mmacosx-version-min=10.12)
+    set(MACOS_VERSION_MIN_FLAGS "-mmacosx-version-min=10.12")
+    add_compile_options("${MACOS_VERSION_MIN_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MACOS_VERSION_MIN_FLAGS}")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${MACOS_VERSION_MIN_FLAGS}")
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
