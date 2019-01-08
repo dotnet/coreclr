@@ -80,8 +80,8 @@ jobs:
     osGroup: Linux
     osIdentifier: Linux
     containerName: ubuntu_1604_x64_build_image
-    helixQueuesPublic: 'Debian.8.Amd64.Open,Ubuntu.1604.Amd64.Open,Ubuntu.1804.Amd64.Open'
-    helixQueuesInternal: 'Debian.8.Amd64,Ubuntu.1604.Amd64,Ubuntu.1804.Amd64'
+    helixQueuesPublic: 'Debian.9.Amd64.Open,Ubuntu.1604.Amd64.Open,Ubuntu.1804.Amd64.Open'
+    helixQueuesInternal: 'Debian.9.Amd64,Ubuntu.1604.Amd64,Ubuntu.1804.Amd64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # macOS x64
