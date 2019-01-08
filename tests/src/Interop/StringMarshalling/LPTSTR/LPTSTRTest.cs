@@ -249,6 +249,17 @@ class Test
         }
 
         #endregion
+        
+        int length = 10;
+        StringBuilder nullTerminatorBuilder = new StringBuilder(length);
+        if (!PInvokeDef.Verify_NullTerminators_PastEnd(nullTerminatorBuilder, length))
+        {
+            ReportFailure("Null terminators for StringBuilder not set for [In] semantics");
+        }
+        if (!PInvokeDef.Verify_NullTerminators_PastEnd_Out(nullTerminatorBuilder, length))
+        {
+            ReportFailure("Null terminators for StringBuilder not set for [Out] semantics");
+        }
 
         return ExitTest();
      }
