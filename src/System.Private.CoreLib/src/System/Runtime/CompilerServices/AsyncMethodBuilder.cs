@@ -445,6 +445,18 @@ namespace System.Runtime.CompilerServices
                 return stronglyTypedBox;
             }
 
+            // We haven't created the IAsyncStateMachineBox yet, create it
+            return CreateStateMachineBox(ref stateMachine, currentContext);
+        }
+
+        /// <summary>Creates the "boxed" state machine object.</summary>
+        /// <typeparam name="TStateMachine">Specifies the type of the async state machine.</typeparam>
+        /// <param name="stateMachine">The state machine.</param>
+        /// <param name="currentContext">The current <see cref="ExecutionContext"/> to initialize the state machine with.</param>
+        /// <returns>The "boxed" state machine.</returns>
+        private IAsyncStateMachineBox CreateStateMachineBox<TStateMachine>(ref TStateMachine stateMachine,
+            ExecutionContext currentContext) where TStateMachine : IAsyncStateMachine
+        {
             // The least common case: we have a weakly-typed boxed.  This results if the debugger
             // or some other use of reflection accesses a property like ObjectIdForDebugger or a
             // method like SetNotificationForWaitCompletion prior to the first await happening.  In
@@ -479,7 +491,7 @@ namespace System.Runtime.CompilerServices
 
             // At this point, m_task should really be null, in which case we want to create the box.
             // However, in a variety of debugger-related (erroneous) situations, it might be non-null,
-            // e.g. if the Task property is examined in a Watch window, forcing it to be lazily-intialized
+            // e.g. if the Task property is examined in a Watch window, forcing it to be lazily-initialized
             // as a Task<TResult> rather than as an AsyncStateMachineBox.  The worst that happens in such
             // cases is we lose the ability to properly step in the debugger, as the debugger uses that
             // object's identity to track this specific builder/state machine.  As such, we proceed to
