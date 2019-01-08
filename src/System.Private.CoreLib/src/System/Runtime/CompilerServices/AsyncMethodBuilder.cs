@@ -479,7 +479,7 @@ namespace System.Runtime.CompilerServices
 
             // At this point, m_task should really be null, in which case we want to create the box.
             // However, in a variety of debugger-related (erroneous) situations, it might be non-null,
-            // e.g. if the Task property is examined in a Watch window, forcing it to be lazily-intialized
+            // e.g. if the Task property is examined in a Watch window, forcing it to be lazily-initialized
             // as a Task<TResult> rather than as an AsyncStateMachineBox.  The worst that happens in such
             // cases is we lose the ability to properly step in the debugger, as the debugger uses that
             // object's identity to track this specific builder/state machine.  As such, we proceed to
@@ -944,48 +944,39 @@ namespace System.Runtime.CompilerServices
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
             }
 
-            // enregistrer variables with 0 post-fix so they can be used in registers without EH forcing them to stack
-            // Capture references to Thread Contexts
-            Thread currentThread0 = Thread.CurrentThread;
-            Thread currentThread = currentThread0;
-            ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
+            Thread currentThread = Thread.CurrentThread;
 
             // Store current ExecutionContext and SynchronizationContext as "previousXxx".
             // This allows us to restore them and undo any Context changes made in stateMachine.MoveNext
             // so that they won't "leak" out of the first await.
-            ExecutionContext previousExecutionCtx = previousExecutionCtx0;
-            SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
+            ExecutionContext previousExecutionCtx = currentThread.ExecutionContext;
+            SynchronizationContext previousSyncCtx = currentThread.SynchronizationContext;
 
-            try
+            // Execute the stateMachine.
+            ExceptionDispatchInfo edi = RunReturningAnyException(ref stateMachine);
+
+            // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
+            if (previousSyncCtx != currentThread.SynchronizationContext)
             {
-                stateMachine.MoveNext();
+                // Restore changed SynchronizationContext back to previous
+                currentThread.SynchronizationContext = previousSyncCtx;
             }
-            finally
-            {
-                // Re-enregistrer variables post EH with 1 post-fix so they can be used in registers rather than from stack
-                SynchronizationContext previousSyncCtx1 = previousSyncCtx;
-                Thread currentThread1 = currentThread;
-                // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
-                if (previousSyncCtx1 != currentThread1.SynchronizationContext)
-                {
-                    // Restore changed SynchronizationContext back to previous
-                    currentThread1.SynchronizationContext = previousSyncCtx1;
-                }
 
-                ExecutionContext previousExecutionCtx1 = previousExecutionCtx;
-                ExecutionContext currentExecutionCtx1 = currentThread1.ExecutionContext;
-                if (previousExecutionCtx1 != currentExecutionCtx1)
+            ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
+            if (previousExecutionCtx != currentExecutionCtx)
+            {
+                // Restore changed ExecutionContext back to previous
+                currentThread.ExecutionContext = previousExecutionCtx;
+                if ((currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications) ||
+                    (previousExecutionCtx != null && previousExecutionCtx.HasChangeNotifications))
                 {
-                    // Restore changed ExecutionContext back to previous
-                    currentThread1.ExecutionContext = previousExecutionCtx1;
-                    if ((currentExecutionCtx1 != null && currentExecutionCtx1.HasChangeNotifications) ||
-                        (previousExecutionCtx1 != null && previousExecutionCtx1.HasChangeNotifications))
-                    {
-                        // There are change notifications; trigger any affected
-                        ExecutionContext.OnValuesChanged(currentExecutionCtx1, previousExecutionCtx1);
-                    }
+                    // There are change notifications; trigger any affected
+                    ExecutionContext.OnValuesChanged(currentExecutionCtx, previousExecutionCtx);
                 }
             }
+
+            // If exception was thrown by callback, rethrow it now original contexts are restored
+            edi?.Throw();
         }
 
         /// <summary>Gets whether we should be tracking async method completions for eventing.</summary>
@@ -1062,6 +1053,29 @@ namespace System.Runtime.CompilerServices
             {
                 ThreadPool.QueueUserWorkItem(state => ((ExceptionDispatchInfo)state).Throw(), edi);
             }
+        }
+
+        private static ExceptionDispatchInfo RunReturningAnyException<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
+        {
+            // Exception handling when starting the stateMachine is moved out-of-flow.
+            // When in-flow the EH prevents locals crossing the EH from being enregistered; which is problematic
+            // for an extremely hot method such as AsyncMethodBuilderCore.Start
+            //
+            // While manual enregistering can be performed (only using locals that cross EH to be carriers, that are then
+            // assigned to and used in alternative locals that do not cross EH); this does cause an increase in code-size,
+            // complexity and generated asm which is undesirable, especially in a generic method which is generally a 
+            // non-shared struct based one as the increase multiplies per instantiation.
+            ExceptionDispatchInfo edi = null;
+            try
+            {
+                stateMachine.MoveNext();
+            }
+            catch (Exception ex)
+            {
+                edi = ExceptionDispatchInfo.Capture(ex);
+            }
+
+            return edi;
         }
 
         /// <summary>
