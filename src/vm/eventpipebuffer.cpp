@@ -83,7 +83,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
         pInstance = new (m_pCurrent) EventPipeEventInstance(
             session,
             event,
-            (pThread == NULL) ? ::GetCurrentThreadId() : pThread->GetOSThreadId,
+            (pThread == NULL) ? ::GetCurrentThreadId() : pThread->GetOSThreadId(),
             pDataDest,
             payload.GetSize(),
             (pThread == NULL) ? NULL : pActivityId,
