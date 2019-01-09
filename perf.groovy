@@ -6,6 +6,7 @@ def project = GithubProject
 def branch = GithubBranchName
 def projectName = Utilities.getFolderName(project)
 def projectFolder = projectName + '/' + Utilities.getFolderName(branch)
+def branchFolder = Utilities.getFolderName(branch)
 
 def static getOSGroup(def os) {
     def osGroupMap = ['Ubuntu14.04':'Linux',
@@ -334,7 +335,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
             def runXUnitCommonArgs = "-arch ${architecture} -os ${os} -configuration ${configuration} -stabilityPrefix \"taskset 0x00000002 nice --adjustment=-10\" -generateBenchviewData \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" ${uploadString} -runtype ${runType} -outputdir \"\${WORKSPACE}/bin/sandbox_logs\""
 
             steps {
-                shell("./tests/scripts/perf-prep.sh --nocorefx")
+                shell("./tests/scripts/perf-prep.sh --nocorefx --branch=${branchFolder}")
                 shell("./init-tools.sh")
                 copyArtifacts(fullBuildJobName) {
                     includePatterns("bin/**")
@@ -473,7 +474,7 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
                 def benchViewName = isPR ? 'coreclr-throughput private \$BenchviewCommitName' : 'coreclr-throughput rolling \$GIT_BRANCH_WITHOUT_ORIGIN \$GIT_COMMIT'
 
                 steps {
-                    shell("bash ./tests/scripts/perf-prep.sh --throughput")
+                    shell("bash ./tests/scripts/perf-prep.sh --throughput --branch=${branchFolder}")
                     shell("./init-tools.sh")
                     copyArtifacts(fullBuildJobName) {
                         includePatterns("bin/Product/**")
