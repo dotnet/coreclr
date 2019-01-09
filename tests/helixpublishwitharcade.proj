@@ -45,6 +45,7 @@
   <ItemGroup>
     <HelixCorrelationPayload Include="$(CoreRootDirectory)" />
     <XUnitWrapperDlls Include="$(TestWorkingDir)\**\*.XUnitWrapper.dll" />
+    <Scenarios Include="$(_Scenarios.Split(','))" />
   </ItemGroup>
 
   <Target Name="CopyRunnerScriptToCoreRootDirectory" BeforeTargets="SubmitTestsToHelix">
