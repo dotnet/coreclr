@@ -35,7 +35,7 @@ namespace System.Diagnostics.Tracing
         private const string NetPerfFileExtension = ".netperf";
         private const string ConfigFileSuffix = ".eventpipeconfig";
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
-        private const int DisabledPollingIntervalMilliseconds = 5000; // 5 seconds
+        private const int DisabledPollingIntervalMilliseconds = 20000; // 20 seconds
         private const uint DefaultCircularBufferMB = 1024; // 1 GB
         private static readonly char[] ProviderConfigDelimiter = new char[] { ',' };
         private static readonly char[] ConfigComponentDelimiter = new char[] { ':' };
@@ -74,17 +74,20 @@ namespace System.Diagnostics.Tracing
             {
                 if (s_controllerInstance == null)
                 {
-                    if (Config_EnableEventPipe > 0)
+                    int enabled = Config_EnableEventPipe;
+                    if (enabled > 0)
                     {
                         // Enable tracing immediately.
                         // It will be disabled automatically on shutdown.
                         EventPipe.Enable(BuildConfigFromEnvironment());
                     }
-                    else
+                    // If not set at all, we listen for changes in the control file.
+                    else if (enabled != 0)
                     {
                         // Create a new controller to listen for commands.
                         s_controllerInstance = new EventPipeController();
                     }
+                    // If enable is explicitly set to 0, then don't start the controller (to avoid overhead).
                 }
             }
             catch { }
@@ -359,6 +362,9 @@ namespace System.Diagnostics.Tracing
             }
         }
 
+        /// <summary>
+        /// Returns -1 if the EnableEventPipe environment variable is not set at all (or is illegal)
+        /// </summary>
         #region Configuration
 
         // Cache for COMPlus configuration variables.
@@ -376,7 +382,7 @@ namespace System.Diagnostics.Tracing
                     string strEnabledValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
                     if ((strEnabledValue == null) || (!int.TryParse(strEnabledValue, out s_Config_EnableEventPipe)))
                     {
-                        s_Config_EnableEventPipe = 0;
+                        s_Config_EnableEventPipe = -1;
                     }
                 }
 
