@@ -181,7 +181,7 @@ EXTERN_C inline void STDCALL SetThreadEventBufferList(EventPipeBufferList* bl);
 // when the thread dies so we can free EventPipeBufferList in the destructor.  
 struct ThreadEventBufferList
 {
-    Volatile<EventPipeBufferList*> m_pThreadEventBufferList;
+    EventPipeBufferList* m_pThreadEventBufferList;
 
     ~ThreadEventBufferList()
     {
