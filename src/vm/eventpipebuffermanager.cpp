@@ -800,30 +800,6 @@ EventPipeEventInstance* EventPipeBufferList::PopNextEvent(LARGE_INTEGER beforeTi
     return pNext;
 }
 
-bool EventPipeBufferList::OwnedByThread()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_ownedByThread;
-}
-
-void EventPipeBufferList::SetOwnedByThread(bool value)
-{
-    LIMITED_METHOD_CONTRACT;
-    m_ownedByThread = value;
-}
-
-bool EventPipeBufferList::GetThreadEventWriteInProgress()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_threadEventWriteInProgress;
-}
-
-void EventPipeBufferList::SetThreadEventWriteInProgress(bool value)
-{
-    LIMITED_METHOD_CONTRACT;
-    m_threadEventWriteInProgress = value;
-}
-
 #ifdef _DEBUG
 Thread* EventPipeBufferList::GetThread()
 {

@@ -149,17 +149,33 @@ public:
     EventPipeEventInstance* PopNextEvent(LARGE_INTEGER beforeTimeStamp);
 
     // True if a thread owns this list.
-    bool OwnedByThread();
+    bool OwnedByThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_ownedByThread;
+    }
 
     // Set whether or not this list is owned by a thread.
     // If it is not owned by a thread, then it can be de-allocated
     // after the buffer is drained.
     // The default value is true.
-    void SetOwnedByThread(bool value);
+    void SetOwnedByThread(bool value)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_ownedByThread = value;
+    }
 
-    bool GetThreadEventWriteInProgress();
+    bool GetThreadEventWriteInProgress() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_threadEventWriteInProgress;
+    }
 
-    void SetThreadEventWriteInProgress(bool value);
+    void SetThreadEventWriteInProgress(bool value)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_threadEventWriteInProgress = value;
+    }
 
 #ifdef _DEBUG
     // Get the thread associated with this list.
