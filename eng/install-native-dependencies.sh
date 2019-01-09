@@ -10,6 +10,10 @@ if [ "$1" = "Linux" ]; then
         exit 1;
     fi
 elif [ "$1" = "OSX" ]; then
+    brew update
+    if [ "$?" != "0" ]; then
+        exit 1;
+    fi
     brew install icu4c openssl
     if [ "$?" != "0" ]; then
         exit 1;
