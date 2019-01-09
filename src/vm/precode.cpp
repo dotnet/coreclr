@@ -505,14 +505,16 @@ TADDR Precode::AllocateTemporaryEntryPoints(MethodDescChunk *  pChunk,
             if (pMD->DetermineAndSetIsEligibleForTieredCompilation())
             {
                 _ASSERTE(pMD->IsEligibleForTieredCompilation());
-                _ASSERTE(!pMD->IsTieredMethodVersionableWithPrecode() || pMD->RequiresStableEntryPoint());
-#ifdef HAS_COMPACT_ENTRYPOINTS
-                if (pMD->IsTieredMethodVersionableWithPrecode())
-                {
-                    hasMethodDescVersionableWithPrecode = true;
-                }
-#endif
+                _ASSERTE(!pMD->IsVersionableWithPrecode() || pMD->RequiresStableEntryPoint());
             }
+
+#ifdef HAS_COMPACT_ENTRYPOINTS
+            if (pMD->IsVersionableWithPrecode())
+            {
+                _ASSERTE(pMD->RequiresStableEntryPoint());
+                hasMethodDescVersionableWithPrecode = true;
+            }
+#endif
 
             pMD = (MethodDesc *)(dac_cast<TADDR>(pMD) + pMD->SizeOf());
         }

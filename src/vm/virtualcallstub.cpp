@@ -2630,6 +2630,12 @@ VirtualCallStubManager::TraceResolver(
         slot = pItfMD->GetMethodTable()->FindDispatchSlot(pItfMD->GetSlot(), TRUE /* throwOnConflict */);
     }
 
+    // The dispatch slot's target may change due to code versioning shortly after it was retrieved above for the trace. This
+    // will result in the debugger getting some version of the code or the prestub, but not necessarily the exact code pointer
+    // that winds up getting executed. The debugger has code that handles this ambiguity by placing a breakpoint at the start of
+    // all native code versions, even if they aren't the one that was reported by this trace, see
+    // DebuggerController::PatchTrace() under case TRACE_MANAGED. This alleviates the StubManager from having to prevent the
+    // race that occurs here.
     return (StubManager::TraceStub(slot.GetTarget(), trace));
 }
 
@@ -2791,11 +2797,11 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            ad
 #endif
                        );
 
-#ifdef FEATURE_TIERED_COMPILATION
+#ifdef FEATURE_CODE_VERSIONING
     MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(addrOfCode);
-    if (pMD->IsTieredVtableMethod())
+    if (pMD->IsVersionableWithVtableSlotBackpatch())
     {
-        EntryPointSlotsToBackpatch::SlotType slotType;
+        EntryPointSlots::SlotType slotType;
         TADDR slot = holder->stub()->implTargetSlot(&slotType);
         pMD->RecordAndBackpatchEntryPointSlot(m_loaderAllocator, slot, slotType);
     }
@@ -2847,11 +2853,11 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStubLong(PCODE          
                        (size_t)pMTExpected,
                        DispatchStub::e_TYPE_LONG);
 
-#ifdef FEATURE_TIERED_COMPILATION
+#ifdef FEATURE_CODE_VERSIONING
     MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(addrOfCode);
-    if (pMD->IsTieredVtableMethod())
+    if (pMD->IsVersionableWithVtableSlotBackpatch())
     {
-        EntryPointSlotsToBackpatch::SlotType slotType;
+        EntryPointSlots::SlotType slotType;
         TADDR slot = holder->stub()->implTargetSlot(&slotType);
         pMD->RecordAndBackpatchEntryPointSlot(m_loaderAllocator, slot, slotType);
     }
@@ -3025,14 +3031,14 @@ ResolveCacheElem *VirtualCallStubManager::GenerateResolveCacheElem(void *addrOfC
 
     e->pNext  = NULL;
 
-#ifdef FEATURE_TIERED_COMPILATION
+#ifdef FEATURE_CODE_VERSIONING
     MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress((PCODE)addrOfCode);
-    if (pMD->IsTieredVtableMethod())
+    if (pMD->IsVersionableWithVtableSlotBackpatch())
     {
         pMD->RecordAndBackpatchEntryPointSlot(
             m_loaderAllocator,
             (TADDR)&e->target,
-            EntryPointSlotsToBackpatch::SlotType_Normal);
+            EntryPointSlots::SlotType_Normal);
     }
 #endif
 

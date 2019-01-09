@@ -247,7 +247,7 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
         _ASSERTE(HasStableEntryPoint());
-        _ASSERTE(!IsTieredVtableMethod());
+        _ASSERTE(!IsVersionableWithVtableSlotBackpatch());
 
         return GetMethodEntryPoint();
     }
@@ -264,7 +264,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 
-        if (IsTieredVtableMethod())
+        if (IsVersionableWithVtableSlotBackpatch())
         {
             return GetTemporaryEntryPoint();
         }
@@ -288,7 +288,7 @@ public:
         return pPrecode;
     }
 
-    inline BOOL MayHavePrecode()
+    inline bool MayHavePrecode()
     {
         CONTRACTL
         {
@@ -298,10 +298,17 @@ public:
         }
         CONTRACTL_END
 
-        // Tiered vtable methods cannot have a precode, so this case should be handled before calling this function
-        _ASSERTE(!IsTieredVtableMethod());
-
-        return !MayHaveNativeCode() || (IsEligibleForTieredCompilation() && IsTieredMethodVersionableWithPrecode());
+        // Ideally, methods that will not have native code (!MayHaveNativeCode() == true) should not be versionable. Currently,
+        // that is not the case, in some situations it was seen that 1/4 to 1/3 of versionable methods do not have native
+        // code, though there is no significant overhead from this. MayHaveNativeCode() appears to be an expensive check to do
+        // for each MethodDesc, even if it's done only once, and when it was attempted, at the time it was showing up noticeably
+        // in startup performance profiles.
+        //
+        // In particular, methods versionable with vtable slot backpatch should not have a precode (in the sense HasPrecode()
+        // must return false) even if they will not have native code.
+        bool result = IsVersionableWithoutJumpStamp() ? IsVersionableWithPrecode() : !MayHaveNativeCode();
+        _ASSERTE(!result || !IsVersionableWithVtableSlotBackpatch());
+        return result;
     }
 
     void InterlockedUpdateFlags2(BYTE bMask, BOOL fSet);
@@ -1158,60 +1165,89 @@ public:
 
 public:
 
-    // TRUE iff it is possible to change the code this method will run using
-    // the CodeVersionManager.
-    // Note: EnC currently returns FALSE here because it uses its own seperate
-    // scheme to manage versionability. We will likely want to converge them
-    // at some point.
-    BOOL IsVersionable()
+    // True iff it is possible to change the code this method will run using the CodeVersionManager. Note: EnC currently returns
+    // false here because it uses its own seperate scheme to manage versionability. We will likely want to converge them at some
+    // point.
+    bool IsVersionable()
+    {
+        WRAPPER_NO_CONTRACT;
+        return IsVersionableWithoutJumpStamp() || IsVersionableWithJumpStamp();
+    }
+
+    // True iff this method's code may be versioned using a technique other than JumpStamp
+    bool IsVersionableWithoutJumpStamp()
     {
         WRAPPER_NO_CONTRACT;
 
-#ifndef FEATURE_CODE_VERSIONING
-        return FALSE;
+#ifdef FEATURE_CODE_VERSIONING
+        return IsEligibleForTieredCompilation();
 #else
-        return IsEligibleForTieredCompilation() || IsVersionableWithJumpStamp();
+        return false;
 #endif
     }
 
-    // If true, these methods version using the CodeVersionManager and switch between
-    // different code versions by overwriting the first bytes of the method's initial
-    // native code with a jmp instruction.
-    BOOL IsVersionableWithJumpStamp()
+    // True iff all calls to the method should funnel through a Precode which can be updated to point to the current method
+    // body. This versioning technique can introduce more indirections than optimal but it has low memory overhead when a
+    // FixupPrecode may be shared with the temporary entry point that is created anyway.
+    bool IsVersionableWithPrecode()
+    {
+        WRAPPER_NO_CONTRACT;
+        return IsVersionableWithoutJumpStamp() && !Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
+    }
+
+    // True iff all calls to the method should go through a backpatchable vtable slot or through a FuncPtrStub. This versioning
+    // technique eliminates extra indirections from precodes but is more memory intensive to track all the appropriate slots.
+    // See Helper_IsEligibleForVersioningWithEntryPointSlotBackpatch() for more details.
+    bool IsVersionableWithVtableSlotBackpatch()
+    {
+        WRAPPER_NO_CONTRACT;
+        return IsVersionableWithoutJumpStamp() && Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
+    }
+
+    // True iff All calls to the method go to the default code and the prologue of that code will be overwritten with a jmp to
+    // other code if necessary. This is the only technique that can handle NGEN'ed code that embeds untracked direct calls
+    // between methods. It has much higher update overhead than other approaches because it needs runtime suspension to evacuate
+    // all threads from method prologues before a prologue can be patched. The patching is also not compatible with a debugger
+    // that may be trying to rewrite the same code bytes to add/remove a breakpoint.
+    bool IsVersionableWithJumpStamp()
     {
         WRAPPER_NO_CONTRACT;
 
 #if defined(FEATURE_CODE_VERSIONING) && defined(FEATURE_JUMPSTAMP)
         return
-            // for native image code this is policy, but for jitted code it is a functional requirement
-            // to ensure the prolog is sufficiently large
+            // Functional requirement / policy - Only one versioning technique may be used for a method, and versioning without
+            // a jump stamp is preferred
+            !IsVersionableWithoutJumpStamp() &&
+
+            // Functional requirement - If we aren't doing tiered compilation, ReJIT is currently the only other reason to make
+            // methods versionable. ReJIT is required to work even in NGEN images where the other versioning techniques aren't
+            // supported. If both ReJIT and tiered compilation are enabled then we prefer using the Precode or
+            // EntryPointSlotBackpatch techniques because they offer lower overhead method update performance and don't
+            // interfere with the debugger.
             ReJitManager::IsReJITEnabled() &&
 
-            // functional requirement - the runtime doesn't expect both options to be possible
-            !IsEligibleForTieredCompilation() &&
-
-            // functional requirement - we must be able to evacuate the prolog and the prolog must be big
-            // enough, both of which are only designed to work on jitted code
+            // Functional requirement - We must be able to evacuate the prolog and the prolog must be big enough, both of which
+            // are only designed to work on jitted code
             (IsIL() || IsNoMetadata()) &&
-            !IsUnboxingStub() &&
-            !IsInstantiatingStub() &&
+            !IsWrapperStub() &&
 
-            // functional requirement - code version manager can't handle what would happen if the code
-            // was collected
-            !GetLoaderAllocator()->IsCollectible();
+            // Functional requirement
+            CodeVersionManager::IsMethodSupported(PTR_MethodDesc(this));
 #else
-        return FALSE;
+        return false;
 #endif
     }
 
-    BOOL IsEligibleForTieredCompilation()
+public:
+
+    bool IsEligibleForTieredCompilation()
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
 #ifdef FEATURE_TIERED_COMPILATION
         return (m_bFlags2 & enum_flag2_IsEligibleForTieredCompilation) != 0;
 #else
-        return FALSE;
+        return false;
 #endif
     }
 
@@ -1219,21 +1255,18 @@ public:
     // can optimize its performance? Eligibility is invariant for the lifetime of a method.
     bool DetermineAndSetIsEligibleForTieredCompilation();
 
-    bool IsTieredMethodVersionableWithPrecode()
+private:
+    // This function is not intended to be called in most places, and is named as such to discourage calling it accidentally
+    bool Helper_IsEligibleForVersioningWithVtableSlotBackpatch()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsEligibleForTieredCompilation());
+        _ASSERTE(IsVersionableWithoutJumpStamp());
+        _ASSERTE(IsIL() || IsDynamicMethod());
 
-        return !IsTieredMethodVersionableWithVtableSlotBackpatch();
-    }
+#if defined(FEATURE_CODE_VERSIONING) && !defined(CROSSGEN_COMPILE)
+        _ASSERTE(CodeVersionManager::IsMethodSupported(PTR_MethodDesc(this)));
 
-    bool IsTieredMethodVersionableWithVtableSlotBackpatch()
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsEligibleForTieredCompilation());
-
-        // For a method eligible for tiered compilation and vtable slot backpatching:
-        //   - The entry point to the final code is versionable, as for any method eligible for tiering
+        // For a method eligible for code versioning and vtable slot backpatch:
         //   - It does not have a precode (HasPrecode() returns false)
         //   - It does not have a stable entry point (HasStableEntryPoint() returns false)
         //   - A call to the method may be:
@@ -1241,7 +1274,7 @@ public:
         //     - A direct call to a backpatchable FuncPtrStub, perhaps through a JumpStub
         //     - For interface methods, an indirect call through the virtual stub dispatch (VSD) indirection cell to a
         //       backpatchable DispatchStub or a ResolveStub that refers to a backpatchable ResolveCacheEntry
-        //   - The purpose is that typical calls to the method have no additional overhead when tiering is enabled
+        //   - The purpose is that typical calls to the method have no additional overhead when code versioning is enabled
         //
         // Recording and backpatching slots:
         //   - In order for all vtable slots for the method to be backpatchable:
@@ -1268,9 +1301,9 @@ public:
         //   - An inherited slot that has a shorter lifetime than the MethodDesc, when recorded, needs to be accessible by the
         //     MethodDesc for backpatching, so the dependent LoaderAllocator with the slot to backpatch is also recorded in the
         //     MethodDesc's LoaderAllocator, see
-        //     MethodDescBackpatchInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked()
+        //     MethodDescBackpatchInfo::AddDependentLoaderAllocator_Locked()
         //   - At the end of a LoaderAllocator's lifetime, the LoaderAllocator is unregistered from dependency LoaderAllocators,
-        //     see MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash()
+        //     see MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlots()
         //   - When a MethodDesc's entry point changes, backpatching also includes iterating over recorded dependent
         //     LoaderAllocators to backpatch the relevant slots recorded there, see BackpatchEntryPointSlots()
         //
@@ -1278,7 +1311,7 @@ public:
         //   - A global lock is used to ensure that all recorded backpatchable slots corresponding to a MethodDesc point to the
         //     same entry point, see DoBackpatch() and BackpatchEntryPointSlots() for examples
         //
-        // Typical slot value transitions:
+        // Typical slot value transitions when tiered compilation is enabled:
         //   - Initially, the slot contains the method's temporary entry point, which always points to the prestub (see above)
         //   - After the tier 0 JIT completes, the slot is transitioned to the tier 0 entry point, and the slot is recorded for
         //     backpatching
@@ -1288,29 +1321,35 @@ public:
         //     JIT is scheduled
         //   - After the tier 1 JIT completes, the slot is transitioned to the tier 1 entry point
 
-#if defined(FEATURE_TIERED_COMPILATION) && !defined(CROSSGEN_COMPILE)
         return
+            // Policy
             g_pConfig->BackpatchEntryPointSlots() &&
+
+            // Functional requirement - The entry point must be through a vtable slot in the MethodTable that may be recorded
+            // and backpatched
             IsVtableSlot() &&
-            !(IsInterface() && !IsStatic()); // true interface methods are not backpatched, see DoBackpatch()
+
+            // Functional requirement - True interface methods are not backpatched, see DoBackpatch()
+            !(IsInterface() && !IsStatic());
 #else
         // Entry point slot backpatch is disabled for CrossGen
         return false;
 #endif
     }
 
-    bool IsTieredVtableMethod()
-    {
-        WRAPPER_NO_CONTRACT;
-        return IsEligibleForTieredCompilation() && IsTieredMethodVersionableWithVtableSlotBackpatch();
-    }
-
-    bool IsEligibleForEntryPointSlotBackpatch()
+public:
+    bool MayHaveEntryPointSlotsToBackpatch()
     {
         WRAPPER_NO_CONTRACT;
 
 #ifndef CROSSGEN_COMPILE
-        return IsTieredVtableMethod();
+        // This is the only case currently. In the future, a method that does not have a vtable slot may still record entry
+        // point slots that need to be backpatched on entry point change, and in such cases the conditions here may be changed.
+        bool result = IsVersionableWithVtableSlotBackpatch();
+
+        // Cases where this function returns true are not expected to need to handle JumpStamp versioning in the future
+        _ASSERTE(!result || !IsVersionableWithJumpStamp());
+        return result;
 #else
         // Entry point slot backpatch is disabled for CrossGen
         return false;
@@ -1320,53 +1359,57 @@ public:
 #ifndef CROSSGEN_COMPILE
 
 private:
-    // Gets the prestub entry point to use for backpatching. Entry point slot backpatching uses this entry point as an oracle to
+    // Gets the prestub entry point to use for backpatching. Entry point slot backpatch uses this entry point as an oracle to
     // determine if the entry point actually changed and warrants backpatching.
     PCODE GetPrestubEntryPointToBackpatch()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
+        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
 
-        _ASSERTE(IsTieredVtableMethod()); // at the moment this is the only case, see IsEligibleForEntryPointSlotBackpatch()
+        // At the moment this is the only case, see MayHaveEntryPointSlotsToBackpatch()
+        _ASSERTE(IsVersionableWithVtableSlotBackpatch());
         return GetTemporaryEntryPoint();
     }
 
-    // Gets the entry point stored in the primary storage location for backpatching. Entry point slot backpatching uses this
-    // entry point as an oracle to determine if the entry point actually changed and warrants backpatching.
+    // Gets the entry point stored in the primary storage location for backpatching. Entry point slot backpatch uses this entry
+    // point as an oracle to determine if the entry point actually changed and warrants backpatching.
     PCODE GetEntryPointToBackpatch_Locked()
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
-        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
+        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
 
-        _ASSERTE(IsTieredVtableMethod()); // at the moment this is the only case, see IsEligibleForEntryPointSlotBackpatch()
+        // At the moment this is the only case, see MayHaveEntryPointSlotsToBackpatch()
+        _ASSERTE(IsVersionableWithVtableSlotBackpatch());
         return GetMethodEntryPoint();
     }
 
-    // Sets the entry point stored in the primary storage location for backpatching. Entry point slot backpatching uses this
-    // entry point as an oracle to determine if the entry point actually changed and warrants backpatching.
-    void SetEntryPointToBackpatch_Locked(PCODE entryPoint, bool isPrestubEntryPoint)
+    // Sets the entry point stored in the primary storage location for backpatching. Entry point slot backpatch uses this entry
+    // point as an oracle to determine if the entry point actually changed and warrants backpatching.
+    void SetEntryPointToBackpatch_Locked(PCODE entryPoint)
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
         _ASSERTE(entryPoint != NULL);
-        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
+        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
 
-        _ASSERTE(IsTieredVtableMethod()); // at the moment this is the only case, see IsEligibleForEntryPointSlotBackpatch()
+        // At the moment this is the only case, see MayHaveEntryPointSlotsToBackpatch(). If that changes in the future, this
+        // function may have to handle other cases in SetCodeEntryPoint().
+        _ASSERTE(IsVersionableWithVtableSlotBackpatch());
         SetMethodEntryPoint(entryPoint);
     }
 
 public:
-    void RecordAndBackpatchEntryPointSlot(LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlotsToBackpatch::SlotType slotType);
+    void RecordAndBackpatchEntryPointSlot(LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlots::SlotType slotType);
 private:
-    void RecordAndBackpatchEntryPointSlot_Locked(LoaderAllocator *mdLoaderAllocator, LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlotsToBackpatch::SlotType slotType, PCODE currentEntryPoint);
+    void RecordAndBackpatchEntryPointSlot_Locked(LoaderAllocator *mdLoaderAllocator, LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlots::SlotType slotType, PCODE currentEntryPoint);
 
 public:
     void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint)
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(entryPoint != GetPrestubEntryPointToBackpatch());
-        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
+        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
 
         BackpatchEntryPointSlots(entryPoint, false /* isPrestubEntryPoint */);
     }
@@ -1374,7 +1417,7 @@ public:
     void MethodDesc::BackpatchToResetEntryPointSlots()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
+        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
 
         BackpatchEntryPointSlots(GetPrestubEntryPointToBackpatch(), true /* isPrestubEntryPoint */);
     }
@@ -1384,7 +1427,7 @@ private:
 
 public:
     void SetCodeEntryPoint(PCODE entryPoint);
-    void ResetTieredMethodCodeEntryPoint();
+    void ResetCodeEntryPoint();
 
 #endif // !CROSSGEN_COMPILE
 
@@ -1415,7 +1458,7 @@ public:
             return false;
 #endif
 
-        return !IsEligibleForTieredCompilation() && !IsEnCMethod();
+        return !IsVersionableWithoutJumpStamp() && !IsEnCMethod();
     }
 
     //Is this method currently pointing to native code that will never change?

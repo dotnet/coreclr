@@ -247,12 +247,12 @@ struct DispatchStub
             return getLongStub()->implTarget();
     }
 
-    inline TADDR implTargetSlot(EntryPointSlotsToBackpatch::SlotType *slotTypeRef) const
+    inline TADDR implTargetSlot(EntryPointSlots::SlotType *slotTypeRef) const
     {
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(slotTypeRef != nullptr);
 
-        *slotTypeRef = EntryPointSlotsToBackpatch::SlotType_IsExecutable;
+        *slotTypeRef = EntryPointSlots::SlotType_Executable;
         if (type() == e_TYPE_SHORT)
             return getShortStub()->implTargetSlot();
         else

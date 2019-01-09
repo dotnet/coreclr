@@ -13,13 +13,14 @@
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// EntryPointSlotsToBackpatch
+// EntryPointSlots
 
 #ifndef DACCESS_COMPILE
 
-void EntryPointSlotsToBackpatch::Backpatch_Locked(PCODE entryPoint)
+void EntryPointSlots::Backpatch_Locked(PCODE entryPoint)
 {
     WRAPPER_NO_CONTRACT;
+    static_assert_no_msg(SlotType_Count <= sizeof(INT32));
     _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(entryPoint != NULL);
 
@@ -34,9 +35,10 @@ void EntryPointSlotsToBackpatch::Backpatch_Locked(PCODE entryPoint)
     }
 }
 
-void EntryPointSlotsToBackpatch::Backpatch_Locked(TADDR slot, SlotType slotType, PCODE entryPoint)
+void EntryPointSlots::Backpatch_Locked(TADDR slot, SlotType slotType, PCODE entryPoint)
 {
     WRAPPER_NO_CONTRACT;
+    static_assert_no_msg(SlotType_Count <= sizeof(INT32));
     _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(slot != NULL);
     _ASSERTE(!(slot & SlotType_Mask));
@@ -51,15 +53,15 @@ void EntryPointSlotsToBackpatch::Backpatch_Locked(TADDR slot, SlotType slotType,
             *(PCODE *)slot = entryPoint;
             break;
 
-        case SlotType_IsVtableSlot:
+        case SlotType_Vtable:
             ((MethodTable::VTableIndir2_t *)slot)->SetValue(entryPoint);
             break;
 
-        case SlotType_IsExecutable:
+        case SlotType_Executable:
             *(PCODE *)slot = entryPoint;
             goto Flush;
 
-        case SlotType_IsExecutable_IsRel32:
+        case SlotType_ExecutableRel32:
             // A rel32 may require a jump stub on some architectures, and is currently not supported
             _ASSERTE(sizeof(void *) <= 4);
 
@@ -83,7 +85,7 @@ void EntryPointSlotsToBackpatch::Backpatch_Locked(TADDR slot, SlotType slotType,
 
 #ifndef DACCESS_COMPILE
 
-void MethodDescBackpatchInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(LoaderAllocator *dependentLoaderAllocator)
+void MethodDescBackpatchInfo::AddDependentLoaderAllocator_Locked(LoaderAllocator *dependentLoaderAllocator)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
@@ -91,7 +93,7 @@ void MethodDescBackpatchInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_L
     _ASSERTE(dependentLoaderAllocator != nullptr);
     _ASSERTE(dependentLoaderAllocator != m_methodDesc->GetLoaderAllocator());
 
-    LoaderAllocatorSet *set = m_dependentLoaderAllocatorsWithSlotsToBackpatch;
+    LoaderAllocatorSet *set = m_dependentLoaderAllocators;
     if (set != nullptr)
     {
         if (set->Lookup(dependentLoaderAllocator) != nullptr)
@@ -104,21 +106,20 @@ void MethodDescBackpatchInfo::AddDependentLoaderAllocatorsWithSlotsToBackpatch_L
 
     NewHolder<LoaderAllocatorSet> setHolder = new LoaderAllocatorSet();
     setHolder->Add(dependentLoaderAllocator);
-    m_dependentLoaderAllocatorsWithSlotsToBackpatch = setHolder.Extract();
+    m_dependentLoaderAllocators = setHolder.Extract();
 }
 
-void MethodDescBackpatchInfo::RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(
-    LoaderAllocator *dependentLoaderAllocator)
+void MethodDescBackpatchInfo::RemoveDependentLoaderAllocator_Locked(LoaderAllocator *dependentLoaderAllocator)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
     _ASSERTE(m_methodDesc != nullptr);
     _ASSERTE(dependentLoaderAllocator != nullptr);
     _ASSERTE(dependentLoaderAllocator != m_methodDesc->GetLoaderAllocator());
-    _ASSERTE(m_dependentLoaderAllocatorsWithSlotsToBackpatch != nullptr);
-    _ASSERTE(m_dependentLoaderAllocatorsWithSlotsToBackpatch->Lookup(dependentLoaderAllocator) == dependentLoaderAllocator);
+    _ASSERTE(m_dependentLoaderAllocators != nullptr);
+    _ASSERTE(m_dependentLoaderAllocators->Lookup(dependentLoaderAllocator) == dependentLoaderAllocator);
 
-    m_dependentLoaderAllocatorsWithSlotsToBackpatch->Remove(dependentLoaderAllocator);
+    m_dependentLoaderAllocators->Remove(dependentLoaderAllocator);
 }
 
 #endif // !DACCESS_COMPILE
@@ -151,13 +152,13 @@ bool MethodDescBackpatchInfoTracker::IsLockedByCurrentThread()
 #endif
 }
 
-bool MethodDescBackpatchInfoTracker::IsEligibleForEntryPointSlotBackpatch(PTR_MethodDesc methodDesc)
+bool MethodDescBackpatchInfoTracker::MayHaveEntryPointSlotsToBackpatch(PTR_MethodDesc methodDesc)
 {
     // The only purpose of this method is to allow asserts in inline functions defined in the .h file, by which time MethodDesc
     // is not fully defined
 
     WRAPPER_NO_CONTRACT;
-    return methodDesc->IsEligibleForEntryPointSlotBackpatch();
+    return methodDesc->MayHaveEntryPointSlotsToBackpatch();
 }
 
 #endif // _DEBUG
@@ -169,7 +170,7 @@ MethodDescBackpatchInfo *MethodDescBackpatchInfoTracker::AddBackpatchInfo_Locked
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsLockedByCurrentThread());
     _ASSERTE(methodDesc != nullptr);
-    _ASSERTE(methodDesc->IsEligibleForEntryPointSlotBackpatch());
+    _ASSERTE(methodDesc->MayHaveEntryPointSlotsToBackpatch());
     _ASSERTE(m_backpatchInfoHash.Lookup(methodDesc) == nullptr);
 
     NewHolder<MethodDescBackpatchInfo> backpatchInfoHolder = new MethodDescBackpatchInfo(methodDesc);
@@ -177,41 +178,37 @@ MethodDescBackpatchInfo *MethodDescBackpatchInfoTracker::AddBackpatchInfo_Locked
     return backpatchInfoHolder.Extract();
 }
 
-EntryPointSlotsToBackpatch *MethodDescBackpatchInfoTracker::GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(
-    MethodDesc *methodDesc)
+EntryPointSlots *MethodDescBackpatchInfoTracker::GetDependencyMethodDescEntryPointSlots_Locked(MethodDesc *methodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsLockedByCurrentThread());
     _ASSERTE(methodDesc != nullptr);
-    _ASSERTE(methodDesc->IsEligibleForEntryPointSlotBackpatch());
+    _ASSERTE(methodDesc->MayHaveEntryPointSlotsToBackpatch());
 
-    MethodDescEntryPointSlotsToBackpatch *methodDescSlots =
-        m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Lookup(methodDesc);
+    MethodDescEntryPointSlots *methodDescSlots =
+        m_dependencyMethodDescEntryPointSlotsHash.Lookup(methodDesc);
     return methodDescSlots == nullptr ? nullptr : methodDescSlots->GetSlots();
 }
 
-EntryPointSlotsToBackpatch *MethodDescBackpatchInfoTracker::GetOrAddDependencyMethodDescEntryPointSlotsToBackpatch_Locked(
-    MethodDesc *methodDesc)
+EntryPointSlots *MethodDescBackpatchInfoTracker::GetOrAddDependencyMethodDescEntryPointSlots_Locked(MethodDesc *methodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(IsLockedByCurrentThread());
     _ASSERTE(methodDesc != nullptr);
-    _ASSERTE(methodDesc->IsEligibleForEntryPointSlotBackpatch());
+    _ASSERTE(methodDesc->MayHaveEntryPointSlotsToBackpatch());
 
-    MethodDescEntryPointSlotsToBackpatch *methodDescSlots =
-        m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Lookup(methodDesc);
+    MethodDescEntryPointSlots *methodDescSlots = m_dependencyMethodDescEntryPointSlotsHash.Lookup(methodDesc);
     if (methodDescSlots != nullptr)
     {
         return methodDescSlots->GetSlots();
     }
 
-    NewHolder<MethodDescEntryPointSlotsToBackpatch> methodDescSlotsHolder =
-        new MethodDescEntryPointSlotsToBackpatch(methodDesc);
-    m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Add(methodDescSlotsHolder);
+    NewHolder<MethodDescEntryPointSlots> methodDescSlotsHolder = new MethodDescEntryPointSlots(methodDesc);
+    m_dependencyMethodDescEntryPointSlotsHash.Add(methodDescSlotsHolder);
     return methodDescSlotsHolder.Extract()->GetSlots();
 }
 
-void MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash(LoaderAllocator *loaderAllocator)
+void MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlots(LoaderAllocator *loaderAllocator)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(loaderAllocator != nullptr);
@@ -219,9 +216,9 @@ void MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlotsToB
 
     ConditionalLockHolder lockHolder;
 
-    for (MethodDescEntryPointSlotsToBackpatchHash::Iterator
-            it = m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Begin(),
-            itEnd = m_dependencyMethodDescEntryPointSlotsToBackpatchHash.End();
+    for (MethodDescEntryPointSlotsHash::Iterator
+            it = m_dependencyMethodDescEntryPointSlotsHash.Begin(),
+            itEnd = m_dependencyMethodDescEntryPointSlotsHash.End();
         it != itEnd;
         ++it)
     {
@@ -229,11 +226,11 @@ void MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlotsToB
         MethodDescBackpatchInfo *backpatchInfo = methodDesc->GetBackpatchInfoTracker()->GetBackpatchInfo_Locked(methodDesc);
         if (backpatchInfo != nullptr)
         {
-            backpatchInfo->RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(loaderAllocator);
+            backpatchInfo->RemoveDependentLoaderAllocator_Locked(loaderAllocator);
         }
     }
 
-    m_dependencyMethodDescEntryPointSlotsToBackpatchHash.RemoveAll();
+    m_dependencyMethodDescEntryPointSlotsHash.RemoveAll();
 }
 
 #endif // DACCESS_COMPILE

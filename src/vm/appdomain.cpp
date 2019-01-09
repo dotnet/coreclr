@@ -3908,7 +3908,7 @@ void AppDomain::Terminate()
     // Recorded entry point slots may point into the virtual call stub manager's heaps, so clear it first
     GetLoaderAllocator()
         ->GetMethodDescBackpatchInfoTracker()
-        ->ClearDependencyMethodDescEntryPointSlotsToBackpatchHash(GetLoaderAllocator());
+        ->ClearDependencyMethodDescEntryPointSlots(GetLoaderAllocator());
 #endif
 
     if (!IsAtProcessExit())

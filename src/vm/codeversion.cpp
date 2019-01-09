@@ -1103,7 +1103,7 @@ HRESULT MethodDescVersioningState::SyncJumpStamp(NativeCodeVersion nativeCodeVer
     HRESULT hr = S_OK;
     PCODE pCode = nativeCodeVersion.IsNull() ? NULL : nativeCodeVersion.GetNativeCode();
     MethodDesc* pMethod = GetMethodDesc();
-    _ASSERTE(pMethod->IsVersionable() && pMethod->IsVersionableWithJumpStamp());
+    _ASSERTE(pMethod->IsVersionableWithJumpStamp());
 
     if (!pMethod->HasNativeCode())
     {
@@ -2135,7 +2135,6 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
 
     HRESULT hr = S_OK;
     PCODE pCode = NULL;
-    BOOL fIsJumpStampMethod = pMethodDesc->IsVersionableWithJumpStamp();
 
     NativeCodeVersion activeVersion;
     {
@@ -2244,13 +2243,13 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
     _ASSERTE(pMethod->IsVersionable());
     HRESULT hr = S_OK;
     PCODE pCode = nativeCodeVersion.IsNull() ? NULL : nativeCodeVersion.GetNativeCode();
-    if (pMethod->IsEligibleForTieredCompilation())
+    if (pMethod->IsVersionableWithoutJumpStamp())
     {
         EX_TRY
         {
             if (pCode == NULL)
             {
-                pMethod->ResetTieredMethodCodeEntryPoint();
+                pMethod->ResetCodeEntryPoint();
             }
             else
             {
@@ -2524,13 +2523,13 @@ HRESULT CodeVersionManager::DoJumpStampIfNecessary(MethodDesc* pMD, PCODE pCode)
         return S_OK;
     }
 
-    if (!(pMD->IsVersionable() && pMD->IsVersionableWithJumpStamp()))
+    if (!pMD->IsVersionableWithJumpStamp())
     {
         return GetNonVersionableError(pMD);
     }
 
 #ifndef FEATURE_JUMPSTAMP
-    _ASSERTE(!"How did we get here? IsVersionableWithJumpStamp() should have been FALSE above");
+    _ASSERTE(!"How did we get here? IsVersionableWithJumpStamp() should have been false above");
     return S_OK;
 #else
     HRESULT hr;
@@ -2561,6 +2560,27 @@ void CodeVersionManager::OnAppDomainExit(AppDomain * pAppDomain)
     _ASSERTE(!".Net Core shouldn't be doing app domain shutdown - if we start doing so this needs to be implemented");
 }
 #endif
+
+// Returns true if CodeVersionManager is capable of versioning this method. There may be other reasons that the runtime elects
+// not to version a method even if CodeVersionManager could support it. Use the MethodDesc::IsVersionableWith*() accessors to
+// get the final determination of versioning support for a given method.
+//
+//static
+bool CodeVersionManager::IsMethodSupported(PTR_MethodDesc pMethodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(pMethodDesc != NULL);
+
+    return
+        // CodeVersionManager data structures don't properly handle the lifetime semantics of dynamic code at this point
+        !pMethodDesc->IsDynamicMethod() &&
+
+        // CodeVersionManager data structures don't properly handle the lifetime semantics of collectible code at this point
+        !pMethodDesc->GetLoaderAllocator()->IsCollectible() &&
+
+        // EnC has its own way of versioning
+        !pMethodDesc->IsEnCMethod();
+}
 
 //---------------------------------------------------------------------------------------
 //

@@ -97,10 +97,10 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
         // Set target
         target = pMD->GetStableEntryPoint();
     }
-    else if (pMD->IsTieredVtableMethod())
+    else if (pMD->IsVersionableWithVtableSlotBackpatch())
     {
-        // For tiered vtable methods, the funcptr stub must point to the current entry point after it is created and added to
-        // the hash table. Keep the target as null for now, it will be updated after the precode is added.
+        // The funcptr stub must point to the current entry point after it is created and exposed. Keep the target as null for
+        // now. The precode will initially point to the prestub and its target will be updated after the precode is exposed.
         _ASSERTE(target == NULL);
         setTargetAfterAddingToHashTable = true;
     }
@@ -153,14 +153,13 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
 
     if (setTargetAfterAddingToHashTable)
     {
-        _ASSERTE(pMD->IsTieredVtableMethod());
+        _ASSERTE(pMD->IsVersionableWithVtableSlotBackpatch());
 
         PCODE temporaryEntryPoint = pMD->GetTemporaryEntryPoint();
         MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
 
-        // For tiered vtable methods, set the funcptr stub's entry point to the current entry point inside the lock and after
-        // the funcptr stub is added to the hash table, to synchronize with backpatching in
-        // MethodDesc::BackpatchEntryPointSlots()
+        // Set the funcptr stub's entry point to the current entry point inside the lock and after the funcptr stub is exposed,
+        // to synchronize with backpatching in MethodDesc::BackpatchEntryPointSlots()
         PCODE entryPoint = pMD->GetMethodEntryPoint();
         if (entryPoint != temporaryEntryPoint)
         {

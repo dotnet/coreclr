@@ -93,7 +93,7 @@ LoaderAllocator::~LoaderAllocator()
     Terminate();
 
     // This info is cleaned up before the virtual call stub manager is uninitialized
-    _ASSERTE(!GetMethodDescBackpatchInfoTracker()->HasDependencyMethodDescEntryPointSlotsToBackpatch());
+    _ASSERTE(!GetMethodDescBackpatchInfoTracker()->HasDependencyMethodDescEntryPointSlots());
 
     // Assert that VSD is not still active when the destructor is called.
     _ASSERTE(m_pVirtualCallStubManager == NULL);
@@ -601,7 +601,7 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
         // Recorded entry point slots may point into the virtual call stub manager's heaps, so clear it first
         pDomainLoaderAllocatorDestroyIterator
             ->GetMethodDescBackpatchInfoTracker()
-            ->ClearDependencyMethodDescEntryPointSlotsToBackpatchHash(pDomainLoaderAllocatorDestroyIterator);
+            ->ClearDependencyMethodDescEntryPointSlots(pDomainLoaderAllocatorDestroyIterator);
 
         // The following code was previously happening on delete ~DomainAssembly->Terminate
         // We are moving this part here in order to make sure that we can unload a LoaderAllocator

@@ -542,6 +542,9 @@ PCODE MethodDesc::GetMethodEntryPoint()
     }
     CONTRACTL_END;
 
+    // Similarly to SetMethodEntryPoint(), it is up to the caller to ensure that calls to this function are appropriately
+    // synchronized
+
     // Keep implementations of MethodDesc::GetMethodEntryPoint and MethodDesc::GetAddrOfSlot in sync!
 
     g_IBCLogger.LogMethodDescAccess(this);
@@ -2181,7 +2184,7 @@ PCODE MethodDesc::TryGetMultiCallableAddrOfCode(CORINFO_ACCESS_FLAGS accessFlags
     if (HasStableEntryPoint())
         return GetStableEntryPoint();
 
-    if (IsTieredVtableMethod())
+    if (IsVersionableWithVtableSlotBackpatch())
     {
         // Caller has to call via slot or allocate funcptr stub
         return NULL;
@@ -2306,7 +2309,7 @@ BOOL MethodDesc::IsPointingToPrestub()
 
     if (!HasStableEntryPoint())
     {
-        if (IsTieredVtableMethod())
+        if (IsVersionableWithVtableSlotBackpatch())
         {
             return !IsRestored() || GetMethodEntryPoint() == GetTemporaryEntryPoint();
         }
@@ -2431,7 +2434,7 @@ BOOL MethodDesc::RequiresStableEntryPoint(BOOL fEstimateForChunk /*=FALSE*/)
     LIMITED_METHOD_CONTRACT;
     
     // Create precodes for versionable methods
-    if (IsEligibleForTieredCompilation() && IsTieredMethodVersionableWithPrecode())
+    if (IsVersionableWithPrecode())
         return TRUE;
     
     // Create precodes for edit and continue to make methods updateable
@@ -4741,7 +4744,7 @@ void MethodDesc::InterlockedUpdateFlags2(BYTE bMask, BOOL fSet)
 Precode* MethodDesc::GetOrCreatePrecode()
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(!IsTieredVtableMethod());
+    _ASSERTE(!IsVersionableWithVtableSlotBackpatch());
 
     if (HasPrecode())
     {
@@ -4809,20 +4812,37 @@ bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
     WRAPPER_NO_CONTRACT;
 
 #ifdef FEATURE_TIERED_COMPILATION
+#ifndef FEATURE_CODE_VERSIONING
+    #error Tiered compilation requires code versioning
+#endif
+
     // Keep in-sync with MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
     // to ensure native slots are available where needed.
-    if (g_pConfig->TieredCompilation() &&
+    if (
+        // Policy
+        g_pConfig->TieredCompilation() &&
+
+        // Functional requirement - NGEN images embed direct calls that we would be unable to detect and redirect
         !IsZapped() &&
+
+        // Functional requirement - The NativeCodeSlot is required to hold the code pointer for the default code version because
+        // the method's entry point slot will point to a precode or to the current code entry point
         HasNativeCodeSlot() &&
+
+        // Functional requirement - These methods have no IL that could be optimized
         !IsWrapperStub() &&
-        !IsDynamicMethod() &&
-        !GetLoaderAllocator()->IsCollectible() &&
-        !IsEnCMethod() &&
+
+        // Functional requirement
+        CodeVersionManager::IsMethodSupported(this) &&
+
+        // Policy - Debugging works much better with unoptimized code
         !CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) &&
+
+        // Policy - Tiered compilation is not disabled by the profiler
         !CORProfilerDisableTieredCompilation())
     {
         m_bFlags2 |= enum_flag2_IsEligibleForTieredCompilation;
-        _ASSERTE(IsTieredMethodVersionableWithPrecode() || IsTieredMethodVersionableWithVtableSlotBackpatch());
+        _ASSERTE(IsVersionableWithoutJumpStamp());
         return true;
     }
 #endif
@@ -4833,9 +4853,9 @@ bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
 #ifndef CROSSGEN_COMPILE
 
 void MethodDesc::RecordAndBackpatchEntryPointSlot(
-    LoaderAllocator *slotLoaderAllocator,
+    LoaderAllocator *slotLoaderAllocator, // the loader allocator from which the slot's memory is allocated
     TADDR slot,
-    EntryPointSlotsToBackpatch::SlotType slotType)
+    EntryPointSlots::SlotType slotType)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -4855,9 +4875,9 @@ void MethodDesc::RecordAndBackpatchEntryPointSlot(
 // as necessary.
 void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
     LoaderAllocator *mdLoaderAllocator,
-    LoaderAllocator *slotLoaderAllocator,
+    LoaderAllocator *slotLoaderAllocator, // the loader allocator from which the slot's memory is allocated
     TADDR slot,
-    EntryPointSlotsToBackpatch::SlotType slotType,
+    EntryPointSlots::SlotType slotType,
     PCODE currentEntryPoint)
 {
     WRAPPER_NO_CONTRACT;
@@ -4866,10 +4886,10 @@ void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
     _ASSERTE(mdLoaderAllocator == GetLoaderAllocator());
     _ASSERTE(slotLoaderAllocator != nullptr);
     _ASSERTE(slot != NULL);
-    _ASSERTE(slotType < EntryPointSlotsToBackpatch::SlotType_Count);
-    _ASSERTE(IsTieredVtableMethod());
+    _ASSERTE(slotType < EntryPointSlots::SlotType_Count);
+    _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
 
-    // The speciifed current entry point must actually be *current* in the sense that it must have been retrieved inside the
+    // The specified current entry point must actually be *current* in the sense that it must have been retrieved inside the
     // lock, such that a recorded slot is guaranteed to point to the entry point at the time at which it was recorded, in order
     // to synchronize with backpatching in MethodDesc::BackpatchEntryPointSlots(). If a slot pointing to an older entry point
     // were to be recorded due to concurrency issues, it would not get backpatched to point to the more recent, actually
@@ -4880,28 +4900,28 @@ void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
         mdLoaderAllocator->GetMethodDescBackpatchInfoTracker()->GetOrAddBackpatchInfo_Locked(this);
     if (slotLoaderAllocator == mdLoaderAllocator)
     {
-        // Entry point slots to backpatch are recorded in the virtual info
-        backpatchInfo->GetSlotsToBackpatch()->AddSlot_Locked(slot, slotType);
+        // Entry point slots to backpatch are recorded in the backpatch info
+        backpatchInfo->GetSlots()->AddSlot_Locked(slot, slotType);
     }
     else
     {
-        // Register the slot's loader allocator with the MethodDesc's virtual info. Entry point slots to backpatch are recorded
-        // in the slot's LoaderAllocator.
-        backpatchInfo->AddDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(slotLoaderAllocator);
+        // Register the slot's loader allocator with the MethodDesc's backpatch info. Entry point slots to backpatch are
+        // recorded in the slot's LoaderAllocator.
+        backpatchInfo->AddDependentLoaderAllocator_Locked(slotLoaderAllocator);
         slotLoaderAllocator
             ->GetMethodDescBackpatchInfoTracker()
-            ->GetOrAddDependencyMethodDescEntryPointSlotsToBackpatch_Locked(this)
+            ->GetOrAddDependencyMethodDescEntryPointSlots_Locked(this)
             ->AddSlot_Locked(slot, slotType);
     }
 
-    EntryPointSlotsToBackpatch::Backpatch_Locked(slot, slotType, currentEntryPoint);
+    EntryPointSlots::Backpatch_Locked(slot, slotType, currentEntryPoint);
 }
 
 void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(entryPoint != NULL);
-    _ASSERTE(IsEligibleForEntryPointSlotBackpatch());
+    _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
     _ASSERTE(isPrestubEntryPoint == (entryPoint == GetPrestubEntryPointToBackpatch()));
 
     LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
@@ -4914,7 +4934,7 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryP
         return;
     }
 
-    if (IsTieredVtableMethod())
+    if (IsVersionableWithVtableSlotBackpatch())
     {
         // Backpatch the func ptr stub if it was created
         FuncPtrStubs *funcPtrStubs = mdLoaderAllocator->GetFuncPtrStubsNoCreate();
@@ -4939,19 +4959,19 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryP
     if (backpatchInfo != nullptr)
     {
         // Backpatch slots from the same loader allocator
-        backpatchInfo->GetSlotsToBackpatch()->Backpatch_Locked(entryPoint);
+        backpatchInfo->GetSlots()->Backpatch_Locked(entryPoint);
 
         // Backpatch slots from dependent loader allocators
-        backpatchInfo->ForEachDependentLoaderAllocatorWithSlotsToBackpatch_Locked(
-            [&](LoaderAllocator *slotLoaderAllocator)
+        backpatchInfo->ForEachDependentLoaderAllocator_Locked(
+            [&](LoaderAllocator *slotLoaderAllocator) // the loader allocator from which the slot's memory is allocated
         {
             _ASSERTE(slotLoaderAllocator != nullptr);
             _ASSERTE(slotLoaderAllocator != mdLoaderAllocator);
 
-            EntryPointSlotsToBackpatch *slotsToBackpatch =
+            EntryPointSlots *slotsToBackpatch =
                 slotLoaderAllocator
                 ->GetMethodDescBackpatchInfoTracker()
-                ->GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(this);
+                ->GetDependencyMethodDescEntryPointSlots_Locked(this);
             if (slotsToBackpatch != nullptr)
             {
                 slotsToBackpatch->Backpatch_Locked(entryPoint);
@@ -4962,7 +4982,7 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryP
     // Set the entry point to backpatch inside the lock to synchronize with backpatching in MethodDesc::DoBackpatch(), and set
     // it last in case there are exceptions above, as setting the entry point indicates that all recorded slots have been
     // backpatched
-    SetEntryPointToBackpatch_Locked(entryPoint, isPrestubEntryPoint);
+    SetEntryPointToBackpatch_Locked(entryPoint);
 }
 
 void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
@@ -4970,13 +4990,13 @@ void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
     WRAPPER_NO_CONTRACT;
     _ASSERTE(entryPoint != NULL);
 
-    if (IsEligibleForEntryPointSlotBackpatch())
+    if (MayHaveEntryPointSlotsToBackpatch())
     {
         BackpatchEntryPointSlots(entryPoint);
     }
-    else if (IsEligibleForTieredCompilation())
+    else if (IsVersionableWithoutJumpStamp())
     {
-        _ASSERTE(IsTieredMethodVersionableWithPrecode());
+        _ASSERTE(IsVersionableWithPrecode());
         GetOrCreatePrecode()->SetTargetInterlocked(entryPoint, FALSE /* fOnlyRedirectFromPrestub */);
 
         // SetTargetInterlocked() would return false if it lost the race with another thread. That is fine, this thread
@@ -4993,21 +5013,19 @@ void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
     }
 }
 
-void MethodDesc::ResetTieredMethodCodeEntryPoint()
+void MethodDesc::ResetCodeEntryPoint()
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(IsEligibleForTieredCompilation());
+    _ASSERTE(IsVersionableWithoutJumpStamp());
 
-#ifdef FEATURE_TIERED_COMPILATION
-    if (IsEligibleForEntryPointSlotBackpatch())
+    if (MayHaveEntryPointSlotsToBackpatch())
     {
         BackpatchToResetEntryPointSlots();
         return;
     }
 
-    _ASSERTE(IsTieredMethodVersionableWithPrecode());
+    _ASSERTE(IsVersionableWithPrecode());
     GetPrecode()->ResetTargetInterlocked();
-#endif
 }
 
 #endif // !CROSSGEN_COMPILE
@@ -5052,11 +5070,17 @@ BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/)
     return SetStableEntryPointInterlocked(addr);
 }
 
+#ifndef CROSSGEN_COMPILE
+
 //*******************************************************************************
 void MethodDesc::SetMethodEntryPoint(PCODE addr)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(addr != NULL);
+
+    // Similarly to GetMethodEntryPoint(), it is up to the caller to ensure that calls to this function are appropriately
+    // synchronized. Currently, the only caller synchronizes with the following lock.
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
 
     TADDR pSlot = GetAddrOfSlot();
 
@@ -5077,6 +5101,8 @@ void MethodDesc::SetMethodEntryPoint(PCODE addr)
     *(TADDR *)slotAddr = newVal;
 }
 
+#endif // CROSSGEN_COMPILE
+
 //*******************************************************************************
 BOOL MethodDesc::SetStableEntryPointInterlocked(PCODE addr)
 {
@@ -5086,7 +5112,7 @@ BOOL MethodDesc::SetStableEntryPointInterlocked(PCODE addr)
     } CONTRACTL_END;
 
     _ASSERTE(!HasPrecode());
-    _ASSERTE(!IsEligibleForTieredCompilation());
+    _ASSERTE(!IsVersionableWithoutJumpStamp());
 
     PCODE pExpected = GetTemporaryEntryPoint();
     TADDR pSlot = GetAddrOfSlot();

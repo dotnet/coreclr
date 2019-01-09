@@ -27,6 +27,10 @@ public static class TieredVtableMethodTests
         PromoteToTier1(
             () => CallVirtualMethod(baseObj),
             () => CallVirtualMethod(derivedObj),
+            () => CallGenericVirtualMethodWithValueType(baseObj),
+            () => CallGenericVirtualMethodWithValueType(derivedObj),
+            () => CallGenericVirtualMethodWithReferenceType(baseObj),
+            () => CallGenericVirtualMethodWithReferenceType(derivedObj),
             () => CallVirtualMethodForDevirtualization(derivedForDevirtualizationObj),
             () => CallInterfaceVirtualMethodPolymorhpic(baseObj),
             () => CallInterfaceVirtualMethodPolymorhpic(derivedObj));
@@ -35,6 +39,10 @@ public static class TieredVtableMethodTests
         {
             CallVirtualMethod(baseObj, CallCountPerIteration);
             CallVirtualMethod(derivedObj, CallCountPerIteration);
+            CallGenericVirtualMethodWithValueType(baseObj, CallCountPerIteration);
+            CallGenericVirtualMethodWithValueType(derivedObj, CallCountPerIteration);
+            CallGenericVirtualMethodWithReferenceType(baseObj, CallCountPerIteration);
+            CallGenericVirtualMethodWithReferenceType(derivedObj, CallCountPerIteration);
             CallVirtualMethodForDevirtualization(derivedForDevirtualizationObj, CallCountPerIteration);
             CallInterfaceVirtualMethodMonomorphicOnBase(baseObj, CallCountPerIteration);
             CallInterfaceVirtualMethodMonomorphicOnDerived(derivedObj, CallCountPerIteration);
@@ -72,9 +80,13 @@ public static class TieredVtableMethodTests
 
         PromoteToTier1(
             () => CallVirtualMethod(collectibleDerivedObj),
+            () => CallGenericVirtualMethodWithValueType(collectibleDerivedObj),
+            () => CallGenericVirtualMethodWithReferenceType(collectibleDerivedObj),
             () => CallInterfaceVirtualMethodPolymorhpic(collectibleDerivedObj));
 
         CallVirtualMethod(collectibleDerivedObj, CallCountPerIteration);
+        CallGenericVirtualMethodWithValueType(collectibleDerivedObj, CallCountPerIteration);
+        CallGenericVirtualMethodWithReferenceType(collectibleDerivedObj, CallCountPerIteration);
         CallInterfaceVirtualMethodPolymorhpic(collectibleDerivedObj, CallCountPerIteration);
     }
 
@@ -89,6 +101,12 @@ public static class TieredVtableMethodTests
         public virtual void VirtualMethod()
         {
             s_actualCallSequence.Append("v ");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public virtual void GenericVirtualMethod<T>(T t)
+        {
+            s_actualCallSequence.Append(typeof(T).IsValueType ? "gvv " : "gvr ");
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -128,6 +146,27 @@ public static class TieredVtableMethodTests
         {
             s_expectedCallSequence.Append("v ");
             obj.VirtualMethod();
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void CallGenericVirtualMethodWithValueType(Base obj, int count = 1)
+    {
+        for (int i = 0; i < count; ++i)
+        {
+            s_expectedCallSequence.Append("gvv ");
+            obj.GenericVirtualMethod(0);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void CallGenericVirtualMethodWithReferenceType(Base obj, int count = 1)
+    {
+        var objArg = new object();
+        for (int i = 0; i < count; ++i)
+        {
+            s_expectedCallSequence.Append("gvr ");
+            obj.GenericVirtualMethod(objArg);
         }
     }
 

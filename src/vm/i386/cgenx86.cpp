@@ -1563,10 +1563,10 @@ EXTERN_C PVOID STDCALL VirtualMethodFixupWorker(Object * pThisPtr,  CORCOMPILE_V
     if (!DoesSlotCallPrestub(pCode))
     {
         MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(pCode);
-        if (pMD->IsTieredVtableMethod())
+        if (pMD->IsVersionableWithVtableSlotBackpatch())
         {
-            // The entry point for a tiered vtable method needs to be versionable, so use a FuncPtrStub similarly to
-            // what is done in MethodDesc::GetMultiCallableAddrOfCode()
+            // The entry point for this method needs to be versionable, so use a FuncPtrStub similarly to what is done in
+            // MethodDesc::GetMultiCallableAddrOfCode()
             GCX_COOP();
             pCode = pMD->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pMD);
         }

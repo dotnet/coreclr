@@ -9773,7 +9773,7 @@ void MethodTable::SetSlot(UINT32 slotNumber, PCODE slotCode)
         if (fSharedVtableChunk)
         {
             MethodDesc* pMD = GetMethodDescForSlotAddress(slotCode);
-            _ASSERTE(pMD->IsTieredVtableMethod() || pMD->GetStableEntryPoint() == slotCode);
+            _ASSERTE(pMD->IsVersionableWithVtableSlotBackpatch() || pMD->GetStableEntryPoint() == slotCode);
         }
     }
 #endif

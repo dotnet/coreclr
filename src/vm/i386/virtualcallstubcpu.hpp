@@ -137,12 +137,12 @@ struct DispatchStub
     inline size_t       expectedMT()  { LIMITED_METHOD_CONTRACT;  return _expectedMT;     }
     inline PCODE        implTarget()  { LIMITED_METHOD_CONTRACT;  return (PCODE) &_implDispl + sizeof(DISPL) + _implDispl; }
 
-    inline TADDR implTargetSlot(EntryPointSlotsToBackpatch::SlotType *slotTypeRef) const
+    inline TADDR implTargetSlot(EntryPointSlots::SlotType *slotTypeRef) const
     {
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(slotTypeRef != nullptr);
 
-        *slotTypeRef = EntryPointSlotsToBackpatch::SlotType_IsExecutable_IsRel32;
+        *slotTypeRef = EntryPointSlots::SlotType_ExecutableRel32;
         return (TADDR)&_implDispl;
     }
 
