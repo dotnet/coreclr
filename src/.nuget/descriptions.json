@@ -45,6 +45,11 @@
         "CommonTypes": [ ]
     },
     {
+        "Name": "Microsoft.NET.Sdk.Optimization.ReadyToRun",
+        "Description": "Provides support for creating ReadyToRun images.",
+        "CommonTypes": [ ]
+    },
+    {
 	"Name": "Microsoft.NETCore.Native",
 	"Description": "Native shims for .NET Core runtime",
 	"CommonTypes": [ ]

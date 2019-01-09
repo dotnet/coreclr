@@ -16,6 +16,7 @@
 
   <ItemGroup Condition="'$(TargetsWindows)'=='true' OR '$(DotNetBuildFromSource)'=='true'">
     <Project Include="Microsoft.NET.Sdk.IL\Microsoft.NET.Sdk.IL.pkgproj" />
+    <Project Include="Microsoft.NET.Sdk.Optimization.ReadyToRun\Microsoft.NET.Sdk.Optimization.ReadyToRun.pkgproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(__SkipNativeBuild)'==''">
