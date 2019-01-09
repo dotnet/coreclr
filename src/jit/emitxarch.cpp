@@ -145,6 +145,31 @@ bool emitter::IsDstSrcSrcAVXInstruction(instruction ins)
     return ((CodeGenInterface::instInfo[ins] & INS_Flags_IsDstSrcSrcAVXInstruction) != 0) && IsAVXInstruction(ins);
 }
 
+bool emitter::doesZeroExtendingWrite(instrDesc* id, regNumber reg)
+{
+    insFormat fmt = id->idInsFmt();
+
+    switch (fmt)
+    {
+        case IF_RWR_CNS:
+        case IF_RRW_CNS:
+        case IF_RRW_SHF:
+        case IF_RWR_RRD:
+        case IF_RRW_RRD:
+        case IF_RWR_MRD:
+        case IF_RWR_SRD:
+        case IF_RWR_ARD:
+
+            // Can't rely on a "small" movsx as we will over-extend to 8 bytes
+            return (id->idIns() != INS_movsx) && (id->idReg1() == reg) && (id->idOpSize() != EA_8BYTE);
+
+        default:
+            break;
+    }
+
+    return false;
+}
+
 #ifdef FEATURE_HW_INTRINSICS
 //------------------------------------------------------------------------
 // IsDstSrcImmAvxInstruction: Checks if the instruction has a "reg, reg/mem, imm" or

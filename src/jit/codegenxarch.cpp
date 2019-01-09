@@ -3112,7 +3112,7 @@ void CodeGen::genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode)
     else
 #endif
     {
-#ifdef _TARGET_X64_
+#ifdef _TARGET_AMD64_
         assert(size > CPBLK_UNROLL_LIMIT && size < CPBLK_MOVS_LIMIT);
 #else
         assert(size > CPBLK_UNROLL_LIMIT);
@@ -6398,6 +6398,7 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
 
     const regNumber srcReg = cast->gtGetOp1()->gtRegNum;
     const regNumber dstReg = cast->gtRegNum;
+    emitter*        emit   = getEmitter();
 
     assert(genIsValidIntReg(srcReg));
     assert(genIsValidIntReg(dstReg));
@@ -6413,6 +6414,7 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
     {
         instruction ins;
         unsigned    insSize;
+        bool        canSkip = false;
 
         switch (desc.ExtendKind())
         {
@@ -6426,6 +6428,14 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
                 break;
 #ifdef _TARGET_64BIT_
             case GenIntCastDesc::ZERO_EXTEND_INT:
+                // We can skip emitting this zero extending move if the previous instruction zero extended implicitly
+                if ((srcReg == dstReg) && (emit->emitCurIGinsCnt > 0) && compiler->opts.OptimizationEnabled())
+                {
+                    emitter::instrDesc* prevInstr = emit->emitLastIns;
+                    assert(prevInstr != nullptr);
+                    canSkip = emit->doesZeroExtendingWrite(prevInstr, srcReg);
+                }
+
                 ins     = INS_mov;
                 insSize = 4;
                 break;
@@ -6436,12 +6446,20 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
 #endif
             default:
                 assert(desc.ExtendKind() == GenIntCastDesc::COPY);
+                assert(srcReg != dstReg);
                 ins     = INS_mov;
                 insSize = desc.ExtendSrcSize();
                 break;
         }
 
-        getEmitter()->emitIns_R_R(ins, EA_ATTR(insSize), dstReg, srcReg);
+        if (canSkip)
+        {
+            JITDUMP("\n -- suppressing emission as previous instruction already properly extends.\n");
+        }
+        else
+        {
+            emit->emitIns_R_R(ins, EA_ATTR(insSize), dstReg, srcReg);
+        }
     }
 
     genProduceReg(cast);
