@@ -856,3 +856,26 @@ struct MultipleBools
     BOOL b1;
     BOOL b2;
 };
+
+struct IntWithInnerSequential
+{
+    int i1;
+    InnerSequential sequential;
+};
+
+struct SequentialWrapper
+{
+    InnerSequential sequential;
+};
+
+struct SequentialDoubleWrapper
+{
+    SequentialWrapper wrapper;
+};
+
+struct AggregateSequentialWrapper
+{
+    SequentialWrapper wrapper1;
+    InnerSequential sequential;
+    SequentialWrapper wrapper2;
+};

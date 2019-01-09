@@ -1940,8 +1940,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_LABEL:
-            genPendingCallLabel       = genCreateTempLabel();
-            treeNode->gtLabel.gtLabBB = genPendingCallLabel;
+            genPendingCallLabel = genCreateTempLabel();
             emit->emitIns_R_L(INS_lea, EA_PTR_DSP_RELOC, genPendingCallLabel, treeNode->gtRegNum);
             break;
 
@@ -5713,7 +5712,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 
     // If there is nothing next, that means the result is thrown away, so this value is not live.
     // However, for minopts or debuggable code, we keep it live to support managed return value debugging.
-    if ((call->gtNext == nullptr) && !compiler->opts.MinOpts() && !compiler->opts.compDbgCode)
+    if ((call->gtNext == nullptr) && compiler->opts.OptimizationEnabled())
     {
         gcInfo.gcMarkRegSetNpt(RBM_INTRET);
     }

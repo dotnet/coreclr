@@ -4,33 +4,26 @@
 
 namespace System.Runtime.InteropServices
 {
-    /// <summary>
-    /// Wrapper that is converted to a variant with VT_ERROR.
-    /// </summary>
+    // Wrapper that is converted to a variant with VT_ERROR.
     public sealed class ErrorWrapper
     {
         public ErrorWrapper(int errorCode)
         {
-            m_ErrorCode = errorCode;
+            ErrorCode = errorCode;
         }
 
         public ErrorWrapper(object errorCode)
         {
             if (!(errorCode is int))
-            {
                 throw new ArgumentException(SR.Arg_MustBeInt32, nameof(errorCode));
-            }
-
-            m_ErrorCode = (int)errorCode;
+            ErrorCode = (int)errorCode;
         }
 
         public ErrorWrapper(Exception e)
         {
-            m_ErrorCode = Marshal.GetHRForException(e);
+            ErrorCode = Marshal.GetHRForException(e);
         }
 
-        public int ErrorCode => m_ErrorCode;
-
-        private int m_ErrorCode;
+        public int ErrorCode { get; }
     }
 }

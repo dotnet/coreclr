@@ -4,23 +4,19 @@
 
 namespace System.Runtime.InteropServices
 {
-    /// <summary>
-    /// Wrapper that is converted to a variant with VT_BSTR.
-    /// </summary>
+    // Wrapper that is converted to a variant with VT_BSTR.
     public sealed class BStrWrapper
     {
         public BStrWrapper(string value)
         {
-            m_WrappedObject = value;
+            WrappedObject = value;
         }
 
         public BStrWrapper(object value)
         {
-            m_WrappedObject = (string)value;
+            WrappedObject = (string)value;
         }
 
-        public string WrappedObject => m_WrappedObject;
-
-        private string m_WrappedObject;
+        public string WrappedObject { get; }
     }
 }

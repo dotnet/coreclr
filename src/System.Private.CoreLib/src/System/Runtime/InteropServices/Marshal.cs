@@ -16,12 +16,6 @@ using System.StubHelpers;
 
 namespace System.Runtime.InteropServices
 {
-    public enum CustomQueryInterfaceMode
-    {
-        Ignore = 0,
-        Allow = 1
-    }
-
     /// <summary>
     /// This class contains methods that are mainly used to marshal between unmanaged
     /// and managed types.
@@ -1540,7 +1534,19 @@ namespace System.Runtime.InteropServices
         /// metadata then it is returned otherwise a stable guid is generated based
         /// on the fully qualified name of the type.
         /// </summary>
-        public static Guid GenerateGuidForType(Type type) => type.GUID;
+        public static Guid GenerateGuidForType(Type type)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
+            if (!(type is RuntimeType))
+            {
+                throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
+            }
+
+            return type.GUID;
+        }
 
         /// <summary>
         /// This method generates a PROGID for the specified type. If the type has
