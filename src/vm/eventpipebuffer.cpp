@@ -68,16 +68,6 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
         return false;
     }
 
-    if (pThread == NULL)
-    {
-        // For ThreadID just get the current OS thread ID
-        osThreadId = ::GetCurrentThreadId();
-    }
-    else
-    {
-        osThreadId = pThread->GetOSThreadId();
-    }
-
     // Calculate the location of the data payload.
     BYTE *pDataDest = m_pCurrent + sizeof(EventPipeEventInstance);
     EventPipeEventInstance *pInstance;
@@ -93,7 +83,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
         pInstance = new (m_pCurrent) EventPipeEventInstance(
             session,
             event,
-            osThreadId,
+            (pThread == NULL) ? ::GetCurrentThreadId() : pThread->GetOSThreadId,
             pDataDest,
             payload.GetSize(),
             (pThread == NULL) ? NULL : pActivityId,
