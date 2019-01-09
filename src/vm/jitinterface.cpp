@@ -676,8 +676,7 @@ BOOL CEEInfo::shouldEnforceCallvirtRestriction(
 // and the impact of the cut was vetted with partners. It would not be appropriate 
 // to increase that unreported set without additional review.
 
-// This needs to be updated to allow cross-assembly inlining
-// TODO Undo this once prototyping is finished
+
 bool IsInSameVersionBubble(Assembly * current, Assembly * target)
 {
     LIMITED_METHOD_CONTRACT;

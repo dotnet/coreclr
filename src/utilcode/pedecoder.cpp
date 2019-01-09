@@ -2474,6 +2474,8 @@ CORCOMPILE_METHOD_PROFILE_LIST *PEDecoder::GetNativeProfileDataList(COUNT_T * pS
     RETURN PTR_CORCOMPILE_METHOD_PROFILE_LIST(GetDirectoryData(pDir));
 }
 
+
+
 PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
 {
     CONTRACT(PTR_CVOID)

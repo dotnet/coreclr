@@ -467,7 +467,7 @@ IMDInternalImport* PEImage::GetNativeMDImport(BOOL loadAllowed)
         MODE_ANY;
     }
     CONTRACTL_END;
-    // Does this need to be something else? It might work either way
+
     if (m_pNativeMDImport == NULL)
     {
         if (loadAllowed)

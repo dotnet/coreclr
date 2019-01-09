@@ -10054,7 +10054,8 @@ IMDInternalImport *Module::GetNativeAssemblyImport(BOOL loadAllowed)
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END;
-    // Check if Image is even R2R?
+
+    // Check if image is R2R
     if (GetFile()->IsILImageReadyToRun())
     {
         RETURN GetFile()->GetOpenedILimage()->GetNativeMDImport(loadAllowed);

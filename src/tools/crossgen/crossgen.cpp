@@ -106,7 +106,6 @@ void PrintUsageHelper()
     Output(
        W("Usage: crossgen [args] <assembly name>\n")
        W("\n")
-       // Command-Line switch help
        W("    /? or /help          - Display this screen\n")
        W("    /nologo              - Prevents displaying the logo\n")
        W("    /silent              - Do not display completion message\n")
@@ -122,8 +121,6 @@ void PrintUsageHelper()
        W("                         - List of paths containing localized assembly directories\n")
        W("    /App_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing user-application assemblies and resources\n")
-       W("    /Version_Bubble_Assembly_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
-       W("                         - List of paths containing assemblies contained in a single version bubble\n")
 #ifndef NO_NGENPDB
        W("    /App_Ni_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing user-application native images\n")
@@ -474,7 +471,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     dwFlags |= NGENWORKER_FLAGS_READYTORUN;
     while (argc > 0)
     {
-        // Command-line parsing
         if (MatchParameter(*argv, W("?"))
             || MatchParameter(*argv, W("help")))
         {
