@@ -537,6 +537,33 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
     }
 }
 
+void EventPipeBufferManager::RemovePerThreadBufferListEntry(EventPipeBufferList* listToRemove)
+{
+
+    // Remove the list entry from the per thread buffer list.
+    SListElem<EventPipeBufferList*> *pElem = m_pPerThreadBufferList->GetHead();
+    while(pElem != NULL)
+    {
+        EventPipeBufferList* pEntry = pElem->GetValue();
+        if(pEntry == listToRemove)
+        {
+            pElem = m_pPerThreadBufferList->FindAndRemove(pElem);
+
+            // In DEBUG, make sure that the element was found and removed.
+            _ASSERTE(pElem != NULL);
+
+            SListElem<EventPipeBufferList*> *pCurElem = pElem;
+            pElem = m_pPerThreadBufferList->GetNext(pElem);
+            delete(pCurElem);
+        }
+        else
+        {
+            pElem = m_pPerThreadBufferList->GetNext(pElem);
+        }
+    }
+}
+
+
 void EventPipeBufferManager::DeAllocateBuffers()
 {
     CONTRACTL
@@ -548,75 +575,6 @@ void EventPipeBufferManager::DeAllocateBuffers()
     CONTRACTL_END;
 
     _ASSERTE(EnsureConsistency());
-
-    // Take the thread store lock because we're going to iterate through the thread list.
-    {
-        ThreadStoreLockHolder tsl;
-
-        // Take the buffer manager manipulation lock.
-        SpinLockHolder _slh(&m_lock);
-
-        Thread *pThread = NULL;
-        while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
-        {
-            // Get the thread's buffer list.
-            EventPipeBufferList *pBufferList = GetThreadEventBufferList();
-            if(pBufferList != NULL)
-            {
-                // Attempt to free the buffer list.
-                // If the thread is using its buffer list skip it.
-                // This means we will leak a single buffer, but if tracing is re-enabled, that buffer can be used again.
-                if(pBufferList->GetThreadEventWriteInProgress())
-                {
-                    EventPipeBuffer *pBuffer = pBufferList->GetAndRemoveHead();
-                    while(pBuffer != NULL)
-                    {
-                        DeAllocateBuffer(pBuffer);
-                        pBuffer = pBufferList->GetAndRemoveHead();
-                    }
-
-                    // Remove the list entry from the per thread buffer list.
-                    SListElem<EventPipeBufferList*> *pElem = m_pPerThreadBufferList->GetHead();
-                    while(pElem != NULL)
-                    {
-                        EventPipeBufferList* pEntry = pElem->GetValue();
-                        if(pEntry == pBufferList)
-                        {
-                            pElem = m_pPerThreadBufferList->FindAndRemove(pElem);
-
-                            // In DEBUG, make sure that the element was found and removed.
-                            _ASSERTE(pElem != NULL);
-
-                            SListElem<EventPipeBufferList*> *pCurElem = pElem;
-                            pElem = m_pPerThreadBufferList->GetNext(pElem);
-                            delete(pCurElem);
-                        }
-                        else
-                        {
-                            pElem = m_pPerThreadBufferList->GetNext(pElem);
-                        }
-                    }
-
-                    // Remove the list reference from the thread.
-                    SetThreadEventBufferList(NULL);
-
-                    // Now that all of the list elements have been freed, free the list itself.
-                    delete(pBufferList);
-                    pBufferList = NULL;
-                }
-#ifdef _DEBUG
-                else
-                {
-                    // We can't deallocate the buffers.
-                    m_numBuffersLeaked += pBufferList->GetCount();
-                }
-#endif // _DEBUG            
-            }
-        }
-    }
-
-    // Now that we've walked through all of the threads, let's see if there are any other buffers
-    // that belonged to threads that died during tracing.  We can free these now.
 
     // Take the buffer manager manipulation lock
     SpinLockHolder _slh(&m_lock);
@@ -652,8 +610,9 @@ void EventPipeBufferManager::DeAllocateBuffers()
         {
             pElem = m_pPerThreadBufferList->GetNext(pElem);
         }
-    } 
+    }
 }
+
 
 #ifdef _DEBUG
 bool EventPipeBufferManager::EnsureConsistency()
