@@ -2489,7 +2489,7 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
     CONTRACT_END;
     
     IMAGE_DATA_DIRECTORY *pDir;
-    if (HasReadyToRunHeader() && IsLargeVersionBubbleEnabled())
+    if (HasReadyToRunHeader())
     {
         READYTORUN_HEADER * pHeader = GetReadyToRunHeader();
 
