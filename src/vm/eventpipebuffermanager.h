@@ -87,9 +87,6 @@ public:
     // Get next event.  This is used to dispatch events to EventListener.
     EventPipeEventInstance* GetNextEvent();
 
-    // Deallocate the given Buffer List entry
-    void RemovePerThreadBufferListEntry(EventPipeBufferList* listToRemove);
-
 #ifdef _DEBUG
     bool EnsureConsistency();
 #endif // _DEBUG

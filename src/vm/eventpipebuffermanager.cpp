@@ -527,33 +527,6 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
     }
 }
 
-void EventPipeBufferManager::RemovePerThreadBufferListEntry(EventPipeBufferList* listToRemove)
-{
-
-    // Remove the list entry from the per thread buffer list.
-    SListElem<EventPipeBufferList*> *pElem = m_pPerThreadBufferList->GetHead();
-    while(pElem != NULL)
-    {
-        EventPipeBufferList* pEntry = pElem->GetValue();
-        if(pEntry == listToRemove)
-        {
-            pElem = m_pPerThreadBufferList->FindAndRemove(pElem);
-
-            // In DEBUG, make sure that the element was found and removed.
-            _ASSERTE(pElem != NULL);
-
-            SListElem<EventPipeBufferList*> *pCurElem = pElem;
-            pElem = m_pPerThreadBufferList->GetNext(pElem);
-            delete(pCurElem);
-        }
-        else
-        {
-            pElem = m_pPerThreadBufferList->GetNext(pElem);
-        }
-    }
-}
-
-
 void EventPipeBufferManager::DeAllocateBuffers()
 {
     CONTRACTL
