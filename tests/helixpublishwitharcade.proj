@@ -48,8 +48,22 @@
     <Scenarios Include="$(_Scenarios.Split(','))" />
   </ItemGroup>
 
-  <Target Name="CopyRunnerScriptToCoreRootDirectory" BeforeTargets="SubmitTestsToHelix">
-    <Copy SourceFiles="$(MSBuildThisFileDirectory)\runtest_helix.py" DestinationFolder="$(CoreRootDirectory)" />
+  <Target Name="CreateTestEnvFiles">
+    <ItemGroup>
+      <_XUnitWrapperDirectoryWithScenario Include="@(XUnitWrapperDlls->'%(RootDir)%(Directory)')">
+        <Scenario>%(Scenarios.Identity)</Scenario>
+      </_XUnitWrapperDirectoryWithScenario>
+
+      <_ProjectsToBuild Include=".\testenvironment.proj">
+        <Properties>Scenario=%(_XUnitWrapperDirectoryWithScenario.Scenario);TestEnvFileName=%(Identity)\SetStressModes_%(Scenario)$(TestEnvFileNameExtension);TargetsWindows=$(TargetsWindows)</Properties>
+      </_ProjectsToBuild>
+    </ItemGroup>
+
+    <MSBuild Projects="@(_ProjectsToBuild)" Targets="CreateTestEnvFile" BuildInParallel="false" StopOnFirstFailure="true" UnloadProjectsOnCompletion="true" />
+
+    <ItemGroup>
+      <_ProjectsToBuild Remove="@(_ProjectsToBuild)" />
+    </ItemGroup>
   </Target>
 
   <Target Name="SubmitTestsToHelix">
