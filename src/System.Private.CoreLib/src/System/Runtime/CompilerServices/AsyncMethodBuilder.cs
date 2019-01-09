@@ -965,14 +965,7 @@ namespace System.Runtime.CompilerServices
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
             if (previousExecutionCtx != currentExecutionCtx)
             {
-                // Restore changed ExecutionContext back to previous
-                currentThread.ExecutionContext = previousExecutionCtx;
-                if ((currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications) ||
-                    (previousExecutionCtx != null && previousExecutionCtx.HasChangeNotifications))
-                {
-                    // There are change notifications; trigger any affected
-                    ExecutionContext.OnValuesChanged(currentExecutionCtx, previousExecutionCtx);
-                }
+                ExecutionContext.RestoreChangedContextToThread(currentThread, previousExecutionCtx, currentExecutionCtx);
             }
 
             // If exception was thrown by callback, rethrow it now original contexts are restored

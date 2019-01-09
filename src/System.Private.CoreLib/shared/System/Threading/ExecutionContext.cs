@@ -180,14 +180,7 @@ namespace System.Threading
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
             if (currentExecutionCtx != previousExecutionCtx)
             {
-                // Restore changed ExecutionContext back to previous
-                currentThread.ExecutionContext = previousExecutionCtx;
-                if ((currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications) ||
-                    (previousExecutionCtx != null && previousExecutionCtx.HasChangeNotifications))
-                {
-                    // There are change notifications; trigger any affected
-                    OnValuesChanged(currentExecutionCtx, previousExecutionCtx);
-                }
+                RestoreChangedContextToThread(currentThread, previousExecutionCtx, currentExecutionCtx);
             }
 
             // If exception was thrown by callback, rethrow it now original contexts are restored
@@ -244,18 +237,27 @@ namespace System.Threading
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
             if (currentExecutionCtx != previousExecutionCtx)
             {
-                // Restore changed ExecutionContext back to previous
-                currentThread.ExecutionContext = previousExecutionCtx;
-                if ((currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications) ||
-                    (previousExecutionCtx != null && previousExecutionCtx.HasChangeNotifications))
-                {
-                    // There are change notifications; trigger any affected
-                    OnValuesChanged(currentExecutionCtx, previousExecutionCtx);
-                }
+                RestoreChangedContextToThread(currentThread, previousExecutionCtx, currentExecutionCtx);
             }
 
             // If exception was thrown by callback, rethrow it now original contexts are restored
             edi?.Throw();
+        }
+
+
+        internal static void RestoreChangedContextToThread(Thread currentThread, ExecutionContext previousExecutionCtx, ExecutionContext currentExecutionCtx)
+        {
+            Debug.Assert(currentThread == Thread.CurrentThread);
+            Debug.Assert(previousExecutionCtx != currentExecutionCtx);
+
+            // Restore changed ExecutionContext back to previous
+            currentThread.ExecutionContext = previousExecutionCtx;
+            if ((currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications) ||
+                (previousExecutionCtx != null && previousExecutionCtx.HasChangeNotifications))
+            {
+                // There are change notifications; trigger any affected
+                OnValuesChanged(currentExecutionCtx, previousExecutionCtx);
+            }
         }
 
         internal static void RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, object state)
