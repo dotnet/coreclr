@@ -175,25 +175,6 @@ EXTERN_C inline EventPipeBufferList* STDCALL GetThreadEventBufferList();
 EXTERN_C inline void STDCALL SetThreadEventBufferList(EventPipeBufferList* bl);
 
 
-// This struct is a TLS wrapper around a pointer to thread-specific EventPipeBufferList
-// The struct wrapper is present mainly because we need a way to free the EventPipeBufferList
-// when the thread that owns it dies. Placing this struct as a TLS variable will call ~ThreadEventBufferList()
-// when the thread dies so we can free EventPipeBufferList in the destructor.  
-struct ThreadEventBufferList
-{
-    EventPipeBufferList* m_pThreadEventBufferList;
-
-    ~ThreadEventBufferList()
-    {
-        // Before the thread dies, mark its buffers as no longer owned
-        // so that they can be cleaned up after the thread dies.
-        EventPipeBufferList *pList = GetThreadEventBufferList();
-        if (pList != NULL)
-            pList->SetOwnedByThread(false);
-    }
-};
-
-
 
 #endif // FEATURE_PERFTRACING
 
