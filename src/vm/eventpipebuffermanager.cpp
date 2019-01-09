@@ -54,16 +54,6 @@ EventPipeBufferManager::~EventPipeBufferManager()
             EventPipeBufferList *pThreadBufferList = pCurElem->GetValue();
             if (!pThreadBufferList->OwnedByThread())
             {
-                Thread *pThread = NULL;
-                while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
-                {
-                    if (pThreadBufferList == GetThreadEventBufferList())
-                    {
-                        SetThreadEventBufferList(NULL);
-                        break;
-                    }
-                }
-
                 // We don't delete buffers themself because they can be in-use
                 delete(pThreadBufferList);
             }
