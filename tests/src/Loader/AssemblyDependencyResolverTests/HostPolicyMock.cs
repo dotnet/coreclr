@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace ComponentDependencyResolverTests
+namespace AssemblyDependencyResolverTests
 {
     class HostPolicyMock
     {
@@ -36,7 +36,7 @@ namespace ComponentDependencyResolverTests
         private static extern void Set_corehost_resolve_component_dependencies_Callback(
             IntPtr callback);
 
-        private static Type _componentDependencyResolverType;
+        private static Type _assemblyDependencyResolverType;
         private static Type _corehost_error_writer_fnType;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
@@ -63,12 +63,12 @@ namespace ComponentDependencyResolverTests
                 Path.Combine(testBasePath, hostPolicyFileName),
                 destinationPath);
 
-            _componentDependencyResolverType = typeof(object).Assembly.GetType("System.Runtime.Loader.ComponentDependencyResolver");
+            _assemblyDependencyResolverType = typeof(object).Assembly.GetType("System.Runtime.Loader.AssemblyDependencyResolver");
 
             // This is needed for marshalling of function pointers to work - requires private access to the CDR unfortunately
             // Delegate marshalling doesn't support casting delegates to anything but the original type
             // so we need to use the original type.
-            _corehost_error_writer_fnType = _componentDependencyResolverType.GetNestedType("corehost_error_writer_fn", System.Reflection.BindingFlags.NonPublic);
+            _corehost_error_writer_fnType = _assemblyDependencyResolverType.GetNestedType("corehost_error_writer_fn", System.Reflection.BindingFlags.NonPublic);
         }
 
         public static MockValues_corehost_resolve_componet_dependencies Mock_corehost_resolve_componet_dependencies(

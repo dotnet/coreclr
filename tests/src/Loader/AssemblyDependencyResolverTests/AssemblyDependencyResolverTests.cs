@@ -6,9 +6,9 @@ using System.IO;
 using System.Reflection;
 using Xunit;
 
-namespace ComponentDependencyResolverTests
+namespace AssemblyDependencyResolverTests
 {
-    class ComponentDependencyResolverTests : TestBase
+    class AssemblyDependencyResolverTests : TestBase
     {
         string _componentDirectory;
         string _componentAssemblyPath;
@@ -55,7 +55,7 @@ namespace ComponentDependencyResolverTests
 
                     string message = Assert.Throws<InvalidOperationException>(() =>
                     {
-                        ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                        AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                             Path.Combine(TestBasePath, _componentAssemblyPath));
                     }).Message;
 
@@ -87,7 +87,7 @@ namespace ComponentDependencyResolverTests
                 {
                     Assert.Throws<InvalidOperationException>(() =>
                     {
-                        ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                        AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                             Path.Combine(TestBasePath, _componentAssemblyPath));
                     });
 
@@ -113,7 +113,7 @@ namespace ComponentDependencyResolverTests
                     "",
                     ""))
                 {
-                    ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                    AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                         Path.Combine(TestBasePath, _componentAssemblyPath));
 
                     Assert.Equal(
@@ -136,7 +136,7 @@ namespace ComponentDependencyResolverTests
                 "",
                 ""))
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
                 Assert.Null(resolver.ResolveAssemblyToPath(new AssemblyName("AssemblyWithNoRecord")));
@@ -153,7 +153,7 @@ namespace ComponentDependencyResolverTests
                 "",
                 ""))
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
                 Assert.Null(resolver.ResolveAssemblyToPath(new AssemblyName("NonExistingAssembly")));
@@ -169,7 +169,7 @@ namespace ComponentDependencyResolverTests
                 "",
                 _componentDirectory))
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
                 Assert.Equal(
@@ -188,7 +188,7 @@ namespace ComponentDependencyResolverTests
                 "",
                 _componentDirectory))
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
                 Assert.Equal(
@@ -210,7 +210,7 @@ namespace ComponentDependencyResolverTests
                 "",
                 $"{_componentDirectory}{Path.PathSeparator}{Path.GetDirectoryName(Path.GetDirectoryName(frResourcePath))}"))
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
                 Assert.Equal(
@@ -231,7 +231,7 @@ namespace ComponentDependencyResolverTests
                 "",
                 ""))
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
                 Assert.Equal(
@@ -250,7 +250,7 @@ namespace ComponentDependencyResolverTests
                 Path.GetDirectoryName(nativeLibraryPath),
                 ""))
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
                 Assert.Equal(
@@ -270,7 +270,7 @@ namespace ComponentDependencyResolverTests
                 $"{Path.GetDirectoryName(oneNativeLibraryPath)}{Path.PathSeparator}{Path.GetDirectoryName(twoNativeLibraryPath)}",
                 ""))
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
                 Assert.Equal(
@@ -312,7 +312,7 @@ namespace ComponentDependencyResolverTests
                 // to delete (if it's there) the hostpolicy.dll. All other tests will end up loading the dll
                 // and thus locking it.
                 typeof(InvalidHostingTest),
-                typeof(ComponentDependencyResolverTests),
+                typeof(AssemblyDependencyResolverTests),
                 typeof(NativeDependencyTests));
         }
     }

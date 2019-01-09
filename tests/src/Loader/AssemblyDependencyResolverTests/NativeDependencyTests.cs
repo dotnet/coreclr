@@ -6,7 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Xunit;
 
-namespace ComponentDependencyResolverTests
+namespace AssemblyDependencyResolverTests
 {
     class NativeDependencyTests : TestBase
     {
@@ -263,7 +263,7 @@ namespace ComponentDependencyResolverTests
                 $"{nativeLibraryPaths}",
                 ""))
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
 
                 string result = resolver.ResolveUnmanagedDllToPath(lookupName);

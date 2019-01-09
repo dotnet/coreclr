@@ -4,7 +4,7 @@
 using System;
 using System.Reflection;
 
-namespace ComponentDependencyResolverTests
+namespace AssemblyDependencyResolverTests
 {
     /// <summary>
     /// Temporary until the actual public API gets propagated through CoreFX.

@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using Xunit;
 
-namespace ComponentDependencyResolverTests
+namespace AssemblyDependencyResolverTests
 {
     class InvalidHostingTest : TestBase
     {
@@ -51,7 +51,7 @@ namespace ComponentDependencyResolverTests
         {
             object innerException = Assert.Throws<InvalidOperationException>(() =>
             {
-                ComponentDependencyResolver resolver = new ComponentDependencyResolver(
+                AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(
                     Path.Combine(TestBasePath, _componentAssemblyPath));
             }).InnerException;
 

@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-namespace ComponentDependencyResolverTests
+namespace AssemblyDependencyResolverTests
 {
     class TestBase
     {
