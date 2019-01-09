@@ -1518,18 +1518,9 @@ public:
         return OperIsHWIntrinsic(gtOper);
     }
 
-#ifdef FEATURE_HW_INTRINSICS
-    inline bool OperIsSimdHWIntrinsic() const;
-#else
-    inline bool OperIsSimdHWIntrinsic() const
+    bool OperIsSimdOrHWintrinsic() const
     {
-        return false;
-    }
-#endif
-
-    bool OperIsSIMDorSimdHWintrinsic() const
-    {
-        return OperIsSIMD() || OperIsSimdHWIntrinsic();
+        return OperIsSIMD() || OperIsHWIntrinsic();
     }
 
     // This is here for cleaner GT_LONG #ifdefs.
@@ -3490,6 +3481,7 @@ struct GenTreeCall final : public GenTree
 #define GTF_CALL_M_UNBOXED               0x00080000 // GT_CALL -- this call was optimized to use the unboxed entry point
 #define GTF_CALL_M_GUARDED_DEVIRT        0x00100000 // GT_CALL -- this call is a candidate for guarded devirtualization
 #define GTF_CALL_M_GUARDED               0x00200000 // GT_CALL -- this call was transformed by guarded devirtualization
+#define GTF_CALL_M_ALLOC_SIDE_EFFECTS    0x00400000 // GT_CALL -- this is a call to an allocator with side effects
 
     // clang-format on
 
@@ -4134,15 +4126,6 @@ struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
     }
 #endif
 };
-
-inline bool GenTree::OperIsSimdHWIntrinsic() const
-{
-    if (gtOper == GT_HWIntrinsic)
-    {
-        return this->AsHWIntrinsic()->isSIMD();
-    }
-    return false;
-}
 #endif // FEATURE_HW_INTRINSICS
 
 /* gtIndex -- array access */
@@ -5560,15 +5543,18 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 struct GenTreeAllocObj final : public GenTreeUnOp
 {
     unsigned int         gtNewHelper; // Value returned by ICorJitInfo::getNewHelper
+    bool                 gtHelperHasSideEffects;
     CORINFO_CLASS_HANDLE gtAllocObjClsHnd;
 #ifdef FEATURE_READYTORUN_COMPILER
     CORINFO_CONST_LOOKUP gtEntryPoint;
 #endif
 
-    GenTreeAllocObj(var_types type, unsigned int helper, CORINFO_CLASS_HANDLE clsHnd, GenTree* op)
+    GenTreeAllocObj(
+        var_types type, unsigned int helper, bool helperHasSideEffects, CORINFO_CLASS_HANDLE clsHnd, GenTree* op)
         : GenTreeUnOp(GT_ALLOCOBJ, type, op DEBUGARG(/*largeNode*/ TRUE))
         , // This node in most cases will be changed to a call node
         gtNewHelper(helper)
+        , gtHelperHasSideEffects(helperHasSideEffects)
         , gtAllocObjClsHnd(clsHnd)
     {
 #ifdef FEATURE_READYTORUN_COMPILER

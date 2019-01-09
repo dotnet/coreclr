@@ -1157,21 +1157,20 @@ inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types typ
 // gtNewAllocObjNode: A little helper to create an object allocation node.
 //
 // Arguments:
-//    helper           - Value returned by ICorJitInfo::getNewHelper
-//    clsHnd           - Corresponding class handle
-//    type             - Tree return type (e.g. TYP_REF)
-//    op1              - Node containing an address of VtablePtr
+//    helper               - Value returned by ICorJitInfo::getNewHelper
+//    helperHasSideEffects - True iff allocation helper has side effects
+//    clsHnd               - Corresponding class handle
+//    type                 - Tree return type (e.g. TYP_REF)
+//    op1                  - Node containing an address of VtablePtr
 //
 // Return Value:
 //    Returns GT_ALLOCOBJ node that will be later morphed into an
 //    allocation helper call or local variable allocation on the stack.
 
-inline GenTreeAllocObj* Compiler::gtNewAllocObjNode(unsigned int         helper,
-                                                    CORINFO_CLASS_HANDLE clsHnd,
-                                                    var_types            type,
-                                                    GenTree*             op1)
+inline GenTreeAllocObj* Compiler::gtNewAllocObjNode(
+    unsigned int helper, bool helperHasSideEffects, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1)
 {
-    GenTreeAllocObj* node = new (this, GT_ALLOCOBJ) GenTreeAllocObj(type, helper, clsHnd, op1);
+    GenTreeAllocObj* node = new (this, GT_ALLOCOBJ) GenTreeAllocObj(type, helper, helperHasSideEffects, clsHnd, op1);
     return node;
 }
 
@@ -1682,7 +1681,7 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
     // this new local will be referenced.
     if (lvaLocalVarRefCounted())
     {
-        if (opts.MinOpts() || opts.compDbgCode)
+        if (opts.OptimizationDisabled())
         {
             lvaTable[tempNum].lvImplicitlyReferenced = 1;
         }
@@ -1819,7 +1818,7 @@ inline unsigned Compiler::lvaGrabTempWithImplicitUse(bool shortLifetime DEBUGARG
 inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, RefCountState state, bool propagate)
 {
     // In minopts and debug codegen, we don't maintain normal ref counts.
-    if ((state == RCS_NORMAL) && (comp->opts.MinOpts() || comp->opts.compDbgCode))
+    if ((state == RCS_NORMAL) && comp->opts.OptimizationDisabled())
     {
         // Note, at least, that there is at least one reference.
         lvImplicitlyReferenced = 1;

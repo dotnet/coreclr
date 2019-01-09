@@ -283,7 +283,6 @@ public:
     BOOL GetResource(LPCSTR szName, DWORD *cbResource,
                      PBYTE *pbInMemoryResource, DomainAssembly** pAssemblyRef,
                      LPCSTR *szFileName, DWORD *dwLocation, 
-                     StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                      BOOL fSkipRaiseResolveEvent, DomainAssembly* pDomainAssembly,
                      AppDomain* pAppDomain);
 #ifndef DACCESS_COMPILE
@@ -548,19 +547,6 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
         return HasOpenedILimage() &&  GetOpenedILimage()->HasLoadedLayout();
-    }
-
-    BOOL IsDesignerBindingContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        DWORD binderFlags = BINDER_NONE;
-
-        HRESULT hr = E_FAIL;
-        if (HasHostAssembly())
-            hr = GetHostAssembly()->GetBinderFlags(&binderFlags);
-
-        return hr == S_OK ? binderFlags & BINDER_DESIGNER_BINDING_CONTEXT : FALSE;
     }
 
     LPCWSTR GetPathForErrorMessages();

@@ -815,14 +815,6 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         }
     }
 
-    if (HWIntrinsicInfo::IsOneTypeGeneric(intrinsic) && !HWIntrinsicInfo::HasSpecialImport(intrinsic))
-    {
-        if (!varTypeIsArithmetic(baseType))
-        {
-            return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED, method, sig, mustExpand);
-        }
-    }
-
     if (HWIntrinsicInfo::IsFloatingPointUsed(intrinsic))
     {
         // Set `compFloatingPointUsed` to cover the scenario where an intrinsic is being on SIMD fields, but
@@ -941,10 +933,10 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
             return impAESIntrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_BMI1:
         case InstructionSet_BMI1_X64:
-            return impBMI1Intrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_BMI2:
         case InstructionSet_BMI2_X64:
-            return impBMI2Intrinsic(intrinsic, method, sig, mustExpand);
+            return impBMI1OrBMI2Intrinsic(intrinsic, method, sig, mustExpand);
+
         case InstructionSet_FMA:
             return impFMAIntrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_LZCNT:
@@ -1148,14 +1140,7 @@ GenTree* Compiler::impAvxOrAvx2Intrinsic(NamedIntrinsic        intrinsic,
             if (sig->numArgs == 2)
             {
                 baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
-                if (!varTypeIsArithmetic(baseType))
-                {
-                    retNode = impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED, method, sig, mustExpand);
-                }
-                else
-                {
-                    retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, vectorOp, lastOp, intrinsic, baseType, 32);
-                }
+                retNode  = gtNewSimdHWIntrinsicNode(TYP_SIMD16, vectorOp, lastOp, intrinsic, baseType, 32);
             }
             else
             {
@@ -1238,10 +1223,10 @@ GenTree* Compiler::impAESIntrinsic(NamedIntrinsic        intrinsic,
     return nullptr;
 }
 
-GenTree* Compiler::impBMI1Intrinsic(NamedIntrinsic        intrinsic,
-                                    CORINFO_METHOD_HANDLE method,
-                                    CORINFO_SIG_INFO*     sig,
-                                    bool                  mustExpand)
+GenTree* Compiler::impBMI1OrBMI2Intrinsic(NamedIntrinsic        intrinsic,
+                                          CORINFO_METHOD_HANDLE method,
+                                          CORINFO_SIG_INFO*     sig,
+                                          bool                  mustExpand)
 {
     var_types callType = JITtype2varType(sig->retType);
 
@@ -1249,6 +1234,10 @@ GenTree* Compiler::impBMI1Intrinsic(NamedIntrinsic        intrinsic,
     {
         case NI_BMI1_AndNot:
         case NI_BMI1_X64_AndNot:
+        case NI_BMI2_ParallelBitDeposit:
+        case NI_BMI2_ParallelBitExtract:
+        case NI_BMI2_X64_ParallelBitDeposit:
+        case NI_BMI2_X64_ParallelBitExtract:
         {
             assert(sig->numArgs == 2);
 
@@ -1256,6 +1245,18 @@ GenTree* Compiler::impBMI1Intrinsic(NamedIntrinsic        intrinsic,
             GenTree* op1 = impPopStack().val;
 
             return gtNewScalarHWIntrinsicNode(callType, op1, op2, intrinsic);
+        }
+
+        case NI_BMI2_ZeroHighBits:
+        case NI_BMI2_X64_ZeroHighBits:
+        {
+            assert(sig->numArgs == 2);
+
+            GenTree* op2 = impPopStack().val;
+            GenTree* op1 = impPopStack().val;
+            // Instruction BZHI requires to encode op2 (3rd register) in VEX.vvvv and op1 maybe memory operand,
+            // so swap op1 and op2 to unify the backend code.
+            return gtNewScalarHWIntrinsicNode(callType, op2, op1, intrinsic);
         }
 
         case NI_BMI1_ExtractLowestSetBit:
@@ -1272,34 +1273,44 @@ GenTree* Compiler::impBMI1Intrinsic(NamedIntrinsic        intrinsic,
             return gtNewScalarHWIntrinsicNode(callType, op1, intrinsic);
         }
 
-        default:
+        case NI_BMI1_BitFieldExtract:
+        case NI_BMI1_X64_BitFieldExtract:
         {
-            unreached();
-            return nullptr;
-        }
-    }
-}
-
-GenTree* Compiler::impBMI2Intrinsic(NamedIntrinsic        intrinsic,
-                                    CORINFO_METHOD_HANDLE method,
-                                    CORINFO_SIG_INFO*     sig,
-                                    bool                  mustExpand)
-{
-    var_types callType = JITtype2varType(sig->retType);
-
-    switch (intrinsic)
-    {
-        case NI_BMI2_ParallelBitDeposit:
-        case NI_BMI2_ParallelBitExtract:
-        case NI_BMI2_X64_ParallelBitDeposit:
-        case NI_BMI2_X64_ParallelBitExtract:
-        {
+            // The 3-arg version is implemented in managed code
+            if (sig->numArgs == 3)
+            {
+                return nullptr;
+            }
             assert(sig->numArgs == 2);
 
             GenTree* op2 = impPopStack().val;
             GenTree* op1 = impPopStack().val;
+            // Instruction BEXTR requires to encode op2 (3rd register) in VEX.vvvv and op1 maybe memory operand,
+            // so swap op1 and op2 to unify the backend code.
+            return gtNewScalarHWIntrinsicNode(callType, op2, op1, intrinsic);
+        }
 
-            return gtNewScalarHWIntrinsicNode(callType, op1, op2, intrinsic);
+        case NI_BMI2_MultiplyNoFlags:
+        case NI_BMI2_X64_MultiplyNoFlags:
+        {
+            assert(sig->numArgs == 2 || sig->numArgs == 3);
+            GenTree* op3 = nullptr;
+            if (sig->numArgs == 3)
+            {
+                op3 = impPopStack().val;
+            }
+
+            GenTree* op2 = impPopStack().val;
+            GenTree* op1 = impPopStack().val;
+
+            if (sig->numArgs == 3)
+            {
+                return gtNewScalarHWIntrinsicNode(callType, op1, op2, op3, intrinsic);
+            }
+            else
+            {
+                return gtNewScalarHWIntrinsicNode(callType, op1, op2, intrinsic);
+            }
         }
 
         default:
