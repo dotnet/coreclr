@@ -1832,7 +1832,10 @@ void ZapImage::Compile()
         OutputTypesTableForReadyToRun(m_pMDImport);
         OutputInliningTableForReadyToRun();
         OutputProfileDataForReadyToRun();
-        OutputManifestMetadataForReadyToRun();
+        if (IsLargeVersionBubbleEnabled())
+        {
+            OutputManifestMetadataForReadyToRun();
+        }
     }
     else
 #endif

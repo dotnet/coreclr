@@ -621,7 +621,7 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
     }
 
     // TODO Change to incremented version
-    if (IsImageVersionAtLeast(2, 2))
+    if (IsLargeVersionBubbleEnabled() && IsImageVersionAtLeast(2, 2))
     {
         IMAGE_DATA_DIRECTORY * pManifestMetadata = FindSection(READYTORUN_SECTION_MANIFEST_METADATA);
         if (pManifestMetadata != NULL)
