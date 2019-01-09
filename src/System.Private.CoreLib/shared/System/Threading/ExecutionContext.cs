@@ -324,7 +324,11 @@ namespace System.Threading
             Debug.Assert(executionContext != null && !executionContext.m_isDefault, "ExecutionContext argument is Default.");
 
             // Restore Non-Default context
-            RestoreChangedContextToThread(Thread.CurrentThread, executionContext, currentContext: null);
+            Thread.CurrentThread.ExecutionContext = executionContext;
+            if (executionContext.HasChangeNotifications)
+            {
+                OnValuesChanged(previousExecutionCtx: null, executionContext);
+            }
 
             callback.Invoke(state);
 
