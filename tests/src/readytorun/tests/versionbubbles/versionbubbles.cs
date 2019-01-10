@@ -31,7 +31,7 @@ public class Program
             }
         }
 
-        if (lastMethodName != "GetNumber")
+        if (lastMethodName != "GetLastMethodName")
         {
             // method in helper.cs has been inlined
             Console.WriteLine("PASS");
