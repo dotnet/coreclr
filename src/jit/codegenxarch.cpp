@@ -4612,7 +4612,54 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
             else if (op1->gtRegNum != targetReg)
             {
                 assert(op1->gtRegNum != REG_NA);
-                emit->emitInsBinary(ins_Move_Extend(targetType, true), emitTypeSize(tree), tree, op1);
+
+                instruction         ins       = ins_Move_Extend(targetType, true);
+                bool                canSkip   = false;
+                emitter::instrDesc* prevInstr = emit->emitLastIns;
+
+                // TODO: make sure prevInstr is always null if there is control flow or we
+                // are at the start of a new IG.
+                //
+                // Do we need any other checks? Maybe same gcness?
+                //
+                // Sure would be nice to just provisionally emit the new instruction and compare
+                // instrDescs, but....
+                //
+                // We could also think about handling reg-mem moves in a similar manner,
+                // especially when mem is a stack access. This could give us writethrough like
+                // codegen for EH methods and (if we dared) for minopts or debug codegen.
+                //
+                // eg    mov [rbp + 40], rax
+                //       mov rax, [rbp + 40]  -- can omit the "reload"
+                //
+                if (compiler->opts.OptimizationEnabled() && (ins == INS_mov) && (prevInstr != nullptr) &&
+                    (ins == prevInstr->idIns()) && prevInstr->idSimpleRegReg() &&
+                    (prevInstr->idOpSize() == EA_SIZE(emitTypeSize(tree))))
+                {
+                    // Look for back to back identical moves
+                    //
+                    // mov... rax, rcx
+                    // mov... rax, rcx -- can omit
+                    if ((prevInstr->idReg1() == targetReg) && (prevInstr->idReg2() == op1->gtRegNum))
+                    {
+                        JITDUMP("\n-- skipping emission -- previous instr is makes this redundant\n");
+                        canSkip = true;
+                    }
+                    // Look for a shuffle move
+                    //
+                    // mov rax, rcx
+                    // mov rcx, rax -- can omit
+                    else if ((prevInstr->idReg1() == op1->gtRegNum) && (prevInstr->idReg2() == targetReg))
+                    {
+                        JITDUMP("\n-- skipping emission -- previous instr makes this a shuffle\n");
+                        canSkip = true;
+                    }
+                }
+
+                if (!canSkip)
+                {
+                    emit->emitInsBinary(ins, emitTypeSize(tree), tree, op1);
+                }
             }
         }
     }

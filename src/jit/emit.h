@@ -878,6 +878,11 @@ protected:
             assert(sz == _idCodeSize);
         }
 
+        bool idSimpleRegReg() const
+        {
+            return (idInsFmt() == IF_RWR_RRD);
+        }
+
 #elif defined(_TARGET_ARM64_)
         unsigned idCodeSize() const
         {
