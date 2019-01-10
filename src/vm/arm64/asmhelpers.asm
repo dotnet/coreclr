@@ -184,18 +184,18 @@ Done
 ; The call in ndirect import precode points to this function.
         NESTED_ENTRY NDirectImportThunk
 
-        PROLOG_SAVE_REG_PAIR           fp, lr, #-160!
+        PROLOG_SAVE_REG_PAIR           fp, lr, #-240!
         SAVE_ARGUMENT_REGISTERS        sp, 16
-        SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 88 
+        SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 96 
 
         mov     x0, x12
         bl      NDirectImportWorker
         mov     x12, x0
 
         ; pop the stack and restore original register state
-        RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 88
+        RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 96
         RESTORE_ARGUMENT_REGISTERS        sp, 16
-        EPILOG_RESTORE_REG_PAIR           fp, lr, #160!
+        EPILOG_RESTORE_REG_PAIR           fp, lr, #240!
 
         ; If we got back from NDirectImportWorker, the MD has been successfully
         ; linked. Proceed to execute the original DLL call.
@@ -437,9 +437,9 @@ Exit
     NESTED_ENTRY VirtualMethodFixupStub
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-160!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-240!
     SAVE_ARGUMENT_REGISTERS        sp, 16
-    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 88 
+    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 96 
 
     ; Refer to ZapImportVirtualThunk::Save
     ; for details on this.
@@ -456,8 +456,8 @@ Exit
 
     ; pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS        sp, 16
-    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 88
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #160!
+    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 96
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #240!
 
     PATCH_LABEL VirtualMethodFixupPatchLabel
 
@@ -761,7 +761,10 @@ COMToCLRDispatchHelper_StackLoop
     
 COMToCLRDispatchHelper_RegSetup
 
-    RESTORE_FLOAT_ARGUMENT_REGISTERS x1, -1 * GenericComCallStub_FrameOffset
+    ; We need an aligned offset for restoring float args, so do the subtraction into
+    ; a scratch register
+    sub     x5, x1, GenericComCallStub_FrameOffset
+    RESTORE_FLOAT_ARGUMENT_REGISTERS x5, 0
 
     mov lr, x2
     mov x12, x3
@@ -791,9 +794,9 @@ COMToCLRDispatchHelper_RegSetup
     NESTED_ENTRY TheUMEntryPrestub,,UMEntryPrestubUnwindFrameChainHandler
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-160!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-240!
     SAVE_ARGUMENT_REGISTERS        sp, 16
-    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 88
+    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 96
 
     mov x0, x12
     bl  TheUMEntryPrestubWorker
@@ -803,8 +806,8 @@ COMToCLRDispatchHelper_RegSetup
 
     ; pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS        sp, 16
-    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 88
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #160!
+    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 96
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #240!
 
     ; and tailcall to the actual method
     EPILOG_BRANCH_REG x12
