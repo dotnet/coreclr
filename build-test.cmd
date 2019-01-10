@@ -267,7 +267,7 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call "%_ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__ProjectDir%\tests\build.proj /t:BatchRestorePackages !__Logging! %__CommonMSBuildArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__UnprocessedBuildArgs%
+call "%__ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__ProjectDir%\tests\build.proj /t:BatchRestorePackages !__Logging! %__CommonMSBuildArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__UnprocessedBuildArgs%
 
 if not defined __BuildAgainstPackagesArg goto SkipRestoreProduct
 
