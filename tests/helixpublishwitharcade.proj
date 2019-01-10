@@ -32,16 +32,6 @@
     <CoreRootDirectory>$(TestWorkingDir)\Tests\Core_Root</CoreRootDirectory>
   </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(TargetsWindows)' == 'true' ">
-    <HelixPythonPath>%HELIX_PYTHONPATH%</HelixPythonPath>
-    <RunnerScript>%HELIX_CORRELATION_PAYLOAD%\runtest_helix.py</RunnerScript>
-  </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(TargetsWindows)' != 'true' ">
-    <HelixPythonPath>$HELIX_PYTHONPATH</HelixPythonPath>
-    <RunnerScript>$HELIX_CORRELATION_PAYLOAD/runtest_helix.py</RunnerScript>
-  </PropertyGroup>
-
   <ItemGroup>
     <HelixCorrelationPayload Include="$(CoreRootDirectory)" />
     <XUnitWrapperDlls Include="$(TestWorkingDir)\**\*.XUnitWrapper.dll" />
@@ -95,12 +85,32 @@
       <Scenario Condition=" '$(Scenario)' == 'normal' "></Scenario>
       <TestRunNamePrefix Condition=" '$(Scenario)' == '' ">$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
       <TestRunNamePrefix Condition=" '$(Scenario)' != '' ">$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
+      <_XUnitRunnerArgs>-parallel collections -nocolor -noshadow -xml testResults.xml -notrait category=outerloop -notrait category=failing</_XUnitRunnerArgs>
     </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(TargetsWindows)' == 'true' ">
+      <_CoreRun>%HELIX_CORRELATION_PAYLOAD%\CoreRun.exe</_CoreRun>
+      <_XUnitRunnerDll>%HELIX_CORRELATION_PAYLOAD%\xunit.console.dll</_XUnitRunnerDll>
+
+      <_SetCoreRoot>set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%</_SetCoreRoot>
+      <_SetTestEnv>set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\SetStressModes_$(Scenario)$(TestEnvFileNameExtension)</_SetTestEnv>
+      <_OutputTestEnvFile>type %__TestEnv%</_OutputTestEnvFile>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(TargetsWindows)' != 'true' ">
+      <_CoreRun>$HELIX_CORRELATION_PAYLOAD/corerun</_CoreRun>
+      <_XUnitRunnerDll>$HELIX_CORRELATION_PAYLOAD/xunit.console.dll</_XUnitRunnerDll>
+
+      <_SetCoreRoot>export CORE_ROOT=$HELIX_CORRELATION_PAYLOAD</_SetCoreRoot>
+      <_SetTestEnv>export __TestEnv=$HELIX_WORKITEM_PAYLOAD/SetStressModes_$(Scenario)$(TestEnvFileNameExtension)</_SetTestEnv>
+      <_OutputTestEnvFile>cat $__TestEnv</_OutputTestEnvFile>
+    </PropertyGroup>
+
     <ItemGroup>
       <HelixWorkItem Include="@(XUnitWrapperDlls->'%(FileName)'->Replace('.XUnitWrapper', ''))">
         <PayloadDirectory>%(RootDir)%(Directory)</PayloadDirectory>
-        <Command Condition=" '$(Scenario)' == '' ">$(HelixPythonPath) $(RunnerScript) -wrapper %(FileName)%(Extension)</Command>
-        <Command Condition=" '$(Scenario)' != '' ">$(HelixPythonPath) $(RunnerScript) -wrapper %(FileName)%(Extension) -scenario $(Scenario)</Command>
+        <PreCommands>$(_SetCoreRoot);$(_SetTestEnv);$(_OutputTestEnvFile)</PreCommands>
+        <Command>$(_CoreRun) $(_XUnitRunnerDll) %(FileName)%(Extension) $(_XUnitRunnerArgs)</Command>
         <Timeout>$([System.TimeSpan]::FromMinutes($(TimeoutInMinutes)))</Timeout>
       </HelixWorkItem>
     </ItemGroup>
