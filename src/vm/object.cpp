@@ -2218,3 +2218,27 @@ void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * 
 #endif // !defined(DACCESS_COMPILE)
 
 }
+
+bool LAHashDependentHashTrackerObject::IsLoaderAllocatorLive()
+{
+    return (ObjectFromHandle(_dependentHandle) != NULL);
+}
+
+GCHEAPHASHOBJECTREF LAHashDependentHashTrackerObject::GetDependentTarget()
+{
+    OBJECTREF primary = ObjectFromHandle(_dependentHandle);
+
+    IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+    // Secondary is tracked only if primary is non-null
+    return (GCHEAPHASHOBJECTREF)(OBJECTREF)((primary != NULL) ? mgr->GetDependentHandleSecondary(_dependentHandle) : NULL);
+}
+
+void LAHashDependentHashTrackerObject::GetDependentAndLoaderAllocator(OBJECTREF *pLoaderAllocatorRef, GCHEAPHASHOBJECTREF *pGCHeapHash)
+{
+    OBJECTREF primary = ObjectFromHandle(_dependentHandle);
+    *pLoaderAllocatorRef = primary;
+
+    IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+    // Secondary is tracked only if primary is non-null
+    *pGCHeapHash = (GCHEAPHASHOBJECTREF)(OBJECTREF)((primary != NULL) ? mgr->GetDependentHandleSecondary(_dependentHandle) : NULL);
+}

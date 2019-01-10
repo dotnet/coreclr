@@ -22,6 +22,7 @@ class FuncPtrStubs;
 
 #include "callcounter.h"
 #include "methoddescbackpatchinfo.h"
+#include "crossloaderallocatorhash.h"
 
 #define VPTRU_LoaderAllocator 0x3200
 
