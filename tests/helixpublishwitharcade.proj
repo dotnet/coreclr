@@ -47,7 +47,7 @@
       </_XUnitWrapperDirectoryWithScenario>
 
       <_ProjectsToBuild Include=".\testenvironment.proj">
-        <Properties>Scenario=%(_XUnitWrapperDirectoryWithScenario.Scenario);TestEnvFileName=%(Identity)\SetStressModes_%(Scenario)$(TestEnvFileNameExtension);TargetsWindows=$(TargetsWindows)</Properties>
+        <Properties>Scenario=%(_XUnitWrapperDirectoryWithScenario.Scenario);TestEnvFileName=%(Identity)\SetStressModes_%(Scenario)$(TestEnvFileExtension);TargetsWindows=$(TargetsWindows)</Properties>
       </_ProjectsToBuild>
     </ItemGroup>
 
@@ -95,7 +95,7 @@
       <_XUnitRunnerDll>%HELIX_CORRELATION_PAYLOAD%\xunit.console.dll</_XUnitRunnerDll>
 
       <_SetCoreRoot>set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%</_SetCoreRoot>
-      <_SetTestEnv>set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\SetStressModes_$(Scenario)$(TestEnvFileNameExtension)</_SetTestEnv>
+      <_SetTestEnv>set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\SetStressModes_$(Scenario)$(TestEnvFileExtension)</_SetTestEnv>
       <_OutputTestEnvFile>type %__TestEnv%</_OutputTestEnvFile>
     </PropertyGroup>
 
@@ -104,7 +104,7 @@
       <_XUnitRunnerDll>$HELIX_CORRELATION_PAYLOAD/xunit.console.dll</_XUnitRunnerDll>
 
       <_SetCoreRoot>export CORE_ROOT=$HELIX_CORRELATION_PAYLOAD</_SetCoreRoot>
-      <_SetTestEnv>export __TestEnv=$HELIX_WORKITEM_PAYLOAD/SetStressModes_$(Scenario)$(TestEnvFileNameExtension)</_SetTestEnv>
+      <_SetTestEnv>export __TestEnv=$HELIX_WORKITEM_PAYLOAD/SetStressModes_$(Scenario)$(TestEnvFileExtension)</_SetTestEnv>
       <_OutputTestEnvFile>cat $__TestEnv</_OutputTestEnvFile>
     </PropertyGroup>
 
