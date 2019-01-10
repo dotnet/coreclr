@@ -966,6 +966,7 @@ def run_tests(host_os,
               is_ilasm=False,
               is_illink=False,
               run_crossgen_tests=False,
+              large_version_bubble=False,
               run_sequential=False,
               limited_core_dumps=False):
     """ Run the coreclr tests
