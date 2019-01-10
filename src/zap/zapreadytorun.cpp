@@ -332,6 +332,7 @@ public:
 /*static*/ DWORD ZapImage::EncodeModuleHelper(LPVOID compileContext,
     CORINFO_MODULE_HANDLE referencedModule)
 {
+    _ASSERTE(!IsReadyToRunCompilation() || IsLargeVersionBubbleEnabled());
     ZapImportTable * pTable = (ZapImportTable *)compileContext;
     return pTable->GetIndexOfModule(referencedModule);
 }

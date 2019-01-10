@@ -329,6 +329,7 @@ ZapGenericSignature * ZapImportTable::GetGenericSignature(PVOID signature, BOOL 
 /*static*/ DWORD ZapImportTable::EncodeModuleHelper( LPVOID compileContext,
                                                 CORINFO_MODULE_HANDLE referencedModule)
 {
+    _ASSERTE(!IsReadyToRunCompilation() || IsLargeVersionBubbleEnabled());
     ZapImportTable * pTable = (ZapImportTable *)compileContext;
     return pTable->GetIndexOfModule(referencedModule);
 }
@@ -952,6 +953,7 @@ void ZapImportTable::EncodeModule(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_MODUL
 {
     if (module != GetImage()->GetModuleHandle())
     {
+        _ASSERTE(!IsReadyToRunCompilation() || IsLargeVersionBubbleEnabled());
         pSigBuilder->AppendByte(kind | ENCODE_MODULE_OVERRIDE);
         pSigBuilder->AppendData(GetIndexOfModule(module));
     }

@@ -1424,6 +1424,7 @@ CORINFO_MODULE_HANDLE ZapInfo::embedModuleHandle(CORINFO_MODULE_HANDLE handle,
                                                                 void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);
+    _ASSERTE(!IsReadyToRunCompilation() || IsLargeVersionBubbleEnabled());
 
     BOOL fHardbound = m_pImage->m_pPreloader->CanEmbedModuleHandle(handle);
     if (fHardbound)
