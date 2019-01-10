@@ -20561,11 +20561,13 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     {
         JITDUMP("Now have direct call to boxed entry point, looking for unboxed entry point\n");
 
+#if 0
         if (isTailCall)
         {
             JITDUMP("Call is an explcit tail call, we cannot perform an unbox\n");
             return;
         }
+#endif
 
         // Note for some shared methods the unboxed entry point requires an extra parameter.
         bool                  requiresInstMethodTableArg = false;
