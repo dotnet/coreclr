@@ -30,6 +30,13 @@ namespace Microsoft.Diagnostics.Tracing
 namespace System.Diagnostics.Tracing
 #endif
 {
+    internal enum EventProviderType
+    {
+        None = 0,
+        ETW,
+        EventPipe
+    };
+
     // New in CLR4.0
     internal enum ControllerCommand
     {
@@ -120,15 +127,28 @@ namespace System.Diagnostics.Tracing
         // it registers a callback from native code you MUST dispose it BEFORE shutdown, otherwise
         // you may get native callbacks during shutdown when we have destroyed the delegate.  
         // EventSource has special logic to do this, no one else should be calling EventProvider.  
-        internal EventProvider()
+        internal EventProvider(EventProviderType providerType)
         {
+            switch (providerType)
+            {
+                case EventProviderType.ETW:
 #if PLATFORM_WINDOWS
-            m_eventProvider = new EtwEventProvider();
-#elif FEATURE_PERFTRACING
-            m_eventProvider = new EventPipeEventProvider();
+                    m_eventProvider = new EtwEventProvider();
 #else
-            m_eventProvider = new NoOpEventProvider();
+                    m_eventProvider = new NoOpEventProvider();
 #endif
+                    break;
+                case EventProviderType.EventPipe:
+#if FEATURE_PERFTRACING
+                    m_eventProvider = new EventPipeEventProvider();
+#else
+                    m_eventProvider = new NoOpEventProvider();
+#endif
+                    break;
+                default:
+                    m_eventProvider = new NoOpEventProvider();
+                    break;
+            };
         }
 
         /// <summary>
@@ -260,6 +280,19 @@ namespace System.Diagnostics.Tracing
                     m_allKeywordMask = allKeyword;
 
                     List<Tuple<SessionInfo, bool>> sessionsChanged = GetSessions();
+
+                    // The GetSessions() logic was here to support the idea that different ETW sessions
+                    // could have different user-defined filters.   (I believe it is currently broken but that is another matter.)
+                    // However in particular GetSessions() does not support EventPipe, only ETW, which is
+                    // the immediate problem.   We work-around establishing the invariant that we always get a
+                    // OnControllerCallback under all circumstances, even if we can't find a delta in the
+                    // ETW logic.  This fixes things for the EventPipe case.
+                    //
+                    // All this session based logic should be reviewed and likely removed, but that is a larger
+                    // change that needs more careful staging.
+                    if (sessionsChanged.Count == 0)
+                        sessionsChanged.Add(new Tuple<SessionInfo, bool>(new SessionInfo(0, 0), true));
+
                     foreach (var session in sessionsChanged)
                     {
                         int sessionChanged = session.Item1.sessionIdBit;
@@ -475,7 +508,7 @@ namespace System.Diagnostics.Tracing
                 var structBase = (byte*)providerInstance;
                 providerInstance = (UnsafeNativeMethods.ManifestEtw.TRACE_PROVIDER_INSTANCE_INFO*)&structBase[providerInstance->NextOffset];
             }
-#else 
+#else
 #if !ES_BUILD_PCL && PLATFORM_WINDOWS  // TODO command arguments don't work on PCL builds...
             // This code is only used in the Nuget Package Version of EventSource.  because
             // the code above is using APIs baned from UWP apps.     
@@ -1276,8 +1309,7 @@ namespace System.Diagnostics.Tracing
         }
     }
 
-#elif !FEATURE_PERFTRACING
-
+#endif
     internal sealed class NoOpEventProvider : IEventProvider
     {
         unsafe uint IEventProvider.EventRegister(
@@ -1314,10 +1346,8 @@ namespace System.Diagnostics.Tracing
         // Define an EventPipeEvent handle.
         unsafe IntPtr IEventProvider.DefineEventHandle(uint eventID, string eventName, Int64 keywords, uint eventVersion, uint level, byte *pMetadata, uint metadataLength)
         {
-            throw new System.NotSupportedException();
+            return IntPtr.Zero;
         }
     }
-
-#endif
 }
 

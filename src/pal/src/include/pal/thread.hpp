@@ -207,7 +207,7 @@ namespace CorUnix
     {
         friend
             PAL_ERROR
-            CorUnix::InternalCreateThread(
+            InternalCreateThread(
                 CPalThread *,
                 LPSECURITY_ATTRIBUTES,
                 DWORD,
@@ -250,8 +250,6 @@ namespace CorUnix
                 HANDLE *phThread
                 );
 
-        friend CatchHardwareExceptionHolder;
-        
     private:
 
         CPalThread *m_pNext;
@@ -326,6 +324,8 @@ namespace CorUnix
         void* m_stackBase;
         // Limit address of the stack of this thread
         void* m_stackLimit;
+        // Signal handler's alternate stack to help with stack overflow
+        void* m_alternateStack;
 
         //
         // The thread entry routine (called from InternalCreateThread)
@@ -389,7 +389,8 @@ namespace CorUnix
             m_fStartStatus(FALSE),
             m_fStartStatusSet(FALSE),
             m_stackBase(NULL),
-            m_stackLimit(NULL)
+            m_stackLimit(NULL),
+            m_alternateStack(NULL)
 #ifdef FEATURE_PAL_SXS
           , m_fInPal(TRUE)
 #endif // FEATURE_PAL_SXS
@@ -552,6 +553,18 @@ namespace CorUnix
             return m_hardwareExceptionHolderCount > 0;
         }
 
+        inline void
+        IncrementHardwareExceptionHolderCount()
+        {
+            ++m_hardwareExceptionHolderCount;
+        }
+
+        inline void
+        DecrementHardwareExceptionHolderCount()
+        {
+            --m_hardwareExceptionHolderCount;
+        }
+
         LPTHREAD_START_ROUTINE
         GetStartAddress(
             void
@@ -623,6 +636,18 @@ namespace CorUnix
         {
             m_pNext = pNext;
         };
+
+#if !HAVE_MACH_EXCEPTIONS
+        BOOL
+        EnsureSignalAlternateStack(
+            void
+            );
+
+        void 
+        FreeSignalAlternateStack(
+            void
+            );
+#endif // !HAVE_MACH_EXCEPTIONS
 
         void
         AddThreadReference(

@@ -91,7 +91,7 @@ public:
         LPPROCESS_INFORMATION lpProcessInformation);
 
     // Attach
-    virtual HRESULT DebugActiveProcess(MachineInfo machineInfo, DWORD processId);
+    virtual HRESULT DebugActiveProcess(MachineInfo machineInfo, const ProcessDescriptor& processDescriptor);
 
     // Detach
     virtual HRESULT DebugActiveProcessStop(DWORD processId);
@@ -224,8 +224,10 @@ HRESULT DbgTransportPipeline::CreateProcessUnderDebugger(
 
     if (SUCCEEDED(hr))
     {
+        ProcessDescriptor processDescriptor = ProcessDescriptor::Create(lpProcessInformation->dwProcessId, NULL);
+
         // Establish a connection to the actual runtime to be debugged.
-        hr = m_pProxy->GetTransportForProcess(lpProcessInformation->dwProcessId, 
+        hr = m_pProxy->GetTransportForProcess(&processDescriptor, 
                                               &m_pTransport, 
                                               &m_hProcess);
         if (SUCCEEDED(hr))
@@ -283,7 +285,7 @@ HRESULT DbgTransportPipeline::CreateProcessUnderDebugger(
 }
 
 // Attach the debugger to this process.
-HRESULT DbgTransportPipeline::DebugActiveProcess(MachineInfo machineInfo, DWORD processId)
+HRESULT DbgTransportPipeline::DebugActiveProcess(MachineInfo machineInfo, const ProcessDescriptor& processDescriptor)
 {
     // INativeEventPipeline has a 1:1 relationship with CordbProcess.
     _ASSERTE(!IsTransportRunning());
@@ -293,7 +295,7 @@ HRESULT DbgTransportPipeline::DebugActiveProcess(MachineInfo machineInfo, DWORD 
     m_pProxy = g_pDbgTransportTarget;
 
     // Establish a connection to the actual runtime to be debugged.
-    hr = m_pProxy->GetTransportForProcess(processId, &m_pTransport, &m_hProcess);
+    hr = m_pProxy->GetTransportForProcess(&processDescriptor, &m_pTransport, &m_hProcess);
     if (SUCCEEDED(hr))
     {
         // TODO: Pass this timeout as a parameter all the way from debugger
@@ -313,7 +315,7 @@ HRESULT DbgTransportPipeline::DebugActiveProcess(MachineInfo machineInfo, DWORD 
 
     if (SUCCEEDED(hr))
     {
-        m_dwProcessId = processId;
+        m_dwProcessId = processDescriptor.m_Pid;
         m_fRunning = TRUE;
     }
     else
@@ -357,29 +359,12 @@ BOOL DbgTransportPipeline::WaitForDebugEvent(DEBUG_EVENT * pEvent, DWORD dwTimeo
         m_pTransport->GetNextEvent(m_pIPCEvent, CorDBIPC_BUFFER_SIZE);
 
         pEvent->dwProcessId = m_pIPCEvent->processId;
+        pEvent->dwThreadId = m_pIPCEvent->threadId;
         _ASSERTE(m_dwProcessId == m_pIPCEvent->processId);
-
-        // We are supposed to return a thread ID in the DEBUG_EVENT back to our caller.  
-        // However, we don't actually store the thread ID in the DebuggerIPCEvent anymore.  Instead, 
-        // we just get a VMPTR_Thread, and so we need to find the thread ID associated with the VMPTR_Thread.
-        pEvent->dwThreadId = 0;
-        HRESULT hr = S_OK;
-        EX_TRY
-        {
-            if (!m_pIPCEvent->vmThread.IsNull())
-            {
-                pEvent->dwThreadId = pProcess->GetDAC()->TryGetVolatileOSThreadID(m_pIPCEvent->vmThread);
-            }
-        }
-        EX_CATCH_HRESULT(hr);
-        if (FAILED(hr))
-        {
-            return FALSE;
-        }
 
         // The Windows implementation stores the target address of the IPC event in the debug event.
         // We can do that for Mac debugging, but that would require the caller to do another cross-machine
-        // ReadProcessMemory().  Since we have all the data in-proc already, we just store a local address.
+        // ReadProcessMemory(). Since we have all the data in-proc already, we just store a local address.
         // 
         // @dbgtodo  Mac - We are using -1 as a dummy base address right now.  
         // Currently Mac remote debugging doesn't really support multi-instance.
