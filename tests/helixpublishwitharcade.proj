@@ -30,6 +30,8 @@
 
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
     <CoreRootDirectory>$(TestWorkingDir)\Tests\Core_Root</CoreRootDirectory>
+    <TestEnvFileExtension Condition=" '$(TargetsWindows)' == 'true' ">.cmd</TestEnvFileExtension>
+    <TestEnvFileExtension Condition=" '$(TargetsWindows)' != 'true' ">.sh</TestEnvFileExtension>
   </PropertyGroup>
 
   <ItemGroup>
