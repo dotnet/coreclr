@@ -1072,21 +1072,31 @@ void DebuggerJitInfo::SetBoundaries(ULONG32 cMap, ICorDebugInfo::OffsetMapping *
     InstrumentedILOffsetMapping mapping;
 
     NativeCodeVersion nativeVersion = pCodeVersionManager->GetNativeCodeVersion(m_fd, (PCODE)CORDB_ADDRESS_TO_PTR(m_addrOfCode));
-    _ASSERTE(!nativeVersion.IsNull());
-    ILCodeVersion ilVersion = nativeVersion.GetILCodeVersion();
-    if (!ilVersion.IsDefaultVersion())
+    if (nativeVersion.IsNull())
     {
-        // Did the current rejit provide a map?
-        const InstrumentedILOffsetMapping *pReJitMap = ilVersion.GetInstrumentedILMap();
-        if (pReJitMap != NULL)
+        // For non-versionable code, check for a profiler provided map.
+        if (m_methodInfo->HasInstrumentedILMap())
         {
-            mapping = *pReJitMap;
+            mapping = m_methodInfo->GetRuntimeModule()->GetInstrumentedILOffsetMapping(m_methodInfo->m_token);
         }
     }
-    else if (m_methodInfo->HasInstrumentedILMap())
+    else
     {
-        // If a ReJIT hasn't happened, check for a profiler provided map.
-        mapping = m_methodInfo->GetRuntimeModule()->GetInstrumentedILOffsetMapping(m_methodInfo->m_token);
+        ILCodeVersion ilVersion = nativeVersion.GetILCodeVersion();
+        if (!ilVersion.IsDefaultVersion())
+        {
+            // Did the current rejit provide a map?
+            const InstrumentedILOffsetMapping *pReJitMap = ilVersion.GetInstrumentedILMap();
+            if (pReJitMap != NULL)
+            {
+                mapping = *pReJitMap;
+            }
+        }
+        else if (m_methodInfo->HasInstrumentedILMap())
+        {
+            // If a ReJIT hasn't happened, check for a profiler provided map.
+            mapping = m_methodInfo->GetRuntimeModule()->GetInstrumentedILOffsetMapping(m_methodInfo->m_token);
+        }
     }
 
     //
