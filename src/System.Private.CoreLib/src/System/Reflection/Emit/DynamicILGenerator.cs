@@ -878,10 +878,8 @@ namespace System.Reflection.Emit
         #region Constructor
         internal DynamicILInfo(object scope, DynamicMethod method, byte[] methodSignature)
         {
-            if (scope as DynamicScope is null)
-                throw new InvalidCastException(nameof(scope));
+            m_scope = scope as DynamicScope ?? throw new InvalidCastException(nameof(scope));
             m_method = method;
-            m_scope = (DynamicScope)scope;
             m_methodSignature = m_scope.GetTokenFor(methodSignature);
             m_exceptions = Array.Empty<byte>();
             m_code = Array.Empty<byte>();
@@ -927,7 +925,7 @@ namespace System.Reflection.Emit
             if (codeSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(codeSize), SR.ArgumentOutOfRange_GenericPositive);
             if (codeSize > 0 && code == null)
-                throw new ArgumentNullException("code");
+                throw new ArgumentNullException(nameof(code));
 
             m_code = new byte[codeSize];
             for (int i = 0; i < codeSize; i++)
@@ -951,7 +949,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentOutOfRangeException(nameof(exceptionsSize), SR.ArgumentOutOfRange_GenericPositive);
 
             if (exceptionsSize > 0 && exceptions == null)
-                throw new ArgumentNullException("exceptions");
+                throw new ArgumentNullException(nameof(exceptions));
 
             m_exceptions = new byte[exceptionsSize];
 
@@ -974,7 +972,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentOutOfRangeException(nameof(signatureSize), SR.ArgumentOutOfRange_GenericPositive);
 
             if (signatureSize > 0 && localSignature == null)
-                throw new ArgumentNullException("localSignature");
+                throw new ArgumentNullException(nameof(localSignature));
 
             m_localSignature = new byte[signatureSize];
             for (int i = 0; i < signatureSize; i++)
