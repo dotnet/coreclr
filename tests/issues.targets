@@ -52,13 +52,6 @@
         </ExcludeList>
     </ItemGroup>
 
-    <!-- All Windows targets -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' == 'true'">
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/superpmi/superpmicollect/*">
-            <Issue>21698</Issue>
-        </ExcludeList>
-    </ItemGroup>
-
     <!-- All Unix targets -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' != 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/paramthreadstart/ThreadStartString_1/*">
