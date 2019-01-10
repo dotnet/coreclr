@@ -39,20 +39,19 @@
   </ItemGroup>
   <PropertyGroup>
     <!-- <CLRTestBatchPreCommands><![CDATA[
-echo Running CLRTestBatchPreCommands
 $(CLRTestBatchPreCommands)
-Set COMPLUS_ZAPREQUIRE=1
-Set COMPLUS_ZAPREQUIRELIST=helper
+set COMPLUS_ZAPREQUIRE=1
+set COMPLUS_ZAPREQUIRELIST=helper;versionbubbles
 set _inputFile=versionbubbles.exe
-if exist "versionbubbles.org" (set _inputFile=versionbubbles.org)
 %Core_Root%\crossgen /largeversionbubble /readytorun /platform_assemblies_paths %Core_Root%%3B%25CD% /out helper.ni.dll helper.dll
-%Core_Root%\crossgen /largeversionbubble /readytorun /platform_assemblies_paths %Core_Root%%3B%25CD% /out versionbubbles.ni.exe %_inputFile%
+%Core_Root%\crossgen /largeversionbubble /readytorun /platform_assemblies_paths %Core_Root%%3B%25CD% /out versionbubbles.ni.exe versionbubbles.exe
 ]]></CLRTestBatchPreCommands>
   <BashCLRTestPreCommands><![CDATA[
-echo Running BashCLRTestPreCommands
+export COMPLUS_ZAPREQUIRE=1
+export COMPLUS_ZAPREQUIRELIST=helper;versionbubbles
 $(BashCLRTestPreCommands)
-$CORE_ROOT/crossgen -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out helper.ni.dll helper.dll
-$CORE_ROOT/crossgen -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out versionbubbles.ni.exe versionbubbles.exe
+$CORE_ROOT/crossgen -largeversionbubble -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out helper.ni.dll helper.dll
+$CORE_ROOT/crossgen -largeversionbubble -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out versionbubbles.ni.exe versionbubbles.exe
 ]]></BashCLRTestPreCommands> -->
   </PropertyGroup>  
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
