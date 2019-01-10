@@ -159,7 +159,7 @@ jobs:
       buildConfig: checked
       jobParameters:
         priority: 1
-        scenarios: 'normal,no_tiered_compilation,jitstress1,jitstress2,gcstress0x3,gcstress0xc'
+        scenarios: 'normal,no_tiered_compilation,jitstress1,jitstress2,jitstress1_tiered,jitstress2_tiered'
         timeoutInMinutes: 300
 
 #
