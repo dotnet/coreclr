@@ -4,12 +4,10 @@
 
 namespace System.Runtime.InteropServices
 {
-    /// <summary>
-    /// The base interface that custom adapters can chose to implement
-    /// when they want to expose the underlying object.
-    /// </summary>
+    // This the base interface that custom adapters can chose to implement when they want to expose the underlying object.
     public interface ICustomAdapter
     {
-        [return: MarshalAs(UnmanagedType.IUnknown)] object GetUnderlyingObject();
+        [return: MarshalAs(UnmanagedType.IUnknown)]
+        object GetUnderlyingObject();
     }
 }

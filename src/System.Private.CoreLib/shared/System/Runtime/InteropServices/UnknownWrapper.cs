@@ -4,18 +4,14 @@
 
 namespace System.Runtime.InteropServices
 {
-    /// <summary>
-    /// Wrapper that is converted to a variant with VT_UNKNOWN.
-    /// </summary>
+    // Wrapper that is converted to a variant with VT_UNKNOWN.
     public sealed class UnknownWrapper
     {
-        public UnknownWrapper(object obj)
+        public UnknownWrapper(Object obj)
         {
-            m_WrappedObject = obj;
+            WrappedObject = obj;
         }
 
-        public object WrappedObject => m_WrappedObject;
-
-        private object m_WrappedObject;
+        public Object WrappedObject { get; }
     }
 }

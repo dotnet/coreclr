@@ -4,9 +4,7 @@
 
 namespace System.Runtime.InteropServices
 {
-    /// <summary>
-    /// The base interface that must be implemented by all custom marshalers.
-    /// </summary>
+    // This the base interface that must be implemented by all custom marshalers.
     public interface ICustomMarshaler
     {
         object MarshalNativeToManaged(IntPtr pNativeData);

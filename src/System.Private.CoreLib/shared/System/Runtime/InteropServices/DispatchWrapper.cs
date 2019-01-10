@@ -4,12 +4,10 @@
 
 namespace System.Runtime.InteropServices
 {
-    /// <summary>
-    /// Wrapper that is converted to a variant with VT_DISPATCH.
-    /// </summary>
+    // Wrapper that is converted to a variant with VT_DISPATCH
     public sealed class DispatchWrapper
     {
-        public DispatchWrapper(object obj)
+        public DispatchWrapper(Object obj)
         {
             if (obj != null)
             {
@@ -18,12 +16,11 @@ namespace System.Runtime.InteropServices
 
                 // If we got here without throwing an exception, the QI for IDispatch succeeded.
                 Marshal.Release(pdisp);
+
+                WrappedObject = obj;
             }
-            m_WrappedObject = obj;
         }
 
-        public object WrappedObject => m_WrappedObject;
-
-        private object m_WrappedObject;
+        public object WrappedObject { get; }
     }
 }

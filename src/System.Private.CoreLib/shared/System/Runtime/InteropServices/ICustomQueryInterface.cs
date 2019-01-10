@@ -4,20 +4,7 @@
 
 namespace System.Runtime.InteropServices
 {
-    /// <summary>
-    /// The enum of the return value of IQuerable.GetInterface.
-    /// </summary>
-    public enum CustomQueryInterfaceResult
-    {
-        Handled = 0,
-        NotHandled = 1,
-        Failed = 2,
-    }
-
-    /// <summary>
-    /// the interface that be implemented by class that want to 
-    /// customize the behavior of QueryInterface.
-    /// </summary>
+    // This the interface that be implemented by class that want to customize the behavior of QueryInterface.
     public interface ICustomQueryInterface
     {
         CustomQueryInterfaceResult GetInterface([In]ref Guid iid, out IntPtr ppv);
