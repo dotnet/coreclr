@@ -529,7 +529,6 @@ usage()
     echo "clangx.y - optional argument to build using clang version x.y - supported version 3.5 - 6.0"
     echo "cross - optional argument to signify cross compilation,"
     echo "      - will use ROOTFS_DIR environment variable if set."
-    echo "portablebuild - Use portable build."
     echo "verbose - optional argument to enable verbose build output."
     echo "rebuild - if tests have already been built - rebuild them"
     echo "skipnative: skip the native tests build"
