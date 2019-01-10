@@ -8,8 +8,8 @@
 
   <PropertyGroup>
     <HelixArchitecture>$(BuildArch)</HelixArchitecture>
-    <HelixConfiguration Condition=" '$(Scenario)' == '' ">$(BuildType)</HelixConfiguration>
-    <HelixConfiguration Condition=" '$(Scenario)' != '' ">$(BuildType)-$(Scenario)</HelixConfiguration>
+    <HelixConfiguration Condition=" '$(Scenario)' == 'normal' ">$(BuildType)</HelixConfiguration>
+    <HelixConfiguration Condition=" '$(Scenario)' != 'normal' ">$(BuildType)-$(Scenario)</HelixConfiguration>
 
     <IsExternal>$(_IsExternal)</IsExternal>
     <IsExternal Condition=" '$(IsExternal)' == '' ">true</IsExternal>
@@ -79,14 +79,8 @@
 
   <Target Name="BuildHelixWorkItem" BeforeTargets="Test">
     <PropertyGroup>
-      <!-- The "normal" scenario is just a way to include the default
-           (empty) scenario when specifying multiple scenarios at
-           once. From here, on, treat it as the empty scenario so that
-           job names will not have a scenario prefix and the runtest
-           script doesn't have to define a "normal" scenario. -->
-      <Scenario Condition=" '$(Scenario)' == 'normal' "></Scenario>
-      <TestRunNamePrefix Condition=" '$(Scenario)' == '' ">$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
-      <TestRunNamePrefix Condition=" '$(Scenario)' != '' ">$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
+      <TestRunNamePrefix Condition=" '$(Scenario)' == 'normal' ">$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
+      <TestRunNamePrefix Condition=" '$(Scenario)' != 'normal' ">$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
       <_XUnitRunnerArgs>-parallel collections -nocolor -noshadow -xml testResults.xml -notrait category=outerloop -notrait category=failing</_XUnitRunnerArgs>
     </PropertyGroup>
 
