@@ -11,7 +11,12 @@ initHostDistroRid()
 
     if [ "$__HostOS" == "Linux" ]; then
         if [ -e /etc/redhat-release ]; then
-            __PortableBuild=1
+            local redhatRelease=$(</etc/redhat-release)
+            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
+               __HostDistroRid="rhel.6-$__HostArch"
+            elif [[ $redhatRelease == "CentOS Linux release 7."* || $redhatRelease == "Red Hat Enterprise Linux Server release 7."* ]]; then
+               __HostDistroRid="rhel.7-$__HostArch"
+            fi
         elif [ -e /etc/os-release ]; then
             source /etc/os-release
             if [[ $ID == "alpine" ]]; then

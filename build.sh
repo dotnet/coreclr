@@ -65,23 +65,18 @@ initHostDistroRid()
 {
     __HostDistroRid=""
     if [ "$__HostOS" == "Linux" ]; then
-        if [ -e /etc/os-release ]; then
-            source /etc/os-release
-            if [[ $ID == "rhel" ]]; then
-                # remove the last version digit
-                VERSION_ID=${VERSION_ID%.*}
-            fi
-            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
-            if [[ $ID == "alpine" ]]; then
-                __HostDistroRid="linux-musl-$__HostArch"
-            fi
-        elif [ -e /etc/redhat-release ]; then
+        if [ -e /etc/redhat-release ]; then
             local redhatRelease=$(</etc/redhat-release)
             if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
                __HostDistroRid="rhel.6-$__HostArch"
+            elif [[ $redhatRelease == "CentOS Linux release 7."* || $redhatRelease == "Red Hat Enterprise Linux Server release 7."* ]]; then
+               __HostDistroRid="rhel.7-$__HostArch"
             fi
-            if [[ $redhatRelease == "CentOS Linux release 7."* ]]; then
-                __HostDistroRid="rhel.7-$__Arch"
+        elif [ -e /etc/os-release ]; then
+            source /etc/os-release
+            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
+            if [[ $ID == "alpine" ]]; then
+                __HostDistroRid="linux-musl-$__HostArch"
             fi
         fi
     fi
