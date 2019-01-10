@@ -1131,7 +1131,7 @@ BOOL ZapSig::EncodeMethod(
     // For methods encoded outside of the version bubble, we use pResolvedToken which describes the metadata token from which the method originated
     // For tokens inside the version bubble we are not constrained by the contents of pResolvedToken and as such we skip this codepath
     // FUTURE: This condition should likely be changed or reevaluated once support for smaller version bubbles is implemented.
-    if (IsReadyToRunCompilation() && !IsLargeVersionBubbleEnabled())
+    if (IsReadyToRunCompilation() && (!IsLargeVersionBubbleEnabled() || !pMethod->GetModule()->IsInCurrentVersionBubble()))
     {
         if (pResolvedToken == NULL)
         {
@@ -1192,7 +1192,7 @@ BOOL ZapSig::EncodeMethod(
 #ifdef FEATURE_READYTORUN_COMPILER
 
     // FUTURE: This condition should likely be changed or reevaluated once support for smaller version bubbles is implemented.
-    if (IsReadyToRunCompilation() && !IsLargeVersionBubbleEnabled())
+    if (IsReadyToRunCompilation() && (!IsLargeVersionBubbleEnabled() || !pMethod->GetModule()->IsInCurrentVersionBubble()))
     {
         if (pConstrainedResolvedToken != NULL)
         {
