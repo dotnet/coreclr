@@ -166,17 +166,17 @@ typedef DPTR(InlineTrackingMap) PTR_InlineTrackingMap;
 // It doesn't require any load time unpacking and serves requests directly from NGEN image.
 //
 // It is composed of two arrays:
-// m_inlineeIndex  -  sorted (by ZapInlineeRecord.key i.e. by module then token) array of ZapInlineeRecords, given an inlinee module name hash (8 bits) 
-//                    and a method token (24 bits) we use binary search to find if this method has ever been inlined in NGen-ed code of this image.
-//                    Each record has m_offset, which is an offset inside m_inlinersBuffer, it has more data on where the method got inlined.
+// m_inlineeIndex - sorted (by ZapInlineeRecord.key i.e. by module then token) array of ZapInlineeRecords, given an inlinee module name hash (8 bits) 
+//                  and a method token (24 bits) we use binary search to find if this method has ever been inlined in NGen-ed code of this image.
+//                  Each record has m_offset, which is an offset inside m_inlinersBuffer, it has more data on where the method got inlined.
 //
-//                    It is totally possible to have more than one ZapInlineeRecords with the same key, not only due hash collision, but also due to 
-//                    the fact that we create one record for each (inlinee module / inliner module) pair. 
-//                    For example: we have MyModule!MyType that uses mscorlib!List<T>. Let's say List<T>.ctor got inlined into
-//                    MyType.GetAllThinds() and into List<MyType>.FindAll. In this case we'll have two InlineeRecords for mscorlib!List<T>.ctor
-//                    one for MyModule and another one for mscorlib.
-//                    PersistentInlineTrackingMap.GetInliners() always reads all ZapInlineeRecords as long as they have the same key, few of them filtered out 
-//                    as hash collisions others provide legitimate inlining information for methods from different modules.
+//                  It is totally possible to have more than one ZapInlineeRecords with the same key, not only due hash collision, but also due to 
+//                  the fact that we create one record for each (inlinee module / inliner module) pair. 
+//                  For example: we have MyModule!MyType that uses mscorlib!List<T>. Let's say List<T>.ctor got inlined into
+//                  MyType.GetAllThinds() and into List<MyType>.FindAll. In this case we'll have two InlineeRecords for mscorlib!List<T>.ctor
+//                  one for MyModule and another one for mscorlib.
+//                  PersistentInlineTrackingMap.GetInliners() always reads all ZapInlineeRecords as long as they have the same key, few of them filtered out 
+//                  as hash collisions others provide legitimate inlining information for methods from different modules.
 //
 // m_inlinersBuffer - byte array compressed by NibbleWriter. At any valid offset taken from ZapInlineeRecord from m_inlineeIndex, there is a compressed chunk 
 //                    of this format: 
@@ -257,7 +257,6 @@ typedef DPTR(InlineTrackingMap) PTR_InlineTrackingMap;
 // +-----------------+------------------------+------+------+--------+------+-------------+
 // |  -     -     -  | SavedInlinersCount (N) | rid1 | rid2 | ...... | ridN |  -   -   -  |
 // +-----------------+------------------------+------+------+--------+------+-------------+
-// Contents above will either likely need changing or some other mechanism will be required to reference methods
 //
 
 

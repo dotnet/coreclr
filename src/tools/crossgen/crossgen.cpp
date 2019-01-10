@@ -469,6 +469,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 
     // By default, Crossgen will generate readytorun images unless /FragileNonVersionable switch is specified
     dwFlags |= NGENWORKER_FLAGS_READYTORUN;
+
     while (argc > 0)
     {
         if (MatchParameter(*argv, W("?"))

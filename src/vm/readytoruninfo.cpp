@@ -455,6 +455,7 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
     STANDARD_VM_CONTRACT;
 
     PEFile * pFile = pModule->GetFile();
+
     if (!IsReadyToRunEnabled())
     {
         // Log message is ignored in this case.
