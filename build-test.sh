@@ -529,7 +529,6 @@ usage()
     echo "clangx.y - optional argument to build using clang version x.y - supported version 3.5 - 6.0"
     echo "cross - optional argument to signify cross compilation,"
     echo "      - will use ROOTFS_DIR environment variable if set."
-    echo "portableLinux - build for Portable Linux Distribution"
     echo "portablebuild - Use portable build."
     echo "verbose - optional argument to enable verbose build output."
     echo "rebuild - if tests have already been built - rebuild them"
@@ -659,7 +658,6 @@ __HostDistroRid=""
 __SkipRestorePackages=0
 __DistroRid=""
 __cmakeargs=""
-__PortableLinux=0
 __msbuildonunsupportedplatform=0
 __ZipTests=0
 __NativeTestIntermediatesDir=
@@ -726,15 +724,6 @@ while :; do
 
         portableBuild)
             __PortableBuild=1
-            ;;
-
-        portablelinux)
-            if [ "$__BuildOS" == "Linux" ]; then
-                __PortableLinux=1
-            else
-                echo "ERROR: portableLinux not supported for non-Linux platforms."
-                exit 1
-            fi
             ;;
 
         verbose)
