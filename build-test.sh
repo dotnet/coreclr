@@ -388,13 +388,17 @@ build_MSBuild_projects()
             export TestBuildSlice=$slice
 
             # Generate build command
-            buildArgs=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
+            buildArgs=("/nologo" "/verbosity:minimal" "/clp:Summary")
+            buildArgs+=("/p:RestoreDefaultOptimizationDataPackage=false" "/p:PortableBuild=true")
+            buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
+
+            buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
             buildArgs+=("$msbuildEventLoggingMSBuildArg")
             buildArgs+=("${extraBuildParameters[@]}")
             buildArgs+=("${__CommonMSBuildArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-            nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildArgs[@]}"
+            nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
             echo "Building step '$stepName' slice=$slice via $nextCommand"
             eval $nextCommand
 
@@ -416,13 +420,17 @@ build_MSBuild_projects()
         __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
 
         # Generate build command
-        buildArgs=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
+        buildArgs=("/nologo" "/verbosity:minimal" "/clp:Summary")
+        buildArgs+=("/p:RestoreDefaultOptimizationDataPackage=false" "/p:PortableBuild=true")
+        buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
+
+        buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
         buildArgs+=("$msbuildEventLoggingMSBuildArg")
         buildArgs+=("${extraBuildParameters[@]}")
         buildArgs+=("${__CommonMSBuildArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-        nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild /nologo /verbosity:minimal /clp:Summary /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ${buildArgs[@]}"
+        nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
         echo "Building step '$stepName' via $nextCommand"
         eval $nextCommand
 
@@ -468,10 +476,10 @@ build_native_projects()
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
             $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
-                                     /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount \
-                                     $__ProjectDir/build.proj \
-                                     /t:GenerateVersionHeader /p:GenerateVersionHeader=true \
-                                     /p:NativeVersionSourceFile=$__versionSourceFile \
+                                     /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                                     /p:UsePartialNGENOptimization=false /maxcpucount \
+                                     $__ProjectDir/build.proj /t:GenerateVersionHeader \
+                                     /p:GenerateVersionHeader=true /p:NativeVersionSourceFile=$__versionSourceFile \
                                      /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
                                      $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else

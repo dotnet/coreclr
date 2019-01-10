@@ -234,7 +234,12 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call "%__ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount "%__NativeTestIntermediatesDir%\install.vcxproj" !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
+call "%__ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+  /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+  /p:UsePartialNGENOptimization=false /maxcpucount^
+  "%__NativeTestIntermediatesDir%\install.vcxproj"^
+  !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -267,7 +272,12 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call "%__ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__ProjectDir%\tests\build.proj /t:BatchRestorePackages !__Logging! %__CommonMSBuildArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__UnprocessedBuildArgs%
+call "%__ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+  /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+  /p:UsePartialNGENOptimization=false /maxcpucount^
+  %__ProjectDir%\tests\build.proj /t:BatchRestorePackages^
+  !__Logging! %__CommonMSBuildArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__UnprocessedBuildArgs%
 
 if not defined __BuildAgainstPackagesArg goto SkipRestoreProduct
 
@@ -282,7 +292,12 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call "%__ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__Projectdir%\tests\runtest.proj /t:BinPlaceRef /t:BinPlaceProduct /t:CopyCrossgenToProduct /p:RuntimeId="%__RuntimeId%" !__Logging! %__CommonMSBuildArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__UnprocessedBuildArgs%
+call "%__ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+  /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+  /p:UsePartialNGENOptimization=false /maxcpucount^
+  %__Projectdir%\tests\runtest.proj /t:BinPlaceRef /t:BinPlaceProduct /t:CopyCrossgenToProduct /p:RuntimeId="%__RuntimeId%"^
+  !__Logging! %__CommonMSBuildArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: BinPlace of mscorlib.dll failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -418,7 +433,12 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__ProjectDir%\tests\runtest.proj /t:CreateTestOverlay !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %__PriorityArg% %__UnprocessedBuildArgs%
+call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+  /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+  /p:UsePartialNGENOptimization=false /maxcpucount^
+  %__ProjectDir%\tests\runtest.proj /t:CreateTestOverlay^
+  !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %__PriorityArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -447,7 +467,12 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__ProjectDir%\tests\runtest.proj /t:CreateTestHost !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %__PriorityArg% %__UnprocessedBuildArgs%
+call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+  /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+  /p:UsePartialNGENOptimization=false /maxcpucount^
+  %__ProjectDir%\tests\runtest.proj /t:CreateTestHost^
+  !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %__PriorityArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -527,7 +552,12 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__ProjectDir%\tests\helixprep.proj !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %TargetsWindowsMSBuildArg% %__CrossgenArg% %__PriorityArg% %__UnprocessedBuildArgs%
+call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+  /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+  /p:UsePartialNGENOptimization=false /maxcpucount^
+  %__ProjectDir%\tests\helixprep.proj^
+  !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %TargetsWindowsMSBuildArg% %__CrossgenArg% %__PriorityArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%

@@ -35,7 +35,9 @@ FOR /f "tokens=1*" %%x IN ("%*") DO (
 
 :ArgsDone
 
-call %~dp0msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /p:__BuildOS=Windows_NT .\src\publish.proj /flp:v=detailed;LogFile=publish-packages.log /clp:v=detailed %__MSBuildArgs%
+call %~dp0msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /p:__BuildOS=Windows_NT^
+  .\src\publish.proj^
+  /flp:v=detailed;LogFile=publish-packages.log /clp:v=detailed %__MSBuildArgs%
 @exit /b %ERRORLEVEL%
 
 :Usage

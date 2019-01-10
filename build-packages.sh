@@ -145,7 +145,12 @@ else
     export __DistroRid="$__HostDistroRid"
 fi
 
-$__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary /p:__BuildOS=$__BuildOS /flp:v=detailed\;Append\;LogFile=build-packages.log /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log /p:PortableBuild=true src/.nuget/packages.builds /p:__DistroRid=$__DistroRid /p:UseSharedCompilation=false /p:BuildNugetPackage=false $buildArgs $unprocessedBuildArgs
+$__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
+                         /p:__BuildOS=$__BuildOS /flp:v=detailed\;Append\;LogFile=build-packages.log \
+                         /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
+                         /p:PortableBuild=true src/.nuget/packages.builds \
+                         /p:__DistroRid=$__DistroRid /p:UseSharedCompilation=false /p:BuildNugetPackage=false \
+                         $buildArgs $unprocessedBuildArgs
 if [ $? -ne 0 ]
 then
     echo "ERROR: An error occurred while building packages; See build-packages.log for more details."

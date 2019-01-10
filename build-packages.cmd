@@ -33,7 +33,11 @@ if [!processedArgs!]==[] (
 
 :ArgsDone
 
-call %__ProjectDir%/msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /p:__BuildOS=Windows_NT /flp:v=detailed;Append;LogFile=build-packages.log /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:PortableBuild=true %__ProjectDir%\src\.nuget\packages.builds /p:FilterToOSGroup=Windows_NT %__MSBuildArgs% %unprocessedArgs%
+call %__ProjectDir%/msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /p:__BuildOS=Windows_NT /flp:v=detailed;Append;LogFile=build-packages.log^
+  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+  /p:PortableBuild=true %__ProjectDir%\src\.nuget\packages.builds^
+  /p:FilterToOSGroup=Windows_NT %__MSBuildArgs% %unprocessedArgs%
 if NOT [!ERRORLEVEL!]==[0] (
   echo ERROR: An error occurred while building packages, see build-packages.log for more details.
   exit /b 1

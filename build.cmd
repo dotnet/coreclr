@@ -355,7 +355,12 @@ REM ============================================================================
 
 @if defined _echo @echo on
 
-call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__ProjectDir%\build.proj /t:GenerateVersionHeader /p:GenerateVersionHeader=true  /p:NativeVersionHeaderFile="%__RootBinDir%\obj\_version.h" %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+  /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+  /p:UsePartialNGENOptimization=false /maxcpucount^
+  %__ProjectDir%\build.proj /t:GenerateVersionHeader /p:GenerateVersionHeader=true /p:NativeVersionHeaderFile="%__RootBinDir%\obj\_version.h"^
+  %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
 
 REM =========================================================================================
 REM ===
@@ -365,7 +370,11 @@ REM ============================================================================
 
 if %__RestoreOptData% EQU 1 (
     echo %__MsgPrefix%Restoring the OptimizationData Package
-    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount ./build.proj /t:RestoreOptData %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+      /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+      /p:UsePartialNGENOptimization=false /maxcpucount^
+      ./build.proj /t:RestoreOptData^
+      %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: Failed to restore the optimization data package.
         exit /b 1
@@ -507,7 +516,11 @@ if %__BuildNative% EQU 1 (
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
     set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__IntermediatesDir%\install.vcxproj !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% /m:2 %__UnprocessedBuildArgs%
+    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+      /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+      /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+      /p:UsePartialNGENOptimization=false /maxcpucount %__IntermediatesDir%\install.vcxproj^
+      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% /m:2 %__UnprocessedBuildArgs%
 
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: native component build failed. Refer to the build log files for details:
@@ -570,7 +583,12 @@ if %__BuildCrossArchNative% EQU 1 (
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
     set __Logging=!_MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__CrossCompIntermediatesDir%\install.vcxproj !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__CrossArch% %__CommonMSBuildArgs% /m:2 %__UnprocessedBuildArgs%
+    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+      /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+      /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+      /p:UsePartialNGENOptimization=false /maxcpucount^
+      %__CrossCompIntermediatesDir%\install.vcxproj^
+      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__CrossArch% %__CommonMSBuildArgs% /m:2 %__UnprocessedBuildArgs%
 
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: cross-arch components build failed. Refer to the build log files for details:
@@ -625,7 +643,12 @@ if %__BuildCoreLib% EQU 1 (
         set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
         set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-        call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__ProjectDir%\build.proj !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
+        call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+          /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+          /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+          /p:UsePartialNGENOptimization=false /maxcpucount^
+          %__ProjectDir%\build.proj^
+          !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
 
         if not !errorlevel! == 0 (
             echo %__MsgPrefix%Error: System.Private.CoreLib build failed. Refer to the build log files for details:
@@ -823,7 +846,12 @@ if %__BuildPackages% EQU 1 (
     set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
     REM The conditions as to what to build are captured in the builds file.
-    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount %__SourceDir%\.nuget\packages.builds !__Logging! /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+      /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+      /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+      /p:UsePartialNGENOptimization=false /maxcpucount^
+      %__SourceDir%\.nuget\packages.builds^
+      !__Logging! /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
 
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: Nuget package generation failed. Refer to the build log files for details:

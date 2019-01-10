@@ -180,7 +180,8 @@ restore_optdata()
     if [[ ( $__SkipRestoreOptData == 0 ) && ( $__isMSBuildOnNETCoreSupported == 1 ) ]]; then
         echo "Restoring the OptimizationData package"
         "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
-                                   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount \
+                                   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                                   /p:UsePartialNGENOptimization=false /maxcpucount \
                                    /t:RestoreOptData ./build.proj \
                                    $__CommonMSBuildArgs $__UnprocessedBuildArgs
         if [ $? != 0 ]; then
@@ -297,10 +298,9 @@ build_native()
             pwd
             "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
                                        /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                                       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount \
-                                       "$__ProjectDir/build.proj" \
-                                       /p:GenerateVersionSourceFile=true /t:GenerateVersionSourceFile \
-                                       /p:NativeVersionSourceFile=$__versionSourceFile \
+                                       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                                       /p:UsePartialNGENOptimization=false /maxcpucount \
+                                       "$__ProjectDir/build.proj" /p:GenerateVersionSourceFile=true /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile \
                                        $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else
             # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
@@ -467,16 +467,12 @@ build_CoreLib()
 
     $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
                              /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount \
+                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                             /p:UsePartialNGENOptimization=false /maxcpucount \
                              $__ProjectDir/build.proj \
                              /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir \
-                             /p:__RootBinDir=$__RootBinDir \
-                             /p:BuildNugetPackage=false \
-                             /p:UseSharedCompilation=false \
-                             $__CommonMSBuildArgs \
-                             $__ExtraBuildArgs \
-                             $__UnprocessedBuildArgs
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false \
+                             $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to build managed components."
@@ -535,14 +531,11 @@ generate_NugetPackages()
     # Build the packages
     $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
                              /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true /p:UsePartialNGENOptimization=false /maxcpucount \
+                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                             /p:UsePartialNGENOptimization=false /maxcpucount \
                              $__SourceDir/.nuget/packages.builds \
                              /flp:Verbosity=normal\;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir \
-                             /p:__RootBinDir=$__RootBinDir \
-                             /p:BuildNugetPackages=false \
-                             /p:UseSharedCompilation=false \
-                             /p:__DoCrossArchBuild=$__CrossBuild \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackages=false /p:UseSharedCompilation=false /p:__DoCrossArchBuild=$__CrossBuild \
                              $__CommonMSBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
