@@ -515,25 +515,13 @@ namespace System.Reflection.Emit
 
         public DynamicILInfo GetDynamicILInfo()
         {
-            if (m_DynamicILInfo != null)
-                return m_DynamicILInfo;
-
-            return GetDynamicILInfo(new DynamicScope());
-        }
-
-        internal DynamicILInfo GetDynamicILInfo(object scope)
-        {
-            if (scope as DynamicScope is null)
-            {
-                throw new InvalidCastException(nameof(scope));
-            }
             if (m_DynamicILInfo == null)
             {
+                var scope = new DynamicScope();
                 byte[] methodSignature = SignatureHelper.GetMethodSigHelper(
                         null, CallingConvention, ReturnType, null, null, m_parameterTypes, null, null).GetSignature(true);
                 m_DynamicILInfo = new DynamicILInfo(scope, this, methodSignature);
             }
-
             return m_DynamicILInfo;
         }
 
