@@ -513,22 +513,20 @@ namespace System.Reflection.Emit
             return null;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public DynamicILInfo GetDynamicILInfo()
         {
-#pragma warning disable 618
-            new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Demand();
-#pragma warning restore 618
-
             if (m_DynamicILInfo != null)
                 return m_DynamicILInfo;
 
             return GetDynamicILInfo(new DynamicScope());
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
-        internal DynamicILInfo GetDynamicILInfo(DynamicScope scope)
+        internal DynamicILInfo GetDynamicILInfo(object scope)
         {
+            if (scope as DynamicScope is null)
+            {
+                throw new InvalidCastException(nameof(scope));
+            }
             if (m_DynamicILInfo == null)
             {
                 byte[] methodSignature = SignatureHelper.GetMethodSigHelper(
@@ -538,7 +536,6 @@ namespace System.Reflection.Emit
 
             return m_DynamicILInfo;
         }
-
 
         public ILGenerator GetILGenerator()
         {

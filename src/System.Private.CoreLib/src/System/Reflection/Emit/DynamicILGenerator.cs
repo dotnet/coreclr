@@ -876,10 +876,12 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        internal DynamicILInfo(DynamicScope scope, DynamicMethod method, byte[] methodSignature)
+        internal DynamicILInfo(object scope, DynamicMethod method, byte[] methodSignature)
         {
+            if (scope as DynamicScope is null)
+                throw new InvalidCastException(nameof(scope));
             m_method = method;
-            m_scope = scope;
+            m_scope = (DynamicScope)scope;
             m_methodSignature = m_scope.GetTokenFor(methodSignature);
             m_exceptions = Array.Empty<byte>();
             m_code = Array.Empty<byte>();
@@ -919,7 +921,6 @@ namespace System.Reflection.Emit
             m_maxStackSize = maxStackSize;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [CLSCompliant(false)]
         public unsafe void SetCode(byte* code, int codeSize, int maxStackSize)
         {
@@ -943,7 +944,6 @@ namespace System.Reflection.Emit
             m_exceptions = (exceptions != null) ? (byte[])exceptions.Clone() : Array.Empty<byte>();
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [CLSCompliant(false)]
         public unsafe void SetExceptions(byte* exceptions, int exceptionsSize)
         {
@@ -967,7 +967,6 @@ namespace System.Reflection.Emit
             m_localSignature = (localSignature != null) ? (byte[])localSignature.Clone() : Array.Empty<byte>();
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [CLSCompliant(false)]
         public unsafe void SetLocalSignature(byte* localSignature, int signatureSize)
         {
@@ -987,7 +986,6 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Public Scope Methods
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public int GetTokenFor(RuntimeMethodHandle method)
         {
             return DynamicScope.GetTokenFor(method);
