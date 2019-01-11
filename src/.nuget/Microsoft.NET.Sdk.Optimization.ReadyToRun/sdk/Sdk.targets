@@ -34,7 +34,7 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
                             _Custom_PrepOptimizer;
                             _RunCrossgenOnInputs;
                             _PublishCrossgenOutputs"
-          Condition="'$(ShouldCreateReadyToRunImages)' == 'true' and '$(UseNewCrossGenPipeline)' == ''">
+          Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
   </Target>
 
   <Target Name="CheckForUnsupportedReadyToRunCompilation"
@@ -43,6 +43,12 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
     <!-- TODO: Add this message as a resource string to the NET SDK so it can be localized -->
     <NETSdkError Condition="'3.0' > '$(_TargetFrameworkVersionWithoutV)'"
         FormattedText="Creating ReadyToRun images is only supported for .NET Core 3.0 and above" />
+
+    <NETSdkError Condition="'$(RuntimeIdentifier)' ==''"
+                 ResourceName="RuntimeIdentifierWasNotSpecified"/>
+
+    <NETSdkError Condition="'$(TargetFramework)' ==''"
+                 ResourceName="AtLeastOneTargetFrameworkMustBeSpecified"/>
 
     <!-- Determine the host OS platform|architecture -->
     <PropertyGroup>
@@ -67,7 +73,6 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
           Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
     <PropertyGroup>
       <_TFM Condition="'$(_TFM)' == ''">$(TargetFramework)</_TFM>
-      <SkipOptimization Condition="'$(RuntimeIdentifier)' == ''">true</SkipOptimization>
 
       <IntermediateOptimizedDirName Condition=" '$(IntermediateOptimizedDirName)' == '' ">optimized</IntermediateOptimizedDirName>
       <IntermediateOptimizedDir Condition=" '$(IntermediateOptimizedDir)' == '' ">$(IntermediateOutputPath)$(IntermediateOptimizedDirName)</IntermediateOptimizedDir>
@@ -164,8 +169,7 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
 
 <!-- SDK code -->
   <Target Name="_Custom_PrepOptimizer"
-          DependsOnTargets="_Custom_RestoreCrossgen;"
-          Condition="$(SkipOptimization) != 'true' ">
+          DependsOnTargets="_Custom_RestoreCrossgen;">
     <!-- Get the coreclr path -->
     <ItemGroup>
       <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
@@ -250,9 +254,19 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
 
   <!-- TODO: Remove this restore task. We should already have restored the runtime package. However, we'll need to obtain a path to that package somehow -->
   <Target Name="_Custom_RestoreCrossgen"
-          DependsOnTargets="_Custom_SetupStageForCrossgen;
-                            ApplyImplicitVersions"
-          Condition="$(SkipOptimization) != 'true' ">
+          DependsOnTargets="ApplyImplicitVersions">
+    <PropertyGroup>
+      <_CrossProjFileDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"Optimize"))</_CrossProjFileDir>
+      <_NetCoreRefDir>$([System.IO.Path]::Combine($(_CrossProjFileDir), "netcoreapp"))</_NetCoreRefDir>              <!-- flat netcore app assemblies-->
+      <_RuntimeOptimizedDir>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "runtimopt"))</_RuntimeOptimizedDir>      <!-- optimized app managed assemblies in nuget cache layout -->
+    </PropertyGroup>
+
+    <MakeDir Directories="$(_CrossProjFileDir)"/>
+    <MakeDir Directories="$(_RuntimeOptimizedDir)"/>
+
+    <PropertyGroup>
+      <_CrossProjAssetsFile>$([System.IO.Path]::Combine($(_CrossProjFileDir),  project.assets.json))</_CrossProjAssetsFile>
+    </PropertyGroup>
 
     <ItemGroup>
       <!-- Filter package references to the one for the platform library, in order to find the right version -->
@@ -280,51 +294,4 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
       <Output TaskParameter="AssembliesToPublish" ItemName="CrossgenResolvedAssembliesToPublish" />
     </ResolvePublishAssemblies>
   </Target>
-
-  <Target Name="_Custom_SetupStageForCrossgen"
-          DependsOnTargets="_Custom_GetCrossgenProps;">
-    <PropertyGroup>
-      <_RuntimeRefDir>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "runtimeref"))</_RuntimeRefDir>  <!-- flat app managed assemblies -->
-      <_RuntimeOptimizedDir>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "runtimopt"))</_RuntimeOptimizedDir>      <!-- optimized app managed assemblies in nuget cache layout -->
-      <_RuntimeSymbolsDir>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "runtimesymbols"))</_RuntimeSymbolsDir>
-    </PropertyGroup>
-    
-    <ItemGroup>
-      <_ManagedResolvedFilesToOptimize Include="@(_ManagedResolvedFileToPublishCandidates)" />
-    </ItemGroup>
-    
-    <MakeDir Directories="$(_RuntimeOptimizedDir)"/>
-    <MakeDir Directories="$(_RuntimeSymbolsDir)"
-             Condition="'$(CreateProfilingSymbols)' == 'true'" />
-    
-    <!-- Copy managed files to  a flat temp directory for passing it as ref -->
-    <Copy SourceFiles = "@(_ManagedResolvedFilesToOptimize)"
-          DestinationFolder="$(_RuntimeRefDir)"
-          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
-          Retries="$(CopyRetryCount)"
-          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
-          UseHardlinksIfPossible="$(CreateHardLinksForPublishFilesIfPossible)"
-          UseSymboliclinksIfPossible="$(CreateSymbolicLinksForPublishFilesIfPossible)">
-
-      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
-    </Copy>
-
-  </Target>
-
-  <Target Name="_Custom_GetCrossgenProps"
-    Condition="$(SkipOptimization) != 'true' ">
-
-    <PropertyGroup>
-      <_CrossProjFileDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"Optimize"))</_CrossProjFileDir>
-      <_NetCoreRefDir>$([System.IO.Path]::Combine($(_CrossProjFileDir), "netcoreapp"))</_NetCoreRefDir>              <!-- flat netcore app assemblies-->
-    </PropertyGroup>
-     <MakeDir  Directories="$(_CrossProjFileDir)"/>
-    <PropertyGroup>
-      <_CrossProjAssetsFile>$([System.IO.Path]::Combine($(_CrossProjFileDir),  project.assets.json))</_CrossProjAssetsFile>
-    </PropertyGroup>
-
-    
-  </Target>
-
-
 </Project>
