@@ -26,9 +26,9 @@ initHostDistroRid()
 
     if [ "$__HostDistroRid" == "" ]; then
         echo "WARNING: Cannot determine runtime id for current distro."
+    else
+        echo "Setting __HostDistroRid to $__HostDistroRid"
     fi
-
-    echo "Setting __HostDistroRid to $__HostDistroRid"
 }
 
 initTargetDistroRid()
