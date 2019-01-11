@@ -50,6 +50,16 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
       <ComposeWorkingDir Condition="'$(ComposeWorkingDir)' == ''">$(IntermediateCrossGenDir)</ComposeWorkingDir>
       <ComposeWorkingDir>$([System.IO.Path]::GetFullPath($(ComposeWorkingDir)))</ComposeWorkingDir>
     </PropertyGroup>
+
+    <!-- Properties originally set by PrepforRestoreForComposeStore -->
+    <PropertyGroup>
+      <StorePackageVersionForFolderName>$(StorePackageVersion.Replace('*','-'))</StorePackageVersionForFolderName>
+      <StoreWorkerWorkingDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"$(StorePackageName)_$(StorePackageVersionForFolderName)"))</StoreWorkerWorkingDir>
+    </PropertyGroup>
+
+    <PropertyGroup>
+      <SelfContained Condition="'$(SelfContained)' == ''">true</SelfContained>
+    </PropertyGroup>
   </Target>
 
   <Target Name="_ComputeCrossGenInputs">
@@ -125,36 +135,6 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
     </ItemGroup>
   </Target>
 
-  <!-- Workaround! -->
-  <!-- This can be fixed by getting rid of the explicit dependency on PrepForRestoreForComposeStore -->
-  <!-- PrepforRestoreForComposeStore (a dependency of
-       _RestoreCrossgen) sets BaseIntermediateOutputPath and
-       ProjectAssetsFile to the compose working directory. We don't
-       want this because we are not composing a package store, so we
-       save and restore these properties. -->
-  <Target Name="_SavePropsModifiedByPrepforRestoreForComposeStore"
-          BeforeTargets="_Custom_PrepforRestoreForComposeStore"
-          Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
-    <PropertyGroup>
-      <_SavedBaseIntermediateOutputPath>$(BaseIntermediateOutputPath)</_SavedBaseIntermediateOutputPath>
-      <_SavedProjectAssetsFile>$(ProjectAssetsFile)</_SavedProjectAssetsFile>
-    </PropertyGroup>
-  </Target>
-
-  <Target Name="_RestorePropsModifiedByPrepforRestoreForComposeStore"
-          AfterTargets="_Custom_PrepforRestoreForComposeStore">
-    <PropertyGroup>
-      <BaseIntermediateOutputPath>$(_SavedBaseIntermediateOutputPath)</BaseIntermediateOutputPath>
-      <ProjectAssetsFile>$(_SavedProjectAssetsFile)</ProjectAssetsFile>
-    </PropertyGroup>
-  </Target>
-  <!-- End Workaround! -->
-
-
-
-
-
-
 <!-- SDK code -->
   <Target Name="_Custom_PrepOptimizer"
           DependsOnTargets="_Custom_RestoreCrossgen;"
@@ -220,9 +200,8 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
   </Target>
 
   <Target Name="_Custom_RestoreCrossgen"
-          DependsOnTargets="_Custom_PrepforRestoreForComposeStore;
-                           _Custom_SetupStageForCrossgen;
-                           ApplyImplicitVersions"
+          DependsOnTargets="_Custom_SetupStageForCrossgen;
+                            ApplyImplicitVersions"
           Condition="$(SkipOptimization) != 'true' ">
 
     <ItemGroup>
@@ -262,23 +241,6 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
 
       <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
     </Copy>
-  </Target>
-
-  <Target Name="_Custom_PrepforRestoreForComposeStore"
-          DependsOnTargets="_DefaultMicrosoftNETPlatformLibrary">
-
-    <PropertyGroup>
-      <StorePackageVersionForFolderName>$(StorePackageVersion.Replace('*','-'))</StorePackageVersionForFolderName>
-      <StoreWorkerWorkingDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"$(StorePackageName)_$(StorePackageVersionForFolderName)"))</StoreWorkerWorkingDir>
-      <_PackageProjFile>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "Restore.csproj"))</_PackageProjFile>
-      <BaseIntermediateOutputPath>$(StoreWorkerWorkingDir)\</BaseIntermediateOutputPath>
-      <ProjectAssetsFile>$(BaseIntermediateOutputPath)\project.assets.json</ProjectAssetsFile>
-    </PropertyGroup>
-    
-    <PropertyGroup>
-      <PackagesToPrune>$(MicrosoftNETPlatformLibrary)</PackagesToPrune>
-      <SelfContained Condition="'$(SelfContained)' == ''">true</SelfContained>
-    </PropertyGroup>
   </Target>
 
   <Target Name="_Custom_SetupStageForCrossgen"
