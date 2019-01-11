@@ -69,6 +69,9 @@ initTargetDistroRid()
         elif [ "$__BuildOS" == "OSX" ]; then
             export __DistroRid="osx-$__BuildArch"
             export __RuntimeId="osx-$__BuildArch"
+        elif [ "$__BuildOS" == "FreeBSD" ]; then
+            export __DistroRid="freebsd-$__BuildArch"
+            export __RuntimeId="freebsd-$__BuildArch"
         fi
     fi
 
