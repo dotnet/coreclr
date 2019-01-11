@@ -87,7 +87,7 @@ initHostDistroRid()
     fi
 
     if [ "$__HostDistroRid" == "" ]; then
-        echo "WARNING: Can not determine runtime id for current distro."
+        echo "WARNING: Cannot determine runtime id for current distro."
     fi
 }
 
@@ -100,7 +100,7 @@ initTargetDistroRid()
                     source $ROOTFS_DIR/android_platform
                     export __DistroRid="$RID"
                 else
-                    echo "WARNING: Can not determine runtime id for current distro."
+                    echo "WARNING: Cannot determine runtime id for current distro."
                     export __DistroRid=""
                 fi
             else
