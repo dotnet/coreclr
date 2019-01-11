@@ -170,12 +170,19 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
     <ItemGroup>
       <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='coreclr'" />
+      <!-- Copied from CrossGen.targets. Do we use libcoreclr? -->
       <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='libcoreclr'" />
       <_JitResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='clrjit'" />
+      <!-- Copied from CrossGen.targets. Do we use libclrjit? -->
       <_JitResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='libclrjit'" />
+      <_SystemPrivateCoreLibResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
+                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='System.Private.CoreLib'" />
+      <!-- TODO: Copy over Microsoft.DiaSymReader.Native when I figure out the right condition-->
+      <!--<_MicrosoftDiaSymReaderNativePaths Include="@(CrossgenResolvedAssembliesToPublish)"
+                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='Microsoft.DiaSymReader.Native'" />-->
     </ItemGroup>
 
     <NETSdkError Condition="'@(_CoreclrResolvedPath->Count())' &gt; 1"
@@ -194,10 +201,20 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
                  ResourceName="UnableToFindResolvedPath"
                  FormatArguments="jit" />
 
+    <NETSdkError Condition="'@(_SystemPrivateCoreLibResolvedPath->Count())' &gt; 1"
+                 ResourceName="MultipleFilesResolved"
+                 FormatArguments="System.Private.CoreLib" />
+
+    <NETSdkError Condition="'@(_SystemPrivateCoreLibResolvedPath)'== ''"
+                 ResourceName="UnableToFindResolvedPath"
+                 FormatArguments="System.Private.CoreLib" />
+
     <!-- Get the crossgen and jit path-->
     <PropertyGroup>
       <_CoreclrPath>@(_CoreclrResolvedPath)</_CoreclrPath>
       <JitPath>@(_JitResolvedPath)</JitPath>
+      <SystemPrivateCoreLibPath>@(_SystemPrivateCoreLibResolvedPath)</SystemPrivateCoreLibPath>
+      <!--<MicrosoftDiaSymReaderNativePaths>@()</MicrosoftDiaSymReaderNativePaths>-->
       <_CoreclrDir>$([System.IO.Path]::GetDirectoryName($(_CoreclrPath)))</_CoreclrDir>
       <_CoreclrPkgDir>$([System.IO.Path]::Combine($(_CoreclrDir),"..\..\..\"))</_CoreclrPkgDir>
       <CrossgenDir>$([System.IO.Path]::Combine($(_CoreclrPkgDir),"tools"))</CrossgenDir>
@@ -211,7 +228,12 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
                  FormatArguments="$(Crossgen)" />
 
     <!-- Copy crossgen into the netcoreapp folder to ensure it can load Microsoft.DiaSymReader.Native when creating PDBs -->
-    <Copy SourceFiles="$(Crossgen)"
+    <!-- Copy crossgen.exe and the necessary files side-by-side:
+           - clrjit.dll
+           - System.Private.CoreLib.dll
+           - Microsoft.DiaSymReader.Native.*.dll (TODO)
+    -->
+    <Copy SourceFiles="$(Crossgen);$(JitPath);$(SystemPrivateCoreLibPath);"
           DestinationFolder="$(_NetCoreRefDir)"
           OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
           Retries="$(CopyRetryCount)"
@@ -226,6 +248,7 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
     </PropertyGroup>
   </Target>
 
+  <!-- TODO: Remove this restore task. We should already have restored the runtime package. However, we'll need to obtain a path to that package somehow -->
   <Target Name="_Custom_RestoreCrossgen"
           DependsOnTargets="_Custom_SetupStageForCrossgen;
                             ApplyImplicitVersions"
@@ -256,18 +279,6 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
 
       <Output TaskParameter="AssembliesToPublish" ItemName="CrossgenResolvedAssembliesToPublish" />
     </ResolvePublishAssemblies>
-
-    <!-- Copy managed files to  a flat temp directory for passing it as ref for crossgen -->
-    <Copy SourceFiles = "@(CrossgenResolvedAssembliesToPublish)"
-          DestinationFolder="$(_NetCoreRefDir)"
-          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
-          Retries="$(CopyRetryCount)"
-          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
-          UseHardlinksIfPossible="$(CreateHardLinksForPublishFilesIfPossible)"
-          UseSymboliclinksIfPossible="$(CreateSymbolicLinksForPublishFilesIfPossible)">
-
-      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
-    </Copy>
   </Target>
 
   <Target Name="_Custom_SetupStageForCrossgen"
