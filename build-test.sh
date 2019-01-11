@@ -358,10 +358,10 @@ build_MSBuild_projects()
     __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
 
     # Use binclashlogger by default if no other logger is specified
-    elif [[ "${extraBuildParameters[*]}" == *"/l:"* ]]; then
-        msbuildEventLoggingMSBuildArg=
+    if [[ "${extraBuildParameters[*]}" == *"/l:"* ]]; then
+        __msbuildEventLogging=
     else
-        msbuildEventLoggingMSBuildArg="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log"
+        __msbuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log"
     fi
 
     if [[ "$subDirectoryName" == "Tests_Managed" ]]; then
@@ -394,7 +394,7 @@ build_MSBuild_projects()
             buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
             buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-            buildArgs+=("$msbuildEventLoggingMSBuildArg")
+            buildArgs+=("$__msbuildEventLogging")
             buildArgs+=("${extraBuildParameters[@]}")
             buildArgs+=("${__CommonMSBuildArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
@@ -426,7 +426,7 @@ build_MSBuild_projects()
         buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
         buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-        buildArgs+=("$msbuildEventLoggingMSBuildArg")
+        buildArgs+=("$__msbuildEventLogging")
         buildArgs+=("${extraBuildParameters[@]}")
         buildArgs+=("${__CommonMSBuildArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
