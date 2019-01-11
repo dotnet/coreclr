@@ -3,12 +3,6 @@
 initHostDistroRid()
 {
     __HostDistroRid=""
-
-    # Some OS groups should default to use the portable packages
-    if [ "$__BuildOS" == "OSX" ]; then
-        __PortableBuild=1
-    fi
-
     if [ "$__HostOS" == "Linux" ]; then
         if [ -e /etc/redhat-release ]; then
             local redhatRelease=$(</etc/redhat-release)
@@ -71,6 +65,10 @@ initTargetDistroRid()
 
     if [ "$ID.$VERSION_ID" == "ubuntu.16.04" ]; then
      export __DistroRid="ubuntu.14.04-$__BuildArch"
+    fi
+
+    if [ "$__BuildOS" == "OSX" ]; then
+        __PortableBuild=1
     fi
 
     # Portable builds target the base RID
