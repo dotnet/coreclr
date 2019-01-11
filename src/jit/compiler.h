@@ -8491,6 +8491,12 @@ public:
         bool compTailCallLoopOpt;
 #endif
 
+#if defined(_TARGET_ARM64_)
+        // Decision about whether to save FP/LR registers with callee-saved registers (see
+        // COMPlus_JitSaveFpLrWithCalleSavedRegisters).
+        int compJitSaveFpLrWithCalleeSavedRegisters;
+#endif // defined(_TARGET_ARM64_)
+
 #ifdef ARM_SOFTFP
         static const bool compUseSoftFP = true;
 #else // !ARM_SOFTFP
@@ -8508,6 +8514,9 @@ public:
 #ifdef DEBUG
     static bool                s_pJitDisasmIncludeAssembliesListInitialized;
     static AssemblyNamesList2* s_pJitDisasmIncludeAssembliesList;
+
+    static bool       s_pJitFunctionFileInitialized;
+    static MethodSet* s_pJitMethodSet;
 #endif // DEBUG
 
 #ifdef DEBUG
