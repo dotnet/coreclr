@@ -116,6 +116,8 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
           CrossgenExe=$(Crossgen);
           CrossgenInput=%(_CrossGenInputAssemblies.FullPath);
           CrossgenOutput=$(_RuntimeOptimizedDir)/%(FileName)%(Extension);
+          JitPath=$(JitPath);
+          DiaSymReaderPath=$(DiaSymReaderPath);
           CrossGenPlatformAssemblies=$(_CrossGenPlatformAssemblies);
         </Properties>
       </CrossGenInvocations>
@@ -140,7 +142,7 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
     </PropertyGroup>
 
     <PropertyGroup>
-      <CrossGenCommand>$(CrossGenExe) -readytorun -in $(CrossGenInput) -out $(CrossGenOutput) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot;</CrossGenCommand> 
+      <CrossGenCommand>$(CrossGenExe) -readytorun -in $(CrossGenInput) -out $(CrossGenOutput) -jitpath $(JitPath) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot;</CrossGenCommand>
     </PropertyGroup>
 
     <Message Text="$(CrossGenCommand)" />
@@ -184,11 +186,11 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='libclrjit'" />
       <_SystemPrivateCoreLibResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='System.Private.CoreLib'" />
-      <!-- TODO: Copy over Microsoft.DiaSymReader.Native when I figure out the right condition-->
-      <!--<_MicrosoftDiaSymReaderNativePaths Include="@(CrossgenResolvedAssembliesToPublish)"
-                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='Microsoft.DiaSymReader.Native'" />-->
+      <_MicrosoftDiaSymReaderNativePath Include="@(CrossgenResolvedAssembliesToPublish)"
+                                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(CrossgenResolvedAssembliesToPublish.Filename)', '^Microsoft\.DiaSymReader\.Native\.'))" />
     </ItemGroup>
 
+    <!-- Check that there is one unique assembly for several sensitive assemblies -->
     <NETSdkError Condition="'@(_CoreclrResolvedPath->Count())' &gt; 1"
                  ResourceName="MultipleFilesResolved"
                  FormatArguments="coreclr" />
@@ -213,12 +215,19 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
                  ResourceName="UnableToFindResolvedPath"
                  FormatArguments="System.Private.CoreLib" />
 
+    <NETSdkError Condition="'@(_MicrosoftDiaSymReaderNativePath->Count())' &gt; 1"
+                 ResourceName="MultipleFilesResolved"
+                 FormatArguments="Microsoft.DiaSymReader.Native" />
+
+    <NETSdkError Condition="'@(_MicrosoftDiaSymReaderNativePath)'== ''"
+                 ResourceName="UnableToFindResolvedPath"
+                 FormatArguments="Microsoft.DiaSymReader.Native" />
+
     <!-- Get the crossgen and jit path-->
     <PropertyGroup>
       <_CoreclrPath>@(_CoreclrResolvedPath)</_CoreclrPath>
       <JitPath>@(_JitResolvedPath)</JitPath>
-      <SystemPrivateCoreLibPath>@(_SystemPrivateCoreLibResolvedPath)</SystemPrivateCoreLibPath>
-      <!--<MicrosoftDiaSymReaderNativePaths>@()</MicrosoftDiaSymReaderNativePaths>-->
+      <DiaSymReaderPath>@(_MicrosoftDiaSymReaderNativePath)</DiaSymReaderPath>
       <_CoreclrDir>$([System.IO.Path]::GetDirectoryName($(_CoreclrPath)))</_CoreclrDir>
       <_CoreclrPkgDir>$([System.IO.Path]::Combine($(_CoreclrDir),"..\..\..\"))</_CoreclrPkgDir>
       <CrossgenDir>$([System.IO.Path]::Combine($(_CoreclrPkgDir),"tools"))</CrossgenDir>
@@ -230,26 +239,6 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
     <NETSdkError Condition="!Exists($(Crossgen))"
                  ResourceName="UnableToFindResolvedPath"
                  FormatArguments="$(Crossgen)" />
-
-    <!-- Copy crossgen into the netcoreapp folder to ensure it can load Microsoft.DiaSymReader.Native when creating PDBs -->
-    <!-- Copy crossgen.exe and the necessary files side-by-side:
-           - clrjit.dll
-           - System.Private.CoreLib.dll
-           - Microsoft.DiaSymReader.Native.*.dll (TODO)
-    -->
-    <Copy SourceFiles="$(Crossgen);$(JitPath);$(SystemPrivateCoreLibPath);"
-          DestinationFolder="$(_NetCoreRefDir)"
-          OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
-          Retries="$(CopyRetryCount)"
-          RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
-          UseHardlinksIfPossible="$(CreateHardLinksForPublishFilesIfPossible)"
-          UseSymboliclinksIfPossible="$(CreateSymbolicLinksForPublishFilesIfPossible)">
-      <Output TaskParameter="DestinationFiles" ItemName="FileWrites"/>
-    </Copy>
-    
-    <PropertyGroup>
-      <Crossgen>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine($(_NetCoreRefDir), $([System.IO.Path]::GetFileName($(Crossgen)))))))</Crossgen>
-    </PropertyGroup>
   </Target>
 
   <!-- TODO: Remove this restore task. We should already have restored the runtime package. However, we'll need to obtain a path to that package somehow -->
