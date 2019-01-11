@@ -40,9 +40,27 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
   <Target Name="CheckForUnsupportedReadyToRunCompilation"
           Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
 
+    <!-- TODO: Add this message as a resource string to the NET SDK so it can be localized -->
     <NETSdkError Condition="'3.0' > '$(_TargetFrameworkVersionWithoutV)'"
-        FormattedText="Creating ReadyToRun images is currently only supported for .NET Core 3.0 and above" />
+        FormattedText="Creating ReadyToRun images is only supported for .NET Core 3.0 and above" />
 
+    <!-- Determine the host OS platform|architecture -->
+    <PropertyGroup>
+      <_OSPlatform Condition="$([MSBuild]::IsOSPlatform('windows'))">win</_OSPlatform>
+      <_OSPlatform Condition="$([MSBuild]::IsOSPlatform('osx'))">osx</_OSPlatform>
+      <_OSPlatform Condition="$([MSBuild]::IsOSPlatform('linux'))">linux</_OSPlatform>
+      <_OSArchitecture>$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)</_OSArchitecture>
+
+      <_UnsupportedReadyToRunCompilation>false</_UnsupportedReadyToRunCompilation>
+      <_UnsupportedReadyToRunCompilation Condition="'$(_OSPlatform)' == 'win' and !$(RuntimeIdentifier.StartsWith('win'))">true</_UnsupportedReadyToRunCompilation>
+      <_UnsupportedReadyToRunCompilation Condition="'$(_OSPlatform)' == 'osx' and !$(RuntimeIdentifier.StartsWith('osx'))">true</_UnsupportedReadyToRunCompilation>
+      <!-- TODO: Allow cross-compilation to work for CrossGen in supported scenarios -->
+      <_UnsupportedReadyToRunCompilation Condition="'$(_OSArchitecture)' != '$(PlatformTarget)'">true</_UnsupportedReadyToRunCompilation>
+    </PropertyGroup>
+
+    <!-- TODO: Add this message as a resource string to the NET SDK so it can be localized -->
+    <NETSdkError Condition="'$(_UnsupportedReadyToRunCompilation)' == 'true'"
+        FormattedText="Creating ReadyToRun images is not supported for the RuntimeIdentifier $(RuntimeIdentifier) on the host OS $(_OSPlatform)-$(_OSArchitecture.ToLower())" />
   </Target>
 
   <Target Name="PrepareForReadyToRun"
