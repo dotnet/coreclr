@@ -16,22 +16,12 @@ initHostDistroRid()
             if [[ $ID == "alpine" ]]; then
                 __HostDistroRid="linux-musl-$__HostArch"
             else
-                __PortableBuild=1
                 __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
             fi
         fi
     elif [ "$__HostOS" == "FreeBSD" ]; then
         __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
         __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
-    fi
-
-    # Portable builds target the base RID
-    if [ "$__PortableBuild" == 1 ]; then
-        if [ "$__BuildOS" == "OSX" ]; then
-            export __HostDistroRid="osx-$__BuildArch"
-        elif [ "$__BuildOS" == "Linux" ]; then
-            export __HostDistroRid="linux-$__BuildArch"
-        fi
     fi
 
     if [ "$__HostDistroRid" == "" ]; then
