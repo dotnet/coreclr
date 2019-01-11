@@ -2021,11 +2021,9 @@ AssertionIndex Compiler::optAssertionGenPhiDefn(GenTree* tree)
         return NO_ASSERTION_INDEX;
     }
 
-    GenTree* phi = tree->gtGetOp2()->AsPhi();
-
     // Try to find if all phi arguments are known to be non-null.
     bool isNonNull = true;
-    for (GenTreePhi::Use& use : phi->AsPhi()->Uses())
+    for (GenTreePhi::Use& use : tree->AsOp()->gtGetOp2()->AsPhi()->Uses())
     {
         if (!vnStore->IsKnownNonNull(use.op->gtVNPair.GetConservative()))
         {
