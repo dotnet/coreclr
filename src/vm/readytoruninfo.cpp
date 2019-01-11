@@ -786,7 +786,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 
     if (g_pDebugInterface != NULL)
     {
-        g_pDebugInterface->JITComplete(pMD, pEntryPoint);
+        g_pDebugInterface->JITComplete(NativeCodeVersion(pMD), pEntryPoint);
     }
 
     return pEntryPoint;
