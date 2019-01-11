@@ -87,25 +87,19 @@
     <PropertyGroup Condition=" '$(TargetsWindows)' == 'true' ">
       <_CoreRun>%CORE_ROOT%\CoreRun.exe</_CoreRun>
       <_XUnitRunnerDll>%CORE_ROOT%\xunit.console.dll</_XUnitRunnerDll>
-
-      <_SetCoreRoot>set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%</_SetCoreRoot>
-      <_SetTestEnv>set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\SetStressModes_$(Scenario)$(TestEnvFileExtension)</_SetTestEnv>
-      <_OutputTestEnvFile>type %__TestEnv%</_OutputTestEnvFile>
+      <_HelixPreCommands>set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%;set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\SetStressModes_$(Scenario)$(TestEnvFileExtension);type %__TestEnv%</_HelixPreCommands>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(TargetsWindows)' != 'true' ">
       <_CoreRun>$CORE_ROOT/corerun</_CoreRun>
       <_XUnitRunnerDll>$CORE_ROOT/xunit.console.dll</_XUnitRunnerDll>
-
-      <_SetCoreRoot>export CORE_ROOT=$HELIX_CORRELATION_PAYLOAD</_SetCoreRoot>
-      <_SetTestEnv>export __TestEnv=$HELIX_WORKITEM_PAYLOAD/SetStressModes_$(Scenario)$(TestEnvFileExtension)</_SetTestEnv>
-      <_OutputTestEnvFile>cat $__TestEnv</_OutputTestEnvFile>
+      <_HelixPreCommands>export CORE_ROOT=$HELIX_CORRELATION_PAYLOAD;export __TestEnv=$HELIX_WORKITEM_PAYLOAD/SetStressModes_$(Scenario)$(TestEnvFileExtension);cat $__TestEnv</_HelixPreCommands>
     </PropertyGroup>
 
     <ItemGroup>
       <HelixWorkItem Include="@(XUnitWrapperDlls->'%(FileName)'->Replace('.XUnitWrapper', ''))">
         <PayloadDirectory>%(RootDir)%(Directory)</PayloadDirectory>
-        <PreCommands>$(_SetCoreRoot);$(_SetTestEnv);$(_OutputTestEnvFile)</PreCommands>
+        <PreCommands>$(_HelixPreCommands)</PreCommands>
         <Command>$(_CoreRun) $(_XUnitRunnerDll) %(FileName)%(Extension) $(_XUnitRunnerArgs)</Command>
         <Timeout>$([System.TimeSpan]::FromMinutes($(TimeoutInMinutes)))</Timeout>
       </HelixWorkItem>
