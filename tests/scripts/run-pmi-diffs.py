@@ -179,7 +179,7 @@ def validate_args(args):
 
     coreclr_setup_args.verify(args,
                               "ci_arch",
-                              lambda ci_arch: ci_arch in ['x86_arm_altjit', 'x64_arm64_altjit'],
+                              lambda ci_arch: ci_arch in coreclr_setup_args.valid_arches + ['x86_arm_altjit', 'x64_arm64_altjit'],
                               "Error setting ci_arch")
 
     args = (
