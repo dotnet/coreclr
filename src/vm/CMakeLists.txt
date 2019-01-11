@@ -232,7 +232,6 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     versionresilienthashcode.h
     virtualcallstub.h
     win32threadpool.h
-    yieldprocessornormalized.h
     zapsig.h
 )
 
@@ -355,6 +354,7 @@ set(VM_SOURCES_WKS
     multicorejitplayer.cpp # Condition="'$(FeatureMulticoreJIT)' == 'true'
     nativeeventsource.cpp
     nativeoverlapped.cpp
+    nativelibrarynative.cpp
     objectlist.cpp
     olevariant.cpp
     pendingload.cpp
@@ -473,6 +473,7 @@ set(VM_HEADERS_WKS
     multicorejitimpl.h
     nativeeventsource.h
     nativeoverlapped.h
+    nativelibrarynative.h
     objectlist.h
     olevariant.h
     pendingload.h

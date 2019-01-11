@@ -5960,28 +5960,6 @@ private:
 };
 
 //-----------------------------------------------------------------------------------------------------------------
-static HRESULT VerifyBindHelper(
-    ICLRPrivAssembly *pPrivAssembly,
-    IAssemblyName *pAssemblyName,
-    PEAssembly *pPEAssembly)
-{
-    STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_GC_TRIGGERS;
-
-    HRESULT hr = S_OK;
-    // Create an ICLRPrivAssemblyInfo to call to ICLRPrivAssembly::VerifyBind
-    NewHolder<PEAssemblyAsPrivAssemblyInfo> pPrivAssemblyInfoImpl = new PEAssemblyAsPrivAssemblyInfo(pPEAssembly);
-    ReleaseHolder<ICLRPrivAssemblyInfo> pPrivAssemblyInfo;
-    IfFailRet(pPrivAssemblyInfoImpl->QueryInterface(__uuidof(ICLRPrivAssemblyInfo), (LPVOID *)&pPrivAssemblyInfo));
-    pPrivAssemblyInfoImpl.SuppressRelease();
-
-    // Call VerifyBind to give the host a chance to reject the bind based on assembly image contents.
-    IfFailRet(pPrivAssembly->VerifyBind(pAssemblyName, pPrivAssembly, pPrivAssemblyInfo));
-
-    return hr;
-}
-
-//-----------------------------------------------------------------------------------------------------------------
 HRESULT AppDomain::BindAssemblySpecForHostedBinder(
     AssemblySpec *   pSpec, 
     IAssemblyName *  pAssemblyName, 
@@ -6041,8 +6019,8 @@ AppDomain::BindHostedPrivAssembly(
     }
 
     if (*ppAssembly != nullptr)
-    {   // Already exists: ask the binder to verify and return the assembly.
-        return VerifyBindHelper(pPrivAssembly, pAssemblyName, *ppAssembly);
+    {   // Already exists: return the assembly.
+        return S_OK;
     }
 
     // Get the IL PEFile.
@@ -6080,10 +6058,6 @@ AppDomain::BindHostedPrivAssembly(
     // Create a PEAssembly using the IL and NI images.
     PEAssemblyHolder pPEAssembly = PEAssembly::Open(pParentAssembly, pPEImageIL, pPEImageNI, pPrivAssembly);
 
-
-    // Ask the binder to verify.
-    IfFailRet(VerifyBindHelper(pPrivAssembly, pAssemblyName, pPEAssembly));
-
     // The result.    
     *ppAssembly = pPEAssembly.Extract();
 
@@ -6094,7 +6068,6 @@ AppDomain::BindHostedPrivAssembly(
 PEAssembly * AppDomain::BindAssemblySpec(
     AssemblySpec *         pSpec, 
     BOOL                   fThrowOnFileNotFound, 
-    StackCrawlMark *       pCallerStackMark, 
     BOOL                   fUseHostBinderIfAvailable)
 {
     STATIC_CONTRACT_THROWS;
@@ -6195,7 +6168,7 @@ EndTry2:;
                     // Use CoreClr's fusion alternative
                     CoreBindResult bindResult;
 
-                    pSpec->Bind(this, fThrowOnFileNotFound, &bindResult, FALSE /* fNgenExplicitBind */, FALSE /* fExplicitBindToNativeImage */, pCallerStackMark);
+                    pSpec->Bind(this, fThrowOnFileNotFound, &bindResult, FALSE /* fNgenExplicitBind */, FALSE /* fExplicitBindToNativeImage */);
                     hrBindResult = bindResult.GetHRBindResult();
 
                     if (bindResult.Found()) 
@@ -7890,6 +7863,20 @@ PTR_MethodTable BaseDomain::LookupType(UINT32 id) {
     CONSISTENCY_CHECK(pMT->IsInterface());
     return pMT;
 }
+
+#ifndef DACCESS_COMPILE
+//---------------------------------------------------------------------------------------
+void BaseDomain::RemoveTypesFromTypeIDMap(LoaderAllocator* pLoaderAllocator)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+    } CONTRACTL_END;
+
+    m_typeIDMap.RemoveTypes(pLoaderAllocator);
+}
+#endif // DACCESS_COMPILE
 
 //---------------------------------------------------------------------------------------
 // 

@@ -194,19 +194,36 @@ namespace System.Reflection
 
         public override bool IsCollectible => GetIsCollectible(GetNativeHandle());
 
+        // GetResource will return a pointer to the resources in memory.
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern unsafe byte* GetResource(RuntimeAssembly assembly,
+                                                       string resourceName,
+                                                       out uint length);
+
         // Load a resource based on the NameSpace of the type.
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public override Stream GetManifestResourceStream(Type type, string name)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return GetManifestResourceStream(type, name, false, ref stackMark);
+            if (type == null && name == null)
+                throw new ArgumentNullException(nameof(type));
+
+            string nameSpace = type?.Namespace;
+            string delimiter = (nameSpace != null && name != null) ? Type.Delimiter.ToString() : null;
+            string resourceName = string.Concat(nameSpace, delimiter, name);
+
+            return GetManifestResourceStream(resourceName);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public override Stream GetManifestResourceStream(string name)
+        public unsafe override Stream GetManifestResourceStream(string name)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return GetManifestResourceStream(name, ref stackMark, false);
+            uint length = 0;
+            byte* pbInMemoryResource = GetResource(GetNativeHandle(), name, out length);
+
+            if (pbInMemoryResource != null)
+            {
+                return new UnmanagedMemoryStream(pbInMemoryResource, length, length, FileAccess.Read);
+            }
+
+            return null;
         }
 
         // ISerializable implementation
@@ -433,19 +450,15 @@ namespace System.Reflection
         private static extern int GetManifestResourceInfo(RuntimeAssembly assembly,
                                                           string resourceName,
                                                           ObjectHandleOnStack assemblyRef,
-                                                          StringHandleOnStack retFileName,
-                                                          StackCrawlMarkHandle stackMark);
+                                                          StringHandleOnStack retFileName);
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public override ManifestResourceInfo GetManifestResourceInfo(string resourceName)
         {
             RuntimeAssembly retAssembly = null;
             string fileName = null;
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             int location = GetManifestResourceInfo(GetNativeHandle(), resourceName,
                                                    JitHelpers.GetObjectHandleOnStack(ref retAssembly),
-                                                   JitHelpers.GetStringHandleOnStack(ref fileName),
-                                                   JitHelpers.GetStackCrawlMarkHandle(ref stackMark));
+                                                   JitHelpers.GetStringHandleOnStack(ref fileName));
 
             if (location == -1)
                 return null;
@@ -524,61 +537,6 @@ namespace System.Reflection
             else
                 return "file://" + Path.GetFullPath(codebase);
 #endif // PLATFORM_WINDOWS
-        }
-
-        internal Stream GetManifestResourceStream(
-            Type type,
-            string name,
-            bool skipSecurityCheck,
-            ref StackCrawlMark stackMark)
-        {
-            StringBuilder sb = new StringBuilder();
-            if (type == null)
-            {
-                if (name == null)
-                    throw new ArgumentNullException(nameof(type));
-            }
-            else
-            {
-                string nameSpace = type.Namespace;
-                if (nameSpace != null)
-                {
-                    sb.Append(nameSpace);
-                    if (name != null)
-                        sb.Append(Type.Delimiter);
-                }
-            }
-
-            if (name != null)
-                sb.Append(name);
-
-            return GetManifestResourceStream(sb.ToString(), ref stackMark, skipSecurityCheck);
-        }
-
-        // GetResource will return a pointer to the resources in memory.
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern unsafe byte* GetResource(RuntimeAssembly assembly,
-                                                       string resourceName,
-                                                       out ulong length,
-                                                       StackCrawlMarkHandle stackMark,
-                                                       bool skipSecurityCheck);
-
-        internal unsafe Stream GetManifestResourceStream(string name, ref StackCrawlMark stackMark, bool skipSecurityCheck)
-        {
-            ulong length = 0;
-            byte* pbInMemoryResource = GetResource(GetNativeHandle(), name, out length, JitHelpers.GetStackCrawlMarkHandle(ref stackMark), skipSecurityCheck);
-
-            if (pbInMemoryResource != null)
-            {
-                //Console.WriteLine("Creating an unmanaged memory stream of length "+length);
-                if (length > long.MaxValue)
-                    throw new NotImplementedException(SR.NotImplemented_ResourcesLongerThanInt64Max);
-
-                return new UnmanagedMemoryStream(pbInMemoryResource, (long)length, (long)length, FileAccess.Read);
-            }
-
-            //Console.WriteLine("GetManifestResourceStream: Blob "+name+" not found...");
-            return null;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -674,41 +632,30 @@ namespace System.Reflection
             return null;
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod  
         public override Assembly GetSatelliteAssembly(CultureInfo culture)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return InternalGetSatelliteAssembly(culture, null, ref stackMark);
+            return GetSatelliteAssembly(culture, null);
         }
 
         // Useful for binding to a very specific version of a satellite assembly
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod  
         public override Assembly GetSatelliteAssembly(CultureInfo culture, Version version)
-        {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return InternalGetSatelliteAssembly(culture, version, ref stackMark);
-        }
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod  
-        internal Assembly InternalGetSatelliteAssembly(CultureInfo culture,
-                                                       Version version,
-                                                       ref StackCrawlMark stackMark)
         {
             if (culture == null)
                 throw new ArgumentNullException(nameof(culture));
 
-
             string name = GetSimpleName() + ".resources";
-            return InternalGetSatelliteAssembly(name, culture, version, true, ref stackMark);
+            return InternalGetSatelliteAssembly(name, culture, version, true);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod  
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         internal RuntimeAssembly InternalGetSatelliteAssembly(string name,
                                                               CultureInfo culture,
                                                               Version version,
-                                                              bool throwOnFileNotFound,
-                                                              ref StackCrawlMark stackMark)
+                                                              bool throwOnFileNotFound)
         {
+            // This stack crawl mark is never used because the requesting assembly is explicitly specified,
+            // so the value could be anything.
+            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             AssemblyName an = new AssemblyName();
 
             an.SetPublicKey(GetPublicKey());

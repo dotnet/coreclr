@@ -1427,6 +1427,9 @@ public:
     UINT32 GetTypeID(PTR_MethodTable pMT);
     UINT32 LookupTypeID(PTR_MethodTable pMT);
     PTR_MethodTable LookupType(UINT32 id);
+#ifndef DACCESS_COMPILE
+    void RemoveTypesFromTypeIDMap(LoaderAllocator* pLoaderAllocator);
+#endif // DACCESS_COMPILE
 
 private:
     // I have yet to figure out an efficent way to get the number of handles 
@@ -2263,7 +2266,6 @@ public:
     virtual PEAssembly * BindAssemblySpec(
         AssemblySpec *pSpec,
         BOOL fThrowOnFileNotFound,
-        StackCrawlMark *pCallerStackMark = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
 
     HRESULT BindAssemblySpecForHostedBinder(

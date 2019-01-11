@@ -352,9 +352,11 @@ bool TakesRexWPrefix(instruction ins, emitAttr attr)
         switch (ins)
         {
             case INS_andn:
+            case INS_bextr:
             case INS_blsi:
             case INS_blsmsk:
             case INS_blsr:
+            case INS_bzhi:
             case INS_cvttsd2si:
             case INS_cvttss2si:
             case INS_cvtsd2si:
@@ -364,6 +366,7 @@ bool TakesRexWPrefix(instruction ins, emitAttr attr)
             case INS_mov_xmm2i:
             case INS_mov_i2xmm:
             case INS_movnti:
+            case INS_mulx:
             case INS_pdep:
             case INS_pext:
                 return true;
@@ -601,6 +604,7 @@ unsigned emitter::emitOutputRexOrVexPrefixIfNeeded(instruction ins, BYTE* dst, c
                             switch (ins)
                             {
                                 case INS_pdep:
+                                case INS_mulx:
                                 {
                                     vexPrefix |= 0x03;
                                     break;
@@ -1027,9 +1031,11 @@ bool emitter::emitInsCanOnlyWriteSSE2OrAVXReg(instrDesc* id)
     switch (ins)
     {
         case INS_andn:
+        case INS_bextr:
         case INS_blsi:
         case INS_blsmsk:
         case INS_blsr:
+        case INS_bzhi:
         case INS_cvttsd2si:
         case INS_cvttss2si:
         case INS_cvtsd2si:
@@ -1038,6 +1044,7 @@ bool emitter::emitInsCanOnlyWriteSSE2OrAVXReg(instrDesc* id)
         case INS_mov_xmm2i:
         case INS_movmskpd:
         case INS_movmskps:
+        case INS_mulx:
         case INS_pdep:
         case INS_pext:
         case INS_pmovmskb:
@@ -2052,6 +2059,8 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
         size += emitGetRexPrefixSize(ins);
     }
 
+    size += emitAdjustSizeCrc32(ins, attrSize);
+
     if (rgx == REG_NA)
     {
         /* The address is of the form "[reg+disp]" */
@@ -2218,19 +2227,21 @@ inline UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code, int val
 
 inline UNATIVE_OFFSET emitter::emitInsSizeCV(instrDesc* id, code_t code)
 {
-    instruction ins = id->idIns();
+    instruction ins      = id->idIns();
+    emitAttr    attrSize = id->idOpSize();
 
     // fgMorph changes any statics that won't fit into 32-bit addresses
     // into constants with an indir, rather than GT_CLS_VAR
     // so we should only hit this path for statics that are RIP-relative
     UNATIVE_OFFSET size = sizeof(INT32);
 
-    size += emitGetVexPrefixAdjustedSize(ins, id->idOpSize(), code);
+    size += emitGetVexPrefixAdjustedSize(ins, attrSize, code);
+    size += emitAdjustSizeCrc32(ins, attrSize);
 
     // Most 16-bit operand instructions will need a prefix.
     // This refers to 66h size prefix override.
 
-    if (id->idOpSize() == EA_2BYTE && ins != INS_movzx && ins != INS_movsx)
+    if (attrSize == EA_2BYTE && ins != INS_movzx && ins != INS_movsx)
     {
         size++;
     }
@@ -6501,10 +6512,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int va
         sz += emitGetRexPrefixSize(ins);
     }
 
-    if (ins == INS_crc32)
-    {
-        sz += 1;
-    }
+    sz += emitAdjustSizeCrc32(ins, attr);
 
     id->idIns(ins);
     id->idInsFmt(fmt);
@@ -8195,7 +8203,7 @@ void emitter::emitDispIns(
 
     sstr = codeGen->genInsName(ins);
 
-    if (IsAVXInstruction(ins))
+    if (IsAVXInstruction(ins) && !IsBMIInstruction(ins))
     {
         printf(" v%-8s", sstr);
     }
@@ -8341,24 +8349,21 @@ void emitter::emitDispIns(
 #ifdef _TARGET_AMD64_
             if (ins == INS_movsxd)
             {
-                printf("%s, %s", emitRegName(id->idReg1(), EA_8BYTE), sstr);
+                attr = EA_8BYTE;
             }
             else
 #endif
                 if (ins == INS_movsx || ins == INS_movzx)
             {
-                printf("%s, %s", emitRegName(id->idReg1(), EA_PTRSIZE), sstr);
+                attr = EA_PTRSIZE;
             }
             else if ((ins == INS_crc32) && (attr != EA_8BYTE))
             {
                 // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
                 // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
-                printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
+                attr = EA_4BYTE;
             }
-            else
-            {
-                printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
-            }
+            printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
             emitDispAddrMode(id);
             break;
 
@@ -8582,25 +8587,22 @@ void emitter::emitDispIns(
 #ifdef _TARGET_AMD64_
             if (ins == INS_movsxd)
             {
-                printf("%s, %s", emitRegName(id->idReg1(), EA_8BYTE), sstr);
+                attr = EA_8BYTE;
             }
             else
 #endif
                 if (ins == INS_movsx || ins == INS_movzx)
             {
-                printf("%s, %s", emitRegName(id->idReg1(), EA_PTRSIZE), sstr);
+                attr = EA_PTRSIZE;
             }
             else if ((ins == INS_crc32) && (attr != EA_8BYTE))
             {
                 // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
                 // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
-                printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
-            }
-            else
-            {
-                printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
+                attr = EA_4BYTE;
             }
 
+            printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
             emitDispFrameRef(id->idAddr()->iiaLclVar.lvaVarNum(), id->idAddr()->iiaLclVar.lvaOffset(),
                              id->idDebugOnlyInfo()->idVarRefOffs, asmfm);
 
@@ -8727,12 +8729,25 @@ void emitter::emitDispIns(
             break;
 
         case IF_RWR_RRD_RRD:
+        {
             assert(IsAVXInstruction(ins));
             assert(IsThreeOperandAVXInstruction(ins));
+            regNumber reg2 = id->idReg2();
+            regNumber reg3 = id->idReg3();
+            if (ins == INS_bextr || ins == INS_bzhi)
+            {
+                // BMI bextr and bzhi encodes the reg2 in VEX.vvvv and reg3 in modRM,
+                // which is different from most of other instructions
+                regNumber tmp = reg2;
+                reg2          = reg3;
+                reg3          = tmp;
+            }
             printf("%s, ", emitRegName(id->idReg1(), attr));
-            printf("%s, ", emitRegName(id->idReg2(), attr));
-            printf("%s", emitRegName(id->idReg3(), attr));
+            printf("%s, ", emitRegName(reg2, attr));
+            printf("%s", emitRegName(reg3, attr));
             break;
+        }
+
         case IF_RWR_RRD_RRD_CNS:
             assert(IsAVXInstruction(ins));
             assert(IsThreeOperandAVXInstruction(ins));
@@ -8799,7 +8814,7 @@ void emitter::emitDispIns(
             {
                 // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
                 // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
-                printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
+                attr = EA_4BYTE;
             }
             printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
             offs = emitGetInsDsp(id);
@@ -11073,8 +11088,8 @@ BYTE* emitter::emitOutputR(BYTE* dst, instrDesc* id)
         case INS_seta:
         case INS_sets:
         case INS_setns:
-        case INS_setpe:
-        case INS_setpo:
+        case INS_setp:
+        case INS_setnp:
         case INS_setl:
         case INS_setge:
         case INS_setle:
@@ -12264,8 +12279,8 @@ BYTE* emitter::emitOutputLJ(BYTE* dst, instrDesc* i)
             assert(INS_ja  + (INS_l_jmp - INS_jmp) == INS_l_ja);
             assert(INS_js  + (INS_l_jmp - INS_jmp) == INS_l_js);
             assert(INS_jns + (INS_l_jmp - INS_jmp) == INS_l_jns);
-            assert(INS_jpe + (INS_l_jmp - INS_jmp) == INS_l_jpe);
-            assert(INS_jpo + (INS_l_jmp - INS_jmp) == INS_l_jpo);
+            assert(INS_jp  + (INS_l_jmp - INS_jmp) == INS_l_jp);
+            assert(INS_jnp + (INS_l_jmp - INS_jmp) == INS_l_jnp);
             assert(INS_jl  + (INS_l_jmp - INS_jmp) == INS_l_jl);
             assert(INS_jge + (INS_l_jmp - INS_jmp) == INS_l_jge);
             assert(INS_jle + (INS_l_jmp - INS_jmp) == INS_l_jle);

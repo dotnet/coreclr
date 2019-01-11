@@ -402,9 +402,16 @@ namespace System.Threading
             loggingEnabled = FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool | FrameworkEventSource.Keywords.ThreadTransfer);
         }
 
-        public ThreadPoolWorkQueueThreadLocals EnsureCurrentThreadHasQueue() =>
-            ThreadPoolWorkQueueThreadLocals.threadLocals ??
-            (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
+        public ThreadPoolWorkQueueThreadLocals GetOrCreateThreadLocals() =>
+            ThreadPoolWorkQueueThreadLocals.threadLocals ?? CreateThreadLocals();
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private ThreadPoolWorkQueueThreadLocals CreateThreadLocals()
+        {
+            Debug.Assert(ThreadPoolWorkQueueThreadLocals.threadLocals == null);
+
+            return (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
+        }
 
         internal void EnsureThreadRequested()
         {
@@ -545,7 +552,7 @@ namespace System.Threading
                 //
                 // Use operate on workQueue local to try block so it can be enregistered 
                 ThreadPoolWorkQueue workQueue = outerWorkQueue;
-                ThreadPoolWorkQueueThreadLocals tl = workQueue.EnsureCurrentThreadHasQueue();
+                ThreadPoolWorkQueueThreadLocals tl = workQueue.GetOrCreateThreadLocals();
                 Thread currentThread = tl.currentThread;
 
                 // Start on clean ExecutionContext and SynchronizationContext
@@ -916,12 +923,6 @@ namespace System.Threading
     public delegate void WaitCallback(object state);
 
     public delegate void WaitOrTimerCallback(object state, bool timedOut);  // signaled or timed out
-
-    /// <summary>Represents a work item that can be executed by the ThreadPool.</summary>
-    public interface IThreadPoolWorkItem
-    {
-        void Execute();
-    }
 
     //
     // This type is necessary because VS 2010's debugger looks for a method named _ThreadPoolWaitCallbacck.PerformWaitCallback

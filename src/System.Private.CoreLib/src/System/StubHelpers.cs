@@ -24,8 +24,7 @@ namespace System.StubHelpers
         // character set. It is only guaranteed to be larger or equal to cbLength, don't depend on the exact value.
         unsafe internal static byte[] DoAnsiConversion(string str, bool fBestFit, bool fThrowOnUnmappableChar, out int cbLength)
         {
-            byte[] buffer = new byte[(str.Length + 1) * Marshal.SystemMaxDBCSCharSize];
-            Debug.Assert(buffer.Length != 0);
+            byte[] buffer = new byte[checked((str.Length + 1) * Marshal.SystemMaxDBCSCharSize)];
             fixed (byte* bufferPtr = &buffer[0])
             {
                 cbLength = str.ConvertToAnsi(bufferPtr, buffer.Length, fBestFit, fThrowOnUnmappableChar);
@@ -61,8 +60,6 @@ namespace System.StubHelpers
                 return IntPtr.Zero;
             }
 
-            StubHelpers.CheckStringLength(strManaged.Length);
-
             int nb;
             byte* pbNativeBuffer = (byte*)pNativeBuffer;
 
@@ -71,18 +68,18 @@ namespace System.StubHelpers
                 // If we are marshaling into a stack buffer or we can accurately estimate the size of the required heap
                 // space, we will use a "1-pass" mode where we convert the string directly into the unmanaged buffer.
 
-                // + 1 for the null character from the user
-                nb = (strManaged.Length + 1) * Marshal.SystemMaxDBCSCharSize;
+                // + 1 for the null character from the user.  + 1 for the null character we put in.
+                nb = checked((strManaged.Length + 1) * Marshal.SystemMaxDBCSCharSize + 1);
 
                 // Use the pre-allocated buffer (allocated by localloc IL instruction) if not NULL, 
                 // otherwise fallback to AllocCoTaskMem
                 if (pbNativeBuffer == null)
                 {
-                    // + 1 for the null character we put in
-                    pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb + 1);
+                    pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb);
                 }
 
-                nb = strManaged.ConvertToAnsi(pbNativeBuffer, nb + 1, 0 != (flags & 0xFF), 0 != (flags >> 8));
+                nb = strManaged.ConvertToAnsi(pbNativeBuffer, nb,
+                    fBestFit: 0 != (flags & 0xFF), fThrowOnUnmappableChar: 0 != (flags >> 8));
             }
             else
             {
@@ -91,7 +88,8 @@ namespace System.StubHelpers
                 // wasting memory on systems with multibyte character sets where the buffer we end up with is often much
                 // smaller than the upper bound for the given managed string.
 
-                byte[] bytes = AnsiCharMarshaler.DoAnsiConversion(strManaged, 0 != (flags & 0xFF), 0 != (flags >> 8), out nb);
+                byte[] bytes = AnsiCharMarshaler.DoAnsiConversion(strManaged,
+                    fBestFit: 0 != (flags & 0xFF), fThrowOnUnmappableChar: 0 != (flags >> 8), out nb);
 
                 // + 1 for the null character from the user.  + 1 for the null character we put in.
                 pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb + 2);
@@ -128,7 +126,6 @@ namespace System.StubHelpers
             {
                 return IntPtr.Zero;
             }
-            StubHelpers.CheckStringLength(strManaged.Length);
 
             int nb;
             byte* pbNativeBuffer = (byte*)pNativeBuffer;
@@ -162,8 +159,10 @@ namespace System.StubHelpers
         {
             if (IntPtr.Zero == cstr)
                 return null;
-            int nbBytes = StubHelpers.strlen((sbyte*)cstr);
-            return string.CreateStringFromEncoding((byte*)cstr, nbBytes, Encoding.UTF8);
+
+            byte* pBytes = (byte*)cstr;
+            int nbBytes = string.strlen(pBytes);
+            return string.CreateStringFromEncoding(pBytes, nbBytes, Encoding.UTF8);
         }
 
         internal static void ClearNative(IntPtr pNative)
@@ -203,8 +202,9 @@ namespace System.StubHelpers
             if (pNative == IntPtr.Zero)
                 return;
 
-            int nbBytes = StubHelpers.strlen((sbyte*)pNative);
-            sb.ReplaceBufferUtf8Internal(new Span<byte>((byte*)pNative, nbBytes));
+            byte* pBytes = (byte*)pNative;
+            int nbBytes = string.strlen(pBytes);
+            sb.ReplaceBufferUtf8Internal(new Span<byte>(pBytes, nbBytes));
         }
     }
 
@@ -218,8 +218,6 @@ namespace System.StubHelpers
             }
             else
             {
-                StubHelpers.CheckStringLength(strManaged.Length);
-
                 byte trailByte;
                 bool hasTrailByte = strManaged.TryGetTrailByte(out trailByte);
 
@@ -345,10 +343,8 @@ namespace System.StubHelpers
 
             cch = strManaged.Length;
 
-            StubHelpers.CheckStringLength(cch);
-
             // length field at negative offset + (# of characters incl. the terminator) * max ANSI char size
-            int nbytes = sizeof(uint) + ((cch + 1) * Marshal.SystemMaxDBCSCharSize);
+            int nbytes = checked(sizeof(uint) + ((cch + 1) * Marshal.SystemMaxDBCSCharSize));
 
             pNative = (byte*)Marshal.AllocCoTaskMem(nbytes);
             int* pLength = (int*)pNative;
@@ -385,7 +381,7 @@ namespace System.StubHelpers
             return new string((sbyte*)pNative, 0, cch);
         }
 
-        internal static unsafe void ClearNative(IntPtr pNative)
+        internal static void ClearNative(IntPtr pNative)
         {
             if (IntPtr.Zero != pNative)
             {
@@ -396,21 +392,17 @@ namespace System.StubHelpers
 
     internal static class AnsiBSTRMarshaler
     {
-        internal static unsafe IntPtr ConvertToNative(int flags, string strManaged)
+        internal static IntPtr ConvertToNative(int flags, string strManaged)
         {
             if (null == strManaged)
             {
                 return IntPtr.Zero;
             }
 
-            int length = strManaged.Length;
-
-            StubHelpers.CheckStringLength(length);
-
             byte[] bytes = null;
             int nb = 0;
 
-            if (length > 0)
+            if (strManaged.Length > 0)
             {
                 bytes = AnsiCharMarshaler.DoAnsiConversion(strManaged, 0 != (flags & 0xFF), 0 != (flags >> 8), out nb);
             }
@@ -433,7 +425,7 @@ namespace System.StubHelpers
             }
         }
 
-        internal static unsafe void ClearNative(IntPtr pNative)
+        internal static void ClearNative(IntPtr pNative)
         {
             if (IntPtr.Zero != pNative)
             {
@@ -450,7 +442,7 @@ namespace System.StubHelpers
             return IntPtr.Zero;
         }
 
-        internal static unsafe string ConvertToManaged(IntPtr bstr)
+        internal static string ConvertToManaged(IntPtr bstr)
         {
             Debug.Fail("NYI");
             return null;
@@ -1012,7 +1004,6 @@ namespace System.StubHelpers
             else
             {
                 // marshal the object as Unicode string (UnmanagedType.LPWStr)
-                StubHelpers.CheckStringLength(pManagedHome.Length);
 
                 int allocSize = (pManagedHome.Length + 1) * 2;
                 pNativeHome = Marshal.AllocCoTaskMem(allocSize);
@@ -1047,7 +1038,7 @@ namespace System.StubHelpers
                 StubHelpers.CheckStringLength(pManagedHome.Capacity);
 
                 // marshal the object as Ansi string (UnmanagedType.LPStr)
-                int allocSize = (pManagedHome.Capacity * Marshal.SystemMaxDBCSCharSize) + 4;
+                int allocSize = checked((pManagedHome.Capacity * Marshal.SystemMaxDBCSCharSize) + 4);
                 pNativeHome = Marshal.AllocCoTaskMem(allocSize);
 
                 byte* ptr = (byte*)pNativeHome;
@@ -1071,7 +1062,7 @@ namespace System.StubHelpers
             else
             {
                 // marshal the object as Unicode string (UnmanagedType.LPWStr)
-                int allocSize = (pManagedHome.Capacity * 2) + 4;
+                int allocSize = checked((pManagedHome.Capacity * 2) + 4);
                 pNativeHome = Marshal.AllocCoTaskMem(allocSize);
 
                 byte* ptr = (byte*)pNativeHome;
@@ -1187,15 +1178,33 @@ namespace System.StubHelpers
 
                 case BackPropAction.StringBuilderAnsi:
                     {
-                        sbyte* ptr = (sbyte*)pNativeHome.ToPointer();
-                        ((StringBuilder)pManagedHome).ReplaceBufferAnsiInternal(ptr, Win32Native.lstrlenA(pNativeHome));
+                        int length;
+                        if (pNativeHome == IntPtr.Zero)
+                        {
+                            length = 0;
+                        }
+                        else
+                        {
+                            length = string.strlen((byte*)pNativeHome);
+                        }
+
+                        ((StringBuilder)pManagedHome).ReplaceBufferAnsiInternal((sbyte*)pNativeHome, length);
                         break;
                     }
 
                 case BackPropAction.StringBuilderUnicode:
                     {
-                        char* ptr = (char*)pNativeHome.ToPointer();
-                        ((StringBuilder)pManagedHome).ReplaceBufferInternal(ptr, Win32Native.lstrlenW(pNativeHome));
+                        int length;
+                        if (pNativeHome == IntPtr.Zero)
+                        {
+                            length = 0;
+                        }
+                        else
+                        {
+                            length = string.wcslen((char*)pNativeHome);
+                        }
+
+                        ((StringBuilder)pManagedHome).ReplaceBufferInternal((char*)pNativeHome, length);
                         break;
                     }
 
@@ -1367,7 +1376,7 @@ namespace System.StubHelpers
     // For converting WinRT's Windows.Foundation.HResult into System.Exception and vice versa.
     internal static class HResultExceptionMarshaler
     {
-        internal static unsafe int ConvertToNative(Exception ex)
+        internal static int ConvertToNative(Exception ex)
         {
             if (!Environment.IsWinRTSupported)
             {
@@ -1380,7 +1389,7 @@ namespace System.StubHelpers
             return ex._HResult;
         }
 
-        internal static unsafe Exception ConvertToManaged(int hr)
+        internal static Exception ConvertToManaged(int hr)
         {
             if (!Environment.IsWinRTSupported)
             {
@@ -1720,9 +1729,6 @@ namespace System.StubHelpers
                 throw new MarshalDirectiveException(SR.Marshaler_StringTooLong);
             }
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern unsafe int strlen(sbyte* ptr);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern unsafe void FmtClassUpdateNativeInternal(object obj, byte* pNative, ref CleanupWorkListElement pCleanupWorkList);
