@@ -62,7 +62,7 @@ initTargetDistroRid()
     fi
 
     # Portable builds target the base RID
-    if [ "$__PortableBuild" == 1 ]; then
+    if [ $__PortableBuild == 1 ]; then
         if [ "$__BuildOS" == "Linux" ]; then
             export __DistroRid="linux-$__BuildArch"
             export __RuntimeId="linux-$__BuildArch"
