@@ -75,7 +75,7 @@ initTargetDistroRid()
         fi
     fi
 
-    echo "__DistroRid: " $__DistroRid
+    echo "Setting __DistroRid to $__DistroRid"
 }
 
 isMSBuildOnNETCoreSupported()

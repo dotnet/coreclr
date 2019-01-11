@@ -125,6 +125,8 @@ initTargetDistroRid()
             export __DistroRid="freebsd-$__BuildArch"
         fi
     fi
+
+    echo "Setting __DistroRid to $__DistroRid"
 }
 
 setup_dirs()
