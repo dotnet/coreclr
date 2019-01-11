@@ -648,6 +648,7 @@ __HostDistroRid=""
 __SkipRestorePackages=0
 __DistroRid=""
 __cmakeargs=""
+__PortableBuild=1
 __msbuildonunsupportedplatform=0
 __ZipTests=0
 __NativeTestIntermediatesDir=
@@ -712,8 +713,8 @@ while :; do
             __CrossBuild=1
             ;;
 
-        portableBuild)
-            __PortableBuild=1
+        -portablebuild=false)
+            __PortableBuild=0
             ;;
 
         verbose)
