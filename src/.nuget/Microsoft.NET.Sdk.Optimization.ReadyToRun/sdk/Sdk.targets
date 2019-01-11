@@ -28,12 +28,21 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
   -->
   <Target Name="CreateReadyToRunImages"
           BeforeTargets="ComputeFilesToPublish"
-          DependsOnTargets="PrepareForReadyToRun;
+          DependsOnTargets="CheckForUnsupportedReadyToRunCompilation;
+                            PrepareForReadyToRun;
                             _ComputeCrossGenInputs;
                             _Custom_PrepOptimizer;
                             _RunCrossgenOnInputs;
                             _PublishCrossgenOutputs"
           Condition="'$(ShouldCreateReadyToRunImages)' == 'true' and '$(UseNewCrossGenPipeline)' == ''">
+  </Target>
+
+  <Target Name="CheckForUnsupportedReadyToRunCompilation"
+          Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
+
+    <NETSdkError Condition="'3.0' > '$(_TargetFrameworkVersionWithoutV)'"
+        FormattedText="Creating ReadyToRun images is currently only supported for .NET Core 3.0 and above" />
+
   </Target>
 
   <Target Name="PrepareForReadyToRun"
