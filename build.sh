@@ -74,9 +74,10 @@ initHostDistroRid()
             fi
         elif [ -e /etc/os-release ]; then
             source /etc/os-release
-            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
             if [[ $ID == "alpine" ]]; then
                 __HostDistroRid="linux-musl-$__HostArch"
+            else
+                __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
             fi
         fi
     fi
