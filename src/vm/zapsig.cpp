@@ -702,7 +702,7 @@ Module *ZapSig::DecodeModuleFromIndexIfLoaded(Module *fromModule,
         {
             index -= fromModule->GetAssemblyRefMax();
             tkAssemblyRef = RidToToken(index, mdtAssemblyRef);
-            IMDInternalImport *  pMDImportOverride = fromModule->GetNativeAssemblyImportIfLoaded();
+            IMDInternalImport *  pMDImportOverride = fromModule->GetNativeAssemblyImport(FALSE);
             if (pMDImportOverride != NULL)
             {
                 CHAR   szFullName[MAX_CLASS_NAME + 1];

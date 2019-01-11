@@ -341,10 +341,6 @@ class PEDecoder
     BOOL HasReadyToRunHeader() const;
     READYTORUN_HEADER *GetReadyToRunHeader() const;
 
-#ifdef FEATURE_READYTORUN_COMPILER
-    PTR_CVOID  GetReadyToRunManifestMetadata() const;
-#endif
-
     void  GetEXEStackSizes(SIZE_T *PE_SizeOfStackReserve, SIZE_T *PE_SizeOfStackCommit) const;
 
     CHECK CheckWillCreateGuardPage() const;
