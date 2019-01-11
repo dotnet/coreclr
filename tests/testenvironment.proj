@@ -96,15 +96,15 @@
   <Target Name="OutputCOMPlusVariables" Inputs="@(COMPlusVariable)" Outputs="%(COMPlusVariable.Identity)">
     <PropertyGroup>
       <_COMPlusVariable>%(COMPlusVariable.Identity)</_COMPlusVariable>
-      <_AttributeName>$(_COMPlusVariable.Replace('COMPlus_', ''))</_AttributeName>
+      <_COMPlusVariableMetadataName>$(_COMPlusVariable.Replace('COMPlus_', ''))</_COMPlusVariableMetadataName>
     </PropertyGroup>
 
     <ItemGroup>
       <_TestEnvironment Include="@(TestEnvironment)" Condition="'%(Identity)' == '$(Scenario)'" />
-      <_TestEnvironmentWithMetadata Include="@(_TestEnvironment->HasMetadata($(_AttributeName)))" />
+      <_TestEnvironmentWithMetadata Include="@(_TestEnvironment->HasMetadata($(_COMPlusVariableMetadataName)))" />
 
       <_COMPlusVariable Include="$(_COMPlusVariable)" Condition="@(_TestEnvironmentWithMetadata->Count()) == 1">
-        <Value>@(_TestEnvironmentWithMetadata->Metadata($(_AttributeName)))</Value>
+        <Value>@(_TestEnvironmentWithMetadata->Metadata($(_COMPlusVariableMetadataName)))</Value>
       </_COMPlusVariable>
     </ItemGroup>
   </Target>
