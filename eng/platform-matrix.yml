@@ -48,6 +48,7 @@ jobs:
     osIdentifier: Linux_musl
     containerName: musl_x64_build_image
     # TODO: add Alpine.Amd64 queues
+    portableBuild: false
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # RHEL 6
@@ -61,6 +62,7 @@ jobs:
     containerName: centos6_x64_build_image
     helixQueuesPublic: 'RedHat.6.Amd64.Open'
     helixQueuesInternal: 'RedHat.6.Amd64'
+    portableBuild: false
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux x64

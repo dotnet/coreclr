@@ -11,6 +11,7 @@ parameters:
   timeoutInMinutes: ''
   helixType: ''
   crossrootfsDir: ''
+  portableBuild: ''
   enableMicrobuild: ''
 
   # arcade-specific parameters
@@ -108,6 +109,13 @@ jobs:
       - name: crossArg
         value: ''
       - name: crossPackagesArg
+        value: ''
+
+    - ${{ if eq(parameters.portableBuild, 'false') }}:
+      - name: portableBuildArg
+        value: '-portablebuild=false'
+    - ${{ if ne(parameters.portableBuild, 'false') }}:
+      - name: portableBuildArg
         value: ''
 
     - ${{ each variable in parameters.variables }}:

@@ -10,6 +10,7 @@ parameters:
   helixQueuesInternal: ''
   timeoutInMinutes: ''
   crossrootfsDir: ''
+  portableBuild: ''
 
 ### Test job
 
@@ -79,6 +80,8 @@ jobs:
 
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
 
+    portableBuild: ${{ parameters.portableBuild }}
+
     steps:
 
     # Install test build dependencies
@@ -105,7 +108,7 @@ jobs:
     # Build tests
     # TODO: enable crossgen in build-test.sh
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg)
+      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(portableBuildArg)
         displayName: Build tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
