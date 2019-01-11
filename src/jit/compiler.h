@@ -2987,7 +2987,8 @@ protected:
                              CORINFO_METHOD_HANDLE*  method,
                              unsigned*               methodFlags,
                              CORINFO_CONTEXT_HANDLE* contextHandle,
-                             CORINFO_CONTEXT_HANDLE* exactContextHandle);
+                             CORINFO_CONTEXT_HANDLE* exactContextHandle,
+                             bool                    isExplicitTailCall);
 
     CORINFO_CLASS_HANDLE impGetSpecialIntrinsicExactReturnType(CORINFO_METHOD_HANDLE specialIntrinsicHandle);
 
