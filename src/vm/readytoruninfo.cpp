@@ -621,15 +621,6 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
         }
     }
 
-    if (IsLargeVersionBubbleEnabled())
-    {
-        IMAGE_DATA_DIRECTORY * pManifestMetadata = FindSection(READYTORUN_SECTION_MANIFEST_METADATA);
-        if (pManifestMetadata != NULL)
-        {
-            NativeParser parser = NativeParser(&m_nativeReader, pManifestMetadata->VirtualAddress);
-            m_pMetaDataHashtable = NativeHashtable(parser);
-        }
-    }
 }
 
 static bool SigMatchesMethodDesc(MethodDesc* pMD, SigPointer &sig, Module * pModule)
