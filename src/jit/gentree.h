@@ -2299,10 +2299,9 @@ class GenTreeUseEdgeIterator final
     AdvanceFn m_advance;
     GenTree*  m_node;
     GenTree** m_edge;
-    union {
-        GenTree*         m_argList;
-        GenTreePhi::Use* m_phiUseList;
-    };
+    // Pointer sized state storage, GenTreeArgList* or GenTreePhi::Use* currently.
+    void* m_statePtr;
+    // Integer sized state storage, usually the operand index for non-list based nodes.
     int m_state;
 
     GenTreeUseEdgeIterator(GenTree* node);
@@ -2322,7 +2321,7 @@ class GenTreeUseEdgeIterator final
 
     // An advance function for list-like nodes (Phi, SIMDIntrinsicInitN, FieldList)
     void AdvanceList();
-    void SetEntryStateForList(GenTree* list);
+    void SetEntryStateForList(GenTreeArgList* list);
 
     // The advance function for call nodes
     template <int state>
@@ -2352,7 +2351,7 @@ public:
             return m_state == other.m_state;
         }
 
-        return (m_node == other.m_node) && (m_edge == other.m_edge) && (m_argList == other.m_argList) &&
+        return (m_node == other.m_node) && (m_edge == other.m_edge) && (m_statePtr == other.m_statePtr) &&
                (m_state == other.m_state);
     }
 
