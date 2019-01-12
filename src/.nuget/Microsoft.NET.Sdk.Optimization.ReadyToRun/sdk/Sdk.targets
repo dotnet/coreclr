@@ -75,70 +75,41 @@ Copyright (c) .NET Foundation. All rights reserved.
     </ItemGroup>
   </Target>
 
-  <Target Name="_RunCrossgenOnInputs">
+  <!-- TODO: Remove this restore task. We should already have restored the runtime package. However, we'll need to obtain a path to that package somehow -->
+  <Target Name="_RestoreRuntime"
+          DependsOnTargets="ApplyImplicitVersions">
     <PropertyGroup>
-      <_CrossGenPlatformAssemblies>@(_CrossGenReferenceAssemblies)</_CrossGenPlatformAssemblies>
+      <_RuntimeRestoreDir>$([System.IO.Path]::Combine($(_IntermediateReadyToRunDir),"RuntimeRestore"))</_RuntimeRestoreDir>
+      <_RuntimeRestoreAssetsFile>$([System.IO.Path]::Combine($(_RuntimeRestoreDir),"project.assets.json"))</_RuntimeRestoreAssetsFile>
     </PropertyGroup>
 
-    <MakeDir Directories="$(_ReadyToRunOutputDir)"/>
+    <MakeDir Directories="$(_RuntimeRestoreDir)"/>
 
     <ItemGroup>
-      <CrossGenInvocations Include="$(MSBuildProjectFullPath)">
-        <Properties>
-          CrossgenExe=$(Crossgen);
-          CrossgenInput=%(_CrossGenInputAssemblies.FullPath);
-          CrossgenOutput=$(_ReadyToRunOutputDir)/%(FileName)%(Extension);
-          JitPath=$(JitPath);
-          DiaSymReaderPath=$(DiaSymReaderPath);
-          CrossGenPlatformAssemblies=$(_CrossGenPlatformAssemblies);
-        </Properties>
-      </CrossGenInvocations>
+      <!-- Filter package references to the one for the platform library, in order to find the right version -->
+      <PackageReferenceForCrossGen Include="@(PackageReference)" Condition="'%(Identity)' == '$(MicrosoftNETPlatformLibrary)'" />
     </ItemGroup>
 
-    <MSBuild Projects="@(CrossGenInvocations)"
-             Targets="InvokeCrossGenForReadyToRun" />
-  </Target>
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+                 Targets="Restore"
+                 Properties="RestoreGraphProjectInput=$(MSBuildProjectFullPath);
+                             DisableImplicitFrameworkReferences=true;
+                             RestoreOutputPath=$(_RuntimeRestoreDir);
+                             StorePackageName=$(MicrosoftNETPlatformLibrary);
+                             StorePackageVersion=%(PackageReferenceForCrossGen.Version);"/>
 
-  <Target Name="InvokeCrossGenForReadyToRun"
-          Inputs="$(CrossGenInput);$(CrossGenPlatformAssemblies)"
-          Outputs="$(CrossGenOutput)">
-    <ItemGroup>
-      <_CrossGenPlatformAssemblies Include="$(CrossGenPlatformAssemblies)" />
-      <__CrossGenPlatformAssembliesPaths Include="@(_CrossGenPlatformAssemblies->'%(RootDir)%(Directory)')" /> 
-      <_CrossGenPlatformAssembliesPaths Include="@(__CrossGenPlatformAssembliesPaths->Distinct())" />
-    </ItemGroup>
+    <ResolvePublishAssemblies ProjectPath="$(MSBuildProjectFullPath)"
+                              AssetsFilePath="$(_RuntimeRestoreAssetsFile)"
+                              TargetFramework="$(TargetFramework)"
+                              RuntimeIdentifier="$(RuntimeIdentifier)"
+                              PlatformLibraryName="$(MicrosoftNETPlatformLibrary)"
+                              RuntimeFrameworks="@(RuntimeFramework)"
+                              ExcludeFromPublishPackageReferences="@(_ExcludeFromPublishPackageReference)"
+                              IsSelfContained="$(SelfContained)"
+                              PreserveStoreLayout="false">
 
-    <PropertyGroup>
-      <_PathSeparator>$([System.IO.Path]::PathSeparator)</_PathSeparator>
-      <_CrossGenPlatformAssembliesPathsProperty>@(_CrossGenPlatformAssembliesPaths, '$(_PathSeparator)')</_CrossGenPlatformAssembliesPathsProperty>
-      <!-- Remove the trailing slash so it does not get misinterpreted by Exec -->
-      <_CrossGenPlatformAssembliesPathsProperty>$(_CrossGenPlatformAssembliesPathsProperty.TrimEnd('\'))</_CrossGenPlatformAssembliesPathsProperty>
-
-      <CrossGenCommand>$(CrossGenExe) -readytorun -in $(CrossGenInput) -out $(CrossGenOutput) -jitpath $(JitPath) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot;</CrossGenCommand>
-    </PropertyGroup>
-
-    <Message Text="$(CrossGenCommand)" />
-    <Exec Command="$(CrossGenCommand)" />
-  </Target>
-
-  <Target Name="_PublishCrossgenOutputs">
-    <!-- Rewrite ResolvedAssembliesToPublish to capture any newly-crossgened ResolvedAssembliesToPublish files, preserving metadata. -->
-    <ItemGroup>
-      <_CrossGenResolvedAssembliesToPublishCandidates Include="@(ResolvedAssembliesToPublish->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
-      <_CrossGenResolvedAssembliesToPublish Include="@(_CrossGenResolvedAssembliesToPublishCandidates)" Condition="Exists('%(Identity)')" />
-
-      <ResolvedAssembliesToPublish Remove="@(_CrossGenInputAssemblies)" />
-      <ResolvedAssembliesToPublish Include="@(_CrossGenResolvedAssembliesToPublish)" />
-    </ItemGroup>
-
-    <!-- Rewrite IntermediateAssembly to capture the newly-crossgened IntermediateAssembly, preserving metadata. -->
-    <ItemGroup>
-      <_CrossGenIntermediateAssemblyCandidates Include="@(IntermediateAssembly->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
-      <_CrossGenIntermediateAssembly Include="@(_CrossGenIntermediateAssemblyCandidates)" Condition="Exists('%(Identity)')" />
-
-      <IntermediateAssembly Remove="@(_CrossGenInputAssemblies)" />
-      <IntermediateAssembly Include="@(_CrossGenIntermediateAssembly)" />
-    </ItemGroup>
+      <Output TaskParameter="AssembliesToPublish" ItemName="CrossgenResolvedAssembliesToPublish" />
+    </ResolvePublishAssemblies>
   </Target>
 
   <Target Name="_InitializeCrossgenProps">
@@ -211,40 +182,69 @@ Copyright (c) .NET Foundation. All rights reserved.
                  FormatArguments="$(Crossgen)" />
   </Target>
 
-  <!-- TODO: Remove this restore task. We should already have restored the runtime package. However, we'll need to obtain a path to that package somehow -->
-  <Target Name="_RestoreRuntime"
-          DependsOnTargets="ApplyImplicitVersions">
+  <Target Name="_RunCrossgenOnInputs">
     <PropertyGroup>
-      <_RuntimeRestoreDir>$([System.IO.Path]::Combine($(_IntermediateReadyToRunDir),"RuntimeRestore"))</_RuntimeRestoreDir>
-      <_RuntimeRestoreAssetsFile>$([System.IO.Path]::Combine($(_RuntimeRestoreDir),"project.assets.json"))</_RuntimeRestoreAssetsFile>
+      <_CrossGenPlatformAssemblies>@(_CrossGenReferenceAssemblies)</_CrossGenPlatformAssemblies>
     </PropertyGroup>
 
-    <MakeDir Directories="$(_RuntimeRestoreDir)"/>
+    <MakeDir Directories="$(_ReadyToRunOutputDir)"/>
 
     <ItemGroup>
-      <!-- Filter package references to the one for the platform library, in order to find the right version -->
-      <PackageReferenceForCrossGen Include="@(PackageReference)" Condition="'%(Identity)' == '$(MicrosoftNETPlatformLibrary)'" />
+      <CrossGenInvocations Include="$(MSBuildProjectFullPath)">
+        <Properties>
+          CrossgenExe=$(Crossgen);
+          CrossgenInput=%(_CrossGenInputAssemblies.FullPath);
+          CrossgenOutput=$(_ReadyToRunOutputDir)/%(FileName)%(Extension);
+          JitPath=$(JitPath);
+          DiaSymReaderPath=$(DiaSymReaderPath);
+          CrossGenPlatformAssemblies=$(_CrossGenPlatformAssemblies);
+        </Properties>
+      </CrossGenInvocations>
     </ItemGroup>
 
-    <MSBuild Projects="$(MSBuildProjectFullPath)"
-                 Targets="Restore"
-                 Properties="RestoreGraphProjectInput=$(MSBuildProjectFullPath);
-                             DisableImplicitFrameworkReferences=true;
-                             RestoreOutputPath=$(_RuntimeRestoreDir);
-                             StorePackageName=$(MicrosoftNETPlatformLibrary);
-                             StorePackageVersion=%(PackageReferenceForCrossGen.Version);"/>
+    <MSBuild Projects="@(CrossGenInvocations)"
+             Targets="InvokeCrossGenForReadyToRun" />
+  </Target>
 
-    <ResolvePublishAssemblies ProjectPath="$(MSBuildProjectFullPath)"
-                              AssetsFilePath="$(_RuntimeRestoreAssetsFile)"
-                              TargetFramework="$(TargetFramework)"
-                              RuntimeIdentifier="$(RuntimeIdentifier)"
-                              PlatformLibraryName="$(MicrosoftNETPlatformLibrary)"
-                              RuntimeFrameworks="@(RuntimeFramework)"
-                              ExcludeFromPublishPackageReferences="@(_ExcludeFromPublishPackageReference)"
-                              IsSelfContained="$(SelfContained)"
-                              PreserveStoreLayout="false">
+  <Target Name="InvokeCrossGenForReadyToRun"
+          Inputs="$(CrossGenInput);$(CrossGenPlatformAssemblies)"
+          Outputs="$(CrossGenOutput)">
+    <ItemGroup>
+      <_CrossGenPlatformAssemblies Include="$(CrossGenPlatformAssemblies)" />
+      <__CrossGenPlatformAssembliesPaths Include="@(_CrossGenPlatformAssemblies->'%(RootDir)%(Directory)')" /> 
+      <_CrossGenPlatformAssembliesPaths Include="@(__CrossGenPlatformAssembliesPaths->Distinct())" />
+    </ItemGroup>
 
-      <Output TaskParameter="AssembliesToPublish" ItemName="CrossgenResolvedAssembliesToPublish" />
-    </ResolvePublishAssemblies>
+    <PropertyGroup>
+      <_PathSeparator>$([System.IO.Path]::PathSeparator)</_PathSeparator>
+      <_CrossGenPlatformAssembliesPathsProperty>@(_CrossGenPlatformAssembliesPaths, '$(_PathSeparator)')</_CrossGenPlatformAssembliesPathsProperty>
+      <!-- Remove the trailing slash so it does not get misinterpreted by Exec -->
+      <_CrossGenPlatformAssembliesPathsProperty>$(_CrossGenPlatformAssembliesPathsProperty.TrimEnd('\'))</_CrossGenPlatformAssembliesPathsProperty>
+
+      <CrossGenCommand>$(CrossGenExe) -readytorun -in $(CrossGenInput) -out $(CrossGenOutput) -jitpath $(JitPath) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot;</CrossGenCommand>
+    </PropertyGroup>
+
+    <Message Text="$(CrossGenCommand)" />
+    <Exec Command="$(CrossGenCommand)" />
+  </Target>
+
+  <Target Name="_PublishCrossgenOutputs">
+    <!-- Rewrite ResolvedAssembliesToPublish to capture any newly-crossgened ResolvedAssembliesToPublish files, preserving metadata. -->
+    <ItemGroup>
+      <_CrossGenResolvedAssembliesToPublishCandidates Include="@(ResolvedAssembliesToPublish->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
+      <_CrossGenResolvedAssembliesToPublish Include="@(_CrossGenResolvedAssembliesToPublishCandidates)" Condition="Exists('%(Identity)')" />
+
+      <ResolvedAssembliesToPublish Remove="@(_CrossGenInputAssemblies)" />
+      <ResolvedAssembliesToPublish Include="@(_CrossGenResolvedAssembliesToPublish)" />
+    </ItemGroup>
+
+    <!-- Rewrite IntermediateAssembly to capture the newly-crossgened IntermediateAssembly, preserving metadata. -->
+    <ItemGroup>
+      <_CrossGenIntermediateAssemblyCandidates Include="@(IntermediateAssembly->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
+      <_CrossGenIntermediateAssembly Include="@(_CrossGenIntermediateAssemblyCandidates)" Condition="Exists('%(Identity)')" />
+
+      <IntermediateAssembly Remove="@(_CrossGenInputAssemblies)" />
+      <IntermediateAssembly Include="@(_CrossGenIntermediateAssembly)" />
+    </ItemGroup>
   </Target>
 </Project>
