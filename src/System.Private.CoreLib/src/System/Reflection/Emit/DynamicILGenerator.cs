@@ -927,13 +927,7 @@ namespace System.Reflection.Emit
             if (codeSize > 0 && code == null)
                 throw new ArgumentNullException(nameof(code));
 
-            m_code = new byte[codeSize];
-            for (int i = 0; i < codeSize; i++)
-            {
-                m_code[i] = *code;
-                code++;
-            }
-
+            m_code = new Span<byte>(code, codeSize).ToArray();
             m_maxStackSize = maxStackSize;
         }
 
@@ -951,13 +945,7 @@ namespace System.Reflection.Emit
             if (exceptionsSize > 0 && exceptions == null)
                 throw new ArgumentNullException(nameof(exceptions));
 
-            m_exceptions = new byte[exceptionsSize];
-
-            for (int i = 0; i < exceptionsSize; i++)
-            {
-                m_exceptions[i] = *exceptions;
-                exceptions++;
-            }
+            m_exceptions = new Span<byte>(exceptions, exceptionsSize).ToArray();
         }
 
         public void SetLocalSignature(byte[] localSignature)
@@ -974,12 +962,7 @@ namespace System.Reflection.Emit
             if (signatureSize > 0 && localSignature == null)
                 throw new ArgumentNullException(nameof(localSignature));
 
-            m_localSignature = new byte[signatureSize];
-            for (int i = 0; i < signatureSize; i++)
-            {
-                m_localSignature[i] = *localSignature;
-                localSignature++;
-            }
+            m_localSignature = new Span<byte>(localSignature, signatureSize).ToArray();
         }
         #endregion
 
