@@ -917,7 +917,8 @@ insGroup* emitter::emitSavIG(bool emitAdd)
         assert(emitLastIns != nullptr);
         assert(emitCurIGfreeBase <= (BYTE*)emitLastIns);
         assert((BYTE*)emitLastIns < emitCurIGfreeBase + sz);
-        emitLastIns = (instrDesc*)((BYTE*)id + ((BYTE*)emitLastIns - (BYTE*)emitCurIGfreeBase));
+        emitLastIns       = (instrDesc*)((BYTE*)id + ((BYTE*)emitLastIns - (BYTE*)emitCurIGfreeBase));
+        emitNextToLastIns = nullptr;
     }
 
     /* Reset the buffer free pointers */
@@ -1054,7 +1055,8 @@ void emitter::emitBegFN(bool hasFramePtr
 
     emitPrologIG = emitIGlist = emitIGlast = emitCurIG = ig = emitAllocIG();
 
-    emitLastIns = nullptr;
+    emitLastIns       = nullptr;
+    emitNextToLastIns = nullptr;
 
     ig->igNext = nullptr;
 
@@ -1244,6 +1246,7 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
 
     /* Grab the space for the instruction */
 
+    emitNextToLastIns = emitLastIns;
     emitLastIns = id = (instrDesc*)emitCurIGfreeNext;
     emitCurIGfreeNext += sz;
 

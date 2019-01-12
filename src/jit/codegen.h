@@ -1067,6 +1067,8 @@ protected:
 #ifdef _TARGET_XARCH_
     void genCodeForShiftRMW(GenTreeStoreInd* storeInd);
     void genCodeForBT(GenTreeOp* bt);
+    bool isRedundantMove(emitter::instrDesc* id, instruction ins, emitAttr size, regNumber srcReg, regNumber targetReg);
+    bool interferesWithMove(emitter::instrDesc* id, regNumber srcReg, regNumber targetReg);
 #endif // _TARGET_XARCH_
 
     void genCodeForCast(GenTreeOp* tree);

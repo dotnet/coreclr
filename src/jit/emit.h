@@ -1728,6 +1728,7 @@ private:
         return (emitCurIG && emitCurIGfreeNext > emitCurIGfreeBase);
     }
 
+    instrDesc* emitNextToLastIns;
     instrDesc* emitLastIns;
 
 #ifdef DEBUG

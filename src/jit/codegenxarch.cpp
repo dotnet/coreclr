@@ -4616,50 +4616,35 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
                 instruction ins     = ins_Move_Extend(targetType, true);
                 bool        canSkip = false;
 
-                // Check for skippable if we're optimizing, we're within an IG, and we have a simple mov.
-                //
-                if (compiler->opts.OptimizationEnabled() && (emit->emitCurIGinsCnt > 0) && (ins == INS_mov))
+                // Check for skippable if we're optimizing and we're within an IG.
+                if (compiler->opts.OptimizationEnabled() && (emit->emitCurIGinsCnt > 0))
                 {
-                    emitter::instrDesc* prevInstr = emit->emitLastIns;
+                    emitter::instrDesc* prevInstr     = emit->emitLastIns;
+                    emitter::instrDesc* prevPrevInstr = emit->emitNextToLastIns;
                     assert(prevInstr != nullptr);
 
-                    // See if we're about to emit the same or similar kind of mov.
-                    //
-                    // Sure would be nice to just provisionally emit the new instruction and compare
-                    // instrDescs, but that's not possible just yet.
-                    //
-                    // Do we need any other safety checks here? Maybe same gcness?
-                    //
-                    // We could also think about handling reg-mem moves in a similar manner,
-                    // especially when mem is a stack access. This could give us writethrough like
-                    // codegen for EH methods and (perhaps, if we dared) simpler code for minopts
-                    // or debug codegen.
-                    //
-                    // eg    mov [rbp + 40], rax
-                    //       mov rax, [rbp + 40]  -- can omit the "reload"
-                    //
-                    if ((ins == prevInstr->idIns()) && prevInstr->idSimpleRegReg() &&
-                        (prevInstr->idOpSize() == EA_SIZE(emitTypeSize(tree))))
+                    canSkip = isRedundantMove(prevInstr, ins, emitTypeSize(tree), op1->gtRegNum, targetReg);
+
+                    if (canSkip)
                     {
-                        // Look for back to back identical moves
-                        //
-                        // mov... rax, rcx
-                        // mov... rax, rcx -- can omit
-                        //
-                        if ((prevInstr->idReg1() == targetReg) && (prevInstr->idReg2() == op1->gtRegNum))
+                        JITDUMP("\n-- skipping emission -- previous instr IN%04x makes this redundant\n",
+                                prevInstr->idDebugOnlyInfo()->idNum);
+                    }
+                    // See if we can look back one instruction further
+                    else if (prevPrevInstr != nullptr)
+                    {
+                        bool canCheckNextToLast = !interferesWithMove(prevInstr, op1->gtRegNum, targetReg);
+
+                        if (canCheckNextToLast)
                         {
-                            JITDUMP("\n-- skipping emission -- previous instr is makes this redundant\n");
-                            canSkip = true;
-                        }
-                        // Look for a shuffle move
-                        //
-                        // mov rax, rcx
-                        // mov rcx, rax -- can omit
-                        //
-                        else if ((prevInstr->idReg1() == op1->gtRegNum) && (prevInstr->idReg2() == targetReg))
-                        {
-                            JITDUMP("\n-- skipping emission -- previous instr makes this a shuffle\n");
-                            canSkip = true;
+                            // Yes, we can look there too...
+                            canSkip = isRedundantMove(prevPrevInstr, ins, emitTypeSize(tree), op1->gtRegNum, targetReg);
+
+                            if (canSkip)
+                            {
+                                JITDUMP("\n-- skipping emission -- previous instr IN%04x makes this redundant\n",
+                                        prevPrevInstr->idDebugOnlyInfo()->idNum);
+                            }
                         }
                     }
                 }
@@ -4676,6 +4661,110 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
     {
         genProduceReg(tree);
     }
+}
+
+//------------------------------------------------------------------------
+// isRedundantMove: check if a prospective mov from srcReg to dstReg is redundant
+//
+// Arguments:
+//    id - some prior instruction
+//    ins - prospective instruction to emit
+//    size - size of values to move
+//    srcReg - source of prospective move
+//    targetReg - target of prospective move
+//
+// Returns:
+//    true if so.
+//
+// Notes:
+//    Handles redundant identical mov
+//      mov rax, rcx
+//      mov rax, rcx -- can omit
+//    and redundant shuffle mov
+//      mov rax, rcx
+//      mov rcx, rax -- can omit
+//
+// We could also think about handling reg-mem moves in a similar manner,
+// especially when mem is a stack access. This could give us writethrough like
+// codegen for EH methods and (perhaps, if we dared) simpler code for minopts
+// or debug codegen.
+//
+// eg    mov [rbp + 40], rax
+//       mov rax, [rbp + 40]  -- can omit the "reload"
+//
+bool CodeGen::isRedundantMove(
+    emitter::instrDesc* id, instruction ins, emitAttr size, regNumber srcReg, regNumber targetReg)
+{
+    // Would be nice to just provisionally emit the new instruction and compare
+    // instrDescs, but that's not possible just yet.
+    //
+    // Do we need any other safety checks here? Maybe same gcness?
+    //
+    bool canSkip = false;
+
+    if ((ins == INS_mov) && (ins == id->idIns()) && id->idSimpleRegReg() && (id->idOpSize() == EA_SIZE(size)))
+    {
+        // Look for back to back identical moves
+        //
+        // mov... rax, rcx
+        // mov... rax, rcx -- can omit
+        //
+        if ((id->idReg1() == targetReg) && (id->idReg2() == srcReg))
+        {
+            canSkip = true;
+        }
+        // Look for a shuffle move
+        //
+        // mov rax, rcx
+        // mov rcx, rax -- can omit
+        //
+        else if ((id->idReg1() == srcReg) && (id->idReg2() == targetReg))
+        {
+            canSkip = true;
+        }
+    }
+
+    return canSkip;
+}
+
+//------------------------------------------------------------------------
+// interferesWithMove: check if a given instruction might interfere with a
+//    prospective mov from srcReg to dstReg
+//
+// Arguments:
+//    id - instruction in question
+//    srcReg - source of prospective move
+//    targetReg - target of prospective move
+//
+// Returns:
+//    true if the two instructions interfere with one another
+//    (cannot logically be reordered)
+//
+// Notes:
+//
+//   Given
+//
+//      mov a, b   (== id)
+//      mov c, d   prospective move
+//
+//   we cannot logically reorder the two if
+//
+//       a == d    (direct dependence)
+//    OR b == c    (  anti dependence)
+//    OR a == c    (output dependence)
+
+bool CodeGen::interferesWithMove(emitter::instrDesc* id, regNumber srcReg, regNumber targetReg)
+{
+    // Assume the worst
+    bool interferes = true;
+
+    // Just check for this one simple case currently.
+    if ((id->idIns() == INS_mov) && id->idSimpleRegReg())
+    {
+        interferes = (id->idReg1() == srcReg) || (id->idReg2() == targetReg) || (id->idReg1() == targetReg);
+    }
+
+    return interferes;
 }
 
 //------------------------------------------------------------------------
