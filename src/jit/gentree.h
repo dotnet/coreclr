@@ -2173,7 +2173,24 @@ public:
     inline GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode = false));
 };
 
-struct GenTreePhi : public GenTree
+// Represents a GT_PHI node - a variable sized list of GT_PHI_ARG nodes.
+// All PHI_ARG nodes must represent uses of the same local variable and
+// the PHI node's type must be the same as the local variable's type.
+//
+// The PHI node does not represent a definition by itself, it is always
+// the RHS of a GT_ASG node. The LHS of the ASG node is always a GT_LCL_VAR
+// node, that is a definition for the same local variable referenced by
+// all the used PHI_ARG nodes:
+//
+//   ASG(LCL_VAR(lcl7), PHI(PHI_ARG(lcl7), PHI_ARG(lcl7), PHI_ARG(lcl7)))
+//
+// PHI nodes are also present in LIR, where GT_STORE_LCL_VAR replaces the
+// ASG node.
+//
+// The order of the PHI_ARG uses is not currently relevant and it may be
+// the same or not as the order of the predecessor blocks.
+//
+struct GenTreePhi final : public GenTree
 {
     struct Use
     {
@@ -2182,6 +2199,7 @@ struct GenTreePhi : public GenTree
 
         Use(GenTree* op, Use* next = nullptr) : op(op), next(next)
         {
+            assert(op->OperIs(GT_PHI_ARG));
         }
     };
 
