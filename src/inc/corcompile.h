@@ -1824,13 +1824,11 @@ inline bool IsReadyToRunCompilation()
 #endif
 }
 
+#ifdef FEATURE_READYTORUN_COMPILER
 inline bool IsLargeVersionBubbleEnabled()
 {
-#ifdef FEATURE_READYTORUN_COMPILER
     return g_fLargeVersionBubble;
-#else
-    return false;
-#endif
 }
+#endif
 
 #endif /* COR_COMPILE_H_ */
