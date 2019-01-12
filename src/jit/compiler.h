@@ -3162,7 +3162,7 @@ public:
     public:
         StructPromotionHelper(Compiler* compiler);
 
-        bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
+        bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, bool forInlining);
         bool TryPromoteStructVar(unsigned lclNum);
 
 #ifdef DEBUG

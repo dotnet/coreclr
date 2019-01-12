@@ -18477,7 +18477,7 @@ void Compiler::impMakeDiscretionaryInlineObservations(InlineInfo* pInlineInfo, I
     if ((info.compClassAttr & CORINFO_FLG_VALUECLASS) != 0)
     {
         assert(structPromotionHelper != nullptr);
-        if (structPromotionHelper->CanPromoteStructType(info.compClassHnd))
+        if (structPromotionHelper->CanPromoteStructType(info.compClassHnd, true))
         {
             inlineResult->Note(InlineObservation::CALLEE_CLASS_PROMOTABLE);
         }
