@@ -876,9 +876,9 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        internal DynamicILInfo(object scope, DynamicMethod method, byte[] methodSignature)
+        internal DynamicILInfo(DynamicMethod method, byte[] methodSignature)
         {
-            m_scope = scope as DynamicScope ?? throw new InvalidCastException(nameof(scope));
+            m_scope = new DynamicScope();
             m_method = method;
             m_methodSignature = m_scope.GetTokenFor(methodSignature);
             m_exceptions = Array.Empty<byte>();

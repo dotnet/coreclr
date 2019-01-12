@@ -517,10 +517,9 @@ namespace System.Reflection.Emit
         {
             if (m_DynamicILInfo == null)
             {
-                var scope = new DynamicScope();
                 byte[] methodSignature = SignatureHelper.GetMethodSigHelper(
                         null, CallingConvention, ReturnType, null, null, m_parameterTypes, null, null).GetSignature(true);
-                m_DynamicILInfo = new DynamicILInfo(scope, this, methodSignature);
+                m_DynamicILInfo = new DynamicILInfo(this, methodSignature);
             }
             return m_DynamicILInfo;
         }
