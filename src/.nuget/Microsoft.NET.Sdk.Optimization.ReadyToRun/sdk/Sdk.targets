@@ -10,34 +10,29 @@ Copyright (c) .NET Foundation. All rights reserved.
 ***********************************************************************************************
 -->
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-<!-- USER CODE -->
- <!-- Remaining Work:
+  <!-- Remaining Work:
     1) Inject CreateReadyToRunImages at correct entrypoint in the build. Related to https://github.com/dotnet/sdk/issues/2583
-    2)  -->
-
-  <!-- Proposed SDK changes -->
-  <!--
-There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsoft.NET.ComposeStore.targets
-  - _RestoreCrossgen (crossgen.targets) depends on PrepforRestoreForComposeStore (composestore.targets)
-    - This unnecessarily sets $(StoreWorkerWorkingDir)
-    - This unnecessarily sets $(BaseIntermediateOutputPath)
-    - This unnecessarily sets $(ProjectAssetsFile)
-  - Implicit dependency where ComposeStore targets call PrepareForComposeStore
-    - This sets $(_TFM)
-    - This sets $(ComposeWorkingDir)
   -->
+    <PropertyGroup>
+      <_IntermediateReadyToRunDirName Condition=" '$(_IntermediateReadyToRunDirName)' == '' ">ReadyToRun</_IntermediateReadyToRunDirName>
+      <_IntermediateReadyToRunDir Condition=" '$(_IntermediateReadyToRunDir)' == '' ">$(IntermediateOutputPath)$(_IntermediateReadyToRunDirName)</_IntermediateReadyToRunDir>
+      <_IntermediateReadyToRunDir>$([System.IO.Path]::GetFullPath($(_IntermediateReadyToRunDir)))</_IntermediateReadyToRunDir>
+
+      <_ReadyToRunOutputDir>$([System.IO.Path]::Combine($(_IntermediateReadyToRunDir),"Output"))</_ReadyToRunOutputDir>
+    </PropertyGroup>
+
   <Target Name="CreateReadyToRunImages"
           BeforeTargets="ComputeFilesToPublish"
-          DependsOnTargets="CheckForUnsupportedReadyToRunCompilation;
-                            PrepareForReadyToRun;
+          DependsOnTargets="_CheckForUnsupportedReadyToRunCompilation;
                             _ComputeCrossGenInputs;
-                            _Custom_PrepOptimizer;
+                            _RestoreRuntime;
+                            _InitializeCrossgenProps;
                             _RunCrossgenOnInputs;
                             _PublishCrossgenOutputs"
           Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
   </Target>
 
-  <Target Name="CheckForUnsupportedReadyToRunCompilation"
+  <Target Name="_CheckForUnsupportedReadyToRunCompilation"
           Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
 
     <!-- TODO: Add this message as a resource string to the NET SDK so it can be localized -->
@@ -50,7 +45,7 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
     <NETSdkError Condition="'$(TargetFramework)' ==''"
                  ResourceName="AtLeastOneTargetFrameworkMustBeSpecified"/>
 
-    <!-- Determine the host OS platform|architecture -->
+    <!-- Determine whether the host OS platform-architecture supports compilation to the desired RuntimeIdentifier -->
     <PropertyGroup>
       <_OSPlatform Condition="$([MSBuild]::IsOSPlatform('windows'))">win</_OSPlatform>
       <_OSPlatform Condition="$([MSBuild]::IsOSPlatform('osx'))">osx</_OSPlatform>
@@ -69,31 +64,6 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
         FormattedText="Creating ReadyToRun images is not supported for the RuntimeIdentifier $(RuntimeIdentifier) on the host OS $(_OSPlatform)-$(_OSArchitecture.ToLower())" />
   </Target>
 
-  <Target Name="PrepareForReadyToRun"
-          Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
-    <PropertyGroup>
-      <_TFM Condition="'$(_TFM)' == ''">$(TargetFramework)</_TFM>
-
-      <IntermediateOptimizedDirName Condition=" '$(IntermediateOptimizedDirName)' == '' ">optimized</IntermediateOptimizedDirName>
-      <IntermediateOptimizedDir Condition=" '$(IntermediateOptimizedDir)' == '' ">$(IntermediateOutputPath)$(IntermediateOptimizedDirName)</IntermediateOptimizedDir>
-      <IntermediateCrossGenDirName Condition=" '$(IntermediateCrossGenDirName)' == '' ">readytorun</IntermediateCrossGenDirName>
-      <IntermediateCrossGenDir Condition=" '$(IntermediateCrossGenDir)' == '' ">$(IntermediateOutputPath)$(IntermediateCrossGenDirName)</IntermediateCrossGenDir>
-
-      <ComposeWorkingDir Condition="'$(ComposeWorkingDir)' == ''">$(IntermediateCrossGenDir)</ComposeWorkingDir>
-      <ComposeWorkingDir>$([System.IO.Path]::GetFullPath($(ComposeWorkingDir)))</ComposeWorkingDir>
-    </PropertyGroup>
-
-    <!-- Properties originally set by PrepforRestoreForComposeStore -->
-    <PropertyGroup>
-      <StorePackageVersionForFolderName>$(StorePackageVersion.Replace('*','-'))</StorePackageVersionForFolderName>
-      <StoreWorkerWorkingDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"$(StorePackageName)_$(StorePackageVersionForFolderName)"))</StoreWorkerWorkingDir>
-    </PropertyGroup>
-
-    <PropertyGroup>
-      <SelfContained Condition="'$(SelfContained)' == ''">true</SelfContained>
-    </PropertyGroup>
-  </Target>
-
   <Target Name="_ComputeCrossGenInputs">
     <ItemGroup>
       <_CrossGenInputAssemblies Include="@(IntermediateAssembly)" />
@@ -110,12 +80,14 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
       <_CrossGenPlatformAssemblies>@(_CrossGenReferenceAssemblies)</_CrossGenPlatformAssemblies>
     </PropertyGroup>
 
+    <MakeDir Directories="$(_ReadyToRunOutputDir)"/>
+
     <ItemGroup>
       <CrossGenInvocations Include="$(MSBuildProjectFullPath)">
         <Properties>
           CrossgenExe=$(Crossgen);
           CrossgenInput=%(_CrossGenInputAssemblies.FullPath);
-          CrossgenOutput=$(_RuntimeOptimizedDir)/%(FileName)%(Extension);
+          CrossgenOutput=$(_ReadyToRunOutputDir)/%(FileName)%(Extension);
           JitPath=$(JitPath);
           DiaSymReaderPath=$(DiaSymReaderPath);
           CrossGenPlatformAssemblies=$(_CrossGenPlatformAssemblies);
@@ -141,9 +113,7 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
       <_CrossGenPlatformAssembliesPathsProperty>@(_CrossGenPlatformAssembliesPaths, '$(_PathSeparator)')</_CrossGenPlatformAssembliesPathsProperty>
       <!-- Remove the trailing slash so it does not get misinterpreted by Exec -->
       <_CrossGenPlatformAssembliesPathsProperty>$(_CrossGenPlatformAssembliesPathsProperty.TrimEnd('\'))</_CrossGenPlatformAssembliesPathsProperty>
-    </PropertyGroup>
 
-    <PropertyGroup>
       <CrossGenCommand>$(CrossGenExe) -readytorun -in $(CrossGenInput) -out $(CrossGenOutput) -jitpath $(JitPath) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot;</CrossGenCommand>
     </PropertyGroup>
 
@@ -154,7 +124,7 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
   <Target Name="_PublishCrossgenOutputs">
     <!-- Rewrite ResolvedAssembliesToPublish to capture any newly-crossgened ResolvedAssembliesToPublish files, preserving metadata. -->
     <ItemGroup>
-      <_CrossGenResolvedAssembliesToPublishCandidates Include="@(ResolvedAssembliesToPublish->'$(_RuntimeOptimizedDir)/%(Filename)%(Extension)')" />
+      <_CrossGenResolvedAssembliesToPublishCandidates Include="@(ResolvedAssembliesToPublish->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
       <_CrossGenResolvedAssembliesToPublish Include="@(_CrossGenResolvedAssembliesToPublishCandidates)" Condition="Exists('%(Identity)')" />
 
       <ResolvedAssembliesToPublish Remove="@(_CrossGenInputAssemblies)" />
@@ -163,7 +133,7 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
 
     <!-- Rewrite IntermediateAssembly to capture the newly-crossgened IntermediateAssembly, preserving metadata. -->
     <ItemGroup>
-      <_CrossGenIntermediateAssemblyCandidates Include="@(IntermediateAssembly->'$(_RuntimeOptimizedDir)/%(Filename)%(Extension)')" />
+      <_CrossGenIntermediateAssemblyCandidates Include="@(IntermediateAssembly->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
       <_CrossGenIntermediateAssembly Include="@(_CrossGenIntermediateAssemblyCandidates)" Condition="Exists('%(Identity)')" />
 
       <IntermediateAssembly Remove="@(_CrossGenInputAssemblies)" />
@@ -171,9 +141,7 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
     </ItemGroup>
   </Target>
 
-<!-- SDK code -->
-  <Target Name="_Custom_PrepOptimizer"
-          DependsOnTargets="_Custom_RestoreCrossgen;">
+  <Target Name="_InitializeCrossgenProps">
     <!-- Get the coreclr path -->
     <ItemGroup>
       <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
@@ -244,20 +212,14 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
   </Target>
 
   <!-- TODO: Remove this restore task. We should already have restored the runtime package. However, we'll need to obtain a path to that package somehow -->
-  <Target Name="_Custom_RestoreCrossgen"
+  <Target Name="_RestoreRuntime"
           DependsOnTargets="ApplyImplicitVersions">
     <PropertyGroup>
-      <_CrossProjFileDir>$([System.IO.Path]::Combine($(ComposeWorkingDir),"Optimize"))</_CrossProjFileDir>
-      <_NetCoreRefDir>$([System.IO.Path]::Combine($(_CrossProjFileDir), "netcoreapp"))</_NetCoreRefDir>              <!-- flat netcore app assemblies-->
-      <_RuntimeOptimizedDir>$([System.IO.Path]::Combine($(StoreWorkerWorkingDir), "runtimopt"))</_RuntimeOptimizedDir>      <!-- optimized app managed assemblies in nuget cache layout -->
+      <_RuntimeRestoreDir>$([System.IO.Path]::Combine($(_IntermediateReadyToRunDir),"RuntimeRestore"))</_RuntimeRestoreDir>
+      <_RuntimeRestoreAssetsFile>$([System.IO.Path]::Combine($(_RuntimeRestoreDir),"project.assets.json"))</_RuntimeRestoreAssetsFile>
     </PropertyGroup>
 
-    <MakeDir Directories="$(_CrossProjFileDir)"/>
-    <MakeDir Directories="$(_RuntimeOptimizedDir)"/>
-
-    <PropertyGroup>
-      <_CrossProjAssetsFile>$([System.IO.Path]::Combine($(_CrossProjFileDir),  project.assets.json))</_CrossProjAssetsFile>
-    </PropertyGroup>
+    <MakeDir Directories="$(_RuntimeRestoreDir)"/>
 
     <ItemGroup>
       <!-- Filter package references to the one for the platform library, in order to find the right version -->
@@ -268,13 +230,13 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
                  Targets="Restore"
                  Properties="RestoreGraphProjectInput=$(MSBuildProjectFullPath);
                              DisableImplicitFrameworkReferences=true;
-                             RestoreOutputPath=$(_CrossProjFileDir);
+                             RestoreOutputPath=$(_RuntimeRestoreDir);
                              StorePackageName=$(MicrosoftNETPlatformLibrary);
                              StorePackageVersion=%(PackageReferenceForCrossGen.Version);"/>
 
     <ResolvePublishAssemblies ProjectPath="$(MSBuildProjectFullPath)"
-                              AssetsFilePath="$(_CrossProjAssetsFile)"
-                              TargetFramework="$(_TFM)"
+                              AssetsFilePath="$(_RuntimeRestoreAssetsFile)"
+                              TargetFramework="$(TargetFramework)"
                               RuntimeIdentifier="$(RuntimeIdentifier)"
                               PlatformLibraryName="$(MicrosoftNETPlatformLibrary)"
                               RuntimeFrameworks="@(RuntimeFramework)"
