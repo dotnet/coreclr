@@ -2252,6 +2252,45 @@ struct GenTreePhi : public GenTree
         return UseList(gtUses);
     }
 
+    //--------------------------------------------------------------------------
+    // Equals: Checks if 2 PHI nodes are equal.
+    //
+    // Arguments:
+    //    phi1 - The first PHI node
+    //    phi2 - The second PHI node
+    //
+    // Return Value:
+    //    true if the 2 PHI nodes have the same type, number of uses, and the
+    //    uses are equal.
+    //
+    // Notes:
+    //    The order of uses must be the same for equality, even if the
+    //    order is not usually relevant and is not guaranteed to reflect
+    //    a particular order of the predecessor blocks.
+    //
+    static bool Equals(GenTreePhi* phi1, GenTreePhi* phi2)
+    {
+        if (phi1->TypeGet() != phi2->TypeGet())
+        {
+            return false;
+        }
+
+        GenTreePhi::UseIterator i1   = phi1->Uses().begin();
+        GenTreePhi::UseIterator end1 = phi1->Uses().end();
+        GenTreePhi::UseIterator i2   = phi2->Uses().begin();
+        GenTreePhi::UseIterator end2 = phi2->Uses().end();
+
+        for (; (i1 != end1) && (i2 != end2); ++i1, ++i2)
+        {
+            if (!Compare(i1->op, i2->op))
+            {
+                return false;
+            }
+        }
+
+        return (i1 == end1) && (i2 == end2);
+    }
+
 #if DEBUGGABLE_GENTREE
     GenTreePhi() : GenTree()
     {

@@ -1484,22 +1484,7 @@ AGAIN:
                     Compare(op1->gtArrOffs.gtArrObj, op2->gtArrOffs.gtArrObj));
 
         case GT_PHI:
-        {
-            GenTreePhi::UseIterator op1Use    = op1->AsPhi()->Uses().begin();
-            GenTreePhi::UseIterator op1UseEnd = op1->AsPhi()->Uses().end();
-            GenTreePhi::UseIterator op2Use    = op2->AsPhi()->Uses().begin();
-            GenTreePhi::UseIterator op2UseEnd = op2->AsPhi()->Uses().end();
-
-            for (; (op1Use != op1UseEnd) && (op2Use != op2UseEnd); ++op1Use, ++op2Use)
-            {
-                if (!Compare(op1Use->op, op2Use->op))
-                {
-                    return false;
-                }
-            }
-
-            return (op1Use == op1UseEnd) && (op2Use == op2UseEnd);
-        }
+            return GenTreePhi::Equals(op1->AsPhi(), op2->AsPhi());
 
         case GT_CMPXCHG:
             return Compare(op1->gtCmpXchg.gtOpLocation, op2->gtCmpXchg.gtOpLocation) &&
