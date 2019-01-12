@@ -139,6 +139,8 @@ There exist several dependencies from Microsoft.NET.CrossGen.targets on Microsof
     <PropertyGroup>
       <_PathSeparator>$([System.IO.Path]::PathSeparator)</_PathSeparator>
       <_CrossGenPlatformAssembliesPathsProperty>@(_CrossGenPlatformAssembliesPaths, '$(_PathSeparator)')</_CrossGenPlatformAssembliesPathsProperty>
+      <!-- Remove the trailing slash so it does not get misinterpreted by Exec -->
+      <_CrossGenPlatformAssembliesPathsProperty>$(_CrossGenPlatformAssembliesPathsProperty.TrimEnd('\'))</_CrossGenPlatformAssembliesPathsProperty>
     </PropertyGroup>
 
     <PropertyGroup>
