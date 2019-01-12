@@ -18802,7 +18802,7 @@ void Compiler::fgSetTreeSeqHelper(GenTree* tree, bool isLIR)
         case GT_PHI:
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
             {
-                fgSetTreeSeqHelper(use.op, isLIR);
+                fgSetTreeSeqHelper(use.GetNode(), isLIR);
             }
             break;
 
@@ -21413,8 +21413,8 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
             case GT_PHI:
                 for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
                 {
-                    fgDebugCheckFlags(use.op);
-                    chkFlags |= (use.op->gtFlags & GTF_ALL_EFFECT);
+                    fgDebugCheckFlags(use.GetNode());
+                    chkFlags |= (use.GetNode()->gtFlags & GTF_ALL_EFFECT);
                 }
                 break;
 

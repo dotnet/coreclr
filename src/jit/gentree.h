@@ -2192,14 +2192,42 @@ public:
 //
 struct GenTreePhi final : public GenTree
 {
-    struct Use
+    class Use
     {
-        GenTree* op;
-        Use*     next;
+        GenTree* m_node;
+        Use*     m_next;
 
-        Use(GenTree* op, Use* next = nullptr) : op(op), next(next)
+    public:
+        Use(GenTree* node, Use* next = nullptr) : m_node(node), m_next(next)
         {
-            assert(op->OperIs(GT_PHI_ARG));
+            assert(node->OperIs(GT_PHI_ARG));
+        }
+
+        GenTree*& NodeRef()
+        {
+            return m_node;
+        }
+
+        GenTree* GetNode() const
+        {
+            assert(m_node->OperIs(GT_PHI_ARG));
+            return m_node;
+        }
+
+        void SetNode(GenTree* node)
+        {
+            assert(node->OperIs(GT_PHI_ARG));
+            m_node = node;
+        }
+
+        Use*& NextRef()
+        {
+            return m_next;
+        }
+
+        Use* GetNext() const
+        {
+            return m_next;
         }
     };
 
@@ -2224,7 +2252,7 @@ struct GenTreePhi final : public GenTree
 
         UseIterator& operator++()
         {
-            m_use = m_use->next;
+            m_use = m_use->GetNext();
             return *this;
         }
 
@@ -2300,7 +2328,7 @@ struct GenTreePhi final : public GenTree
 
         for (; (i1 != end1) && (i2 != end2); ++i1, ++i2)
         {
-            if (!Compare(i1->op, i2->op))
+            if (!Compare(i1->GetNode(), i2->GetNode()))
             {
                 return false;
             }

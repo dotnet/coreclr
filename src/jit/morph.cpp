@@ -14939,8 +14939,8 @@ GenTree* Compiler::fgMorphTree(GenTree* tree, MorphAddrContext* mac)
             tree->gtFlags &= ~GTF_ALL_EFFECT;
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
             {
-                use.op = fgMorphTree(use.op);
-                tree->gtFlags |= use.op->gtFlags & GTF_ALL_EFFECT;
+                use.SetNode(fgMorphTree(use.GetNode()));
+                tree->gtFlags |= use.GetNode()->gtFlags & GTF_ALL_EFFECT;
             }
             break;
 

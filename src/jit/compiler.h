@@ -9896,7 +9896,7 @@ public:
             case GT_PHI:
                 for (GenTreePhi::Use& use : node->AsPhi()->Uses())
                 {
-                    result = WalkTree(&use.op, node);
+                    result = WalkTree(&use.NodeRef(), node);
                     if (result == fgWalkResult::WALK_ABORT)
                     {
                         return result;

@@ -408,11 +408,11 @@ bool RangeCheck::IsMonotonicallyIncreasing(GenTree* expr, bool rejectNegativeCon
         for (GenTreePhi::Use& use : expr->AsPhi()->Uses())
         {
             // If the arg is already in the path, skip.
-            if (m_pSearchPath->Lookup(use.op))
+            if (m_pSearchPath->Lookup(use.GetNode()))
             {
                 continue;
             }
-            if (!IsMonotonicallyIncreasing(use.op, rejectNegativeConst))
+            if (!IsMonotonicallyIncreasing(use.GetNode(), rejectNegativeConst))
             {
                 JITDUMP("Phi argument not monotonic\n");
                 return false;
@@ -988,7 +988,7 @@ bool RangeCheck::DoesPhiOverflow(BasicBlock* block, GenTree* expr)
 {
     for (GenTreePhi::Use& use : expr->AsPhi()->Uses())
     {
-        GenTree* arg = use.op;
+        GenTree* arg = use.GetNode();
         if (m_pSearchPath->Lookup(arg))
         {
             continue;
@@ -1126,18 +1126,18 @@ Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic 
         for (GenTreePhi::Use& use : expr->AsPhi()->Uses())
         {
             Range argRange = Range(Limit(Limit::keUndef));
-            if (m_pSearchPath->Lookup(use.op))
+            if (m_pSearchPath->Lookup(use.GetNode()))
             {
-                JITDUMP("PhiArg [%06d] is already being computed\n", Compiler::dspTreeID(use.op));
+                JITDUMP("PhiArg [%06d] is already being computed\n", Compiler::dspTreeID(use.GetNode()));
                 argRange = Range(Limit(Limit::keDependent));
             }
             else
             {
-                argRange = GetRange(block, use.op, monotonic DEBUGARG(indent + 1));
+                argRange = GetRange(block, use.GetNode(), monotonic DEBUGARG(indent + 1));
             }
             assert(!argRange.LowerLimit().IsUndef());
             assert(!argRange.UpperLimit().IsUndef());
-            MergeAssertion(block, use.op, &argRange DEBUGARG(indent + 1));
+            MergeAssertion(block, use.GetNode(), &argRange DEBUGARG(indent + 1));
             JITDUMP("Merging ranges %s %s:", range.ToString(m_pCompiler->getAllocatorDebugOnly()),
                     argRange.ToString(m_pCompiler->getAllocatorDebugOnly()));
             range = RangeOps::Merge(range, argRange, monotonic);

@@ -4310,7 +4310,7 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_PHI:
             for (GenTreePhi::Use& use : AsPhi()->Uses())
             {
-                if (visitor(use.op) == VisitResult::Abort)
+                if (visitor(use.GetNode()) == VisitResult::Abort)
                 {
                     break;
                 }

@@ -2025,7 +2025,7 @@ AssertionIndex Compiler::optAssertionGenPhiDefn(GenTree* tree)
     bool isNonNull = true;
     for (GenTreePhi::Use& use : tree->AsOp()->gtGetOp2()->AsPhi()->Uses())
     {
-        if (!vnStore->IsKnownNonNull(use.op->gtVNPair.GetConservative()))
+        if (!vnStore->IsKnownNonNull(use.GetNode()->gtVNPair.GetConservative()))
         {
             isNonNull = false;
             break;

@@ -1706,7 +1706,7 @@ AGAIN:
         case GT_PHI:
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
             {
-                if (gtHasRef(use.op, lclNum, defOnly))
+                if (gtHasRef(use.GetNode(), lclNum, defOnly))
                 {
                     return true;
                 }
@@ -2142,7 +2142,7 @@ AGAIN:
         case GT_PHI:
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
             {
-                hash = genTreeHashAdd(hash, gtHashValue(use.op));
+                hash = genTreeHashAdd(hash, gtHashValue(use.GetNode()));
             }
             break;
 
@@ -4274,11 +4274,11 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
         case GT_PHI:
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
             {
-                lvl2 = gtSetEvalOrder(use.op);
+                lvl2 = gtSetEvalOrder(use.GetNode());
                 // PHI args should always have cost 0 and level 1
                 assert(lvl2 == 1);
-                assert(use.op->gtCostEx == 0);
-                assert(use.op->gtCostSz == 0);
+                assert(use.GetNode()->gtCostEx == 0);
+                assert(use.GetNode()->gtCostSz == 0);
             }
             // Give it a level of 2, just to be sure that it's greater than the LHS of
             // the parent assignment and the PHI gets evaluated first in linear order.
@@ -4587,9 +4587,9 @@ GenTree** GenTree::gtGetChildPointer(GenTree* parent) const
         case GT_PHI:
             for (GenTreePhi::Use& use : parent->AsPhi()->Uses())
             {
-                if (use.op == this)
+                if (use.GetNode() == this)
                 {
-                    return &use.op;
+                    return &use.NodeRef();
                 }
             }
             break;
@@ -4847,9 +4847,9 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_PHI:
             for (GenTreePhi::Use& phiUse : AsPhi()->Uses())
             {
-                if (phiUse.op == def)
+                if (phiUse.GetNode() == def)
                 {
-                    *use = &phiUse.op;
+                    *use = &phiUse.NodeRef();
                     return true;
                 }
             }
@@ -7401,8 +7401,8 @@ GenTree* Compiler::gtCloneExpr(
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
             {
                 *prevUse = new (this, CMK_ASTNode)
-                    GenTreePhi::Use(gtCloneExpr(use.op, addFlags, deepVarNum, deepVarVal), *prevUse);
-                prevUse = &(*prevUse)->next;
+                    GenTreePhi::Use(gtCloneExpr(use.GetNode(), addFlags, deepVarNum, deepVarVal), *prevUse);
+                prevUse = &((*prevUse)->NextRef());
             }
         }
         break;
@@ -8289,7 +8289,7 @@ GenTree* GenTree::GetChild(unsigned childNum)
                 {
                     if (childNum == 0)
                     {
-                        return use.op;
+                        return use.GetNode();
                     }
                     childNum--;
                 }
@@ -8825,8 +8825,8 @@ void GenTreeUseEdgeIterator::AdvancePhi()
     else
     {
         GenTreePhi::Use* currentUse = static_cast<GenTreePhi::Use*>(m_statePtr);
-        m_edge                      = &currentUse->op;
-        m_statePtr                  = currentUse->next;
+        m_edge                      = &currentUse->NodeRef();
+        m_statePtr                  = currentUse->GetNext();
     }
 }
 
@@ -10912,8 +10912,8 @@ void Compiler::gtDispTree(GenTree*     tree,
                 for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
                 {
                     char block[32];
-                    sprintf_s(block, sizeof(block), "pred " FMT_BB, use.op->AsPhiArg()->gtPredBB->bbNum);
-                    gtDispChild(use.op, indentStack, (use.next == nullptr) ? IIArcBottom : IIArc, block);
+                    sprintf_s(block, sizeof(block), "pred " FMT_BB, use.GetNode()->AsPhiArg()->gtPredBB->bbNum);
+                    gtDispChild(use.GetNode(), indentStack, (use.GetNext() == nullptr) ? IIArcBottom : IIArc, block);
                 }
             }
             break;

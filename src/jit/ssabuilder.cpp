@@ -734,7 +734,7 @@ void SsaBuilder::AddPhiArg(
     // Make sure it isn't already present: we should only add each definition once.
     for (GenTreePhi::Use& use : phi->Uses())
     {
-        assert(use.op->AsPhiArg()->GetSsaNum() != ssaNum);
+        assert(use.GetNode()->AsPhiArg()->GetSsaNum() != ssaNum);
     }
 #endif // DEBUG
 
@@ -1311,7 +1311,7 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
             bool found = false;
             for (GenTreePhi::Use& use : phi->Uses())
             {
-                if (use.op->AsPhiArg()->GetSsaNum() == ssaNum)
+                if (use.GetNode()->AsPhiArg()->GetSsaNum() == ssaNum)
                 {
                     found = true;
                     break;
@@ -1453,7 +1453,7 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
                     bool alreadyArg = false;
                     for (GenTreePhi::Use& use : phi->Uses())
                     {
-                        if (use.op->AsPhiArg()->GetSsaNum() == ssaNum)
+                        if (use.GetNode()->AsPhiArg()->GetSsaNum() == ssaNum)
                         {
                             alreadyArg = true;
                             break;

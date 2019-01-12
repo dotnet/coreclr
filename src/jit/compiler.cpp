@@ -10593,7 +10593,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
         bool first = true;
         for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
         {
-            child = use.op;
+            child = use.GetNode();
             if (!first)
             {
                 chars += printf(",");
