@@ -4164,7 +4164,7 @@ _SetMinOpts:
 
     /* Control the optimizations */
 
-    if (opts.MinOpts() || opts.compDbgCode)
+    if (opts.OptimizationDisabled())
     {
         opts.compFlags &= ~CLFLG_MAXOPT;
         opts.compFlags |= CLFLG_MINOPT;
@@ -4175,7 +4175,7 @@ _SetMinOpts:
         codeGen->setFramePointerRequired(false);
         codeGen->setFrameRequired(false);
 
-        if (opts.MinOpts() || opts.compDbgCode)
+        if (opts.OptimizationDisabled())
         {
             codeGen->setFrameRequired(true);
         }
@@ -4205,7 +4205,7 @@ _SetMinOpts:
         }
     }
 
-    info.compUnwrapContextful = !opts.MinOpts() && !opts.compDbgCode;
+    info.compUnwrapContextful = opts.OptimizationEnabled();
 
     fgCanRelocateEHRegions = true;
 }
@@ -4637,7 +4637,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
 
 #endif // FEATURE_EH_FUNCLETS
 
-    if (!opts.MinOpts() && !opts.compDbgCode)
+    if (opts.OptimizationEnabled())
     {
         optOptimizeLayout();
         EndPhase(PHASE_OPTIMIZE_LAYOUT);
@@ -4647,7 +4647,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         EndPhase(PHASE_COMPUTE_REACHABILITY);
     }
 
-    if (!opts.MinOpts() && !opts.compDbgCode)
+    if (opts.OptimizationEnabled())
     {
         /*  Perform loop inversion (i.e. transform "while" loops into
             "repeat" loops) and discover and classify natural loops
@@ -4684,7 +4684,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     //
     assert(lvaLocalVarRefCounted());
 
-    if (!opts.MinOpts() && !opts.compDbgCode)
+    if (opts.OptimizationEnabled())
     {
         /* Optimize boolean conditions */
 
@@ -4721,7 +4721,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
 #endif
 
     // At this point we know if we are fully interruptible or not
-    if (!opts.MinOpts() && !opts.compDbgCode)
+    if (opts.OptimizationEnabled())
     {
         bool doSsa           = true;
         bool doEarlyProp     = true;
@@ -5800,8 +5800,9 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 {
     CORINFO_METHOD_HANDLE methodHnd = info.compMethodHnd;
 
-    info.compCode       = methodInfo->ILCode;
-    info.compILCodeSize = methodInfo->ILCodeSize;
+    info.compCode         = methodInfo->ILCode;
+    info.compILCodeSize   = methodInfo->ILCodeSize;
+    info.compILImportSize = 0;
 
     if (info.compILCodeSize == 0)
     {
@@ -9151,7 +9152,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
         CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if defined(DEBUG)
-#if SMALL_TREE_NODES
         if (comp->dumpIRNodes)
         {
             if (tree->gtDebugFlags & GTF_DEBUG_NODE_LARGE)
@@ -9163,7 +9163,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 chars += printf("[NODE_SMALL]");
             }
         }
-#endif // SMALL_TREE_NODES
         if (tree->gtDebugFlags & GTF_DEBUG_NODE_MORPHED)
         {
             chars += printf("[MORPHED]");
@@ -10169,15 +10168,6 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             break;
 
         case GT_LABEL:
-
-            if (tree->gtLabel.gtLabBB)
-            {
-                chars += printf(FMT_BB, tree->gtLabel.gtLabBB->bbNum);
-            }
-            else
-            {
-                chars += printf("BB?");
-            }
             break;
 
         case GT_IL_OFFSET:

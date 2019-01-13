@@ -128,10 +128,6 @@ enum genTreeKinds
 
 /*****************************************************************************/
 
-#define SMALL_TREE_NODES 1
-
-/*****************************************************************************/
-
 enum gtCallTypes : BYTE
 {
     CT_USER_FUNC, // User function
@@ -1518,18 +1514,9 @@ public:
         return OperIsHWIntrinsic(gtOper);
     }
 
-#ifdef FEATURE_HW_INTRINSICS
-    inline bool OperIsSimdHWIntrinsic() const;
-#else
-    inline bool OperIsSimdHWIntrinsic() const
+    bool OperIsSimdOrHWintrinsic() const
     {
-        return false;
-    }
-#endif
-
-    bool OperIsSIMDorSimdHWintrinsic() const
-    {
-        return OperIsSIMD() || OperIsSimdHWIntrinsic();
+        return OperIsSIMD() || OperIsHWIntrinsic();
     }
 
     // This is here for cleaner GT_LONG #ifdefs.
@@ -1757,7 +1744,6 @@ public:
     bool IsAddWithI32Const(GenTree** addr, int* offset);
 
 public:
-#if SMALL_TREE_NODES
     static unsigned char s_gtNodeSizes[];
 #if NODEBASH_STATS || MEASURE_NODE_SIZE || COUNT_AST_OPERS
     static unsigned char s_gtTrueSizes[];
@@ -1765,7 +1751,6 @@ public:
 #if COUNT_AST_OPERS
     static LONG s_gtNodeCounts[];
 #endif
-#endif // SMALL_TREE_NODES
 
     static void InitNodeSize();
 
@@ -1789,7 +1774,7 @@ public:
     static const char* OpName(genTreeOps op);
 #endif
 
-#if MEASURE_NODE_SIZE && SMALL_TREE_NODES
+#if MEASURE_NODE_SIZE
     static const char* OpStructName(genTreeOps op);
 #endif
 
@@ -1827,7 +1812,6 @@ public:
         }
     }
 
-#if SMALL_TREE_NODES
 #if NODEBASH_STATS
     static void RecordOperBashing(genTreeOps operOld, genTreeOps operNew);
     static void ReportOperBashing(FILE* fp);
@@ -1838,7 +1822,6 @@ public:
     static void ReportOperBashing(FILE* fp)
     { /* do nothing */
     }
-#endif
 #endif
 
     bool IsLocal() const
@@ -2505,28 +2488,6 @@ struct GenTreePhysReg : public GenTree
 #endif
 };
 
-// gtJumpTable - Switch Jump Table
-//
-// This node stores a DWORD constant that represents the
-// absolute address of a jump table for switches.  The code
-// generator uses this table to code the destination for every case
-// in an array of addresses which starting position is stored in
-// this constant.
-struct GenTreeJumpTable : public GenTreeIntConCommon
-{
-    ssize_t gtJumpTableAddr;
-
-    GenTreeJumpTable(var_types type DEBUGARG(bool largeNode = false))
-        : GenTreeIntConCommon(GT_JMPTABLE, type DEBUGARG(largeNode))
-    {
-    }
-#if DEBUGGABLE_GENTREE
-    GenTreeJumpTable() : GenTreeIntConCommon()
-    {
-    }
-#endif // DEBUG
-};
-
 /* gtIntCon -- integer constant (GT_CNS_INT) */
 struct GenTreeIntCon : public GenTreeIntConCommon
 {
@@ -2764,15 +2725,18 @@ public:
 
 struct GenTreeLclVar : public GenTreeLclVarCommon
 {
-    IL_OFFSET gtLclILoffs; // instr offset of ref (only for debug info)
+    INDEBUG(IL_OFFSET gtLclILoffs;) // instr offset of ref (only for JIT dumps)
 
-    GenTreeLclVar(var_types type, unsigned lclNum, IL_OFFSET ilOffs DEBUGARG(bool largeNode = false))
-        : GenTreeLclVarCommon(GT_LCL_VAR, type, lclNum DEBUGARG(largeNode)), gtLclILoffs(ilOffs)
+    GenTreeLclVar(var_types type,
+                  unsigned lclNum DEBUGARG(IL_OFFSET ilOffs = BAD_IL_OFFSET) DEBUGARG(bool largeNode = false))
+        : GenTreeLclVarCommon(GT_LCL_VAR, type, lclNum DEBUGARG(largeNode)) DEBUGARG(gtLclILoffs(ilOffs))
     {
     }
 
-    GenTreeLclVar(genTreeOps oper, var_types type, unsigned lclNum, IL_OFFSET ilOffs DEBUGARG(bool largeNode = false))
-        : GenTreeLclVarCommon(oper, type, lclNum DEBUGARG(largeNode)), gtLclILoffs(ilOffs)
+    GenTreeLclVar(genTreeOps oper,
+                  var_types  type,
+                  unsigned lclNum DEBUGARG(IL_OFFSET ilOffs = BAD_IL_OFFSET) DEBUGARG(bool largeNode = false))
+        : GenTreeLclVarCommon(oper, type, lclNum DEBUGARG(largeNode)) DEBUGARG(gtLclILoffs(ilOffs))
     {
         assert(OperIsLocal(oper) || OperIsLocalAddr(oper));
     }
@@ -4108,6 +4072,10 @@ struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
         , gtHWIntrinsicId(hwIntrinsicID)
         , gtIndexBaseType(TYP_UNKNOWN)
     {
+        if (OperIsMemoryStore())
+        {
+            gtFlags |= (GTF_GLOB_REF | GTF_ASG);
+        }
     }
 
     GenTreeHWIntrinsic(
@@ -4116,6 +4084,10 @@ struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
         , gtHWIntrinsicId(hwIntrinsicID)
         , gtIndexBaseType(TYP_UNKNOWN)
     {
+        if (OperIsMemoryStore())
+        {
+            gtFlags |= (GTF_GLOB_REF | GTF_ASG);
+        }
     }
 
     // Note that HW Instrinsic instructions are a sub class of GenTreeOp which only supports two operands
@@ -4135,15 +4107,6 @@ struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
     }
 #endif
 };
-
-inline bool GenTree::OperIsSimdHWIntrinsic() const
-{
-    if (gtOper == GT_HWIntrinsic)
-    {
-        return this->AsHWIntrinsic()->isSIMD();
-    }
-    return false;
-}
 #endif // FEATURE_HW_INTRINSICS
 
 /* gtIndex -- array access */
@@ -4208,7 +4171,7 @@ struct GenTreeIndexAddr : public GenTreeOp
 
     CORINFO_CLASS_HANDLE gtStructElemClass; // If the element type is a struct, this is the struct type.
 
-    GenTree* gtIndRngFailBB; // Label to jump to for array-index-out-of-range
+    BasicBlock* gtIndRngFailBB; // Basic block to jump to for array-index-out-of-range
 
     var_types gtElemType;   // The element type of the array.
     unsigned  gtElemSize;   // size of elements in the array
@@ -4294,7 +4257,7 @@ struct GenTreeBoundsChk : public GenTree
     GenTree* gtIndex;  // The index expression.
     GenTree* gtArrLen; // An expression for the length of the array being indexed.
 
-    GenTree*        gtIndRngFailBB; // Label to jump to for array-index-out-of-range
+    BasicBlock*     gtIndRngFailBB; // Basic block to jump to for array-index-out-of-range
     SpecialCodeKind gtThrowKind;    // Kind of throw block to branch to on failure
 
     GenTreeBoundsChk(genTreeOps oper, var_types type, GenTree* index, GenTree* arrLen, SpecialCodeKind kind)
@@ -5017,22 +4980,6 @@ struct GenTreeArgPlace : public GenTree
 #endif
 };
 
-/* gtLabel  -- code label target    (GT_LABEL) */
-
-struct GenTreeLabel : public GenTree
-{
-    BasicBlock* gtLabBB;
-
-    GenTreeLabel(BasicBlock* bb) : GenTree(GT_LABEL, TYP_VOID), gtLabBB(bb)
-    {
-    }
-#if DEBUGGABLE_GENTREE
-    GenTreeLabel() : GenTree()
-    {
-    }
-#endif
-};
-
 /* gtPhiArg -- phi node rhs argument, var = phi(phiarg, phiarg, phiarg...); GT_PHI_ARG */
 struct GenTreePhiArg : public GenTreeLclVarCommon
 {
@@ -5642,17 +5589,246 @@ struct GenTreeRuntimeLookup final : public GenTreeUnOp
     }
 };
 
+// Represents the condition of a GT_JCC or GT_SETCC node.
+
+struct GenCondition
+{
+    // clang-format off
+    enum Code : unsigned char
+    {
+        OperMask  = 7,
+        Unsigned  = 8,
+        Unordered = Unsigned,
+        Float     = 16,
+
+        // 0 would be the encoding of "signed EQ" but since equality is sign insensitive
+        // we'll use 0 as invalid/uninitialized condition code. This will also leave 1
+        // as a spare code.
+        NONE = 0,
+
+        SLT  = 2,
+        SLE  = 3,
+        SGE  = 4,
+        SGT  = 5,
+        S    = 6,
+        NS   = 7,
+
+        EQ   = Unsigned | 0,    // = 8
+        NE   = Unsigned | 1,    // = 9
+        ULT  = Unsigned | SLT,  // = 10
+        ULE  = Unsigned | SLE,  // = 11
+        UGE  = Unsigned | SGE,  // = 12
+        UGT  = Unsigned | SGT,  // = 13
+        C    = Unsigned | S,    // = 14
+        NC   = Unsigned | NS,   // = 15
+                                
+        FEQ  = Float | EQ,      // = 16
+        FNE  = Float | NE,      // = 17
+        FLT  = Float | SLT,     // = 18
+        FLE  = Float | SLE,     // = 19
+        FGE  = Float | SGE,     // = 20
+        FGT  = Float | SGT,     // = 21
+        O    = Float | S,       // = 22
+        NO   = Float | NS,      // = 23
+                                
+        FEQU = Unordered | FEQ, // = 24
+        FNEU = Unordered | FNE, // = 25
+        FLTU = Unordered | FLT, // = 26
+        FLEU = Unordered | FLE, // = 27
+        FGEU = Unordered | FGE, // = 28
+        FGTU = Unordered | FGT, // = 29
+        P    = Unordered | O,   // = 30
+        NP   = Unordered | NO,  // = 31
+    };
+    // clang-format on
+
+private:
+    Code m_code;
+
+public:
+    Code GetCode() const
+    {
+        return m_code;
+    }
+
+    bool IsFlag() const
+    {
+        return (m_code & OperMask) >= S;
+    }
+
+    bool IsUnsigned() const
+    {
+        return (ULT <= m_code) && (m_code <= UGT);
+    }
+
+    bool IsFloat() const
+    {
+        return !IsFlag() && (m_code & Float) != 0;
+    }
+
+    bool IsUnordered() const
+    {
+        return !IsFlag() && (m_code & (Float | Unordered)) == (Float | Unordered);
+    }
+
+    bool Is(Code cond) const
+    {
+        return m_code == cond;
+    }
+
+    template <typename... TRest>
+    bool Is(Code c, TRest... rest) const
+    {
+        return Is(c) || Is(rest...);
+    }
+
+    // Indicate whether the condition should be swapped in order to avoid generating
+    // multiple branches. This happens for certain floating point conditions on XARCH,
+    // see GenConditionDesc and its associated mapping table for more details.
+    bool PreferSwap() const
+    {
+#ifdef _TARGET_XARCH_
+        return Is(GenCondition::FLT, GenCondition::FLE, GenCondition::FGTU, GenCondition::FGEU);
+#else
+        return false;
+#endif
+    }
+
+    const char* Name() const
+    {
+        // clang-format off
+        static const char* names[]
+        {
+            "NONE", "???",  "SLT",  "SLE",  "SGE",  "SGT",  "S", "NS",
+            "UEQ",  "UNE",  "ULT",  "ULE",  "UGE",  "UGT",  "C", "NC",
+            "FEQ",  "FNE",  "FLT",  "FLE",  "FGE",  "FGT",  "O", "NO",
+            "FEQU", "FNEU", "FLTU", "FLEU", "FGEU", "FGTU", "P", "NP"
+        };
+        // clang-format on
+
+        assert(m_code < _countof(names));
+        return names[m_code];
+    }
+
+    GenCondition() : m_code()
+    {
+    }
+
+    GenCondition(Code cond) : m_code(cond)
+    {
+    }
+
+    static_assert((GT_NE - GT_EQ) == (NE & ~Unsigned), "bad relop");
+    static_assert((GT_LT - GT_EQ) == SLT, "bad relop");
+    static_assert((GT_LE - GT_EQ) == SLE, "bad relop");
+    static_assert((GT_GE - GT_EQ) == SGE, "bad relop");
+    static_assert((GT_GT - GT_EQ) == SGT, "bad relop");
+    static_assert((GT_TEST_NE - GT_TEST_EQ) == (NE & ~Unsigned), "bad relop");
+
+    static GenCondition FromRelop(GenTree* relop)
+    {
+        assert(relop->OperIsCompare());
+
+        if (varTypeIsFloating(relop->gtGetOp1()))
+        {
+            return FromFloatRelop(relop);
+        }
+        else
+        {
+            return FromIntegralRelop(relop);
+        }
+    }
+
+    static GenCondition FromFloatRelop(GenTree* relop)
+    {
+        assert(varTypeIsFloating(relop->gtGetOp1()) && varTypeIsFloating(relop->gtGetOp2()));
+
+        return FromFloatRelop(relop->OperGet(), (relop->gtFlags & GTF_RELOP_NAN_UN) != 0);
+    }
+
+    static GenCondition FromFloatRelop(genTreeOps oper, bool isUnordered)
+    {
+        assert(GenTree::OperIsCompare(oper));
+
+        unsigned code = oper - GT_EQ;
+        assert(code <= SGT);
+        code |= Float;
+
+        if (isUnordered)
+        {
+            code |= Unordered;
+        }
+
+        return GenCondition(static_cast<Code>(code));
+    }
+
+    static GenCondition FromIntegralRelop(GenTree* relop)
+    {
+        assert(!varTypeIsFloating(relop->gtGetOp1()) && !varTypeIsFloating(relop->gtGetOp2()));
+
+        return FromIntegralRelop(relop->OperGet(), relop->IsUnsigned());
+    }
+
+    static GenCondition FromIntegralRelop(genTreeOps oper, bool isUnsigned)
+    {
+        assert(GenTree::OperIsCompare(oper));
+
+        // GT_TEST_EQ/NE are special, they need to be mapped as GT_EQ/NE
+        unsigned code = oper - ((oper >= GT_TEST_EQ) ? GT_TEST_EQ : GT_EQ);
+
+        if (isUnsigned || (code <= 1)) // EQ/NE are treated as unsigned
+        {
+            code |= Unsigned;
+        }
+
+        return GenCondition(static_cast<Code>(code));
+    }
+
+    static GenCondition Reverse(GenCondition condition)
+    {
+        // clang-format off
+        static const Code reverse[]
+        {
+        //  EQ    NE    LT    LE    GE    GT    F   NF
+            NONE, NONE, SGE,  SGT,  SLT,  SLE,  NS, S,
+            NE,   EQ,   UGE,  UGT,  ULT,  ULE,  NC, C,
+            FNEU, FEQU, FGEU, FGTU, FLTU, FLEU, NO, O,
+            FNE,  FEQ,  FGE,  FGT,  FLT,  FGT,  NP, P
+        };
+        // clang-format on
+
+        assert(condition.m_code < _countof(reverse));
+        return GenCondition(reverse[condition.m_code]);
+    }
+
+    static GenCondition Swap(GenCondition condition)
+    {
+        // clang-format off
+        static const Code swap[]
+        {
+        //  EQ    NE    LT    LE    GE    GT    F  NF
+            NONE, NONE, SGT,  SGE,  SLE,  SLT,  S, NS,
+            EQ,   NE,   UGT,  UGE,  ULE,  ULT,  C, NC,
+            FEQ,  FNE,  FGT,  FGE,  FLE,  FLT,  O, NO,
+            FEQU, FNEU, FGTU, FGEU, FLEU, FLTU, P, NP
+        };
+        // clang-format on
+
+        assert(condition.m_code < _countof(swap));
+        return GenCondition(swap[condition.m_code]);
+    }
+};
+
 // Represents a GT_JCC or GT_SETCC node.
 
 struct GenTreeCC final : public GenTree
 {
-    genTreeOps gtCondition; // any relop
+    GenCondition gtCondition;
 
-    GenTreeCC(genTreeOps oper, genTreeOps condition, var_types type = TYP_VOID)
+    GenTreeCC(genTreeOps oper, GenCondition condition, var_types type = TYP_VOID)
         : GenTree(oper, type DEBUGARG(/*largeNode*/ FALSE)), gtCondition(condition)
     {
         assert(OperIs(GT_JCC, GT_SETCC));
-        assert(OperIsCompare(condition));
     }
 
 #if DEBUGGABLE_GENTREE
@@ -6324,13 +6500,8 @@ inline bool GenTree::isUsedFromSpillTemp() const
 
 /*****************************************************************************/
 
-#if SMALL_TREE_NODES
-
 // In debug, on some platforms (e.g., when LATE_DISASM is defined), GenTreeIntCon is bigger than GenTreeLclFld.
 const size_t TREE_NODE_SZ_SMALL = max(sizeof(GenTreeIntCon), sizeof(GenTreeLclFld));
-
-#endif // SMALL_TREE_NODES
-
 const size_t TREE_NODE_SZ_LARGE = sizeof(GenTreeCall);
 
 enum varRefKinds

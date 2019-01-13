@@ -3904,6 +3904,12 @@ void AppDomain::Terminate()
     }
 #endif // FEATURE_COMINTEROP
 
+#ifndef CROSSGEN_COMPILE
+    // Recorded entry point slots may point into the virtual call stub manager's heaps, so clear it first
+    GetLoaderAllocator()
+        ->GetMethodDescBackpatchInfoTracker()
+        ->ClearDependencyMethodDescEntryPointSlots(GetLoaderAllocator());
+#endif
 
     if (!IsAtProcessExit())
     {
@@ -7863,6 +7869,20 @@ PTR_MethodTable BaseDomain::LookupType(UINT32 id) {
     CONSISTENCY_CHECK(pMT->IsInterface());
     return pMT;
 }
+
+#ifndef DACCESS_COMPILE
+//---------------------------------------------------------------------------------------
+void BaseDomain::RemoveTypesFromTypeIDMap(LoaderAllocator* pLoaderAllocator)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+    } CONTRACTL_END;
+
+    m_typeIDMap.RemoveTypes(pLoaderAllocator);
+}
+#endif // DACCESS_COMPILE
 
 //---------------------------------------------------------------------------------------
 // 

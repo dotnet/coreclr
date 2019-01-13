@@ -43,10 +43,7 @@
 
 #include "appxutil.h"
 
-#ifdef FEATURE_TIERED_COMPILATION
 #include "tieredcompilation.h"
-#include "callcounter.h"
-#endif
 
 #include "codeversion.h"
 
@@ -1427,6 +1424,9 @@ public:
     UINT32 GetTypeID(PTR_MethodTable pMT);
     UINT32 LookupTypeID(PTR_MethodTable pMT);
     PTR_MethodTable LookupType(UINT32 id);
+#ifndef DACCESS_COMPILE
+    void RemoveTypesFromTypeIDMap(LoaderAllocator* pLoaderAllocator);
+#endif // DACCESS_COMPILE
 
 private:
     // I have yet to figure out an efficent way to get the number of handles 
@@ -1461,14 +1461,6 @@ private:
 public:
     CodeVersionManager* GetCodeVersionManager() { return &m_codeVersionManager; }
 #endif //FEATURE_CODE_VERSIONING
-
-#ifdef FEATURE_TIERED_COMPILATION
-private:
-    CallCounter m_callCounter;
-
-public:
-    CallCounter* GetCallCounter() { return &m_callCounter; }
-#endif
 
 #ifdef DACCESS_COMPILE
 public:

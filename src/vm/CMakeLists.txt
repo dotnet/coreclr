@@ -89,6 +89,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     loaderallocator.cpp
     memberload.cpp
     method.cpp
+    methoddescbackpatchinfo.cpp
     methodimpl.cpp
     methoditer.cpp
     methodtable.cpp
@@ -188,6 +189,7 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     memberload.h
     method.hpp
     method.inl
+    methoddescbackpatchinfo.h
     methodimpl.h
     methoditer.h
     methodtable.h
@@ -232,7 +234,6 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     versionresilienthashcode.h
     virtualcallstub.h
     win32threadpool.h
-    yieldprocessornormalized.h
     zapsig.h
 )
 
