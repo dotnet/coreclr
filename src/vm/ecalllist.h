@@ -75,13 +75,7 @@ FCFuncEnd()
 
 
 FCFuncStart(gEnumFuncs)
-    FCFuncElement("InternalGetUnderlyingType",  ReflectionEnum::InternalGetEnumUnderlyingType)
-    FCFuncElement("InternalGetCorElementType",  ReflectionEnum::InternalGetCorElementType)
-    QCFuncElement("GetEnumValuesAndNames",  ReflectionEnum::GetEnumValuesAndNames)
-    FCFuncElement("InternalBoxEnum", ReflectionEnum::InternalBoxEnum)
-    FCFuncElement("Equals", ReflectionEnum::InternalEquals)
-    FCFuncElement("InternalCompareTo", ReflectionEnum::InternalCompareTo)
-    FCFuncElement("InternalHasFlag", ReflectionEnum::InternalHasFlag)
+    FCFuncElement("InternalGetCorElementType", ReflectionEnum::InternalGetCorElementType)
 FCFuncEnd()
 
 

@@ -24,7 +24,7 @@ namespace System
         //
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool EqualsHelper(string strA, string strB)
+        internal static bool EqualsHelper(string strA, string strB)
         {
             Debug.Assert(strA != null);
             Debug.Assert(strB != null);
