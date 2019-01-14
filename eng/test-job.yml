@@ -89,7 +89,7 @@ jobs:
 
 
     # Download product build from pipeline artifact storage
-    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - task: DownloadPipelineArtifact@0
         displayName: Download product build pipeline artifact
         inputs:
