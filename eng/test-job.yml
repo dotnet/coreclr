@@ -43,7 +43,7 @@ jobs:
     - group: DotNet-HelixApi-Access
     # Map template parameters to command line arguments
     - ${{ if eq(parameters.priority, '1') }}:
-      - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
         - name: priorityArg
           value: 'priority1'
       - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
@@ -63,7 +63,7 @@ jobs:
     # TODO: Enable crossgen in build-test.sh. It currently doesn't
     # accept a crossgen arg, so disable the macos/linux crossgen test
     # build jobs.
-    ${{ if and(eq(parameters.crossgen, 'true'), or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX'))) }}:
+    ${{ if and(eq(parameters.crossgen, 'true'), ne(parameters.osGroup, 'Windows_NT')) }}:
       condition: false
 
     # TODO: Enable freebsd test jobs. Currently I'm not aware that we
