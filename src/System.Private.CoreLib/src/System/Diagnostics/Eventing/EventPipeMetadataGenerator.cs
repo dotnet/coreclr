@@ -9,6 +9,13 @@ namespace System.Diagnostics.Tracing
 {
 #if FEATURE_PERFTRACING
 
+    internal enum METADATA_GENERATE_STATUS
+    {
+        SUCCESS,
+        FAILURE_UNKNOWN_TYPE,
+        FAILURE_UNSUPPORTED_TYPE
+    }
+
     internal sealed class EventPipeMetadataGenerator
     {
         public static EventPipeMetadataGenerator Instance = new EventPipeMetadataGenerator();
@@ -87,7 +94,14 @@ namespace System.Diagnostics.Tracing
                 // Increase the metadataLength for parameters.
                 foreach (var parameter in parameters)
                 {
-                    metadataLength = metadataLength + parameter.GetMetadataLength();
+                    int pMetadataLength = parameter.GetMetadataLength();
+                    // The call above may return -1 which means we failed to get the metadata length. 
+                    // We then return a null metadata blob to prevent it from generating malformed metadata.
+                    if (pMetadataLength < 0)
+                    {
+                        return null;
+                    }
+                    metadataLength += (uint)pMetadataLength;
                 }
 
                 metadata = new byte[metadataLength];
@@ -107,7 +121,11 @@ namespace System.Diagnostics.Tracing
                     WriteToBuffer(pMetadata, metadataLength, ref offset, (uint)parameters.Length);
                     foreach (var parameter in parameters)
                     {
-                        parameter.GenerateMetadata(pMetadata, ref offset, metadataLength);
+                        if(parameter.GenerateMetadata(pMetadata, ref offset, metadataLength) != METADATA_GENERATE_STATUS.SUCCESS)
+                        {
+                            metadata = null;
+                            break;
+                        }
                     }
                     Debug.Assert(metadataLength == offset);
                 }
@@ -174,7 +192,7 @@ namespace System.Diagnostics.Tracing
             TypeInfo = typeInfo;
         }
 
-        internal unsafe void GenerateMetadata(byte* pMetadataBlob, ref uint offset, uint blobSize)
+        internal unsafe METADATA_GENERATE_STATUS GenerateMetadata(byte* pMetadataBlob, ref uint offset, uint blobSize)
         {
             TypeCode typeCode = GetTypeCodeExtended(ParameterType);
             if(typeCode == TypeCode.Object)
@@ -188,7 +206,7 @@ namespace System.Diagnostics.Tracing
 
                 if(!(TypeInfo is InvokeTypeInfo invokeTypeInfo))
                 {
-                    throw new NotSupportedException();
+                    return METADATA_GENERATE_STATUS.FAILURE_UNKNOWN_TYPE;
                 }
 
                 // Get the set of properties to be serialized.
@@ -200,7 +218,10 @@ namespace System.Diagnostics.Tracing
 
                     foreach(PropertyAnalysis prop in properties)
                     {
-                        GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize);
+                        if (GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize) != METADATA_GENERATE_STATUS.SUCCESS)
+                        {
+                            return METADATA_GENERATE_STATUS.FAILURE_UNSUPPORTED_TYPE;
+                        }
                     }
                 }
                 else
@@ -224,9 +245,10 @@ namespace System.Diagnostics.Tracing
                     EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (byte *)pParameterName, ((uint)ParameterName.Length + 1) * 2);
                 }
             }
+            return METADATA_GENERATE_STATUS.SUCCESS;
         }
 
-        private static unsafe void GenerateMetadataForProperty(PropertyAnalysis property, byte* pMetadataBlob, ref uint offset, uint blobSize)
+        private static unsafe METADATA_GENERATE_STATUS GenerateMetadataForProperty(PropertyAnalysis property, byte* pMetadataBlob, ref uint offset, uint blobSize)
         {
             Debug.Assert(property != null);
             Debug.Assert(pMetadataBlob != null);
@@ -275,7 +297,7 @@ namespace System.Diagnostics.Tracing
                 // EventPipe does not support this type.  Throw, which will cause no metadata to be registered for this event.
                 if(typeCode == TypeCode.Object)
                 {
-                    throw new NotSupportedException();
+                    return METADATA_GENERATE_STATUS.FAILURE_UNKNOWN_TYPE;
                 }
 
                 // Write the type code.
@@ -287,19 +309,20 @@ namespace System.Diagnostics.Tracing
                     EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (byte *)pPropertyName, ((uint)property.name.Length + 1) * 2);
                 }
             }
+            return METADATA_GENERATE_STATUS.SUCCESS;
         }
 
 
-        internal uint GetMetadataLength()
+        internal int GetMetadataLength()
         {
-            uint ret = 0;
+            int ret = 0;
 
             TypeCode typeCode = GetTypeCodeExtended(ParameterType);
             if(typeCode == TypeCode.Object)
             {
                 if(!(TypeInfo is InvokeTypeInfo typeInfo))
                 {
-                    throw new NotSupportedException();
+                    return -1;
                 }
 
                 // Each nested struct is serialized as:
@@ -316,7 +339,7 @@ namespace System.Diagnostics.Tracing
                 {
                     foreach(PropertyAnalysis prop in properties)
                     {
-                        ret += GetMetadataLengthForProperty(prop);
+                        ret += (int)GetMetadataLengthForProperty(prop);
                     }
                 }
 
@@ -327,7 +350,7 @@ namespace System.Diagnostics.Tracing
             }
             else
             {
-                ret += (uint)(sizeof(uint) + ((ParameterName.Length + 1) * 2));
+                ret += (int)(sizeof(uint) + ((ParameterName.Length + 1) * 2));
             }
 
             return ret;

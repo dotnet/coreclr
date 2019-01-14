@@ -81,11 +81,13 @@ namespace System.Diagnostics.Tracing
         public IntPtr GetOrCreateEventHandle(EventProvider provider, TraceLoggingEventHandleTable eventHandleTable, EventDescriptor descriptor, TraceLoggingEventTypes eventTypes)
         {
             IntPtr eventHandle;
+            bool metadataGenerationFailed;
+
             if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
             {
                 lock (eventHandleTable)
                 {
-                    if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
+                    if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero && eventHandleTable.MetadataGenerationFailed(descriptor.EventId))
                     {
                         byte[] metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(
                             descriptor.EventId,
@@ -95,6 +97,7 @@ namespace System.Diagnostics.Tracing
                             descriptor.Version,
                             eventTypes);
                         uint metadataLength = (metadataBlob != null) ? (uint)metadataBlob.Length : 0;
+                        metadataGenerationFailed = (metadataBlob == null);
 
                         unsafe
                         {
@@ -113,7 +116,7 @@ namespace System.Diagnostics.Tracing
                         }
 
                         // Cache the event handle.
-                        eventHandleTable.SetEventHandle(descriptor.EventId, eventHandle);
+                        eventHandleTable.SetEventHandle(descriptor.EventId, eventHandle, metadataGenerationFailed);
                     }
                 }
             }
