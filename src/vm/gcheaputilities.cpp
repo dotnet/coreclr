@@ -157,61 +157,13 @@ HMODULE LoadStandaloneGc(LPCWSTR libFileName)
 {
     LIMITED_METHOD_CONTRACT;
 
-    //
-    // Look for the standalone GC module next to the hosting binary
-    //
-
-    PathString libPath;
-    DWORD result = WszGetModuleFileName(nullptr, libPath);
-    if (result == 0)
-    {
-        LOG((LF_GC, LL_FATALERROR, "GetModuleFileName failed, function 'LoadStandaloneGc': error %u\n", GetLastError()));
-        return nullptr;
-    }
-
-    assert(libFileName);
-    PathString::Iterator iter = libPath.End();
-    if (libPath.FindBack(iter, DIRECTORY_SEPARATOR_CHAR_W))
-    {
-        libPath.Truncate(++iter);
-        libPath.Append(libFileName);
-    }
-    else
-    {
-        assert(false && "unreachable");
-    }
+    // Look for the standalone GC module next to the clr binary
+    PathString libPath = GetInternalSystemDirectory();
+    libPath.Append(libFileName);
 
     LPCWSTR libraryName = libPath.GetUnicode();
     LOG((LF_GC, LL_INFO100, "Loading standalone GC from path %S\n", libraryName));
-    HMODULE libraryHandle = CLRLoadLibrary(libraryName);
-    if (libraryHandle != nullptr)
-        return libraryHandle;
-
-    LOG((LF_GC, LL_INFO100, "Failed to load standalone GC. Attempting fallback\n"));
-
-    //
-    // Fallback to the CORE_ROOT path
-    //
-
-    DWORD pathLen = GetEnvironmentVariableW(W("CORE_ROOT"), nullptr, 0);
-    if (pathLen == 0) // not set
-        return nullptr;
-
-    pathLen += 1; // Add 1 for null
-    PathString coreRoot;
-    WCHAR *coreRootRaw = coreRoot.OpenUnicodeBuffer(pathLen);
-    GetEnvironmentVariableW(W("CORE_ROOT"), coreRootRaw, pathLen);
-
-    libPath.Clear();
-    libPath.AppendPrintf(W("%s%s%s"), coreRootRaw, DIRECTORY_SEPARATOR_STR_W, libFileName);
-
-    libraryName = libPath.GetUnicode();
-    LOG((LF_GC, LL_INFO100, "Loading standalone GC from path %S\n", libraryName));
-    libraryHandle = CLRLoadLibrary(libraryName);
-    if (libraryHandle != nullptr)
-        return libraryHandle;
-
-    return nullptr;
+    return CLRLoadLibrary(libraryName);
 }
 #endif // FEATURE_STANDALONE_GC
 
