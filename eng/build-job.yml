@@ -21,6 +21,11 @@ jobs:
     name: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
     displayName: ${{ format('Build {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
+    # FreeBSD builds are disabled in the public project because we
+    # don't have any FreeBSD agents in the public pool.
+    ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+      condition: false
+
     # Run all steps in the container.
     # Note that the containers are resources defined in azure-pipelines.yml
     containerName: ${{ parameters.containerName }}
@@ -41,7 +46,7 @@ jobs:
         value: '-portablebuild=false'
     - name: clangArg
       value: ''
-    # Pass clang version for freebsd
+    # Our FreeBSD doesn't yet detect available clang versions, so pass it explicitly.
     - ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       - name: clangArg
         value: '-clang6.0'
@@ -75,7 +80,7 @@ jobs:
         displayName: Build product
         ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
           env:
-            # init-tools.sh copies SDK from here to the Tools/dotnetcli folder instead of trying to restore it.
+            # init-tools.sh extracts an SDK from here to the Tools/dotnetcli folder instead of trying to restore it.
             # Once we are using Arcade, use DotNetCoreSdkDir instead, as we do below.
             DotNetBootstrapCliTarPath: /dotnet-sdk-freebsd-x64.tar
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:

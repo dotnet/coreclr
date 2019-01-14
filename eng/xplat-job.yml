@@ -19,7 +19,6 @@ parameters:
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
-  # TODO: disable freebsd job here for internal?
 - template: /eng/common/templates/job/job.yml
   parameters:
 
@@ -40,9 +39,7 @@ jobs:
         name: Hosted Ubuntu 1604
       ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
         name: dnceng-linux-internal-temp
-      ${{ if and(eq(parameters.osGroup, 'FreeBSD'), eq(variables['System.TeamProject'], 'public')) }}:
-        # FreeBSD builds only in the internal project
-        name: dnceng-freebsd-doesntexist
+      # FreeBSD builds only in the internal project
       ${{ if and(eq(parameters.osGroup, 'FreeBSD'), ne(variables['System.TeamProject'], 'public')) }}:
         name: dnceng-freebsd-internal
       ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:

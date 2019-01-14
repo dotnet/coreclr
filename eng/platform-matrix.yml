@@ -84,8 +84,7 @@ jobs:
     archType: x64
     osGroup: FreeBSD
     osIdentifier: FreeBSD
-    helixQueuesPublic: 'fakepublicqueue'
-    helixQueuesInternal: 'fakeinternalqueue'
+    # There are no FreeBSD helix queues, so we don't run tests at the moment.
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # macOS x64
