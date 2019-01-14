@@ -69,7 +69,8 @@ jobs:
       - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget
         displayName: Build product
         ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
-          env: DotNetBootstrapCliTarPath=/dotnet-sdk-freebsd-x64.tar
+          env:
+            DotNetBootstrapCliTarPath: /dotnet-sdk-freebsd-x64.tar
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # TODO: IBCOptimize? EnforcePGO? pass an OfficialBuildId? SignType? file logging parameters?
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages
