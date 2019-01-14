@@ -128,8 +128,9 @@ jobs:
         - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.proj
           displayName: Restore blob feed tasks
           ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
-            # Arcade uses this SDK instead of trying to restore one.
-            DotNetCoreSdkDir: /usr/local/dotnet
+            env:
+              # Arcade uses this SDK instead of trying to restore one.
+              DotNetCoreSdkDir: /usr/local/dotnet
         - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier) /p:AzureFeedUrl=$(dotnetfeedUrl) /p:AzureAccountKey=$(dotnetfeedPAT)
           displayName: Publish packages to blob feed
           env:
