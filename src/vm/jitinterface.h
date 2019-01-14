@@ -39,6 +39,7 @@ enum SignatureKind
 
 class Stub;
 class MethodDesc;
+class NativeCodeVersion;
 class FieldDesc;
 enum RuntimeExceptionKind;
 class AwareLock;
@@ -68,7 +69,7 @@ bool SigInfoFlagsAreValid (CORINFO_SIG_INFO *sig)
 void InitJITHelpers1();
 void InitJITHelpers2();
 
-PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* header,
+PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODER* header,
                         CORJIT_FLAGS flags, ULONG* sizeOfCode = NULL);
 
 void getMethodInfoHelper(MethodDesc * ftn,
@@ -516,8 +517,8 @@ public:
     // considered when checking visibility rules.
     
 
-    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
-    static CorInfoHelpFunc getNewHelperStatic(MethodTable * pMT);
+    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects = NULL);
+    static CorInfoHelpFunc getNewHelperStatic(MethodTable * pMT, bool * pHasSideEffects = NULL);
 
     CorInfoHelpFunc getNewArrHelper(CORINFO_CLASS_HANDLE arrayCls);
     static CorInfoHelpFunc getNewArrHelperStatic(TypeHandle clsHnd);
@@ -1716,3 +1717,4 @@ CORJIT_FLAGS GetDebuggerCompileFlags(Module* pModule, CORJIT_FLAGS flags);
 bool __stdcall TrackAllocationsEnabled();
 
 #endif // JITINTERFACE_H
+

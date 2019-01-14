@@ -468,16 +468,8 @@ public:
                 argIdx--;
             }
 
-            LocalDesc locDescThread(MscorlibBinder::GetClass(CLASS__THREAD));
-            DWORD dwThreadLocalNum = pcs->NewLocal(locDescThread);
-
-            // call Thread.get_CurrentThread()
-            pcs->EmitCALL(METHOD__THREAD__GET_CURRENT_THREAD, 0, 1);
-            pcs->EmitDUP();
-            pcs->EmitSTLOC(dwThreadLocalNum);
-
-            // call current_thread.get_CurrentCulture()
-            pcs->EmitCALL(METHOD__THREAD__GET_CULTURE, 1, 1);
+            // call CultureInfo.get_CurrentCulture()
+            pcs->EmitCALL(METHOD__CULTURE_INFO__GET_CURRENT_CULTURE, 0, 1);
 
             // save the current culture
             LocalDesc locDescCulture(MscorlibBinder::GetClass(CLASS__CULTURE_INFO));
@@ -486,23 +478,20 @@ public:
             pcs->EmitSTLOC(dwCultureLocalNum);
 
             // set a new one based on the LCID passed from unmanaged
-            pcs->EmitLDLOC(dwThreadLocalNum);
             pcs->EmitLDARG(argIdx);
 
             // call CultureInfo..ctor(lcid)
-            // call current_thread.set_CurrentCulture(culture)
+            // call CultureInfo.set_CurrentCulture(culture)
             pcs->EmitNEWOBJ(METHOD__CULTURE_INFO__INT_CTOR, 1);
-            pcs->EmitCALL(METHOD__THREAD__SET_CULTURE, 2, 0);
+            pcs->EmitCALL(METHOD__CULTURE_INFO__SET_CURRENT_CULTURE, 1, 0);
 
             // and restore the current one after the call
             m_slIL.SetCleanupNeeded();
             ILCodeStream *pcsCleanup = m_slIL.GetCleanupCodeStream();
 
-            // call current_thread.set_CurrentCulture(original_culture)
-            pcsCleanup->EmitLDLOC(dwThreadLocalNum);
+            // call CultureInfo.set_CurrentCulture(original_culture)
             pcsCleanup->EmitLDLOC(dwCultureLocalNum);
-            pcsCleanup->EmitCALL(METHOD__THREAD__SET_CULTURE, 1, 1);
-
+            pcsCleanup->EmitCALL(METHOD__CULTURE_INFO__SET_CURRENT_CULTURE, 1, 0);
         }
         else
         {
@@ -514,10 +503,8 @@ public:
             }
             else
             {
-                // call Thread.get_CurrentThread()
-                // call current_thread.get_CurrentCulture()
-                pcs->EmitCALL(METHOD__THREAD__GET_CURRENT_THREAD, 0, 1);
-                pcs->EmitCALL(METHOD__THREAD__GET_CULTURE, 1, 1);
+                // call CultureInfo.get_CurrentCulture()
+                pcs->EmitCALL(METHOD__CULTURE_INFO__GET_CURRENT_CULTURE, 0, 1);
 
                 //call CultureInfo.get_LCID(this)
                 pcs->EmitCALL(METHOD__CULTURE_INFO__GET_ID, 1, 1);
@@ -3719,30 +3706,37 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
         else
 #endif // FEATURE_COMINTEROP
         {
-            if (marshalType > MarshalInfo::MARSHAL_TYPE_DOUBLE && IsUnsupportedValueTypeReturn(msig))
-            {
-                if (marshalType == MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASS
-                        || marshalType == MarshalInfo::MARSHAL_TYPE_GUID
-                        || marshalType == MarshalInfo::MARSHAL_TYPE_DECIMAL
+            if (marshalType == MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASS
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_VALUECLASS
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_GUID
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_DECIMAL
 #ifdef FEATURE_COMINTEROP                    
-                        || marshalType == MarshalInfo::MARSHAL_TYPE_DATETIME
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_DATETIME
 #endif // FEATURE_COMINTEROP
-                   )
+                )
+            {
+                if (SF_IsHRESULTSwapping(dwStubFlags))
                 {
-                    if (SF_IsHRESULTSwapping(dwStubFlags))
-                    {
-                        // V1 restriction: we could implement this but it's late in the game to do so.
-                        COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
-                    }
-                }
-                else if (marshalType == MarshalInfo::MARSHAL_TYPE_HANDLEREF)
-                {
-                    COMPlusThrow(kMarshalDirectiveException, IDS_EE_BADMARSHAL_HANDLEREFRESTRICTION);
-                }
-                else
-                {
+                    // V1 restriction: we could implement this but it's late in the game to do so.
                     COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
                 }
+            }
+            else if (marshalType == MarshalInfo::MARSHAL_TYPE_CURRENCY
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_ARRAYWITHOFFSET
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_ARGITERATOR
+#ifdef FEATURE_COMINTEROP
+                    || marshalType == MarshalInfo::MARSHAL_TYPE_OLECOLOR
+#endif // FEATURE_COMINTEROP
+            )
+            {
+                // Each of these types are non-blittable and according to its managed size should be returned in a return buffer on x86 in stdcall.
+                // However, its native size is small enough to be returned by-value.
+                // We don't know the native type representation early enough to get this correct, so we throw an exception here.
+                COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
+            }
+            else if (IsUnsupportedTypedrefReturn(msig))
+            {
+                COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_UNSUPPORTED_SIG);
             }
 
 #ifdef FEATURE_COMINTEROP
@@ -6281,7 +6275,7 @@ INT_PTR NDirect::GetNativeLibraryExport(NATIVE_LIBRARY_HANDLE handle, LPCWSTR sy
 }
 
 // static
-NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pDomain, PCWSTR wszLibName)
+NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, PCWSTR wszLibName)
 {
     STANDARD_VM_CONTRACT;
     //Dynamic Pinvoke Support:
@@ -6296,7 +6290,8 @@ NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD,
     }
 #endif
 
-    LPVOID hmod = NULL;
+    NATIVE_LIBRARY_HANDLE hmod = NULL;
+    AppDomain* pDomain = GetAppDomain();
     CLRPrivBinderCoreCLR *pTPABinder = pDomain->GetTPABinderContext();
     Assembly* pAssembly = pMD->GetMethodTable()->GetAssembly();
    
@@ -6355,11 +6350,92 @@ NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD,
     args[ARGNUM_1]  = PTR_TO_ARGHOLDER(ptrManagedAssemblyLoadContext);
 
     // Make the call
-    CALL_MANAGED_METHOD(hmod,LPVOID,args);
+    CALL_MANAGED_METHOD(hmod, NATIVE_LIBRARY_HANDLE, args);
 
     GCPROTECT_END();
 
-    return (NATIVE_LIBRARY_HANDLE)hmod;
+    return hmod;
+}
+
+// Return the AssemblyLoadContext for an assembly
+INT_PTR GetManagedAssemblyLoadContext(Assembly* pAssembly)
+{
+    STANDARD_VM_CONTRACT;
+
+    PTR_ICLRPrivBinder pBindingContext = pAssembly->GetManifestFile()->GetBindingContext();
+    if (pBindingContext == NULL)
+    {
+        // GetBindingContext() returns NULL for System.Private.CoreLib
+        return NULL;
+    }
+
+    UINT_PTR assemblyBinderID = 0;
+    IfFailThrow(pBindingContext->GetBinderID(&assemblyBinderID));
+
+    AppDomain *pDomain = GetAppDomain();
+    ICLRPrivBinder *pCurrentBinder = reinterpret_cast<ICLRPrivBinder *>(assemblyBinderID);
+
+#ifdef FEATURE_COMINTEROP
+    if (AreSameBinderInstance(pCurrentBinder, pDomain->GetWinRtBinder()))
+    {
+        // No ALC associated handle with WinRT Binders.
+        return NULL;
+    }
+#endif // FEATURE_COMINTEROP
+
+    // The code here deals with two implementations of ICLRPrivBinder interface: 
+    //    - CLRPrivBinderCoreCLR for the TPA binder in the default ALC, and 
+    //    - CLRPrivBinderAssemblyLoadContext for custom ALCs.
+    // in order obtain the associated ALC handle.
+    INT_PTR ptrManagedAssemblyLoadContext = AreSameBinderInstance(pCurrentBinder, pDomain->GetTPABinderContext())
+        ? ((CLRPrivBinderCoreCLR *)pCurrentBinder)->GetManagedAssemblyLoadContext() 
+        : ((CLRPrivBinderAssemblyLoadContext *)pCurrentBinder)->GetManagedAssemblyLoadContext();
+
+    return ptrManagedAssemblyLoadContext;
+}
+
+// static
+NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleViaEvent(NDirectMethodDesc * pMD, PCWSTR wszLibName)
+{
+    STANDARD_VM_CONTRACT;
+
+    NATIVE_LIBRARY_HANDLE hmod = NULL;
+    Assembly* pAssembly = pMD->GetMethodTable()->GetAssembly();
+    INT_PTR ptrManagedAssemblyLoadContext = GetManagedAssemblyLoadContext(pAssembly);
+
+    if (ptrManagedAssemblyLoadContext == NULL)
+    {
+        return NULL;
+    }
+
+    GCX_COOP();
+
+    struct {
+        STRINGREF DllName;
+        OBJECTREF AssemblyRef;
+    } gc = { NULL, NULL };
+
+    GCPROTECT_BEGIN(gc);
+
+    gc.DllName = StringObject::NewString(wszLibName);
+    gc.AssemblyRef = pAssembly->GetExposedObject();
+
+    // Prepare to invoke  System.Runtime.Loader.AssemblyLoadContext.ResolveUnmanagedDllUsingEvent method
+    // While ResolveUnmanagedDllUsingEvent() could compute the AssemblyLoadContext using the AssemblyRef
+    // argument, it will involve another pInvoke to the runtime. So AssemblyLoadContext is passed in 
+    // as an additional argument.
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__ASSEMBLYLOADCONTEXT__RESOLVEUNMANAGEDDLLUSINGEVENT);
+    DECLARE_ARGHOLDER_ARRAY(args, 3);
+    args[ARGNUM_0] = STRINGREF_TO_ARGHOLDER(gc.DllName);
+    args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(gc.AssemblyRef);
+    args[ARGNUM_2] = PTR_TO_ARGHOLDER(ptrManagedAssemblyLoadContext);
+
+    // Make the call
+    CALL_MANAGED_METHOD(hmod, NATIVE_LIBRARY_HANDLE, args);
+
+    GCPROTECT_END();
+
+    return hmod;
 }
 
 // Try to load the module alongside the assembly where the PInvoke was declared.
@@ -6639,15 +6715,13 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     AppDomain* pDomain = GetAppDomain();
 
     // AssemblyLoadContext is not supported in AppX mode and thus,
-    // we should not perform PInvoke resolution via it when operating in
-    // AppX mode.
+    // we should not perform PInvoke resolution via it when operating in AppX mode.
     if (!AppX::IsAppXProcess())
     {
-        hmod = LoadLibraryModuleViaHost(pMD, pDomain, wszLibName);
+        hmod = LoadLibraryModuleViaHost(pMD, wszLibName);
         if (hmod != NULL)
         {
 #ifdef FEATURE_PAL
-            // Register the system library handle with PAL and get a PAL library handle
             hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
 #endif // FEATURE_PAL
             return hmod.Extract();
@@ -6660,34 +6734,28 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
        return hmod.Extract();
     }
 
-#ifdef FEATURE_PAL
-    // In the PAL version of CoreCLR, the CLR module itself exports the functionality
-    // that the Windows version obtains from kernel32 and friends.  In order to avoid
-    // picking up the wrong instance, we perform this redirection first.
-    // This is also true for CoreSystem builds, where mscorlib p/invokes are forwarded through coreclr
-    // itself so we can control CoreSystem library/API name re-mapping from one central location.
-    if (SString::_wcsicmp(wszLibName, MAIN_CLR_MODULE_NAME_W) == 0)
+    hmod = LoadLibraryModuleBySearch(pMD, pErrorTracker, wszLibName);
+    if (hmod != NULL)
     {
-        hmod = GetCLRModule();
-    }
+#ifdef FEATURE_PAL
+        hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
 #endif // FEATURE_PAL
 
-    if (hmod == NULL)
+        // If we have a handle add it to the cache.
+        pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
+        return hmod.Extract();
+    }
+
+    if (!AppX::IsAppXProcess())
     {
-        hmod = LoadLibraryModuleBySearch(pMD, pErrorTracker, wszLibName);
+        hmod = LoadLibraryModuleViaEvent(pMD, wszLibName);
         if (hmod != NULL)
         {
 #ifdef FEATURE_PAL
-            // Register the system library handle with PAL and get a PAL library handle
             hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
 #endif // FEATURE_PAL
+            return hmod.Extract();
         }
-    }
-
-    if (hmod != NULL)
-    {
-        // If we have a handle add it to the cache.
-        pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
     }
 
     return hmod.Extract();

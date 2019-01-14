@@ -221,11 +221,6 @@ class Constants {
             'x64': [
                 'Checked'
             ]
-        ],
-        'Tizen': [
-            'armem': [
-                'Checked'
-            ]
         ]
     ]
 
@@ -533,9 +528,7 @@ class Constants {
     // This is the set of architectures
     // Some of these are pseudo-architectures:
     //    armem -- ARM builds/runs using an emulator. Used for Tizen runs.
-    //    x86_arm_altjit -- ARM runs on x86 using the ARM altjit
-    //    x64_arm64_altjit -- ARM64 runs on x64 using the ARM64 altjit
-    def static architectureList = ['arm', 'armem', 'x86_arm_altjit', 'x64_arm64_altjit', 'arm64', 'x64', 'x86']
+    def static architectureList = ['arm', 'armem', 'arm64', 'x64', 'x86']
 
     // This set of architectures that cross build on Windows and run on Windows ARM64 hardware.
     def static armWindowsCrossArchitectureList = ['arm', 'arm64']
@@ -978,11 +971,6 @@ def static setJobTimeout(newJob, isPR, architecture, configuration, scenario, is
         timeout += 60
     }
 
-    if (architecture == 'x86_arm_altjit' || architecture == 'x64_arm64_altjit') {
-        // AltJit runs compile all methods twice.
-        timeout *= 2
-    }
-
     // If we've changed the timeout from the default, set it in the job.
 
     if (timeout != 120) {
@@ -1284,8 +1272,6 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
             baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
         case 'x86':
-        case 'x86_arm_altjit':
-        case 'x64_arm64_altjit':
             baseName = architecture.toLowerCase() + '_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
         default:
@@ -1376,13 +1362,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     break
                 case 'armem':
                     addGithubPushTriggerHelper(job)
-                    break
-                case 'x86_arm_altjit':
-                case 'x64_arm64_altjit':
-                    // Only do altjit push triggers for Checked; don't waste time on Debug or Release.
-                    if (configuration == 'Checked') {
-                        addGithubPushTriggerHelper(job)
-                    }
                     break
                 default:
                     println("Unknown architecture: ${architecture}");
@@ -1714,13 +1693,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
     }
 
     switch (architecture) {
-        case 'x64_arm64_altjit':
-        case 'x86_arm_altjit':
-            // TODO: for consistency, add "Build and Test" at end.
-            contextString = "${os} ${architecture} ${configuration} ${scenario}"
-            triggerString = "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*"
-            break
-
         case 'armel':
         case 'arm':
         case 'arm64':
@@ -2027,10 +1999,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             break
 
         // editor brace matching: }
-        case 'x64_arm64_altjit':
-        case 'x86_arm_altjit':
-            // Everything default
-            break
 
         default:
             println("Unknown architecture: ${architecture}");
@@ -2086,16 +2054,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
             switch (architecture) {
                 case 'x64':
                 case 'x86':
-                case 'x86_arm_altjit':
-                case 'x64_arm64_altjit':
                     def arch = architecture
                     def buildOpts = ''
-                    if (architecture == 'x86_arm_altjit') {
-                        arch = 'x86'
-                    }
-                    else if (architecture == 'x64_arm64_altjit') {
-                        arch = 'x64'
-                    }
 
                     if (scenario == 'formatting') {
                         buildCommands += "python -u tests\\scripts\\format.py -c %WORKSPACE% -o Windows_NT -a ${arch}"
@@ -2109,9 +2069,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     // If it is a release build for Windows, ensure PGO is used, else fail the build.
                     if ((lowerConfiguration == 'release') &&
-                        (scenario in Constants.basicScenarios) &&
-                        (architecture != 'x86_arm_altjit') &&
-                        (architecture != 'x64_arm64_altjit')) {
+                        (scenario in Constants.basicScenarios)) {
 
                         buildOpts += ' -enforcepgo'
                     }
@@ -2151,17 +2109,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                         if (isR2RScenario(scenario)) {
 
-                            // If this is a ReadyToRun scenario, pass 'crossgen' or 'crossgenaltjit'
+                            // If this is a ReadyToRun scenario, pass 'crossgen'
                             // to cause framework assemblies to be crossgen'ed. Pass 'runcrossgentests'
                             // to cause the tests to be crossgen'ed.
 
-                            if ((architecture == 'x86_arm_altjit') || (architecture == 'x64_arm64_altjit')) {
-                                testOpts += ' crossgenaltjit protononjit.dll'
-                            } else {
-                                testOpts += ' crossgen'
-                            }
-
-                            testOpts += ' runcrossgentests'
+                            testOpts += ' crossgen runcrossgentests'
                         }
                         else if (scenario == 'jitdiff') {
                             testOpts += ' jitdisasm crossgen'
@@ -2205,29 +2157,12 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 buildCommandsStr += envScriptSetStressModeVariables(os, Constants.r2rStressScenarios[scenario], envScriptPath)
                             }
 
-                            if (architecture == 'x86_arm_altjit') {
-                                buildCommandsStr += envScriptAppendExistingScript(os, "%WORKSPACE%\\tests\\x86_arm_altjit.cmd", envScriptPath)
-                                testOpts += " altjitarch arm"
-                            }
-                            else if (architecture == 'x64_arm64_altjit') {
-                                buildCommandsStr += envScriptAppendExistingScript(os, "%WORKSPACE%\\tests\\x64_arm64_altjit.cmd", envScriptPath)
-                                testOpts += " altjitarch arm64"
-                            }
-
                             envScriptFinalize(os, envScriptPath)
 
                             // Note that buildCommands is an array of individually executed commands; we want all the commands used to 
                             // create the SetStressModes.bat script to be executed together, hence we accumulate them as strings
                             // into a single script.
                             buildCommands += buildCommandsStr
-                        }
-                        else if (architecture == 'x86_arm_altjit') {
-                            envScriptPath = "%WORKSPACE%\\tests\\x86_arm_altjit.cmd"
-                            testOpts += " altjitarch arm"
-                        }
-                        else if (architecture == 'x64_arm64_altjit') {
-                            envScriptPath = "%WORKSPACE%\\tests\\x64_arm64_altjit.cmd"
-                            testOpts += " altjitarch arm64"
                         }
                         if (envScriptPath != '') {
                             testOpts += " TestEnv ${envScriptPath}"
@@ -2266,7 +2201,21 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "tests\\scripts\\run-gc-reliability-framework.cmd ${arch} ${configuration}"
                         }
                         else {
-                            buildCommands += "tests\\runtest.cmd ${runtestArguments}"
+                            def buildCommandsStr = "call tests\\runtest.cmd ${runtestArguments}\r\n"
+                            if (!isBuildOnly) {
+                                // If we ran the tests, collect the test logs collected by xunit. We want to do this even if the tests fail, so we
+                                // must do it in the same batch file as the test run.
+
+                                buildCommandsStr += "echo on\r\n" // Show the following commands in the log. "echo" doesn't alter the errorlevel.
+                                buildCommandsStr += "set saved_errorlevel=%errorlevel%\r\n"
+                                buildCommandsStr += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}\\Reports', '.\\bin\\tests\\testReports.zip')\"\r\n";
+                                buildCommandsStr += "exit /b %saved_errorlevel%\r\n"
+
+                                def doNotFailIfNothingArchived = true
+                                def archiveOnlyIfSuccessful = false
+                                Utilities.addArchival(newJob, "bin/tests/testReports.zip", "", doNotFailIfNothingArchived, archiveOnlyIfSuccessful)
+                            }
+                            buildCommands += buildCommandsStr
                         }
                     } // end if (!isBuildOnly)
 
@@ -2280,11 +2229,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "build.cmd ${lowerConfiguration} arm64 linuxmscorlib"
                         }
 
-                        // Zip up the tests directory so that we don't use so much space/time copying
-                        // 10s of thousands of files around.
-                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
-
                         if (!isJitStressScenario(scenario)) {
+                            // Zip up the tests directory so that we don't use so much space/time copying
+                            // 10s of thousands of files around.
+                            buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${arch}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
+
                             // For Windows, pull full test results and test drops for x86/x64.
                             // No need to pull for stress mode scenarios (downstream builds use the default scenario)
                             Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip", "bin/Product/**/.nuget/**")
@@ -2663,12 +2612,6 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 return false
             }
             break
-        case 'x86_arm_altjit':
-        case 'x64_arm64_altjit':
-            if (os != 'Windows_NT') {
-                return false
-            }
-            break
         case 'x86':
             if ((os != 'Windows_NT') && (os != 'Ubuntu')) {
                 return false
@@ -2724,8 +2667,6 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
 
         switch (architecture) {
             case 'x64':
-            case 'x86_arm_altjit':
-            case 'x64_arm64_altjit':
                 break
 
             case 'x86':
@@ -2902,19 +2843,6 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 assert false
                 break
         }
-    }
-
-    // For altjit, don't do any scenarios that don't change compilation. That is, scenarios that only change
-    // runtime behavior, not compile-time behavior, are not interesting.
-    switch (architecture) {
-        case 'x86_arm_altjit':
-        case 'x64_arm64_altjit':
-            if (isGCStressRelatedTesting(scenario)) {
-                return false
-            }
-            break
-        default:
-            break
     }
 
     // The job was not filtered out, so we should generate it!
@@ -3131,12 +3059,19 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                 // Run runtest.cmd
                 // Do not run generate layout. It will delete the correct CORE_ROOT, and we do not have a correct product
                 // dir to copy from.
-                def runtestCommand = "%WORKSPACE%\\tests\\runtest.cmd ${architecture} ${configuration} skipgeneratelayout"
+                def runtestCommand = "call %WORKSPACE%\\tests\\runtest.cmd ${architecture} ${configuration} skipgeneratelayout"
 
                 addCommand("${runtestCommand}")
+                addCommand("echo on") // Show the following commands in the log. "echo" doesn't alter the errorlevel.
+                addCommand("set saved_errorlevel=%errorlevel%")
 
-                // Use the smarty errorlevel as the script errorlevel.
-                addCommand("exit /b %errorlevel%")
+                // Collect the test logs collected by xunit. Ignore errors here. We want to collect these even if the run
+                // failed for some reason, so it needs to be in this batch file.
+
+                addCommand("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Reports', '.\\bin\\tests\\testReports.zip')\"");
+
+                // Use the runtest.cmd errorlevel as the script errorlevel.
+                addCommand("exit /b %saved_errorlevel%")
 
                 batchFile(buildCommands)
             } // non-corefx testing
@@ -3144,6 +3079,10 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
     } // job
 
     if (!isCoreFxScenario(scenario)) {
+        def doNotFailIfNothingArchived = true
+        def archiveOnlyIfSuccessful = false
+        Utilities.addArchival(newJob, "bin/tests/testReports.zip", "", doNotFailIfNothingArchived, archiveOnlyIfSuccessful)
+
         Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml', true)
     }
 
@@ -3656,8 +3595,6 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
             }
             break
         case 'armem':
-        case 'x86_arm_altjit':
-        case 'x64_arm64_altjit':
             // No flow jobs
             return false
         default:

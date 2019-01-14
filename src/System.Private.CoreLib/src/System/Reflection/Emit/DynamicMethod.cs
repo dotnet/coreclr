@@ -251,7 +251,7 @@ namespace System.Reflection.Emit
             return s_anonymouslyHostedDynamicMethodsModule;
         }
 
-        private unsafe void Init(string name,
+        private void Init(string name,
                                  MethodAttributes attributes,
                                  CallingConventions callingConvention,
                                  Type returnType,
@@ -369,7 +369,7 @@ namespace System.Reflection.Emit
         }
 
         // This is guaranteed to return a valid handle
-        internal unsafe RuntimeMethodHandle GetMethodDescriptor()
+        internal RuntimeMethodHandle GetMethodDescriptor()
         {
             if (m_methodHandle == null)
             {
@@ -511,6 +511,17 @@ namespace System.Reflection.Emit
                 parameters[position].SetAttributes(attributes);
             }
             return null;
+        }
+
+        public DynamicILInfo GetDynamicILInfo()
+        {
+            if (m_DynamicILInfo == null)
+            {
+                byte[] methodSignature = SignatureHelper.GetMethodSigHelper(
+                        null, CallingConvention, ReturnType, null, null, m_parameterTypes, null, null).GetSignature(true);
+                m_DynamicILInfo = new DynamicILInfo(this, methodSignature);
+            }
+            return m_DynamicILInfo;
         }
 
         public ILGenerator GetILGenerator()
