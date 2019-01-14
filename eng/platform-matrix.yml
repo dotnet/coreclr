@@ -78,13 +78,13 @@ jobs:
 
 # FreeBSD
 
-- template: ${{ parameters.jobTemplate }}
-  parameters:
-    buildConfig: ${{ parameters.buildConfig }}
-    archType: x64
-    osGroup: FreeBSD
-    osIdentifier: FreeBSD
-    ${{ insert }}: ${{ parameters.jobParameters }}
+# - template: ${{ parameters.jobTemplate }}
+#   parameters:
+#     buildConfig: ${{ parameters.buildConfig }}
+#     archType: x64
+#     osGroup: FreeBSD
+#     osIdentifier: FreeBSD
+#     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # macOS x64
 
