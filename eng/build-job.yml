@@ -23,7 +23,7 @@ jobs:
 
     # FreeBSD builds are disabled in the public project because we
     # don't have any FreeBSD agents in the public pool.
-    ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+    ${{ if and(eq(parameters.osGroup, 'FreeBSD'), eq(variables['System.TeamProject'], 'public')) }}:
       condition: false
 
     # Run all steps in the container.
