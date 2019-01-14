@@ -130,32 +130,32 @@ public:
         LIMITED_METHOD_CONTRACT;
     }
 
-    inline DWORD GetMarshalerTypeNameByteCount() const
+    DWORD GetMarshalerTypeNameByteCount() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_cMarshalerTypeNameBytes;
     }
-    inline LPCSTR GetMarshalerTypeName() const
+    LPCSTR GetMarshalerTypeName() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_strMarshalerTypeName;
     }
-    inline LPCSTR GetCookieString() const
+    LPCSTR GetCookieString() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_strCookie;
     }
-    inline ULONG GetCookieStringByteCount() const
+    ULONG GetCookieStringByteCount() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_cCookieStrBytes;
     }
-    inline Instantiation GetMarshalerInstantiation() const
+    Instantiation GetMarshalerInstantiation() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_Instantiation;
     }
-    inline Assembly* GetInvokingAssembly() const
+    Assembly* GetInvokingAssembly() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_invokingAssembly;
