@@ -70,6 +70,27 @@ jobs:
       - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
         displayName: Install native dependencies
 
+
+    # REMOVE ME.
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.proj
+          displayName: Restore blob feed tasks
+          ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+            env:
+              DotNetCoreSdkDir: /usr/local/dotnet
+            
+        - script: ./eng/common/msbuild.sh --ci src/publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier) /p:AzureFeedUrl=$(dotnetfeedUrl) /p:AzureAccountKey=$(dotnetfeedPAT)
+          displayName: Publish packages to blob feed
+          env:
+            # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+            NUGET_PACKAGES: $(Build.SourcesDirectory)/.packages
+            ## ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+            ##   # Arcade uses this SDK instead of trying to restore one.
+            ##   DotNetCoreSdkDir: /usr/local/dotnet
+
+
+
     # Build
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget $(clangArg)
@@ -77,7 +98,7 @@ jobs:
         ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
           env:
             # init-tools.sh copies SDK from here to the Tools/dotnetcli folder instead of trying to restore it.
-            # Once we are using Arcade, use DotNetCoreSdk instead (see below).
+            # Once we are using Arcade, use DotNetCoreSdkDir instead, as we do below.
             DotNetBootstrapCliTarPath: /dotnet-sdk-freebsd-x64.tar
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # TODO: IBCOptimize? EnforcePGO? pass an OfficialBuildId? SignType? file logging parameters?
