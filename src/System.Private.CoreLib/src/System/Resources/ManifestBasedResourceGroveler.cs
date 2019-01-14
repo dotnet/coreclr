@@ -480,7 +480,7 @@ namespace System.Resources
             throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_NoNeutralAsm, resName, _mediator.MainAssemblySimpleName));
         }
 
-        // Internal version of GetSatelliteAssembly that avoids throwing FileLoadException
+        // Internal version of GetSatelliteAssembly that avoids throwing FileNotFoundException
         private Assembly InternalGetSatelliteAssembly(Assembly mainAssembly,
                                                       CultureInfo culture,
                                                       Version version)
@@ -494,7 +494,7 @@ namespace System.Resources
             {
                 return mainAssembly.GetSatelliteAssembly(culture, version);
             }
-            catch (FileLoadException)
+            catch (FileNotFoundException)
             {
                 return null;
             }
