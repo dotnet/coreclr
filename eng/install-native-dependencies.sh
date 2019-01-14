@@ -25,7 +25,7 @@ elif [ "$1" = "OSX" ]; then
 elif [ "$1" = "FreeBSD" ]; then
     # Native dependencies taken from instructions at
     # https://github.com/dotnet/corefx/wiki/Building-.NET-Core-3.x-on-FreeBSD
-    pkg install cmake git icu libunwind bash python2 krb5 lttng-ust llvm60
+    # pkg install cmake git icu libunwind bash python2 krb5 lttng-ust llvm60
     if [ "$?" != "0" ]; then
         exit 1;
     fi
