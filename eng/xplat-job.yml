@@ -59,6 +59,8 @@ jobs:
 
     ${{ if eq(parameters.osGroup, 'Linux') }}:
       agentOs: Ubuntu
+    ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+      agentOs: FreeBSD
     ${{ if eq(parameters.osGroup, 'OSX') }}:
       agentOs: MacOS
     ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
