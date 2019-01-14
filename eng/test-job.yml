@@ -66,6 +66,11 @@ jobs:
     ${{ if and(eq(parameters.crossgen, 'true'), or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX'))) }}:
       condition: false
 
+    # TODO: Enable freebsd test jobs. Currently I'm not aware that we
+    # have any freebsd helix queues.
+    ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+      condition: false
+
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
