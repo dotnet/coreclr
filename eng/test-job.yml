@@ -63,7 +63,7 @@ jobs:
     # TODO: Enable crossgen in build-test.sh. It currently doesn't
     # accept a crossgen arg, so disable the macos/linux crossgen test
     # build jobs.
-    ${{ if or(and(eq(parameters.crossgen, 'true'), ne(parameters.osGroup, 'Windows_NT')), eq(parameters.osGroup, 'FreeBSD') }}:
+    ${{ if or(and(eq(parameters.crossgen, 'true'), ne(parameters.osGroup, 'Windows_NT')), eq(parameters.osGroup, 'FreeBSD')) }}:
       condition: false
 
     # TODO: Enable freebsd test jobs. Currently I'm not aware that we
