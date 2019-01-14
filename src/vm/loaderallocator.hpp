@@ -556,8 +556,11 @@ public:
     // basis.
     EEMarshalingData *GetMarshalingData();
 
+private:
     // Deletes marshaling data at shutdown (which contains cached factories that needs to be released)
     void DeleteMarshalingData();
+
+public:
 
 #ifdef FEATURE_COMINTEROP
 

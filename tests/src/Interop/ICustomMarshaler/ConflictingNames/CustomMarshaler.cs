@@ -30,6 +30,10 @@ class WrappedStringCustomMarshaler : ICustomMarshaler
     public static ICustomMarshaler GetInstance(string cookie) => new WrappedStringCustomMarshaler();
 }
 
+// Use an ifdef here to give us two separate public API surfaces to call while allowing us to have the same implementation code
+// as well as allowing us to share the custom marshaler implementations above.
+// If we wanted to add more tests here, we would want to put the public API surface in the namespace and the private
+// details and marshalers in the global scope as done above.
 #if CUSTOMMARSHALERS2
 namespace CustomMarshalers2
 #else
