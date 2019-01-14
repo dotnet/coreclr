@@ -481,9 +481,9 @@ namespace System.Resources
         }
 
         // Internal version of GetSatelliteAssembly that avoids throwing FileNotFoundException
-        private Assembly InternalGetSatelliteAssembly(Assembly mainAssembly,
-                                                      CultureInfo culture,
-                                                      Version version)
+        private static Assembly InternalGetSatelliteAssembly(Assembly mainAssembly,
+                                                             CultureInfo culture,
+                                                             Version version)
         {
             if (mainAssembly is RuntimeAssembly runtimeMainAssembly)
             {
@@ -502,9 +502,9 @@ namespace System.Resources
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool GetNeutralResourcesLanguageAttribute(RuntimeAssembly assemblyHandle, StringHandleOnStack cultureName, out short fallbackLocation);
+        private static extern bool GetNeutralResourcesLanguageAttribute(RuntimeAssembly assemblyHandle, StringHandleOnStack cultureName, out short fallbackLocation);
 
-        internal static bool GetNeutralResourcesLanguageAttribute(Assembly assemblyHandle, ref string cultureName, out short fallbackLocation)
+        private static bool GetNeutralResourcesLanguageAttribute(Assembly assemblyHandle, ref string cultureName, out short fallbackLocation)
         {
             if (assemblyHandle is RuntimeAssembly runtimeAssemblyHandle)
             {
