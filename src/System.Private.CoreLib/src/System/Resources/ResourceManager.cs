@@ -225,9 +225,6 @@ namespace System.Resources
             if (null == assembly)
                 throw new ArgumentNullException(nameof(assembly));
 
-            if (!(assembly is RuntimeAssembly))
-                throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
-
             MainAssembly = assembly;
             BaseNameField = baseName;
 
@@ -242,9 +239,6 @@ namespace System.Resources
                 throw new ArgumentNullException(nameof(baseName));
             if (null == assembly)
                 throw new ArgumentNullException(nameof(assembly));
-
-            if (!(assembly is RuntimeAssembly))
-                throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
 
             MainAssembly = assembly;
             BaseNameField = baseName;
@@ -664,7 +658,7 @@ namespace System.Resources
         //   
         //    b) For any other non-FX assembly, we will use the modern resource manager with the premise that app package
         //       contains the PRI resources.
-        private bool ShouldUseSatelliteAssemblyResourceLookupUnderAppX(RuntimeAssembly resourcesAssembly)
+        private bool ShouldUseSatelliteAssemblyResourceLookupUnderAppX(Assembly resourcesAssembly)
         {
             bool fUseSatelliteAssemblyResourceLookupUnderAppX = typeof(object).Assembly == resourcesAssembly;
 
@@ -706,11 +700,9 @@ namespace System.Resources
 
             bool bUsingSatelliteAssembliesUnderAppX = false;
 
-            RuntimeAssembly resourcesAssembly = (RuntimeAssembly)MainAssembly;
-
-            if (resourcesAssembly != null)
+            if (MainAssembly != null)
             {
-                if (resourcesAssembly != typeof(object).Assembly) // We are not loading resources for mscorlib
+                if (MainAssembly != typeof(object).Assembly) // We are not loading resources for mscorlib
                 {
                     if (ApplicationModel.IsUap)
                     {
@@ -731,7 +723,7 @@ namespace System.Resources
 
                         if (!bUsingSatelliteAssembliesUnderAppX)
                         {
-                            _bUsingModernResourceManagement = !ShouldUseSatelliteAssemblyResourceLookupUnderAppX(resourcesAssembly);
+                            _bUsingModernResourceManagement = !ShouldUseSatelliteAssemblyResourceLookupUnderAppX(MainAssembly);
 
                             if (_bUsingModernResourceManagement)
                             {
@@ -749,7 +741,7 @@ namespace System.Resources
 
                                 try
                                 {
-                                    _PRIonAppXInitialized = _WinRTResourceManager.Initialize(resourcesAssembly.Location, reswFilename, out _PRIExceptionInfo);
+                                    _PRIonAppXInitialized = _WinRTResourceManager.Initialize(MainAssembly.Location, reswFilename, out _PRIExceptionInfo);
                                     // Note that _PRIExceptionInfo might be null - this is OK.
                                     // In that case we will just throw the generic
                                     // MissingManifestResource_NoPRIresources exception.
@@ -801,7 +793,7 @@ namespace System.Resources
                     }
                 }
             }
-            // resourcesAssembly == null should not happen but it can. See the comment on Assembly.GetCallingAssembly.
+            // MainAssembly == null should not happen but it can. See the comment on Assembly.GetCallingAssembly.
             // However for the sake of 100% backwards compatibility on Win7 and below, we must leave
             // _bUsingModernResourceManagement as false.
 #endif // FEATURE_APPX            
@@ -1069,9 +1061,19 @@ namespace System.Resources
                 set { _rm._fallbackLoc = value; }
             }
 
-            internal RuntimeAssembly MainAssembly
+            internal Assembly MainAssembly
             {
-                get { return (RuntimeAssembly)_rm.MainAssembly; }
+                get { return _rm.MainAssembly; }
+            }
+
+            internal string MainAssemblySimpleName
+            {
+                get
+                {
+                    if (_rm.MainAssembly is RuntimeAssembly runtimeAssembly)
+                        return runtimeAssembly.GetSimpleName();
+                    return _rm.MainAssembly.GetName().Name;
+                }
             }
 
             // this is weird because we have BaseNameField accessor above, but we're sticking
