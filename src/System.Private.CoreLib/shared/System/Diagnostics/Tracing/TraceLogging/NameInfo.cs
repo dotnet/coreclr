@@ -81,29 +81,20 @@ namespace System.Diagnostics.Tracing
         public IntPtr GetOrCreateEventHandle(EventProvider provider, TraceLoggingEventHandleTable eventHandleTable, EventDescriptor descriptor, TraceLoggingEventTypes eventTypes)
         {
             IntPtr eventHandle;
-            bool metadataGenerationFailed = false;
-            byte[] metadataBlob = null;
-            uint metadataLength = 0;
-
             if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
             {
                 lock (eventHandleTable)
                 {
                     if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
                     {
-                        // If Metadata generation failed for this eventID, we shoudln't be trying to generate it again.
-                        if (!eventHandleTable.MetadataGenerationFailed(descriptor.EventId))
-                        {
-                            metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(
+                        byte[] metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(
                             descriptor.EventId,
                             name,
                             (EventKeywords)descriptor.Keywords,
                             (EventLevel)descriptor.Level,
                             descriptor.Version,
                             eventTypes);
-                            metadataLength = (metadataBlob != null) ? (uint)metadataBlob.Length : 0;
-                            metadataGenerationFailed = (metadataBlob == null);
-                        }
+                        uint metadataLength = (metadataBlob != null) ? (uint)metadataBlob.Length : 0;
 
                         unsafe
                         {
@@ -122,7 +113,7 @@ namespace System.Diagnostics.Tracing
                         }
 
                         // Cache the event handle.
-                        eventHandleTable.SetEventHandle(descriptor.EventId, eventHandle, metadataGenerationFailed);
+                        eventHandleTable.SetEventHandle(descriptor.EventId, eventHandle);
                     }
                 }
             }
