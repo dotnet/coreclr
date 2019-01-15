@@ -217,7 +217,7 @@ public class Managed
     static extern bool MarshalStructAsParam_AsExpByValOverlappingLongFloat(OverlappingLongFloat2 str, long expected);
     
     [DllImport("MarshalStructAsParam")]
-    static extern bool  MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte(OverlappingMultipleEightbyte str, int i1, int i2, int i3);
+    static extern bool  MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte(OverlappingMultipleEightbyte str, float i1, float i2, float i3);
 
     #region Marshal Explicit struct method
     [SecuritySafeCritical]
@@ -390,8 +390,8 @@ public class Managed
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte...");
                     OverlappingMultipleEightbyte overlappingMultipleEightbyte = new OverlappingMultipleEightbyte
                     {
-                        arr = new int[3] { 1, 400, 623289},
-                        f = 1234f
+                        arr = new float[3] { 1f, 400f, 623289f},
+                        i = 1234
                     };
                     if (!MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte(
                             overlappingMultipleEightbyte,

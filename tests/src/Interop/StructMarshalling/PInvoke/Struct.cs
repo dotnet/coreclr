@@ -389,7 +389,7 @@ public struct OverlappingLongFloat2
 public struct OverlappingMultipleEightbyte
 {
     [FieldOffset(8)]
-    public float f;
+    public int i;
     [FieldOffset(0), MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-    public int[] arr;
+    public float[] arr;
 }

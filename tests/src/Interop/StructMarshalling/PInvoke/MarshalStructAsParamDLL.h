@@ -904,10 +904,10 @@ union OverlappingLongFloat
 
 union OverlappingMultipleEightbyte
 {
-    int arr[3];
+    float arr[3];
     struct
     {
-        char padding[8];
-        float f;
+        float padding[2];
+        int i;
     };
 };
