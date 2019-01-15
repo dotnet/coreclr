@@ -41,21 +41,18 @@
   </ItemGroup>
 
   <Target Name="CreateTestEnvFiles">
+    <!-- This target will create one __TestEnv file per XUnitWrapper/Scenario combination -->
     <ItemGroup>
       <_XUnitWrapperDirectoryWithScenario Include="@(XUnitWrapperDlls->'%(RootDir)%(Directory)')">
         <Scenario>%(Scenarios.Identity)</Scenario>
       </_XUnitWrapperDirectoryWithScenario>
 
-      <_ProjectsToBuild Include=".\testenvironment.proj">
+      <_TestEnvProjectsToBuild Include=".\testenvironment.proj">
         <Properties>Scenario=%(_XUnitWrapperDirectoryWithScenario.Scenario);TestEnvFileName=%(Identity)\SetStressModes_%(Scenario)$(TestEnvFileExtension);TargetsWindows=$(TargetsWindows)</Properties>
-      </_ProjectsToBuild>
+      </_TestEnvProjectsToBuild>
     </ItemGroup>
 
-    <MSBuild Projects="@(_ProjectsToBuild)" Targets="CreateTestEnvFile" BuildInParallel="false" StopOnFirstFailure="true" UnloadProjectsOnCompletion="true" />
-
-    <ItemGroup>
-      <_ProjectsToBuild Remove="@(_ProjectsToBuild)" />
-    </ItemGroup>
+    <MSBuild Projects="@(_TestEnvProjectsToBuild)" Targets="CreateTestEnvFile" BuildInParallel="false" StopOnFirstFailure="true" UnloadProjectsOnCompletion="true" />
   </Target>
 
   <Target Name="SubmitTestsToHelix" DependsOnTargets="CreateTestEnvFiles">
@@ -71,10 +68,6 @@
     </PropertyGroup>
 
     <MSBuild Projects="@(_ProjectsToBuild)" Targets="Test" BuildInParallel="$(_BuildInParallel)" StopOnFirstFailure="false" UnloadProjectsOnCompletion="true" />
-
-    <ItemGroup>
-      <_ProjectsToBuild Remove="@(_ProjectsToBuild)" />
-    </ItemGroup>
   </Target>
 
   <Target Name="BuildHelixWorkItem" BeforeTargets="Test">
