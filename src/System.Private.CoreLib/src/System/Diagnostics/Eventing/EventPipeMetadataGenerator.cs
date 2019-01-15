@@ -123,8 +123,7 @@ namespace System.Diagnostics.Tracing
                     {
                         if(parameter.GenerateMetadata(pMetadata, ref offset, metadataLength) != METADATA_GENERATE_STATUS.SUCCESS)
                         {
-                            metadata = null;
-                            break;
+                            return null;
                         }
                     }
                     Debug.Assert(metadataLength == offset);
