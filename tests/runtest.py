@@ -1119,9 +1119,12 @@ def setup_args(args):
         location using the build type and the arch.
     """
 
+    require_built_test_dir = not args.generate_layout_only and True
+    require_built_core_root = not args.generate_layout_only and True
+
     coreclr_setup_args = CoreclrArguments(args, 
-                                          require_built_test_dir=True, 
-                                          require_built_core_root=True, 
+                                          require_built_test_dir=require_built_test_dir, 
+                                          require_built_core_root=require_built_core_root, 
                                           require_built_product_dir=args.generate_layout_only)
 
     normal_location = os.path.join(coreclr_setup_args.bin_location, "tests", "%s.%s.%s" % (coreclr_setup_args.host_os, coreclr_setup_args.arch, coreclr_setup_args.build_type))
@@ -1175,7 +1178,93 @@ def setup_args(args):
     coreclr_setup_args.verify(args,
                               "generate_layout",
                               lambda arg: True,
-                              "Error setting generate_layout")
+                              "Error setting generate_layout",
+                              modify_arg=lambda arg: True)
+
+    coreclr_setup_args.verify(args,
+                              "generate_layout_only",
+                              lambda arg: True,
+                              "Error setting generate_layout_only")
+
+    coreclr_setup_args.verify(args,
+                              "test_env",
+                              lambda arg: True,
+                              "Error setting test_env")
+
+    coreclr_setup_args.verify(args,
+                              "analyze_results_only",
+                              lambda arg: True,
+                              "Error setting analyze_results_only")
+
+    coreclr_setup_args.verify(args,
+                              "crossgen_altjit",
+                              lambda arg: True,
+                              "Error setting crossgen_altjit")
+
+    coreclr_setup_args.verify(args,
+                              "altjit_arch",
+                              lambda arg: True,
+                              "Error setting altjit_arch")
+
+    coreclr_setup_args.verify(args,
+                              "rid",
+                              lambda arg: True,
+                              "Error setting rid")
+
+    coreclr_setup_args.verify(args,
+                              "il_link",
+                              lambda arg: True,
+                              "Error setting il_link")
+
+    coreclr_setup_args.verify(args,
+                              "long_gc",
+                              lambda arg: True,
+                              "Error setting long_gc")
+    
+    coreclr_setup_args.verify(args,
+                              "gcsimulator",
+                              lambda arg: True,
+                              "Error setting gcsimulator")
+    
+    coreclr_setup_args.verify(args,
+                              "jitdisasm",
+                              lambda arg: True,
+                              "Error setting jitdisasm")
+
+    coreclr_setup_args.verify(args,
+                              "ilasmroundtrip",
+                              lambda arg: True,
+                              "Error setting ilasmroundtrip")
+    
+    coreclr_setup_args.verify(args,
+                              "run_crossgen_tests",
+                              lambda arg: True,
+                              "Error setting run_crossgen_tests")
+
+    coreclr_setup_args.verify(args,
+                              "precompile_core_root",
+                              lambda arg: True,
+                              "Error setting precompile_core_root")
+    
+    coreclr_setup_args.verify(args,
+                              "build_xunit_test_wrappers",
+                              lambda arg: True,
+                              "Error setting build_xunit_test_wrappers")
+    
+    coreclr_setup_args.verify(args,
+                              "verbose",
+                              lambda arg: True,
+                              "Error setting verbose")
+
+    coreclr_setup_args.verify(args,
+                              "limited_core_dumps",
+                              lambda arg: True,
+                              "Error setting limited_core_dumps")
+    
+    coreclr_setup_args.verify(args,
+                              "test_native_bin_location",
+                              lambda arg: True,
+                              "Error setting test_native_bin_location")
 
     is_same_os = False
     is_same_arch = False
@@ -1213,16 +1302,7 @@ def setup_args(args):
     print("test_location            :%s" % coreclr_setup_args.test_location)
     print("test_native_bin_location :%s" % coreclr_setup_args.test_native_bin_location)
 
-    return (
-        coreclr_setup_args.host_os,
-        coreclr_setup_args.arch,
-        coreclr_setup_args.build_type,
-        coreclr_setup_args.coreclr_repo_location,
-        coreclr_setup_args.product_location,
-        coreclr_setup_args.core_root,
-        coreclr_setup_args.test_location,
-        coreclr_setup_args.test_native_bin_location
-    )
+    return coreclr_setup_args
 
 def setup_tools(host_os, coreclr_repo_location):
     """ Setup the tools for the repo
@@ -2261,7 +2341,19 @@ def main(args):
     global g_verbose
     g_verbose = args.verbose
 
-    host_os, arch, build_type, coreclr_repo_location, product_location, core_root, test_location, test_native_bin_location = setup_args(args)
+    coreclr_setup_args = setup_args(args)
+    args = coreclr_setup_args
+
+    host_os, arch, build_type, coreclr_repo_location, product_location, core_root, test_location, test_native_bin_location = (
+        coreclr_setup_args.host_os,
+        coreclr_setup_args.arch,
+        coreclr_setup_args.build_type,
+        coreclr_setup_args.coreclr_repo_location,
+        coreclr_setup_args.product_location,
+        coreclr_setup_args.core_root,
+        coreclr_setup_args.test_location,
+        coreclr_setup_args.test_native_bin_location
+    )
 
     ret_code = 0
 
