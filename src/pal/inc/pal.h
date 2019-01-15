@@ -3503,7 +3503,7 @@ InterlockedExchange(
     IN OUT LONG volatile *Target,
     IN LONG Value)
 {
-    LONG result = __sync_swap(Target, Value);
+    LONG result = __atomic_exchange_n(Target, Value, __ATOMIC_ACQ_REL);
     PAL_ArmInterlockedOperationBarrier();
     return result;
 }
@@ -3517,7 +3517,7 @@ InterlockedExchange64(
     IN OUT LONGLONG volatile *Target,
     IN LONGLONG Value)
 {
-    LONGLONG result = __sync_swap(Target, Value);
+    LONGLONG result = __atomic_exchange_n(Target, Value, __ATOMIC_ACQ_REL);
     PAL_ArmInterlockedOperationBarrier();
     return result;
 }
