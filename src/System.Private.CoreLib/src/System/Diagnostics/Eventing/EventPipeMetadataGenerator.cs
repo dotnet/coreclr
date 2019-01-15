@@ -12,7 +12,6 @@ namespace System.Diagnostics.Tracing
     internal enum METADATA_GENERATE_STATUS
     {
         SUCCESS,
-        FAILURE_UNKNOWN_TYPE,
         FAILURE_UNSUPPORTED_TYPE
     }
 
@@ -205,7 +204,7 @@ namespace System.Diagnostics.Tracing
 
                 if(!(TypeInfo is InvokeTypeInfo invokeTypeInfo))
                 {
-                    return METADATA_GENERATE_STATUS.FAILURE_UNKNOWN_TYPE;
+                    return METADATA_GENERATE_STATUS.FAILURE_UNSUPPORTED_TYPE;
                 }
 
                 // Get the set of properties to be serialized.
@@ -296,7 +295,7 @@ namespace System.Diagnostics.Tracing
                 // EventPipe does not support this type.  Throw, which will cause no metadata to be registered for this event.
                 if(typeCode == TypeCode.Object)
                 {
-                    return METADATA_GENERATE_STATUS.FAILURE_UNKNOWN_TYPE;
+                    return METADATA_GENERATE_STATUS.FAILURE_UNSUPPORTED_TYPE;
                 }
 
                 // Write the type code.
