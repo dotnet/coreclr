@@ -123,11 +123,4 @@
     <WriteLinesToFile File="$(TestEnvFileName)" Lines="@(_TestEnvFileLine)" Overwrite="true" />
   </Target>
 
-  <Target Name="PrintTestEnvironment" DependsOnTargets="OutputCOMPlusVariables">
-    <ItemGroup>
-      <_MessageLines Include="@(_COMPlusVariable->'%(Identity)=%(Value)')" />
-    </ItemGroup>
-    <Message Text="%(_MessageLines.Identity)" Importance="High" />
-  </Target>
-
 </Project>
