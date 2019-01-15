@@ -35,7 +35,7 @@ namespace System.Diagnostics.Tracing
         private const string NetPerfFileExtension = ".netperf";
         private const string ConfigFileSuffix = ".eventpipeconfig";
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
-        private const int DisabledPollingIntervalMilliseconds = 20000; // 20 seconds
+        private const int DisabledPollingIntervalMilliseconds = 5000; // 5 seconds
         private const uint DefaultCircularBufferMB = 1024; // 1 GB
         private static readonly char[] ProviderConfigDelimiter = new char[] { ',' };
         private static readonly char[] ConfigComponentDelimiter = new char[] { ':' };
