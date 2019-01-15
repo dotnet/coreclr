@@ -513,7 +513,14 @@ namespace System.Resources
                                                             out fallbackLocation);
             }
 
-            // Not currently supported on custom Assembly types or AssemblyBuilder            
+            var nrlAttribute = assemblyHandle.GetCustomAttribute<NeutralResourcesLanguageAttribute>();
+            if (nrlAttribute != null)
+            {
+                fallbackLocation = (short)nrlAttribute.Location;
+                cultureName = nrlAttribute.CultureName;
+                return true;
+            }
+
             fallbackLocation = 0;
             return false;
         }
