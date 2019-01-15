@@ -22,8 +22,6 @@ CircularMB=2048
 Providers=*:0xFFFFFFFFFFFFFFFF:5
 ";
 
-        private static readonly TimeSpan TimeIntervalToReadConfigFile = new TimeSpan(0, 0, 25);
-
         private const int BytesInOneMB = 1024 * 1024;
 
         /// <summary>
@@ -40,9 +38,9 @@ Providers=*:0xFFFFFFFFFFFFFFFF:5
             File.WriteAllText(configFilePath, ConfigFileContents);
             Console.WriteLine("Wrote contents of config file.");
 
-            // Wait few seconds to ensure that tracing has started.
-            Console.WriteLine($"Waiting {TimeIntervalToReadConfigFile.TotalSeconds} seconds for the config file to be picked up by the next poll operation.");
-            Thread.Sleep(TimeIntervalToReadConfigFile);
+            // Wait 5 seconds to ensure that tracing has started.
+            Console.WriteLine("Waiting 5 seconds for the config file to be picked up by the next poll operation.");
+            Thread.Sleep(TimeSpan.FromSeconds(5));
 
             // Do some work that we can look for in the trace.
             Console.WriteLine("Do some work that will be captured by the trace.");
@@ -64,9 +62,8 @@ Providers=*:0xFFFFFFFFFFFFFFFF:5
             // Wait for 1 second, which is the poll time when tracing is enabled.
             Thread.Sleep(TimeSpan.FromSeconds(1));
 
-            // Poll for file size changes to the trace file itself.
-            // When the size of the trace file hasn't changed for few seconds, consider it fully written out.
-            Console.WriteLine($"Waiting for the trace file to be written. Poll every second to watch for {TimeIntervalToReadConfigFile.TotalSeconds} seconds of no file size changes.");
+            // Poll for file size changes to the trace file itself.  When the size of the trace file hasn't changed for 5 seconds, consider it fully written out.
+            Console.WriteLine("Waiting for the trace file to be written.  Poll every second to watch for 5 seconds of no file size changes.");
             long lastSizeInBytes = 0;
             DateTime timeOfLastChangeUTC = DateTime.UtcNow;
             do
@@ -83,7 +80,7 @@ Providers=*:0xFFFFFFFFFFFFFFFF:5
 
                 Thread.Sleep(TimeSpan.FromSeconds(1));
 
-            } while (DateTime.UtcNow.Subtract(timeOfLastChangeUTC) < TimeIntervalToReadConfigFile);
+            } while (DateTime.UtcNow.Subtract(timeOfLastChangeUTC) < TimeSpan.FromSeconds(5));
 
             int retVal = 0;
 
