@@ -81,23 +81,29 @@ namespace System.Diagnostics.Tracing
         public IntPtr GetOrCreateEventHandle(EventProvider provider, TraceLoggingEventHandleTable eventHandleTable, EventDescriptor descriptor, TraceLoggingEventTypes eventTypes)
         {
             IntPtr eventHandle;
-            bool metadataGenerationFailed;
+            bool metadataGenerationFailed = false;
+            byte[] metadataBlob = null;
+            uint metadataLength = 0;
 
             if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
             {
                 lock (eventHandleTable)
                 {
-                    if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero && eventHandleTable.MetadataGenerationFailed(descriptor.EventId))
+                    if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
                     {
-                        byte[] metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(
+                        // If Metadata generation failed for this eventID, we shoudln't be trying to generate it again.
+                        if (!eventHandleTable.MetadataGenerationFailed(descriptor.EventId))
+                        {
+                            metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(
                             descriptor.EventId,
                             name,
                             (EventKeywords)descriptor.Keywords,
                             (EventLevel)descriptor.Level,
                             descriptor.Version,
                             eventTypes);
-                        uint metadataLength = (metadataBlob != null) ? (uint)metadataBlob.Length : 0;
-                        metadataGenerationFailed = (metadataBlob == null);
+                            metadataLength = (metadataBlob != null) ? (uint)metadataBlob.Length : 0;
+                            metadataGenerationFailed = (metadataBlob == null);
+                        }
 
                         unsafe
                         {
