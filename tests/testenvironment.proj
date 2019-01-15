@@ -1,4 +1,10 @@
 <Project DefaultTargets="CreateTestEnvFile">
+  <!-- This project creates a .cmd or .sh file that sets the environment variables corresponding to the specified Scenario property.
+       For example, to create SetStressModes.cmd file for scenario "jitstress1" you can use the following command:
+
+       dotnet msbuild testenvironment.proj /p:TestEnvFileName=SetStressModes.cmd /p:Scenario=jitstress1 /p:TargetsWindows=true
+  -->
+
 
   <!-- COMPlus_* variables that can be specified for a test scenario -->
   <PropertyGroup>
@@ -46,6 +52,8 @@
 
   <!-- TestEnvironment is a mapping between Scenario and COMPlus_* environment variable values that are written to __TestEnv file -->
   <ItemGroup>
+    <!-- "normal" scenario doesn't define any COMPlus_* variables and uses the coreclr runtime default values
+         while other scenarios use the default values of COMPlus_* variables defined in ItemDefinitionGroup above -->
     <TestEnvironment Include="normal" TieredCompilation="" />
     <TestEnvironment Include="minopts" JITMinOpts="1" />
     <TestEnvironment Include="no_tiered_compilation" TieredCompilation="0" />
@@ -93,6 +101,8 @@
     <TestEnvironment Include="gcstress0xc_minopts_heapverify1" GCStress="0xC" JITMinOpts="1" HeapVerify="1" />
   </ItemGroup>
 
+  <!-- We use target batching on the COMPlusVariable items to iterate over the all COMPlus_* environment variables
+       that can be specified by a test scenario. -->
   <Target Name="OutputCOMPlusVariables" Inputs="@(COMPlusVariable)" Outputs="%(COMPlusVariable.Identity)">
     <PropertyGroup>
       <_COMPlusVariable>%(COMPlusVariable.Identity)</_COMPlusVariable>
@@ -103,10 +113,23 @@
       <_TestEnvironment Include="@(TestEnvironment)" Condition="'%(Identity)' == '$(Scenario)'" />
       <_TestEnvironmentWithMetadata Include="@(_TestEnvironment->HasMetadata($(_COMPlusVariableMetadataName)))" />
 
+      <!-- _TestEnvironmentWithMetadata can be either empty or contain one item:
+
+       1) If _TestEnvironmentWithMetadata is empty, then this suggests that the test scenario with identity $(Scenario)
+          doesn't define COMPlus_* environment variable with name $(_COMPlusVariable);
+
+       2) Otherwise, the test scenario defines such COMPlus_* environment variable and the specified value
+          of this variable can be extracted by using Metadata() item function.
+      -->
+
       <_COMPlusVariable Include="$(_COMPlusVariable)" Condition="@(_TestEnvironmentWithMetadata->Count()) == 1">
         <Value>@(_TestEnvironmentWithMetadata->Metadata($(_COMPlusVariableMetadataName)))</Value>
       </_COMPlusVariable>
     </ItemGroup>
+
+    <!-- Conceptually, this target creates a collection of _COMPlusVariable items that corresponds to
+         COMPlus_* environment variables specified for the test scenario with identity $(Scenario) -->
+
   </Target>
 
   <Target Name="CreateTestEnvFile" DependsOnTargets="OutputCOMPlusVariables">
