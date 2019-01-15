@@ -1519,16 +1519,11 @@ def setup_core_root(host_os,
     if host_os != "Windows_NT":
         os.environ["__DistroRid"] = "%s-%s" % ("osx" if sys.platform == "darwin" else "linux", arch)
 
-    if host_os == "Windows_NT":
-        command = [os.path.join(coreclr_repo_location, "msbuild.cmd")]
-    else:
-        command = [os.path.join(coreclr_repo_location, "dotnet.sh"), "msbuild"]
-
-    command += ["/nologo", "/verbosity:minimal", "/clp:Summary"]
+    command = [dotnetcli_location, "msbuild", "/nologo", "/verbosity:minimal", "/clp:Summary",
+               "\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""]
 
     if host_os == "Windows_NT":
         command += ["/nodeReuse:false"]
-        command += ["/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"]
 
     command += ["/p:RestoreDefaultOptimizationDataPackage=false",
                 "/p:PortableBuild=true",
@@ -1551,15 +1546,14 @@ def setup_core_root(host_os,
 
     if host_os != "Windows_NT":
         command = ["bash"] + command
-        command += ["\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""]
 
     if g_verbose:
         command += ["/v:detailed"]
 
-    command += [ "/t:BatchRestorePackages",
-                 "/p:__BuildType=%s" % build_type,
-                 "/p:__BuildArch=%s" % arch,
-                 "/p:__BuildOS=%s" % host_os]
+    command += ["/t:BatchRestorePackages",
+                "/p:__BuildType=%s" % build_type,
+                "/p:__BuildArch=%s" % arch,
+                "/p:__BuildOS=%s" % host_os]
 
     print("Restoring packages...")
     print(" ".join(command))
@@ -1593,16 +1587,11 @@ def setup_core_root(host_os,
     os.environ["Core_Root"] = core_root
     os.environ["xUnitTestBinBase"] = os.path.dirname(os.path.dirname(core_root))
 
-    if host_os == "Windows_NT":
-        command = [os.path.join(coreclr_repo_location, "msbuild.cmd")]
-    else:
-        command = [os.path.join(coreclr_repo_location, "dotnet.sh"), "msbuild"]
-
-    command += ["/nologo", "/verbosity:minimal", "/clp:Summary"]
+    command = [dotnetcli_location, "msbuild", "/nologo", "/verbosity:minimal", "/clp:Summary",
+               "\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""]
 
     if host_os == "Windows_NT":
         command += ["/nodeReuse:false"]
-        command += ["/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"]
 
     command += ["/p:RestoreDefaultOptimizationDataPackage=false",
                 "/p:PortableBuild=true",
@@ -1625,15 +1614,14 @@ def setup_core_root(host_os,
 
     if host_os != "Windows_NT":
         command = ["bash"] + command
-        command += ["\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""]
 
     if g_verbose:
         command += ["/v:detailed"]
 
-    command += [ "/t:CreateTestOverlay",
-                 "/p:__BuildType=%s" % build_type,
-                 "/p:__BuildArch=%s" % arch,
-                 "/p:__BuildOS=%s" % host_os]
+    command += ["/t:CreateTestOverlay",
+                "/p:__BuildType=%s" % build_type,
+                "/p:__BuildArch=%s" % arch,
+                "/p:__BuildOS=%s" % host_os]
 
     print("")
     print("Creating Core_Root...")
