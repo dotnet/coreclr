@@ -1544,9 +1544,6 @@ def setup_core_root(host_os,
                 "/fileloggerparameters1:\"WarningsOnly;LogFile=%s\"" % wrn_log,
                 "/fileloggerparameters2:\"ErrorsOnly;LogFile=%s\"" % err_log]
 
-    if host_os != "Windows_NT":
-        command = ["bash"] + command
-
     if g_verbose:
         command += ["/v:detailed"]
 
@@ -1611,9 +1608,6 @@ def setup_core_root(host_os,
     command += ["/fileloggerparameters:\"Verbosity=normal;LogFile=%s\"" % build_log,
                 "/fileloggerparameters1:\"WarningsOnly;LogFile=%s\"" % wrn_log,
                 "/fileloggerparameters2:\"ErrorsOnly;LogFile=%s\"" % err_log]
-
-    if host_os != "Windows_NT":
-        command = ["bash"] + command
 
     if g_verbose:
         command += ["/v:detailed"]
