@@ -74,6 +74,7 @@ namespace System.Diagnostics.Tracing
                 // level            : 4 bytes
                 // parameterCount   : 4 bytes
                 uint metadataLength = 24 + ((uint)eventName.Length + 1) * 2;
+                uint defaultMetadataLength = metadataLength;
 
                 // Check for an empty payload.
                 // Write<T> calls with no arguments by convention have a parameter of
@@ -92,7 +93,7 @@ namespace System.Diagnostics.Tracing
                     if (pMetadataLength < 0)
                     {
                         parameters = Array.Empty<EventParameterInfo>();
-                        metadataLength = 24 + ((uint)eventName.Length + 1) * 2;
+                        metadataLength = defaultMetadataLength;
                         break;
                     }
                     metadataLength += (uint)pMetadataLength;
