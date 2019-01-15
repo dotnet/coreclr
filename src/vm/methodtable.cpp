@@ -2284,16 +2284,6 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
         return false;
     }
 
-    // No struct register passing with explicit layout. There may be cases where explicit layout may be still
-    // eligible for register struct passing, but it is hard to tell the real intent. Make it simple and just 
-    // unconditionally disable register struct passing for explicit layout.
-    if (GetClass()->HasExplicitFieldOffsetLayout())
-    {
-        LOG((LF_JIT, LL_EVERYTHING, "%*s**** ClassifyEightBytesWithManagedLayout: struct %s has explicit layout; will not be enregistered\n",
-               nestingLevel * 5, "", this->GetDebugClassName()));
-        return false;
-    }
-
     // The SIMD Intrinsic types are meant to be handled specially and should not be passed as struct registers
     if (IsIntrinsicType())
     {
@@ -2580,16 +2570,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         return false;
     }
 
-    // No struct register passing with explicit layout. There may be cases where explicit layout may be still
-    // eligible for register struct passing, but it is hard to tell the real intent. Make it simple and just 
-    // unconditionally disable register struct passing for explicit layout.
-    if (GetClass()->HasExplicitFieldOffsetLayout() && GetClass()->HasOverLayedField())
-    {
-        LOG((LF_JIT, LL_EVERYTHING, "%*s**** ClassifyEightBytesWithNativeLayout: struct %s has explicit layout; will not be enregistered\n",
-            nestingLevel * 5, "", this->GetDebugClassName()));
-        return false;
-    }
-
     // The SIMD Intrinsic types are meant to be handled specially and should not be passed as struct registers
     if (IsIntrinsicType())
     {
@@ -2631,12 +2611,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
         DWORD fieldOffset = pFieldMarshaler->GetExternalOffset();
         unsigned normalizedFieldOffset = fieldOffset + startOffsetOfStruct;
-
-        if (normalizedFieldOffset % pFieldMarshaler->AlignmentRequirement() != 0)
-        {
-            LOG((LF_JIT, LL_EVERYTHING, "%*s**** ClassifyEightBytesWithNativeLayout: struct %s has unaligned fields; will not be enregistered\n",
-                nestingLevel * 5, "", this->GetDebugClassName()));
-        }
 
         unsigned int fieldNativeSize = pFieldMarshaler->NativeSize();
 
@@ -2905,13 +2879,13 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             }
         }
 
-        if ((normalizedFieldOffset % fieldNativeSize) != 0)
+        if ((normalizedFieldOffset % pFieldMarshaler->AlignmentRequirement()) != 0)
         {
             // The spec requires that struct values on the stack from register passed fields expects
             // those fields to be at their natural alignment.
 
-            LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Native Field %d %s: offset %d (normalized %d), native size %d not at natural alignment; not enregistering struct\n",
-                nestingLevel * 5, "", fieldNum, fieldNum, fieldName, fieldOffset, normalizedFieldOffset, fieldNativeSize));
+            LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Native Field %d %s: offset %d (normalized %d), required alignment %d not at natural alignment; not enregistering struct\n",
+                nestingLevel * 5, "", fieldNum, fieldNum, fieldName, fieldOffset, normalizedFieldOffset, pFieldMarshaler->AlignmentRequirement()));
             return false;
         }
 
@@ -2948,6 +2922,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
             if (i >= 0)
             {
+                ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
                 // The proper size of the union set of fields has been set above; continue to the next field.
                 continue;
             }

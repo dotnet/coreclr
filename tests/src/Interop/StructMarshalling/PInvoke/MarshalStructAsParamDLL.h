@@ -196,11 +196,23 @@ union InnerArrayExplicit // size = 32 bytes
 #endif
 
 #ifndef WINDOWS
-	struct OUTER3 // size = 28 bytes
-	{
-		struct InnerSequential arr[2];
-		LPCSTR f4;
-	};
+    #ifdef __x86_64__
+        union OUTER3 // size = 32 bytes
+		{
+			struct InnerSequential arr[2];
+			struct
+			{
+				CHAR _unused0[24];
+				LPCSTR f4;
+			};
+		};
+    #else
+        struct OUTER3 // size = 28 bytes
+        {
+            struct InnerSequential arr[2];
+            LPCSTR f4;
+        };
+    #endif
 #endif
 
 void PrintOUTER3(OUTER3* p, char const * name)
