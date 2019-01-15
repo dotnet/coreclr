@@ -243,8 +243,6 @@ namespace System
     internal static partial class Number
     {
         internal const int DecimalPrecision = 29; // Decimal.DecCalc also uses this value
-        private const int SinglePrecision = 7;
-        private const int DoublePrecision = 15;
         private const int ScaleNAN = unchecked((int)0x80000000);
         private const int ScaleINF = 0x7FFFFFFF;
         private const int MaxUInt32DecDigits = 10;
@@ -386,74 +384,27 @@ namespace System
         private static unsafe string FormatDouble(ref ValueStringBuilder sb, double value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
-            int precision = DoublePrecision;
-
             byte* pDigits = stackalloc byte[DoubleNumberBufferLength];
+
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
+            number.IsNegative = double.IsNegative(value);
 
-            switch (fmt)
+            if (!double.IsFinite(value))
             {
-                case 'R':
-                case 'r':
+                if (double.IsNaN(value))
                 {
-                    // In order to give numbers that are both friendly to display and round-trippable, we parse the
-                    // number using 15 digits and then determine if it round trips to the same value. If it does, we
-                    // convert that NUMBER to a string, otherwise we reparse using 17 digits and display that.
-                    DoubleToNumber(value, DoublePrecision, ref number);
-
-                    if (number.Scale == ScaleNAN)
-                    {
-                        return info.NaNSymbol;
-                    }
-                    else if (number.Scale == ScaleINF)
-                    {
-                        return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
-                    }
-
-                    double roundTrip = NumberToDouble(ref number);
-
-                    if (roundTrip == value)
-                    {
-                        NumberToString(ref sb, ref number, 'G', DoublePrecision, info);
-                    }
-                    else
-                    {
-                        DoubleToNumber(value, 17, ref number);
-                        NumberToString(ref sb, ref number, 'G', 17, info);
-                    }
-
-                    return null;
+                    return info.NaNSymbol;
                 }
 
-                case 'E':
-                case 'e':
-                    // Round values less than E14 to 15 digits
-                    if (digits > 14)
-                    {
-                        precision = 17;
-                    }
-                    break;
-
-                case 'G':
-                case 'g':
-                    // Round values less than G15 to 15 digits. G16 and G17 will not be touched.
-                    if (digits > 15)
-                    {
-                        precision = 17;
-                    }
-                    break;
-            }
-
-            DoubleToNumber(value, precision, ref number);
-
-            if (number.Scale == ScaleNAN)
-            {
-                return info.NaNSymbol;
-            }
-            else if (number.Scale == ScaleINF)
-            {
                 return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
             }
+            else if ((value != 0.0) && !Grisu3.Run(value, digits, ref number))
+            {
+                Dragon4(value, digits, ref number);
+            }
+            number.CheckConsistency();
+
+            Debug.Assert(BitConverter.DoubleToInt64Bits(value) == BitConverter.DoubleToInt64Bits(NumberToDouble(ref number)));
 
             if (fmt != 0)
             {
@@ -463,7 +414,6 @@ namespace System
             {
                 NumberToStringFormat(ref sb, ref number, format, info);
             }
-
             return null;
         }
 
@@ -492,73 +442,27 @@ namespace System
         private static unsafe string FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
-            int precision = SinglePrecision;
-
             byte* pDigits = stackalloc byte[SingleNumberBufferLength];
+
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, SingleNumberBufferLength);
+            number.IsNegative = float.IsNegative(value);
 
-            switch (fmt)
+            if (!float.IsFinite(value))
             {
-                case 'R':
-                case 'r':
+                if (float.IsNaN(value))
                 {
-                    // In order to give numbers that are both friendly to display and round-trippable, we parse the
-                    // number using 7 digits and then determine if it round trips to the same value. If it does, we
-                    // convert that NUMBER to a string, otherwise we reparse using 9 digits and display that.
-                    DoubleToNumber(value, SinglePrecision, ref number);
-
-                    if (number.Scale == ScaleNAN)
-                    {
-                        return info.NaNSymbol;
-                    }
-                    else if (number.Scale == ScaleINF)
-                    {
-                        return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
-                    }
-
-                    float roundTrip = NumberToSingle(ref number);
-
-                    if (roundTrip == value)
-                    {
-                        NumberToString(ref sb, ref number, 'G', SinglePrecision, info);
-                    }
-                    else
-                    {
-                        DoubleToNumber(value, 9, ref number);
-                        NumberToString(ref sb, ref number, 'G', 9, info);
-                    }
-                    return null;
+                    return info.NaNSymbol;
                 }
 
-                case 'E':
-                case 'e':
-                    // Round values less than E14 to 15 digits.
-                    if (digits > 6)
-                    {
-                        precision = 9;
-                    }
-                    break;
-
-                case 'G':
-                case 'g':
-                    // Round values less than G15 to 15 digits. G16 and G17 will not be touched.
-                    if (digits > 7)
-                    {
-                        precision = 9;
-                    }
-                    break;
-            }
-
-            DoubleToNumber(value, precision, ref number);
-
-            if (number.Scale == ScaleNAN)
-            {
-                return info.NaNSymbol;
-            }
-            else if (number.Scale == ScaleINF)
-            {
                 return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
             }
+            else if ((value != 0.0f) && !Grisu3.Run(value, digits, ref number))
+            {
+                Dragon4(value, digits, ref number);
+            }
+            number.CheckConsistency();
+
+            Debug.Assert(BitConverter.SingleToInt32Bits(value) == BitConverter.SingleToInt32Bits(NumberToSingle(ref number)));
 
             if (fmt != 0)
             {
@@ -1618,6 +1522,14 @@ namespace System
                     break;
                 }
 
+                case 'R':
+                case 'r':
+                {
+                    format = (char)(format - ('R' - 'G'));
+                    Debug.Assert((format == 'G') || (format == 'g'));
+                    goto case 'G';
+                }
+
                 default:
                     throw new FormatException(SR.Argument_BadFormatSpecifier);
             }
@@ -2346,33 +2258,6 @@ namespace System
             uint rem = (uint)(value % 1000000000);
             value /= 1000000000;
             return rem;
-        }
-
-        private static unsafe void DoubleToNumber(double value, int precision, ref NumberBuffer number)
-        {
-            if (!double.IsFinite(value))
-            {
-                number.Scale = double.IsNaN(value) ? ScaleNAN : ScaleINF;
-                number.IsNegative = double.IsNegative(value);
-                number.Digits[0] = (byte)('\0');
-            }
-            else if (value == 0.0)
-            {
-                number.Scale = 0;
-                number.IsNegative = double.IsNegative(value);
-                number.Digits[0] = (byte)('\0');
-            }
-            else
-            {
-                number.DigitsCount = precision;
-
-                if (!Grisu3.Run(value, precision, ref number))
-                {
-                    Dragon4(value, precision, ref number);
-                }
-            }
-
-            number.CheckConsistency();
         }
 
         private static long ExtractFractionAndBiasedExponent(double value, out int exponent)
