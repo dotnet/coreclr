@@ -384,3 +384,12 @@ public struct OverlappingLongFloat2
     [FieldOffset(0)]
     public long l;
 }
+
+[StructLayout(LayoutKind.Explicit)]
+public struct OverlappingMultipleEightbyte
+{
+    [FieldOffset(8)]
+    public float f;
+    [FieldOffset(0), MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+    public int[] arr;
+}

@@ -1178,6 +1178,18 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByRefOutL
 	return TRUE;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByValOverlappingLongFloat(OverlappingLongFloat str, LONG64 expected)
+{
+    return str.a == expected;
+}
+
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte(OverlappingMultipleEightbyte str, int i1, int i2, int i3)
+{
+    return str.arr[0] == i1 && str.arr[1] == i2 && str.arr[2] == i3;
+}
+
+////////////////////////////////////////////////////////////////////////////////////
 extern "C" DLL_EXPORT HFA STDMETHODCALLTYPE GetHFA(float f1, float f2, float f3, float f4)
 {
     return {f1, f2, f3, f4};

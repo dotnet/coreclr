@@ -16,7 +16,8 @@ public class Managed
         ShortStructPack4ExplicitId,
         IntStructPack8ExplicitId,
         LongStructPack16ExplicitId,
-        OverlappingLongFloatId
+        OverlappingLongFloatId,
+        OverlappingMultipleEightbyteId
     }
 
     [SecuritySafeCritical]
@@ -214,6 +215,9 @@ public class Managed
     static extern bool MarshalStructAsParam_AsExpByValOverlappingLongFloat(OverlappingLongFloat str, long expected);
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsExpByValOverlappingLongFloat(OverlappingLongFloat2 str, long expected);
+    
+    [DllImport("MarshalStructAsParam")]
+    static extern bool  MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte(OverlappingMultipleEightbyte str, int i1, int i2, int i3);
 
     #region Marshal Explicit struct method
     [SecuritySafeCritical]
@@ -379,6 +383,23 @@ public class Managed
                     if (!MarshalStructAsParam_AsExpByValOverlappingLongFloat(overlappingLongFloat2, overlappingLongFloat.l))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsExpByValOverlappingLongFloat. Expected:True;Actual:False");
+                        failures++;
+                    }
+                    break;
+                case StructID.OverlappingMultipleEightbyteId:
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte...");
+                    OverlappingMultipleEightbyte overlappingMultipleEightbyte = new OverlappingMultipleEightbyte
+                    {
+                        arr = new int[3] { 1, 400, 623289},
+                        f = 1234f
+                    };
+                    if (!MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte(
+                            overlappingMultipleEightbyte,
+                            overlappingMultipleEightbyte.arr[0],
+                            overlappingMultipleEightbyte.arr[1],
+                            overlappingMultipleEightbyte.arr[2]))
+                    {
+                        Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte. Expected True;Actual:False");
                         failures++;
                     }
                     break;
@@ -1495,6 +1516,7 @@ public class Managed
         MarshalStructAsParam_AsExpByVal(StructID.IntStructPack8ExplicitId);
         MarshalStructAsParam_AsExpByVal(StructID.LongStructPack16ExplicitId);
         MarshalStructAsParam_AsExpByVal(StructID.OverlappingLongFloatId);
+        MarshalStructAsParam_AsExpByVal(StructID.OverlappingMultipleEightbyteId);
     }
 
     [SecuritySafeCritical]

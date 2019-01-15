@@ -901,3 +901,13 @@ union OverlappingLongFloat
         float f;
     };
 };
+
+union OverlappingMultipleEightbyte
+{
+    int arr[3];
+    struct
+    {
+        char padding[8];
+        float f;
+    };
+};
