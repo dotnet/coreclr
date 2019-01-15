@@ -891,3 +891,13 @@ struct AggregateSequentialWrapper
     InnerSequential sequential;
     SequentialWrapper wrapper2;
 };
+
+union OverlappingLongFloat
+{
+    LONG64 a;
+    struct
+    {
+        char unused[4];
+        float f;
+    };
+};

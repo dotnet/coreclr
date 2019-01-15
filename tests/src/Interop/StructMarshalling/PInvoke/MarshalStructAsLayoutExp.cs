@@ -15,7 +15,8 @@ public class Managed
         ByteStructPack2ExplicitId,
         ShortStructPack4ExplicitId,
         IntStructPack8ExplicitId,
-        LongStructPack16ExplicitId
+        LongStructPack16ExplicitId,
+        OverlappingLongFloatId
     }
 
     [SecuritySafeCritical]
@@ -34,7 +35,7 @@ public class Managed
         if (failures > 0)
         {
             Console.WriteLine("\nTEST FAILED!");
-            return 101;
+            return 100 + failures;
         }
         else
         {
@@ -209,6 +210,11 @@ public class Managed
     [DllImport("MarshalStructAsParam")]
     static extern LongStructPack16Explicit GetLongStruct(long l1, long l2);
 
+    [DllImport("MarshalStructAsParam")]
+    static extern bool MarshalStructAsParam_AsExpByValOverlappingLongFloat(OverlappingLongFloat str, long expected);
+    [DllImport("MarshalStructAsParam")]
+    static extern bool MarshalStructAsParam_AsExpByValOverlappingLongFloat(OverlappingLongFloat2 str, long expected);
+
     #region Marshal Explicit struct method
     [SecuritySafeCritical]
     private static void MarshalStructAsParam_AsExpByVal(StructID id)
@@ -351,7 +357,31 @@ public class Managed
                     {
                         failures++;
                     }
-                    break;    
+                    break;
+                case StructID.OverlappingLongFloatId:
+                    OverlappingLongFloat overlappingLongFloat = new OverlappingLongFloat
+                    {
+                        l = 12345,
+                        f = 12.45f
+                    };
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsExpByValOverlappingLongFloat...");
+                    if (!MarshalStructAsParam_AsExpByValOverlappingLongFloat(overlappingLongFloat, overlappingLongFloat.l))
+                    {
+                        Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsExpByValOverlappingLongFloat. Expected:True;Actual:False");
+                        failures++;
+                    }
+                    OverlappingLongFloat2 overlappingLongFloat2 = new OverlappingLongFloat2
+                    {
+                        l = 12345,
+                        f = 12.45f
+                    };
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsExpByValOverlappingLongFloat (Reversed field order)...");
+                    if (!MarshalStructAsParam_AsExpByValOverlappingLongFloat(overlappingLongFloat2, overlappingLongFloat.l))
+                    {
+                        Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsExpByValOverlappingLongFloat. Expected:True;Actual:False");
+                        failures++;
+                    }
+                    break;
                 default:
                     Console.WriteLine("\tThere is not the struct id");
                     failures++;
@@ -1464,6 +1494,7 @@ public class Managed
         MarshalStructAsParam_AsExpByVal(StructID.ShortStructPack4ExplicitId);
         MarshalStructAsParam_AsExpByVal(StructID.IntStructPack8ExplicitId);
         MarshalStructAsParam_AsExpByVal(StructID.LongStructPack16ExplicitId);
+        MarshalStructAsParam_AsExpByVal(StructID.OverlappingLongFloatId);
     }
 
     [SecuritySafeCritical]

@@ -364,3 +364,23 @@ public struct MultipleBool
     public bool b1;
     public bool b2;
 }
+
+[StructLayout(LayoutKind.Explicit)]
+public struct OverlappingLongFloat
+{
+    [FieldOffset(0)]
+    public long l;
+
+    [FieldOffset(4)]
+    public float f;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct OverlappingLongFloat2
+{
+
+    [FieldOffset(4)]
+    public float f;
+    [FieldOffset(0)]
+    public long l;
+}
