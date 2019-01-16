@@ -2664,10 +2664,17 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             {
                 MethodTable* pFieldMT = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementMethodTable();
 
-                bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
-                helperPtr->inEmbeddedStruct = true;
-                bool structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
-                helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
+                unsigned int numElements = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetNumElements();
+
+                bool structRet = true;
+
+                for (unsigned int i = 0; i < numElements; i++, normalizedFieldOffset += pFieldMT->GetNativeSize())
+                {
+                    bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
+                    helperPtr->inEmbeddedStruct = true;
+                    structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
+                    helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
+                }
 
                 if (!structRet)
                 {
