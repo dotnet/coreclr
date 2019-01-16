@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -26,17 +25,34 @@ namespace System
         #region Private Static Methods
         internal static IEnumCache GetCache(Type enumType)
         {
-            if (enumType == null)
+            if (!(enumType is RuntimeType rtType))
             {
-                throw new ArgumentNullException(nameof(enumType));
+                throw GetCacheException(enumType);
             }
 
-            if (!enumType.IsEnum)
+            if (!rtType.IsEnum)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             }
 
-            return GetCache(enumType as RuntimeType ?? throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType)));
+            return GetCache(rtType);
+        }
+
+        private static ArgumentException GetCacheException(Type enumType)
+        {
+            Debug.Assert(!(enumType is RuntimeType));
+
+            if (enumType == null)
+            {
+                return new ArgumentNullException(nameof(enumType));
+            }
+
+            if (!enumType.IsEnum)
+            {
+                return new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
+            }
+
+            return new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -290,19 +306,19 @@ namespace System
                 get => default;
             }
 
-            private static EnumMembers<TUnderlying, TUnderlyingOperations> _members;
+            private static EnumMembers<TUnderlying, TUnderlyingOperations> s_members;
 
             // Lazy caching of members
-            public static EnumMembers<TUnderlying, TUnderlyingOperations> Members
+            private static EnumMembers<TUnderlying, TUnderlyingOperations> Members
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => _members ?? InitializeMembers();
+                get => s_members ?? InitializeMembers();
             }
 
             private static EnumMembers<TUnderlying, TUnderlyingOperations> InitializeMembers()
             {
                 EnumMembers<TUnderlying, TUnderlyingOperations> members = new EnumMembers<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
-                return Interlocked.CompareExchange(ref _members, members, null) ?? members;
+                return Interlocked.CompareExchange(ref s_members, members, null) ?? members;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -367,12 +383,12 @@ namespace System
 
             public Array GetValues()
             {
-                EnumMembers<TUnderlying, TUnderlyingOperations> members = Members;
-                TEnum[] array = new TEnum[members.Count];
+                TUnderlying[] values = Members._values;
+                TEnum[] array = new TEnum[values.Length];
                 int i = 0;
-                foreach (EnumMembers<TUnderlying, TUnderlyingOperations>.EnumMemberInternal member in members)
+                foreach (TUnderlying value in values)
                 {
-                    array[i++] = ToEnum(member.Value);
+                    array[i++] = ToEnum(value);
                 }
                 return array;
             }
@@ -442,25 +458,14 @@ namespace System
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
-            public readonly struct EnumMemberInternal
-            {
-                public readonly string Name;
-                public readonly TUnderlying Value;
-
-                public EnumMemberInternal(string name, TUnderlying value)
-                {
-                    Value = value;
-                    Name = name;
-                }
-            }
-            
             private readonly Type _enumType;
             private readonly bool _isFlagEnum;
             private readonly string[] _names;
-            private readonly TUnderlying[] _values;
+            internal readonly TUnderlying[] _values;
+            private readonly TUnderlying _min;
+            private readonly TUnderlying _max;
+            private readonly bool _isContiguous;
             private ReadOnlyCollection<string> _nameCollection;
-
-            public int Count => _names.Length;
 
             // Lazy initialization of name collection
             public ReadOnlyCollection<string> Names => _nameCollection ?? InitializeNames();
@@ -480,14 +485,30 @@ namespace System
 
                 string[] names = new string[fields.Length];
                 TUnderlying[] values = new TUnderlying[fields.Length];
-                IComparer<TUnderlying> comparer = default(TUnderlyingOperations).UnsignedComparer;
+                TUnderlyingOperations operations = default;
+                IComparer<TUnderlying> unsignedComparer = operations.UnsignedComparer;
+                TUnderlying max = default;
+                TUnderlying min = default;
                 for (int i = 0; i < fields.Length; ++i)
                 {
                     TUnderlying value = (TUnderlying)fields[i].GetRawConstantValue();
-                    int index = ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, i, value, comparer);
+                    if (i == 0)
+                    {
+                        max = value;
+                        min = value;
+                    }
+                    int index = ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, i, value, unsignedComparer);
                     if (index < 0)
                     {
                         index = ~index;
+                        if (operations.LessThan(value, min))
+                        {
+                            min = value;
+                        }
+                        else if (operations.LessThan(max, value))
+                        {
+                            max = value;
+                        }
                     }
                     else
                     {
@@ -506,6 +527,9 @@ namespace System
                 }
                 _names = names;
                 _values = values;
+                _max = max;
+                _min = min;
+                _isContiguous = values.Length > 0 && operations.Subtract(max, operations.ToObject((ulong)values.Length - 1)).Equals(min);
             }
 
             public string GetName(TUnderlying value) => TryGetName(value, out string name) ? name : null;
@@ -523,7 +547,11 @@ namespace System
                 return operations.IsInValueRange(uint64Value) ? GetName(operations.ToObject(uint64Value)) : null;
             }
 
-            public bool IsDefined(TUnderlying value) => IndexOf(_values, value) >= 0;
+            public bool IsDefined(TUnderlying value)
+            {
+                TUnderlyingOperations operations = default;
+                return _isContiguous ? !(operations.LessThan(value, _min) || operations.LessThan(_max, value)) : IndexOf(_values, value) >= 0;
+            }
 
             public bool IsDefined(object value)
             {
@@ -822,37 +850,6 @@ namespace System
                 name = default;
                 return false;
             }
-
-            public Enumerator GetEnumerator() => new Enumerator(this);
-
-            public struct Enumerator
-            {
-                private readonly EnumMembers<TUnderlying, TUnderlyingOperations> _members;
-                private int _index;
-                private EnumMemberInternal _current;
-
-                public EnumMemberInternal Current => _current;
-
-                internal Enumerator(EnumMembers<TUnderlying, TUnderlyingOperations> members)
-                {
-                    Debug.Assert(members != null);
-
-                    _members = members;
-                    _index = 0;
-                    _current = default;
-                }
-
-                public bool MoveNext()
-                {
-                    if (_index < _members.Count)
-                    {
-                        _current = new EnumMemberInternal(_members._names[_index], _members._values[_index++]);
-                        return true;
-                    }
-                    _current = default;
-                    return false;
-                }
-            }
         }
         #endregion
 
@@ -866,6 +863,7 @@ namespace System
             TUnderlying And(TUnderlying left, TUnderlying right);
             int CompareTo(TUnderlying left, TUnderlying right);
             bool IsInValueRange(ulong value);
+            bool LessThan(TUnderlying left, TUnderlying right);
             TUnderlying Or(TUnderlying left, TUnderlying right);
             TUnderlying Subtract(TUnderlying left, TUnderlying right);
             bool ToBoolean(TUnderlying value);
@@ -1127,6 +1125,50 @@ namespace System
                 return true;
 #else
                 return value <= uint.MaxValue;
+#endif
+            }
+            #endregion
+
+            #region LessThan
+            public bool LessThan(byte left, byte right) => left < right;
+
+            public bool LessThan(sbyte left, sbyte right) => left < right;
+
+            public bool LessThan(short left, short right) => left < right;
+
+            public bool LessThan(ushort left, ushort right) => left < right;
+
+            public bool LessThan(int left, int right) => left < right;
+
+            public bool LessThan(uint left, uint right) => left < right;
+
+            public bool LessThan(long left, long right) => left < right;
+
+            public bool LessThan(ulong left, ulong right) => left < right;
+
+            public bool LessThan(bool left, bool right) => (!left) & right;
+
+            public bool LessThan(char left, char right) => left < right;
+
+            public bool LessThan(float left, float right) => BitConverter.SingleToInt32Bits(left) < BitConverter.SingleToInt32Bits(right);
+
+            public bool LessThan(double left, double right) => BitConverter.DoubleToInt64Bits(left) < BitConverter.DoubleToInt64Bits(right);
+
+            public bool LessThan(IntPtr left, IntPtr right)
+            {
+#if BIT64
+                return (long)left < (long)right;
+#else
+                return (int)left < (int)right;
+#endif
+            }
+
+            public bool LessThan(UIntPtr left, UIntPtr right)
+            {
+#if BIT64
+                return (ulong)left < (ulong)right;
+#else
+                return (uint)left < (uint)right;
 #endif
             }
             #endregion
