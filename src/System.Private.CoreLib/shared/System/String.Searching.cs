@@ -13,7 +13,7 @@ namespace System
         public bool Contains(string value)
         {
             if (value == null)
-                throw new ArgumentNullException(nameof(value));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
 
             return SpanHelpers.IndexOf(
                 ref _firstChar,
