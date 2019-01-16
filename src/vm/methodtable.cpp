@@ -3043,35 +3043,35 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
 
             for (unsigned int currentFieldEightByte = fieldStartEightByte; currentFieldEightByte <= fieldEndEightByte; currentFieldEightByte++)
             {
-                if (helperPtr->eightByteClassifications[fieldStartEightByte] == fieldClassificationType)
+                if (helperPtr->eightByteClassifications[currentFieldEightByte] == fieldClassificationType)
                 {
                     // Do nothing. The eight-byte already has this classification.
                 }
-                else if (helperPtr->eightByteClassifications[fieldStartEightByte] == SystemVClassificationTypeNoClass)
+                else if (helperPtr->eightByteClassifications[currentFieldEightByte] == SystemVClassificationTypeNoClass)
                 {
-                    helperPtr->eightByteClassifications[fieldStartEightByte] = fieldClassificationType;
+                    helperPtr->eightByteClassifications[currentFieldEightByte] = fieldClassificationType;
                 }
-                else if ((helperPtr->eightByteClassifications[fieldStartEightByte] == SystemVClassificationTypeInteger) ||
+                else if ((helperPtr->eightByteClassifications[currentFieldEightByte] == SystemVClassificationTypeInteger) ||
                     (fieldClassificationType == SystemVClassificationTypeInteger))
                 {
                     _ASSERTE((fieldClassificationType != SystemVClassificationTypeIntegerReference) && 
                         (fieldClassificationType != SystemVClassificationTypeIntegerByRef));
 
-                    helperPtr->eightByteClassifications[fieldStartEightByte] = SystemVClassificationTypeInteger;
+                    helperPtr->eightByteClassifications[currentFieldEightByte] = SystemVClassificationTypeInteger;
                 }
-                else if ((helperPtr->eightByteClassifications[fieldStartEightByte] == SystemVClassificationTypeIntegerReference) ||
+                else if ((helperPtr->eightByteClassifications[currentFieldEightByte] == SystemVClassificationTypeIntegerReference) ||
                     (fieldClassificationType == SystemVClassificationTypeIntegerReference))
                 {
-                    helperPtr->eightByteClassifications[fieldStartEightByte] = SystemVClassificationTypeIntegerReference;
+                    helperPtr->eightByteClassifications[currentFieldEightByte] = SystemVClassificationTypeIntegerReference;
                 }
-                else if ((helperPtr->eightByteClassifications[fieldStartEightByte] == SystemVClassificationTypeIntegerByRef) ||
+                else if ((helperPtr->eightByteClassifications[currentFieldEightByte] == SystemVClassificationTypeIntegerByRef) ||
                     (fieldClassificationType == SystemVClassificationTypeIntegerByRef))
                 {
-                    helperPtr->eightByteClassifications[fieldStartEightByte] = SystemVClassificationTypeIntegerByRef;
+                    helperPtr->eightByteClassifications[currentFieldEightByte] = SystemVClassificationTypeIntegerByRef;
                 }
                 else
                 {
-                    helperPtr->eightByteClassifications[fieldStartEightByte] = SystemVClassificationTypeSSE;
+                    helperPtr->eightByteClassifications[currentFieldEightByte] = SystemVClassificationTypeSSE;
                 }
             }
 
@@ -3093,13 +3093,12 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
 
         _ASSERTE(helperPtr->eightByteCount <= CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
 
-        _ASSERTE(helperPtr->eightByteClassifications[0] != SystemVClassificationTypeNoClass);
-
 #ifdef _DEBUG
         LOG((LF_JIT, LL_EVERYTHING, "     ----\n"));
         LOG((LF_JIT, LL_EVERYTHING, "     **** Number EightBytes: %d\n", helperPtr->eightByteCount));
         for (unsigned i = 0; i < helperPtr->eightByteCount; i++)
         {
+            _ASSERTE(helperPtr->eightByteClassifications[i] != SystemVClassificationTypeNoClass);
             LOG((LF_JIT, LL_EVERYTHING, "     **** eightByte %d -- classType: %s, eightByteOffset: %d, eightByteSize: %d\n",
                 i, GetSystemVClassificationTypeName(helperPtr->eightByteClassifications[i]), helperPtr->eightByteOffsets[i], helperPtr->eightByteSizes[i]));
         }
