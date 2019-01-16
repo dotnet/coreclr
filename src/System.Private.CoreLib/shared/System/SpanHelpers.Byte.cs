@@ -5,6 +5,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Numerics;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
@@ -196,7 +197,7 @@ namespace System
             Debug.Assert(length >= 0);
 
             uint uValue = value; // Use uint for comparisons to avoid unnecessary 8->32 extensions
-            IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)length;
 
             if (Vector.IsHardwareAccelerated && length >= Vector<byte>.Count * 2)
@@ -209,94 +210,94 @@ namespace System
             {
                 nLength -= 8;
 
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset))
                     goto Found;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 1))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 1))
                     goto Found1;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 2))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 2))
                     goto Found2;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 3))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 3))
                     goto Found3;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 4))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 4))
                     goto Found4;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 5))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 5))
                     goto Found5;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 6))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 6))
                     goto Found6;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 7))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 7))
                     goto Found7;
 
-                index += 8;
+                offset += 8;
             }
 
             if ((byte*)nLength >= (byte*)4)
             {
                 nLength -= 4;
 
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset))
                     goto Found;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 1))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 1))
                     goto Found1;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 2))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 2))
                     goto Found2;
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index + 3))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset + 3))
                     goto Found3;
 
-                index += 4;
+                offset += 4;
             }
 
             while ((byte*)nLength > (byte*)0)
             {
                 nLength -= 1;
 
-                if (uValue == Unsafe.AddByteOffset(ref searchSpace, index))
+                if (uValue == Unsafe.AddByteOffset(ref searchSpace, offset))
                     goto Found;
 
-                index += 1;
+                offset += 1;
             }
 
-            if (Vector.IsHardwareAccelerated && ((int)(byte*)index < length))
+            if (Vector.IsHardwareAccelerated && ((int)(byte*)offset < length))
             {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector<byte>.Count - 1));
+                nLength = (IntPtr)((length - (int)(byte*)offset) & ~(Vector<byte>.Count - 1));
 
                 // Get comparison Vector
                 Vector<byte> vComparison = new Vector<byte>(value);
 
-                while ((byte*)nLength > (byte*)index)
+                while ((byte*)nLength > (byte*)offset)
                 {
-                    var vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index)));
+                    var vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, offset)));
                     if (Vector<byte>.Zero.Equals(vMatches))
                     {
-                        index += Vector<byte>.Count;
+                        offset += Vector<byte>.Count;
                         continue;
                     }
                     // Find offset of first match
-                    return (int)(byte*)index + LocateFirstFoundByte(vMatches);
+                    return (int)(byte*)offset + LocateFirstFoundByte(vMatches);
                 }
 
-                if ((int)(byte*)index < length)
+                if ((int)(byte*)offset < length)
                 {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
+                    nLength = (IntPtr)(length - (int)(byte*)offset);
                     goto SequentialScan;
                 }
             }
             return -1;
         Found: // Workaround for https://github.com/dotnet/coreclr/issues/13549
-            return (int)(byte*)index;
+            return (int)(byte*)offset;
         Found1:
-            return (int)(byte*)(index + 1);
+            return (int)(byte*)(offset + 1);
         Found2:
-            return (int)(byte*)(index + 2);
+            return (int)(byte*)(offset + 2);
         Found3:
-            return (int)(byte*)(index + 3);
+            return (int)(byte*)(offset + 3);
         Found4:
-            return (int)(byte*)(index + 4);
+            return (int)(byte*)(offset + 4);
         Found5:
-            return (int)(byte*)(index + 5);
+            return (int)(byte*)(offset + 5);
         Found6:
-            return (int)(byte*)(index + 6);
+            return (int)(byte*)(offset + 6);
         Found7:
-            return (int)(byte*)(index + 7);
+            return (int)(byte*)(offset + 7);
         }
 
         public static int LastIndexOf(ref byte searchSpace, int searchSpaceLength, ref byte value, int valueLength)
@@ -959,54 +960,245 @@ namespace System
         public static unsafe bool SequenceEqual(ref byte first, ref byte second, nuint length)
         {
             if (Unsafe.AreSame(ref first, ref second))
+            {
                 goto Equal;
+            }
 
-            IntPtr i = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
-            IntPtr n = (IntPtr)(void*)length;
-
-            if (Vector.IsHardwareAccelerated && (byte*)n >= (byte*)Vector<byte>.Count)
+            IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            IntPtr nLength = (IntPtr)(void*)length;
+            // Use Avx2.IsSupported check to remove this branch at Jit time if the CPU does not support it.
+            if (Avx2.IsSupported)
             {
-                n -= Vector<byte>.Count;
-                while ((byte*)n > (byte*)i)
+                if ((byte*)nLength >= (byte*)Vector256<byte>.Count)
                 {
-                    if (Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref first, i)) !=
-                        Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref second, i)))
+                    nLength -= Vector256<byte>.Count;
+                Avx2Vector256:
+                    do
+                    {
+                        Vector256<byte> left = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref first, offset));
+                        Vector256<byte> right = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref second, offset));
+
+                        offset += Vector256<byte>.Count;
+
+                        if (Avx2.MoveMask(Avx2.CompareEqual(left, right)) != -1)
+                        {
+                            goto NotEqual;
+                        }
+                    } while ((byte*)nLength > (byte*)offset);
+
+                    if ((byte*)nLength <= (byte*)offset)
+                    {
+                        goto Equal;
+                    }
+                    else
+                    {
+                        offset = nLength;
+                        goto Avx2Vector256;
+                    }
+                }
+
+                if ((byte*)nLength >= (byte*)Vector128<byte>.Count)
+                {
+                    nLength -= Vector128<byte>.Count;
+                Avx2Vector128:
+                    do
+                    {
+                        Vector128<byte> left = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref first, offset));
+                        Vector128<byte> right = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref second, offset));
+
+                        offset += Vector128<byte>.Count;
+
+                        if (Sse2.MoveMask(Sse2.CompareEqual(left, right)) != 0xFFFF)
+                        {
+                            goto NotEqual;
+                        }
+
+                    } while ((byte*)nLength > (byte*)offset);
+
+                    if ((byte*)nLength <= (byte*)offset)
+                    {
+                        goto Equal;
+                    }
+                    else
+                    {
+                        offset = nLength;
+                        goto Avx2Vector128;
+                    }
+                }
+            }
+            // Use Sse2.IsSupported check to remove this branch at Jit time if the CPU does not support it.
+            else if (!Avx2.IsSupported && Sse2.IsSupported)
+            {
+                if ((byte*)nLength >= (byte*)Vector128<byte>.Count)
+                {
+                    nLength -= Vector128<byte>.Count;
+                Sse2Vector128:
+                    do
+                    {
+                        Vector128<byte> left = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref first, offset));
+                        Vector128<byte> right = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref second, offset));
+
+                        offset += Vector128<byte>.Count;
+
+                        if (Sse2.MoveMask(Sse2.CompareEqual(left, right)) != 0xFFFF)
+                        {
+                            goto NotEqual;
+                        }
+
+                    } while ((byte*)nLength > (byte*)offset);
+
+                    if ((byte*)nLength <= (byte*)offset)
+                    {
+                        goto Equal;
+                    }
+                    else
+                    {
+                        offset = nLength;
+                        goto Sse2Vector128;
+                    }
+                }
+            }
+            // Use !Xxx.IsSupported checks to only include this branch at Jit time if the CPU does not support
+            // the intrinsics (above); and Vector.IsHardwareAccelerated for fallback to general .NET Vector acceleration.
+            if (!Avx2.IsSupported && !Sse2.IsSupported && Vector.IsHardwareAccelerated)
+            {
+                if ((byte*)nLength >= (byte*)Vector<byte>.Count)
+                {
+                    nLength -= Vector<byte>.Count;
+                Vector:
+                    do
+                    {
+                        if (Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref first, offset)) !=
+                            Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref second, offset)))
+                        {
+                            goto NotEqual;
+                        }
+
+                        offset += Vector<byte>.Count;
+
+                    } while ((byte*)nLength > (byte*)offset);
+
+                    if ((byte*)nLength <= (byte*)offset)
+                    {
+                        goto Equal;
+                    }
+                    else
+                    {
+                        offset = nLength;
+                        goto Vector;
+                    }
+                }
+            }
+#if BIT64
+            if ((byte*)nLength >= (byte*)sizeof(long))
+            {
+                nLength -= sizeof(long);
+            Long:
+                do
+                {
+                    if (Unsafe.ReadUnaligned<long>(ref Unsafe.AddByteOffset(ref first, offset)) !=
+                        Unsafe.ReadUnaligned<long>(ref Unsafe.AddByteOffset(ref second, offset)))
                     {
                         goto NotEqual;
                     }
-                    i += Vector<byte>.Count;
+                    offset += sizeof(long);
+                } while ((byte*)nLength > (byte*)offset);
+
+                if ((byte*)nLength <= (byte*)offset)
+                {
+                    goto Equal;
                 }
-                return Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref first, n)) ==
-                       Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref second, n));
+                else
+                {
+                    offset = nLength;
+                    goto Long;
+                }
             }
 
-            if ((byte*)n >= (byte*)sizeof(UIntPtr))
+            if ((byte*)nLength >= (byte*)sizeof(int))
             {
-                n -= sizeof(UIntPtr);
-                while ((byte*)n > (byte*)i)
+                nLength -= sizeof(int);
+            Int:
+                do
                 {
-                    if (Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref first, i)) !=
-                        Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref second, i)))
+                    if (Unsafe.ReadUnaligned<int>(ref Unsafe.AddByteOffset(ref first, offset)) !=
+                        Unsafe.ReadUnaligned<int>(ref Unsafe.AddByteOffset(ref second, offset)))
                     {
                         goto NotEqual;
                     }
-                    i += sizeof(UIntPtr);
+                    offset += sizeof(int);
+                } while ((byte*)nLength > (byte*)offset);
+
+                if ((byte*)nLength <= (byte*)offset)
+                {
+                    goto Equal;
                 }
-                return Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref first, n)) ==
-                       Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref second, n));
+                else
+                {
+                    offset = nLength;
+                    goto Int;
+                }
+            }
+#else
+            if ((byte*)nLength >= (byte*)sizeof(int))
+            {
+                nLength -= sizeof(int);
+            Int:
+                do
+                {
+                    if (Unsafe.ReadUnaligned<int>(ref Unsafe.AddByteOffset(ref first, offset)) !=
+                        Unsafe.ReadUnaligned<int>(ref Unsafe.AddByteOffset(ref second, offset)))
+                    {
+                        goto NotEqual;
+                    }
+                    offset += sizeof(int);
+                } while ((byte*)nLength > (byte*)offset);
+
+                if ((byte*)nLength <= (byte*)offset)
+                {
+                    goto Equal;
+                }
+                else
+                {
+                    offset = nLength;
+                    goto Int;
+                }
+            }
+#endif
+            if ((byte*)nLength >= (byte*)sizeof(int))
+            {
+                nLength -= sizeof(short);
+            Short:
+                do
+                {
+                    if (Unsafe.ReadUnaligned<short>(ref Unsafe.AddByteOffset(ref first, offset)) !=
+                        Unsafe.ReadUnaligned<short>(ref Unsafe.AddByteOffset(ref second, offset)))
+                    {
+                        goto NotEqual;
+                    }
+                    offset += sizeof(short);
+                } while ((byte*)nLength > (byte*)offset);
+
+                if ((byte*)nLength <= (byte*)offset)
+                {
+                    goto Equal;
+                }
+                else
+                {
+                    offset = nLength;
+                    goto Short;
+                }
             }
 
-            while ((byte*)n > (byte*)i)
+            if (Unsafe.AddByteOffset(ref first, offset) != 
+                Unsafe.AddByteOffset(ref second, offset))
             {
-                if (Unsafe.AddByteOffset(ref first, i) != Unsafe.AddByteOffset(ref second, i))
-                    goto NotEqual;
-                i += 1;
+                goto NotEqual;
             }
 
         Equal:
             return true;
-
-        NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
+        NotEqual:
             return false;
         }
 
