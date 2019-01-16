@@ -778,6 +778,12 @@ def setup_coredump_generation(host_os):
         print("CoreDump generation not enabled due to unsupported OS: %s" % host_os)
         return
 
+    if isinstance(coredump_pattern, bytes):
+        print("Binary data found. Decoding.")
+        coredump_pattern = coredump_pattern.decode('ascii')
+        
+    print("CoreDump Pattern: {}".format(coredump_pattern))
+
     # resource is only available on Unix platforms
     import resource
 
@@ -1181,15 +1187,23 @@ def setup_args(args):
                               "Error setting build_xunit_test_wrappers")
 
     coreclr_setup_args.verify(args,
-                              "generate_layout",
-                              lambda arg: True,
-                              "Error setting generate_layout",
-                              modify_arg=lambda arg: True)
-
-    coreclr_setup_args.verify(args,
                               "generate_layout_only",
                               lambda arg: True,
                               "Error setting generate_layout_only")
+
+    if coreclr_setup_args.generate_layout_only:
+        # Force generate_layout
+        coreclr_setup_args.verify(args,
+                                "generate_layout",
+                                lambda arg: True,
+                                "Error setting generate_layout",
+                                modify_arg=lambda arg: True)
+    
+    else:
+        coreclr_setup_args.verify(args,
+                                "generate_layout",
+                                lambda arg: True,
+                                "Error setting generate_layout")
 
     coreclr_setup_args.verify(args,
                               "test_env",
