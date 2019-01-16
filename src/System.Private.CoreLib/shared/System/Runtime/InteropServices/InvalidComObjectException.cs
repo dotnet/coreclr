@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 
 namespace System.Runtime.InteropServices
@@ -13,7 +12,7 @@ namespace System.Runtime.InteropServices
     /// class factory.
     /// </summary>
     [Serializable]
-    [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class InvalidComObjectException : SystemException
     {
         public InvalidComObjectException()
@@ -34,7 +33,8 @@ namespace System.Runtime.InteropServices
             HResult = HResults.COR_E_INVALIDCOMOBJECT;
         }
 
-        protected InvalidComObjectException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected InvalidComObjectException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
         {
         }
     }
