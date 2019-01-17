@@ -11,19 +11,12 @@ namespace System.Runtime.CompilerServices
 {
     public static partial class ContractHelper
     {
-        #region Private fields
-
-        internal const int COR_E_CODECONTRACTFAILED = unchecked((int)0x80131542);
-
-        #endregion
-
         /// <summary>
         /// Allows a managed application environment such as an interactive interpreter (IronPython) or a
         /// web browser host (Jolt hosting Silverlight in IE) to be notified of contract failures and 
         /// potentially "handle" them, either by throwing a particular exception type, etc.  If any of the
         /// event handlers sets the Cancel flag in the ContractFailedEventArgs, then the Contract class will
-        /// not pop up an assert dialog box or trigger escalation policy.  Hooking this event requires 
-        /// full trust.
+        /// not pop up an assert dialog box or trigger escalation policy.
         /// </summary>
         internal static event EventHandler<ContractFailedEventArgs> InternalContractFailed;
 

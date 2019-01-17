@@ -645,7 +645,7 @@ namespace System.Diagnostics.Contracts
         /// This method is used internally to trigger a failure indicating to the "programmer" that he is using the interface incorrectly.
         /// It is NEVER used to indicate failure of actual contracts at runtime.
         /// </summary>
-        static void AssertMustUseRewriter(ContractFailureKind kind, string contractKind)
+        private static void AssertMustUseRewriter(ContractFailureKind kind, string contractKind)
         {
             // For better diagnostics, report which assembly is at fault.  Walk up stack and
             // find the first non-mscorlib assembly.
@@ -679,7 +679,7 @@ namespace System.Diagnostics.Contracts
         /// System.Runtime.CompilerServices.ContractHelper.TriggerFailure.
         /// </summary>
         [System.Diagnostics.DebuggerNonUserCode]
-        static void ReportFailure(ContractFailureKind failureKind, string userMessage, string conditionText, Exception innerException)
+        private static void ReportFailure(ContractFailureKind failureKind, string userMessage, string conditionText, Exception innerException)
         {
             if (failureKind < ContractFailureKind.Precondition || failureKind > ContractFailureKind.Assume)
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, failureKind), nameof(failureKind));
@@ -713,7 +713,8 @@ namespace System.Diagnostics.Contracts
                 System.Runtime.CompilerServices.ContractHelper.InternalContractFailed -= value;
             }
         }
-        #endregion FailureBehavior
+
+        #endregion Failure Behavior
     }
 
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
