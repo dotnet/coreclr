@@ -386,6 +386,12 @@ namespace System
             char fmt = ParseFormatSpecifier(format, out int digits);
             byte* pDigits = stackalloc byte[DoubleNumberBufferLength];
 
+            if ((fmt == 'R') || (fmt == 'r'))
+            {
+                // The 'R' format always ignores the precision specifier.
+                digits = -1;
+            }
+
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
             number.IsNegative = double.IsNegative(value);
 
@@ -443,6 +449,12 @@ namespace System
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
             byte* pDigits = stackalloc byte[SingleNumberBufferLength];
+
+            if ((fmt == 'R') || (fmt == 'r'))
+            {
+                // The 'R' format always ignores the precision specifier.
+                digits = -1;
+            }
 
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, SingleNumberBufferLength);
             number.IsNegative = float.IsNegative(value);
