@@ -74,7 +74,6 @@ class MethodTable;
 class AppDomain;
 class DynamicMethodTable;
 class CodeVersionManager;
-class CallCounter;
 class TieredCompilationManager;
 #ifdef FEATURE_PREJIT
 class CerNgenRootTable;
@@ -1796,9 +1795,6 @@ protected:
 #ifdef FEATURE_CODE_VERSIONING
     CodeVersionManager * GetCodeVersionManager();
 #endif
-#ifdef FEATURE_TIERED_COMPILATION
-    CallCounter * GetCallCounter();
-#endif
 
     mdFile GetModuleRef()
     {
@@ -2743,6 +2739,7 @@ public:
     BYTE *GetNativeFixupBlobData(RVA fixup);
 
     IMDInternalImport *GetNativeAssemblyImport(BOOL loadAllowed = TRUE);
+    IMDInternalImport *GetNativeAssemblyImportIfLoaded();
 
     BOOL FixupNativeEntry(CORCOMPILE_IMPORT_SECTION * pSection, SIZE_T fixupIndex, SIZE_T *fixup);
 
