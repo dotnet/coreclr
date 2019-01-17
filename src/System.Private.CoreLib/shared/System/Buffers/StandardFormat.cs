@@ -180,7 +180,6 @@ namespace System.Buffers
                     // to force a larger invalid value in, in which case we don't need to
                     // guarantee such an invalid value is properly roundtripped through here;
                     // we just need to make sure things aren't corrupted further.
-                    Debug.Assert(precision <= MaxPrecision);
 
                     if (precision >= 10)
                     {
