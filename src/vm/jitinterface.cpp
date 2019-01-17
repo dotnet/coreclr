@@ -686,7 +686,7 @@ bool IsInSameVersionBubble(Assembly * current, Assembly * target)
     if (current == target)
         return true;
 
-    return false;
+    return IsLargeVersionBubbleEnabled();
 }
 
 // Returns true if the assemblies defining current and target are in the same version bubble
@@ -5990,7 +5990,7 @@ bool __stdcall TrackAllocationsEnabled()
 }
 
 /***********************************************************************/
-CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle)
+CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects)
 {
     CONTRACTL {
         SO_TOLERANT;
@@ -6016,7 +6016,7 @@ CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, C
     }
 
     MethodTable* pMT = VMClsHnd.AsMethodTable();
-    result = getNewHelperStatic(pMT);
+    result = getNewHelperStatic(pMT, pHasSideEffects);
 
     _ASSERTE(result != CORINFO_HELP_UNDEF);
         
@@ -6026,23 +6026,43 @@ CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, C
 }
 
 /***********************************************************************/
-CorInfoHelpFunc CEEInfo::getNewHelperStatic(MethodTable * pMT)
+CorInfoHelpFunc CEEInfo::getNewHelperStatic(MethodTable * pMT, bool * pHasSideEffects)
 {
     STANDARD_VM_CONTRACT;
 
 
     // Slow helper is the default
     CorInfoHelpFunc helper = CORINFO_HELP_NEWFAST;
+    BOOL hasFinalizer = pMT->HasFinalizer();
+    BOOL isComObjectType = pMT->IsComObjectType();
 
+    if (pHasSideEffects != nullptr)
+    {
+        if (isComObjectType)
+        {
+            *pHasSideEffects = true;
+        }
+        else
+#ifdef FEATURE_READYTORUN_COMPILER
+        if (IsReadyToRunCompilation())
+        {
+            *pHasSideEffects = hasFinalizer || !pMT->IsInheritanceChainFixedInCurrentVersionBubble();
+        }
+        else
+#endif
+        {
+            *pHasSideEffects = !!hasFinalizer;
+        }
+    }
 
-    if (pMT->IsComObjectType())
+    if (isComObjectType)
     {
         // Use slow helper
         _ASSERTE(helper == CORINFO_HELP_NEWFAST);
     }
     else
     if ((pMT->GetBaseSize() >= LARGE_OBJECT_SIZE) || 
-        pMT->HasFinalizer())
+        hasFinalizer)
     {
         // Use slow helper
         _ASSERTE(helper == CORINFO_HELP_NEWFAST);
@@ -6973,18 +6993,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
     // Compare tokens to cover all generic instantiations
     // The body of the first method is simply ret Arg0. The second one first casts the arg to I4.
 
-    if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__UNSAFE_CAST_TO_STACKPTR)->GetMemberDef())
-    {
-        // Return the argument that was passed in converted to IntPtr
-        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_I, CEE_RET };
-        methInfo->ILCode = const_cast<BYTE*>(ilcode);
-        methInfo->ILCodeSize = sizeof(ilcode);
-        methInfo->maxStack = 1;
-        methInfo->EHcount = 0;
-        methInfo->options = (CorInfoOptions)0;
-        return true;
-    }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST)->GetMemberDef()) 
+    if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__ENUM_EQUALS)->GetMemberDef()) 
     {
         // Normally we would follow the above pattern and unconditionally replace the IL,
         // relying on generic type constraints to guarantee that it will only ever be instantiated
@@ -7011,19 +7020,20 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
             et == ELEMENT_TYPE_I2 ||
             et == ELEMENT_TYPE_U2 ||
             et == ELEMENT_TYPE_I1 ||
-            et == ELEMENT_TYPE_U1)
+            et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_I8 ||
+            et == ELEMENT_TYPE_U8)
         {
-            // Cast to I4 and return the argument that was passed in.
-            static const BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_I4, CEE_RET };
+            static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_PREFIX1, (CEE_CEQ & 0xFF), CEE_RET };
             methInfo->ILCode = const_cast<BYTE*>(ilcode);
             methInfo->ILCodeSize = sizeof(ilcode);
-            methInfo->maxStack = 1;
+            methInfo->maxStack = 2;
             methInfo->EHcount = 0;
             methInfo->options = (CorInfoOptions)0;
             return true;
         }
     }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST_LONG)->GetMemberDef()) 
+    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__ENUM_COMPARE_TO)->GetMemberDef())
     {
         // The the comment above on why this is is not an unconditional replacement.  This case handles
         // Enums backed by 8 byte values.
@@ -7033,14 +7043,43 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
 
         _ASSERTE(inst.GetNumArgs() == 1);
         CorElementType et = inst[0].GetVerifierCorElementType();
-        if (et == ELEMENT_TYPE_I8 ||
+        if (et == ELEMENT_TYPE_I4 ||
+            et == ELEMENT_TYPE_U4 ||
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_U2 ||
+            et == ELEMENT_TYPE_I1 ||
+            et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_I8 ||
             et == ELEMENT_TYPE_U8)
         {
-            // Cast to I8 and return the argument that was passed in.
-            static const BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_I8, CEE_RET };
-            methInfo->ILCode = const_cast<BYTE*>(ilcode);
-            methInfo->ILCodeSize = sizeof(ilcode);
-            methInfo->maxStack = 1;
+            static BYTE ilcode[8][9];
+
+            TypeHandle thUnderlyingType = MscorlibBinder::GetElementType(et);
+
+            TypeHandle thIComparable = TypeHandle(MscorlibBinder::GetClass(CLASS__ICOMPARABLEGENERIC)).Instantiate(Instantiation(&thUnderlyingType, 1));
+
+            MethodDesc * pCompareToMD = thUnderlyingType.AsMethodTable()->GetMethodDescForInterfaceMethod(
+                thIComparable, MscorlibBinder::GetMethod(METHOD__ICOMPARABLEGENERIC__COMPARE_TO), TRUE /* throwOnConflict */);
+
+            // Call CompareTo method on the primitive type
+            int tokCompareTo = pCompareToMD->GetMemberDef();
+
+            int index = (et - ELEMENT_TYPE_I1);
+            _ASSERTE(index < _countof(ilcode));
+
+            ilcode[index][0] = CEE_LDARGA_S;
+            ilcode[index][1] = 0;
+            ilcode[index][2] = CEE_LDARG_1;
+            ilcode[index][3] = CEE_CALL;
+            ilcode[index][4] = (BYTE)(tokCompareTo);
+            ilcode[index][5] = (BYTE)(tokCompareTo >> 8);
+            ilcode[index][6] = (BYTE)(tokCompareTo >> 16);
+            ilcode[index][7] = (BYTE)(tokCompareTo >> 24);
+            ilcode[index][8] = CEE_RET;
+
+            methInfo->ILCode = const_cast<BYTE*>(ilcode[index]);
+            methInfo->ILCodeSize = sizeof(ilcode[index]);
+            methInfo->maxStack = 2;
             methInfo->EHcount = 0;
             methInfo->options = (CorInfoOptions)0;
             return true;
@@ -7048,16 +7087,16 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
     }
     else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
     {
-        mdToken tokArrayPinningHelper = MscorlibBinder::GetField(FIELD__ARRAY_PINNING_HELPER__M_ARRAY_DATA)->GetMemberDef();
+        mdToken tokRawSzArrayData = MscorlibBinder::GetField(FIELD__RAW_SZARRAY_DATA__DATA)->GetMemberDef();
 
         static BYTE ilcode[] = { CEE_LDARG_0,
                                  CEE_LDFLDA,0,0,0,0,
                                  CEE_RET };
 
-        ilcode[2] = (BYTE)(tokArrayPinningHelper);
-        ilcode[3] = (BYTE)(tokArrayPinningHelper >> 8);
-        ilcode[4] = (BYTE)(tokArrayPinningHelper >> 16);
-        ilcode[5] = (BYTE)(tokArrayPinningHelper >> 24);
+        ilcode[2] = (BYTE)(tokRawSzArrayData);
+        ilcode[3] = (BYTE)(tokRawSzArrayData >> 8);
+        ilcode[4] = (BYTE)(tokRawSzArrayData >> 16);
+        ilcode[5] = (BYTE)(tokRawSzArrayData >> 24);
 
         methInfo->ILCode = const_cast<BYTE*>(ilcode);
         methInfo->ILCodeSize = sizeof(ilcode);
@@ -9133,15 +9172,10 @@ CORINFO_CLASS_HANDLE CEEInfo::getDefaultEqualityComparerClassHelper(CORINFO_CLAS
             case ELEMENT_TYPE_U2:
             case ELEMENT_TYPE_I4:
             case ELEMENT_TYPE_U4:
-            {
-                targetClass = MscorlibBinder::GetClass(CLASS__ENUM_EQUALITYCOMPARER);
-                break;
-            }
-
             case ELEMENT_TYPE_I8:
             case ELEMENT_TYPE_U8:
             {
-                targetClass = MscorlibBinder::GetClass(CLASS__LONG_ENUM_EQUALITYCOMPARER);
+                targetClass = MscorlibBinder::GetClass(CLASS__ENUM_EQUALITYCOMPARER);
                 break;
             }
 
@@ -12429,11 +12463,13 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
                                 CORJIT_FLAGS flags,
                                 BYTE **nativeEntry,
                                 ULONG *nativeSizeOfCode,
-                                MethodDesc *ftn)
+                                NativeCodeVersion nativeCodeVersion)
 {
     // no dynamic contract here because SEH is used, with a finally clause
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
+
+    MethodDesc* ftn = nativeCodeVersion.GetMethodDesc();
 
     LOG((LF_CORDB, LL_EVERYTHING, "CallCompileMethodWithSEHWrapper called...\n"));
 
@@ -12487,7 +12523,7 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
             {
                 if (param.res == CORJIT_OK && !((CEEJitInfo*)param.comp)->JitAgain())
                 {
-                    g_pDebugInterface->JITComplete(ftn, (TADDR)*nativeEntry);
+                    g_pDebugInterface->JITComplete(nativeCodeVersion, (TADDR)*nativeEntry);
                 }
             }
         }
@@ -12726,10 +12762,12 @@ BOOL g_fAllowRel32 = TRUE;
 // Calls to this method that occur to check if inlining can occur on x86,
 // are OK since they discard the return value of this method.
 
-PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_FLAGS flags,
+PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODER* ILHeader, CORJIT_FLAGS flags,
                         ULONG * pSizeOfCode)
 {
     STANDARD_VM_CONTRACT;
+
+    MethodDesc* ftn = nativeCodeVersion.GetMethodDesc();
 
     PCODE ret = NULL;
 
@@ -12966,7 +13004,7 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
                                                   flags,
                                                   &nativeEntry,
                                                   &sizeOfCode,
-                                                  (MethodDesc*)ftn);
+                                                  nativeCodeVersion);
             LOG((LF_CORDB, LL_EVERYTHING, "Got through CallCompile MethodWithSEHWrapper\n"));
 
 #if FEATURE_PERFMAP
@@ -13964,11 +14002,35 @@ InfoAccessType CEEInfo::emptyStringLiteral(void ** ppValue)
 void* CEEInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
                                   void **ppIndirection)
 {
-    LIMITED_METHOD_CONTRACT;
-    _ASSERTE(isVerifyOnly());
+    CONTRACTL{
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    void *result = NULL;
+
     if (ppIndirection != NULL)
         *ppIndirection = NULL;
-    return (void *)0x10;
+
+    // Do not bother with initialization if we are only verifying the method.
+    if (isVerifyOnly())
+    {
+        return (void *)0x10;
+    }
+
+    JIT_TO_EE_TRANSITION();
+
+    FieldDesc* field = (FieldDesc*)fieldHnd;
+
+    _ASSERTE(field->IsRVA());
+
+    result = field->GetStaticAddressHandle(NULL);
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
 }
 
 CORINFO_CLASS_HANDLE CEEInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,

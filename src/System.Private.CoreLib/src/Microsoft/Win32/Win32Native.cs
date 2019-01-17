@@ -185,12 +185,6 @@ namespace Microsoft.Win32
         [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern unsafe bool VirtualFree(void* address, UIntPtr numBytes, int pageFreeMode);
 
-        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Ansi, ExactSpelling = true, EntryPoint = "lstrlenA")]
-        internal static extern int lstrlenA(IntPtr ptr);
-
-        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Unicode, ExactSpelling = true, EntryPoint = "lstrlenW")]
-        internal static extern int lstrlenW(IntPtr ptr);
-
         [DllImport(Interop.Libraries.OleAut32, CharSet = CharSet.Unicode)]
         internal static extern IntPtr SysAllocStringLen(string src, int len);  // BSTR
 
@@ -249,7 +243,10 @@ namespace Microsoft.Win32
         [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Unicode)]
         internal static extern unsafe bool FreeEnvironmentStrings(char* pStrings);
 
-        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto)]
+        internal static extern int GetCurrentThreadId();
+
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto)]
         internal static extern uint GetCurrentProcessId();
 
         [DllImport(Interop.Libraries.Ole32)]

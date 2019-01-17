@@ -526,6 +526,13 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
 
     m_dwTransientFlags &= ~((DWORD)CLASSES_FREED);  // Set flag indicating LookupMaps are now in a consistent and destructable state
 
+#ifdef FEATURE_COLLECTIBLE_TYPES
+    if (GetAssembly()->IsCollectible())
+    {
+        FastInterlockOr(&m_dwPersistedFlags, COLLECTIBLE_MODULE);
+    }
+#endif // FEATURE_COLLECTIBLE_TYPES
+
 #ifdef FEATURE_READYTORUN
     if (!HasNativeImage() && !IsResource())
         m_pReadyToRunInfo = ReadyToRunInfo::Initialize(this, pamTracker);
@@ -578,13 +585,6 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
     // this will be initialized a bit later.
     m_ModuleID = NULL;
     m_ModuleIndex.m_dwIndex = (SIZE_T)-1;
-
-#ifdef FEATURE_COLLECTIBLE_TYPES
-    if (GetAssembly()->IsCollectible())
-    {
-        FastInterlockOr(&m_dwPersistedFlags, COLLECTIBLE_MODULE);
-    }
-#endif // FEATURE_COLLECTIBLE_TYPES
 
     // Prepare statics that are known at module load time
     AllocateStatics(pamTracker);
@@ -3537,7 +3537,7 @@ BOOL Module::IsInCurrentVersionBubble()
         return TRUE;
 
     if (IsReadyToRunCompilation())
-        return FALSE;
+        return IsLargeVersionBubbleEnabled();
 
 #ifdef FEATURE_COMINTEROP
     if (g_fNGenWinMDResilient)
@@ -4922,21 +4922,11 @@ Assembly * Module::GetAssemblyIfLoadedFromNativeAssemblyRefWithRefDefMismatch(md
                 }
                 else
                 {
-                    DWORD binderFlags = 0;
-                    ICLRPrivAssembly * pPrivBinder = pAssemblyCandidate->GetManifestFile()->GetHostAssembly();
-                    HRESULT hrBinderFlagCheck = pPrivBinder->GetBinderFlags(&binderFlags);
-                    if (SUCCEEDED(hrBinderFlagCheck) && (binderFlags & BINDER_FINDASSEMBLYBYSPEC_REQUIRES_EXACT_MATCH))
-                    {
-                        pAssembly = pAssemblyCandidate;
-                    }
-                    else
-                    {
-                        // This should only happen in the generic instantiation case when multiple threads are racing and
-                        // the assembly found is one which we will determine is the wrong assembly.
-                        //
-                        // We can't assert that (as its possible under stress); however it shouldn't happen in the stack walk or GC case, so we assert in those cases.
-                        _ASSERTE("Non-AssemblySpecBindingCache based assembly found with extended search" && !(IsStackWalkerThread() || IsGCThread()) && IsGenericInstantiationLookupCompareThread());
-                    }
+                    // This should only happen in the generic instantiation case when multiple threads are racing and
+                    // the assembly found is one which we will determine is the wrong assembly.
+                    //
+                    // We can't assert that (as its possible under stress); however it shouldn't happen in the stack walk or GC case, so we assert in those cases.
+                    _ASSERTE("Non-AssemblySpecBindingCache based assembly found with extended search" && !(IsStackWalkerThread() || IsGCThread()) && IsGenericInstantiationLookupCompareThread());
                 }
             }
         }
@@ -5113,16 +5103,6 @@ Module::GetAssemblyIfLoaded(
         BOOL eligibleForAdditionalChecks = TRUE;
         if (szWinRtNamespace != NULL)
             eligibleForAdditionalChecks = FALSE; // WinRT binds do not support this scan
-        else if (this->GetAssembly()->GetManifestFile()->IsDesignerBindingContext())
-        {
-            eligibleForAdditionalChecks = FALSE; 
-            // assemblies loaded into leaf designer binding contexts cannot be ngen images, or be depended on by ngen assemblies that bind to different versions of assemblies.
-            // However, in the shared designer binding context assemblies can be loaded with ngen images, and therefore can depend on assemblies in a designer binding context. (the shared context)
-            // A more correct version of this check would probably allow assemblies loaded into the shared designer binding context to be eligibleForAdditionalChecks; however
-            // there are problems. In particular, the logic below which scans through all native images is not strictly correct for scenarios involving a shared assembly context
-            // as the shared assembly context may have different binding rules as compared to the root context. At this time, we prefer to not fix this scenario until
-            // there is customer need for a fix.
-        }
 
         AssemblySpec specSearchAssemblyRef;
 
@@ -5623,7 +5603,8 @@ mdTypeRef Module::LookupTypeRefByMethodTable(MethodTable *pMT)
     {
         if (pMT->GetClass()->IsEquivalentType())
         {
-            GetSvcLogger()->Log(W("ReadyToRun: Type reference to equivalent type cannot be encoded\n"));
+            if (g_CorCompileVerboseLevel >= CORCOMPILE_VERBOSE)
+                GetSvcLogger()->Log(W("ReadyToRun: Type reference to equivalent type cannot be encoded\n"));
             ThrowHR(E_NOTIMPL);
         }
 
@@ -9997,7 +9978,7 @@ Module *Module::GetModuleFromIndex(DWORD ix)
     }
     CONTRACT_END;
 
-    if (HasNativeImage())
+    if (HasNativeOrReadyToRunImage())
     {
         RETURN ZapSig::DecodeModuleFromIndex(this, ix);
     }
@@ -10030,7 +10011,7 @@ Module *Module::GetModuleFromIndexIfLoaded(DWORD ix)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(HasNativeImage());
+        PRECONDITION(HasNativeOrReadyToRunImage());
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
     CONTRACT_END;
@@ -10070,14 +10051,23 @@ IMDInternalImport *Module::GetNativeAssemblyImport(BOOL loadAllowed)
         if (loadAllowed) THROWS;                         else NOTHROW;
         if (loadAllowed) INJECT_FAULT(COMPlusThrowOM()); else FORBID_FAULT;
         MODE_ANY;
-        PRECONDITION(HasNativeImage());
-        POSTCONDITION(CheckPointer(RETVAL));
+        PRECONDITION(HasNativeOrReadyToRunImage());
+        POSTCONDITION(loadAllowed ?
+                      CheckPointer(RETVAL):
+                      CheckPointer(RETVAL, NULL_OK));
     }
     CONTRACT_END;
 
-    RETURN GetFile()->GetPersistentNativeImage()->GetNativeMDImport(loadAllowed);
+    // Check if image is R2R
+    if (GetFile()->IsILImageReadyToRun())
+    {
+        RETURN GetFile()->GetOpenedILimage()->GetNativeMDImport(loadAllowed);
+    }
+    else
+    {
+        RETURN GetFile()->GetPersistentNativeImage()->GetNativeMDImport(loadAllowed);
+    }
 }
-
 
 /*static*/
 void Module::RestoreMethodTablePointerRaw(MethodTable ** ppMT,

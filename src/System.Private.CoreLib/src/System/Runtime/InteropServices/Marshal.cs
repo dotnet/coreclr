@@ -16,12 +16,6 @@ using System.StubHelpers;
 
 namespace System.Runtime.InteropServices
 {
-    public enum CustomQueryInterfaceMode
-    {
-        Ignore = 0,
-        Allow = 1
-    }
-
     /// <summary>
     /// This class contains methods that are mainly used to marshal between unmanaged
     /// and managed types.
@@ -29,7 +23,10 @@ namespace System.Runtime.InteropServices
     public static partial class Marshal
     {
 #if FEATURE_COMINTEROP
-        internal static Guid IID_IUnknown = new Guid("00000000-0000-0000-C000-000000000046");
+        /// <summary>
+        /// IUnknown is {00000000-0000-0000-C000-000000000046}
+        /// </summary>
+        internal static Guid IID_IUnknown = new Guid(0, 0, 0, 0xC0, 0, 0, 0, 0, 0, 0, 0x46);
 #endif //FEATURE_COMINTEROP
 
         private const int LMEM_FIXED = 0;
@@ -82,7 +79,7 @@ namespace System.Runtime.InteropServices
                 return null;
             }
 
-            int nb = Win32Native.lstrlenA(ptr);
+            int nb = string.strlen((byte*)ptr);
             if (nb == 0)
             {
                 return string.Empty;
@@ -152,7 +149,7 @@ namespace System.Runtime.InteropServices
                 return null;
             }
 
-            int nbBytes = StubHelpers.StubHelpers.strlen((sbyte*)ptr.ToPointer());
+            int nbBytes = string.strlen((byte*)ptr);
             return PtrToStringUTF8(ptr, nbBytes);
         }
 
@@ -175,8 +172,7 @@ namespace System.Runtime.InteropServices
                 return string.Empty;
             }
 
-            byte* pByte = (byte*)ptr.ToPointer();
-            return Encoding.UTF8.GetString(pByte, byteLen);
+            return Encoding.UTF8.GetString((byte*)ptr, byteLen);
         }
 
         public static int SizeOf(object structure)
@@ -968,10 +964,11 @@ namespace System.Runtime.InteropServices
                 return IntPtr.Zero;
             }
 
-            int nb = (s.Length + 1) * SystemMaxDBCSCharSize;
+            long lnb = (s.Length + 1) * (long)SystemMaxDBCSCharSize;
+            int nb = (int)lnb;
 
             // Overflow checking
-            if (nb < s.Length)
+            if (nb != lnb)
             {
                 throw new ArgumentOutOfRangeException(nameof(s));
             }
@@ -1221,10 +1218,11 @@ namespace System.Runtime.InteropServices
                 return IntPtr.Zero;
             }
 
-            int nb = (s.Length + 1) * SystemMaxDBCSCharSize;
+            long lnb = (s.Length + 1) * (long)SystemMaxDBCSCharSize;
+            int nb = (int)lnb;
 
             // Overflow checking
-            if (nb < s.Length)
+            if (nb != lnb)
             {
                 throw new ArgumentOutOfRangeException(nameof(s));
             }
@@ -1256,6 +1254,16 @@ namespace System.Runtime.InteropServices
             }
 
             return pNewMem;
+        }
+
+        internal static IntPtr AllocBSTR(int length)
+        {
+            IntPtr bstr = Win32Native.SysAllocStringLen(null, length);
+            if (bstr == IntPtr.Zero)
+            {
+                throw new OutOfMemoryException();
+            }
+            return bstr;
         }
 
         public static void FreeBSTR(IntPtr ptr)
@@ -1501,7 +1509,7 @@ namespace System.Runtime.InteropServices
             if (objects != null)
             {
                 result = new T[objects.Length];
-                Array.Copy(objects, result, objects.Length);
+                Array.Copy(objects, 0, result, 0, objects.Length);
             }
 
             return result;
@@ -1526,7 +1534,19 @@ namespace System.Runtime.InteropServices
         /// metadata then it is returned otherwise a stable guid is generated based
         /// on the fully qualified name of the type.
         /// </summary>
-        public static Guid GenerateGuidForType(Type type) => type.GUID;
+        public static Guid GenerateGuidForType(Type type)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
+            if (!(type is RuntimeType))
+            {
+                throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
+            }
+
+            return type.GUID;
+        }
 
         /// <summary>
         /// This method generates a PROGID for the specified type. If the type has
@@ -1707,25 +1727,41 @@ namespace System.Runtime.InteropServices
         
         public static void ZeroFreeBSTR(IntPtr s)
         {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
             RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.SysStringLen(s) * 2));
             FreeBSTR(s);
         }
 
-        public static void ZeroFreeCoTaskMemAnsi(IntPtr s)
+        public unsafe static void ZeroFreeCoTaskMemAnsi(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
             FreeCoTaskMem(s);
         }
 
-        public static void ZeroFreeCoTaskMemUnicode(IntPtr s)
+        public static unsafe void ZeroFreeCoTaskMemUnicode(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenW(s) * 2));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
             FreeCoTaskMem(s);
         }
 
         public static unsafe void ZeroFreeCoTaskMemUTF8(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)System.StubHelpers.StubHelpers.strlen((sbyte*)s));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
             FreeCoTaskMem(s);
         }
 
@@ -1749,175 +1785,24 @@ namespace System.Runtime.InteropServices
             return s.MarshalToString(globalAlloc: true, unicode: true); ;
         }
 
-        public static void ZeroFreeGlobalAllocAnsi(IntPtr s)
+        public unsafe static void ZeroFreeGlobalAllocAnsi(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
             FreeHGlobal(s);
         }
 
-        public static void ZeroFreeGlobalAllocUnicode(IntPtr s)
+        public static unsafe void ZeroFreeGlobalAllocUnicode(IntPtr s)
         {
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenW(s) * 2));
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
             FreeHGlobal(s);
         }
-
-        /// APIs for managing Native Libraries 
-
-        /// <summary>
-        /// NativeLibrary Loader: Simple API
-        /// This method is a wrapper around OS loader, using "default" flags.
-        /// </summary>
-        /// <param name="libraryPath">The name of the native library to be loaded</param>
-        /// <returns>The handle for the loaded native library</returns>  
-        /// <exception cref="System.ArgumentNullException">If libraryPath is null</exception>
-        /// <exception cref="System.DllNotFoundException ">If the library can't be found.</exception>
-        /// <exception cref="System.BadImageFormatException">If the library is not valid.</exception>
-        public static IntPtr LoadLibrary(string libraryPath)
-        {
-            if (libraryPath == null)
-                throw new ArgumentNullException(nameof(libraryPath));
-
-            return LoadLibraryFromPath(libraryPath, throwOnError: true);
-        }
-
-        /// <summary>
-        /// NativeLibrary Loader: Simple API that doesn't throw
-        /// </summary>
-        /// <param name="libraryPath">The name of the native library to be loaded</param>
-        /// <param name="handle">The out-parameter for the loaded native library handle</param>
-        /// <returns>True on successful load, false otherwise</returns>  
-        /// <exception cref="System.ArgumentNullException">If libraryPath is null</exception>
-        public static bool TryLoadLibrary(string libraryPath, out IntPtr handle)
-        {
-            if (libraryPath == null)
-                throw new ArgumentNullException(nameof(libraryPath));
-
-            handle = LoadLibraryFromPath(libraryPath, throwOnError: false);
-            return handle != IntPtr.Zero;
-        }
-
-        /// <summary>
-        /// NativeLibrary Loader: High-level API
-        /// Given a library name, this function searches specific paths based on the 
-        /// runtime configuration, input parameters, and attributes of the calling assembly.
-        /// If DllImportSearchPath parameter is non-null, the flags in this enumeration are used.
-        /// Otherwise, the flags specified by the DefaultDllImportSearchPaths attribute on the 
-        /// calling assembly (if any) are used. 
-        /// This LoadLibrary() method does not invoke the managed call-backs for native library resolution: 
-        /// * AssemblyLoadContext.LoadUnmanagedDll()
-        /// </summary>
-        /// <param name="libraryName">The name of the native library to be loaded</param>
-        /// <param name="assembly">The assembly loading the native library</param>
-        /// <param name="searchPath">The search path</param>
-        /// <returns>The handle for the loaded library</returns>  
-        /// <exception cref="System.ArgumentNullException">If libraryPath or assembly is null</exception>
-        /// <exception cref="System.ArgumentException">If assembly is not a RuntimeAssembly</exception>
-        /// <exception cref="System.DllNotFoundException ">If the library can't be found.</exception>
-        /// <exception cref="System.BadImageFormatException">If the library is not valid.</exception>        
-        public static IntPtr LoadLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
-        {
-            if (libraryName == null)
-                throw new ArgumentNullException(nameof(libraryName));
-            if (assembly == null)
-                throw new ArgumentNullException(nameof(assembly));
-            if (!(assembly is RuntimeAssembly))
-                throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
-            
-            return LoadLibraryByName(libraryName, 
-                                     ((RuntimeAssembly)assembly).GetNativeHandle(), 
-                                     searchPath.HasValue, 
-                                     (uint) searchPath.GetValueOrDefault(), 
-                                     throwOnError: true);
-        }
-
-        /// <summary>
-        /// NativeLibrary Loader: High-level API that doesn't throw.
-        /// </summary>
-        /// <param name="libraryName">The name of the native library to be loaded</param>
-        /// <param name="searchPath">The search path</param>
-        /// <param name="assembly">The assembly loading the native library</param>
-        /// <param name="handle">The out-parameter for the loaded native library handle</param>
-        /// <returns>True on successful load, false otherwise</returns>  
-        /// <exception cref="System.ArgumentNullException">If libraryPath or assembly is null</exception>
-        /// <exception cref="System.ArgumentException">If assembly is not a RuntimeAssembly</exception>
-        public static bool TryLoadLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath, out IntPtr handle)
-        {
-            if (libraryName == null)
-                throw new ArgumentNullException(nameof(libraryName));
-            if (assembly == null)
-                throw new ArgumentNullException(nameof(assembly));
-            if (!(assembly is RuntimeAssembly))
-                throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
-            
-            handle = LoadLibraryByName(libraryName, 
-                                       ((RuntimeAssembly)assembly).GetNativeHandle(), 
-                                       searchPath.HasValue, 
-                                       (uint) searchPath.GetValueOrDefault(),
-                                       throwOnError: false);
-            return handle != IntPtr.Zero;
-        }
-
-        /// <summary>
-        /// Free a loaded library
-        /// Given a library handle, free it.
-        /// No action if the input handle is null.
-        /// </summary>
-        /// <param name="handle">The native library handle to be freed</param>
-        /// <exception cref="System.InvalidOperationException">If the operation fails</exception>
-        public static void FreeLibrary(IntPtr handle)
-        {
-            FreeNativeLibrary(handle);
-        }
-
-        /// <summary>
-        /// Get the address of an exported Symbol
-        /// This is a simple wrapper around OS calls, and does not perform any name mangling.
-        /// </summary>
-        /// <param name="handle">The native library handle</param>
-        /// <param name="name">The name of the exported symbol</param>
-        /// <returns>The address of the symbol</returns>  
-        /// <exception cref="System.ArgumentNullException">If handle or name is null</exception>
-        /// <exception cref="System.EntryPointNotFoundException">If the symbol is not found</exception>
-        public static IntPtr GetLibraryExport(IntPtr handle, string name)
-        {
-            if (handle == IntPtr.Zero) 
-                throw new ArgumentNullException(nameof(handle));
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
-
-            return GetNativeLibraryExport(handle, name, throwOnError: true);
-        }
-
-        /// <summary>
-        /// Get the address of an exported Symbol, but do not throw
-        /// </summary>
-        /// <param name="handle">The  native library handle</param>
-        /// <param name="name">The name of the exported symbol</param>
-        /// <param name="address"> The out-parameter for the symbol address, if it exists</param>
-        /// <returns>True on success, false otherwise</returns>  
-        /// <exception cref="System.ArgumentNullException">If handle or name is null</exception>
-        public static bool TryGetLibraryExport(IntPtr handle, string name, out IntPtr address)
-        {
-            if (handle == IntPtr.Zero) 
-                throw new ArgumentNullException(nameof(handle));
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
-
-            address = GetNativeLibraryExport(handle, name, throwOnError: false);
-            return address != IntPtr.Zero;
-        }
-
-        /// External functions that implement the NativeLibrary interface
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern IntPtr LoadLibraryFromPath(string libraryName, bool throwOnError);
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern IntPtr LoadLibraryByName(string libraryName, RuntimeAssembly callingAssembly, 
-                                                        bool hasDllImportSearchPathFlag, uint dllImportSearchPathFlag, 
-                                                        bool throwOnError);
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void FreeNativeLibrary(IntPtr handle);
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern IntPtr GetNativeLibraryExport(IntPtr handle, string symbolName, bool throwOnError);
     }
 }

@@ -512,15 +512,30 @@ void CodeGen::genCodeForBBlist()
         // it up to date for vars that are not register candidates
         // (it would be nice to have a xor set function)
 
-        VARSET_TP extraLiveVars(VarSetOps::Diff(compiler, block->bbLiveOut, compiler->compCurLife));
-        VarSetOps::UnionD(compiler, extraLiveVars, VarSetOps::Diff(compiler, compiler->compCurLife, block->bbLiveOut));
-        VarSetOps::Iter extraLiveVarIter(compiler, extraLiveVars);
-        unsigned        extraLiveVarIndex = 0;
-        while (extraLiveVarIter.NextElem(&extraLiveVarIndex))
+        VARSET_TP mismatchLiveVars(VarSetOps::Diff(compiler, block->bbLiveOut, compiler->compCurLife));
+        VarSetOps::UnionD(compiler, mismatchLiveVars,
+                          VarSetOps::Diff(compiler, compiler->compCurLife, block->bbLiveOut));
+        VarSetOps::Iter mismatchLiveVarIter(compiler, mismatchLiveVars);
+        unsigned        mismatchLiveVarIndex  = 0;
+        bool            foundMismatchedRegVar = false;
+        while (mismatchLiveVarIter.NextElem(&mismatchLiveVarIndex))
         {
-            unsigned   varNum = compiler->lvaTrackedToVarNum[extraLiveVarIndex];
+            unsigned   varNum = compiler->lvaTrackedToVarNum[mismatchLiveVarIndex];
             LclVarDsc* varDsc = compiler->lvaTable + varNum;
-            assert(!varDsc->lvIsRegCandidate());
+            if (varDsc->lvIsRegCandidate())
+            {
+                if (!foundMismatchedRegVar)
+                {
+                    JITDUMP("Mismatched live reg vars after BB%02u:", block->bbNum);
+                    foundMismatchedRegVar = true;
+                }
+                JITDUMP(" V%02u", varNum);
+            }
+        }
+        if (foundMismatchedRegVar)
+        {
+            assert(!"Found mismatched live reg var(s) after block");
+            JITDUMP("\n");
         }
 #endif
 
@@ -741,21 +756,9 @@ void CodeGen::genSpillVar(GenTree* tree)
         var_types lclTyp = genActualType(varDsc->TypeGet());
         emitAttr  size   = emitTypeSize(lclTyp);
 
-        bool restoreRegVar = false;
-        if (tree->gtOper == GT_REG_VAR)
-        {
-            tree->SetOper(GT_LCL_VAR);
-            restoreRegVar = true;
-        }
-
         instruction storeIns = ins_Store(lclTyp, compiler->isSIMDTypeLocalAligned(varNum));
         assert(varDsc->lvRegNum == tree->gtRegNum);
         inst_TT_RV(storeIns, tree, tree->gtRegNum, 0, size);
-
-        if (restoreRegVar)
-        {
-            tree->SetOper(GT_REG_VAR);
-        }
 
         genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(tree));
         gcInfo.gcMarkRegSetNpt(varDsc->lvRegMask());
@@ -2129,3 +2132,81 @@ void CodeGen::genStoreLongLclVar(GenTree* treeNode)
     }
 }
 #endif // !defined(_TARGET_64BIT_)
+
+//------------------------------------------------------------------------
+// genCodeForJumpTrue: Generate code for a GT_JTRUE node.
+//
+// Arguments:
+//    jtrue - The node
+//
+void CodeGen::genCodeForJumpTrue(GenTreeOp* jtrue)
+{
+    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
+    assert(jtrue->OperIs(GT_JTRUE));
+
+    GenCondition condition = GenCondition::FromRelop(jtrue->gtGetOp1());
+
+    if (condition.PreferSwap())
+    {
+        condition = GenCondition::Swap(condition);
+    }
+
+    inst_JCC(condition, compiler->compCurBB->bbJumpDest);
+}
+
+//------------------------------------------------------------------------
+// genCodeForJcc: Generate code for a GT_JCC node.
+//
+// Arguments:
+//    jcc - The node
+//
+void CodeGen::genCodeForJcc(GenTreeCC* jcc)
+{
+    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
+    assert(jcc->OperIs(GT_JCC));
+
+    inst_JCC(jcc->gtCondition, compiler->compCurBB->bbJumpDest);
+}
+
+//------------------------------------------------------------------------
+// inst_JCC: Generate a conditional branch instruction sequence.
+//
+// Arguments:
+//   condition - The branch condition
+//   target    - The basic block to jump to when the condition is true
+//
+void CodeGen::inst_JCC(GenCondition condition, BasicBlock* target)
+{
+    const GenConditionDesc& desc = GenConditionDesc::Get(condition);
+
+    if (desc.oper == GT_NONE)
+    {
+        inst_JMP(desc.jumpKind1, target);
+    }
+    else if (desc.oper == GT_OR)
+    {
+        inst_JMP(desc.jumpKind1, target);
+        inst_JMP(desc.jumpKind2, target);
+    }
+    else // if (desc.oper == GT_AND)
+    {
+        BasicBlock* labelNext = genCreateTempLabel();
+        inst_JMP(emitter::emitReverseJumpKind(desc.jumpKind1), labelNext);
+        inst_JMP(desc.jumpKind2, target);
+        genDefineTempLabel(labelNext);
+    }
+}
+
+//------------------------------------------------------------------------
+// genCodeForSetcc: Generate code for a GT_SETCC node.
+//
+// Arguments:
+//    setcc - The node
+//
+void CodeGen::genCodeForSetcc(GenTreeCC* setcc)
+{
+    assert(setcc->OperIs(GT_SETCC));
+
+    inst_SETCC(setcc->gtCondition, setcc->TypeGet(), setcc->gtRegNum);
+    genProduceReg(setcc);
+}

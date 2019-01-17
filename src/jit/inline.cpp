@@ -332,11 +332,13 @@ InlineContext::InlineContext(InlineStrategy* strategy)
     , m_Sibling(nullptr)
     , m_Code(nullptr)
     , m_ILSize(0)
+    , m_ImportedILSize(0)
     , m_Offset(BAD_IL_OFFSET)
     , m_Observation(InlineObservation::CALLEE_UNUSED_INITIAL)
     , m_CodeSizeEstimate(0)
     , m_Success(true)
     , m_Devirtualized(false)
+    , m_Guarded(false)
     , m_Unboxed(false)
 #if defined(DEBUG) || defined(INLINE_DATA)
     , m_Policy(nullptr)
@@ -397,18 +399,19 @@ void InlineContext::Dump(unsigned indent)
         const char* inlineReason  = InlGetObservationString(m_Observation);
         const char* inlineResult  = m_Success ? "" : "FAILED: ";
         const char* devirtualized = m_Devirtualized ? " devirt" : "";
+        const char* guarded       = m_Guarded ? " guarded" : "";
         const char* unboxed       = m_Unboxed ? " unboxed" : "";
 
         if (m_Offset == BAD_IL_OFFSET)
         {
-            printf("%*s[%u IL=???? TR=%06u %08X] [%s%s%s%s] %s\n", indent, "", m_Ordinal, m_TreeID, calleeToken,
-                   inlineResult, inlineReason, devirtualized, unboxed, calleeName);
+            printf("%*s[%u IL=???? TR=%06u %08X] [%s%s%s%s%s] %s\n", indent, "", m_Ordinal, m_TreeID, calleeToken,
+                   inlineResult, inlineReason, guarded, devirtualized, unboxed, calleeName);
         }
         else
         {
             IL_OFFSET offset = jitGetILoffs(m_Offset);
-            printf("%*s[%u IL=%04d TR=%06u %08X] [%s%s%s%s] %s\n", indent, "", m_Ordinal, offset, m_TreeID, calleeToken,
-                   inlineResult, inlineReason, devirtualized, unboxed, calleeName);
+            printf("%*s[%u IL=%04d TR=%06u %08X] [%s%s%s%s%s] %s\n", indent, "", m_Ordinal, offset, m_TreeID,
+                   calleeToken, inlineResult, inlineReason, guarded, devirtualized, unboxed, calleeName);
         }
     }
 
@@ -572,6 +575,7 @@ InlineResult::InlineResult(Compiler* compiler, GenTreeCall* call, GenTreeStmt* s
     , m_InlineContext(nullptr)
     , m_Caller(nullptr)
     , m_Callee(nullptr)
+    , m_ImportedILSize(0)
     , m_Description(description)
     , m_Reported(false)
 {
@@ -657,6 +661,22 @@ InlineResult::InlineResult(Compiler* compiler, CORINFO_METHOD_HANDLE method, con
 
 void InlineResult::Report()
 {
+
+#ifdef DEBUG
+    // If this is a failure of a specific inline candidate and we haven't captured
+    // a failing observation yet, do so now.
+    if (IsFailure() && (m_Call != nullptr))
+    {
+        // compiler should have revoked candidacy on the call by now
+        assert((m_Call->gtFlags & GTF_CALL_INLINE_CANDIDATE) == 0);
+
+        if (m_Call->gtInlineObservation == InlineObservation::CALLEE_UNUSED_INITIAL)
+        {
+            m_Call->gtInlineObservation = m_Policy->GetObservation();
+        }
+    }
+#endif // DEBUG
+
     // If we weren't actually inlining, user may have suppressed
     // reporting via setReported(). If so, do nothing.
     if (m_Reported)
@@ -680,17 +700,6 @@ void InlineResult::Report()
 
         JITDUMP(format, m_Description, ResultString(), ReasonString(), caller, callee);
     }
-
-    // If the inline failed, leave information on the call so we can
-    // later recover what observation lead to the failure.
-    if (IsFailure() && (m_Call != nullptr))
-    {
-        // compiler should have revoked candidacy on the call by now
-        assert((m_Call->gtFlags & GTF_CALL_INLINE_CANDIDATE) == 0);
-
-        m_Call->gtInlineObservation = m_Policy->GetObservation();
-    }
-
 #endif // DEBUG
 
     // Was the result NEVER? If so we might want to propagate this to
@@ -951,16 +960,16 @@ int InlineStrategy::EstimateTime(InlineContext* context)
 {
     // Simple linear models based on observations
     // show time is fairly well predicted by IL size.
-    unsigned ilSize = context->GetILSize();
-
+    //
     // Prediction varies for root and inlines.
     if (context == m_RootContext)
     {
-        return EstimateRootTime(ilSize);
+        return EstimateRootTime(context->GetILSize());
     }
     else
     {
-        return EstimateInlineTime(ilSize);
+        // Use amount of IL actually imported
+        return EstimateInlineTime(context->GetImportedILSize());
     }
 }
 
@@ -1130,14 +1139,17 @@ void InlineStrategy::NoteOutcome(InlineContext* context)
 }
 
 //------------------------------------------------------------------------
-// BudgetCheck: return true if as inline of this size would exceed the
-// jit time budget for this method
+// BudgetCheck: return true if an inline of this size would likely
+//     exceed the jit time budget for this method
 //
 // Arguments:
 //     ilSize - size of the method's IL
 //
 // Return Value:
 //     true if the inline would go over budget
+//
+// Notes:
+//     Presumes all IL in the method will be imported.
 
 bool InlineStrategy::BudgetCheck(unsigned ilSize)
 {
@@ -1198,14 +1210,16 @@ InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
     calleeContext->m_Parent = parentContext;
     // Push on front here will put siblings in reverse lexical
     // order which we undo in the dumper
-    calleeContext->m_Sibling       = parentContext->m_Child;
-    parentContext->m_Child         = calleeContext;
-    calleeContext->m_Child         = nullptr;
-    calleeContext->m_Offset        = stmt->gtStmtILoffsx;
-    calleeContext->m_Observation   = inlineInfo->inlineResult->GetObservation();
-    calleeContext->m_Success       = true;
-    calleeContext->m_Devirtualized = originalCall->IsDevirtualized();
-    calleeContext->m_Unboxed       = originalCall->IsUnboxed();
+    calleeContext->m_Sibling        = parentContext->m_Child;
+    parentContext->m_Child          = calleeContext;
+    calleeContext->m_Child          = nullptr;
+    calleeContext->m_Offset         = stmt->gtStmtILoffsx;
+    calleeContext->m_Observation    = inlineInfo->inlineResult->GetObservation();
+    calleeContext->m_Success        = true;
+    calleeContext->m_Devirtualized  = originalCall->IsDevirtualized();
+    calleeContext->m_Guarded        = originalCall->IsGuarded();
+    calleeContext->m_Unboxed        = originalCall->IsUnboxed();
+    calleeContext->m_ImportedILSize = inlineInfo->inlineResult->GetImportedILSize();
 
 #if defined(DEBUG) || defined(INLINE_DATA)
 
@@ -1266,6 +1280,7 @@ InlineContext* InlineStrategy::NewFailure(GenTreeStmt* stmt, InlineResult* inlin
     failedContext->m_Callee        = inlineResult->GetCallee();
     failedContext->m_Success       = false;
     failedContext->m_Devirtualized = originalCall->IsDevirtualized();
+    failedContext->m_Guarded       = originalCall->IsGuarded();
     failedContext->m_Unboxed       = originalCall->IsUnboxed();
 
     assert(InlIsValidObservation(failedContext->m_Observation));

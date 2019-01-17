@@ -92,23 +92,6 @@ private:
         }
     }
 
-    enum CompareKind
-    {
-        CK_SIGNED,
-        CK_UNSIGNED,
-        CK_LOGICAL
-    };
-    static emitJumpKind genJumpKindForOper(genTreeOps cmp, CompareKind compareKind);
-
-    // For a given compare oper tree, returns the conditions to use with jmp/set in 'jmpKind' array.
-    // The corresponding elements of jmpToTrueLabel indicate whether the target of the jump is to the
-    // 'true' label or a 'false' label.
-    //
-    // 'true' label corresponds to jump target of the current basic block i.e. the target to
-    // branch to on compare condition being true.  'false' label corresponds to the target to
-    // branch to on condition being false.
-    static void genJumpKindsForTree(GenTree* cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2]);
-
     static bool genShouldRoundFP();
 
     GenTreeIndir indirForm(var_types type, GenTree* base);
@@ -250,7 +233,7 @@ protected:
 
     void genExitCode(BasicBlock* block);
 
-    void genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTree* failBlk = nullptr);
+    void genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, BasicBlock* failBlk = nullptr);
 
     void genCheckOverflow(GenTree* tree);
 
@@ -287,19 +270,56 @@ protected:
                               regNumber reg2,
                               int       spOffset,
                               int       spDelta,
-                              bool      lastSavedWasPreviousPair,
+                              bool      useSaveNextPair,
                               regNumber tmpReg,
                               bool*     pTmpRegIsZero);
 
     void genPrologSaveReg(regNumber reg1, int spOffset, int spDelta, regNumber tmpReg, bool* pTmpRegIsZero);
 
-    void genEpilogRestoreRegPair(
-        regNumber reg1, regNumber reg2, int spOffset, int spDelta, regNumber tmpReg, bool* pTmpRegIsZero);
+    void genEpilogRestoreRegPair(regNumber reg1,
+                                 regNumber reg2,
+                                 int       spOffset,
+                                 int       spDelta,
+                                 bool      useSaveNextPair,
+                                 regNumber tmpReg,
+                                 bool*     pTmpRegIsZero);
 
     void genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, regNumber tmpReg, bool* pTmpRegIsZero);
 
-    void genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowestCalleeSavedOffset, int spDelta);
+#ifdef DEBUG
+    static void genCheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize);
+#endif // DEBUG
 
+    // A simple struct to keep register pairs for prolog and epilog.
+    struct RegPair
+    {
+        regNumber reg1;
+        regNumber reg2;
+        bool      useSaveNextPair;
+
+        RegPair(regNumber reg1) : reg1(reg1), reg2(REG_NA), useSaveNextPair(false)
+        {
+        }
+
+        RegPair(regNumber reg1, regNumber reg2) : reg1(reg1), reg2(reg2), useSaveNextPair(false)
+        {
+            assert(reg2 == REG_NEXT(reg1));
+        }
+    };
+
+    static void genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack);
+    static void genSetUseSaveNextPairs(ArrayStack<RegPair>* regStack);
+
+    static int genGetSlotSizeForRegsInMask(regMaskTP regsMask);
+
+    void genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
+                                         int       spDelta,
+                                         int spOffset DEBUGARG(bool isRegsToSaveCountOdd));
+    void genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
+                                            int       spDelta,
+                                            int spOffset DEBUGARG(bool isRegsToRestoreCountOdd));
+
+    void genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowestCalleeSavedOffset, int spDelta);
     void genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, int lowestCalleeSavedOffset, int spDelta);
 
     void genPushCalleeSavedRegisters(regNumber initReg, bool* pInitRegZeroed);
@@ -931,6 +951,8 @@ protected:
     void genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr);
     void genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival);
     void genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr);
+    void genHWIntrinsic_R_R_RM(
+        GenTreeHWIntrinsic* node, instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, GenTree* op2);
     void genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival);
     void genHWIntrinsic_R_R_RM_R(GenTreeHWIntrinsic* node, instruction ins);
     void genHWIntrinsic_R_R_R_RM(
@@ -942,8 +964,7 @@ protected:
     void genSSE42Intrinsic(GenTreeHWIntrinsic* node);
     void genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node);
     void genAESIntrinsic(GenTreeHWIntrinsic* node);
-    void genBMI1Intrinsic(GenTreeHWIntrinsic* node);
-    void genBMI2Intrinsic(GenTreeHWIntrinsic* node);
+    void genBMI1OrBMI2Intrinsic(GenTreeHWIntrinsic* node);
     void genFMAIntrinsic(GenTreeHWIntrinsic* node);
     void genLZCNTIntrinsic(GenTreeHWIntrinsic* node);
     void genPCLMULQDQIntrinsic(GenTreeHWIntrinsic* node);
@@ -1135,7 +1156,7 @@ protected:
     void genCallInstruction(GenTreeCall* call);
     void genJmpMethod(GenTree* jmp);
     BasicBlock* genCallFinally(BasicBlock* block);
-    void genCodeForJumpTrue(GenTree* tree);
+    void genCodeForJumpTrue(GenTreeOp* jtrue);
 #ifdef _TARGET_ARM64_
     void genCodeForJumpCompare(GenTreeOp* tree);
 #endif // _TARGET_ARM64_
@@ -1355,6 +1376,50 @@ public:
 #ifdef _TARGET_XARCH_
     instruction genMapShiftInsToShiftByConstantIns(instruction ins, int shiftByValue);
 #endif // _TARGET_XARCH_
+
+    // Maps a GenCondition code to a sequence of conditional jumps or other conditional instructions
+    // such as X86's SETcc. A sequence of instructions rather than just a single one is required for
+    // certain floating point conditions.
+    // For example, X86's UCOMISS sets ZF to indicate equality but it also sets it, together with PF,
+    // to indicate an unordered result. So for GenCondition::FEQ we first need to check if PF is 0
+    // and then jump if ZF is 1:
+    //       JP fallThroughBlock
+    //       JE jumpDestBlock
+    //   fallThroughBlock:
+    //       ...
+    //   jumpDestBlock:
+    //
+    // This is very similar to the way shortcircuit evaluation of bool AND and OR operators works so
+    // in order to make the GenConditionDesc mapping tables easier to read, a bool expression-like
+    // pattern is used to encode the above:
+    //     { EJ_jnp, GT_AND, EJ_je  }
+    //     { EJ_jp,  GT_OR,  EJ_jne }
+    //
+    // For more details check inst_JCC and inst_SETCC functions.
+    //
+    struct GenConditionDesc
+    {
+        emitJumpKind jumpKind1;
+        genTreeOps   oper;
+        emitJumpKind jumpKind2;
+        char         padTo4Bytes;
+
+        static const GenConditionDesc& Get(GenCondition condition)
+        {
+            assert(condition.GetCode() < _countof(map));
+            const GenConditionDesc& desc = map[condition.GetCode()];
+            assert(desc.jumpKind1 != EJ_NONE);
+            assert((desc.oper == GT_NONE) || (desc.oper == GT_AND) || (desc.oper == GT_OR));
+            assert((desc.oper == GT_NONE) == (desc.jumpKind2 == EJ_NONE));
+            return desc;
+        }
+
+    private:
+        static const GenConditionDesc map[32];
+    };
+
+    void inst_JCC(GenCondition condition, BasicBlock* target);
+    void inst_SETCC(GenCondition condition, var_types type, regNumber dstReg);
 };
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

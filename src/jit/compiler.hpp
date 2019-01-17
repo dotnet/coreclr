@@ -871,11 +871,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 void* GenTree::operator new(size_t sz, Compiler* comp, genTreeOps oper)
 {
-#if SMALL_TREE_NODES
     size_t size = GenTree::s_gtNodeSizes[oper];
-#else
-    size_t   size = TREE_NODE_SZ_LARGE;
-#endif
 
 #if MEASURE_NODE_SIZE
     genNodeSizeStats.genTreeNodeCnt += 1;
@@ -916,7 +912,6 @@ inline GenTree::GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode)
     INDEBUG(gtCostsInitialized = false;)
 
 #ifdef DEBUG
-#if SMALL_TREE_NODES
     size_t size = GenTree::s_gtNodeSizes[oper];
     if (size == TREE_NODE_SZ_SMALL && !largeNode)
     {
@@ -930,7 +925,6 @@ inline GenTree::GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode)
     {
         assert(!"bogus node size");
     }
-#endif
 #endif
 
 #if COUNT_AST_OPERS
@@ -1011,10 +1005,7 @@ inline GenTree* Compiler::gtNewOperNode(genTreeOps oper, var_types type, GenTree
 // Returns an opcode that is of the largest node size in use.
 inline genTreeOps LargeOpOpcode()
 {
-#if SMALL_TREE_NODES
-    // Allocate a large node
     assert(GenTree::s_gtNodeSizes[GT_CALL] == TREE_NODE_SZ_LARGE);
-#endif
     return GT_CALL;
 }
 
@@ -1026,18 +1017,11 @@ inline genTreeOps LargeOpOpcode()
 inline GenTree* Compiler::gtNewLargeOperNode(genTreeOps oper, var_types type, GenTree* op1, GenTree* op2)
 {
     assert((GenTree::OperKind(oper) & (GTK_UNOP | GTK_BINOP)) != 0);
-    assert((GenTree::OperKind(oper) & GTK_EXOP) ==
-           0); // Can't use this to construct any types that extend unary/binary operator.
-#if SMALL_TREE_NODES
-    // Allocate a large node
-
+    // Can't use this to construct any types that extend unary/binary operator.
+    assert((GenTree::OperKind(oper) & GTK_EXOP) == 0);
     assert(GenTree::s_gtNodeSizes[oper] == TREE_NODE_SZ_SMALL);
-
+    // Allocate a large node
     GenTree* node = new (this, LargeOpOpcode()) GenTreeOp(oper, type, op1, op2 DEBUGARG(/*largeNode*/ true));
-#else
-    GenTree* node = new (this, oper) GenTreeOp(oper, type, op1, op2);
-#endif
-
     return node;
 }
 
@@ -1061,7 +1045,7 @@ inline GenTree* Compiler::gtNewIconHandleNode(size_t value, unsigned flags, Fiel
 #if defined(LATE_DISASM)
     node = new (this, LargeOpOpcode()) GenTreeIntCon(TYP_I_IMPL, value, fields DEBUGARG(/*largeNode*/ true));
 #else
-    node          = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, value, fields);
+    node = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, value, fields);
 #endif
     node->gtFlags |= flags;
     return node;
@@ -1157,20 +1141,20 @@ inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types typ
 // gtNewAllocObjNode: A little helper to create an object allocation node.
 //
 // Arguments:
-//    helper           - Value returned by ICorJitInfo::getNewHelper
-//    clsHnd           - Corresponding class handle
-//    type             - Tree return type (e.g. TYP_REF)
-//    op1              - Node containing an address of VtablePtr
+//    helper               - Value returned by ICorJitInfo::getNewHelper
+//    helperHasSideEffects - True iff allocation helper has side effects
+//    clsHnd               - Corresponding class handle
+//    type                 - Tree return type (e.g. TYP_REF)
+//    op1                  - Node containing an address of VtablePtr
 //
 // Return Value:
 //    Returns GT_ALLOCOBJ node that will be later morphed into an
 //    allocation helper call or local variable allocation on the stack.
-inline GenTree* Compiler::gtNewAllocObjNode(unsigned int         helper,
-                                            CORINFO_CLASS_HANDLE clsHnd,
-                                            var_types            type,
-                                            GenTree*             op1)
+
+inline GenTreeAllocObj* Compiler::gtNewAllocObjNode(
+    unsigned int helper, bool helperHasSideEffects, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1)
 {
-    GenTree* node = new (this, GT_ALLOCOBJ) GenTreeAllocObj(type, helper, clsHnd, op1);
+    GenTreeAllocObj* node = new (this, GT_ALLOCOBJ) GenTreeAllocObj(type, helper, helperHasSideEffects, clsHnd, op1);
     return node;
 }
 
@@ -1184,18 +1168,11 @@ inline GenTree* Compiler::gtNewAllocObjNode(unsigned int         helper,
 //
 // Return Value:
 //    New GenTreeRuntimeLookup node.
+
 inline GenTree* Compiler::gtNewRuntimeLookup(CORINFO_GENERIC_HANDLE hnd, CorInfoGenericHandleType hndTyp, GenTree* tree)
 {
     assert(tree != nullptr);
     GenTree* node = new (this, GT_RUNTIMELOOKUP) GenTreeRuntimeLookup(hnd, hndTyp, tree);
-    return node;
-}
-
-/*****************************************************************************/
-
-inline GenTree* Compiler::gtNewCodeRef(BasicBlock* block)
-{
-    GenTree* node = new (this, GT_LABEL) GenTreeLabel(block);
     return node;
 }
 
@@ -1206,10 +1183,8 @@ inline GenTree* Compiler::gtNewCodeRef(BasicBlock* block)
 
 inline GenTree* Compiler::gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldHnd, GenTree* obj, DWORD offset)
 {
-#if SMALL_TREE_NODES
     /* 'GT_FIELD' nodes may later get transformed into 'GT_IND' */
     assert(GenTree::s_gtNodeSizes[GT_IND] <= GenTree::s_gtNodeSizes[GT_FIELD]);
-#endif // SMALL_TREE_NODES
 
     GenTree* tree = new (this, GT_FIELD) GenTreeField(typ, obj, fldHnd, offset);
 
@@ -1355,8 +1330,6 @@ inline void Compiler::gtSetStmtInfo(GenTree* stmt)
 }
 
 /*****************************************************************************/
-#if SMALL_TREE_NODES
-/*****************************************************************************/
 
 inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
 {
@@ -1439,47 +1412,6 @@ inline GenTreeCast* Compiler::gtNewCastNodeL(var_types typ, GenTree* op1, bool f
     return res;
 }
 
-/*****************************************************************************/
-#else // SMALL_TREE_NODES
-/*****************************************************************************/
-
-inline void GenTree::InitNodeSize()
-{
-}
-
-inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
-{
-    SetOperRaw(oper);
-
-    if (vnUpdate == CLEAR_VN)
-    {
-        // Clear the ValueNum field.
-        gtVNPair.SetBoth(ValueNumStore::NoVN);
-    }
-}
-
-inline void GenTree::ReplaceWith(GenTree* src)
-{
-    RecordOperBashing(OperGet(), src->OperGet()); // nop unless NODEBASH_STATS is enabled
-    *this    = *src;
-#ifdef DEBUG
-    gtSeqNum = 0;
-#endif
-}
-
-inline GenTree* Compiler::gtNewCastNode(var_types typ, GenTree* op1, var_types castType)
-{
-    GenTree* tree           = gtNewOperNode(GT_CAST, typ, op1);
-    tree->gtCast.gtCastType = castType;
-}
-
-inline GenTree* Compiler::gtNewCastNodeL(var_types typ, GenTree* op1, var_types castType)
-{
-    return gtNewCastNode(typ, op1, castType);
-}
-
-/*****************************************************************************/
-#endif // SMALL_TREE_NODES
 /*****************************************************************************/
 
 /*****************************************************************************/
@@ -1680,7 +1612,7 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
     // this new local will be referenced.
     if (lvaLocalVarRefCounted())
     {
-        if (opts.MinOpts() || opts.compDbgCode)
+        if (opts.OptimizationDisabled())
         {
             lvaTable[tempNum].lvImplicitlyReferenced = 1;
         }
@@ -1817,7 +1749,7 @@ inline unsigned Compiler::lvaGrabTempWithImplicitUse(bool shortLifetime DEBUGARG
 inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, RefCountState state, bool propagate)
 {
     // In minopts and debug codegen, we don't maintain normal ref counts.
-    if ((state == RCS_NORMAL) && (comp->opts.MinOpts() || comp->opts.compDbgCode))
+    if ((state == RCS_NORMAL) && comp->opts.OptimizationDisabled())
     {
         // Note, at least, that there is at least one reference.
         lvImplicitlyReferenced = 1;
@@ -2064,25 +1996,37 @@ inline int Compiler::lvaCachedGenericContextArgOffset()
     return lvaCachedGenericContextArgOffs;
 }
 
-/*****************************************************************************
- *
- *  Return the stack framed offset of the given variable; set *FPbased to
- *  true if the variable is addressed off of FP, false if it's addressed
- *  off of SP. Note that 'varNum' can be a negated spill-temporary var index.
- *
- *  mustBeFPBased - strong about whether the base reg is FP. But it is also
- *  strong about not being FPBased after FINAL_FRAME_LAYOUT. i.e.,
- *  it enforces SP based.
- *
- *  addrModeOffset - is the addressing mode offset, for example: v02 + 0x10
- *  So, V02 itself is at offset sp + 0x10 and then addrModeOffset is what gets
- *  added beyond that.
- */
-
+//------------------------------------------------------------------------
+// lvaFrameAddress: Determine the stack frame offset of the given variable,
+// and how to generate an address to that stack frame.
+//
+// Arguments:
+//    varNum         - The variable to inquire about. Positive for user variables
+//                     or arguments, negative for spill-temporaries.
+//    mustBeFPBased  - [_TARGET_ARM_ only] True if the base register must be FP.
+//                     After FINAL_FRAME_LAYOUT, if false, it also requires SP base register.
+//    pBaseReg       - [_TARGET_ARM_ only] Out arg. *pBaseReg is set to the base
+//                     register to use.
+//    addrModeOffset - [_TARGET_ARM_ only] The mode offset within the variable that we need to address.
+//                     For example, for a large struct local, and a struct field reference, this will be the offset
+//                     of the field. Thus, for V02 + 0x28, if V02 itself is at offset SP + 0x10
+//                     then addrModeOffset is what gets added beyond that, here 0x28.
+//    isFloatUsage   - [_TARGET_ARM_ only] True if the instruction being generated is a floating
+//                     point instruction. This requires using floating-point offset restrictions.
+//                     Note that a variable can be non-float, e.g., struct, but accessed as a
+//                     float local field.
+//    pFPbased       - [non-_TARGET_ARM_] Out arg. Set *FPbased to true if the
+//                     variable is addressed off of FP, false if it's addressed
+//                     off of SP.
+//
+// Return Value:
+//    Returns the variable offset from the given base register.
+//
 inline
 #ifdef _TARGET_ARM_
     int
-    Compiler::lvaFrameAddress(int varNum, bool mustBeFPBased, regNumber* pBaseReg, int addrModeOffset)
+    Compiler::lvaFrameAddress(
+        int varNum, bool mustBeFPBased, regNumber* pBaseReg, int addrModeOffset, bool isFloatUsage)
 #else
     int
     Compiler::lvaFrameAddress(int varNum, bool* pFPbased)
@@ -2090,17 +2034,15 @@ inline
 {
     assert(lvaDoneFrameLayout != NO_FRAME_LAYOUT);
 
-    int       offset;
-    bool      FPbased;
-    bool      fConservative = false;
-    var_types type          = TYP_UNDEF;
+    int  varOffset;
+    bool FPbased;
+    bool fConservative = false;
     if (varNum >= 0)
     {
         LclVarDsc* varDsc;
 
         assert((unsigned)varNum < lvaCount);
         varDsc               = lvaTable + varNum;
-        type                 = varDsc->TypeGet();
         bool isPrespilledArg = false;
 #if defined(_TARGET_ARM_) && defined(PROFILING_SUPPORTED)
         isPrespilledArg = varDsc->lvIsParam && compIsProfilerHookNeeded() &&
@@ -2144,7 +2086,7 @@ inline
         }
 #endif // DEBUG
 
-        offset = varDsc->lvStkOffs;
+        varOffset = varDsc->lvStkOffs;
     }
     else // Its a spill-temp
     {
@@ -2158,8 +2100,7 @@ inline
                 tmpDsc = codeGen->regSet.tmpFindNum(varNum, RegSet::TEMP_USAGE_USED);
             }
             assert(tmpDsc != nullptr);
-            offset = tmpDsc->tdTempOffs();
-            type   = tmpDsc->tdTempType();
+            varOffset = tmpDsc->tdTempOffs();
         }
         else
         {
@@ -2186,7 +2127,6 @@ inline
             //   :                         :
             // ---------------------------------------------------
 
-            type          = compFloatingPointUsed ? TYP_FLOAT : TYP_INT;
             fConservative = true;
             if (!FPbased)
             {
@@ -2197,7 +2137,7 @@ inline
 #else
                 int outGoingArgSpaceSize = 0;
 #endif
-                offset = outGoingArgSpaceSize + max(-varNum * TARGET_POINTER_SIZE, (int)lvaGetMaxSpillTempSize());
+                varOffset = outGoingArgSpaceSize + max(-varNum * TARGET_POINTER_SIZE, (int)lvaGetMaxSpillTempSize());
             }
             else
             {
@@ -2205,9 +2145,9 @@ inline
                 CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef _TARGET_ARM_
-                offset = codeGen->genCallerSPtoInitialSPdelta() - codeGen->genCallerSPtoFPdelta();
+                varOffset = codeGen->genCallerSPtoInitialSPdelta() - codeGen->genCallerSPtoFPdelta();
 #else
-                offset                   = -(codeGen->genTotalFrameSize());
+                varOffset                = -(codeGen->genTotalFrameSize());
 #endif
             }
         }
@@ -2229,19 +2169,20 @@ inline
             // we have already selected the instruction. MinOpts will always reserve R10, so
             // for MinOpts always use SP-based offsets, using R10 as necessary, for simplicity.
 
-            int spOffset           = fConservative ? compLclFrameSize : offset + codeGen->genSPtoFPdelta();
-            int actualOffset       = spOffset + addrModeOffset;
-            int encodingLimitUpper = varTypeIsFloating(type) ? 0x3FC : 0xFFF;
-            int encodingLimitLower = varTypeIsFloating(type) ? -0x3FC : -0xFF;
+            int spVarOffset        = fConservative ? compLclFrameSize : varOffset + codeGen->genSPtoFPdelta();
+            int actualSPOffset     = spVarOffset + addrModeOffset;
+            int actualFPOffset     = varOffset + addrModeOffset;
+            int encodingLimitUpper = isFloatUsage ? 0x3FC : 0xFFF;
+            int encodingLimitLower = isFloatUsage ? -0x3FC : -0xFF;
 
             // Use SP-based encoding. During encoding, we'll pick the best encoding for the actual offset we have.
-            if (opts.MinOpts() || (actualOffset <= encodingLimitUpper))
+            if (opts.MinOpts() || (actualSPOffset <= encodingLimitUpper))
             {
-                offset    = spOffset;
+                varOffset = spVarOffset;
                 *pBaseReg = compLocallocUsed ? REG_SAVED_LOCALLOC_SP : REG_SPBASE;
             }
             // Use Frame Pointer (R11)-based encoding.
-            else if ((encodingLimitLower <= offset) && (offset <= encodingLimitUpper))
+            else if ((encodingLimitLower <= actualFPOffset) && (actualFPOffset <= encodingLimitUpper))
             {
                 *pBaseReg = REG_FPBASE;
             }
@@ -2250,7 +2191,7 @@ inline
             // the "reserved register", which will get used during encoding.
             else
             {
-                offset    = spOffset;
+                varOffset = spVarOffset;
                 *pBaseReg = compLocallocUsed ? REG_SAVED_LOCALLOC_SP : REG_SPBASE;
             }
         }
@@ -2263,7 +2204,7 @@ inline
     *pFPbased                            = FPbased;
 #endif
 
-    return offset;
+    return varOffset;
 }
 
 inline bool Compiler::lvaIsParameter(unsigned varNum)
@@ -4286,7 +4227,6 @@ void GenTree::VisitOperands(TVisitor visitor)
 #endif // !FEATURE_EH_FUNCLETS
         case GT_PHI_ARG:
         case GT_JMPTABLE:
-        case GT_REG_VAR:
         case GT_CLS_VAR:
         case GT_CLS_VAR_ADDR:
         case GT_ARGPLACE:

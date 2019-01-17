@@ -2,30 +2,46 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osGroupName: ''
+  osIdentifier: ''
   name: ''
   displayName: ''
   condition: ''
   dependsOn: ''
   containerName: ''
+  timeoutInMinutes: ''
+  helixType: ''
+  crossrootfsDir: ''
+  enableMicrobuild: ''
+
+  # arcade-specific parameters
+  gatherAssetManifests: false
+
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
-- template: /eng/common/templates/phases/base.yml
+- template: /eng/common/templates/job/job.yml
   parameters:
 
     name: ${{ parameters.name }}
     displayName: ${{ parameters.displayName }}
 
     condition: ${{ parameters.condition }}
-
     dependsOn: ${{ parameters.dependsOn }}
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
 
-    queue:
+    helixRepo: 'dotnet/coreclr'
+    helixType: ${{ parameters.helixType }}
+
+    enableMicrobuild: ${{ parameters.enableMicrobuild }}
+
+    pool:
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
         name: Hosted Ubuntu 1604
       ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
         name: dnceng-linux-internal-temp
+      # FreeBSD builds only in the internal project
+      ${{ if and(eq(parameters.osGroup, 'FreeBSD'), ne(variables['System.TeamProject'], 'public')) }}:
+        name: dnceng-freebsd-internal
       ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:
         name: Hosted Mac Internal
       ${{ if and(eq(parameters.osGroup, 'OSX'), eq(variables['System.TeamProject'], 'public')) }}:
@@ -34,37 +50,67 @@ jobs:
         name: dotnet-internal-temp
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
         name: dotnet-external-temp
-      timeoutInMinutes: 240
 
-      ${{ if ne(parameters.containerName, '') }}:
-        container: ${{ parameters.containerName }}
+    workspace:
+      clean: all
+
+    ${{ if ne(parameters.containerName, '') }}:
+      container: ${{ parameters.containerName }}
 
     ${{ if eq(parameters.osGroup, 'Linux') }}:
       agentOs: Ubuntu
+    ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+      agentOs: FreeBSD
     ${{ if eq(parameters.osGroup, 'OSX') }}:
       agentOs: MacOS
     ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       agentOs: Windows_NT
 
-    variables:
-      buildConfig: ${{ parameters.buildConfig }}
-      ${{ if eq(parameters.buildConfig, 'checked') }}:
-        buildConfigUpper: 'Checked'
-      ${{ if eq(parameters.buildConfig, 'debug') }}:
-        buildConfigUpper: 'Debug'
-      ${{ if eq(parameters.buildConfig, 'release') }}:
-        buildConfigUpper: 'Release'
-      archType: ${{ parameters.archType }}
-      osGroup: ${{ parameters.osGroup }}
-      osGroupName: ${{ parameters.osGroupName }}
-      
-      # Crossbuild specific variables.
-      ${{ if eq(parameters.archType, 'arm') }}:
-        rootfsDir: /crossrootfs/arm
-        cacRootfsDir: /crossrootfs/x86
-      ${{ if eq(parameters.archType, 'arm64') }}:
-        rootfsDir: /crossrootfs/arm64
+    # Setting this results in the arcade job template including a step
+    # that gathers asset manifests and publishes them to pipeline
+    # storage. Only relevant for build jobs.
+    enablePublishBuildAssets: ${{ parameters.gatherAssetManifests }}
 
-      ${{insert}}: ${{ parameters.variables }}
+    variables:
+    - name: buildConfig
+      value: ${{ parameters.buildConfig }}
+        
+    - ${{ if eq(parameters.buildConfig, 'checked') }}:
+      - name: buildConfigUpper
+        value: 'Checked'
+
+    - ${{ if eq(parameters.buildConfig, 'debug') }}:
+      - name: buildConfigUpper
+        value: 'Debug'
+
+    - ${{ if eq(parameters.buildConfig, 'release') }}:
+      - name: buildConfigUpper
+        value: 'Release'
+
+    - name: archType
+      value: ${{ parameters.archType }}
+
+    - name: osGroup
+      value: ${{ parameters.osGroup }}
+
+    - name: osIdentifier
+      value: ${{ parameters.osIdentifier }}
+      
+    - ${{ if ne(parameters.crossrootfsDir, '') }}:
+      - name: crossArg
+        value: 'cross'
+      - name: crossPackagesArg
+        value: '-__DoCrossArchBuild=1'
+      # This is only required for cross builds.
+      - name: ROOTFS_DIR
+        value: ${{ parameters.crossrootfsDir }}
+    - ${{ if eq(parameters.crossrootfsDir, '') }}:
+      - name: crossArg
+        value: ''
+      - name: crossPackagesArg
+        value: ''
+
+    - ${{ each variable in parameters.variables }}:
+      - ${{insert}}: ${{ variable }}
 
     steps: ${{ parameters.steps }}

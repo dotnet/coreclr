@@ -215,9 +215,8 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
         getEmitter()->emitIns_S_R(INS_cmp, EA_PTRSIZE, regGSCheck, compiler->lvaGSSecurityCookie, 0);
     }
 
-    BasicBlock*  gsCheckBlk = genCreateTempLabel();
-    emitJumpKind jmpEqual   = genJumpKindForOper(GT_EQ, CK_SIGNED);
-    inst_JMP(jmpEqual, gsCheckBlk);
+    BasicBlock* gsCheckBlk = genCreateTempLabel();
+    inst_JMP(EJ_je, gsCheckBlk);
     genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, EA_UNKNOWN);
     genDefineTempLabel(gsCheckBlk);
 
@@ -420,7 +419,13 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
     {
         if (genDataIndirAddrCanBeEncodedAsPCRelOffset(imm))
         {
-            getEmitter()->emitIns_R_AI(INS_lea, EA_PTR_DSP_RELOC, reg, imm);
+            emitAttr newSize = EA_PTR_DSP_RELOC;
+            if (EA_IS_BYREF(size))
+            {
+                newSize = EA_SET_FLG(newSize, EA_BYREF_FLG);
+            }
+
+            getEmitter()->emitIns_R_AI(INS_lea, newSize, reg, imm);
         }
         else
         {
@@ -449,7 +454,14 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
 
             if (con->ImmedValNeedsReloc(compiler))
             {
-                instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, targetReg, cnsVal);
+                emitAttr size = EA_HANDLE_CNS_RELOC;
+
+                if (targetType == TYP_BYREF)
+                {
+                    size = EA_SET_FLG(size, EA_BYREF_FLG);
+                }
+
+                instGen_Set_Reg_To_Imm(size, targetReg, cnsVal);
                 regSet.verifyRegUsed(targetReg);
             }
             else
@@ -1372,108 +1384,88 @@ void CodeGen::genCodeForBT(GenTreeOp* bt)
     getEmitter()->emitIns_R_R(INS_bt, emitTypeSize(type), op2->gtRegNum, op1->gtRegNum);
 }
 
-//------------------------------------------------------------------------
-// genCodeForJumpTrue: Generates code for jmpTrue statement.
-//
-// Arguments:
-//    tree - The GT_JTRUE tree node.
-//
-// Return Value:
-//    None
-//
-void CodeGen::genCodeForJumpTrue(GenTree* tree)
+// clang-format off
+const CodeGen::GenConditionDesc CodeGen::GenConditionDesc::map[32]
 {
-    GenTree* cmp = tree->gtOp.gtOp1;
+    { },        // NONE
+    { },        // 1
+    { EJ_jl  }, // SLT
+    { EJ_jle }, // SLE
+    { EJ_jge }, // SGE
+    { EJ_jg  }, // SGT
+    { EJ_js  }, // S
+    { EJ_jns }, // NS
 
-    assert(cmp->OperIsCompare());
-    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
+    { EJ_je  }, // EQ
+    { EJ_jne }, // NE
+    { EJ_jb  }, // ULT
+    { EJ_jbe }, // ULE
+    { EJ_jae }, // UGE
+    { EJ_ja  }, // UGT
+    { EJ_jb  }, // C
+    { EJ_jae }, // NC
+                        
+    // Floating point compare instructions (UCOMISS, UCOMISD etc.) set the condition flags as follows:
+    //    ZF PF CF  Meaning   
+    //   ---------------------
+    //    1  1  1   Unordered 
+    //    0  0  0   Greater   
+    //    0  0  1   Less Than 
+    //    1  0  0   Equal     
+    //
+    // Since ZF and CF are also set when the result is unordered, in some cases we first need to check
+    // PF before checking ZF/CF. In general, ordered conditions will result in a jump only if PF is not
+    // set and unordered conditions will result in a jump only if PF is set.
 
-#if !defined(_TARGET_64BIT_)
-    // Long-typed compares should have been handled by Lowering::LowerCompare.
-    assert(!varTypeIsLong(cmp->gtGetOp1()));
-#endif
-
-    // Get the "kind" and type of the comparison.  Note that whether it is an unsigned cmp
-    // is governed by a flag NOT by the inherent type of the node
-    // TODO-XArch-CQ: Check if we can use the currently set flags.
-    emitJumpKind jumpKind[2];
-    bool         branchToTrueLabel[2];
-    genJumpKindsForTree(cmp, jumpKind, branchToTrueLabel);
-
-    BasicBlock* skipLabel = nullptr;
-    if (jumpKind[0] != EJ_NONE)
-    {
-        BasicBlock* jmpTarget;
-        if (branchToTrueLabel[0])
-        {
-            jmpTarget = compiler->compCurBB->bbJumpDest;
-        }
-        else
-        {
-            // This case arises only for ordered GT_EQ right now
-            assert((cmp->gtOper == GT_EQ) && ((cmp->gtFlags & GTF_RELOP_NAN_UN) == 0));
-            skipLabel = genCreateTempLabel();
-            jmpTarget = skipLabel;
-        }
-
-        inst_JMP(jumpKind[0], jmpTarget);
-    }
-
-    if (jumpKind[1] != EJ_NONE)
-    {
-        // the second conditional branch always has to be to the true label
-        assert(branchToTrueLabel[1]);
-        inst_JMP(jumpKind[1], compiler->compCurBB->bbJumpDest);
-    }
-
-    if (skipLabel != nullptr)
-    {
-        genDefineTempLabel(skipLabel);
-    }
-}
+    { EJ_jnp, GT_AND, EJ_je  }, // FEQ
+    { EJ_jne                 }, // FNE
+    { EJ_jnp, GT_AND, EJ_jb  }, // FLT
+    { EJ_jnp, GT_AND, EJ_jbe }, // FLE
+    { EJ_jae                 }, // FGE
+    { EJ_ja                  }, // FGT
+    { EJ_jo                  }, // O
+    { EJ_jno                 }, // NO
+                        
+    { EJ_je                }, // FEQU
+    { EJ_jp, GT_OR, EJ_jne }, // FNEU
+    { EJ_jb                }, // FLTU
+    { EJ_jbe               }, // FLEU
+    { EJ_jp, GT_OR, EJ_jae }, // FGEU
+    { EJ_jp, GT_OR, EJ_ja  }, // FGTU
+    { EJ_jp                }, // P
+    { EJ_jnp               }, // NP
+};
+// clang-format on
 
 //------------------------------------------------------------------------
-// genCodeForJcc: Produce code for a GT_JCC node.
+// inst_SETCC: Generate code to set a register to 0 or 1 based on a condition.
 //
 // Arguments:
-//    tree - the node
+//   condition - The condition
+//   type      - The type of the value to be produced
+//   dstReg    - The destination register to be set to 1 or 0
 //
-void CodeGen::genCodeForJcc(GenTreeCC* tree)
+void CodeGen::inst_SETCC(GenCondition condition, var_types type, regNumber dstReg)
 {
-    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
-
-    CompareKind  compareKind = ((tree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-    emitJumpKind jumpKind    = genJumpKindForOper(tree->gtCondition, compareKind);
-
-    inst_JMP(jumpKind, compiler->compCurBB->bbJumpDest);
-}
-
-//------------------------------------------------------------------------
-// genCodeForSetcc: Generates a setcc instruction for a GT_SETCC node.
-//
-// Arguments:
-//    tree - the GT_SETCC node
-//
-// Assumptions:
-//    The condition represents an integer comparison. This code doesn't
-//    have the necessary logic to deal with floating point comparisons,
-//    in fact it doesn't even know if the comparison is integer or floating
-//    point because SETCC nodes do not have any operands.
-//
-
-void CodeGen::genCodeForSetcc(GenTreeCC* setcc)
-{
-    regNumber    dstReg      = setcc->gtRegNum;
-    CompareKind  compareKind = setcc->IsUnsigned() ? CK_UNSIGNED : CK_SIGNED;
-    emitJumpKind jumpKind    = genJumpKindForOper(setcc->gtCondition, compareKind);
-
+    assert(varTypeIsIntegral(type));
     assert(genIsValidIntReg(dstReg) && isByteReg(dstReg));
-    // Make sure nobody is setting GTF_RELOP_NAN_UN on this node as it is ignored.
-    assert((setcc->gtFlags & GTF_RELOP_NAN_UN) == 0);
 
-    inst_SET(jumpKind, dstReg);
-    inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), dstReg, dstReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
-    genProduceReg(setcc);
+    const GenConditionDesc& desc = GenConditionDesc::Get(condition);
+
+    inst_SET(desc.jumpKind1, dstReg);
+
+    if (desc.oper != GT_NONE)
+    {
+        BasicBlock* labelNext = genCreateTempLabel();
+        inst_JMP((desc.oper == GT_OR) ? desc.jumpKind1 : emitter::emitReverseJumpKind(desc.jumpKind1), labelNext);
+        inst_SET(desc.jumpKind2, dstReg);
+        genDefineTempLabel(labelNext);
+    }
+
+    if (!varTypeIsByte(type))
+    {
+        getEmitter()->emitIns_R_R(INS_movzx, EA_1BYTE, dstReg, dstReg);
+    }
 }
 
 //------------------------------------------------------------------------
@@ -1497,8 +1489,7 @@ void CodeGen::genCodeForReturnTrap(GenTreeOp* tree)
 
     BasicBlock* skipLabel = genCreateTempLabel();
 
-    emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
-    inst_JMP(jmpEqual, skipLabel);
+    inst_JMP(EJ_je, skipLabel);
 
     // emit the call to the EE-helper that stops for GC (or other reasons)
     regNumber tmpReg = tree->GetSingleTempReg(RBM_ALLINT);
@@ -1783,7 +1774,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_JTRUE:
-            genCodeForJumpTrue(treeNode);
+            genCodeForJumpTrue(treeNode->AsOp());
             break;
 
         case GT_JCC:
@@ -1927,8 +1918,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_LABEL:
-            genPendingCallLabel       = genCreateTempLabel();
-            treeNode->gtLabel.gtLabBB = genPendingCallLabel;
+            genPendingCallLabel = genCreateTempLabel();
             emit->emitIns_R_L(INS_lea, EA_PTR_DSP_RELOC, genPendingCallLabel, treeNode->gtRegNum);
             break;
 
@@ -2158,10 +2148,191 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
         offset += genTypeSize(type);
     }
 
-    varDsc->lvRegNum            = REG_STK;
+    varDsc->lvRegNum = REG_STK;
 #else  // !UNIX_AMD64_ABI && !_TARGET_X86_
     assert(!"Unreached");
 #endif // !UNIX_AMD64_ABI && !_TARGET_X86_
+}
+
+//------------------------------------------------------------------------
+// genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
+//
+void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
+{
+    assert(compiler->compGeneratingProlog);
+
+    if (frameSize == 0)
+    {
+        return;
+    }
+
+    const target_size_t pageSize = compiler->eeGetPageSize();
+
+    if (frameSize == REGSIZE_BYTES)
+    {
+        // Frame size is the same as register size.
+        inst_RV(INS_push, REG_EAX, TYP_I_IMPL);
+    }
+    else if (frameSize < pageSize)
+    {
+        // Frame size is (0x0008..0x1000)
+        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
+    }
+    else if (frameSize < compiler->getVeryLargeFrameSize())
+    {
+        // Frame size is (0x1000..0x3000)
+
+        getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, -(int)pageSize);
+
+        if (frameSize >= 0x2000)
+        {
+            getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, -2 * (int)pageSize);
+        }
+
+        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
+    }
+    else
+    {
+        // Frame size >= 0x3000
+        assert(frameSize >= compiler->getVeryLargeFrameSize());
+
+        // Emit the following sequence to 'tickle' the pages.
+        // Note it is important that stack pointer not change until this is
+        // complete since the tickles could cause a stack overflow, and we
+        // need to be able to crawl the stack afterward (which means the
+        // stack pointer needs to be known).
+
+        bool pushedStubParam = false;
+        if (compiler->info.compPublishStubParam && (REG_SECRET_STUB_PARAM == initReg))
+        {
+            // push register containing the StubParam
+            inst_RV(INS_push, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
+            pushedStubParam = true;
+        }
+
+#ifndef _TARGET_UNIX_
+        instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
+#endif
+
+        //
+        // Can't have a label inside the ReJIT padding area
+        //
+        genPrologPadForReJit();
+
+#ifndef _TARGET_UNIX_
+        // Code size for each instruction. We need this because the
+        // backward branch is hard-coded with the number of bytes to branch.
+        // The encoding differs based on the architecture and what register is
+        // used (namely, using RAX has a smaller encoding).
+        //
+        // loop:
+        // For x86
+        //      test [esp + eax], eax       3
+        //      sub eax, 0x1000             5
+        //      cmp EAX, -frameSize         5
+        //      jge loop                    2
+        //
+        // For AMD64 using RAX
+        //      test [rsp + rax], rax       4
+        //      sub rax, 0x1000             6
+        //      cmp rax, -frameSize         6
+        //      jge loop                    2
+        //
+        // For AMD64 using RBP
+        //      test [rsp + rbp], rbp       4
+        //      sub rbp, 0x1000             7
+        //      cmp rbp, -frameSize         7
+        //      jge loop                    2
+
+        getEmitter()->emitIns_R_ARR(INS_test, EA_PTRSIZE, initReg, REG_SPBASE, initReg, 0);
+        inst_RV_IV(INS_sub, initReg, pageSize, EA_PTRSIZE);
+        inst_RV_IV(INS_cmp, initReg, -((ssize_t)frameSize), EA_PTRSIZE);
+
+        int bytesForBackwardJump;
+#ifdef _TARGET_AMD64_
+        assert((initReg == REG_EAX) || (initReg == REG_EBP)); // We use RBP as initReg for EH funclets.
+        bytesForBackwardJump = ((initReg == REG_EAX) ? -18 : -20);
+#else  // !_TARGET_AMD64_
+        assert(initReg == REG_EAX);
+        bytesForBackwardJump = -15;
+#endif // !_TARGET_AMD64_
+
+        // Branch backwards to start of loop
+        inst_IV(INS_jge, bytesForBackwardJump);
+#else // _TARGET_UNIX_
+        // Code size for each instruction. We need this because the
+        // backward branch is hard-coded with the number of bytes to branch.
+        // The encoding differs based on the architecture and what register is
+        // used (namely, using RAX has a smaller encoding).
+        //
+        // For x86
+        //      lea eax, [esp - frameSize]
+        // loop:
+        //      lea esp, [esp - pageSize]   7
+        //      test [esp], eax             3
+        //      cmp esp, eax                2
+        //      jge loop                    2
+        //      lea rsp, [rbp + frameSize]
+        //
+        // For AMD64 using RAX
+        //      lea rax, [rsp - frameSize]
+        // loop:
+        //      lea rsp, [rsp - pageSize]   8
+        //      test [rsp], rax             4
+        //      cmp rsp, rax                3
+        //      jge loop                    2
+        //      lea rsp, [rax + frameSize]
+        //
+        // For AMD64 using RBP
+        //      lea rbp, [rsp - frameSize]
+        // loop:
+        //      lea rsp, [rsp - pageSize]   8
+        //      test [rsp], rbp             4
+        //      cmp rsp, rbp                3
+        //      jge loop                    2
+        //      lea rsp, [rbp + frameSize]
+
+        int sPageSize = (int)pageSize;
+
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, initReg, REG_SPBASE, -((ssize_t)frameSize)); // get frame border
+
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -sPageSize);
+        getEmitter()->emitIns_R_AR(INS_test, EA_PTRSIZE, initReg, REG_SPBASE, 0);
+        inst_RV_RV(INS_cmp, REG_SPBASE, initReg);
+
+        int bytesForBackwardJump;
+#ifdef _TARGET_AMD64_
+        assert((initReg == REG_EAX) || (initReg == REG_EBP)); // We use RBP as initReg for EH funclets.
+        bytesForBackwardJump = -17;
+#else  // !_TARGET_AMD64_
+        assert(initReg == REG_EAX);
+        bytesForBackwardJump = -14;
+#endif // !_TARGET_AMD64_
+
+        inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
+
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, initReg, frameSize); // restore stack pointer
+#endif // _TARGET_UNIX_
+
+        *pInitRegZeroed = false; // The initReg does not contain zero
+
+        if (pushedStubParam)
+        {
+            // pop eax
+            inst_RV(INS_pop, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
+            regSet.verifyRegUsed(REG_SECRET_STUB_PARAM);
+        }
+
+        //      sub esp, frameSize   6
+        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
+    }
+
+    compiler->unwindAllocStack(frameSize);
+
+    if (!doubleAlignOrFramePointerUsed())
+    {
+        psiAdjustStackLevel(frameSize);
+    }
 }
 
 //------------------------------------------------------------------------
@@ -5109,6 +5280,12 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 {
                     GenTreeObj* obj      = source->AsObj();
                     unsigned    argBytes = roundUp(obj->gtBlkSize, TARGET_POINTER_SIZE);
+#ifdef _TARGET_X86_
+                    // If we have an OBJ, we must have created a copy if the original arg was not a
+                    // local and was not a multiple of TARGET_POINTER_SIZE.
+                    // Note that on x64/ux this will be handled by unrolling in genStructPutArgUnroll.
+                    assert((argBytes == obj->gtBlkSize) || obj->Addr()->IsLocalAddrExpr());
+#endif // _TARGET_X86_
                     assert((curArgTabEntry->numSlots * TARGET_POINTER_SIZE) == argBytes);
                 }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
@@ -5519,7 +5696,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 
     // If there is nothing next, that means the result is thrown away, so this value is not live.
     // However, for minopts or debuggable code, we keep it live to support managed return value debugging.
-    if ((call->gtNext == nullptr) && !compiler->opts.MinOpts() && !compiler->opts.compDbgCode)
+    if ((call->gtNext == nullptr) && compiler->opts.OptimizationEnabled())
     {
         gcInfo.gcMarkRegSetNpt(RBM_INTRET);
     }
@@ -5902,184 +6079,12 @@ void CodeGen::genLeaInstruction(GenTreeAddrMode* lea)
     genProduceReg(lea);
 }
 
-//-------------------------------------------------------------------------------------------
-// genJumpKindsForTree:  Determine the number and kinds of conditional branches
-//                       necessary to implement the given GT_CMP node
-//
-// Arguments:
-//    cmpTree          - (input) The GenTree node that is used to set the Condition codes
-//                     - The GenTree Relop node that was used to set the Condition codes
-//   jmpKind[2]        - (output) One or two conditional branch instructions
-//   jmpToTrueLabel[2] - (output) When true we branch to the true case
-//                       When false we create a second label and branch to the false case
-//                       Only GT_EQ for a floating point compares can have a false value.
-//
-// Return Value:
-//    Sets the proper values into the array elements of jmpKind[] and jmpToTrueLabel[]
-//
-// Assumptions:
-//    At least one conditional branch instruction will be returned.
-//    Typically only one conditional branch is needed
-//     and the second jmpKind[] value is set to EJ_NONE
-//
-// Notes:
-//    jmpToTrueLabel[i]= true  implies branch when the compare operation is true.
-//    jmpToTrueLabel[i]= false implies branch when the compare operation is false.
-//-------------------------------------------------------------------------------------------
-
-// static
-void CodeGen::genJumpKindsForTree(GenTree* cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2])
-{
-    // Except for BEQ (=  ordered GT_EQ) both jumps are to the true label.
-    jmpToTrueLabel[0] = true;
-    jmpToTrueLabel[1] = true;
-
-    // For integer comparisons just use genJumpKindForOper
-    if (!varTypeIsFloating(cmpTree->gtOp.gtOp1))
-    {
-        CompareKind compareKind = ((cmpTree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-        jmpKind[0]              = genJumpKindForOper(cmpTree->gtOper, compareKind);
-        jmpKind[1]              = EJ_NONE;
-    }
-    else
-    {
-        assert(cmpTree->OperIsCompare());
-
-        // For details on how we arrived at this mapping, see the comment block in genCodeForTreeNode()
-        // while generating code for compare opererators (e.g. GT_EQ etc).
-        if ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-        {
-            // Must branch if we have an NaN, unordered
-            switch (cmpTree->gtOper)
-            {
-                case GT_LT:
-                case GT_GT:
-                    jmpKind[0] = EJ_jb;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_LE:
-                case GT_GE:
-                    jmpKind[0] = EJ_jbe;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_NE:
-                    jmpKind[0] = EJ_jpe;
-                    jmpKind[1] = EJ_jne;
-                    break;
-
-                case GT_EQ:
-                    jmpKind[0] = EJ_je;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                default:
-                    unreached();
-            }
-        }
-        else // ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) == 0)
-        {
-            // Do not branch if we have an NaN, unordered
-            switch (cmpTree->gtOper)
-            {
-                case GT_LT:
-                case GT_GT:
-                    jmpKind[0] = EJ_ja;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_LE:
-                case GT_GE:
-                    jmpKind[0] = EJ_jae;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_NE:
-                    jmpKind[0] = EJ_jne;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_EQ:
-                    jmpKind[0]        = EJ_jpe;
-                    jmpKind[1]        = EJ_je;
-                    jmpToTrueLabel[0] = false;
-                    break;
-
-                default:
-                    unreached();
-            }
-        }
-    }
-}
-
 //------------------------------------------------------------------------
 // genCompareFloat: Generate code for comparing two floating point values
 //
 // Arguments:
 //    treeNode - the compare tree
 //
-// Return Value:
-//    None.
-// Comments:
-// SSE2 instruction ucomis[s|d] is performs unordered comparison and
-// updates rFLAGS register as follows.
-//        Result of compare         ZF  PF CF
-//        -----------------        ------------
-//        Unordered                 1   1   1     <-- this result implies one of operands of compare is a NAN.
-//        Greater                   0   0   0
-//        Less Than                 0   0   1
-//        Equal                     1   0   0
-//
-// From the above table the following equalities follow. As per ECMA spec *.UN opcodes perform
-// unordered comparison of floating point values.  That is *.UN comparisons result in true when
-// one of the operands is a NaN whereas ordered comparisons results in false.
-//
-//    Opcode          Amd64 equivalent         Comment
-//    ------          -----------------        --------
-//    BLT.UN(a,b)      ucomis[s|d] a, b        Jb branches if CF=1, which means either a<b or unordered from the above
-//                     jb                      table
-//
-//    BLT(a,b)         ucomis[s|d] b, a        Ja branches if CF=0 and ZF=0, which means b>a that in turn implies a<b
-//                     ja
-//
-//    BGT.UN(a,b)      ucomis[s|d] b, a        branch if b<a or unordered ==> branch if a>b or unordered
-//                     jb
-//
-//    BGT(a, b)        ucomis[s|d] a, b        branch if a>b
-//                     ja
-//
-//    BLE.UN(a,b)      ucomis[s|d] a, b        jbe branches if CF=1 or ZF=1, which implies a<=b or unordered
-//                     jbe
-//
-//    BLE(a,b)         ucomis[s|d] b, a        jae branches if CF=0, which mean b>=a or a<=b
-//                     jae
-//
-//    BGE.UN(a,b)      ucomis[s|d] b, a        branch if b<=a or unordered ==> branch if a>=b or unordered
-//                     jbe
-//
-//    BGE(a,b)         ucomis[s|d] a, b        branch if a>=b
-//                     jae
-//
-//    BEQ.UN(a,b)      ucomis[s|d] a, b        branch if a==b or unordered.  There is no BEQ.UN opcode in ECMA spec.
-//                     je                      This case is given for completeness, in case if JIT generates such
-//                                             a gentree internally.
-//
-//    BEQ(a,b)         ucomis[s|d] a, b        From the above table, PF=0 and ZF=1 corresponds to a==b.
-//                     jpe L1
-//                     je <true label>
-//                 L1:
-//
-//    BNE(a,b)         ucomis[s|d] a, b        branch if a!=b.  There is no BNE opcode in ECMA spec. This case is
-//                     jne                     given for completeness, in case if JIT generates such a gentree
-//                                             internally.
-//
-//    BNE.UN(a,b)      ucomis[s|d] a, b        From the above table, PF=1 or ZF=0 implies unordered or a!=b
-//                     jpe <true label>
-//                     jne <true label>
-//
-// As we can see from the above equalities that the operands of a compare operator need to be
-// reversed in case of BLT/CLT, BGT.UN/CGT.UN, BLE/CLE, BGE.UN/CGE.UN.
 void CodeGen::genCompareFloat(GenTree* treeNode)
 {
     assert(treeNode->OperIsCompare());
@@ -6099,22 +6104,12 @@ void CodeGen::genCompareFloat(GenTree* treeNode)
     instruction ins;
     emitAttr    cmpAttr;
 
-    bool reverseOps;
-    if ((tree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-    {
-        // Unordered comparison case
-        reverseOps = (tree->gtOper == GT_GT || tree->gtOper == GT_GE);
-    }
-    else
-    {
-        reverseOps = (tree->gtOper == GT_LT || tree->gtOper == GT_LE);
-    }
+    GenCondition condition = GenCondition::FromFloatRelop(treeNode);
 
-    if (reverseOps)
+    if (condition.PreferSwap())
     {
-        GenTree* tmp = op1;
-        op1          = op2;
-        op2          = tmp;
+        condition = GenCondition::Swap(condition);
+        std::swap(op1, op2);
     }
 
     ins     = ins_FloatCompare(op1Type);
@@ -6125,7 +6120,7 @@ void CodeGen::genCompareFloat(GenTree* treeNode)
     // Are we evaluating this into a register?
     if (targetReg != REG_NA)
     {
-        genSetRegToCond(targetReg, tree);
+        inst_SETCC(condition, treeNode->TypeGet(), targetReg);
         genProduceReg(tree);
     }
 }
@@ -6234,91 +6229,8 @@ void CodeGen::genCompareInt(GenTree* treeNode)
     // Are we evaluating this into a register?
     if (targetReg != REG_NA)
     {
-        genSetRegToCond(targetReg, tree);
+        inst_SETCC(GenCondition::FromIntegralRelop(tree), tree->TypeGet(), targetReg);
         genProduceReg(tree);
-    }
-}
-
-//-------------------------------------------------------------------------------------------
-// genSetRegToCond:  Set a register 'dstReg' to the appropriate one or zero value
-//                   corresponding to a binary Relational operator result.
-//
-// Arguments:
-//   dstReg          - The target register to set to 1 or 0
-//   tree            - The GenTree Relop node that was used to set the Condition codes
-//
-// Return Value:     none
-//
-// Notes:
-//    A full 64-bit value of either 1 or 0 is setup in the 'dstReg'
-//-------------------------------------------------------------------------------------------
-
-void CodeGen::genSetRegToCond(regNumber dstReg, GenTree* tree)
-{
-    noway_assert((genRegMask(dstReg) & RBM_BYTE_REGS) != 0);
-
-    emitJumpKind jumpKind[2];
-    bool         branchToTrueLabel[2];
-    genJumpKindsForTree(tree, jumpKind, branchToTrueLabel);
-
-    if (jumpKind[1] == EJ_NONE)
-    {
-        // Set (lower byte of) reg according to the flags
-        inst_SET(jumpKind[0], dstReg);
-    }
-    else
-    {
-#ifdef DEBUG
-        // jmpKind[1] != EJ_NONE implies BEQ and BEN.UN of floating point values.
-        // These are represented by two conditions.
-        if (tree->gtOper == GT_EQ)
-        {
-            // This must be an ordered comparison.
-            assert((tree->gtFlags & GTF_RELOP_NAN_UN) == 0);
-        }
-        else
-        {
-            // This must be BNE.UN
-            assert((tree->gtOper == GT_NE) && ((tree->gtFlags & GTF_RELOP_NAN_UN) != 0));
-        }
-#endif
-
-        // Here is the sample code generated in each case:
-        // BEQ ==  cmp, jpe <false label>, je <true label>
-        // That is, to materialize comparison reg needs to be set if PF=0 and ZF=1
-        //      setnp reg  // if (PF==0) reg = 1 else reg = 0
-        //      jpe L1     // Jmp if PF==1
-        //      sete reg
-        //  L1:
-        //
-        // BNE.UN == cmp, jpe <true label>, jne <true label>
-        // That is, to materialize the comparison reg needs to be set if either PF=1 or ZF=0;
-        //     setp reg
-        //     jpe L1
-        //     setne reg
-        //  L1:
-
-        // reverse the jmpkind condition before setting dstReg if it is to false label.
-        inst_SET(branchToTrueLabel[0] ? jumpKind[0] : emitter::emitReverseJumpKind(jumpKind[0]), dstReg);
-
-        BasicBlock* label = genCreateTempLabel();
-        inst_JMP(jumpKind[0], label);
-
-        // second branch is always to true label
-        assert(branchToTrueLabel[1]);
-        inst_SET(jumpKind[1], dstReg);
-        genDefineTempLabel(label);
-    }
-
-    var_types treeType = tree->TypeGet();
-    if (treeType == TYP_INT || treeType == TYP_LONG)
-    {
-        // Set the higher bytes to 0
-        inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), dstReg, dstReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
-    }
-    else
-    {
-        noway_assert(treeType == TYP_BYTE);
     }
 }
 

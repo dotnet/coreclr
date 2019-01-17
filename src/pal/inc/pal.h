@@ -433,6 +433,7 @@ DWORD
 PALAPI
 PAL_RegisterForRuntimeStartup(
     IN DWORD dwProcessId,
+    IN LPCWSTR lpApplicationGroupId,
     IN PPAL_STARTUP_CALLBACK pfnCallback,
     IN PVOID parameter,
     OUT PVOID *ppUnregisterToken);
@@ -453,7 +454,7 @@ PALIMPORT
 LPCSTR
 PALAPI
 PAL_GetApplicationGroupId();
-#endif // __APPLE__
+#endif
 
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
 
@@ -463,6 +464,7 @@ PALAPI
 PAL_GetTransportPipeName(
     OUT char *name,
     IN DWORD id,
+    IN const char *applicationGroupId, 
     IN const char *suffix);
 
 PALIMPORT
@@ -1100,6 +1102,14 @@ PALAPI
 GetTempPathW(
          IN DWORD nBufferLength,
          OUT LPWSTR lpBuffer);
+
+PALIMPORT
+DWORD
+PALAPI
+GetTempPathA(
+         IN DWORD nBufferLength,
+         OUT LPSTR lpBuffer);
+
 
 #ifdef UNICODE
 #define GetTempPath GetTempPathW
@@ -3130,24 +3140,6 @@ DebugBreak(
        VOID);
 
 PALIMPORT
-int
-PALAPI
-lstrlenA(
-     IN LPCSTR lpString);
-
-PALIMPORT
-int
-PALAPI
-lstrlenW(
-     IN LPCWSTR lpString);
-
-#ifdef UNICODE
-#define lstrlen lstrlenW
-#else
-#define lstrlen lstrlenA
-#endif
-
-PALIMPORT
 DWORD
 PALAPI
 GetEnvironmentVariableW(
@@ -5065,7 +5057,7 @@ public:
 
 typedef BOOL (*PHARDWARE_EXCEPTION_HANDLER)(PAL_SEHException* ex);
 typedef BOOL (*PHARDWARE_EXCEPTION_SAFETY_CHECK_FUNCTION)(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord);
-typedef VOID (*PTERMINATION_REQUEST_HANDLER)();
+typedef VOID (*PTERMINATION_REQUEST_HANDLER)(int terminationExitCode);
 typedef DWORD (*PGET_GCMARKER_EXCEPTION_CODE)(LPVOID ip);
 
 PALIMPORT

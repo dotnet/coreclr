@@ -690,12 +690,70 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByRefOut1
 	str1->i = 64;
 	return TRUE;
 }
+///////////////////////////////////////////////////////////////////////////////////////
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByValIntWithInnerSequential(IntWithInnerSequential str, int i)
+{
+    if (str.i1 != i || !IsCorrectInnerSequential(&str.sequential))
+    {
+        printf("\tMarshalStructAsParam_AsSeqByValIntWithInnerSequential: IntWithInnerSequential param not as expected\n");
+        printf("Expected %d, Got %d for str.i\n", i, str.i1);
+        PrintInnerSequential(&str.sequential, "str.sequential");
+        return FALSE;
+    }
+    return TRUE;
+}
+
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByValSequentialWrapper(SequentialWrapper wrapper)
+{
+    if (!IsCorrectInnerSequential(&wrapper.sequential))
+    {
+        printf("\tMarshalStructAsParam_AsSeqByValSequentialWrapper: SequentialWrapper param not as expected\n");
+        PrintInnerSequential(&wrapper.sequential, "wrapper.sequential");
+        return FALSE;
+    }
+    return TRUE;
+}
+
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByValSequentialDoubleWrapper(SequentialDoubleWrapper wrapper)
+{
+    if (!IsCorrectInnerSequential(&wrapper.wrapper.sequential))
+    {
+        printf("\tMarshalStructAsParam_AsSeqByValSequentialWrapper: SequentialWrapper param not as expected\n");
+        PrintInnerSequential(&wrapper.wrapper.sequential, "wrapper.sequential");
+        return FALSE;
+    }
+    return TRUE;
+}
+
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByValSequentialAggregateSequentialWrapper(AggregateSequentialWrapper wrapper)
+{
+    if (!IsCorrectInnerSequential(&wrapper.wrapper1.sequential))
+    {
+        printf("\tMarshalStructAsParam_AsSeqByValSequentialWrapper: SequentialWrapper param not as expected\n");
+        PrintInnerSequential(&wrapper.wrapper1.sequential, "wrapper.sequential");
+        return FALSE;
+    }
+    if (!IsCorrectInnerSequential(&wrapper.sequential))
+    {
+        printf("\tMarshalStructAsParam_AsSeqByValSequentialWrapper: SequentialWrapper param not as expected\n");
+        PrintInnerSequential(&wrapper.sequential, "wrapper.sequential");
+        return FALSE;
+    }
+    if (!IsCorrectInnerSequential(&wrapper.wrapper2.sequential))
+    {
+        printf("\tMarshalStructAsParam_AsSeqByValSequentialWrapper: SequentialWrapper param not as expected\n");
+        PrintInnerSequential(&wrapper.wrapper2.sequential, "wrapper.sequential");
+        return FALSE;
+    }
+    return TRUE;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByValINNER2(INNER2 inner)
 {
 	if(!IsCorrectINNER2(&inner))
 	{
-		printf("\tMarshalStructAsParam_AsSeqByVal: INNER param not as expected\n");
+		printf("\tMarshalStructAsParam_AsExpByVal: INNER param not as expected\n");
 		PrintINNER2(&inner,"inner");
 		return FALSE;
 	}
@@ -707,7 +765,7 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByRefINNE
 {
 	if(!IsCorrectINNER2(inner))
 	{
-		printf("\tMarshalStructAsParam_AsSeqByRef: INNER param not as expected\n");
+		printf("\tMarshalStructAsParam_AsExpByRef: INNER param not as expected\n");
 		PrintINNER2(inner,"inner");
 		return FALSE;
 	}
@@ -718,7 +776,7 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByRefInIN
 {
 	if(!IsCorrectINNER2(inner))
 	{
-		printf("\tMarshalStructAsParam_AsSeqByRefIn: INNER param not as expected\n");
+		printf("\tMarshalStructAsParam_AsExpByRefIn: INNER param not as expected\n");
 		PrintINNER2(inner,"inner");
 		return FALSE;
 	}
@@ -730,7 +788,7 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByValOutI
 {
 	if(!IsCorrectINNER2(&inner))
 	{
-		printf("\tMarshalStructAsParam_AsSeqByValOut:NNER param not as expected\n");
+		printf("\tMarshalStructAsParam_AsExpByValOut:NNER param not as expected\n");
 		PrintINNER2(&inner,"inner");
 		return FALSE;
 	}
@@ -1120,3 +1178,46 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByRefOutL
 	return TRUE;
 }
 
+extern "C" DLL_EXPORT HFA STDMETHODCALLTYPE GetHFA(float f1, float f2, float f3, float f4)
+{
+    return {f1, f2, f3, f4};
+}
+
+extern "C" DLL_EXPORT ManyInts STDMETHODCALLTYPE GetMultiplesOf(int value)
+{
+    ManyInts multiples = 
+    {
+        value * 1,
+        value * 2,
+        value * 3,
+        value * 4,
+        value * 5,
+        value * 6,
+        value * 7,
+        value * 8, 
+        value * 9,
+        value * 10,
+        value * 11,
+        value * 12,
+        value * 13,
+        value * 14,
+        value * 15,
+        value * 16,
+        value * 17,
+        value * 18,
+        value * 19,
+        value * 20,
+    };
+
+    return multiples;
+}
+
+extern "C" DLL_EXPORT LongStructPack16Explicit STDMETHODCALLTYPE GetLongStruct(LONG64 val1, LONG64 val2)
+{
+    return {val1, val2};
+}
+
+extern "C" DLL_EXPORT MultipleBools STDMETHODCALLTYPE GetBools(BOOL b1, BOOL b2)
+{
+    return {b1, b2};
+}

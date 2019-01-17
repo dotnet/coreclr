@@ -51,8 +51,6 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref);
  *  |       |
  *  |       +-  PtrArray   - Array of OBJECTREFs, different than base arrays because of pObjectClass
  *  |              
- *  +-- code:AppDomainBaseObject - The base object for the class AppDomain
- *  |              
  *  +-- code:AssemblyBaseObject - The base object for the class Assembly
  *
  *
@@ -84,7 +82,6 @@ class MethodTable;
 class Thread;
 class BaseDomain;
 class Assembly;
-class Context;
 class DomainAssembly;
 class AssemblyNative;
 class WaitHandleNative;
@@ -1400,11 +1397,11 @@ class CultureInfoBaseObject : public Object
     friend class MscorlibBinder;
 
 private:
-    OBJECTREF compareInfo;
-    OBJECTREF textInfo;
-    OBJECTREF numInfo;
-    OBJECTREF dateTimeInfo;
-    OBJECTREF calendar;
+    OBJECTREF _compareInfo;
+    OBJECTREF _textInfo;
+    OBJECTREF _numInfo;
+    OBJECTREF _dateTimeInfo;
+    OBJECTREF _calendar;
     OBJECTREF _cultureData;
     OBJECTREF _consoleFallbackCulture;
     STRINGREF _name;                       // "real" name - en-US, de-DE_phoneb or fj-FJ
@@ -1413,7 +1410,6 @@ private:
     CULTUREINFOBASEREF _parent;
     CLR_BOOL _isReadOnly;
     CLR_BOOL _isInherited;
-    CLR_BOOL _useUserOverride;
 
 public:
     CULTUREINFOBASEREF GetParent()
@@ -1510,15 +1506,6 @@ public:
     OBJECTREF GetDelegate()                   { LIMITED_METHOD_CONTRACT; return m_Delegate; }
     void      SetDelegate(OBJECTREF delegate);
 
-    CULTUREINFOBASEREF GetCurrentUserCulture();
-    CULTUREINFOBASEREF GetCurrentUICulture();
-    OBJECTREF GetManagedThreadCulture(BOOL bUICulture);
-    void ResetManagedThreadCulture(BOOL bUICulture);
-    void ResetCurrentUserCulture();
-    void ResetCurrentUICulture();
-
-
-
     OBJECTREF GetSynchronizationContext()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1529,13 +1516,6 @@ public:
     // created first.  InitExisting is our "constructor" for the pathway where an
     // existing physical thread is later exposed.
     void      InitExisting();
-
-    void ResetCulture()
-    {
-        LIMITED_METHOD_CONTRACT;
-        ResetCurrentUserCulture();
-        ResetCurrentUICulture();
-    }
 
     void ResetName()
     {
@@ -1561,56 +1541,6 @@ public:
 //  
 class MarshalByRefObjectBaseObject : public Object
 {
-};
-
-// AppDomainBaseObject 
-// This class is the base class for application domains
-//  
-class AppDomainBaseObject : public MarshalByRefObjectBaseObject
-{
-    friend class AppDomain;
-    friend class MscorlibBinder;
-
-  protected:
-    // READ ME:
-    // Modifying the order or fields of this object may require other changes to the
-    //  classlib class definition of this object.
-    OBJECTREF    m_pAssemblyEventHandler; // Delegate for 'loading assembly' event
-    OBJECTREF    m_pTypeEventHandler;     // Delegate for 'resolve type' event
-    OBJECTREF    m_pResourceEventHandler; // Delegate for 'resolve resource' event
-    OBJECTREF    m_pAsmResolveEventHandler; // Delegate for 'resolve assembly' event
-    OBJECTREF    m_pProcessExitEventHandler; // Delegate for 'process exit' event.  Only used in Default appdomain.
-    OBJECTREF    m_pDomainUnloadEventHandler; // Delegate for 'about to unload domain' event
-    OBJECTREF    m_pUnhandledExceptionEventHandler; // Delegate for 'unhandled exception' event
-
-    OBJECTREF    m_pFirstChanceExceptionHandler; // Delegate for 'FirstChance Exception' event
-
-    AppDomain*   m_pDomain;            // Pointer to the BaseDomain Structure
-
-  protected:
-    AppDomainBaseObject() { LIMITED_METHOD_CONTRACT; }
-   ~AppDomainBaseObject() { LIMITED_METHOD_CONTRACT; }
-   
-  public:
-
-    void SetDomain(AppDomain* p) 
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pDomain = p;
-    }
-    AppDomain* GetDomain() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pDomain;
-    }
-
-    // Returns the reference to the delegate of the first chance exception notification handler
-    OBJECTREF GetFirstChanceExceptionNotificationHandler()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return m_pFirstChanceExceptionHandler;
-    }
 };
 
 // AssemblyBaseObject 
@@ -1801,7 +1731,6 @@ typedef PTR_ReflectClassBaseObject REFLECTCLASSBASEREF;
 typedef PTR_ReflectMethodObject REFLECTMETHODREF;
 typedef PTR_ReflectFieldObject REFLECTFIELDREF;
 typedef PTR_ThreadBaseObject THREADBASEREF;
-typedef PTR_AppDomainBaseObject APPDOMAINREF;
 typedef PTR_AssemblyBaseObject ASSEMBLYREF;
 typedef PTR_AssemblyNameBaseObject ASSEMBLYNAMEREF;
 

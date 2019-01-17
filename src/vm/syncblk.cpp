@@ -2004,7 +2004,7 @@ BOOL ObjHeader::LeaveObjMonitor()
             }
             return TRUE;
         case AwareLock::LeaveHelperAction_Yield:
-            YieldProcessor();
+            YieldProcessorNormalized();
             continue;
         case AwareLock::LeaveHelperAction_Contention:
             // Some thread is updating the syncblock value.
@@ -2056,7 +2056,7 @@ BOOL ObjHeader::LeaveObjMonitorAtException()
             }
             return TRUE;
         case AwareLock::LeaveHelperAction_Yield:
-            YieldProcessor();
+            YieldProcessorNormalized();
             continue;
         case AwareLock::LeaveHelperAction_Contention:
             // Some thread is updating the syncblock value.
@@ -2211,7 +2211,7 @@ DEBUG_NOINLINE void ObjHeader::EnterSpinLock()
             {
                 if  (! (m_SyncBlockValue & BIT_SBLK_SPIN_LOCK))
                     break;
-                YieldProcessor();               // indicate to the processor that we are spining
+                YieldProcessorNormalized(); // indicate to the processor that we are spinning
             }
             if  (m_SyncBlockValue & BIT_SBLK_SPIN_LOCK)
                 __SwitchToThread(0, ++dwSwitchCount);
@@ -3356,16 +3356,7 @@ BOOL SyncBlock::Wait(INT32 timeOut, BOOL exitContext)
         syncState.m_EnterCount = LeaveMonitorCompletely();
         _ASSERTE(syncState.m_EnterCount > 0);
 
-        Context* targetContext;
-        targetContext = pCurThread->GetContext();
-        _ASSERTE(targetContext);
-        Context* defaultContext;
-        defaultContext = pCurThread->GetDomain()->GetDefaultContext();
-        _ASSERTE(defaultContext);
-        _ASSERTE( exitContext==NULL || targetContext == defaultContext);
-        {
-            isTimedOut = pCurThread->Block(timeOut, &syncState);
-        }
+        isTimedOut = pCurThread->Block(timeOut, &syncState);
     }
     GCPROTECT_END();
     m_Monitor.DecrementTransientPrecious();

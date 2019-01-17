@@ -91,18 +91,24 @@ code_t AddRexXPrefix(instruction ins, code_t code);
 code_t AddRexBPrefix(instruction ins, code_t code);
 code_t AddRexPrefix(instruction ins, code_t code);
 
-bool useSSE4Encodings;
-bool UseSSE4()
-{
-    return useSSE4Encodings;
-}
-void SetUseSSE4(bool value)
-{
-    useSSE4Encodings = value;
-}
 bool EncodedBySSE38orSSE3A(instruction ins);
-bool Is4ByteSSE4Instruction(instruction ins);
-bool Is4ByteSSE4OrAVXInstruction(instruction ins);
+bool Is4ByteSSEInstruction(instruction ins);
+
+// Adjust code size for CRC32 that has 4-byte opcode
+// but does not use SSE38 or EES3A encoding.
+UNATIVE_OFFSET emitAdjustSizeCrc32(instruction ins, emitAttr attr)
+{
+    UNATIVE_OFFSET szDelta = 0;
+    if (ins == INS_crc32)
+    {
+        szDelta += 1;
+        if (attr == EA_2BYTE)
+        {
+            szDelta += 1;
+        }
+    }
+    return szDelta;
+}
 
 bool hasRexPrefix(code_t code)
 {

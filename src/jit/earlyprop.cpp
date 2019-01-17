@@ -115,7 +115,10 @@ GenTree* Compiler::getObjectHandleNodeFromAllocation(GenTree* tree)
         {
             if (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWFAST) ||
                 call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWSFAST) ||
+                call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWSFAST_FINALIZE) ||
                 call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWSFAST_ALIGN8) ||
+                call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWSFAST_ALIGN8_VC) ||
+                call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWSFAST_ALIGN8_FINALIZE) ||
                 call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWARR_1_DIRECT) ||
                 call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWARR_1_R2R_DIRECT) ||
                 call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWARR_1_OBJ) ||
@@ -287,9 +290,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
     {
         assert((propKind == optPropKind::OPK_ARRAYLEN) || (propKind == optPropKind::OPK_OBJ_GETTYPE));
         assert(actualVal->IsCnsIntOrI());
-#if SMALL_TREE_NODES
         assert(actualVal->GetNodeSize() == TREE_NODE_SZ_SMALL);
-#endif
 
         ssize_t actualConstVal = actualVal->AsIntCon()->IconValue();
 

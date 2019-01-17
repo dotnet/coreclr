@@ -951,15 +951,12 @@ void PEFile::SetNativeImage(PEImage *image)
                     DBG_ADDR(image->GetLoadedLayout()->GetPreferredBase()));
     }
 
-#ifdef FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
-    // In Apollo, first ask if we're supposed to be ignoring the prejitted code &
+    // First ask if we're supposed to be ignoring the prejitted code &
     // structures in NGENd images. If so, bail now and do not set m_nativeImage. We've
-    // already set m_identity & m_openedILimage (possibly even pointing to the
-    // NGEN/Triton image), and will use those PEImages to find and JIT IL (even if they
-    // point to an NGENd/Tritonized image).
+    // already set m_identity & m_openedILimage), and will use those PEImages to find 
+    // and JIT IL.
     if (ShouldTreatNIAsMSIL())
         RETURN;
-#endif
 
     m_nativeImage = image;
     m_nativeImage->AddRef();
@@ -1463,7 +1460,6 @@ void PEFile::GetNGENDebugFlags(BOOL *fAllowOpt)
 
 
 #ifndef DACCESS_COMPILE
-#ifdef FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
 
 //---------------------------------------------------------------------------------------
 //
@@ -1506,8 +1502,6 @@ BOOL PEFile::ShouldTreatNIAsMSIL()
 
     return FALSE;
 }
-
-#endif // FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
 
 #endif  //!DACCESS_COMPILE
 #endif  // FEATURE_PREJIT
@@ -1689,7 +1683,6 @@ void PEFile::FlushExternalLog()
 BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
                                  PBYTE *pbInMemoryResource, DomainAssembly** pAssemblyRef,
                                  LPCSTR *szFileName, DWORD *dwLocation,
-                                 StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                                  BOOL fSkipRaiseResolveEvent, DomainAssembly* pDomainAssembly, AppDomain* pAppDomain)
 {
     CONTRACTL
@@ -1779,8 +1772,6 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
                                                 pAssemblyRef,
                                                 szFileName,
                                                 dwLocation,
-                                                pStackMark,
-                                                fSkipSecurityCheck,
                                                 fSkipRaiseResolveEvent);
         }
 
@@ -1788,31 +1779,6 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
         if (mdLinkRef == mdFileNil)
         {
             // The resource is embedded in the manifest file
-
-#ifndef CROSSGEN_COMPILE
-            if (!IsMrPublic(dwResourceFlags) && pStackMark && !fSkipSecurityCheck)
-            {
-                Assembly *pCallersAssembly = SystemDomain::GetCallersAssembly(pStackMark);
-
-                if (pCallersAssembly &&  // full trust for interop
-                    (!pCallersAssembly->GetManifestFile()->Equals(this)))
-                {
-                    RefSecContext sCtx(AccessCheckOptions::kMemberAccess);
-
-                    AccessCheckOptions accessCheckOptions(
-                        AccessCheckOptions::kMemberAccess,  /*accessCheckType*/
-                        NULL,                               /*pAccessContext*/
-                        FALSE,                              /*throwIfTargetIsInaccessible*/
-                        (MethodTable *) NULL                /*pTargetMT*/
-                        );
-
-                    // SL: return TRUE only if the caller is critical
-                    // Desktop: return TRUE only if demanding MemberAccess succeeds
-                    if (!accessCheckOptions.DemandMemberAccessOrFail(&sCtx, NULL, TRUE /*visibilityCheck*/))
-                        return FALSE;
-                }
-            }
-#endif // CROSSGEN_COMPILE
 
             if (dwLocation) {
                 *dwLocation = *dwLocation | 5; // ResourceLocation.embedded |

@@ -768,7 +768,7 @@ ClrDataAccess::GetThreadData(CLRDATA_ADDRESS threadAddr, struct DacpThreadData *
     threadData->fiberData = NULL;
 
     threadData->pFrame = PTR_CDADDR(thread->m_pFrame);
-    threadData->context = PTR_CDADDR(thread->m_Context);
+    threadData->context = PTR_CDADDR(thread->m_pDomain);
     threadData->domain = PTR_CDADDR(thread->m_pDomain);
     threadData->lockCount = thread->m_dwLockCount;
 #ifndef FEATURE_PAL
@@ -1417,8 +1417,7 @@ ClrDataAccess::GetDomainFromContext(CLRDATA_ADDRESS contextAddr, CLRDATA_ADDRESS
 
     SOSDacEnter();
 
-    Context* context = PTR_Context(TO_TADDR(contextAddr));
-    *domain = HOST_CDADDR(context->GetDomain());
+    *domain = contextAddr; // Context is same as the AppDomain in CoreCLR
 
     SOSDacLeave();
     return hr;
@@ -2788,11 +2787,14 @@ ClrDataAccess::GetGCHeapStaticData(struct DacpGcHeapDetails *detailsData)
         detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)alloc_context->alloc_limit;
     }
 
-    DPTR(dac_finalize_queue) fq = Dereference(g_gcDacGlobals->finalize_queue);
-    DPTR(uint8_t*) fillPointersTable = dac_cast<TADDR>(fq) + offsetof(dac_finalize_queue, m_FillPointers);
-    for (unsigned int i = 0; i<(*g_gcDacGlobals->max_gen + 2 + dac_finalize_queue::ExtraSegCount); i++)
+    if (g_gcDacGlobals->finalize_queue.IsValid())
     {
-        detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS)*TableIndex(fillPointersTable, i, sizeof(uint8_t*));
+        DPTR(dac_finalize_queue) fq = Dereference(g_gcDacGlobals->finalize_queue);
+        DPTR(uint8_t*) fillPointersTable = dac_cast<TADDR>(fq) + offsetof(dac_finalize_queue, m_FillPointers);
+        for (unsigned int i = 0; i<(*g_gcDacGlobals->max_gen + 2 + dac_finalize_queue::ExtraSegCount); i++)
+        {
+            detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS)*TableIndex(fillPointersTable, i, sizeof(uint8_t*));
+        }
     }
 
     SOSDacLeave();
@@ -3761,6 +3763,12 @@ ClrDataAccess::EnumWksGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
     SUPPORTS_DAC;
 
+#ifdef FEATURE_SVR_GC
+    // If server GC, skip enumeration
+    if (g_gcDacGlobals->g_heaps != nullptr)
+        return;
+#endif
+
     Dereference(g_gcDacGlobals->ephemeral_heap_segment).EnumMem();
     g_gcDacGlobals->alloc_allocated.EnumMem();
     g_gcDacGlobals->gc_structures_invalid_cnt.EnumMem();
@@ -3782,7 +3790,6 @@ ClrDataAccess::EnumWksGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
                 while (seg)
                 {
                         DacEnumMemoryRegion(dac_cast<TADDR>(seg), sizeof(dac_heap_segment));
-
                         seg = seg->next;
                 }
             }

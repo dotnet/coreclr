@@ -17,8 +17,6 @@
 #include "eeconfig.h" // This is here even for retail & free builds...
 #include "../../dlls/mscorrc/resource.h"
 
-
-#include "context.h"
 #include "vars.hpp"
 #include <limits.h>
 #include "ilformatter.h"
@@ -953,6 +951,7 @@ Debugger::Debugger()
     m_pLazyData(NULL),
     m_defines(_defines),
     m_isBlockedOnGarbageCollectionEvent(FALSE),
+    m_willBlockOnGarbageCollectionEvent(FALSE),
     m_isGarbageCollectionEventsEnabled(FALSE),
     m_isGarbageCollectionEventsEnabledLatch(FALSE)
 {
@@ -2630,7 +2629,7 @@ DebuggerMethodInfo *Debugger::CreateMethodInfo(Module *module, mdMethodDef md)
 // <TODO>@Todo If we're passed 0 for the newAddress param, the jit has been
 //      cancelled & should be undone.</TODO>
  ******************************************************************************/
-void Debugger::JITComplete(MethodDesc* fd, TADDR newAddress)
+void Debugger::JITComplete(NativeCodeVersion nativeCodeVersion, TADDR newAddress)
 {
 
     CONTRACTL
@@ -2642,6 +2641,8 @@ void Debugger::JITComplete(MethodDesc* fd, TADDR newAddress)
         CALLED_IN_DEBUGGERDATALOCK_HOLDER_SCOPE_MAY_GC_TRIGGERS_CONTRACT;
     }
     CONTRACTL_END;
+
+    MethodDesc* fd = nativeCodeVersion.GetMethodDesc();
 
     LOG((LF_CORDB, LL_INFO100000, "D::JITComplete: md:0x%x (%s::%s), address:0x%x.\n",
         fd, fd->m_pszDebugClassName, fd->m_pszDebugMethodName,
@@ -2668,7 +2669,7 @@ void Debugger::JITComplete(MethodDesc* fd, TADDR newAddress)
             goto Exit;
         }
         BOOL jiWasCreated = FALSE;
-        DebuggerJitInfo * ji = dmi->CreateInitAndAddJitInfo(fd, newAddress, &jiWasCreated);
+        DebuggerJitInfo * ji = dmi->CreateInitAndAddJitInfo(nativeCodeVersion, newAddress, &jiWasCreated);
         if (!jiWasCreated)
         {
             // we've already been notified about this code, no work remains.
@@ -2882,7 +2883,7 @@ DebuggerJitInfo *Debugger::GetJitInfoWorker(MethodDesc *fd, const BYTE *pbAddr, 
     // Note the call to GetLatestJitInfo() will lazily create the first DJI if we don't already have one.
     for (; dji != NULL; dji = dji->m_prevJitInfo)
     {
-        if (PTR_TO_TADDR(dji->m_fd) == PTR_HOST_TO_TADDR(fd))
+        if (PTR_TO_TADDR(dji->m_nativeCodeVersion.GetMethodDesc()) == PTR_HOST_TO_TADDR(fd))
         {
             break;
         }
@@ -2899,7 +2900,7 @@ DebuggerJitInfo *Debugger::GetJitInfoWorker(MethodDesc *fd, const BYTE *pbAddr, 
     LOG((LF_CORDB, LL_INFO1000, "D::GJI: for md:0x%x (%s::%s), got dmi:0x%x, dji:0x%x, latest dji:0x%x, latest fd:0x%x, prev dji:0x%x\n",
         fd, fd->m_pszDebugClassName, fd->m_pszDebugMethodName,
         dmi, dji, (dmi ? dmi->GetLatestJitInfo_NoCreate() : 0),
-        ((dmi && dmi->GetLatestJitInfo_NoCreate()) ? dmi->GetLatestJitInfo_NoCreate()->m_fd:0),
+        ((dmi && dmi->GetLatestJitInfo_NoCreate()) ? dmi->GetLatestJitInfo_NoCreate()->m_nativeCodeVersion.GetMethodDesc():0),
         (dji?dji->m_prevJitInfo:0)));
 
     if ((dji != NULL) && (pbAddr != NULL))
@@ -3209,10 +3210,10 @@ CodeRegionInfo CodeRegionInfo::GetCodeRegionInfo(DebuggerJitInfo *dji, MethodDes
         CodeRegionInfo codeRegionInfo;
 
         // Use method desc from dji if present
-        if (dji && dji->m_fd)
+        if (dji && dji->m_nativeCodeVersion.GetMethodDesc())
         {
-            _ASSERTE(!md || md == dji->m_fd);
-            md = dji->m_fd;
+            _ASSERTE(!md || md == dji->m_nativeCodeVersion.GetMethodDesc());
+            md = dji->m_nativeCodeVersion.GetMethodDesc();
         }
 
         if (!addr)
@@ -3989,7 +3990,7 @@ HRESULT Debugger::ShuffleVariablesGet(DebuggerJitInfo  *dji,
          rgVal1,
          rgVal2));
 
-    GetVariablesFromOffset(dji->m_fd,
+    GetVariablesFromOffset(dji->m_nativeCodeVersion.GetMethodDesc(),
                            dji->GetVarNativeInfoCount(),
                            dji->GetVarNativeInfo(),
                            offsetFrom,
@@ -4052,7 +4053,7 @@ HRESULT Debugger::ShuffleVariablesSet(DebuggerJitInfo  *dji,
          (*prgVal1),
          (*prgVal2)));
 
-    HRESULT hr = SetVariablesAtOffset(dji->m_fd,
+    HRESULT hr = SetVariablesAtOffset(dji->m_nativeCodeVersion.GetMethodDesc(),
                                       dji->GetVarNativeInfoCount(),
                                       dji->GetVarNativeInfo(),
                                       offsetTo,
@@ -4916,7 +4917,7 @@ HRESULT Debugger::MapAndBindFunctionPatches(DebuggerJitInfo *djiNew,
         SO_NOT_MAINLINE;
         THROWS;
         CALLED_IN_DEBUGGERDATALOCK_HOLDER_SCOPE_MAY_GC_TRIGGERS_CONTRACT;
-        PRECONDITION(!djiNew || djiNew->m_fd == fd);
+        PRECONDITION(!djiNew || djiNew->m_nativeCodeVersion.GetMethodDesc() == fd);
     }
     CONTRACTL_END;
 
@@ -4965,7 +4966,7 @@ HRESULT Debugger::MapAndBindFunctionPatches(DebuggerJitInfo *djiNew,
 
             // If the patch only applies in certain generic instances, don't bind it
             // elsewhere.
-            if(dcp->pMethodDescFilter != NULL && dcp->pMethodDescFilter != djiNew->m_fd)
+            if(dcp->pMethodDescFilter != NULL && dcp->pMethodDescFilter != djiNew->m_nativeCodeVersion.GetMethodDesc())
             {
                 LOG((LF_CORDB, LL_INFO10000, "Patch not in this generic instance\n"));
                 continue;
@@ -5178,7 +5179,7 @@ HRESULT Debugger::MapPatchToDJI( DebuggerControllerPatch *dcp,DebuggerJitInfo *d
             // We have an unbound native patch (eg. for PatchTrace), lets try to bind and activate it
             dcp->SetDJI(djiTo);
             LOG((LF_CORDB, LL_EVERYTHING, "trying to bind patch... could be problem\n"));
-            if (DebuggerController::BindPatch(dcp, djiTo->m_fd, NULL))
+            if (DebuggerController::BindPatch(dcp, djiTo->m_nativeCodeVersion.GetMethodDesc(), NULL))
             {
                 DebuggerController::ActivatePatch(dcp);
                 LOG((LF_CORDB, LL_INFO1000, "Application went fine!\n" ));
@@ -5991,7 +5992,20 @@ bool Debugger::ThreadsAtUnsafePlaces(void)
     return (m_threadsAtUnsafePlaces != 0);
 }
 
-void Debugger::BeforeGarbageCollection()
+void Debugger::SuspendForGarbageCollectionStarted()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+    
+    this->m_isGarbageCollectionEventsEnabledLatch = this->m_isGarbageCollectionEventsEnabled;
+    this->m_willBlockOnGarbageCollectionEvent = this->m_isGarbageCollectionEventsEnabledLatch;
+}
+
+void Debugger::SuspendForGarbageCollectionCompleted()
 {
     CONTRACTL
     {
@@ -6000,12 +6014,11 @@ void Debugger::BeforeGarbageCollection()
     }
     CONTRACTL_END;
 
-    this->m_isGarbageCollectionEventsEnabledLatch = this->m_isGarbageCollectionEventsEnabled;
-
     if (!CORDebuggerAttached() || !this->m_isGarbageCollectionEventsEnabledLatch)
     {
         return;
     }
+    this->m_isBlockedOnGarbageCollectionEvent = TRUE; 
 
     Thread* pThread = GetThread();
 
@@ -6014,8 +6027,6 @@ void Debugger::BeforeGarbageCollection()
 
     {
         Debugger::DebuggerLockHolder dbgLockHolder(this);
-
-        this->m_isBlockedOnGarbageCollectionEvent = true;
 
         DebuggerIPCEvent* ipce1 = m_pRCThread->GetIPCEventSendBuffer();
         InitIPCEvent(ipce1,
@@ -6031,7 +6042,7 @@ void Debugger::BeforeGarbageCollection()
     ResetEvent(this->GetGarbageCollectionBlockerEvent());
 }
 
-void Debugger::AfterGarbageCollection()
+void Debugger::ResumeForGarbageCollectionStarted()
 {
     CONTRACTL
     {
@@ -6065,7 +6076,8 @@ void Debugger::AfterGarbageCollection()
 
     WaitForSingleObject(this->GetGarbageCollectionBlockerEvent(), INFINITE);
     ResetEvent(this->GetGarbageCollectionBlockerEvent());
-    this->m_isBlockedOnGarbageCollectionEvent = false;
+    this->m_isBlockedOnGarbageCollectionEvent = FALSE;
+    this->m_willBlockOnGarbageCollectionEvent = FALSE;
 }
 
 #ifdef FEATURE_DATABREAKPOINT
@@ -6327,7 +6339,7 @@ void Debugger::LockAndSendEnCRemapEvent(DebuggerJitInfo * dji, SIZE_T currentIP,
     if (CORDBUnrecoverableError(this))
         return;
 
-    MethodDesc * pFD = dji->m_fd;
+    MethodDesc * pFD = dji->m_nativeCodeVersion.GetMethodDesc();
 
     // Note that the debugger lock is reentrant, so we may or may not hold it already.
     Thread *thread = g_pEEInterface->GetThread();
@@ -10740,9 +10752,9 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
     if ((pEvent->type & DB_IPCE_TYPE_MASK) == DB_IPCE_ASYNC_BREAK ||
         (pEvent->type & DB_IPCE_TYPE_MASK) == DB_IPCE_ATTACHING ||
-        this->m_isBlockedOnGarbageCollectionEvent)
+        this->m_willBlockOnGarbageCollectionEvent)
     {
-        if (!this->m_isBlockedOnGarbageCollectionEvent)
+        if (!this->m_willBlockOnGarbageCollectionEvent && !this->m_stopped)
         {
             lockedThreadStore = true;
             ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_FOR_DEBUGGER);
@@ -10809,7 +10821,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                 _ASSERTE(ThreadHoldsLock());
 
                 // Simply trap all Runtime threads if we're not already trying to.
-                if (!m_isBlockedOnGarbageCollectionEvent && !m_trappingRuntimeThreads)
+                if (!m_willBlockOnGarbageCollectionEvent && !m_trappingRuntimeThreads)
                 {
                     // If the RS sent an Async-break, then that's an explicit request.
                     m_RSRequestedSync = TRUE;
@@ -11341,14 +11353,23 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
         // the detach reply before the process exits if the main thread is near exiting.
         m_pRCThread->SendIPCReply();
 
-        // Let the process run free now... there is no debugger to bother it anymore.
-        fContinue = ResumeThreads(NULL);
+        if (this->m_isBlockedOnGarbageCollectionEvent)
+        {
+            this->m_stopped = FALSE;
+            SetEvent(this->GetGarbageCollectionBlockerEvent());
+        }
+        else
+        {
+            // Let the process run free now... there is no debugger to bother it anymore.
+            fContinue = ResumeThreads(pEvent->vmAppDomain.GetRawPtr());
 
-        //
-        // Go ahead and release the TSL now that we're continuing. This ensures that we've held
-        // the thread store lock the entire time the Runtime was just stopped.
-        //
-        ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_FOR_DEBUGGER);
+            //
+            // Go ahead and release the TSL now that we're continuing. This ensures that we've held
+            // the thread store lock the entire time the Runtime was just stopped.
+            //
+            ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_FOR_DEBUGGER);
+        }
+
         break;
 
 #ifndef DACCESS_COMPILE
@@ -12837,7 +12858,7 @@ void Debugger::GetVarInfo(MethodDesc *       fd,   // [IN] method of interest
     {
         ji = GetLatestJitInfoFromMethodDesc(fd);
     }
-    _ASSERTE(fd == ji->m_fd);
+    _ASSERTE(fd == ji->m_nativeCodeVersion.GetMethodDesc());
 
     PREFIX_ASSUME(ji != NULL);
 

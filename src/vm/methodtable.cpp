@@ -2649,11 +2649,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         unsigned normalizedFieldOffset = fieldOffset + startOffsetOfStruct;
 
         unsigned int fieldNativeSize = pFieldMarshaler->NativeSize();
-        if (fieldNativeSize > SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
-        {
-            // Pass on stack in this case.
-            return false;
-        }
 
         _ASSERTE(fieldNativeSize != (unsigned int)-1);
 
@@ -2704,6 +2699,23 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case VT_R8:
                 fieldClassificationType = SystemVClassificationTypeSSE;
                 break;
+            case VT_RECORD:
+            {
+                MethodTable* pFieldMT = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementMethodTable();
+
+                bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
+                helperPtr->inEmbeddedStruct = true;
+                bool structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
+                helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
+
+                if (!structRet)
+                {
+                    // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
+                    return false;
+                }
+
+                continue;
+            }
             case VT_DECIMAL:
             case VT_DATE:
             case VT_BSTR:
@@ -2714,7 +2726,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case VT_HRESULT:
             case VT_CARRAY:
             case VT_USERDEFINED:
-            case VT_RECORD:
             case VT_FILETIME:
             case VT_BLOB:
             case VT_STREAM:
@@ -3044,7 +3055,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
             else
             {
                 fieldSize = helperPtr->fieldSizes[ordinal];
-                _ASSERTE(fieldSize > 0 && fieldSize <= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
+                _ASSERTE(fieldSize > 0);
 
                 fieldClassificationType = helperPtr->fieldClassifications[ordinal];
                 _ASSERTE(fieldClassificationType != SystemVClassificationTypeMemory && fieldClassificationType != SystemVClassificationTypeUnknown);
@@ -3082,7 +3093,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
             }
 
             accumulatedSizeForEightByte += fieldSize;
-            if (accumulatedSizeForEightByte == SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
+            while (accumulatedSizeForEightByte >= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
             {
                 // Save data for this eightbyte.
                 helperPtr->eightByteSizes[currentEightByte] = SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
@@ -3092,8 +3103,14 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
                 currentEightByte++;
                 _ASSERTE(currentEightByte <= CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
 
-                currentEightByteOffset = offset + fieldSize;
-                accumulatedSizeForEightByte = 0;
+                currentEightByteOffset += SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
+                accumulatedSizeForEightByte -= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
+
+                // If a field is large enough to span multiple eightbytes, then set the eightbyte classification to the field's classification.
+                if (accumulatedSizeForEightByte > 0)
+                {
+                    helperPtr->eightByteClassifications[currentEightByte] = fieldClassificationType;
+                }
             }
 
             _ASSERTE(accumulatedSizeForEightByte < SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
@@ -6977,12 +6994,28 @@ MethodTable::FindDispatchImpl(
                 //
                 // See if we can find a default method from one of the implemented interfaces 
                 //
+
+                // Try exact match first
                 MethodDesc *pDefaultMethod = NULL;
-                if (FindDefaultInterfaceImplementation(
+                BOOL foundDefaultInterfaceImplementation  = FindDefaultInterfaceImplementation(
                     pIfcMD,     // the interface method being resolved
                     pIfcMT,     // the interface being resolved
                     &pDefaultMethod,
-                    throwOnConflict))
+                    FALSE, // allowVariance
+                    throwOnConflict);
+
+                // If there's no exact match, try a variant match
+                if (!foundDefaultInterfaceImplementation && pIfcMT->HasVariance())
+                {
+                    foundDefaultInterfaceImplementation = FindDefaultInterfaceImplementation(
+                        pIfcMD,     // the interface method being resolved
+                        pIfcMT,     // the interface being resolved
+                        &pDefaultMethod,
+                        TRUE, // allowVariance
+                        throwOnConflict);
+                }
+
+                if (foundDefaultInterfaceImplementation)
                 {
                     // Now, construct a DispatchSlot to return in *pImplSlot
                     DispatchSlot ds(pDefaultMethod->GetMethodEntryPoint());
@@ -7062,6 +7095,7 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
     MethodDesc *pInterfaceMD,
     MethodTable *pInterfaceMT,
     MethodDesc **ppDefaultMethod,
+    BOOL allowVariance,
     BOOL throwOnConflict
 )
 {
@@ -7120,7 +7154,7 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                 {
                     if (pCurMT->HasSameTypeDefAs(pInterfaceMT))
                     {
-                        if (!pInterfaceMD->IsAbstract())
+                        if (allowVariance && !pInterfaceMD->IsAbstract())
                         {
                             // Generic variance match - we'll instantiate pCurMD with the right type arguments later
                             pCurMD = pInterfaceMD;
@@ -7178,7 +7212,8 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                                     // We do CanCastToInterface to also cover variance.
                                     // We already know this is a method on the same type definition as the (generic)
                                     // interface but we need to make sure the instantiations match.
-                                    if (pDeclMT->CanCastToInterface(pInterfaceMT))
+                                    if ((allowVariance && pDeclMT->CanCastToInterface(pInterfaceMT))
+                                        || pDeclMT == pInterfaceMT)
                                     {
                                         // We have a match
                                         pCurMD = pMD;
@@ -7234,7 +7269,11 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                             break;
                         }
 
-                        if (pCurMT->CanCastToInterface(pCandidateMT))
+                        if (allowVariance && pCandidateMT->HasSameTypeDefAs(pCurMT))
+                        {
+                            // Variant match on the same type - this is a tie
+                        }
+                        else if (pCurMT->CanCastToInterface(pCandidateMT))
                         {
                             // pCurMT is a more specific choice than IFoo/IBar both overrides IBlah :
                             if (!seenMoreSpecific)
@@ -7281,6 +7320,8 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
     }
 
     // scan to see if there are any conflicts
+    // If we are doing second pass (allowing variance), we know don't actually look for
+    // a conflict anymore, but pick the first match.
     MethodTable *pBestCandidateMT = NULL;
     MethodDesc *pBestCandidateMD = NULL;
     for (unsigned i = 0; i < candidatesCount; ++i)
@@ -7292,6 +7333,11 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
         {
             pBestCandidateMT = candidates[i].pMT;
             pBestCandidateMD = candidates[i].pMD;
+
+            // If this is a second pass lookup, we know this is a variant match. As such
+            // we pick the first result as the winner and don't look for a conflict.
+            if (allowVariance)
+                break;
         }
         else if (pBestCandidateMT != candidates[i].pMT)
         {
@@ -9727,8 +9773,7 @@ void MethodTable::SetSlot(UINT32 slotNumber, PCODE slotCode)
         if (fSharedVtableChunk)
         {
             MethodDesc* pMD = GetMethodDescForSlotAddress(slotCode);
-            _ASSERTE(pMD->HasStableEntryPoint());
-            _ASSERTE(pMD->GetStableEntryPoint() == slotCode);
+            _ASSERTE(pMD->IsVersionableWithVtableSlotBackpatch() || pMD->GetStableEntryPoint() == slotCode);
         }
     }
 #endif
@@ -10207,4 +10252,30 @@ BOOL MethodTable::IsInheritanceChainLayoutFixedInCurrentVersionBubble()
 
     return TRUE;
 }
+
+//
+// Is the inheritance chain fixed within the current version bubble?
+//
+BOOL MethodTable::IsInheritanceChainFixedInCurrentVersionBubble()
+{
+    STANDARD_VM_CONTRACT;
+
+    MethodTable * pMT = this;
+
+    if (pMT->IsValueType())
+    {
+        return pMT->GetModule()->IsInCurrentVersionBubble();
+    }
+
+    while ((pMT != g_pObjectClass) && (pMT != NULL))
+    {
+        if (!pMT->GetModule()->IsInCurrentVersionBubble())
+            return FALSE;
+
+        pMT = pMT->GetParentMethodTable();
+    }
+
+    return TRUE;
+}
+
 #endif // FEATURE_READYTORUN_COMPILER

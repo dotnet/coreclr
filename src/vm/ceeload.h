@@ -74,7 +74,6 @@ class MethodTable;
 class AppDomain;
 class DynamicMethodTable;
 class CodeVersionManager;
-class CallCounter;
 class TieredCompilationManager;
 #ifdef FEATURE_PREJIT
 class CerNgenRootTable;
@@ -1796,9 +1795,6 @@ protected:
 #ifdef FEATURE_CODE_VERSIONING
     CodeVersionManager * GetCodeVersionManager();
 #endif
-#ifdef FEATURE_TIERED_COMPILATION
-    CallCounter * GetCallCounter();
-#endif
 
     mdFile GetModuleRef()
     {
@@ -2594,14 +2590,12 @@ public:
     LPCWSTR GetDebugName() { WRAPPER_NO_CONTRACT; return m_file->GetDebugName(); }
 #endif
 
-    BOOL IsILOnly() { WRAPPER_NO_CONTRACT; return m_file->IsILOnly(); }
-
 #ifdef FEATURE_PREJIT
     BOOL HasNativeImage() 
     { 
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
-        return m_file->HasNativeImage(); 
+        return m_file->HasNativeImage();
     }
     
     PEImageLayout *GetNativeImage()
@@ -2618,6 +2612,7 @@ public:
         }
         CONTRACT_END;
 
+        _ASSERTE(!IsCollectible());
         RETURN m_file->GetLoadedNative();
     }
 #else
@@ -2744,6 +2739,7 @@ public:
     BYTE *GetNativeFixupBlobData(RVA fixup);
 
     IMDInternalImport *GetNativeAssemblyImport(BOOL loadAllowed = TRUE);
+    IMDInternalImport *GetNativeAssemblyImportIfLoaded();
 
     BOOL FixupNativeEntry(CORCOMPILE_IMPORT_SECTION * pSection, SIZE_T fixupIndex, SIZE_T *fixup);
 

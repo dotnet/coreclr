@@ -457,7 +457,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     if (targetCnt == 1)
     {
         JITDUMP("Lowering switch " FMT_BB ": single target; converting to BBJ_ALWAYS\n", originalSwitchBB->bbNum);
-        noway_assert(comp->opts.MinOpts() || comp->opts.compDbgCode);
+        noway_assert(comp->opts.OptimizationDisabled());
         if (originalSwitchBB->bbNext == jumpTab[0])
         {
             originalSwitchBB->bbJumpKind = BBJ_NONE;
@@ -481,10 +481,9 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
         unsigned lclNum               = comp->lvaGrabTemp(true DEBUGARG("Lowering is creating a new local variable"));
         comp->lvaTable[lclNum].lvType = rhs->TypeGet();
 
-        GenTreeLclVar* store =
-            new (comp, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, rhs->TypeGet(), lclNum, BAD_IL_OFFSET);
-        store->gtOp1   = rhs;
-        store->gtFlags = (rhs->gtFlags & GTF_COMMON_MASK);
+        GenTreeLclVar* store = new (comp, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, rhs->TypeGet(), lclNum);
+        store->gtOp1         = rhs;
+        store->gtFlags       = (rhs->gtFlags & GTF_COMMON_MASK);
         store->gtFlags |= GTF_VAR_DEF;
 
         switchBBRange.InsertAfter(node, store);
@@ -915,16 +914,16 @@ bool Lowering::TryLowerSwitchToBitTest(
     // Rewire the blocks as needed and figure out the condition to use for JCC.
     //
 
-    genTreeOps bbSwitchCondition = GT_NONE;
-    bbSwitch->bbJumpKind         = BBJ_COND;
+    GenCondition bbSwitchCondition;
+    bbSwitch->bbJumpKind = BBJ_COND;
 
     comp->fgRemoveAllRefPreds(bbCase1, bbSwitch);
     comp->fgRemoveAllRefPreds(bbCase0, bbSwitch);
 
     if (bbSwitch->bbNext == bbCase0)
     {
-        // GT_LT + GTF_UNSIGNED generates JC so we jump to bbCase1 when the bit is set
-        bbSwitchCondition    = GT_LT;
+        // GenCondition::C generates JC so we jump to bbCase1 when the bit is set
+        bbSwitchCondition    = GenCondition::C;
         bbSwitch->bbJumpDest = bbCase1;
 
         comp->fgAddRefPred(bbCase0, bbSwitch);
@@ -934,8 +933,8 @@ bool Lowering::TryLowerSwitchToBitTest(
     {
         assert(bbSwitch->bbNext == bbCase1);
 
-        // GT_GE + GTF_UNSIGNED generates JNC so we jump to bbCase0 when the bit is not set
-        bbSwitchCondition    = GT_GE;
+        // GenCondition::NC generates JNC so we jump to bbCase0 when the bit is not set
+        bbSwitchCondition    = GenCondition::NC;
         bbSwitch->bbJumpDest = bbCase0;
 
         comp->fgAddRefPred(bbCase0, bbSwitch);
@@ -951,7 +950,7 @@ bool Lowering::TryLowerSwitchToBitTest(
     GenTree*  bitTest      = comp->gtNewOperNode(GT_BT, TYP_VOID, bitTableIcon, switchValue);
     bitTest->gtFlags |= GTF_SET_FLAGS;
     GenTreeCC* jcc = new (comp, GT_JCC) GenTreeCC(GT_JCC, bbSwitchCondition);
-    jcc->gtFlags |= GTF_UNSIGNED | GTF_USE_FLAGS;
+    jcc->gtFlags |= GTF_USE_FLAGS;
 
     LIR::AsRange(bbSwitch).InsertAfter(switchValue, bitTableIcon, bitTest, jcc);
 
@@ -1969,7 +1968,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         }
     }
 
-    if (putargs.Height() > 0)
+    if (!putargs.Empty())
     {
         firstPutArgStk = putargs.Bottom();
     }
@@ -2041,8 +2040,8 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         {
             if (treeNode->OperIsLocal() || treeNode->OperIsLocalAddr())
             {
-                // This should neither be a GT_REG_VAR nor GT_PHI_ARG.
-                assert((treeNode->OperGet() != GT_REG_VAR) && (treeNode->OperGet() != GT_PHI_ARG));
+                // This should not be a GT_PHI_ARG.
+                assert(treeNode->OperGet() != GT_PHI_ARG);
 
                 GenTreeLclVarCommon* lcl    = treeNode->AsLclVarCommon();
                 LclVarDsc*           lclVar = &comp->lvaTable[lcl->gtLclNum];
@@ -2077,9 +2076,8 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         if (tmpLclNum != BAD_VAR_NUM)
         {
             assert(tmpType != TYP_UNDEF);
-            GenTreeLclVar* local =
-                new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, tmpType, callerArgLclNum, BAD_IL_OFFSET);
-            GenTree* assignExpr = comp->gtNewTempAssign(tmpLclNum, local);
+            GenTreeLclVar* local      = new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, tmpType, callerArgLclNum);
+            GenTree*       assignExpr = comp->gtNewTempAssign(tmpLclNum, local);
             ContainCheckRange(local, assignExpr);
             BlockRange().InsertBefore(firstPutArgStk, LIR::SeqTree(comp, assignExpr));
         }
@@ -2525,8 +2523,8 @@ GenTree* Lowering::DecomposeLongCompare(GenTree* cmp)
         GenTree* jcc    = cmpUse.User();
         jcc->gtOp.gtOp1 = nullptr;
         jcc->ChangeOper(GT_JCC);
-        jcc->gtFlags |= (cmp->gtFlags & GTF_UNSIGNED) | GTF_USE_FLAGS;
-        jcc->AsCC()->gtCondition = condition;
+        jcc->gtFlags |= GTF_USE_FLAGS;
+        jcc->AsCC()->gtCondition = GenCondition::FromIntegralRelop(condition, cmp->IsUnsigned());
     }
     else
     {
@@ -2534,7 +2532,7 @@ GenTree* Lowering::DecomposeLongCompare(GenTree* cmp)
         cmp->gtOp.gtOp2 = nullptr;
         cmp->ChangeOper(GT_SETCC);
         cmp->gtFlags |= GTF_USE_FLAGS;
-        cmp->AsCC()->gtCondition = condition;
+        cmp->AsCC()->gtCondition = GenCondition::FromIntegralRelop(condition, cmp->IsUnsigned());
     }
 
     return cmp->gtNext;
@@ -2736,7 +2734,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
         if (lsh->OperIs(GT_LSH) && varTypeIsIntOrI(lsh->TypeGet()) && lsh->gtGetOp1()->IsIntegralConst(1) &&
             BlockRange().TryGetUse(cmp, &cmpUse))
         {
-            genTreeOps condition = cmp->OperIs(GT_TEST_NE) ? GT_LT : GT_GE;
+            GenCondition condition = cmp->OperIs(GT_TEST_NE) ? GenCondition::C : GenCondition::NC;
 
             cmp->SetOper(GT_BT);
             cmp->gtType = TYP_VOID;
@@ -2762,7 +2760,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
                 cmpUse.ReplaceWith(comp, cc);
             }
 
-            cc->gtFlags |= GTF_USE_FLAGS | GTF_UNSIGNED;
+            cc->gtFlags |= GTF_USE_FLAGS;
 
             return cmp->gtNext;
         }
@@ -2819,10 +2817,10 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
                 ccOp = GT_SETCC;
             }
 
-            genTreeOps condition = cmp->OperGet();
+            GenCondition condition = GenCondition::FromIntegralRelop(cmp);
             cc->ChangeOper(ccOp);
             cc->AsCC()->gtCondition = condition;
-            cc->gtFlags |= GTF_USE_FLAGS | (cmp->gtFlags & GTF_UNSIGNED);
+            cc->gtFlags |= GTF_USE_FLAGS;
 
             return next;
         }
@@ -3183,7 +3181,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
     // the control target is
     // [originalThis + firstTgtOffs]
 
-    GenTree* base = new (comp, GT_LCL_VAR) GenTreeLclVar(originalThisExpr->TypeGet(), lclNum, BAD_IL_OFFSET);
+    GenTree* base = new (comp, GT_LCL_VAR) GenTreeLclVar(originalThisExpr->TypeGet(), lclNum);
 
     unsigned targetOffs = comp->eeGetEEInfo()->offsetOfDelegateFirstTarget;
     GenTree* result     = new (comp, GT_LEA) GenTreeAddrMode(TYP_REF, base, nullptr, 0, targetOffs);
@@ -3269,7 +3267,7 @@ GenTree* Lowering::SetGCState(int state)
 
     const CORINFO_EE_INFO* pInfo = comp->eeGetEEInfo();
 
-    GenTree* base = new (comp, GT_LCL_VAR) GenTreeLclVar(TYP_I_IMPL, comp->info.compLvFrameListRoot, -1);
+    GenTree* base = new (comp, GT_LCL_VAR) GenTreeLclVar(TYP_I_IMPL, comp->info.compLvFrameListRoot);
 
     GenTree* stateNode    = new (comp, GT_CNS_INT) GenTreeIntCon(TYP_BYTE, state);
     GenTree* addr         = new (comp, GT_LEA) GenTreeAddrMode(TYP_I_IMPL, base, nullptr, 1, pInfo->offsetOfGCState);
@@ -3294,8 +3292,7 @@ GenTree* Lowering::CreateFrameLinkUpdate(FrameLinkAction action)
     const CORINFO_EE_INFO*                       pInfo         = comp->eeGetEEInfo();
     const CORINFO_EE_INFO::InlinedCallFrameInfo& callFrameInfo = pInfo->inlinedCallFrameInfo;
 
-    GenTree* TCB = new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, TYP_I_IMPL, comp->info.compLvFrameListRoot,
-                                                        (IL_OFFSET)-1); // cast to resolve ambiguity.
+    GenTree* TCB = new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, TYP_I_IMPL, comp->info.compLvFrameListRoot);
 
     // Thread->m_pFrame
     GenTree* addr = new (comp, GT_LEA) GenTreeAddrMode(TYP_I_IMPL, TCB, nullptr, 1, pInfo->offsetOfThreadFrame);
@@ -3402,8 +3399,7 @@ void Lowering::InsertPInvokeMethodProlog()
     noway_assert(varDsc->lvType == TYP_I_IMPL);
 
     GenTree* store =
-        new (comp, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, TYP_I_IMPL, comp->info.compLvFrameListRoot,
-                                                   (IL_OFFSET)-1); // cast to resolve ambiguity.
+        new (comp, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, TYP_I_IMPL, comp->info.compLvFrameListRoot);
     store->gtOp.gtOp1 = call;
     store->gtFlags |= GTF_VAR_DEF;
 
@@ -3570,8 +3566,8 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
     if (comp->opts.ShouldUsePInvokeHelpers())
     {
         // First argument is the address of the frame variable.
-        GenTree* frameAddr = new (comp, GT_LCL_VAR_ADDR)
-            GenTreeLclVar(GT_LCL_VAR_ADDR, TYP_BYREF, comp->lvaInlinedPInvokeFrameVar, BAD_IL_OFFSET);
+        GenTree* frameAddr =
+            new (comp, GT_LCL_VAR_ADDR) GenTreeLclVar(GT_LCL_VAR_ADDR, TYP_BYREF, comp->lvaInlinedPInvokeFrameVar);
 
         // Insert call to CORINFO_HELP_JIT_PINVOKE_BEGIN
         GenTree* helperCall =
@@ -3669,11 +3665,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
         new (comp, GT_STORE_LCL_FLD) GenTreeLclFld(GT_STORE_LCL_FLD, TYP_I_IMPL, comp->lvaInlinedPInvokeFrameVar,
                                                    callFrameInfo.offsetOfReturnAddress);
 
-    // We don't have a real label, and inserting one is hard (even if we made a special node),
-    // so for now we will just 'know' what this means in codegen.
-    GenTreeLabel* labelRef = new (comp, GT_LABEL) GenTreeLabel(nullptr);
-    labelRef->gtType       = TYP_I_IMPL;
-    storeLab->gtOp1        = labelRef;
+    storeLab->gtOp1 = new (comp, GT_LABEL) GenTree(GT_LABEL, TYP_I_IMPL);
     storeLab->gtFlags |= GTF_VAR_DEF;
 
     InsertTreeBeforeAndContainCheck(insertBefore, storeLab);
@@ -3725,7 +3717,7 @@ void Lowering::InsertPInvokeCallEpilog(GenTreeCall* call)
 
         // First argument is the address of the frame variable.
         GenTree* frameAddr =
-            new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, TYP_BYREF, comp->lvaInlinedPInvokeFrameVar, BAD_IL_OFFSET);
+            new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, TYP_BYREF, comp->lvaInlinedPInvokeFrameVar);
         frameAddr->SetOperRaw(GT_LCL_VAR_ADDR);
 
         // Insert call to CORINFO_HELP_JIT_PINVOKE_END
@@ -3969,7 +3961,7 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
     }
     else
     {
-        local = new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, thisPtr->TypeGet(), lclNum, BAD_IL_OFFSET);
+        local = new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, thisPtr->TypeGet(), lclNum);
     }
 
     // pointer to virtual table = [REG_CALL_THIS + offs]
@@ -4567,13 +4559,11 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
         const bool     requiresAdjustment       = add;
         const bool     requiresDividendMultiuse = requiresAdjustment || !isDiv;
         const unsigned curBBWeight              = m_block->getBBWeight(comp);
-        unsigned       dividendLclNum           = BAD_VAR_NUM;
 
         if (requiresDividendMultiuse)
         {
             LIR::Use dividendUse(BlockRange(), &divMod->gtOp1, divMod);
-            dividendLclNum = ReplaceWithLclVar(dividendUse);
-            dividend       = divMod->gtGetOp1();
+            dividend = ReplaceWithLclVar(dividendUse);
         }
 
         // Insert a new GT_MULHI node before the existing GT_UDIV/GT_UMOD node.
@@ -4588,8 +4578,8 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
 
         if (requiresAdjustment)
         {
-            GenTree* dividend = comp->gtNewLclvNode(dividendLclNum, type);
-            GenTree* sub      = comp->gtNewOperNode(GT_SUB, type, dividend, mulhi);
+            dividend     = comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet());
+            GenTree* sub = comp->gtNewOperNode(GT_SUB, type, dividend, mulhi);
             BlockRange().InsertBefore(divMod, dividend, sub);
 
             GenTree* one = comp->gtNewIconNode(1, TYP_INT);
@@ -4597,11 +4587,11 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
             BlockRange().InsertBefore(divMod, one, rsz);
 
             LIR::Use mulhiUse(BlockRange(), &sub->gtOp.gtOp2, sub);
-            unsigned mulhiLclNum = ReplaceWithLclVar(mulhiUse);
+            mulhi = ReplaceWithLclVar(mulhiUse);
 
-            GenTree* mulhiCopy = comp->gtNewLclvNode(mulhiLclNum, type);
-            GenTree* add       = comp->gtNewOperNode(GT_ADD, type, rsz, mulhiCopy);
-            BlockRange().InsertBefore(divMod, mulhiCopy, add);
+            mulhi        = comp->gtNewLclvNode(mulhi->AsLclVar()->GetLclNum(), mulhi->TypeGet());
+            GenTree* add = comp->gtNewOperNode(GT_ADD, type, rsz, mulhi);
+            BlockRange().InsertBefore(divMod, mulhi, add);
 
             mulhi = add;
             shift -= 1;
@@ -4621,9 +4611,9 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
             GenTree* div = comp->gtNewOperNode(GT_RSZ, type, mulhi, shiftBy);
 
             // divisor UMOD dividend = dividend SUB (div MUL divisor)
-            GenTree* divisor  = comp->gtNewIconNode(divisorValue, type);
-            GenTree* mul      = comp->gtNewOperNode(GT_MUL, type, div, divisor);
-            GenTree* dividend = comp->gtNewLclvNode(dividendLclNum, type);
+            GenTree* divisor = comp->gtNewIconNode(divisorValue, type);
+            GenTree* mul     = comp->gtNewOperNode(GT_MUL, type, div, divisor);
+            dividend         = comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet());
 
             divMod->SetOper(GT_SUB);
             divMod->gtOp1 = dividend;
@@ -4760,19 +4750,18 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         bool     requiresShiftAdjust      = shift != 0;
         bool     requiresDividendMultiuse = requiresAddSubAdjust || !isDiv;
         unsigned curBBWeight              = comp->compCurBB->getBBWeight(comp);
-        unsigned dividendLclNum           = BAD_VAR_NUM;
 
         if (requiresDividendMultiuse)
         {
             LIR::Use dividendUse(BlockRange(), &mulhi->gtOp.gtOp2, mulhi);
-            dividendLclNum = ReplaceWithLclVar(dividendUse);
+            dividend = ReplaceWithLclVar(dividendUse);
         }
 
         GenTree* adjusted;
 
         if (requiresAddSubAdjust)
         {
-            dividend = comp->gtNewLclvNode(dividendLclNum, type);
+            dividend = comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet());
             adjusted = comp->gtNewOperNode(divisorValue > 0 ? GT_ADD : GT_SUB, type, mulhi, dividend);
             BlockRange().InsertBefore(divMod, dividend, adjusted);
         }
@@ -4786,8 +4775,8 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         BlockRange().InsertBefore(divMod, shiftBy, signBit);
 
         LIR::Use adjustedUse(BlockRange(), &signBit->gtOp.gtOp1, signBit);
-        unsigned adjustedLclNum = ReplaceWithLclVar(adjustedUse);
-        adjusted                = comp->gtNewLclvNode(adjustedLclNum, type);
+        adjusted = ReplaceWithLclVar(adjustedUse);
+        adjusted = comp->gtNewLclvNode(adjusted->AsLclVar()->GetLclNum(), adjusted->TypeGet());
         BlockRange().InsertBefore(divMod, adjusted);
 
         if (requiresShiftAdjust)
@@ -4807,7 +4796,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         {
             GenTree* div = comp->gtNewOperNode(GT_ADD, type, adjusted, signBit);
 
-            dividend = comp->gtNewLclvNode(dividendLclNum, type);
+            dividend = comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet());
 
             // divisor % dividend = dividend - divisor x div
             GenTree* divisor = comp->gtNewIconNode(divisorValue, type);
@@ -4841,12 +4830,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     unsigned curBBWeight = comp->compCurBB->getBBWeight(comp);
 
     LIR::Use opDividend(BlockRange(), &divMod->gtOp.gtOp1, divMod);
-    ReplaceWithLclVar(opDividend);
-
-    dividend = divMod->gtGetOp1();
-    assert(dividend->OperGet() == GT_LCL_VAR);
-
-    unsigned dividendLclNum = dividend->gtLclVar.gtLclNum;
+    dividend = ReplaceWithLclVar(opDividend);
 
     GenTree* adjustment = comp->gtNewOperNode(GT_RSH, type, dividend, comp->gtNewIconNode(type == TYP_INT ? 31 : 63));
 
@@ -4862,7 +4846,8 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     }
 
     GenTree* adjustedDividend =
-        comp->gtNewOperNode(GT_ADD, type, adjustment, comp->gtNewLclvNode(dividendLclNum, type));
+        comp->gtNewOperNode(GT_ADD, type, adjustment,
+                            comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet()));
 
     GenTree* newDivMod;
 
@@ -4888,7 +4873,8 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         // which simply discards the low log2(divisor) bits, that's just dividend & ~(divisor - 1)
         divisor->gtIntCon.SetIconValue(~(absDivisorValue - 1));
 
-        newDivMod = comp->gtNewOperNode(GT_SUB, type, comp->gtNewLclvNode(dividendLclNum, type),
+        newDivMod = comp->gtNewOperNode(GT_SUB, type,
+                                        comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet()),
                                         comp->gtNewOperNode(GT_AND, type, adjustedDividend, divisor));
     }
 
@@ -5235,7 +5221,7 @@ void Lowering::DoPhase()
 
     comp->fgLocalVarLiveness();
     // local var liveness can delete code, which may create empty blocks
-    if (!comp->opts.MinOpts() && !comp->opts.compDbgCode)
+    if (comp->opts.OptimizationEnabled())
     {
         comp->optLoopsMarked = false;
         bool modified        = comp->fgUpdateFlowGraph();

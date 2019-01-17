@@ -27,7 +27,7 @@ GTNODE(LCL_FLD_ADDR     , GenTreeLclFld      ,0,GTK_LEAF)               // addre
 GTNODE(STORE_LCL_VAR    , GenTreeLclVar      ,0,GTK_UNOP|GTK_LOCAL|GTK_NOVALUE) // store to local variable
 GTNODE(STORE_LCL_FLD    , GenTreeLclFld      ,0,GTK_UNOP|GTK_LOCAL|GTK_NOVALUE) // store to field in a non-primitive variable
 GTNODE(CATCH_ARG        , GenTree            ,0,GTK_LEAF)               // Exception object in a catch block
-GTNODE(LABEL            , GenTreeLabel       ,0,GTK_LEAF)               // Jump-target
+GTNODE(LABEL            , GenTree            ,0,GTK_LEAF)               // Jump-target
 GTNODE(FTN_ADDR         , GenTreeFptrVal     ,0,GTK_LEAF)               // Address of a function
 GTNODE(RET_EXPR         , GenTreeRetExpr     ,0,GTK_LEAF)               // Place holder for the return expression from an inline candidate
 
@@ -280,7 +280,6 @@ GTNODE(SWITCH_TABLE     , GenTreeOp          ,0, GTK_BINOP|GTK_NOVALUE)  // Jump
 //  Nodes used only within the code generator:
 //-----------------------------------------------------------------------------
 
-GTNODE(REG_VAR          , GenTreeLclVar      ,0,GTK_LEAF|GTK_LOCAL)              // register variable
 GTNODE(CLS_VAR          , GenTreeClsVar      ,0,GTK_LEAF)                        // static data member
 GTNODE(CLS_VAR_ADDR     , GenTreeClsVar      ,0,GTK_LEAF)                        // static data member address
 GTNODE(ARGPLACE         , GenTreeArgPlace    ,0,GTK_LEAF|GTK_NOVALUE|GTK_NOTLIR) // placeholder for a register arg

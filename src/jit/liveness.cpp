@@ -165,7 +165,7 @@ void Compiler::fgLocalVarLivenessInit()
     JITDUMP("In fgLocalVarLivenessInit\n");
 
     // Sort locals first, if we're optimizing
-    if (!opts.MinOpts() && !opts.compDbgCode)
+    if (opts.OptimizationEnabled())
     {
         lvaSortByRefCount();
     }
@@ -993,8 +993,7 @@ void Compiler::fgExtendDbgLifetimes()
                 }
                 else
                 {
-                    GenTree* store =
-                        new (this, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, type, varNum, BAD_IL_OFFSET);
+                    GenTree* store    = new (this, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, type, varNum);
                     store->gtOp.gtOp1 = zero;
                     store->gtFlags |= (GTF_VAR_DEF | GTF_ASG);
 
@@ -1324,7 +1323,7 @@ VARSET_VALRET_TP Compiler::fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTree* tr
     VARSET_TP newLiveSet(VarSetOps::MakeCopy(this, liveSet));
     assert(fgLocalVarLivenessDone == true);
     GenTree* lclVarTree = tree; // After the tests below, "lclVarTree" will be the local variable.
-    if (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD || tree->gtOper == GT_REG_VAR ||
+    if (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD ||
         (lclVarTree = fgIsIndirOfAddrOfLocal(tree)) != nullptr)
     {
         const VARSET_TP& varBits(fgGetVarBits(lclVarTree));

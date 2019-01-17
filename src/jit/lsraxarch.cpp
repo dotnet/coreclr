@@ -71,7 +71,10 @@ int LinearScan::BuildNode(GenTree* tree)
     }
 
     // floating type generates AVX instruction (vmovss etc.), set the flag
-    SetContainsAVXFlags(varTypeIsFloating(tree->TypeGet()));
+    if (varTypeIsFloating(tree->TypeGet()))
+    {
+        SetContainsAVXFlags();
+    }
 
     switch (tree->OperGet())
     {
@@ -1881,7 +1884,7 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
         assert((simdTree->gtSIMDIntrinsicID == SIMDIntrinsicOpEquality) ||
                (simdTree->gtSIMDIntrinsicID == SIMDIntrinsicOpInEquality));
     }
-    SetContainsAVXFlags(true, simdTree->gtSIMDSize);
+    SetContainsAVXFlags(simdTree->gtSIMDSize);
     GenTree* op1      = simdTree->gtGetOp1();
     GenTree* op2      = simdTree->gtGetOp2();
     int      srcCount = 0;
@@ -1894,8 +1897,9 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
             // Mark op1 as contained if it is either zero or int constant of all 1's,
             // or a float constant with 16 or 32 byte simdType (AVX case)
             //
-            // Should never see small int base type vectors except for zero initialization.
-            assert(!varTypeIsSmallInt(simdTree->gtSIMDBaseType) || op1->IsIntegralConst(0));
+            // Note that for small int base types, the initVal has been constructed so that
+            // we can use the full int value.
+            CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if !defined(_TARGET_64BIT_)
             if (op1->OperGet() == GT_LONG)
@@ -2286,9 +2290,12 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
     HWIntrinsicCategory category    = HWIntrinsicInfo::lookupCategory(intrinsicId);
     int                 numArgs     = HWIntrinsicInfo::lookupNumArgs(intrinsicTree);
 
-    if ((isa == InstructionSet_AVX) || (isa == InstructionSet_AVX2))
+    // Set the AVX Flags if this instruction may use VEX encoding for SIMD operations.
+    // Note that this may be true even if the ISA is not AVX (e.g. for platform-agnostic intrinsics
+    // or non-AVX intrinsics that will use VEX encoding if it is available on the target).
+    if (intrinsicTree->isSIMD())
     {
-        SetContainsAVXFlags(true, 32);
+        SetContainsAVXFlags(intrinsicTree->gtSIMDSize);
     }
 
     GenTree* op1    = intrinsicTree->gtGetOp1();
@@ -2372,6 +2379,60 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         // must be handled within the case.
         switch (intrinsicId)
         {
+            case NI_Base_Vector128_CreateScalarUnsafe:
+            case NI_Base_Vector128_ToScalar:
+            case NI_Base_Vector256_CreateScalarUnsafe:
+            case NI_Base_Vector256_ToScalar:
+            {
+                assert(numArgs == 1);
+
+                if (varTypeIsFloating(baseType))
+                {
+                    if (op1->isContained())
+                    {
+                        srcCount += BuildOperandUses(op1);
+                    }
+                    else
+                    {
+                        // We will either be in memory and need to be moved
+                        // into a register of the appropriate size or we
+                        // are already in an XMM/YMM register and can stay
+                        // where we are.
+
+                        tgtPrefUse = BuildUse(op1);
+                        srcCount += 1;
+                    }
+
+                    buildUses = false;
+                }
+                break;
+            }
+
+            case NI_Base_Vector128_ToVector256:
+            case NI_Base_Vector128_ToVector256Unsafe:
+            case NI_Base_Vector256_GetLower:
+            {
+                assert(numArgs == 1);
+
+                if (op1->isContained())
+                {
+                    srcCount += BuildOperandUses(op1);
+                }
+                else
+                {
+                    // We will either be in memory and need to be moved
+                    // into a register of the appropriate size or we
+                    // are already in an XMM/YMM register and can stay
+                    // where we are.
+
+                    tgtPrefUse = BuildUse(op1);
+                    srcCount += 1;
+                }
+
+                buildUses = false;
+                break;
+            }
+
             case NI_SSE_CompareEqualOrderedScalar:
             case NI_SSE_CompareEqualUnorderedScalar:
             case NI_SSE_CompareNotEqualOrderedScalar:
@@ -2457,6 +2518,25 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
                 break;
             }
 #endif // _TARGET_X86_
+
+            case NI_BMI2_MultiplyNoFlags:
+            case NI_BMI2_X64_MultiplyNoFlags:
+            {
+                assert(numArgs == 2 || numArgs == 3);
+                srcCount += BuildOperandUses(op1, RBM_EDX);
+                srcCount += BuildOperandUses(op2);
+                if (numArgs == 3)
+                {
+                    // op3 reg should be different from target reg to
+                    // store the lower half result after executing the instruction
+                    srcCount += BuildDelayFreeUses(op3);
+                    // Need a internal register different from the dst to take the lower half result
+                    buildInternalIntRegisterDefForNode(intrinsicTree);
+                    setInternalRegsDelayFree = true;
+                }
+                buildUses = false;
+                break;
+            }
 
             case NI_FMA_MultiplyAdd:
             case NI_FMA_MultiplyAddNegated:
@@ -2782,7 +2862,7 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
 #ifdef FEATURE_SIMD
     if (varTypeIsSIMD(indirTree))
     {
-        SetContainsAVXFlags(true, genTypeSize(indirTree->TypeGet()));
+        SetContainsAVXFlags(genTypeSize(indirTree->TypeGet()));
     }
     buildInternalRegisterUses();
 #endif // FEATURE_SIMD
@@ -2885,9 +2965,9 @@ int LinearScan::BuildMul(GenTree* tree)
 //    isFloatingPointType   - true if it is floating point type
 //    sizeOfSIMDVector      - SIMD Vector size
 //
-void LinearScan::SetContainsAVXFlags(bool isFloatingPointType /* = true */, unsigned sizeOfSIMDVector /* = 0*/)
+void LinearScan::SetContainsAVXFlags(unsigned sizeOfSIMDVector /* = 0*/)
 {
-    if (isFloatingPointType && compiler->canUseVexEncoding())
+    if (compiler->canUseVexEncoding())
     {
         compiler->getEmitter()->SetContainsAVX(true);
         if (sizeOfSIMDVector == 32)

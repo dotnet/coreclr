@@ -103,8 +103,8 @@ INST3(cmovbe,           "cmovbe",           IUM_WR, BAD_CODE,     BAD_CODE,     
 INST3(cmova,            "cmova",            IUM_WR, BAD_CODE,     BAD_CODE,     0x0F0047,                                INS_FLAGS_ReadsFlags)
 INST3(cmovs,            "cmovs",            IUM_WR, BAD_CODE,     BAD_CODE,     0x0F0048,                                INS_FLAGS_ReadsFlags)
 INST3(cmovns,           "cmovns",           IUM_WR, BAD_CODE,     BAD_CODE,     0x0F0049,                                INS_FLAGS_ReadsFlags)
-INST3(cmovpe,           "cmovpe",           IUM_WR, BAD_CODE,     BAD_CODE,     0x0F004A,                                INS_FLAGS_ReadsFlags)
-INST3(cmovpo,           "cmovpo",           IUM_WR, BAD_CODE,     BAD_CODE,     0x0F004B,                                INS_FLAGS_ReadsFlags)
+INST3(cmovp,            "cmovp",            IUM_WR, BAD_CODE,     BAD_CODE,     0x0F004A,                                INS_FLAGS_ReadsFlags)
+INST3(cmovnp,           "cmovnp",           IUM_WR, BAD_CODE,     BAD_CODE,     0x0F004B,                                INS_FLAGS_ReadsFlags)
 INST3(cmovl,            "cmovl",            IUM_WR, BAD_CODE,     BAD_CODE,     0x0F004C,                                INS_FLAGS_ReadsFlags)
 INST3(cmovge,           "cmovge",           IUM_WR, BAD_CODE,     BAD_CODE,     0x0F004D,                                INS_FLAGS_ReadsFlags)
 INST3(cmovle,           "cmovle",           IUM_WR, BAD_CODE,     BAD_CODE,     0x0F004E,                                INS_FLAGS_ReadsFlags)
@@ -177,7 +177,7 @@ INSTMUL(imul_15,        "imul",             IUM_RD, BAD_CODE,     0x4400003868, 
 #define VEX3INT(c1,c2)   PACK4(c1, 0xc5, 0x02, c2)
 #define VEX3FLT(c1,c2)   PACK4(c1, 0xc5, 0x02, c2)
 
-INST3(FIRST_SSE2_INSTRUCTION, "FIRST_SSE2_INSTRUCTION", IUM_WR, BAD_CODE, BAD_CODE, BAD_CODE, INS_FLAGS_None)
+INST3(FIRST_SSE_INSTRUCTION, "FIRST_SSE_INSTRUCTION", IUM_WR, BAD_CODE, BAD_CODE, BAD_CODE, INS_FLAGS_None)
 // These are the SSE instructions used on x86
 INST3(mov_i2xmm,        "movd",             IUM_WR, BAD_CODE,     BAD_CODE,     PCKDBL(0x6E),                            INS_FLAGS_None)    // Move int reg to a xmm reg. reg1=xmm reg, reg2=int reg
 INST3(mov_xmm2i,        "movd",             IUM_WR, BAD_CODE,     BAD_CODE,     PCKDBL(0x7E),                            INS_FLAGS_None)    // Move xmm reg to an int reg. reg1=xmm reg, reg2=int reg
@@ -385,9 +385,7 @@ INST3(unpcklpd,         "unpcklpd",         IUM_WR, BAD_CODE,     BAD_CODE,     
 INST3(packssdw,         "packssdw",         IUM_WR, BAD_CODE,     BAD_CODE,     PCKDBL(0x6B),                            INS_Flags_IsDstDstSrcAVXInstruction)    // Pack (narrow) int to short with saturation
 INST3(packsswb,         "packsswb",         IUM_WR, BAD_CODE,     BAD_CODE,     PCKDBL(0x63),                            INS_Flags_IsDstDstSrcAVXInstruction)    // Pack (narrow) short to byte with saturation
 INST3(packuswb,         "packuswb",         IUM_WR, BAD_CODE,     BAD_CODE,     PCKDBL(0x67),                            INS_Flags_IsDstDstSrcAVXInstruction)    // Pack (narrow) short to unsigned byte with saturation
-INST3(LAST_SSE2_INSTRUCTION, "LAST_SSE2_INSTRUCTION", IUM_WR, BAD_CODE, BAD_CODE, BAD_CODE, INS_FLAGS_None)
 
-INST3(FIRST_SSE4_INSTRUCTION, "FIRST_SSE4_INSTRUCTION", IUM_WR, BAD_CODE, BAD_CODE, BAD_CODE, INS_FLAGS_None)
 //    id                nm                  um      mr            mi            rm                                       flags
 INST3(dpps,             "dpps",             IUM_WR, BAD_CODE,     BAD_CODE,     SSE3A(0x40),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Packed dot product of two float vector regs
 INST3(dppd,             "dppd",             IUM_WR, BAD_CODE,     BAD_CODE,     SSE3A(0x41),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Packed dot product of two double vector regs
@@ -470,7 +468,7 @@ INST3(aesenc,           "aesenc",           IUM_WR, BAD_CODE,     BAD_CODE,     
 INST3(aesenclast,       "aesenclast",       IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xDD),                             INS_Flags_IsDstDstSrcAVXInstruction)   // Perform last round of an AES encryption flow
 INST3(aesimc,           "aesimc",           IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xDB),                             INS_FLAGS_None)   // Perform the AES InvMixColumn Transformation
 INST3(aeskeygenassist,  "aeskeygenassist",  IUM_WR, BAD_CODE,     BAD_CODE,     SSE3A(0xDF),                             INS_FLAGS_None)   // AES Round Key Generation Assist
-INST3(LAST_SSE4_INSTRUCTION, "LAST_SSE4_INSTRUCTION", IUM_WR, BAD_CODE, BAD_CODE, BAD_CODE, INS_FLAGS_None)
+INST3(LAST_SSE_INSTRUCTION, "LAST_SSE_INSTRUCTION", IUM_WR, BAD_CODE, BAD_CODE, BAD_CODE, INS_FLAGS_None)
 
 INST3(FIRST_AVX_INSTRUCTION, "FIRST_AVX_INSTRUCTION", IUM_WR, BAD_CODE, BAD_CODE, BAD_CODE, INS_FLAGS_None)
 // AVX only instructions
@@ -591,10 +589,14 @@ INST3(andn,             "andn",             IUM_WR, BAD_CODE,     BAD_CODE,     
 INST3(blsi,             "blsi",             IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xF3),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Extract Lowest Set Isolated Bit
 INST3(blsmsk,           "blsmsk",           IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xF3),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Get Mask Up to Lowest Set Bit
 INST3(blsr,             "blsr",             IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xF3),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Reset Lowest Set Bit
+INST3(bextr,            "bextr",            IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xF7),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Bit Field Extract
 
 // BMI2
 INST3(pdep,             "pdep",             IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xF5),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Parallel Bits Deposit
 INST3(pext,             "pext",             IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xF5),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Parallel Bits Extract
+INST3(bzhi,             "bzhi",             IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xF5),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Zero High Bits Starting with Specified Bit Position
+INST3(mulx,             "mulx",             IUM_WR, BAD_CODE,     BAD_CODE,     SSE38(0xF6),                             INS_Flags_IsDstDstSrcAVXInstruction)    // Unsigned Multiply Without Affecting Flags
+
 INST3(LAST_BMI_INSTRUCTION, "LAST_BMI_INSTRUCTION", IUM_WR, BAD_CODE, BAD_CODE, BAD_CODE, INS_FLAGS_None)
 
 INST3(LAST_AVX_INSTRUCTION, "LAST_AVX_INSTRUCTION", IUM_WR, BAD_CODE, BAD_CODE, BAD_CODE, INS_FLAGS_None)
@@ -704,8 +706,8 @@ INST1(setbe,            "setbe",            IUM_WR, 0x0F0096,                   
 INST1(seta,             "seta",             IUM_WR, 0x0F0097,                                                            INS_FLAGS_ReadsFlags)
 INST1(sets,             "sets",             IUM_WR, 0x0F0098,                                                            INS_FLAGS_ReadsFlags)
 INST1(setns,            "setns",            IUM_WR, 0x0F0099,                                                            INS_FLAGS_ReadsFlags)
-INST1(setpe,            "setpe",            IUM_WR, 0x0F009A,                                                            INS_FLAGS_ReadsFlags)
-INST1(setpo,            "setpo",            IUM_WR, 0x0F009B,                                                            INS_FLAGS_ReadsFlags)
+INST1(setp,             "setp",             IUM_WR, 0x0F009A,                                                            INS_FLAGS_ReadsFlags)
+INST1(setnp,            "setnp",            IUM_WR, 0x0F009B,                                                            INS_FLAGS_ReadsFlags)
 INST1(setl,             "setl",             IUM_WR, 0x0F009C,                                                            INS_FLAGS_ReadsFlags)
 INST1(setge,            "setge",            IUM_WR, 0x0F009D,                                                            INS_FLAGS_ReadsFlags)
 INST1(setle,            "setle",            IUM_WR, 0x0F009E,                                                            INS_FLAGS_ReadsFlags)
@@ -730,8 +732,8 @@ INST0(jbe,              "jbe",              IUM_RD, 0x000076,                   
 INST0(ja,               "ja",               IUM_RD, 0x000077,                                                            INS_FLAGS_ReadsFlags)
 INST0(js,               "js",               IUM_RD, 0x000078,                                                            INS_FLAGS_ReadsFlags)
 INST0(jns,              "jns",              IUM_RD, 0x000079,                                                            INS_FLAGS_ReadsFlags)
-INST0(jpe,              "jpe",              IUM_RD, 0x00007A,                                                            INS_FLAGS_ReadsFlags)
-INST0(jpo,              "jpo",              IUM_RD, 0x00007B,                                                            INS_FLAGS_ReadsFlags)
+INST0(jp,               "jp",               IUM_RD, 0x00007A,                                                            INS_FLAGS_ReadsFlags)
+INST0(jnp,              "jnp",              IUM_RD, 0x00007B,                                                            INS_FLAGS_ReadsFlags)
 INST0(jl,               "jl",               IUM_RD, 0x00007C,                                                            INS_FLAGS_ReadsFlags)
 INST0(jge,              "jge",              IUM_RD, 0x00007D,                                                            INS_FLAGS_ReadsFlags)
 INST0(jle,              "jle",              IUM_RD, 0x00007E,                                                            INS_FLAGS_ReadsFlags)
@@ -748,8 +750,8 @@ INST0(l_jbe,            "jbe",              IUM_RD, 0x00860F,                   
 INST0(l_ja,             "ja",               IUM_RD, 0x00870F,                                                            INS_FLAGS_ReadsFlags)
 INST0(l_js,             "js",               IUM_RD, 0x00880F,                                                            INS_FLAGS_ReadsFlags)
 INST0(l_jns,            "jns",              IUM_RD, 0x00890F,                                                            INS_FLAGS_ReadsFlags)
-INST0(l_jpe,            "jpe",              IUM_RD, 0x008A0F,                                                            INS_FLAGS_ReadsFlags)
-INST0(l_jpo,            "jpo",              IUM_RD, 0x008B0F,                                                            INS_FLAGS_ReadsFlags)
+INST0(l_jp,             "jp",               IUM_RD, 0x008A0F,                                                            INS_FLAGS_ReadsFlags)
+INST0(l_jnp,            "jnp",              IUM_RD, 0x008B0F,                                                            INS_FLAGS_ReadsFlags)
 INST0(l_jl,             "jl",               IUM_RD, 0x008C0F,                                                            INS_FLAGS_ReadsFlags)
 INST0(l_jge,            "jge",              IUM_RD, 0x008D0F,                                                            INS_FLAGS_ReadsFlags)
 INST0(l_jle,            "jle",              IUM_RD, 0x008E0F,                                                            INS_FLAGS_ReadsFlags)

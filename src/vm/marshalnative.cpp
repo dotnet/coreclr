@@ -923,69 +923,6 @@ FCIMPL1(int, MarshalNative::GetHRForException_WinRT, Object* eUNSAFE)
 }
 FCIMPLEND
 
-// static
-INT_PTR QCALLTYPE MarshalNative::LoadLibraryFromPath(LPCWSTR path, BOOL throwOnError)
-{
-    QCALL_CONTRACT;
-
-    NATIVE_LIBRARY_HANDLE handle = nullptr;
-
-    BEGIN_QCALL;
-
-    handle = NDirect::LoadLibraryFromPath(path, throwOnError);
-
-    END_QCALL;
-
-    return reinterpret_cast<INT_PTR>(handle);
-}
-
-// static
-INT_PTR QCALLTYPE MarshalNative::LoadLibraryByName(LPCWSTR name, QCall::AssemblyHandle callingAssembly, 
-                                                   BOOL hasDllImportSearchPathFlag, DWORD dllImportSearchPathFlag, 
-                                                   BOOL throwOnError)
-{
-    QCALL_CONTRACT;
-
-    NATIVE_LIBRARY_HANDLE handle = nullptr;
-    Assembly *pAssembly = callingAssembly->GetAssembly();
-
-    BEGIN_QCALL;
-
-    handle = NDirect::LoadLibraryByName(name, pAssembly, hasDllImportSearchPathFlag, dllImportSearchPathFlag, throwOnError);
-
-    END_QCALL;
-
-    return reinterpret_cast<INT_PTR>(handle);
-}
-
-// static
-void QCALLTYPE MarshalNative::FreeNativeLibrary(INT_PTR handle)
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-
-    NDirect::FreeNativeLibrary((NATIVE_LIBRARY_HANDLE) handle);
-    
-    END_QCALL;
-}
-
-//static 
-INT_PTR QCALLTYPE MarshalNative::GetNativeLibraryExport(INT_PTR handle, LPCWSTR symbolName, BOOL throwOnError)
-{
-    QCALL_CONTRACT;
-
-    INT_PTR address = NULL;
-    
-    BEGIN_QCALL;
-
-    address = NDirect::GetNativeLibraryExport((NATIVE_LIBRARY_HANDLE)handle, symbolName, throwOnError);
-
-    END_QCALL;
-
-    return address;
-}
-
 #ifdef FEATURE_COMINTEROP
 
 //====================================================================
@@ -1056,7 +993,7 @@ FCIMPL1(ITypeInfo*, MarshalNative::GetITypeInfoForType, ReflectClassBaseObject* 
     _ASSERTE(pMT);
 
     // Retrieve the ITypeInfo for the class.
-    IfFailThrow(GetITypeInfoForEEClass(pMT, &pTI, true));
+    IfFailThrow(GetITypeInfoForEEClass(pMT, &pTI, true /* bClassInfo */));
     _ASSERTE(pTI != NULL);
 
     HELPER_METHOD_FRAME_END();
@@ -1827,7 +1764,7 @@ FCIMPL2(void, MarshalNative::DoGetTypeLibGuid, GUID * result, Object* refTlbUNSA
     GCPROTECT_BEGININTERIOR (result);
 
     if (refTlb == NULL)
-        COMPlusThrowArgumentNull(W("pTLB"), W("ArgumentNull_Generic"));
+        COMPlusThrowArgumentNull(W("pTLB"));
 
     // Ensure COM is started up.
     EnsureComStarted();
@@ -1862,7 +1799,7 @@ FCIMPL1(LCID, MarshalNative::GetTypeLibLcid, Object* refTlbUNSAFE)
     HELPER_METHOD_FRAME_BEGIN_RET_1(refTlb);
 
     if (refTlb == NULL)
-        COMPlusThrowArgumentNull(W("pTLB"), W("ArgumentNull_Generic"));
+        COMPlusThrowArgumentNull(W("pTLB"));
 
     // Ensure COM is started up.
     EnsureComStarted();
@@ -1896,7 +1833,7 @@ FCIMPL3(void, MarshalNative::GetTypeLibVersion, Object* refTlbUNSAFE, int *pMajo
     HELPER_METHOD_FRAME_BEGIN_1(refTlb);
 
     if (refTlb == NULL)
-        COMPlusThrowArgumentNull(W("typeLibrary"), W("ArgumentNull_Generic"));
+        COMPlusThrowArgumentNull(W("typeLibrary"));
 
     // Ensure COM is started up.
     EnsureComStarted();
@@ -1931,7 +1868,7 @@ FCIMPL2(void, MarshalNative::DoGetTypeInfoGuid, GUID * result, Object* refTypeIn
     GCPROTECT_BEGININTERIOR (result);
 
     if (refTypeInfo == NULL)
-        COMPlusThrowArgumentNull(W("typeInfo"), W("ArgumentNull_Generic"));
+        COMPlusThrowArgumentNull(W("typeInfo"));
 
     // Ensure COM is started up.
     EnsureComStarted();
@@ -2020,7 +1957,7 @@ FCIMPL1(int, MarshalNative::GetStartComSlot, ReflectClassBaseObject* tUNSAFE)
     HELPER_METHOD_FRAME_BEGIN_RET_1(t);
 
     if (!(t))
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+        COMPlusThrow(kArgumentNullException);
     
     MethodTable *pTMT = t->GetMethodTable();
     if (pTMT != g_pRuntimeTypeClass)
@@ -2028,7 +1965,7 @@ FCIMPL1(int, MarshalNative::GetStartComSlot, ReflectClassBaseObject* tUNSAFE)
 
     MethodTable *pMT = t->GetType().GetMethodTable();
     if (NULL == pMT)
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+        COMPlusThrow(kArgumentNullException);
 
     // The service does not make any sense to be called for non COM visible types.
     if (!::IsTypeVisibleFromCom(TypeHandle(pMT)))
@@ -2053,7 +1990,7 @@ FCIMPL1(int, MarshalNative::GetEndComSlot, ReflectClassBaseObject* tUNSAFE)
     int StartSlot = -1;
 
     if (!(t))
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+        COMPlusThrow(kArgumentNullException);
     
     MethodTable *pTMT = t->GetMethodTable();
     if (pTMT != g_pRuntimeTypeClass)
@@ -2062,7 +1999,7 @@ FCIMPL1(int, MarshalNative::GetEndComSlot, ReflectClassBaseObject* tUNSAFE)
     TypeHandle classTH = t->GetType();
     MethodTable *pMT = classTH.GetMethodTable();
     if (NULL == pMT)
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+        COMPlusThrow(kArgumentNullException);
 
     // The service does not make any sense to be called for non COM visible types.
     if (!::IsTypeVisibleFromCom(classTH))
@@ -2131,7 +2068,7 @@ FCIMPL3(Object*, MarshalNative::GetMethodInfoForComSlot, ReflectClassBaseObject*
     OBJECTREF MemberInfoObj = NULL;
 
     if (!(t))
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+        COMPlusThrow(kArgumentNullException);
     
     MethodTable *pTMT = t->GetMethodTable();
     if (pTMT != g_pRuntimeTypeClass)
@@ -2140,7 +2077,7 @@ FCIMPL3(Object*, MarshalNative::GetMethodInfoForComSlot, ReflectClassBaseObject*
     TypeHandle type = t->GetType();
     MethodTable *pMT= type.GetMethodTable();
     if (NULL == pMT)
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+        COMPlusThrow(kArgumentNullException);
 
     // The service does not make any sense to be called for non COM visible types.
     if (!::IsTypeVisibleFromCom(type))
@@ -2447,111 +2384,6 @@ void QCALLTYPE MarshalNative::GetInspectableIIDs(
             retArrayGuids.SetGuidArray(rgIIDs, size);
         }
     }
-
-    END_QCALL;
-}
-
-
-void QCALLTYPE MarshalNative::GetCachedWinRTTypes(
-                        QCall::ObjectHandleOnStack hadObj,
-                        int * pEpoch,
-                        QCall::ObjectHandleOnStack retArrayMT)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(*hadObj.m_ppObject, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    BEGIN_QCALL;
-
-    AppDomain * pDomain = GetAppDomain();
-
-    {
-        GCX_COOP();
-
-        // set return to failure value
-        retArrayMT.Set(NULL);
-
-        OBJECTREF orDomain = NULL;
-        GCPROTECT_BEGIN(orDomain);
-
-        orDomain = ObjectToOBJECTREF(*hadObj.m_ppObject);
-
-        // Validation: hadObj represents a non-NULL System.AppDomain instance
-        if(orDomain != NULL)
-        {
-            MethodTable* pMT = orDomain->GetMethodTable();
-            PREFIX_ASSUME(pMT != NULL);
-            if (!pMT->CanCastToClass(MscorlibBinder::GetClass(CLASS__APP_DOMAIN)))
-                // TODO: find better resource string
-                COMPlusThrow(kArgumentException, IDS_EE_ADUNLOAD_DEFAULT);
-
-            pDomain = ((AppDomainBaseObject*)(OBJECTREFToObject(orDomain)))->GetDomain();
-        }
-        GCPROTECT_END();
-    }
-
-    if (pDomain != NULL)
-    {
-        SArray<PTR_MethodTable> types;
-        SArray<GUID> guids;
-        UINT e = *(UINT*)pEpoch;
-        pDomain->GetCachedWinRTTypes(&types, &guids, e, (UINT*)pEpoch);
-
-        retArrayMT.SetIntPtrArray((void**)(&types[0]), types.GetCount());
-    }
-
-    END_QCALL;
-}
-
-void QCALLTYPE MarshalNative::GetCachedWinRTTypeByIID(
-                        QCall::ObjectHandleOnStack hadObj,
-                        GUID guid,
-                        void * * ppMT)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(*hadObj.m_ppObject, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    BEGIN_QCALL;
-
-    AppDomain * pDomain = GetAppDomain();
-
-    {
-        GCX_COOP();
-
-        // set return to failure value
-        *ppMT = NULL;
-
-        OBJECTREF orDomain = NULL;
-        GCPROTECT_BEGIN(orDomain);
-
-        orDomain = ObjectToOBJECTREF(*hadObj.m_ppObject);
-
-        // Validation: hadObj represents a non-NULL System.AppDomain instance
-        if(orDomain != NULL)
-        {
-            MethodTable* pMT = orDomain->GetMethodTable();
-            PREFIX_ASSUME(pMT != NULL);
-            if (!pMT->CanCastToClass(MscorlibBinder::GetClass(CLASS__APP_DOMAIN)))
-                // TODO: find better resource string
-                COMPlusThrow(kArgumentException, IDS_EE_ADUNLOAD_DEFAULT);
-
-            pDomain = ((AppDomainBaseObject*)(OBJECTREFToObject(orDomain)))->GetDomain();
-        }
-        GCPROTECT_END();
-    }
-
-    if (pDomain != NULL)
-    {
-        *ppMT = pDomain->LookupTypeByGuid(guid);;
-    }
-
 
     END_QCALL;
 }
