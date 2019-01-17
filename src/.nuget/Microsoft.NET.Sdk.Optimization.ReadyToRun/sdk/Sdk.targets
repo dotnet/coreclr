@@ -117,12 +117,10 @@ Copyright (c) .NET Foundation. All rights reserved.
     <ItemGroup>
       <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='coreclr'" />
-      <!-- Copied from CrossGen.targets. Do we use libcoreclr? -->
       <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='libcoreclr'" />
       <_JitResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='clrjit'" />
-      <!-- Copied from CrossGen.targets. Do we use libclrjit? -->
       <_JitResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
                                              Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='libclrjit'" />
       <_SystemPrivateCoreLibResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
@@ -194,10 +192,12 @@ Copyright (c) .NET Foundation. All rights reserved.
         <Properties>
           CrossgenExe=$(Crossgen);
           CrossgenInput=%(_CrossGenInputAssemblies.FullPath);
-          CrossgenOutput=$(_ReadyToRunOutputDir)/%(FileName)%(Extension);
+          CrossGenOutput=$(_ReadyToRunOutputDir)/%(FileName)%(Extension);
+          CrossgenOutputDirectory=$(_ReadyToRunOutputDir);
           JitPath=$(JitPath);
           DiaSymReaderPath=$(DiaSymReaderPath);
           CrossGenPlatformAssemblies=$(_CrossGenPlatformAssemblies);
+          InputAssemblyName=%(FileName)%(Extension)
         </Properties>
       </CrossGenInvocations>
     </ItemGroup>
@@ -217,15 +217,20 @@ Copyright (c) .NET Foundation. All rights reserved.
 
     <PropertyGroup>
       <_PathSeparator>$([System.IO.Path]::PathSeparator)</_PathSeparator>
+      <_DirectorySeparatorChar>$([System.IO.Path]::DirectorySeparatorChar)</_DirectorySeparatorChar>
       <_CrossGenPlatformAssembliesPathsProperty>@(_CrossGenPlatformAssembliesPaths, '$(_PathSeparator)')</_CrossGenPlatformAssembliesPathsProperty>
       <!-- Remove the trailing slash so it does not get misinterpreted by Exec -->
       <_CrossGenPlatformAssembliesPathsProperty>$(_CrossGenPlatformAssembliesPathsProperty.TrimEnd('\'))</_CrossGenPlatformAssembliesPathsProperty>
 
-      <CrossGenCommand>$(CrossGenExe) -readytorun -in $(CrossGenInput) -out $(CrossGenOutput) -jitpath $(JitPath) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot;</CrossGenCommand>
+      <CrossGenCommand>$(CrossGenExe) -nologo -readytorun -in $(CrossGenInput) -out $(CrossGenOutput) -jitpath $(JitPath) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot;</CrossGenCommand>
+      <CrossGenCreatePdbCommand>$(CrossGenExe) -nologo -createpdb $(CrossgenOutputDirectory) -diasymreaderpath $(DiaSymReaderPath) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot; $(CrossgenOutputDirectory)$(_DirectorySeparatorChar)$(InputAssemblyName)</CrossGenCreatePdbCommand>
     </PropertyGroup>
 
     <Message Text="$(CrossGenCommand)" />
     <Exec Command="$(CrossGenCommand)" />
+
+    <Message Text="$(CrossGenCreatePdbCommand) " />
+    <Exec Command="$(CrossGenCreatePdbCommand) " />
   </Target>
 
   <Target Name="_PublishCrossgenOutputs">
