@@ -19,7 +19,7 @@ namespace System.Runtime.CompilerServices
                 displayMessage = GetDisplayMessage(kind, userMessage, conditionText);
             }
 
-            System.Diagnostics.Debug.ContractFailure(false, displayMessage, string.Empty, GetResourceNameForFailure(kind));
+            System.Diagnostics.Debug.ContractFailure(false, displayMessage, string.Empty, GetFailureMessage(kind, null));
         }
     }
 }

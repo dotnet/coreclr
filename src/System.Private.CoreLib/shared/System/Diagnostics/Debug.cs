@@ -119,7 +119,7 @@ namespace System.Diagnostics
                     stackTrace = "";
                 }
                 s_provider.WriteAssert(stackTrace, message, detailMessage);
-                DebugProvider.FailCore(stackTrace, message, detailMessage, SR.GetResourceString(failureKindMessage));
+                DebugProvider.FailCore(stackTrace, message, detailMessage, failureKindMessage);
             }
         }
 

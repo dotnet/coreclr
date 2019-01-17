@@ -81,41 +81,33 @@ namespace System.Runtime.CompilerServices
             return returnValue;
         }
 
-        private static string GetResourceNameForFailure(ContractFailureKind failureKind)
+        private static string GetFailureMessage(ContractFailureKind failureKind, string conditionText)
         {
-            string resourceName = null;
+            bool hasConditionText = !string.IsNullOrEmpty(conditionText);
             switch (failureKind)
             {
                 case ContractFailureKind.Assert:
-                    resourceName = "AssertionFailed";
-                    break;
+                    return hasConditionText ? SR.Format(SR.AssertionFailed_Cnd, conditionText) : SR.AssertionFailed;
 
                 case ContractFailureKind.Assume:
-                    resourceName = "AssumptionFailed";
-                    break;
+                    return hasConditionText ? SR.Format(SR.AssumptionFailed_Cnd, conditionText) : SR.AssumptionFailed;
 
                 case ContractFailureKind.Precondition:
-                    resourceName = "PreconditionFailed";
-                    break;
+                    return hasConditionText ? SR.Format(SR.PreconditionFailed_Cnd, conditionText) : SR.PreconditionFailed;
 
                 case ContractFailureKind.Postcondition:
-                    resourceName = "PostconditionFailed";
-                    break;
+                    return hasConditionText ? SR.Format(SR.PostconditionFailed_Cnd, conditionText) : SR.PostconditionFailed;
 
                 case ContractFailureKind.Invariant:
-                    resourceName = "InvariantFailed";
-                    break;
+                    return hasConditionText ? SR.Format(SR.InvariantFailed_Cnd, conditionText) : SR.InvariantFailed;
 
                 case ContractFailureKind.PostconditionOnException:
-                    resourceName = "PostconditionOnExceptionFailed";
-                    break;
+                    return hasConditionText ? SR.Format(SR.PostconditionOnExceptionFailed_Cnd, conditionText) : SR.PostconditionOnExceptionFailed;
 
                 default:
-                    Debug.Fail("Unreachable code");
-                    resourceName = "AssumptionFailed";
-                    break;
+                    Contract.Assume(false, "Unreachable code");
+                    return SR.AssumptionFailed;
             }
-            return resourceName;
         }
 
         private static string GetDisplayMessage(ContractFailureKind failureKind, string userMessage, string conditionText)
@@ -129,9 +121,7 @@ namespace System.Runtime.CompilerServices
             // error message.  Let's leverage Silverlight's default error message there. 
             if (!string.IsNullOrEmpty(conditionText))
             {
-                string resourceName = GetResourceNameForFailure(failureKind); 
-                resourceName += "_Cnd";
-                failureMessage = SR.Format(SR.GetResourceString(resourceName), conditionText);
+                failureMessage = GetFailureMessage(failureKind, conditionText);
             }
             else
             {
