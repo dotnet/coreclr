@@ -3067,6 +3067,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
 
         unsigned int usedEightBytes = 0;
         unsigned int accumulatedSizeForEightBytes = 0;
+        bool foundFieldInEightByte = false;
         for (unsigned int offset = 0; offset < helperPtr->structSize; offset++)
         {
             SystemVClassificationType fieldClassificationType;
@@ -3092,6 +3093,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
             }
             else
             {
+                foundFieldInEightByte = true;
                 fieldSize = helperPtr->fieldSizes[ordinal];
                 _ASSERTE(fieldSize > 0);
 
@@ -3100,14 +3102,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
             }
 
             unsigned int fieldStartEightByte = offset / SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
-            unsigned int fieldEndEightByte = (offset + fieldSize) / SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
-
-            if ((offset + fieldSize) % SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES == 0)
-            {
-                // If a field ends on the start of the next eight-byte, then do not
-                // consider it as part of that eight-byte.
-                fieldEndEightByte--;
-            }
+            unsigned int fieldEndEightByte = (offset + fieldSize - 1) / SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
 
             _ASSERTE(fieldEndEightByte < CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
 
@@ -3145,6 +3140,22 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
                 {
                     helperPtr->eightByteClassifications[currentFieldEightByte] = SystemVClassificationTypeSSE;
                 }
+            }
+
+            if ((offset + 1) % SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES == 0) // If we just finished checking the last byte of an eightbyte
+            {
+                if (!foundFieldInEightByte)
+                {
+                    // If we didn't find a field in an eight-byte (i.e. there are no explicit offsets that start a field in this eightbyte)
+                    // then the classification of this eightbyte might be NoClass. We can't hand a classification of NoClass to the JIT
+                    // so set the class to Integer (as though the struct has a char[8] padding) if the class is NoClass.
+                    if (helperPtr->eightByteClassifications[offset / SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES] == SystemVClassificationTypeNoClass)
+                    {
+                        helperPtr->eightByteClassifications[offset / SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES] = SystemVClassificationTypeInteger;
+                    }
+                }
+
+                foundFieldInEightByte = false;
             }
 
             accumulatedSizeForEightBytes = Max(accumulatedSizeForEightBytes, offset + fieldSize);
