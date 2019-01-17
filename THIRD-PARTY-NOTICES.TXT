@@ -224,7 +224,7 @@ License notice for Printing Floating-Point Numbers (Dragon4)
      distribution.
 ******************************************************************************/
 
-License notice for Printing Floating-poInt Numbers (Grisu3)
+License notice for Printing Floating-point Numbers (Grisu3)
 -----------------------------------------------------------
 
 Copyright 2012 the V8 project authors. All rights reserved.
