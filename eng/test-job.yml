@@ -139,7 +139,7 @@ jobs:
             condition: false
         ${{ if eq(variables['System.TeamProject'], 'public') }}:
           isExternal: true
-          creator: coreclr/pulls
+          creator: coreclr-pulls
           helixQueues: ${{ parameters.helixQueuesPublic }}
           ${{ if eq(parameters.helixQueuesPublic, '') }}:
             condition: false
