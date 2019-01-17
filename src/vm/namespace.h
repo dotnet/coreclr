@@ -78,3 +78,5 @@
 #define g_ExceptionServicesNS         g_RuntimeNS ".ExceptionServices"
 
 #define g_LoaderNS         g_RuntimeNS ".Loader" 
+
+#define g_InternalRuntimeAugmentsNS "Internal.Runtime.Augments"

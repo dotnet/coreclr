@@ -2069,7 +2069,7 @@ DWORD NDirectStubLinker::GetThreadLocalNum()
     {
         // The local is created and initialized lazily when first asked.
         m_dwThreadLocalNum = NewLocal(ELEMENT_TYPE_I);
-        m_pcsSetup->EmitCALL(METHOD__THREAD__INTERNAL_GET_CURRENT_THREAD, 0, 1);
+        m_pcsSetup->EmitCALL(METHOD__RUNTIMETHREAD__INTERNAL_GET_CURRENT_THREAD, 0, 1);
         m_pcsSetup->EmitSTLOC(m_dwThreadLocalNum);
     }
 
