@@ -29,6 +29,37 @@ namespace System
                 f = ExtractFractionAndBiasedExponent(value, out e);
             }
 
+            public DiyFp(float value)
+            {
+                Debug.Assert(float.IsFinite(value));
+                Debug.Assert(value > 0.0f);
+                f = ExtractFractionAndBiasedExponent(value, out e);
+            }
+
+            // Computes the two boundaries of value.
+            //
+            // The bigger boundary (mPlus) is normalized.
+            // The lower boundary has the same exponent as mPlus.
+            //
+            // Precondition:
+            //  The value encoded by value must be greater than 0.
+            public DiyFp(double value, out DiyFp mMinus, out DiyFp mPlus) : this(value)
+            {
+                GetBoundaries(52, out mMinus, out mPlus);
+            }
+
+            // Computes the two boundaries of value.
+            //
+            // The bigger boundary (mPlus) is normalized.
+            // The lower boundary has the same exponent as mPlus.
+            //
+            // Precondition:
+            //  The value encoded by value must be greater than 0.
+            public DiyFp(float value, out DiyFp mMinus, out DiyFp mPlus) : this(value)
+            {
+                GetBoundaries(23, out mMinus, out mPlus);
+            }
+
             public DiyFp(ulong significand, int exponent)
             {
                 f = significand;
@@ -85,6 +116,33 @@ namespace System
                 Debug.Assert(e == other.e);
                 Debug.Assert(f >= other.f);
                 return new DiyFp((f - other.f), e);
+            }
+
+            private void GetBoundaries(int implicitBitIndex, out DiyFp mMinus, out DiyFp mPlus)
+            {
+                mPlus = new DiyFp(((f << 1) + 1), (e - 1)).Normalize();
+
+                // The boundary is closer if the sigificand is of the form:
+                //      f == 2^p-1
+                //
+                // Think of v = 1000e10 and v- = 9999e9
+                // Then the boundary == (v - v-) / 2 is not just at a distance of 1e9 but at a distance of 1e8.
+                // The only exception is for the smallest normal, where the largest denormal is at the same distance as its successor.
+                //
+                // Note: denormals have the same exponent as the smallest normals.
+
+                // We deviate from the reference implementation by just checking if the significand has only the implicit bit set.
+                // In this scenario, we know that all the explicit bits are 0 and that the unbiased exponent is non-zero.
+                if (f == (1UL << implicitBitIndex))
+                {
+                    mMinus = new DiyFp(((f << 2) - 1), (e - 2));
+                }
+                else
+                {
+                    mMinus = new DiyFp(((f << 1) - 1), (e - 1));
+                }
+
+                mMinus = new DiyFp((mMinus.f << (mMinus.e - mPlus.e)), mPlus.e);
             }
         }
     }

@@ -398,7 +398,7 @@ namespace System
 
                 return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
             }
-            else if ((value != 0.0) && !Grisu3.Run(value, digits, ref number))
+            else if ((value != 0.0) && !Grisu3.RunDouble(value, digits, ref number))
             {
                 Dragon4(value, digits, ref number);
             }
@@ -456,7 +456,7 @@ namespace System
 
                 return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
             }
-            else if ((value != 0.0f) && !Grisu3.Run(value, digits, ref number))
+            else if ((value != 0.0f) && !Grisu3.RunSingle(value, digits, ref number))
             {
                 Dragon4(value, digits, ref number);
             }
@@ -2287,6 +2287,38 @@ namespace System
                 //       = mantissa * 2^(-1074)
                 // So f = mantissa, e = -1074
                 exponent = -1074;
+            }
+
+            return fraction;
+        }
+
+        private static uint ExtractFractionAndBiasedExponent(float value, out int exponent)
+        {
+            uint bits = (uint)(BitConverter.SingleToInt32Bits(value));
+            uint fraction = (bits & 0x7FFFFF);
+            exponent = ((int)(bits >> 23) & 0xFF);
+
+            if (exponent != 0)
+            {
+                // For normalized value, according to https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+                // value = 1.fraction * 2^(exp - 127)
+                //       = (1 + mantissa / 2^23) * 2^(exp - 127)
+                //       = (2^23 + mantissa) * 2^(exp - 127 - 23)
+                //
+                // So f = (2^23 + mantissa), e = exp - 150;
+
+                fraction |= (1U << 23);
+                exponent -= 150;
+            }
+            else
+            {
+                // For denormalized value, according to https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+                // value = 0.fraction * 2^(1 - 127)
+                //       = (mantissa / 2^23) * 2^(-126)
+                //       = mantissa * 2^(-126 - 23)
+                //       = mantissa * 2^(-149)
+                // So f = mantissa, e = -149
+                exponent = -149;
             }
 
             return fraction;

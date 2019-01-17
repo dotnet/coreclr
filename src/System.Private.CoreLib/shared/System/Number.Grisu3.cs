@@ -322,18 +322,67 @@ namespace System
                 1000000000, // 10^9
             };
 
-            public static bool Run(double value, int requestedDigits, ref NumberBuffer number)
+            public static bool RunDouble(double value, int requestedDigits, ref NumberBuffer number)
             {
                 double v = double.IsNegative(value) ? -value : value;
 
                 Debug.Assert(v > 0);
                 Debug.Assert(double.IsFinite(v));
 
-                bool result = RunCounted(v, requestedDigits, number.Digits, out int length, out int decimalExponent);
+                int length = 0;
+                int decimalExponent = 0;
+                bool result = false;
+
+                if (requestedDigits == -1)
+                {
+                    var w = new DiyFp(v, out DiyFp boundaryMinus, out DiyFp boundaryPlus).Normalize();
+                    result = RunShortest(in boundaryMinus, in w, in boundaryPlus, number.Digits, out length, out decimalExponent);
+                }
+                else
+                {
+                    Debug.Assert(requestedDigits > 0);
+                    var w = new DiyFp(v).Normalize();
+                    result = RunCounted(in w, requestedDigits, number.Digits, out length, out decimalExponent);
+                }
 
                 if (result)
                 {
-                    Debug.Assert((length == requestedDigits));
+                    Debug.Assert((requestedDigits == -1) || (length == requestedDigits));
+
+                    number.Scale = length + decimalExponent;
+                    number.Digits[length] = (byte)('\0');
+                    number.DigitsCount = length;
+                }
+
+                return result;
+            }
+
+            public static bool RunSingle(float value, int requestedDigits, ref NumberBuffer number)
+            {
+                float v = float.IsNegative(value) ? -value : value;
+
+                Debug.Assert(v > 0);
+                Debug.Assert(float.IsFinite(v));
+
+                int length = 0;
+                int decimalExponent = 0;
+                bool result = false;
+
+                if (requestedDigits == -1)
+                {
+                    var w = new DiyFp(v, out DiyFp boundaryMinus, out DiyFp boundaryPlus).Normalize();
+                    result = RunShortest(in boundaryMinus, in w, in boundaryPlus, number.Digits, out length, out decimalExponent);
+                }
+                else
+                {
+                    Debug.Assert(requestedDigits > 0);
+                    var w = new DiyFp(v).Normalize();
+                    result = RunCounted(in w, requestedDigits, number.Digits, out length, out decimalExponent);
+                }
+
+                if (result)
+                {
+                    Debug.Assert((requestedDigits == -1) || (length == requestedDigits));
 
                     number.Scale = length + decimalExponent;
                     number.Digits[length] = (byte)('\0');
@@ -346,9 +395,59 @@ namespace System
             // The counted version of Grisu3 only generates requestedDigits number of digits.
             // This version does not generate the shortest representation, and with enough requested digits 0.1 will at some point print as 0.9999999...
             // Grisu3 is too imprecise for real halfway cases (1.5 will not work) and therefore the rounding strategy for halfway cases is irrelevant.
-            private static bool RunCounted(double v, int requestedDigits, Span<byte> buffer, out int length, out int decimalExponent)
+            private static bool RunCounted(in DiyFp w, int requestedDigits, Span<byte> buffer, out int length, out int decimalExponent)
             {
-                var w = new DiyFp(v).Normalize();
+                int tenMkMinimalBinaryExponent = MinimalTargetExponent - (w.e + DiyFp.SignificandSize);
+                int tenMkMaximalBinaryExponent = MaximalTargetExponent - (w.e + DiyFp.SignificandSize);
+
+                DiyFp tenMk = GetCachedPowerForBinaryExponentRange(tenMkMinimalBinaryExponent, tenMkMaximalBinaryExponent, out int mk);
+
+                Debug.Assert(MinimalTargetExponent <= (w.e + tenMk.e + DiyFp.SignificandSize));
+                Debug.Assert(MaximalTargetExponent >= (w.e + tenMk.e + DiyFp.SignificandSize));
+
+                // Note that tenMk is only an approximation of 10^-k.
+                // A DiyFp only contains a 64-bit significan and tenMk is thus only precise up to 64-bits.
+
+                // The DiyFp.Multiply procedure rounds its result and tenMk is approximated too.
+                // The variable scaledW (as well as scaledBoundaryMinus/Plus) are now off by a small amount.
+                //
+                // In fact, scaledW - (w * 10^k) < 1ulp (unit in last place) of scaledW.
+                // In other words, let f = scaledW.f and e = scaledW.e, then:
+                //      (f - 1) * 2^e < (w * 10^k) < (f + 1) * 2^e
+
+                DiyFp scaledW = w.Multiply(in tenMk);
+
+                // We now have (double)(scaledW * 10^-mk).
+                //
+                // DigitGenCounted will generate the first requestedDigits of scaledW and return together with a kappa such that:
+                //      scaledW ~= buffer * 10^kappa.
+                //
+                // It will not always be exactly the same since DigitGenCounted only produces a limited number of digits.
+
+                bool result = DigitGenCounted(in scaledW, requestedDigits, buffer, out length, out int kappa);
+                decimalExponent = -mk + kappa;
+                return result;
+            }
+
+            // Provides a decimal representation of v.
+            // Returns true if it succeeds; otherwise, the result cannot be trusted.
+            //
+            // There will be length digits inside the buffer (not null-terminated).
+            // If the function returns true then:
+            //      v == (double)(buffer * 10^decimalExponent)
+            //
+            // The digits in the buffer are the shortest represenation possible (no 0.09999999999999999 instead of 0.1).
+            // The shorter representation will even be chosen if the longer one would be closer to v.
+            //
+            // The last digit will be closest to the actual v.
+            // That is, even if several digits might correctly yield 'v' when read again, the closest will be computed.
+            private static bool RunShortest(in DiyFp boundaryMinus, in DiyFp w, in DiyFp boundaryPlus, Span<byte> buffer, out int length, out int decimalExponent)
+            {
+                // boundaryMinus and boundaryPlus are the boundaries between v and its closest floating-point neighbors.
+                // Any number strictly between boundaryMinus and boundaryPlus will round to v when converted to a double.
+                // Grisu3 will never output representations that lie exactly on a boundary.
+
+                Debug.Assert(boundaryPlus.e == w.e);
 
                 int tenMkMinimalBinaryExponent = MinimalTargetExponent - (w.e + DiyFp.SignificandSize);
                 int tenMkMaximalBinaryExponent = MaximalTargetExponent - (w.e + DiyFp.SignificandSize);
@@ -367,15 +466,24 @@ namespace System
                 // In fact, scaledW - (w * 10^k) < 1ulp (unit in last place) of scaledW.
                 // In other words, let f = scaledW.f and e = scaledW.e, then:
                 //      (f - 1) * 2^e < (w * 10^k) < (f + 1) * 2^e
-                DiyFp scaledW = w.Multiply(in tenMk);
 
-                // We now have (double)(scaledW * 10^-mk).
+                DiyFp scaledW = w.Multiply(in tenMk);
+                Debug.Assert(scaledW.e == (boundaryPlus.e + tenMk.e + DiyFp.SignificandSize));
+
+                // In theory, it would be possible to avoid some recomputations by computing the difference between w
+                // and boundaryMinus/Plus (a power of 2) and to compute scaledBoundaryMinus/Plus by subtracting/adding
+                // from scaledW. However, the code becomes much less readable and the speed enhancements are not terrific.
+
+                DiyFp scaledBoundaryMinus = boundaryMinus.Multiply(in tenMk);
+                DiyFp scaledBoundaryPlus = boundaryPlus.Multiply(in tenMk);
+
+                // DigitGen will generate the digits of scaledW. Therefore, we have:
+                //      v == (double)(scaledW * 10^-mk)
                 //
-                // DigitGenCounted will generate the first requestedDigits of scaledW and return together with a kappa such that:
-                //      scaledW ~= buffer * 10^kappa.
-                //
-                // It will not always be exactly the same since DigitGenCounted only produces a limited number of digits.
-                bool result = DigitGenCounted(in scaledW, requestedDigits, buffer, out length, out int kappa);
+                // Set decimalExponent == -mk and pass it to DigitGen and if scaledW is not an integer than it will be updated.
+                // For instance, if scaledW == 1.23 then the buffer will be filled with "123" and the decimalExponent will be decreased by 2.
+
+                bool result = DigitGenShortest(in scaledBoundaryMinus, in scaledW, in scaledBoundaryPlus, buffer, out length, out int kappa);
                 decimalExponent = -mk + kappa;
                 return result;
             }
@@ -390,7 +498,7 @@ namespace System
             //
             // Preconditions:
             //      number < (1 << (numberBits + 1))
-            static uint BiggestPowerTen(uint number, int numberBits, out int exponentPlusOne)
+            private static uint BiggestPowerTen(uint number, int numberBits, out int exponentPlusOne)
             {
                 // Inspired by the method for finding an integer log base 10 from here: 
                 // http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog10
@@ -530,7 +638,8 @@ namespace System
                     wError *= 10;
 
                     // Integer division by one.
-                    int digit = (int)(fractionals >> -one.e);
+                    uint digit = (uint)(fractionals >> -one.e);
+                    Debug.Assert(digit <= 9);
                     buffer[length] = (byte)('0' + digit);
 
                     length++;
@@ -557,6 +666,184 @@ namespace System
                     unit: wError,
                     ref kappa
                 );
+            }
+
+            // Generates the digits of input number w.
+            //
+            // w is a floating-point number (DiyFp), consisting of a significand and an exponent.
+            // Its exponent is bounded by kMinimalTargetExponent and kMaximalTargetExponent, hence:
+            //      -60 <= w.e() <= -32.
+            //
+            // Returns false if it fails, in which case the generated digits in the buffer should not be used.
+            //
+            // Preconditions:
+            //      low, w and high are correct up to 1 ulp (unit in the last place). That is, their error must be less than a unit of their last digits.
+            //      low.e() == w.e() == high.e()
+            //      low < w < high, and taking into account their error: low~ <= high~
+            //      kMinimalTargetExponent <= w.e() <= kMaximalTargetExponent
+            //
+            // Postconditions:
+            //      Returns false if procedure fails; otherwise:
+            //      * buffer is not null-terminated, but len contains the number of digits.
+            //      * buffer contains the shortest possible decimal digit-sequence such that LOW < buffer * 10^kappa < HIGH, where LOW and HIGH are the correct values of low and high (without their error).
+            //      * If more than one decimal representation gives the minimal number of decimal digits then the one closest to W (where W is the correct value of w) is chosen.
+            //
+            // This procedure takes into account the imprecision of its input numbers.
+            // If the precision is not enough to guarantee all the postconditions then false is returned.
+            // This usually happens rarely (~0.5%).
+            //
+            // Say, for the sake of example, that:
+            //      w.e() == -48, and w.f() == 0x1234567890abcdef
+            //
+            // w's value can be computed by w.f() * 2^w.e()
+            //
+            // We can obtain w's integral digits by simply shifting w.f() by -w.e().
+            //      -> w's integral part is 0x1234
+            //      w's fractional part is therefore 0x567890abcdef.
+            //
+            // Printing w's integral part is easy (simply print 0x1234 in decimal).
+            //
+            // In order to print its fraction we repeatedly multiply the fraction by 10 and get each digit.
+            // For example, the first digit after the point would be computed by
+            //      (0x567890abcdef * 10) >> 48. -> 3
+            //
+            // The whole thing becomes slightly more complicated because we want to stop once we have enough digits.
+            // That is, once the digits inside the buffer represent 'w' we can stop.
+            //
+            // Everything inside the interval low - high represents w.
+            // However we have to pay attention to low, high and w's imprecision.
+            private static bool DigitGenShortest(in DiyFp low, in DiyFp w, in DiyFp high, Span<byte> buffer, out int length, out int kappa)
+            {
+                Debug.Assert(low.e == w.e);
+                Debug.Assert(w.e == high.e);
+
+                Debug.Assert((low.f + 1) <= (high.f - 1));
+
+                Debug.Assert(MinimalTargetExponent <= w.e);
+                Debug.Assert(w.e <= MaximalTargetExponent);
+
+                // low, w, and high are imprecise, but by less than one ulp (unit in the last place).
+                //
+                // If we remove (resp. add) 1 ulp from low (resp. high) we are certain that the new numbers
+                // are outside of the interval we want the final representation to lie in.
+                //
+                // Inversely adding (resp. removing) 1 ulp from low (resp. high) would yield numbers that
+                // are certain to lie in the interval. We will use this fact later on.
+                //
+                // We will now start by generating the digits within the uncertain interval.
+                // Later, we will weed out representations that lie outside the safe interval and thus might lie outside the correct interval.
+
+                ulong unit = 1;
+
+                var tooLow = new DiyFp((low.f - unit), low.e);
+                var tooHigh = new DiyFp((high.f + unit), high.e);
+
+                // tooLow and tooHigh are guaranteed to lie outside the interval we want the generated number in.
+
+                DiyFp unsafeInterval = tooHigh.Subtract(in tooLow);
+
+                // We now cut the input number into two parts: the integral digits and the fractional digits.
+                // We will not write any decimal separator, but adapt kappa instead.
+                //
+                // Reminder: we are currently computing the digits (Stored inside the buffer) such that:
+                //      tooLow < buffer * 10^kappa < tooHigh
+                //
+                // We use tooHigh for the digitGeneration and stop as soon as possible.
+                // If we stop early, we effectively round down.
+
+                var one = new DiyFp((1UL << -w.e), w.e);
+
+                // Division by one is a shift.
+                uint integrals = (uint)(tooHigh.f >> -one.e);
+
+                // Modulo by one is an and.
+                ulong fractionals = tooHigh.f & (one.f - 1);
+
+                uint divisor = BiggestPowerTen(integrals, (DiyFp.SignificandSize - (-one.e)), out kappa);
+                length = 0;
+
+                // Loop invariant:
+                //      buffer = tooHigh / 10^kappa (integer division)
+                // These invariants hold for the first iteration:
+                //      kappa has been initialized with the divisor exponent + 1
+                //      The divisor is the biggest power of ten that is smaller than integrals
+                while (kappa > 0)
+                {
+                    uint digit = Math.DivRem(integrals, divisor, out integrals);
+                    Debug.Assert(digit <= 9);
+                    buffer[length] = (byte)('0' + digit);
+
+                    length++;
+                    kappa--;
+
+                    // Note that kappa now equals the exponent of the
+                    // divisor and that the invariant thus holds again.
+
+                    ulong rest = ((ulong)(integrals) << -one.e) + fractionals;
+
+                    // Invariant: tooHigh = buffer * 10^kappa + DiyFp(rest, one.e)
+                    // Reminder: unsafeInterval.e == one.e
+
+                    if (rest < unsafeInterval.f)
+                    {
+                        // Rounding down (by not emitting the remaining digits)
+                        // yields a number that lies within the unsafe interval
+
+                        return RoundWeedShortest(
+                            buffer,
+                            length,
+                            tooHigh.Subtract(w).f,
+                            unsafeInterval.f,
+                            rest,
+                            tenKappa: ((ulong)(divisor)) << -one.e,
+                            unit
+                        );
+                    }
+
+                    divisor /= 10;
+                }
+
+                // The integrals have been generated and we are at the point of the decimal separator.
+                // In the following loop, we simply multiply the remaining digits by 10 and divide by one.
+                // We just need to pay attention to multiply associated data (the unit), too.
+                // Note that the multiplication by 10 does not overflow because:
+                //      w.e >= -60 and thus one.e >= -60
+
+                Debug.Assert(one.e >= MinimalTargetExponent);
+                Debug.Assert(fractionals < one.f);
+                Debug.Assert((ulong.MaxValue / 10) >= one.f);
+
+                while (true)
+                {
+                    fractionals *= 10;
+                    unit *= 10;
+
+                    unsafeInterval = new DiyFp((unsafeInterval.f * 10), unsafeInterval.e);
+
+                    // Integer division by one.
+                    uint digit = (uint)(fractionals >> -one.e);
+                    Debug.Assert(digit <= 9);
+                    buffer[length] = (byte)('0' + digit);
+
+                    length++;
+                    kappa--;
+
+                    // Modulo by one.
+                    fractionals &= (one.f - 1);
+
+                    if (fractionals < unsafeInterval.f)
+                    {
+                        return RoundWeedShortest(
+                            buffer,
+                            length,
+                            tooHigh.Subtract(w).f * unit,
+                            unsafeInterval.f,
+                            rest: fractionals,
+                            tenKappa: one.f,
+                            unit
+                        );
+                    }
+                }
             }
 
             // Returns a cached power-of-ten with a binary exponent in the range [minExponent; maxExponent] (boundaries included).
@@ -644,6 +931,123 @@ namespace System
                 }
 
                 return false;
+            }
+
+            // Adjusts the last digit of the generated number and screens out generated solutions that may be inaccurate.
+            // A solution may be inaccurate if it is outside the safe interval or if we cannot provide that it is closer to the input than a neighboring representation of the same length.
+            //
+            // Input:
+            //      buffer containing the digits of tooHigh / 10^kappa
+            //      the buffer's length
+            //      distanceTooHighW == (tooHigh - w).f * unit
+            //      unsafeInterval == (tooHigh - tooLow).f * unit
+            //      rest = (tooHigh - buffer * 10^kapp).f * unit
+            //      tenKappa = 10^kappa * unit
+            //      unit = the common multiplier
+            //
+            // Output:
+            //      Returns true if the buffer is guaranteed to contain the closest representable number to the input.
+            //
+            // Modifies the generated digits in the buffer to approach (round towards) w.
+            private static bool RoundWeedShortest(Span<byte> buffer, int length, ulong distanceTooHighW, ulong unsafeInterval, ulong rest, ulong tenKappa, ulong unit)
+            {
+                ulong smallDistance = distanceTooHighW - unit;
+                ulong bigDistance = distanceTooHighW + unit;
+
+                // Let wLow = tooHigh - bigDistance, and wHigh = tooHigh - smallDistance.
+                //
+                // Note: wLow < w < wHigh
+                //
+                // The real w * unit must lie somewhere inside the interval
+                //      ]w_low; w_high[ (often written as "(w_low; w_high)")
+
+                // Basically the buffer currently contains a number in the unsafe interval
+                //      ]too_low; too_high[ with too_low < w < too_high
+                //
+                //  tooHigh - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                //                    ^v 1 unit            ^      ^                 ^      ^
+                //  boundaryHigh ---------------------     .      .                 .      .
+                //                    ^v 1 unit            .      .                 .      .
+                //  - - - - - - - - - - - - - - - - - - -  +  - - + - - - - - -     .      .
+                //                                         .      .         ^       .      .
+                //                                         .  bigDistance   .       .      .
+                //                                         .      .         .       .    rest
+                //                              smallDistance     .         .       .      .
+                //                                         v      .         .       .      .
+                //  wHigh - - - - - - - - - - - - - - - - - -     .         .       .      .
+                //                    ^v 1 unit                   .         .       .      .
+                //  w ---------------------------------------     .         .       .      .
+                //                    ^v 1 unit                   v         .       .      .
+                //  wLow  - - - - - - - - - - - - - - - - - - - - -         .       .      .
+                //                                                          .       .      v
+                //  buffer -------------------------------------------------+-------+--------
+                //                                                          .       .
+                //                                                  safeInterval    .
+                //                                                          v       .
+                //  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -     .
+                //                    ^v 1 unit                                     .
+                //  boundaryLow -------------------------                     unsafeInterval
+                //                    ^v 1 unit                                     v
+                //  tooLow  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                //
+                //
+                // Note that the value of buffer could lie anywhere inside the range tooLow to tooHigh.
+                //
+                // boundaryLow, boundaryHigh and w are approximations of the real boundaries and v (the input number).
+                // They are guaranteed to be precise up to one unit.
+                // In fact the error is guaranteed to be strictly less than one unit.
+                //
+                // Anything that lies outside the unsafe interval is guaranteed not to round to v when read again.
+                // Anything that lies inside the safe interval is guaranteed to round to v when read again.
+                //
+                // If the number inside the buffer lies inside the unsafe interval but not inside the safe interval
+                // then we simply do not know and bail out (returning false).
+                //
+                // Similarly we have to take into account the imprecision of 'w' when finding the closest representation of 'w'.
+                // If we have two potential representations, and one is closer to both wLow and wHigh, then we know it is closer to the actual value v.
+                //
+                // By generating the digits of tooHigh we got the largest (closest to tooHigh) buffer that is still in the unsafe interval.
+                // In the case where wHigh < buffer < tooHigh we try to decrement the buffer.
+                // This way the buffer approaches (rounds towards) w.
+                //
+                // There are 3 conditions that stop the decrementation process:
+                //   1) the buffer is already below wHigh
+                //   2) decrementing the buffer would make it leave the unsafe interval
+                //   3) decrementing the buffer would yield a number below wHigh and farther away than the current number.
+                //
+                // In other words:
+                //      (buffer{-1} < wHigh) && wHigh - buffer{-1} > buffer - wHigh
+                //
+                // Instead of using the buffer directly we use its distance to tooHigh.
+                //
+                // Conceptually rest ~= tooHigh - buffer
+                //
+                // We need to do the following tests in this order to avoid over- and underflows.
+
+                Debug.Assert(rest <= unsafeInterval);
+
+                while ((rest < smallDistance) && ((unsafeInterval - rest) >= tenKappa) && (((rest + tenKappa) < smallDistance) || ((smallDistance - rest) >= (rest + tenKappa - smallDistance))))
+                {
+                    buffer[length - 1]--;
+                    rest += tenKappa;
+                }
+
+                // We have approached w+ as much as possible.
+                // We now test if approaching w- would require changing the buffer.
+                // If yes, then we have two possible representations close to w, but we cannot decide which one is closer.
+                if ((rest < bigDistance) && ((unsafeInterval - rest) >= tenKappa) && (((rest + tenKappa) < bigDistance) || ((bigDistance - rest) > (rest + tenKappa - bigDistance))))
+                {
+                    return false;
+                }
+
+                // Weeding test.
+                //
+                // The safe interval is [tooLow + 2 ulp; tooHigh - 2 ulp]
+                // Since tooLow = tooHigh - unsafeInterval this is equivalent to
+                //      [tooHigh - unsafeInterval + 4 ulp; tooHigh - 2 ulp]
+                //
+                // Conceptually we have: rest ~= tooHigh - buffer
+                return ((2 * unit) <= rest) && (rest <= (unsafeInterval - 4 * unit));
             }
         }
     }
