@@ -400,7 +400,7 @@ namespace System
             }
             else if ((value != 0.0) && !Grisu3.RunDouble(value, digits, ref number))
             {
-                Dragon4(value, digits, ref number);
+                Dragon4Double(value, digits, ref number);
             }
             number.CheckConsistency();
 
@@ -458,7 +458,7 @@ namespace System
             }
             else if ((value != 0.0f) && !Grisu3.RunSingle(value, digits, ref number))
             {
-                Dragon4(value, digits, ref number);
+                Dragon4Single(value, digits, ref number);
             }
             number.CheckConsistency();
 
