@@ -180,7 +180,7 @@ namespace Internal.Runtime.Augments
             get;
         }
 
-        public int ManagedThreadId
+        public extern int ManagedThreadId
         {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
