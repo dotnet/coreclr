@@ -33,6 +33,8 @@ enum LoaderAllocatorType
     LAT_Assembly
 };
 
+typedef SHash<PtrSetSHashTraits<LoaderAllocator *>> LoaderAllocatorSet;
+
 class CLRPrivBinderAssemblyLoadContext;
 
 // Iterator over a DomainAssembly in the same ALC
