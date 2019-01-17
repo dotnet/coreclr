@@ -27,7 +27,7 @@ namespace System
         {
             if (!(enumType is RuntimeType rtType))
             {
-                throw GetCacheException(enumType);
+                return ThrowGetCacheException(enumType);
             }
 
             if (!rtType.IsEnum)
@@ -38,21 +38,21 @@ namespace System
             return GetCache(rtType);
         }
 
-        private static ArgumentException GetCacheException(Type enumType)
+        private static IEnumCache ThrowGetCacheException(Type enumType)
         {
             Debug.Assert(!(enumType is RuntimeType));
 
             if (enumType == null)
             {
-                return new ArgumentNullException(nameof(enumType));
+                throw new ArgumentNullException(nameof(enumType));
             }
 
             if (!enumType.IsEnum)
             {
-                return new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
+                throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             }
 
-            return new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
+            throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -157,7 +157,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            return GetCache(enumType).Parse(value.AsSpan(), ignoreCase);
+            return GetCache(enumType).Parse(value, ignoreCase);
         }
 
         public static TEnum Parse<TEnum>(string value) where TEnum : struct =>
@@ -175,14 +175,14 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            return cache.Parse(value.AsSpan(), ignoreCase);
+            return cache.Parse(value, ignoreCase);
         }
 
         public static bool TryParse(Type enumType, string value, out object result) =>
             TryParse(enumType, value, ignoreCase: false, out result);
 
         public static bool TryParse(Type enumType, string value, bool ignoreCase, out object result) =>
-            GetCache(enumType).TryParse(value.AsSpan(), ignoreCase, out result);
+            GetCache(enumType).TryParse(value, ignoreCase, out result);
 
         public static bool TryParse<TEnum>(string value, out TEnum result) where TEnum : struct =>
             TryParse(value, ignoreCase: false, out result);
@@ -333,14 +333,14 @@ namespace System
 
                 if (!(value is TEnum enumValue))
                 {
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, value.GetType().ToString(), typeof(TEnum).ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, value.GetType(), typeof(TEnum)));
                 }
                 return enumValue;
             }
 
-            public Type UnderlyingType => typeof(TUnderlying);
+            public Type UnderlyingType { get; } = typeof(TUnderlying);
 
-            public TypeCode TypeCode => Type.GetTypeCode(typeof(TUnderlying));
+            public TypeCode TypeCode { get; } = Type.GetTypeCode(typeof(TUnderlying));
 
             public IReadOnlyList<string> Names => Members.Names;
 
@@ -563,51 +563,47 @@ namespace System
                         return IsDefined(underlyingValue);
                     case string str:
                         return Array.IndexOf(_names, str) >= 0;
-                    case null:
-                        throw new ArgumentNullException(nameof(value));
                     default:
-                        Type valueType = value.GetType();
-
-                        // Check if is another type of enum as checking for the current enum type is handled in EnumBridge
-                        if (valueType.IsEnum)
-                        {
-                            throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType.ToString(), _enumType.ToString()));
-                        }
-
-                        TypeCode typeCode = Convert.GetTypeCode(value);
-
-                        switch (typeCode)
-                        {
-                            case TypeCode.SByte:
-                            case TypeCode.Byte:
-                            case TypeCode.Int16:
-                            case TypeCode.UInt16:
-                            case TypeCode.Int32:
-                            case TypeCode.UInt32:
-                            case TypeCode.Int64:
-                            case TypeCode.UInt64:
-                            case TypeCode.Boolean:
-                            case TypeCode.Char:
-                                throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType.ToString(), typeof(TUnderlying).ToString()));
-                            default:
-                                throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
-                        }
+                        return ThrowIsDefinedException(value);
                 }
             }
 
-            public string ToString(TUnderlying value)
+            private bool ThrowIsDefinedException(object value)
             {
-                if (_isFlagEnum)
+                if (value == null)
                 {
-                    return ToStringFlags(value);
+                    throw new ArgumentNullException(nameof(value));
                 }
 
-                if (TryGetName(value, out string name))
+                Type valueType = value.GetType();
+
+                // Check if is another type of enum as checking for the current enum type is handled in EnumBridge
+                if (valueType.IsEnum)
                 {
-                    return name;
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType.ToString(), _enumType.ToString()));
                 }
-                return value.ToString();
+
+                TypeCode typeCode = Convert.GetTypeCode(value);
+
+                switch (typeCode)
+                {
+                    case TypeCode.SByte:
+                    case TypeCode.Byte:
+                    case TypeCode.Int16:
+                    case TypeCode.UInt16:
+                    case TypeCode.Int32:
+                    case TypeCode.UInt32:
+                    case TypeCode.Int64:
+                    case TypeCode.UInt64:
+                    case TypeCode.Boolean:
+                    case TypeCode.Char:
+                        throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType.ToString(), typeof(TUnderlying).ToString()));
+                    default:
+                        throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
+                }
             }
+
+            public string ToString(TUnderlying value) => _isFlagEnum ? ToStringFlags(value) : (TryGetName(value, out string name) ? name : value.ToString());
 
             public string ToString(TUnderlying value, string format)
             {
@@ -625,6 +621,11 @@ namespace System
                     formatCh = format[0];
                 }
 
+                return FormatInternal(value, formatCh);
+            }
+
+            private string FormatInternal(TUnderlying value, char formatCh)
+            {
                 switch (formatCh)
                 {
                     case 'G':
@@ -737,7 +738,7 @@ namespace System
                     throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
                 }
 
-                return ToString(value, format);
+                return FormatInternal(value, format[0]);
             }
 
             public TUnderlying Parse(ReadOnlySpan<char> value, bool ignoreCase)
@@ -749,6 +750,11 @@ namespace System
                 {
                     return result;
                 }
+                return ThrowParseException(value, status);
+            }
+
+            private static TUnderlying ThrowParseException(ReadOnlySpan<char> value, Number.ParsingStatus status)
+            {
                 if (status == Number.ParsingStatus.Overflow)
                 {
                     throw new OverflowException(default(TUnderlyingOperations).OverflowMessage);
