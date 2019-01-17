@@ -2254,9 +2254,9 @@ void CodeGen::genBMI1OrBMI2Intrinsic(GenTreeHWIntrinsic* node)
     emitter*       emit        = getEmitter();
 
     assert(targetReg != REG_NA);
-    assert(op1 != nullptr);
+    assert(op1 != nullptr || intrinsicId == NI_BMI2_MultiplyNoFlags2ndValue);
 
-    if (!op1->OperIsList())
+    if (op1 != nullptr && !op1->OperIsList())
     {
         genConsumeOperands(node);
     }
@@ -2317,7 +2317,17 @@ void CodeGen::genBMI1OrBMI2Intrinsic(GenTreeHWIntrinsic* node)
             {
                 op1Reg = op1->gtRegNum;
                 op2Reg = op2->gtRegNum;
-                lowReg = targetReg;
+
+                if (node->gtNext != nullptr && node->gtNext->OperIsHWIntrinsic() &&
+                    node->gtNext->AsHWIntrinsic()->gtHWIntrinsicId == NI_BMI2_MultiplyNoFlags2ndValue)
+                {
+                    lowReg = node->gtNext->GetRegNum();
+                    assert(lowReg < REG_COUNT && lowReg != targetReg);
+                }
+                else
+                {
+                    lowReg = targetReg;
+                }
             }
             else
             {
@@ -2342,10 +2352,15 @@ void CodeGen::genBMI1OrBMI2Intrinsic(GenTreeHWIntrinsic* node)
             }
 
             emitAttr attr = emitTypeSize(targetType);
-            // mov the first operand into implicit source operand EDX/RDX
-            if (op1Reg != REG_EDX)
+            if (op2Reg == REG_EDX)
             {
-                assert(op2Reg != REG_EDX);
+                assert(op1Reg != REG_EDX);
+                op2 = op1;
+            }
+            else if (op1Reg != REG_EDX)
+            {
+                // mov the first operand into implicit source operand EDX/RDX
+                assert(op1Reg < REG_COUNT);
                 emit->emitIns_R_R(INS_mov, attr, REG_EDX, op1Reg);
             }
 
@@ -2360,6 +2375,13 @@ void CodeGen::genBMI1OrBMI2Intrinsic(GenTreeHWIntrinsic* node)
 
             break;
         }
+
+        case NI_BMI2_MultiplyNoFlags2ndValue:
+            assert(node->GetRegNum() < REG_COUNT);
+            assert(node->gtPrev->OperIsHWIntrinsic() &&
+                   (node->gtPrev->AsHWIntrinsic()->gtHWIntrinsicId == NI_BMI2_MultiplyNoFlags ||
+                    node->gtPrev->AsHWIntrinsic()->gtHWIntrinsicId == NI_BMI2_X64_MultiplyNoFlags));
+            break;
 
         default:
         {

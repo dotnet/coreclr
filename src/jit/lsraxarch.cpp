@@ -2523,8 +2523,19 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
             case NI_BMI2_X64_MultiplyNoFlags:
             {
                 assert(numArgs == 2 || numArgs == 3);
-                srcCount += BuildOperandUses(op1, RBM_EDX);
-                srcCount += BuildOperandUses(op2);
+                if (op1->isContained() ||
+                    (op2->OperGet() == GT_LCL_VAR && getIntervalForLocalVarNode(op2->AsLclVar())->physReg == REG_EDX))
+                {
+                    op2->ClearRegOptional();
+                    srcCount += BuildOperandUses(op2, RBM_EDX);
+                    srcCount += BuildOperandUses(op1);
+                }
+                else
+                {
+                    srcCount += BuildOperandUses(op1, RBM_EDX);
+                    srcCount += BuildOperandUses(op2);
+                }
+
                 if (numArgs == 3)
                 {
                     // op3 reg should be different from target reg to
