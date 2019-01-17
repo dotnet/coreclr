@@ -388,8 +388,45 @@ public struct OverlappingLongFloat2
 [StructLayout(LayoutKind.Explicit)]
 public struct OverlappingMultipleEightbyte
 {
-    [FieldOffset(8)]
-    public int i;
     [FieldOffset(0), MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
     public float[] arr;
+    [FieldOffset(8)]
+    public int i;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct FixedBufferClassificationTest
+{
+    public fixed int arr[3];
+    public NonBlittableFloat f;
+}
+
+// A non-blittable wrapper for a float value.
+// Used to force a type with a float field to be non-blittable
+// and take a different code path.
+[StructLayout(LayoutKind.Sequential)]
+public struct NonBlittableFloat
+{
+    public NonBlittableFloat(float f)
+    {
+        arr = new []{f};
+    }
+
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1)]
+    private float[] arr;
+    
+    public float F => arr[0];
+}
+
+public struct Int32Wrapper
+{
+    public int i;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct FixedArrayClassificationTest
+{
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+    public Int32Wrapper[] arr;
+    public float f;
 }

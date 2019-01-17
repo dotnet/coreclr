@@ -902,12 +902,40 @@ union OverlappingLongFloat
     };
 };
 
+struct FixedBufferClassificationTest
+{
+    int arr[3];
+    float f;
+};
+
+// use float padding to ensure that we match the SystemV Classification
+// as if this field was not here (the case in the managed representation).
 union OverlappingMultipleEightbyte
 {
     float arr[3];
     struct
     {
-        float padding[2];
+        float padding[2]; 
         int i;
+    };
+};
+
+union OverlappingMultipleEightbyteFirst
+{
+    float arr[3];
+    struct
+    {
+        float padding;
+        int i;
+    };
+};
+
+union OverlappingMultipleEightbyteMultiple
+{
+    float arr[3];
+    struct
+    {
+        float padding;
+        int i[3];
     };
 };

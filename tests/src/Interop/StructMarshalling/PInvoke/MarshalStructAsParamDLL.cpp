@@ -1189,6 +1189,11 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByValOver
     return str.arr[0] == i1 && str.arr[1] == i2 && str.arr[2] == i3;
 }
 
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(FixedBufferClassificationTest str, float f)
+{
+    return str.f == f;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////
 extern "C" DLL_EXPORT HFA STDMETHODCALLTYPE GetHFA(float f1, float f2, float f3, float f4)
 {

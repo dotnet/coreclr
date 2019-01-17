@@ -26,7 +26,8 @@ public class Managed
         IntWithInnerSequentialId,
         SequentialWrapperId,
         SequentialDoubleWrapperId,
-        AggregateSequentialWrapperId
+        AggregateSequentialWrapperId,
+        FixedBufferClassificationTestId
     }
 
     private static void InitialArray(int[] iarr, int[] icarr)
@@ -317,6 +318,11 @@ public class Managed
     static extern bool MarshalStructAsParam_AsSeqByValSequentialAggregateSequentialWrapper(AggregateSequentialWrapper wrapper);
 
     [DllImport("MarshalStructAsParam")]
+    static extern bool MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(FixedBufferClassificationTest str, float f);
+    [DllImport("MarshalStructAsParam")]
+    static extern bool MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(FixedArrayClassificationTest str, float f);
+
+    [DllImport("MarshalStructAsParam")]
     static extern HFA GetHFA(float f1, float f2, float f3, float f4);
 
     [DllImport("MarshalStructAsParam")]
@@ -600,6 +606,39 @@ public class Managed
                         failures++;
                     }
                     break; 
+                case StructID.FixedBufferClassificationTestId:
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest...");
+                    unsafe
+                    {
+                        FixedBufferClassificationTest str = new FixedBufferClassificationTest();
+                        str.arr[0] = 123456;
+                        str.arr[1] = 78910;
+                        str.arr[2] = 1234;
+                        str.f = new NonBlittableFloat(56.789f);
+                        if (!MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(str, str.f.F))
+                        {
+                            Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest. Expected:True;Actual:False");
+                            failures++;
+                        }
+                    }
+
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest with fixed array...");
+                    FixedArrayClassificationTest fixedArrayTest = new FixedArrayClassificationTest
+                    {
+                        arr = new Int32Wrapper[3]
+                        {
+                            new Int32Wrapper { i = 123456 },
+                            new Int32Wrapper { i = 78910 },
+                            new Int32Wrapper { i = 1234 }
+                        },
+                        f = 56.789f
+                    };
+                    if (!MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(fixedArrayTest, fixedArrayTest.f))
+                    {
+                        Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest. Expected:True;Actual:False");
+                        failures++;
+                    }
+                    break;
                 default:
                     Console.WriteLine("\tThere is not the struct id");
                     failures++;
@@ -2221,6 +2260,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByVal(StructID.SequentialWrapperId);
         MarshalStructAsParam_AsSeqByVal(StructID.SequentialDoubleWrapperId);
         MarshalStructAsParam_AsSeqByVal(StructID.AggregateSequentialWrapperId);
+        MarshalStructAsParam_AsSeqByVal(StructID.FixedBufferClassificationTestId);
     }
 
     [SecuritySafeCritical]
