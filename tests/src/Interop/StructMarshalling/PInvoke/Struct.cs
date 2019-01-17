@@ -395,6 +395,13 @@ public struct OverlappingMultipleEightbyte
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public unsafe struct FixedBufferClassificationTestBlittable
+{
+    public fixed int arr[3];
+    public float f;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public unsafe struct FixedBufferClassificationTest
 {
     public fixed int arr[3];

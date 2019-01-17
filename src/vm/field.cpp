@@ -20,7 +20,7 @@
 #include "peimagelayout.inl"
 
 // called from code:MethodTableBuilder::InitializeFieldDescs#InitCall
-VOID FieldDesc::Init(mdFieldDef mb, CorElementType FieldType, DWORD dwMemberAttrs, BOOL fIsStatic, BOOL fIsRVA, BOOL fIsThreadLocal, LPCSTR pszFieldName)
+VOID FieldDesc::Init(mdFieldDef mb, CorElementType FieldType, DWORD dwMemberAttrs, BOOL fIsStatic, BOOL fIsRVA, BOOL fIsThreadLocal, BOOL fIsFixedBuffer, LPCSTR pszFieldName)
 { 
     LIMITED_METHOD_CONTRACT;
     
@@ -57,6 +57,7 @@ VOID FieldDesc::Init(mdFieldDef mb, CorElementType FieldType, DWORD dwMemberAttr
     m_isStatic = fIsStatic != 0;
     m_isRVA = fIsRVA != 0;
     m_isThreadLocal = fIsThreadLocal != 0;
+    m_isFixedBufferField = fIsFixedBuffer != 0;
 
 #ifdef _DEBUG
     m_debugName = (LPUTF8)pszFieldName;

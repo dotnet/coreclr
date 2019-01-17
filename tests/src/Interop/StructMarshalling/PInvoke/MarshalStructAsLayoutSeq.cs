@@ -320,6 +320,8 @@ public class Managed
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(FixedBufferClassificationTest str, float f);
     [DllImport("MarshalStructAsParam")]
+    static extern bool MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(FixedBufferClassificationTestBlittable str, float f);
+    [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(FixedArrayClassificationTest str, float f);
 
     [DllImport("MarshalStructAsParam")]
@@ -607,7 +609,7 @@ public class Managed
                     }
                     break; 
                 case StructID.FixedBufferClassificationTestId:
-                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest...");
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest with nonblittable struct...");
                     unsafe
                     {
                         FixedBufferClassificationTest str = new FixedBufferClassificationTest();
@@ -616,6 +618,21 @@ public class Managed
                         str.arr[2] = 1234;
                         str.f = new NonBlittableFloat(56.789f);
                         if (!MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(str, str.f.F))
+                        {
+                            Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest. Expected:True;Actual:False");
+                            failures++;
+                        }
+                    }
+
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest with blittable struct...");
+                    unsafe
+                    {
+                        FixedBufferClassificationTestBlittable str = new FixedBufferClassificationTestBlittable();
+                        str.arr[0] = 123456;
+                        str.arr[1] = 78910;
+                        str.arr[2] = 1234;
+                        str.f = 56.789f;
+                        if (!MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(str, str.f))
                         {
                             Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest. Expected:True;Actual:False");
                             failures++;
