@@ -9,7 +9,7 @@ using System.Diagnostics.Contracts;
 
 namespace System.Runtime.CompilerServices
 {
-    public static partial class ContractHelper
+    public static class ContractHelper
     {
         /// <summary>
         /// Allows a managed application environment such as an interactive interpreter (IronPython) or a
@@ -92,7 +92,7 @@ namespace System.Runtime.CompilerServices
                 displayMessage = GetDisplayMessage(kind, userMessage, conditionText);
             }
 
-            System.Diagnostics.Debug.ContractFailure(false, displayMessage, string.Empty, GetFailureMessage(kind, null));
+            System.Diagnostics.Debug.ContractFailure(displayMessage, string.Empty, GetFailureMessage(kind, null));
         }
 
         private static string GetFailureMessage(ContractFailureKind failureKind, string conditionText)
