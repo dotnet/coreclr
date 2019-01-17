@@ -8,23 +8,34 @@ namespace System
 {
     internal static partial class Number
     {
+        // This is a port of the `Grisu3` implementation here: https://github.com/google/double-conversion/blob/a711666ddd063eb1e4b181a6cb981d39a1fc8bac/double-conversion/fast-dtoa.cc
+        // The backing algorithm and the proofs behind it are described in more detail here: http://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf
+        // ======================================================================================================================================== 
+        //
+        // Overview:
+        //
+        // The general idea behind Grisu3 is to leverage additional bits and cached powers of ten to generate the correct digits.
+        // The algorithm is imprecise for some numbers. Fortunately, the algorithm itself can determine this scenario and gives us
+        // a result indicating success or failure. We must fallback to a different algorithm for the failing scenario.
         internal static unsafe class Grisu3
         {
-            private const int Alpha = -59;
-            private const double D1Log210 = 0.301029995663981195;
-            private const int Gamma = -32;
-            private const int PowerDecimalExponentDistance = 8;
-            private const int PowerMinDecimalExponent = -348;
-            private const int PowerMaxDecimalExponent = 340;
-            private const int PowerOffset = -PowerMinDecimalExponent;
-            private const uint Ten4 = 10000;
-            private const uint Ten5 = 100000;
-            private const uint Ten6 = 1000000;
-            private const uint Ten7 = 10000000;
-            private const uint Ten8 = 100000000;
-            private const uint Ten9 = 1000000000;
+            private const int CachedPowersDecimalExponentDistance = 8;
+            private const int CachedPowersMinDecimalExponent = -348;
+            private const int CachedPowersPowerMaxDecimalExponent = 340;
+            private const int CachedPowersOffset = -CachedPowersMinDecimalExponent;
 
-            private static readonly short[] s_CachedPowerBinaryExponents = new short[]
+            // 1 / Log2(10)
+            private const double D1Log210 = 0.301029995663981195;
+
+            // The minimal and maximal target exponents define the range of w's binary exponent,
+            // where w is the result of multiplying the input by a cached power of ten.
+            //
+            // A different range might be chosen on a different platform, to optimize digit generation,
+            // but a smaller range requires more powers of ten to be cached.
+            private const int MaximalTargetExponent = -32;
+            private const int MinimalTargetExponent = -60;
+
+            private static readonly short[] s_CachedPowersBinaryExponent = new short[]
             {
                 -1220,
                 -1193,
@@ -115,9 +126,9 @@ namespace System
                 1066,
             };
 
-            private static readonly short[] s_CachedPowerDecimalExponents = new short[]
+            private static readonly short[] s_CachedPowersDecimalExponent = new short[]
             {
-                PowerMinDecimalExponent,
+                CachedPowersMinDecimalExponent,
                 -340,
                 -332,
                 -324,
@@ -203,24 +214,10 @@ namespace System
                 316,
                 324,
                 332,
-                PowerMaxDecimalExponent,
+                CachedPowersPowerMaxDecimalExponent,
             };
 
-            private static readonly uint[] s_CachedPowerOfTen = new uint[]
-            {
-                1,          // 10^0
-                10,         // 10^1
-                100,        // 10^2
-                1000,       // 10^3
-                10000,      // 10^4
-                100000,     // 10^5
-                1000000,    // 10^6
-                10000000,   // 10^7
-                100000000,  // 10^8
-                1000000000, // 10^9
-            };
-
-            private static readonly ulong[] s_CachedPowerSignificands = new ulong[]
+            private static readonly ulong[] s_CachedPowersSignificand = new ulong[]
             {
                 0xFA8FD5A0081C0288,
                 0xBAAEE17FA23EBF76,
@@ -311,410 +308,334 @@ namespace System
                 0xAF87023B9BF0EE6B,
             };
 
-            public static bool Run(double value, int precision, ref NumberBuffer number)
+            private static readonly uint[] s_SmallPowersOfTen = new uint[]
             {
-                // ========================================================================================================================================
-                // This implementation is based on the paper: http://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf
-                // You must read this paper to fully understand the code.
-                //
-                // Deviation: Instead of generating shortest digits, we generate the digits according to the input count.
-                // Therefore, we do not need m+ and m- which are used to determine the exact range of values.
-                // ======================================================================================================================================== 
-                //
-                // Overview:
-                //
-                // The idea of Grisu3 is to leverage additional bits and cached power of ten to produce the digits.
-                // We need to create a handmade floating point data structure DiyFp to extend the bits of double.
-                // We also need to cache the powers of ten for digits generation. By choosing the correct index of powers
-                // we need to start with, we can eliminate the expensive big num divide operation.
-                //
-                // Grisu3 is imprecision for some numbers. Fortunately, the algorithm itself can determine that and give us
-                // a success/fail flag. We may fall back to other algorithms (For instance, Dragon4) if it fails.
-                //
-                // w: the normalized DiyFp from the input value.
-                // mk: The index of the cached powers.
-                // cmk: The cached power.
-                // D: Product: w * cmk.
-                // kappa: A factor used for generating digits. See step 5 of the Grisu3 procedure in the paper.
+                1,          // 10^0
+                10,         // 10^1
+                100,        // 10^2
+                1000,       // 10^3
+                10000,      // 10^4
+                100000,     // 10^5
+                1000000,    // 10^6
+                10000000,   // 10^7
+                100000000,  // 10^8
+                1000000000, // 10^9
+            };
 
-                // Handle sign bit.
-                if (double.IsNegative(value))
+            public static bool Run(double value, int requestedDigits, ref NumberBuffer number)
+            {
+                double v = double.IsNegative(value) ? -value : value;
+
+                Debug.Assert(v > 0);
+                Debug.Assert(double.IsFinite(v));
+
+                bool result = RunCounted(v, requestedDigits, number.Digits, out int length, out int decimalExponent);
+
+                if (result)
                 {
-                    value = -value;
-                    number.IsNegative = true;
-                }
-                else
-                {
-                    number.IsNegative = false;
+                    Debug.Assert((length == requestedDigits));
+
+                    number.Scale = length + decimalExponent;
+                    number.Digits[length] = (byte)('\0');
+                    number.DigitsCount = length;
                 }
 
-                // Step 1: Determine the normalized DiyFp w.
+                return result;
+            }
 
-                DiyFp.GenerateNormalizedDiyFp(value, out DiyFp w);
+            // The counted version of Grisu3 only generates requestedDigits number of digits.
+            // This version does not generate the shortest representation, and with enough requested digits 0.1 will at some point print as 0.9999999...
+            // Grisu3 is too imprecise for real halfway cases (1.5 will not work) and therefore the rounding strategy for halfway cases is irrelevant.
+            private static bool RunCounted(double v, int requestedDigits, Span<byte> buffer, out int length, out int decimalExponent)
+            {
+                var w = new DiyFp(v).Normalize();
 
-                // Step 2: Find the cached power of ten.
+                int tenMkMinimalBinaryExponent = MinimalTargetExponent - (w.e + DiyFp.SignificandSize);
+                int tenMkMaximalBinaryExponent = MaximalTargetExponent - (w.e + DiyFp.SignificandSize);
 
-                // Compute the proper index mk.
-                int mk = KComp(w.e + DiyFp.SignificandLength);
+                DiyFp tenMk = GetCachedPowerForBinaryExponentRange(tenMkMinimalBinaryExponent, tenMkMaximalBinaryExponent, out int mk);
 
-                // Retrieve the cached power of ten.
-                CachedPower(mk, out DiyFp cmk, out int decimalExponent);
+                Debug.Assert(MinimalTargetExponent <= (w.e + tenMk.e + DiyFp.SignificandSize));
+                Debug.Assert(MaximalTargetExponent >= (w.e + tenMk.e + DiyFp.SignificandSize));
 
-                // Step 3: Scale the w with the cached power of ten.
+                // Note that tenMk is only an approximation of 10^-k.
+                // A DiyFp only contains a 64-bit significan and tenMk is thus only precise up to 64-bits.
 
-                DiyFp.Multiply(ref w, ref cmk, out DiyFp D);
+                // The DiyFp.Multiply procedure rounds its result and tenMk is approximated too.
+                // The variable scaledW (as well as scaledBoundaryMinus/Plus) are now off by a small amount.
+                //
+                // In fact, scaledW - (w * 10^k) < 1ulp (unit in last place) of scaledW.
+                // In other words, let f = scaledW.f and e = scaledW.e, then:
+                //      (f - 1) * 2^e < (w * 10^k) < (f + 1) * 2^e
+                DiyFp scaledW = w.Multiply(in tenMk);
 
-                // Step 4: Generate digits.
-
-                bool isSuccess = DigitGen(ref D, precision, number.GetDigitsPointer(), out int length, out int kappa);
-
-                if (isSuccess)
-                {
-                    number.Digits[precision] = (byte)('\0');
-                    number.Scale = (length - decimalExponent + kappa);
-                }
-
-                return isSuccess;
+                // We now have (double)(scaledW * 10^-mk).
+                //
+                // DigitGenCounted will generate the first requestedDigits of scaledW and return together with a kappa such that:
+                //      scaledW ~= buffer * 10^kappa.
+                //
+                // It will not always be exactly the same since DigitGenCounted only produces a limited number of digits.
+                bool result = DigitGenCounted(in scaledW, requestedDigits, buffer, out length, out int kappa);
+                decimalExponent = -mk + kappa;
+                return result;
             }
 
             // Returns the biggest power of ten that is less than or equal to the given number.
-            static void BiggestPowerTenLessThanOrEqualTo(uint number, int bits, out uint power, out int exponent)
+            // We furthermore receive the maximum number of bits 'number' has.
+            //
+            // Returns power == 10^(exponent) such that
+            //      power <= number < power * 10
+            // If numberBits == 0, then 0^(0-1) is returned.
+            // The number of bits must be <= 32.
+            //
+            // Preconditions:
+            //      number < (1 << (numberBits + 1))
+            static uint BiggestPowerTen(uint number, int numberBits, out int exponentPlusOne)
             {
-                switch (bits)
+                // Inspired by the method for finding an integer log base 10 from here: 
+                // http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog10
+
+                Debug.Assert(number < (1U << (numberBits + 1)));
+
+                // 1233/4096 is approximately 1/log2(10)
+                int exponentGuess = ((numberBits + 1) * 1233) >> 12;
+                Debug.Assert((uint)(exponentGuess) < s_SmallPowersOfTen.Length);
+
+                uint power = s_SmallPowersOfTen[exponentGuess];
+
+                // We don't have any guarantees that 2^numberBits <= number
+                if (number < power)
                 {
-                    case 32:
-                    case 31:
-                    case 30:
-                    {
-                        if (Ten9 <= number)
-                        {
-                            power = Ten9;
-                            exponent = 9;
-                            break;
-                        }
-
-                        goto case 29;
-                    }
-
-                    case 29:
-                    case 28:
-                    case 27:
-                    {
-                        if (Ten8 <= number)
-                        {
-                            power = Ten8;
-                            exponent = 8;
-                            break;
-                        }
-
-                        goto case 26;
-                    }
-
-                    case 26:
-                    case 25:
-                    case 24:
-                    {
-                        if (Ten7 <= number)
-                        {
-                            power = Ten7;
-                            exponent = 7;
-                            break;
-                        }
-
-                        goto case 23;
-                    }
-
-                    case 23:
-                    case 22:
-                    case 21:
-                    case 20:
-                    {
-                        if (Ten6 <= number)
-                        {
-                            power = Ten6;
-                            exponent = 6;
-                            break;
-                        }
-
-                        goto case 19;
-                    }
-
-                    case 19:
-                    case 18:
-                    case 17:
-                    {
-                        if (Ten5 <= number)
-                        {
-                            power = Ten5;
-                            exponent = 5;
-                            break;
-                        }
-
-                        goto case 16;
-                    }
-
-                    case 16:
-                    case 15:
-                    case 14:
-                    {
-                        if (Ten4 <= number)
-                        {
-                            power = Ten4;
-                            exponent = 4;
-                            break;
-                        }
-
-                        goto case 13;
-                    }
-
-                    case 13:
-                    case 12:
-                    case 11:
-                    case 10:
-                    {
-                        if (1000 <= number)
-                        {
-                            power = 1000;
-                            exponent = 3;
-                            break;
-                        }
-
-                        goto case 9;
-                    }
-
-                    case 9:
-                    case 8:
-                    case 7:
-                    {
-                        if (100 <= number)
-                        {
-                            power = 100;
-                            exponent = 2;
-                            break;
-                        }
-
-                        goto case 6;
-                    }
-
-                    case 6:
-                    case 5:
-                    case 4:
-                    {
-                        if (10 <= number)
-                        {
-                            power = 10;
-                            exponent = 1;
-                            break;
-                        }
-
-                        goto case 3;
-                    }
-
-                    case 3:
-                    case 2:
-                    case 1:
-                    {
-                        if (1 <= number)
-                        {
-                            power = 1;
-                            exponent = 0;
-                            break;
-                        }
-
-                        goto case 0;
-                    }
-
-                    case 0:
-                    {
-                        power = 0;
-                        exponent = -1;
-                        break;
-                    }
-
-                    default:
-                    {
-                        power = 0;
-                        exponent = 0;
-
-                        Debug.Fail("unreachable");
-                        break;
-                    }
+                    exponentGuess -= 1;
+                    power = s_SmallPowersOfTen[exponentGuess];
                 }
+
+                exponentPlusOne = exponentGuess + 1;
+                return power;
             }
 
-            private static void CachedPower(int k, out DiyFp cmk, out int decimalExponent)
+            // Generates (at most) requestedDigits of input number w.
+            //
+            // w is a floating-point number (DiyFp), consisting of a significand and an exponent.
+            // Its exponent is bounded by MinimalTargetExponent and MaximalTargetExponent, hence:
+            //      -60 <= w.e <= -32
+            //
+            // Returns false if it fails, in which case the generated digits in the buffer should not be used.
+            //
+            // Preconditions:
+            //      w is correct up to 1 ulp (unit in last place). That is, its error must be strictly less than a unit of its last digit.
+            //      MinimalTargetExponent <= w.e <= MaximalTargetExponent
+            //
+            // Postconditions:
+            //      Returns false if the procedure fails; otherwise:
+            //      * buffer is not null-terminated, but length contains the number of digits.
+            //      * The representation in buffer is the most precise representation of requestedDigits digits.
+            //      * buffer contains at most requestedDigits digits of w. If there are less than requestedDigits digits then some trailing '0's have been removed.
+            //      * kappa is such that w = buffer * 10^kappa + eps with |eps| < 10^kappa / 2.
+            //
+            // This procedure takes into account the imprecision of its input numbers.
+            // If the precision is not enough to guarantee all the postconditions, then false is returned.
+            // This usually happens rarely, but the failure-rate increases with higher requestedDigits
+            private static bool DigitGenCounted(in DiyFp w, int requestedDigits, Span<byte> buffer, out int length, out int kappa)
             {
-                int index = ((PowerOffset + k - 1) / PowerDecimalExponentDistance) + 1;
-                cmk = new DiyFp(s_CachedPowerSignificands[index], s_CachedPowerBinaryExponents[index]);
-                decimalExponent = s_CachedPowerDecimalExponents[index];
-            }
+                Debug.Assert(MinimalTargetExponent <= w.e);
+                Debug.Assert(w.e <= MaximalTargetExponent);
+                Debug.Assert(MinimalTargetExponent >= -60);
+                Debug.Assert(MaximalTargetExponent <= -32);
 
-            private static bool DigitGen(ref DiyFp mp, int precision, byte* digits, out int length, out int k)
-            {
-                // Split the input mp to two parts. Part 1 is integral. Part 2 can be used to calculate
-                // fractional.
+                // w is assumed to have an error less than 1 unit.
+                // Whenever w is scaled we also scale its error.
+                ulong wError = 1;
+
+                // We cut the input number into two parts: the integral digits and the fractional digits.
+                // We don't emit any decimal separator, but adapt kapp instead.
+                // For example: instead of writing "1.2", we put "12" into the buffer and increase kappa by 1.
+                var one = new DiyFp((1UL << -w.e), w.e);
+
+                // Division by one is a shift.
+                uint integrals = (uint)(w.f >> -one.e);
+
+                // Modulo by one is an and.
+                ulong fractionals = w.f & (one.f - 1);
+
+                // We deviate from the original algorithm here and do some early checks to determine if we can satisfy requestedDigits.
+                // If we determine that we can't, we exit early and avoid most of the heavy lifting that the algorithm otherwise does.
                 //
-                // mp: the input DiyFp scaled by cached power.
-                // K: final kappa.
-                // p1: part 1.
-                // p2: part 2.
-
-                Debug.Assert(precision > 0);
-                Debug.Assert(digits != null);
-                Debug.Assert(mp.e >= Alpha);
-                Debug.Assert(mp.e <= Gamma);
-
-                ulong mpF = mp.f;
-                int mpE = mp.e;
-
-                var one = new DiyFp(1UL << -mpE, mpE);
-
-                ulong oneF = one.f;
-                int oneNegE = -one.e;
-
-                ulong ulp = 1;
-
-                uint p1 = (uint)(mpF >> oneNegE);
-                ulong p2 = mpF & (oneF - 1);
-
-                // When p2 (fractional part) is zero, we can predicate if p1 is good to produce the numbers in requested digit count:
-                //
-                // - When requested digit count >= 11, p1 is not be able to exhaust the count as 10^(11 - 1) > uint.MaxValue >= p1.
-                // - When p1 < 10^(count - 1), p1 is not be able to exhaust the count.
-                // - Otherwise, p1 may have chance to exhaust the count.
-                if ((p2 == 0) && ((precision >= 11) || (p1 < s_CachedPowerOfTen[precision - 1])))
+                // When fractionals is zero, we can easily determine if integrals can satisfy requested digits:
+                //      If requestedDigits >= 11, integrals is not able to exhaust the count by itself since 10^(11 -1) > uint.MaxValue >= integrals.
+                //      If integrals < 10^(requestedDigits - 1), integrals cannot exhaust the count.
+                //      Otherwise, integrals might be able to exhaust the count and we need to execute the rest of the code.
+                if ((fractionals == 0) && ((requestedDigits >= 11) || (integrals < s_SmallPowersOfTen[requestedDigits - 1])))
                 {
+                    Debug.Assert(buffer[0] == '\0');
                     length = 0;
-                    k = 0;
+                    kappa = 0;
                     return false;
                 }
 
-                // Note: The code in the paper simply assigns div to Ten9 and kappa to 10 directly.
-                // That means we need to check if any leading zero of the generated
-                // digits during the while loop, which hurts the performance.
-                //
-                // Now if we can estimate what the div and kappa, we do not need to check the leading zeros.
-                // The idea is to find the biggest power of 10 that is less than or equal to the given number.
-                // Then we don't need to worry about the leading zeros and we can get 10% performance gain.
-                int index = 0;
-                BiggestPowerTenLessThanOrEqualTo(p1, (DiyFp.SignificandLength - oneNegE), out uint div, out int kappa);
-                kappa++;
+                uint divisor = BiggestPowerTen(integrals, (DiyFp.SignificandSize - (-one.e)), out kappa);
+                length = 0;
 
-                // Produce integral.
+                // Loop invariant:
+                //      buffer = w / 10^kappa (integer division)
+                // These invariants hold for the first iteration:
+                //      kappa has been initialized with the divisor exponent + 1
+                //      The divisor is the biggest power of ten that is smaller than integrals
                 while (kappa > 0)
                 {
-                    int d = (int)(Math.DivRem(p1, div, out p1));
-                    digits[index] = (byte)('0' + d);
+                    uint digit = Math.DivRem(integrals, divisor, out integrals);
+                    Debug.Assert(digit <= 9);
+                    buffer[length] = (byte)('0' + digit);
 
-                    index++;
-                    precision--;
+                    length++;
+                    requestedDigits--;
                     kappa--;
 
-                    if (precision == 0)
+                    // Note that kappa now equals the exponent of the
+                    // divisor and that the invariant thus holds again.
+                    if (requestedDigits == 0)
                     {
                         break;
                     }
 
-                    div /= 10;
+                    divisor /= 10;
                 }
 
-                // End up here if we already exhausted the digit count.
-                if (precision == 0)
+                if (requestedDigits == 0)
                 {
-                    ulong rest = ((ulong)(p1) << oneNegE) + p2;
-
-                    length = index;
-                    k = kappa;
-
-                    return RoundWeed(
-                        digits,
-                        index,
+                    ulong rest = ((ulong)(integrals) << -one.e) + fractionals;
+                    return RoundWeedCounted(
+                        buffer,
+                        length,
                         rest,
-                        ((ulong)(div)) << oneNegE,
-                        ulp,
-                        ref k
+                        tenKappa: ((ulong)(divisor)) << -one.e,
+                        unit: wError,
+                        ref kappa
                     );
                 }
 
-                // We have to generate digits from part2 if we have requested digit count left
-                // and part2 is greater than ulp.
-                while ((precision > 0) && (p2 > ulp))
+                // The integrals have been generated and we are at the point of the decimal separator.
+                // In the following loop, we simply multiply the remaining digits by 10 and divide by one.
+                // We just need to pay attention to multiply associated data (the unit), too.
+                // Note that the multiplication by 10 does not overflow because:
+                //      w.e >= -60 and thus one.e >= -60
+
+                Debug.Assert(one.e >= MinimalTargetExponent);
+                Debug.Assert(fractionals < one.f);
+                Debug.Assert((ulong.MaxValue / 10) >= one.f);
+
+                while ((requestedDigits > 0) && (fractionals > wError))
                 {
-                    p2 *= 10;
+                    fractionals *= 10;
+                    wError *= 10;
 
-                    int d = (int)(p2 >> oneNegE);
-                    digits[index] = (byte)('0' + d);
+                    // Integer division by one.
+                    int digit = (int)(fractionals >> -one.e);
+                    buffer[length] = (byte)('0' + digit);
 
-                    index++;
-                    precision--;
+                    length++;
+                    requestedDigits--;
                     kappa--;
 
-                    p2 &= (oneF - 1);
-
-                    ulp *= 10;
+                    // Modulo by one.
+                    fractionals &= (one.f - 1);
                 }
 
-                // If we haven't exhausted the requested digit counts, the Grisu3 algorithm fails.
-                if (precision != 0)
+                if (requestedDigits != 0)
                 {
+                    buffer[0] = (byte)('\0');
                     length = 0;
-                    k = 0;
+                    kappa = 0;
                     return false;
                 }
 
-                length = index;
-                k = kappa;
-
-                return RoundWeed(digits, index, p2, oneF, ulp, ref k);
+                return RoundWeedCounted(
+                    buffer,
+                    length,
+                    rest: fractionals,
+                    tenKappa: one.f,
+                    unit: wError,
+                    ref kappa
+                );
             }
 
-            private static int KComp(int e)
+            // Returns a cached power-of-ten with a binary exponent in the range [minExponent; maxExponent] (boundaries included).
+            private static DiyFp GetCachedPowerForBinaryExponentRange(int minExponent, int maxExponent, out int decimalExponent)
             {
-                return (int)(Math.Ceiling((Alpha - e + DiyFp.SignificandLength - 1) * D1Log210));
+                Debug.Assert(s_CachedPowersSignificand.Length == s_CachedPowersBinaryExponent.Length);
+                Debug.Assert(s_CachedPowersSignificand.Length == s_CachedPowersDecimalExponent.Length);
+
+                double k = Math.Ceiling((minExponent + DiyFp.SignificandSize - 1) * D1Log210);
+                int index = ((CachedPowersOffset + (int)(k) - 1) / CachedPowersDecimalExponentDistance) + 1;
+
+                Debug.Assert((uint)(index) < s_CachedPowersSignificand.Length);
+
+                Debug.Assert(minExponent <= s_CachedPowersBinaryExponent[index]);
+                Debug.Assert(s_CachedPowersBinaryExponent[index] <= maxExponent);
+
+                decimalExponent = s_CachedPowersDecimalExponent[index];
+                return new DiyFp(s_CachedPowersSignificand[index], s_CachedPowersBinaryExponent[index]);
             }
 
-            private static bool RoundWeed(byte* buffer, int len, ulong rest, ulong tenKappa, ulong ulp, ref int kappa)
+            // Rounds the buffer upwards if the result is closer to v by possibly adding 1 to the buffer.
+            // If the precision of the calculation is not sufficient to round correctly, return false.
+            //
+            // The rounding might shift the whole buffer, in which case, the kappy is adjusted.
+            // For example "99", kappa = 3 might become "10", kappa = 4.
+            //
+            // If (2 * rest) > tenKappa then the buffer needs to be round up.
+            // rest can have an error of +/- 1 unit.
+            // This function accounts for the imprecision and returns false if the rounding direction cannot be unambiguously determined.
+            //
+            // Preconditions:
+            //      rest < tenKappa
+            private static bool RoundWeedCounted(Span<byte> buffer, int length, ulong rest, ulong tenKappa, ulong unit, ref int kappa)
             {
                 Debug.Assert(rest < tenKappa);
 
-                // 1. tenKappa <= ulp: we don't have an idea which way to round.
-                // 2. Even if tenKappa > ulp, but if tenKappa <= 2 * ulp we cannot find the way to round.
-                // Note: to prevent overflow, we need to use tenKappa - ulp <= ulp.
-                if ((tenKappa <= ulp) || ((tenKappa - ulp) <= ulp))
+                // The following tests are done in a specific order to avoid overflows.
+                // They will work correctly with any ulong values of rest < tenKappa and unit.
+                //
+                // If the unit is too big, then we don't know which way to round.
+                // For example, a unit of 50 means that the real number lies within rest +/- 50.
+                // If 10^kappa == 40, then there is no way to tell which way to round.
+                //
+                // Even if unit is just half the size of 10^kappa we are already completely lost.
+                // And after the previous test, we know that the expression will not over/underflow.
+                if ((unit >= tenKappa) || ((tenKappa - unit) <= unit))
                 {
                     return false;
                 }
 
-                // tenKappa >= 2 * (rest + ulp). We should round down.
-                // Note: to prevent overflow, we need to check if tenKappa > 2 * rest as a prerequisite.
-                if (((tenKappa - rest) > rest) && ((tenKappa - (2 * rest)) >= (2 * ulp)))
+                // If 2 * (rest + unit) <= 10^kappa, we can safely round down.
+                if (((tenKappa - rest) > rest) && ((tenKappa - (2 * rest)) >= (2 * unit)))
                 {
                     return true;
                 }
 
-                // tenKappa <= 2 * (rest - ulp). We should round up.
-                // Note: to prevent overflow, we need to check if rest > ulp as a prerequisite.
-                if ((rest > ulp) && (tenKappa <= (rest - ulp) || ((tenKappa - (rest - ulp)) <= (rest - ulp))))
+                // If 2 * (rest - unit) >= 10^kappa, we can safely round up.
+                if ((rest > unit) && (tenKappa <= (rest - unit) || ((tenKappa - (rest - unit)) <= (rest - unit))))
                 {
-                    // Find all 9s from end to start.
-                    buffer[len - 1]++;
-                    for (int i = len - 1; i > 0; i--)
+                    // Increment the last digit recursively until we find a non '9' digit.
+                    buffer[length - 1]++;
+
+                    for (int i = (length - 1); i > 0; i--)
                     {
-                        if (buffer[i] != (byte)('0' + 10))
+                        if (buffer[i] != ('0' + 10))
                         {
-                            // We end up a number less than 9.
                             break;
                         }
 
-                        // Current number becomes 0 and add the promotion to the next number.
                         buffer[i] = (byte)('0');
                         buffer[i - 1]++;
                     }
 
-                    if (buffer[0] == (char)('0' + 10))
+                    // If the first digit is now '0'+10, we had a buffer with all '9's.
+                    // With the exception of the first digit, all digits are now '0'.
+                    // Simply switch the first digit to '1' and adjust the kappa.
+                    // For example, "99" becomes "10" and the power (the kappa) is increased.
+                    if (buffer[0] == ('0' + 10))
                     {
-                        // First number is '0' + 10 means all numbers are 9.
-                        // We simply make the first number to 1 and increase the kappa.
                         buffer[0] = (byte)('1');
                         kappa++;
                     }

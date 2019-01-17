@@ -2260,11 +2260,11 @@ namespace System
             return rem;
         }
 
-        private static long ExtractFractionAndBiasedExponent(double value, out int exponent)
+        private static ulong ExtractFractionAndBiasedExponent(double value, out int exponent)
         {
-            var bits = BitConverter.DoubleToInt64Bits(value);
-            long fraction = (bits & 0xFFFFFFFFFFFFF);
-            exponent = (int)((bits >> 52) & 0x7FF);
+            ulong bits = (ulong)(BitConverter.DoubleToInt64Bits(value));
+            ulong fraction = (bits & 0xFFFFFFFFFFFFF);
+            exponent = ((int)(bits >> 52) & 0x7FF);
 
             if (exponent != 0)
             {
@@ -2275,7 +2275,7 @@ namespace System
                 //
                 // So f = (2^52 + mantissa), e = exp - 1075;
 
-                fraction |= ((long)(1) << 52);
+                fraction |= (1UL << 52);
                 exponent -= 1075;
             }
             else

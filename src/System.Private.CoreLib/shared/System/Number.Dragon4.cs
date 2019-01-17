@@ -36,7 +36,7 @@ namespace System
             // Extract meta data from the input double value.
             //
             // Refer to IEEE double precision floating point format.
-            ulong f = (ulong)(ExtractFractionAndBiasedExponent(value, out int e));
+            ulong f = ExtractFractionAndBiasedExponent(value, out int e);
             int mantissaHighBitIndex = (e == -1074) ? (int)(BigInteger.LogBase2(f)) : 52;
 
             // Step 2:
