@@ -210,7 +210,7 @@ namespace System.Reflection
 
             char c = Type.Delimiter;
             string resourceName = nameSpace != null && name != null ?
-                string.Concat(nameSpace, new Span<char>(ref c, 1), name) :
+                string.Concat(nameSpace, new ReadOnlySpan<char>(ref c, 1), name) :
                 string.Concat(nameSpace, name);
 
             return GetManifestResourceStream(resourceName);
