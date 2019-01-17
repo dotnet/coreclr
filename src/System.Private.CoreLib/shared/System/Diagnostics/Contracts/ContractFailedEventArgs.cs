@@ -56,4 +56,4 @@ namespace System.Diagnostics.Contracts
             _unwind = true;
         }
     }
-}  // namespace System.Diagnostics.Contracts
+}

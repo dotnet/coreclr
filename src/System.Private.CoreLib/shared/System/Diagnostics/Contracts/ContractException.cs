@@ -56,4 +56,4 @@ namespace System.Diagnostics.Contracts
             info.AddValue("Condition", _condition);
         }
     }
-}  // namespace System.Diagnostics.Contracts
+}

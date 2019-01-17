@@ -2,13 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-** 
-**
-** Implementation details of CLR Contracts.
-**
-===========================================================*/
 #define DEBUG // The behavior of this contract library should be consistent regardless of build type.
 
 using System;
@@ -208,5 +201,4 @@ namespace System.Runtime.CompilerServices
             }
         }
     }
-}  // namespace System.Runtime.CompilerServices
-
+}
