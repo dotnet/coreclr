@@ -17,8 +17,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-
-using Thread = Internal.Runtime.Augments.RuntimeThread;
+using Internal.Runtime.Augments;
 
 namespace System.Threading.Tasks
 {
@@ -603,7 +602,7 @@ namespace System.Threading.Tasks
                 // since it'll only allow inlining if it can find the task in the local queue).
                 // As such, if we're not on a thread pool thread, we know for sure the
                 // task won't be inlined, so let's not even try.
-                if (isDefaultScheduler && taskWasPreviouslyQueued && !Thread.CurrentThread.IsThreadPoolThread)
+                if (isDefaultScheduler && taskWasPreviouslyQueued && !RuntimeThread.CurrentThread.IsThreadPoolThread)
                 {
                     return false;
                 }

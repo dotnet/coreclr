@@ -15,8 +15,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.Serialization;
-
-using Thread = Internal.Runtime.Augments.RuntimeThread;
+using Internal.Runtime.Augments;
 
 namespace System.Threading
 {
@@ -56,7 +55,7 @@ namespace System.Threading
 
         public static ExecutionContext Capture()
         {
-            ExecutionContext executionContext = Thread.CurrentThread.ExecutionContext;
+            ExecutionContext executionContext = RuntimeThread.CurrentThread.ExecutionContext;
             if (executionContext == null)
             {
                 executionContext = Default;
@@ -85,7 +84,7 @@ namespace System.Threading
 
         public static AsyncFlowControl SuppressFlow()
         {
-            Thread currentThread = Thread.CurrentThread;
+            RuntimeThread currentThread = RuntimeThread.CurrentThread;
             ExecutionContext executionContext = currentThread.ExecutionContext ?? Default;
             if (executionContext.m_isFlowSuppressed)
             {
@@ -101,7 +100,7 @@ namespace System.Threading
 
         public static void RestoreFlow()
         {
-            Thread currentThread = Thread.CurrentThread;
+            RuntimeThread currentThread = RuntimeThread.CurrentThread;
             ExecutionContext executionContext = currentThread.ExecutionContext;
             if (executionContext == null || !executionContext.m_isFlowSuppressed)
             {
@@ -113,7 +112,7 @@ namespace System.Threading
 
         public static bool IsFlowSuppressed()
         {
-            ExecutionContext executionContext = Thread.CurrentThread.ExecutionContext;
+            ExecutionContext executionContext = RuntimeThread.CurrentThread.ExecutionContext;
             return executionContext != null && executionContext.m_isFlowSuppressed;
         }
 
@@ -140,8 +139,8 @@ namespace System.Threading
 
             // Enregister variables with 0 post-fix so they can be used in registers without EH forcing them to stack
             // Capture references to Thread Contexts
-            Thread currentThread0 = Thread.CurrentThread;
-            Thread currentThread = currentThread0;
+            RuntimeThread currentThread0 = RuntimeThread.CurrentThread;
+            RuntimeThread currentThread = currentThread0;
             ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
             if (previousExecutionCtx0 != null && previousExecutionCtx0.m_isDefault)
             {
@@ -182,7 +181,7 @@ namespace System.Threading
 
             // Re-enregistrer variables post EH with 1 post-fix so they can be used in registers rather than from stack
             SynchronizationContext previousSyncCtx1 = previousSyncCtx;
-            Thread currentThread1 = currentThread;
+            RuntimeThread currentThread1 = currentThread;
             // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
             if (currentThread1.SynchronizationContext != previousSyncCtx1)
             {
@@ -210,8 +209,8 @@ namespace System.Threading
 
             // Enregister variables with 0 post-fix so they can be used in registers without EH forcing them to stack
             // Capture references to Thread Contexts
-            Thread currentThread0 = Thread.CurrentThread;
-            Thread currentThread = currentThread0;
+            RuntimeThread currentThread0 = RuntimeThread.CurrentThread;
+            RuntimeThread currentThread = currentThread0;
             ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
             if (previousExecutionCtx0 != null && previousExecutionCtx0.m_isDefault)
             {
@@ -252,7 +251,7 @@ namespace System.Threading
 
             // Re-enregistrer variables post EH with 1 post-fix so they can be used in registers rather than from stack
             SynchronizationContext previousSyncCtx1 = previousSyncCtx;
-            Thread currentThread1 = currentThread;
+            RuntimeThread currentThread1 = currentThread;
             // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
             if (currentThread1.SynchronizationContext != previousSyncCtx1)
             {
@@ -271,9 +270,9 @@ namespace System.Threading
             edi?.Throw();
         }
 
-        internal static void RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, object state)
+        internal static void RunFromThreadPoolDispatchLoop(RuntimeThread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, object state)
         {
-            Debug.Assert(threadPoolThread == Thread.CurrentThread);
+            Debug.Assert(threadPoolThread == RuntimeThread.CurrentThread);
             CheckThreadPoolAndContextsAreDefault();
             // ThreadPool starts on Default Context so we don't need to save the "previous" state as we know it is Default (null)
 
@@ -298,7 +297,7 @@ namespace System.Threading
             }
 
             // Enregister threadPoolThread as it crossed EH, and use enregistered variable
-            Thread currentThread = threadPoolThread;
+            RuntimeThread currentThread = threadPoolThread;
 
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
 
@@ -324,7 +323,7 @@ namespace System.Threading
             Debug.Assert(executionContext != null && !executionContext.m_isDefault, "ExecutionContext argument is Default.");
 
             // Restore Non-Default context
-            Thread.CurrentThread.ExecutionContext = executionContext;
+            RuntimeThread.CurrentThread.ExecutionContext = executionContext;
             if (executionContext.HasChangeNotifications)
             {
                 OnValuesChanged(previousExecutionCtx: null, executionContext);
@@ -335,9 +334,9 @@ namespace System.Threading
             // ThreadPoolWorkQueue.Dispatch will handle notifications and reset EC and SyncCtx back to default
         }
 
-        internal static void RestoreChangedContextToThread(Thread currentThread, ExecutionContext contextToRestore, ExecutionContext currentContext)
+        internal static void RestoreChangedContextToThread(RuntimeThread currentThread, ExecutionContext contextToRestore, ExecutionContext currentContext)
         {
-            Debug.Assert(currentThread == Thread.CurrentThread);
+            Debug.Assert(currentThread == RuntimeThread.CurrentThread);
             Debug.Assert(contextToRestore != currentContext);
 
             // Restore changed ExecutionContext back to previous
@@ -352,7 +351,7 @@ namespace System.Threading
 
         // Inline as only called in one place and always called
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void ResetThreadPoolThread(Thread currentThread)
+        internal static void ResetThreadPoolThread(RuntimeThread currentThread)
         {
             ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
 
@@ -373,9 +372,9 @@ namespace System.Threading
         [System.Diagnostics.Conditional("DEBUG")]
         internal static void CheckThreadPoolAndContextsAreDefault()
         {
-            Debug.Assert(Thread.CurrentThread.IsThreadPoolThread);
-            Debug.Assert(Thread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
-            Debug.Assert(Thread.CurrentThread.SynchronizationContext == null, "ThreadPool thread not on Default SynchronizationContext.");
+            Debug.Assert(RuntimeThread.CurrentThread.IsThreadPoolThread);
+            Debug.Assert(RuntimeThread.CurrentThread.ExecutionContext == null, "ThreadPool thread not on Default ExecutionContext.");
+            Debug.Assert(RuntimeThread.CurrentThread.SynchronizationContext == null, "ThreadPool thread not on Default SynchronizationContext.");
         }
 
         internal static void OnValuesChanged(ExecutionContext previousExecutionCtx, ExecutionContext nextExecutionCtx)
@@ -472,7 +471,7 @@ namespace System.Threading
 
         internal static object GetLocalValue(IAsyncLocal local)
         {
-            ExecutionContext current = Thread.CurrentThread.ExecutionContext;
+            ExecutionContext current = RuntimeThread.CurrentThread.ExecutionContext;
             if (current == null)
             {
                 return null;
@@ -484,7 +483,7 @@ namespace System.Threading
 
         internal static void SetLocalValue(IAsyncLocal local, object newValue, bool needChangeNotifications)
         {
-            ExecutionContext current = Thread.CurrentThread.ExecutionContext;
+            ExecutionContext current = RuntimeThread.CurrentThread.ExecutionContext;
 
             object previousValue = null;
             bool hadPreviousValue = false;
@@ -542,7 +541,7 @@ namespace System.Threading
                 }
             }
 
-            Thread.CurrentThread.ExecutionContext = 
+            RuntimeThread.CurrentThread.ExecutionContext = 
                 (!isFlowSuppressed && AsyncLocalValueMap.IsEmpty(newValues)) ?
                 null : // No values, return to Default context
                 new ExecutionContext(newValues, newChangeNotifications, isFlowSuppressed);
@@ -566,11 +565,11 @@ namespace System.Threading
 
     public struct AsyncFlowControl : IDisposable
     {
-        private Thread _thread;
+        private RuntimeThread _thread;
 
-        internal void Initialize(Thread currentThread)
+        internal void Initialize(RuntimeThread currentThread)
         {
-            Debug.Assert(currentThread == Thread.CurrentThread);
+            Debug.Assert(currentThread == RuntimeThread.CurrentThread);
             _thread = currentThread;
         }
 
@@ -580,7 +579,7 @@ namespace System.Threading
             {
                 throw new InvalidOperationException(SR.InvalidOperation_CannotUseAFCMultiple);
             }
-            if (Thread.CurrentThread != _thread)
+            if (RuntimeThread.CurrentThread != _thread)
             {
                 throw new InvalidOperationException(SR.InvalidOperation_CannotUseAFCOtherThread);
             }
