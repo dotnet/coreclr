@@ -409,7 +409,6 @@
     <Compile Include="$(CommonPath)\System\SR.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="src\System\Runtime\CompilerServices\ContractHelper.CoreCLR.cs" />
     <Compile Include="src\System\Runtime\RuntimeImports.cs" />
   </ItemGroup>
   <Import Project="shared\System.Private.CoreLib.Shared.projitems" />

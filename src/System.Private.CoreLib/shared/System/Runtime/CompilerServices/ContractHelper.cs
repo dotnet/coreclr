@@ -81,6 +81,20 @@ namespace System.Runtime.CompilerServices
             return returnValue;
         }
 
+        /// <summary>
+        /// Rewriter calls this method to get the default failure behavior.
+        /// </summary>
+        [System.Diagnostics.DebuggerNonUserCode]
+        public static void TriggerFailure(ContractFailureKind kind, string displayMessage, string userMessage, string conditionText, Exception innerException)
+        {
+            if (string.IsNullOrEmpty(displayMessage))
+            {
+                displayMessage = GetDisplayMessage(kind, userMessage, conditionText);
+            }
+
+            System.Diagnostics.Debug.ContractFailure(false, displayMessage, string.Empty, GetFailureMessage(kind, null));
+        }
+
         private static string GetFailureMessage(ContractFailureKind failureKind, string conditionText)
         {
             bool hasConditionText = !string.IsNullOrEmpty(conditionText);
