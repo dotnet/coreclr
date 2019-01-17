@@ -119,20 +119,6 @@ namespace System.Runtime.CompilerServices
             return returnValue;
         }
 
-        /// <summary>
-        /// Rewriter calls this method to get the default failure behavior.
-        /// </summary>
-        [System.Diagnostics.DebuggerNonUserCode]
-        public static void TriggerFailure(ContractFailureKind kind, string displayMessage, string userMessage, string conditionText, Exception innerException)
-        {
-            if (string.IsNullOrEmpty(displayMessage))
-            {
-                displayMessage = GetDisplayMessage(kind, userMessage, conditionText);
-            }
-
-            System.Diagnostics.Debug.ContractFailure(false, displayMessage, string.Empty, GetResourceNameForFailure(kind));
-        }
-
         private static string GetResourceNameForFailure(ContractFailureKind failureKind)
         {
             string resourceName = null;
