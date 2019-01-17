@@ -4,25 +4,18 @@
 
 #define DEBUG // The behavior of this contract library should be consistent regardless of build type.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
-using System.Reflection;
 
 namespace System.Runtime.CompilerServices
 {
     public static partial class ContractHelper
     {
-#region Private fields
-
-        private static volatile EventHandler<ContractFailedEventArgs> contractFailedEvent;
-        private static readonly object lockObject = new object();
+        #region Private fields
 
         internal const int COR_E_CODECONTRACTFAILED = unchecked((int)0x80131542);
 
-#endregion
+        #endregion
 
         /// <summary>
         /// Allows a managed application environment such as an interactive interpreter (IronPython) or a
@@ -32,31 +25,7 @@ namespace System.Runtime.CompilerServices
         /// not pop up an assert dialog box or trigger escalation policy.  Hooking this event requires 
         /// full trust.
         /// </summary>
-        internal static event EventHandler<ContractFailedEventArgs> InternalContractFailed
-        {
-            add
-            {
-                // Eagerly prepare each event handler _marked with a reliability contract_, to 
-                // attempt to reduce out of memory exceptions while reporting contract violations.
-                // This only works if the new handler obeys the constraints placed on 
-                // constrained execution regions.  Eagerly preparing non-reliable event handlers
-                // would be a perf hit and wouldn't significantly improve reliability.
-                // UE: Please mention reliable event handlers should also be marked with the 
-                // PrePrepareMethodAttribute to avoid CER eager preparation work when ngen'ed.
-                System.Runtime.CompilerServices.RuntimeHelpers.PrepareContractedDelegate(value);
-                lock (lockObject)
-                {
-                    contractFailedEvent += value;
-                }
-            }
-            remove
-            {
-                lock (lockObject)
-                {
-                    contractFailedEvent -= value;
-                }
-            }
-        }
+        internal static event EventHandler<ContractFailedEventArgs> InternalContractFailed;
 
         /// <summary>
         /// Rewriter will call this method on a contract failure to allow listeners to be notified.
@@ -81,7 +50,7 @@ namespace System.Runtime.CompilerServices
             try
             {
                 displayMessage = GetDisplayMessage(failureKind, userMessage, conditionText);
-                EventHandler<ContractFailedEventArgs> contractFailedEventLocal = contractFailedEvent;
+                EventHandler<ContractFailedEventArgs> contractFailedEventLocal = InternalContractFailed;
                 if (contractFailedEventLocal != null)
                 {
                     eventArgs = new ContractFailedEventArgs(failureKind, displayMessage, conditionText, innerException);

@@ -113,8 +113,6 @@ namespace System.Runtime.CompilerServices
             }
         }
 
-        public static void PrepareContractedDelegate(Delegate d) { }
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void PrepareDelegate(Delegate d);
 
