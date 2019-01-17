@@ -20,6 +20,7 @@ using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Internal.Runtime.Augments;
 
 #if FEATURE_WIN32_REGISTRY
 using Internal.Win32;
@@ -362,11 +363,12 @@ namespace System
                 return true;
             }
         }
+
         public static int CurrentManagedThreadId
         {
             get
             {
-                return Thread.CurrentThread.ManagedThreadId;
+                return RuntimeThread.CurrentThread.ManagedThreadId;
             }
         }
 

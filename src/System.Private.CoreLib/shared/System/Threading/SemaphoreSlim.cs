@@ -4,8 +4,7 @@
 
 using System.Diagnostics;
 using System.Threading.Tasks;
-
-using Thread = Internal.Runtime.Augments.RuntimeThread;
+using Internal.Runtime.Augments;
 
 namespace System.Threading
 {
@@ -78,7 +77,7 @@ namespace System.Threading
             internal TaskNode Prev, Next;
             internal TaskNode() : base() { }
 
-            internal override void ExecuteFromThreadPool(Thread threadPoolThread)
+            internal override void ExecuteFromThreadPool(RuntimeThread threadPoolThread)
             {
                 bool setSuccessfully = TrySetResult(true);
                 Debug.Assert(setSuccessfully, "Should have been able to complete task");

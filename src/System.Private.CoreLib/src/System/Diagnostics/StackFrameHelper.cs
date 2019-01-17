@@ -14,6 +14,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Globalization;
 using System.Runtime.Versioning;
+using Internal.Runtime.Augments;
 
 namespace System.Diagnostics
 {
@@ -23,7 +24,7 @@ namespace System.Diagnostics
     // VM\DebugDebugger.h. The binder will catch some of these layout problems.
     internal class StackFrameHelper
     {
-        private Thread targetThread;
+        private RuntimeThread targetThread;
         private int[] rgiOffset;
         private int[] rgiILOffset;
 
@@ -56,7 +57,7 @@ namespace System.Diagnostics
         [ThreadStatic]
         private static int t_reentrancy = 0;
 
-        public StackFrameHelper(Thread target)
+        public StackFrameHelper(RuntimeThread target)
         {
             targetThread = target;
             rgMethodHandle = null;

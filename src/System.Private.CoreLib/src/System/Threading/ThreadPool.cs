@@ -20,6 +20,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Internal.Runtime.Augments;
 using Internal.Runtime.CompilerServices;
 using Microsoft.Win32;
 
@@ -553,7 +554,7 @@ namespace System.Threading
                 // Use operate on workQueue local to try block so it can be enregistered 
                 ThreadPoolWorkQueue workQueue = outerWorkQueue;
                 ThreadPoolWorkQueueThreadLocals tl = workQueue.GetOrCreateThreadLocals();
-                Thread currentThread = tl.currentThread;
+                RuntimeThread currentThread = tl.currentThread;
 
                 // Start on clean ExecutionContext and SynchronizationContext
                 currentThread.ExecutionContext = null;
@@ -717,15 +718,15 @@ namespace System.Threading
 
         public readonly ThreadPoolWorkQueue workQueue;
         public readonly ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
-        public readonly Thread currentThread;
-        public FastRandom random = new FastRandom(Thread.CurrentThread.ManagedThreadId); // mutable struct, do not copy or make readonly
+        public readonly RuntimeThread currentThread;
+        public FastRandom random = new FastRandom(RuntimeThread.CurrentThread.ManagedThreadId); // mutable struct, do not copy or make readonly
 
         public ThreadPoolWorkQueueThreadLocals(ThreadPoolWorkQueue tpq)
         {
             workQueue = tpq;
             workStealingQueue = new ThreadPoolWorkQueue.WorkStealingQueue();
             ThreadPoolWorkQueue.WorkStealingQueueList.Add(workStealingQueue);
-            currentThread = Thread.CurrentThread;
+            currentThread = RuntimeThread.CurrentThread;
         }
 
         private void CleanUp()
@@ -825,7 +826,7 @@ namespace System.Threading
                         m_lock = 0;
                     }
                 }
-                Thread.SpinWait(1);     // yield to processor
+                RuntimeThread.SpinWait(1);     // yield to processor
             }
             while (!bLockTaken);
 

@@ -371,16 +371,6 @@ namespace System.Diagnostics.Tracing
                         activityPathGuidOffsetStart = m_creator.m_activityPathGuidOffset;
                         idRet = m_creator.m_guid;
                     }
-                    else
-                    {
-                        // TODO FIXME - differentiate between AD inside PCL
-                        int appDomainID = 0;
-#if (!ES_BUILD_STANDALONE && !ES_BUILD_PN)
-                        appDomainID = System.Threading.Thread.GetDomainID();
-#endif
-                        // We start with the appdomain number to make this unique among appdomains.
-                        activityPathGuidOffsetStart = AddIdToGuid(outPtr, activityPathGuidOffsetStart, (uint)appDomainID);
-                    }
 
                     activityPathGuidOffset = AddIdToGuid(outPtr, activityPathGuidOffsetStart, (uint)m_uniqueId);
 

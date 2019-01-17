@@ -8,6 +8,8 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
+using Internal.Runtime.Augments;
 
 namespace System.Diagnostics
 {

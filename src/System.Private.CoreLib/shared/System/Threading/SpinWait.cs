@@ -55,7 +55,7 @@ namespace System.Threading
     /// In most cases, you should use the synchronization classes provided by the .NET Framework, such as
     /// <see cref="System.Threading.Monitor"/>. For most purposes where spin waiting is required, however,
     /// the <see cref="SpinWait"/> type should be preferred over the <see
-    /// cref="System.Threading.Thread.SpinWait"/> method.
+    /// cref="System.Threading.RuntimeThread.SpinWait"/> method.
     /// </para>
     /// <para>
     /// While SpinWait is designed to be used in concurrent applications, it is not designed to be

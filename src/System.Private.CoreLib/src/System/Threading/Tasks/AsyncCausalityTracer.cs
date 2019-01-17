@@ -178,7 +178,7 @@ namespace System.Threading.Tasks
                 if ((f_LoggingOn & Loggers.ETW) != 0)
                     TplEtwProvider.Log.TraceOperationBegin(taskId, operationName, (long)relatedContext);
                 if ((f_LoggingOn & Loggers.CausalityTracer) != 0)
-                    s_TracerFactory.TraceOperationCreation((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, GetOperationId((uint)taskId), operationName, relatedContext);
+                    s_TracerFactory.TraceOperationCreation((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, (uint)taskId, operationName, relatedContext);
             }
             catch (Exception ex)
             {
@@ -197,7 +197,7 @@ namespace System.Threading.Tasks
                 if ((f_LoggingOn & Loggers.ETW) != 0)
                     TplEtwProvider.Log.TraceOperationEnd(taskId, status);
                 if ((f_LoggingOn & Loggers.CausalityTracer) != 0)
-                    s_TracerFactory.TraceOperationCompletion((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, GetOperationId((uint)taskId), (WFD.AsyncCausalityStatus)status);
+                    s_TracerFactory.TraceOperationCompletion((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, (uint)taskId, (WFD.AsyncCausalityStatus)status);
             }
             catch (Exception ex)
             {
@@ -216,7 +216,7 @@ namespace System.Threading.Tasks
                 if ((f_LoggingOn & Loggers.ETW) != 0)
                     TplEtwProvider.Log.TraceOperationRelation(taskId, relation);
                 if ((f_LoggingOn & Loggers.CausalityTracer) != 0)
-                    s_TracerFactory.TraceOperationRelation((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, GetOperationId((uint)taskId), (WFD.CausalityRelation)relation);
+                    s_TracerFactory.TraceOperationRelation((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, (uint)taskId, (WFD.CausalityRelation)relation);
             }
             catch (Exception ex)
             {
@@ -235,7 +235,7 @@ namespace System.Threading.Tasks
                 if ((f_LoggingOn & Loggers.ETW) != 0)
                     TplEtwProvider.Log.TraceSynchronousWorkBegin(taskId, work);
                 if ((f_LoggingOn & Loggers.CausalityTracer) != 0)
-                    s_TracerFactory.TraceSynchronousWorkStart((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, GetOperationId((uint)taskId), (WFD.CausalitySynchronousWork)work);
+                    s_TracerFactory.TraceSynchronousWorkStart((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, (uint)taskId, (WFD.CausalitySynchronousWork)work);
             }
             catch (Exception ex)
             {
@@ -273,10 +273,5 @@ namespace System.Threading.Tasks
             Debugger.Log(0, "AsyncCausalityTracer", ex.ToString());
         }
 #endif
-
-        private static ulong GetOperationId(uint taskId)
-        {
-            return (((ulong)Thread.GetDomainID()) << 32) + taskId;
-        }
     }
 }

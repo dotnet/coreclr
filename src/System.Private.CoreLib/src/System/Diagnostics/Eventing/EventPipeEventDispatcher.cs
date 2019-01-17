@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Internal.Runtime.Augments;
 
 namespace System.Diagnostics.Tracing
 {
@@ -177,7 +178,7 @@ namespace System.Diagnostics.Tracing
                 // Wait for more events.
                 if (!m_stopDispatchTask)
                 {
-                    Thread.Sleep(10);
+                    RuntimeThread.Sleep(10);
                 }
             }
         }

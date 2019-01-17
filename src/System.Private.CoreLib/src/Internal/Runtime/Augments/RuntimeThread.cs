@@ -14,22 +14,135 @@ namespace Internal.Runtime.Augments
 {
     public class RuntimeThread : CriticalFinalizerObject
     {
+        /*=========================================================================
+        ** Data accessed from managed code that needs to be defined in
+        ** ThreadBaseObject to maintain alignment between the two classes.
+        ** DON'T CHANGE THESE UNLESS YOU MODIFY ThreadBaseObject in vm\object.h
+        =========================================================================*/
+        private ExecutionContext m_ExecutionContext;    // this call context follows the logical thread
+        private SynchronizationContext m_SynchronizationContext;    // On CoreCLR, this is maintained separately from ExecutionContext
+
+        private string m_Name;
+        private Delegate m_Delegate;             // Delegate
+
+        private object m_ThreadStartArg;
+
+        /*=========================================================================
+        ** The base implementation of Thread is all native.  The following fields
+        ** should never be used in the C# code.  They are here to define the proper
+        ** space so the thread object may be allocated.  DON'T CHANGE THESE UNLESS
+        ** YOU MODIFY ThreadBaseObject in vm\object.h
+        =========================================================================*/
+#pragma warning disable 169
+#pragma warning disable 414  // These fields are not used from managed.
+        // IntPtrs need to be together, and before ints, because IntPtrs are 64-bit
+        //  fields on 64-bit platforms, where they will be sorted together.
+
+        private IntPtr DONT_USE_InternalThread;        // Pointer
+        private int m_Priority;                     // INT32
+
+        // The following field is required for interop with the VS Debugger
+        // Prior to making any changes to this field, please reach out to the VS Debugger 
+        // team to make sure that your changes are not going to prevent the debugger
+        // from working.
+        private int _managedThreadId;              // INT32
+
+#pragma warning restore 414
+#pragma warning restore 169
+
+        [ThreadStatic]
+        private static RuntimeThread t_currentThread;
+
         private static int s_optimalMaxSpinWaitsPerSpinIteration;
 
         internal RuntimeThread() { }
 
-        public static RuntimeThread Create(ThreadStart start) => new Thread(start);
-        public static RuntimeThread Create(ThreadStart start, int maxStackSize) => new Thread(start, maxStackSize);
-        public static RuntimeThread Create(ParameterizedThreadStart start) => new Thread(start);
-        public static RuntimeThread Create(ParameterizedThreadStart start, int maxStackSize) => new Thread(start, maxStackSize);
-
-        private Thread AsThread()
+        private RuntimeThread(Delegate start, int maxStackSize)
         {
-            Debug.Assert(this is Thread);
-            return (Thread)this;
+            Debug.Assert(maxStackSize >= 0);
+
+            ThreadHelper threadStartCallBack = new ThreadHelper(start);
+            if (start is ThreadStart)
+            {
+                SetStart(new ThreadStart(threadStartCallBack.ThreadStart), maxStackSize);
+            }
+            else
+            {
+                SetStart(new ParameterizedThreadStart(threadStartCallBack.ThreadStart), maxStackSize);
+            }
         }
 
-        public static RuntimeThread CurrentThread => Thread.CurrentThread;
+        /*=========================================================================
+        ** Clean up the thread when it goes away.
+        =========================================================================*/
+        ~RuntimeThread()
+        {
+            // Delegate to the unmanaged portion.
+            InternalFinalize();
+        }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private extern void InternalFinalize();
+
+        public static RuntimeThread Create(ThreadStart start)
+        {
+            if (start == null)
+                throw new ArgumentNullException(nameof(start));
+
+            return new RuntimeThread((Delegate)start, 0);  //0 will setup Thread with default stackSize
+        }
+
+        public static RuntimeThread Create(ThreadStart start, int maxStackSize)
+        {
+            if (start == null)
+                throw new ArgumentNullException(nameof(start));
+            if (0 > maxStackSize)
+                throw new ArgumentOutOfRangeException(nameof(maxStackSize), SR.ArgumentOutOfRange_NeedNonNegNum);
+
+            return new RuntimeThread((Delegate)start, maxStackSize);
+        }
+
+        public static RuntimeThread Create(ParameterizedThreadStart start)
+        {
+            if (start == null)
+                throw new ArgumentNullException(nameof(start));
+
+            return new RuntimeThread((Delegate)start, 0);
+        }
+
+        public static RuntimeThread Create(ParameterizedThreadStart start, int maxStackSize)
+        {
+            if (start == null)
+                throw new ArgumentNullException(nameof(start));
+            if (0 > maxStackSize)
+                throw new ArgumentOutOfRangeException(nameof(maxStackSize), SR.ArgumentOutOfRange_NeedNonNegNum);
+
+            return new RuntimeThread((Delegate)start, maxStackSize);
+        }
+
+        /*=========================================================================
+        ** PRIVATE Sets the IThreadable interface for the thread. Assumes that
+        ** start != null.
+        =========================================================================*/
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private extern void SetStart(Delegate start, int maxStackSize);
+
+        public static RuntimeThread CurrentThread => t_currentThread ?? InitializeCurrentThread();
+
+        // Helper method to get a logical thread ID for StringBuilder (for
+        // correctness) and for FileStream's async code path (for perf, to
+        // avoid creating a RuntimeThread instance).
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern IntPtr InternalGetCurrentThread();
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static RuntimeThread InitializeCurrentThread()
+        {
+            return (t_currentThread = GetCurrentThreadNative());
+        }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        private static extern RuntimeThread GetCurrentThreadNative();
 
         /*=========================================================================
         ** Returns true if the thread has been started and is not dead.
@@ -67,8 +180,47 @@ namespace Internal.Runtime.Augments
             get;
         }
 
-        public int ManagedThreadId => AsThread().ManagedThreadId;
-        public string Name { get { return AsThread().Name; } set { AsThread().Name = value; } }
+        public int ManagedThreadId
+        {
+            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            get;
+        }
+
+        public string Name
+        {
+            get
+            {
+                return m_Name;
+            }
+            set
+            {
+                lock (this)
+                {
+                    if (m_Name != null)
+                        throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
+                    m_Name = value;
+
+                    InformThreadNameChange(GetNativeHandle(), value, (value != null) ? value.Length : 0);
+                }
+            }
+        }
+
+        // Returns handle for interop with EE. The handle is guaranteed to be non-null.
+        internal unsafe ThreadHandle GetNativeHandle()
+        {
+            IntPtr thread = DONT_USE_InternalThread;
+
+            // This should never happen under normal circumstances. m_assembly is always assigned before it is handed out to the user.
+            // There are ways how to create an uninitialized objects through remoting, etc. Avoid AVing in the EE by throwing a nice
+            // exception here.
+            if (thread == IntPtr.Zero)
+                throw new ArgumentException(null, SR.Argument_InvalidHandle);
+
+            return new ThreadHandle(thread);
+        }
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void InformThreadNameChange(ThreadHandle t, string name, int len);
 
         /*=========================================================================
         ** Returns the priority of the thread.
@@ -97,6 +249,7 @@ namespace Internal.Runtime.Augments
                 return GetCurrentOSThreadId();
             }
         }
+
         [DllImport(JitHelpers.QCall)]
         private static extern ulong GetCurrentOSThreadId();
 
@@ -199,7 +352,21 @@ namespace Internal.Runtime.Augments
         [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool JoinInternal(int millisecondsTimeout);
 
-        public static void Sleep(int millisecondsTimeout) => Thread.Sleep(millisecondsTimeout);
+        /*=========================================================================
+        ** Suspends the current thread for timeout milliseconds. If timeout == 0,
+        ** forces the thread to give up the remainder of its timeslice.  If timeout
+        ** == Timeout.Infinite, no timeout will occur.
+        **
+        ** Exceptions: ArgumentException if timeout < -1 (Timeout.Infinite).
+        **             ThreadInterruptedException if the thread is interrupted while sleeping.
+        =========================================================================*/
+        public static void Sleep(int millisecondsTimeout)
+        {
+            SleepInternal(millisecondsTimeout);
+        }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern void SleepInternal(int millisecondsTimeout);
 
         [DllImport(JitHelpers.QCall)]
         private static extern int GetOptimalMaxSpinWaitsPerSpinIterationInternal();
@@ -272,10 +439,163 @@ namespace Internal.Runtime.Augments
             return (currentProcessorIdCache >> ProcessorIdCacheShift);
         }
 
-        public static void SpinWait(int iterations) => Thread.SpinWait(iterations);
-        public static bool Yield() => Thread.Yield();
+        /* wait for a length of time proportional to 'iterations'.  Each iteration is should
+           only take a few machine instructions.  Calling this API is preferable to coding
+           a explicit busy loop because the hardware can be informed that it is busy waiting. */
 
-        public void Start() => AsThread().Start();
-        public void Start(object parameter) => AsThread().Start(parameter);
+        public static void SpinWait(int iterations)
+        {
+            SpinWaitInternal(iterations);
+        }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern void SpinWaitInternal(int iterations);
+
+        public static bool Yield()
+        {
+            return YieldInternal();
+        }
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern bool YieldInternal();
+
+        /*=========================================================================
+        ** Spawns off a new thread which will begin executing at the ThreadStart
+        ** method on the IThreadable interface passed in the constructor. Once the
+        ** thread is dead, it cannot be restarted with another call to Start.
+        **
+        ** Exceptions: ThreadStateException if the thread has already been started.
+        =========================================================================*/
+        public void Start()
+        {
+#if FEATURE_COMINTEROP_APARTMENT_SUPPORT
+            // Eagerly initialize the COM Apartment state of the thread if we're allowed to.
+            StartupSetApartmentStateInternal();
+#endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
+
+            // Attach current thread's security principal object to the new
+            // thread. Be careful not to bind the current thread to a principal
+            // if it's not already bound.
+            if (m_Delegate != null)
+            {
+                // If we reach here with a null delegate, something is broken. But we'll let the StartInternal method take care of
+                // reporting an error. Just make sure we don't try to dereference a null delegate.
+                ThreadHelper t = (ThreadHelper)(m_Delegate.Target);
+                ExecutionContext ec = ExecutionContext.Capture();
+                t.SetExecutionContextHelper(ec);
+            }
+
+            StartInternal();
+        }
+
+        public void Start(object parameter)
+        {
+            //In the case of a null delegate (second call to start on same thread)
+            //    StartInternal method will take care of the error reporting
+            if (m_Delegate is ThreadStart)
+            {
+                //We expect the thread to be setup with a ParameterizedThreadStart
+                //    if this constructor is called.
+                //If we got here then that wasn't the case
+                throw new InvalidOperationException(SR.InvalidOperation_ThreadWrongThreadStart);
+            }
+            m_ThreadStartArg = parameter;
+            Start();
+        }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private extern void StartInternal();
+
+#if FEATURE_COMINTEROP_APARTMENT_SUPPORT
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private extern void StartupSetApartmentStateInternal();
+#endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
+
+        public override int GetHashCode()
+        {
+            return _managedThreadId;
+        }
+
+        internal ExecutionContext ExecutionContext
+        {
+            get { return m_ExecutionContext; }
+            set { m_ExecutionContext = value; }
+        }
+
+        internal SynchronizationContext SynchronizationContext
+        {
+            get { return m_SynchronizationContext; }
+            set { m_SynchronizationContext = value; }
+        }
+    }
+
+    internal class ThreadHelper
+    {
+        private Delegate _start;
+        private object _startArg = null;
+        private ExecutionContext _executionContext = null;
+        internal ThreadHelper(Delegate start)
+        {
+            _start = start;
+        }
+
+        internal void SetExecutionContextHelper(ExecutionContext ec)
+        {
+            _executionContext = ec;
+        }
+
+        internal static ContextCallback _ccb = new ContextCallback(ThreadStart_Context);
+
+        private static void ThreadStart_Context(object state)
+        {
+            ThreadHelper t = (ThreadHelper)state;
+            if (t._start is ThreadStart)
+            {
+                ((ThreadStart)t._start)();
+            }
+            else
+            {
+                ((ParameterizedThreadStart)t._start)(t._startArg);
+            }
+        }
+
+        // call back helper
+        internal void ThreadStart(object obj)
+        {
+            _startArg = obj;
+            ExecutionContext context = _executionContext;
+            if (context != null)
+            {
+                ExecutionContext.RunInternal(context, _ccb, (object)this);
+            }
+            else
+            {
+                ((ParameterizedThreadStart)_start)(obj);
+            }
+        }
+
+        // call back helper
+        internal void ThreadStart()
+        {
+            ExecutionContext context = _executionContext;
+            if (context != null)
+            {
+                ExecutionContext.RunInternal(context, _ccb, (object)this);
+            }
+            else
+            {
+                ((ThreadStart)_start)();
+            }
+        }
+    }
+
+    internal struct ThreadHandle
+    {
+        private IntPtr m_ptr;
+
+        internal ThreadHandle(IntPtr pThread)
+        {
+            m_ptr = pThread;
+        }
     }
 }

@@ -136,7 +136,6 @@
 #define g_StringName "String"
 #define g_SharedStaticsClassName "System.SharedStatics"
 
-#define g_ThreadClassName "System.Threading.Thread"
 #define g_TypeClassName   "System.Type"
 
 #define g_VariantClassName "System.Variant"

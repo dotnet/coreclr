@@ -12,6 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Security;
+using Internal.Runtime.Augments;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -995,9 +996,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     for (int i = 0; ; i++)
                     {
                         if (i < 3 && Environment.ProcessorCount > 1)
-                            Thread.SpinWait(20);    // Wait a few dozen instructions to let another processor release lock.
+                            RuntimeThread.SpinWait(20);    // Wait a few dozen instructions to let another processor release lock.
                         else
-                            Thread.Sleep(0);        // Give up my quantum.
+                            RuntimeThread.Sleep(0);        // Give up my quantum.
 
                         if (Interlocked.CompareExchange(ref myLock, 1, 0) == 0)
                             return;

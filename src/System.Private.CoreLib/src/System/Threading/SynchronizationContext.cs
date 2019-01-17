@@ -23,6 +23,7 @@ namespace System.Threading
     using System.Security;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
+    using Internal.Runtime.Augments;
 
 
     [Flags]
@@ -142,14 +143,14 @@ namespace System.Threading
 
         public static void SetSynchronizationContext(SynchronizationContext syncContext)
         {
-            Thread.CurrentThread.SynchronizationContext = syncContext;
+            RuntimeThread.CurrentThread.SynchronizationContext = syncContext;
         }
 
         public static SynchronizationContext Current
         {
             get
             {
-                SynchronizationContext context = Thread.CurrentThread.SynchronizationContext;
+                SynchronizationContext context = RuntimeThread.CurrentThread.SynchronizationContext;
 
 #if FEATURE_APPX
                 if (context == null && ApplicationModel.IsUap)

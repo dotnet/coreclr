@@ -2366,9 +2366,9 @@ namespace System.Threading.Tasks
         /// can override to customize their behavior, which is usually done by promises
         /// that want to reuse the same object as a queued work item.
         /// </summary>
-        internal virtual void ExecuteFromThreadPool(Thread threadPoolThread) => ExecuteEntryUnsafe(threadPoolThread);
+        internal virtual void ExecuteFromThreadPool(RuntimeThread threadPoolThread) => ExecuteEntryUnsafe(threadPoolThread);
 
-        internal void ExecuteEntryUnsafe(Thread threadPoolThread) // used instead of ExecuteEntry() when we don't have to worry about double-execution prevent
+        internal void ExecuteEntryUnsafe(RuntimeThread threadPoolThread) // used instead of ExecuteEntry() when we don't have to worry about double-execution prevent
         {
             // Remember that we started running the task delegate.
             m_stateFlags |= TASK_STATE_DELEGATE_INVOKED;
@@ -2396,7 +2396,7 @@ namespace System.Threading.Tasks
         }
 
         // A trick so we can refer to the TLS slot with a byref.
-        private void ExecuteWithThreadLocal(ref Task currentTaskSlot, Thread threadPoolThread = null)
+        private void ExecuteWithThreadLocal(ref Task currentTaskSlot, RuntimeThread threadPoolThread = null)
         {
             // Remember the current task so we can restore it after running, and then
             Task previousTask = currentTaskSlot;
