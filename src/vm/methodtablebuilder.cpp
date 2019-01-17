@@ -3820,6 +3820,8 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
         }
 
         // Determine if a field is a fixed buffer.
+        // Fixed buffers are always value types and can only occur on value classes.
+        if (IsValueClass() && ElementType == ELEMENT_TYPE_VALUETYPE)
         {
             HRESULT hr;
 
