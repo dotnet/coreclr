@@ -1277,17 +1277,21 @@ EEClass::CheckForHFA()
             break;
 
         case ELEMENT_TYPE_R4:
-            static const int REQUIRED_FLOAT_ALIGNMENT = 4;
-            if (pFD->GetOffset() % REQUIRED_FLOAT_ALIGNMENT != 0) // HFAs don't have unaligned fields.
             {
-                return false;
+                static const int REQUIRED_FLOAT_ALIGNMENT = 4;
+                if (pFD->GetOffset() % REQUIRED_FLOAT_ALIGNMENT != 0) // HFAs don't have unaligned fields.
+                {
+                    return false;
+                }
             }
             break;
         case ELEMENT_TYPE_R8:
-            static const int REQUIRED_DOUBLE_ALIGNMENT = 8;
-            if (pFD->GetOffset() % REQUIRED_DOUBLE_ALIGNMENT != 0) // HFAs don't have unaligned fields.
             {
-                return false;
+                static const int REQUIRED_DOUBLE_ALIGNMENT = 8;
+                if (pFD->GetOffset() % REQUIRED_DOUBLE_ALIGNMENT != 0) // HFAs don't have unaligned fields.
+                {
+                    return false;
+                }
             }
             break;
         default:
