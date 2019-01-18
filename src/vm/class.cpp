@@ -1243,10 +1243,8 @@ EEClass::CheckForHFA()
     // This method should be called for valuetypes only
     _ASSERTE(GetMethodTable()->IsValueType());
 
-    // No HFAs with explicit layout. There may be cases where explicit layout may be still
-    // eligible for HFA, but it is hard to tell the real intent. Make it simple and just 
-    // unconditionally disable HFAs for explicit layout.
-    if (HasExplicitFieldOffsetLayout())
+    // No HFAs with overlapping fields.
+    if (HasOverLayedField())
         return false;
 
     // The SIMD Intrinsic types are meant to be handled specially and should not be treated as HFA
@@ -1269,6 +1267,7 @@ EEClass::CheckForHFA()
     for (UINT i = 0; i < GetNumInstanceFields(); i++)
     {
         FieldDesc *pFD = &pFieldDescList[i];
+
         CorElementType fieldType = pFD->GetFieldType();
 
         switch (fieldType)
@@ -1282,9 +1281,17 @@ EEClass::CheckForHFA()
             break;
 
         case ELEMENT_TYPE_R4:
-        case ELEMENT_TYPE_R8:
+            if (pFD->GetOffset() % alignof(float) != 0) // HFAs don't have unaligned fields.
+            {
+                return false;
+            }
             break;
-
+        case ELEMENT_TYPE_R8:
+            if (pFD->GetOffset() % alignof(double) != 0) // HFAs don't have unaligned fields.
+            {
+                return false;
+            }
+            break;
         default:
             // Not HFA
             return false;
