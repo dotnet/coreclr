@@ -582,11 +582,6 @@ int TP_wcsncpy_s(LPWSTR strDestination, size_t size1, LPCWSTR strSource, size_t 
     return 0;
 }
 
-int TP_wcsncpy_s(LPWSTR strDestination, size_t size1, LPCWSTR strSource)
-{
-    return TP_wcsncpy_s(strDestination, size1, strSource, 0);
-}
-
 int TP_wcsncmp(LPCWSTR str1, LPCWSTR str2,size_t len)
 {
     // < 0 str1 less than str2
