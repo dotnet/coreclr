@@ -2204,11 +2204,11 @@ bool MethodTable::ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helpe
 {
     if (useNativeLayout)
     {
-        return ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout, /* isFixedBuffer */ false);
+        return ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout);
     }
     else
     {
-        return ClassifyEightBytesWithManagedLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout, /* isFixedBuffer */ false);
+        return ClassifyEightBytesWithManagedLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout);
     }
 }
 
@@ -2265,8 +2265,7 @@ static SystemVClassificationType ReClassifyField(SystemVClassificationType origi
 bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassingHelperPtr helperPtr,
                                                      unsigned int nestingLevel, 
                                                      unsigned int startOffsetOfStruct,
-                                                     bool useNativeLayout,
-                                                     bool isFixedBuffer)
+                                                     bool useNativeLayout)
 {
     CONTRACTL
     {
@@ -2310,10 +2309,23 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
 
     FieldDesc *pFieldStart = GetApproxFieldDescListRaw();
 
+    CorElementType firstFieldElementType = pFieldStart->GetFieldType();
+
+    // A fixed buffer type is always a value type that has exactly one value type field at offset 0
+    // and who's size is an exact multiple of the size of the field.
+    // It is possible that we catch a false positive with this check, but that chance is extremely slim
+    // and the user can always change their structure to something more descriptive of what they want
+    // instead of adding additional padding at the end of a one-field structure.
+    bool isFixedBuffer = numIntroducedFields == 1
+                                && ( CorTypeInfo::IsPrimitiveType_NoThrow(firstFieldElementType)
+                                    || firstFieldElementType == ELEMENT_TYPE_VALUETYPE)
+                                && (pFieldStart->GetOffset() == 0)
+                                && IsValueType()
+                                && HasLayout()
+                                && (GetLayoutInfo()->GetManagedSize() % pFieldStart->GetSize() == 0);
+
     if (isFixedBuffer)
     {
-        _ASSERTE_MSG(numIntroducedFields == 1, "Fixed buffer types only have one field in metadata.");
-        _ASSERTE(HasLayout());
         numIntroducedFields = GetLayoutInfo()->GetManagedSize() / pFieldStart->GetSize();
     }
 
@@ -2386,11 +2398,11 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
             if (useNativeLayout && pFieldMT->HasLayout())
             {
 
-                structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout, pField->IsFixedBufferField());
+                structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
             }
             else
             {
-                structRet = pFieldMT->ClassifyEightBytesWithManagedLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout, pField->IsFixedBufferField());
+                structRet = pFieldMT->ClassifyEightBytesWithManagedLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
             }
             
             helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
@@ -2548,8 +2560,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
 bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassingHelperPtr helperPtr,
                                                     unsigned int nestingLevel, 
                                                     unsigned int startOffsetOfStruct, 
-                                                    bool useNativeLayout,
-                                                    bool isFixedBuffer)
+                                                    bool useNativeLayout)
 {
     CONTRACTL
     {
@@ -2570,7 +2581,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
     if (!HasLayout())
     {
         // If there is no native layout for this struct use the managed layout instead.
-        return ClassifyEightBytesWithManagedLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout, isFixedBuffer);
+        return ClassifyEightBytesWithManagedLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout);
     }
 
     const FieldMarshaler *pFieldMarshaler = GetLayoutInfo()->GetFieldMarshalers();
@@ -2581,6 +2592,19 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
     {
         return false;
     }
+
+    // A fixed buffer type is always a value type that has exactly one value type field at offset 0
+    // and who's size is an exact multiple of the size of the field.
+    // It is possible that we catch a false positive with this check, but that chance is extremely slim
+    // and the user can always change their structure to something more descriptive of what they want
+    // instead of adding additional padding at the end of a one-field structure.
+    CorElementType firstFieldElementType = pFieldMarshaler->GetFieldDesc()->GetFieldType();
+    bool isFixedBuffer = numIntroducedFields == 1
+                                && ( CorTypeInfo::IsPrimitiveType_NoThrow(firstFieldElementType)
+                                    || firstFieldElementType == ELEMENT_TYPE_VALUETYPE)
+                                && (pFieldMarshaler->GetExternalOffset() == 0)
+                                && IsValueType()
+                                && (GetLayoutInfo()->GetNativeSize() % pFieldMarshaler->NativeSize() == 0);
 
     if (isFixedBuffer)
     {
@@ -2704,8 +2728,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                         helperPtr,
                         nestingLevel + 1,
                         normalizedFieldOffset,
-                        useNativeLayout,
-                        /* isFixedBuffer */ false);
+                        useNativeLayout);
                     helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
                 }
 
@@ -2772,8 +2795,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                 helperPtr,
                 nestingLevel + 1,
                 normalizedFieldOffset,
-                useNativeLayout,
-                !!pFieldMarshaler->GetFieldDesc()->IsFixedBufferField());
+                useNativeLayout);
             helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
 
             if (!structRet)
@@ -2799,8 +2821,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                 helperPtr,
                 nestingLevel + 1,
                 normalizedFieldOffset,
-                useNativeLayout,
-                /* isFixedBuffer */ false);
+                useNativeLayout);
             helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
 
             if (!structRet)
