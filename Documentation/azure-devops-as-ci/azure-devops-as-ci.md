@@ -1,17 +1,30 @@
-# Testing with Azure DevOps
+Testing with Azure DevOps
+===
 
 We enabled Azure DevOps for pull request validation. You can now see the new "badge" **coreclr-ci** that was added on a pull request page.
 
-We also disabled triggering Windows_NT Ubuntu arm32/arm64 innerloop jobs from Jenkins since they are running on limited hardware.
+We disabled default triggering for the following innerloop jobs in Jenkins:
+
+* Ubuntu arm Cross Checked Innerloop Build and Test
+* Ubuntu arm Cross Checked no_tiered_compilation_innerloop Build and Test
+* Ubuntu16.04 arm64 Cross Checked Innerloop Build and Test 
+* Ubuntu16.04 arm64 Cross Checked no_tiered_compilation_innerloop Build and Test
+* Windows_NT arm Cross Debug Innerloop Build
+* Windows_NT arm Cross Checked Innerloop Build and Test
+* Windows_NT arm64 Cross Debug Innerloop Build
+* Windows_NT arm64 Cross Checked Innerloop Build and Test
+
+since they are using limited hardware.
+
 The results for those jobs can be found in the new CI system. 
-Other legs are running as usual and we will continue monitoring them to validate consistency between Jenkins and AzDev test jobs.
+Other Jenkins jobs are running as usual and we will continue monitoring them to validate consistency between Jenkins and AzDev test jobs.
 
 # How to find the test results in Azure DevOps?
 
 If you click on coreclr-ci Details link 
 ![coreclr-ci-badge](coreclr-ci-badge.png)
 
-this would take you to (Azure DevOps Portal)[https://dev.azure.com/dnceng/public/_build?definitionId=228] for dotnet/coreclr repo where you can see on the left Build and Test jobs that were triggered.
+this would take you to [Azure DevOps Portal](https://dev.azure.com/dnceng/public/_build?definitionId=228) for dotnet/coreclr repo where you can see on the left Build and Test jobs that were triggered.
 
 ![azdev-portal](azdev-portal.png)
 
@@ -19,7 +32,8 @@ You can select a job and see what step it is currently running.
 
 ![azdev-job-step](azdev-job-step.png)
 
-All the test jobs have "Send tests to Helix" step which uploads built product binaries and test artifacts to Helix machines for running concurrently and waits for all tests to finish.
+All the test jobs have **"Send tests to Helix"** step which uploads product binaries and test artifacts to Helix machines for running the tests concurrently and waits for them to finish.
+
 If all tests are passed the step icon turns green. 
 
 
