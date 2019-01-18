@@ -244,23 +244,13 @@ inline void CoreClrFree(void *p)
 #define TP_GetProcAddress(m,e) dlsym(m,e)
 #define TP_rand arc4random
 #define TP_srand srandom
-#define wcscpy_s TP_scpy_s
-#define wcscat_s TP_scat_s
 #define GetFullPathNameW(fname,buflen,buf,filepart)  TP_GetFullPathName(fname,buflen,buf)
-#define wcslen TP_slen
-#define _wgetenv_s TP_getenv_s
-#define _wputenv_s TP_putenv_s
 #define ZeroMemory TP_ZeroMemory
 #define _itow_s TP_itow_s
 #define _itoa_s TP_itoa_s
-#define wcsstr TP_sstr
 #define strcmp TP_scmp_s
-#define wcscmp TP_wcmp_s
 #define strncpy_s TP_strncpy_s
 #define strcpy_s TP_strcpy_s
-#define wcsncpy_s TP_wcsncpy_s
-#define wcsncpy_s TP_wcsncpy_s
-#define wcsncmp TP_wcsncmp
 #define wmemcmp TP_wmemcmp
 #endif
 
