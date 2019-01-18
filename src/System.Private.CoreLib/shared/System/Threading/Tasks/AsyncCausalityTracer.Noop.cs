@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#if !FEATURE_COMINTEROP
-
 using System.Diagnostics;
 
 namespace System.Threading.Tasks
@@ -44,7 +42,7 @@ namespace System.Threading.Tasks
     //
     internal static class AsyncCausalityTracer
     {
-        public static readonly bool LoggingOn = false;
+        public static bool LoggingOn => false;
 
         [Conditional("NOOP_ASYNCCASUALITYTRACER")]
         public static void EnableToETW(bool enabled)
@@ -77,5 +75,3 @@ namespace System.Threading.Tasks
         }
     }
 }
-
-#endif
