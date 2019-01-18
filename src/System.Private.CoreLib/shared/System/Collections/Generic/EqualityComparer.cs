@@ -165,11 +165,13 @@ namespace System.Collections.Generic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(T x, T y) => Enum.EnumCache<T>.Cache.Equals(x, y);
+        // public override bool Equals(T x, T y) is runtime-specific
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override int GetHashCode(T obj) => Enum.EnumCache<T>.Cache.GetHashCode(obj);
+        public override int GetHashCode(T obj)
+        {
+            return obj.GetHashCode();
+        }
 
         // Equals method for the comparer itself.
         public override bool Equals(object obj) =>

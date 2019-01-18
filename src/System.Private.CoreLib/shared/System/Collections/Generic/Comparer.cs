@@ -127,7 +127,7 @@ namespace System.Collections.Generic
         // Used by the serialization engine.
         private EnumComparer(SerializationInfo info, StreamingContext context) { }
 
-        public override int Compare(T x, T y) => Enum.EnumCache<T>.Cache.CompareTo(x, y);
+        // public override int Compare(T x, T y) is runtime-specific
 
         // Equals method for the comparer itself. 
         public override bool Equals(object obj) =>

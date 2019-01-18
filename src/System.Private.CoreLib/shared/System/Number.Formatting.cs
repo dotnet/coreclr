@@ -1032,7 +1032,7 @@ namespace System
             return true;
         }
 
-        internal static unsafe string Int32ToHexStr(int value, char hexBase, int digits)
+        private static unsafe string Int32ToHexStr(int value, char hexBase, int digits)
         {
             if (digits < 1)
                 digits = 1;
@@ -1308,7 +1308,7 @@ namespace System
             return true;
         }
 
-        internal static unsafe string Int64ToHexStr(long value, char hexBase, int digits)
+        private static unsafe string Int64ToHexStr(long value, char hexBase, int digits)
         {
             int bufferLength = Math.Max(digits, FormattingHelpers.CountHexDigits((ulong)value));
             string result = string.FastAllocateString(bufferLength);

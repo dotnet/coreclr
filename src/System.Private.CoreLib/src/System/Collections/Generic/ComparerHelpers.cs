@@ -50,7 +50,7 @@ namespace System.Collections.Generic
             // The comparer for enums is specialized to avoid boxing.
             else if (type.IsEnum)
             {
-                result = CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumComparer<>), runtimeType);
+                result = CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumComparer<DayOfWeek>), runtimeType);
             }
             
             return result ?? CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ObjectComparer<object>), runtimeType);
@@ -111,7 +111,7 @@ namespace System.Collections.Generic
             // The equality comparer for enums is specialized to avoid boxing.
             else if (type.IsEnum)
             {
-                result = CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumEqualityComparer<>), runtimeType);
+                result = CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumEqualityComparer<DayOfWeek>), runtimeType);
             }
             
             return result ?? CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ObjectEqualityComparer<object>), runtimeType);

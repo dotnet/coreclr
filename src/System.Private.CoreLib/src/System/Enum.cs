@@ -251,7 +251,6 @@ namespace System
             string Format(object value, string format);
             string GetName(object value);
             string[] GetNames();
-            object GetUnderlyingValue(ref byte value);
             Array GetValues();
             bool HasFlag(ref byte value, object flag);
             bool IsDefined(object value);
@@ -269,7 +268,7 @@ namespace System
             sbyte ToSByte(ref byte value);
             float ToSingle(ref byte value);
             string ToString(ref byte value);
-            string ToString(ref byte value, string format);
+            string ToStringFlags(ref byte value);
             ushort ToUInt16(ref byte value);
             uint ToUInt32(ref byte value);
             ulong ToUInt64(ref byte value);
@@ -278,9 +277,6 @@ namespace System
 
         internal interface IEnumCache<TEnum> : IEnumCache
         {
-            int CompareTo(TEnum value, TEnum other);
-            bool Equals(TEnum value, TEnum other);
-            int GetHashCode(TEnum value);
             new TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase);
             bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result);
         }
@@ -343,12 +339,6 @@ namespace System
                 return success;
             }
 
-            public int CompareTo(TEnum value, TEnum other) => Operations.CompareTo(ToUnderlying(value), ToUnderlying(other));
-
-            public bool Equals(TEnum value, TEnum other) => ToUnderlying(value).Equals(ToUnderlying(other));
-
-            public int GetHashCode(TEnum value) => ToUnderlying(value).GetHashCode();
-
             public string Format(object value, string format)
             {
                 Debug.Assert(value != null);
@@ -359,8 +349,6 @@ namespace System
             public string GetName(object value) => value is TEnum enumValue ? Members.GetName(ToUnderlying(enumValue)) : Members.GetName(value);
 
             public string[] GetNames() => Members.GetNames();
-
-            public object GetUnderlyingValue(ref byte value) => ToUnderlying(ref value);
 
             public Array GetValues()
             {
@@ -417,7 +405,7 @@ namespace System
 
             public string ToString(ref byte value) => Members.ToString(ToUnderlying(ref value));
 
-            public string ToString(ref byte value, string format) => Members.ToString(ToUnderlying(ref value), format);
+            public string ToStringFlags(ref byte value) => Members.ToStringFlags(ToUnderlying(ref value));
 
             public ushort ToUInt16(ref byte value) => Operations.ToUInt16(ToUnderlying(ref value));
 
@@ -505,7 +493,7 @@ namespace System
 
             public string GetName(TUnderlying value)
             {
-                int index = IndexOf(_values, value);
+                int index = IndexOf(_values, value, default);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -537,7 +525,7 @@ namespace System
             public bool IsDefined(TUnderlying value)
             {
                 TUnderlyingOperations operations = default;
-                return _isContiguous ? !(operations.LessThan(value, _min) || operations.LessThan(_max, value)) : IndexOf(_values, value) >= 0;
+                return _isContiguous ? !(operations.LessThan(value, _min) || operations.LessThan(_max, value)) : IndexOf(_values, value, operations) >= 0;
             }
 
             public bool IsDefined(object value)
@@ -549,12 +537,14 @@ namespace System
                     case TUnderlying underlyingValue:
                         return IsDefined(underlyingValue);
                     case string str:
-                        return Array.IndexOf(_names, str) >= 0;
+                        string[] names = _names;
+                        return Array.IndexOf(names, str, 0, names.Length) >= 0;
                     default:
                         return ThrowIsDefinedException(value);
                 }
             }
 
+            [MethodImpl(MethodImplOptions.NoInlining)]
             private bool ThrowIsDefinedException(object value)
             {
                 if (value == null)
@@ -596,7 +586,7 @@ namespace System
                 {
                     return ToStringFlags(value);
                 }
-                int index = IndexOf(_values, value);
+                int index = IndexOf(_values, value, default);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -604,47 +594,7 @@ namespace System
                 return value.ToString();
             }
 
-            public string ToString(TUnderlying value, string format)
-            {
-                char formatCh;
-                if (format == null || format.Length == 0)
-                {
-                    formatCh = 'G';
-                }
-                else if (format.Length != 1)
-                {
-                    throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
-                }
-                else
-                {
-                    formatCh = format[0];
-                }
-
-                return FormatInternal(value, formatCh);
-            }
-
-            private string FormatInternal(TUnderlying value, char formatCh)
-            {
-                switch (formatCh)
-                {
-                    case 'G':
-                    case 'g':
-                        return ToString(value);
-                    case 'D':
-                    case 'd':
-                        return value.ToString();
-                    case 'X':
-                    case 'x':
-                        return default(TUnderlyingOperations).ToHexStr(value);
-                    case 'F':
-                    case 'f':
-                        return ToStringFlags(value);
-                    default:
-                        throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
-                }
-            }
-
-            private string ToStringFlags(TUnderlying value)
+            public string ToStringFlags(TUnderlying value)
             {
                 string[] names = _names;
                 TUnderlying[] values = _values;
@@ -661,7 +611,7 @@ namespace System
 
                 // It's common to have a flags enum with a single value that matches a single entry,
                 // in which case we can just return the existing name string.
-                int index = IndexOf(values, value);
+                int index = IndexOf(values, value, operations);
                 if (index >= 0)
                 {
                     return names[index];
@@ -732,12 +682,26 @@ namespace System
                 {
                     throw new ArgumentNullException(nameof(format));
                 }
-                if (format.Length != 1)
-                {
-                    throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
-                }
 
-                return FormatInternal(value, format[0]);
+                if (format.Length == 1)
+                {
+                    switch (format[0])
+                    {
+                        case 'G':
+                        case 'g':
+                            return ToString(value);
+                        case 'D':
+                        case 'd':
+                            return value.ToString();
+                        case 'X':
+                        case 'x':
+                            return default(TUnderlyingOperations).ToHexStr(value);
+                        case 'F':
+                        case 'f':
+                            return ToStringFlags(value);
+                    }
+                }
+                throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
             }
 
             public TUnderlying Parse(ReadOnlySpan<char> value, bool ignoreCase)
@@ -752,6 +716,7 @@ namespace System
                 return ThrowParseException(value, status);
             }
 
+            [MethodImpl(MethodImplOptions.NoInlining)]
             private static TUnderlying ThrowParseException(ReadOnlySpan<char> value, Number.ParsingStatus status)
             {
                 if (status == Number.ParsingStatus.Overflow)
@@ -842,7 +807,8 @@ namespace System
                 return status;
             }
 
-            private static int IndexOf(TUnderlying[] values, TUnderlying value) => ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, default(TUnderlyingOperations).UnsignedComparer);
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static int IndexOf(TUnderlying[] values, TUnderlying value, TUnderlyingOperations operations) => ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, operations.UnsignedComparer);
         }
         #endregion
 
@@ -854,7 +820,6 @@ namespace System
             string OverflowMessage { get; }
             IComparer<TUnderlying> UnsignedComparer { get; }
             TUnderlying And(TUnderlying left, TUnderlying right);
-            int CompareTo(TUnderlying left, TUnderlying right);
             bool IsInValueRange(ulong value);
             bool LessThan(TUnderlying left, TUnderlying right);
             TUnderlying Or(TUnderlying left, TUnderlying right);
@@ -1030,50 +995,6 @@ namespace System
                 return (UIntPtr)((ulong)left & (ulong)right);
 #else
                 return (UIntPtr)((uint)left & (uint)right);
-#endif
-            }
-            #endregion
-
-            #region CompareTo
-            public int CompareTo(byte left, byte right) => left.CompareTo(right);
-
-            public int CompareTo(sbyte left, sbyte right) => left.CompareTo(right);
-
-            public int CompareTo(short left, short right) => left.CompareTo(right);
-
-            public int CompareTo(ushort left, ushort right) => left.CompareTo(right);
-
-            public int CompareTo(int left, int right) => left.CompareTo(right);
-
-            public int CompareTo(uint left, uint right) => left.CompareTo(right);
-
-            public int CompareTo(long left, long right) => left.CompareTo(right);
-
-            public int CompareTo(ulong left, ulong right) => left.CompareTo(right);
-
-            public int CompareTo(bool left, bool right) => left.CompareTo(right);
-
-            public int CompareTo(char left, char right) => left.CompareTo(right);
-
-            public int CompareTo(float left, float right) => BitConverter.SingleToInt32Bits(left).CompareTo(BitConverter.SingleToInt32Bits(right));
-
-            public int CompareTo(double left, double right) => BitConverter.DoubleToInt64Bits(left).CompareTo(BitConverter.DoubleToInt64Bits(right));
-
-            public int CompareTo(IntPtr left, IntPtr right)
-            {
-#if BIT64
-                return ((long)left).CompareTo((long)right);
-#else
-                return ((int)left).CompareTo((int)right);
-#endif
-            }
-
-            public int CompareTo(UIntPtr left, UIntPtr right)
-            {
-#if BIT64
-                return ((ulong)left).CompareTo((ulong)right);
-#else
-                return ((uint)left).CompareTo((uint)right);
 #endif
             }
             #endregion
@@ -2074,6 +1995,125 @@ namespace System
         #endregion
 
         #region Private Methods
+        internal object GetValue()
+        {
+            ref byte data = ref this.GetRawData();
+            switch (InternalGetCorElementType())
+            {
+                case CorElementType.ELEMENT_TYPE_I1:
+                    return Unsafe.As<byte, sbyte>(ref data);
+                case CorElementType.ELEMENT_TYPE_U1:
+                    return data;
+                case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                    return Unsafe.As<byte, bool>(ref data);
+                case CorElementType.ELEMENT_TYPE_I2:
+                    return Unsafe.As<byte, short>(ref data);
+                case CorElementType.ELEMENT_TYPE_U2:
+                    return Unsafe.As<byte, ushort>(ref data);
+                case CorElementType.ELEMENT_TYPE_CHAR:
+                    return Unsafe.As<byte, char>(ref data);
+                case CorElementType.ELEMENT_TYPE_I4:
+                    return Unsafe.As<byte, int>(ref data);
+                case CorElementType.ELEMENT_TYPE_U4:
+                    return Unsafe.As<byte, uint>(ref data);
+                case CorElementType.ELEMENT_TYPE_R4:
+                    return Unsafe.As<byte, float>(ref data);
+                case CorElementType.ELEMENT_TYPE_I8:
+                    return Unsafe.As<byte, long>(ref data);
+                case CorElementType.ELEMENT_TYPE_U8:
+                    return Unsafe.As<byte, ulong>(ref data);
+                case CorElementType.ELEMENT_TYPE_R8:
+                    return Unsafe.As<byte, double>(ref data);
+                case CorElementType.ELEMENT_TYPE_I:
+                    return Unsafe.As<byte, IntPtr>(ref data);
+                case CorElementType.ELEMENT_TYPE_U:
+                    return Unsafe.As<byte, UIntPtr>(ref data);
+                default:
+                    Debug.Fail("Invalid primitive type");
+                    return null;
+            }
+        }
+
+        private string ValueToString()
+        {
+            ref byte data = ref this.GetRawData();
+            switch (InternalGetCorElementType())
+            {
+                case CorElementType.ELEMENT_TYPE_I1:
+                    return Unsafe.As<byte, sbyte>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_U1:
+                    return data.ToString();
+                case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                    return Unsafe.As<byte, bool>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_I2:
+                    return Unsafe.As<byte, short>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_U2:
+                    return Unsafe.As<byte, ushort>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_CHAR:
+                    return Unsafe.As<byte, char>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_I4:
+                    return Unsafe.As<byte, int>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_U4:
+                    return Unsafe.As<byte, uint>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_R4:
+                    return Unsafe.As<byte, float>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_I8:
+                    return Unsafe.As<byte, long>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_U8:
+                    return Unsafe.As<byte, ulong>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_R8:
+                    return Unsafe.As<byte, double>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_I:
+                    return Unsafe.As<byte, IntPtr>(ref data).ToString();
+                case CorElementType.ELEMENT_TYPE_U:
+                    return Unsafe.As<byte, UIntPtr>(ref data).ToString();
+                default:
+                    Debug.Fail("Invalid primitive type");
+                    return null;
+            }
+        }
+
+        private string ValueToHexString()
+        {
+            ref byte data = ref this.GetRawData();
+            switch (InternalGetCorElementType())
+            {
+                case CorElementType.ELEMENT_TYPE_I1:
+                case CorElementType.ELEMENT_TYPE_U1:
+                    return data.ToString("X2", null);
+                case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                    return Convert.ToByte(Unsafe.As<byte, bool>(ref data)).ToString("X2", null);
+                case CorElementType.ELEMENT_TYPE_I2:
+                case CorElementType.ELEMENT_TYPE_U2:
+                case CorElementType.ELEMENT_TYPE_CHAR:
+                    return Unsafe.As<byte, ushort>(ref data).ToString("X4", null);
+                case CorElementType.ELEMENT_TYPE_I4:
+                case CorElementType.ELEMENT_TYPE_U4:
+                    return Unsafe.As<byte, uint>(ref data).ToString("X8", null);
+                case CorElementType.ELEMENT_TYPE_I8:
+                case CorElementType.ELEMENT_TYPE_U8:
+                    return Unsafe.As<byte, ulong>(ref data).ToString("X16", null);
+                case CorElementType.ELEMENT_TYPE_R4:
+                    return BitConverter.SingleToInt32Bits(Unsafe.As<byte, float>(ref data)).ToString("X8", null);
+                case CorElementType.ELEMENT_TYPE_R8:
+                    return BitConverter.DoubleToInt64Bits(Unsafe.As<byte, double>(ref data)).ToString("X16", null);
+                case CorElementType.ELEMENT_TYPE_I:
+#if BIT64
+                    return ((long)Unsafe.As<byte, IntPtr>(ref data)).ToString("X16", null);
+#else
+                    return ((int)Unsafe.As<byte, IntPtr>(ref data)).ToString("X8", null);
+#endif
+                case CorElementType.ELEMENT_TYPE_U:
+#if BIT64
+                    return ((ulong)Unsafe.As<byte, IntPtr>(ref data)).ToString("X16", null);
+#else
+                    return ((uint)Unsafe.As<byte, IntPtr>(ref data)).ToString("X8", null);
+#endif
+                default:
+                    throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.InternalCall)]
         private extern CorElementType InternalGetCorElementType();
         #endregion
@@ -2179,8 +2219,34 @@ namespace System
         #endregion
 
         #region Public Methods
-        public string ToString(string format) =>
-            GetCache((RuntimeType)GetType()).ToString(ref this.GetRawData(), format);
+        public string ToString(string format)
+        {
+            if (string.IsNullOrEmpty(format))
+            {
+                return ToString();
+            }
+
+            if (format.Length == 1)
+            {
+                switch (format[0])
+                {
+                    case 'G':
+                    case 'g':
+                        return ToString();
+                    case 'D':
+                    case 'd':
+                        return ValueToString();
+                    case 'X':
+                    case 'x':
+                        return ValueToHexString();
+                    case 'F':
+                    case 'f':
+                        return GetCache((RuntimeType)GetType()).ToStringFlags(ref this.GetRawData());
+                }
+            }
+
+            throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
+        }
 
         [Obsolete("The provider argument is not used. Please use ToString().")]
         public string ToString(IFormatProvider provider) =>
