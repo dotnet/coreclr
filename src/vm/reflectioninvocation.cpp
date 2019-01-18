@@ -2842,8 +2842,8 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
             return CMPEXPR(i1,i2);
         }
         break;
-        
 
+        
     case ELEMENT_TYPE_I4:
     IN_WIN32(case ELEMENT_TYPE_I:)
         {
