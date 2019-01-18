@@ -27,7 +27,8 @@ public class Managed
         SequentialWrapperId,
         SequentialDoubleWrapperId,
         AggregateSequentialWrapperId,
-        FixedBufferClassificationTestId
+        FixedBufferClassificationTestId,
+        HFAId
     }
 
     private static void InitialArray(int[] iarr, int[] icarr)
@@ -326,6 +327,9 @@ public class Managed
 
     [DllImport("MarshalStructAsParam")]
     static extern HFA GetHFA(float f1, float f2, float f3, float f4);
+    
+    [DllImport("MarshalStructAsParam")]
+    static extern float ProductHFA(HFA hfa);
 
     [DllImport("MarshalStructAsParam")]
     static extern ManyInts GetMultiplesOf(int i);
@@ -653,6 +657,26 @@ public class Managed
                     if (!MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(fixedArrayTest, fixedArrayTest.f))
                     {
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest. Expected:True;Actual:False");
+                        failures++;
+                    }
+                    break;
+                case StructID.HFAId:
+                    HFA hfa = new HFA
+                    {
+                        f1 = 2.0f,
+                        f2 = 10.5f,
+                        f3 = 15.2f,
+                        f4 = 0.12f
+                    };
+
+                    float expected = hfa.f1 * hfa.f2 * hfa.f3 * hfa.f4;
+                    float actual;
+
+                    Console.WriteLine("\tCalling ProductHFA with Explicit HFA.");
+                    actual = ProductHFA(hfa);
+                    if (expected != actual)
+                    {
+                        Console.WriteLine($"\tFAILED! Expected {expected}. Actual {actual}");
                         failures++;
                     }
                     break;
@@ -2278,6 +2302,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByVal(StructID.SequentialDoubleWrapperId);
         MarshalStructAsParam_AsSeqByVal(StructID.AggregateSequentialWrapperId);
         MarshalStructAsParam_AsSeqByVal(StructID.FixedBufferClassificationTestId);
+        MarshalStructAsParam_AsSeqByVal(StructID.HFAId);
     }
 
     [SecuritySafeCritical]

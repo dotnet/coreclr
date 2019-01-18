@@ -1195,6 +1195,11 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByValFixe
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
+extern "C" DLL_EXPORT float STDMETHODCALLTYPE ProductHFA(HFA hfa)
+{
+    return hfa.f1 * hfa.f2 * hfa.f3 * hfa.f4;
+}
+
 extern "C" DLL_EXPORT HFA STDMETHODCALLTYPE GetHFA(float f1, float f2, float f3, float f4)
 {
     return {f1, f2, f3, f4};

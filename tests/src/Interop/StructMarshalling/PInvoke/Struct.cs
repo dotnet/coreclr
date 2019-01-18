@@ -308,6 +308,43 @@ public struct HFA
     public float f4;
 }
 
+[StructLayout(LayoutKind.Explicit)]
+public struct ExplicitHFA
+{
+    [FieldOffset(0)]
+    public float f1;
+    [FieldOffset(4)]
+    public float f2;
+    [FieldOffset(8)]
+    public float f3;
+    [FieldOffset(12)]
+    public float f4;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public unsafe struct ExplicitFixedHFA
+{
+    [FieldOffset(0)]
+    public float f1;
+    [FieldOffset(4)]
+    public float f2;
+    [FieldOffset(8)]
+    public fixed float fs[2];
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct OverlappingHFA
+{
+    [FieldOffset(0)]
+    public HFA hfa;
+
+    [FieldOffset(0)]
+    public ExplicitHFA explicitHfa;
+
+    [FieldOffset(0)]
+    public ExplicitFixedHFA explicitFixedHfa;
+}
+
 [StructLayout(LayoutKind.Sequential)]
 public struct ManyInts
 {
@@ -388,10 +425,10 @@ public struct OverlappingLongFloat2
 [StructLayout(LayoutKind.Explicit)]
 public struct OverlappingMultipleEightbyte
 {
-    [FieldOffset(0), MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-    public float[] arr;
     [FieldOffset(8)]
     public int i;
+    [FieldOffset(0), MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+    public float[] arr;
 }
 
 [StructLayout(LayoutKind.Sequential)]
