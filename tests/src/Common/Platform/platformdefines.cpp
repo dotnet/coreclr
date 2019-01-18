@@ -145,7 +145,7 @@ error_t TP_getenv_s(size_t* pReturnValue, LPWSTR buffer, size_t sizeInWords, LPC
     
      size_t  returnValue;
      WCHAR   buf[100];
-     if( 0 != TP_getenv_s(&returnValue, buf, 100, varname) || returnValue<=0 )
+     if( 0 != _wgetenv_s(&returnValue, buf, 100, varname) || returnValue<=0 )
         return 2;
     
     
@@ -164,7 +164,7 @@ error_t TP_putenv_s(LPWSTR name, LPWSTR value)
     if (NULL == name || NULL == value) return 1;
 
 #ifdef WINDOWS
-    if( 0 != TP_putenv_s(name, value))
+    if( 0 != _wputenv_s(name, value))
         return 2;
     else
         return 0;
