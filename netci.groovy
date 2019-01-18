@@ -1927,7 +1927,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'innerloop':
                         case 'no_tiered_compilation_innerloop':
                             if (configuration == 'Checked') {
-                                isDefaultTrigger = false
                             }
                             break
                          case 'crossgen_comparison':
@@ -1951,13 +1950,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
                     switch (scenario) {
                         case 'innerloop':
-                            if (configuration == 'Debug') {
-                                // Add default PR trigger for Windows arm64 Debug builds. This is a build only -- no tests are run --
-                                // so the private test hardware is not used. Thus, it can be run by all users, not just arm64Users.
-                                // People in arm64Users will get both this and the Checked Build and Test job.
-                                isDefaultTrigger = false
-                            } else if (configuration == 'Checked') {
-                                isDefaultTrigger = false
+                            if (configuration == 'Checked') {
                                 isArm64PrivateJob = true
                             }
                             break
