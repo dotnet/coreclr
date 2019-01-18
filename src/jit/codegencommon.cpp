@@ -10429,8 +10429,6 @@ void CodeGen::genSetScopeInfo()
 
                 case TYP_FLOAT:
                 case TYP_DOUBLE:
-                    // TODO-AMD64-Bug: ndp\clr\src\inc\corinfo.h has a definition of RegNum that only goes up to R15,
-                    // so no XMM registers can get debug information.
                     varLoc.vlType       = Compiler::VLT_REG_FP;
                     varLoc.vlReg.vlrReg = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
                     break;
