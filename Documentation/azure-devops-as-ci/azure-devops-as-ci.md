@@ -46,6 +46,8 @@ and then click on the link that starts with **Results will be available from**
 
 which would take you to Mission Control website
 
+![azdev-job-step-red-mc-link](azdev-job-step-red-mc-link.png)
+
 You will see the matrix of test results where columns correspond to combinations of different operating systems and architectures (e.g., Fedora.28.Amd64.Open-x64, Windows.10.Amd64.Open-x86) while rows correspond to different collections of tests (e.g.,  JIT.Performance, GC.Regressions).
 
 If there are failing tests the will appear at the bottom 
