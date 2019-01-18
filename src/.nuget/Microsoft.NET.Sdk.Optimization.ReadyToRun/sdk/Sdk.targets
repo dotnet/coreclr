@@ -25,7 +25,6 @@ Copyright (c) .NET Foundation. All rights reserved.
           BeforeTargets="ComputeFilesToPublish"
           DependsOnTargets="_CheckForUnsupportedReadyToRunCompilation;
                             _ComputeCrossGenInputs;
-                            _RestoreRuntime;
                             _InitializeCrossgenProps;
                             _RunCrossgenOnInputs;
                             _PublishCrossgenOutputs"
@@ -75,58 +74,21 @@ Copyright (c) .NET Foundation. All rights reserved.
     </ItemGroup>
   </Target>
 
-  <!-- TODO: Remove this restore task. We should already have restored the runtime package. However, we'll need to obtain a path to that package somehow -->
-  <Target Name="_RestoreRuntime"
-          DependsOnTargets="ApplyImplicitVersions">
-    <PropertyGroup>
-      <_RuntimeRestoreDir>$([System.IO.Path]::Combine($(_IntermediateReadyToRunDir),"RuntimeRestore"))</_RuntimeRestoreDir>
-      <_RuntimeRestoreAssetsFile>$([System.IO.Path]::Combine($(_RuntimeRestoreDir),"project.assets.json"))</_RuntimeRestoreAssetsFile>
-    </PropertyGroup>
-
-    <MakeDir Directories="$(_RuntimeRestoreDir)"/>
-
-    <ItemGroup>
-      <!-- Filter package references to the one for the platform library, in order to find the right version -->
-      <PackageReferenceForCrossGen Include="@(PackageReference)" Condition="'%(Identity)' == '$(MicrosoftNETPlatformLibrary)'" />
-    </ItemGroup>
-
-    <MSBuild Projects="$(MSBuildProjectFullPath)"
-                 Targets="Restore"
-                 Properties="RestoreGraphProjectInput=$(MSBuildProjectFullPath);
-                             DisableImplicitFrameworkReferences=true;
-                             RestoreOutputPath=$(_RuntimeRestoreDir);
-                             StorePackageName=$(MicrosoftNETPlatformLibrary);
-                             StorePackageVersion=%(PackageReferenceForCrossGen.Version);"/>
-
-    <ResolvePublishAssemblies ProjectPath="$(MSBuildProjectFullPath)"
-                              AssetsFilePath="$(_RuntimeRestoreAssetsFile)"
-                              TargetFramework="$(TargetFramework)"
-                              RuntimeIdentifier="$(RuntimeIdentifier)"
-                              PlatformLibraryName="$(MicrosoftNETPlatformLibrary)"
-                              RuntimeFrameworks="@(RuntimeFramework)"
-                              ExcludeFromPublishPackageReferences="@(_ExcludeFromPublishPackageReference)"
-                              IsSelfContained="$(SelfContained)"
-                              PreserveStoreLayout="false">
-
-      <Output TaskParameter="AssembliesToPublish" ItemName="CrossgenResolvedAssembliesToPublish" />
-    </ResolvePublishAssemblies>
-  </Target>
-
   <Target Name="_InitializeCrossgenProps">
     <!-- Get the coreclr path -->
     <ItemGroup>
-      <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
-                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='coreclr'" />
-      <_CoreclrResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
-                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='libcoreclr'" />
-      <_JitResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
-                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='clrjit'" />
-      <_JitResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
-                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='libclrjit'" />
-      <_SystemPrivateCoreLibResolvedPath Include="@(CrossgenResolvedAssembliesToPublish)"
-                                             Condition="'%(CrossgenResolvedAssembliesToPublish.Filename)'=='System.Private.CoreLib'" />
-      <_MicrosoftDiaSymReaderNativePath Include="@(CrossgenResolvedAssembliesToPublish)"
-                                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(CrossgenResolvedAssembliesToPublish.Filename)', '^Microsoft\.DiaSymReader\.Native\.'))" />
+      <_CoreclrResolvedPath Include="@(ResolvedAssembliesToPublish)"
+                                             Condition="'%(ResolvedAssembliesToPublish.Filename)'=='coreclr'" />
+      <_CoreclrResolvedPath Include="@(ResolvedAssembliesToPublish)"
+                                             Condition="'%(ResolvedAssembliesToPublish.Filename)'=='libcoreclr'" />
+      <_JitResolvedPath Include="@(ResolvedAssembliesToPublish)"
+                                             Condition="'%(ResolvedAssembliesToPublish.Filename)'=='clrjit'" />
+      <_JitResolvedPath Include="@(ResolvedAssembliesToPublish)"
+                                             Condition="'%(ResolvedAssembliesToPublish.Filename)'=='libclrjit'" />
+      <_SystemPrivateCoreLibResolvedPath Include="@(ResolvedAssembliesToPublish)"
+                                             Condition="'%(ResolvedAssembliesToPublish.Filename)'=='System.Private.CoreLib'" />
+      <_MicrosoftDiaSymReaderNativePath Include="@(ResolvedAssembliesToPublish)"
+                                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedAssembliesToPublish.Filename)', '^Microsoft\.DiaSymReader\.Native\.'))" />
     </ItemGroup>
 
     <!-- Check that there is one unique assembly for several sensitive assemblies -->
