@@ -443,6 +443,7 @@ namespace System
                 string[] names = new string[fields.Length];
                 TUnderlying[] values = new TUnderlying[fields.Length];
                 TUnderlyingOperations operations = default;
+                IArraySortHelper<TUnderlying> arraySortHelper = ArraySortHelper<TUnderlying>.Default;
                 IComparer<TUnderlying> unsignedComparer = operations.UnsignedComparer;
                 TUnderlying max = default;
                 TUnderlying min = default;
@@ -454,7 +455,7 @@ namespace System
                         max = value;
                         min = value;
                     }
-                    int index = ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, i, value, unsignedComparer);
+                    int index = arraySortHelper.BinarySearch(values, 0, i, value, unsignedComparer);
                     if (index < 0)
                     {
                         index = ~index;
@@ -491,7 +492,8 @@ namespace System
 
             public string GetName(TUnderlying value)
             {
-                int index = IndexOf(_values, value, default);
+                TUnderlying[] values = _values;
+                int index = ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, default(TUnderlyingOperations).UnsignedComparer);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -523,7 +525,12 @@ namespace System
             public bool IsDefined(TUnderlying value)
             {
                 TUnderlyingOperations operations = default;
-                return _isContiguous ? !(operations.LessThan(value, _min) || operations.LessThan(_max, value)) : IndexOf(_values, value, operations) >= 0;
+                if (_isContiguous)
+                {
+                    return !(operations.LessThan(value, _min) || operations.LessThan(_max, value));
+                }
+                TUnderlying[] values = _values;
+                return ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, operations.UnsignedComparer) >= 0;
             }
 
             public bool IsDefined(object value)
@@ -584,7 +591,8 @@ namespace System
                 {
                     return ToStringFlags(value);
                 }
-                int index = IndexOf(_values, value, default);
+                TUnderlying[] values = _values;
+                int index = ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, default(TUnderlyingOperations).UnsignedComparer);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -597,19 +605,20 @@ namespace System
                 string[] names = _names;
                 TUnderlying[] values = _values;
                 TUnderlyingOperations operations = default;
+                TUnderlying zero = operations.Zero;
                 // Values are sorted, so if the incoming value is 0, we can check to see whether
                 // the first entry matches it, in which case we can return its name; otherwise,
                 // we can just return "0".
-                if (value.Equals(operations.Zero))
+                if (value.Equals(zero))
                 {
-                    return values.Length > 0 && values[0].Equals(operations.Zero) ?
+                    return values.Length > 0 && values[0].Equals(zero) ?
                         names[0] :
                         value.ToString();
                 }
 
                 // It's common to have a flags enum with a single value that matches a single entry,
                 // in which case we can just return the existing name string.
-                int index = IndexOf(values, value, operations);
+                int index = ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, operations.UnsignedComparer);
                 if (index >= 0)
                 {
                     return names[index];
@@ -631,10 +640,14 @@ namespace System
                     TUnderlying currentValue = values[i];
                     if (operations.And(tempValue, currentValue).Equals(currentValue))
                     {
+                        if (currentValue.Equals(zero))
+                        {
+                            break;
+                        }
                         tempValue = operations.Subtract(tempValue, currentValue);
                         foundItems[foundItemsCount++] = i;
                         resultLength = checked(resultLength + names[i].Length);
-                        if (tempValue.Equals(operations.Zero))
+                        if (tempValue.Equals(zero))
                         {
                             break;
                         }
@@ -644,7 +657,7 @@ namespace System
                 // If we exhausted looking through all the values and we still have
                 // a non-zero result, we couldn't match the result to only named values.
                 // In that case, we return a string for the integral value.
-                if (!tempValue.Equals(operations.Zero))
+                if (!tempValue.Equals(zero))
                 {
                     return value.ToString();
                 }
@@ -804,9 +817,6 @@ namespace System
                 result = status == Number.ParsingStatus.OK ? localResult : default;
                 return status;
             }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private static int IndexOf(TUnderlying[] values, TUnderlying value, TUnderlyingOperations operations) => ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, operations.UnsignedComparer);
         }
         #endregion
 
@@ -1394,45 +1404,45 @@ namespace System
             #endregion
 
             #region ToHexStr
-            public string ToHexStr(byte value) => value.ToString("X2");
+            public string ToHexStr(byte value) => value.ToString("X2", null);
 
-            public string ToHexStr(sbyte value) => value.ToString("X2");
+            public string ToHexStr(sbyte value) => value.ToString("X2", null);
 
-            public string ToHexStr(short value) => value.ToString("X4");
+            public string ToHexStr(short value) => value.ToString("X4", null);
 
-            public string ToHexStr(ushort value) => value.ToString("X4");
+            public string ToHexStr(ushort value) => value.ToString("X4", null);
 
-            public string ToHexStr(int value) => value.ToString("X8");
+            public string ToHexStr(int value) => value.ToString("X8", null);
 
-            public string ToHexStr(uint value) => value.ToString("X8");
+            public string ToHexStr(uint value) => value.ToString("X8", null);
 
-            public string ToHexStr(long value) => value.ToString("X16");
+            public string ToHexStr(long value) => value.ToString("X16", null);
 
-            public string ToHexStr(ulong value) => value.ToString("X16");
+            public string ToHexStr(ulong value) => value.ToString("X16", null);
 
-            public string ToHexStr(bool value) => Convert.ToByte(value).ToString("X2");
+            public string ToHexStr(bool value) => Convert.ToByte(value).ToString("X2", null);
 
-            public string ToHexStr(char value) => ((ushort)value).ToString("X4");
+            public string ToHexStr(char value) => ((ushort)value).ToString("X4", null);
 
-            public string ToHexStr(float value) => BitConverter.SingleToInt32Bits(value).ToString("X8");
+            public string ToHexStr(float value) => BitConverter.SingleToInt32Bits(value).ToString("X8", null);
 
-            public string ToHexStr(double value) => BitConverter.DoubleToInt64Bits(value).ToString("X16");
+            public string ToHexStr(double value) => BitConverter.DoubleToInt64Bits(value).ToString("X16", null);
 
             public string ToHexStr(IntPtr value)
             {
 #if BIT64
-                return ((long)value).ToString("X16");
+                return ((long)value).ToString("X16", null);
 #else
-                return ((int)value).ToString("X8");
+                return ((int)value).ToString("X8", null);
 #endif
             }
 
             public string ToHexStr(UIntPtr value)
             {
 #if BIT64
-                return ((ulong)value).ToString("X16");
+                return ((ulong)value).ToString("X16", null);
 #else
-                return ((uint)value).ToString("X8");
+                return ((uint)value).ToString("X8", null);
 #endif
             }
             #endregion
