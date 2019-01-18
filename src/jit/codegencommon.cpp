@@ -10383,10 +10383,6 @@ void CodeGen::genSetScopeInfo()
 
         Compiler::siVarLoc varLoc;
 
-        // TODO-Review: This only works for always-enregistered variables. With LSRA, a variable might be in a register
-        // for part of its lifetime, or in different registers for different parts of its lifetime.
-        // This should only matter for non-debug code, where we do variable enregistration.
-        // We should store the ranges of variable enregistration in the scope table.
         if (compiler->lvaTable[scopeL->scVarNum].lvIsInReg())
         {
             var_types type = genActualType(compiler->lvaTable[scopeL->scVarNum].TypeGet());
