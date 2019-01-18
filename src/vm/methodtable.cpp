@@ -2322,7 +2322,6 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
                                 && ( CorTypeInfo::IsPrimitiveType_NoThrow(firstFieldElementType)
                                     || firstFieldElementType == ELEMENT_TYPE_VALUETYPE)
                                 && (pFieldStart->GetOffset() == 0)
-                                && IsValueType()
                                 && HasLayout()
                                 && (GetLayoutInfo()->GetManagedSize() % pFieldStart->GetSize() == 0);
 
