@@ -428,6 +428,9 @@
     <OSGroup>Windows_NT</OSGroup>
   </PropertyGroup>
   <PropertyGroup>
+    <FeatureAsyncCausalityTracer Condition="'$(FeatureCominterop)' == 'true'">true</FeatureAsyncCausalityTracer>
+  </PropertyGroup>
+  <PropertyGroup>
     <StrongNameSig>Silverlight</StrongNameSig>
   </PropertyGroup>
   <Import Project="$(MSBuildThisFileDirectory)Tools\Versioning\GenerateVersionInfo.targets" />
