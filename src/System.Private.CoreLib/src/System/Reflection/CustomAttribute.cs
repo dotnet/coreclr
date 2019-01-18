@@ -728,8 +728,7 @@ namespace System.Reflection
         {
             Debug.Assert(value != null);
 
-            Type type = value.GetType();
-            if (type.IsEnum)
+            if (value.GetType().IsEnum)
             {
                 return ((Enum)value).GetValue();
             }

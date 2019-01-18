@@ -2698,7 +2698,7 @@ FCIMPLEND
 
 FCIMPL1(INT32, ReflectionEnum::InternalGetCorElementType, Object *pRefThis) {
     FCALL_CONTRACT;
-
+    
     VALIDATEOBJECT(pRefThis);
     if (pRefThis == NULL)
         FCThrowArgumentNull(NULL);
@@ -2799,7 +2799,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
     const int retInvalidEnumType = 3; // indicates that the enum was of an unknown/unsupported unerlying type
 
     VALIDATEOBJECT(pRefThis);
-
+    
     if (pRefTarget == NULL) {
         return 1; // all values are greater than null
     }
@@ -2842,7 +2842,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
             return CMPEXPR(i1,i2);
         }
         break;
-
+        
 
     case ELEMENT_TYPE_I4:
     IN_WIN32(case ELEMENT_TYPE_I:)
@@ -2853,7 +2853,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
             return CMPEXPR(i1,i2);
         }
         break;
-
+     
 
     case ELEMENT_TYPE_I8:
     IN_WIN64(case ELEMENT_TYPE_I:)
@@ -2864,7 +2864,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
             return CMPEXPR(i1,i2);
         }
         break;
-
+    
     case ELEMENT_TYPE_BOOLEAN:
         {
             bool b1 = !!*(UINT8 *)pThis;
@@ -2882,7 +2882,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
             return CMPEXPR(u1,u2);
         }
         break;
-
+        
     case ELEMENT_TYPE_U2:
     case ELEMENT_TYPE_CHAR:
         {
@@ -2923,7 +2923,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
             return CMPEXPR(f1,f2);
         }
         break;
-
+        
     case ELEMENT_TYPE_R8:
         {
             static_assert_no_msg(sizeof(double) == 8);
@@ -2938,7 +2938,8 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
     default:
         break;
     }
-
+   
     return retInvalidEnumType; // second error case -- unsupported enum type
 }
 FCIMPLEND
+
