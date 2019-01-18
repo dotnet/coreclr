@@ -8,7 +8,6 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
 using Internal.Runtime.CompilerServices;
 
 namespace System
@@ -304,8 +303,7 @@ namespace System
             [MethodImpl(MethodImplOptions.NoInlining)]
             private static EnumMembers<TUnderlying, TUnderlyingOperations> InitializeMembers()
             {
-                EnumMembers<TUnderlying, TUnderlyingOperations> members = new EnumMembers<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
-                return Interlocked.CompareExchange(ref s_members, members, null) ?? members;
+                return s_members = new EnumMembers<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1396,21 +1394,21 @@ namespace System
             #endregion
 
             #region ToHexStr
-            public string ToHexStr(byte value) => Number.Int32ToHexStr(value, '7', 2);
+            public string ToHexStr(byte value) => value.ToString("X2");
 
-            public string ToHexStr(sbyte value) => Number.Int32ToHexStr((byte)value, '7', 2);
+            public string ToHexStr(sbyte value) => value.ToString("X2");
 
-            public string ToHexStr(short value) => Number.Int32ToHexStr((ushort)value, '7', 4);
+            public string ToHexStr(short value) => value.ToString("X4");
 
-            public string ToHexStr(ushort value) => Number.Int32ToHexStr(value, '7', 4);
+            public string ToHexStr(ushort value) => value.ToString("X4");
 
-            public string ToHexStr(int value) => Number.Int32ToHexStr(value, '7', 8);
+            public string ToHexStr(int value) => value.ToString("X8");
 
-            public string ToHexStr(uint value) => Number.Int32ToHexStr((int)value, '7', 8);
+            public string ToHexStr(uint value) => value.ToString("X8");
 
-            public string ToHexStr(long value) => Number.Int64ToHexStr(value, '7', 16);
+            public string ToHexStr(long value) => value.ToString("X16");
 
-            public string ToHexStr(ulong value) => Number.Int64ToHexStr((long)value, '7', 16);
+            public string ToHexStr(ulong value) => value.ToString("X16");
 
             public string ToHexStr(bool value) => Convert.ToByte(value).ToString("X2");
 
