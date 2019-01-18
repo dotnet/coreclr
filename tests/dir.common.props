@@ -13,7 +13,7 @@
     <OSPlatformConfig>$(BuildOS).$(Platform).$(Configuration)</OSPlatformConfig>
 
     <TestSrcDir>$(CoreclrDir)/tests/src</TestSrcDir>
-    <BuildProjectRelativeDir>$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace($(TestSrcDir),''))/$(MSBuildProjectName)</BuildProjectRelativeDir>
+    <BuildProjectRelativeDir>$([System.String]::Copy('$(MSBuildProjectDirectary)').Replace($(TestSrcDir),''))/$(MSBuildProjectName)</BuildProjectRelativeDir>
 
     <!-- BaseIntermediateOutputPath is used by the SDK as the location
          for the lock file, and props/targets from nuget packages. -->
