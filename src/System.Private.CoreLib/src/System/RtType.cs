@@ -3117,7 +3117,7 @@ namespace System
                     else if (this == Convert.ConvertTypes[(int)TypeCode.DateTime])
                         typeCode = TypeCode.DateTime;
                     else if (IsEnum)
-                        typeCode = GetTypeCode(Enum.GetUnderlyingType(this));
+                        typeCode = GetTypeCode(GetEnumUnderlyingType());
                     else
                         typeCode = TypeCode.Object;
                     break;
@@ -3421,10 +3421,12 @@ namespace System
         #endregion
 
         #region Enums
-
         public override string[] GetEnumNames()
         {
-            return Enum.GetNames(this);
+            if (!IsEnum)
+                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
+
+            return Enum.GetCache(this).GetNames();
         }
 
         public override Array GetEnumValues()

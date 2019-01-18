@@ -200,17 +200,45 @@ namespace System
             return cache.TryParse(value, ignoreCase, out result);
         }
 
-        public static Type GetUnderlyingType(Type enumType) =>
-            GetCache(enumType).UnderlyingType;
+        public static Type GetUnderlyingType(Type enumType)
+        {
+            if (enumType == null)
+            {
+                throw new ArgumentNullException(nameof(enumType));
+            }
 
-        public static Array GetValues(Type enumType) =>
-            GetCache(enumType).GetValues();
+            return enumType.GetEnumUnderlyingType();
+        }
 
-        public static string GetName(Type enumType, object value) =>
-            GetCache(enumType).GetName(value);
+        public static Array GetValues(Type enumType)
+        {
+            if (enumType == null)
+            {
+                throw new ArgumentNullException(nameof(enumType));
+            }
 
-        public static string[] GetNames(Type enumType) =>
-            GetCache(enumType).GetNames();
+            return enumType.GetEnumValues();
+        }
+
+        public static string GetName(Type enumType, object value)
+        {
+            if (enumType == null)
+            {
+                throw new ArgumentNullException(nameof(enumType));
+            }
+
+            return enumType.GetEnumName(value);
+        }
+
+        public static string[] GetNames(Type enumType)
+        {
+            if (enumType == null)
+            {
+                throw new ArgumentNullException(nameof(enumType));
+            }
+
+            return enumType.GetEnumNames();
+        }
 
         public static object ToObject(Type enumType, object value)
         {
@@ -222,8 +250,15 @@ namespace System
             return GetCache(enumType).ToObject(value);
         }
 
-        public static bool IsDefined(Type enumType, object value) =>
-            GetCache(enumType).IsDefined(value);
+        public static bool IsDefined(Type enumType, object value)
+        {
+            if (enumType == null)
+            {
+                throw new ArgumentNullException(nameof(enumType));
+            }
+
+            return enumType.IsEnumDefined(value);
+        }
 
         public static string Format(Type enumType, object value, string format)
         {
