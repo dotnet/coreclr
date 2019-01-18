@@ -731,7 +731,7 @@ namespace System.Reflection
             Type type = value.GetType();
             if (type.IsEnum)
             {
-                return Enum.GetCache(type).GetUnderlyingValue(((Enum)value).ToUInt64());
+                return Enum.GetCache(type).GetUnderlyingValue(ref value.GetRawData());
             }
             return value;
         }
