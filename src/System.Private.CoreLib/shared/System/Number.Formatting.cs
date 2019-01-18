@@ -386,9 +386,10 @@ namespace System
             char fmt = ParseFormatSpecifier(format, out int digits);
             byte* pDigits = stackalloc byte[DoubleNumberBufferLength];
 
-            if ((fmt == 'R') || (fmt == 'r'))
+            if ((digits == 0) || (fmt == 'R') || (fmt == 'r'))
             {
                 // The 'R' format always ignores the precision specifier.
+                // We also need to treat 0 as the default case, since it is otherwise "invalid".
                 digits = -1;
             }
 
@@ -450,9 +451,10 @@ namespace System
             char fmt = ParseFormatSpecifier(format, out int digits);
             byte* pDigits = stackalloc byte[SingleNumberBufferLength];
 
-            if ((fmt == 'R') || (fmt == 'r'))
+            if ((digits == 0) || (fmt == 'R') || (fmt == 'r'))
             {
                 // The 'R' format always ignores the precision specifier.
+                // We also need to treat 0 as the default case, since it is otherwise "invalid".
                 digits = -1;
             }
 
