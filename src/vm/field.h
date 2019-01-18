@@ -60,7 +60,6 @@ class FieldDesc
         unsigned m_prot             : 3;
         // Does this field's mb require all 24 bits
         unsigned m_requiresFullMbValue : 1;
-        unsigned m_isFixedBufferField  : 1; // TODO: Wire this bit up from metadata and to an accessor.
 #if defined(DACCESS_COMPILE)
         };
     };
@@ -99,7 +98,6 @@ public:
         m_isRVA = sourceField.m_isRVA;
         m_prot = sourceField.m_prot;
         m_requiresFullMbValue = sourceField.m_requiresFullMbValue;
-        m_isFixedBufferField = sourceField.m_isFixedBufferField;
 
         m_dwOffset = sourceField.m_dwOffset;
         m_type = sourceField.m_type;
@@ -134,8 +132,7 @@ public:
               DWORD dwMemberAttrs, 
               BOOL fIsStatic, 
               BOOL fIsRVA, 
-              BOOL fIsThreadLocal,
-              BOOL fIsFixedBuffer,
+              BOOL fIsThreadLocal, 
               LPCSTR pszFieldName);
 
     enum {
@@ -322,13 +319,6 @@ public:
         LIMITED_METHOD_DAC_CONTRACT;
 
         return m_isThreadLocal;
-    }
-
-    BOOL   IsFixedBufferField() const
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-
-        return m_isFixedBufferField;
     }
 
     // Indicate that this field was added by EnC

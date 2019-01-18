@@ -3756,7 +3756,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
         BOOL        fIsByValue = FALSE;
         BOOL        fIsThreadStatic = FALSE;
         BOOL        fHasRVA = FALSE;
-        BOOL        fIsFixedBufferField = FALSE;
 
         MetaSig fsig(pMemberSignature,
                      cMemberSignature,
@@ -3819,22 +3818,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
             }
         }
 
-        // Determine if a field is a fixed buffer.
-        // Fixed buffers are always value types and can only occur on value classes.
-        if (IsValueClass() && ElementType == ELEMENT_TYPE_VALUETYPE)
-        {
-            HRESULT hr;
-
-            hr = pInternalImport->GetCustomAttributeByName(bmtMetaData->pFields[i],
-                                                           g_FixedBufferAttribute,
-                                                           NULL, NULL);
-
-            IfFailThrow(hr);
-            if (hr == S_OK)
-            {
-                fIsFixedBufferField = TRUE;
-            }
-        }
 
     GOT_ELEMENT_TYPE:
         // Type to store in FieldDesc - we don't want to have extra case statements for
@@ -4211,7 +4194,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                   fIsStatic,
                   fHasRVA,
                   fIsThreadStatic,
-                  fIsFixedBufferField,
                   pszFieldName
                   );
 

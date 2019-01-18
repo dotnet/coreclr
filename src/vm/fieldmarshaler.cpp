@@ -35,6 +35,9 @@
 BOOL CheckForPrimitiveType(CorElementType elemType, CQuickArray<WCHAR> *pStrPrimitiveType);
 TypeHandle ArraySubTypeLoadWorker(const SString &strUserDefTypeName, Assembly* pAssembly);
 TypeHandle GetFieldTypeHandleWorker(MetaSig *pFieldSig);
+#ifdef _DEBUG
+BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport);
+#endif
 
 
 //=======================================================================
@@ -659,7 +662,11 @@ do                                                      \
                 {
                     if (IsStructMarshalable(thNestedType))
                     {
+#ifdef _DEBUG
+                        INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable(), IsFixedBuffer(pfwalk->m_MD, pInternalImport)));
+#else
                         INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable()));
+#endif
                     }
                     else
                     {
@@ -1227,6 +1234,16 @@ BOOL IsStructMarshalable(TypeHandle th)
 
     return TRUE;
 }
+
+#ifdef _DEBUG
+BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport)
+{
+    HRESULT hr = pInternalImport->GetCustomAttributeByName(field, g_FixedBufferAttribute, NULL, NULL);
+
+    return hr == S_OK ? TRUE : FALSE;
+}
+#endif
+
 
 //=======================================================================
 // Called from the clsloader to load up and summarize the field metadata
@@ -2880,7 +2897,9 @@ VOID FieldMarshaler_NestedValueClass::NestedValueClassUpdateNativeImpl(const VOI
     }
     else
     {
-        _ASSERTE_MSG(!GetFieldDesc()->IsFixedBufferField(), "Cannot correctly marshal fixed buffers of non-blittable types");
+#ifdef _DEBUG
+        _ASSERTE_MSG(!IsFixedBuffer(), "Cannot correctly marshal fixed buffers of non-blittable types");
+#endif
         LayoutUpdateNative((LPVOID*)ppProtectedCLR, startoffset, pMT, (BYTE*)pNative, ppCleanupWorkListOnStack);
     }
 }
@@ -2915,7 +2934,9 @@ VOID FieldMarshaler_NestedValueClass::NestedValueClassUpdateCLRImpl(const VOID *
     }
     else
     {
-        _ASSERTE_MSG(!GetFieldDesc()->IsFixedBufferField(), "Cannot correctly marshal fixed buffers of non-blittable types");
+#ifdef _DEBUG
+        _ASSERTE_MSG(!IsFixedBuffer(), "Cannot correctly marshal fixed buffers of non-blittable types");
+#endif
         LayoutUpdateCLR((LPVOID*)ppProtectedCLR,
             startoffset,
             pMT,
