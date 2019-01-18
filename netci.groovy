@@ -1926,8 +1926,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     switch (scenario) {
                         case 'innerloop':
                         case 'no_tiered_compilation_innerloop':
-                            if (configuration == 'Checked') {
-                            }
                             break
                          case 'crossgen_comparison':
                             if (os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release')) {
