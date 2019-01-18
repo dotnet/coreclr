@@ -1243,10 +1243,6 @@ EEClass::CheckForHFA()
     // This method should be called for valuetypes only
     _ASSERTE(GetMethodTable()->IsValueType());
 
-    // No HFAs with overlapping fields.
-    if (HasOverLayedField())
-        return false;
-
     // The SIMD Intrinsic types are meant to be handled specially and should not be treated as HFA
     if (GetMethodTable()->IsIntrinsicType())
     {
@@ -1281,13 +1277,15 @@ EEClass::CheckForHFA()
             break;
 
         case ELEMENT_TYPE_R4:
-            if (pFD->GetOffset() % alignof(float) != 0) // HFAs don't have unaligned fields.
+            static const int REQUIRED_FLOAT_ALIGNMENT = 4;
+            if (pFD->GetOffset() % REQUIRED_FLOAT_ALIGNMENT != 0) // HFAs don't have unaligned fields.
             {
                 return false;
             }
             break;
         case ELEMENT_TYPE_R8:
-            if (pFD->GetOffset() % alignof(double) != 0) // HFAs don't have unaligned fields.
+            static const int REQUIRED_DOUBLE_ALIGNMENT = 8;
+            if (pFD->GetOffset() % REQUIRED_DOUBLE_ALIGNMENT != 0) // HFAs don't have unaligned fields.
             {
                 return false;
             }
@@ -1358,7 +1356,8 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
         case NFT_COPY4:
         case NFT_COPY8:
             fieldType = pFieldMarshaler->GetFieldDesc()->GetFieldType();
-            if (fieldType != ELEMENT_TYPE_R4 && fieldType != ELEMENT_TYPE_R8)
+            // An HFA can only have aligned float and double fields
+            if ((fieldType != ELEMENT_TYPE_R4 && fieldType != ELEMENT_TYPE_R8) || (pFieldMarshaler->GetExternalOffset() % pFieldMarshaler->AlignmentRequirement() != 0))
                 return ELEMENT_TYPE_END;
             break;
 
