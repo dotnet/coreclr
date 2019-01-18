@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 using Console = Internal.Console;
 
 [assembly: DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-public class CallBackTests
+public class CallbackTests
 {
     public static int Main()
     {
@@ -39,7 +39,7 @@ public class CallBackTests
                 Console.WriteLine("Exception expected: no callback registered yet");
                 return 101;
             }
-            catch (DllNotFoundException e) {}
+            catch (DllNotFoundException) {}
 
             try
             {
@@ -48,7 +48,7 @@ public class CallBackTests
                 Console.WriteLine("Exception expected: assembly parameter null");
                 return 102;
             }
-            catch (ArgumentNullException e) { }
+            catch (ArgumentNullException) { }
 
             try
             {
@@ -57,7 +57,7 @@ public class CallBackTests
                 Console.WriteLine("Exception expected: resolver parameter null");
                 return 103;
             }
-            catch (ArgumentNullException e) { }
+            catch (ArgumentNullException) { }
 
             // Set a resolver callback
             NativeLibrary.SetDllImportResolver(assembly, resolver);
@@ -70,7 +70,7 @@ public class CallBackTests
                 Console.WriteLine("Exception expected: Trying to register second resolver");
                 return 104;
             }
-            catch (InvalidOperationException e) { }
+            catch (InvalidOperationException) { }
 
             if (NativeSum(10, 10) != 20)
             {

@@ -13,13 +13,12 @@ using System.Threading;
 
 namespace System.Runtime.InteropServices
 {
-
     /// <summary>
     /// A delegate used to resolve native libraries via callback.
     /// </summary>
     /// <param name="libraryName">The native library to resolve</param>
     /// <param name="assembly">The assembly requesting the resolution</param>
-    /// <param name="DllImportSearchPath?">
+    /// <param name="searchPath">
     ///     The DllImportSearchPathsAttribute on the PInvoke, if any. 
     ///     Otherwise, the DllImportSearchPathsAttribute on the assembly, if any. 
     ///     Otherwise null.
@@ -218,7 +217,7 @@ namespace System.Runtime.InteropServices
             {
                 s_nativeDllResolveMap.Add(assembly, resolver);
             }
-            catch (ArgumentException e)
+            catch (ArgumentException)
             {
                 // ConditionalWealTable throws ArgumentException if the Key already exists
                 throw new InvalidOperationException(SR.InvalidOperation_CannotRegisterSecondResolver);

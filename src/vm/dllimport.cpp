@@ -6139,8 +6139,8 @@ void GetDefaultDllImportSearchPathFlags(DWORD *dllImportSearchPathFlags, BOOL *s
     *dllImportSearchPathFlags = 0;
 }
 
-// If a module has the DllImportSearchPathAttribute, get DllImportSearchPathFlags from it, and return true.
-// Otherwise, get the default value for the flags, and return false.
+// If a module has the DefaultDllImportSearchPathsAttribute, get DllImportSearchPathFlags from it, and return true.
+// Otherwise, get CoreCLR's default value for DllImportSearchPathFlags, and return false.
 BOOL GetDllImportSearchPathFlags(Module *pModule, DWORD *dllImportSearchPathFlags, BOOL *searchAssemblyDirectory)
 {
     STANDARD_VM_CONTRACT;
@@ -6149,16 +6149,16 @@ BOOL GetDllImportSearchPathFlags(Module *pModule, DWORD *dllImportSearchPathFlag
     {
         *dllImportSearchPathFlags = pModule->DefaultDllImportSearchPathsAttributeCachedValue();
         *searchAssemblyDirectory = pModule->DllImportSearchAssemblyDirectory();
-        return true;
+        return TRUE;
     }
 
     GetDefaultDllImportSearchPathFlags(dllImportSearchPathFlags, searchAssemblyDirectory);
-    return false;
+    return FALSE;
 }
 
-// If a pInvoke has DllImportSearchPathAttribute, get DllImportSearchPathFlags from it, and returns true.
-// Otherwise, if the containing assembly has the DllImportSearchPathAttribute, get DllImportSearchPathFlags from it, and returns true.
-// Otherwise, return false (out parameters are untouched).
+// If a pInvoke has the DefaultDllImportSearchPathsAttribute, get DllImportSearchPathFlags from it, and returns true.
+// Otherwise, if the containing assembly has the DefaultDllImportSearchPathsAttribute, get DllImportSearchPathFlags from it, and returns true.
+// Otherwise, get CoreCLR's default value for DllImportSearchPathFlags, and return false.
 BOOL GetDllImportSearchPathFlags(NDirectMethodDesc * pMD, DWORD *dllImportSearchPathFlags, BOOL *searchAssemblyDirectory)
 {
     STANDARD_VM_CONTRACT;
@@ -6167,7 +6167,7 @@ BOOL GetDllImportSearchPathFlags(NDirectMethodDesc * pMD, DWORD *dllImportSearch
     {
         *dllImportSearchPathFlags = pMD->DefaultDllImportSearchPathsAttributeCachedValue();
         *searchAssemblyDirectory = pMD->DllImportSearchAssemblyDirectory();
-        return true;
+        return TRUE;
     }
 
     return GetDllImportSearchPathFlags(pMD->GetModule(), dllImportSearchPathFlags, searchAssemblyDirectory);
@@ -6822,7 +6822,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     {
        return hmod.Extract();
     }
-
 
     hmod = LoadLibraryModuleBySearch(pMD, pErrorTracker, wszLibName);
     if (hmod != NULL)
