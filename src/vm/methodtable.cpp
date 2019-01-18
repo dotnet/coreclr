@@ -2316,6 +2316,8 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
     // It is possible that we catch a false positive with this check, but that chance is extremely slim
     // and the user can always change their structure to something more descriptive of what they want
     // instead of adding additional padding at the end of a one-field structure.
+    // We do this check here to save looking up the FixedBufferAttribute when loading the field
+    // from metadata.
     bool isFixedBuffer = numIntroducedFields == 1
                                 && ( CorTypeInfo::IsPrimitiveType_NoThrow(firstFieldElementType)
                                     || firstFieldElementType == ELEMENT_TYPE_VALUETYPE)
@@ -2487,14 +2489,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
         if ((int)normalizedFieldOffset <= helperPtr->largestFieldOffset)
         {
             // Find the field corresponding to this offset and update the size if needed.
-            // We assume that either it matches the offset of a previously seen field, or
-            // it is an out-of-order offset (the VM does give us structs in non-increasing
-            // offset order sometimes) that doesn't overlap any other field.
-
-            // REVIEW: will the offset ever match a previously seen field offset for cases that are NOT ExplicitLayout?
-            // If not, we can get rid of this loop, and just assume the offset is from an out-of-order field. We wouldn't
-            // need to maintain largestFieldOffset, either, since we would then assume all fields are unique. We could
-            // also get rid of ReClassifyField().
+            // If the offset matches a previously encountered offset, update the classification and field size.
             int i;
             for (i = helperPtr->currentUniqueOffsetField - 1; i >= 0; i--)
             {
@@ -2598,6 +2593,8 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
     // It is possible that we catch a false positive with this check, but that chance is extremely slim
     // and the user can always change their structure to something more descriptive of what they want
     // instead of adding additional padding at the end of a one-field structure.
+    // We do this check here to save looking up the FixedBufferAttribute when loading the field
+    // from metadata.
     CorElementType firstFieldElementType = pFieldMarshaler->GetFieldDesc()->GetFieldType();
     bool isFixedBuffer = numIntroducedFields == 1
                                 && ( CorTypeInfo::IsPrimitiveType_NoThrow(firstFieldElementType)
@@ -2608,13 +2605,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
     if (isFixedBuffer)
     {
-        _ASSERTE_MSG(numIntroducedFields == 1, "Fixed buffer fields only have one field in metadata");
-        // Fixed buffers only have one field in metadata, so we have to pretend that there are more fields
-        // for classification. We calculate the total number of fields in this fixed buffer
-        // and reuse the FieldMarshaler for the first field when filling in helperPtr
-        // with the SystemV classification data for all of the fields.
         numIntroducedFields = GetNativeSize() / pFieldMarshaler->NativeSize();
-        _ASSERTE_MSG(GetNativeSize() % pFieldMarshaler->NativeSize() == 0, "Fixed buffers should have a size which is a multiple of their field size.");
     }
 
     // The SIMD Intrinsic types are meant to be handled specially and should not be passed as struct registers
@@ -2975,10 +2966,10 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         if ((int)normalizedFieldOffset <= helperPtr->largestFieldOffset)
         {
             // Find the field corresponding to this offset and update the size if needed.
-            // We assume that either it matches the offset of a previously seen field, or
-            // it is an out-of-order offset (the VM does give us structs in non-increasing
-            // offset order sometimes) that doesn't overlap any other field.
-
+            // If the offset matches a previously encountered offset, update the classification and field size.
+            // We do not need to worry about this change incorrectly updating an eightbyte incorrectly
+            // by updating a field that spans multiple eightbytes since the only field that does so is a fixed array
+            // and a fixed array is represented by an array object in managed, which nothing can share an offset with.
             int i;
             for (i = helperPtr->currentUniqueOffsetField - 1; i >= 0; i--)
             {
