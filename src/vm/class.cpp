@@ -1260,9 +1260,13 @@ EEClass::CheckForHFA()
     CorElementType hfaType = ELEMENT_TYPE_END;
 
     FieldDesc *pFieldDescList = GetFieldDescList();
+
+    bool hasZeroOffsetField = false;;
+
     for (UINT i = 0; i < GetNumInstanceFields(); i++)
     {
         FieldDesc *pFD = &pFieldDescList[i];
+        hasZeroOffsetField |= (pFD->GetOffset() == 0);
 
         CorElementType fieldType = pFD->GetFieldType();
 
@@ -1318,6 +1322,9 @@ EEClass::CheckForHFA()
     }
 
     if (hfaType == ELEMENT_TYPE_END)
+        return false;
+        
+    if (!hasZeroOffsetField) // If the struct doesn't have a zero-offset field, it's not an HFA.
         return false;
 
     int elemSize = (hfaType == ELEMENT_TYPE_R8) ? sizeof(double) : sizeof(float);
