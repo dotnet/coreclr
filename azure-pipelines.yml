@@ -23,6 +23,11 @@ resources:
   - container: centos6_x64_build_image
     image: microsoft/dotnet-buildtools-prereqs:centos-6-376e1a3-20174311014331
 
+trigger: none
+
+pr:
+- master
+
 jobs:
 
 ##   The following is the matrix of test runs that we have. This is
@@ -125,7 +130,8 @@ jobs:
       buildConfig: checked
       jobParameters:
         priority: 0
-        timeoutInMinutes: 120
+        scenarios: 'normal,no_tiered_compilation'
+        timeoutInMinutes: 240
 
 # Pri1 (CI)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
@@ -135,7 +141,8 @@ jobs:
       buildConfig: checked
       jobParameters:
         priority: 1
-        timeoutInMinutes: 240
+        scenarios: 'normal,no_tiered_compilation'
+        timeoutInMinutes: 360
 
 # Pri1 crossgen (CI)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
@@ -146,7 +153,8 @@ jobs:
       jobParameters:
         priority: 1
         crossgen: true
-        timeoutInMinutes: 240
+        scenarios: 'normal,no_tiered_compilation'
+        timeoutInMinutes: 360
 
 # Pri1 (Manual)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'Manual')) }}:
@@ -156,8 +164,8 @@ jobs:
       buildConfig: checked
       jobParameters:
         priority: 1
-        scenarios: 'normal,jitstress1,jitstress2,gcstress0x3,gcstress0xc'
-        timeoutInMinutes: 300
+        scenarios: 'normal,no_tiered_compilation,jitstress1,jitstress2,jitstress1_tiered,jitstress2_tiered'
+        timeoutInMinutes: 480
 
 #
 # Release test builds (Official Build)
@@ -171,7 +179,8 @@ jobs:
       buildConfig: release
       jobParameters:
         priority: 1
-        timeoutInMinutes: 240
+        scenarios: 'normal,no_tiered_compilation'
+        timeoutInMinutes: 360
 
 # Pri1 crossgen (Official Build)
 - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
@@ -182,7 +191,8 @@ jobs:
       jobParameters:
         priority: 1
         crossgen: true
-        timeoutInMinutes: 240
+        scenarios: 'normal,no_tiered_compilation'
+        timeoutInMinutes: 360
 
 
 # Publish build information to Build Assets Registry
@@ -204,6 +214,7 @@ jobs:
       - build_Linux_musl_x64_release
       - build_Linux_rhel6_x64_release
       - build_Linux_x64_release
+      - build_FreeBSD_x64_release
       - build_OSX_x64_release
       - build_Windows_NT_x64_release
       - build_Windows_NT_x86_release

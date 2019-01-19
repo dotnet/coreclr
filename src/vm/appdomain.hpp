@@ -43,10 +43,7 @@
 
 #include "appxutil.h"
 
-#ifdef FEATURE_TIERED_COMPILATION
 #include "tieredcompilation.h"
-#include "callcounter.h"
-#endif
 
 #include "codeversion.h"
 
@@ -1124,14 +1121,6 @@ public:
         return m_pWinRtBinder;
     }
 #endif // FEATURE_COMINTEROP
-
-    //****************************************************************************************
-    // This method returns marshaling data that the EE uses that is stored on a per app domain
-    // basis.
-    EEMarshalingData *GetMarshalingData();
-
-    // Deletes marshaling data at shutdown (which contains cached factories that needs to be released)
-    void DeleteMarshalingData();
     
 #ifdef _DEBUG
     BOOL OwnDomainLocalBlockLock()
@@ -1332,8 +1321,6 @@ protected:
     // The large heap handle table critical section.
     CrstExplicitInit             m_LargeHeapHandleTableCrst;
 
-    EEMarshalingData            *m_pMarshalingData;
-
 #ifdef FEATURE_COMINTEROP
     // Information regarding the managed standard interfaces.
     MngStdInterfacesInfo        *m_pMngStdInterfacesInfo;
@@ -1464,14 +1451,6 @@ private:
 public:
     CodeVersionManager* GetCodeVersionManager() { return &m_codeVersionManager; }
 #endif //FEATURE_CODE_VERSIONING
-
-#ifdef FEATURE_TIERED_COMPILATION
-private:
-    CallCounter m_callCounter;
-
-public:
-    CallCounter* GetCallCounter() { return &m_callCounter; }
-#endif
 
 #ifdef DACCESS_COMPILE
 public:
