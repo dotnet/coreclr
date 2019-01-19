@@ -39,7 +39,8 @@ namespace System.Buffers.Text
 			if (Lzcnt.X64.IsSupported)
             {
                 int y = s_uInt64MaxLog10GivenLzCount[Lzcnt.X64.LeadingZeroCount(value)];
-                return y - (int)((value - s_uInt64PowersOf10[y]) >> 63) + 1;
+				int d = unchecked((int)((value - s_uInt64PowersOf10[y]) >> 63));
+                return y - d + 1;
             }
 
             int digits = 1;
@@ -101,7 +102,8 @@ namespace System.Buffers.Text
 			if (Lzcnt.IsSupported)
             {
                 int y = s_uInt32MaxLog10GivenLzCount[Lzcnt.LeadingZeroCount(value)];
-                return y - (int)((value - s_uInt32PowersOf10[y]) >> 31) + 1;
+				int d = unchecked((int)((value - s_uInt32PowersOf10[y]) >> 31));
+                return y - d + 1;
             }
 
             int digits = 1;
