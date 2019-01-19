@@ -23,7 +23,7 @@ namespace System.Buffers.Text
             1000000000000000000, 10000000000000000000
         };
 
-		private static readonly byte[] s_uInt32MaxLog10GivenLzCount = 
+        private static readonly byte[] s_uInt32MaxLog10GivenLzCount = 
         {
             10, 9, 9, 8, 8, 8, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 1, 1, 1, 0, 0, 0, 1
         };
@@ -36,10 +36,10 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountDigits(ulong value)
         {
-			if (Lzcnt.X64.IsSupported)
+            if (Lzcnt.X64.IsSupported)
             {
                 int y = s_uInt64MaxLog10GivenLzCount[Lzcnt.X64.LeadingZeroCount(value)];
-				int d = unchecked((int)((value - s_uInt64PowersOf10[y]) >> 63));
+                int d = unchecked((int)((value - s_uInt64PowersOf10[y]) >> 63));
                 return y - d + 1;
             }
 
@@ -99,10 +99,10 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountDigits(uint value)
         {
-			if (Lzcnt.IsSupported)
+            if (Lzcnt.IsSupported)
             {
                 int y = s_uInt32MaxLog10GivenLzCount[Lzcnt.LeadingZeroCount(value)];
-				int d = unchecked((int)((value - s_uInt32PowersOf10[y]) >> 31));
+                int d = unchecked((int)((value - s_uInt32PowersOf10[y]) >> 31));
                 return y - d + 1;
             }
 
