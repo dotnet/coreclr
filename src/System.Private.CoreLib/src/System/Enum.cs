@@ -488,7 +488,7 @@ namespace System
                 string[] names = new string[fields.Length];
                 TUnderlying[] values = new TUnderlying[fields.Length];
                 TUnderlyingOperations operations = default;
-                IComparer<TUnderlying> unsignedComparer = operations.UnsignedComparer;
+                IComparer<TUnderlying> unsignedComparer = operations.GetUnsignedComparer(null);
                 TUnderlying max = default;
                 TUnderlying min = default;
                 for (int i = 0; i < fields.Length; ++i)
@@ -532,7 +532,7 @@ namespace System
                 _max = max;
                 _min = min;
                 _isContiguous = values.Length > 0 && operations.Subtract(max, operations.ToObject((ulong)values.Length - 1)).Equals(min);
-                _comparer = operations.LessThan(min, operations.Zero) ? unsignedComparer : Comparer<TUnderlying>.Default;
+                _comparer = operations.GetUnsignedComparer(min);
             }
 
             public string GetName(TUnderlying value)
@@ -865,8 +865,8 @@ namespace System
         {
             TUnderlying Zero { get; }
             string OverflowMessage { get; }
-            IComparer<TUnderlying> UnsignedComparer { get; }
             TUnderlying And(TUnderlying left, TUnderlying right);
+            IComparer<TUnderlying> GetUnsignedComparer(TUnderlying? min);
             bool IsInValueRange(ulong value);
             bool LessThan(TUnderlying left, TUnderlying right);
             TUnderlying Or(TUnderlying left, TUnderlying right);
@@ -972,36 +972,6 @@ namespace System
             }
             #endregion
 
-            #region UnsignedComparer
-            IComparer<byte> IUnderlyingOperations<byte>.UnsignedComparer => Comparer<byte>.Default;
-
-            IComparer<sbyte> IUnderlyingOperations<sbyte>.UnsignedComparer => UnsignedComparer<sbyte, UnderlyingOperations>.Default;
-
-            IComparer<short> IUnderlyingOperations<short>.UnsignedComparer => UnsignedComparer<short, UnderlyingOperations>.Default;
-
-            IComparer<ushort> IUnderlyingOperations<ushort>.UnsignedComparer => Comparer<ushort>.Default;
-
-            IComparer<int> IUnderlyingOperations<int>.UnsignedComparer => UnsignedComparer<int, UnderlyingOperations>.Default;
-
-            IComparer<uint> IUnderlyingOperations<uint>.UnsignedComparer => Comparer<uint>.Default;
-
-            IComparer<long> IUnderlyingOperations<long>.UnsignedComparer => UnsignedComparer<long, UnderlyingOperations>.Default;
-
-            IComparer<ulong> IUnderlyingOperations<ulong>.UnsignedComparer => Comparer<ulong>.Default;
-
-            IComparer<bool> IUnderlyingOperations<bool>.UnsignedComparer => Comparer<bool>.Default;
-
-            IComparer<char> IUnderlyingOperations<char>.UnsignedComparer => Comparer<char>.Default;
-
-            IComparer<float> IUnderlyingOperations<float>.UnsignedComparer => UnsignedComparer<float, UnderlyingOperations>.Default;
-
-            IComparer<double> IUnderlyingOperations<double>.UnsignedComparer => UnsignedComparer<double, UnderlyingOperations>.Default;
-
-            IComparer<IntPtr> IUnderlyingOperations<IntPtr>.UnsignedComparer => UnsignedComparer<IntPtr, UnderlyingOperations>.Default;
-
-            IComparer<UIntPtr> IUnderlyingOperations<UIntPtr>.UnsignedComparer => Comparer<UIntPtr>.Default;
-            #endregion
-
             #region And
             public byte And(byte left, byte right) => (byte)(left & right);
 
@@ -1044,6 +1014,36 @@ namespace System
                 return (UIntPtr)((uint)left & (uint)right);
 #endif
             }
+            #endregion
+
+            #region GetUnsignedComparer
+            IComparer<byte> IUnderlyingOperations<byte>.GetUnsignedComparer(byte? min) => Comparer<byte>.Default;
+
+            IComparer<sbyte> IUnderlyingOperations<sbyte>.GetUnsignedComparer(sbyte? min) => min >= 0 ? (IComparer<sbyte>)Comparer<sbyte>.Default : UnsignedComparer<sbyte, UnderlyingOperations>.Default;
+
+            IComparer<short> IUnderlyingOperations<short>.GetUnsignedComparer(short? min) => min >= 0 ? (IComparer<short>)Comparer<short>.Default : UnsignedComparer<short, UnderlyingOperations>.Default;
+
+            IComparer<ushort> IUnderlyingOperations<ushort>.GetUnsignedComparer(ushort? min) => Comparer<ushort>.Default;
+
+            IComparer<int> IUnderlyingOperations<int>.GetUnsignedComparer(int? min) => min >= 0 ? (IComparer<int>)Comparer<int>.Default : UnsignedComparer<int, UnderlyingOperations>.Default;
+
+            IComparer<uint> IUnderlyingOperations<uint>.GetUnsignedComparer(uint? min) => Comparer<uint>.Default;
+
+            IComparer<long> IUnderlyingOperations<long>.GetUnsignedComparer(long? min) => min >= 0 ? (IComparer<long>)Comparer<long>.Default : UnsignedComparer<long, UnderlyingOperations>.Default;
+
+            IComparer<ulong> IUnderlyingOperations<ulong>.GetUnsignedComparer(ulong? min) => Comparer<ulong>.Default;
+
+            IComparer<bool> IUnderlyingOperations<bool>.GetUnsignedComparer(bool? min) => Comparer<bool>.Default;
+
+            IComparer<char> IUnderlyingOperations<char>.GetUnsignedComparer(char? min) => Comparer<char>.Default;
+
+            IComparer<float> IUnderlyingOperations<float>.GetUnsignedComparer(float? min) => UnsignedComparer<float, UnderlyingOperations>.Default;
+
+            IComparer<double> IUnderlyingOperations<double>.GetUnsignedComparer(double? min) => UnsignedComparer<double, UnderlyingOperations>.Default;
+
+            IComparer<IntPtr> IUnderlyingOperations<IntPtr>.GetUnsignedComparer(IntPtr? min) => UnsignedComparer<IntPtr, UnderlyingOperations>.Default;
+
+            IComparer<UIntPtr> IUnderlyingOperations<UIntPtr>.GetUnsignedComparer(UIntPtr? min) => Comparer<UIntPtr>.Default;
             #endregion
 
             #region IsInValueRange
