@@ -476,6 +476,7 @@ namespace System
             private readonly TUnderlying _min;
             private readonly TUnderlying _max;
             private readonly bool _isContiguous;
+            private readonly IComparer<TUnderlying> _comparer;
 
             public EnumMembers(Type enumType)
             {
@@ -531,12 +532,13 @@ namespace System
                 _max = max;
                 _min = min;
                 _isContiguous = values.Length > 0 && operations.Subtract(max, operations.ToObject((ulong)values.Length - 1)).Equals(min);
+                _comparer = operations.LessThan(min, operations.Zero) ? unsignedComparer : Comparer<TUnderlying>.Default;
             }
 
             public string GetName(TUnderlying value)
             {
                 TUnderlying[] values = _values;
-                int index = Array.BinarySearch(values, 0, values.Length, value, default(TUnderlyingOperations).UnsignedComparer);
+                int index = Array.BinarySearch(values, 0, values.Length, value, _comparer);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -574,7 +576,7 @@ namespace System
                     return !(operations.LessThan(value, _min) || operations.LessThan(_max, value));
                 }
                 TUnderlying[] values = _values;
-                return Array.BinarySearch(values, 0, values.Length, value, operations.UnsignedComparer) >= 0;
+                return Array.BinarySearch(values, 0, values.Length, value, _comparer) >= 0;
             }
 
             public bool IsDefined(object value)
@@ -636,7 +638,7 @@ namespace System
                     return ToStringFlags(value);
                 }
                 TUnderlying[] values = _values;
-                int index = Array.BinarySearch(values, 0, values.Length, value, default(TUnderlyingOperations).UnsignedComparer);
+                int index = Array.BinarySearch(values, 0, values.Length, value, _comparer);
                 if (index >= 0)
                 {
                     return _names[index];
