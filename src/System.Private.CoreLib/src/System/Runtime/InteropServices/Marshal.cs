@@ -362,6 +362,10 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentNullException(nameof(destination));
             if (source == IntPtr.Zero)
                 throw new ArgumentNullException(nameof(source));
+            if (startIndex < 0)
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
+            if (length < 0)
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             new Span<T>((void*)source, length).CopyTo(new Span<T>(destination, startIndex, length));
         }
