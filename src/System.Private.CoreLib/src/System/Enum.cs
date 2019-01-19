@@ -271,7 +271,7 @@ namespace System
                     underlyingType = GetUnderlyingType(underlyingType);
                 }
 
-                return (EnumCache)Activator.CreateInstance(typeof(EnumCache<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations)));
+                return (EnumCache)RuntimeTypeHandle.Allocate(typeof(EnumCache<DayOfWeek, int, UnderlyingOperations>).TypeHandle.Instantiate(new[] { enumType, underlyingType, typeof(UnderlyingOperations) }));
             }
 
             public readonly Type UnderlyingType;
@@ -476,7 +476,7 @@ namespace System
             private readonly TUnderlying _min;
             private readonly TUnderlying _max;
             private readonly bool _isContiguous;
-            private readonly IComparer<TUnderlying> _comparer;
+            private readonly int _negativeStart;
 
             public EnumMembers(Type enumType)
             {
@@ -488,9 +488,9 @@ namespace System
                 string[] names = new string[fields.Length];
                 TUnderlying[] values = new TUnderlying[fields.Length];
                 TUnderlyingOperations operations = default;
-                IComparer<TUnderlying> unsignedComparer = operations.GetUnsignedComparer(null);
                 TUnderlying max = default;
                 TUnderlying min = default;
+                int negativeStart = 0;
                 for (int i = 0; i < fields.Length; ++i)
                 {
                     TUnderlying value = (TUnderlying)fields[i].GetRawConstantValue();
@@ -499,7 +499,7 @@ namespace System
                         max = value;
                         min = value;
                     }
-                    int index = Array.BinarySearch(values, 0, i, value, unsignedComparer);
+                    int index = operations.BinarySearch(values, i, value, negativeStart);
                     if (index < 0)
                     {
                         index = ~index;
@@ -521,6 +521,11 @@ namespace System
                         }
                     }
 
+                    if (!operations.LessThan(value, operations.Zero))
+                    {
+                        ++_negativeStart;
+                    }
+
                     Array.Copy(names, index, names, index + 1, i - index);
                     Array.Copy(values, index, values, index + 1, i - index);
 
@@ -531,14 +536,14 @@ namespace System
                 _values = values;
                 _max = max;
                 _min = min;
+                _negativeStart = negativeStart;
                 _isContiguous = values.Length > 0 && operations.Subtract(max, operations.ToObject((ulong)values.Length - 1)).Equals(min);
-                _comparer = operations.GetUnsignedComparer(min);
             }
 
             public string GetName(TUnderlying value)
             {
                 TUnderlying[] values = _values;
-                int index = Array.BinarySearch(values, 0, values.Length, value, _comparer);
+                int index = default(TUnderlyingOperations).BinarySearch(values, values.Length, value, _negativeStart);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -576,7 +581,7 @@ namespace System
                     return !(operations.LessThan(value, _min) || operations.LessThan(_max, value));
                 }
                 TUnderlying[] values = _values;
-                return Array.BinarySearch(values, 0, values.Length, value, _comparer) >= 0;
+                return operations.BinarySearch(values, values.Length, value, _negativeStart) >= 0;
             }
 
             public bool IsDefined(object value)
@@ -638,7 +643,7 @@ namespace System
                     return ToStringFlags(value);
                 }
                 TUnderlying[] values = _values;
-                int index = Array.BinarySearch(values, 0, values.Length, value, _comparer);
+                int index = default(TUnderlyingOperations).BinarySearch(values, values.Length, value, _negativeStart);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -866,7 +871,7 @@ namespace System
             TUnderlying Zero { get; }
             string OverflowMessage { get; }
             TUnderlying And(TUnderlying left, TUnderlying right);
-            IComparer<TUnderlying> GetUnsignedComparer(TUnderlying? min);
+            int BinarySearch(TUnderlying[] array, int length, TUnderlying value, int negativeStart);
             bool IsInValueRange(ulong value);
             bool LessThan(TUnderlying left, TUnderlying right);
             TUnderlying Or(TUnderlying left, TUnderlying right);
@@ -1016,34 +1021,66 @@ namespace System
             }
             #endregion
 
-            #region GetUnsignedComparer
-            IComparer<byte> IUnderlyingOperations<byte>.GetUnsignedComparer(byte? min) => Comparer<byte>.Default;
+            #region BinarySearch
+            int IUnderlyingOperations<byte>.BinarySearch(byte[] array, int length, byte value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
 
-            IComparer<sbyte> IUnderlyingOperations<sbyte>.GetUnsignedComparer(sbyte? min) => min >= 0 ? (IComparer<sbyte>)Comparer<sbyte>.Default : UnsignedComparer<sbyte, UnderlyingOperations>.Default;
+            int IUnderlyingOperations<sbyte>.BinarySearch(sbyte[] array, int length, sbyte value, int negativeStart)
+            {
+                int index = Array.BinarySearch(array, 0, negativeStart, value);
+                if (index == -1)
+                {
+                    index = Array.BinarySearch(array, negativeStart, length - negativeStart, value);
+                }
+                return index;
+            }
 
-            IComparer<short> IUnderlyingOperations<short>.GetUnsignedComparer(short? min) => min >= 0 ? (IComparer<short>)Comparer<short>.Default : UnsignedComparer<short, UnderlyingOperations>.Default;
+            int IUnderlyingOperations<short>.BinarySearch(short[] array, int length, short value, int negativeStart)
+            {
+                int index = Array.BinarySearch(array, 0, negativeStart, value);
+                if (index == -1)
+                {
+                    index = Array.BinarySearch(array, negativeStart, length - negativeStart, value);
+                }
+                return index;
+            }
 
-            IComparer<ushort> IUnderlyingOperations<ushort>.GetUnsignedComparer(ushort? min) => Comparer<ushort>.Default;
+            int IUnderlyingOperations<ushort>.BinarySearch(ushort[] array, int length, ushort value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
 
-            IComparer<int> IUnderlyingOperations<int>.GetUnsignedComparer(int? min) => min >= 0 ? (IComparer<int>)Comparer<int>.Default : UnsignedComparer<int, UnderlyingOperations>.Default;
+            int IUnderlyingOperations<int>.BinarySearch(int[] array, int length, int value, int negativeStart)
+            {
+                int index = Array.BinarySearch(array, 0, negativeStart, value);
+                if (index == -1)
+                {
+                    index = Array.BinarySearch(array, negativeStart, length - negativeStart, value);
+                }
+                return index;
+            }
 
-            IComparer<uint> IUnderlyingOperations<uint>.GetUnsignedComparer(uint? min) => Comparer<uint>.Default;
+            int IUnderlyingOperations<uint>.BinarySearch(uint[] array, int length, uint value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
 
-            IComparer<long> IUnderlyingOperations<long>.GetUnsignedComparer(long? min) => min >= 0 ? (IComparer<long>)Comparer<long>.Default : UnsignedComparer<long, UnderlyingOperations>.Default;
+            int IUnderlyingOperations<long>.BinarySearch(long[] array, int length, long value, int negativeStart)
+            {
+                int index = Array.BinarySearch(array, 0, negativeStart, value);
+                if (index == -1)
+                {
+                    index = Array.BinarySearch(array, negativeStart, length - negativeStart, value);
+                }
+                return index;
+            }
 
-            IComparer<ulong> IUnderlyingOperations<ulong>.GetUnsignedComparer(ulong? min) => Comparer<ulong>.Default;
+            int IUnderlyingOperations<ulong>.BinarySearch(ulong[] array, int length, ulong value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
 
-            IComparer<bool> IUnderlyingOperations<bool>.GetUnsignedComparer(bool? min) => Comparer<bool>.Default;
+            int IUnderlyingOperations<bool>.BinarySearch(bool[] array, int length, bool value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
 
-            IComparer<char> IUnderlyingOperations<char>.GetUnsignedComparer(char? min) => Comparer<char>.Default;
+            int IUnderlyingOperations<char>.BinarySearch(char[] array, int length, char value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
 
-            IComparer<float> IUnderlyingOperations<float>.GetUnsignedComparer(float? min) => UnsignedComparer<float, UnderlyingOperations>.Default;
+            int IUnderlyingOperations<float>.BinarySearch(float[] array, int length, float value, int negativeStart) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<float, UnderlyingOperations>.Default);
 
-            IComparer<double> IUnderlyingOperations<double>.GetUnsignedComparer(double? min) => UnsignedComparer<double, UnderlyingOperations>.Default;
+            int IUnderlyingOperations<double>.BinarySearch(double[] array, int length, double value, int negativeStart) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<double, UnderlyingOperations>.Default);
 
-            IComparer<IntPtr> IUnderlyingOperations<IntPtr>.GetUnsignedComparer(IntPtr? min) => UnsignedComparer<IntPtr, UnderlyingOperations>.Default;
+            int IUnderlyingOperations<IntPtr>.BinarySearch(IntPtr[] array, int length, IntPtr value, int negativeStart) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<IntPtr, UnderlyingOperations>.Default);
 
-            IComparer<UIntPtr> IUnderlyingOperations<UIntPtr>.GetUnsignedComparer(UIntPtr? min) => Comparer<UIntPtr>.Default;
+            int IUnderlyingOperations<UIntPtr>.BinarySearch(UIntPtr[] array, int length, UIntPtr value, int negativeStart) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<UIntPtr, UnderlyingOperations>.Default);
             #endregion
 
             #region IsInValueRange
