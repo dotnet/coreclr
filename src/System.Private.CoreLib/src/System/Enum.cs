@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System
@@ -275,7 +274,7 @@ namespace System
                 return (EnumCache)Activator.CreateInstance(typeof(EnumCache<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations)));
             }
 
-            public Type UnderlyingType { get; }
+            public readonly Type UnderlyingType;
 
             private protected EnumCache(Type underlyingType)
             {
@@ -488,7 +487,6 @@ namespace System
                 string[] names = new string[fields.Length];
                 TUnderlying[] values = new TUnderlying[fields.Length];
                 TUnderlyingOperations operations = default;
-                IArraySortHelper<TUnderlying> arraySortHelper = ArraySortHelper<TUnderlying>.Default;
                 IComparer<TUnderlying> unsignedComparer = operations.UnsignedComparer;
                 TUnderlying max = default;
                 TUnderlying min = default;
@@ -500,7 +498,7 @@ namespace System
                         max = value;
                         min = value;
                     }
-                    int index = arraySortHelper.BinarySearch(values, 0, i, value, unsignedComparer);
+                    int index = Array.BinarySearch(values, 0, i, value, unsignedComparer);
                     if (index < 0)
                     {
                         index = ~index;
@@ -538,7 +536,7 @@ namespace System
             public string GetName(TUnderlying value)
             {
                 TUnderlying[] values = _values;
-                int index = ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, default(TUnderlyingOperations).UnsignedComparer);
+                int index = Array.BinarySearch(values, 0, values.Length, value, default(TUnderlyingOperations).UnsignedComparer);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -576,7 +574,7 @@ namespace System
                     return !(operations.LessThan(value, _min) || operations.LessThan(_max, value));
                 }
                 TUnderlying[] values = _values;
-                return ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, operations.UnsignedComparer) >= 0;
+                return Array.BinarySearch(values, 0, values.Length, value, operations.UnsignedComparer) >= 0;
             }
 
             public bool IsDefined(object value)
@@ -638,7 +636,7 @@ namespace System
                     return ToStringFlags(value);
                 }
                 TUnderlying[] values = _values;
-                int index = ArraySortHelper<TUnderlying>.Default.BinarySearch(values, 0, values.Length, value, default(TUnderlyingOperations).UnsignedComparer);
+                int index = Array.BinarySearch(values, 0, values.Length, value, default(TUnderlyingOperations).UnsignedComparer);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -663,41 +661,20 @@ namespace System
                         value.ToString();
                 }
 
-                IComparer<TUnderlying> unsignedComparer = operations.UnsignedComparer;
-                // Walk from largest to smallest. It's common to have a flags enum with a single
-                // value that matches a single entry, in which case we can just return the existing
-                // name string.
-                int index = values.Length - 1;
-                while (index >= 0)
-                {
-                    int comparison = unsignedComparer.Compare(values[index], value);
-                    if (comparison == 0)
-                    {
-                        return names[index];
-                    }
-
-                    if (comparison < 0)
-                    {
-                        break;
-                    }
-
-                    index--;
-                }
-
                 // With a ulong result value, regardless of the enum's base type, the maximum
                 // possible number of consistent name/values we could have is 64, since every
                 // value is made up of one or more bits, and when we see values and incorporate
                 // their names, we effectively switch off those bits.
                 Span<int> foundItems = stackalloc int[64];
 
-                // Now look for multiple matches, storing the indices of the values
+                // Now look for matches, storing the indices of the values
                 // into our span.
                 int resultLength = 0;
                 int foundItemsCount = 0;
                 TUnderlying tempValue = value;
-                for (int i = ~index - 1; i >= 0; --i)
+                for (int index = values.Length - 1; index >= 0; --index)
                 {
-                    TUnderlying currentValue = values[i];
+                    TUnderlying currentValue = values[index];
                     if (operations.And(tempValue, currentValue).Equals(currentValue))
                     {
                         if (currentValue.Equals(zero))
@@ -705,46 +682,46 @@ namespace System
                             break;
                         }
                         tempValue = operations.Subtract(tempValue, currentValue);
-                        foundItems[foundItemsCount++] = i;
-                        resultLength = checked(resultLength + names[i].Length);
+                        foundItems[foundItemsCount++] = index;
+                        resultLength = checked(resultLength + names[index].Length);
                         if (tempValue.Equals(zero))
                         {
-                            break;
+                            if (foundItemsCount == 1)
+                            {
+                                return names[index];
+                            }
+
+                            // We know what strings to concatenate.  Do so.
+
+                            Debug.Assert(foundItemsCount > 0);
+                            const int SeparatorStringLength = 2; // ", "
+                            string result = string.FastAllocateString(checked(resultLength + (SeparatorStringLength * (foundItemsCount - 1))));
+
+                            Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
+                            string name = names[foundItems[--foundItemsCount]];
+                            name.AsSpan().CopyTo(resultSpan);
+                            resultSpan = resultSpan.Slice(name.Length);
+                            while (--foundItemsCount >= 0)
+                            {
+                                resultSpan[0] = EnumSeparatorChar;
+                                resultSpan[1] = ' ';
+                                resultSpan = resultSpan.Slice(2);
+
+                                name = names[foundItems[foundItemsCount]];
+                                name.AsSpan().CopyTo(resultSpan);
+                                resultSpan = resultSpan.Slice(name.Length);
+                            }
+                            Debug.Assert(resultSpan.IsEmpty);
+
+                            return result;
                         }
                     }
                 }
 
-                // If we exhausted looking through all the values and we still have
+                // We exhausted looking through all the values and we still have
                 // a non-zero result, we couldn't match the result to only named values.
                 // In that case, we return a string for the integral value.
-                if (!tempValue.Equals(zero))
-                {
-                    return value.ToString();
-                }
-
-                // We know what strings to concatenate.  Do so.
-
-                Debug.Assert(foundItemsCount > 0);
-                const int SeparatorStringLength = 2; // ", "
-                string result = string.FastAllocateString(checked(resultLength + (SeparatorStringLength * (foundItemsCount - 1))));
-
-                Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
-                string name = names[foundItems[--foundItemsCount]];
-                name.AsSpan().CopyTo(resultSpan);
-                resultSpan = resultSpan.Slice(name.Length);
-                while (--foundItemsCount >= 0)
-                {
-                    resultSpan[0] = EnumSeparatorChar;
-                    resultSpan[1] = ' ';
-                    resultSpan = resultSpan.Slice(2);
-
-                    name = names[foundItems[foundItemsCount]];
-                    name.AsSpan().CopyTo(resultSpan);
-                    resultSpan = resultSpan.Slice(name.Length);
-                }
-                Debug.Assert(resultSpan.IsEmpty);
-
-                return result;
+                return value.ToString();
             }
 
             public string Format(TUnderlying value, string format)
@@ -2104,6 +2081,9 @@ namespace System
 
         private string ValueToString()
         {
+            // Calling InternalGetCorElementType and switching on the result is faster
+            // than getting the cache with a call to EnumCache.Get((RuntimeType)GetType())
+            // along with the virtual method ToString call.
             ref byte data = ref this.GetRawData();
             switch (InternalGetCorElementType())
             {
