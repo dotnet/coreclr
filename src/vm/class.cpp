@@ -1261,7 +1261,7 @@ EEClass::CheckForHFA()
 
     FieldDesc *pFieldDescList = GetFieldDescList();
 
-    bool hasZeroOffsetField = false;;
+    bool hasZeroOffsetField = false;
 
     for (UINT i = 0; i < GetNumInstanceFields(); i++)
     {
