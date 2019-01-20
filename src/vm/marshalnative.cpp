@@ -255,30 +255,36 @@ FCIMPL2(VOID, MarshalNative::DestroyStructure, LPVOID ptr, ReflectClassBaseObjec
 }
 FCIMPLEND
 
-FCIMPL1(FC_BOOL_RET, MarshalNative::IsBlittable, Object* pObjUNSAFE)
+FCIMPL1(FC_BOOL_RET, MarshalNative::IsPinnable, Object* obj)
 {
     FCALL_CONTRACT;
 
-    VALIDATEOBJECT(pObjUNSAFE);
+    VALIDATEOBJECT(obj);
 
-    _ASSERTE(pObjUNSAFE != NULL);
+    if (obj == NULL)
+        FC_RETURN_BOOL(TRUE);
 
-    MethodTable *pMT = pObjUNSAFE->GetMethodTable();
-    if (pMT->IsArray())
+    if (obj->GetMethodTable() == g_pStringClass)
+        FC_RETURN_BOOL(TRUE);
+
+    if (obj->GetMethodTable()->IsArray())
     {
-        TypeHandle thElem = pMT->GetApproxArrayElementTypeHandle();
+        BASEARRAYREF asArray = (BASEARRAYREF)ObjectToOBJECTREF(obj);
+        if (CorTypeInfo::IsPrimitiveType(asArray->GetArrayElementType()))
+            FC_RETURN_BOOL(TRUE);
 
-        if (!thElem.IsTypeDesc())
+        TypeHandle th = asArray->GetArrayElementTypeHandle();
+        if (!th.IsTypeDesc())
         {
-            MethodTable *pMTElem = thElem.AsMethodTable();
-            if (pMTElem->IsValueType() && pMTElem->IsBlittable())
+            MethodTable *pMT = th.AsMethodTable();
+            if (pMT->IsValueType() && pMT->IsBlittable())
                 FC_RETURN_BOOL(TRUE);
         }
 
         FC_RETURN_BOOL(FALSE);
-    } 
+    }
 
-    FC_RETURN_BOOL(pMT->IsBlittable());
+    FC_RETURN_BOOL(obj->GetMethodTable()->IsBlittable());
 }
 FCIMPLEND
 
@@ -620,7 +626,6 @@ FCIMPL3(VOID, MarshalNative::GCHandleInternalSet, OBJECTHANDLE handle, Object *o
     OBJECTREF objRef(obj);
     HELPER_METHOD_FRAME_BEGIN_1(objRef);
     
-    //<TODO>@todo: If the handle is pinned check the object type.</TODO>
     if (isPinned)
     {
         ValidatePinnedObject(objRef);
@@ -642,7 +647,6 @@ FCIMPL4(Object*, MarshalNative::GCHandleInternalCompareExchange, OBJECTHANDLE ha
     LPVOID ret = NULL;
     HELPER_METHOD_FRAME_BEGIN_RET_NOPOLL();
 
-    //<TODO>@todo: If the handle is pinned check the object type.</TODO>
     if (isPinned)
         ValidatePinnedObject(newObjref);
 

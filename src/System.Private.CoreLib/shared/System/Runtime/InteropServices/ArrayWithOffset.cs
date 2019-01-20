@@ -26,7 +26,7 @@ namespace System.Runtime.InteropServices
             int totalSize = 0;
             if (array != null)
             {
-                if (!(array is Array arrayObj) || (arrayObj.Rank != 1) || !Marshal.IsBlittable(arrayObj))
+                if (!(array is Array arrayObj) || (arrayObj.Rank != 1) || !Marshal.IsPinnable(arrayObj))
                 {
                     throw new ArgumentException(SR.Argument_NotIsomorphic);
                 }

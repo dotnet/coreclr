@@ -59,7 +59,7 @@ public:
     static FCDECL3(VOID, PtrToStructureHelper, LPVOID ptr, Object* pObjIn, CLR_BOOL allowValueClasses);
     static FCDECL2(VOID, DestroyStructure, LPVOID ptr, ReflectClassBaseObject* refClassUNSAFE);
 
-    static FCDECL1(FC_BOOL_RET, IsBlittable, Object* pObjUNSAFE);
+    static FCDECL1(FC_BOOL_RET, IsPinnable, Object* obj);
 
     //====================================================================
     // map a fiber cookie from the hosting APIs into a managed Thread object

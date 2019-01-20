@@ -245,8 +245,8 @@ namespace System.Runtime.InteropServices
 
         /// <summary>
         /// IMPORTANT NOTICE: This method does not do any verification on the array.
-        /// It must be used with EXTREME CAUTION since passing in an array that is
-        /// not pinned or in the fixed heap can cause unexpected results.
+        /// It must be used with EXTREME CAUTION since passing in invalid index or
+        /// an array that is not pinned can cause unexpected results.
         /// </summary>
         public static unsafe IntPtr UnsafeAddrOfPinnedArrayElement(Array arr, int index)
         {
@@ -877,7 +877,7 @@ namespace System.Runtime.InteropServices
         public static void DestroyStructure<T>(IntPtr ptr) => DestroyStructure(ptr, typeof(T));
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern bool IsBlittable(object obj);
+        internal static extern bool IsPinnable(object obj);
 
 #if FEATURE_COMINTEROP
         /// <summary>
