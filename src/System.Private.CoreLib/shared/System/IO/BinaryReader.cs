@@ -298,8 +298,24 @@ namespace System.IO
         [CLSCompliant(false)]
         public virtual uint ReadUInt32()
         {
-            FillBuffer(4);
-            return (uint)(_buffer[0] | _buffer[1] << 8 | _buffer[2] << 16 | _buffer[3] << 24);
+            if (_isMemoryStream)
+            {
+                if (_stream == null)
+                {
+                    throw Error.GetFileNotOpen();
+                }
+
+                // read directly from MemoryStream buffer
+                MemoryStream mStream = _stream as MemoryStream;
+                Debug.Assert(mStream != null, "_stream as MemoryStream != null");
+
+                return (uint)mStream.InternalReadInt32();
+            }
+            else
+            {
+                FillBuffer(4);
+                return (uint)(_buffer[0] | _buffer[1] << 8 | _buffer[2] << 16 | _buffer[3] << 24);
+            }
         }
 
         public virtual long ReadInt64()
