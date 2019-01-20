@@ -4348,8 +4348,6 @@ namespace System
             if (args == null)
                 args = Array.Empty<object>();
 
-            int argCnt = args.Length;
-
             // Without a binder we need to do use the default binder...
             if (binder == null)
                 binder = DefaultBinder;
@@ -4358,7 +4356,7 @@ namespace System
             // so a call to GetMemberCons would fail
             bool publicOnly = (bindingAttr & BindingFlags.NonPublic) == 0;
             bool wrapExceptions = (bindingAttr & BindingFlags.DoNotWrapExceptions) == 0;
-            if (argCnt == 0 && (bindingAttr & BindingFlags.Public) != 0 && (bindingAttr & BindingFlags.Instance) != 0
+            if (args.Length == 0 && (bindingAttr & BindingFlags.Public) != 0 && (bindingAttr & BindingFlags.Instance) != 0
                 && (IsGenericCOMObjectImpl() || IsValueType))
             {
                 server = CreateInstanceDefaultCtor(publicOnly, false, true, wrapExceptions);
@@ -4369,8 +4367,8 @@ namespace System
                 List<MethodBase> matches = new List<MethodBase>(candidates.Length);
 
                 // We cannot use Type.GetTypeArray here because some of the args might be null
-                Type[] argsType = new Type[argCnt];
-                for (int i = 0; i < argCnt; i++)
+                Type[] argsType = new Type[args.Length];
+                for (int i = 0; i < args.Length; i++)
                 {
                     if (args[i] != null)
                     {
