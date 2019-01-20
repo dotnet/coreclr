@@ -308,10 +308,12 @@ namespace System.Runtime.InteropServices
 
         private static unsafe void CopyToNative<T>(T[] source, int startIndex, IntPtr destination, int length)
         {
-            if (destination == IntPtr.Zero)
-                throw new ArgumentNullException(nameof(destination));
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
+            if (destination == IntPtr.Zero)
+                throw new ArgumentNullException(nameof(destination));
+
+            // The rest of the argument validation is done by CopyTo
 
             new Span<T>(source, startIndex, length).CopyTo(new Span<T>((void*)destination, length));
         }
@@ -358,14 +360,16 @@ namespace System.Runtime.InteropServices
 
         private static unsafe void CopyToManaged<T>(IntPtr source, T[] destination, int startIndex, int length)
         {
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
             if (source == IntPtr.Zero)
                 throw new ArgumentNullException(nameof(source));
+            if (destination == null)
+                throw new ArgumentNullException(nameof(destination));
             if (startIndex < 0)
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
             if (length < 0)
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NeedNonNegNum);
+
+            // The rest of the argument validation is done by CopyTo
 
             new Span<T>((void*)source, length).CopyTo(new Span<T>(destination, startIndex, length));
         }

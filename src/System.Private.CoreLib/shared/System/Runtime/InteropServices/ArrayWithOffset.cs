@@ -23,10 +23,6 @@ namespace System.Runtime.InteropServices
 
         public ArrayWithOffset(object array, int offset)
         {
-            m_array = array;
-            m_offset = offset;
-            m_count = 0;
-
             int totalSize = 0;
             if (array != null)
             {
@@ -49,6 +45,8 @@ namespace System.Runtime.InteropServices
                 throw new IndexOutOfRangeException(SR.IndexOutOfRange_ArrayWithOffset);
             }
 
+            m_array = array;
+            m_offset = offset;
             m_count = totalSize - offset;
         }
 
