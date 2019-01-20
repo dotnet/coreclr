@@ -315,6 +315,7 @@ namespace System.Runtime
 #endif
         }
 
+#if !FEATURE_PAL
         private static void CheckForAvailableMemory(out ulong availPageFile, out ulong totalAddressSpaceFree)
         {
             bool r;
@@ -384,6 +385,7 @@ namespace System.Runtime
             }
             return largestFreeRegion;
         }
+#endif
 
         ~MemoryFailPoint()
         {
