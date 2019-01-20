@@ -11,26 +11,26 @@ namespace System.Buffers.Text
     {
         private static ReadOnlySpan<byte> UInt64MaxLog10GivenLzCount => new byte[]
         {
-            19, 18, 18, 18, 18, 17, 17, 17, 16, 16, 16, 15, 15, 15, 15, 14, 14, 14, 13, 13, 13, 12, 12, 12, 12, 11, 11,
-            11, 10, 10, 10, 9, 9, 9, 9, 8, 8, 8, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 1, 1, 1, 0,
-            0, 0, 1
+            20, 19, 19, 19, 19, 18, 18, 18, 17, 17, 17, 16, 16, 16, 16, 15, 15, 15, 14, 14, 14, 13, 13, 13, 13, 12, 12,
+            12, 11, 11, 11, 10, 10, 10, 10, 9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 2, 2, 
+            2, 1, 1, 1, 2
         };
 
-        private static readonly ulong[] s_uInt64PowersOf10 = 
+        private static readonly ulong[] s_uInt64PowersOf10 =
         {
-            1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 
+            0, 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 
             1000000000000, 10000000000000, 100000000000000, 1000000000000000, 10000000000000000, 100000000000000000, 
             1000000000000000000, 10000000000000000000
         };
 
         private static ReadOnlySpan<byte> UInt32MaxLog10GivenLzCount => new byte[]
         {
-            10, 9, 9, 8, 8, 8, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 1, 1, 1, 0, 0, 0, 1
+            11, 10, 10, 9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 2
         };
 
-        private static readonly uint[] s_uInt32PowersOf10 = 
+        private static readonly uint[] s_uInt32PowersOf10 =
         {
-            1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 0
+            0, 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 0
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -40,7 +40,7 @@ namespace System.Buffers.Text
             {
                 int y = UInt64MaxLog10GivenLzCount[(int)Lzcnt.X64.LeadingZeroCount(value)];
                 int d = unchecked((int)((value - s_uInt64PowersOf10[y]) >> 63));
-                return y - d + 1;
+                return y - d;
             }
 
             int digits = 1;
@@ -103,7 +103,7 @@ namespace System.Buffers.Text
             {
                 int y = UInt32MaxLog10GivenLzCount[(int)Lzcnt.LeadingZeroCount(value)];
                 int d = unchecked((int)((value - s_uInt32PowersOf10[y]) >> 31));
-                return y - d + 1;
+                return y - d;
             }
 
             int digits = 1;
