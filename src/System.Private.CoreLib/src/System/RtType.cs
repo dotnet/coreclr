@@ -4105,8 +4105,7 @@ namespace System
                 if (results != null)
                 {
                     Debug.Assert(results.Count > 1);
-                    finalists = new MethodInfo[results.Count];
-                    results.CopyTo(finalists);
+                    finalists = results.ToArray();
                 }
             }
 
@@ -4157,8 +4156,7 @@ namespace System
                 if (results != null)
                 {
                     Debug.Assert(results.Count > 1);
-                    finalists = new MethodInfo[results.Count];
-                    results.CopyTo(finalists);
+                    finalists = results.ToArray();
                 }
             }
 
@@ -4386,15 +4384,12 @@ namespace System
                         matches.Add(candidates[i]);
                 }
 
-                MethodBase[] cons = new MethodBase[matches.Count];
-                matches.CopyTo(cons);
-                if (cons != null && cons.Length == 0)
-                    cons = null;
-
-                if (cons == null)
+                if (matches.Count == 0)
                 {
                     throw new MissingMethodException(SR.Format(SR.MissingConstructor_Name, FullName));
                 }
+
+                MethodBase[] cons = matches.ToArray();
 
                 MethodBase invokeMethod;
                 object state = null;
