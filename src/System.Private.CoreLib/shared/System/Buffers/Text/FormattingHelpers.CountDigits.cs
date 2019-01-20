@@ -9,7 +9,7 @@ namespace System.Buffers.Text
 {
     internal static partial class FormattingHelpers
     {
-        private static readonly byte[] s_uInt64MaxLog10GivenLzCount = 
+        private static ReadOnlySpan<byte> UInt64MaxLog10GivenLzCount => new byte[]
         {
             19, 18, 18, 18, 18, 17, 17, 17, 16, 16, 16, 15, 15, 15, 15, 14, 14, 14, 13, 13, 13, 12, 12, 12, 12, 11, 11,
             11, 10, 10, 10, 9, 9, 9, 9, 8, 8, 8, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 1, 1, 1, 0,
@@ -23,7 +23,7 @@ namespace System.Buffers.Text
             1000000000000000000, 10000000000000000000
         };
 
-        private static readonly byte[] s_uInt32MaxLog10GivenLzCount = 
+        private static ReadOnlySpan<byte> UInt32MaxLog10GivenLzCount => new byte[]
         {
             10, 9, 9, 8, 8, 8, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 1, 1, 1, 0, 0, 0, 1
         };
@@ -38,7 +38,7 @@ namespace System.Buffers.Text
         {
             if (Lzcnt.X64.IsSupported)
             {
-                int y = s_uInt64MaxLog10GivenLzCount[Lzcnt.X64.LeadingZeroCount(value)];
+                int y = UInt64MaxLog10GivenLzCount[(int)Lzcnt.X64.LeadingZeroCount(value)];
                 int d = unchecked((int)((value - s_uInt64PowersOf10[y]) >> 63));
                 return y - d + 1;
             }
@@ -101,7 +101,7 @@ namespace System.Buffers.Text
         {
             if (Lzcnt.IsSupported)
             {
-                int y = s_uInt32MaxLog10GivenLzCount[Lzcnt.LeadingZeroCount(value)];
+                int y = UInt32MaxLog10GivenLzCount[(int)Lzcnt.LeadingZeroCount(value)];
                 int d = unchecked((int)((value - s_uInt32PowersOf10[y]) >> 31));
                 return y - d + 1;
             }
