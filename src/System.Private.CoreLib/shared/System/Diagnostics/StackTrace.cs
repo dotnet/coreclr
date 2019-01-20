@@ -166,9 +166,8 @@ namespace System.Diagnostics
 
             // We have to return a subset of the array. Unfortunately this
             // means we have to allocate a new array and copy over.
-            StackFrame[] array = new StackFrame[_numOfFrames];
-            Array.Copy(_stackFrames, _methodsToSkip, array, 0, _numOfFrames);
-            return array;
+
+            return new ReadOnlySpan<StackFrame>(_stackFrames, _methodsToSkip, _numOfFrames).ToArray();
         }
 
         /// <summary>

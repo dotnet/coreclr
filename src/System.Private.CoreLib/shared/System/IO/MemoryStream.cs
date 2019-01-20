@@ -618,11 +618,7 @@ namespace System.IO
         public virtual byte[] ToArray()
         {
             int count = _length - _origin;
-            if (count == 0)
-                return Array.Empty<byte>();
-            byte[] copy = new byte[count];
-            Buffer.BlockCopy(_buffer, _origin, copy, 0, count);
-            return copy;
+            return new ReadOnlySpan<byte>(_buffer, _origin, count).ToArray();
         }
 
         public override void Write(byte[] buffer, int offset, int count)

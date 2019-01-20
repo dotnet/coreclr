@@ -1037,9 +1037,7 @@ namespace System.Collections.Generic
                 return s_emptyArray;
             }
 
-            T[] array = new T[_size];
-            Array.Copy(_items, 0, array, 0, _size);
-            return array;
+            return new ReadOnlySpan<T>(_items, 0, _size).ToArray();
         }
 
         // Sets the capacity of this list to the size of the list. This method can

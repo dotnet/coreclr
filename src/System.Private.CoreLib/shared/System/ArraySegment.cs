@@ -172,14 +172,7 @@ namespace System
         {
             ThrowInvalidOperationIfDefault();
 
-            if (_count == 0)
-            {
-                return Empty._array;
-            }
-
-            var array = new T[_count];
-            System.Array.Copy(_array, _offset, array, 0, _count);
-            return array;
+            return new ReadOnlySpan<T>(_array, _offset, _count).ToArray();
         }
 
         public static bool operator ==(ArraySegment<T> a, ArraySegment<T> b)
