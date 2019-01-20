@@ -74,7 +74,7 @@ using System.Diagnostics;
 
 namespace System.Runtime
 {
-    public sealed class MemoryFailPoint : CriticalFinalizerObject, IDisposable
+    public sealed partial class MemoryFailPoint : CriticalFinalizerObject, IDisposable
     {
         // Find the top section of user mode memory.  Avoid the last 64K.
         // Windows reserves that block for the kernel, apparently, and doesn't
@@ -196,7 +196,7 @@ namespace System.Runtime
                 // If we have enough room, then skip some stages.
                 // Note that multiple threads can still lead to a race condition for our free chunk
                 // of address space, which can't be easily solved.
-                ulong reserved = (ulong)Volatile.Read(ref s_failPointReservedMemory);
+                ulong reserved = MemoryFailPointReservedMemory;
                 ulong segPlusReserved = segmentSize + reserved;
                 bool overflow = segPlusReserved < segmentSize || segPlusReserved < reserved;
                 bool needPageFile = availPageFile < (requestedSizeRounded + reserved + LowMemoryFudgeFactor) || overflow;
@@ -252,15 +252,18 @@ namespace System.Runtime
                         UIntPtr numBytes = new UIntPtr(segmentSize);
                         unsafe
                         {
-                            void* pMemory = Win32Native.VirtualAlloc(null, numBytes, Win32Native.MEM_COMMIT, Win32Native.PAGE_READWRITE);
+#if ENABLE_WINRT
+                            void* pMemory = Interop.mincore.VirtualAllocFromApp(null, numBytes, Interop.Kernel32.MEM_COMMIT, Interop.Kernel32.PAGE_READWRITE);
+#else
+                            void* pMemory = Interop.Kernel32.VirtualAlloc(null, numBytes, Interop.Kernel32.MEM_COMMIT, Interop.Kernel32.PAGE_READWRITE);
+#endif
                             if (pMemory != null)
                             {
-                                bool r = Win32Native.VirtualFree(pMemory, UIntPtr.Zero, Win32Native.MEM_RELEASE);
+                                bool r = Interop.Kernel32.VirtualFree(pMemory, UIntPtr.Zero, Interop.Kernel32.MEM_RELEASE);
                                 if (!r)
                                     throw Win32Marshal.GetExceptionForLastWin32Error();
                             }
                         }
-
                         continue;
 
                     case 2:
@@ -307,7 +310,7 @@ namespace System.Runtime
 
             RuntimeHelpers.PrepareConstrainedRegions();
 
-            Interlocked.Add(ref s_failPointReservedMemory, (long)size);
+            AddMemoryFailPointReservation((long)size);
             _mustSubtractReservation = true;
 #endif
         }
@@ -315,8 +318,8 @@ namespace System.Runtime
         private static void CheckForAvailableMemory(out ulong availPageFile, out ulong totalAddressSpaceFree)
         {
             bool r;
-            Win32Native.MEMORYSTATUSEX memory = new Win32Native.MEMORYSTATUSEX();
-            r = Win32Native.GlobalMemoryStatusEx(ref memory);
+            Interop.Kernel32.MEMORYSTATUSEX memory = new Interop.Kernel32.MEMORYSTATUSEX();
+            r = Interop.Kernel32.GlobalMemoryStatusEx(ref memory);
             if (!r)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             availPageFile = memory.availPageFile;
@@ -360,17 +363,17 @@ namespace System.Runtime
                 return 0;
 
             ulong largestFreeRegion = 0;
-            Win32Native.MEMORY_BASIC_INFORMATION memInfo = new Win32Native.MEMORY_BASIC_INFORMATION();
+            Interop.Kernel32.MEMORY_BASIC_INFORMATION memInfo = new Interop.Kernel32.MEMORY_BASIC_INFORMATION();
             UIntPtr sizeOfMemInfo = (UIntPtr)Marshal.SizeOf(memInfo);
 
             while (((ulong)address) + size < s_topOfMemory)
             {
-                UIntPtr r = Win32Native.VirtualQuery(address, ref memInfo, sizeOfMemInfo);
+                UIntPtr r = Interop.Kernel32.VirtualQuery(address, ref memInfo, sizeOfMemInfo);
                 if (r == UIntPtr.Zero)
                     throw Win32Marshal.GetExceptionForLastWin32Error();
 
                 ulong regionSize = memInfo.RegionSize.ToUInt64();
-                if (memInfo.State == Win32Native.MEM_FREE)
+                if (memInfo.State == Interop.Kernel32.MEM_FREE)
                 {
                     if (regionSize >= size)
                         return regionSize;
@@ -381,9 +384,6 @@ namespace System.Runtime
             }
             return largestFreeRegion;
         }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern void GetMemorySettings(out ulong maxGCSegmentSize, out ulong topOfMemory);
 
         ~MemoryFailPoint()
         {
@@ -412,7 +412,7 @@ namespace System.Runtime
             {
                 RuntimeHelpers.PrepareConstrainedRegions();
 
-                Interlocked.Add(ref s_failPointReservedMemory, -(long)_reservedMemory);
+                AddMemoryFailPointReservation(-((long)_reservedMemory));
                 _mustSubtractReservation = false;
             }
 
@@ -428,6 +428,21 @@ namespace System.Runtime
             // free address space excessively with large workItem sizes.
             Interlocked.Add(ref LastKnownFreeAddressSpace, _reservedMemory);
             */
+        }
+
+        internal static long AddMemoryFailPointReservation(long size)
+        {
+            // Size can legitimately be negative - see Dispose.
+            return Interlocked.Add(ref s_failPointReservedMemory, (long)size);
+        }
+
+        internal static ulong MemoryFailPointReservedMemory
+        {
+            get
+            {
+                Debug.Assert(Volatile.Read(ref s_failPointReservedMemory) >= 0, "Process-wide MemoryFailPoint reserved memory was negative!");
+                return (ulong)Volatile.Read(ref s_failPointReservedMemory);
+            }
         }
 
 #if DEBUG
