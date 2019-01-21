@@ -13,6 +13,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using Internal.Runtime.Augments;
@@ -134,7 +135,7 @@ namespace System.Threading.Tasks
     /// </remarks>
     [DebuggerTypeProxy(typeof(SystemThreadingTasks_TaskDebugView))]
     [DebuggerDisplay("Id = {Id}, Status = {Status}, Method = {DebuggerDisplayMethodDescription}")]
-    public partial class Task : IAsyncResult, IDisposable
+    public class Task : IAsyncResult, IDisposable
     {
         [ThreadStatic]
         internal static Task t_currentTask;  // The currently executing task.
@@ -705,15 +706,91 @@ namespace System.Threading.Tasks
 
         #region EventSource Tracing
 
-        static partial void EtwNewID(int newId);
-        partial void EtwTaskStarted(Task previousTask, ref Guid savedActivityID);
-        partial void EtwTaskCompleted(Task previousTask, ref Guid savedActivityID);
-        partial void EtwTaskWaitBegin();
-        partial void EtwTaskWaitEnd();
-        partial void EtwTaskScheduled(TaskScheduler ts);
-        partial void EtwRunningContinuation(object continuationObject);
-        partial void EtwAwaitTaskContinuationScheduled(Task continuationTask);
-        partial void EtwRunningContinuationList(int index, object obj);
+        void EtwTaskStarted(Task previousTask, ref Guid savedActivityID)
+        {
+            TplEtwProvider etwLog = TplEtwProvider.Log;
+            if (etwLog.TasksSetActivityIds)
+                EventSource.SetCurrentThreadActivityId(TplEtwProvider.CreateGuidForTaskID(this.Id), out savedActivityID);
+            // previousTask holds the actual "current task" we want to report in the event
+            if (previousTask != null)
+                etwLog.TaskStarted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id);
+            else
+                etwLog.TaskStarted(TaskScheduler.Current.Id, 0, this.Id);
+        }
+
+        void EtwTaskCompleted(Task previousTask, ref Guid savedActivityID)
+        {
+            TplEtwProvider etwLog = TplEtwProvider.Log;
+            // previousTask holds the actual "current task" we want to report in the event
+            if (previousTask != null)
+                etwLog.TaskCompleted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id, IsFaulted);
+            else
+                etwLog.TaskCompleted(TaskScheduler.Current.Id, 0, this.Id, IsFaulted);
+
+            if (etwLog.TasksSetActivityIds)
+                EventSource.SetCurrentThreadActivityId(savedActivityID);
+        }
+
+        void EtwTaskWaitBegin()
+        {
+            TplEtwProvider etwLog = TplEtwProvider.Log;
+            Task currentTask = Task.InternalCurrent;
+            etwLog.TaskWaitBegin(
+                (currentTask != null ? currentTask.m_taskScheduler.Id : TaskScheduler.Default.Id), (currentTask != null ? currentTask.Id : 0),
+                this.Id, TplEtwProvider.TaskWaitBehavior.Synchronous, 0);
+        }
+
+        void EtwTaskWaitEnd()
+        {
+            TplEtwProvider etwLog = TplEtwProvider.Log;
+            Task currentTask = Task.InternalCurrent;
+            if (currentTask != null)
+            {
+                etwLog.TaskWaitEnd(currentTask.m_taskScheduler.Id, currentTask.Id, this.Id);
+            }
+            else
+            {
+                etwLog.TaskWaitEnd(TaskScheduler.Default.Id, 0, this.Id);
+            }
+            // logically the continuation is empty so we immediately fire
+            etwLog.TaskWaitContinuationComplete(this.Id);
+        }
+
+        internal void EtwTaskScheduled(TaskScheduler ts)
+        {
+            if ((m_stateFlags & Task.TASK_STATE_TASKSCHEDULED_WAS_FIRED) == 0)
+            {
+                m_stateFlags |= Task.TASK_STATE_TASKSCHEDULED_WAS_FIRED;
+
+                TplEtwProvider etwLog = TplEtwProvider.Log;
+
+                Task currentTask = Task.InternalCurrent;
+                Task parentTask = m_contingentProperties?.m_parent;
+                etwLog.TaskScheduled(ts.Id, currentTask == null ? 0 : currentTask.Id,
+                                     this.Id, parentTask == null ? 0 : parentTask.Id, (int)this.Options);
+            }
+        }
+
+        void EtwRunningContinuation(object continuationObject)
+        {
+            TplEtwProvider etw = TplEtwProvider.Log;
+            etw.RunningContinuation(Id, continuationObject);
+        }
+
+        void EtwAwaitTaskContinuationScheduled(Task continuationTask)
+        {
+            if ((this.Options & (TaskCreationOptions)InternalTaskOptions.PromiseTask) != 0 && !(this is ITaskCompletionAction))
+            {
+                TplEtwProvider etwLog = TplEtwProvider.Log;
+                etwLog.AwaitTaskContinuationScheduled(TaskScheduler.Current.Id, Task.CurrentId ?? 0, continuationTask.Id);
+            }
+        }
+
+        void EtwRunningContinuationList(int index, object obj)
+        {
+            TplEtwProvider etw = TplEtwProvider.Log;
+            etw.RunningContinuationList(Id, index, obj);
+        }
 
         #endregion
 
@@ -898,12 +975,6 @@ namespace System.Threading.Tasks
         internal bool MarkStarted()
         {
             return AtomicStateUpdate(TASK_STATE_STARTED, TASK_STATE_CANCELED | TASK_STATE_STARTED);
-        }
-
-        [Conditional("CORECLR")]
-        internal void FireTaskScheduledIfNeeded(TaskScheduler ts)
-        {
-            EtwTaskScheduled(ts);
         }
 
         /// <summary>
@@ -1217,7 +1288,10 @@ namespace System.Threading.Tasks
                 newId = Interlocked.Increment(ref s_taskIdCounter);
             }
             while (newId == 0);
-            EtwNewID(newId);
+
+            if (TplEtwProvider.Log.IsEnabled())
+                TplEtwProvider.Log.NewID(newId);
+
             return newId;
         }
 
@@ -2360,7 +2434,8 @@ namespace System.Threading.Tasks
             Task previousTask = currentTaskSlot;
 
             Guid savedActivityID = default;
-            EtwTaskStarted(previousTask, ref savedActivityID);
+            if (TplEtwProvider.Log.IsEnabled())
+                EtwTaskStarted(previousTask, ref savedActivityID);
 
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceSynchronousWorkStart(this, CausalitySynchronousWork.Execution);
@@ -2407,7 +2482,8 @@ namespace System.Threading.Tasks
             {
                 currentTaskSlot = previousTask;
 
-                EtwTaskCompleted(previousTask, ref savedActivityID);
+                if (TplEtwProvider.Log.IsEnabled())
+                    EtwTaskCompleted(previousTask, ref savedActivityID);
             }
         }
 
@@ -2813,7 +2889,8 @@ namespace System.Threading.Tasks
                 return true;
             }
 
-            EtwTaskWaitBegin();
+            if (TplEtwProvider.Log.IsEnabled())
+                EtwTaskWaitBegin();
 
             // Alert a listening debugger that we can't make forward progress unless it slips threads.
             // We call NOCTD for two reasons:
@@ -2837,7 +2914,8 @@ namespace System.Threading.Tasks
 
             Debug.Assert(IsCompleted || millisecondsTimeout != Timeout.Infinite);
 
-            EtwTaskWaitEnd();
+            if (TplEtwProvider.Log.IsEnabled())
+                EtwTaskWaitEnd();
 
             return returnValue;
         }
@@ -3149,7 +3227,8 @@ namespace System.Threading.Tasks
         {
             Debug.Assert(continuationObject != null);
 
-            EtwRunningContinuation(continuationObject);
+            if (TplEtwProvider.Log.IsEnabled())
+                EtwRunningContinuation(continuationObject);
 
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceSynchronousWorkStart(this, CausalitySynchronousWork.CompletionNotification);
@@ -3207,7 +3286,8 @@ namespace System.Threading.Tasks
                 if (continuations[i] is StandardTaskContinuation tc &&
                     (tc.m_options & TaskContinuationOptions.ExecuteSynchronously) == 0)
                 {
-                    EtwRunningContinuationList(i, tc);
+                    if (TplEtwProvider.Log.IsEnabled())
+                        EtwRunningContinuationList(i, tc);
 
                     continuations[i] = null; // so that we can skip this later
                     tc.Run(this, canInlineContinuations);
@@ -3225,7 +3305,9 @@ namespace System.Threading.Tasks
                     continue;
                 }
                 continuations[i] = null; // to enable free'ing up memory earlier
-                EtwRunningContinuationList(i, currentContinuation);
+
+                if (TplEtwProvider.Log.IsEnabled())
+                    EtwRunningContinuationList(i, currentContinuation);
 
                 switch (currentContinuation)
                 {
@@ -4175,7 +4257,8 @@ namespace System.Threading.Tasks
                 //    Since there may be no correlation between the current activity and the TCS's task
                 //    activity, we ensure we at least create a correlation from the current activity to
                 //    the continuation that runs when the promise completes.
-                EtwAwaitTaskContinuationScheduled(continuationTask);
+                if (TplEtwProvider.Log.IsEnabled())
+                    EtwAwaitTaskContinuationScheduled(continuationTask);
 
                 // Attempt to enqueue the continuation
                 bool continuationQueued = AddTaskContinuation(continuation, addBeforeOthers: false);
