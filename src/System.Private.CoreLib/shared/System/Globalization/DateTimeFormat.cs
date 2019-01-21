@@ -679,18 +679,13 @@ namespace System
                             {
                                 FormatDigits(result, year % 100, tokenLen);
                             }
+                            else if (tokenLen <= 16) // FormatDigits has an implicit 16-digit limit
+                            {
+                                FormatDigits(result, year, tokenLen, overrideLengthLimit: true);
+                            }
                             else
                             {
-                                string fmtPattern;
-                                switch (tokenLen)
-                                {
-                                    // "yyy", "yyyy", and "yyyyy" are explicitly highlighted in docs.
-                                    case 3: fmtPattern = "D3"; break;
-                                    case 4: fmtPattern = "D4"; break;
-                                    case 5: fmtPattern = "D5"; break;
-                                    default: fmtPattern = "D" + tokenLen.ToString(); break;
-                                }
-                                result.AppendSpanFormattable(year, fmtPattern, CultureInfo.InvariantCulture);
+                                result.Append(year.ToString("D" + tokenLen.ToString(), CultureInfo.InvariantCulture));
                             }
                         }
                         bTimeOnly = false;
