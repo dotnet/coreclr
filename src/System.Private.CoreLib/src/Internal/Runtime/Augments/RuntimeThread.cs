@@ -277,5 +277,9 @@ namespace Internal.Runtime.Augments
 
         public void Start() => AsThread().Start();
         public void Start(object parameter) => AsThread().Start(parameter);
+
+        public void ResetThreadPoolThread()
+        {
+        }
     }
 }

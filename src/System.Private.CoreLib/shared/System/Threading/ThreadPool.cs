@@ -21,7 +21,8 @@ using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Internal.Runtime.CompilerServices;
-using Microsoft.Win32;
+
+using Thread = Internal.Runtime.Augments.RuntimeThread;
 
 namespace System.Threading
 {
@@ -395,6 +396,9 @@ namespace System.Threading
 
         private volatile int numOutstandingThreadRequests = 0;
 
+        // The number of threads executing work items in the Dispatch method
+        internal volatile int numWorkingThreads;
+
         private Internal.PaddingFor32 pad2;
 
         public ThreadPoolWorkQueue()
@@ -416,11 +420,10 @@ namespace System.Threading
         internal void EnsureThreadRequested()
         {
             //
-            // If we have not yet requested #procs threads from the VM, then request a new thread
-            // as needed
+            // If we have not yet requested #procs threads, then request a new thread.
             //
-            // Note that there is a separate count in the VM which will also be incremented in this case, 
-            // which is handled by RequestWorkerThread.
+            // CoreCLR: Note that there is a separate count in the VM which has already been incremented
+            // by the VM by the time we reach this point.
             //
             int count = numOutstandingThreadRequests;
             while (count < ThreadPoolGlobals.processorCount)
@@ -438,10 +441,11 @@ namespace System.Threading
         internal void MarkThreadRequestSatisfied()
         {
             //
-            // The VM has called us, so one of our outstanding thread requests has been satisfied.
+            // One of our outstanding thread requests has been satisfied.
             // Decrement the count so that future calls to EnsureThreadRequested will succeed.
-            // Note that there is a separate count in the VM which has already been decremented by the VM
-            // by the time we reach this point.
+            //
+            // CoreCLR: Note that there is a separate count in the VM which has already been decremented
+            // by the VM by the time we reach this point.
             //
             int count = numOutstandingThreadRequests;
             while (count > 0)
@@ -517,24 +521,33 @@ namespace System.Threading
             return callback;
         }
 
+        /// <summary>
+        /// Dispatches work items to this thread.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> if this thread did as much work as was available or its quantum expired.
+        /// <c>false</c> if this thread stopped working early.
+        /// </returns>
         internal static bool Dispatch()
         {
             ThreadPoolWorkQueue outerWorkQueue = ThreadPoolGlobals.workQueue;
+
             //
-            // The clock is ticking!  We have ThreadPoolGlobals.TP_QUANTUM milliseconds to get some work done, and then
-            // we need to return to the VM.
+            // Save the start time
             //
-            int quantumStartTime = Environment.TickCount;
+            int startTickCount = Environment.TickCount;
 
             //
             // Update our records to indicate that an outstanding request for a thread has now been fulfilled.
             // From this point on, we are responsible for requesting another thread if we stop working for any
             // reason, and we believe there might still be work in the queue.
             //
-            // Note that if this thread is aborted before we get a chance to request another one, the VM will
+            // CoreCLR: Note that if this thread is aborted before we get a chance to request another one, the VM will
             // record a thread request on our behalf.  So we don't need to worry about getting aborted right here.
             //
             outerWorkQueue.MarkThreadRequestSatisfied();
+
+            Interlocked.Increment(ref outerWorkQueue.numWorkingThreads);
 
             // Has the desire for logging changed since the last time we entered?
             outerWorkQueue.loggingEnabled = FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool | FrameworkEventSource.Keywords.ThreadTransfer);
@@ -560,9 +573,9 @@ namespace System.Threading
                 currentThread.SynchronizationContext = null;
 
                 //
-                // Loop until our quantum expires.
+                // Loop until our quantum expires or there is no work.
                 //
-                while ((Environment.TickCount - quantumStartTime) < ThreadPoolGlobals.TP_QUANTUM)
+                while (ThreadPool.KeepDispatching(startTickCount))
                 {
                     bool missedSteal = false;
                     // Use operate on workItem local to try block so it can be enregistered 
@@ -571,10 +584,9 @@ namespace System.Threading
                     if (workItem == null)
                     {
                         //
-                        // No work.  We're going to return to the VM once we leave this protected region.
+                        // No work.
                         // If we missed a steal, though, there may be more work in the queue.
-                        // Instead of looping around and trying again, we'll just request another thread.  This way
-                        // we won't starve other AppDomains while we spin trying to get locks, and hopefully the thread
+                        // Instead of looping around and trying again, we'll just request another thread.  Hopefully the thread
                         // that owns the contended work-stealing queue will pick up its own workitems in the meantime, 
                         // which will be more efficient than this thread doing it anyway.
                         //
@@ -633,6 +645,8 @@ namespace System.Threading
                         Unsafe.As<IThreadPoolWorkItem>(workItem).Execute();
                     }
 
+                    Thread.CurrentThread.ResetThreadPoolThread();
+
                     // Release refs
                     outerWorkItem = workItem = null;
 
@@ -656,6 +670,12 @@ namespace System.Threading
                 // In this case, the VM is going to request another thread on our behalf.  No need to do it twice.
                 //
                 needAnotherThread = false;
+            }
+            catch (Exception e)
+            {
+                // Work items should not allow exceptions to escape.  For example, Task catches and stores any exceptions.
+                Environment.FailFast("Unhandled exception in ThreadPool dispatch loop", e);
+                return true; // Will never actually be executed because Environment.FailFast doesn't return
             }
             finally
             {
@@ -744,168 +764,6 @@ namespace System.Threading
             // thing anyway.  So we'll only clean up if this is a "normal" finalization.
             if (!Environment.HasShutdownStarted)
                 CleanUp();
-        }
-    }
-
-    internal sealed class RegisteredWaitHandleSafe : CriticalFinalizerObject
-    {
-        private static IntPtr InvalidHandle => Win32Native.INVALID_HANDLE_VALUE;
-        private IntPtr registeredWaitHandle = InvalidHandle;
-        private WaitHandle m_internalWaitObject;
-        private bool bReleaseNeeded = false;
-        private volatile int m_lock = 0;
-
-        internal IntPtr GetHandle() => registeredWaitHandle;
-
-        internal void SetHandle(IntPtr handle)
-        {
-            registeredWaitHandle = handle;
-        }
-
-        internal void SetWaitObject(WaitHandle waitObject)
-        {
-            // needed for DangerousAddRef
-            RuntimeHelpers.PrepareConstrainedRegions();
-
-            m_internalWaitObject = waitObject;
-            if (waitObject != null)
-            {
-                m_internalWaitObject.SafeWaitHandle.DangerousAddRef(ref bReleaseNeeded);
-            }
-        }
-
-        internal bool Unregister(
-             WaitHandle waitObject          // object to be notified when all callbacks to delegates have completed
-             )
-        {
-            bool result = false;
-            // needed for DangerousRelease
-            RuntimeHelpers.PrepareConstrainedRegions();
-
-            // lock(this) cannot be used reliably in Cer since thin lock could be
-            // promoted to syncblock and that is not a guaranteed operation
-            bool bLockTaken = false;
-            do
-            {
-                if (Interlocked.CompareExchange(ref m_lock, 1, 0) == 0)
-                {
-                    bLockTaken = true;
-                    try
-                    {
-                        if (ValidHandle())
-                        {
-                            result = UnregisterWaitNative(GetHandle(), waitObject == null ? null : waitObject.SafeWaitHandle);
-                            if (result == true)
-                            {
-                                if (bReleaseNeeded)
-                                {
-                                    m_internalWaitObject.SafeWaitHandle.DangerousRelease();
-                                    bReleaseNeeded = false;
-                                }
-                                // if result not true don't release/suppress here so finalizer can make another attempt
-                                SetHandle(InvalidHandle);
-                                m_internalWaitObject = null;
-                                GC.SuppressFinalize(this);
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        m_lock = 0;
-                    }
-                }
-                Thread.SpinWait(1);     // yield to processor
-            }
-            while (!bLockTaken);
-
-            return result;
-        }
-
-        private bool ValidHandle() =>
-            registeredWaitHandle != InvalidHandle && registeredWaitHandle != IntPtr.Zero;
-
-        ~RegisteredWaitHandleSafe()
-        {
-            // if the app has already unregistered the wait, there is nothing to cleanup
-            // we can detect this by checking the handle. Normally, there is no race condition here
-            // so no need to protect reading of handle. However, if this object gets 
-            // resurrected and then someone does an unregister, it would introduce a race condition
-            //
-            // PrepareConstrainedRegions call not needed since finalizer already in Cer
-            //
-            // lock(this) cannot be used reliably even in Cer since thin lock could be
-            // promoted to syncblock and that is not a guaranteed operation
-            //
-            // Note that we will not "spin" to get this lock.  We make only a single attempt;
-            // if we can't get the lock, it means some other thread is in the middle of a call
-            // to Unregister, which will do the work of the finalizer anyway.
-            //
-            // Further, it's actually critical that we *not* wait for the lock here, because
-            // the other thread that's in the middle of Unregister may be suspended for shutdown.
-            // Then, during the live-object finalization phase of shutdown, this thread would
-            // end up spinning forever, as the other thread would never release the lock.
-            // This will result in a "leak" of sorts (since the handle will not be cleaned up)
-            // but the process is exiting anyway.
-            //
-            // During AD-unload, we don�t finalize live objects until all threads have been 
-            // aborted out of the AD.  Since these locked regions are CERs, we won�t abort them 
-            // while the lock is held.  So there should be no leak on AD-unload.
-            //
-            if (Interlocked.CompareExchange(ref m_lock, 1, 0) == 0)
-            {
-                try
-                {
-                    if (ValidHandle())
-                    {
-                        WaitHandleCleanupNative(registeredWaitHandle);
-                        if (bReleaseNeeded)
-                        {
-                            m_internalWaitObject.SafeWaitHandle.DangerousRelease();
-                            bReleaseNeeded = false;
-                        }
-                        SetHandle(InvalidHandle);
-                        m_internalWaitObject = null;
-                    }
-                }
-                finally
-                {
-                    m_lock = 0;
-                }
-            }
-        }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void WaitHandleCleanupNative(IntPtr handle);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool UnregisterWaitNative(IntPtr handle, SafeHandle waitObject);
-    }
-
-    public sealed class RegisteredWaitHandle : MarshalByRefObject
-    {
-        private readonly RegisteredWaitHandleSafe internalRegisteredWait;
-
-        internal RegisteredWaitHandle()
-        {
-            internalRegisteredWait = new RegisteredWaitHandleSafe();
-        }
-
-        internal void SetHandle(IntPtr handle)
-        {
-            internalRegisteredWait.SetHandle(handle);
-        }
-
-        internal void SetWaitObject(WaitHandle waitObject)
-        {
-            internalRegisteredWait.SetWaitObject(waitObject);
-        }
-
-        // This is the only public method on this class
-        public bool Unregister(
-             WaitHandle waitObject          // object to be notified when all callbacks to delegates have completed
-             )
-        {
-            return internalRegisteredWait.Unregister(waitObject);
         }
     }
 
@@ -1067,12 +925,12 @@ namespace System.Threading
         private static readonly ContextCallback _ccbt = new ContextCallback(WaitOrTimerCallback_Context_t);
         private static readonly ContextCallback _ccbf = new ContextCallback(WaitOrTimerCallback_Context_f);
 
-        internal _ThreadPoolWaitOrTimerCallback(WaitOrTimerCallback waitOrTimerCallback, object state, bool compressStack)
+        internal _ThreadPoolWaitOrTimerCallback(WaitOrTimerCallback waitOrTimerCallback, object state, bool flowExecutionContext)
         {
             _waitOrTimerCallback = waitOrTimerCallback;
             _state = state;
 
-            if (compressStack)
+            if (flowExecutionContext)
             {
                 // capture the exection context
                 _executionContext = ExecutionContext.Capture();
@@ -1092,9 +950,8 @@ namespace System.Threading
         }
 
         // call back helper
-        internal static void PerformWaitOrTimerCallback(object state, bool timedOut)
+        internal static void PerformWaitOrTimerCallback(_ThreadPoolWaitOrTimerCallback helper, bool timedOut)
         {
-            _ThreadPoolWaitOrTimerCallback helper = (_ThreadPoolWaitOrTimerCallback)state;
             Debug.Assert(helper != null, "Null state passed to PerformWaitOrTimerCallback!");
             // call directly if it is an unsafe call OR EC flow is suppressed
             ExecutionContext context = helper._executionContext;
@@ -1110,39 +967,8 @@ namespace System.Threading
         }
     }
 
-    [CLSCompliant(false)]
-    public unsafe delegate void IOCompletionCallback(uint errorCode, // Error code
-                                       uint numBytes, // No. of bytes transferred 
-                                       NativeOverlapped* pOVERLAP // ptr to OVERLAP structure
-                                       );
-
-    public static class ThreadPool
+    public static partial class ThreadPool
     {
-        public static bool SetMaxThreads(int workerThreads, int completionPortThreads)
-        {
-            return SetMaxThreadsNative(workerThreads, completionPortThreads);
-        }
-
-        public static void GetMaxThreads(out int workerThreads, out int completionPortThreads)
-        {
-            GetMaxThreadsNative(out workerThreads, out completionPortThreads);
-        }
-
-        public static bool SetMinThreads(int workerThreads, int completionPortThreads)
-        {
-            return SetMinThreadsNative(workerThreads, completionPortThreads);
-        }
-
-        public static void GetMinThreads(out int workerThreads, out int completionPortThreads)
-        {
-            GetMinThreadsNative(out workerThreads, out completionPortThreads);
-        }
-
-        public static void GetAvailableThreads(out int workerThreads, out int completionPortThreads)
-        {
-            GetAvailableThreadsNative(out workerThreads, out completionPortThreads);
-        }
-
         [CLSCompliant(false)]
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle waitObject,
@@ -1152,6 +978,8 @@ namespace System.Threading
              bool executeOnlyOnce    // NOTE: we do not allow other options that allow the callback to be queued as an APC
              )
         {
+            if (millisecondsTimeOutInterval > (uint)int.MaxValue && millisecondsTimeOutInterval != uint.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             return RegisterWaitForSingleObject(waitObject, callBack, state, millisecondsTimeOutInterval, executeOnlyOnce, true);
         }
 
@@ -1164,42 +992,10 @@ namespace System.Threading
              bool executeOnlyOnce    // NOTE: we do not allow other options that allow the callback to be queued as an APC
              )
         {
+            if (millisecondsTimeOutInterval > (uint)int.MaxValue && millisecondsTimeOutInterval != uint.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             return RegisterWaitForSingleObject(waitObject, callBack, state, millisecondsTimeOutInterval, executeOnlyOnce, false);
         }
-
-
-        private static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
-             WaitHandle waitObject,
-             WaitOrTimerCallback callBack,
-             object state,
-             uint millisecondsTimeOutInterval,
-             bool executeOnlyOnce,   // NOTE: we do not allow other options that allow the callback to be queued as an APC
-             bool compressStack
-             )
-        {
-            RegisteredWaitHandle registeredWaitHandle = new RegisteredWaitHandle();
-
-            if (callBack != null)
-            {
-                _ThreadPoolWaitOrTimerCallback callBackHelper = new _ThreadPoolWaitOrTimerCallback(callBack, state, compressStack);
-                state = (object)callBackHelper;
-                // call SetWaitObject before native call so that waitObject won't be closed before threadpoolmgr registration
-                // this could occur if callback were to fire before SetWaitObject does its addref
-                registeredWaitHandle.SetWaitObject(waitObject);
-                IntPtr nativeRegisteredWaitHandle = RegisterWaitForSingleObjectNative(waitObject,
-                                                                               state,
-                                                                               millisecondsTimeOutInterval,
-                                                                               executeOnlyOnce,
-                                                                               registeredWaitHandle);
-                registeredWaitHandle.SetHandle(nativeRegisteredWaitHandle);
-            }
-            else
-            {
-                throw new ArgumentNullException(nameof(WaitOrTimerCallback));
-            }
-            return registeredWaitHandle;
-        }
-
 
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle waitObject,
@@ -1486,110 +1282,5 @@ namespace System.Threading
 
         internal static object[] GetLocallyQueuedWorkItemsForDebugger() =>
             ToObjectArray(GetLocallyQueuedWorkItems());
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern bool RequestWorkerThread();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern unsafe bool PostQueuedCompletionStatus(NativeOverlapped* overlapped);
-
-        [CLSCompliant(false)]
-        public static unsafe bool UnsafeQueueNativeOverlapped(NativeOverlapped* overlapped) =>
-            PostQueuedCompletionStatus(overlapped);
-
-        // The thread pool maintains a per-appdomain managed work queue.
-        // New thread pool entries are added in the managed queue.
-        // The VM is responsible for the actual growing/shrinking of 
-        // threads. 
-        private static void EnsureVMInitialized()
-        {
-            if (!ThreadPoolGlobals.vmTpInitialized)
-            {
-                EnsureVMInitializedCore(); // separate out to help with inlining
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void EnsureVMInitializedCore()
-        {
-            InitializeVMTp(ref ThreadPoolGlobals.enableWorkerTracking);
-            ThreadPoolGlobals.vmTpInitialized = true;
-        }
-
-        // Native methods: 
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool SetMinThreadsNative(int workerThreads, int completionPortThreads);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool SetMaxThreadsNative(int workerThreads, int completionPortThreads);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void GetMinThreadsNative(out int workerThreads, out int completionPortThreads);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void GetMaxThreadsNative(out int workerThreads, out int completionPortThreads);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void GetAvailableThreadsNative(out int workerThreads, out int completionPortThreads);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern bool NotifyWorkItemComplete();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ReportThreadStatus(bool isWorking);
-
-        internal static void NotifyWorkItemProgress()
-        {
-            if (!ThreadPoolGlobals.vmTpInitialized)
-                ThreadPool.InitializeVMTp(ref ThreadPoolGlobals.enableWorkerTracking);
-            NotifyWorkItemProgressNative();
-        }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void NotifyWorkItemProgressNative();
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void InitializeVMTp(ref bool enableWorkerTracking);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern IntPtr RegisterWaitForSingleObjectNative(
-             WaitHandle waitHandle,
-             object state,
-             uint timeOutInterval,
-             bool executeOnlyOnce,
-             RegisteredWaitHandle registeredWaitHandle
-             );
-
-
-        [Obsolete("ThreadPool.BindHandle(IntPtr) has been deprecated.  Please use ThreadPool.BindHandle(SafeHandle) instead.", false)]
-        public static bool BindHandle(IntPtr osHandle)
-        {
-            return BindIOCompletionCallbackNative(osHandle);
-        }
-
-        public static bool BindHandle(SafeHandle osHandle)
-        {
-            if (osHandle == null)
-                throw new ArgumentNullException(nameof(osHandle));
-
-            bool ret = false;
-            bool mustReleaseSafeHandle = false;
-            RuntimeHelpers.PrepareConstrainedRegions();
-            try
-            {
-                osHandle.DangerousAddRef(ref mustReleaseSafeHandle);
-                ret = BindIOCompletionCallbackNative(osHandle.DangerousGetHandle());
-            }
-            finally
-            {
-                if (mustReleaseSafeHandle)
-                    osHandle.DangerousRelease();
-            }
-            return ret;
-        }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool BindIOCompletionCallbackNative(IntPtr fileHandle);
     }
 }
