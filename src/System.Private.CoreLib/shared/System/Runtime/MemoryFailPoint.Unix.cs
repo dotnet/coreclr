@@ -26,7 +26,7 @@ namespace System.Runtime
 
         // Allocate a specified number of bytes and commit them. This should enlarge
         // page file if necessary and possible.
-        private void CommitMemory(UIntPtr numBytes)
+        private static void CommitMemory(UIntPtr numBytes)
         {
             // Unreachable until CheckForAvailableMemory is implemented
         }
