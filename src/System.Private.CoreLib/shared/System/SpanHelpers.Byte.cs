@@ -200,12 +200,7 @@ namespace System
             IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)length;
 
-            if (Avx2.IsSupported && length >= Vector256<byte>.Count * 2)
-            {
-                int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector256<byte>.Count - 1);
-                nLength = (IntPtr)((Vector256<byte>.Count - unaligned) & (Vector256<byte>.Count - 1));
-            }
-            else if (!Avx2.IsSupported && Sse2.IsSupported && length >= Vector128<byte>.Count * 2)
+            if ((Avx2.IsSupported || Sse2.IsSupported) && length >= Vector128<byte>.Count * 2)
             {
                 int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector128<byte>.Count - 1);
                 nLength = (IntPtr)((Vector128<byte>.Count - unaligned) & (Vector128<byte>.Count - 1));
@@ -269,26 +264,28 @@ namespace System
             if (Avx2.IsSupported && ((int)(byte*)index < length))
             {
                 nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector256<byte>.Count - 1));
-
-                Vector256<byte> comparison256 = Vector256.Create(value);
-                while ((byte*)nLength > (byte*)index)
+                if ((byte*)nLength > (byte*)index)
                 {
-                    Vector256<byte> vSearch = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                    int matches = Avx2.MoveMask(Avx2.CompareEqual(comparison256, vSearch));
-                    if (matches == 0)
+                    Vector256<byte> comparison256 = Vector256.Create(value);
+                    do
                     {
-                        index += Vector256<byte>.Count;
-                        continue;
-                    }
-                    // Find offset of first match
-                    else if (Bmi1.IsSupported)
-                    {
-                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
-                    }
-                    else
-                    {
-                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
-                    }
+                        Vector256<byte> vSearch = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                        int matches = Avx2.MoveMask(Avx2.CompareEqual(comparison256, vSearch));
+                        if (matches == 0)
+                        {
+                            index += Vector256<byte>.Count;
+                            continue;
+                        }
+                        // Find offset of first match
+                        else if (Bmi1.IsSupported)
+                        {
+                            return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                        }
+                        else
+                        {
+                            return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                        }
+                    } while ((byte*)nLength > (byte*)index);
                 }
 
                 nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
