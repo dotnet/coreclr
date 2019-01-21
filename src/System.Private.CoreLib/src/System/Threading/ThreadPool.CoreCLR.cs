@@ -18,6 +18,17 @@ using Microsoft.Win32;
 
 namespace System.Threading
 {
+    //
+    // This type is necessary because VS 2010's debugger looks for a method named _ThreadPoolWaitCallbacck.PerformWaitCallback
+    // on the stack to determine if a thread is a ThreadPool thread or not.  We have a better way to do this for .NET 4.5, but
+    // still need to maintain compatibility with VS 2010.  When compat with VS 2010 is no longer an issue, this type may be
+    // removed.
+    //
+    internal static class _ThreadPoolWaitCallback
+    {
+        internal static bool PerformWaitCallback() => ThreadPoolWorkQueue.Dispatch();
+    }
+
     internal sealed class RegisteredWaitHandleSafe : CriticalFinalizerObject
     {
         private static IntPtr InvalidHandle => Win32Native.INVALID_HANDLE_VALUE;
@@ -118,8 +129,8 @@ namespace System.Threading
             // This will result in a "leak" of sorts (since the handle will not be cleaned up)
             // but the process is exiting anyway.
             //
-            // During AD-unload, we don�t finalize live objects until all threads have been 
-            // aborted out of the AD.  Since these locked regions are CERs, we won�t abort them 
+            // During AD-unload, we don't finalize live objects until all threads have been 
+            // aborted out of the AD.  Since these locked regions are CERs, we won't abort them 
             // while the lock is held.  So there should be no leak on AD-unload.
             //
             if (Interlocked.CompareExchange(ref m_lock, 1, 0) == 0)
