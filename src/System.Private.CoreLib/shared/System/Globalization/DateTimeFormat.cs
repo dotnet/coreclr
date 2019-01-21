@@ -509,7 +509,7 @@ namespace System
                             fraction = fraction / (long)Math.Pow(10, 7 - tokenLen);
                             if (ch == 'f')
                             {
-                                result.Append(((int)fraction).ToString(fixedNumberFormats[tokenLen - 1], CultureInfo.InvariantCulture));
+                                result.AppendSpanFormattable((int)fraction, fixedNumberFormats[tokenLen - 1], CultureInfo.InvariantCulture);
                             }
                             else
                             {
@@ -528,7 +528,7 @@ namespace System
                                 }
                                 if (effectiveDigits > 0)
                                 {
-                                    result.Append(((int)fraction).ToString(fixedNumberFormats[effectiveDigits - 1], CultureInfo.InvariantCulture));
+                                    result.AppendSpanFormattable((int)fraction, fixedNumberFormats[effectiveDigits - 1], CultureInfo.InvariantCulture);
                                 }
                                 else
                                 {
@@ -681,8 +681,16 @@ namespace System
                             }
                             else
                             {
-                                string fmtPattern = "D" + tokenLen.ToString();
-                                result.Append(year.ToString(fmtPattern, CultureInfo.InvariantCulture));
+                                string fmtPattern;
+                                switch (tokenLen)
+                                {
+                                    // "yyy", "yyyy", and "yyyyy" are explicitly highlighted in docs.
+                                    case 3: fmtPattern = "D3"; break;
+                                    case 4: fmtPattern = "D4"; break;
+                                    case 5: fmtPattern = "D5"; break;
+                                    default: fmtPattern = "D" + tokenLen.ToString(); break;
+                                }
+                                result.AppendSpanFormattable(year, fmtPattern, CultureInfo.InvariantCulture);
                             }
                         }
                         bTimeOnly = false;
