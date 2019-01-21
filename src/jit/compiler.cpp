@@ -2364,7 +2364,13 @@ void Compiler::compSetProcessor()
 #ifdef _TARGET_XARCH_
     opts.compSupportsISA = 0;
 
-    if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT))
+    if (
+#ifdef FEATURE_CORECLR
+        jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BASE)
+#else
+        !jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT)
+#endif
+    )
     {
 #ifdef FEATURE_CORECLR
         if (JitConfig.EnableHWIntrinsic())
