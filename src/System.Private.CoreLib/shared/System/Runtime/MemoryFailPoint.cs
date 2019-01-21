@@ -78,7 +78,7 @@ namespace System.Runtime
         // chunks, we don't have to special case this.  Also, we need to
         // deal with 32 bit machines in 3 GB mode.
         // Using Win32's GetSystemInfo should handle all this for us.
-        private static readonly ulong s_topOfMemory;
+        private static readonly ulong s_topOfMemory = GetTopOfMemory();
 
         // Walking the address space is somewhat expensive, taking around half
         // a millisecond.  Doing that per transaction limits us to a max of 
@@ -126,7 +126,7 @@ namespace System.Runtime
         // Note: This may become dynamically tunable in the future.
         // Also note that we can have different segment sizes for the normal vs. 
         // large object heap.  We currently use the max of the two.
-        private static readonly ulong s_GCSegmentSize;
+        private static readonly ulong s_GCSegmentSize = GC.GetSegmentSize();
 
         // For multi-threaded workers, we want to ensure that if two workers
         // use a MemoryFailPoint at the same time, and they both succeed, that
@@ -137,11 +137,6 @@ namespace System.Runtime
 
         private ulong _reservedMemory;  // The size of this request (from user)
         private bool _mustSubtractReservation; // Did we add data to SharedStatics?
-
-        static MemoryFailPoint()
-        {
-            GetMemorySettings(out s_GCSegmentSize, out s_topOfMemory);
-        }
 
         // We can remove this link demand in a future version - we will
         // have scenarios for this in partial trust in the future, but

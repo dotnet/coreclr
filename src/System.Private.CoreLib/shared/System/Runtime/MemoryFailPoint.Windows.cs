@@ -9,6 +9,13 @@ namespace System.Runtime
 {
     public sealed partial class MemoryFailPoint
     {
+        private static ulong GetTopOfMemory()
+        {
+            Interop.Kernel32.SYSTEM_INFO info = new Interop.Kernel32.SYSTEM_INFO();
+            Interop.Kernel32.GetSystemInfo(out info);
+            return (ulong)info.lpMaximumApplicationAddress;
+        }
+
         private static bool CheckForAvailableMemory(out ulong availPageFile, out ulong totalAddressSpaceFree)
         {
             bool r;

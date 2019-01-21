@@ -6,6 +6,11 @@ namespace System.Runtime
 {
     public sealed partial class MemoryFailPoint
     {
+        private static ulong GetTopOfMemory()
+        {
+            return ulong.MaxValue;
+        }
+
         private static bool CheckForAvailableMemory(out ulong availPageFile, out ulong totalAddressSpaceFree)
         {
             // TODO: Implement
