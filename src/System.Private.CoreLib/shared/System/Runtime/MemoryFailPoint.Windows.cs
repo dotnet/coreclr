@@ -66,7 +66,7 @@ namespace System.Runtime
 
             ulong largestFreeRegion = 0;
             Interop.Kernel32.MEMORY_BASIC_INFORMATION memInfo = new Interop.Kernel32.MEMORY_BASIC_INFORMATION();
-            UIntPtr sizeOfMemInfo = (UIntPtr)Marshal.SizeOf(memInfo);
+            UIntPtr sizeOfMemInfo = (UIntPtr)sizeof(Interop.Kernel32.MEMORY_BASIC_INFORMATION);
 
             while (((ulong)address) + size < s_topOfMemory)
             {
@@ -87,9 +87,9 @@ namespace System.Runtime
             return largestFreeRegion;
         }
 
-        // Allocate a specified number of bytes and commit them. This should enlarge
+        // Allocate a specified number of bytes, commit them and free them. This should enlarge
         // page file if necessary and possible.
-        private static void CommitMemory(UIntPtr numBytes)
+        private static void GrowPageFileIfNecessaryAndPossible(UIntPtr numBytes)
         {
             unsafe
             {

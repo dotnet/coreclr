@@ -244,7 +244,7 @@ namespace System.Runtime
 
                         // This shouldn't overflow due to the if clauses above.
                         UIntPtr numBytes = new UIntPtr(segmentSize);
-                        CommitMemory(numBytes);
+                        GrowPageFileIfNecessaryAndPossible(numBytes);
                         continue;
 
                     case 2:

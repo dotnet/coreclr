@@ -8,7 +8,9 @@ namespace System.Runtime
     {
         private static ulong GetTopOfMemory()
         {
-            return ulong.MaxValue;
+            // These values are optimistic assumptions. In reality the value will
+            // often be lower.
+            return IntPtr.Size == 4 ? uint.MaxValue : ulong.MaxValue;
         }
 
         private static bool CheckForAvailableMemory(out ulong availPageFile, out ulong totalAddressSpaceFree)
@@ -29,9 +31,9 @@ namespace System.Runtime
             return false;
         }
 
-        // Allocate a specified number of bytes and commit them. This should enlarge
+        // Allocate a specified number of bytes, commit them and free them. This should enlarge
         // page file if necessary and possible.
-        private static void CommitMemory(UIntPtr numBytes)
+        private static void GrowPageFileIfNecessaryAndPossible(UIntPtr numBytes)
         {
             // Unreachable until CheckForAvailableMemory is implemented
         }
