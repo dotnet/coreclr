@@ -5,6 +5,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Numerics;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
@@ -199,7 +200,17 @@ namespace System
             IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)length;
 
-            if (Vector.IsHardwareAccelerated && length >= Vector<byte>.Count * 2)
+            if (Avx2.IsSupported && length >= Vector256<byte>.Count * 2)
+            {
+                int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector256<byte>.Count - 1);
+                nLength = (IntPtr)((Vector256<byte>.Count - unaligned) & (Vector256<byte>.Count - 1));
+            }
+            else if (!Avx2.IsSupported && Sse2.IsSupported && length >= Vector128<byte>.Count * 2)
+            {
+                int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector128<byte>.Count - 1);
+                nLength = (IntPtr)((Vector128<byte>.Count - unaligned) & (Vector128<byte>.Count - 1));
+            }
+            else if (!Avx2.IsSupported && !Sse2.IsSupported && Vector.IsHardwareAccelerated && length >= Vector<byte>.Count * 2)
             {
                 int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector<byte>.Count - 1);
                 nLength = (IntPtr)((Vector<byte>.Count - unaligned) & (Vector<byte>.Count - 1));
@@ -255,7 +266,91 @@ namespace System
                 index += 1;
             }
 
-            if (Vector.IsHardwareAccelerated && ((int)(byte*)index < length))
+            if (Avx2.IsSupported && ((int)(byte*)index < length))
+            {
+                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector256<byte>.Count - 1));
+
+                Vector256<byte> comparison256 = Vector256.Create(value);
+                while ((byte*)nLength > (byte*)index)
+                {
+                    Vector256<byte> vSearch = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                    int matches = Avx2.MoveMask(Avx2.CompareEqual(comparison256, vSearch));
+                    if (matches == 0)
+                    {
+                        index += Vector256<byte>.Count;
+                        continue;
+                    }
+                    // Find offset of first match
+                    else if (Bmi1.IsSupported)
+                    {
+                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                    }
+                    else
+                    {
+                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                    }
+                }
+
+                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
+                if ((byte*)nLength > (byte*)index)
+                {
+                    Vector128<byte> comparison128 = Vector128.Create(value);
+
+                    Vector128<byte> vSearch = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                    int matches = Sse2.MoveMask(Sse2.CompareEqual(comparison128, vSearch));
+                    if (matches == 0)
+                    {
+                        index += Vector128<byte>.Count;
+                    }
+                    // Find offset of first match
+                    else if (Bmi1.IsSupported)
+                    {
+                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                    }
+                    else
+                    {
+                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                    }
+                }
+
+                if ((int)(byte*)index < length)
+                {
+                    nLength = (IntPtr)(length - (int)(byte*)index);
+                    goto SequentialScan;
+                }
+            }
+            else if (!Avx2.IsSupported && Sse2.IsSupported && ((int)(byte*)index < length))
+            {
+                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
+
+                Vector128<byte> vComparison = Vector128.Create(value);
+                while ((byte*)nLength > (byte*)index)
+                {
+                    Vector128<byte> vSearch = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                    int matches = Sse2.MoveMask(Sse2.CompareEqual(vComparison, vSearch));
+                    if (matches == 0)
+                    {
+                        index += Vector128<byte>.Count;
+                        continue;
+                    }
+                    // Find offset of first match
+                    else if (Bmi1.IsSupported)
+                    {
+                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                    }
+                    else
+                    {
+                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                    }
+                }
+
+                if ((int)(byte*)index < length)
+                {
+                    nLength = (IntPtr)(length - (int)(byte*)index);
+                    goto SequentialScan;
+                }
+            }
+            else if (!Avx2.IsSupported && !Sse2.IsSupported && Vector.IsHardwareAccelerated && ((int)(byte*)index < length))
             {
                 nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector<byte>.Count - 1));
 
@@ -1152,5 +1247,18 @@ namespace System
                                                        0x03ul << 32 |
                                                        0x02ul << 40 |
                                                        0x01ul << 48) + 1;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int TrailingZeroCountFallback(int matches)
+        {
+            // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
+            return TrailingCountMultiplyDeBruijn[(int)(((uint)((matches & -matches) * 0x077CB531U)) >> 27)];
+        }
+
+        private static ReadOnlySpan<byte> TrailingCountMultiplyDeBruijn => new byte[32]
+        {
+            0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+            31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
+        };
     }
 }
