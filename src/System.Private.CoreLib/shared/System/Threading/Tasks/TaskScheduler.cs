@@ -198,7 +198,7 @@ namespace System.Threading.Tasks
             try
             {
                 if (TplEtwProvider.Log.IsEnabled())
-                    task.EtwTaskScheduled(this);
+                    task.FireTaskScheduledIfNeeded(this);
 
                 bInlined = TryExecuteTaskInline(task, taskWasPreviouslyQueued);
             }
@@ -253,7 +253,7 @@ namespace System.Threading.Tasks
             Debug.Assert(task != null);
 
             if (TplEtwProvider.Log.IsEnabled())
-                task.EtwTaskScheduled(this);
+                task.FireTaskScheduledIfNeeded(this);
 
             this.QueueTask(task);
         }
