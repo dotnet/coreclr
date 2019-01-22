@@ -1,3 +1,7 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+//
 using System;
 using System.Reflection;
 using System.Collections.Generic;
@@ -163,20 +167,22 @@ class TestAssemblyLoadContext : TestAssemblyLoadContextBase
         try
         {
             assembly = LoadFromAssemblyPath(Path.Combine(_referencesDirectory, name.Name + ".dll"));
-            _assemblyReferences.Add(new WeakReference(assembly));
         }
         catch (Exception)
         {
             try
             {
                 assembly = LoadFromAssemblyPath(Path.Combine(_assemblyDirectory, name.Name + ".dll"));
-                _assemblyReferences.Add(new WeakReference(assembly));
             }
             catch (Exception)
             {
                 assembly = LoadFromAssemblyPath(Path.Combine(_assemblyDirectory, name.Name + ".exe"));
-                _assemblyReferences.Add(new WeakReference(assembly));
             }
+        }
+
+        lock(_assemblyReferences)
+        {
+            _assemblyReferences.Add(new WeakReference(assembly));
         }
         return assembly;
     }
