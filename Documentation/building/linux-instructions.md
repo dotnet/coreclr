@@ -12,9 +12,11 @@ Build using Docker
 
 Install Docker, see https://docs.docker.com/install/
 
-Building using Docker will require that you choose the correct image for your environment. Note that the OS is strictly speaking not extremely important, for example if you are on Ubuntu 18.04 and build using the Ubuntu 16.04 x64 image there should be no issues. The target architecture is more important, as building arm32 using the x64 image will not work, there will be missing rootfs components required by the build. See [Docker Images](#Docker-Images) for more information on choosing an image to build with.
+Note that you should not mix docker builds and non docker builds because some of the files are shared. It's best to just make a new clone of the repo for each docker build and make a separate clone for non docker builds. 
 
-Please note that when choosing an image choosing the same image as the host os you are running on you willa allow you to run the product/tests outside of the docker container you built in.
+Building using Docker will require that you choose the correct image for your environment. If you want to build for Linux x64 you would want to choose such an image from [Docker Images](#Docker-Images).
+
+Since the build is running inside a docker container it means you can generate and test a Linux build on Windows except for ARM/ARM64. For ARM/ARM64 you can build but you will need an ARM/ARM64 machine to test.
 
 Once you have chosen an image the build is one command run from the root of the coreclr repository:
 
@@ -33,6 +35,18 @@ Dissecting the command:
 `microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-c103199-20180628134544: image name`
 
 `./build.sh: command to be run in the container`
+
+In order to not have to pass the long image each time you can give it a tag so you can refer to it via the tag using building Linux Release bits on Windows as an example -
+
+`docker tag microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-c103199-20180628134544 linux-x64`
+
+`docker run --rm -v d:\coreclr2:/coreclr -w /coreclr linux-x64 ./build.sh -release`
+
+To run a test with the above example -
+
+`docker run --rm -v d:\coreclr2:/coreclr -w /coreclr linux-x64 /coreclr/bin/tests/Linux.x64.Release/Tests/Core_Root/corerun bin/tests/Linux.x64.Release/GC/API/GC/Collect0/Collect0.exe -coreroot=/coreclr/bin/tests/Linux.x64.Release/Tests/Core_Root`
+
+*ARM/ARM64 builds*
 
 If you are attempting to cross build for arm/arm64 then use the crossrootfs location to set the ROOTFS_DIR. The command would add `-e ROOTFS_DIR=<crossrootfs location>`. See [Docker Images](#Docker-Images) for the crossrootfs location. In addition you will need to specify `cross`.
 
