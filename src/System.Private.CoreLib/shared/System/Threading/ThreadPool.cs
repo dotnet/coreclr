@@ -677,6 +677,9 @@ namespace System.Threading
             }
             finally
             {
+                int numWorkers = Interlocked.Decrement(ref outerWorkQueue.numWorkingThreads);
+                Debug.Assert(numWorkers >= 0);
+
                 //
                 // If we are exiting for any reason other than that the queue is definitely empty, ask for another
                 // thread to pick up where we left off.
