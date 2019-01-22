@@ -26,7 +26,7 @@ namespace System.Threading
     //
     internal static class _ThreadPoolWaitCallback
     {
-        internal static bool PerformWaitCallback() => ThreadPoolWorkQueue.Dispatch(failFastOnExceptions: false);
+        internal static bool PerformWaitCallback() => ThreadPoolWorkQueue.Dispatch();
     }
 
     internal sealed class RegisteredWaitHandleSafe : CriticalFinalizerObject
@@ -281,9 +281,9 @@ namespace System.Threading
         // New thread pool entries are added in the managed queue.
         // The VM is responsible for the actual growing/shrinking of 
         // threads. 
-        private static void EnsureVMInitialized()
+        private static void EnsureInitialized()
         {
-            if (!ThreadPoolGlobals.vmTpInitialized)
+            if (!ThreadPoolGlobals.threadPoolInitialized)
             {
                 EnsureVMInitializedCore(); // separate out to help with inlining
             }
@@ -293,7 +293,7 @@ namespace System.Threading
         private static void EnsureVMInitializedCore()
         {
             InitializeVMTp(ref ThreadPoolGlobals.enableWorkerTracking);
-            ThreadPoolGlobals.vmTpInitialized = true;
+            ThreadPoolGlobals.threadPoolInitialized = true;
         }
 
         // Native methods: 
@@ -321,8 +321,7 @@ namespace System.Threading
 
         internal static void NotifyWorkItemProgress()
         {
-            if (!ThreadPoolGlobals.vmTpInitialized)
-                ThreadPool.InitializeVMTp(ref ThreadPoolGlobals.enableWorkerTracking);
+            EnsureInitialized();
             NotifyWorkItemProgressNative();
         }
 

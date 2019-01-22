@@ -30,7 +30,7 @@ namespace System.Threading
     {
         public static readonly int processorCount = Environment.ProcessorCount;
 
-        public static volatile bool vmTpInitialized;
+        public static volatile bool threadPoolInitialized;
         public static bool enableWorkerTracking;
 
         public static readonly ThreadPoolWorkQueue workQueue = new ThreadPoolWorkQueue();
@@ -49,7 +49,7 @@ namespace System.Threading
     }
 
     [StructLayout(LayoutKind.Sequential)] // enforce layout so that padding reduces false sharing
-    internal sealed class ThreadPoolWorkQueue
+    internal sealed partial class ThreadPoolWorkQueue
     {
         internal static class WorkStealingQueueList
         {
@@ -521,7 +521,7 @@ namespace System.Threading
         /// <c>true</c> if this thread did as much work as was available or its quantum expired.
         /// <c>false</c> if this thread stopped working early.
         /// </returns>
-        internal static bool Dispatch(bool failFastOnExceptions = true)
+        internal static bool Dispatch()
         {
             ThreadPoolWorkQueue outerWorkQueue = ThreadPoolGlobals.workQueue;
 
@@ -655,21 +655,6 @@ namespace System.Threading
                 // If we get here, it's because our quantum expired.  Tell the VM we're returning normally.
                 return true;
             }
-#if !CORERT
-            catch (ThreadAbortException tae)
-            {
-                //
-                // In this case, the VM is going to request another thread on our behalf.  No need to do it twice.
-                //
-                needAnotherThread = false;
-            }
-#endif
-            catch (Exception e) when (failFastOnExceptions)
-            {
-                // Work items should not allow exceptions to escape.  For example, Task catches and stores any exceptions.
-                Environment.FailFast("Unhandled exception in ThreadPool dispatch loop", e);
-                return true; // Will never actually be executed because Environment.FailFast doesn't return
-            }
             finally
             {
                 //
@@ -679,12 +664,6 @@ namespace System.Threading
                 if (needAnotherThread)
                     outerWorkQueue.EnsureThreadRequested();
             }
-
-#if !CORERT
-            // we can never reach this point, but the C# compiler doesn't know that, because it doesn't know the ThreadAbortException will be reraised above.
-            Debug.Fail("Should never reach this point");
-            return true;
-#endif
         }
     }
 
@@ -1076,7 +1055,7 @@ namespace System.Threading
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
 
-            EnsureVMInitialized();
+            EnsureInitialized();
 
             ExecutionContext context = ExecutionContext.Capture();
 
@@ -1096,7 +1075,7 @@ namespace System.Threading
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
 
-            EnsureVMInitialized();
+            EnsureInitialized();
 
             ExecutionContext context = ExecutionContext.Capture();
 
@@ -1134,7 +1113,7 @@ namespace System.Threading
                 return true;
             }
 
-            EnsureVMInitialized();
+            EnsureInitialized();
 
             ThreadPoolGlobals.workQueue.Enqueue(
                 new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state), forceGlobal: !preferLocal);
@@ -1149,7 +1128,7 @@ namespace System.Threading
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
             }
 
-            EnsureVMInitialized();
+            EnsureInitialized();
 
             object tpcallBack = new QueueUserWorkItemCallbackDefaultContext(callBack, state);
 
@@ -1179,7 +1158,7 @@ namespace System.Threading
         {
             Debug.Assert((callBack is IThreadPoolWorkItem) ^ (callBack is Task));
 
-            EnsureVMInitialized();
+            EnsureInitialized();
 
             ThreadPoolGlobals.workQueue.Enqueue(callBack, forceGlobal: !preferLocal);
         }
@@ -1189,7 +1168,7 @@ namespace System.Threading
         {
             Debug.Assert(null != workItem);
             return
-                ThreadPoolGlobals.vmTpInitialized && // if not initialized, so there's no way this workitem was ever queued.
+                ThreadPoolGlobals.threadPoolInitialized && // if not initialized, so there's no way this workitem was ever queued.
                 ThreadPoolGlobals.workQueue.LocalFindAndPop(workItem);
         }
 
