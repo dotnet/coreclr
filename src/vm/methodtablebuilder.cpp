@@ -1490,7 +1490,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
     }
 
     // If this type is marked by [Intrinsic] attribute, it may be specially treated by the runtime/compiler
-    // Currently, only SIMD types have [Intrinsic] attribute
+    // SIMD types have [Intrinsic] attribute, for example
     //
     // We check this here fairly early to ensure other downstream checks on these types can be slightly more efficient.
     if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
