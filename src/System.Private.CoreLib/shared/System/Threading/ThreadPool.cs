@@ -641,7 +641,7 @@ namespace System.Threading
                         Unsafe.As<IThreadPoolWorkItem>(workItem).Execute();
                     }
 
-                    Thread.CurrentThread.ResetThreadPoolThread();
+                    currentThread.ResetThreadPoolThread();
 
                     // Release refs
                     outerWorkItem = workItem = null;
