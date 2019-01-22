@@ -166,16 +166,6 @@ namespace System
             return enumType.GetEnumNames();
         }
 
-        public static object ToObject(Type enumType, object value)
-        {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-
-            return EnumCache.Get(enumType).ToObject(value);
-        }
-
         public static bool IsDefined(Type enumType, object value)
         {
             if (enumType == null)
@@ -271,7 +261,7 @@ namespace System
                     underlyingType = GetUnderlyingType(underlyingType);
                 }
 
-                return (EnumCache)RuntimeTypeHandle.Allocate(typeof(EnumCache<DayOfWeek, int, UnderlyingOperations>).TypeHandle.Instantiate(new[] { enumType, underlyingType, typeof(UnderlyingOperations) }));
+                return (EnumCache)Activator.CreateInstance(typeof(EnumCache<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations)));
             }
 
             public readonly Type UnderlyingType;
@@ -284,7 +274,7 @@ namespace System
             public abstract string Format(object value, string format);
             public abstract string GetName(object value);
             public abstract string[] GetNames();
-            public abstract Array GetValues();
+            public abstract Array GetValuesNonGeneric();
             public abstract bool HasFlag(ref byte value, object flag);
             public abstract bool IsDefined(object value);
             public abstract object ParseNonGeneric(ReadOnlySpan<char> value, bool ignoreCase);
@@ -296,8 +286,8 @@ namespace System
             public abstract short ToInt16(ref byte value);
             public abstract int ToInt32(ref byte value);
             public abstract long ToInt64(ref byte value);
-            public abstract object ToObject(object value);
-            public abstract object ToObject(ulong value);
+            public abstract object ToObjectNonGeneric(object value);
+            public abstract object ToObjectNonGeneric(ulong value);
             public abstract sbyte ToSByte(ref byte value);
             public abstract float ToSingle(ref byte value);
             public abstract string ToString(ref byte value);
@@ -392,7 +382,7 @@ namespace System
 
             public override string[] GetNames() => Members.GetNames();
 
-            public override Array GetValues()
+            public override Array GetValuesNonGeneric()
             {
                 TUnderlying[] values = Members._values;
                 TEnum[] array = new TEnum[values.Length];
@@ -432,14 +422,14 @@ namespace System
 
             public override long ToInt64(ref byte value) => Operations.ToInt64(ToUnderlying(ref value));
 
-            public override object ToObject(object value)
+            public override object ToObjectNonGeneric(object value)
             {
                 Debug.Assert(value != null);
 
                 return ToEnum(Operations.ToObject(Enum.ToUInt64(value, throwInvalidOperationException: false)));
             }
 
-            public override object ToObject(ulong value) => ToEnum(Operations.ToObject(value));
+            public override object ToObjectNonGeneric(ulong value) => ToEnum(Operations.ToObject(value));
 
             public override sbyte ToSByte(ref byte value) => Operations.ToSByte(ToUnderlying(ref value));
 
@@ -514,16 +504,15 @@ namespace System
                     }
                     else
                     {
-                        ++index;
-                        while (index < i && value.Equals(values[index]))
+                        do
                         {
                             ++index;
-                        }
+                        } while (index < i && value.Equals(values[index]));
                     }
 
                     if (!operations.LessThan(value, operations.Zero))
                     {
-                        ++_negativeStart;
+                        ++negativeStart;
                     }
 
                     Array.Copy(names, index, names, index + 1, i - index);
@@ -610,7 +599,8 @@ namespace System
 
                 Type valueType = value.GetType();
 
-                // Check if is another type of enum as checking for the current enum type is handled in EnumBridge
+                // Check if is another type of enum as checking for the current enum type
+                // is handled in EnumCache.
                 if (valueType.IsEnum)
                 {
                     throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType.ToString(), _enumType.ToString()));
@@ -668,6 +658,14 @@ namespace System
                         value.ToString();
                 }
 
+                // It's common to have a flags enum with a single value that matches a single
+                // entry, in which case we can just return the existing name string.
+                int index = operations.BinarySearch(values, values.Length, value, _negativeStart);
+                if (index >= 0)
+                {
+                    return names[index];
+                }
+
                 // With a ulong result value, regardless of the enum's base type, the maximum
                 // possible number of consistent name/values we could have is 64, since every
                 // value is made up of one or more bits, and when we see values and incorporate
@@ -679,7 +677,7 @@ namespace System
                 int resultLength = 0;
                 int foundItemsCount = 0;
                 TUnderlying tempValue = value;
-                for (int index = values.Length - 1; index >= 0; --index)
+                for (index = ~index - 1; index >= 0; --index)
                 {
                     TUnderlying currentValue = values[index];
                     if (operations.And(tempValue, currentValue).Equals(currentValue))
@@ -693,11 +691,6 @@ namespace System
                         resultLength = checked(resultLength + names[index].Length);
                         if (tempValue.Equals(zero))
                         {
-                            if (foundItemsCount == 1)
-                            {
-                                return names[index];
-                            }
-
                             // We know what strings to concatenate.  Do so.
 
                             Debug.Assert(foundItemsCount > 0);
@@ -1026,46 +1019,54 @@ namespace System
 
             int IUnderlyingOperations<sbyte>.BinarySearch(sbyte[] array, int length, sbyte value, int negativeStart)
             {
-                int index = Array.BinarySearch(array, 0, negativeStart, value);
-                if (index == -1)
+                int start = 0;
+                int newLength = negativeStart;
+                if (value < 0)
                 {
-                    index = Array.BinarySearch(array, negativeStart, length - negativeStart, value);
+                    start = negativeStart;
+                    newLength = length - negativeStart;
                 }
-                return index;
+                return Array.BinarySearch(array, start, newLength, value);
             }
 
             int IUnderlyingOperations<short>.BinarySearch(short[] array, int length, short value, int negativeStart)
             {
-                int index = Array.BinarySearch(array, 0, negativeStart, value);
-                if (index == -1)
+                int start = 0;
+                int newLength = negativeStart;
+                if (value < 0)
                 {
-                    index = Array.BinarySearch(array, negativeStart, length - negativeStart, value);
+                    start = negativeStart;
+                    newLength = length - negativeStart;
                 }
-                return index;
+                return Array.BinarySearch(array, start, newLength, value);
             }
 
             int IUnderlyingOperations<ushort>.BinarySearch(ushort[] array, int length, ushort value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
 
             int IUnderlyingOperations<int>.BinarySearch(int[] array, int length, int value, int negativeStart)
             {
-                int index = Array.BinarySearch(array, 0, negativeStart, value);
-                if (index == -1)
+                int start = 0;
+                int newLength = negativeStart;
+                if (value < 0)
                 {
-                    index = Array.BinarySearch(array, negativeStart, length - negativeStart, value);
+                    start = negativeStart;
+                    newLength = length - negativeStart;
                 }
-                return index;
+                return Array.BinarySearch(array, start, newLength, value);
             }
 
             int IUnderlyingOperations<uint>.BinarySearch(uint[] array, int length, uint value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
 
             int IUnderlyingOperations<long>.BinarySearch(long[] array, int length, long value, int negativeStart)
             {
-                int index = Array.BinarySearch(array, 0, negativeStart, value);
-                if (index == -1)
+                int start = 0;
+                int newLength = negativeStart;
+                if (value < 0)
                 {
-                    index = Array.BinarySearch(array, negativeStart, length - negativeStart, value);
+                    start = negativeStart;
+                    newLength = length - negativeStart;
                 }
-                return index;
+                return Array.BinarySearch(array, start, newLength, value);
             }
 
             int IUnderlyingOperations<ulong>.BinarySearch(ulong[] array, int length, ulong value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
@@ -2430,33 +2431,43 @@ namespace System
         #endregion
 
         #region ToObject
+        public static object ToObject(Type enumType, object value)
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            return EnumCache.Get(enumType).ToObjectNonGeneric(value);
+        }
+
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, sbyte value) =>
-            EnumCache.Get(enumType).ToObject((ulong)value);
+            EnumCache.Get(enumType).ToObjectNonGeneric((ulong)value);
 
         public static object ToObject(Type enumType, short value) =>
-            EnumCache.Get(enumType).ToObject((ulong)value);
+            EnumCache.Get(enumType).ToObjectNonGeneric((ulong)value);
 
         public static object ToObject(Type enumType, int value) =>
-            EnumCache.Get(enumType).ToObject((ulong)value);
+            EnumCache.Get(enumType).ToObjectNonGeneric((ulong)value);
 
         public static object ToObject(Type enumType, byte value) =>
-            EnumCache.Get(enumType).ToObject(value);
+            EnumCache.Get(enumType).ToObjectNonGeneric(value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, ushort value) =>
-            EnumCache.Get(enumType).ToObject(value);
+            EnumCache.Get(enumType).ToObjectNonGeneric(value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, uint value) =>
-            EnumCache.Get(enumType).ToObject(value);
+            EnumCache.Get(enumType).ToObjectNonGeneric(value);
 
         public static object ToObject(Type enumType, long value) =>
-            EnumCache.Get(enumType).ToObject((ulong)value);
+            EnumCache.Get(enumType).ToObjectNonGeneric((ulong)value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, ulong value) =>
-            EnumCache.Get(enumType).ToObject(value);
+            EnumCache.Get(enumType).ToObjectNonGeneric(value);
         #endregion
     }
 }

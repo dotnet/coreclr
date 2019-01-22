@@ -3434,7 +3434,7 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumCache.Get(this).GetValues();
+            return Enum.EnumCache.Get(this).GetValuesNonGeneric();
         }
 
         public override Type GetEnumUnderlyingType()
