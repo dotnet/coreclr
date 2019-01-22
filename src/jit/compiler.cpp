@@ -2395,8 +2395,7 @@ void Compiler::compSetProcessor()
 
                 // We need to additionaly check that COMPlus_EnableSSE3_4 is set, as that
                 // is a prexisting config flag that controls the SSE3+ ISAs
-                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3) && JitConfig.EnableSSE3() &&
-                    JitConfig.EnableSSE3_4())
+                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3) && JitConfig.EnableSSE3() && JitConfig.EnableSSE3_4())
                 {
                     opts.setSupportedISA(InstructionSet_SSE3);
 
@@ -2451,14 +2450,13 @@ void Compiler::compSetProcessor()
         {
             opts.setSupportedISA(InstructionSet_LZCNT);
 #ifdef _TARGET_AMD64_
-              opts.setSupportedISA(InstructionSet_LZCNT_X64);
+            opts.setSupportedISA(InstructionSet_LZCNT_X64);
 #endif // _TARGET_AMD64_
         }
 
         // We currently need to also check that AVX is supported as that controls the support for the VEX encoding
         // in the emitter.
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1) && JitConfig.EnableBMI1() &&
-            compSupports(InstructionSet_AVX))
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1) && JitConfig.EnableBMI1() && compSupports(InstructionSet_AVX))
         {
             opts.setSupportedISA(InstructionSet_BMI1);
 #ifdef _TARGET_AMD64_
@@ -2468,8 +2466,7 @@ void Compiler::compSetProcessor()
 
         // We currently need to also check that AVX is supported as that controls the support for the VEX encoding
         // in the emitter.
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2) && JitConfig.EnableBMI2() &&
-            compSupports(InstructionSet_AVX))
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2) && JitConfig.EnableBMI2() && compSupports(InstructionSet_AVX))
         {
             opts.setSupportedISA(InstructionSet_BMI2);
 #ifdef _TARGET_AMD64_
