@@ -839,6 +839,12 @@ struct HFA
     float f4;
 };
 
+struct DoubleHFA
+{
+    double d1;
+    double d2;
+};
+
 struct ManyInts
 {
     int i1;

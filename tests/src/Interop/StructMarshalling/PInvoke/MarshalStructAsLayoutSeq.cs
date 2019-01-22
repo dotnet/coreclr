@@ -28,7 +28,8 @@ public class Managed
         SequentialDoubleWrapperId,
         AggregateSequentialWrapperId,
         FixedBufferClassificationTestId,
-        HFAId
+        HFAId,
+        DoubleHFAId
     }
 
     private static void InitialArray(int[] iarr, int[] icarr)
@@ -330,6 +331,9 @@ public class Managed
     
     [DllImport("MarshalStructAsParam")]
     static extern float ProductHFA(HFA hfa);
+
+    [DllImport("MarshalStructAsParam")]
+    static extern double ProductDoubleHFA(DoubleHFA hfa);
 
     [DllImport("MarshalStructAsParam")]
     static extern ManyInts GetMultiplesOf(int i);
@@ -672,8 +676,26 @@ public class Managed
                     float expected = hfa.f1 * hfa.f2 * hfa.f3 * hfa.f4;
                     float actual;
 
-                    Console.WriteLine("\tCalling ProductHFA with Explicit HFA.");
+                    Console.WriteLine("\tCalling ProductHFA with HFA.");
                     actual = ProductHFA(hfa);
+                    if (expected != actual)
+                    {
+                        Console.WriteLine($"\tFAILED! Expected {expected}. Actual {actual}");
+                        failures++;
+                    }
+                    break;
+                case StructID.DoubleHFAId:
+                    DoubleHFA doubleHFA = new DoubleHFA
+                    {
+                        d1 = 123.456,
+                        d2 = 456.789
+                    };
+
+                    double expected = doubleHFA.d1 * doubleHFA.d2;
+                    double actual;
+
+                    Console.WriteLine("\tCalling ProductDoubleHFA.");
+                    actual = ProductDoubleHFA(doubleHFA);
                     if (expected != actual)
                     {
                         Console.WriteLine($"\tFAILED! Expected {expected}. Actual {actual}");
@@ -2303,6 +2325,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByVal(StructID.AggregateSequentialWrapperId);
         MarshalStructAsParam_AsSeqByVal(StructID.FixedBufferClassificationTestId);
         MarshalStructAsParam_AsSeqByVal(StructID.HFAId);
+        MarshalStructAsParam_AsSeqByVal(StructID.DoubleHFAId);
     }
 
     [SecuritySafeCritical]

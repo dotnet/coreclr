@@ -1205,6 +1205,11 @@ extern "C" DLL_EXPORT HFA STDMETHODCALLTYPE GetHFA(float f1, float f2, float f3,
     return {f1, f2, f3, f4};
 }
 
+extern "C" DLL_EXPORT double STDMETHODCALLTYPE ProductDoubleHFA(DoubleHFA hfa)
+{
+    return hfa.d1 * hfa.d2;
+}
+
 extern "C" DLL_EXPORT ManyInts STDMETHODCALLTYPE GetMultiplesOf(int value)
 {
     ManyInts multiples = 

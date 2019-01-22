@@ -346,6 +346,13 @@ public struct OverlappingHFA
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct DoubleHFA
+{
+    public double d1;
+    public double d2;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct ManyInts
 {
     public int i1;
