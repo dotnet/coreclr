@@ -392,9 +392,6 @@ namespace System.Threading
 
         private volatile int numOutstandingThreadRequests = 0;
 
-        // The number of threads executing work items in the Dispatch method
-        internal volatile int numWorkingThreads;
-
         private Internal.PaddingFor32 pad2;
 
         public ThreadPoolWorkQueue()
@@ -543,8 +540,6 @@ namespace System.Threading
             //
             outerWorkQueue.MarkThreadRequestSatisfied();
 
-            Interlocked.Increment(ref outerWorkQueue.numWorkingThreads);
-
             // Has the desire for logging changed since the last time we entered?
             outerWorkQueue.loggingEnabled = FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool | FrameworkEventSource.Keywords.ThreadTransfer);
 
@@ -677,9 +672,6 @@ namespace System.Threading
             }
             finally
             {
-                int numWorkers = Interlocked.Decrement(ref outerWorkQueue.numWorkingThreads);
-                Debug.Assert(numWorkers >= 0);
-
                 //
                 // If we are exiting for any reason other than that the queue is definitely empty, ask for another
                 // thread to pick up where we left off.
