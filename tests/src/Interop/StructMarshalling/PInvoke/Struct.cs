@@ -415,7 +415,6 @@ public struct OverlappingLongFloat
 [StructLayout(LayoutKind.Explicit)]
 public struct OverlappingLongFloat2
 {
-
     [FieldOffset(4)]
     public float f;
     [FieldOffset(0)]
