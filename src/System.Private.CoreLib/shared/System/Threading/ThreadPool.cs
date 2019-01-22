@@ -524,7 +524,7 @@ namespace System.Threading
         /// <c>true</c> if this thread did as much work as was available or its quantum expired.
         /// <c>false</c> if this thread stopped working early.
         /// </returns>
-        internal static bool Dispatch()
+        internal static bool Dispatch(bool failFastOnExceptions = true)
         {
             ThreadPoolWorkQueue outerWorkQueue = ThreadPoolGlobals.workQueue;
 
@@ -669,7 +669,7 @@ namespace System.Threading
                 needAnotherThread = false;
             }
 #endif
-            catch (Exception e)
+            catch (Exception e) when (failFastOnExceptions)
             {
                 // Work items should not allow exceptions to escape.  For example, Task catches and stores any exceptions.
                 Environment.FailFast("Unhandled exception in ThreadPool dispatch loop", e);
