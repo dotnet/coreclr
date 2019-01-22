@@ -143,7 +143,7 @@ public:
         CORJIT_FLAG_USE_LZCNT               = 51,
         CORJIT_FLAG_USE_PCLMULQDQ           = 52,
         CORJIT_FLAG_USE_POPCNT              = 53,
-        CORJIT_FLAG_USE_BASE                = 54,
+        CORJIT_FLAG_UNUSED23                = 54,
         CORJIT_FLAG_UNUSED24                = 55,
         CORJIT_FLAG_UNUSED25                = 56,
         CORJIT_FLAG_UNUSED26                = 57,

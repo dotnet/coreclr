@@ -1348,9 +1348,6 @@ void EEJitManager::SetCpuInfo()
     //      LZCNT - ECX bit 5        (buffer[8]  & 0x20)
     // synchronously updating VM and JIT.
 
-    // Base is always allowed
-    CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_BASE);
-
     unsigned char buffer[16];
     DWORD maxCpuId = getcpuid(0, buffer);
 

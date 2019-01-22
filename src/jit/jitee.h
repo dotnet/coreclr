@@ -130,7 +130,7 @@ public:
         JIT_FLAG_USE_LZCNT               = 51,
         JIT_FLAG_USE_PCLMULQDQ           = 52,
         JIT_FLAG_USE_POPCNT              = 53,
-        JIT_FLAG_USE_BASE                = 54,
+        JIT_FLAG_UNUSED23                = 54,
         JIT_FLAG_UNUSED24                = 55,
         JIT_FLAG_UNUSED25                = 56,
         JIT_FLAG_UNUSED26                = 57,
@@ -329,7 +329,6 @@ public:
         FLAGS_EQUAL(CORJIT_FLAGS::CORJIT_FLAG_USE_LZCNT, JIT_FLAG_USE_LZCNT);
         FLAGS_EQUAL(CORJIT_FLAGS::CORJIT_FLAG_USE_PCLMULQDQ, JIT_FLAG_USE_PCLMULQDQ);
         FLAGS_EQUAL(CORJIT_FLAGS::CORJIT_FLAG_USE_POPCNT, JIT_FLAG_USE_POPCNT);
-        FLAGS_EQUAL(CORJIT_FLAGS::CORJIT_FLAG_USE_BASE, JIT_FLAG_USE_BASE);
 
 #endif // _TARGET_X86_ || _TARGET_AMD64_
 
