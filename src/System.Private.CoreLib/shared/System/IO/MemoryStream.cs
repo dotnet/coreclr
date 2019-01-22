@@ -226,18 +226,21 @@ namespace System.IO
             return _position;
         }
 
-        // PERF: Takes out Int32 as fast as possible
-        internal int InternalReadInt32()
+        // PERF: Takes out ReadOnlySpan as fast as possible
+        internal ReadOnlySpan<byte> InternalReadSpan(int count)
         {
             EnsureNotClosed();
 
-            int pos = (_position += 4); // use temp to avoid a race condition
-            if (pos > _length)
+            int origPos = _position;
+            int newPos = origPos + count;
+            if (newPos > _length)
             {
                 _position = _length;
                 throw Error.GetEndOfFile();
             }
-            return (int)(_buffer[pos - 4] | _buffer[pos - 3] << 8 | _buffer[pos - 2] << 16 | _buffer[pos - 1] << 24);
+
+            _position = newPos;
+            return new ReadOnlySpan<byte>(_buffer, origPos, count);
         }
 
         // PERF: Get actual length of bytes available for read; do sanity checks; shift position - i.e. everything except actual copying bytes

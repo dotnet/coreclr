@@ -14,7 +14,9 @@
 **
 ============================================================*/
 
+using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -102,6 +104,7 @@ namespace System.IO
                     copyOfStream.Close();
                 }
             }
+            _isMemoryStream = false;
             _stream = null;
             _buffer = null;
             _decoder = null;
@@ -220,13 +223,10 @@ namespace System.IO
             return _singleChar[0];
         }
 
-        public virtual bool ReadBoolean()
-        {
-            FillBuffer(1);
-            return (_buffer[0] != 0);
-        }
+        public virtual byte ReadByte() => InternalReadByte();
 
-        public virtual byte ReadByte()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private byte InternalReadByte()
         {
             // Inlined to avoid some method call overhead with FillBuffer.
             if (_stream == null)
@@ -244,11 +244,8 @@ namespace System.IO
         }
 
         [CLSCompliant(false)]
-        public virtual sbyte ReadSByte()
-        {
-            FillBuffer(1);
-            return (sbyte)(_buffer[0]);
-        }
+        public virtual sbyte ReadSByte() => (sbyte)InternalReadByte();
+        public virtual bool ReadBoolean() => InternalReadByte() != 0;
 
         public virtual char ReadChar()
         {
@@ -260,99 +257,34 @@ namespace System.IO
             return (char)value;
         }
 
-        public virtual short ReadInt16()
-        {
-            FillBuffer(2);
-            return (short)(_buffer[0] | _buffer[1] << 8);
-        }
+        public virtual short ReadInt16() => BinaryPrimitives.ReadInt16LittleEndian(InternalRead(2));
 
         [CLSCompliant(false)]
-        public virtual ushort ReadUInt16()
-        {
-            FillBuffer(2);
-            return (ushort)(_buffer[0] | _buffer[1] << 8);
-        }
+        public virtual ushort ReadUInt16() => BinaryPrimitives.ReadUInt16LittleEndian(InternalRead(2));
 
-        public virtual int ReadInt32()
-        {
-            if (_isMemoryStream)
-            {
-                if (_stream == null)
-                {
-                    throw Error.GetFileNotOpen();
-                }
-
-                // read directly from MemoryStream buffer
-                MemoryStream mStream = _stream as MemoryStream;
-                Debug.Assert(mStream != null, "_stream as MemoryStream != null");
-
-                return mStream.InternalReadInt32();
-            }
-            else
-            {
-                FillBuffer(4);
-                return (int)(_buffer[0] | _buffer[1] << 8 | _buffer[2] << 16 | _buffer[3] << 24);
-            }
-        }
-
+        public virtual int ReadInt32() => BinaryPrimitives.ReadInt32LittleEndian(InternalRead(4));
         [CLSCompliant(false)]
-        public virtual uint ReadUInt32()
-        {
-            if (_isMemoryStream)
-            {
-                if (_stream == null)
-                {
-                    throw Error.GetFileNotOpen();
-                }
-
-                // read directly from MemoryStream buffer
-                MemoryStream mStream = _stream as MemoryStream;
-                Debug.Assert(mStream != null, "_stream as MemoryStream != null");
-
-                return (uint)mStream.InternalReadInt32();
-            }
-            else
-            {
-                FillBuffer(4);
-                return (uint)(_buffer[0] | _buffer[1] << 8 | _buffer[2] << 16 | _buffer[3] << 24);
-            }
-        }
-
-        public virtual long ReadInt64()
-        {
-            FillBuffer(8);
-            uint lo = (uint)(_buffer[0] | _buffer[1] << 8 |
-                             _buffer[2] << 16 | _buffer[3] << 24);
-            uint hi = (uint)(_buffer[4] | _buffer[5] << 8 |
-                             _buffer[6] << 16 | _buffer[7] << 24);
-            return (long)((ulong)hi) << 32 | lo;
-        }
-
+        public virtual uint ReadUInt32() => BinaryPrimitives.ReadUInt32LittleEndian(InternalRead(4));
+        public virtual long ReadInt64() => BinaryPrimitives.ReadInt64LittleEndian(InternalRead(8));
         [CLSCompliant(false)]
-        public virtual ulong ReadUInt64()
-        {
-            FillBuffer(8);
-            uint lo = (uint)(_buffer[0] | _buffer[1] << 8 |
-                             _buffer[2] << 16 | _buffer[3] << 24);
-            uint hi = (uint)(_buffer[4] | _buffer[5] << 8 |
-                             _buffer[6] << 16 | _buffer[7] << 24);
-            return ((ulong)hi) << 32 | lo;
-        }
+        public virtual ulong ReadUInt64() => BinaryPrimitives.ReadUInt64LittleEndian(InternalRead(8));
+
+        public virtual Guid ReadGuid() => new Guid(InternalRead(16));
 
         public virtual unsafe float ReadSingle()
         {
-            FillBuffer(4);
-            uint tmpBuffer = (uint)(_buffer[0] | _buffer[1] << 8 | _buffer[2] << 16 | _buffer[3] << 24);
+            ReadOnlySpan<byte> span = InternalRead(4);
+            uint tmpBuffer = (uint)(span[0] | span[1] << 8 | span[2] << 16 | span[3] << 24);
             return *((float*)&tmpBuffer);
         }
 
         public virtual unsafe double ReadDouble()
         {
-            FillBuffer(8);
-            uint lo = (uint)(_buffer[0] | _buffer[1] << 8 |
-                _buffer[2] << 16 | _buffer[3] << 24);
-            uint hi = (uint)(_buffer[4] | _buffer[5] << 8 |
-                _buffer[6] << 16 | _buffer[7] << 24);
+            ReadOnlySpan<byte> span = InternalRead(8);
+            uint lo = (uint)(span[0] | span[1] << 8 |
+                span[2] << 16 | span[3] << 24);
+            uint hi = (uint)(span[4] | span[5] << 8 |
+                span[6] << 16 | span[7] << 24);
 
             ulong tmpBuffer = ((ulong)hi) << 32 | lo;
             return *((double*)&tmpBuffer);
@@ -360,10 +292,10 @@ namespace System.IO
 
         public virtual decimal ReadDecimal()
         {
-            FillBuffer(16);
+            ReadOnlySpan<byte> span = InternalRead(16);
             try
             {
-                return decimal.ToDecimal(_buffer);
+                return decimal.ToDecimal(span);
             }
             catch (ArgumentException e)
             {
@@ -665,6 +597,46 @@ namespace System.IO
             return result;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private ReadOnlySpan<byte> InternalRead(int numBytes)
+        {
+            Debug.Assert(numBytes >= 2 && numBytes <= 16, "value of 1 should use ReadByte. value > 16 requires to change the minimal _buffer size");
+
+            if (_isMemoryStream)
+            {
+                // no need to check if _stream == null as we will never have null _stream when _isMemoryStream = true
+
+                // read directly from MemoryStream buffer
+                MemoryStream mStream = _stream as MemoryStream;
+                Debug.Assert(mStream != null, "_stream as MemoryStream != null");
+
+                return mStream.InternalReadSpan(numBytes);
+            }
+            else
+            {
+                if (_stream == null)
+                {
+                    throw Error.GetFileNotOpen();
+                }
+
+                int bytesRead = 0;
+                int n = 0;
+
+                do
+                {
+                    n = _stream.Read(_buffer, bytesRead, numBytes - bytesRead);
+                    if (n == 0)
+                    {
+                        throw Error.GetEndOfFile();
+                    }
+                    bytesRead += n;
+                } while (bytesRead < numBytes);
+
+                return _buffer;
+            }
+        }
+
+        [Obsolete("This should not be part of the exposed surface of this class. It is also not used internally anymore.", true)]
         protected virtual void FillBuffer(int numBytes)
         {
             if (_buffer != null && (numBytes < 0 || numBytes > _buffer.Length))

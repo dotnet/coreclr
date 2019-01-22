@@ -553,13 +553,13 @@ namespace System
             buffer[15] = (byte)(d.flags >> 24);
         }
 
-        internal static decimal ToDecimal(byte[] buffer)
+        internal static decimal ToDecimal(ReadOnlySpan<byte> span)
         {
-            Debug.Assert((buffer != null && buffer.Length >= 16), "[ToDecimal]buffer != null && buffer.Length >= 16");
-            int lo = ((int)buffer[0]) | ((int)buffer[1] << 8) | ((int)buffer[2] << 16) | ((int)buffer[3] << 24);
-            int mid = ((int)buffer[4]) | ((int)buffer[5] << 8) | ((int)buffer[6] << 16) | ((int)buffer[7] << 24);
-            int hi = ((int)buffer[8]) | ((int)buffer[9] << 8) | ((int)buffer[10] << 16) | ((int)buffer[11] << 24);
-            int flags = ((int)buffer[12]) | ((int)buffer[13] << 8) | ((int)buffer[14] << 16) | ((int)buffer[15] << 24);
+            Debug.Assert((span != null && span.Length >= 16), "[ToDecimal]buffer != null && buffer.Length >= 16");
+            int lo = ((int)span[0]) | ((int)span[1] << 8) | ((int)span[2] << 16) | ((int)span[3] << 24);
+            int mid = ((int)span[4]) | ((int)span[5] << 8) | ((int)span[6] << 16) | ((int)span[7] << 24);
+            int hi = ((int)span[8]) | ((int)span[9] << 8) | ((int)span[10] << 16) | ((int)span[11] << 24);
+            int flags = ((int)span[12]) | ((int)span[13] << 8) | ((int)span[14] << 16) | ((int)span[15] << 24);
             return new decimal(lo, mid, hi, flags);
         }
 
