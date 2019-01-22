@@ -200,15 +200,22 @@ namespace System
             IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)length;
 
-            if ((Avx2.IsSupported || Sse2.IsSupported) && length >= Vector128<byte>.Count * 2)
+            if (Avx2.IsSupported || Sse2.IsSupported)
             {
-                int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector128<byte>.Count - 1);
-                nLength = (IntPtr)((Vector128<byte>.Count - unaligned) & (Vector128<byte>.Count - 1));
+                if (length >= Vector128<byte>.Count * 2)
+                {
+                    int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector128<byte>.Count - 1);
+                    nLength = (IntPtr)((Vector128<byte>.Count - unaligned) & (Vector128<byte>.Count - 1));
+                }
+                
             }
-            else if (!Avx2.IsSupported && !Sse2.IsSupported && Vector.IsHardwareAccelerated && length >= Vector<byte>.Count * 2)
+            else if (Vector.IsHardwareAccelerated)
             {
-                int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector<byte>.Count - 1);
-                nLength = (IntPtr)((Vector<byte>.Count - unaligned) & (Vector<byte>.Count - 1));
+                if (length >= Vector<byte>.Count * 2)
+                {
+                    int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector<byte>.Count - 1);
+                    nLength = (IntPtr)((Vector<byte>.Count - unaligned) & (Vector<byte>.Count - 1));
+                }
             }
         SequentialScan:
             while ((byte*)nLength >= (byte*)8)
@@ -261,19 +268,78 @@ namespace System
                 index += 1;
             }
 
-            if (Avx2.IsSupported && ((int)(byte*)index < length))
+            if (Avx2.IsSupported)
             {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector256<byte>.Count - 1));
-                if ((byte*)nLength > (byte*)index)
+                if ((int)(byte*)index < length)
                 {
-                    Vector256<byte> comparison = Vector256.Create(value);
-                    do
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector256<byte>.Count - 1));
+                    if ((byte*)nLength > (byte*)index)
                     {
-                        Vector256<byte> search = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                        int matches = Avx2.MoveMask(Avx2.CompareEqual(comparison, search));
+                        Vector256<byte> comparison = Vector256.Create(value);
+                        do
+                        {
+                            Vector256<byte> search = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                            int matches = Avx2.MoveMask(Avx2.CompareEqual(comparison, search));
+                            if (matches == 0)
+                            {
+                                index += Vector256<byte>.Count;
+                                continue;
+                            }
+                            // Find offset of first match
+                            else if (Bmi1.IsSupported)
+                            {
+                                return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                            }
+                            else
+                            {
+                                return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                            }
+                        } while ((byte*)nLength > (byte*)index);
+                    }
+
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
+                    if ((byte*)nLength > (byte*)index)
+                    {
+                        Vector128<byte> comparison = Vector128.Create(value);
+
+                        Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(comparison, search));
                         if (matches == 0)
                         {
-                            index += Vector256<byte>.Count;
+                            index += Vector128<byte>.Count;
+                        }
+                        // Find offset of first match
+                        else if (Bmi1.IsSupported)
+                        {
+                            return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                        }
+                        else
+                        {
+                            return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                        }
+                    }
+
+                    if ((int)(byte*)index < length)
+                    {
+                        nLength = (IntPtr)(length - (int)(byte*)index);
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Sse2.IsSupported)
+            {
+                if ((int)(byte*)index < length)
+                {
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
+
+                    Vector128<byte> comparison = Vector128.Create(value);
+                    while ((byte*)nLength > (byte*)index)
+                    {
+                        Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(comparison, search));
+                        if (matches == 0)
+                        {
+                            index += Vector128<byte>.Count;
                             continue;
                         }
                         // Find offset of first match
@@ -285,91 +351,41 @@ namespace System
                         {
                             return (int)(byte*)index + TrailingZeroCountFallback(matches);
                         }
-                    } while ((byte*)nLength > (byte*)index);
-                }
-
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
-                if ((byte*)nLength > (byte*)index)
-                {
-                    Vector128<byte> comparison = Vector128.Create(value);
-
-                    Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                    int matches = Sse2.MoveMask(Sse2.CompareEqual(comparison, search));
-                    if (matches == 0)
-                    {
-                        index += Vector128<byte>.Count;
                     }
-                    // Find offset of first match
-                    else if (Bmi1.IsSupported)
-                    {
-                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
-                    }
-                    else
-                    {
-                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
-                    }
-                }
 
-                if ((int)(byte*)index < length)
-                {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
-                    goto SequentialScan;
+                    if ((int)(byte*)index < length)
+                    {
+                        nLength = (IntPtr)(length - (int)(byte*)index);
+                        goto SequentialScan;
+                    }
                 }
             }
-            else if (!Avx2.IsSupported && Sse2.IsSupported && ((int)(byte*)index < length))
+            else if (Vector.IsHardwareAccelerated)
             {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
-
-                Vector128<byte> comparison = Vector128.Create(value);
-                while ((byte*)nLength > (byte*)index)
-                {
-                    Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                    int matches = Sse2.MoveMask(Sse2.CompareEqual(comparison, search));
-                    if (matches == 0)
-                    {
-                        index += Vector128<byte>.Count;
-                        continue;
-                    }
-                    // Find offset of first match
-                    else if (Bmi1.IsSupported)
-                    {
-                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
-                    }
-                    else
-                    {
-                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
-                    }
-                }
-
                 if ((int)(byte*)index < length)
                 {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
-                    goto SequentialScan;
-                }
-            }
-            else if (!Avx2.IsSupported && !Sse2.IsSupported && Vector.IsHardwareAccelerated && ((int)(byte*)index < length))
-            {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector<byte>.Count - 1));
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector<byte>.Count - 1));
 
-                // Get comparison Vector
-                Vector<byte> vComparison = new Vector<byte>(value);
+                    // Get comparison Vector
+                    Vector<byte> vComparison = new Vector<byte>(value);
 
-                while ((byte*)nLength > (byte*)index)
-                {
-                    var vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index)));
-                    if (Vector<byte>.Zero.Equals(vMatches))
+                    while ((byte*)nLength > (byte*)index)
                     {
-                        index += Vector<byte>.Count;
-                        continue;
+                        var vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index)));
+                        if (Vector<byte>.Zero.Equals(vMatches))
+                        {
+                            index += Vector<byte>.Count;
+                            continue;
+                        }
+                        // Find offset of first match
+                        return (int)(byte*)index + LocateFirstFoundByte(vMatches);
                     }
-                    // Find offset of first match
-                    return (int)(byte*)index + LocateFirstFoundByte(vMatches);
-                }
 
-                if ((int)(byte*)index < length)
-                {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
-                    goto SequentialScan;
+                    if ((int)(byte*)index < length)
+                    {
+                        nLength = (IntPtr)(length - (int)(byte*)index);
+                        goto SequentialScan;
+                    }
                 }
             }
             return -1;
@@ -539,15 +555,21 @@ namespace System
             IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)length;
 
-            if ((Avx2.IsSupported || Sse2.IsSupported) && length >= Vector128<byte>.Count * 2)
+            if (Avx2.IsSupported || Sse2.IsSupported)
             {
-                int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector128<byte>.Count - 1);
-                nLength = (IntPtr)((Vector128<byte>.Count - unaligned) & (Vector128<byte>.Count - 1));
+                if (length >= Vector128<byte>.Count * 2)
+                {
+                    int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector128<byte>.Count - 1);
+                    nLength = (IntPtr)((Vector128<byte>.Count - unaligned) & (Vector128<byte>.Count - 1));
+                }
             }
-            else if (!Avx2.IsSupported && !Sse2.IsSupported && Vector.IsHardwareAccelerated && length >= Vector<byte>.Count * 2)
+            else if (Vector.IsHardwareAccelerated)
             {
-                int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector<byte>.Count - 1);
-                nLength = (IntPtr)((Vector<byte>.Count - unaligned) & (Vector<byte>.Count - 1));
+                if (length >= Vector<byte>.Count * 2)
+                {
+                    int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector<byte>.Count - 1);
+                    nLength = (IntPtr)((Vector<byte>.Count - unaligned) & (Vector<byte>.Count - 1));
+                }
             }
         SequentialScan:
             uint lookUp;
@@ -614,21 +636,85 @@ namespace System
                 index += 1;
             }
 
-            if (Avx2.IsSupported && ((int)(byte*)index < length))
+            if (Avx2.IsSupported)
             {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector256<byte>.Count - 1));
-                if ((byte*)nLength > (byte*)index)
+                if ((int)(byte*)index < length)
                 {
-                    Vector256<byte> comp0 = Vector256.Create(value0);
-                    Vector256<byte> comp1 = Vector256.Create(value1);
-                    do
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector256<byte>.Count - 1));
+                    if ((byte*)nLength > (byte*)index)
                     {
-                        Vector256<byte> search = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                        int matches = Avx2.MoveMask(Avx2.CompareEqual(comp0, search));
-                        matches |= Avx2.MoveMask(Avx2.CompareEqual(comp1, search));
+                        Vector256<byte> comp0 = Vector256.Create(value0);
+                        Vector256<byte> comp1 = Vector256.Create(value1);
+                        do
+                        {
+                            Vector256<byte> search = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                            int matches = Avx2.MoveMask(Avx2.CompareEqual(comp0, search));
+                            matches |= Avx2.MoveMask(Avx2.CompareEqual(comp1, search));
+                            if (matches == 0)
+                            {
+                                index += Vector256<byte>.Count;
+                                continue;
+                            }
+                            // Find offset of first match
+                            else if (Bmi1.IsSupported)
+                            {
+                                return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                            }
+                            else
+                            {
+                                return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                            }
+                        } while ((byte*)nLength > (byte*)index);
+                    }
+
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
+                    if ((byte*)nLength > (byte*)index)
+                    {
+                        Vector128<byte> comp0 = Vector128.Create(value0);
+                        Vector128<byte> comp1 = Vector128.Create(value1);
+
+                        Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(comp0, search));
+                        matches |= Sse2.MoveMask(Sse2.CompareEqual(comp1, search));
                         if (matches == 0)
                         {
-                            index += Vector256<byte>.Count;
+                            index += Vector128<byte>.Count;
+                        }
+                        // Find offset of first match
+                        else if (Bmi1.IsSupported)
+                        {
+                            return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                        }
+                        else
+                        {
+                            return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                        }
+                    }
+
+                    if ((int)(byte*)index < length)
+                    {
+                        nLength = (IntPtr)(length - (int)(byte*)index);
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Sse2.IsSupported)
+            {
+                if ((int)(byte*)index < length)
+                {
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
+
+                    Vector128<byte> comp0 = Vector128.Create(value0);
+                    Vector128<byte> comp1 = Vector128.Create(value1);
+
+                    while ((byte*)nLength > (byte*)index)
+                    {
+                        Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(comp0, search));
+                        matches |= Sse2.MoveMask(Sse2.CompareEqual(comp1, search));
+                        if (matches == 0)
+                        {
+                            index += Vector128<byte>.Count;
                             continue;
                         }
                         // Find offset of first match
@@ -640,100 +726,45 @@ namespace System
                         {
                             return (int)(byte*)index + TrailingZeroCountFallback(matches);
                         }
-                    } while ((byte*)nLength > (byte*)index);
-                }
-
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
-                if ((byte*)nLength > (byte*)index)
-                {
-                    Vector128<byte> comp0 = Vector128.Create(value0);
-                    Vector128<byte> comp1 = Vector128.Create(value1);
-
-                    Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                    int matches = Sse2.MoveMask(Sse2.CompareEqual(comp0, search));
-                    matches |= Sse2.MoveMask(Sse2.CompareEqual(comp1, search));
-                    if (matches == 0)
-                    {
-                        index += Vector128<byte>.Count;
                     }
-                    // Find offset of first match
-                    else if (Bmi1.IsSupported)
-                    {
-                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
-                    }
-                    else
-                    {
-                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
-                    }
-                }
 
-                if ((int)(byte*)index < length)
-                {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
-                    goto SequentialScan;
+                    if ((int)(byte*)index < length)
+                    {
+                        nLength = (IntPtr)(length - (int)(byte*)index);
+                        goto SequentialScan;
+                    }
                 }
             }
-            else if (!Avx2.IsSupported && Sse2.IsSupported && ((int)(byte*)index < length))
+            else if (Vector.IsHardwareAccelerated)
             {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
-
-                Vector128<byte> comp0 = Vector128.Create(value0);
-                Vector128<byte> comp1 = Vector128.Create(value1);
-
-                while ((byte*)nLength > (byte*)index)
-                {
-                    Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                    int matches = Sse2.MoveMask(Sse2.CompareEqual(comp0, search));
-                    matches |= Sse2.MoveMask(Sse2.CompareEqual(comp1, search));
-                    if (matches == 0)
-                    {
-                        index += Vector128<byte>.Count;
-                        continue;
-                    }
-                    // Find offset of first match
-                    else if (Bmi1.IsSupported)
-                    {
-                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
-                    }
-                    else
-                    {
-                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
-                    }
-                }
-
                 if ((int)(byte*)index < length)
                 {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
-                    goto SequentialScan;
-                }
-            }
-            else if (!Avx2.IsSupported && !Sse2.IsSupported && Vector.IsHardwareAccelerated && ((int)(byte*)index < length))
-            {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector<byte>.Count - 1));
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector<byte>.Count - 1));
 
-                // Get comparison Vector
-                Vector<byte> values0 = new Vector<byte>(value0);
-                Vector<byte> values1 = new Vector<byte>(value1);
+                    // Get comparison Vector
+                    Vector<byte> values0 = new Vector<byte>(value0);
+                    Vector<byte> values1 = new Vector<byte>(value1);
 
-                while ((byte*)nLength > (byte*)index)
-                {
-                    Vector<byte> vData = Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                    var vMatches = Vector.BitwiseOr(
-                                    Vector.Equals(vData, values0),
-                                    Vector.Equals(vData, values1));
-                    if (Vector<byte>.Zero.Equals(vMatches))
+                    while ((byte*)nLength > (byte*)index)
                     {
-                        index += Vector<byte>.Count;
-                        continue;
+                        Vector<byte> vData = Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                        var vMatches = Vector.BitwiseOr(
+                                        Vector.Equals(vData, values0),
+                                        Vector.Equals(vData, values1));
+                        if (Vector<byte>.Zero.Equals(vMatches))
+                        {
+                            index += Vector<byte>.Count;
+                            continue;
+                        }
+                        // Find offset of first match
+                        return (int)(byte*)index + LocateFirstFoundByte(vMatches);
                     }
-                    // Find offset of first match
-                    return (int)(byte*)index + LocateFirstFoundByte(vMatches);
-                }
 
-                if ((int)(byte*)index < length)
-                {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
-                    goto SequentialScan;
+                    if ((int)(byte*)index < length)
+                    {
+                        nLength = (IntPtr)(length - (int)(byte*)index);
+                        goto SequentialScan;
+                    }
                 }
             }
             return -1;
@@ -765,15 +796,21 @@ namespace System
             IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)length;
 
-            if ((Avx2.IsSupported || Sse2.IsSupported) && length >= Vector128<byte>.Count * 2)
+            if (Avx2.IsSupported || Sse2.IsSupported)
             {
-                int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector128<byte>.Count - 1);
-                nLength = (IntPtr)((Vector128<byte>.Count - unaligned) & (Vector128<byte>.Count - 1));
+                if (length >= Vector128<byte>.Count * 2)
+                {
+                    int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector128<byte>.Count - 1);
+                    nLength = (IntPtr)((Vector128<byte>.Count - unaligned) & (Vector128<byte>.Count - 1));
+                }
             }
-            else if (!Avx2.IsSupported && !Sse2.IsSupported && Vector.IsHardwareAccelerated && length >= Vector<byte>.Count * 2)
+            else if (Vector.IsHardwareAccelerated)
             {
-                int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector<byte>.Count - 1);
-                nLength = (IntPtr)((Vector<byte>.Count - unaligned) & (Vector<byte>.Count - 1));
+                if (length >= Vector<byte>.Count * 2)
+                {
+                    int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector<byte>.Count - 1);
+                    nLength = (IntPtr)((Vector<byte>.Count - unaligned) & (Vector<byte>.Count - 1));
+                }
             }
         SequentialScan:
             uint lookUp;
@@ -840,23 +877,91 @@ namespace System
                 index += 1;
             }
 
-            if (Avx2.IsSupported && ((int)(byte*)index < length))
+            if (Avx2.IsSupported)
             {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector256<byte>.Count - 1));
-                if ((byte*)nLength > (byte*)index)
+                if ((int)(byte*)index < length)
                 {
-                    Vector256<byte> comp0 = Vector256.Create(value0);
-                    Vector256<byte> comp1 = Vector256.Create(value1);
-                    Vector256<byte> comp2 = Vector256.Create(value2);
-                    do
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector256<byte>.Count - 1));
+                    if ((byte*)nLength > (byte*)index)
                     {
-                        Vector256<byte> search = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                        int matches = Avx2.MoveMask(Avx2.CompareEqual(comp0, search));
-                        matches |= Avx2.MoveMask(Avx2.CompareEqual(comp1, search));
-                        matches |= Avx2.MoveMask(Avx2.CompareEqual(comp2, search));
+                        Vector256<byte> comp0 = Vector256.Create(value0);
+                        Vector256<byte> comp1 = Vector256.Create(value1);
+                        Vector256<byte> comp2 = Vector256.Create(value2);
+                        do
+                        {
+                            Vector256<byte> search = Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                            int matches = Avx2.MoveMask(Avx2.CompareEqual(comp0, search));
+                            matches |= Avx2.MoveMask(Avx2.CompareEqual(comp1, search));
+                            matches |= Avx2.MoveMask(Avx2.CompareEqual(comp2, search));
+                            if (matches == 0)
+                            {
+                                index += Vector256<byte>.Count;
+                                continue;
+                            }
+                            // Find offset of first match
+                            else if (Bmi1.IsSupported)
+                            {
+                                return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                            }
+                            else
+                            {
+                                return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                            }
+                        } while ((byte*)nLength > (byte*)index);
+                    }
+
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
+                    if ((byte*)nLength > (byte*)index)
+                    {
+                        Vector128<byte> comp0 = Vector128.Create(value0);
+                        Vector128<byte> comp1 = Vector128.Create(value1);
+                        Vector128<byte> comp2 = Vector128.Create(value2);
+
+                        Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(comp0, search));
+                        matches |= Sse2.MoveMask(Sse2.CompareEqual(comp1, search));
+                        matches |= Sse2.MoveMask(Sse2.CompareEqual(comp2, search));
                         if (matches == 0)
                         {
-                            index += Vector256<byte>.Count;
+                            index += Vector128<byte>.Count;
+                        }
+                        // Find offset of first match
+                        else if (Bmi1.IsSupported)
+                        {
+                            return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
+                        }
+                        else
+                        {
+                            return (int)(byte*)index + TrailingZeroCountFallback(matches);
+                        }
+                    }
+
+                    if ((int)(byte*)index < length)
+                    {
+                        nLength = (IntPtr)(length - (int)(byte*)index);
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Sse2.IsSupported)
+            {
+                if ((int)(byte*)index < length)
+                {
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
+
+                    Vector128<byte> comp0 = Vector128.Create(value0);
+                    Vector128<byte> comp1 = Vector128.Create(value1);
+                    Vector128<byte> comp2 = Vector128.Create(value2);
+
+                    while ((byte*)nLength > (byte*)index)
+                    {
+                        Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(comp0, search));
+                        matches |= Sse2.MoveMask(Sse2.CompareEqual(comp1, search));
+                        matches |= Sse2.MoveMask(Sse2.CompareEqual(comp2, search));
+                        if (matches == 0)
+                        {
+                            index += Vector128<byte>.Count;
                             continue;
                         }
                         // Find offset of first match
@@ -868,109 +973,50 @@ namespace System
                         {
                             return (int)(byte*)index + TrailingZeroCountFallback(matches);
                         }
-                    } while ((byte*)nLength > (byte*)index);
-                }
-
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
-                if ((byte*)nLength > (byte*)index)
-                {
-                    Vector128<byte> comp0 = Vector128.Create(value0);
-                    Vector128<byte> comp1 = Vector128.Create(value1);
-                    Vector128<byte> comp2 = Vector128.Create(value2);
-
-                    Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                    int matches = Sse2.MoveMask(Sse2.CompareEqual(comp0, search));
-                    matches |= Sse2.MoveMask(Sse2.CompareEqual(comp1, search));
-                    matches |= Sse2.MoveMask(Sse2.CompareEqual(comp2, search));
-                    if (matches == 0)
-                    {
-                        index += Vector128<byte>.Count;
                     }
-                    // Find offset of first match
-                    else if (Bmi1.IsSupported)
-                    {
-                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
-                    }
-                    else
-                    {
-                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
-                    }
-                }
 
-                if ((int)(byte*)index < length)
-                {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
-                    goto SequentialScan;
+                    if ((int)(byte*)index < length)
+                    {
+                        nLength = (IntPtr)(length - (int)(byte*)index);
+                        goto SequentialScan;
+                    }
                 }
             }
-            else if (!Avx2.IsSupported && Sse2.IsSupported && ((int)(byte*)index < length))
+            else if (Vector.IsHardwareAccelerated)
             {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector128<byte>.Count - 1));
-
-                Vector128<byte> comp0 = Vector128.Create(value0);
-                Vector128<byte> comp1 = Vector128.Create(value1);
-                Vector128<byte> comp2 = Vector128.Create(value2);
-
-                while ((byte*)nLength > (byte*)index)
-                {
-                    Vector128<byte> search = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-                    int matches = Sse2.MoveMask(Sse2.CompareEqual(comp0, search));
-                    matches |= Sse2.MoveMask(Sse2.CompareEqual(comp1, search));
-                    matches |= Sse2.MoveMask(Sse2.CompareEqual(comp2, search));
-                    if (matches == 0)
-                    {
-                        index += Vector128<byte>.Count;
-                        continue;
-                    }
-                    // Find offset of first match
-                    else if (Bmi1.IsSupported)
-                    {
-                        return ((int)(byte*)index) + (int)Bmi1.TrailingZeroCount((uint)matches);
-                    }
-                    else
-                    {
-                        return (int)(byte*)index + TrailingZeroCountFallback(matches);
-                    }
-                }
-
                 if ((int)(byte*)index < length)
                 {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
-                    goto SequentialScan;
-                }
-            }
-            else if (!Avx2.IsSupported && !Sse2.IsSupported && Vector.IsHardwareAccelerated && ((int)(byte*)index < length))
-            {
-                nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector<byte>.Count - 1));
+                    nLength = (IntPtr)((length - (int)(byte*)index) & ~(Vector<byte>.Count - 1));
 
-                // Get comparison Vector
-                Vector<byte> values0 = new Vector<byte>(value0);
-                Vector<byte> values1 = new Vector<byte>(value1);
-                Vector<byte> values2 = new Vector<byte>(value2);
+                    // Get comparison Vector
+                    Vector<byte> values0 = new Vector<byte>(value0);
+                    Vector<byte> values1 = new Vector<byte>(value1);
+                    Vector<byte> values2 = new Vector<byte>(value2);
 
-                while ((byte*)nLength > (byte*)index)
-                {
-                    Vector<byte> vData = Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
-
-                    var vMatches = Vector.BitwiseOr(
-                                    Vector.BitwiseOr(
-                                        Vector.Equals(vData, values0),
-                                        Vector.Equals(vData, values1)),
-                                    Vector.Equals(vData, values2));
-
-                    if (Vector<byte>.Zero.Equals(vMatches))
+                    while ((byte*)nLength > (byte*)index)
                     {
-                        index += Vector<byte>.Count;
-                        continue;
-                    }
-                    // Find offset of first match
-                    return (int)(byte*)index + LocateFirstFoundByte(vMatches);
-                }
+                        Vector<byte> vData = Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index));
 
-                if ((int)(byte*)index < length)
-                {
-                    nLength = (IntPtr)(length - (int)(byte*)index);
-                    goto SequentialScan;
+                        var vMatches = Vector.BitwiseOr(
+                                        Vector.BitwiseOr(
+                                            Vector.Equals(vData, values0),
+                                            Vector.Equals(vData, values1)),
+                                        Vector.Equals(vData, values2));
+
+                        if (Vector<byte>.Zero.Equals(vMatches))
+                        {
+                            index += Vector<byte>.Count;
+                            continue;
+                        }
+                        // Find offset of first match
+                        return (int)(byte*)index + LocateFirstFoundByte(vMatches);
+                    }
+
+                    if ((int)(byte*)index < length)
+                    {
+                        nLength = (IntPtr)(length - (int)(byte*)index);
+                        goto SequentialScan;
+                    }
                 }
             }
             return -1;
