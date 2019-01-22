@@ -62,6 +62,9 @@ struct INNER2 // size = 12 bytes
     FLOAT f2;
     LPCSTR f3;
 };
+
+static_assert_no_msg(sizeof(INNER2) == 12);
+
 void ChangeINNER2(INNER2* p)
 {
 	p->f1 = 77;
@@ -173,46 +176,48 @@ union InnerArrayExplicit // size = 32 bytes
 
 
 #ifdef WINDOWS
-	#ifdef _WIN64
-        #pragma warning(push) 
-        #pragma warning(disable: 4201) // nonstandard extension used: nameless struct/union
-		union OUTER3 // size = 32 bytes
-		{
-			struct InnerSequential arr[2];
-			struct
-			{
-				CHAR _unused0[24];
-				LPCSTR f4;
-			};
-		};
-        #pragma warning(pop)
-	#else
-		struct OUTER3 // size = 28 bytes
-		{
-			struct InnerSequential arr[2];
-			LPCSTR f4;
-		};
-	#endif
+#ifdef _WIN64
+#pragma warning(push) 
+#pragma warning(disable: 4201) // nonstandard extension used: nameless struct/union
+union OUTER3
+{
+    struct InnerSequential arr[2];
+    struct
+    {
+        CHAR _unused0[24];
+        LPCSTR f4;
+    };
+};
+static_assert_no_msg(sizeof(OUTER3) == 32);
+#pragma warning(pop)
+#else
+struct OUTER3
+{
+    struct InnerSequential arr[2];
+    LPCSTR f4;
+};
+static_assert_no_msg(sizeof(OUTER3) == 28);
 #endif
-
-#ifndef WINDOWS
-    #ifdef __x86_64__
-        union OUTER3 // size = 32 bytes
-		{
-			struct InnerSequential arr[2];
-			struct
-			{
-				CHAR _unused0[24];
-				LPCSTR f4;
-			};
-		};
-    #else
-        struct OUTER3 // size = 28 bytes
-        {
-            struct InnerSequential arr[2];
-            LPCSTR f4;
-        };
-    #endif
+#else // WINDOWS
+#ifdef __x86_64__
+union OUTER3
+{
+    struct InnerSequential arr[2];
+    struct
+    {
+        CHAR _unused0[24];
+        LPCSTR f4;
+    };
+};
+static_assert_no_msg(sizeof(OUTER3) == 32);
+#else
+struct OUTER3
+{
+    struct InnerSequential arr[2];
+    LPCSTR f4;
+};
+static_assert_no_msg(sizeof(OUTER3) == 28);
+#endif
 #endif
 
 void PrintOUTER3(OUTER3* p, char const * name)

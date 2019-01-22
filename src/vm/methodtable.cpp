@@ -2720,12 +2720,12 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                         normalizedFieldOffset,
                         useNativeLayout);
                     helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
-                }
 
-                if (!structRet)
-                {
-                    // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
-                    return false;
+                    if (!structRet)
+                    {
+                        // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
+                        return false;
+                    }
                 }
 
                 if (!isFixedBuffer) // We reuse the field marshaler for fixed buffers.
