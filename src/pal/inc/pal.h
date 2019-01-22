@@ -176,6 +176,14 @@ typedef void * NATIVE_LIBRARY_HANDLE;
 #endif
 #endif
 
+#ifndef NOOPT_ATTRIBUTE
+#if defined(__llvm__)
+#define NOOPT_ATTRIBUTE optnone
+#else
+#define NOOPT_ATTRIBUTE optimize("O0")
+#endif
+#endif
+
 #ifndef PAL_STDCPP_COMPAT
 
 #if __GNUC__
