@@ -13,13 +13,13 @@ Copyright (c) .NET Foundation. All rights reserved.
   <!-- Remaining Work:
     1) Inject CreateReadyToRunImages at correct entrypoint in the build. Related to https://github.com/dotnet/sdk/issues/2583
   -->
-    <PropertyGroup>
-      <_IntermediateReadyToRunDirName Condition=" '$(_IntermediateReadyToRunDirName)' == '' ">ReadyToRun</_IntermediateReadyToRunDirName>
-      <_IntermediateReadyToRunDir Condition=" '$(_IntermediateReadyToRunDir)' == '' ">$(IntermediateOutputPath)$(_IntermediateReadyToRunDirName)</_IntermediateReadyToRunDir>
-      <_IntermediateReadyToRunDir>$([System.IO.Path]::GetFullPath($(_IntermediateReadyToRunDir)))</_IntermediateReadyToRunDir>
+  <PropertyGroup>
+    <_IntermediateReadyToRunDirName Condition=" '$(_IntermediateReadyToRunDirName)' == '' ">ReadyToRun</_IntermediateReadyToRunDirName>
+    <_IntermediateReadyToRunDir Condition=" '$(_IntermediateReadyToRunDir)' == '' ">$(IntermediateOutputPath)$(_IntermediateReadyToRunDirName)</_IntermediateReadyToRunDir>
+    <_IntermediateReadyToRunDir>$([System.IO.Path]::GetFullPath($(_IntermediateReadyToRunDir)))</_IntermediateReadyToRunDir>
 
-      <_ReadyToRunOutputDir>$([System.IO.Path]::Combine($(_IntermediateReadyToRunDir),"Output"))</_ReadyToRunOutputDir>
-    </PropertyGroup>
+    <_ReadyToRunOutputDir>$([System.IO.Path]::Combine($(_IntermediateReadyToRunDir),"Output"))</_ReadyToRunOutputDir>
+  </PropertyGroup>
 
   <Target Name="CreateReadyToRunImages"
           BeforeTargets="ComputeFilesToPublish"
@@ -28,11 +28,11 @@ Copyright (c) .NET Foundation. All rights reserved.
                             _InitializeCrossgenProps;
                             _RunCrossgenOnInputs;
                             _PublishCrossgenOutputs"
-          Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
+          Condition="'$(ReadyToRun)' == 'true'">
   </Target>
 
   <Target Name="_CheckForUnsupportedReadyToRunCompilation"
-          Condition="'$(ShouldCreateReadyToRunImages)' == 'true'">
+          Condition="'$(ReadyToRun)' == 'true'">
 
     <!-- TODO: Add this message as a resource string to the NET SDK so it can be localized -->
     <NETSdkError Condition="'3.0' > '$(_TargetFrameworkVersionWithoutV)'"
@@ -46,16 +46,26 @@ Copyright (c) .NET Foundation. All rights reserved.
 
     <!-- Determine whether the host OS platform-architecture supports compilation to the desired RuntimeIdentifier -->
     <PropertyGroup>
+      <_TargetArchitecture>$(PlatformTarget)</_TargetArchitecture>
+      <_TargetArchitecture Condition="$(RuntimeIdentifier.EndsWith('arm64'))">arm64</_TargetArchitecture>
+
       <_OSPlatform Condition="$([MSBuild]::IsOSPlatform('windows'))">win</_OSPlatform>
       <_OSPlatform Condition="$([MSBuild]::IsOSPlatform('osx'))">osx</_OSPlatform>
       <_OSPlatform Condition="$([MSBuild]::IsOSPlatform('linux'))">linux</_OSPlatform>
       <_OSArchitecture>$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)</_OSArchitecture>
 
       <_UnsupportedReadyToRunCompilation>false</_UnsupportedReadyToRunCompilation>
+
+      <!-- First check that the host and target OS are the same -->
       <_UnsupportedReadyToRunCompilation Condition="'$(_OSPlatform)' == 'win' and !$(RuntimeIdentifier.StartsWith('win'))">true</_UnsupportedReadyToRunCompilation>
       <_UnsupportedReadyToRunCompilation Condition="'$(_OSPlatform)' == 'osx' and !$(RuntimeIdentifier.StartsWith('osx'))">true</_UnsupportedReadyToRunCompilation>
+
       <!-- TODO: Allow cross-compilation to work for CrossGen in supported scenarios -->
-      <_UnsupportedReadyToRunCompilation Condition="'$(_OSArchitecture)' != '$(PlatformTarget)'">true</_UnsupportedReadyToRunCompilation>
+      <!-- Next check that the host can compile for the target OS architecture -->
+      <_UnsupportedReadyToRunCompilation Condition="'$(_OSArchitecture)' == 'x86' and ('$(_TargetArchitecture)' != 'x86' and '$(_TargetArchitecture)' != 'arm')">true</_UnsupportedReadyToRunCompilation>
+      <_UnsupportedReadyToRunCompilation Condition="'$(_OSArchitecture)' == 'arm' and '$(_TargetArchitecture)' != 'arm'">true</_UnsupportedReadyToRunCompilation>
+      <!-- TODO insert arm64 capabilities. Specifically, can we always assume arm64 architectures can emulate arm? What about x86? -->
+      <_UnsupportedReadyToRunCompilation Condition="'$(_OSArchitecture)' == 'arm64' and '$(_TargetArchitecture)' != 'arm64'">true</_UnsupportedReadyToRunCompilation>
     </PropertyGroup>
 
     <!-- TODO: Add this message as a resource string to the NET SDK so it can be localized -->
@@ -75,8 +85,17 @@ Copyright (c) .NET Foundation. All rights reserved.
   </Target>
 
   <Target Name="_InitializeCrossgenProps">
+    <!-- Set the Microsoft.DiaSymReader filename which changes based on the host architecture -->
+    <PropertyGroup>
+      <DiaSymReaderArch>$(_TargetArchitecture)</DiaSymReaderArch>
+      <DiaSymReaderArch Condition="'$(_TargetArchitecture)' == 'x64'">amd64</DiaSymReaderArch>
+      <DiaSymReaderArch Condition="'$(_TargetArchitecture)' == 'arm' and '$(_OSArchitecture)'!='arm' and '$(_OSPlatform)' == 'win'">x86</DiaSymReaderArch>
+      <DiaSymReaderFilename>Microsoft.DiaSymReader.Native.$(DiaSymReaderArch)</DiaSymReaderFilename>
+    </PropertyGroup>
+
     <!-- Get the coreclr path -->
     <ItemGroup>
+      <!-- TODO: Switch to using %(ResolvedTargetingPack) to find the targeting pack-->
       <_CoreclrResolvedPath Include="@(ResolvedAssembliesToPublish)"
                                              Condition="'%(ResolvedAssembliesToPublish.Filename)'=='coreclr'" />
       <_CoreclrResolvedPath Include="@(ResolvedAssembliesToPublish)"
@@ -85,11 +104,44 @@ Copyright (c) .NET Foundation. All rights reserved.
                                              Condition="'%(ResolvedAssembliesToPublish.Filename)'=='clrjit'" />
       <_JitResolvedPath Include="@(ResolvedAssembliesToPublish)"
                                              Condition="'%(ResolvedAssembliesToPublish.Filename)'=='libclrjit'" />
-      <_SystemPrivateCoreLibResolvedPath Include="@(ResolvedAssembliesToPublish)"
-                                             Condition="'%(ResolvedAssembliesToPublish.Filename)'=='System.Private.CoreLib'" />
       <_MicrosoftDiaSymReaderNativePath Include="@(ResolvedAssembliesToPublish)"
-                                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedAssembliesToPublish.Filename)', '^Microsoft\.DiaSymReader\.Native\.'))" />
+                                             Condition="'%(ResolvedAssembliesToPublish.Filename)'=='$(DiaSymReaderFilename)'" />
     </ItemGroup>
+
+    <!-- Get the crossgen and jit path-->
+    <PropertyGroup>
+      <_CoreclrPath>@(_CoreclrResolvedPath)</_CoreclrPath>
+      <_CoreclrDir>$([System.IO.Path]::GetDirectoryName($(_CoreclrPath)))</_CoreclrDir>
+      <_CoreclrPkgDir>$([System.IO.Path]::Combine($(_CoreclrDir),"..\..\..\"))</_CoreclrPkgDir>
+
+      <_JitFilename>@(_JitResolvedPath->'%(Filename)')@(_JitResolvedPath->'%(Extension)')</_JitFilename>
+      <_JitCrossArchFilePath Condition="'$(_TargetArchitecture)' == 'arm' and '$(_OSArchitecture)'!='arm' and '$(_OSPlatform)' == 'win'">$([System.IO.Path]::Combine($(_CoreclrPkgDir),"runtimes","x86_arm","native",$(_JitFilename)))</_JitCrossArchFilePath>
+      <_JitCrossArchFilePath Condition="'$(_TargetArchitecture)' == 'arm' and '$(_OSArchitecture)'!='arm' and '$(_OSPlatform)' != 'win'">$([System.IO.Path]::Combine($(_CoreclrPkgDir),"runtimes","$(_OSArchitecture)_arm","native",$(_JitFilename)))</_JitCrossArchFilePath>
+      <_JitCrossArchFilePath Condition="'$(_TargetArchitecture)' == 'arm64' and '$(_OSArchitecture)'!='arm64'">$([System.IO.Path]::Combine($(_CoreclrPkgDir),"runtimes","x64_arm64","native",$(_JitFilename)))</_JitCrossArchFilePath>
+
+      <DiaSymReaderPath>@(_MicrosoftDiaSymReaderNativePath)</DiaSymReaderPath>
+      <DiaSymReaderExistsForTargetArchitecture>true</DiaSymReaderExistsForTargetArchitecture>
+      <DiaSymReaderExistsForTargetArchitecture Condition="'$(_OSPlatform)' != 'win'">false</DiaSymReaderExistsForTargetArchitecture>
+      <!-- Remove the arm64 check when https://github.com/dotnet/coreclr/issues/7360 is resolved -->
+      <DiaSymReaderExistsForTargetArchitecture Condition="'$(_TargetArchitecture)'=='arm64'">false</DiaSymReaderExistsForTargetArchitecture>
+
+      <CrossgenDir>$([System.IO.Path]::Combine($(_CoreclrPkgDir),"tools"))</CrossgenDir>
+      <CrossgenDir Condition="'$(_TargetArchitecture)' == 'arm' and '$(_OSArchitecture)'!='arm' and '$(_OSPlatform)' == 'win'">$([System.IO.Path]::Combine($(CrossgenDir),"x86_arm"))</CrossgenDir>
+      <CrossgenDir Condition="'$(_TargetArchitecture)' == 'arm' and '$(_OSArchitecture)'!='arm' and '$(_OSPlatform)' != 'win'">$([System.IO.Path]::Combine($(CrossgenDir),"$(_OSArchitecture)_arm"))</CrossgenDir>
+      <CrossgenDir Condition="'$(_TargetArchitecture)' == 'arm64' and '$(_OSArchitecture)'!='arm64'">$([System.IO.Path]::Combine($(CrossgenDir),"x64_arm64"))</CrossgenDir>
+
+      <Crossgen>$([System.IO.Path]::Combine($(CrossgenDir),"crossgen"))</Crossgen>
+      <Crossgen Condition="'$(OS)' == 'Windows_NT'">$([System.IO.Path]::Combine($(CrossgenDir),"crossgen.exe"))</Crossgen>
+    </PropertyGroup>
+
+    <!-- Handle the Jit special case if the target is arm or arm64, which can be hosted on a different architecture -->
+    <ItemGroup Condition="'$(_JitCrossArchFilePath)'!=''">
+      <_JitResolvedPath Remove="@(_JitResolvedPath)" />
+      <_JitResolvedPath Include="$(_JitCrossArchFilePath)" />
+    </ItemGroup>
+    <PropertyGroup>
+      <JitPath>@(_JitResolvedPath)</JitPath>
+    </PropertyGroup>
 
     <!-- Check that there is one unique assembly for several sensitive assemblies -->
     <NETSdkError Condition="'@(_CoreclrResolvedPath->Count())' &gt; 1"
@@ -108,34 +160,13 @@ Copyright (c) .NET Foundation. All rights reserved.
                  ResourceName="UnableToFindResolvedPath"
                  FormatArguments="jit" />
 
-    <NETSdkError Condition="'@(_SystemPrivateCoreLibResolvedPath->Count())' &gt; 1"
-                 ResourceName="MultipleFilesResolved"
-                 FormatArguments="System.Private.CoreLib" />
-
-    <NETSdkError Condition="'@(_SystemPrivateCoreLibResolvedPath)'== ''"
-                 ResourceName="UnableToFindResolvedPath"
-                 FormatArguments="System.Private.CoreLib" />
-
     <NETSdkError Condition="'@(_MicrosoftDiaSymReaderNativePath->Count())' &gt; 1"
                  ResourceName="MultipleFilesResolved"
                  FormatArguments="Microsoft.DiaSymReader.Native" />
 
-    <NETSdkError Condition="'@(_MicrosoftDiaSymReaderNativePath)'== ''"
+    <NETSdkError Condition="'@(_MicrosoftDiaSymReaderNativePath)'== '' and '$(DiaSymReaderExistsForTargetArchitecture)'=='true'"
                  ResourceName="UnableToFindResolvedPath"
                  FormatArguments="Microsoft.DiaSymReader.Native" />
-
-    <!-- Get the crossgen and jit path-->
-    <PropertyGroup>
-      <_CoreclrPath>@(_CoreclrResolvedPath)</_CoreclrPath>
-      <JitPath>@(_JitResolvedPath)</JitPath>
-      <DiaSymReaderPath>@(_MicrosoftDiaSymReaderNativePath)</DiaSymReaderPath>
-      <_CoreclrDir>$([System.IO.Path]::GetDirectoryName($(_CoreclrPath)))</_CoreclrDir>
-      <_CoreclrPkgDir>$([System.IO.Path]::Combine($(_CoreclrDir),"..\..\..\"))</_CoreclrPkgDir>
-      <CrossgenDir>$([System.IO.Path]::Combine($(_CoreclrPkgDir),"tools"))</CrossgenDir>
-      <!-- TODO override with rid specific tools path for x-arch -->
-      <Crossgen>$([System.IO.Path]::Combine($(CrossgenDir),"crossgen"))</Crossgen>
-      <Crossgen Condition="'$(OS)' == 'Windows_NT'">$([System.IO.Path]::Combine($(CrossgenDir),"crossgen.exe"))</Crossgen>
-    </PropertyGroup>
 
     <NETSdkError Condition="!Exists($(Crossgen))"
                  ResourceName="UnableToFindResolvedPath"
@@ -158,6 +189,7 @@ Copyright (c) .NET Foundation. All rights reserved.
           CrossgenOutputDirectory=$(_ReadyToRunOutputDir);
           JitPath=$(JitPath);
           DiaSymReaderPath=$(DiaSymReaderPath);
+          DiaSymReaderExistsForTargetArchitecture=$(DiaSymReaderExistsForTargetArchitecture);
           CrossGenPlatformAssemblies=$(_CrossGenPlatformAssemblies);
           InputAssemblyName=%(FileName)%(Extension)
         </Properties>
@@ -191,8 +223,8 @@ Copyright (c) .NET Foundation. All rights reserved.
     <Message Text="$(CrossGenCommand)" />
     <Exec Command="$(CrossGenCommand)" />
 
-    <Message Text="$(CrossGenCreatePdbCommand) " />
-    <Exec Command="$(CrossGenCreatePdbCommand) " />
+    <Message Text="$(CrossGenCreatePdbCommand)" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
+    <Exec Command="$(CrossGenCreatePdbCommand)" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
   </Target>
 
   <Target Name="_PublishCrossgenOutputs">
