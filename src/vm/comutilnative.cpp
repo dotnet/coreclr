@@ -850,37 +850,6 @@ FCIMPL1(FC_BOOL_RET, Buffer::IsPrimitiveTypeArray, ArrayBase *arrayUNSAFE)
 }
 FCIMPLEND
 
-// Gets a particular byte out of the array.  The array can't be an array of Objects - it
-// must be a primitive array.
-FCIMPL2(FC_UINT8_RET, Buffer::GetByte, ArrayBase *arrayUNSAFE, INT32 index)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(arrayUNSAFE != NULL);
-    _ASSERTE(index >=0 && index < ((INT32)(arrayUNSAFE->GetComponentSize() * arrayUNSAFE->GetNumComponents())));
-
-    UINT8 bData = *((BYTE*)arrayUNSAFE->GetDataPtr() + index);
-    return bData;
-}
-FCIMPLEND
-
-// Sets a particular byte in an array.  The array can't be an array of Objects - it
-// must be a primitive array.
-//
-// Semantically the bData argment is of type BYTE but FCallCheckSignature expects the 
-// type to be UINT8 and raises an error if this isn't this case when 
-// COMPlus_ConsistencyCheck is set.
-FCIMPL3(VOID, Buffer::SetByte, ArrayBase *arrayUNSAFE, INT32 index, UINT8 bData)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(arrayUNSAFE != NULL);
-    _ASSERTE(index >=0 && index < ((INT32)(arrayUNSAFE->GetComponentSize() * arrayUNSAFE->GetNumComponents())));
-    
-    *((BYTE*)arrayUNSAFE->GetDataPtr() + index) = (BYTE) bData;
-}
-FCIMPLEND
-
 // Returns the length in bytes of an array containing
 // primitive type elements
 FCIMPL1(INT32, Buffer::ByteLength, ArrayBase* arrayUNSAFE)
@@ -1062,6 +1031,26 @@ FCIMPL1(int, GCInterface::GetGeneration, Object* objUNSAFE)
     int result = (INT32)GCHeapUtilities::GetGCHeap()->WhichGeneration(objUNSAFE);
     FC_GC_POLL_RET();
     return result;
+}
+FCIMPLEND
+
+/*================================GetSegmentSize========-=======================
+**Action: Returns the maximum GC heap segment size
+**Returns: The maximum segment size of either the normal heap or the large object heap, whichever is bigger
+==============================================================================*/
+FCIMPL0(UINT64, GCInterface::GetSegmentSize)
+{
+    FCALL_CONTRACT;
+
+    IGCHeap * pGC = GCHeapUtilities::GetGCHeap();
+    size_t segment_size = pGC->GetValidSegmentSize(false);
+    size_t large_segment_size = pGC->GetValidSegmentSize(true);
+    _ASSERTE(segment_size < SIZE_T_MAX && large_segment_size < SIZE_T_MAX);
+    if (segment_size < large_segment_size)
+        segment_size = large_segment_size;
+
+    FC_GC_POLL_RET();
+    return (UINT64) segment_size;
 }
 FCIMPLEND
 
