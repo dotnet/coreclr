@@ -60,8 +60,6 @@ void CallDescrWorkerWithHandler(
                 CallDescrData *   pCallDescrData,
                 BOOL              fCriticalCall)
 {
-    STATIC_CONTRACT_SO_INTOLERANT;
-
 #if defined(FEATURE_MULTICOREJIT) && defined(_DEBUG)
 
     // For multicore JITting, background thread should not call managed code, except when calling system code (e.g. throwing managed exception)
@@ -103,7 +101,6 @@ void CallDescrWorker(CallDescrData * pCallDescrData)
 #endif // 0
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     _ASSERTE(!NingenEnabled() && "You cannot invoke managed code inside the ngen compilation process.");
 

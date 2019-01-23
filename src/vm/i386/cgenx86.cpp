@@ -910,7 +910,6 @@ WORD GetUnpatchedCodeData(LPCBYTE pAddr)
         GC_NOTRIGGER;
         PRECONDITION(CORDebuggerAttached());
         PRECONDITION(CheckPointer(pAddr));
-        SO_TOLERANT;
     } CONTRACT_END;
 
     // Ordering is because x86 is little-endien.
@@ -1480,7 +1479,6 @@ BOOL DoesSlotCallPrestub(PCODE pCode)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(pCode != NULL);
         PRECONDITION(pCode != GetPreStubEntryPoint());
     } CONTRACTL_END;

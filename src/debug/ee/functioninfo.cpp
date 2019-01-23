@@ -130,7 +130,6 @@ void DebuggerJitInfo::InitFuncletAddress()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -753,7 +752,6 @@ DWORD DebuggerJitInfo::MapNativeOffsetToIL(SIZE_T nativeOffsetToMap,
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(map != NULL);
@@ -895,7 +893,6 @@ void DebuggerJitInfo::LazyInitBounds()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(ThisMaybeHelperThread());
@@ -1020,7 +1017,6 @@ void DebuggerJitInfo::SetBoundaries(ULONG32 cMap, ICorDebugInfo::OffsetMapping *
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(this));
@@ -1321,7 +1317,6 @@ DebuggerMethodInfo::~DebuggerMethodInfo()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         DESTRUCTOR_CHECK;
@@ -1428,7 +1423,6 @@ DebuggerMethodInfo::DebuggerMethodInfo(Module *module, mdMethodDef token) :
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         WRAPPER(THROWS);
         WRAPPER(GC_TRIGGERS);
         CONSTRUCTOR_CHECK;
@@ -1461,7 +1455,6 @@ DebuggerModule* DebuggerMethodInfo::GetPrimaryModule()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1526,7 +1519,6 @@ DebuggerJitInfo * DebuggerMethodInfo::FindJitInfo(MethodDesc * pMD,
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         SUPPORTS_DAC;
         NOTHROW;
         GC_NOTRIGGER;
@@ -1572,7 +1564,6 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
     }
@@ -1638,7 +1629,6 @@ DebuggerJitInfo *DebuggerMethodInfo::CreateInitAndAddJitInfo(NativeCodeVersion n
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
         PRECONDITION(!g_pDebugger->HasDebuggerDataLock());
@@ -1746,7 +1736,6 @@ void DebuggerMethodInfo::DeleteJitInfo(DebuggerJitInfo *dji)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1801,7 +1790,6 @@ void DebuggerMethodInfo::DeleteJitInfoList(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -2346,7 +2334,6 @@ DebuggerJitInfo *DebuggerJitInfo::GetJitInfoByAddress(const BYTE *pbAddr )
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -2388,7 +2375,6 @@ PTR_DebuggerJitInfo DebuggerMethodInfo::GetLatestJitInfo(MethodDesc *mdesc)
 
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         CALLED_IN_DEBUGGERDATALOCK_HOLDER_SCOPE_MAY_GC_TRIGGERS_CONTRACT;
         PRECONDITION(!g_pDebugger->HasDebuggerDataLock());

@@ -2425,8 +2425,6 @@ MDInternalRW::GetNestedClassProps(
     HRESULT hr = NOERROR;
     RID     rid;
     
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    
     LOCKREAD();
     
     if (!m_pStgdb->m_MiniMd.IsSorted(TBL_NestedClass) && !m_pStgdb->m_MiniMd.IsTableVirtualSorted(TBL_NestedClass))
@@ -2454,7 +2452,6 @@ MDInternalRW::GetNestedClassProps(
     }
     
 ErrExit:
-    END_SO_INTOLERANT_CODE;
     return hr;
 } // MDInternalRW::GetNestedClassProps
 

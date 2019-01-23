@@ -20,7 +20,6 @@ BOOL isMemoryReadable(const TADDR start, unsigned len)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 

@@ -1310,7 +1310,6 @@ void DacDbiInterfaceImpl::GetMethodRegionInfo(MethodDesc *             pMethodDe
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pCodeInfo));
     }

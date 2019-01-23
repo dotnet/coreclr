@@ -38,7 +38,6 @@ FORCEINLINE SetCallbackStateFlagsHolder::~SetCallbackStateFlagsHolder()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -112,7 +111,6 @@ inline void ProfilingAPIUtility::LogNoInterfaceError(REFIID iidRequested, LPCWST
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;

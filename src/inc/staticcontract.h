@@ -51,7 +51,6 @@
 #define ANNOTATION_IGNORE_LOCK              __annotation(W("CAN_TAKE_LOCK"), W("CANNOT_TAKE_LOCK"), W("CONDITIONAL_EXEMPT"))
 #define ANNOTATION_IGNORE_FAULT             __annotation(W("FAULT"), W("FORBID_FAULT"), W("CONDITIONAL_EXEMPT"))
 #define ANNOTATION_IGNORE_TRIGGER           __annotation(W("GC_TRIGGERS"), W("GC_NOTRIGGER"), W("CONDITIONAL_EXEMPT"))
-#define ANNOTATION_IGNORE_SO                __annotation(W("SO_TOLERANT"), W("SO_INTOLERANT"), W("CONDITIONAL_EXEMPT"))
 #define ANNOTATION_VIOLATION(violationmask) __annotation(W("VIOLATION(") L#violationmask W(")"))
 #define ANNOTATION_UNCHECKED(thecheck)      __annotation(W("UNCHECKED(") L#thecheck W(")"))
 
@@ -84,8 +83,6 @@
 #define ANNOTATION_FN_FORBID_FAULT          __annotation(W("FORBID_FAULT ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_GC_TRIGGERS           __annotation(W("GC_TRIGGERS ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_GC_NOTRIGGER          __annotation(W("GC_NOTRIGGER ") SCAN_WIDEN(__FUNCTION__))
-#define ANNOTATION_FN_SO_TOLERANT           __annotation(W("SO_TOLERANT ") SCAN_WIDEN(__FUNCTION__))
-#define ANNOTATION_FN_SO_INTOLERANT         __annotation(W("SO_INTOLERANT ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_SO_NOT_MAINLINE       __annotation(W("SO_NOT_MAINLINE ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_MODE_COOPERATIVE      __annotation(W("MODE_COOPERATIVE ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_MODE_PREEMPTIVE       __annotation(W("MODE_PREEMPTIVE ") SCAN_WIDEN(__FUNCTION__))
@@ -150,8 +147,6 @@
 #define ANNOTATION_FN_FORBID_FAULT          { }
 #define ANNOTATION_FN_GC_TRIGGERS           { }
 #define ANNOTATION_FN_GC_NOTRIGGER          { }
-#define ANNOTATION_FN_SO_TOLERANT           { }
-#define ANNOTATION_FN_SO_INTOLERANT         { }
 #define ANNOTATION_FN_SO_NOT_MAINLINE       { }
 #define ANNOTATION_FN_MODE_COOPERATIVE      { }
 #define ANNOTATION_FN_MODE_PREEMPTIVE       { }
@@ -165,8 +160,6 @@
 #define ANNOTATION_SO_PROBE_BEGIN(probeAmount) { }
 #define ANNOTATION_SO_PROBE_END             { }
 
-#define ANNOTATION_SO_TOLERANT              { }
-#define ANNOTATION_SO_INTOLERANT            { }
 #define ANNOTATION_SO_NOT_MAINLINE          { }
 #define ANNOTATION_SO_NOT_MAINLINE_BEGIN    { }
 #define ANNOTATION_SO_NOT_MAINLINE_END      { }
@@ -198,18 +191,8 @@
 #define STATIC_CONTRACT_LIMITED_METHOD      ANNOTATION_FN_LEAF
 #define STATIC_CONTRACT_WRAPPER             ANNOTATION_FN_WRAPPER
 
-#ifdef FEATURE_STACK_PROBE // Static SO contracts only required when SO Infrastructure code is present
-#define STATIC_CONTRACT_SO_INTOLERANT       ANNOTATION_FN_SO_INTOLERANT
-#define STATIC_CONTRACT_SO_TOLERANT         ANNOTATION_FN_SO_TOLERANT
-#define STATIC_CONTRACT_SO_NOT_MAINLINE     ANNOTATION_FN_SO_NOT_MAINLINE
-
-#define STATIC_CONTRACT_ENTRY_POINT         ANNOTATION_ENTRY_POINT; ANNOTATION_FN_SO_TOLERANT
-#else // FEATURE_STACK_PROBE
-#define STATIC_CONTRACT_SO_INTOLERANT
-#define STATIC_CONTRACT_SO_TOLERANT
 #define STATIC_CONTRACT_SO_NOT_MAINLINE
 #define STATIC_CONTRACT_ENTRY_POINT
-#endif // FEATURE_STACK_PROBE
 
 #ifdef _DEBUG
 #define STATIC_CONTRACT_DEBUG_ONLY                                  \
@@ -241,7 +224,6 @@ namespace StaticContract
             METHOD_CANNOT_BE_FOLDED_DEBUG;
             STATIC_CONTRACT_THROWS;
             STATIC_CONTRACT_GC_NOTRIGGER;
-            STATIC_CONTRACT_SO_TOLERANT;
         }
 
         static void used()
@@ -288,35 +270,6 @@ typedef StaticContract::ScanThrowMarkerStandard ScanThrowMarker;
 // non-annotating struct so that SCAN does not see the block as throwing.
 #define STATIC_CONTRACT_THROWS_TERMINAL                             \
     typedef StaticContract::ScanThrowMarkerTerminal ScanThrowMarker; if (0) ScanThrowMarker::used();
-
-#if defined(_DEBUG) && !defined(DACCESS_COMPILE) && defined(FEATURE_STACK_PROBE) && !defined(_TARGET_ARM_) // @ARMTODO
-extern void EnsureSOIntolerantOK(const char *szFunction, const char *szFile, int lineNum);
-
-extern BOOL (*g_fpShouldValidateSOToleranceOnThisThread)();
-
-// @todo  Is there any checks we can do here?
-#define ENSURE_SHOULD_NOT_PROBE_FOR_SO
-
-#define CHECK_IF_SO_INTOLERANT_OK \
-    EnsureSOIntolerantOK(__FUNCTION__, __FILE__, __LINE__);
-
-// Even if we can't have a full-blown contract, we can at least check
-// if its ok to run an SO-Intolerant function.
-#undef STATIC_CONTRACT_SO_INTOLERANT                                           
-#define STATIC_CONTRACT_SO_INTOLERANT                                           \
-    ANNOTATION_FN_SO_INTOLERANT;                                                \
-    CHECK_IF_SO_INTOLERANT_OK;
-
-#undef STATIC_CONTRACT_SO_NOT_MAINLINE
-#define STATIC_CONTRACT_SO_NOT_MAINLINE                                         \
-    ENSURE_SHOULD_NOT_PROBE_FOR_SO                                              \
-    ANNOTATION_FN_SO_NOT_MAINLINE
-
-#else
-#define EnsureSOIntolerantOK(x,y,z)
-
-#endif
-
 
 #ifdef _MSC_VER
 #define SCAN_IGNORE_THROW                   typedef StaticContract::ScanThrowMarkerIgnore ScanThrowMarker; ANNOTATION_IGNORE_THROW

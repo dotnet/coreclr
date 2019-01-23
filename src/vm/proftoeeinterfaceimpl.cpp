@@ -1106,7 +1106,6 @@ bool HeapWalkHelper(Object * pBO, void * pvContext)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1273,7 +1272,6 @@ void ScanRootsHelper(Object* pObj, Object ** ppRoot, ScanContext *pSC, uint32_t 
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -9810,7 +9808,6 @@ void __stdcall ProfilerManagedToUnmanagedTransitionMD(MethodDesc *pMD,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -9846,7 +9843,6 @@ void __stdcall ProfilerUnmanagedToManagedTransitionMD(MethodDesc *pMD,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -10100,7 +10096,6 @@ HCIMPL2(EXTERN_C void, ProfileEnter, UINT_PTR clientData, void * platformSpecifi
     {
         FunctionIDOrClientID functionIDOrClientID;
         functionIDOrClientID.clientID = clientData;
-        REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
         g_profControlBlock.pProfInterface->GetEnter3WithInfoHook()(
             functionIDOrClientID, 
             (COR_PRF_ELT_INFO)&eltInfo);
@@ -10130,7 +10125,6 @@ HCIMPL2(EXTERN_C void, ProfileEnter, UINT_PTR clientData, void * platformSpecifi
         //
         if (CORProfilerELT2FastPathEnterEnabled())
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             g_profControlBlock.pProfInterface->GetEnter2Hook()(
                 functionId,
                 clientData, 
@@ -10187,7 +10181,6 @@ HCIMPL2(EXTERN_C void, ProfileEnter, UINT_PTR clientData, void * platformSpecifi
         HRESULT hr = ProfilingGetFunctionEnter3Info(functionId, (COR_PRF_ELT_INFO)&eltInfo, &frameInfo, &ulArgInfoSize, pArgumentInfo);
 
         _ASSERTE(hr == S_OK);
-        REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
         g_profControlBlock.pProfInterface->GetEnter2Hook()(functionId, clientData, frameInfo, pArgumentInfo);
 
         goto LExit;
@@ -10212,7 +10205,6 @@ HCIMPL2(EXTERN_C void, ProfileEnter, UINT_PTR clientData, void * platformSpecifi
     // Everett ELT
     //
     {
-        REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
         g_profControlBlock.pProfInterface->GetEnterHook()((FunctionID)clientData);
     }
 
@@ -10276,7 +10268,6 @@ HCIMPL2(EXTERN_C void, ProfileLeave, UINT_PTR clientData, void * platformSpecifi
     {
         FunctionIDOrClientID functionIDOrClientID;
         functionIDOrClientID.clientID = clientData;
-        REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
         g_profControlBlock.pProfInterface->GetLeave3WithInfoHook()(
             functionIDOrClientID, 
             (COR_PRF_ELT_INFO)&eltInfo);
@@ -10306,7 +10297,6 @@ HCIMPL2(EXTERN_C void, ProfileLeave, UINT_PTR clientData, void * platformSpecifi
         //
         if (CORProfilerELT2FastPathLeaveEnabled())
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             g_profControlBlock.pProfInterface->GetLeave2Hook()(
                 functionId,
                 clientData, 
@@ -10324,7 +10314,6 @@ HCIMPL2(EXTERN_C void, ProfileLeave, UINT_PTR clientData, void * platformSpecifi
         HRESULT hr = ProfilingGetFunctionLeave3Info(functionId, (COR_PRF_ELT_INFO)&eltInfo, &frameInfo, &argumentRange);
         _ASSERTE(hr == S_OK);
 
-        REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
         g_profControlBlock.pProfInterface->GetLeave2Hook()(functionId, clientData, frameInfo, &argumentRange);
         goto LExit;
     }
@@ -10347,7 +10336,6 @@ HCIMPL2(EXTERN_C void, ProfileLeave, UINT_PTR clientData, void * platformSpecifi
     // Everett ELT
     //
     {
-        REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
         g_profControlBlock.pProfInterface->GetLeaveHook()((FunctionID)clientData);
     }
 
@@ -10412,7 +10400,6 @@ HCIMPL2(EXTERN_C void, ProfileTailcall, UINT_PTR clientData, void * platformSpec
     {
         FunctionIDOrClientID functionIDOrClientID;
         functionIDOrClientID.clientID = clientData;
-        REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
         g_profControlBlock.pProfInterface->GetTailcall3WithInfoHook()(
             functionIDOrClientID, 
             (COR_PRF_ELT_INFO)&eltInfo);
@@ -10442,7 +10429,6 @@ HCIMPL2(EXTERN_C void, ProfileTailcall, UINT_PTR clientData, void * platformSpec
         //
         if (CORProfilerELT2FastPathTailcallEnabled())
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             g_profControlBlock.pProfInterface->GetTailcall2Hook()(
                 functionId,
                 clientData, 
@@ -10458,7 +10444,6 @@ HCIMPL2(EXTERN_C void, ProfileTailcall, UINT_PTR clientData, void * platformSpec
         HRESULT hr = ProfilingGetFunctionTailcall3Info(functionId, (COR_PRF_ELT_INFO)&eltInfo, &frameInfo);
         _ASSERTE(hr == S_OK);
 
-        REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
         g_profControlBlock.pProfInterface->GetTailcall2Hook()(functionId, clientData, frameInfo);
         goto LExit;
     }
@@ -10480,10 +10465,7 @@ HCIMPL2(EXTERN_C void, ProfileTailcall, UINT_PTR clientData, void * platformSpec
     //
     // Everett ELT
     //
-    {
-        REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
-        g_profControlBlock.pProfInterface->GetTailcallHook()((FunctionID)clientData);
-    }
+    g_profControlBlock.pProfInterface->GetTailcallHook()((FunctionID)clientData);
 
 LExit:
 

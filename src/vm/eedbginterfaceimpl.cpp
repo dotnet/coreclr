@@ -26,7 +26,6 @@ void EEDbgInterfaceImpl::Terminate(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     } 
@@ -273,7 +272,6 @@ bool EEDbgInterfaceImpl::IsThreadExceptionNull(Thread *pThread)
 {
     CONTRACTL
     {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pThread));
@@ -557,7 +555,6 @@ void EEDbgInterfaceImpl::GetMethodRegionInfo(const PCODE    pStart,
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pCold));
@@ -661,7 +658,6 @@ void EEDbgInterfaceImpl::DisablePreemptiveGC(void)
 { 
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         DISABLED(GC_TRIGGERS); // Disabled because disabled in RareDisablePreemptiveGC()
     }
@@ -674,7 +670,6 @@ void EEDbgInterfaceImpl::EnablePreemptiveGC(void)
 { 
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         DISABLED(GC_TRIGGERS); // Disabled because disabled in RareEnablePreemptiveGC()
     }
@@ -687,7 +682,6 @@ bool EEDbgInterfaceImpl::IsPreemptiveGCDisabled(void)
 { 
     CONTRACTL
     {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1376,7 +1370,6 @@ void EEDbgInterfaceImpl::GetRuntimeOffsets(SIZE_T *pTLSIndex,
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pTLSIndex));

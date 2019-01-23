@@ -66,7 +66,6 @@ public:
             THROWS;
             GC_NOTRIGGER;
             INJECT_FAULT(ThrowOutOfMemory());
-            SO_INTOLERANT;
         }
         CONTRACTL_END;
 
@@ -98,7 +97,6 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             FORBID_FAULT;
-            SO_INTOLERANT;
         }
         CONTRACTL_END;
 
@@ -266,7 +264,6 @@ public:
             GC_NOTRIGGER;
             INJECT_FAULT(ThrowOutOfMemory());
             POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-            SO_INTOLERANT;
         }
         CONTRACT_END;
 

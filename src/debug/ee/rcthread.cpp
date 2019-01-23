@@ -20,7 +20,6 @@
 #include <hosting.h>
 
 #include "eemessagebox.h"
-#include "genericstackprobe.h"
 
 #ifndef SM_REMOTESESSION
 #define SM_REMOTESESSION 0x1000
@@ -47,7 +46,6 @@ DebuggerRCThread::DebuggerRCThread(Debugger * pDebugger)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         WRAPPER(THROWS);
         GC_NOTRIGGER;
         CONSTRUCTOR_CHECK;
@@ -75,7 +73,6 @@ DebuggerRCThread::~DebuggerRCThread()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         DESTRUCTOR_CHECK;
@@ -231,7 +228,6 @@ HRESULT DebuggerIPCControlBlock::Init(
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
     }
@@ -322,7 +318,6 @@ HRESULT DebuggerRCThread::Init(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
         PRECONDITION(!ThisIsHelperThreadWorker()); // initialized by main thread
@@ -656,7 +651,6 @@ HRESULT DebuggerRCThread::SetupRuntimeOffsets(DebuggerIPCControlBlock * pDebugge
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
 
@@ -856,7 +850,6 @@ void DebuggerRCThread::ThreadProc(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_TRIGGERS;        // Debugger::SuspendComplete can trigger GC
 
@@ -1115,7 +1108,6 @@ void DebuggerRCThread::MainLoop()
 
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
 
         PRECONDITION(m_thread != NULL);
@@ -1565,8 +1557,6 @@ LExit:
     // We just wrap the instance method DebuggerRCThread::ThreadProc
     WRAPPER_NO_CONTRACT;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD_FORCE_SO();
-
     ClrFlsSetThreadType(ThreadType_DbgHelper);
 
     LOG((LF_CORDB, LL_EVERYTHING, "ThreadProcStatic called\n"));
@@ -1578,8 +1568,6 @@ LExit:
     DebuggerRCThread* t = (DebuggerRCThread*)g_pRCThread;
 
     t->ThreadProc(); // this thread is local, go and become the helper
-    
-    END_SO_INTOLERANT_CODE;
 
     return 0;
 }
@@ -1599,7 +1587,6 @@ HRESULT DebuggerRCThread::Start(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1678,7 +1665,6 @@ HRESULT DebuggerRCThread::AsyncStop(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
 
@@ -1711,7 +1697,6 @@ HRESULT inline DebuggerRCThread::EnsureRuntimeOffsetsInit(IpcTarget ipcTarget)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
 
@@ -1918,7 +1903,6 @@ void DebuggerRCThread::DoFavor(FAVORCALLBACK fp, void * pData)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_TRIGGERS;
 

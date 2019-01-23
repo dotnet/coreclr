@@ -790,7 +790,6 @@ void IBCLogger::LogTypeAccessWrapper(IBCLogger* pLogger, const void * pValue, co
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;

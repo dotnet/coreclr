@@ -62,7 +62,6 @@ HRESULT ProfilingAPIAttachDetach::OverlappedResultHolder::Initialize()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;

@@ -4119,7 +4119,6 @@ bool DebuggerController::DispatchNativeException(EXCEPTION_RECORD *pException,
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
 
         // If this exception is for the debugger, then we may trigger a GC.

@@ -142,9 +142,8 @@ enum ClrToProfEntrypointFlags
         return S_OK;                                                                    \
     }
 
-// Least common denominator for the callback wrappers.  Logs, removes stack
-// guard (REMOVE_STACK_GUARD_FOR_PROFILER_CALL), records in EE Thread object that 
-// we're in a callback, and asserts that we're allowed to issue callbacks for the 
+// Least common denominator for the callback wrappers.  Logs, records in EE Thread object
+// that we're in a callback, and asserts that we're allowed to issue callbacks for the 
 // specified ThreadID (i.e., no ThreadDestroyed callback has been issued for the 
 // ThreadID).
 // 
@@ -153,7 +152,6 @@ enum ClrToProfEntrypointFlags
     CHECK_PROFILER_STATUS(ee2pFlags);                                                   \
     LOG(logParams);                                                                     \
     _ASSERTE(m_pCallback2 != NULL);                                                     \
-    REMOVE_STACK_GUARD_FOR_PROFILER_CALL;                                               \
     /* Normally, set COR_PRF_CALLBACKSTATE_INCALLBACK |                              */ \
     /* COR_PRF_CALLBACKSTATE_IN_TRIGGERS_SCOPE in the callback state, but omit       */ \
     /* COR_PRF_CALLBACKSTATE_IN_TRIGGERS_SCOPE if we're in a GC_NOTRIGGERS callback  */ \
@@ -637,10 +635,6 @@ HRESULT EEToProfInterfaceImpl::CreateProfiler(
     // Always called before Thread created.
     _ASSERTE(GetThreadNULLOk() == NULL);
 
-    // We'll be calling into the profiler to create its ICorProfilerCallback*
-    // implementation
-    REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
-
     // Try and CoCreate the registered profiler
     ReleaseHolder<ICorProfilerCallback2> pCallback2;
     HModuleHolder hmodProfilerDLL;
@@ -914,7 +908,6 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
     {
         if (m_pCallback2 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback2->Release();
             m_pCallback2 = NULL;
         }
@@ -923,49 +916,42 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
 
         if (fIsV4Profiler)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback3->Release();
             m_pCallback3 = NULL;
         }
 
         if (m_pCallback4 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback4->Release();
             m_pCallback4 = NULL;
         }
 
         if (m_pCallback5 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback5->Release();
             m_pCallback5 = NULL;
         }
 
         if (m_pCallback6 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback6->Release();
             m_pCallback6 = NULL;
         }
 
         if (m_pCallback7 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback7->Release();
             m_pCallback7 = NULL;
         }
 
         if (m_pCallback8 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback8->Release();
             m_pCallback8 = NULL;
         }
 
         if (m_pCallback9 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback9->Release();
             m_pCallback9 = NULL;
         }
@@ -1522,7 +1508,6 @@ HRESULT EEToProfInterfaceImpl::AllocByClass(ObjectID objId, ClassID clsId, void 
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3299,7 +3284,6 @@ HRESULT EEToProfInterfaceImpl::DynamicMethodUnloaded(FunctionID functionId)
         GC_TRIGGERS;
         MODE_COOPERATIVE; // RuntimeMethodHandle::Destroy (the caller) moves from QCALL to GCX_COOP
         CAN_TAKE_LOCK;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -5357,7 +5341,6 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadSuspended(ThreadID suspendedThreadId
 
     // Remaining essentials from our entrypoint macros with kEE2PNoTrigger flag
     SetCallbackStateFlagsHolder csf(COR_PRF_CALLBACKSTATE_INCALLBACK);
-    REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
     _ASSERTE(m_pCallback2 != NULL);
 
     {
@@ -5454,7 +5437,6 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadResumed(ThreadID resumedThreadId)
 
     // Remaining essentials from our entrypoint macros with kEE2PNoTrigger flag
     SetCallbackStateFlagsHolder csf(COR_PRF_CALLBACKSTATE_INCALLBACK);
-    REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
     _ASSERTE(m_pCallback2 != NULL);
 
     {
