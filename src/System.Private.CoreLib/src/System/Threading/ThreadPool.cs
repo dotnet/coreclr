@@ -650,7 +650,7 @@ namespace System.Threading
                 // If we get here, it's because our quantum expired.  Tell the VM we're returning normally.
                 return true;
             }
-            catch (ThreadAbortException tae)
+            catch (ThreadAbortException)
             {
                 //
                 // In this case, the VM is going to request another thread on our behalf.  No need to do it twice.
