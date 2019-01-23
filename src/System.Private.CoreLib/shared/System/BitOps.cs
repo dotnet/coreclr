@@ -3,7 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
+
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -16,11 +19,13 @@ namespace System
             {
                 return (int)Bmi1.TrailingZeroCount((uint)matches);
             }
-            else
+            else // Software fallback
             {
-                // Fallback
                 // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
-                return TrailingCountMultiplyDeBruijn[(int)(((uint)((matches & -matches) * 0x077CB531U)) >> 27)];
+                // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+                return Unsafe.AddByteOffset(
+                    ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn),
+                    ((uint)((matches & -matches) * 0x077CB531U)) >> 27);
             }
         }
 
