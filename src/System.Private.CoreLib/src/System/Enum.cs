@@ -695,7 +695,7 @@ namespace System
                 TUnderlying tempValue = value;
                 index = ~index - 1;
                 
-                if (index < nonNegativeStart)
+                if (index < nonNegativeStart && index >= 0)
                 {
                     for (; index >= 0; --index)
                     {
