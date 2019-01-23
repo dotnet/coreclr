@@ -275,26 +275,26 @@ namespace System
             public abstract string GetName(object value);
             public abstract string[] GetNamesNonGeneric();
             public abstract Array GetValuesNonGeneric();
-            public abstract bool HasFlag(ref byte value, object flag);
+            public abstract bool HasFlag(Enum value, object flag);
             public abstract bool IsDefined(object value);
             public abstract object ParseNonGeneric(ReadOnlySpan<char> value, bool ignoreCase);
-            public abstract bool ToBoolean(ref byte value);
-            public abstract byte ToByte(ref byte value);
-            public abstract char ToChar(ref byte value);
-            public abstract decimal ToDecimal(ref byte value);
-            public abstract double ToDouble(ref byte value);
-            public abstract short ToInt16(ref byte value);
-            public abstract int ToInt32(ref byte value);
-            public abstract long ToInt64(ref byte value);
+            public abstract bool ToBoolean(Enum value);
+            public abstract byte ToByte(Enum value);
+            public abstract char ToChar(Enum value);
+            public abstract decimal ToDecimal(Enum value);
+            public abstract double ToDouble(Enum value);
+            public abstract short ToInt16(Enum value);
+            public abstract int ToInt32(Enum value);
+            public abstract long ToInt64(Enum value);
             public abstract object ToObjectNonGeneric(object value);
             public abstract object ToObjectNonGeneric(ulong value);
-            public abstract sbyte ToSByte(ref byte value);
-            public abstract float ToSingle(ref byte value);
-            public abstract string ToString(ref byte value);
-            public abstract string ToStringFlags(ref byte value);
-            public abstract ushort ToUInt16(ref byte value);
-            public abstract uint ToUInt32(ref byte value);
-            public abstract ulong ToUInt64(ref byte value);
+            public abstract sbyte ToSByte(Enum value);
+            public abstract float ToSingle(Enum value);
+            public abstract string ToString(Enum value);
+            public abstract string ToStringFlags(Enum value);
+            public abstract ushort ToUInt16(Enum value);
+            public abstract uint ToUInt32(Enum value);
+            public abstract ulong ToUInt64(Enum value);
             public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result);
         }
 
@@ -341,7 +341,7 @@ namespace System
             private static TUnderlying ToUnderlying(TEnum value) => Unsafe.As<TEnum, TUnderlying>(ref value);
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private static TUnderlying ToUnderlying(ref byte value) => Unsafe.As<byte, TUnderlying>(ref value);
+            private static TUnderlying ToUnderlying(Enum value) => Unsafe.As<byte, TUnderlying>(ref value.GetRawData());
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             private static TEnum ToEnum(TUnderlying value) => Unsafe.As<TUnderlying, TEnum>(ref value);
@@ -401,33 +401,33 @@ namespace System
                 return array;
             }
 
-            public override bool HasFlag(ref byte value, object flag)
+            public override bool HasFlag(Enum value, object flag)
             {
                 Debug.Assert(flag != null);
 
                 TUnderlying underlyingFlag = ToUnderlying(ToEnum(flag));
-                return Operations.And(ToUnderlying(ref value), underlyingFlag).Equals(underlyingFlag);
+                return Operations.And(ToUnderlying(value), underlyingFlag).Equals(underlyingFlag);
             }
 
             public override bool IsDefined(object value) => value is TEnum enumValue ? Members.IsDefined(ToUnderlying(enumValue)) : Members.IsDefined(value);
 
             public override object ParseNonGeneric(ReadOnlySpan<char> value, bool ignoreCase) => ToEnum(Members.Parse(value, ignoreCase));
 
-            public override bool ToBoolean(ref byte value) => Operations.ToBoolean(ToUnderlying(ref value));
+            public override bool ToBoolean(Enum value) => Operations.ToBoolean(ToUnderlying(value));
 
-            public override byte ToByte(ref byte value) => Operations.ToByte(ToUnderlying(ref value));
+            public override byte ToByte(Enum value) => Operations.ToByte(ToUnderlying(value));
 
-            public override char ToChar(ref byte value) => Operations.ToChar(ToUnderlying(ref value));
+            public override char ToChar(Enum value) => Operations.ToChar(ToUnderlying(value));
 
-            public override decimal ToDecimal(ref byte value) => Operations.ToDecimal(ToUnderlying(ref value));
+            public override decimal ToDecimal(Enum value) => Operations.ToDecimal(ToUnderlying(value));
 
-            public override double ToDouble(ref byte value) => Operations.ToDouble(ToUnderlying(ref value));
+            public override double ToDouble(Enum value) => Operations.ToDouble(ToUnderlying(value));
 
-            public override short ToInt16(ref byte value) => Operations.ToInt16(ToUnderlying(ref value));
+            public override short ToInt16(Enum value) => Operations.ToInt16(ToUnderlying(value));
 
-            public override int ToInt32(ref byte value) => Operations.ToInt32(ToUnderlying(ref value));
+            public override int ToInt32(Enum value) => Operations.ToInt32(ToUnderlying(value));
 
-            public override long ToInt64(ref byte value) => Operations.ToInt64(ToUnderlying(ref value));
+            public override long ToInt64(Enum value) => Operations.ToInt64(ToUnderlying(value));
 
             public override object ToObjectNonGeneric(object value)
             {
@@ -438,19 +438,19 @@ namespace System
 
             public override object ToObjectNonGeneric(ulong value) => ToEnum(Operations.ToObject(value));
 
-            public override sbyte ToSByte(ref byte value) => Operations.ToSByte(ToUnderlying(ref value));
+            public override sbyte ToSByte(Enum value) => Operations.ToSByte(ToUnderlying(value));
 
-            public override float ToSingle(ref byte value) => Operations.ToSingle(ToUnderlying(ref value));
+            public override float ToSingle(Enum value) => Operations.ToSingle(ToUnderlying(value));
 
-            public override string ToString(ref byte value) => Members.ToString(ToUnderlying(ref value));
+            public override string ToString(Enum value) => Members.ToString(ToUnderlying(value));
 
-            public override string ToStringFlags(ref byte value) => Members.ToStringFlags(ToUnderlying(ref value));
+            public override string ToStringFlags(Enum value) => Members.ToStringFlags(ToUnderlying(value));
 
-            public override ushort ToUInt16(ref byte value) => Operations.ToUInt16(ToUnderlying(ref value));
+            public override ushort ToUInt16(Enum value) => Operations.ToUInt16(ToUnderlying(value));
 
-            public override uint ToUInt32(ref byte value) => Operations.ToUInt32(ToUnderlying(ref value));
+            public override uint ToUInt32(Enum value) => Operations.ToUInt32(ToUnderlying(value));
 
-            public override ulong ToUInt64(ref byte value) => Operations.ToUInt64(ToUnderlying(ref value));
+            public override ulong ToUInt64(Enum value) => Operations.ToUInt64(ToUnderlying(value));
 
             public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result)
             {
@@ -499,7 +499,7 @@ namespace System
                         max = value;
                         min = value;
                     }
-                    int index = operations.BinarySearch(values, i, value);
+                    int index = HybridSearch(values, i, value);
                     if (index < 0)
                     {
                         index = ~index;
@@ -541,7 +541,8 @@ namespace System
 
             public string GetName(TUnderlying value)
             {
-                int index = HybridSearch(_values, value);
+                TUnderlying[] values = _values;
+                int index = HybridSearch(values, values.Length, value);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -583,7 +584,8 @@ namespace System
                 {
                     return !(operations.LessThan(value, _min) || operations.LessThan(_max, value));
                 }
-                return HybridSearch(_values, value) >= 0;
+                TUnderlying[] values = _values;
+                return HybridSearch(values, values.Length, value) >= 0;
             }
 
             public bool IsDefined(object value)
@@ -645,7 +647,8 @@ namespace System
                 {
                     return ToStringFlags(value);
                 }
-                int index = HybridSearch(_values, value);
+                TUnderlying[] values = _values;
+                int index = HybridSearch(values, values.Length, value);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -662,18 +665,18 @@ namespace System
                 int nonNegativeStart = _nonNegativeStart;
 
                 // Values are sorted, so if the incoming value is 0, we can check to see whether
-                // the first entry matches it, in which case we can return its name; otherwise,
-                // we can just return "0".
+                // the first non-negative entry matches it, in which case we can return its name;
+                // otherwise, we can just return the integral value.
                 if (value.Equals(zero))
                 {
-                    return values.Length > 0 && values[nonNegativeStart].Equals(zero) ?
+                    return values.Length > nonNegativeStart && values[nonNegativeStart].Equals(zero) ?
                         names[nonNegativeStart] :
                         value.ToString();
                 }
 
                 // It's common to have a flags enum with a single value that matches a single
                 // entry, in which case we can just return the existing name string.
-                int index = HybridSearch(values, value);
+                int index = HybridSearch(values, values.Length, value);
                 if (index >= 0)
                 {
                     return names[index];
@@ -892,27 +895,26 @@ namespace System
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private static int HybridSearch(TUnderlying[] values, TUnderlying value)
+            private static int HybridSearch(TUnderlying[] values, int length, TUnderlying value)
             {
-                const int HybridSearchCutoffLength = 10;
+                const int HybridSearchCutoffLength = 32; // number determined from benchmarking linear vs binary search in the worst case scenario
                 TUnderlyingOperations operations = default;
-                if (values.Length <= HybridSearchCutoffLength)
+                if (length <= HybridSearchCutoffLength)
                 {
-                    // should avoid bounds checks
-                    for (int index = values.Length - 1; index >= 0; --index)
+                    for (int i = length - 1; i >= 0; --i)
                     {
-                        if (values[index].Equals(value))
+                        if (values[i].Equals(value))
                         {
-                            return index;
+                            return i;
                         }
-                        if (operations.LessThan(values[index], value))
+                        if (operations.LessThan(values[i], value))
                         {
-                            return ~(index + 1);
+                            return ~(i + 1);
                         }
                     }
-                    return -1;
+                    return -1; // == ~0
                 }
-                return operations.BinarySearch(values, values.Length, value);
+                return Array.BinarySearch(values, 0, length, value, operations.Comparer);
             }
         }
         #endregion
@@ -921,10 +923,10 @@ namespace System
         private interface IUnderlyingOperations<TUnderlying>
             where TUnderlying : struct, IEquatable<TUnderlying>
         {
-            TUnderlying Zero { get; }
+            IComparer<TUnderlying> Comparer { get; }
             string OverflowMessage { get; }
+            TUnderlying Zero { get; }
             TUnderlying And(TUnderlying left, TUnderlying right);
-            int BinarySearch(TUnderlying[] array, int length, TUnderlying value);
             bool IsInValueRange(ulong value);
             bool LessThan(TUnderlying left, TUnderlying right);
             TUnderlying Or(TUnderlying left, TUnderlying right);
@@ -950,34 +952,34 @@ namespace System
 
         private readonly struct UnderlyingOperations : IUnderlyingOperations<byte>, IUnderlyingOperations<sbyte>, IUnderlyingOperations<short>, IUnderlyingOperations<ushort>, IUnderlyingOperations<int>, IUnderlyingOperations<uint>, IUnderlyingOperations<long>, IUnderlyingOperations<ulong>, IUnderlyingOperations<bool>, IUnderlyingOperations<char>, IUnderlyingOperations<float>, IUnderlyingOperations<double>, IUnderlyingOperations<IntPtr>, IUnderlyingOperations<UIntPtr>
         {
-            #region Zero
-            byte IUnderlyingOperations<byte>.Zero => 0;
+            #region Comparer
+            IComparer<byte> IUnderlyingOperations<byte>.Comparer => Comparer<byte>.Default;
 
-            sbyte IUnderlyingOperations<sbyte>.Zero => 0;
+            IComparer<sbyte> IUnderlyingOperations<sbyte>.Comparer => Comparer<sbyte>.Default;
 
-            short IUnderlyingOperations<short>.Zero => 0;
+            IComparer<short> IUnderlyingOperations<short>.Comparer => Comparer<short>.Default;
 
-            ushort IUnderlyingOperations<ushort>.Zero => 0;
+            IComparer<ushort> IUnderlyingOperations<ushort>.Comparer => Comparer<ushort>.Default;
 
-            int IUnderlyingOperations<int>.Zero => 0;
+            IComparer<int> IUnderlyingOperations<int>.Comparer => Comparer<int>.Default;
 
-            uint IUnderlyingOperations<uint>.Zero => 0;
+            IComparer<uint> IUnderlyingOperations<uint>.Comparer => Comparer<uint>.Default;
 
-            long IUnderlyingOperations<long>.Zero => 0;
+            IComparer<long> IUnderlyingOperations<long>.Comparer => Comparer<long>.Default;
 
-            ulong IUnderlyingOperations<ulong>.Zero => 0;
+            IComparer<ulong> IUnderlyingOperations<ulong>.Comparer => Comparer<ulong>.Default;
 
-            bool IUnderlyingOperations<bool>.Zero => false;
+            IComparer<bool> IUnderlyingOperations<bool>.Comparer => Comparer<bool>.Default;
 
-            char IUnderlyingOperations<char>.Zero => (char)0;
+            IComparer<char> IUnderlyingOperations<char>.Comparer => Comparer<char>.Default;
 
-            float IUnderlyingOperations<float>.Zero => default;
+            IComparer<float> IUnderlyingOperations<float>.Comparer => UnsignedComparer<float, UnderlyingOperations>.Default;
 
-            double IUnderlyingOperations<double>.Zero => default;
+            IComparer<double> IUnderlyingOperations<double>.Comparer => UnsignedComparer<double, UnderlyingOperations>.Default;
 
-            IntPtr IUnderlyingOperations<IntPtr>.Zero => IntPtr.Zero;
+            IComparer<IntPtr> IUnderlyingOperations<IntPtr>.Comparer => UnsignedComparer<IntPtr, UnderlyingOperations>.Default;
 
-            UIntPtr IUnderlyingOperations<UIntPtr>.Zero => UIntPtr.Zero;
+            IComparer<UIntPtr> IUnderlyingOperations<UIntPtr>.Comparer => UnsignedComparer<UIntPtr, UnderlyingOperations>.Default;
             #endregion
 
             #region OverflowMessage
@@ -1030,6 +1032,36 @@ namespace System
             }
             #endregion
 
+            #region Zero
+            byte IUnderlyingOperations<byte>.Zero => 0;
+
+            sbyte IUnderlyingOperations<sbyte>.Zero => 0;
+
+            short IUnderlyingOperations<short>.Zero => 0;
+
+            ushort IUnderlyingOperations<ushort>.Zero => 0;
+
+            int IUnderlyingOperations<int>.Zero => 0;
+
+            uint IUnderlyingOperations<uint>.Zero => 0;
+
+            long IUnderlyingOperations<long>.Zero => 0;
+
+            ulong IUnderlyingOperations<ulong>.Zero => 0;
+
+            bool IUnderlyingOperations<bool>.Zero => false;
+
+            char IUnderlyingOperations<char>.Zero => (char)0;
+
+            float IUnderlyingOperations<float>.Zero => default;
+
+            double IUnderlyingOperations<double>.Zero => default;
+
+            IntPtr IUnderlyingOperations<IntPtr>.Zero => IntPtr.Zero;
+
+            UIntPtr IUnderlyingOperations<UIntPtr>.Zero => UIntPtr.Zero;
+            #endregion
+
             #region And
             public byte And(byte left, byte right) => (byte)(left & right);
 
@@ -1072,36 +1104,6 @@ namespace System
                 return (UIntPtr)((uint)left & (uint)right);
 #endif
             }
-            #endregion
-
-            #region BinarySearch
-            int IUnderlyingOperations<byte>.BinarySearch(byte[] array, int length, byte value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<sbyte>.BinarySearch(sbyte[] array, int length, sbyte value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<short>.BinarySearch(short[] array, int length, short value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<ushort>.BinarySearch(ushort[] array, int length, ushort value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<int>.BinarySearch(int[] array, int length, int value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<uint>.BinarySearch(uint[] array, int length, uint value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<long>.BinarySearch(long[] array, int length, long value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<ulong>.BinarySearch(ulong[] array, int length, ulong value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<bool>.BinarySearch(bool[] array, int length, bool value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<char>.BinarySearch(char[] array, int length, char value) => Array.BinarySearch(array, 0, length, value);
-
-            int IUnderlyingOperations<float>.BinarySearch(float[] array, int length, float value) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<float, UnderlyingOperations>.Default);
-
-            int IUnderlyingOperations<double>.BinarySearch(double[] array, int length, double value) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<double, UnderlyingOperations>.Default);
-
-            int IUnderlyingOperations<IntPtr>.BinarySearch(IntPtr[] array, int length, IntPtr value) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<IntPtr, UnderlyingOperations>.Default);
-
-            int IUnderlyingOperations<UIntPtr>.BinarySearch(UIntPtr[] array, int length, UIntPtr value) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<UIntPtr, UnderlyingOperations>.Default);
             #endregion
 
             #region IsInValueRange
@@ -2281,7 +2283,7 @@ namespace System
             // pure powers of 2 OR-ed together, you return a hex value
 
             // Try to see if its one of the enum values, then we return a String back else the value
-            return EnumCache.Get((RuntimeType)GetType()).ToString(ref this.GetRawData());
+            return EnumCache.Get((RuntimeType)GetType()).ToString(this);
         }
         #endregion
 
@@ -2349,7 +2351,7 @@ namespace System
                         return ValueToHexString();
                     case 'F':
                     case 'f':
-                        return EnumCache.Get((RuntimeType)GetType()).ToStringFlags(ref this.GetRawData());
+                        return EnumCache.Get((RuntimeType)GetType()).ToStringFlags(this);
                 }
             }
 
@@ -2368,7 +2370,7 @@ namespace System
                 throw new ArgumentNullException(nameof(flag));
             }
 
-            return EnumCache.Get((RuntimeType)GetType()).HasFlag(ref this.GetRawData(), flag);
+            return EnumCache.Get((RuntimeType)GetType()).HasFlag(this, flag);
         }
         #endregion
 
@@ -2403,43 +2405,43 @@ namespace System
         }
 
         bool IConvertible.ToBoolean(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToBoolean(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToBoolean(this);
 
         char IConvertible.ToChar(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToChar(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToChar(this);
 
         sbyte IConvertible.ToSByte(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToSByte(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToSByte(this);
 
         byte IConvertible.ToByte(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToByte(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToByte(this);
 
         short IConvertible.ToInt16(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToInt16(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToInt16(this);
 
         ushort IConvertible.ToUInt16(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToUInt16(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToUInt16(this);
 
         int IConvertible.ToInt32(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToInt32(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToInt32(this);
 
         uint IConvertible.ToUInt32(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToUInt32(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToUInt32(this);
 
         long IConvertible.ToInt64(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToInt64(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToInt64(this);
 
         ulong IConvertible.ToUInt64(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToUInt64(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToUInt64(this);
 
         float IConvertible.ToSingle(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToSingle(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToSingle(this);
 
         double IConvertible.ToDouble(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToDouble(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToDouble(this);
 
         decimal IConvertible.ToDecimal(IFormatProvider provider) =>
-            EnumCache.Get((RuntimeType)GetType()).ToDecimal(ref this.GetRawData());
+            EnumCache.Get((RuntimeType)GetType()).ToDecimal(this);
 
         DateTime IConvertible.ToDateTime(IFormatProvider provider)
         {
