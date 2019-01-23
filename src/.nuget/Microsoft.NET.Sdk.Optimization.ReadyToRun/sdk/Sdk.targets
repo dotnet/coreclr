@@ -79,7 +79,6 @@ Copyright (c) .NET Foundation. All rights reserved.
       <!-- If we want to crossgen other IL assemblies, we must filter out the native assemblies -->
       <!-- <_CrossgenInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'%(ResolvedAssembliesToPublish.AssetType)' == 'runtime'" /> -->
 
-      <_CrossgenReferenceAssemblies Include="@(IntermediateAssembly)" />
       <_CrossgenReferenceAssemblies Include="@(ResolvedAssembliesToPublish)" />
     </ItemGroup>
   </Target>
