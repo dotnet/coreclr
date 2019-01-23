@@ -156,7 +156,7 @@ typedef void * NATIVE_LIBRARY_HANDLE;
 #if defined(_MSC_VER) || defined(__llvm__)
 #define DECLSPEC_ALIGN(x)   __declspec(align(x))
 #else
-#define DECLSPEC_ALIGN(x) 
+#define DECLSPEC_ALIGN(x)   __attribute__ ((aligned(x)))
 #endif
 
 #define DECLSPEC_NORETURN   PAL_NORETURN
