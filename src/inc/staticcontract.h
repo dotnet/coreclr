@@ -123,7 +123,6 @@
 #define ANNOTATION_IGNORE_LOCK              { }
 #define ANNOTATION_IGNORE_FAULT             { }
 #define ANNOTATION_IGNORE_TRIGGER           { }
-#define ANNOTATION_IGNORE_SO                { }
 #define ANNOTATION_VIOLATION(violationmask) { }
 #define ANNOTATION_UNCHECKED(thecheck)      { }
 
@@ -276,13 +275,11 @@ typedef StaticContract::ScanThrowMarkerStandard ScanThrowMarker;
 #define SCAN_IGNORE_LOCK                    ANNOTATION_IGNORE_LOCK
 #define SCAN_IGNORE_FAULT                   ANNOTATION_IGNORE_FAULT
 #define SCAN_IGNORE_TRIGGER                 ANNOTATION_IGNORE_TRIGGER
-#define SCAN_IGNORE_SO                      ANNOTATION_IGNORE_SO
 #else
 #define SCAN_IGNORE_THROW
 #define SCAN_IGNORE_LOCK
 #define SCAN_IGNORE_FAULT
 #define SCAN_IGNORE_TRIGGER
-#define SCAN_IGNORE_SO
 #endif
 
 
