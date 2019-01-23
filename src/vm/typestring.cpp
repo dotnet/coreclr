@@ -1198,7 +1198,6 @@ void TypeString::AppendTypeDebug(SString& ss, TypeHandle t)
         NOTHROW;
         PRECONDITION(CheckPointer(t));
         PRECONDITION(ss.Check());
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END
 
@@ -1228,7 +1227,6 @@ void TypeString::AppendTypeKeyDebug(SString& ss, TypeKey *pTypeKey)
         NOTHROW;
         PRECONDITION(CheckPointer(pTypeKey));
         PRECONDITION(ss.Check());
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END
 

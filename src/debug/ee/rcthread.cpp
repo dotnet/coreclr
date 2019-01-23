@@ -99,7 +99,6 @@ void DebuggerRCThread::CloseIPCHandles()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -485,7 +484,6 @@ HRESULT DebuggerRCThread::VerifySecurityOnRSCreatedEvents(
 
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW; 
         GC_NOTRIGGER;
     }
@@ -1040,7 +1038,6 @@ bool DebuggerRCThread::HandleRSEA()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         if (g_pEEInterface->GetThread() != NULL) { GC_TRIGGERS; } else { GC_NOTRIGGER; }
         PRECONDITION(ThisIsHelperThreadWorker());
@@ -1355,7 +1352,6 @@ void DebuggerRCThread::TemporaryHelperThreadMainLoop()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
 
 
@@ -1758,7 +1754,6 @@ HRESULT DebuggerRCThread::SendIPCEvent()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER; // duh, we're in preemptive..
 

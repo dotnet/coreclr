@@ -5103,8 +5103,6 @@ LONG InternalUnhandledExceptionFilter(
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_ANY;
-    // We don't need to be SO-robust for an unhandled exception
-    SO_NOT_MAINLINE_FUNCTION;
 
     LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter: at sp %p.\n", GetCurrentSP()));
 
@@ -5233,8 +5231,6 @@ LONG __stdcall COMUnhandledExceptionFilter(     // EXCEPTION_CONTINUE_SEARCH or 
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_ANY;
-    // We don't need to be SO-robust for an unhandled exception
-    SO_NOT_MAINLINE_FUNCTION;
 
     LONG retVal = EXCEPTION_CONTINUE_SEARCH;
 
@@ -6734,7 +6730,6 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
     LIMITED_METHOD_CONTRACT;
 
 #ifdef DEBUGGING_SUPPORTED
-    SO_NOT_MAINLINE_FUNCTION;
 
 #ifdef _TARGET_ARM_
     // On ARM we don't have any reliable hardware support for single stepping so it is emulated in software.

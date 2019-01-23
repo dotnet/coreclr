@@ -115,7 +115,6 @@ SPECIALIZED_VIOLATION(FaultNotFatal|TakesLockViolation);
 
 void CHECK::Trigger(LPCSTR reason) 
 {
-    STATIC_CONTRACT_SO_NOT_MAINLINE;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
@@ -162,7 +161,6 @@ void CHECK::Trigger(LPCSTR reason)
 
 void CHECK::Setup(LPCSTR message, LPCSTR condition, LPCSTR file, INT line) 
 {
-    STATIC_CONTRACT_SO_NOT_MAINLINE;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
@@ -216,7 +214,6 @@ void CHECK::Setup(LPCSTR message, LPCSTR condition, LPCSTR file, INT line)
 
 LPCSTR CHECK::FormatMessage(LPCSTR messageFormat, ...)
 {
-    STATIC_CONTRACT_SO_NOT_MAINLINE;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
@@ -273,7 +270,6 @@ LPCSTR CHECK::AllocateDynamicMessage(const SString &s)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_NOT_MAINLINE;
 
     // Make a copy of it.
     StackScratchBuffer buffer;

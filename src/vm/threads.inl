@@ -106,7 +106,6 @@ inline OBJECTHANDLE Thread::GetThreadCurrNotification()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
@@ -121,7 +120,6 @@ inline void Thread::SetThreadCurrNotification(OBJECTHANDLE handle)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -135,7 +133,6 @@ inline void Thread::ClearThreadCurrNotification()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }

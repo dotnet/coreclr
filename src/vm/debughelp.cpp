@@ -107,7 +107,6 @@ bool isRetAddr(TADDR retAddr, TADDR* whereCalled)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 

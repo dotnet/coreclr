@@ -5172,7 +5172,6 @@ void DoJITFailFast ()
         MODE_ANY;
         WRAPPER(GC_TRIGGERS);
         WRAPPER(THROWS);
-        SO_NOT_MAINLINE; // If process is coming down, SO probe is not going to do much good
     } CONTRACTL_END;
 
     LOG((LF_ALWAYS, LL_FATALERROR, "Unsafe buffer security check failure: Buffer overrun detected"));
@@ -5382,7 +5381,6 @@ extern "C" void * _ReturnAddress(void);
 HCIMPL0(void, JIT_DbgIsJustMyCode)
 {
     FCALL_CONTRACT;
-    SO_NOT_MAINLINE_FUNCTION;
 
     // We need to get both the ip of the managed function this probe is in
     // (which will be our return address) and the frame pointer for that

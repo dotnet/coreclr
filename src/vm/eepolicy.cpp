@@ -441,8 +441,6 @@ void EEPolicy::NotifyHostOnDefaultAction(EClrOperation operation, EPolicyAction 
 
 void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction sca = SCA_ExitProcessWhenShutdownComplete)
 {
-    // The process is shutting down.  No need to check SO contract.
-    SO_NOT_MAINLINE_FUNCTION;
     STRESS_LOG2(LF_SYNC, LL_INFO10, "SafeExitProcess: exitCode = %d, fAbort = %d\n", exitCode, fAbort);
     CONTRACTL
     {

@@ -855,7 +855,6 @@ HRESULT GetBucketParametersForCurrentException(
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 

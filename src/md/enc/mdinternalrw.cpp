@@ -4331,9 +4331,6 @@ HRESULT MDInternalRW::ApplyEditAndContinue(
     _ASSERTE(pDeltaMD);
     _ASSERTE(ppv);
 
-    // debugging-specific usages don't need SO hardening
-    SO_NOT_MAINLINE_FUNCTION;
-    
     HRESULT hr = E_FAIL;
     IMDInternalImportENC *pDeltaMDImport = NULL;
     

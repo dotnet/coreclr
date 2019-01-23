@@ -6060,25 +6060,15 @@ void CleanStackForFastGCStress ()
 
 void Thread::ObjectRefFlush(Thread* thread)
 {
+    // this is debug only code, so no need to validate
+    STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_ENTRY_POINT;
 
-    BEGIN_PRESERVE_LAST_ERROR;
-
-    // The constructor and destructor of AutoCleanupSONotMainlineHolder (allocated by SO_NOT_MAINLINE_FUNCTION below)
-    // may trash the last error, so we need to save and restore last error here.  Also, we need to add a scope here
-    // because we can't let the destructor run after we call SetLastError().
-    {
-        // this is debug only code, so no need to validate
-        STATIC_CONTRACT_NOTHROW;
-        STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_ENTRY_POINT;
-
-        _ASSERTE(thread->PreemptiveGCDisabled());  // Should have been in managed code
-        memset(thread->dangerousObjRefs, 0, sizeof(thread->dangerousObjRefs));
-        thread->m_allObjRefEntriesBad = FALSE;
-        CLEANSTACKFORFASTGCSTRESS ();
-    }
-
-    END_PRESERVE_LAST_ERROR;
+    _ASSERTE(thread->PreemptiveGCDisabled());  // Should have been in managed code
+    memset(thread->dangerousObjRefs, 0, sizeof(thread->dangerousObjRefs));
+    thread->m_allObjRefEntriesBad = FALSE;
+    CLEANSTACKFORFASTGCSTRESS ();
 }
 #endif
 
@@ -6349,7 +6339,6 @@ BOOL Thread::UniqueStack(void* stackStart)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 

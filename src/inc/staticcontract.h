@@ -83,7 +83,6 @@
 #define ANNOTATION_FN_FORBID_FAULT          __annotation(W("FORBID_FAULT ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_GC_TRIGGERS           __annotation(W("GC_TRIGGERS ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_GC_NOTRIGGER          __annotation(W("GC_NOTRIGGER ") SCAN_WIDEN(__FUNCTION__))
-#define ANNOTATION_FN_SO_NOT_MAINLINE       __annotation(W("SO_NOT_MAINLINE ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_MODE_COOPERATIVE      __annotation(W("MODE_COOPERATIVE ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_MODE_PREEMPTIVE       __annotation(W("MODE_PREEMPTIVE ") SCAN_WIDEN(__FUNCTION__))
 #define ANNOTATION_FN_MODE_ANY              __annotation(W("MODE_ANY ") SCAN_WIDEN(__FUNCTION__))
@@ -146,7 +145,6 @@
 #define ANNOTATION_FN_FORBID_FAULT          { }
 #define ANNOTATION_FN_GC_TRIGGERS           { }
 #define ANNOTATION_FN_GC_NOTRIGGER          { }
-#define ANNOTATION_FN_SO_NOT_MAINLINE       { }
 #define ANNOTATION_FN_MODE_COOPERATIVE      { }
 #define ANNOTATION_FN_MODE_PREEMPTIVE       { }
 #define ANNOTATION_FN_MODE_ANY              { }
@@ -159,9 +157,6 @@
 #define ANNOTATION_SO_PROBE_BEGIN(probeAmount) { }
 #define ANNOTATION_SO_PROBE_END             { }
 
-#define ANNOTATION_SO_NOT_MAINLINE          { }
-#define ANNOTATION_SO_NOT_MAINLINE_BEGIN    { }
-#define ANNOTATION_SO_NOT_MAINLINE_END      { }
 #define ANNOTATION_ENTRY_POINT              { }
 #ifdef _DEBUG
 #define ANNOTATION_DEBUG_ONLY               { }
@@ -190,15 +185,13 @@
 #define STATIC_CONTRACT_LIMITED_METHOD      ANNOTATION_FN_LEAF
 #define STATIC_CONTRACT_WRAPPER             ANNOTATION_FN_WRAPPER
 
-#define STATIC_CONTRACT_SO_NOT_MAINLINE
 #define STATIC_CONTRACT_ENTRY_POINT
 
 #ifdef _DEBUG
 #define STATIC_CONTRACT_DEBUG_ONLY                                  \
     ANNOTATION_DEBUG_ONLY;                                          \
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;                               \
-    ANNOTATION_VIOLATION(TakesLockViolation);                       \
-    ANNOTATION_FN_SO_NOT_MAINLINE;
+    ANNOTATION_VIOLATION(TakesLockViolation);
 #else
 #define STATIC_CONTRACT_DEBUG_ONLY 
 #endif

@@ -25,12 +25,6 @@
 
 void AssertMulticoreJitAllowedModule(PCODE pTarget)
 {
-    CONTRACTL
-    {
-        SO_NOT_MAINLINE;
-    }
-    CONTRACTL_END;
-
     MethodDesc* pMethod = Entry2MethodDesc(pTarget, NULL); 
 
     Module * pModule = pMethod->GetModule_NoLogging();

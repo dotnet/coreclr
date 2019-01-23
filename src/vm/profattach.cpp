@@ -1160,7 +1160,6 @@ HRESULT CLRProfilingImpl::AttachProfiler(DWORD dwProfileeProcessID,
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         CAN_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 

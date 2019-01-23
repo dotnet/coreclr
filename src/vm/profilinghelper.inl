@@ -234,7 +234,6 @@ FORCEINLINE void ProfilingAPIUtility::IncEvacuationCounter(Thread * pThread)
         FORBID_FAULT;
         MODE_ANY;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     } 
     CONTRACTL_END;
 
@@ -261,7 +260,6 @@ FORCEINLINE void ProfilingAPIUtility::DecEvacuationCounter(Thread * pThread)
         FORBID_FAULT;
         MODE_ANY;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     } 
     CONTRACTL_END;
 

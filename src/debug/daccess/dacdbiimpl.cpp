@@ -5757,7 +5757,6 @@ HRESULT DacDbiInterfaceImpl::FastSanityCheckObject(PTR_Object objPtr)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }

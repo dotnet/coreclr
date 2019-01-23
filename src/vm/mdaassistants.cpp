@@ -42,7 +42,6 @@ void MdaFramework::DumpDiagnostics()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
     
@@ -2176,7 +2175,6 @@ void MdaXmlValidationError::ReportError(MdaSchema::ValidationResult* pValidation
         GC_TRIGGERS;
         MODE_ANY;
         DEBUG_ONLY;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
     PRECONDITION(CheckPointer(pValidationResult->m_pViolatingElement));
@@ -2204,7 +2202,6 @@ void MdaInvalidConfigFile::ReportError(MdaElemDeclDef configFile)
         GC_TRIGGERS;
         MODE_ANY;
         DEBUG_ONLY;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -2228,7 +2225,6 @@ void MdaDateTimeInvalidLocalFormat::ReportError()
         GC_TRIGGERS;
         MODE_ANY;
         DEBUG_ONLY;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 

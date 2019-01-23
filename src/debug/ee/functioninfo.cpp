@@ -371,7 +371,6 @@ DebuggerJitInfo::NativeOffset DebuggerJitInfo::MapILOffsetToNative(DebuggerJitIn
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -543,7 +542,6 @@ SIZE_T DebuggerJitInfo::MapSpecialToNative(CorDebugMappingResult mapping,
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(NULL != pfAccurate);
@@ -611,7 +609,6 @@ SIZE_T DebuggerJitInfo::MapILOffsetToNativeForSetIP(SIZE_T offsetILTo, int funcl
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -675,7 +672,6 @@ void DebuggerJitInfo::MapILRangeToMapEntryRange(SIZE_T startOffset,
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1288,7 +1284,6 @@ ICorDebugInfo::SourceTypes DebuggerJitInfo::GetSrcTypeFromILOffset(SIZE_T ilOffs
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1919,7 +1914,6 @@ void DebuggerMethodInfo::SetJMCStatus(bool fStatus)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1973,7 +1967,6 @@ void DebuggerMethodInfo::IterateAllDJIs(AppDomain * pAppDomain, Module * pLoader
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         GC_NOTRIGGER;
     }
@@ -2010,7 +2003,6 @@ void DebuggerMethodInfo::CreateDJIsForNativeBlobs(AppDomain * pAppDomain, Module
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         GC_NOTRIGGER;
     }
@@ -2071,7 +2063,6 @@ void DebuggerMethodInfo::CreateDJIsForMethodDesc(MethodDesc * pMethodDesc)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         GC_NOTRIGGER;
     }

@@ -2017,9 +2017,6 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
         return;
     }
 
-    // The process is shutting down.  No need to check SO contract.
-    SO_NOT_MAINLINE_FUNCTION;
-
     // We only do the first part of the shutdown once.
     static LONG OnlyOne = -1;
 
@@ -2369,10 +2366,6 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
-
-    // this runs at the top of a thread, SO is not a concern here...
-    STATIC_CONTRACT_SO_NOT_MAINLINE;
-
 
     // HRESULT hr;
     // BEGIN_EXTERNAL_ENTRYPOINT(&hr);

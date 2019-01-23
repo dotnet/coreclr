@@ -156,7 +156,6 @@ public:
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_SO_NOT_MAINLINE;
 
         if (!Enabled())
             return;
@@ -187,7 +186,6 @@ public:
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_SO_NOT_MAINLINE;
 
         if (s_IBCLogMetaDataAccess != NULL)
             s_IBCLogMetaDataAccess(address);
@@ -210,7 +208,6 @@ public:
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_SO_NOT_MAINLINE;
 
         if (s_IBCLogMetaDataSearch != NULL && result != NULL)
             s_IBCLogMetaDataSearch(result);

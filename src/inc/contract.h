@@ -46,10 +46,6 @@
 //
 //      LOADS_TYPE(level)       the function promises not to load any types beyond "level"
 //
-//      SO_NOT_MAINLINE         the function is not hardened to SO and should never run on a managed thread
-//                              where we need to be hardened to SO.  You can use this for functions that run
-//                              only for ngen or Win9X etc.
-//
 //      CAN_TAKE_LOCK           the function has a code path that takes a lock
 //      _or_ (CAN_TAKE_LOCK and CANNOT_RETAKE_LOCK)
 //                              the function has a code path that takes a lock, but never tries to reenter 
@@ -136,7 +132,6 @@
 //        STATIC_CONTRACT_GCNOTRIGGER
 //        STATIC_CONTRACT_FAULT
 //        STATIC_CONTRACT_FORBID_FAULT
-//        STATIC_CONTRACT_SO_NOT_MAINLINE
 //                           use to implement statically checkable contracts
 //                           when runtime contracts cannot be used.
 //
@@ -1425,8 +1420,6 @@ typedef __SafeToUsePostCondition __PostConditionOK;
 
 #define LOADS_TYPE(maxlevel)  do { REQUEST_TEST( ((maxlevel) + 1) << Contract::LOADS_TYPE_Shift, Contract::LOADS_TYPE_Disabled ); } while(0)
 
-#define SO_NOT_MAINLINE  do { STATIC_CONTRACT_SO_NOT_MAINLINE; REQUEST_TEST(Contract::SO_MAINLINE_No, 0); } while (0)
-
 #define CAN_TAKE_LOCK    do { STATIC_CONTRACT_CAN_TAKE_LOCK; REQUEST_TEST(Contract::CAN_TAKE_LOCK_Yes, Contract::CAN_TAKE_LOCK_Disabled); } while(0)
 
 #define CANNOT_TAKE_LOCK   do { STATIC_CONTRACT_CANNOT_TAKE_LOCK; REQUEST_TEST(Contract::CAN_TAKE_LOCK_No,  Contract::CAN_TAKE_LOCK_Disabled); } while(0)
@@ -1649,7 +1642,6 @@ typedef __SafeToUsePostCondition __PostConditionOK;
 #define CANNOT_TAKE_LOCK
 #define CANNOT_RETAKE_LOCK
 #define LOADS_TYPE(maxlevel)
-#define SO_NOT_MAINLINE
 #define ENTRY_POINT
 
 #ifdef _DEBUG
@@ -2072,7 +2064,6 @@ private:
 inline ClrDebugState *GetClrDebugState(BOOL fAlloc)
 {
     STATIC_CONTRACT_LIMITED_METHOD;
-    STATIC_CONTRACT_SO_NOT_MAINLINE;
 
     ClrDebugState *pState = CheckClrDebugState();
 
@@ -2089,11 +2080,6 @@ inline ClrDebugState *GetClrDebugState(BOOL fAlloc)
     return NULL;
 }
 #endif // ENABLE_CONTRACTS_IMPL
-
-#define SO_NOT_MAINLINE_FUNCTION 
-#define SO_NOT_MAINLINE_REGION() 
-#define ENTER_SO_NOT_MAINLINE_CODE
-#define LEAVE_SO_NOT_MAINLINE_CODE
 
 #ifdef ENABLE_CONTRACTS_IMPL
 
