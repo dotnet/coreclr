@@ -317,9 +317,8 @@ Thread::SuspendThreadResult Thread::SuspendThread(BOOL fOneTryOnly, DWORD *pdwSu
                         {
                             if (g_SystemInfo.dwNumberOfProcessors > 1)
                             {
-                                if ((tries++) % 20 != 0) 
-                                {
-                                    YieldProcessor();           // play nice on hyperthreaded CPUs
+                                if ((tries++) % 20 != 0) {
+                                    YieldProcessorNormalized(); // play nice on hyperthreaded CPUs
                                 } else {
                                     __SwitchToThread(0, ++dwSwitchCount);
                                 }
@@ -415,7 +414,7 @@ retry:
             if (g_SystemInfo.dwNumberOfProcessors > 1)
             {
                 if ((tries++) % 20 != 0) {
-                    YieldProcessor();           // play nice on hyperthreaded CPUs
+                    YieldProcessorNormalized(); // play nice on hyperthreaded CPUs
                 } else {
                     __SwitchToThread(0, ++dwSwitchCount);
                 }
@@ -584,64 +583,6 @@ BOOL EESetThreadContext(Thread *pThread, const CONTEXT *pContext)
 
     return ret;
 }
-
-// The AbortReason must be cleared at the following times:
-//
-//  1.  When the application performs a ResetAbort.
-//
-//  2.  When the physical thread stops running.  That's because we must eliminate any
-//      cycles that would otherwise be uncollectible, between the Reason and the Thread.
-//      Nobody can retrieve the Reason after the thread stops running anyway.
-//
-//  We don't have to do any work when the AppDomain containing the Reason object is unloaded.
-//  That's because the HANDLE is released as part of the tear-down.  The 'adid' prevents us
-//  from ever using the trash handle value thereafter.
-
-void Thread::ClearAbortReason(BOOL pNoLock)
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    OBJECTHANDLE oh;
-    ADID adid;
-
-    if (pNoLock){
-        // Stash the fields so we can destroy the OBJECTHANDLE if appropriate.
-        oh = m_AbortReason;
-        adid = m_AbortReasonDomainID;
-
-        // Clear the fields.
-        m_AbortReason = 0;
-        m_AbortReasonDomainID = ADID(INVALID_APPDOMAIN_ID);
-    }
-    else
-    // Scope the lock to stashing and clearing the two fields on the Thread object.
-    {
-        // Atomically get the OBJECTHANDLE and ADID of the object, and then
-        //  clear them.
-
-        // NOTE: get the lock on this thread object, not on the executing thread.
-        Thread::AbortRequestLockHolder lock(this);
-
-        // Stash the fields so we can destroy the OBJECTHANDLE if appropriate.
-        oh = m_AbortReason;
-        adid = m_AbortReasonDomainID;
-
-        // Clear the fields.
-        m_AbortReason = 0;
-        m_AbortReasonDomainID = ADID(INVALID_APPDOMAIN_ID);
-    }
-
-    // If there is an OBJECTHANDLE, try to clear it.
-    if (oh != 0 && adid.m_dwId != 0)
-        DestroyHandle(oh);
-}
-
 
 // Context passed down through a stack crawl (see code below).
 struct StackCrawlContext
@@ -2289,7 +2230,7 @@ void Thread::LockAbortRequest(Thread* pThread)
             if (VolatileLoad(&(pThread->m_AbortRequestLock)) == 0) {
                 break;
             }
-            YieldProcessor();               // indicate to the processor that we are spinning
+            YieldProcessorNormalized(); // indicate to the processor that we are spinning
         }
         if (FastInterlockCompareExchange(&(pThread->m_AbortRequestLock),1,0) == 0) {
             return;
@@ -2510,11 +2451,6 @@ void Thread::UnmarkThreadForAbort(ThreadAbortRequester requester, BOOL fForce)
             m_AbortInfo &= ~(TAI_ThreadAbort   |
                              TAI_ThreadV1Abort |
                              TAI_ThreadRudeAbort );
-        }
-
-        if (m_AbortReason)
-        {
-            ClearAbortReason(TRUE);
         }
     }
 

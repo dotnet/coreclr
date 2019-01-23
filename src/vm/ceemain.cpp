@@ -668,6 +668,8 @@ void EEStartupHelper(COINITIEE fFlags)
         // This needs to be done before the EE has started
         InitializeStartupFlags();
 
+        MethodDescBackpatchInfoTracker::StaticInitialize();
+
         InitThreadManager();
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "Returned successfully from InitThreadManager");
 
@@ -1186,11 +1188,6 @@ void InnerCoEEShutDownCOM()
 
     // Release all of the RCWs in all contexts in all caches.
     ReleaseRCWsInCaches(NULL);
-
-    // Release all marshaling data in all AppDomains
-    AppDomainIterator i(TRUE);
-    while (i.Next())
-        i.GetDomain()->DeleteMarshalingData();
 
 #ifdef FEATURE_APPX    
     // Cleanup cached factory pointer in SynchronizationContextNative

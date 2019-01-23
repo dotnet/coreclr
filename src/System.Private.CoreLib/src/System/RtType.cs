@@ -2614,11 +2614,7 @@ namespace System
         public override Type[] GetInterfaces()
         {
             RuntimeType[] candidates = Cache.GetInterfaceList(MemberListType.All, null);
-            Type[] interfaces = new Type[candidates.Length];
-            for (int i = 0; i < candidates.Length; i++)
-                JitHelpers.UnsafeSetArrayElement(interfaces, i, candidates[i]);
-
-            return interfaces;
+            return new ReadOnlySpan<Type>(candidates).ToArray();
         }
 
         public override Type[] GetNestedTypes(BindingFlags bindingAttr)
@@ -4040,8 +4036,7 @@ namespace System
                 if (results != null)
                 {
                     Debug.Assert(results.Count > 1);
-                    finalists = new MethodInfo[results.Count];
-                    results.CopyTo(finalists);
+                    finalists = results.ToArray();
                 }
             }
 
@@ -4092,8 +4087,7 @@ namespace System
                 if (results != null)
                 {
                     Debug.Assert(results.Count > 1);
-                    finalists = new MethodInfo[results.Count];
-                    results.CopyTo(finalists);
+                    finalists = results.ToArray();
                 }
             }
 
@@ -4285,8 +4279,6 @@ namespace System
             if (args == null)
                 args = Array.Empty<object>();
 
-            int argCnt = args.Length;
-
             // Without a binder we need to do use the default binder...
             if (binder == null)
                 binder = DefaultBinder;
@@ -4295,7 +4287,7 @@ namespace System
             // so a call to GetMemberCons would fail
             bool publicOnly = (bindingAttr & BindingFlags.NonPublic) == 0;
             bool wrapExceptions = (bindingAttr & BindingFlags.DoNotWrapExceptions) == 0;
-            if (argCnt == 0 && (bindingAttr & BindingFlags.Public) != 0 && (bindingAttr & BindingFlags.Instance) != 0
+            if (args.Length == 0 && (bindingAttr & BindingFlags.Public) != 0 && (bindingAttr & BindingFlags.Instance) != 0
                 && (IsGenericCOMObjectImpl() || IsValueType))
             {
                 server = CreateInstanceDefaultCtor(publicOnly, false, true, wrapExceptions);
@@ -4306,8 +4298,8 @@ namespace System
                 List<MethodBase> matches = new List<MethodBase>(candidates.Length);
 
                 // We cannot use Type.GetTypeArray here because some of the args might be null
-                Type[] argsType = new Type[argCnt];
-                for (int i = 0; i < argCnt; i++)
+                Type[] argsType = new Type[args.Length];
+                for (int i = 0; i < args.Length; i++)
                 {
                     if (args[i] != null)
                     {
@@ -4321,15 +4313,12 @@ namespace System
                         matches.Add(candidates[i]);
                 }
 
-                MethodBase[] cons = new MethodBase[matches.Count];
-                matches.CopyTo(cons);
-                if (cons != null && cons.Length == 0)
-                    cons = null;
-
-                if (cons == null)
+                if (matches.Count == 0)
                 {
                     throw new MissingMethodException(SR.Format(SR.MissingConstructor_Name, FullName));
                 }
+
+                MethodBase[] cons = matches.ToArray();
 
                 MethodBase invokeMethod;
                 object state = null;
