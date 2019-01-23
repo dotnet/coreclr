@@ -200,6 +200,7 @@ namespace System
 
             if (Avx2.IsSupported || Sse2.IsSupported)
             {
+                // Avx2 branch also operates on Sse2 sizes, so check is combined.
                 if (length >= Vector128<byte>.Count * 2)
                 {
                     nLength = UnalignedByteCountVector128(ref searchSpace);
@@ -537,6 +538,7 @@ namespace System
 
             if (Avx2.IsSupported || Sse2.IsSupported)
             {
+                // Avx2 branch also operates on Sse2 sizes, so check is combined.
                 if (length >= Vector128<byte>.Count * 2)
                 {
                     nLength = UnalignedByteCountVector128(ref searchSpace);
@@ -760,6 +762,7 @@ namespace System
 
             if (Avx2.IsSupported || Sse2.IsSupported)
             {
+                // Avx2 branch also operates on Sse2 sizes, so check is combined.
                 if (length >= Vector128<byte>.Count * 2)
                 {
                     nLength = UnalignedByteCountVector128(ref searchSpace);
@@ -1276,7 +1279,7 @@ namespace System
 
             while ((byte*)nLength > (byte*)offset)
             {
-                if (Unsafe.AddByteOffset(ref  first, offset) != Unsafe.AddByteOffset(ref  second, offset))
+                if (Unsafe.AddByteOffset(ref first, offset) != Unsafe.AddByteOffset(ref second, offset))
                     goto NotEqual;
                 offset += 1;
             }
@@ -1351,7 +1354,7 @@ namespace System
         NotEqual:  // Workaround for https://github.com/dotnet/coreclr/issues/13549
             while ((byte*)minLength > (byte*)offset)
             {
-                int result = Unsafe.AddByteOffset(ref  first, offset).CompareTo(Unsafe.AddByteOffset(ref  second, offset));
+                int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                 if (result != 0)
                     return result;
                 offset += 1;
