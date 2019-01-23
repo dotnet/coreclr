@@ -3426,7 +3426,7 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumCache.Get(this).GetNames();
+            return Enum.EnumCache.Get(this).GetNamesNonGeneric();
         }
 
         public override Array GetEnumValues()

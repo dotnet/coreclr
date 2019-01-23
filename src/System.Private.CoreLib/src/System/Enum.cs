@@ -273,7 +273,7 @@ namespace System
 
             public abstract string Format(object value, string format);
             public abstract string GetName(object value);
-            public abstract string[] GetNames();
+            public abstract string[] GetNamesNonGeneric();
             public abstract Array GetValuesNonGeneric();
             public abstract bool HasFlag(ref byte value, object flag);
             public abstract bool IsDefined(object value);
@@ -380,16 +380,23 @@ namespace System
 
             public override string GetName(object value) => value is TEnum enumValue ? Members.GetName(ToUnderlying(enumValue)) : Members.GetName(value);
 
-            public override string[] GetNames() => Members.GetNames();
+            public override string[] GetNamesNonGeneric() => Members.GetNames();
 
             public override Array GetValuesNonGeneric()
             {
-                TUnderlying[] values = Members._values;
-                TEnum[] array = new TEnum[values.Length];
-                int i = 0;
-                foreach (TUnderlying value in values)
+                EnumMembers<TUnderlying, TUnderlyingOperations> members = Members;
+                TUnderlying[] values = members._values;
+                int nonNegativeStart = members._nonNegativeStart;
+                int length = values.Length;
+                TEnum[] array = new TEnum[length];
+                for (int i = nonNegativeStart; i < length; ++i)
                 {
-                    array[i++] = ToEnum(value);
+                    array[i - nonNegativeStart] = ToEnum(values[i]);
+                }
+                int start = length - nonNegativeStart;
+                for (int i = 0; i < nonNegativeStart; ++i)
+                {
+                    array[start + i] = ToEnum(values[i]);
                 }
                 return array;
             }
@@ -461,12 +468,15 @@ namespace System
         {
             private readonly Type _enumType;
             private readonly bool _isFlagEnum;
+            // _names and _valeus are sorted in increasing value order
+            // not increasing bit significance order due to performance
+            // implications when searching.
             private readonly string[] _names;
             internal readonly TUnderlying[] _values;
-            private readonly TUnderlying _min;
+            internal readonly int _nonNegativeStart;
             private readonly TUnderlying _max;
+            private readonly TUnderlying _min;
             private readonly bool _isContiguous;
-            private readonly int _negativeStart;
 
             public EnumMembers(Type enumType)
             {
@@ -480,7 +490,7 @@ namespace System
                 TUnderlyingOperations operations = default;
                 TUnderlying max = default;
                 TUnderlying min = default;
-                int negativeStart = 0;
+                int nonNegativeStart = 0;
                 for (int i = 0; i < fields.Length; ++i)
                 {
                     TUnderlying value = (TUnderlying)fields[i].GetRawConstantValue();
@@ -489,17 +499,17 @@ namespace System
                         max = value;
                         min = value;
                     }
-                    int index = operations.BinarySearch(values, i, value, negativeStart);
+                    int index = operations.BinarySearch(values, i, value);
                     if (index < 0)
                     {
                         index = ~index;
-                        if (operations.LessThan(value, min))
-                        {
-                            min = value;
-                        }
-                        else if (operations.LessThan(max, value))
+                        if (operations.LessThan(max, value))
                         {
                             max = value;
+                        }
+                        else if (operations.LessThan(value, min))
+                        {
+                            min = value;
                         }
                     }
                     else
@@ -510,9 +520,9 @@ namespace System
                         } while (index < i && value.Equals(values[index]));
                     }
 
-                    if (!operations.LessThan(value, operations.Zero))
+                    if (operations.LessThan(value, operations.Zero))
                     {
-                        ++negativeStart;
+                        ++nonNegativeStart;
                     }
 
                     Array.Copy(names, index, names, index + 1, i - index);
@@ -525,14 +535,13 @@ namespace System
                 _values = values;
                 _max = max;
                 _min = min;
-                _negativeStart = negativeStart;
+                _nonNegativeStart = nonNegativeStart;
                 _isContiguous = values.Length > 0 && operations.Subtract(max, operations.ToObject((ulong)values.Length - 1)).Equals(min);
             }
 
             public string GetName(TUnderlying value)
             {
-                TUnderlying[] values = _values;
-                int index = default(TUnderlyingOperations).BinarySearch(values, values.Length, value, _negativeStart);
+                int index = HybridSearch(_values, value);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -557,8 +566,13 @@ namespace System
             {
                 string[] names = _names;
                 // Make a copy since we can't hand out the same array since users can modify them
+                // and _names is stored in increasing value order as opposed to the expected
+                // increasing bit significance order.
                 string[] namesCopy = new string[names.Length];
-                Array.Copy(names, 0, namesCopy, 0, names.Length);
+                int nonNegativeStart = _nonNegativeStart;
+                int length = names.Length - nonNegativeStart;
+                Array.Copy(names, nonNegativeStart, namesCopy, 0, length);
+                Array.Copy(names, 0, namesCopy, length, nonNegativeStart);
                 return namesCopy;
             }
 
@@ -569,8 +583,7 @@ namespace System
                 {
                     return !(operations.LessThan(value, _min) || operations.LessThan(_max, value));
                 }
-                TUnderlying[] values = _values;
-                return operations.BinarySearch(values, values.Length, value, _negativeStart) >= 0;
+                return HybridSearch(_values, value) >= 0;
             }
 
             public bool IsDefined(object value)
@@ -632,8 +645,7 @@ namespace System
                 {
                     return ToStringFlags(value);
                 }
-                TUnderlying[] values = _values;
-                int index = default(TUnderlyingOperations).BinarySearch(values, values.Length, value, _negativeStart);
+                int index = HybridSearch(_values, value);
                 if (index >= 0)
                 {
                     return _names[index];
@@ -647,20 +659,21 @@ namespace System
                 TUnderlying[] values = _values;
                 TUnderlyingOperations operations = default;
                 TUnderlying zero = operations.Zero;
+                int nonNegativeStart = _nonNegativeStart;
 
                 // Values are sorted, so if the incoming value is 0, we can check to see whether
                 // the first entry matches it, in which case we can return its name; otherwise,
                 // we can just return "0".
                 if (value.Equals(zero))
                 {
-                    return values.Length > 0 && values[0].Equals(zero) ?
-                        names[0] :
+                    return values.Length > 0 && values[nonNegativeStart].Equals(zero) ?
+                        names[nonNegativeStart] :
                         value.ToString();
                 }
 
                 // It's common to have a flags enum with a single value that matches a single
                 // entry, in which case we can just return the existing name string.
-                int index = operations.BinarySearch(values, values.Length, value, _negativeStart);
+                int index = HybridSearch(values, value);
                 if (index >= 0)
                 {
                     return names[index];
@@ -677,7 +690,24 @@ namespace System
                 int resultLength = 0;
                 int foundItemsCount = 0;
                 TUnderlying tempValue = value;
-                for (index = ~index - 1; index >= 0; --index)
+                index = ~index - 1;
+                
+                if (index < nonNegativeStart)
+                {
+                    for (; index >= 0; --index)
+                    {
+                        TUnderlying currentValue = values[index];
+                        if (operations.And(tempValue, currentValue).Equals(currentValue))
+                        {
+                            tempValue = operations.Subtract(tempValue, currentValue);
+                            foundItems[foundItemsCount++] = index;
+                            resultLength = checked(resultLength + names[index].Length);
+                        }
+                    }
+                    index = values.Length;
+                }
+
+                for (; index >= nonNegativeStart; --index)
                 {
                     TUnderlying currentValue = values[index];
                     if (operations.And(tempValue, currentValue).Equals(currentValue))
@@ -691,37 +721,43 @@ namespace System
                         resultLength = checked(resultLength + names[index].Length);
                         if (tempValue.Equals(zero))
                         {
-                            // We know what strings to concatenate.  Do so.
-
-                            Debug.Assert(foundItemsCount > 0);
-                            const int SeparatorStringLength = 2; // ", "
-                            string result = string.FastAllocateString(checked(resultLength + (SeparatorStringLength * (foundItemsCount - 1))));
-
-                            Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
-                            string name = names[foundItems[--foundItemsCount]];
-                            name.AsSpan().CopyTo(resultSpan);
-                            resultSpan = resultSpan.Slice(name.Length);
-                            while (--foundItemsCount >= 0)
-                            {
-                                resultSpan[0] = EnumSeparatorChar;
-                                resultSpan[1] = ' ';
-                                resultSpan = resultSpan.Slice(2);
-
-                                name = names[foundItems[foundItemsCount]];
-                                name.AsSpan().CopyTo(resultSpan);
-                                resultSpan = resultSpan.Slice(name.Length);
-                            }
-                            Debug.Assert(resultSpan.IsEmpty);
-
-                            return result;
+                            break;
                         }
                     }
                 }
 
-                // We exhausted looking through all the values and we still have
+                // If we exhausted looking through all the values and we still have
                 // a non-zero result, we couldn't match the result to only named values.
-                // In that case, we return a string for the integral value.
-                return value.ToString();
+                // In that case, we return null and let the call site just generate
+                // a string for the integral value.
+                if (!tempValue.Equals(zero))
+                {
+                    return value.ToString();
+                }
+
+                // We know what strings to concatenate.  Do so.
+
+                Debug.Assert(foundItemsCount > 0);
+                const int SeparatorStringLength = 2; // ", "
+                string result = string.FastAllocateString(checked(resultLength + (SeparatorStringLength * (foundItemsCount - 1))));
+
+                Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
+                string name = names[foundItems[--foundItemsCount]];
+                name.AsSpan().CopyTo(resultSpan);
+                resultSpan = resultSpan.Slice(name.Length);
+                while (--foundItemsCount >= 0)
+                {
+                    resultSpan[0] = EnumSeparatorChar;
+                    resultSpan[1] = ' ';
+                    resultSpan = resultSpan.Slice(2);
+
+                    name = names[foundItems[foundItemsCount]];
+                    name.AsSpan().CopyTo(resultSpan);
+                    resultSpan = resultSpan.Slice(name.Length);
+                }
+                Debug.Assert(resultSpan.IsEmpty);
+
+                return result;
             }
 
             public string Format(TUnderlying value, string format)
@@ -854,6 +890,30 @@ namespace System
                 result = status == Number.ParsingStatus.OK ? localResult : default;
                 return status;
             }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static int HybridSearch(TUnderlying[] values, TUnderlying value)
+            {
+                const int HybridSearchCutoffLength = 10;
+                TUnderlyingOperations operations = default;
+                if (values.Length <= HybridSearchCutoffLength)
+                {
+                    // should avoid bounds checks
+                    for (int index = values.Length - 1; index >= 0; --index)
+                    {
+                        if (values[index].Equals(value))
+                        {
+                            return index;
+                        }
+                        if (operations.LessThan(values[index], value))
+                        {
+                            return ~(index + 1);
+                        }
+                    }
+                    return -1;
+                }
+                return operations.BinarySearch(values, values.Length, value);
+            }
         }
         #endregion
 
@@ -864,7 +924,7 @@ namespace System
             TUnderlying Zero { get; }
             string OverflowMessage { get; }
             TUnderlying And(TUnderlying left, TUnderlying right);
-            int BinarySearch(TUnderlying[] array, int length, TUnderlying value, int negativeStart);
+            int BinarySearch(TUnderlying[] array, int length, TUnderlying value);
             bool IsInValueRange(ulong value);
             bool LessThan(TUnderlying left, TUnderlying right);
             TUnderlying Or(TUnderlying left, TUnderlying right);
@@ -1015,73 +1075,33 @@ namespace System
             #endregion
 
             #region BinarySearch
-            int IUnderlyingOperations<byte>.BinarySearch(byte[] array, int length, byte value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
+            int IUnderlyingOperations<byte>.BinarySearch(byte[] array, int length, byte value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<sbyte>.BinarySearch(sbyte[] array, int length, sbyte value, int negativeStart)
-            {
-                int start = 0;
-                int newLength = negativeStart;
-                if (value < 0)
-                {
-                    start = negativeStart;
-                    newLength = length - negativeStart;
-                }
-                return Array.BinarySearch(array, start, newLength, value);
-            }
+            int IUnderlyingOperations<sbyte>.BinarySearch(sbyte[] array, int length, sbyte value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<short>.BinarySearch(short[] array, int length, short value, int negativeStart)
-            {
-                int start = 0;
-                int newLength = negativeStart;
-                if (value < 0)
-                {
-                    start = negativeStart;
-                    newLength = length - negativeStart;
-                }
-                return Array.BinarySearch(array, start, newLength, value);
-            }
+            int IUnderlyingOperations<short>.BinarySearch(short[] array, int length, short value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<ushort>.BinarySearch(ushort[] array, int length, ushort value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
+            int IUnderlyingOperations<ushort>.BinarySearch(ushort[] array, int length, ushort value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<int>.BinarySearch(int[] array, int length, int value, int negativeStart)
-            {
-                int start = 0;
-                int newLength = negativeStart;
-                if (value < 0)
-                {
-                    start = negativeStart;
-                    newLength = length - negativeStart;
-                }
-                return Array.BinarySearch(array, start, newLength, value);
-            }
+            int IUnderlyingOperations<int>.BinarySearch(int[] array, int length, int value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<uint>.BinarySearch(uint[] array, int length, uint value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
+            int IUnderlyingOperations<uint>.BinarySearch(uint[] array, int length, uint value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<long>.BinarySearch(long[] array, int length, long value, int negativeStart)
-            {
-                int start = 0;
-                int newLength = negativeStart;
-                if (value < 0)
-                {
-                    start = negativeStart;
-                    newLength = length - negativeStart;
-                }
-                return Array.BinarySearch(array, start, newLength, value);
-            }
+            int IUnderlyingOperations<long>.BinarySearch(long[] array, int length, long value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<ulong>.BinarySearch(ulong[] array, int length, ulong value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
+            int IUnderlyingOperations<ulong>.BinarySearch(ulong[] array, int length, ulong value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<bool>.BinarySearch(bool[] array, int length, bool value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
+            int IUnderlyingOperations<bool>.BinarySearch(bool[] array, int length, bool value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<char>.BinarySearch(char[] array, int length, char value, int negativeStart) => Array.BinarySearch(array, 0, length, value);
+            int IUnderlyingOperations<char>.BinarySearch(char[] array, int length, char value) => Array.BinarySearch(array, 0, length, value);
 
-            int IUnderlyingOperations<float>.BinarySearch(float[] array, int length, float value, int negativeStart) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<float, UnderlyingOperations>.Default);
+            int IUnderlyingOperations<float>.BinarySearch(float[] array, int length, float value) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<float, UnderlyingOperations>.Default);
 
-            int IUnderlyingOperations<double>.BinarySearch(double[] array, int length, double value, int negativeStart) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<double, UnderlyingOperations>.Default);
+            int IUnderlyingOperations<double>.BinarySearch(double[] array, int length, double value) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<double, UnderlyingOperations>.Default);
 
-            int IUnderlyingOperations<IntPtr>.BinarySearch(IntPtr[] array, int length, IntPtr value, int negativeStart) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<IntPtr, UnderlyingOperations>.Default);
+            int IUnderlyingOperations<IntPtr>.BinarySearch(IntPtr[] array, int length, IntPtr value) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<IntPtr, UnderlyingOperations>.Default);
 
-            int IUnderlyingOperations<UIntPtr>.BinarySearch(UIntPtr[] array, int length, UIntPtr value, int negativeStart) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<UIntPtr, UnderlyingOperations>.Default);
+            int IUnderlyingOperations<UIntPtr>.BinarySearch(UIntPtr[] array, int length, UIntPtr value) => Array.BinarySearch(array, 0, length, value, UnsignedComparer<UIntPtr, UnderlyingOperations>.Default);
             #endregion
 
             #region IsInValueRange
