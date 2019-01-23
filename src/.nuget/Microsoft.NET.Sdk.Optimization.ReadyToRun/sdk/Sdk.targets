@@ -24,10 +24,10 @@ Copyright (c) .NET Foundation. All rights reserved.
   <Target Name="CreateReadyToRunImages"
           BeforeTargets="ComputeFilesToPublish"
           DependsOnTargets="_CheckForUnsupportedReadyToRunCompilation;
-                            _ComputeCrossGenInputs;
-                            _InitializeCrossgenProps;
-                            _RunCrossgenOnInputs;
-                            _PublishCrossgenOutputs"
+                            _InitializeReadyToRunCompilerProps;
+                            _ComputeReadyToRunInputs;
+                            _RunReadyToRunCompiler;
+                            _PublishReadyToRunOutputs"
           Condition="'$(ReadyToRun)' == 'true'">
   </Target>
 
@@ -60,7 +60,7 @@ Copyright (c) .NET Foundation. All rights reserved.
       <_UnsupportedReadyToRunCompilation Condition="'$(_OSPlatform)' == 'win' and !$(RuntimeIdentifier.StartsWith('win'))">true</_UnsupportedReadyToRunCompilation>
       <_UnsupportedReadyToRunCompilation Condition="'$(_OSPlatform)' == 'osx' and !$(RuntimeIdentifier.StartsWith('osx'))">true</_UnsupportedReadyToRunCompilation>
 
-      <!-- TODO: Allow cross-compilation to work for CrossGen in supported scenarios -->
+      <!-- TODO: Allow cross-compilation to work for Crossgen in supported scenarios -->
       <!-- Next check that the host can compile for the target OS architecture -->
       <_UnsupportedReadyToRunCompilation Condition="'$(_OSArchitecture)' == 'x86' and ('$(_TargetArchitecture)' != 'x86' and '$(_TargetArchitecture)' != 'arm')">true</_UnsupportedReadyToRunCompilation>
       <_UnsupportedReadyToRunCompilation Condition="'$(_OSArchitecture)' == 'arm' and '$(_TargetArchitecture)' != 'arm'">true</_UnsupportedReadyToRunCompilation>
@@ -73,18 +73,18 @@ Copyright (c) .NET Foundation. All rights reserved.
         FormattedText="Creating ReadyToRun images is not supported for the RuntimeIdentifier $(RuntimeIdentifier) on the host OS $(_OSPlatform)-$(_OSArchitecture.ToLower())" />
   </Target>
 
-  <Target Name="_ComputeCrossGenInputs">
+  <Target Name="_ComputeReadyToRunInputs">
     <ItemGroup>
-      <_CrossGenInputAssemblies Include="@(IntermediateAssembly)" />
+      <_CrossgenInputAssemblies Include="@(IntermediateAssembly)" />
       <!-- If we want to crossgen other IL assemblies, we must filter out the native assemblies -->
-      <!-- <_CrossGenInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'%(ResolvedAssembliesToPublish.AssetType)' == 'runtime'" /> -->
+      <!-- <_CrossgenInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'%(ResolvedAssembliesToPublish.AssetType)' == 'runtime'" /> -->
 
-      <_CrossGenReferenceAssemblies Include="@(IntermediateAssembly)" />
-      <_CrossGenReferenceAssemblies Include="@(ResolvedAssembliesToPublish)" />
+      <_CrossgenReferenceAssemblies Include="@(IntermediateAssembly)" />
+      <_CrossgenReferenceAssemblies Include="@(ResolvedAssembliesToPublish)" />
     </ItemGroup>
   </Target>
 
-  <Target Name="_InitializeCrossgenProps">
+  <Target Name="_InitializeReadyToRunCompilerProps">
     <!-- Set the Microsoft.DiaSymReader filename which changes based on the host architecture -->
     <PropertyGroup>
       <DiaSymReaderArch>$(_TargetArchitecture)</DiaSymReaderArch>
@@ -173,77 +173,77 @@ Copyright (c) .NET Foundation. All rights reserved.
                  FormatArguments="$(Crossgen)" />
   </Target>
 
-  <Target Name="_RunCrossgenOnInputs">
+  <Target Name="_RunReadyToRunCompiler">
     <PropertyGroup>
-      <_CrossGenPlatformAssemblies>@(_CrossGenReferenceAssemblies)</_CrossGenPlatformAssemblies>
+      <_CrossgenPlatformAssemblies>@(_CrossgenReferenceAssemblies)</_CrossgenPlatformAssemblies>
     </PropertyGroup>
 
     <MakeDir Directories="$(_ReadyToRunOutputDir)"/>
 
     <ItemGroup>
-      <CrossGenInvocations Include="$(MSBuildProjectFullPath)">
+      <CrossgenInvocations Include="$(MSBuildProjectFullPath)">
         <Properties>
           CrossgenExe=$(Crossgen);
-          CrossgenInput=%(_CrossGenInputAssemblies.FullPath);
-          CrossGenOutput=$(_ReadyToRunOutputDir)/%(FileName)%(Extension);
+          CrossgenInput=%(_CrossgenInputAssemblies.FullPath);
+          CrossgenOutput=$(_ReadyToRunOutputDir)/%(FileName)%(Extension);
           CrossgenOutputDirectory=$(_ReadyToRunOutputDir);
           JitPath=$(JitPath);
           DiaSymReaderPath=$(DiaSymReaderPath);
           DiaSymReaderExistsForTargetArchitecture=$(DiaSymReaderExistsForTargetArchitecture);
-          CrossGenPlatformAssemblies=$(_CrossGenPlatformAssemblies);
+          CrossgenPlatformAssemblies=$(_CrossgenPlatformAssemblies);
           InputAssemblyName=%(FileName)%(Extension)
         </Properties>
-      </CrossGenInvocations>
+      </CrossgenInvocations>
     </ItemGroup>
 
-    <MSBuild Projects="@(CrossGenInvocations)"
-             Targets="InvokeCrossGenForReadyToRun" />
+    <MSBuild Projects="@(CrossgenInvocations)"
+             Targets="InvokeCrossgenForReadyToRun" />
   </Target>
 
-  <Target Name="InvokeCrossGenForReadyToRun"
-          Inputs="$(CrossGenInput);$(CrossGenPlatformAssemblies)"
-          Outputs="$(CrossGenOutput)">
+  <Target Name="InvokeCrossgenForReadyToRun"
+          Inputs="$(CrossgenInput);$(CrossgenPlatformAssemblies)"
+          Outputs="$(CrossgenOutput)">
     <ItemGroup>
-      <_CrossGenPlatformAssemblies Include="$(CrossGenPlatformAssemblies)" />
-      <__CrossGenPlatformAssembliesPaths Include="@(_CrossGenPlatformAssemblies->'%(RootDir)%(Directory)')" /> 
-      <_CrossGenPlatformAssembliesPaths Include="@(__CrossGenPlatformAssembliesPaths->Distinct())" />
+      <_CrossgenPlatformAssemblies Include="$(CrossgenPlatformAssemblies)" />
+      <__CrossgenPlatformAssembliesPaths Include="@(_CrossgenPlatformAssemblies->'%(RootDir)%(Directory)')" /> 
+      <_CrossgenPlatformAssembliesPaths Include="@(__CrossgenPlatformAssembliesPaths->Distinct())" />
     </ItemGroup>
 
     <PropertyGroup>
       <_PathSeparator>$([System.IO.Path]::PathSeparator)</_PathSeparator>
       <_DirectorySeparatorChar>$([System.IO.Path]::DirectorySeparatorChar)</_DirectorySeparatorChar>
-      <_CrossGenPlatformAssembliesPathsProperty>@(_CrossGenPlatformAssembliesPaths, '$(_PathSeparator)')</_CrossGenPlatformAssembliesPathsProperty>
+      <_CrossgenPlatformAssembliesPathsProperty>@(_CrossgenPlatformAssembliesPaths, '$(_PathSeparator)')</_CrossgenPlatformAssembliesPathsProperty>
       <!-- Remove the trailing slash so it does not get misinterpreted by Exec -->
-      <_CrossGenPlatformAssembliesPathsProperty>$(_CrossGenPlatformAssembliesPathsProperty.TrimEnd('\'))</_CrossGenPlatformAssembliesPathsProperty>
+      <_CrossgenPlatformAssembliesPathsProperty>$(_CrossgenPlatformAssembliesPathsProperty.TrimEnd('\'))</_CrossgenPlatformAssembliesPathsProperty>
 
-      <CrossGenCommand>$(CrossGenExe) -nologo -readytorun -in $(CrossGenInput) -out $(CrossGenOutput) -jitpath $(JitPath) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot;</CrossGenCommand>
-      <CrossGenCreatePdbCommand>$(CrossGenExe) -nologo -createpdb $(CrossgenOutputDirectory) -diasymreaderpath $(DiaSymReaderPath) -platform_assemblies_paths &quot;$(_CrossGenPlatformAssembliesPathsProperty)&quot; $(CrossgenOutputDirectory)$(_DirectorySeparatorChar)$(InputAssemblyName)</CrossGenCreatePdbCommand>
+      <CrossgenCommand>$(CrossgenExe) -nologo -readytorun -in $(CrossgenInput) -out $(CrossgenOutput) -jitpath $(JitPath) -platform_assemblies_paths &quot;$(_CrossgenPlatformAssembliesPathsProperty)&quot;</CrossgenCommand>
+      <CrossgenCreatePdbCommand>$(CrossgenExe) -nologo -createpdb $(CrossgenOutputDirectory) -diasymreaderpath $(DiaSymReaderPath) -platform_assemblies_paths &quot;$(_CrossgenPlatformAssembliesPathsProperty)&quot; $(CrossgenOutputDirectory)$(_DirectorySeparatorChar)$(InputAssemblyName)</CrossgenCreatePdbCommand>
     </PropertyGroup>
 
-    <Message Text="$(CrossGenCommand)" />
-    <Exec Command="$(CrossGenCommand)" />
+    <Message Text="$(CrossgenCommand)" />
+    <Exec Command="$(CrossgenCommand)" />
 
-    <Message Text="$(CrossGenCreatePdbCommand)" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
-    <Exec Command="$(CrossGenCreatePdbCommand)" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
+    <Message Text="$(CrossgenCreatePdbCommand)" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
+    <Exec Command="$(CrossgenCreatePdbCommand)" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
   </Target>
 
-  <Target Name="_PublishCrossgenOutputs">
+  <Target Name="_PublishReadyToRunOutputs">
     <!-- Rewrite ResolvedAssembliesToPublish to capture any newly-crossgened ResolvedAssembliesToPublish files, preserving metadata. -->
     <ItemGroup>
-      <_CrossGenResolvedAssembliesToPublishCandidates Include="@(ResolvedAssembliesToPublish->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
-      <_CrossGenResolvedAssembliesToPublish Include="@(_CrossGenResolvedAssembliesToPublishCandidates)" Condition="Exists('%(Identity)')" />
+      <_CrossgenResolvedAssembliesToPublishCandidates Include="@(ResolvedAssembliesToPublish->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
+      <_CrossgenResolvedAssembliesToPublish Include="@(_CrossgenResolvedAssembliesToPublishCandidates)" Condition="Exists('%(Identity)')" />
 
-      <ResolvedAssembliesToPublish Remove="@(_CrossGenInputAssemblies)" />
-      <ResolvedAssembliesToPublish Include="@(_CrossGenResolvedAssembliesToPublish)" />
+      <ResolvedAssembliesToPublish Remove="@(_CrossgenInputAssemblies)" />
+      <ResolvedAssembliesToPublish Include="@(_CrossgenResolvedAssembliesToPublish)" />
     </ItemGroup>
 
     <!-- Rewrite IntermediateAssembly to capture the newly-crossgened IntermediateAssembly, preserving metadata. -->
     <ItemGroup>
-      <_CrossGenIntermediateAssemblyCandidates Include="@(IntermediateAssembly->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
-      <_CrossGenIntermediateAssembly Include="@(_CrossGenIntermediateAssemblyCandidates)" Condition="Exists('%(Identity)')" />
+      <_CrossgenIntermediateAssemblyCandidates Include="@(IntermediateAssembly->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
+      <_CrossgenIntermediateAssembly Include="@(_CrossgenIntermediateAssemblyCandidates)" Condition="Exists('%(Identity)')" />
 
-      <IntermediateAssembly Remove="@(_CrossGenInputAssemblies)" />
-      <IntermediateAssembly Include="@(_CrossGenIntermediateAssembly)" />
+      <IntermediateAssembly Remove="@(_CrossgenInputAssemblies)" />
+      <IntermediateAssembly Include="@(_CrossgenIntermediateAssembly)" />
     </ItemGroup>
   </Target>
 </Project>
