@@ -665,6 +665,7 @@ public class Managed
                     }
                     break;
                 case StructID.HFAId:
+                {
                     HFA hfa = new HFA
                     {
                         f1 = 2.0f,
@@ -684,7 +685,9 @@ public class Managed
                         failures++;
                     }
                     break;
+                }
                 case StructID.DoubleHFAId:
+                {
                     DoubleHFA doubleHFA = new DoubleHFA
                     {
                         d1 = 123.456,
@@ -702,6 +705,7 @@ public class Managed
                         failures++;
                     }
                     break;
+                }
                 default:
                     Console.WriteLine("\tThere is not the struct id");
                     failures++;

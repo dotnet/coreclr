@@ -63,8 +63,6 @@ struct INNER2 // size = 12 bytes
     LPCSTR f3;
 };
 
-static_assert_no_msg(sizeof(INNER2) == 12);
-
 void ChangeINNER2(INNER2* p)
 {
 	p->f1 = 77;
