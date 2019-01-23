@@ -40,12 +40,6 @@ namespace System.Runtime.InteropServices
                 return null;
             }
 
-            int nb = string.strlen((byte*)ptr);
-            if (nb == 0)
-            {
-                return string.Empty;
-            }
-
             return new string((sbyte*)ptr);
         }
 
@@ -143,10 +137,18 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentNullException(nameof(structure));
             }
 
-            return SizeOfHelper(structure.GetType(), true);
+            return SizeOfHelper(structure.GetType(), throwIfNotMarshalable: true);
         }
 
-        public static int SizeOf<T>(T structure) => SizeOf((object)structure);
+        public static int SizeOf<T>(T structure)
+        {
+            if (structure == null)
+            {
+                throw new ArgumentNullException(nameof(structure));
+            }
+
+            return SizeOfHelper(structure.GetType(), throwIfNotMarshalable: true);
+        }
 
         public static int SizeOf(Type t)
         {
@@ -169,7 +171,6 @@ namespace System.Runtime.InteropServices
         public static int SizeOf<T>() => SizeOf(typeof(T));        
 
         public static IntPtr OffsetOf<T>(string fieldName) => OffsetOf(typeof(T), fieldName);
-
 
         public static void Copy(int[] source, int startIndex, IntPtr destination, int length)
         {
@@ -307,12 +308,7 @@ namespace System.Runtime.InteropServices
                 }
                 else
                 {
-                    // unaligned read
-                    short val;
-                    byte* valPtr = (byte*)&val;
-                    valPtr[0] = addr[0];
-                    valPtr[1] = addr[1];
-                    return val;
+                    return Unsafe.ReadUnaligned<short>(addr);
                 }
             }
             catch (NullReferenceException)
@@ -336,14 +332,7 @@ namespace System.Runtime.InteropServices
                 }
                 else
                 {
-                    // unaligned read
-                    int val;
-                    byte* valPtr = (byte*)&val;
-                    valPtr[0] = addr[0];
-                    valPtr[1] = addr[1];
-                    valPtr[2] = addr[2];
-                    valPtr[3] = addr[3];
-                    return val;
+                    return Unsafe.ReadUnaligned<int>(addr);
                 }
             }
             catch (NullReferenceException)
@@ -387,18 +376,7 @@ namespace System.Runtime.InteropServices
                 }
                 else
                 {
-                    // unaligned read
-                    long val;
-                    byte* valPtr = (byte*)&val;
-                    valPtr[0] = addr[0];
-                    valPtr[1] = addr[1];
-                    valPtr[2] = addr[2];
-                    valPtr[3] = addr[3];
-                    valPtr[4] = addr[4];
-                    valPtr[5] = addr[5];
-                    valPtr[6] = addr[6];
-                    valPtr[7] = addr[7];
-                    return val;
+                    return Unsafe.ReadUnaligned<long>(addr);
                 }
             }
             catch (NullReferenceException)
@@ -438,10 +416,7 @@ namespace System.Runtime.InteropServices
                 }
                 else
                 {
-                    // unaligned write
-                    byte* valPtr = (byte*)&val;
-                    addr[0] = valPtr[0];
-                    addr[1] = valPtr[1];
+                    Unsafe.WriteUnaligned(addr, val);
                 }
             }
             catch (NullReferenceException)
@@ -471,12 +446,7 @@ namespace System.Runtime.InteropServices
                 }
                 else
                 {
-                    // unaligned write
-                    byte* valPtr = (byte*)&val;
-                    addr[0] = valPtr[0];
-                    addr[1] = valPtr[1];
-                    addr[2] = valPtr[2];
-                    addr[3] = valPtr[3];
+                    Unsafe.WriteUnaligned(addr, val);
                 }
             }
             catch (NullReferenceException)
@@ -520,16 +490,7 @@ namespace System.Runtime.InteropServices
                 }
                 else
                 {
-                    // unaligned write
-                    byte* valPtr = (byte*)&val;
-                    addr[0] = valPtr[0];
-                    addr[1] = valPtr[1];
-                    addr[2] = valPtr[2];
-                    addr[3] = valPtr[3];
-                    addr[4] = valPtr[4];
-                    addr[5] = valPtr[5];
-                    addr[6] = valPtr[6];
-                    addr[7] = valPtr[7];
+                    Unsafe.WriteUnaligned(addr, val);
                 }
             }
             catch (NullReferenceException)
