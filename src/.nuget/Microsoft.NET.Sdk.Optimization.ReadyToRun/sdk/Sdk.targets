@@ -75,7 +75,8 @@ Copyright (c) .NET Foundation. All rights reserved.
 
   <Target Name="_ComputeReadyToRunInputs">
     <ItemGroup>
-      <_CrossgenInputAssemblies Include="@(IntermediateAssembly)" />
+      <_CrossgenInputIntermediateAssembly Include="@(IntermediateAssembly)" />
+      <_CrossgenInputAssemblies Include="@(_CrossgenInputIntermediateAssembly)" />
       <!-- If we want to crossgen other IL assemblies, we must filter out the native assemblies -->
       <!-- <_CrossgenInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'%(ResolvedAssembliesToPublish.AssetType)' == 'runtime'" /> -->
 
@@ -239,10 +240,10 @@ Copyright (c) .NET Foundation. All rights reserved.
     <!-- Rewrite IntermediateAssembly to capture the newly-crossgened IntermediateAssembly, preserving metadata. -->
     <ItemGroup>
       <_CrossgenIntermediateAssemblyCandidates Include="@(IntermediateAssembly->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
-      <_CrossgenIntermediateAssembly Include="@(_CrossgenIntermediateAssemblyCandidates)" Condition="Exists('%(Identity)')" />
+      <_CrossgenOutputIntermediateAssembly Include="@(_CrossgenIntermediateAssemblyCandidates)" Condition="Exists('%(Identity)')" />
 
-      <IntermediateAssembly Remove="@(_CrossgenInputAssemblies)" />
-      <IntermediateAssembly Include="@(_CrossgenIntermediateAssembly)" />
+      <IntermediateAssembly Remove="@(_CrossgenInputIntermediateAssembly)" />
+      <IntermediateAssembly Include="@(_CrossgenOutputIntermediateAssembly)" />
     </ItemGroup>
   </Target>
 </Project>
