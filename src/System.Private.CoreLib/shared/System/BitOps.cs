@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
 
@@ -19,24 +18,10 @@ namespace System
             }
             else
             {
-                if (BitConverter.IsLittleEndian)
-                {
-                    return TrailingZeroCountFallback(matches);
-                }
-                else
-                {
-                    // Not sure the above failback will work on BigEndian
-                    Debug.Fail("TrailingZeroCount not implemented for BigEndian");
-                    return 0;
-                }
+                // Fallback
+                // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
+                return TrailingCountMultiplyDeBruijn[(int)(((uint)((matches & -matches) * 0x077CB531U)) >> 27)];
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int TrailingZeroCountFallback(int matches)
-        {
-            // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
-            return TrailingCountMultiplyDeBruijn[(int)(((uint)((matches & -matches) * 0x077CB531U)) >> 27)];
         }
 
         private static ReadOnlySpan<byte> TrailingCountMultiplyDeBruijn => new byte[32]
