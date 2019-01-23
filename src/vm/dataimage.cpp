@@ -2097,7 +2097,7 @@ private:
 #ifdef _MSC_VER
 #pragma warning(suppress:6293) // Prefast doesn't understand the unsigned modulo-8 arithmetic below.
 #endif
-        for (BYTE i = kBitsPerRVA - 1; i < 0xff; i--)
+        for (BYTE i = 0; i < kBitsPerRVA; i++)
             if (m_rgHistogram[i] > 0)
             {
                 bMaxBits = i + 1;  // +1 because we never encode anything with zero bits.
