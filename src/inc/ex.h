@@ -1276,6 +1276,10 @@ Exception *ExThrowWithInnerHelper(Exception *inner);
 //   exception. This will allow the stack to unwind point, and so we won't be jeopardizing a
 //   second stack overflow.
 //===================================================================================
+#ifndef VM_NO_SO_INFRASTRUCTURE_CODE
+#define VM_NO_SO_INFRASTRUCTURE_CODE(x)
+#endif
+
 #define EX_HOOK                                          \
     EX_CATCH                                             \
     {                                                    \
@@ -1285,7 +1289,7 @@ Exception *ExThrowWithInnerHelper(Exception *inner);
     ANNOTATION_HANDLER_END;                              \
     if (IsCurrentExceptionSO())                          \
         __state.SetCaughtSO();                           \
-    _ASSERTE(!__state.DidCatchSO());                     \
+    VM_NO_SO_INFRASTRUCTURE_CODE(_ASSERTE(!__state.DidCatchSO());) \
     if (!__state.DidCatchSO())                           \
         EX_RETHROW;                                      \
     EX_END_CATCH_FOR_HOOK;                               \

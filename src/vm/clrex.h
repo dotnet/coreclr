@@ -12,6 +12,11 @@
 #ifndef _CLREX_H_
 #define _CLREX_H_
 
+// BCL classnativelib includes <ex.h> first
+#ifndef VM_NO_SO_INFRASTRUCTURE_CODE
+#define VM_NO_SO_INFRASTRUCTURE_CODE(x) x
+#endif
+
 #include <ex.h>
 
 #include "runtimeexceptionkind.h"
