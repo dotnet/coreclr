@@ -2,23 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
-//
-//
-//
-// Implementation of task continuations, TaskContinuation, and its descendants.
-//
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 using System.Security;
 using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
-#if FEATURE_COMINTEROP
-using System.Runtime.InteropServices.WindowsRuntime;
-#endif // FEATURE_COMINTEROP
+#if CORERT
+using Thread = Internal.Runtime.Augments.RuntimeThread;
+#endif
 
 namespace System.Threading.Tasks
 {
@@ -258,18 +249,19 @@ namespace System.Threading.Tasks
                 // Either TryRunInline() or QueueTask() threw an exception. Record the exception, marking the task as Faulted.
                 // However if it was a ThreadAbortException coming from TryRunInline we need to skip here, 
                 // because it would already have been handled in Task.Execute()
-                if (!(e is ThreadAbortException &&
-                      (task.m_stateFlags & Task.TASK_STATE_THREAD_WAS_ABORTED) != 0))    // this ensures TAEs from QueueTask will be wrapped in TSE
-                {
-                    TaskSchedulerException tse = new TaskSchedulerException(e);
-                    task.AddException(tse);
-                    task.Finish(false);
-                }
-
+                TaskSchedulerException tse = new TaskSchedulerException(e);
+                task.AddException(tse);
+                task.Finish(false);
                 // Don't re-throw.
             }
         }
 
+        //
+        // This helper routine is targeted by the debugger.
+        //
+#if PROJECTN
+        [DependencyReductionRoot]
+#endif
         internal abstract Delegate[] GetDelegateContinuationsForDebugger();
     }
 
@@ -370,7 +362,7 @@ namespace System.Threading.Tasks
     internal sealed class SynchronizationContextAwaitTaskContinuation : AwaitTaskContinuation
     {
         /// <summary>SendOrPostCallback delegate to invoke the action.</summary>
-        private readonly static SendOrPostCallback s_postCallback = state => ((Action)state)(); // can't use InvokeAction as it's SecurityCritical
+        private static readonly SendOrPostCallback s_postCallback = state => ((Action)state)(); // can't use InvokeAction as it's SecurityCritical
         /// <summary>Cached delegate for PostAction</summary>
         private static ContextCallback s_postActionCallback;
         /// <summary>The context with which to run the action.</summary>
@@ -629,7 +621,7 @@ namespace System.Threading.Tasks
                 return;
             }
 
-            Guid savedActivityId = Guid.Empty;
+            Guid savedActivityId = default;
             if (etwLog.TasksSetActivityIds && m_continuationId != 0)
             {
                 Guid activityId = TplEtwProvider.CreateGuidForTaskID(m_continuationId);
@@ -830,15 +822,16 @@ namespace System.Threading.Tasks
             // If unhandled error reporting APIs are available use those, otherwise since this 
             // would have executed on the thread pool otherwise, let it propagate there.
 
-            if (!(exc is ThreadAbortException))
-            {
 #if FEATURE_COMINTEROP
-                if (!WindowsRuntimeMarshal.ReportUnhandledError(exc))
-#endif // FEATURE_COMINTEROP
-                {
-                    var edi = ExceptionDispatchInfo.Capture(exc);
-                    ThreadPool.QueueUserWorkItem(s => ((ExceptionDispatchInfo)s).Throw(), edi);
-                }
+            if (!System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeMarshal.ReportUnhandledError(exc))
+#endif
+            {
+#if CORERT
+                RuntimeAugments.ReportUnhandledException(exc);
+#else
+                var edi = ExceptionDispatchInfo.Capture(exc);
+                ThreadPool.QueueUserWorkItem(s => ((ExceptionDispatchInfo)s).Throw(), edi);
+#endif
             }
         }
 
