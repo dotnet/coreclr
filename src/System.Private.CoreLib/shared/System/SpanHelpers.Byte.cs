@@ -990,7 +990,6 @@ namespace System
             return (int)(byte*)(offset + 7);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int LastIndexOfAny(ref byte searchSpace, byte value0, byte value1, int length)
         {
             Debug.Assert(length >= 0);
@@ -1115,7 +1114,6 @@ namespace System
             return (int)(byte*)(offset + 7);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int LastIndexOfAny(ref byte searchSpace, byte value0, byte value1, byte value2, int length)
         {
             Debug.Assert(length >= 0);
