@@ -943,31 +943,39 @@ protected:
         }
         CONTRACTL_END;
 
-        //
-        // marshal
-        //
-        if (IsIn(m_dwMarshalFlags) || AlwaysConvertByValContentsCLRToNative())
+        if (CanMarshalViaPinning())
         {
-            EmitConvertSpaceAndContentsCLRToNativeTemp(m_pcsMarshal);
+            // If we can marshal via pinning, all we need to do to marshal is pin.
+            EmitMarshalViaPinning(m_pcsMarshal);
         }
         else
         {
-            EmitConvertSpaceCLRToNativeTemp(m_pcsMarshal);
-        }
-
-        //
-        // unmarshal
-        //
-        if (IsOut(m_dwMarshalFlags))
-        {
-            if (IsIn(m_dwMarshalFlags))
+            //
+            // marshal
+            //
+            if (IsIn(m_dwMarshalFlags) || AlwaysConvertByValContentsCLRToNative())
             {
-                EmitClearCLRContents(m_pcsUnmarshal);
+                EmitConvertSpaceAndContentsCLRToNativeTemp(m_pcsMarshal);
             }
-            EmitConvertContentsNativeToCLR(m_pcsUnmarshal);
-        }
+            else
+            {
+                EmitConvertSpaceCLRToNativeTemp(m_pcsMarshal);
+            }
 
-        EmitCleanupCLRToNativeTemp();
+            //
+            // unmarshal
+            //
+            if (IsOut(m_dwMarshalFlags))
+            {
+                if (IsIn(m_dwMarshalFlags))
+                {
+                    EmitClearCLRContents(m_pcsUnmarshal);
+                }
+                EmitConvertContentsNativeToCLR(m_pcsUnmarshal);
+            }
+            
+            EmitCleanupCLRToNativeTemp();
+        }
    }
 
     void EmitSetupSigAndDefaultHomesCLRToNativeByref(bool fBlittable = false)
@@ -1472,6 +1480,17 @@ protected:
     }
 
     virtual void EmitClearCLR(ILCodeStream* pslILEmit)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+
+    virtual bool CanMarshalViaPinning()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return false;
+    }
+
+    virtual void EmitMarshalViaPinning(ILCodeStream* pslILEmit)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -3118,21 +3137,17 @@ public:
         m_dwSavedSizeArg = LOCAL_NUM_UNUSED;
     }
 
+    bool CanMarshalViaPinning() override
+    {
+        return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && (NULL == OleVariant::GetMarshalerForVarType(m_args->na.m_vt, TRUE));
+    }
+
+    void EmitMarshalViaPinning(ILCodeStream* pslILEmit) override;
     void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitClearNative(ILCodeStream* pslILEmit) override;    
     void EmitClearNativeContents(ILCodeStream* pslILEmit) override;
-
-    static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
-                                                    BOOL               byref,
-                                                    BOOL               fin,
-                                                    BOOL               fout,
-                                                    BOOL               fManagedToNative,
-                                                    OverrideProcArgs*  pargs,
-                                                    UINT*              pResID,
-                                                    UINT               argidx,
-                                                    UINT               nativeStackOffset);
     
 protected:
     
@@ -3290,7 +3305,9 @@ public:
 protected:
     LocalDesc GetNativeType() override;
     LocalDesc GetManagedType() override;
+    bool CanMarshalViaPinning() override;
 
+    void EmitMarshalViaPinning(ILCodeStream* pslILEmit) override;
     void EmitCreateMngdMarshaler(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
@@ -3301,7 +3318,6 @@ protected:
     void EmitClearNativeContents(ILCodeStream* pslILEmit) override;
 
 private:
-    bool CanUsePinnedArray();
     void EmitLoadNativeArrayLength(ILCodeStream *pslILEmit);
 
     MethodDesc *GetConvertContentsToManagedMethod() override;

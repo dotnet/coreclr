@@ -3680,6 +3680,11 @@ void ILMngdMarshaler::EmitCallMngdMarshalerMethod(ILCodeStream* pslILEmit, Metho
 void ILNativeArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
+
+    if (CanMarshalViaPinning()) // We don't need a managed marshaler if we are just pinning.
+    {
+        return;
+    }
             
     m_dwMngdMarshalerLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
         
@@ -3709,6 +3714,56 @@ void ILNativeArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
     pslILEmit->EmitLDC(dwFlags);
     
     pslILEmit->EmitCALL(METHOD__MNGD_NATIVE_ARRAY_MARSHALER__CREATE_MARSHALER, 3, 0);
+}
+
+
+void ILNativeArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
+{
+    CONTRACTL
+    {
+        STANDARD_VM_CHECK;
+        PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
+    }
+    CONTRACTL_END;
+
+    //
+    // Replicate ML_PINNEDISOMORPHICARRAY_C2N_EXPRESS behavior -- note that this
+    // gives in/out semantics "for free" even if the app doesn't specify one or
+    // the other.  Since there is no enforcement of this, apps blithely depend
+    // on it.  
+    //
+
+    LocalDesc managedType = GetManagedType();
+    managedType.MakePinned();
+
+    DWORD dwPinnedLocal = pslILEmit->NewLocal(managedType);
+    ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
+
+    pslILEmit->EmitLoadNullPtr();
+    EmitStoreNativeValue(pslILEmit);
+
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitBRFALSE(pNullRefLabel);        
+
+    // COMPAT: We cannot generate the same code that the C# compiler generates for
+    // a fixed() statement on an array since we need to provide a non-null value
+    // for a 0-length array. For compat reasons, we need to preserve old behavior.
+    // Additionally, we need to ensure that we do not pass non-null for a zero-length
+    // array when interacting with GDI/GDI+ since they fail on null arrays but succeed
+    // on 0-length arrays.
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitSTLOC(dwPinnedLocal);
+    pslILEmit->EmitLDLOC(dwPinnedLocal);
+    pslILEmit->EmitCONV_I();
+    // Optimize marshalling by emitting the data ptr offset directly into the IL stream
+    // instead of doing an FCall to recalulate it each time when possible.
+    pslILEmit->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
+    pslILEmit->EmitADD();
+    EmitStoreNativeValue(pslILEmit);
+
+    EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
+
+    pslILEmit->EmitLabel(pNullRefLabel);
 }
 
 //
@@ -4025,70 +4080,6 @@ void ILNativeArrayMarshaler::EmitNewSavedSizeArgLocal(ILCodeStream* pslILEmit)
     m_dwSavedSizeArg = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
     pslILEmit->EmitLDC(0);
     pslILEmit->EmitSTLOC(m_dwSavedSizeArg);
-}
-
-MarshalerOverrideStatus ILNativeArrayMarshaler::ArgumentOverride(NDirectStubLinker* psl,
-                                                    BOOL               byref,
-                                                    BOOL               fin,
-                                                    BOOL               fout,
-                                                    BOOL               fManagedToNative,
-                                                    OverrideProcArgs*  pargs,
-                                                    UINT*              pResID,
-                                                    UINT               argidx,
-                                                    UINT               nativeStackOffset)
-{
-    if (fManagedToNative && !byref && (NULL == OleVariant::GetMarshalerForVarType(pargs->na.m_vt, TRUE)))
-    {
-        ILCodeStream* psILMarshal = psl->GetMarshalCodeStream();
-        ILCodeStream* psILDispatch = psl->GetDispatchCodeStream();
-
-        psILMarshal->SetStubTargetArgType(ELEMENT_TYPE_I);
-        //
-        // Replicate ML_PINNEDISOMORPHICARRAY_C2N_EXPRESS behavior -- note that this
-        // gives in/out semantics "for free" even if the app doesn't specify one or
-        // the other.  Since there is no enforcement of this, apps blithely depend
-        // on it.  
-        //
-
-        LocalDesc managedType = LocalDesc(ELEMENT_TYPE_OBJECT);
-        managedType.MakePinned();
-
-        DWORD dwPinnedLocal = psILMarshal->NewLocal(managedType);
-        DWORD dwNativeValue = psILMarshal->NewLocal(ELEMENT_TYPE_I);
-        ILCodeLabel* pNullRefLabel = psILMarshal->NewCodeLabel();
-
-        psILMarshal->EmitLoadNullPtr();
-        psILMarshal->EmitSTLOC(dwNativeValue);
-
-        psILMarshal->EmitLDARG(argidx);
-        psILMarshal->EmitBRFALSE(pNullRefLabel);
-        // COMPAT: We cannot generate the same code that the C# compiler generates for
-        // a fixed() statement on an array since we need to provide a non-null value
-        // for a 0-length array. For compat reasons, we need to preserve old behavior.
-        // Additionally, we need to ensure that we do not pass non-null for a zero-length
-        // array when interacting with GDI/GDI+ since they fail on null arrays but succeed
-        // on 0-length arrays.
-        psILMarshal->EmitLDARG(argidx);
-        psILMarshal->EmitSTLOC(dwPinnedLocal);
-        psILMarshal->EmitLDLOC(dwPinnedLocal);
-        psILMarshal->EmitCONV_I();
-        // Optimize marshalling by emitting the data ptr offset directly into the IL stream
-        // instead of doing an FCall to recalulate it each time when possible.
-        psILMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
-        psILMarshal->EmitADD();
-        psILMarshal->EmitSTLOC(dwNativeValue);
-
-        if (g_pConfig->InteropLogArguments())
-        {
-            psl->EmitLogNativeArgument(psILMarshal, dwPinnedLocal);
-        }
-
-        psILMarshal->EmitLabel(pNullRefLabel);
-
-        psILDispatch->EmitLDLOC(dwNativeValue);
-        return MarshalerOverrideStatus::OVERRIDDEN;
-    }
-    return MarshalerOverrideStatus::HANDLEASNORMAL;
 }
 
 #ifndef CROSSGEN_COMPILE
@@ -4568,7 +4559,7 @@ void ILHiddenLengthArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEm
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanUsePinnedArray())
+    if (!CanMarshalViaPinning())
     {
         m_dwMngdMarshalerLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
         
@@ -4588,62 +4579,60 @@ void ILHiddenLengthArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEm
     }
 }
 
+void ILHiddenLengthArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
+{
+    LocalDesc managedType = GetManagedType();
+    managedType.MakePinned();
+    DWORD dwPinnedLocal = pslILEmit->NewLocal(managedType);
+
+    ILCodeLabel* pMarshalDoneLabel = pslILEmit->NewCodeLabel();
+
+    // native = NULL
+    pslILEmit->EmitLoadNullPtr();
+    EmitStoreNativeValue(pslILEmit);
+
+    // if (managed == null) goto MarshalDone
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitBRFALSE(pMarshalDoneLabel);
+
+    // pinnedLocal = managed;
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitSTLOC(dwPinnedLocal);
+
+    // native = pinnedLocal + dataOffset
+
+    // COMPAT: We cannot generate the same code that the C# compiler generates for
+    // a fixed() statement on an array since we need to provide a non-null value
+    // for a 0-length array. For compat reasons, we need to preserve old behavior.
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitSTLOC(dwPinnedLocal);
+    pslILEmit->EmitLDLOC(dwPinnedLocal);
+    pslILEmit->EmitCONV_I();
+    // Optimize marshalling by emitting the data ptr offset directly into the IL stream
+    // instead of doing an FCall to recalulate it each time.
+    pslILEmit->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
+    pslILEmit->EmitADD();
+    EmitStoreNativeValue(pslILEmit);
+
+    EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
+
+    // MarshalDone:
+    pslILEmit->EmitLabel(pMarshalDoneLabel);
+}
+
+
 void ILHiddenLengthArrayMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
 
-    // If we can pin the array, then do that rather than marshaling it in a more heavy weight way
-    // Otherwise, fall back to doing a full marshal
-    if (CanUsePinnedArray())
-    {
-        LocalDesc managedType = GetManagedType();
-        managedType.MakePinned();
-        DWORD dwPinnedLocal = pslILEmit->NewLocal(managedType);
-
-        ILCodeLabel* pMarshalDoneLabel = pslILEmit->NewCodeLabel();
-
-        // native = NULL
-        pslILEmit->EmitLoadNullPtr();
-        EmitStoreNativeValue(pslILEmit);
-
-        // if (managed == null) goto MarshalDone
-        EmitLoadManagedValue(pslILEmit);
-        pslILEmit->EmitBRFALSE(pMarshalDoneLabel);
-
-        // pinnedLocal = managed;
-        EmitLoadManagedValue(pslILEmit);
-        pslILEmit->EmitSTLOC(dwPinnedLocal);
-
-        // native = pinnedLocal + dataOffset
-        
-        // COMPAT: We cannot generate the same code that the C# compiler generates for
-        // a fixed() statement on an array since we need to provide a non-null value
-        // for a 0-length array. For compat reasons, we need to preserve old behavior.
-        pslILEmit->EmitLDLOC(dwPinnedLocal);
-        pslILEmit->EmitCONV_I();
-        // Optimize marshalling by emitting the data ptr offset directly into the IL stream
-        // instead of doing an FCall to recalulate it each time.
-        pslILEmit->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
-        pslILEmit->EmitADD();
-        EmitStoreNativeValue(pslILEmit);
-
-        EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
-
-        // MarshalDone:
-        pslILEmit->EmitLabel(pMarshalDoneLabel);
-    }
-    else
-    {
-        ILMngdMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(pslILEmit);
-    }
-
+    ILMngdMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(pslILEmit);
 }
 
 void ILHiddenLengthArrayMarshaler::EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanUsePinnedArray())
+    if (!CanMarshalViaPinning())
     {
         EmitLoadMngdMarshaler(pslILEmit);
         EmitLoadManagedHomeAddr(pslILEmit);
@@ -4691,7 +4680,7 @@ void ILHiddenLengthArrayMarshaler::EmitConvertSpaceCLRToNative(ILCodeStream* psl
         }
     }
 
-    if (!CanUsePinnedArray())
+    if (!CanMarshalViaPinning())
     {
         ILMngdMarshaler::EmitConvertSpaceCLRToNative(pslILEmit);
     }
@@ -4701,7 +4690,7 @@ void ILHiddenLengthArrayMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* 
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanUsePinnedArray())
+    if (!CanMarshalViaPinning())
     {
         if (m_pargs->na.m_vt == VTHACK_REDIRECTEDTYPE &&
             (m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Uri ||
@@ -4774,7 +4763,7 @@ void ILHiddenLengthArrayMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* 
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanUsePinnedArray())
+    if (!CanMarshalViaPinning())
     {
         if (m_pargs->na.m_vt == VTHACK_REDIRECTEDTYPE &&
             (m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Uri ||
@@ -4849,7 +4838,7 @@ void ILHiddenLengthArrayMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
 
     EmitClearNativeContents(pslILEmit);
 
-    if (!CanUsePinnedArray())
+    if (!CanMarshalViaPinning())
     {
         EmitLoadNativeValue(pslILEmit);
         pslILEmit->EmitCALL(pslILEmit->GetToken(GetClearNativeMethod()), 1, 0);
@@ -4860,7 +4849,7 @@ void ILHiddenLengthArrayMarshaler::EmitClearNativeContents(ILCodeStream* pslILEm
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanUsePinnedArray())
+    if (!CanMarshalViaPinning())
     {
         MethodDesc *pMD = GetClearNativeContentsMethod();
         if (pMD != NULL)
@@ -4885,7 +4874,7 @@ void ILHiddenLengthArrayMarshaler::EmitClearNativeContents(ILCodeStream* pslILEm
 }
 
 // Determine if we can simply pin the managed array, rather than doing a full marshal
-bool ILHiddenLengthArrayMarshaler::CanUsePinnedArray()
+bool ILHiddenLengthArrayMarshaler::CanMarshalViaPinning()
 {
     STANDARD_VM_CONTRACT;
 
