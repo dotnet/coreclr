@@ -1,6 +1,6 @@
 ﻿# `AssemblyLoadContext` unloadability
 ## Goals
-* Provide a building block for the AppModel team to implement unloadable plug-ins
+* Provide a building block for unloadable plug-ins
 * Users can load an assembly and its dependencies into an unloadable `AssemblyLoadContext`. 
 * There can be multiple unloadable `AssemblyLoadContext` instances coexisting
 * Users can unload the `AssemblyLoadContext` when there are no outside hard references to the types and instance of types from the assemblies loaded into the context and the assemblies themselves.
@@ -9,22 +9,22 @@
 * Forceful unload using thread abort or similar measures to cause threads to stop running with frames of code from the context to be unloaded on the call stack.
 ## General scenarios
 Based on various discussions and feedback on github, the following general scenarios were often mentioned as use cases for unloadability.
-* Loading assemblies for one-off introspection. 
 * Plugin scenarios when dynamic plugin loading and unloading is required.
 * Dynamically compiling, running and then flushing code. Useful for web sites, scripting engines, etc.
+* Loading assemblies for one-off introspection.
 ## Real-world scenarios
 A couple of real-world scenarios were analyzed to assess feasibility of the `AssemblyLoadContext` unloading as a replacement of `AppDomain` unloading and also for possible new usages of the `AssemblyLoadContext` unloading.
 ### Roslyn
 Roslyn has historically used AppDomains for executing different tests that can have assemblies with the same names but different identity or even the same identity, but different contents. `AppDomain` per test was very slow. So, to speed it up, they made them reusable based on the assemblies loaded into them.
 * In .NET Core, they use `AssemblyLoadContext` without unloading, one context per test works fine. 
-* Due to the missing plugin model, especially the dependency resolving issues, they use Mono.
 
 In future, the ability to use unloadable plugins in the compiler server would be great. Analyzers execute user code in the server, which is not good without the isolation. Ideally, whenever the compilation is executed with analyzers, it would run inside `AssemblyLoadContext`. The context would get unloaded after the build.
 ### ASP.NET Core
-ASP.NET (not Core) originally used AppDomains to support dynamic compiling and running code behind pages. ASP.NET Core moved to a more static model because of the lack of ability to unload stuff. Many of their customers did the same thing too. So, there is no pressing need for unloadability there at the moment.
+ASP.NET (not Core) originally used AppDomains to support dynamic compiling and running code behind pages. AppDomains were originally meant as performance and security mean. It turned out that they didn't help woth performance much and they provided a false sense of security.
+ASP.NET Core moved to a more static model because of the lack of ability to unload stuff. Many of their customers did the same thing too. So, there is no pressing need for unloadability there at the moment.
 
 However, they use two tool that could potentially benefit from the unloadability
-* Dotnet watch tool that watches a directory with sources and when a source file changes, it triggers recompilation and re-deployment. So, people can edit a source code used for their web page and the web server gets automatically recompiled and restarted. It is super-slow due to the process restart. So, the ability to unload and reload just the modified assemblies without process restart would be very helpful here. See https://docs.microsoft.com/en-us/aspnet/core/tutorials/dotnet-watch?view=aspnetcore-2.1 for more details on the watch tool usage in ASP.NET Core.
+* Dotnet watch tool that watches a directory with sources and when a source file changes, it triggers recompilation and re-deployment. So, people can edit a source code used for their web page and the web server gets automatically recompiled and restarted. A need to restart the process negatively affects its performance. So, the ability to unload and reload just the modified assemblies without process restart would be very helpful here. See https://docs.microsoft.com/en-us/aspnet/core/tutorials/dotnet-watch?view=aspnetcore-2.1 for more details on the watch tool usage in ASP.NET Core.
 * Compilation server for Razor pages (on demand .cshtml files compilation to .dll). (https://github.com/aspnet/Razor/blob/master/src/Microsoft.AspNetCore.Razor.Tools/CompilerHost.cs)
 ### LINQPad
 LINQPad (https://www.linqpad.net) is a very popular third-party tool for designing LINQ queries against various data sources. It uses AppDomains and their unloading mechanism heavily for the following purposes:
