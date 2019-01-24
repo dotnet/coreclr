@@ -19,8 +19,6 @@ using System.Threading.Tasks;
 using System.Text;
 using Internal.Runtime.CompilerServices;
 
-using TaskType = System.Threading.Tasks.Task;
-
 #if CORERT
 using Thread = Internal.Runtime.Augments.RuntimeThread;
 #endif
@@ -129,7 +127,7 @@ namespace System.Runtime.CompilerServices
                 // and decrement its outstanding operation count.
                 try
                 {
-                    TaskType.ThrowAsync(exception, targetContext: _synchronizationContext);
+                    System.Threading.Tasks.Task.ThrowAsync(exception, targetContext: _synchronizationContext);
                 }
                 finally
                 {
@@ -141,7 +139,7 @@ namespace System.Runtime.CompilerServices
                 // Otherwise, queue the exception to be thrown on the ThreadPool.  This will
                 // result in a crash unless legacy exception behavior is enabled by a config
                 // file or a CLR host.
-                TaskType.ThrowAsync(exception, targetContext: null);
+                System.Threading.Tasks.Task.ThrowAsync(exception, targetContext: null);
             }
 
             // The exception was propagated already; we don't need or want to fault the builder, just mark it as completed.
@@ -367,7 +365,7 @@ namespace System.Runtime.CompilerServices
             }
             catch (Exception e)
             {
-                TaskType.ThrowAsync(e, targetContext: null);
+                System.Threading.Tasks.Task.ThrowAsync(e, targetContext: null);
             }
         }
 
@@ -413,7 +411,7 @@ namespace System.Runtime.CompilerServices
                     // exceptions well at that location in the state machine, especially if the exception may occur
                     // after the ValueTaskAwaiter already successfully hooked up the callback, in which case it's possible
                     // two different flows of execution could end up happening in the same async method call.
-                    TaskType.ThrowAsync(e, targetContext: null);
+                    System.Threading.Tasks.Task.ThrowAsync(e, targetContext: null);
                 }
             }
             else
@@ -425,7 +423,7 @@ namespace System.Runtime.CompilerServices
                 }
                 catch (Exception e)
                 {
-                    TaskType.ThrowAsync(e, targetContext: null);
+                    System.Threading.Tasks.Task.ThrowAsync(e, targetContext: null);
                 }
             }
         }
@@ -695,7 +693,7 @@ namespace System.Runtime.CompilerServices
         {
             Debug.Assert(m_task != null, "Expected non-null task");
 
-            if (AsyncCausalityTracer.LoggingOn || TaskType.s_asyncDebuggingEnabled)
+            if (AsyncCausalityTracer.LoggingOn || System.Threading.Tasks.Task.s_asyncDebuggingEnabled)
             {
                 LogExistingTaskCompletion();
             }
@@ -717,9 +715,9 @@ namespace System.Runtime.CompilerServices
             }
 
             // only log if we have a real task that was previously created
-            if (TaskType.s_asyncDebuggingEnabled)
+            if (System.Threading.Tasks.Task.s_asyncDebuggingEnabled)
             {
-                TaskType.RemoveFromActiveTasks(m_task);
+                System.Threading.Tasks.Task.RemoveFromActiveTasks(m_task);
             }
         }
 
