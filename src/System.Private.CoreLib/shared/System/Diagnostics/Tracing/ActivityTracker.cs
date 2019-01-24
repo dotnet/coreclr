@@ -78,11 +78,11 @@ namespace System.Diagnostics.Tracing
             var currentActivity = m_current.Value;
             var fullActivityName = NormalizeActivityName(providerName, activityName, task);
 
-            var etwLog = TplEventSource.Log;
-            if (etwLog.Debug)
+            var log = TplEventSource.Log;
+            if (log.Debug)
             {
-                etwLog.DebugFacilityMessage("OnStartEnter", fullActivityName);
-                etwLog.DebugFacilityMessage("OnStartEnterActivityState", ActivityInfo.LiveActivities(currentActivity));
+                log.DebugFacilityMessage("OnStartEnter", fullActivityName);
+                log.DebugFacilityMessage("OnStartEnterActivityState", ActivityInfo.LiveActivities(currentActivity));
             }
 
             if (currentActivity != null)
@@ -92,8 +92,8 @@ namespace System.Diagnostics.Tracing
                 {
                     activityId = Guid.Empty;
                     relatedActivityId = Guid.Empty;
-                    if (etwLog.Debug)
-                        etwLog.DebugFacilityMessage("OnStartRET", "Fail");
+                    if (log.Debug)
+                        log.DebugFacilityMessage("OnStartRET", "Fail");
                     return;
                 }
                 // Check for recursion, and force-stop any activities if the activity already started.
@@ -125,10 +125,10 @@ namespace System.Diagnostics.Tracing
             // Remember the current ID so we can log it 
             activityId = newActivity.ActivityId;
             
-            if (etwLog.Debug)
+            if (log.Debug)
             {
-                etwLog.DebugFacilityMessage("OnStartRetActivityState", ActivityInfo.LiveActivities(newActivity));
-                etwLog.DebugFacilityMessage1("OnStartRet", activityId.ToString(), relatedActivityId.ToString());
+                log.DebugFacilityMessage("OnStartRetActivityState", ActivityInfo.LiveActivities(newActivity));
+                log.DebugFacilityMessage1("OnStartRet", activityId.ToString(), relatedActivityId.ToString());
             }
         }
 
@@ -145,11 +145,11 @@ namespace System.Diagnostics.Tracing
 
             var fullActivityName = NormalizeActivityName(providerName, activityName, task);
             
-            var etwLog = TplEventSource.Log;
-            if (etwLog.Debug)
+            var log = TplEventSource.Log;
+            if (log.Debug)
             {
-                etwLog.DebugFacilityMessage("OnStopEnter", fullActivityName);
-                etwLog.DebugFacilityMessage("OnStopEnterActivityState", ActivityInfo.LiveActivities(m_current.Value));
+                log.DebugFacilityMessage("OnStopEnter", fullActivityName);
+                log.DebugFacilityMessage("OnStopEnterActivityState", ActivityInfo.LiveActivities(m_current.Value));
             }
 
             for (; ; ) // This is a retry loop.
@@ -167,8 +167,8 @@ namespace System.Diagnostics.Tracing
                 {
                     activityId = Guid.Empty;
                     // TODO add some logging about this. Basically could not find matching start.
-                    if (etwLog.Debug)
-                        etwLog.DebugFacilityMessage("OnStopRET", "Fail");
+                    if (log.Debug)
+                        log.DebugFacilityMessage("OnStopRET", "Fail");
                     return;
                 }
 
@@ -208,10 +208,10 @@ namespace System.Diagnostics.Tracing
 
                     m_current.Value = newCurrentActivity;
 
-                    if (etwLog.Debug)
+                    if (log.Debug)
                     {
-                        etwLog.DebugFacilityMessage("OnStopRetActivityState", ActivityInfo.LiveActivities(newCurrentActivity));
-                        etwLog.DebugFacilityMessage("OnStopRet", activityId.ToString());
+                        log.DebugFacilityMessage("OnStopRetActivityState", ActivityInfo.LiveActivities(newCurrentActivity));
+                        log.DebugFacilityMessage("OnStopRet", activityId.ToString());
                     }
                     return;
                 }

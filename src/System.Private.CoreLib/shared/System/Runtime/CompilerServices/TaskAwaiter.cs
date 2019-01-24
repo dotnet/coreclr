@@ -251,16 +251,16 @@ namespace System.Runtime.CompilerServices
                 Task.AddToActiveTasks(task);
             }
 
-            var etwLog = TplEventSource.Log;
+            var log = TplEventSource.Log;
 
-            if (etwLog.IsEnabled())
+            if (log.IsEnabled())
             {
                 // ETW event for Task Wait Begin
                 var currentTaskAtBegin = Task.InternalCurrent;
 
                 // If this task's continuation is another task, get it.
                 var continuationTask = AsyncMethodBuilderCore.TryGetContinuationTask(continuation);
-                etwLog.TaskWaitBegin(
+                log.TaskWaitBegin(
                     (currentTaskAtBegin != null ? currentTaskAtBegin.m_taskScheduler.Id : TaskScheduler.Default.Id),
                     (currentTaskAtBegin != null ? currentTaskAtBegin.Id : 0),
                     task.Id, TplEventSource.TaskWaitBehavior.Asynchronous,

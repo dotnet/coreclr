@@ -161,23 +161,23 @@ namespace System.Runtime.CompilerServices
 
                 return AsyncMethodBuilderCore.CreateContinuationWrapper(continuation, (innerContinuation,continuationIdTask) =>
                 {
-                    var etwLog = TplEventSource.Log;
-                    etwLog.TaskWaitContinuationStarted(((Task<int>)continuationIdTask).Result);
+                    var log = TplEventSource.Log;
+                    log.TaskWaitContinuationStarted(((Task<int>)continuationIdTask).Result);
 
                     // ETW event for Task Wait End.
                     Guid prevActivityId = new Guid();
                     // Ensure the continuation runs under the correlated activity ID generated above
-                    if (etwLog.TasksSetActivityIds)
+                    if (log.TasksSetActivityIds)
                         EventSource.SetCurrentThreadActivityId(TplEventSource.CreateGuidForTaskID(((Task<int>)continuationIdTask).Result), out prevActivityId);
 
                     // Invoke the original continuation provided to OnCompleted.
                     innerContinuation();
                     // Restore activity ID
 
-                    if (etwLog.TasksSetActivityIds)
+                    if (log.TasksSetActivityIds)
                         EventSource.SetCurrentThreadActivityId(prevActivityId);
 
-                    etwLog.TaskWaitContinuationComplete(((Task<int>)continuationIdTask).Result);
+                    log.TaskWaitContinuationComplete(((Task<int>)continuationIdTask).Result);
                 }, Task.FromResult(continuationId)); // pass the ID in a task to avoid a closure\
 #endif
             }
