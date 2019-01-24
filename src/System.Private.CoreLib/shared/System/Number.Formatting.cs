@@ -243,6 +243,8 @@ namespace System
     internal static partial class Number
     {
         internal const int DecimalPrecision = 29; // Decimal.DecCalc also uses this value
+        private const int SinglePrecision = 9;
+        private const int DoublePrecision = 17;
         private const int ScaleNAN = unchecked((int)0x80000000);
         private const int ScaleINF = 0x7FFFFFFF;
         private const int MaxUInt32DecDigits = 10;
@@ -383,19 +385,6 @@ namespace System
         /// </returns>
         private static unsafe string FormatDouble(ref ValueStringBuilder sb, double value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
-            char fmt = ParseFormatSpecifier(format, out int digits);
-            byte* pDigits = stackalloc byte[DoubleNumberBufferLength];
-
-            if ((digits == 0) || (fmt == 'R') || (fmt == 'r'))
-            {
-                // The 'R' format always ignores the precision specifier.
-                // We also need to treat 0 as the default case, since it is otherwise "invalid".
-                digits = -1;
-            }
-
-            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
-            number.IsNegative = double.IsNegative(value);
-
             if (!double.IsFinite(value))
             {
                 if (double.IsNaN(value))
@@ -403,19 +392,52 @@ namespace System
                     return info.NaNSymbol;
                 }
 
-                return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                return double.IsNegative(value) ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
             }
-            else if ((value == 0.0) || !Grisu3.RunDouble(value, digits, ref number))
-            {
-                Dragon4Double(value, digits, ref number);
-            }
-            number.CheckConsistency();
 
+            char fmt = ParseFormatSpecifier(format, out int precision);
+            byte* pDigits = stackalloc byte[DoubleNumberBufferLength];
+
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
+            number.IsNegative = double.IsNegative(value);
+
+            // We need to track the original precision requested since some formats 
+            // accept values like 0 and others may require additional fixups.
+            int nMaxDigits = precision;
+
+            if ((precision < DoublePrecision) || (fmt == 'R') || (fmt == 'r'))
+            {
+                // For all formats, we will ask for the shortest roundtrippable
+                // string when less than DoublePrecision digits are requested. This
+                // allows us to return the correct string regardless of what the
+                // precision specifier means for a given format (e.g. in some cases
+                // it may mean the number of digits after the decimal point). We
+                // also need to always change the precision for the 'R' format since
+                // that must always return the shortest roundtrippable string.
+                precision = -1;
+            }
+
+            if ((value == 0.0) || !Grisu3.RunDouble(value, precision, ref number))
+            {
+                Dragon4Double(value, precision, ref number);
+            }
+
+            number.CheckConsistency();
             Debug.Assert(BitConverter.DoubleToInt64Bits(value) == BitConverter.DoubleToInt64Bits(NumberToDouble(ref number)));
 
             if (fmt != 0)
             {
-                NumberToString(ref sb, ref number, fmt, digits, info);
+                if ((fmt == 'R') || (fmt == 'r') || ((nMaxDigits < 1) && (fmt == 'G') || (fmt == 'g')))
+                {
+                    // For the roundtrip format specifier and the general format specifier when the requested
+                    // number of digits is less than 1, we need to update the maximum number of digits to be
+                    // the greater of number.DigitsCount or DoublePrecision. This ensures that we continue
+                    // returning "pretty" strings for values with less digits. One example this fixes is
+                    // "-60", which would otherwise be formatted as "-6E+01" since DigitsCount would be 1
+                    // and the formatter would almost immediately switch to scientific notation.
+                    nMaxDigits = Math.Max(number.DigitsCount, DoublePrecision);
+                }
+                NumberToString(ref sb, ref number, fmt, nMaxDigits, info);
             }
             else
             {
@@ -448,19 +470,6 @@ namespace System
         /// </returns>
         private static unsafe string FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
-            char fmt = ParseFormatSpecifier(format, out int digits);
-            byte* pDigits = stackalloc byte[SingleNumberBufferLength];
-
-            if ((digits == 0) || (fmt == 'R') || (fmt == 'r'))
-            {
-                // The 'R' format always ignores the precision specifier.
-                // We also need to treat 0 as the default case, since it is otherwise "invalid".
-                digits = -1;
-            }
-
-            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, SingleNumberBufferLength);
-            number.IsNegative = float.IsNegative(value);
-
             if (!float.IsFinite(value))
             {
                 if (float.IsNaN(value))
@@ -468,19 +477,52 @@ namespace System
                     return info.NaNSymbol;
                 }
 
-                return number.IsNegative ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                return float.IsNegative(value) ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
             }
-            else if ((value == 0.0f) || !Grisu3.RunSingle(value, digits, ref number))
-            {
-                Dragon4Single(value, digits, ref number);
-            }
-            number.CheckConsistency();
 
+            char fmt = ParseFormatSpecifier(format, out int precision);
+            byte* pDigits = stackalloc byte[SingleNumberBufferLength];
+
+            NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, SingleNumberBufferLength);
+            number.IsNegative = float.IsNegative(value);
+
+            // We need to track the original precision requested since some formats 
+            // accept values like 0 and others may require additional fixups.
+            int nMaxDigits = precision;
+
+            if ((precision < SinglePrecision) || (fmt == 'R') || (fmt == 'r'))
+            {
+                // For all formats, we will ask for the shortest roundtrippable
+                // string when less than SinglePrecision digits are requested. This
+                // allows us to return the correct string regardless of what the
+                // precision specifier means for a given format (e.g. in some cases
+                // it may mean the number of digits after the decimal point). We
+                // also need to always change the precision for the 'R' format since
+                // that must always return the shortest roundtrippable string.
+                precision = -1;
+            }
+
+            if ((value == 0.0f) || !Grisu3.RunSingle(value, precision, ref number))
+            {
+                Dragon4Single(value, precision, ref number);
+            }
+
+            number.CheckConsistency();
             Debug.Assert(BitConverter.SingleToInt32Bits(value) == BitConverter.SingleToInt32Bits(NumberToSingle(ref number)));
 
             if (fmt != 0)
             {
-                NumberToString(ref sb, ref number, fmt, digits, info);
+                if ((fmt == 'R') || (fmt == 'r') || ((nMaxDigits < 1) && (fmt == 'G') || (fmt == 'g')))
+                {
+                    // For the roundtrip format specifier and the general format specifier when the requested
+                    // number of digits is less than 1, we need to update the maximum number of digits to be
+                    // the greater of number.DigitsCount or SinglePrecision. This ensures that we continue
+                    // returning "pretty" strings for values with less digits. One example this fixes is
+                    // "-60", which would otherwise be formatted as "-6E+01" since DigitsCount would be 1
+                    // and the formatter would almost immediately switch to scientific notation.
+                    nMaxDigits = Math.Max(number.DigitsCount, SinglePrecision);
+                }
+                NumberToString(ref sb, ref number, fmt, nMaxDigits, info);
             }
             else
             {
