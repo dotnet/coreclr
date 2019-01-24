@@ -2790,6 +2790,50 @@ FCIMPL2(FC_BOOL_RET, ReflectionEnum::InternalEquals, Object *pRefThis, Object* p
 }
 FCIMPLEND
 
+// preform (this & flags) != flags	
+FCIMPL2(FC_BOOL_RET, ReflectionEnum::InternalHasFlag, Object *pRefThis, Object* pRefFlags)	
+{	
+    FCALL_CONTRACT;	
+
+     VALIDATEOBJECT(pRefThis);	
+
+     BOOL cmp = false;	
+
+     _ASSERTE(pRefFlags != NULL); // Enum.cs would have thrown ArgumentNullException before calling into InternalHasFlag	
+
+     VALIDATEOBJECT(pRefFlags);	
+
+     void * pThis = pRefThis->UnBox();	
+    void * pFlags = pRefFlags->UnBox();	
+
+     MethodTable* pMTThis = pRefThis->GetMethodTable();	
+
+     _ASSERTE(!pMTThis->IsArray());  // bunch of assumptions about arrays wrong.	
+    _ASSERTE(pMTThis->GetNumInstanceFieldBytes() == pRefFlags->GetMethodTable()->GetNumInstanceFieldBytes()); // Enum.cs verifies that the types are Equivalent	
+
+     switch (pMTThis->GetNumInstanceFieldBytes()) {	
+    case 1:	
+        cmp = ((*(UINT8*)pThis & *(UINT8*)pFlags) == *(UINT8*)pFlags);	
+        break;	
+    case 2:	
+        cmp = ((*(UINT16*)pThis & *(UINT16*)pFlags) == *(UINT16*)pFlags);	
+        break;	
+    case 4:	
+        cmp = ((*(UINT32*)pThis & *(UINT32*)pFlags) == *(UINT32*)pFlags);	
+        break;	
+    case 8:	
+        cmp = ((*(UINT64*)pThis & *(UINT64*)pFlags) == *(UINT64*)pFlags);	
+        break;	
+    default:	
+        // should not reach here.	
+        UNREACHABLE_MSG("Incorrect Enum Type size!");	
+        break;	
+    }	
+
+     FC_RETURN_BOOL(cmp);	
+}	
+FCIMPLEND
+
 // compare two boxed enums using their underlying enum type
 FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTarget)
 {

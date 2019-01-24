@@ -3426,7 +3426,10 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumCache.Get(this).GetNamesNonGeneric();
+            string[] ret = Enum.EnumCache.Get(this).Members._names;
+
+            // Make a copy since we can't hand out the same array since users can modify them
+            return new ReadOnlySpan<string>(ret).ToArray();
         }
 
         public override Array GetEnumValues()
@@ -3447,6 +3450,9 @@ namespace System
 
         public override bool IsEnumDefined(object value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
@@ -3455,6 +3461,9 @@ namespace System
 
         public override string GetEnumName(object value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 

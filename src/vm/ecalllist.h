@@ -78,6 +78,7 @@ FCFuncStart(gEnumFuncs)
     FCFuncElement("InternalGetCorElementType",  ReflectionEnum::InternalGetCorElementType)
     FCFuncElement("Equals", ReflectionEnum::InternalEquals)
     FCFuncElement("InternalCompareTo", ReflectionEnum::InternalCompareTo)
+    FCFuncElement("InternalHasFlag", ReflectionEnum::InternalHasFlag)
 FCFuncEnd()
 
 

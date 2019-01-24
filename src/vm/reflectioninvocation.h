@@ -92,6 +92,7 @@ class ReflectionEnum {
 public:
     static FCDECL1(INT32, InternalGetCorElementType, Object *pRefThis);
     static FCDECL2(FC_BOOL_RET, InternalEquals, Object *pRefThis, Object* pRefTarget);
+    static FCDECL2(FC_BOOL_RET, InternalHasFlag, Object *pRefThis, Object* pRefFlags);
     static FCDECL2(int, InternalCompareTo, Object *pRefThis, Object* pRefTarget);
 };
 
