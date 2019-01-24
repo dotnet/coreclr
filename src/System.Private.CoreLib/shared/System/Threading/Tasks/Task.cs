@@ -231,9 +231,6 @@ namespace System.Threading.Tasks
 
         internal static void RemoveFromActiveTasks(Task task)
         {
-            if (s_currentActiveTasks == null)
-                return;
-
             int taskId = task.Id;
             lock (s_currentActiveTasks)
             {
