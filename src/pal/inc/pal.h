@@ -4434,7 +4434,15 @@ inline WCHAR *PAL_wcsstr(WCHAR *_S, const WCHAR *_P)
 }
 #endif
 
-#if !__has_builtin(_rotl)
+#if defined(__llvm__)
+#define HAS_ROTL __has_builtin(_rotl)
+#define HAS_ROTR __has_builtin(_rotr)
+#else
+#define HAS_ROTL 0
+#define HAS_ROTR 0
+#endif
+
+#if !HAS_ROTL
 /*++
 Function:
 _rotl
@@ -4452,14 +4460,14 @@ unsigned int __cdecl _rotl(unsigned int value, int shift)
     retval = (value << shift) | (value >> (sizeof(int) * CHAR_BIT - shift));
     return retval;
 }
-#endif // !__has_builtin(_rotl)
+#endif // !HAS_ROTL
 
 // On 64 bit unix, make the long an int.
 #ifdef BIT64
 #define _lrotl _rotl
 #endif // BIT64
 
-#if !__has_builtin(_rotr)
+#if !HAS_ROTR
 
 /*++
 Function:
@@ -4479,7 +4487,7 @@ unsigned int __cdecl _rotr(unsigned int value, int shift)
     return retval;
 }
 
-#endif // !__has_builtin(_rotr)
+#endif // !HAS_ROTR
 
 PALIMPORT int __cdecl abs(int);
 // clang complains if this is declared with __int64
