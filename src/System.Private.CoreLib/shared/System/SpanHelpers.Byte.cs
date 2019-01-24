@@ -101,6 +101,7 @@ namespace System
         }
 
         // Adapted from IndexOf(...)
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe bool Contains(ref byte searchSpace, byte value, int length)
         {
             Debug.Assert(length >= 0);
@@ -190,6 +191,7 @@ namespace System
             return true;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int IndexOf(ref byte searchSpace, byte value, int length)
         {
             Debug.Assert(length >= 0);
@@ -423,6 +425,7 @@ namespace System
             return -1;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int LastIndexOf(ref byte searchSpace, byte value, int length)
         {
             Debug.Assert(length >= 0);
@@ -527,6 +530,7 @@ namespace System
             return (int)(byte*)(offset + 7);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int IndexOfAny(ref byte searchSpace, byte value0, byte value1, int length)
         {
             Debug.Assert(length >= 0);
@@ -750,6 +754,7 @@ namespace System
             return (int)(byte*)(offset + 7);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int IndexOfAny(ref byte searchSpace, byte value0, byte value1, byte value2, int length)
         {
             Debug.Assert(length >= 0);
@@ -985,6 +990,7 @@ namespace System
             return (int)(byte*)(offset + 7);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int LastIndexOfAny(ref byte searchSpace, byte value0, byte value1, int length)
         {
             Debug.Assert(length >= 0);
@@ -1109,6 +1115,7 @@ namespace System
             return (int)(byte*)(offset + 7);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int LastIndexOfAny(ref byte searchSpace, byte value0, byte value1, byte value2, int length)
         {
             Debug.Assert(length >= 0);
@@ -1241,6 +1248,7 @@ namespace System
 
         // Optimized byte-based SequenceEquals. The "length" parameter for this one is declared a nuint rather than int as we also use it for types other than byte
         // where the length can exceed 2Gb once scaled by sizeof(T).
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe bool SequenceEqual(ref byte first, ref byte second, nuint length)
         {
             if (Unsafe.AreSame(ref first, ref second))
@@ -1311,6 +1319,7 @@ namespace System
             return i * 8 + LocateFirstFoundByte(candidate);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int SequenceCompareTo(ref byte first, int firstLength, ref byte second, int secondLength)
         {
             Debug.Assert(firstLength >= 0);
