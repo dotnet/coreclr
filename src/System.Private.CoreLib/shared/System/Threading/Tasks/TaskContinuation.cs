@@ -491,8 +491,14 @@ namespace System.Threading.Tasks
                 // The target scheduler may still deny us from executing on this thread, in which case this'll be queued.
                 var task = CreateTask(state =>
                 {
-                    try { ((Action)state)(); }
-                    catch (Exception exc) { ThrowAsyncIfNecessary(exc); }
+                    try
+                    {
+                        ((Action)state)();
+                    }
+                    catch (Exception exception)
+                    {
+                        AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
+                    }
                 }, m_action, m_scheduler);
 
                 if (inlineIfPossible)
@@ -691,9 +697,9 @@ namespace System.Threading.Tasks
                     ExecutionContext.RunInternal(context, callback, state);
                 }
             }
-            catch (Exception exc) // we explicitly do not request handling of dangerous exceptions like AVs
+            catch (Exception exception) // we explicitly do not request handling of dangerous exceptions like AVs
             {
-                ThrowAsyncIfNecessary(exc);
+                AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
             }
             finally
             {
@@ -733,7 +739,7 @@ namespace System.Threading.Tasks
             }
             catch (Exception exception)
             {
-                ThrowAsyncIfNecessary(exception);
+                AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
             }
             finally
             {
@@ -785,7 +791,7 @@ namespace System.Threading.Tasks
             }
             catch (Exception exception)
             {
-                ThrowAsyncIfNecessary(exception);
+                AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
             }
             finally
             {
@@ -808,31 +814,6 @@ namespace System.Threading.Tasks
             }
 
             ThreadPool.UnsafeQueueUserWorkItemInternal(atc, preferLocal: true);
-        }
-
-        /// <summary>Throws the exception asynchronously on the ThreadPool.</summary>
-        /// <param name="exc">The exception to throw.</param>
-        protected static void ThrowAsyncIfNecessary(Exception exc)
-        {
-            // Awaits should never experience an exception (other than an TAE or ADUE), 
-            // unless a malicious user is explicitly passing a throwing action into the TaskAwaiter. 
-            // We don't want to allow the exception to propagate on this stack, as it'll emerge in random places, 
-            // and we can't fail fast, as that would allow for elevation of privilege.
-            //
-            // If unhandled error reporting APIs are available use those, otherwise since this 
-            // would have executed on the thread pool otherwise, let it propagate there.
-
-#if FEATURE_COMINTEROP
-            if (!System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeMarshal.ReportUnhandledError(exc))
-#endif
-            {
-#if CORERT
-                RuntimeAugments.ReportUnhandledException(exc);
-#else
-                var edi = ExceptionDispatchInfo.Capture(exc);
-                ThreadPool.QueueUserWorkItem(s => ((ExceptionDispatchInfo)s).Throw(), edi);
-#endif
-            }
         }
 
         internal override Delegate[] GetDelegateContinuationsForDebugger()
