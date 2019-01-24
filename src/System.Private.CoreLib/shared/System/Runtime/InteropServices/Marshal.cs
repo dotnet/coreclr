@@ -114,7 +114,8 @@ namespace System.Runtime.InteropServices
             {
                 throw new ArgumentOutOfRangeException(nameof(byteLen), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            else if (IntPtr.Zero == ptr)
+            
+            if (IntPtr.Zero == ptr)
             {
                 return null;
             }
@@ -156,7 +157,7 @@ namespace System.Runtime.InteropServices
             {
                 throw new ArgumentNullException(nameof(t));
             }
-            if (!(t is RuntimeType))
+            if (!t.IsRuntimeImplemented())
             {
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(t));
             }
@@ -508,12 +509,8 @@ namespace System.Runtime.InteropServices
             {
                 throw new ArgumentNullException(nameof(m));
             }
-            if (!(m is RuntimeMethodInfo rmi))
-            {
-                throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(m));
-            }
 
-            InternalPrelink(rmi);
+            PrelinkCore(m);
         }
 
         public static void PrelinkAll(Type c)
@@ -539,6 +536,33 @@ namespace System.Runtime.InteropServices
         }
 
         /// <summary>
+        /// Creates a new instance of "structuretype" and marshals data from a
+        /// native memory block to it.
+        /// </summary>
+        public static object PtrToStructure(IntPtr ptr, Type structureType)
+        {
+            if (ptr == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            if (structureType == null)
+            {
+                throw new ArgumentNullException(nameof(structureType));
+            }
+            if (structureType.IsGenericType)
+            {
+                throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(structureType));
+            }
+            if (!(structureType.IsRuntimeImplemented()))
+            {
+                throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(structureType));
+            }
+
+            return PtrToStructureHelper(ptr, structureType);
+        }
+
+        /// <summary>
         /// Marshals data from a native memory block to a preallocated structure class.
         /// </summary>
         public static void PtrToStructure(IntPtr ptr, object structure)
@@ -558,15 +582,8 @@ namespace System.Runtime.InteropServices
         /// <summary>
         /// Converts the HRESULT to a CLR exception.
         /// </summary>
-        public static Exception GetExceptionForHR(int errorCode)
-        {
-            if (errorCode >= 0)
-            {
-                return null;
-            }
+        public static Exception GetExceptionForHR(int errorCode) =>  GetExceptionForHR(errorCode, IntPtr.Zero);
 
-            return GetExceptionForHRInternal(errorCode, IntPtr.Zero);
-        }
         public static Exception GetExceptionForHR(int errorCode, IntPtr errorInfo)
         {
             if (errorCode >= 0)
@@ -627,6 +644,25 @@ namespace System.Runtime.InteropServices
             return s.MarshalToString(globalAlloc: true, unicode: true); ;
         }
 
+        /// <summary>
+        /// Generates a GUID for the specified type. If the type has a GUID in the
+        /// metadata then it is returned otherwise a stable guid is generated based
+        /// on the fully qualified name of the type.
+        /// </summary>
+        public static Guid GenerateGuidForType(Type type)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
+            if (!(type.IsRuntimeImplemented()))
+            {
+                throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
+            }
+
+            return type.GUID;
+        }
+
         public static Delegate GetDelegateForFunctionPointer(IntPtr ptr, Type t)
         {
             if (ptr == IntPtr.Zero)
@@ -637,7 +673,7 @@ namespace System.Runtime.InteropServices
             {
                 throw new ArgumentNullException(nameof(t));
             }
-            if (!(t is RuntimeType))
+            if (!t.IsRuntimeImplemented())
             {
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(t));
             }
@@ -647,7 +683,7 @@ namespace System.Runtime.InteropServices
             }
 
             Type c = t.BaseType;
-            if (c == null || (c != typeof(Delegate) && c != typeof(MulticastDelegate)))
+            if (c != typeof(Delegate) && c != typeof(MulticastDelegate))
             {
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(t));
             }
@@ -674,6 +710,5 @@ namespace System.Runtime.InteropServices
         {
             return GetFunctionPointerForDelegate((Delegate)(object)d);
         }
-
     }
 }

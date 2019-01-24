@@ -223,6 +223,16 @@ namespace System.Runtime.InteropServices
             return (dwLastError & 0x0000FFFF) | unchecked((int)0x80070000);
         }
 
+        private static void PrelinkCore(MethodInfo m)
+        {
+            if (!(m is RuntimeMethodInfo rmi))
+            {
+                throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(m));
+            }
+
+            InternalPrelink(rmi);
+        }
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void InternalPrelink(IRuntimeMethodInfo m);
 
@@ -240,30 +250,9 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static extern void StructureToPtr(object structure, IntPtr ptr, bool fDeleteOld);
 
-        /// <summary>
-        /// Creates a new instance of "structuretype" and marshals data from a
-        /// native memory block to it.
-        /// </summary>
-        public static object PtrToStructure(IntPtr ptr, Type structureType)
+        private static object PtrToStructureHelper(IntPtr ptr, Type structureType)
         {
-            if (ptr == IntPtr.Zero)
-            {
-                return null;
-            }
-
-            if (structureType == null)
-            {
-                throw new ArgumentNullException(nameof(structureType));
-            }
-            if (structureType.IsGenericType)
-            {
-                throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(structureType));
-            }
-            if (!(structureType.UnderlyingSystemType is RuntimeType rt))
-            {
-                throw new ArgumentException(SR.Arg_MustBeType, nameof(structureType));
-            }
-
+            var rt = (RuntimeType)structureType;
             object structure = rt.CreateInstanceDefaultCtor(publicOnly: false, skipCheckThis: false, fillCache: false, wrapExceptions: true);
             PtrToStructureHelper(ptr, structure, allowValueClasses: true);
             return structure;
@@ -955,25 +944,6 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetEndComSlot(Type t);
 #endif // FEATURE_COMINTEROP
-
-        /// <summary>
-        /// Generates a GUID for the specified type. If the type has a GUID in the
-        /// metadata then it is returned otherwise a stable guid is generated based
-        /// on the fully qualified name of the type.
-        /// </summary>
-        public static Guid GenerateGuidForType(Type type)
-        {
-            if (type == null)
-            {
-                throw new ArgumentNullException(nameof(type));
-            }
-            if (!(type is RuntimeType))
-            {
-                throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
-            }
-
-            return type.GUID;
-        }
 
         /// <summary>
         /// This method generates a PROGID for the specified type. If the type has
