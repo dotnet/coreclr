@@ -1962,6 +1962,48 @@ namespace System.Threading.Tasks
             }
         }
 
+        /// <summary>Throws the exception on the ThreadPool.</summary>
+        /// <param name="exception">The exception to propagate.</param>
+        /// <param name="targetContext">The target context on which to propagate the exception.  Null to use the ThreadPool.</param>
+        internal static void ThrowAsync(Exception exception, SynchronizationContext targetContext)
+        {
+            // Capture the exception into an ExceptionDispatchInfo so that its 
+            // stack trace and Watson bucket info will be preserved
+            var edi = ExceptionDispatchInfo.Capture(exception);
+
+            // If the user supplied a SynchronizationContext...
+            if (targetContext != null)
+            {
+                try
+                {
+                    // Post the throwing of the exception to that context, and return.
+                    targetContext.Post(state => ((ExceptionDispatchInfo)state).Throw(), edi);
+                    return;
+                }
+                catch (Exception postException)
+                {
+                    // If something goes horribly wrong in the Post, we'll 
+                    // propagate both exceptions on the ThreadPool
+                    edi = ExceptionDispatchInfo.Capture(new AggregateException(exception, postException));
+                }
+            }
+
+#if CORERT
+            RuntimeAugments.ReportUnhandledException(edi.SourceException);
+#else
+
+#if FEATURE_COMINTEROP
+            // If we have the new error reporting APIs, report this error.
+            if (System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeMarshal.ReportUnhandledError(edi.SourceException))
+                return;
+#endif
+
+            // Propagate the exception(s) on the ThreadPool
+            ThreadPool.QueueUserWorkItem(state => ((ExceptionDispatchInfo)state).Throw(), edi);
+
+#endif // CORERT
+        }
+
         /// <summary>
         /// Checks whether this is an attached task, and whether we are being called by the parent task.
         /// And sets the TASK_STATE_EXCEPTIONOBSERVEDBYPARENT status flag based on that.

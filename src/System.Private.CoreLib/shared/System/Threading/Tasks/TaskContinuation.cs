@@ -497,7 +497,7 @@ namespace System.Threading.Tasks
                     }
                     catch (Exception exception)
                     {
-                        AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
+                        Task.ThrowAsync(exception, targetContext: null);
                     }
                 }, m_action, m_scheduler);
 
@@ -699,7 +699,7 @@ namespace System.Threading.Tasks
             }
             catch (Exception exception) // we explicitly do not request handling of dangerous exceptions like AVs
             {
-                AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
+                Task.ThrowAsync(exception, targetContext: null);
             }
             finally
             {
@@ -739,7 +739,7 @@ namespace System.Threading.Tasks
             }
             catch (Exception exception)
             {
-                AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
+                Task.ThrowAsync(exception, targetContext: null);
             }
             finally
             {
@@ -791,7 +791,7 @@ namespace System.Threading.Tasks
             }
             catch (Exception exception)
             {
-                AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
+                Task.ThrowAsync(exception, targetContext: null);
             }
             finally
             {
