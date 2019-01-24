@@ -25,7 +25,7 @@ Copyright (c) .NET Foundation. All rights reserved.
           BeforeTargets="ComputeFilesToPublish"
           DependsOnTargets="_CheckForUnsupportedReadyToRunCompilation;
                             _InitializeReadyToRunCompilerProps;
-                            _ComputeReadyToRunInputs;
+                            _ComputeReadyToRunInputsAndOutputs;
                             _RunReadyToRunCompiler;
                             _PublishReadyToRunOutputs"
           Condition="'$(ReadyToRun)' == 'true'">
@@ -73,7 +73,7 @@ Copyright (c) .NET Foundation. All rights reserved.
         FormattedText="Creating ReadyToRun images is not supported for the RuntimeIdentifier $(RuntimeIdentifier) on the host OS $(_OSPlatform)-$(_OSArchitecture.ToLower())" />
   </Target>
 
-  <Target Name="_ComputeReadyToRunInputs">
+  <Target Name="_ComputeReadyToRunInputsAndOutputs">
     <ItemGroup>
       <_CrossgenInputIntermediateAssembly Include="@(IntermediateAssembly)" />
       <_CrossgenInputAssemblies Include="@(_CrossgenInputIntermediateAssembly)" />
@@ -83,6 +83,9 @@ Copyright (c) .NET Foundation. All rights reserved.
       <!-- <_CrossgenInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'%(ResolvedAssembliesToPublish.AssetType)' == 'runtime'" /> -->
 
       <_CrossgenReferenceAssemblies Include="@(ResolvedAssembliesToPublish)" />
+
+      <_CrossgenOutputIntermediateAssembly Include="@(_CrossgenInputIntermediateAssembly->'$(_ReadyToRunOutputDir)/%(FileName)%(Extension)')" />
+      <_CrossgenOutputAssemblies Include="@(_CrossgenInputAssemblies->'$(_ReadyToRunOutputDir)/%(FileName)%(Extension)')" />
     </ItemGroup>
   </Target>
 
@@ -179,7 +182,7 @@ Copyright (c) .NET Foundation. All rights reserved.
 
   <Target Name="_RunReadyToRunCompiler"
           Inputs="@(_CrossgenInputAssemblies);"
-          Outputs="@(_CrossgenInputAssemblies->'$(_ReadyToRunOutputDir)/%(FileName)%(Extension)')">
+          Outputs="@(_CrossgenOutputAssemblies)">
     <ItemGroup>
       <_CrossgenPlatformAssembliesPathsWithDuplicates Include="@(_CrossgenReferenceAssemblies->'%(RootDir)%(Directory)')" /> 
       <_CrossgenPlatformAssembliesPaths Include="@(_CrossgenPlatformAssembliesPathsWithDuplicates->Distinct())" />
@@ -209,18 +212,13 @@ Copyright (c) .NET Foundation. All rights reserved.
   <Target Name="_PublishReadyToRunOutputs">
     <!-- Rewrite ResolvedAssembliesToPublish to capture any newly-crossgened ResolvedAssembliesToPublish files, preserving metadata. -->
     <ItemGroup>
-      <_CrossgenResolvedAssembliesToPublishCandidates Include="@(ResolvedAssembliesToPublish->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
-      <_CrossgenResolvedAssembliesToPublish Include="@(_CrossgenResolvedAssembliesToPublishCandidates)" Condition="Exists('%(Identity)')" />
-
       <ResolvedAssembliesToPublish Remove="@(_CrossgenInputAssemblies)" />
-      <ResolvedAssembliesToPublish Include="@(_CrossgenResolvedAssembliesToPublish)" />
+      <ResolvedAssembliesToPublish Include="@(_CrossgenOutputAssemblies)" />
+      <ResolvedAssembliesToPublish Remove="@(_CrossgenOutputIntermediateAssembly)" />
     </ItemGroup>
 
     <!-- Rewrite IntermediateAssembly to capture the newly-crossgened IntermediateAssembly, preserving metadata. -->
     <ItemGroup>
-      <_CrossgenIntermediateAssemblyCandidates Include="@(IntermediateAssembly->'$(_ReadyToRunOutputDir)/%(Filename)%(Extension)')" />
-      <_CrossgenOutputIntermediateAssembly Include="@(_CrossgenIntermediateAssemblyCandidates)" Condition="Exists('%(Identity)')" />
-
       <IntermediateAssembly Remove="@(_CrossgenInputIntermediateAssembly)" />
       <IntermediateAssembly Include="@(_CrossgenOutputIntermediateAssembly)" />
     </ItemGroup>
