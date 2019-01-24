@@ -7,6 +7,11 @@
 * The unload can be initiated eagerly using explicit `Unload` method or it can happen after all references to the `AssemblyLoadContext` and all the assemblies in it are gone.
 ## Non-goals
 * Forceful unload using thread abort or similar measures to cause threads to stop running with frames of code from the context to be unloaded on the call stack.
+## Unsupported scenarios
+After investigating all the details, it was decided that we won't support the following scenarios in unloadable `AssemblyLoadContext` unless we get strong feedback on a need to support those.
+* Loading IJW assemblies
+* Using R2R generated code from assemblies. R2R assemblies will be loaded as plain IL ones.
+* Implementation of the FixedAddressValueTypeAttribute
 ## General scenarios
 Based on various discussions and feedback on github, the following general scenarios were often mentioned as use cases for unloadability.
 * Plugin scenarios when dynamic plugin loading and unloading is required.
@@ -20,7 +25,7 @@ Roslyn has historically used AppDomains for executing different tests that can h
 
 In future, the ability to use unloadable plugins in the compiler server would be great. Analyzers execute user code in the server, which is not good without the isolation. Ideally, whenever the compilation is executed with analyzers, it would run inside `AssemblyLoadContext`. The context would get unloaded after the build.
 ### ASP.NET Core
-ASP.NET (not Core) originally used AppDomains to support dynamic compiling and running code behind pages. AppDomains were originally meant as performance and security mean. It turned out that they didn't help woth performance much and they provided a false sense of security.
+ASP.NET (not Core) originally used AppDomains to support dynamic compiling and running code behind pages. AppDomains were originally meant as performance and security mean. It turned out that they didn't help with performance much and they provided a false sense of security.
 ASP.NET Core moved to a more static model because of the lack of ability to unload stuff. Many of their customers did the same thing too. So, there is no pressing need for unloadability there at the moment.
 
 However, they use two tool that could potentially benefit from the unloadability
@@ -92,7 +97,7 @@ The dashed lines represent indirect links from MethodTables of the objects to th
 Unloading is initialized by the user code calling `AssemblyLoadContext.Unload` metod or by execution of the `AssemblyLoadContext` finalizer. The following steps are performed to start the unloading process.
 * The `AssemblyLoadContext` fires the `Unloading` event to allow the user code to perform cleanup if required (e.g. stop threads running inside of the context, remove references and destroy handles, etc.)
 * `AssemblyNative::PrepareForAssemblyLoadContextRelease` method is called, which in turn calls `CLRPrivBinderAssemblyLoadContext::PrepareForLoadContextRelease`
-* That method changes the handle to `AssemblyLoadContext` to strong to keep the `AssemblyLoadContext` around until the unload is complete. For example, finalizers of types that are loaded into the `AssemblyLoadContext` may need access to the `AssemblyLoadContext`.
+* That method changes the handle referring to the `AssemblyLoadContext` to strong to keep the `AssemblyLoadContext` around until the unload is complete. For example, finalizers of types that are loaded into the `AssemblyLoadContext` may need access to the `AssemblyLoadContext`.
 * Then it decrements refcount of the `AssemblyLoaderAllocator` the `CLRPrivBinderAssemblyLoadContext` points to.
 * Finally, it destroys the strong handle to the managed `LoaderAllocator`. That allows the `LoaderAllocator` to be collected.
 ### Second phase of unloading
@@ -104,8 +109,3 @@ This phase is initiated after all instances of types from assemblies loaded into
 * If we have released the last reference, the `LoaderAllocator::GCLoaderAllocators` is executed. This function finds all collectible LoaderAllocators that are not alive anymore and cleans up all domain assemblies in them. The cleanup removes each `DomainAssembly` from the `AppDomain` and also from the binding cache, it notifies debugger and finally destroys the `DomainAssembly`. 
 * Strong handle to the managed `AssemblyLoadContext` in each of these LoaderAllocators is now destroyed. That enables these related AssemblyLoadContexts to be collected by GC.
 * Finally, these LoaderAllocators are registered for cleanup in the `AppDomain`. Their actual destruction happens on the finalizer thread in `Thread::DoExtraWorkForFinalizer`. When a `LoaderAllocator` is destroyed, the related `CLRPrivBinderAssemblyLoadContext` is destroyed too.
-## Unsupported scenarios
-After investigating all the details, it was decided that we won't support the following scenarios in unloadable `AssemblyLoadContext` unless we get strong feedback on a need to support those.
-* Loading IJW assemblies
-* Using R2R generated code from assemblies. R2R assemblies will be loaded as plain IL ones.
-* Implementation of the FixedAddressValueTypeAttribute
