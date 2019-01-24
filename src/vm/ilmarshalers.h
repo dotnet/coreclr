@@ -3137,10 +3137,7 @@ public:
         m_dwSavedSizeArg = LOCAL_NUM_UNUSED;
     }
 
-    bool CanMarshalViaPinning() override
-    {
-        return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && (NULL == OleVariant::GetMarshalerForVarType(m_args->na.m_vt, TRUE));
-    }
+    bool CanMarshalViaPinning() override;
 
     void EmitMarshalViaPinning(ILCodeStream* pslILEmit) override;
     void EmitSetupArgumentForMarshalling(ILCodeStream* pslILEmit) override;
