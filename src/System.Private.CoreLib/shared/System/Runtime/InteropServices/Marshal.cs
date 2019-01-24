@@ -53,6 +53,16 @@ namespace System.Runtime.InteropServices
             return new string((sbyte*)ptr, 0, len);
         }
 
+        public static unsafe string PtrToStringUni(IntPtr ptr)
+        {
+            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
+            {
+                return null;
+            }
+
+            return new string((char*)ptr);
+        }
+
         public static unsafe string PtrToStringUni(IntPtr ptr, int len)
         {
             if (ptr == IntPtr.Zero)
@@ -73,16 +83,6 @@ namespace System.Runtime.InteropServices
             return PtrToStringUni(ptr, len);
         }
 
-        public static unsafe string PtrToStringUni(IntPtr ptr)
-        {
-            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
-            {
-                return null;
-            }
-
-            return new string((char*)ptr);
-        }
-
         public static string PtrToStringAuto(IntPtr ptr)
         {
             // Ansi platforms are no longer supported
@@ -97,7 +97,7 @@ namespace System.Runtime.InteropServices
             }
 
             int nbBytes = string.strlen((byte*)ptr);
-            return PtrToStringUTF8(ptr, nbBytes);
+            return string.CreateStringFromEncoding((byte*)ptr, nbBytes, Encoding.UTF8);
         }
 
         public static unsafe string PtrToStringUTF8(IntPtr ptr, int byteLen)
@@ -111,12 +111,8 @@ namespace System.Runtime.InteropServices
             {
                 return null;
             }
-            if (byteLen == 0)
-            {
-                return string.Empty;
-            }
 
-            return Encoding.UTF8.GetString((byte*)ptr, byteLen);
+            return string.CreateStringFromEncoding((byte*)ptr, byteLen, Encoding.UTF8);
         }
 
         public static int SizeOf(object structure)
