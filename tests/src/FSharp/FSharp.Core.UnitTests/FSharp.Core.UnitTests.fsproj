@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) Microsoft Corporation.  All Rights Reserved.  See License.txt in the project root for license information. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net46;netcoreapp2.0</TargetFrameworks>
+    <OutputType>Library</OutputType>
+    <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+    <UnitTestType>xunit</UnitTestType>
+    <IsTestProject>true</IsTestProject>
+    <!-- must be false so FsCheck can be loaded -->
+    <SignAssembly>false</SignAssembly>
+    <TailCalls>true</TailCalls>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DefineConstants  Condition="'$(UnitTestType)' == 'xunit'">$(DefineConstants);XUNIT</DefineConstants>
+    <DefineConstants  Condition="'$(UnitTestType)' != 'xunit'">$(DefineConstants);NUNIT</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="NUnitFrameworkShims.fs" />
+    <Compile Include="LibraryTestFx.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\Utils.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ArrayModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ArrayModule2.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\Array2Module.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\Array3Module.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\Array4Module.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ArrayProperties.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ComparisonIdentityModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\HashIdentityModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ListModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ListModule2.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ObsoleteListFunctions.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ListType.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ListProperties.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\MapModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\MapType.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\SetModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\SetType.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\SeqModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\SeqModule2.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\ObsoleteSeqFunctions.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\SeqProperties.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\CollectionModulesConsistency.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\StringModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Collections\SeqMultipleIteration.fs" />
+    <Compile Include="FSharp.Core\PrimTypes.fs" />
+    <Compile Include="FSharp.Core\ComparersRegression.fs" />
+    <Compile Include="FSharp.Core\DiscrimantedUnionType.fs" />
+    <Compile Include="FSharp.Core\RecordTypes.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Core\BigIntType.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Core\IntConversions.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Core\IntConversionsGenerated.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Core\OptionModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Core\PrintfTests.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Core\ResultTests.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Core\ExtraTopLevelOperatorsTests.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Control\LazyType.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Control\Cancellation.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Control\AsyncType.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Control\MailboxProcessorType.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Control\AsyncModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Control\ObservableModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Control\EventModule.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Reflection\FSharpReflection.fs" />
+    <Compile Include="FSharp.Core\Microsoft.FSharp.Quotations\FSharpQuotations.fs" />
+    <Compile Include="TailCallRepros.fs" />
+    <Compile Include="TypeForwarding.fs" />
+    <Compile Include="StructTuples.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Core" Version="4.6.0" />
+    <PackageReference Include="FsCheck" Version="3.0.0-alpha4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UnitTestType)' == 'xunit'">
+    <PackageReference Include="xunit" Version="2.4.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UnitTestType)' != 'xunit'">
+    <PackageReference Include="nunit" Version="3.11.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.11.0" />
+  </ItemGroup>
+
+</Project>
