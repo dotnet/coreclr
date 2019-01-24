@@ -2185,11 +2185,10 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
                     {
                         rhsNode = asgNode->AsBlk()->Data();
                     }
-                    // TODO-1stClassStructs: There should be an else clause here to handle
-                    // the non-block forms of store ops (GT_STORE_LCL_VAR, etc.) for which
-                    // rhsNode is op1. (This isn't really a 1stClassStructs item, but the
-                    // above was added to catch what used to be dead block ops, and that
-                    // made this omission apparent.)
+                    else
+                    {
+                        rhsNode = asgNode->gtGetOp2();
+                    }
                 }
                 else
                 {
