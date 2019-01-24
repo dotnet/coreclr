@@ -1324,18 +1324,131 @@ namespace System
             IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)(void*)minLength;
 
-            if (Vector.IsHardwareAccelerated && (byte*)nLength > (byte*)Vector<byte>.Count)
+            if (Avx2.IsSupported)
             {
-                nLength -= Vector<byte>.Count;
-                while ((byte*)nLength > (byte*)offset)
+                if ((byte*)nLength >= (byte*)Vector256<byte>.Count)
                 {
-                    if (LoadVector(ref first, offset) != LoadVector(ref second, offset))
+                    nLength -= Vector256<byte>.Count;
+                    int matches;
+                    while ((byte*)nLength > (byte*)offset)
                     {
-                        goto NotEqual;
+                        matches = Avx2.MoveMask(Avx2.CompareEqual(LoadVector256(ref first, offset), LoadVector256(ref second, offset)));
+                        if (matches == -1)
+                        {
+                            // All matched
+                            offset += Vector256<byte>.Count;
+                            continue;
+                        }
+
+                        goto Difference;
                     }
-                    offset += Vector<byte>.Count;
+                    // Move to Vector length from end for final compare
+                    offset = nLength;
+                    matches = Avx2.MoveMask(Avx2.CompareEqual(LoadVector256(ref first, offset), LoadVector256(ref second, offset)));
+                    if (matches == -1)
+                    {
+                        // All matched
+                        goto Equal;
+                    }
+                Difference:
+                    // Invert matches to find differences
+                    int differences = ~matches;
+                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(matches));
+
+                    int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
+                    Debug.Assert(result != 0);
+
+                    return result;
                 }
-                goto NotEqual;
+
+                if ((byte*)nLength >= (byte*)Vector128<byte>.Count)
+                {
+                    nLength -= Vector128<byte>.Count;
+                    int matches;
+                    if ((byte*)nLength > (byte*)offset)
+                    {
+                        matches = Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                        if (matches == 0xFFFF)
+                        {
+                            // All matched
+                            offset += Vector128<byte>.Count;
+                        }
+                        else
+                        {
+                            goto Difference;
+                        }
+                    }
+                    // Move to Vector length from end for final compare
+                    offset = nLength;
+                    matches = Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                    if (matches == 0xFFFF)
+                    {
+                        // All matched
+                        goto Equal;
+                    }
+                Difference:
+                    // Invert matches to find differences
+                    int differences = ~matches;
+                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(matches));
+
+                    int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
+                    Debug.Assert(result != 0);
+
+                    return result;
+                }
+            }
+            else if (Sse2.IsSupported)
+            {
+                if ((byte*)nLength >= (byte*)Vector128<byte>.Count)
+                {
+                    nLength -= Vector128<byte>.Count;
+                    int matches;
+                    while ((byte*)nLength > (byte*)offset)
+                    {
+                        matches = Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                        if (matches == 0xFFFF)
+                        {
+                            // All matched
+                            offset += Vector128<byte>.Count;
+                            continue;
+                        }
+
+                        goto Difference;
+                    }
+                    // Move to Vector length from end for final compare
+                    offset = nLength;
+                    matches = Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                    if (matches == 0xFFFF)
+                    {
+                        // All matched
+                        goto Equal;
+                    }
+                Difference:
+                    // Invert matches to find differences
+                    int differences = ~matches;
+                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(matches));
+
+                    int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
+                    Debug.Assert(result != 0);
+
+                    return result;
+                }
+            }
+            else if (Vector.IsHardwareAccelerated)
+            {
+                if ((byte*)nLength > (byte*)Vector<byte>.Count)
+                {
+                    nLength -= Vector<byte>.Count;
+                    while ((byte*)nLength > (byte*)offset)
+                    {
+                        if (LoadVector(ref first, offset) != LoadVector(ref second, offset))
+                        {
+                            goto NotEqual;
+                        }
+                        offset += Vector<byte>.Count;
+                    }
+                    goto NotEqual;
+                }
             }
 
             if ((byte*)nLength > (byte*)sizeof(UIntPtr))
