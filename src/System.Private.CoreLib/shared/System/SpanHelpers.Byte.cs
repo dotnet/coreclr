@@ -1353,7 +1353,7 @@ namespace System
                 Difference:
                     // Invert matches to find differences
                     int differences = ~matches;
-                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(matches));
+                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(differences));
 
                     int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                     Debug.Assert(result != 0);
@@ -1389,7 +1389,7 @@ namespace System
                 Difference:
                     // Invert matches to find differences
                     int differences = ~matches;
-                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(matches));
+                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(differences));
 
                     int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                     Debug.Assert(result != 0);
@@ -1426,7 +1426,7 @@ namespace System
                 Difference:
                     // Invert matches to find differences
                     int differences = ~matches;
-                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(matches));
+                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(differences));
 
                     int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                     Debug.Assert(result != 0);
