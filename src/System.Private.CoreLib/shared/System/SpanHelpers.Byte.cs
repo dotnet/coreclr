@@ -276,13 +276,16 @@ namespace System
                         {
                             Vector256<byte> search = LoadVector256(ref searchSpace, offset);
                             int matches = Avx2.MoveMask(Avx2.CompareEqual(values, search));
+                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                            // So the bit position in 'matches' corresponds to the element offset.
                             if (matches == 0)
                             {
+                                // Zero flags set so no matches
                                 offset += Vector256<byte>.Count;
                                 continue;
                             }
 
-                            // Find offset of first match
+                            // Find bitflag offset of first match and add to current offset
                             return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         } while ((byte*)nLength > (byte*)offset);
                     }
@@ -294,13 +297,16 @@ namespace System
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
 
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search));
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
+                            // Zero flags set so no matches
                             offset += Vector128<byte>.Count;
                         }
                         else
                         {
-                            // Find offset of first match
+                            // Find bitflag offset of first match and add to current offset
                             return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         }
                     }
@@ -324,13 +330,16 @@ namespace System
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
 
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search));
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
+                            // Zero flags set so no matches
                             offset += Vector128<byte>.Count;
                             continue;
                         }
 
-                        // Find offset of first match
+                        // Find bitflag offset of first match and add to current offset
                         return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                     }
 
@@ -358,7 +367,7 @@ namespace System
                             continue;
                         }
 
-                        // Find offset of first match
+                        // Find offset of first match and add to current offset
                         return (int)(byte*)offset + LocateFirstFoundByte(matches);
                     }
 
@@ -499,7 +508,7 @@ namespace System
                         continue;
                     }
 
-                    // Find offset of first match
+                    // Find offset of first match and add to current offset
                     return (int)(offset) - Vector<byte>.Count + LocateLastFoundByte(matches);
                 }
                 if ((byte*)offset > (byte*)0)
@@ -630,13 +639,16 @@ namespace System
                             Vector256<byte> search = LoadVector256(ref searchSpace, offset);
                             int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search));
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search));
+                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                            // So the bit position in 'matches' corresponds to the element offset.
                             if (matches == 0)
                             {
+                                // Zero flags set so no matches
                                 offset += Vector256<byte>.Count;
                                 continue;
                             }
 
-                            // Find offset of first match
+                            // Find bitflag offset of first match and add to current offset
                             return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         } while ((byte*)nLength > (byte*)offset);
                     }
@@ -650,13 +662,16 @@ namespace System
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
+                            // Zero flags set so no matches
                             offset += Vector128<byte>.Count;
                         }
                         else
                         {
-                            // Find offset of first match
+                            // Find bitflag offset of first match and add to current offset
                             return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         }
                     }
@@ -682,13 +697,16 @@ namespace System
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
+                            // Zero flags set so no matches
                             offset += Vector128<byte>.Count;
                             continue;
                         }
 
-                        // Find offset of first match
+                        // Find bitflag offset of first match and add to current offset
                         return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                     }
 
@@ -720,7 +738,7 @@ namespace System
                             continue;
                         }
 
-                        // Find offset of first match
+                        // Find offset of first match and add to current offset
                         return (int)(byte*)offset + LocateFirstFoundByte(matches);
                     }
 
@@ -755,8 +773,8 @@ namespace System
             Debug.Assert(length >= 0);
 
             uint uValue0 = value0; // Use uint for comparisons to avoid unnecessary 8->32 extensions
-            uint uValue1 = value1; // Use uint for comparisons to avoid unnecessary 8->32 extensions
-            uint uValue2 = value2; // Use uint for comparisons to avoid unnecessary 8->32 extensions
+            uint uValue1 = value1;
+            uint uValue2 = value2;
             IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)length;
 
@@ -856,13 +874,16 @@ namespace System
                             int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search));
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search));
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values2, search));
+                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                            // So the bit position in 'matches' corresponds to the element offset.
                             if (matches == 0)
                             {
+                                // Zero flags set so no matches
                                 offset += Vector256<byte>.Count;
                                 continue;
                             }
 
-                            // Find offset of first match
+                            // Find bitflag offset of first match and add to current offset
                             return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         } while ((byte*)nLength > (byte*)offset);
                     }
@@ -878,13 +899,16 @@ namespace System
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search));
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
+                            // Zero flags set so no matches
                             offset += Vector128<byte>.Count;
                         }
                         else
                         {
-                            // Find offset of first match
+                            // Find bitflag offset of first match and add to current offset
                             return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         }
                     }
@@ -912,13 +936,16 @@ namespace System
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search));
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
+                            // Zero flags set so no matches
                             offset += Vector128<byte>.Count;
                             continue;
                         }
 
-                        // Find offset of first match
+                        // Find bitflag offset of first match and add to current offset
                         return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                     }
 
@@ -955,7 +982,7 @@ namespace System
                             continue;
                         }
 
-                        // Find offset of first match
+                        // Find offset of first match and add to current offset
                         return (int)(byte*)offset + LocateFirstFoundByte(matches);
                     }
 
@@ -990,7 +1017,7 @@ namespace System
             Debug.Assert(length >= 0);
 
             uint uValue0 = value0; // Use uint for comparisons to avoid unnecessary 8->32 extensions
-            uint uValue1 = value1; // Use uint for comparisons to avoid unnecessary 8->32 extensions
+            uint uValue1 = value1;
             IntPtr offset = (IntPtr)length; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)length;
 
@@ -1080,7 +1107,7 @@ namespace System
                         continue;
                     }
 
-                    // Find offset of first match
+                    // Find offset of first match and add to current offset
                     return (int)(offset) - Vector<byte>.Count + LocateLastFoundByte(matches);
                 }
 
@@ -1114,8 +1141,8 @@ namespace System
             Debug.Assert(length >= 0);
 
             uint uValue0 = value0; // Use uint for comparisons to avoid unnecessary 8->32 extensions
-            uint uValue1 = value1; // Use uint for comparisons to avoid unnecessary 8->32 extensions
-            uint uValue2 = value2; // Use uint for comparisons to avoid unnecessary 8->32 extensions
+            uint uValue1 = value1;
+            uint uValue2 = value2;
             IntPtr offset = (IntPtr)length; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr nLength = (IntPtr)length;
 
@@ -1210,7 +1237,7 @@ namespace System
                         continue;
                     }
 
-                    // Find offset of first match
+                    // Find offset of first match and add to current offset
                     return (int)(offset) - Vector<byte>.Count + LocateLastFoundByte(matches);
                 }
 
@@ -1329,11 +1356,15 @@ namespace System
                 if ((byte*)nLength >= (byte*)Vector256<byte>.Count)
                 {
                     nLength -= Vector256<byte>.Count;
-                    int matches;
+                    uint matches;
                     while ((byte*)nLength > (byte*)offset)
                     {
-                        matches = Avx2.MoveMask(Avx2.CompareEqual(LoadVector256(ref first, offset), LoadVector256(ref second, offset)));
-                        if (matches == -1)
+                        matches = (uint)Avx2.MoveMask(Avx2.CompareEqual(LoadVector256(ref first, offset), LoadVector256(ref second, offset)));
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
+
+                        // 32 elements in Vector256<byte> so we compare to uint.MaxValue to check if everything matched
+                        if (matches == uint.MaxValue)
                         {
                             // All matched
                             offset += Vector256<byte>.Count;
@@ -1344,16 +1375,21 @@ namespace System
                     }
                     // Move to Vector length from end for final compare
                     offset = nLength;
-                    matches = Avx2.MoveMask(Avx2.CompareEqual(LoadVector256(ref first, offset), LoadVector256(ref second, offset)));
-                    if (matches == -1)
+                    matches = (uint)Avx2.MoveMask(Avx2.CompareEqual(LoadVector256(ref first, offset), LoadVector256(ref second, offset)));
+                    // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                    // So the bit position in 'matches' corresponds to the element offset.
+
+                    // 32 elements in Vector256<byte> so we compare to uint.MaxValue to check if everything matched
+                    if (matches == uint.MaxValue)
                     {
                         // All matched
                         goto Equal;
                     }
                 Difference:
                     // Invert matches to find differences
-                    int differences = ~matches;
-                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(differences));
+                    uint differences = ~matches;
+                    // Find bitflag offset of first difference and add to current offset
+                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount((int)differences));
 
                     int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                     Debug.Assert(result != 0);
@@ -1364,11 +1400,11 @@ namespace System
                 if ((byte*)nLength >= (byte*)Vector128<byte>.Count)
                 {
                     nLength -= Vector128<byte>.Count;
-                    int matches;
+                    uint matches;
                     if ((byte*)nLength > (byte*)offset)
                     {
-                        matches = Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
-                        if (matches == 0xFFFF)
+                        matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                        if (matches == ushort.MaxValue)
                         {
                             // All matched
                             offset += Vector128<byte>.Count;
@@ -1380,16 +1416,21 @@ namespace System
                     }
                     // Move to Vector length from end for final compare
                     offset = nLength;
-                    matches = Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
-                    if (matches == 0xFFFF)
+                    matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                    // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                    // So the bit position in 'matches' corresponds to the element offset.
+
+                    // 16 elements in Vector128<byte> so we compare to ushort.MaxValue to check if everything matched
+                    if (matches == ushort.MaxValue)
                     {
                         // All matched
                         goto Equal;
                     }
                 Difference:
                     // Invert matches to find differences
-                    int differences = ~matches;
-                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(differences));
+                    uint differences = ~matches;
+                    // Find bitflag offset of first difference and add to current offset
+                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount((int)differences));
 
                     int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                     Debug.Assert(result != 0);
@@ -1402,11 +1443,11 @@ namespace System
                 if ((byte*)nLength >= (byte*)Vector128<byte>.Count)
                 {
                     nLength -= Vector128<byte>.Count;
-                    int matches;
+                    uint matches;
                     while ((byte*)nLength > (byte*)offset)
                     {
-                        matches = Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
-                        if (matches == 0xFFFF)
+                        matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                        if (matches == ushort.MaxValue)
                         {
                             // All matched
                             offset += Vector128<byte>.Count;
@@ -1417,16 +1458,21 @@ namespace System
                     }
                     // Move to Vector length from end for final compare
                     offset = nLength;
-                    matches = Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
-                    if (matches == 0xFFFF)
+                    matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                    // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                    // So the bit position in 'matches' corresponds to the element offset.
+
+                    // 16 elements in Vector128<byte> so we compare to ushort.MaxValue to check if everything matched
+                    if (matches == ushort.MaxValue)
                     {
                         // All matched
                         goto Equal;
                     }
                 Difference:
                     // Invert matches to find differences
-                    int differences = ~matches;
-                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount(differences));
+                    uint differences = ~matches;
+                    // Find bitflag offset of first difference and add to current offset
+                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount((int)differences));
 
                     int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                     Debug.Assert(result != 0);
