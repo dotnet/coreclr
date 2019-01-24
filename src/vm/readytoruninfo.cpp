@@ -607,7 +607,8 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
                                                     pamTracker, &m_pPersistentInlineTrackingMap);
         }
     }
-    // Fpr format version 2.2 and later, there is an optional profile-data section
+
+    // For format version 2.2 and later, there is an optional profile-data section
     if (IsImageVersionAtLeast(2, 2))
     {
         IMAGE_DATA_DIRECTORY * pProfileDataInfoDir = FindSection(READYTORUN_SECTION_PROFILEDATA_INFO);
@@ -619,6 +620,7 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
             pModule->SetMethodProfileList(pMethodProfileList);  
         }
     }
+
 }
 
 static bool SigMatchesMethodDesc(MethodDesc* pMD, SigPointer &sig, Module * pModule)
@@ -786,7 +788,11 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 
     if (g_pDebugInterface != NULL)
     {
-        g_pDebugInterface->JITComplete(pMD, pEntryPoint);
+#if defined(CROSSGEN_COMPILE)
+        g_pDebugInterface->JITComplete(NativeCodeVersion(pMD), pEntryPoint);
+#else
+        g_pDebugInterface->JITComplete(pConfig->GetCodeVersion(), pEntryPoint);
+#endif
     }
 
     return pEntryPoint;

@@ -9,6 +9,7 @@ jobs:
 # https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
 
 # Linux arm
+
 - template: ${{ parameters.jobTemplate }}
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
@@ -22,6 +23,7 @@ jobs:
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux arm64
+
 - template: ${{ parameters.jobTemplate }}
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
@@ -31,12 +33,14 @@ jobs:
     containerName: ubuntu_1604_arm64_cross_build_image
     # TODO: enable Debian.9.Arm64.Open and Debian.9.Arm64 queues
     # when https://github.com/dotnet/core-eng/issues/4805 is resolved
-    helixQueuesPublic: 'Ubuntu.1604.Arm64.Open,Ubuntu.1804.Arm64.Open'
+    # Don't use Ubuntu.1604.Arm64.Open here - the queue should be exclusively used by Jenkins
+    helixQueuesPublic: 'Ubuntu.1804.Arm64.Open'
     helixQueuesInternal: 'Ubuntu.1604.Arm64,Ubuntu.1804.Arm64'
     crossrootfsDir: '/crossrootfs/arm64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux musl
+
 - template: ${{ parameters.jobTemplate }}
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
@@ -48,6 +52,7 @@ jobs:
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # RHEL 6
+
 - template: ${{ parameters.jobTemplate }}
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
@@ -55,20 +60,9 @@ jobs:
     osGroup: Linux
     osIdentifier: Linux_rhel6
     containerName: centos6_x64_build_image
-    helixQueuesPublic: 'RedHat.6.Amd64.Open'
+    # TODO: enable RedHat.6.Amd64.Open
+    # when https://github.com/dotnet/core-eng/issues/4100 is resolved
     helixQueuesInternal: 'RedHat.6.Amd64'
-    ${{ insert }}: ${{ parameters.jobParameters }}
-
-# RHEL 7
-- template: ${{ parameters.jobTemplate }}
-  parameters:
-    buildConfig: ${{ parameters.buildConfig }}
-    archType: x64
-    osGroup: Linux
-    osIdentifier: Linux_rhel7
-    containerName: centos7_x64_build_image
-    helixQueuesPublic: 'Centos.7.Amd64.Open,Fedora.28.Amd64.Open,RedHat.7.Amd64.Open'
-    helixQueuesInternal: 'Centos.7.Amd64,Fedora.28.Amd64,RedHat.7.Amd64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux x64
@@ -79,9 +73,20 @@ jobs:
     archType: x64
     osGroup: Linux
     osIdentifier: Linux
-    containerName: ubuntu_1604_x64_build_image
-    helixQueuesPublic: 'Debian.8.Amd64.Open,Ubuntu.1604.Amd64.Open,Ubuntu.1804.Amd64.Open'
-    helixQueuesInternal: 'Debian.8.Amd64,Ubuntu.1604.Amd64,Ubuntu.1804.Amd64'
+    containerName: centos7_x64_build_image
+    helixQueuesPublic: 'Debian.9.Amd64.Open,Ubuntu.1604.Amd64.Open,Ubuntu.1804.Amd64.Open,Centos.7.Amd64.Open,Fedora.28.Amd64.Open,RedHat.7.Amd64.Open'
+    helixQueuesInternal: 'Debian.9.Amd64,Ubuntu.1604.Amd64,Ubuntu.1804.Amd64,Centos.7.Amd64,Fedora.28.Amd64,RedHat.7.Amd64'
+    ${{ insert }}: ${{ parameters.jobParameters }}
+
+# FreeBSD
+
+- template: ${{ parameters.jobTemplate }}
+  parameters:
+    buildConfig: ${{ parameters.buildConfig }}
+    archType: x64
+    osGroup: FreeBSD
+    osIdentifier: FreeBSD
+    # There are no FreeBSD helix queues, so we don't run tests at the moment.
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # macOS x64
@@ -92,12 +97,12 @@ jobs:
     archType: x64
     osGroup: OSX
     osIdentifier: OSX
-    # TODO: add OSX.1012.Amd64.Open and OSX.1012.Amd64 when https://github.com/dotnet/core-eng/issues/4856 is resolved
+    # TODO: return back OSX.1012.Amd64.Open once Jenkins has been shutdown
     helixQueuesPublic: 'OSX.1013.Amd64.Open'
-    helixQueuesInternal: 'OSX.1013.Amd64'
+    helixQueuesInternal: 'OSX.1012.Amd64,OSX.1013.Amd64,OSX.1014.Amd64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
-# Windows x64/x86/arm/arm64
+# Windows x64/x86
 
 - template: ${{ parameters.jobTemplate }}
   parameters:
@@ -105,7 +110,9 @@ jobs:
     archType: x64
     osGroup: Windows_NT
     osIdentifier: Windows_NT
-    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.10.Nano.Amd64.Open,Windows.7.Amd64.Open,Windows.81.Amd64.Open'
+    # TODO: add Windows.10.Nano.Amd64.Open when https://github.com/dotnet/coreclr/issues/21693 is resolved
+    # TODO: add Windows.7.Amd64.Open when https://github.com/dotnet/coreclr/issues/21796 is resolved
+    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.81.Amd64.Open'
     helixQueuesInternal: 'Windows.10.Amd64,Windows.10.Nano.Amd64,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
@@ -115,9 +122,13 @@ jobs:
     archType: x86
     osGroup: Windows_NT
     osIdentifier: Windows_NT
-    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.10.Nano.Amd64.Open,Windows.7.Amd64.Open,Windows.81.Amd64.Open'
+    # TODO: add Windows.10.Nano.Amd64.Open when https://github.com/dotnet/coreclr/issues/21693 is resolved
+    # TODO: add Windows.7.Amd64.Open when https://github.com/dotnet/coreclr/issues/21796 is resolved
+    helixQueuesPublic: 'Windows.10.Amd64.Open,Windows.81.Amd64.Open'
     helixQueuesInternal: 'Windows.10.Amd64,Windows.10.Nano.Amd64,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64'
     ${{ insert }}: ${{ parameters.jobParameters }}
+
+# Windows arm/arm64
 
 - template: ${{ parameters.jobTemplate }}
   parameters:
@@ -125,7 +136,7 @@ jobs:
     archType: arm
     osGroup: Windows_NT
     osIdentifier: Windows_NT
-    helixQueuesPublic: 'Windows.10.Arm64.Open'
+    # TODO: return back Windows.10.Arm64.Open once Jenkins has been shutdown
     helixQueuesInternal: 'Windows.10.Arm64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
@@ -135,6 +146,6 @@ jobs:
     archType: arm64
     osGroup: Windows_NT
     osIdentifier: Windows_NT
-    helixQueuesPublic: 'Windows.10.Arm64.Open'
+    # TODO: return back Windows.10.Arm64.Open once Jenkins has been shutdown
     helixQueuesInternal: 'Windows.10.Arm64'
     ${{ insert }}: ${{ parameters.jobParameters }}

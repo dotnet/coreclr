@@ -274,7 +274,7 @@
 #define IDS_EE_NOTISOMORPHIC                    0x17e1
 
 #define IDS_EE_COPY_OUTOFRANGE                  0x17e3
-#define IDS_EE_ARRAYWITHOFFSETOVERFLOW          0x17e5
+
 #define IDS_EE_NOCUSTOMMARSHALER                0x17e7
 #define IDS_EE_SIZECONTROLOUTOFRANGE            0x17e8
 #define IDS_EE_SIZECONTROLBADTYPE               0x17e9
@@ -466,6 +466,7 @@
 #define IDS_EE_HWINTRINSIC_NGEN_DISALLOWED      0x1ac7
 #define IDS_CLASSLOAD_MI_FINAL_IMPL             0x1ac8
 #define IDS_CLASSLOAD_AMBIGUOUS_OVERRIDE        0x1ac9
+#define IDS_CLASSLOAD_UNSUPPORTED_DISPATCH      0x1aca
 
 #define BFA_INVALID_TOKEN_TYPE                  0x2001
 #define BFA_INVALID_TOKEN                       0x2003

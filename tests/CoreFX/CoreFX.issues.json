@@ -676,6 +676,10 @@
                 {
                     "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_Point",
                     "reason": "https://github.com/dotnet/corefx/issues/30180"
+                },
+                {
+                    "name": "System.Drawing.Tests.IconTests.ExtractAssociatedIcon_InvalidFilePath_ThrowsArgumentException",
+                    "reason": "https://github.com/dotnet/corefx/issues/34122"
                 }
             ]
         }
@@ -822,6 +826,14 @@
                 {
                     "name" : "System.Runtime.InteropServices.Tests.GetIUnknownForObjectTests.GetIUnknownForObject_ObjectNotCollectible_ThrowsNotSupportedException",
                     "reason" : "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.DispatchWrapperTests.Ctor_NullUnix_ThrowsPlatformNotSupportedException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ArrayWithOffsetTests.Ctor_Array_Offset",
+                    "reason": "outdated"
                 }
             ]
         }
@@ -997,6 +1009,22 @@
                 {
                     "name": "System.Tests.ArrayTests.Copy",
                     "reason": "Needs updates for XUnit 2.4"
+                },
+                {
+                    "name": "System.Tests.TimeSpanTests.Parse_Invalid",
+                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/34561"
+                },
+                {
+                    "name": "System.Tests.TimeSpanTests.Parse_Span",
+                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/34561"
+                },
+                {
+                    "name": "System.Tests.TimeSpanTests.Parse_Span_Invalid",
+                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/34561"
+                },
+                {
+                    "name": "System.Tests.TimeSpanTests.Parse",
+                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/34561"
                 }
             ]
         }

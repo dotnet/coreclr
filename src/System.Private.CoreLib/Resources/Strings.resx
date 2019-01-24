@@ -2428,7 +2428,10 @@
   <data name="InvalidOperation_CannotImportGlobalFromDifferentModule" xml:space="preserve">
     <value>Unable to import a global method or field from a different module.</value>
   </data>
-  <data name="InvalidOperation_CannotRemoveLastFromEmptyCollection" xml:space="preserve">
+  <data name="InvalidOperation_CannotRegisterSecondResolver" xml:space="preserve">
+    <value>A resolver is already set for the assembly.</value>
+  </data>
+    <data name="InvalidOperation_CannotRemoveLastFromEmptyCollection" xml:space="preserve">
     <value>Cannot remove the last element from an empty collection.</value>
   </data>
   <data name="InvalidOperation_CannotRestoreUnsupressedFlow" xml:space="preserve">
@@ -3571,15 +3574,6 @@
   <data name="SynchronizationLockException_MisMatchedWrite" xml:space="preserve">
     <value>The write lock is being released without being held.</value>
   </data>
-  <data name="ConcurrentStack_PushPopRange_CountOutOfRange" xml:space="preserve">
-    <value>The count argument must be greater than or equal to zero.</value>
-  </data>
-  <data name="ConcurrentStack_PushPopRange_InvalidCount" xml:space="preserve">
-    <value>The sum of the startIndex and count arguments must be less than or equal to the collection's Count.</value>
-  </data>
-  <data name="ConcurrentStack_PushPopRange_StartOutOfRange" xml:space="preserve">
-    <value>The startIndex argument must be greater than or equal to zero.</value>
-  </data>
   <data name="NotSupported_SignatureType" xml:space="preserve">
     <value>This method is not supported on signature types.</value>
   </data>
@@ -3649,10 +3643,25 @@
   <data name="Argument_PrecisionTooLarge" xml:space="preserve">
     <value>Precision cannot be larger than {0}.</value>
   </data>
+  <data name="AssemblyDependencyResolver_FailedToLoadHostpolicy" xml:space="preserve">
+    <value>Cannot load hostpolicy library. AssemblyDependencyResolver is currently only supported if the runtime is hosted through hostpolicy library.</value>
+  </data>
+  <data name="AssemblyDependencyResolver_FailedToResolveDependencies" xml:space="preserve">
+    <value>Dependency resolution failed for component {0} with error code {1}. Detailed error: {2}</value>
+  </data>
   <data name="Arg_EnumNotCloneable" xml:space="preserve">
     <value>The supplied object does not implement ICloneable.</value>
   </data>
   <data name="InvalidOp_InvalidNewEnumVariant" xml:space="preserve">
     <value>The returned enumerator does not implement IEnumVARIANT.</value>
+  </data>
+  <data name="Argument_NotIsomorphic" xml:space="preserve">
+    <value>Object contains non-primitive or non-blittable data.</value>
+  </data>
+  <data name="Argument_StructArrayTooLarge" xml:space="preserve">
+    <value>Array size exceeds addressing limitations.</value>
+  </data>
+  <data name="IndexOutOfRange_ArrayWithOffset" xml:space="preserve">
+    <value>ArrayWithOffset: offset exceeds array size.</value>
   </data>
 </root>

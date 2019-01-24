@@ -686,7 +686,7 @@ bool IsInSameVersionBubble(Assembly * current, Assembly * target)
     if (current == target)
         return true;
 
-    return false;
+    return IsLargeVersionBubbleEnabled();
 }
 
 // Returns true if the assemblies defining current and target are in the same version bubble
@@ -5554,7 +5554,7 @@ void CEEInfo::getCallInfo(
                 // We shouldn't be using GetLoaderAllocator here because for LCG, we need to get the 
                 // VirtualCallStubManager from where the stub will be used. 
                 // For normal methods there is no difference.
-                LoaderAllocator *pLoaderAllocator = m_pMethodBeingCompiled->GetLoaderAllocatorForCode();
+                LoaderAllocator *pLoaderAllocator = m_pMethodBeingCompiled->GetLoaderAllocator();
                 VirtualCallStubManager *pMgr = pLoaderAllocator->GetVirtualCallStubManager();
 
                 PCODE addr = pMgr->GetCallStub(exactType, pTargetMD);
@@ -12469,11 +12469,13 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
                                 CORJIT_FLAGS flags,
                                 BYTE **nativeEntry,
                                 ULONG *nativeSizeOfCode,
-                                MethodDesc *ftn)
+                                NativeCodeVersion nativeCodeVersion)
 {
     // no dynamic contract here because SEH is used, with a finally clause
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
+
+    MethodDesc* ftn = nativeCodeVersion.GetMethodDesc();
 
     LOG((LF_CORDB, LL_EVERYTHING, "CallCompileMethodWithSEHWrapper called...\n"));
 
@@ -12527,7 +12529,7 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
             {
                 if (param.res == CORJIT_OK && !((CEEJitInfo*)param.comp)->JitAgain())
                 {
-                    g_pDebugInterface->JITComplete(ftn, (TADDR)*nativeEntry);
+                    g_pDebugInterface->JITComplete(nativeCodeVersion, (TADDR)*nativeEntry);
                 }
             }
         }
@@ -12766,10 +12768,12 @@ BOOL g_fAllowRel32 = TRUE;
 // Calls to this method that occur to check if inlining can occur on x86,
 // are OK since they discard the return value of this method.
 
-PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_FLAGS flags,
+PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODER* ILHeader, CORJIT_FLAGS flags,
                         ULONG * pSizeOfCode)
 {
     STANDARD_VM_CONTRACT;
+
+    MethodDesc* ftn = nativeCodeVersion.GetMethodDesc();
 
     PCODE ret = NULL;
 
@@ -13006,7 +13010,7 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
                                                   flags,
                                                   &nativeEntry,
                                                   &sizeOfCode,
-                                                  (MethodDesc*)ftn);
+                                                  nativeCodeVersion);
             LOG((LF_CORDB, LL_EVERYTHING, "Got through CallCompile MethodWithSEHWrapper\n"));
 
 #if FEATURE_PERFMAP
