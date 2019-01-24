@@ -31,11 +31,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe string PtrToStringAnsi(IntPtr ptr)
         {
-            if (IntPtr.Zero == ptr)
-            {
-                return null;
-            }
-            else if (IsWin32Atom(ptr))
+            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
             {
                 return null;
             }
@@ -79,11 +75,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe string PtrToStringUni(IntPtr ptr)
         {
-            if (IntPtr.Zero == ptr)
-            {
-                return null;
-            }
-            else if (IsWin32Atom(ptr))
+            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
             {
                 return null;
             }
@@ -99,7 +91,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe string PtrToStringUTF8(IntPtr ptr)
         {
-            if (IntPtr.Zero == ptr)
+            if (ptr == IntPtr.Zero)
             {
                 return null;
             }
@@ -115,15 +107,11 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentOutOfRangeException(nameof(byteLen), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             
-            if (IntPtr.Zero == ptr)
+            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
             {
                 return null;
             }
-            else if (IsWin32Atom(ptr))
-            {
-                return null;
-            }
-            else if (byteLen == 0)
+            if (byteLen == 0)
             {
                 return string.Empty;
             }
@@ -554,7 +542,7 @@ namespace System.Runtime.InteropServices
             {
                 throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(structureType));
             }
-            if (!(structureType.IsRuntimeImplemented()))
+            if (!structureType.IsRuntimeImplemented())
             {
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(structureType));
             }
@@ -655,7 +643,7 @@ namespace System.Runtime.InteropServices
             {
                 throw new ArgumentNullException(nameof(type));
             }
-            if (!(type.IsRuntimeImplemented()))
+            if (!type.IsRuntimeImplemented())
             {
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
             }
