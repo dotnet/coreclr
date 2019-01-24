@@ -1443,11 +1443,11 @@ namespace System
                     {
                         if (LoadVector(ref first, offset) != LoadVector(ref second, offset))
                         {
-                            goto NotEqual;
+                            goto BytewiseCheck;
                         }
                         offset += Vector<byte>.Count;
                     }
-                    goto NotEqual;
+                    goto BytewiseCheck;
                 }
             }
 
@@ -1458,13 +1458,13 @@ namespace System
                 {
                     if (LoadUIntPtr(ref first, offset) != LoadUIntPtr(ref second, offset))
                     {
-                        goto NotEqual;
+                        goto BytewiseCheck;
                     }
                     offset += sizeof(UIntPtr);
                 }
             }
 
-        NotEqual:  // Workaround for https://github.com/dotnet/coreclr/issues/13549
+        BytewiseCheck:  // Workaround for https://github.com/dotnet/coreclr/issues/13549
             while ((byte*)minLength > (byte*)offset)
             {
                 int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
