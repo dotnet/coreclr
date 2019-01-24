@@ -66,7 +66,7 @@ namespace System.Diagnostics.Tracing
                 if (m_checkedForEnable)
                     return;
                 m_checkedForEnable = true;
-                if (TplEtwProvider.Log.IsEnabled(EventLevel.Informational, TplEtwProvider.Keywords.TasksFlowActivityIds))
+                if (TplEventSource.Log.IsEnabled(EventLevel.Informational, TplEventSource.Keywords.TasksFlowActivityIds))
                     Enable();
                 if (m_current == null)
                     return;
@@ -78,7 +78,7 @@ namespace System.Diagnostics.Tracing
             var currentActivity = m_current.Value;
             var fullActivityName = NormalizeActivityName(providerName, activityName, task);
 
-            var etwLog = TplEtwProvider.Log;
+            var etwLog = TplEventSource.Log;
             if (etwLog.Debug)
             {
                 etwLog.DebugFacilityMessage("OnStartEnter", fullActivityName);
@@ -145,7 +145,7 @@ namespace System.Diagnostics.Tracing
 
             var fullActivityName = NormalizeActivityName(providerName, activityName, task);
             
-            var etwLog = TplEtwProvider.Log;
+            var etwLog = TplEventSource.Log;
             if (etwLog.Debug)
             {
                 etwLog.DebugFacilityMessage("OnStopEnter", fullActivityName);
@@ -616,7 +616,7 @@ namespace System.Diagnostics.Tracing
     /// </summary>
     /// 
     [EventSource(Name = "Microsoft.Tasks.Nuget")]
-    internal class TplEtwProvider : EventSource
+    internal class TplEventSource : EventSource
     {
         public class Keywords
         {
@@ -624,7 +624,7 @@ namespace System.Diagnostics.Tracing
             public const EventKeywords Debug = (EventKeywords)0x20000;
         }
 
-        public static TplEtwProvider Log = new TplEtwProvider();
+        public static TplEventSource Log = new TplEventSource();
         public bool Debug { get { return IsEnabled(EventLevel.Verbose, Keywords.Debug); } }
 
         public void DebugFacilityMessage(string Facility, string Message) { WriteEvent(1, Facility, Message); }

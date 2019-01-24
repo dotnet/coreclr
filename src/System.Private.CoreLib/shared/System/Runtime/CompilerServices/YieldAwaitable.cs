@@ -77,7 +77,7 @@ namespace System.Runtime.CompilerServices
                 // Validate arguments
                 if (continuation == null) throw new ArgumentNullException(nameof(continuation));
 
-                if (TplEtwProvider.Log.IsEnabled())
+                if (TplEventSource.Log.IsEnabled())
                 {
                     continuation = OutputCorrelationEtwEvent(continuation);
                 }
@@ -120,7 +120,7 @@ namespace System.Runtime.CompilerServices
                 Debug.Assert(box != null);
 
                 // If tracing is enabled, delegate the Action-based implementation.
-                if (TplEtwProvider.Log.IsEnabled())
+                if (TplEventSource.Log.IsEnabled())
                 {
                     QueueContinuation(box.MoveNextAction, flowContext: false);
                     return;
@@ -157,18 +157,18 @@ namespace System.Runtime.CompilerServices
                 int continuationId = Task.NewId();
                 Task currentTask = Task.InternalCurrent;
                 // fire the correlation ETW event
-                TplEtwProvider.Log.AwaitTaskContinuationScheduled(TaskScheduler.Current.Id, (currentTask != null) ? currentTask.Id : 0, continuationId);
+                TplEventSource.Log.AwaitTaskContinuationScheduled(TaskScheduler.Current.Id, (currentTask != null) ? currentTask.Id : 0, continuationId);
 
                 return AsyncMethodBuilderCore.CreateContinuationWrapper(continuation, (innerContinuation,continuationIdTask) =>
                 {
-                    var etwLog = TplEtwProvider.Log;
+                    var etwLog = TplEventSource.Log;
                     etwLog.TaskWaitContinuationStarted(((Task<int>)continuationIdTask).Result);
 
                     // ETW event for Task Wait End.
                     Guid prevActivityId = new Guid();
                     // Ensure the continuation runs under the correlated activity ID generated above
                     if (etwLog.TasksSetActivityIds)
-                        EventSource.SetCurrentThreadActivityId(TplEtwProvider.CreateGuidForTaskID(((Task<int>)continuationIdTask).Result), out prevActivityId);
+                        EventSource.SetCurrentThreadActivityId(TplEventSource.CreateGuidForTaskID(((Task<int>)continuationIdTask).Result), out prevActivityId);
 
                     // Invoke the original continuation provided to OnCompleted.
                     innerContinuation();

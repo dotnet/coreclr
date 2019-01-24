@@ -206,7 +206,7 @@ namespace System.Runtime.CompilerServices
 
             // If TaskWait* ETW events are enabled, trace a beginning event for this await
             // and set up an ending event to be traced when the asynchronous await completes.
-            if (TplEtwProvider.Log.IsEnabled() || Task.s_asyncDebuggingEnabled)
+            if (TplEventSource.Log.IsEnabled() || Task.s_asyncDebuggingEnabled)
             {
                 continuation = OutputWaitEtwEvents(task, continuation);
             }
@@ -225,7 +225,7 @@ namespace System.Runtime.CompilerServices
 
             // If TaskWait* ETW events are enabled, trace a beginning event for this await
             // and set up an ending event to be traced when the asynchronous await completes.
-            if (TplEtwProvider.Log.IsEnabled() || Task.s_asyncDebuggingEnabled)
+            if (TplEventSource.Log.IsEnabled() || Task.s_asyncDebuggingEnabled)
             {
                 task.SetContinuationForAwait(OutputWaitEtwEvents(task, stateMachineBox.MoveNextAction), continueOnCapturedContext, flowExecutionContext: false);
             }
@@ -251,7 +251,7 @@ namespace System.Runtime.CompilerServices
                 Task.AddToActiveTasks(task);
             }
 
-            var etwLog = TplEtwProvider.Log;
+            var etwLog = TplEventSource.Log;
 
             if (etwLog.IsEnabled())
             {
@@ -263,7 +263,7 @@ namespace System.Runtime.CompilerServices
                 etwLog.TaskWaitBegin(
                     (currentTaskAtBegin != null ? currentTaskAtBegin.m_taskScheduler.Id : TaskScheduler.Default.Id),
                     (currentTaskAtBegin != null ? currentTaskAtBegin.Id : 0),
-                    task.Id, TplEtwProvider.TaskWaitBehavior.Asynchronous,
+                    task.Id, TplEventSource.TaskWaitBehavior.Asynchronous,
                     (continuationTask != null ? continuationTask.Id : 0));
             }
 
@@ -279,7 +279,7 @@ namespace System.Runtime.CompilerServices
                     Task.RemoveFromActiveTasks(innerTask);
                 }
 
-                TplEtwProvider innerEtwLog = TplEtwProvider.Log;
+                TplEventSource innerEtwLog = TplEventSource.Log;
 
                 // ETW event for Task Wait End.
                 Guid prevActivityId = new Guid();
@@ -295,7 +295,7 @@ namespace System.Runtime.CompilerServices
                     // Ensure the continuation runs under the activity ID of the task that completed for the
                     // case the antecedent is a promise (in the other cases this is already the case).
                     if (innerEtwLog.TasksSetActivityIds && (innerTask.Options & (TaskCreationOptions)InternalTaskOptions.PromiseTask) != 0)
-                        EventSource.SetCurrentThreadActivityId(TplEtwProvider.CreateGuidForTaskID(innerTask.Id), out prevActivityId);
+                        EventSource.SetCurrentThreadActivityId(TplEventSource.CreateGuidForTaskID(innerTask.Id), out prevActivityId);
                 }
 
                 // Invoke the original continuation provided to OnCompleted.
