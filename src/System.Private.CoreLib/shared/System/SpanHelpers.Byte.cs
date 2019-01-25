@@ -296,9 +296,8 @@ namespace System
                         Vector128<byte> values = Vector128.Create(value);
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
 
+                        // Same method as above
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search));
-                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -329,9 +328,8 @@ namespace System
                     {
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
 
+                        // Same method as above
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search));
-                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -637,10 +635,11 @@ namespace System
                         do
                         {
                             Vector256<byte> search = LoadVector256(ref searchSpace, offset);
-                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search));
-                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search));
                             // Note that MoveMask has converted the equal vector elements into a set of bit flags,
                             // So the bit position in 'matches' corresponds to the element offset.
+                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search));
+                            // Bitwise Or to combine the flagged matches for the second value to our match flags
+                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search));
                             if (matches == 0)
                             {
                                 // Zero flags set so no matches
@@ -660,10 +659,9 @@ namespace System
                         Vector128<byte> values1 = Vector128.Create(value1);
 
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
+                        // Same method as above
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
-                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -695,10 +693,9 @@ namespace System
                     while ((byte*)nLength > (byte*)offset)
                     {
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
+                        // Same method as above
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
-                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -871,11 +868,13 @@ namespace System
                         do
                         {
                             Vector256<byte> search = LoadVector256(ref searchSpace, offset);
-                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search));
-                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search));
-                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values2, search));
                             // Note that MoveMask has converted the equal vector elements into a set of bit flags,
                             // So the bit position in 'matches' corresponds to the element offset.
+                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search));
+                            // Bitwise Or to combine the flagged matches for the second value to our match flags
+                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search));
+                            // Bitwise Or to combine the flagged matches for the third value to our match flags
+                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values2, search));
                             if (matches == 0)
                             {
                                 // Zero flags set so no matches
@@ -896,11 +895,10 @@ namespace System
                         Vector128<byte> values2 = Vector128.Create(value2);
 
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
+                        // Same method as above
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search));
-                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -933,11 +931,10 @@ namespace System
                     while ((byte*)nLength > (byte*)offset)
                     {
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
+                        // Same method as above
                         int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
                         matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search));
-                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                        // So the bit position in 'matches' corresponds to the element offset.
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -1375,11 +1372,8 @@ namespace System
                     }
                     // Move to Vector length from end for final compare
                     offset = nLength;
+                    // Same as method as above
                     matches = (uint)Avx2.MoveMask(Avx2.CompareEqual(LoadVector256(ref first, offset), LoadVector256(ref second, offset)));
-                    // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                    // So the bit position in 'matches' corresponds to the element offset.
-
-                    // 32 elements in Vector256<byte> so we compare to uint.MaxValue to check if everything matched
                     if (matches == uint.MaxValue)
                     {
                         // All matched
@@ -1404,6 +1398,10 @@ namespace System
                     if ((byte*)nLength > (byte*)offset)
                     {
                         matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
+
+                        // 16 elements in Vector128<byte> so we compare to ushort.MaxValue to check if everything matched
                         if (matches == ushort.MaxValue)
                         {
                             // All matched
@@ -1416,11 +1414,8 @@ namespace System
                     }
                     // Move to Vector length from end for final compare
                     offset = nLength;
+                    // Same as method as above
                     matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
-                    // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                    // So the bit position in 'matches' corresponds to the element offset.
-
-                    // 16 elements in Vector128<byte> so we compare to ushort.MaxValue to check if everything matched
                     if (matches == ushort.MaxValue)
                     {
                         // All matched
@@ -1447,6 +1442,10 @@ namespace System
                     while ((byte*)nLength > (byte*)offset)
                     {
                         matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
+
+                        // 16 elements in Vector128<byte> so we compare to ushort.MaxValue to check if everything matched
                         if (matches == ushort.MaxValue)
                         {
                             // All matched
@@ -1458,11 +1457,8 @@ namespace System
                     }
                     // Move to Vector length from end for final compare
                     offset = nLength;
+                    // Same as method as above
                     matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)));
-                    // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                    // So the bit position in 'matches' corresponds to the element offset.
-
-                    // 16 elements in Vector128<byte> so we compare to ushort.MaxValue to check if everything matched
                     if (matches == ushort.MaxValue)
                     {
                         // All matched
