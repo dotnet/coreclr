@@ -75,6 +75,10 @@ Copyright (c) .NET Foundation. All rights reserved.
 
   <Target Name="_ComputeReadyToRunInputsAndOutputs"
           Condition="'$(ReadyToRun)' == 'true'">
+    <PropertyGroup>
+      <_RuntimePackageName Condition="'%(ResolvedAssembliesToPublish.FileName)%(ResolvedAssembliesToPublish.Extension)' == 'System.Private.CoreLib.dll'">%(ResolvedAssembliesToPublish.PackageName)</_RuntimePackageName>
+    </PropertyGroup>
+
     <ItemGroup>
       <_CrossgenInputIntermediateAssembly Include="@(IntermediateAssembly)" />
       <_CrossgenInputAssemblies Include="@(_CrossgenInputIntermediateAssembly)" />
