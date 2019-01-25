@@ -88,9 +88,9 @@ jobs:
 # https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
 
 #
-# Debug build (CI)
+# Debug build (Pull Request)
 #
-- ${{ if eq(variables['System.TeamProject'], 'public') }}:
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: build-job.yml
@@ -106,17 +106,18 @@ jobs:
       buildConfig: checked
 
 #
-# Release build (Official Build)
+# Release build (Official Build, Pull Request)
 #
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: release
-    jobParameters:
-      # Publishing packages to blob feeds sometimes takes a long time
-      # due to waiting for an exclusive lock on the feed.
-      # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
-      timeoutInMinutes: 120
+- ${{ if xor(eq(variables['System.TeamProject'], 'internal'), eq(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: release
+      jobParameters:
+        # Publishing packages to blob feeds sometimes takes a long time
+        # due to waiting for an exclusive lock on the feed.
+        # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
+        timeoutInMinutes: 120
 
 #
 # Checked test builds
