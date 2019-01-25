@@ -902,11 +902,11 @@ class SuperPMIReplayAsmDiffs:
                         mcl_lines = [item.strip() for item in mcl_lines]
                         self.diff_mcl_contents = mcl_lines
 
-                bin_asm_location = os.path.join(self.coreclr_args.bin_location, "asm")
+                bin_asm_location = os.path.join(self.coreclr_args.bin_location, "asm", "asm")
 
                 count = 0
                 while os.path.isdir(bin_asm_location):
-                    new_bin_asm_location = os.path.join(self.coreclr_args.bin_location, "asm" + str(count))
+                    new_bin_asm_location = os.path.join(self.coreclr_args.bin_location, "asm", "asm" + str(count))
                     
                     count += 1
 
@@ -916,8 +916,19 @@ class SuperPMIReplayAsmDiffs:
                 base_asm_location = os.path.join(bin_asm_location, "base")
                 diff_asm_location = os.path.join(bin_asm_location, "diff")
 
-                base_dump_location = os.path.join(self.coreclr_args.bin_location, "jit_dump", "base")
-                diff_dump_location = os.path.join(self.coreclr_args.bin_location, "jit_dump", "diff")
+                bin_dump_location = os.path.join(self.coreclr_args.bin_location, "jit_dump", "jit_dump")
+
+                count = 0
+                while os.path.isdir(bin_asm_location):
+                    new_base_dump_location = os.path.join(self.coreclr_args.bin_location, "jit_dump", "jit_dump" + str(count))
+                    
+                    count += 1
+
+                    print("{} location exists. Attempting to create: {}".format(bin_dump_location, new_base_dump_location))
+                    bin_dump_location = new_base_dump_location
+
+                base_dump_location = os.path.join(bin_dump_location, "base")
+                diff_dump_location = os.path.join(bin_dump_location, "diff")
 
                 if not self.coreclr_args.diff_with_code_only:
                     # Delete the old asm.
@@ -1025,14 +1036,14 @@ class SuperPMIReplayAsmDiffs:
                             diff_txt = None
 
                             with open(os.path.join(base_asm_location, "{}.dasm".format(item)), 'w') as file_handle:
-                                #print("Invoking: " + " ".join(command))
+                                print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
                                 proc = subprocess.Popen(command, env=asm_env, stdout=file_handle)
                                 proc.communicate()
 
                             command = [superpmi_path] + flags + [diff_jit_path, mch_file]
 
                             with open(os.path.join(diff_asm_location, "{}.dasm".format(item)), 'w') as file_handle:
-                                #print("Invoking: " + " ".join(command))
+                                print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
                                 proc = subprocess.Popen(command, env=asm_env, stdout=file_handle)
                                 proc.communicate()
 
@@ -1053,14 +1064,14 @@ class SuperPMIReplayAsmDiffs:
                                 command = [superpmi_path] + flags + [base_jit_path, mch_file]
 
                                 with open(os.path.join(base_dump_location, "{}.txt".format(item)), 'w') as file_handle:
-                                    #print("Invoking: " + " ".join(command))
+                                    print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
                                     proc = subprocess.Popen(command, env=jit_dump_env, stdout=file_handle)
                                     proc.communicate()
 
                                 command = [superpmi_path] + flags + [diff_jit_path, mch_file]
 
                                 with open(os.path.join(diff_dump_location, "{}.txt".format(item)), 'w') as file_handle:
-                                    #print("Invoking: " + " ".join(command))
+                                    print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
                                     proc = subprocess.Popen(command, env=jit_dump_env, stdout=file_handle)
                                     proc.communicate()
 
@@ -1085,7 +1096,6 @@ class SuperPMIReplayAsmDiffs:
 
                         try:
                             item = queue.get(True, 1)
-                            print("[TID: {}]: DEUQUE - {}".format(thread_id, item))
                         except:
                             item = None
 
@@ -1094,8 +1104,6 @@ class SuperPMIReplayAsmDiffs:
 
                             try:
                                 item = queue.get(True, 1)
-
-                                print("[TID: {}]: DEUQUE - {}".format(thread_id, item))
                             except:
                                 item = None
 
