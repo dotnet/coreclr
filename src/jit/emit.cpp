@@ -5637,7 +5637,7 @@ void emitter::emitDispDataSec(dataSecDsc* section)
                     {
                         printf("dd\t%08Xh", reinterpret_cast<uint32_t>(emitOffsetToPtr(ig->igOffs)));
                     }
-#else // _TARGET_64BIT_
+#else  // _TARGET_64BIT_
                     // We have a 64-BIT target
                     if (emitComp->opts.disDiffable)
                     {
@@ -5647,7 +5647,7 @@ void emitter::emitDispDataSec(dataSecDsc* section)
                     {
                         printf("dq\t%016llXh", reinterpret_cast<uint64_t>(emitOffsetToPtr(ig->igOffs)));
                     }
-#endif  // _TARGET_64BIT_
+#endif // _TARGET_64BIT_
                 }
 
                 if (!emitComp->opts.disDiffable)
