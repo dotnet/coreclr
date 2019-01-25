@@ -595,12 +595,7 @@ namespace System
         public bool EndsWith(char value)
         {
             int lastPos = Length - 1;
-            if ((uint)lastPos < (uint)Length && this[lastPos] == value)
-            {
-                return true;
-            }
-
-            return false;
+            return ((uint)lastPos < (uint)Length) && this[lastPos] == value;
         }
 
         // Determines whether two strings match.
