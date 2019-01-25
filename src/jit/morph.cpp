@@ -18179,6 +18179,11 @@ public:
                 assert(TopValue(1).Node() == node);
                 assert(TopValue(0).Node() == node->gtGetOp1());
 
+                if (node->gtGetOp1()->OperGet() == GT_LCL_VAR)
+                {
+                    node->gtFlags |= GTF_ADDR_ONSTACK;
+                }
+
                 TopValue(1).Address(TopValue(0));
                 PopValue();
                 break;
