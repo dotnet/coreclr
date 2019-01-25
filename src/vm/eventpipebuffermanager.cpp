@@ -352,6 +352,9 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
 
             // Attempt to write the event to the buffer.  If this fails, we should allocate a new buffer.
             allocNewBuffer = !pBuffer->WriteEvent(pEventThread, session, event, payload, pActivityId, pRelatedActivityId, pStack);
+
+            // Mark that the thread is no longer writing an event.
+            pThreadBufferList->SetThreadEventWriteInProgress(false);
         }
     }
 
@@ -379,10 +382,11 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         // The event is still enabled.  Mark that the thread is now writing an event.
         pThreadBufferList->SetThreadEventWriteInProgress(true);
         allocNewBuffer = !pBuffer->WriteEvent(pEventThread, session, event, payload, pActivityId, pRelatedActivityId, pStack);
+
+        // Mark that the thread is no longer writing an event.
+        pThreadBufferList->SetThreadEventWriteInProgress(false);
     }
 
-    // Mark that the thread is no longer writing an event.
-    pThreadBufferList->SetThreadEventWriteInProgress(false);
 
 #ifdef _DEBUG
     if(!allocNewBuffer)

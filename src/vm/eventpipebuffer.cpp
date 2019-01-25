@@ -74,10 +74,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
     bool success = true;
     EX_TRY
     {
-        LPCGUID pThreadActivityID = pActivityId;
-
         // Placement-new the EventPipeEventInstance.
-
         // if pthread is NULL, it's likely we are running in something like a GC thread which is not a Thread object, so it can't have an activity ID set anyway
         pInstance = new (m_pCurrent) EventPipeEventInstance(
             session,
