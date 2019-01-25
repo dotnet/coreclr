@@ -399,7 +399,7 @@ CONFIG_STRING(JitFunctionFile, W("JitFunctionFile"))
 //    0: disable frames that save FP/LR registers with the callee-saved registers (at the top of the frame)
 //    1: force all frames to use the frame types that save FP/LR registers with the callee-saved registers (at the top
 //    of the frame)
-CONFIG_INTEGER(JitSaveFpLrWithCalleeSavedRegisters, W("JitSaveFpLrWithCalleeSavedRegisters"), -1)
+CONFIG_INTEGER(JitSaveFpLrWithCalleeSavedRegisters, W("JitSaveFpLrWithCalleeSavedRegisters"), 1)
 #endif // defined(_TARGET_ARM64_)
 #endif // DEBUG
 
