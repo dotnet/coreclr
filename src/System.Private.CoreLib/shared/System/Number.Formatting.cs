@@ -405,16 +405,50 @@ namespace System
             // accept values like 0 and others may require additional fixups.
             int nMaxDigits = precision;
 
-            if ((precision < DoublePrecision) || (fmt == 'R') || (fmt == 'r'))
+            switch (fmt)
             {
-                // For all formats, we will ask for the shortest roundtrippable
-                // string when less than DoublePrecision digits are requested. This
-                // allows us to return the correct string regardless of what the
-                // precision specifier means for a given format (e.g. in some cases
-                // it may mean the number of digits after the decimal point). We
-                // also need to always change the precision for the 'R' format since
-                // that must always return the shortest roundtrippable string.
-                precision = -1;
+                case 'C':
+                case 'c':
+                case 'F':
+                case 'f':
+                case 'N':
+                case 'n':
+                case 'E':
+                case 'e':
+                case 'P':
+                case 'p':
+                {
+                    // The currency, fixed-point, number, exponential, and percent
+                    // format specifiers need to always compute at least DoublePrecision
+                    // digits since they all use precision to specify the number of digits
+                    // after the decimal point that should be formatted. Ideally we would
+                    // compute enough digits to ensure that the integral part is fully
+                    // fleshed out but that is non trivial and requires additional work.
+                    precision = Math.Max(precision, DoublePrecision);
+                    break;
+                }
+
+                
+                case 'G':
+                case 'g':
+                {
+                    // For the general format specifier, we just treat a precision of 0
+                    // as the shortest roundtrippable string, since the user can't actually
+                    // request zero significant digits.
+                    if (precision == 0)
+                    {
+                        precision = -1;
+                    }
+                    break;
+                }
+
+                case 'R':
+                case 'r':
+                {
+                    // For the roundtrip specifier, we need to always ask for the shortest roundtrippable string.
+                    precision = -1;
+                    break;
+                }
             }
 
             if ((value == 0.0) || !Grisu3.RunDouble(value, precision, ref number))
@@ -423,18 +457,25 @@ namespace System
             }
 
             number.CheckConsistency();
-            Debug.Assert(BitConverter.DoubleToInt64Bits(value) == BitConverter.DoubleToInt64Bits(NumberToDouble(ref number)));
+
+            // When the number is known to be roundtrippable (either because we requested it be, or
+            // because we know we have enough digits to satisfy roundtrippability), we should validate
+            // that the number actually roundtrips back to the original result.
+
+            Debug.Assert(((precision != -1) && (precision < DoublePrecision)) || BitConverter.DoubleToInt64Bits(value) == BitConverter.DoubleToInt64Bits(NumberToDouble(ref number)));
 
             if (fmt != 0)
             {
-                if ((fmt == 'R') || (fmt == 'r') || ((nMaxDigits < 1) && (fmt == 'G') || (fmt == 'g')))
+                if (precision == -1)
                 {
-                    // For the roundtrip format specifier and the general format specifier when the requested
-                    // number of digits is less than 1, we need to update the maximum number of digits to be
-                    // the greater of number.DigitsCount or DoublePrecision. This ensures that we continue
-                    // returning "pretty" strings for values with less digits. One example this fixes is
-                    // "-60", which would otherwise be formatted as "-6E+01" since DigitsCount would be 1
-                    // and the formatter would almost immediately switch to scientific notation.
+                    Debug.Assert((fmt == 'G') || (fmt == 'g') || (fmt == 'R') || (fmt == 'r'));
+
+                    // For the roundtrip and general format specifiers, when returning the shortest roundtrippable
+                    // string, we need to update the maximum number of digits to be the greater of number.DigitsCount
+                    // or DoublePrecision. This ensures that we continue returning "pretty" strings for values with
+                    // less digits. One example this fixes is "-60", which would otherwise be formatted as "-6E+01"
+                    // since DigitsCount would be 1 and the formatter would almost immediately switch to scientific notation.
+
                     nMaxDigits = Math.Max(number.DigitsCount, DoublePrecision);
                 }
                 NumberToString(ref sb, ref number, fmt, nMaxDigits, info);
@@ -490,16 +531,50 @@ namespace System
             // accept values like 0 and others may require additional fixups.
             int nMaxDigits = precision;
 
-            if ((precision < SinglePrecision) || (fmt == 'R') || (fmt == 'r'))
+            switch (fmt)
             {
-                // For all formats, we will ask for the shortest roundtrippable
-                // string when less than SinglePrecision digits are requested. This
-                // allows us to return the correct string regardless of what the
-                // precision specifier means for a given format (e.g. in some cases
-                // it may mean the number of digits after the decimal point). We
-                // also need to always change the precision for the 'R' format since
-                // that must always return the shortest roundtrippable string.
-                precision = -1;
+                case 'C':
+                case 'c':
+                case 'F':
+                case 'f':
+                case 'N':
+                case 'n':
+                case 'E':
+                case 'e':
+                case 'P':
+                case 'p':
+                {
+                    // The currency, fixed-point, number, exponential, and percent
+                    // format specifiers need to always compute at least SinglePrecision
+                    // digits since they all use precision to specify the number of digits
+                    // after the decimal point that should be formatted. Ideally we would
+                    // compute enough digits to ensure that the integral part is fully
+                    // fleshed out but that is non trivial and requires additional work.
+                    precision = Math.Max(precision, SinglePrecision);
+                    break;
+                }
+
+
+                case 'G':
+                case 'g':
+                {
+                    // For the general format specifier, we just treat a precision of 0
+                    // as the shortest roundtrippable string, since the user can't actually
+                    // request zero significant digits.
+                    if (precision == 0)
+                    {
+                        precision = -1;
+                    }
+                    break;
+                }
+
+                case 'R':
+                case 'r':
+                {
+                    // For the roundtrip specifier, we need to always ask for the shortest roundtrippable string.
+                    precision = -1;
+                    break;
+                }
             }
 
             if ((value == 0.0f) || !Grisu3.RunSingle(value, precision, ref number))
@@ -508,18 +583,25 @@ namespace System
             }
 
             number.CheckConsistency();
-            Debug.Assert(BitConverter.SingleToInt32Bits(value) == BitConverter.SingleToInt32Bits(NumberToSingle(ref number)));
+
+            // When the number is known to be roundtrippable (either because we requested it be, or
+            // because we know we have enough digits to satisfy roundtrippability), we should validate
+            // that the number actually roundtrips back to the original result.
+
+            Debug.Assert(((precision != -1) && (precision < SinglePrecision)) || BitConverter.SingleToInt32Bits(value) == BitConverter.SingleToInt32Bits(NumberToSingle(ref number)));
 
             if (fmt != 0)
             {
-                if ((fmt == 'R') || (fmt == 'r') || ((nMaxDigits < 1) && (fmt == 'G') || (fmt == 'g')))
+                if (precision == -1)
                 {
-                    // For the roundtrip format specifier and the general format specifier when the requested
-                    // number of digits is less than 1, we need to update the maximum number of digits to be
-                    // the greater of number.DigitsCount or SinglePrecision. This ensures that we continue
-                    // returning "pretty" strings for values with less digits. One example this fixes is
-                    // "-60", which would otherwise be formatted as "-6E+01" since DigitsCount would be 1
-                    // and the formatter would almost immediately switch to scientific notation.
+                    Debug.Assert((fmt == 'G') || (fmt == 'g') || (fmt == 'R') || (fmt == 'r'));
+
+                    // For the roundtrip and general format specifiers, when returning the shortest roundtrippable
+                    // string, we need to update the maximum number of digits to be the greater of number.DigitsCount
+                    // or SinglePrecision. This ensures that we continue returning "pretty" strings for values with
+                    // less digits. One example this fixes is "-60", which would otherwise be formatted as "-6E+01"
+                    // since DigitsCount would be 1 and the formatter would almost immediately switch to scientific notation.
+
                     nMaxDigits = Math.Max(number.DigitsCount, SinglePrecision);
                 }
                 NumberToString(ref sb, ref number, fmt, nMaxDigits, info);
