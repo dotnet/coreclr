@@ -700,7 +700,7 @@ namespace System.Runtime.InteropServices
                     Debug.Assert(caConstructorArgs.Count == 1, "caConstructorArgs.Count == 1");
 
                     CustomAttributeTypedArgument progIdConstructorArg = caConstructorArgs[0];
-                    Debug.Assert(progIdConstructorArg.ArgumentType == typeof(string), "progIdConstructorArg.ArgumentType == typeof(String)");
+                    Debug.Assert(progIdConstructorArg.ArgumentType == typeof(string), "progIdConstructorArg.ArgumentType == typeof(string)");
 
                     string strProgId = (string)progIdConstructorArg.Value;
 
