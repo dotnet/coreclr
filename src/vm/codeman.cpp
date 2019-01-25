@@ -905,6 +905,9 @@ PTR_RUNTIME_FUNCTION FindRootEntry(PTR_RUNTIME_FUNCTION pFunctionEntry, TADDR ba
 
     if (pRootEntry != NULL)
     {
+        // Walk backwards in the RUNTIME_FUNCTION array until we find a non-fragment.
+        // We're guaranteed to find one, because we require that a fragment live in a function or funclet
+        // that has a prolog, which will have non-fragment .xdata.
         for (;;)
         {
             if (!IsFunctionFragment(baseAddress, pRootEntry))
@@ -3886,6 +3889,8 @@ void EEJitManager::NibbleMapSet(HeapList * pHp, TADDR pCode, BOOL bSet)
 #endif // !DACCESS_COMPILE
 
 #if defined(WIN64EXCEPTIONS)
+// Note: This returns the root unwind record (the one that describes the prolog)
+// in cases where there is fragmented unwind.
 PTR_RUNTIME_FUNCTION EEJitManager::LazyGetFunctionEntry(EECodeInfo * pCodeInfo)
 {
     CONTRACTL {
@@ -3907,24 +3912,23 @@ PTR_RUNTIME_FUNCTION EEJitManager::LazyGetFunctionEntry(EECodeInfo * pCodeInfo)
     // We need the module base address to calculate the end address of a function from the functionEntry.
     // Thus, save it off right now.
     TADDR baseAddress = pCodeInfo->GetModuleBase();
-    PTR_RUNTIME_FUNCTION pFunctionEntry = NULL;
 
     // NOTE: We could binary search here, if it would be helpful (e.g., large number of funclets)
     for (UINT iUnwindInfo = 0; iUnwindInfo < pHeader->GetNumberOfUnwindInfos(); iUnwindInfo++)
     {
-        pFunctionEntry = pHeader->GetUnwindInfo(iUnwindInfo);
+        PTR_RUNTIME_FUNCTION pFunctionEntry = pHeader->GetUnwindInfo(iUnwindInfo);
 
         if (RUNTIME_FUNCTION__BeginAddress(pFunctionEntry) <= address && address < RUNTIME_FUNCTION__EndAddress(pFunctionEntry, baseAddress))
         {
+#if defined(EXCEPTION_DATA_SUPPORTS_FUNCTION_FRAGMENTS)
+            // If we may have fragmented unwind make sure we're returning the root record
+            pFunctionEntry = FindRootEntry(pFunctionEntry, baseAddress);
+#endif
             break;
         }
     }
 
-#if defined(EXCEPTION_DATA_SUPPORTS_FUNCTION_FRAGMENTS)
-    pFunctionEntry = FindRootEntry(pFunctionEntry, baseAddress);
-#endif
-
-    return pFunctionEntry;
+    return NULL;
 }
 
 DWORD EEJitManager::GetFuncletStartOffsets(const METHODTOKEN& MethodToken, DWORD* pStartFuncletOffsets, DWORD dwLength)
