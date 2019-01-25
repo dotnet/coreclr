@@ -73,23 +73,19 @@ Copyright (c) .NET Foundation. All rights reserved.
         FormattedText="Creating ReadyToRun images is not supported for the RuntimeIdentifier $(RuntimeIdentifier) on the host OS $(_OSPlatform)-$(_OSArchitecture.ToLower())" />
   </Target>
 
-  <Target Name="_ComputeReadyToRunInputsAndOutputs">
+  <Target Name="_ComputeReadyToRunInputsAndOutputs"
+          Condition="'$(ReadyToRun)' == 'true'">
     <ItemGroup>
       <_CrossgenInputIntermediateAssembly Include="@(IntermediateAssembly)" />
       <_CrossgenInputAssemblies Include="@(_CrossgenInputIntermediateAssembly)" />
-      <!-- TODO: Remove. The following line is only used to test that we can create ReadyToRun images for multiple input assemblies -->
-      <_CrossgenInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'%(Filename)%(Extension)' == '$(ReadyToRunOneAdditionalFile)'" />
-      <!-- If we want to crossgen other IL assemblies, we must filter out the native assemblies -->
-      <!-- <_CrossgenInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'%(ResolvedAssembliesToPublish.AssetType)' == 'runtime'" /> -->
-
-      <_CrossgenReferenceAssemblies Include="@(ResolvedAssembliesToPublish)" />
 
       <_CrossgenOutputIntermediateAssembly Include="@(_CrossgenInputIntermediateAssembly->'$(_ReadyToRunOutputDir)/%(FileName)%(Extension)')" />
       <_CrossgenOutputAssemblies Include="@(_CrossgenInputAssemblies->'$(_ReadyToRunOutputDir)/%(FileName)%(Extension)')" />
     </ItemGroup>
   </Target>
 
-  <Target Name="_InitializeReadyToRunCompilerProps">
+  <Target Name="_InitializeReadyToRunCompilerProps"
+          Condition="'$(ReadyToRun)' == 'true'">
     <!-- Set the Microsoft.DiaSymReader filename which changes based on the host architecture -->
     <PropertyGroup>
       <DiaSymReaderArch>$(_TargetArchitecture)</DiaSymReaderArch>
@@ -182,9 +178,10 @@ Copyright (c) .NET Foundation. All rights reserved.
 
   <Target Name="_RunReadyToRunCompiler"
           Inputs="@(_CrossgenInputAssemblies);"
-          Outputs="@(_CrossgenOutputAssemblies)">
+          Outputs="@(_CrossgenOutputAssemblies)"
+          Condition="'$(ReadyToRun)' == 'true'">
     <ItemGroup>
-      <_CrossgenPlatformAssembliesPathsWithDuplicates Include="@(_CrossgenReferenceAssemblies->'%(RootDir)%(Directory)')" /> 
+      <_CrossgenPlatformAssembliesPathsWithDuplicates Include="@(ResolvedAssembliesToPublish->'%(RootDir)%(Directory)')" /> 
       <_CrossgenPlatformAssembliesPaths Include="@(_CrossgenPlatformAssembliesPathsWithDuplicates->Distinct())" />
     </ItemGroup>
 
@@ -207,9 +204,15 @@ Copyright (c) .NET Foundation. All rights reserved.
 
     <Message Text="$(CrossgenCreatePdbCommand) &quot;$(_ReadyToRunOutputDir)$(_DirectorySeparatorChar)%(_CrossgenInputAssemblies.FileName)%(_CrossgenInputAssemblies.Extension)&quot;" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
     <Exec Command="$(CrossgenCreatePdbCommand) &quot;$(_ReadyToRunOutputDir)$(_DirectorySeparatorChar)%(_CrossgenInputAssemblies.FileName)%(_CrossgenInputAssemblies.Extension)&quot;" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
+
+    <ItemGroup>
+      <FileWrites Include="@(_CrossgenOutputAssemblies)" />
+      <FileWrites Include="$(_ReadyToRunOutputDir)/%(_CrossgenInputAssemblies.FileName).ni.pdb" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
+    </ItemGroup>
   </Target>
 
-  <Target Name="_PublishReadyToRunOutputs">
+  <Target Name="_PublishReadyToRunOutputs"
+          Condition="'$(ReadyToRun)' == 'true'">
     <!-- Rewrite ResolvedAssembliesToPublish to capture any newly-crossgened ResolvedAssembliesToPublish files, preserving metadata. -->
     <ItemGroup>
       <ResolvedAssembliesToPublish Remove="@(_CrossgenInputAssemblies)" />
