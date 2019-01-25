@@ -566,7 +566,7 @@ namespace System
                     return CompareInfo.Invariant.IsSuffix(this, value, GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
-                    return this.AsSpan(Length - value.Length).SequenceEqual(value);
+                    return this.Length < value.Length ? false : this.AsSpan(Length - value.Length).SequenceEqual(value);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return this.Length < value.Length ? false : (CompareInfo.CompareOrdinalIgnoreCase(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
