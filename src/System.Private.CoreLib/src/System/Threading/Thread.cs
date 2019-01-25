@@ -21,6 +21,7 @@ namespace System.Threading
     using System.Globalization;
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
+    using System.Runtime.Serialization;
     using System.Diagnostics;
 
     internal class ThreadHelper
@@ -402,6 +403,8 @@ namespace System.Threading
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void InformThreadNameChange(ThreadHandle t, string name, int len);
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        static internal extern DeserializationTracker GetThreadDeserializationTracker(ref StackCrawlMark stackMark);
     } // End of class Thread
 
     // declaring a local var of this enum type and passing it by ref into a function that needs to do a

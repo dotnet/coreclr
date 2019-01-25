@@ -2,8 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace System.Runtime.Serialization
 {
@@ -23,6 +26,125 @@ namespace System.Runtime.Serialization
         private string _rootTypeName;
         private string _rootTypeAssemblyName;
         private Type _rootType;
+        private readonly static DeserializationToken s_emptyToken = new DeserializationToken(null);
+        
+        internal static AsyncLocal<bool> AsyncDeserializationInProgress { get; } = new AsyncLocal<bool>();
+
+        // Returns true if deserialization is currently in progress
+        public static bool DeserializationInProgress
+        {
+            [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var must be marked non-inlineable
+            get
+            {
+                if (AsyncDeserializationInProgress.Value)
+                {
+                    return true;
+                }
+
+#if CORECLR
+                StackCrawlMark stackMark = StackCrawlMark.LookForMe;
+                DeserializationTracker tracker = Thread.GetThreadDeserializationTracker(ref stackMark);
+#else
+                DeserializationTracker tracker = Thread.GetThreadDeserializationTracker();
+#endif
+                bool result = tracker.DeserializationInProgress;
+                return result;
+            }
+        }
+
+        // Throws a DeserializationBlockedException if dangerous deserialization is currently
+        // in progress
+        public static void ThrowIfDeserializationInProgress()
+        {
+            if (DeserializationInProgress)
+            {
+                throw new DeserializationBlockedException();
+            }
+        }
+
+        // Throws a DeserializationBlockedException if dangerous deserialization is currently
+        // in progress and the AppContext switch Switch.System.Runtime.Serialization.SerializationGuard.{switchSuffix}
+        // is not true. The value of the switch is cached in cachedValue to avoid repeated lookups:
+        // 0: No value cached
+        // 1: The switch is true
+        // -1: The switch is false
+        public static void ThrowIfDeserializationInProgress(string switchSuffix, ref int cachedValue)
+        {
+            const string switchPrefix = "Switch.System.Runtime.Serialization.SerializationGuard.";
+            if (switchSuffix == null)
+            {
+                throw new ArgumentNullException(nameof(switchSuffix));
+            }
+            if (String.IsNullOrWhiteSpace(switchSuffix))
+            {
+                throw new ArgumentException(SR.Argument_EmptyName);
+            }
+
+            if (cachedValue == 0)
+            {
+                bool isEnabled = false;
+                if (AppContext.TryGetSwitch(switchPrefix + switchSuffix, out isEnabled) && isEnabled)
+                {
+                    cachedValue = 1;
+                }
+                else
+                {
+                    cachedValue = -1;
+                }
+            }
+
+            if (cachedValue == 1)
+            {
+                return;
+            }
+            else if (cachedValue == -1)
+            {
+                if (DeserializationInProgress)
+                {
+                    // If we can't use this message, some alternatives that could sort of contain the switch name could be:
+                    // Remoting_ThreadAffinity_InvalidFlag = The specified flag '{0}' does not have one of the valid values.
+                    // Security_Generic = Request for the permission of type '{0}' failed.
+                    // Serialization_TypeRead = Invalid read type request '{0}'.
+                    throw new DeserializationBlockedException(SR.Format(SR.Serialization_DangerousDeserialization_Switch, switchPrefix + switchSuffix));
+                }
+            }
+            else
+            {
+                throw new ArgumentOutOfRangeException(nameof(cachedValue));
+            }
+        }
+
+        // Declares that the current thread and async context have begun deserialization.
+        // In this state, if the SerializationGuard or other related AppContext switches are set,
+        // actions likely to be dangerous during deserialization, such as starting a process will be blocked.
+        // Returns a DeserializationToken that must be disposed to remove the deserialization state.
+        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        public static DeserializationToken StartDeserialization()
+        {
+            if (LocalAppContextSwitches.SerializationGuard)
+            {
+#if CORECLR
+                StackCrawlMark stackMark = StackCrawlMark.LookForMe;
+                DeserializationTracker tracker = Thread.GetThreadDeserializationTracker(ref stackMark);
+#else
+                DeserializationTracker tracker = Thread.GetThreadDeserializationTracker();
+#endif
+                if  (!tracker.DeserializationInProgress)
+                {
+                    lock (tracker)
+                    {
+                        if (!tracker.DeserializationInProgress)
+                        {
+                            AsyncDeserializationInProgress.Value = true;
+                            tracker.DeserializationInProgress = true;
+                            return new DeserializationToken(tracker);
+                        }
+                    }
+                }
+            }
+            
+            return s_emptyToken;
+        }
 
         [CLSCompliant(false)]
         public SerializationInfo(Type type, IFormatterConverter converter) 

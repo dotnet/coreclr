@@ -2431,7 +2431,7 @@
   <data name="InvalidOperation_CannotRegisterSecondResolver" xml:space="preserve">
     <value>A resolver is already set for the assembly.</value>
   </data>
-    <data name="InvalidOperation_CannotRemoveLastFromEmptyCollection" xml:space="preserve">
+  <data name="InvalidOperation_CannotRemoveLastFromEmptyCollection" xml:space="preserve">
     <value>Cannot remove the last element from an empty collection.</value>
   </data>
   <data name="InvalidOperation_CannotRestoreUnsupressedFlow" xml:space="preserve">
@@ -3663,5 +3663,14 @@
   </data>
   <data name="IndexOutOfRange_ArrayWithOffset" xml:space="preserve">
     <value>ArrayWithOffset: offset exceeds array size.</value>
+  </data>
+  <data name="InvalidCast_UnableToCast" xml:space="preserve">
+    <value>Unable to cast object of type '{0}' to type '{1}'.</value>
+  </data>
+  <data name="Serialization_DangerousDeserialization" xml:space="preserve">
+    <value>An action was attempted during deserialization that could lead to a security vulnerability. The action has been aborted.</value>
+  </data>
+  <data name="Serialization_DangerousDeserialization_Switch" xml:space="preserve">
+    <value>An action was attempted during deserialization that could lead to a security vulnerability. The action has been aborted. To allow the action under Serialization Guard, set the '{0}' AppContext switch to true.</value>
   </data>
 </root>
