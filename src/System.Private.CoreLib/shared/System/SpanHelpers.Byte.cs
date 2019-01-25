@@ -653,6 +653,8 @@ namespace System
                 offset += 1;
             }
 
+            // We get past SequentialScan only if IsHardwareAccelerated or intrinsic .IsSupported is true. However, we still have the redundant check to allow
+            // the JIT to see that the code is unreachable and eliminate it when the platform does not have hardware accelerated.
             if (Avx2.IsSupported)
             {
                 if ((int)(byte*)offset < length)

@@ -8,6 +8,7 @@ using System.Numerics;
 using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 
 namespace System
 {
@@ -196,7 +197,15 @@ namespace System
             int offset = 0; 
             int lengthToExamine = length;
 
-            if (Vector.IsHardwareAccelerated)
+            if (Avx2.IsSupported || Sse2.IsSupported)
+            {
+                // Avx2 branch also operates on Sse2 sizes, so check is combined.
+                if (length >= Vector128<byte>.Count * 2)
+                {
+                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
+                }
+            }
+            else if (Vector.IsHardwareAccelerated)
             {
                 if (length >= Vector<ushort>.Count * 2)
                 {
@@ -231,9 +240,96 @@ namespace System
                 offset += 1;
             }
 
-            // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
+            // We get past SequentialScan only if IsHardwareAccelerated or intrinsic .IsSupported is true. However, we still have the redundant check to allow
             // the JIT to see that the code is unreachable and eliminate it when the platform does not have hardware accelerated.
-            if (Vector.IsHardwareAccelerated)
+            if (Avx2.IsSupported)
+            {
+                if (offset < length)
+                {
+                    lengthToExamine = GetCharVector256SpanLength(offset, length);
+                    if (lengthToExamine > offset)
+                    {
+                        Vector256<ushort> values = Vector256.Create(value);
+                        do
+                        {
+                            Vector256<ushort> search = LoadVector256(ref searchSpace, offset);
+                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values, search).AsByte());
+                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                            // So the bit position in 'matches' corresponds to the element offset.
+                            if (matches == 0)
+                            {
+                                // Zero flags set so no matches
+                                offset += Vector256<ushort>.Count;
+                                continue;
+                            }
+
+                            // Find bitflag offset of first match and add to current offset, 
+                            // flags are in bytes so divide for chars
+                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                        } while (lengthToExamine > offset);
+                    }
+
+                    lengthToExamine = GetCharVector128SpanLength(offset, length);
+                    if (lengthToExamine > offset)
+                    {
+                        Vector128<ushort> values = Vector128.Create(value);
+                        Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as above
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search).AsByte());
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<ushort>.Count;
+                        }
+                        else
+                        {
+                            // Find bitflag offset of first match and add to current offset, 
+                            // flags are in bytes so divide for chars
+                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                        }
+                    }
+
+                    if (offset < length)
+                    {
+                        lengthToExamine = length - offset;
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Sse2.IsSupported)
+            {
+                if (offset < length)
+                {
+                    lengthToExamine = GetCharVector128SpanLength(offset, length);
+
+                    Vector128<ushort> values = Vector128.Create(value);
+                    while (lengthToExamine > offset)
+                    {
+                        Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as above
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search).AsByte());
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<ushort>.Count;
+                            continue;
+                        }
+
+                        // Find bitflag offset of first match and add to current offset, 
+                        // flags are in bytes so divide for chars
+                        return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                    }
+
+                    if (offset < length)
+                    {
+                        lengthToExamine = length - offset;
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Vector.IsHardwareAccelerated)
             {
                 if (offset < length)
                 {
@@ -843,12 +939,28 @@ namespace System
             => Unsafe.ReadUnaligned<Vector<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, offset)));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe Vector128<ushort> LoadVector128(ref char start, int offset)
+            => Unsafe.ReadUnaligned<Vector128<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe Vector256<ushort> LoadVector256(ref char start, int offset)
+            => Unsafe.ReadUnaligned<Vector256<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe UIntPtr LoadUIntPtr(ref char start, int offset)
             => Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, offset)));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe int GetCharVectorSpanLength(int offset, int length)
             => ((length - offset) & ~(Vector<ushort>.Count - 1));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe int GetCharVector128SpanLength(int offset, int length)
+            => ((length - offset) & ~(Vector128<ushort>.Count - 1));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe int GetCharVector256SpanLength(int offset, int length)
+            => ((length - offset) & ~(Vector256<ushort>.Count - 1));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe int UnalignedCountVector(ref char searchSpace)
@@ -860,6 +972,15 @@ namespace System
             //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
             int unaligned = ((int)Unsafe.AsPointer(ref searchSpace) & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
             return ((Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe int UnalignedCountVector128(ref char searchSpace)
+        {
+            const int elementsPerByte = sizeof(ushort) / sizeof(byte);
+
+            int unaligned = ((int)Unsafe.AsPointer(ref searchSpace) & (Unsafe.SizeOf<Vector128<ushort>>() - 1)) / elementsPerByte;
+            return ((Vector128<ushort>.Count - unaligned) & (Vector128<ushort>.Count - 1));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
