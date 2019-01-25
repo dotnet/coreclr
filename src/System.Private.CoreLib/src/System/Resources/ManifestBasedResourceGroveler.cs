@@ -226,7 +226,7 @@ namespace System.Resources
                         // resMgrHeaderVersion is older than this ResMgr version.
                         // We should add in backwards compatibility support here.
 
-                        throw new NotSupportedException(SR.Format(SR.NotSupported_ObsoleteResourcesFile, _mediator.MainAssemblySimpleName));
+                        throw new NotSupportedException(SR.Format(SR.NotSupported_ObsoleteResourcesFile, _mediator.MainAssembly.GetName().Name));
                     }
 
                     store.Position = startPos;
@@ -387,14 +387,14 @@ namespace System.Resources
                 int hr = fle._HResult;
                 if (hr != Win32Marshal.MakeHRFromErrorCode(Interop.Errors.ERROR_ACCESS_DENIED))
                 {
-                    Debug.Fail("[This assert catches satellite assembly build/deployment problems - report this message to your build lab & loc engineer]" + Environment.NewLine + "GetSatelliteAssembly failed for culture " + lookForCulture.Name + " and version " + (_mediator.SatelliteContractVersion == null ? _mediator.MainAssembly.GetName().Version.ToString() : _mediator.SatelliteContractVersion.ToString()) + " of assembly " + _mediator.MainAssemblySimpleName + " with error code 0x" + hr.ToString("X", CultureInfo.InvariantCulture) + Environment.NewLine + "Exception: " + fle);
+                    Debug.Fail("[This assert catches satellite assembly build/deployment problems - report this message to your build lab & loc engineer]" + Environment.NewLine + "GetSatelliteAssembly failed for culture " + lookForCulture.Name + " and version " + (_mediator.SatelliteContractVersion == null ? _mediator.MainAssembly.GetName().Version.ToString() : _mediator.SatelliteContractVersion.ToString()) + " of assembly " + _mediator.MainAssembly.GetName().Name + " with error code 0x" + hr.ToString("X", CultureInfo.InvariantCulture) + Environment.NewLine + "Exception: " + fle);
                 }
             }
 
             // Don't throw for zero-length satellite assemblies, for compat with v1
             catch (BadImageFormatException bife)
             {
-                Debug.Fail("[This assert catches satellite assembly build/deployment problems - report this message to your build lab & loc engineer]" + Environment.NewLine + "GetSatelliteAssembly failed for culture " + lookForCulture.Name + " and version " + (_mediator.SatelliteContractVersion == null ? _mediator.MainAssembly.GetName().Version.ToString() : _mediator.SatelliteContractVersion.ToString()) + " of assembly " + _mediator.MainAssemblySimpleName + Environment.NewLine + "Exception: " + bife);
+                Debug.Fail("[This assert catches satellite assembly build/deployment problems - report this message to your build lab & loc engineer]" + Environment.NewLine + "GetSatelliteAssembly failed for culture " + lookForCulture.Name + " and version " + (_mediator.SatelliteContractVersion == null ? _mediator.MainAssembly.GetName().Version.ToString() : _mediator.SatelliteContractVersion.ToString()) + " of assembly " + _mediator.MainAssembly.GetName().Name + Environment.NewLine + "Exception: " + bife);
             }
 
             return satellite;
@@ -435,7 +435,7 @@ namespace System.Resources
 
         private void HandleSatelliteMissing()
         {
-            string satAssemName = _mediator.MainAssemblySimpleName + ".resources.dll";
+            string satAssemName = _mediator.MainAssembly.GetName().Name + ".resources.dll";
             if (_mediator.SatelliteContractVersion != null)
             {
                 satAssemName += ", Version=" + _mediator.SatelliteContractVersion.ToString();
@@ -477,7 +477,7 @@ namespace System.Resources
             if (_mediator.LocationInfo != null && _mediator.LocationInfo.Namespace != null)
                 resName = _mediator.LocationInfo.Namespace + Type.Delimiter;
             resName += fileName;
-            throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_NoNeutralAsm, resName, _mediator.MainAssemblySimpleName));
+            throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_NoNeutralAsm, resName, _mediator.MainAssembly.GetName().Name));
         }
 
         // Internal version of GetSatelliteAssembly that avoids throwing FileNotFoundException
@@ -485,19 +485,7 @@ namespace System.Resources
                                                              CultureInfo culture,
                                                              Version version)
         {
-            if (mainAssembly is RuntimeAssembly runtimeMainAssembly)
-            {
-                return runtimeMainAssembly.InternalGetSatelliteAssembly(culture, version, throwOnFileNotFound: false);
-            }
-
-            try
-            {
-                return mainAssembly.GetSatelliteAssembly(culture, version);
-            }
-            catch (FileNotFoundException)
-            {
-                return null;
-            }
+            return ((RuntimeAssembly)mainAssembly).InternalGetSatelliteAssembly(culture, version, throwOnFileNotFound: false);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -506,23 +494,9 @@ namespace System.Resources
 
         private static bool GetNeutralResourcesLanguageAttribute(Assembly assemblyHandle, ref string cultureName, out short fallbackLocation)
         {
-            if (assemblyHandle is RuntimeAssembly runtimeAssemblyHandle)
-            {
-                return GetNeutralResourcesLanguageAttribute(runtimeAssemblyHandle.GetNativeHandle(),
-                                                            JitHelpers.GetStringHandleOnStack(ref cultureName),
-                                                            out fallbackLocation);
-            }
-
-            var nrlAttribute = assemblyHandle.GetCustomAttribute<NeutralResourcesLanguageAttribute>();
-            if (nrlAttribute != null)
-            {
-                fallbackLocation = (short)nrlAttribute.Location;
-                cultureName = nrlAttribute.CultureName;
-                return true;
-            }
-
-            fallbackLocation = 0;
-            return false;
+            return GetNeutralResourcesLanguageAttribute(((RuntimeAssembly)assemblyHandle).GetNativeHandle(),
+                                                        JitHelpers.GetStringHandleOnStack(ref cultureName),
+                                                        out fallbackLocation);
         }
     }
 }

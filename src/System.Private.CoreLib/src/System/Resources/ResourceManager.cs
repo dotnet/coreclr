@@ -221,9 +221,10 @@ namespace System.Resources
         {
             if (null == baseName)
                 throw new ArgumentNullException(nameof(baseName));
-
             if (null == assembly)
                 throw new ArgumentNullException(nameof(assembly));
+            if (!assembly.IsRuntimeImplemented())
+                throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
 
             MainAssembly = assembly;
             BaseNameField = baseName;
@@ -239,6 +240,8 @@ namespace System.Resources
                 throw new ArgumentNullException(nameof(baseName));
             if (null == assembly)
                 throw new ArgumentNullException(nameof(assembly));
+            if (!assembly.IsRuntimeImplemented())
+                throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
 
             MainAssembly = assembly;
             BaseNameField = baseName;
@@ -254,8 +257,7 @@ namespace System.Resources
         {
             if (null == resourceSource)
                 throw new ArgumentNullException(nameof(resourceSource));
-
-            if (!(resourceSource is RuntimeType))
+            if (!resourceSource.IsRuntimeImplemented())
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
             _locationInfo = resourceSource;
@@ -1064,16 +1066,6 @@ namespace System.Resources
             internal Assembly MainAssembly
             {
                 get { return _rm.MainAssembly; }
-            }
-
-            internal string MainAssemblySimpleName
-            {
-                get
-                {
-                    if (_rm.MainAssembly is RuntimeAssembly runtimeAssembly)
-                        return runtimeAssembly.GetSimpleName();
-                    return _rm.MainAssembly.GetName().Name;
-                }
             }
 
             // this is weird because we have BaseNameField accessor above, but we're sticking

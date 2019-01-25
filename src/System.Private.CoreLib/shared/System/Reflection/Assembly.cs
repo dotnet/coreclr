@@ -208,5 +208,9 @@ namespace System.Reflection
         public static Assembly ReflectionOnlyLoadFrom(string assemblyFile) { throw new PlatformNotSupportedException(SR.PlatformNotSupported_ReflectionOnly); }
 
         public virtual SecurityRuleSet SecurityRuleSet => SecurityRuleSet.None;
+
+        // Exists to faciliate code sharing between CoreCLR and CoreRT.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool IsRuntimeImplemented() => this is RuntimeAssembly;
     }
 }
