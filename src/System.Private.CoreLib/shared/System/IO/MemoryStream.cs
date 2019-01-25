@@ -233,14 +233,19 @@ namespace System.IO
 
             int origPos = _position;
             int newPos = origPos + count;
+            
+            // Check validity of what we got
+            if (newPos < 0)
+                throw new IOException(SR.IO_StreamTooLong);
             if (newPos > _length)
             {
                 _position = _length;
                 throw Error.GetEndOfFile();
             }
 
+            var span = new ReadOnlySpan<byte>(_buffer, origPos, count);
             _position = newPos;
-            return new ReadOnlySpan<byte>(_buffer, origPos, count);
+            return span;
         }
 
         // PERF: Get actual length of bytes available for read; do sanity checks; shift position - i.e. everything except actual copying bytes

@@ -268,27 +268,8 @@ namespace System.IO
         public virtual long ReadInt64() => BinaryPrimitives.ReadInt64LittleEndian(InternalRead(8));
         [CLSCompliant(false)]
         public virtual ulong ReadUInt64() => BinaryPrimitives.ReadUInt64LittleEndian(InternalRead(8));
-
-        public virtual Guid ReadGuid() => new Guid(InternalRead(16));
-
-        public virtual unsafe float ReadSingle()
-        {
-            ReadOnlySpan<byte> span = InternalRead(4);
-            uint tmpBuffer = (uint)(span[0] | span[1] << 8 | span[2] << 16 | span[3] << 24);
-            return *((float*)&tmpBuffer);
-        }
-
-        public virtual unsafe double ReadDouble()
-        {
-            ReadOnlySpan<byte> span = InternalRead(8);
-            uint lo = (uint)(span[0] | span[1] << 8 |
-                span[2] << 16 | span[3] << 24);
-            uint hi = (uint)(span[4] | span[5] << 8 |
-                span[6] << 16 | span[7] << 24);
-
-            ulong tmpBuffer = ((ulong)hi) << 32 | lo;
-            return *((double*)&tmpBuffer);
-        }
+        public virtual unsafe float ReadSingle() => BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(InternalRead(4)));
+        public virtual unsafe double ReadDouble() => BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64LittleEndian(InternalRead(8)));
 
         public virtual decimal ReadDecimal()
         {
@@ -440,8 +421,8 @@ namespace System.IO
                 byte[] byteBuffer = null;
                 if (_isMemoryStream)
                 {
-                    MemoryStream mStream = _stream as MemoryStream;
-                    Debug.Assert(mStream != null, "_stream as MemoryStream != null");
+                    Debug.Assert(_stream is MemoryStream);
+                    MemoryStream mStream = (MemoryStream)_stream;
 
                     position = mStream.InternalGetPosition();
                     numBytes = mStream.InternalEmulateRead(numBytes);
@@ -607,10 +588,8 @@ namespace System.IO
                 // no need to check if _stream == null as we will never have null _stream when _isMemoryStream = true
 
                 // read directly from MemoryStream buffer
-                MemoryStream mStream = _stream as MemoryStream;
-                Debug.Assert(mStream != null, "_stream as MemoryStream != null");
-
-                return mStream.InternalReadSpan(numBytes);
+                Debug.Assert(_stream is MemoryStream);
+                return ((MemoryStream)_stream).InternalReadSpan(numBytes);
             }
             else
             {
@@ -636,7 +615,6 @@ namespace System.IO
             }
         }
 
-        [Obsolete("This should not be part of the exposed surface of this class. It is also not used internally anymore.", true)]
         protected virtual void FillBuffer(int numBytes)
         {
             if (_buffer != null && (numBytes < 0 || numBytes > _buffer.Length))

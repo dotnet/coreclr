@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -555,11 +556,11 @@ namespace System
 
         internal static decimal ToDecimal(ReadOnlySpan<byte> span)
         {
-            Debug.Assert((span != null && span.Length >= 16), "[ToDecimal]buffer != null && buffer.Length >= 16");
-            int lo = ((int)span[0]) | ((int)span[1] << 8) | ((int)span[2] << 16) | ((int)span[3] << 24);
-            int mid = ((int)span[4]) | ((int)span[5] << 8) | ((int)span[6] << 16) | ((int)span[7] << 24);
-            int hi = ((int)span[8]) | ((int)span[9] << 8) | ((int)span[10] << 16) | ((int)span[11] << 24);
-            int flags = ((int)span[12]) | ((int)span[13] << 8) | ((int)span[14] << 16) | ((int)span[15] << 24);
+            Debug.Assert((span.Length >= 16), "span.Length >= 16");
+            int lo = BinaryPrimitives.ReadInt32LittleEndian(span);
+            int mid = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(4));
+            int hi = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(8));
+            int flags = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(12));
             return new decimal(lo, mid, hi, flags);
         }
 
