@@ -73,16 +73,30 @@ Copyright (c) .NET Foundation. All rights reserved.
         FormattedText="Creating ReadyToRun images is not supported for the RuntimeIdentifier $(RuntimeIdentifier) on the host OS $(_OSPlatform)-$(_OSArchitecture.ToLower())" />
   </Target>
 
+  <UsingTask TaskName="FilterManagedAssemblies" AssemblyFile="C:\Users\zamont\Source\Repos\Crossgen-HelperMSBuildTasks\Crossgen-HelperMSBuildTasks\bin\Debug\netcoreapp2.0\Crossgen-HelperMSBuildTasks.dll" />
   <Target Name="_ComputeReadyToRunInputsAndOutputs"
           Condition="'$(ReadyToRun)' == 'true'">
     <PropertyGroup>
       <_RuntimePackageName Condition="'%(ResolvedAssembliesToPublish.FileName)%(ResolvedAssembliesToPublish.Extension)' == 'System.Private.CoreLib.dll'">%(ResolvedAssembliesToPublish.PackageName)</_RuntimePackageName>
     </PropertyGroup>
 
+    <!-- Initialize the list of input assemblies -->
     <ItemGroup>
       <_CrossgenInputIntermediateAssembly Include="@(IntermediateAssembly)" />
-      <_CrossgenInputAssemblies Include="@(_CrossgenInputIntermediateAssembly)" />
 
+      <_CrossgenUnfilteredInputAssemblies Include="@(_CrossgenInputIntermediateAssembly)" />
+      <_CrossgenUnfilteredInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'$(ReadyToRunAllPublishRuntimeAssets)' == 'true' and '%(ResolvedAssembliesToPublish.AssetType)' == 'runtime'" />
+      <_CrossgenUnfilteredInputAssemblies Remove="@(_CrossgenUnfilteredInputAssemblies)" Condition="'%(_CrossgenUnfilteredInputAssemblies.PackageName)' == '$(_RuntimePackageName)'" />
+    </ItemGroup>
+
+    <!-- Filter the input assemblies to only those that are managed and IL ONLY -->
+    <FilterManagedAssemblies Assemblies="@(_CrossgenUnfilteredInputAssemblies)"
+                             RestrictToILOnlyAssemblies="true">
+      <Output TaskParameter="ManagedAssemblies" ItemName="_CrossgenInputAssemblies"/>
+    </FilterManagedAssemblies>
+
+    <!-- Set the final list of expected output assemblies -->
+    <ItemGroup>
       <_CrossgenOutputIntermediateAssembly Include="@(_CrossgenInputIntermediateAssembly->'$(_ReadyToRunOutputDir)/%(FileName)%(Extension)')" />
       <_CrossgenOutputAssemblies Include="@(_CrossgenInputAssemblies->'$(_ReadyToRunOutputDir)/%(FileName)%(Extension)')" />
     </ItemGroup>
