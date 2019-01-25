@@ -566,7 +566,12 @@ namespace System
                     return CompareInfo.Invariant.IsSuffix(this, value, GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
-                    return this.Length < value.Length ? false : (CompareOrdinalHelper(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
+                    return this.Length < value.Length ?
+                        false :
+                        SpanHelpers.SequenceEqual(
+                            ref Unsafe.As<char, byte>(ref Unsafe.Add(ref this.GetRawStringData(), this.Length - value.Length)),
+                            ref Unsafe.As<char, byte>(ref value.GetRawStringData()),
+                            ((nuint)value.Length) * 2);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return this.Length < value.Length ? false : (CompareInfo.CompareOrdinalIgnoreCase(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
