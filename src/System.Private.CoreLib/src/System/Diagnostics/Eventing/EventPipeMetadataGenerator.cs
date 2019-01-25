@@ -267,7 +267,10 @@ namespace System.Diagnostics.Tracing
 
                     foreach(PropertyAnalysis prop in properties)
                     {
-                        GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize);
+                        if(!GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize))
+                        {
+                            return false;
+                        }
                     }
                 }
                 else
