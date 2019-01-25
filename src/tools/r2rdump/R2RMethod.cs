@@ -206,7 +206,7 @@ namespace R2RDump
                 writer.WriteLine($@"    ReturnKind:                        {gcInfo.ReturnKind}");
                 writer.WriteLine($@"    ValidRangeStart:                   0x{gcInfo.ValidRangeStart:X4}");
                 writer.WriteLine($@"    ValidRangeEnd:                     0x{gcInfo.ValidRangeEnd:X4}");
-                writer.WriteLine($@"    SecurityObjectStackSlot:           {gcInfo.SecurityObjectStackSlot}");
+                writer.WriteLine($@"    SecurityObjectStackSlot:           0x{gcInfo.SecurityObjectStackSlot:X4}");
                 writer.WriteLine($@"    GSCookieStackSlot:                 0x{gcInfo.GSCookieStackSlot:X4}");
                 writer.WriteLine($@"    PSPSymStackSlot:                   0x{gcInfo.PSPSymStackSlot:X4}");
                 writer.WriteLine($@"    GenericsInstContextStackSlot:      0x{gcInfo.GenericsInstContextStackSlot:X4}");
