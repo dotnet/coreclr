@@ -67,10 +67,16 @@ jobs:
     osGroup: Linux
     osIdentifier: Linux_musl
     containerName: musl_x64_build_image
-    # TODO: add Alpine.Amd64 queues
     helixQueues:
-      asString: ''
-      asArray: []
+      ${{ if eq(variables['System.TeamProject'], 'public') }}:
+        # TODO: there are no open Alpine queues https://github.com/dotnet/core-eng/issues/4958
+        asString: ''
+        asArray: []
+      ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        asString: 'Alpine.36.Amd64,Alpine.38.Amd64'
+        asArray:
+        - Alpine.36.Amd64
+        - Alpine.38.Amd64
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # RHEL 6
