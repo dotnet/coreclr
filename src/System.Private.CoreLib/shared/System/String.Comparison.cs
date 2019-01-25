@@ -567,7 +567,7 @@ namespace System
 
                 case StringComparison.Ordinal:
                     int offset = this.Length - value.Length;
-                    return offset >= 0 && this.AsSpan(offset).SequenceEqual(value);
+                    return (uint)offset <= (uint)this.Length && this.AsSpan(offset).SequenceEqual(value);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return this.Length < value.Length ? false : (CompareInfo.CompareOrdinalIgnoreCase(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
