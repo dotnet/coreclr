@@ -582,6 +582,25 @@ namespace System.Runtime.InteropServices
             return GetExceptionForHRInternal(errorCode, errorInfo);
         }
 
+        /// <summary>
+        /// Throws a CLR exception based on the HRESULT.
+        /// </summary>
+        public static void ThrowExceptionForHR(int errorCode)
+        {
+            if (errorCode < 0)
+            {
+                throw GetExceptionForHR(errorCode, IntPtr.Zero);
+            }
+        }
+
+        public static void ThrowExceptionForHR(int errorCode, IntPtr errorInfo)
+        {
+            if (errorCode < 0)
+            {
+                throw GetExceptionForHR(errorCode, errorInfo);
+            }
+        }
+
         public static IntPtr SecureStringToBSTR(SecureString s)
         {
             if (s == null)

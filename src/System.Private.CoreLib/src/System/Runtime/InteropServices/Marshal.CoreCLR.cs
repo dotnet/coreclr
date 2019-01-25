@@ -288,28 +288,6 @@ namespace System.Runtime.InteropServices
 
 #endif // FEATURE_COMINTEROP
 
-        /// <summary>
-        /// Throws a CLR exception based on the HRESULT.
-        /// </summary>
-        public static void ThrowExceptionForHR(int errorCode)
-        {
-            if (errorCode < 0)
-            {
-                ThrowExceptionForHRInternal(errorCode, IntPtr.Zero);
-            }
-        }
-
-        public static void ThrowExceptionForHR(int errorCode, IntPtr errorInfo)
-        {
-            if (errorCode < 0)
-            {
-                ThrowExceptionForHRInternal(errorCode, errorInfo);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern void ThrowExceptionForHRInternal(int errorCode, IntPtr errorInfo);
-
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Exception GetExceptionForHRInternal(int errorCode, IntPtr errorInfo);
