@@ -690,13 +690,12 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(type));
             }
 
-            IList<CustomAttributeData> cas = CustomAttributeData.GetCustomAttributes(type);
-            for (int i = 0; i < cas.Count; i++)
+            foreach (CustomAttributeData cad in type.GetCustomAttributesData())
             {
-                if (cas[i].Constructor.DeclaringType == typeof(ProgIdAttribute))
+                if (cad.Constructor.DeclaringType == typeof(ProgIdAttribute))
                 {
                     // Retrieve the PROGID string from the ProgIdAttribute.
-                    IList<CustomAttributeTypedArgument> caConstructorArgs = cas[i].ConstructorArguments;
+                    IList<CustomAttributeTypedArgument> caConstructorArgs = cad.ConstructorArguments;
                     Debug.Assert(caConstructorArgs.Count == 1, "caConstructorArgs.Count == 1");
 
                     CustomAttributeTypedArgument progIdConstructorArg = caConstructorArgs[0];
