@@ -2578,7 +2578,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         return ClassifyEightBytesWithManagedLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout);
     }
 
-    const FieldMarshaler *pFieldMarshaler = GetLayoutInfo()->GetFieldMarshalers();
+    const FieldMarshaler *pFieldMarshalers = GetLayoutInfo()->GetFieldMarshalers();
     UINT  numIntroducedFields = GetLayoutInfo()->GetNumCTMFields();
 
     // No fields.
@@ -2594,17 +2594,17 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
     // instead of adding additional padding at the end of a one-field structure.
     // We do this check here to save looking up the FixedBufferAttribute when loading the field
     // from metadata.
-    CorElementType firstFieldElementType = pFieldMarshaler->GetFieldDesc()->GetFieldType();
+    CorElementType firstFieldElementType = pFieldMarshalers->GetFieldDesc()->GetFieldType();
     bool isFixedBuffer = numIntroducedFields == 1
                                 && ( CorTypeInfo::IsPrimitiveType_NoThrow(firstFieldElementType)
                                     || firstFieldElementType == ELEMENT_TYPE_VALUETYPE)
-                                && (pFieldMarshaler->GetExternalOffset() == 0)
+                                && (pFieldMarshalers->GetExternalOffset() == 0)
                                 && IsValueType()
-                                && (GetLayoutInfo()->GetNativeSize() % pFieldMarshaler->NativeSize() == 0);
+                                && (GetLayoutInfo()->GetNativeSize() % pFieldMarshalers->NativeSize() == 0);
 
     if (isFixedBuffer)
     {
-        numIntroducedFields = GetNativeSize() / pFieldMarshaler->NativeSize();
+        numIntroducedFields = GetNativeSize() / pFieldMarshalers->NativeSize();
     }
 
     // The SIMD Intrinsic types are meant to be handled specially and should not be passed as struct registers
@@ -2632,6 +2632,17 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
     for (unsigned int fieldIndex = 0; fieldIndex < numIntroducedFields; fieldIndex++)
     {
+        const FieldMarshaler* pFieldMarshaler;
+        if (isFixedBuffer)
+        {
+            // Reuse the first field marshaler for all fields if a fixed buffer.
+            pFieldMarshaler = pFieldMarshalers;
+        }
+        else
+        {
+            pFieldMarshaler = (FieldMarshaler*)(((BYTE*)pFieldMarshalers) + MAXFIELDMARSHALERSIZE * fieldIndex);
+        }
+
         FieldDesc *pField = pFieldMarshaler->GetFieldDesc();
         CorElementType fieldType = pField->GetFieldType();
 
@@ -2727,12 +2738,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                         return false;
                     }
                 }
-
-                if (!isFixedBuffer) // We reuse the field marshaler for fixed buffers.
-                {
-                    ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-                }
-
                 continue;
             }
             case VT_DECIMAL:
@@ -2793,12 +2798,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                 // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
                 return false;
             }
-
-            if (!isFixedBuffer) // We reuse the field marshaler for fixed buffers.
-            {
-                ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-            }
-
             continue;
         }
         else if (cls == NFT_NESTEDVALUECLASS)
@@ -2819,12 +2818,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                 // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
                 return false;
             }
-
-            if (!isFixedBuffer) // We reuse the field marshaler for fixed buffers.
-            {
-                ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-            }
-
             continue;
         }
         else if (cls == NFT_COPY1)
@@ -2992,10 +2985,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
             if (i >= 0)
             {
-                if (!isFixedBuffer) // We reuse the field marshaler for fixed buffers.
-                {
-                    ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-                }
                 // The proper size of the union set of fields has been set above; continue to the next field.
                 continue;
             }
@@ -3027,11 +3016,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
         _ASSERTE(helperPtr->currentUniqueOffsetField < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT);
         helperPtr->currentUniqueOffsetField++;
-
-        if (!isFixedBuffer) // We reuse the field marshaler for fixed buffers.
-        {
-            ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-        }
     } // end per-field for loop
 
     AssignClassifiedEightByteTypes(helperPtr, nestingLevel);
