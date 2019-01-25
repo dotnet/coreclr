@@ -2323,11 +2323,11 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
                                     || firstFieldElementType == ELEMENT_TYPE_VALUETYPE)
                                 && (pFieldStart->GetOffset() == 0)
                                 && HasLayout()
-                                && (GetLayoutInfo()->GetManagedSize() % pFieldStart->GetSize() == 0);
+                                && (GetNumInstanceFieldBytes() % pFieldStart->GetSize() == 0);
 
     if (isFixedBuffer)
     {
-        numIntroducedFields = GetLayoutInfo()->GetManagedSize() / pFieldStart->GetSize();
+        numIntroducedFields = GetNumInstanceFieldBytes() / pFieldStart->GetSize();
     }
 
     // System types are loaded before others, so ByReference<T> would be loaded before Span<T> or any other type that has a
