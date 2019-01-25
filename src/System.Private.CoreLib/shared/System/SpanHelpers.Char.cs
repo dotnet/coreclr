@@ -507,7 +507,15 @@ namespace System
             int offset = 0;
             int lengthToExamine = length;
 
-            if (Vector.IsHardwareAccelerated)
+            if (Avx2.IsSupported || Sse2.IsSupported)
+            {
+                // Avx2 branch also operates on Sse2 sizes, so check is combined.
+                if (length >= Vector128<byte>.Count * 2)
+                {
+                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
+                }
+            }
+            else if (Vector.IsHardwareAccelerated)
             {
                 if (length >= Vector<ushort>.Count * 2)
                 {
@@ -548,9 +556,103 @@ namespace System
                 offset += 1;
             }
 
-            // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
+            // We get past SequentialScan only if IsHardwareAccelerated or intrinsic .IsSupported is true. However, we still have the redundant check to allow
             // the JIT to see that the code is unreachable and eliminate it when the platform does not have hardware accelerated.
-            if (Vector.IsHardwareAccelerated)
+            if (Avx2.IsSupported)
+            {
+                if (offset < length)
+                {
+                    lengthToExamine = GetCharVector256SpanLength(offset, length);
+                    if (lengthToExamine > offset)
+                    {
+                        Vector256<ushort> values0 = Vector256.Create(value0);
+                        Vector256<ushort> values1 = Vector256.Create(value1);
+                        do
+                        {
+                            Vector256<ushort> search = LoadVector256(ref searchSpace, offset);
+                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                            // So the bit position in 'matches' corresponds to the element offset.
+                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search).AsByte());
+                            // Bitwise Or to combine the flagged matches for the second value to our match flags
+                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search).AsByte());
+                            if (matches == 0)
+                            {
+                                // Zero flags set so no matches
+                                offset += Vector256<ushort>.Count;
+                                continue;
+                            }
+
+                            // Find bitflag offset of first match and add to current offset, 
+                            // flags are in bytes so divide for chars
+                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                        } while (lengthToExamine > offset);
+                    }
+
+                    lengthToExamine = GetCharVector128SpanLength(offset, length);
+                    if (lengthToExamine > offset)
+                    {
+                        Vector128<ushort> values0 = Vector128.Create(value0);
+                        Vector128<ushort> values1 = Vector128.Create(value1);
+                        Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as above
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search).AsByte());
+                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search).AsByte());
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<ushort>.Count;
+                        }
+                        else
+                        {
+                            // Find bitflag offset of first match and add to current offset, 
+                            // flags are in bytes so divide for chars
+                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                        }
+                    }
+
+                    if (offset < length)
+                    {
+                        lengthToExamine = length - offset;
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Sse2.IsSupported)
+            {
+                if (offset < length)
+                {
+                    lengthToExamine = GetCharVector128SpanLength(offset, length);
+
+                    Vector128<ushort> values0 = Vector128.Create(value0);
+                    Vector128<ushort> values1 = Vector128.Create(value1);
+                    while (lengthToExamine > offset)
+                    {
+                        Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as above
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search).AsByte());
+                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search).AsByte());
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<ushort>.Count;
+                            continue;
+                        }
+
+                        // Find bitflag offset of first match and add to current offset, 
+                        // flags are in bytes so divide for chars
+                        return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                    }
+
+                    if (offset < length)
+                    {
+                        lengthToExamine = length - offset;
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Vector.IsHardwareAccelerated)
             {
                 if (offset < length)
                 {
