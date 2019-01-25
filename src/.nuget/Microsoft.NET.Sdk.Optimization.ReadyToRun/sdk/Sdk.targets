@@ -165,7 +165,7 @@ Copyright (c) .NET Foundation. All rights reserved.
     <MakeDir Directories="$(_ReadyToRunOutputDir)"/>
   </Target>
 
-  <UsingTask TaskName="FilterManagedAssemblies" AssemblyFile="C:\Users\zamont\Source\Repos\Crossgen-HelperMSBuildTasks\Crossgen-HelperMSBuildTasks\bin\Debug\netcoreapp2.0\Crossgen-HelperMSBuildTasks.dll" />
+  <UsingTask TaskName="FilterManagedAssemblies" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
   <Target Name="_ComputeReadyToRunInputsAndOutputs"
           Condition="'$(ReadyToRun)' == 'true'">
     <PropertyGroup>
