@@ -70,7 +70,138 @@ namespace System
             int offset = 0;
             int lengthToExamine = minLength;
 
-            if (Vector.IsHardwareAccelerated)
+            if (Avx2.IsSupported)
+            {
+                if (lengthToExamine >= Vector256<ushort>.Count)
+                {
+                    lengthToExamine -= Vector256<ushort>.Count;
+                    uint matches;
+                    while (lengthToExamine > offset)
+                    {
+                        matches = (uint)Avx2.MoveMask(Avx2.CompareEqual(LoadVector256(ref first, offset), LoadVector256(ref second, offset)).AsByte());
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
+
+                        // 32 elements in Vector256<byte> so we compare to uint.MaxValue to check if everything matched
+                        if (matches == uint.MaxValue)
+                        {
+                            // All matched
+                            offset += Vector256<ushort>.Count;
+                            continue;
+                        }
+
+                        goto Difference;
+                    }
+                    // Move to Vector length from end for final compare
+                    offset = lengthToExamine;
+                    // Same as method as above
+                    matches = (uint)Avx2.MoveMask(Avx2.CompareEqual(LoadVector256(ref first, offset), LoadVector256(ref second, offset)).AsByte());
+                    if (matches == uint.MaxValue)
+                    {
+                        // All matched
+                        goto Equal;
+                    }
+                Difference:
+                    // Invert matches to find differences
+                    uint differences = ~matches;
+                    // Find bitflag offset of first difference and add to current offset, 
+                    // flags are in bytes so divide for chars
+                    offset = offset + BitOps.TrailingZeroCount((int)differences) / sizeof(char);
+
+                    int result = Unsafe.Add(ref first, offset).CompareTo(Unsafe.Add(ref second, offset));
+                    Debug.Assert(result != 0);
+
+                    return result;
+                }
+
+                if (lengthToExamine >= Vector128<ushort>.Count)
+                {
+                    lengthToExamine -= Vector128<ushort>.Count;
+                    uint matches;
+                    if (lengthToExamine > offset)
+                    {
+                        matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)).AsByte());
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
+
+                        // 16 elements in Vector128<byte> so we compare to ushort.MaxValue to check if everything matched
+                        if (matches == ushort.MaxValue)
+                        {
+                            // All matched
+                            offset += Vector128<ushort>.Count;
+                        }
+                        else
+                        {
+                            goto Difference;
+                        }
+                    }
+                    // Move to Vector length from end for final compare
+                    offset = lengthToExamine;
+                    // Same as method as above
+                    matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)).AsByte());
+                    if (matches == ushort.MaxValue)
+                    {
+                        // All matched
+                        goto Equal;
+                    }
+                Difference:
+                    // Invert matches to find differences
+                    uint differences = ~matches;
+                    // Find bitflag offset of first difference and add to current offset, 
+                    // flags are in bytes so divide for chars
+                    offset = offset + BitOps.TrailingZeroCount((int)differences) / sizeof(char);
+
+                    int result = Unsafe.Add(ref first, offset).CompareTo(Unsafe.Add(ref second, offset));
+                    Debug.Assert(result != 0);
+
+                    return result;
+                }
+            }
+            else if (Sse2.IsSupported)
+            {
+                if (lengthToExamine >= Vector128<ushort>.Count)
+                {
+                    lengthToExamine -= Vector128<ushort>.Count;
+                    uint matches;
+                    while (lengthToExamine > offset)
+                    {
+                        matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)).AsByte());
+                        // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                        // So the bit position in 'matches' corresponds to the element offset.
+
+                        // 16 elements in Vector128<byte> so we compare to ushort.MaxValue to check if everything matched
+                        if (matches == ushort.MaxValue)
+                        {
+                            // All matched
+                            offset += Vector128<ushort>.Count;
+                            continue;
+                        }
+
+                        goto Difference;
+                    }
+                    // Move to Vector length from end for final compare
+                    offset = lengthToExamine;
+                    // Same as method as above
+                    matches = (uint)Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(ref first, offset), LoadVector128(ref second, offset)).AsByte());
+                    if (matches == ushort.MaxValue)
+                    {
+                        // All matched
+                        goto Equal;
+                    }
+                Difference:
+                    // Invert matches to find differences
+                    uint differences = ~matches;
+                    // Find bitflag offset of first difference and add to current offset, 
+                    // flags are in bytes so divide for chars
+                    offset = offset + BitOps.TrailingZeroCount((int)differences) / sizeof(char);
+
+                    int result = Unsafe.Add(ref first, offset).CompareTo(Unsafe.Add(ref second, offset));
+                    Debug.Assert(result != 0);
+
+                    return result;
+                }
+            }
+            else if (Vector.IsHardwareAccelerated)
             {
                 if (lengthToExamine > Vector<ushort>.Count)
                 {
