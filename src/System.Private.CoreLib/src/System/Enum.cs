@@ -87,7 +87,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            return EnumCache.Get(enumType).ParseNonGeneric(value, ignoreCase);
+            return EnumBridge.Get(enumType).ParseNonGeneric(value, ignoreCase);
         }
 
         public static TEnum Parse<TEnum>(string value) where TEnum : struct =>
@@ -100,31 +100,31 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            EnumCache<TEnum> cache = EnumCache<TEnum>.Instance;
-            if (cache == null)
+            EnumBridge<TEnum> bridge = EnumBridge<TEnum>.Instance;
+            if (bridge == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            return cache.Parse(value, ignoreCase);
+            return bridge.Parse(value, ignoreCase);
         }
 
         public static bool TryParse(Type enumType, string value, out object result) =>
             TryParse(enumType, value, ignoreCase: false, out result);
 
         public static bool TryParse(Type enumType, string value, bool ignoreCase, out object result) =>
-            EnumCache.Get(enumType).TryParse(value, ignoreCase, out result);
+            EnumBridge.Get(enumType).TryParse(value, ignoreCase, out result);
 
         public static bool TryParse<TEnum>(string value, out TEnum result) where TEnum : struct =>
             TryParse(value, ignoreCase: false, out result);
 
         public static bool TryParse<TEnum>(string value, bool ignoreCase, out TEnum result) where TEnum : struct
         {
-            EnumCache<TEnum> cache = EnumCache<TEnum>.Instance;
-            if (cache == null)
+            EnumBridge<TEnum> bridge = EnumBridge<TEnum>.Instance;
+            if (bridge == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            return cache.TryParse(value, ignoreCase, out result);
+            return bridge.TryParse(value, ignoreCase, out result);
         }
 
         public static Type GetUnderlyingType(Type enumType)
@@ -184,19 +184,20 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            return EnumCache.Get(enumType).Format(value, format);
+            return EnumBridge.Get(enumType).Format(value, format);
         }
         #endregion
 
         #region Definitions
-        #region EnumCache
-        internal abstract class EnumCache
+        #region EnumBridge
+        // Bridges the enum type with it's underlying type and cache
+        internal abstract class EnumBridge
         {
-            internal static EnumCache Get(Type enumType)
+            internal static EnumBridge Get(Type enumType)
             {
                 if (!(enumType is RuntimeType rtType))
                 {
-                    return ThrowGetCacheException(enumType);
+                    return ThrowGetBridgeException(enumType);
                 }
 
                 if (!rtType.IsEnum)
@@ -208,7 +209,7 @@ namespace System
             }
 
             [MethodImpl(MethodImplOptions.NoInlining)]
-            private static EnumCache ThrowGetCacheException(Type enumType)
+            private static EnumBridge ThrowGetBridgeException(Type enumType)
             {
                 Debug.Assert(!(enumType is RuntimeType));
 
@@ -226,22 +227,22 @@ namespace System
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal static EnumCache Get(RuntimeType rtType)
+            internal static EnumBridge Get(RuntimeType rtType)
             {
                 Debug.Assert(rtType.IsEnum);
 
-                return rtType.GenericCache as EnumCache ?? InitializeGenericCache(rtType);
+                return rtType.GenericCache as EnumBridge ?? InitializeGenericCache(rtType);
             }
 
             [MethodImpl(MethodImplOptions.NoInlining)]
-            internal static EnumCache InitializeGenericCache(RuntimeType rtType)
+            internal static EnumBridge InitializeGenericCache(RuntimeType rtType)
             {
-                EnumCache cache = (EnumCache)typeof(EnumCache<>).MakeGenericType(rtType).GetField(nameof(EnumCache<DayOfWeek>.Instance), BindingFlags.Static | BindingFlags.Public).GetValue(null) ?? throw new ArgumentException(SR.Argument_InvalidEnum, "enumType");
-                rtType.GenericCache = cache;
-                return cache;
+                EnumBridge bridge = (EnumBridge)typeof(EnumBridge<>).MakeGenericType(rtType).GetField(nameof(EnumBridge<DayOfWeek>.Instance), BindingFlags.Static | BindingFlags.Public).GetValue(null) ?? throw new ArgumentException(SR.Argument_InvalidEnum, "enumType");
+                rtType.GenericCache = bridge;
+                return bridge;
             }
 
-            private protected static EnumCache Create(Type enumType)
+            protected static EnumBridge Create(Type enumType)
             {
                 if (!enumType.IsEnum)
                 {
@@ -262,65 +263,41 @@ namespace System
                     underlyingType = GetUnderlyingType(underlyingType);
                 }
 
-                return (EnumCache)Activator.CreateInstance(typeof(EnumCache<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations)));
+                return (EnumBridge)Activator.CreateInstance(typeof(EnumBridge<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations)));
             }
 
-            public readonly Type UnderlyingType;
-            public readonly EnumMembers Members;
-
-            private protected EnumCache(Type underlyingType, EnumMembers members)
+            #region Static Method Generic Implementation
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            protected static string Format<TEnum, TUnderlying, TUnderlyingOperations>(object value, string format)
+                where TEnum : struct, Enum
+                where TUnderlying : struct, IEquatable<TUnderlying>
+                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
             {
-                UnderlyingType = underlyingType;
-                Members = members;
+                EnumCache<TUnderlying, TUnderlyingOperations> cache = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
+                return value is TEnum enumValue ?
+                    cache.Format(Unsafe.As<TEnum, TUnderlying>(ref enumValue), format) :
+                    cache.Format(value, format);
             }
 
-            public abstract string Format(object value, string format);
-            public abstract string GetName(object value);
-            public abstract Array GetValuesNonGeneric();
-            public abstract bool IsDefined(object value);
-            public abstract object ParseNonGeneric(ReadOnlySpan<char> value, bool ignoreCase);
-            public abstract object ToObjectNonGeneric(ulong value);
-            public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result);
-        }
-
-        // Try to minimize code here due to generic code explosion with an Enum generic type argument
-        internal abstract class EnumCache<TEnum> : EnumCache
-        {
-            public static readonly EnumCache<TEnum> Instance = (EnumCache<TEnum>)Create(typeof(TEnum));
-
-            private protected EnumCache(Type underlyingType, EnumMembers members)
-                : base(underlyingType, members)
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            protected static string GetName<TEnum, TUnderlying, TUnderlyingOperations>(object value)
+                where TEnum : struct, Enum
+                where TUnderlying : struct, IEquatable<TUnderlying>
+                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
             {
+                EnumCache<TUnderlying, TUnderlyingOperations> cache = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
+                return value is TEnum enumValue ?
+                    cache.GetName(Unsafe.As<TEnum, TUnderlying>(ref enumValue)) :
+                    cache.GetName(value);
             }
 
-            public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result);
-            public abstract TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase);
-        }
-
-        // Try to minimize code here due to generic code explosion with an Enum generic type argument
-        private sealed class EnumCache<TEnum, TUnderlying, TUnderlyingOperations> : EnumCache<TEnum>
-            where TEnum : struct, Enum
-            where TUnderlying : struct, IEquatable<TUnderlying>
-            where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
-        {
-            private static readonly EnumMembers<TUnderlying, TUnderlyingOperations> s_members = new EnumMembers<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
-
-            public EnumCache()
-                : base(typeof(TUnderlying), s_members)
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            protected static Array GetValuesNonGeneric<TEnum, TUnderlying, TUnderlyingOperations>()
+                where TEnum : struct, Enum
+                where TUnderlying : struct, IEquatable<TUnderlying>
+                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
             {
-            }
-
-            public override string Format(object value, string format) => value is TEnum enumValue ?
-                s_members.Format(Unsafe.As<TEnum, TUnderlying>(ref enumValue), format) :
-                s_members.Format(value, format);
-
-            public override string GetName(object value) => value is TEnum enumValue ?
-                s_members.GetName(Unsafe.As<TEnum, TUnderlying>(ref enumValue)) :
-                s_members.GetName(value);
-
-            public override Array GetValuesNonGeneric()
-            {
-                ulong[] values = s_members._values;
+                ulong[] values = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance._values;
                 TEnum[] array = new TEnum[values.Length];
                 TUnderlyingOperations operations = default;
                 for (int i = 0; i < values.Length; ++i)
@@ -331,49 +308,135 @@ namespace System
                 return array;
             }
 
-            public override bool IsDefined(object value) => value is TEnum enumValue ?
-                s_members.IsDefined(Unsafe.As<TEnum, TUnderlying>(ref enumValue)) :
-                s_members.IsDefined(value);
-
-            public override TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase)
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            protected static bool IsDefined<TEnum, TUnderlying, TUnderlyingOperations>(object value)
+                where TEnum : struct, Enum
+                where TUnderlying : struct, IEquatable<TUnderlying>
+                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
             {
-                TUnderlying underlying = s_members.Parse(value, ignoreCase);
-                return Unsafe.As<TUnderlying, TEnum>(ref underlying);
+                EnumCache<TUnderlying, TUnderlyingOperations> cache = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
+                return value is TEnum enumValue ?
+                    cache.IsDefined(Unsafe.As<TEnum, TUnderlying>(ref enumValue)) :
+                    cache.IsDefined(value);
             }
 
-            public override object ParseNonGeneric(ReadOnlySpan<char> value, bool ignoreCase) => Parse(value, ignoreCase);
-
-            public override object ToObjectNonGeneric(ulong value)
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            protected static TEnum ToObject<TEnum, TUnderlying, TUnderlyingOperations>(ulong value)
+                where TEnum : struct, Enum
+                where TUnderlying : struct, IEquatable<TUnderlying>
+                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
             {
                 TUnderlying underlying = default(TUnderlyingOperations).ToObject(value);
                 return Unsafe.As<TUnderlying, TEnum>(ref underlying);
             }
 
-            public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result)
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            protected static bool TryParse<TEnum, TUnderlying, TUnderlyingOperations>(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result)
+                where TEnum : struct, Enum
+                where TUnderlying : struct, IEquatable<TUnderlying>
+                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
             {
-                bool success = s_members.TryParse(value, ignoreCase, out TUnderlying underlying);
+                bool success = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance.TryParse(value, ignoreCase, out TUnderlying underlying);
                 result = Unsafe.As<TUnderlying, TEnum>(ref underlying);
                 return success;
             }
 
-            public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result)
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            protected static bool TryParse<TEnum, TUnderlying, TUnderlyingOperations>(ReadOnlySpan<char> value, bool ignoreCase, out object result)
+                where TEnum : struct, Enum
+                where TUnderlying : struct, IEquatable<TUnderlying>
+                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
             {
-                bool success = TryParse(value, ignoreCase, out TEnum enumResult);
+                bool success = TryParse<TEnum, TUnderlying, TUnderlyingOperations>(value, ignoreCase, out TEnum enumResult);
                 result = success ? (object)enumResult : null;
                 return success;
             }
+            #endregion
+
+            public readonly Type UnderlyingType;
+
+            protected EnumBridge(Type underlyingType)
+            {
+                UnderlyingType = underlyingType;
+            }
+
+            public abstract string Format(object value, string format);
+            public abstract string GetName(object value);
+            public abstract Array GetValuesNonGeneric();
+            public abstract string[] GetNamesNonGeneric();
+            public abstract bool IsDefined(object value);
+            public abstract object ParseNonGeneric(ReadOnlySpan<char> value, bool ignoreCase);
+            public abstract object ToObjectNonGeneric(ulong value);
+            public abstract string ToString(ref byte value, bool explicitFlags);
+            public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result);
+        }
+
+        // Try to minimize code here due to generic code explosion with an Enum generic type argument
+        internal abstract class EnumBridge<TEnum> : EnumBridge
+        {
+            public static readonly EnumBridge<TEnum> Instance = (EnumBridge<TEnum>)Create(typeof(TEnum));
+
+            protected EnumBridge(Type underlyingType)
+                : base(underlyingType)
+            {
+            }
+
+            public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result);
+            public abstract TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase);
+        }
+
+        // Try to minimize code here due to generic code explosion with an Enum generic type argument.
+        // Many methods in here delegate their logic to generic static methods to avoid JITing their
+        // entire bodies on any use of the enum.
+        // Not storing the generic Cache as a static field here allows methods like ToObject to not
+        // require the cache to be generated.
+        private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperations> : EnumBridge<TEnum>
+            where TEnum : struct, Enum
+            where TUnderlying : struct, IEquatable<TUnderlying>
+            where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
+        {
+            public EnumBridge()
+                : base(typeof(TUnderlying))
+            {
+            }
+
+            public override string Format(object value, string format) => Format<TEnum, TUnderlying, TUnderlyingOperations>(value, format);
+
+            public override string GetName(object value) => GetName<TEnum, TUnderlying, TUnderlyingOperations>(value);
+
+            public override string[] GetNamesNonGeneric() => EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance.GetNamesNonGeneric();
+
+            public override Array GetValuesNonGeneric() => GetValuesNonGeneric<TEnum, TUnderlying, TUnderlyingOperations>();
+
+            public override bool IsDefined(object value) => IsDefined<TEnum, TUnderlying, TUnderlyingOperations>(value);
+
+            public override TEnum Parse(ReadOnlySpan<char> value, bool ignoreCase)
+            {
+                TUnderlying underlying = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance.Parse(value, ignoreCase);
+                return Unsafe.As<TUnderlying, TEnum>(ref underlying);
+            }
+
+            public override object ParseNonGeneric(ReadOnlySpan<char> value, bool ignoreCase) => Parse(value, ignoreCase);
+
+            public override object ToObjectNonGeneric(ulong value) => ToObject<TEnum, TUnderlying, TUnderlyingOperations>(value);
+
+            public override string ToString(ref byte value, bool explicitFlags) => EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance.ToString(Unsafe.As<byte, TUnderlying>(ref value), explicitFlags);
+
+            public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result) => TryParse<TEnum, TUnderlying, TUnderlyingOperations>(value, ignoreCase, out result);
+
+            public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result) => TryParse<TEnum, TUnderlying, TUnderlyingOperations>(value, ignoreCase, out result);
         }
         #endregion
 
-        #region EnumMembers
-        internal abstract class EnumMembers
+        #region EnumCache
+        internal abstract class EnumCache
         {
             protected readonly Type _enumType;
             protected readonly bool _isFlagEnum;
             internal readonly string[] _names;
             internal readonly ulong[] _values;
 
-            protected EnumMembers(Type enumType)
+            protected EnumCache(Type enumType)
             {
                 _enumType = enumType;
                 _isFlagEnum = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
@@ -407,175 +470,6 @@ namespace System
                 _values = values;
             }
 
-            public string GetName(ulong value)
-            {
-                ulong[] values = _values;
-                int index = HybridSearch(values, values.Length, value);
-                if (index >= 0)
-                {
-                    return _names[index];
-                }
-                return null;
-            }
-
-            public string ToString(ulong value)
-            {
-                if (_isFlagEnum)
-                {
-                    return ToStringFlags(value);
-                }
-                ulong[] values = _values;
-                int index = HybridSearch(values, values.Length, value);
-                if (index >= 0)
-                {
-                    return _names[index];
-                }
-                return ValueToString(value);
-            }
-
-            public abstract string ValueToString(ulong value);
-
-            public string ToStringFlags(ulong value)
-            {
-                string[] names = _names;
-                ulong[] values = _values;
-
-                // Values are sorted, so if the incoming value is 0, we can check to see whether
-                // the first non-negative entry matches it, in which case we can return its name;
-                // otherwise, we can just return the integral value.
-                if (value == 0)
-                {
-                    return values.Length > 0 && values[0] == 0 ?
-                        names[0] :
-                        ValueToString(value);
-                }
-
-                // It's common to have a flags enum with a single value that matches a single
-                // entry, in which case we can just return the existing name string.
-                int index = HybridSearch(values, values.Length, value);
-                if (index >= 0)
-                {
-                    return names[index];
-                }
-
-                // With a ulong result value, regardless of the enum's base type, the maximum
-                // possible number of consistent name/values we could have is 64, since every
-                // value is made up of one or more bits, and when we see values and incorporate
-                // their names, we effectively switch off those bits.
-                Span<int> foundItems = stackalloc int[64];
-
-                // Now look for matches, storing the indices of the values
-                // into our span.
-                int resultLength = 0;
-                int foundItemsCount = 0;
-                ulong tempValue = value;
-                for (index = ~index - 1; index >= 0; --index)
-                {
-                    ulong currentValue = values[index];
-                    if ((tempValue & currentValue) == currentValue)
-                    {
-                        if (currentValue == 0)
-                        {
-                            break;
-                        }
-                        tempValue -= currentValue;
-                        foundItems[foundItemsCount++] = index;
-                        resultLength = checked(resultLength + names[index].Length);
-                        if (tempValue == 0)
-                        {
-                            // We know what strings to concatenate.  Do so.
-
-                            Debug.Assert(foundItemsCount > 0);
-                            const int SeparatorStringLength = 2; // ", "
-                            string result = string.FastAllocateString(checked(resultLength + (SeparatorStringLength * (foundItemsCount - 1))));
-
-                            Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
-                            string name = names[foundItems[--foundItemsCount]];
-                            name.AsSpan().CopyTo(resultSpan);
-                            resultSpan = resultSpan.Slice(name.Length);
-                            while (--foundItemsCount >= 0)
-                            {
-                                resultSpan[0] = EnumSeparatorChar;
-                                resultSpan[1] = ' ';
-                                resultSpan = resultSpan.Slice(2);
-
-                                name = names[foundItems[foundItemsCount]];
-                                name.AsSpan().CopyTo(resultSpan);
-                                resultSpan = resultSpan.Slice(name.Length);
-                            }
-                            Debug.Assert(resultSpan.IsEmpty);
-
-                            return result;
-                        }
-                    }
-                }
-
-                // We exhausted looking through all the values and we still have
-                // a non-zero result, we couldn't match the result to only named values.
-                // In that case, we return the integral value.
-                return ValueToString(value);
-            }
-
-            protected Number.ParsingStatus TryParseName(ReadOnlySpan<char> value, bool ignoreCase, out ulong result)
-            {
-                Number.ParsingStatus status = Number.ParsingStatus.Failed;
-                ulong localResult = default;
-                string[] names = _names;
-                ulong[] values = _values;
-                do
-                {
-                    status = Number.ParsingStatus.Failed;
-                    // Find the next separator.
-                    ReadOnlySpan<char> subvalue;
-                    int endIndex = value.IndexOf(EnumSeparatorChar);
-                    if (endIndex == -1)
-                    {
-                        subvalue = value.Trim();
-                        value = default;
-                    }
-                    else if (endIndex != value.Length - 1)
-                    {
-                        // Found a separator before the last char.
-                        subvalue = value.Slice(0, endIndex).Trim();
-                        value = value.Slice(endIndex + 1);
-                    }
-                    else
-                    {
-                        // Last char was a separator, which is invalid.
-                        break;
-                    }
-
-                    // Try to match this substring against each enum name
-                    if (ignoreCase)
-                    {
-                        for (int i = 0; i < names.Length; i++)
-                        {
-                            if (subvalue.EqualsOrdinalIgnoreCase(names[i]))
-                            {
-                                localResult |= values[i];
-                                status = Number.ParsingStatus.OK;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        for (int i = 0; i < names.Length; i++)
-                        {
-                            if (subvalue.EqualsOrdinal(names[i]))
-                            {
-                                localResult |= values[i];
-                                status = Number.ParsingStatus.OK;
-                                break;
-                            }
-                        }
-                    }
-                } while (value.Length > 0 && status == Number.ParsingStatus.OK);
-
-                result = status == Number.ParsingStatus.OK ? localResult : default;
-                return status;
-            }
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             protected static int HybridSearch(ulong[] values, int length, ulong value)
             {
@@ -599,7 +493,7 @@ namespace System
             }
         }
 
-        private sealed class EnumMembers<TUnderlying, TUnderlyingOperations> : EnumMembers
+        private sealed class EnumCache<TUnderlying, TUnderlyingOperations> : EnumCache
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
@@ -607,14 +501,14 @@ namespace System
             private readonly TUnderlying _min;
             private readonly bool _isContiguous;
 
-            public EnumMembers(Type enumType)
+            public EnumCache(Type enumType)
                 : base(enumType)
             {
                 ulong[] values = _values;
                 TUnderlyingOperations operations = default;
                 TUnderlying max = default;
                 TUnderlying min = default;
-                for (var i = 0; i < values.Length; ++i)
+                for (int i = 0; i < values.Length; ++i)
                 {
                     TUnderlying value = operations.ToObject(values[i]);
                     if (i == 0)
@@ -636,13 +530,39 @@ namespace System
                 _isContiguous = values.Length > 0 && operations.Subtract(max, operations.ToObject((ulong)values.Length - 1)).Equals(min);
             }
 
+            public string GetName(TUnderlying value)
+            {
+                ulong[] values = _values;
+                int index = HybridSearch(values, values.Length, default(TUnderlyingOperations).ToUInt64(value));
+                if (index >= 0)
+                {
+                    return _names[index];
+                }
+                return null;
+            }
+
             public string GetName(object value)
             {
                 Debug.Assert(value.GetType() != _enumType);
 
                 ulong uint64Value = ToUInt64(value, throwInvalidOperationException: false);
                 TUnderlyingOperations operations = default;
-                return operations.IsInValueRange(uint64Value) ? base.GetName(uint64Value) : null;
+                if (operations.IsInValueRange(uint64Value))
+                {
+                    ulong[] values = _values;
+                    int index = HybridSearch(values, values.Length, uint64Value);
+                    if (index >= 0)
+                    {
+                        return _names[index];
+                    }
+                }
+                return null;
+            }
+
+            public string[] GetNamesNonGeneric()
+            {
+                // Make a copy since we can't hand out the same array since users can modify them
+                return new ReadOnlySpan<string>(_names).ToArray();
             }
 
             public bool IsDefined(TUnderlying value)
@@ -711,7 +631,7 @@ namespace System
                     {
                         case 'G':
                         case 'g':
-                            return ToString(default(TUnderlyingOperations).ToUInt64(value));
+                            return ToString(value, explicitFlags: false);
                         case 'D':
                         case 'd':
                             return value.ToString();
@@ -720,7 +640,7 @@ namespace System
                             return default(TUnderlyingOperations).ToHexStr(value);
                         case 'F':
                         case 'f':
-                            return ToStringFlags(default(TUnderlyingOperations).ToUInt64(value));
+                            return ToStringFlags(value);
                     }
                 }
                 throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
@@ -735,6 +655,102 @@ namespace System
                     return Format(underlyingValue, format);
                 }
                 throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, value.GetType(), _enumType));
+            }
+
+            public string ToString(TUnderlying value, bool explicitFlags)
+            {
+                if (_isFlagEnum || explicitFlags)
+                {
+                    return ToStringFlags(value);
+                }
+                ulong[] values = _values;
+                int index = HybridSearch(values, values.Length, default(TUnderlyingOperations).ToUInt64(value));
+                if (index >= 0)
+                {
+                    return _names[index];
+                }
+                return value.ToString();
+            }
+            
+            private string ToStringFlags(TUnderlying underlying)
+            {
+                string[] names = _names;
+                ulong[] values = _values;
+
+                ulong uint64Value = default(TUnderlyingOperations).ToUInt64(underlying);
+                // Values are sorted, so if the incoming value is 0, we can check to see whether
+                // the first non-negative entry matches it, in which case we can return its name;
+                // otherwise, we can just return the integral value.
+                if (uint64Value == 0)
+                {
+                    return values.Length > 0 && values[0] == 0 ?
+                        names[0] :
+                        underlying.ToString();
+                }
+
+                // It's common to have a flags enum with a single value that matches a single
+                // entry, in which case we can just return the existing name string.
+                int index = HybridSearch(values, values.Length, uint64Value);
+                if (index >= 0)
+                {
+                    return names[index];
+                }
+
+                // With a ulong result value, regardless of the enum's base type, the maximum
+                // possible number of consistent name/values we could have is 64, since every
+                // value is made up of one or more bits, and when we see values and incorporate
+                // their names, we effectively switch off those bits.
+                Span<int> foundItems = stackalloc int[64];
+
+                // Now look for matches, storing the indices of the values
+                // into our span.
+                int resultLength = 0;
+                int foundItemsCount = 0;
+                for (index = ~index - 1; index >= 0; --index)
+                {
+                    ulong currentValue = values[index];
+                    if ((uint64Value & currentValue) == currentValue)
+                    {
+                        if (currentValue == 0)
+                        {
+                            break;
+                        }
+                        uint64Value -= currentValue;
+                        foundItems[foundItemsCount++] = index;
+                        resultLength = checked(resultLength + names[index].Length);
+                        if (uint64Value == 0)
+                        {
+                            // We know what strings to concatenate.  Do so.
+
+                            Debug.Assert(foundItemsCount > 0);
+                            const int SeparatorStringLength = 2; // ", "
+                            string result = string.FastAllocateString(checked(resultLength + (SeparatorStringLength * (foundItemsCount - 1))));
+
+                            Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
+                            string name = names[foundItems[--foundItemsCount]];
+                            name.AsSpan().CopyTo(resultSpan);
+                            resultSpan = resultSpan.Slice(name.Length);
+                            while (--foundItemsCount >= 0)
+                            {
+                                resultSpan[0] = EnumSeparatorChar;
+                                resultSpan[1] = ' ';
+                                resultSpan = resultSpan.Slice(2);
+
+                                name = names[foundItems[foundItemsCount]];
+                                name.AsSpan().CopyTo(resultSpan);
+                                resultSpan = resultSpan.Slice(name.Length);
+                            }
+                            Debug.Assert(resultSpan.IsEmpty);
+
+                            return result;
+                        }
+                    }
+                }
+
+                // We exhausted looking through all the values and we still have
+                // a non-zero result, we couldn't match the result to only named values.
+                // In that case, we return the integral value.
+                return underlying.ToString();
             }
 
             public TUnderlying Parse(ReadOnlySpan<char> value, bool ignoreCase)
@@ -776,21 +792,80 @@ namespace System
                             return status;
                         }
                     }
+                    
+                    ulong uint64Result = default;
+                    string[] names = _names;
+                    ulong[] values = _values;
+                    do
+                    {
+                        status = Number.ParsingStatus.Failed;
+                        // Find the next separator.
+                        ReadOnlySpan<char> subvalue;
+                        int endIndex = value.IndexOf(EnumSeparatorChar);
+                        if (endIndex == -1)
+                        {
+                            subvalue = value.Trim();
+                            value = default;
+                        }
+                        else if (endIndex != value.Length - 1)
+                        {
+                            // Found a separator before the last char.
+                            subvalue = value.Slice(0, endIndex).Trim();
+                            value = value.Slice(endIndex + 1);
+                        }
+                        else
+                        {
+                            // Last char was a separator, which is invalid.
+                            break;
+                        }
 
-                    status = TryParseName(value, ignoreCase, out ulong uint64Result);
+                        // Try to match this substring against each enum name
+                        if (ignoreCase)
+                        {
+                            for (int i = 0; i < names.Length; i++)
+                            {
+                                if (subvalue.EqualsOrdinalIgnoreCase(names[i]))
+                                {
+                                    uint64Result |= values[i];
+                                    status = Number.ParsingStatus.OK;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < names.Length; i++)
+                            {
+                                if (subvalue.EqualsOrdinal(names[i]))
+                                {
+                                    uint64Result |= values[i];
+                                    status = Number.ParsingStatus.OK;
+                                    break;
+                                }
+                            }
+                        }
+                    } while (value.Length > 0 && status == Number.ParsingStatus.OK);
+
                     localResult = operations.ToObject(uint64Result);
                 }
 
                 result = status == Number.ParsingStatus.OK ? localResult : default;
                 return status;
             }
+        }
 
-            public override string ValueToString(ulong value) => default(TUnderlyingOperations).ToObject(value).ToString();
+        // Simply stores the static instance of the generic Cache
+        private sealed class EnumCache<TEnum, TUnderlying, TUnderlyingOperations>
+            where TEnum : struct, Enum
+            where TUnderlying : struct, IEquatable<TUnderlying>
+            where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
+        {
+            internal static readonly EnumCache<TUnderlying, TUnderlyingOperations> Instance = new EnumCache<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
         }
         #endregion
 
         #region UnderlyingOperations
-        private interface IUnderlyingOperations<TUnderlying>
+        internal interface IUnderlyingOperations<TUnderlying>
             where TUnderlying : struct, IEquatable<TUnderlying>
         {
             string OverflowMessage { get; }
@@ -1225,7 +1300,12 @@ namespace System
         internal object GetValue()
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return Unsafe.As<byte, int>(ref data);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return Unsafe.As<byte, sbyte>(ref data);
@@ -1239,8 +1319,6 @@ namespace System
                     return Unsafe.As<byte, ushort>(ref data);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return Unsafe.As<byte, char>(ref data);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return Unsafe.As<byte, int>(ref data);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return Unsafe.As<byte, uint>(ref data);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1267,7 +1345,12 @@ namespace System
             // than getting the cache with a call to EnumCache.Get((RuntimeType)GetType())
             // along with the virtual method ToString call.
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return Unsafe.As<byte, int>(ref data).ToString();
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return Unsafe.As<byte, sbyte>(ref data).ToString();
@@ -1281,8 +1364,6 @@ namespace System
                     return Unsafe.As<byte, ushort>(ref data).ToString();
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return Unsafe.As<byte, char>(ref data).ToString();
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return Unsafe.As<byte, int>(ref data).ToString();
                 case CorElementType.ELEMENT_TYPE_U4:
                     return Unsafe.As<byte, uint>(ref data).ToString();
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1306,7 +1387,12 @@ namespace System
         private string ValueToHexString()
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return Unsafe.As<byte, uint>(ref data).ToString("X8", null);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                 case CorElementType.ELEMENT_TYPE_U1:
@@ -1317,7 +1403,6 @@ namespace System
                 case CorElementType.ELEMENT_TYPE_U2:
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return Unsafe.As<byte, ushort>(ref data).ToString("X4", null);
-                case CorElementType.ELEMENT_TYPE_I4:
                 case CorElementType.ELEMENT_TYPE_U4:
                     return Unsafe.As<byte, uint>(ref data).ToString("X8", null);
                 case CorElementType.ELEMENT_TYPE_I8:
@@ -1345,42 +1430,6 @@ namespace System
             }
         }
 
-        private ulong ToUInt64()
-        {
-            ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
-            {
-                case CorElementType.ELEMENT_TYPE_I1:
-                    return (ulong)Unsafe.As<byte, sbyte>(ref data);
-                case CorElementType.ELEMENT_TYPE_U1:
-                    return data;
-                case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                    return Convert.ToUInt64(Unsafe.As<byte, bool>(ref data), CultureInfo.InvariantCulture);
-                case CorElementType.ELEMENT_TYPE_I2:
-                    return (ulong)Unsafe.As<byte, short>(ref data);
-                case CorElementType.ELEMENT_TYPE_U2:
-                case CorElementType.ELEMENT_TYPE_CHAR:
-                    return Unsafe.As<byte, ushort>(ref data);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return (ulong)Unsafe.As<byte, int>(ref data);
-                case CorElementType.ELEMENT_TYPE_U4:
-                case CorElementType.ELEMENT_TYPE_R4:
-                    return Unsafe.As<byte, uint>(ref data);
-                case CorElementType.ELEMENT_TYPE_I8:
-                    return (ulong)Unsafe.As<byte, long>(ref data);
-                case CorElementType.ELEMENT_TYPE_U8:
-                case CorElementType.ELEMENT_TYPE_R8:
-                    return Unsafe.As<byte, ulong>(ref data);
-                case CorElementType.ELEMENT_TYPE_I:
-                    return (ulong)Unsafe.As<byte, IntPtr>(ref data);
-                case CorElementType.ELEMENT_TYPE_U:
-                    return (ulong)Unsafe.As<byte, UIntPtr>(ref data);
-                default:
-                    Debug.Fail("Invalid primitive type");
-                    return 0;
-            }
-        }
-
         [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool InternalHasFlag(Enum flags);
 
@@ -1398,7 +1447,12 @@ namespace System
             // The runtime can bypass calls to Enum::GetHashCode and call the underlying type's GetHashCode directly
             // to avoid boxing the enum.
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return Unsafe.As<byte, int>(ref data).GetHashCode();
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return Unsafe.As<byte, sbyte>(ref data).GetHashCode();
@@ -1412,8 +1466,6 @@ namespace System
                     return Unsafe.As<byte, ushort>(ref data).GetHashCode();
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return Unsafe.As<byte, char>(ref data).GetHashCode();
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return Unsafe.As<byte, int>(ref data).GetHashCode();
                 case CorElementType.ELEMENT_TYPE_U4:
                     return Unsafe.As<byte, uint>(ref data).GetHashCode();
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1443,7 +1495,7 @@ namespace System
             // pure powers of 2 OR-ed together, you return a hex value
 
             // Try to see if its one of the enum values, then we return a String back else the value
-            return EnumCache.Get((RuntimeType)GetType()).Members.ToString(ToUInt64());
+            return EnumBridge.Get((RuntimeType)GetType()).ToString(ref this.GetRawData(), explicitFlags: false);
         }
         #endregion
 
@@ -1511,16 +1563,12 @@ namespace System
                         return ValueToHexString();
                     case 'F':
                     case 'f':
-                        return EnumCache.Get((RuntimeType)GetType()).Members.ToStringFlags(ToUInt64());
+                        return EnumBridge.Get((RuntimeType)GetType()).ToString(ref this.GetRawData(), explicitFlags: true);
                 }
             }
 
             throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
         }
-
-        [Obsolete("The provider argument is not used. Please use ToString().")]
-        public string ToString(IFormatProvider provider) =>
-            ToString();
 
         [Intrinsic]
         public bool HasFlag(Enum flag)
@@ -1542,7 +1590,12 @@ namespace System
         #region IConvertible
         public TypeCode GetTypeCode()
         {
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return TypeCode.Int32;
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return TypeCode.SByte;
@@ -1556,8 +1609,6 @@ namespace System
                     return TypeCode.UInt16;
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return TypeCode.Char;
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return TypeCode.Int32;
                 case CorElementType.ELEMENT_TYPE_U4:
                     return TypeCode.UInt32;
                 case CorElementType.ELEMENT_TYPE_I8:
@@ -1569,10 +1620,19 @@ namespace System
             }
         }
 
+        [Obsolete("The provider argument is not used. Please use ToString().")]
+        public string ToString(IFormatProvider provider) =>
+            ToString();
+
         bool IConvertible.ToBoolean(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToBoolean(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToBoolean(CultureInfo.CurrentCulture);
@@ -1586,8 +1646,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToBoolean(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToBoolean(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToBoolean(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToBoolean(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1606,7 +1664,12 @@ namespace System
         char IConvertible.ToChar(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToChar(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToChar(CultureInfo.CurrentCulture);
@@ -1620,8 +1683,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToChar(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return Unsafe.As<byte, char>(ref data);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToChar(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToChar(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1640,7 +1701,12 @@ namespace System
         sbyte IConvertible.ToSByte(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToSByte(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return Unsafe.As<byte, sbyte>(ref data);
@@ -1654,8 +1720,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToSByte(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToSByte(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToSByte(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToSByte(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1674,7 +1738,12 @@ namespace System
         byte IConvertible.ToByte(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToByte(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToByte(CultureInfo.CurrentCulture);
@@ -1688,8 +1757,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToByte(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToByte(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToByte(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToByte(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1708,7 +1775,12 @@ namespace System
         short IConvertible.ToInt16(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToInt16(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToInt16(CultureInfo.CurrentCulture);
@@ -1722,8 +1794,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToInt16(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToInt16(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToInt16(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToInt16(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1742,7 +1812,12 @@ namespace System
         ushort IConvertible.ToUInt16(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToUInt16(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToUInt16(CultureInfo.CurrentCulture);
@@ -1756,8 +1831,6 @@ namespace System
                     return Unsafe.As<byte, ushort>(ref data);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToUInt16(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToUInt16(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToUInt16(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1776,7 +1849,12 @@ namespace System
         int IConvertible.ToInt32(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return Unsafe.As<byte, int>(ref data);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToInt32(CultureInfo.CurrentCulture);
@@ -1790,8 +1868,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToInt32(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToInt32(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return Unsafe.As<byte, int>(ref data);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToInt32(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1810,7 +1886,12 @@ namespace System
         uint IConvertible.ToUInt32(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToUInt32(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToUInt32(CultureInfo.CurrentCulture);
@@ -1824,8 +1905,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToUInt32(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToUInt32(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToUInt32(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return Unsafe.As<byte, uint>(ref data);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1844,7 +1923,12 @@ namespace System
         long IConvertible.ToInt64(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToInt64(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToInt64(CultureInfo.CurrentCulture);
@@ -1858,8 +1942,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToInt64(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToInt64(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToInt64(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToInt64(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1878,7 +1960,12 @@ namespace System
         ulong IConvertible.ToUInt64(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToUInt64(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToUInt64(CultureInfo.CurrentCulture);
@@ -1892,8 +1979,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToUInt64(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToUInt64(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToUInt64(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToUInt64(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1912,7 +1997,12 @@ namespace System
         float IConvertible.ToSingle(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToSingle(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToSingle(CultureInfo.CurrentCulture);
@@ -1926,8 +2016,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToSingle(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToSingle(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToSingle(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToSingle(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1946,7 +2034,12 @@ namespace System
         double IConvertible.ToDouble(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToDouble(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToDouble(CultureInfo.CurrentCulture);
@@ -1960,8 +2053,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToDouble(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToDouble(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToDouble(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToDouble(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -1980,7 +2071,12 @@ namespace System
         decimal IConvertible.ToDecimal(IFormatProvider provider)
         {
             ref byte data = ref this.GetRawData();
-            switch (InternalGetCorElementType())
+            CorElementType corElementType = InternalGetCorElementType();
+            if (corElementType == CorElementType.ELEMENT_TYPE_I4)
+            {
+                return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToDecimal(CultureInfo.CurrentCulture);
+            }
+            switch (corElementType)
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return ((IConvertible)Unsafe.As<byte, sbyte>(ref data)).ToDecimal(CultureInfo.CurrentCulture);
@@ -1994,8 +2090,6 @@ namespace System
                     return ((IConvertible)Unsafe.As<byte, ushort>(ref data)).ToDecimal(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_CHAR:
                     return ((IConvertible)Unsafe.As<byte, char>(ref data)).ToDecimal(CultureInfo.CurrentCulture);
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return ((IConvertible)Unsafe.As<byte, int>(ref data)).ToDecimal(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_U4:
                     return ((IConvertible)Unsafe.As<byte, uint>(ref data)).ToDecimal(CultureInfo.CurrentCulture);
                 case CorElementType.ELEMENT_TYPE_R4:
@@ -2027,37 +2121,37 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-
-            return EnumCache.Get(enumType).ToObjectNonGeneric(ToUInt64(value, throwInvalidOperationException: false));
+            
+            return ToObject(enumType, ToUInt64(value, throwInvalidOperationException: false));
         }
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, sbyte value) =>
-            EnumCache.Get(enumType).ToObjectNonGeneric((ulong)value);
+            ToObject(enumType, (ulong)value);
 
         public static object ToObject(Type enumType, short value) =>
-            EnumCache.Get(enumType).ToObjectNonGeneric((ulong)value);
+            ToObject(enumType, (ulong)value);
 
         public static object ToObject(Type enumType, int value) =>
-            EnumCache.Get(enumType).ToObjectNonGeneric((ulong)value);
+            ToObject(enumType, (ulong)value);
 
         public static object ToObject(Type enumType, byte value) =>
-            EnumCache.Get(enumType).ToObjectNonGeneric(value);
+            ToObject(enumType, (ulong)value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, ushort value) =>
-            EnumCache.Get(enumType).ToObjectNonGeneric(value);
+            ToObject(enumType, (ulong)value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, uint value) =>
-            EnumCache.Get(enumType).ToObjectNonGeneric(value);
+            ToObject(enumType, (ulong)value);
 
         public static object ToObject(Type enumType, long value) =>
-            EnumCache.Get(enumType).ToObjectNonGeneric((ulong)value);
+            ToObject(enumType, (ulong)value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, ulong value) =>
-            EnumCache.Get(enumType).ToObjectNonGeneric(value);
+            EnumBridge.Get(enumType).ToObjectNonGeneric(value);
         #endregion
     }
 }
