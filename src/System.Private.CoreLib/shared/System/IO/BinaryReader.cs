@@ -578,7 +578,6 @@ namespace System.IO
             return result;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ReadOnlySpan<byte> InternalRead(int numBytes)
         {
             Debug.Assert(numBytes >= 2 && numBytes <= 16, "value of 1 should use ReadByte. value > 16 requires to change the minimal _buffer size");

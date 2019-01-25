@@ -227,6 +227,7 @@ namespace System.IO
         }
 
         // PERF: Takes out ReadOnlySpan as fast as possible
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ReadOnlySpan<byte> InternalReadSpan(int count)
         {
             EnsureNotClosed();
@@ -234,10 +235,7 @@ namespace System.IO
             int origPos = _position;
             int newPos = origPos + count;
             
-            // Check validity of what we got
-            if (newPos < 0)
-                throw new IOException(SR.IO_StreamTooLong);
-            if (newPos > _length)
+            if ((uint)newPos > (uint)_length)
             {
                 _position = _length;
                 throw Error.GetEndOfFile();
