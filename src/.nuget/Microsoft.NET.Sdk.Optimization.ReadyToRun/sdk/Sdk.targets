@@ -179,6 +179,8 @@ Copyright (c) .NET Foundation. All rights reserved.
       <_CrossgenUnfilteredInputAssemblies Include="@(_CrossgenInputIntermediateAssembly)" />
       <_CrossgenUnfilteredInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'$(ReadyToRunAllPublishRuntimeAssets)' == 'true' and '%(ResolvedAssembliesToPublish.AssetType)' == 'runtime'" />
       <_CrossgenUnfilteredInputAssemblies Remove="@(_CrossgenUnfilteredInputAssemblies)" Condition="'%(_CrossgenUnfilteredInputAssemblies.PackageName)' == '$(_RuntimePackageName)'" />
+
+      <_CrossgenReferenceAssemblies Include="@(ResolvedAssembliesToPublish)" /> 
     </ItemGroup>
 
     <!-- Filter the input assemblies to only those that are managed and IL ONLY -->
@@ -199,7 +201,7 @@ Copyright (c) .NET Foundation. All rights reserved.
           Outputs="@(_CrossgenOutputAssemblies)"
           Condition="'$(ReadyToRun)' == 'true'">
     <ItemGroup>
-      <_CrossgenPlatformAssembliesPathsWithDuplicates Include="@(ResolvedAssembliesToPublish->'%(RootDir)%(Directory)')" /> 
+      <_CrossgenPlatformAssembliesPathsWithDuplicates Include="@(_CrossgenReferenceAssemblies->'%(RootDir)%(Directory)')" /> 
       <_CrossgenPlatformAssembliesPaths Include="@(_CrossgenPlatformAssembliesPathsWithDuplicates->Distinct())" />
     </ItemGroup>
 
