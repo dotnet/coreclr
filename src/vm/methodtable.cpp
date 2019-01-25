@@ -2275,7 +2275,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
     }
     CONTRACTL_END;
     
-    WORD numIntroducedFields = GetNumIntroducedInstanceFields();
+    DWORD numIntroducedFields = GetNumIntroducedInstanceFields();
 
     // It appears the VM gives a struct with no fields of size 1.
     // Don't pass in register such structure.
