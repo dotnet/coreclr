@@ -27,7 +27,24 @@ namespace System.Runtime.Serialization
         private string _rootTypeAssemblyName;
         private Type _rootType;
         
-        internal static AsyncLocal<bool> AsyncDeserializationInProgress { get; } = new AsyncLocal<bool>();
+        internal static AsyncLocal<bool> AsyncDeserializationInProgress { get; } = new AsyncLocal<bool>();        
+
+#if !CORECLR
+        // On AoT, assume private members are reflection blocked, so there's no further protection required
+        // for the thread's DeserializationTracker
+        [ThreadStatic]
+        private static DeserializationTracker t_deserializationTracker;
+
+        private static DeserializationTracker GetThreadDeserializationTracker()
+        {
+            if (t_deserializationTracker == null)
+            {
+                t_deserializationTracker = new DeserializationTracker();
+            }
+
+            return t_deserializationTracker;
+        }
+#endif // !CORECLR
 
         // Returns true if deserialization is currently in progress
         public static bool DeserializationInProgress
@@ -44,7 +61,7 @@ namespace System.Runtime.Serialization
                 StackCrawlMark stackMark = StackCrawlMark.LookForMe;
                 DeserializationTracker tracker = Thread.GetThreadDeserializationTracker(ref stackMark);
 #else
-                DeserializationTracker tracker = Thread.GetThreadDeserializationTracker();
+                DeserializationTracker tracker = GetThreadDeserializationTracker();
 #endif
                 bool result = tracker.DeserializationInProgress;
                 return result;
@@ -122,7 +139,7 @@ namespace System.Runtime.Serialization
                 StackCrawlMark stackMark = StackCrawlMark.LookForMe;
                 DeserializationTracker tracker = Thread.GetThreadDeserializationTracker(ref stackMark);
 #else
-                DeserializationTracker tracker = Thread.GetThreadDeserializationTracker();
+                DeserializationTracker tracker = GetThreadDeserializationTracker();
 #endif
                 if  (!tracker.DeserializationInProgress)
                 {
