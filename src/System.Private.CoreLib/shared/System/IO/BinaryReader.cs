@@ -228,7 +228,7 @@ namespace System.IO
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private byte InternalReadByte()
         {
-            // Inlined to avoid some method call overhead with FillBuffer.
+            // Inlined to avoid some method call overhead with InternalRead.
             if (_stream == null)
             {
                 throw Error.GetFileNotOpen();
@@ -614,6 +614,10 @@ namespace System.IO
             }
         }
 
+        // FillBuffer is not performing well when reading from MemoryStreams as it is using the public IStream interface.
+        // We introduced new function InternalRead which can work directly on the MemoryStream internal buffer or using the public IStream
+        // interface when working with all other streams. This function is not needed anymore but we decided not to delete it for competability
+        // reasons. More about the subject in: https://github.com/dotnet/coreclr/pull/22102
         protected virtual void FillBuffer(int numBytes)
         {
             if (_buffer != null && (numBytes < 0 || numBytes > _buffer.Length))
