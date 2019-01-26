@@ -9329,8 +9329,6 @@ GenTree* Compiler::fgMorphInitBlock(GenTree* tree)
         }
         else
         {
-            GenTree* destAddr = dest->AsIndir()->Addr();
-
             if (dest->OperIs(GT_IND))
             {
                 assert(dest->TypeGet() == TYP_STRUCT);
@@ -9348,7 +9346,7 @@ GenTree* Compiler::fgMorphInitBlock(GenTree* tree)
             }
 
             FieldSeqNode* destFldSeq = nullptr;
-            if (destAddr->IsLocalAddrExpr(this, &destLclNode, &destFldSeq))
+            if (dest->AsIndir()->Addr()->IsLocalAddrExpr(this, &destLclNode, &destFldSeq))
             {
                 destLclNum = destLclNode->GetLclNum();
                 destLclVar = lvaGetDesc(destLclNum);
