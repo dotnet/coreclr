@@ -104,7 +104,7 @@ Copyright (c) .NET Foundation. All rights reserved.
       <_CoreclrDir>$([System.IO.Path]::GetDirectoryName($(_CoreclrPath)))</_CoreclrDir>
       <_CoreclrPkgDir>$([System.IO.Path]::Combine($(_CoreclrDir),"..\..\..\"))</_CoreclrPkgDir>
 
-      <_JitFilename>@(_JitResolvedPath->'%(Filename)')@(_JitResolvedPath->'%(Extension)')</_JitFilename>
+      <_JitFilename>@(_JitResolvedPath->'%(Filename)%(Extension)')</_JitFilename>
       <_JitCrossArchFilePath Condition="'$(_TargetArchitecture)' == 'arm' and '$(_OSArchitecture)'!='arm' and '$(_OSPlatform)' == 'win'">$([System.IO.Path]::Combine($(_CoreclrPkgDir),"runtimes","x86_arm","native",$(_JitFilename)))</_JitCrossArchFilePath>
       <_JitCrossArchFilePath Condition="'$(_TargetArchitecture)' == 'arm' and '$(_OSArchitecture)'!='arm' and '$(_OSPlatform)' != 'win'">$([System.IO.Path]::Combine($(_CoreclrPkgDir),"runtimes","$(_OSArchitecture)_arm","native",$(_JitFilename)))</_JitCrossArchFilePath>
       <_JitCrossArchFilePath Condition="'$(_TargetArchitecture)' == 'arm64' and '$(_OSArchitecture)'!='arm64'">$([System.IO.Path]::Combine($(_CoreclrPkgDir),"runtimes","x64_arm64","native",$(_JitFilename)))</_JitCrossArchFilePath>
@@ -161,8 +161,6 @@ Copyright (c) .NET Foundation. All rights reserved.
     <NETSdkError Condition="!Exists($(Crossgen))"
                  ResourceName="UnableToFindResolvedPath"
                  FormatArguments="$(Crossgen)" />
-
-    <MakeDir Directories="$(_ReadyToRunOutputDir)"/>
   </Target>
 
   <UsingTask TaskName="FilterManagedAssemblies" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
@@ -218,6 +216,8 @@ Copyright (c) .NET Foundation. All rights reserved.
       <CrossgenCommand>$(Crossgen) -nologo -readytorun -jitpath &quot;$(JitPath)&quot; -platform_assemblies_paths &quot;$(_CrossgenPlatformAssembliesPathsProperty)&quot;</CrossgenCommand>
       <CrossgenCreatePdbCommand>$(Crossgen) -nologo -createpdb &quot;$(_ReadyToRunOutputDir)&quot; -diasymreaderpath &quot;$(DiaSymReaderPath)&quot; -platform_assemblies_paths &quot;$(_CrossgenPlatformAssembliesPathsProperty)&quot;</CrossgenCreatePdbCommand>
     </PropertyGroup>
+
+    <MakeDir Directories="$(_ReadyToRunOutputDir)"/>
 
     <Message Text="$(CrossgenCommand) -in &quot;%(_CrossgenInputAssemblies.Identity)&quot; -out &quot;$(_ReadyToRunOutputDir)/%(FileName)%(Extension)&quot;" />
     <Exec Command="$(CrossgenCommand) -in &quot;%(_CrossgenInputAssemblies.Identity)&quot; -out &quot;$(_ReadyToRunOutputDir)/%(FileName)%(Extension)&quot;" />
