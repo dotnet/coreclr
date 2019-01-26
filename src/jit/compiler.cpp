@@ -3215,7 +3215,8 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 #endif // PROFILING_SUPPORTED
 
 #if defined(_TARGET_ARM64_)
-    opts.compJitSaveFpLrWithCalleeSavedRegisters = -1; // -1 is default: use appropriate frame type.
+    // -1 is default: use the appropriate frame type based on the function.
+    opts.compJitSaveFpLrWithCalleeSavedRegisters = -1;
 #endif // defined(_TARGET_ARM64_)
 
 #ifdef DEBUG
