@@ -11,7 +11,7 @@ namespace System
     // The backing algorithm and the proofs behind it are described in more detail here:  https://www.cs.indiana.edu/~dyb/pubs/FP-Printing-PLDI96.pdf
     internal static partial class Number
     {
-        public static unsafe void Dragon4Double(double value, int cutoffNumber, ref NumberBuffer number)
+        public static unsafe void Dragon4Double(double value, int cutoffNumber, bool isSignificantDigits, ref NumberBuffer number)
         {
             double v = double.IsNegative(value) ? -value : value;
 
@@ -33,14 +33,14 @@ namespace System
                 mantissaHighBitIdx = BigInteger.LogBase2(mantissa);
             }
 
-            int length = (int)(Dragon4(mantissa, exponent, mantissaHighBitIdx, hasUnequalMargins, cutoffNumber, number.Digits, out int decimalExponent));
+            int length = (int)(Dragon4(mantissa, exponent, mantissaHighBitIdx, hasUnequalMargins, cutoffNumber, isSignificantDigits, number.Digits, out int decimalExponent));
 
             number.Scale = decimalExponent + 1;
             number.Digits[length] = (byte)('\0');
             number.DigitsCount = length;
         }
 
-        public static unsafe void Dragon4Single(float value, int cutoffNumber, ref NumberBuffer number)
+        public static unsafe void Dragon4Single(float value, int cutoffNumber, bool isSignificantDigits, ref NumberBuffer number)
         {
             float v = float.IsNegative(value) ? -value : value;
 
@@ -62,7 +62,7 @@ namespace System
                 mantissaHighBitIdx = BigInteger.LogBase2(mantissa);
             }
 
-            int length = (int)(Dragon4(mantissa, exponent, mantissaHighBitIdx, hasUnequalMargins, cutoffNumber, number.Digits, out int decimalExponent));
+            int length = (int)(Dragon4(mantissa, exponent, mantissaHighBitIdx, hasUnequalMargins, cutoffNumber, isSignificantDigits, number.Digits, out int decimalExponent));
 
             number.Scale = decimalExponent + 1;
             number.Digits[length] = (byte)('\0');
@@ -81,7 +81,7 @@ namespace System
         //  "Printing Floating-Point Numbers Quickly and Accurately"
         //    Burger and Dybvig
         //    http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.72.4656&rep=rep1&type=pdf
-        private static unsafe uint Dragon4(ulong mantissa, int exponent, uint mantissaHighBitIdx, bool hasUnequalMargins, int cutoffNumber, Span<byte> buffer, out int decimalExponent)
+        private static unsafe uint Dragon4(ulong mantissa, int exponent, uint mantissaHighBitIdx, bool hasUnequalMargins, int cutoffNumber, bool isSignificantDigits, Span<byte> buffer, out int decimalExponent)
         {
             int curDigit = 0;
 
@@ -252,11 +252,24 @@ namespace System
 
             if (cutoffNumber != -1)
             {
-                Debug.Assert(cutoffNumber > 0);
-                int desiredCutoffExponent = digitExponent - cutoffNumber;
+                int desiredCutoffExponent = 0;
+
+                if (isSignificantDigits)
+                {
+                    // We asked for a specific number of significant digits.
+                    Debug.Assert(cutoffNumber > 0);
+                    desiredCutoffExponent = digitExponent - cutoffNumber;
+                }
+                else
+                {
+                    // We asked for a specific number of fractional digits.
+                    Debug.Assert(cutoffNumber >= 0);
+                    desiredCutoffExponent = -cutoffNumber;
+                }
 
                 if (desiredCutoffExponent > cutoffExponent)
                 {
+                    // Only select the new cutoffExponent if it won't overflow the destination buffer.
                     cutoffExponent = desiredCutoffExponent;
                 }
             }
@@ -298,6 +311,8 @@ namespace System
 
             if (cutoffNumber == -1)
             {
+                Debug.Assert(isSignificantDigits);
+
                 // For the unique cutoff mode, we will try to print until we have reached a level of precision that uniquely distinguishes this value from its neighbors.
                 // If we run out of space in the output buffer, we terminate early.
 
@@ -337,7 +352,7 @@ namespace System
             }
             else
             {
-                Debug.Assert(cutoffNumber > 0);
+                Debug.Assert((cutoffNumber > 0) || ((cutoffNumber == 0) && !isSignificantDigits));
 
                 // For length based cutoff modes, we will try to print until we have exhausted all precision (i.e. all remaining digits are zeros) or until we reach the desired cutoff digit.
                 low = false;
@@ -351,7 +366,7 @@ namespace System
                     outputDigit = BigInteger.HeuristicDivide(ref scaledValue, ref scale);
                     Debug.Assert(outputDigit < 10);
 
-                    if (scaledValue.IsZero() || (digitExponent == cutoffExponent))
+                    if (scaledValue.IsZero() || (digitExponent <= cutoffExponent))
                     {
                         break;
                     }

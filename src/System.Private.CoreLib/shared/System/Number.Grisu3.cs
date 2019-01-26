@@ -340,7 +340,6 @@ namespace System
                 }
                 else
                 {
-                    Debug.Assert(requestedDigits > 0);
                     var w = new DiyFp(v).Normalize();
                     result = RunCounted(in w, requestedDigits, number.Digits, out length, out decimalExponent);
                 }
@@ -375,7 +374,6 @@ namespace System
                 }
                 else
                 {
-                    Debug.Assert(requestedDigits > 0);
                     var w = new DiyFp(v).Normalize();
                     result = RunCounted(in w, requestedDigits, number.Digits, out length, out decimalExponent);
                 }
@@ -397,6 +395,8 @@ namespace System
             // Grisu3 is too imprecise for real halfway cases (1.5 will not work) and therefore the rounding strategy for halfway cases is irrelevant.
             private static bool RunCounted(in DiyFp w, int requestedDigits, Span<byte> buffer, out int length, out int decimalExponent)
             {
+                Debug.Assert(requestedDigits > 0);
+
                 int tenMkMinimalBinaryExponent = MinimalTargetExponent - (w.e + DiyFp.SignificandSize);
                 int tenMkMaximalBinaryExponent = MaximalTargetExponent - (w.e + DiyFp.SignificandSize);
 

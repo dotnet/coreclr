@@ -378,6 +378,126 @@ namespace System
                 sb.TryCopyTo(destination, out charsWritten);
         }
 
+        private static int GetFloatingPointMaxDigitsAndPrecision(char fmt, ref int precision, NumberFormatInfo info, out bool isSignificantDigits)
+        {
+            if (fmt == 0)
+            {
+                isSignificantDigits = false;
+                return precision;
+            }
+
+            int maxDigits = precision;
+
+            switch (fmt)
+            {
+                case 'C':
+                case 'c':
+                {
+                    // The currency format uses the precision specifier to indicate the number of
+                    // decimal digits to format. This defaults to NumberFormatInfo.CurrencyDecimalDigits.
+
+                    if (precision == -1)
+                    {
+                        precision = info.CurrencyDecimalDigits;
+                    }
+                    isSignificantDigits = false;
+
+                    break;
+                }
+
+                case 'E':
+                case 'e':
+                {
+                    // The exponential format uses the precision specifier to indicate the number of
+                    // decimal digits to format. This defaults to 6. However, the exponential format
+                    // also always formats a single integral digit, so we need to increase the precision
+                    // specifier and treat it as the number of significant digits to account for this.
+
+                    if (precision == -1)
+                    {
+                        precision = 6;
+                    }
+
+                    precision++;
+                    isSignificantDigits = true;
+
+                    break;
+                }
+
+                case 'F':
+                case 'f':
+                case 'N':
+                case 'n':
+                {
+                    // The fixed-point and number formats use the precision specifier to indicate the number 
+                    // of decimal digits to format. This defaults to NumberFormatInfo.NumberDecimalDigits.
+
+                    if (precision == -1)
+                    {
+                        precision = info.NumberDecimalDigits;
+                    }
+                    isSignificantDigits = false;
+
+                    break;
+                }
+
+                case 'G':
+                case 'g':
+                {
+                    // The general format uses the precision specifier to indicate the number of significant
+                    // digits to format. This defaults to the shortest roundtrippable string. Additionally,
+                    // given that we can't return zero significant digits, we treat 0 as returning the shortest
+                    // roundtrippable string as well.
+
+                    if (precision == 0)
+                    {
+                        precision = -1;
+                    }
+                    isSignificantDigits = true;
+
+                    break;
+                }
+
+                case 'P':
+                case 'p':
+                {
+                    // The percent format uses the precision specifier to indicate the number of
+                    // decimal digits to format. This defaults to NumberFormatInfo.PercentDecimalDigits.
+                    // However, the percent format also always multiplies the number by 100, so we need
+                    // to increase the precision specifier to ensure we get the appropriate number of digits.
+
+                    if (precision == -1)
+                    {
+                        precision = info.PercentDecimalDigits;
+                    }
+
+                    precision += 2;
+                    isSignificantDigits = false;
+
+                    break;
+                }
+
+                case 'R':
+                case 'r':
+                {
+                    // The roundtrip format ignores the precision specifier and always returns the shortest
+                    // roundtrippable string.
+
+                    precision = -1;
+                    isSignificantDigits = true;
+
+                    break;
+                }
+
+                default:
+                {
+                    throw new FormatException(SR.Argument_BadFormatSpecifier);
+                }
+            }
+
+            return maxDigits;
+        }
+
         /// <summary>Formats the specified value according to the specified format and info.</summary>
         /// <returns>
         /// Non-null if an existing string can be returned, in which case the builder will be unmodified.
@@ -403,57 +523,11 @@ namespace System
 
             // We need to track the original precision requested since some formats 
             // accept values like 0 and others may require additional fixups.
-            int nMaxDigits = precision;
+            int nMaxDigits = GetFloatingPointMaxDigitsAndPrecision(fmt, ref precision, info, out bool isSignificantDigits);
 
-            switch (fmt)
+            if ((value == 0.0) || !isSignificantDigits || !Grisu3.RunDouble(value, precision, ref number))
             {
-                case 'C':
-                case 'c':
-                case 'F':
-                case 'f':
-                case 'N':
-                case 'n':
-                case 'E':
-                case 'e':
-                case 'P':
-                case 'p':
-                {
-                    // The currency, fixed-point, number, exponential, and percent
-                    // format specifiers need to always compute at least DoublePrecision
-                    // digits since they all use precision to specify the number of digits
-                    // after the decimal point that should be formatted. Ideally we would
-                    // compute enough digits to ensure that the integral part is fully
-                    // fleshed out but that is non trivial and requires additional work.
-                    precision = Math.Max(precision, DoublePrecision);
-                    break;
-                }
-
-                
-                case 'G':
-                case 'g':
-                {
-                    // For the general format specifier, we just treat a precision of 0
-                    // as the shortest roundtrippable string, since the user can't actually
-                    // request zero significant digits.
-                    if (precision == 0)
-                    {
-                        precision = -1;
-                    }
-                    break;
-                }
-
-                case 'R':
-                case 'r':
-                {
-                    // For the roundtrip specifier, we need to always ask for the shortest roundtrippable string.
-                    precision = -1;
-                    break;
-                }
-            }
-
-            if ((value == 0.0) || !Grisu3.RunDouble(value, precision, ref number))
-            {
-                Dragon4Double(value, precision, ref number);
+                Dragon4Double(value, precision, isSignificantDigits, ref number);
             }
 
             number.CheckConsistency();
@@ -529,57 +603,11 @@ namespace System
 
             // We need to track the original precision requested since some formats 
             // accept values like 0 and others may require additional fixups.
-            int nMaxDigits = precision;
+            int nMaxDigits = GetFloatingPointMaxDigitsAndPrecision(fmt, ref precision, info, out bool isSignificantDigits);
 
-            switch (fmt)
+            if ((value == 0.0f) || !isSignificantDigits || !Grisu3.RunSingle(value, precision, ref number))
             {
-                case 'C':
-                case 'c':
-                case 'F':
-                case 'f':
-                case 'N':
-                case 'n':
-                case 'E':
-                case 'e':
-                case 'P':
-                case 'p':
-                {
-                    // The currency, fixed-point, number, exponential, and percent
-                    // format specifiers need to always compute at least SinglePrecision
-                    // digits since they all use precision to specify the number of digits
-                    // after the decimal point that should be formatted. Ideally we would
-                    // compute enough digits to ensure that the integral part is fully
-                    // fleshed out but that is non trivial and requires additional work.
-                    precision = Math.Max(precision, SinglePrecision);
-                    break;
-                }
-
-
-                case 'G':
-                case 'g':
-                {
-                    // For the general format specifier, we just treat a precision of 0
-                    // as the shortest roundtrippable string, since the user can't actually
-                    // request zero significant digits.
-                    if (precision == 0)
-                    {
-                        precision = -1;
-                    }
-                    break;
-                }
-
-                case 'R':
-                case 'r':
-                {
-                    // For the roundtrip specifier, we need to always ask for the shortest roundtrippable string.
-                    precision = -1;
-                    break;
-                }
-            }
-
-            if ((value == 0.0f) || !Grisu3.RunSingle(value, precision, ref number))
-            {
-                Dragon4Single(value, precision, ref number);
+                Dragon4Single(value, precision, isSignificantDigits, ref number);
             }
 
             number.CheckConsistency();
