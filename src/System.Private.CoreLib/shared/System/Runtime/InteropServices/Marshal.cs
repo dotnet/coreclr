@@ -778,7 +778,7 @@ namespace System.Runtime.InteropServices
             {
                 return;
             }
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.SysStringLen(s) * 2));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)SysStringByteLen(s));
             FreeBSTR(s);
         }
 
@@ -825,6 +825,11 @@ namespace System.Runtime.InteropServices
             }
             RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
             FreeHGlobal(s);
+        }
+
+        internal static unsafe uint SysStringByteLen(IntPtr s)
+        {
+            return *(((uint*)s) - 1);
         }
     }
 }
