@@ -5260,14 +5260,14 @@ void          CodeGen::genPushCalleeSavedRegisters()
     else if (frameType == 4)
     {
         assert(genSaveFpLrWithAllCalleeSavedRegisters);
-        offsetSpToSavedFp = calleeSaveSPDelta - (compiler->info.compIsVarArgs ? MAX_ARG_REG_COUNT * REGSIZE_BYTES : 0) -
+        offsetSpToSavedFp = calleeSaveSPDelta - (compiler->info.compIsVarArgs ? MAX_REG_ARG * REGSIZE_BYTES : 0) -
                             2 * REGSIZE_BYTES; // -2 for FP, LR
     }
     else if (frameType == 5)
     {
         assert(genSaveFpLrWithAllCalleeSavedRegisters);
 
-        offsetSpToSavedFp = calleeSaveSPDelta - (compiler->info.compIsVarArgs ? MAX_ARG_REG_COUNT * REGSIZE_BYTES : 0) -
+        offsetSpToSavedFp = calleeSaveSPDelta - (compiler->info.compIsVarArgs ? MAX_REG_ARG * REGSIZE_BYTES : 0) -
                             2 * REGSIZE_BYTES; // -2 for FP, LR
         JITDUMP("    offsetSpToSavedFp=%d\n", offsetSpToSavedFp);
         genEstablishFramePointer(offsetSpToSavedFp, /* reportUnwindData */ true);
@@ -5890,7 +5890,7 @@ void CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
             // "remainingFrameSz" to reverse the SUB of that amount in the prolog. The unwind codes won't match.
 
             int offsetSpToSavedFp = calleeSaveSPDelta -
-                                    (compiler->info.compIsVarArgs ? MAX_ARG_REG_COUNT * REGSIZE_BYTES : 0) -
+                                    (compiler->info.compIsVarArgs ? MAX_REG_ARG * REGSIZE_BYTES : 0) -
                                     2 * REGSIZE_BYTES; // -2 for FP, LR
             getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, offsetSpToSavedFp);
             compiler->unwindSetFrameReg(REG_FPBASE, offsetSpToSavedFp);
