@@ -771,5 +771,60 @@ namespace System.Runtime.InteropServices
         }
 
         public static IntPtr /* IDispatch */ GetIDispatchForObject(object o) => throw new PlatformNotSupportedException();
+
+        public static void ZeroFreeBSTR(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.SysStringLen(s) * 2));
+            FreeBSTR(s);
+        }
+
+        public unsafe static void ZeroFreeCoTaskMemAnsi(IntPtr s)
+        {
+            ZeroFreeCoTaskMemUTF8(s);
+        }
+
+        public static unsafe void ZeroFreeCoTaskMemUnicode(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
+            FreeCoTaskMem(s);
+        }
+
+        public static unsafe void ZeroFreeCoTaskMemUTF8(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
+            FreeCoTaskMem(s);
+        }
+
+        public unsafe static void ZeroFreeGlobalAllocAnsi(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
+            FreeHGlobal(s);
+        }
+
+        public static unsafe void ZeroFreeGlobalAllocUnicode(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
+            FreeHGlobal(s);
+        }
     }
 }
