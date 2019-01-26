@@ -382,7 +382,7 @@ namespace System
         {
             if (fmt == 0)
             {
-                isSignificantDigits = false;
+                isSignificantDigits = true;
                 return precision;
             }
 
@@ -525,7 +525,7 @@ namespace System
             // accept values like 0 and others may require additional fixups.
             int nMaxDigits = GetFloatingPointMaxDigitsAndPrecision(fmt, ref precision, info, out bool isSignificantDigits);
 
-            if ((value == 0.0) || !isSignificantDigits || !Grisu3.RunDouble(value, precision, ref number))
+            if ((value != 0.0) && (!isSignificantDigits || !Grisu3.RunDouble(value, precision, ref number)))
             {
                 Dragon4Double(value, precision, isSignificantDigits, ref number);
             }
@@ -536,7 +536,7 @@ namespace System
             // because we know we have enough digits to satisfy roundtrippability), we should validate
             // that the number actually roundtrips back to the original result.
 
-            Debug.Assert(((precision != -1) && (precision < DoublePrecision)) || BitConverter.DoubleToInt64Bits(value) == BitConverter.DoubleToInt64Bits(NumberToDouble(ref number)));
+            Debug.Assert(((precision != -1) && (precision < DoublePrecision)) || (BitConverter.DoubleToInt64Bits(value) == BitConverter.DoubleToInt64Bits(NumberToDouble(ref number))));
 
             if (fmt != 0)
             {
@@ -605,7 +605,7 @@ namespace System
             // accept values like 0 and others may require additional fixups.
             int nMaxDigits = GetFloatingPointMaxDigitsAndPrecision(fmt, ref precision, info, out bool isSignificantDigits);
 
-            if ((value == 0.0f) || !isSignificantDigits || !Grisu3.RunSingle(value, precision, ref number))
+            if ((value != 0.0f) && (!isSignificantDigits || !Grisu3.RunSingle(value, precision, ref number)))
             {
                 Dragon4Single(value, precision, isSignificantDigits, ref number);
             }
@@ -616,7 +616,7 @@ namespace System
             // because we know we have enough digits to satisfy roundtrippability), we should validate
             // that the number actually roundtrips back to the original result.
 
-            Debug.Assert(((precision != -1) && (precision < SinglePrecision)) || BitConverter.SingleToInt32Bits(value) == BitConverter.SingleToInt32Bits(NumberToSingle(ref number)));
+            Debug.Assert(((precision != -1) && (precision < SinglePrecision)) || (BitConverter.SingleToInt32Bits(value) == BitConverter.SingleToInt32Bits(NumberToSingle(ref number))));
 
             if (fmt != 0)
             {

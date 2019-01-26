@@ -15,7 +15,7 @@ namespace System
         {
             double v = double.IsNegative(value) ? -value : value;
 
-            Debug.Assert(v >= 0);
+            Debug.Assert(v > 0);
             Debug.Assert(double.IsFinite(v));
 
             ulong mantissa = ExtractFractionAndBiasedExponent(value, out int exponent);
@@ -44,7 +44,7 @@ namespace System
         {
             float v = float.IsNegative(value) ? -value : value;
 
-            Debug.Assert(v >= 0);
+            Debug.Assert(v > 0);
             Debug.Assert(float.IsFinite(v));
 
             uint mantissa = ExtractFractionAndBiasedExponent(value, out int exponent);
@@ -87,13 +87,12 @@ namespace System
 
             Debug.Assert(buffer.Length > 0);
 
-            // If the mantissa is zero, the value is zero regardless of the exponent
-            if (mantissa == 0)
-            {
-                buffer[curDigit] = (byte)('0');
-                decimalExponent = 0;
-                return 1;
-            }
+            // We deviate from the original algorithm and just assert that the mantissa
+            // is not zero. Comparing to zero is fine since the caller should have set
+            // the implicit bit of the mantissa, meaning it would only ever be zero if
+            // the extracted exponent was also zero. And the assertion is fine since we
+            // require that the DoubleToNumber handle zero itself.
+            Debug.Assert(mantissa != 0);
 
             // Compute the initial state in integral form such that
             //      value     = scaledValue / scale
