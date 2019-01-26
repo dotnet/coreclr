@@ -19,22 +19,27 @@ namespace System
         // This comment is for tracking purposes and will be deleted
         // PR already merged: https://github.com/dotnet/coreclr/pull/22118
 
-        // TODO: Suggest return value is byte so caller can assign to any int size or sign
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int TrailingZeroCount(int matches) // TODO: Rename parameter to something more suitable such as mask or value
+        public static byte TrailingZeroCount(int value)
+            // Changed parameter name to something more useful
+            // Changed return type from int to byte so that caller can assign it to any size/sign of int
+            => TrailingZeroCount((uint)value);
+
+        // TODO: Consolidate with similar methods below
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte TrailingZeroCount(uint value)
         {
             if (Bmi1.IsSupported)
             {
-                return (int)Bmi1.TrailingZeroCount((uint)matches);
+                return (byte)Bmi1.TrailingZeroCount(value);
             }
-            // TODO: Consolidate with similar methods below
             else // Software fallback
             {
                 // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
                 // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
                 return Unsafe.AddByteOffset(
                     ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn),
-                    ((uint)((matches & -matches) * 0x077CB531U)) >> 27);
+                    ((uint)((value & -value) * 0x077CB531U)) >> 27);
             }
         }
 
@@ -1042,6 +1047,9 @@ namespace System
         public static byte TrailingZeroCount(short value)
             => TrailingZeroCount(unchecked((ushort)value));
 
+        // TODO: Previously implemented in the original class (see top of file)
+        // TODO: Benchmark and consolidate
+        /*
         /// <summary>
         /// Count the number of trailing zero bits in a mask.
         /// Similar in behavior to the x86 instruction TZCNT.
@@ -1071,8 +1079,6 @@ namespace System
             return cnt;
         }
 
-        // TODO: Previously implemented in the original class (see top of file)
-        /*
         /// <summary>
         /// Count the number of trailing zero bits in a mask.
         /// Similar in behavior to the x86 instruction TZCNT.
