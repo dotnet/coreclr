@@ -5446,6 +5446,10 @@ namespace System.Threading.Tasks
                 if (Token.IsCancellationRequested)
                 {
                     setSucceeded = TrySetCanceled(Token);
+                    if (setSucceeded)
+                    {
+                        Timer?.Close();
+                    }
                 }
                 else
                 {
