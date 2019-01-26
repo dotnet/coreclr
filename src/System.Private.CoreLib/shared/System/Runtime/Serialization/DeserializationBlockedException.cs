@@ -11,31 +11,30 @@ namespace System.Runtime.Serialization
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed class DeserializationBlockedException : SerializationException
     {
-        private static String _nullMessage = SR.Serialization_DangerousDeserialization;
-
         // Creates a new DeserializationBlockedException with its message 
         // string set to a default message.
         public DeserializationBlockedException()
-            : base(_nullMessage)
+            : base(SR.Serialization_DangerousDeserialization)
         {
             HResult = HResults.COR_E_SERIALIZATION;
         }
 
         // Creates a new DeserializationBlockedException with a message indicating an opt-out switch
         // for a particular part of SerializationGuard
-        public DeserializationBlockedException(String message)
+        public DeserializationBlockedException(string message)
             : base(message)
         {
             HResult = HResults.COR_E_SERIALIZATION;
         }
 
         public DeserializationBlockedException(Exception innerException)
-            : base(_nullMessage, innerException)
+            : base(SR.Serialization_DangerousDeserialization, innerException)
         {
             HResult = HResults.COR_E_SERIALIZATION;
         }
 
-        private DeserializationBlockedException(SerializationInfo info, StreamingContext context) : base(info, context)
+        private DeserializationBlockedException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
         {
         }
     }

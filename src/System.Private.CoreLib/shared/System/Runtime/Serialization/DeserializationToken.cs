@@ -9,7 +9,7 @@ using System.Threading;
 namespace System.Runtime.Serialization
 {
     // Tracks whether deserialization is currently in progress
-    public struct DeserializationToken : IDisposable
+    public readonly struct DeserializationToken : IDisposable
     {
         private readonly DeserializationTracker _tracker;
 

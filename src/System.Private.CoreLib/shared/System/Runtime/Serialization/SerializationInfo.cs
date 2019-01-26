@@ -5,7 +5,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
+using System.Security;
 using System.Threading;
 
 namespace System.Runtime.Serialization
@@ -26,14 +26,13 @@ namespace System.Runtime.Serialization
         private string _rootTypeName;
         private string _rootTypeAssemblyName;
         private Type _rootType;
-        private readonly static DeserializationToken s_emptyToken = new DeserializationToken(null);
         
         internal static AsyncLocal<bool> AsyncDeserializationInProgress { get; } = new AsyncLocal<bool>();
 
         // Returns true if deserialization is currently in progress
         public static bool DeserializationInProgress
         {
-            [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var must be marked non-inlineable
+            [DynamicSecurityMethod] // Methods containing StackCrawlMark local var must be marked DynamicSecurityMethod
             get
             {
                 if (AsyncDeserializationInProgress.Value)
@@ -70,7 +69,7 @@ namespace System.Runtime.Serialization
         // -1: The switch is false
         public static void ThrowIfDeserializationInProgress(string switchSuffix, ref int cachedValue)
         {
-            const string switchPrefix = "Switch.System.Runtime.Serialization.SerializationGuard.";
+            const string SwitchPrefix = "Switch.System.Runtime.Serialization.SerializationGuard.";
             if (switchSuffix == null)
             {
                 throw new ArgumentNullException(nameof(switchSuffix));
@@ -83,7 +82,7 @@ namespace System.Runtime.Serialization
             if (cachedValue == 0)
             {
                 bool isEnabled = false;
-                if (AppContext.TryGetSwitch(switchPrefix + switchSuffix, out isEnabled) && isEnabled)
+                if (AppContext.TryGetSwitch(SwitchPrefix + switchSuffix, out isEnabled) && isEnabled)
                 {
                     cachedValue = 1;
                 }
@@ -101,11 +100,7 @@ namespace System.Runtime.Serialization
             {
                 if (DeserializationInProgress)
                 {
-                    // If we can't use this message, some alternatives that could sort of contain the switch name could be:
-                    // Remoting_ThreadAffinity_InvalidFlag = The specified flag '{0}' does not have one of the valid values.
-                    // Security_Generic = Request for the permission of type '{0}' failed.
-                    // Serialization_TypeRead = Invalid read type request '{0}'.
-                    throw new DeserializationBlockedException(SR.Format(SR.Serialization_DangerousDeserialization_Switch, switchPrefix + switchSuffix));
+                    throw new DeserializationBlockedException(SR.Format(SR.Serialization_DangerousDeserialization_Switch, SwitchPrefix + switchSuffix));
                 }
             }
             else
@@ -117,8 +112,8 @@ namespace System.Runtime.Serialization
         // Declares that the current thread and async context have begun deserialization.
         // In this state, if the SerializationGuard or other related AppContext switches are set,
         // actions likely to be dangerous during deserialization, such as starting a process will be blocked.
-        // Returns a DeserializationToken that must be disposed to remove the deserialization state.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        // Returns a DeserializationToken that must be disposed to remove the deserialization state.        
+        [DynamicSecurityMethod] // Methods containing StackCrawlMark local var must be marked DynamicSecurityMethod
         public static DeserializationToken StartDeserialization()
         {
             if (LocalAppContextSwitches.SerializationGuard)
@@ -143,7 +138,7 @@ namespace System.Runtime.Serialization
                 }
             }
             
-            return s_emptyToken;
+            return new DeserializationToken(null);
         }
 
         [CLSCompliant(false)]

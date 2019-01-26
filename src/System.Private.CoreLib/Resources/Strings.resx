@@ -3668,6 +3668,6 @@
     <value>An action was attempted during deserialization that could lead to a security vulnerability. The action has been aborted.</value>
   </data>
   <data name="Serialization_DangerousDeserialization_Switch" xml:space="preserve">
-    <value>An action was attempted during deserialization that could lead to a security vulnerability. The action has been aborted. To allow the action under Serialization Guard, set the '{0}' AppContext switch to true.</value>
+    <value>An action was attempted during deserialization that could lead to a security vulnerability. The action has been aborted. To allow the action, set the '{0}' AppContext switch to true.</value>
   </data>
 </root>
