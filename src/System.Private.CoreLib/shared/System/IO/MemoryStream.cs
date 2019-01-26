@@ -226,7 +226,7 @@ namespace System.IO
             return _position;
         }
 
-        // PERF: Takes out ReadOnlySpan as fast as possible
+        // PERF: Expose internal buffer for BinaryReader instead of going via the regular Stream interface which requires to copy the data out
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ReadOnlySpan<byte> InternalReadSpan(int count)
         {
