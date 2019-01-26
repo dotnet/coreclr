@@ -343,7 +343,7 @@ VOID ParseNativeType(Module*                     pModule,
         case ELEMENT_TYPE_R4:
             if (fDefault || ntype == NATIVE_TYPE_R4)
             {
-                selectedNft = InitFieldMarshaler<FieldMarshaler_Copy4>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER);
+                selectedNft = InitFieldMarshaler<FieldMarshaler_Copy4>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_R4);
             }
             else
             {
@@ -354,7 +354,7 @@ VOID ParseNativeType(Module*                     pModule,
         case ELEMENT_TYPE_R8:
             if (fDefault || ntype == NATIVE_TYPE_R8)
             {
-                selectedNft = InitFieldMarshaler<FieldMarshaler_Copy8>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_BLITTABLE_INTEGER);
+                selectedNft = InitFieldMarshaler<FieldMarshaler_Copy8>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_R8);
             }
             else
             {
@@ -736,7 +736,7 @@ VOID ParseNativeType(Module*                     pModule,
                     // Since these always export to arrays of BSTRs, we don't need to fetch the native type.
 
                     // Compat: FixedArrays of System.Arrays map to fixed arrays of BSTRs.
-                    selectedNft = InitFieldMarshaler<FieldMarshaler_FixedArray>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_IN_PLACE_ARRAY, pInternalImport, cl, numElements, VT_BSTR, g_pStringClass);
+                    selectedNft = InitFieldMarshaler<FieldMarshaler_FixedArray>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED, pInternalImport, cl, numElements, VT_BSTR, g_pStringClass);
                 }
             }
 #endif // FEATURE_CLASSIC_COMINTEROP
@@ -781,7 +781,7 @@ VOID ParseNativeType(Module*                     pModule,
             {
                 if (fDefault || ntype == NATIVE_TYPE_STRUCT)
                 {
-                    selectedNft = InitFieldMarshaler<FieldMarshaler_NestedLayoutClass>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED_LAYOUT_CLASS, thNestedType.GetMethodTable());
+                    selectedNft = InitFieldMarshaler<FieldMarshaler_NestedLayoutClass>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED, thNestedType.GetMethodTable());
                 }
                 else
                 {
@@ -877,7 +877,7 @@ VOID ParseNativeType(Module*                     pModule,
                 {
                     VARTYPE elementVT = arrayMarshalInfo.GetElementVT();
 
-                    selectedNft = InitFieldMarshaler<FieldMarshaler_FixedArray>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_IN_PLACE_ARRAY, pInternalImport, cl, numElements, elementVT, arrayMarshalInfo.GetElementTypeHandle().GetMethodTable());
+                    selectedNft = InitFieldMarshaler<FieldMarshaler_FixedArray>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED, pInternalImport, cl, numElements, elementVT, arrayMarshalInfo.GetElementTypeHandle().GetMethodTable());
                     break;
                 }
             }
@@ -1117,7 +1117,8 @@ BOOL IsFieldBlittable(FieldMarshaler* pFM)
         else if (pFM->GetNativeFieldFlags() & NATIVE_FIELD_SUBCATEGORY_NESTED)
         {
             FieldMarshaler_NestedType *pNestedFM = (FieldMarshaler_NestedType*)pFM;
-            if (pNestedFM->GetNestedMethodTable()->IsBlittable())
+
+            if (pNestedFM->GetNestedNativeMethodTable()->IsBlittable())
             {
                 return TRUE;
             }
@@ -3753,18 +3754,34 @@ IMPLEMENT_FieldMarshaler_METHOD(VOID, CopyTo,
 
 
 
-MethodTable* FieldMarshaler_NestedType::GetNestedMethodTable() const
+MethodTable* FieldMarshaler_NestedType::GetNestedNativeMethodTable() const
 {
     switch (GetNStructFieldType())
     {
         case NFT_NESTEDLAYOUTCLASS:
-            return ((FieldMarshaler_NestedLayoutClass*)this)->GetNestedMethodTableImpl();
+            return ((FieldMarshaler_NestedLayoutClass*)this)->GetNestedNativeMethodTableImpl();
         case NFT_NESTEDVALUECLASS:
-            return ((FieldMarshaler_NestedValueClass*)this)->GetNestedMethodTableImpl();
+            return ((FieldMarshaler_NestedValueClass*)this)->GetNestedNativeMethodTableImpl();
         case NFT_FIXEDARRAY:
-            return ((FieldMarshaler_FixedArray*)this)->GetNestedMethodTableImpl();
+            return ((FieldMarshaler_FixedArray*)this)->GetNestedNativeMethodTableImpl();
         default:
             UNREACHABLE_MSG("unexpected type of FieldMarshaler_NestedType");
             return nullptr;
+    }
+}
+
+UINT32 FieldMarshaler_NestedType::GetNumElements() const
+{
+    switch (GetNStructFieldType())
+    {
+        case NFT_NESTEDLAYOUTCLASS:
+            return ((FieldMarshaler_NestedLayoutClass*)this)->GetNumElementsImpl();
+        case NFT_NESTEDVALUECLASS:
+            return ((FieldMarshaler_NestedValueClass*)this)->GetNumElementsImpl();
+        case NFT_FIXEDARRAY:
+            return ((FieldMarshaler_FixedArray*)this)->GetNumElementsImpl();
+        default:
+            UNREACHABLE_MSG("unexpected type of FieldMarshaler_NestedType");
+            return 1;
     }
 }

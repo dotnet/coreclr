@@ -1369,7 +1369,7 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
         }
         else if (category & NATIVE_FIELD_SUBCATEGORY_NESTED)
         {
-            fieldType = ((FieldMarshaler_NestedType*)pFieldMarshaler)->GetNestedMethodTable()->GetNativeHFAType();
+            fieldType = ((FieldMarshaler_NestedType*)pFieldMarshaler)->GetNestedNativeMethodTable()->GetNativeHFAType();
         }
         else
         {

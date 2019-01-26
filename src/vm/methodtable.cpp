@@ -2651,51 +2651,36 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
         NativeFieldFlags nfc = pFieldMarshaler->GetNativeFieldFlags();
 
-        if (nfc & NATIVE_FIELD_SUBCATEGORY_COM_TYPE)
-        {
-            return false;
-        }
 #ifdef FEATURE_COMINTEROP
-        else if (nfc & NATIVE_FIELD_SUBCATEGORY_COM_ONLY)
+        if (nfc & NATIVE_FIELD_SUBCATEGORY_COM_ONLY)
         {
             _ASSERTE(false && "COMInterop not supported for CoreCLR on Unix.");
             return false;
         }
+        else if (nfc & NATIVE_FIELD_SUBCATEGORY_NESTED)
+#else
+        if (nfc & NATIVE_FIELD_SUBCATEGORY_NESTED)
 #endif // FEATURE_COMINTEROP
-        else if (nfc & NATIVE_FIELD_SUBCATEGORY_ARRAY)
         {
-            VARTYPE vtElement = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementVT();
-            switch (vtElement)
-            {
-            case VT_EMPTY:
-            case VT_NULL:
-            case VT_BOOL:
-            case VT_I1:
-            case VT_I2:
-            case VT_I4:
-            case VT_I8:
-            case VT_UI1:
-            case VT_UI2:
-            case VT_UI4:
-            case VT_UI8:
-            case VT_PTR:
-            case VT_INT:
-            case VT_UINT:
-            case VT_LPSTR:
-            case VT_LPWSTR:
-                fieldClassificationType = SystemVClassificationTypeInteger;
-                break;
-            case VT_R4:
-            case VT_R8:
-                fieldClassificationType = SystemVClassificationTypeSSE;
-                break;
-            case VT_RECORD:
-            {
-                MethodTable* pFieldMT = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementMethodTable();
+            FieldMarshaler_NestedType* pNestedMarshaler = (FieldMarshaler_NestedType*)pFieldMarshaler;
+            unsigned int numElements = pNestedMarshaler->GetNumElements();
+            unsigned int nestedElementOffset = normalizedFieldOffset;
 
+            MethodTable* pFieldMT = pNestedMarshaler->GetNestedNativeMethodTable();
+
+            if (pFieldMT == nullptr)
+            {
+                // If there is no method table that represents the native layout, then assume
+                // that the type cannot be enregistered.
+                return false;
+            }
+
+            const unsigned int nestedElementSize = pFieldMT->GetNativeSize();
+            for (unsigned int i = 0; i < numElements; ++i, nestedElementOffset += nestedElementSize)
+            {
                 bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
                 helperPtr->inEmbeddedStruct = true;
-                bool structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
+                bool structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, nestedElementOffset, useNativeLayout);
                 helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
 
                 if (!structRet)
@@ -2703,48 +2688,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                     // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
                     return false;
                 }
-
-                continue;
             }
-            case VT_DECIMAL:
-            case VT_DATE:
-            case VT_BSTR:
-            case VT_UNKNOWN:
-            case VT_DISPATCH:
-            case VT_SAFEARRAY:
-            case VT_ERROR:
-            case VT_HRESULT:
-            case VT_CARRAY:
-            case VT_USERDEFINED:
-            case VT_FILETIME:
-            case VT_BLOB:
-            case VT_STREAM:
-            case VT_STORAGE:
-            case VT_STREAMED_OBJECT:
-            case VT_STORED_OBJECT:
-            case VT_BLOB_OBJECT:
-            case VT_CF:
-            case VT_CLSID:
-            default:
-                // Not supported.
-                return false;
-            }
-        }
-        else if (nfc & NATIVE_FIELD_SUBCATEGORY_NESTED)
-        {
-            MethodTable* pFieldMT = ((FieldMarshaler_NestedType*)pFieldMarshaler)->GetNestedMethodTable();
-
-            bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
-            helperPtr->inEmbeddedStruct = true;
-            bool structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
-            helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
-
-            if (!structRet)
-            {
-                // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
-                return false;
-            }
-
             continue;
         }
         else if (nfc & NATIVE_FIELD_SUBCATEGORY_FLOAT)

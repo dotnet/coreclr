@@ -500,6 +500,16 @@ protected:
     NativeFieldFlags m_nff = (NativeFieldFlags)0;
 };
 
+class FieldMarshaler_NestedType : public FieldMarshaler
+{
+public:
+    MethodTable* GetNestedNativeMethodTable() const;
+    UINT32 GetNumElements() const;
+    UINT32 GetNumElementsImpl() const
+    {
+        return 1;
+    }
+};
 
 //=======================================================================
 // BSTR <--> System.String
@@ -746,7 +756,7 @@ public:
         return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
-    MethodTable* GetNestedMethodTableImpl() const
+    MethodTable* GetNestedNativeMethodTableImpl() const
     {
         return GetMethodTable();
     }
@@ -857,7 +867,7 @@ public:
         return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
-    MethodTable* GetNestedMethodTableImpl() const
+    MethodTable* GetNestedNativeMethodTableImpl() const
     {
         return GetMethodTable();
     }
@@ -1103,6 +1113,11 @@ public:
         return OleVariant::GetElementSizeForVarType(m_vt, GetElementMethodTable()) * m_numElems;
     }
 
+    UINT32 GetNumElementsImpl() const
+    {
+        return m_numElems;
+    }
+
     MethodTable* GetElementMethodTable() const
     {
         return GetElementTypeHandle().GetMethodTable();
@@ -1122,9 +1137,9 @@ public:
         return m_arrayType.GetValue().AsArray()->GetArrayElementTypeHandle();
     }
 
-    MethodTable* GetNestedMethodTableImpl() const
+    MethodTable* GetNestedNativeMethodTableImpl() const
     {
-        return GetElementTypeHandle().GetMethodTable();
+        return OleVariant::GetNativeMethodTableForVarType(m_vt, GetElementMethodTable());
     }
     
     VARTYPE GetElementVT() const
