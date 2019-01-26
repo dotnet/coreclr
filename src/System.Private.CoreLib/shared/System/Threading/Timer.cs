@@ -11,6 +11,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
+using Thread = Internal.Runtime.Augments.RuntimeThread;
+
 namespace System.Threading
 {
     public delegate void TimerCallback(object state);
@@ -39,7 +41,7 @@ namespace System.Threading
     // Note that all instance methods of this class require that the caller hold a lock on the TimerQueue instance.
     // We partition the timers across multiple TimerQueues, each with its own lock and set of short/long lists,
     // in order to minimize contention when lots of threads are concurrently creating and destroying timers often.
-    internal class TimerQueue
+    internal partial class TimerQueue
     {
         #region Shared TimerQueue instances
 
@@ -64,53 +66,7 @@ namespace System.Threading
 
         #region interface to native per-AppDomain timer
 
-        private static int TickCount
-        {
-            get
-            {
-#if !FEATURE_PAL
-                // We need to keep our notion of time synchronized with the calls to SleepEx that drive
-                // the underlying native timer.  In Win8, SleepEx does not count the time the machine spends
-                // sleeping/hibernating.  Environment.TickCount (GetTickCount) *does* count that time,
-                // so we will get out of sync with SleepEx if we use that method.
-                //
-                // So, on Win8, we use QueryUnbiasedInterruptTime instead; this does not count time spent
-                // in sleep/hibernate mode.
-                if (Environment.IsWindows8OrAbove)
-                {
-                    ulong time100ns;
-
-                    bool result = Win32Native.QueryUnbiasedInterruptTime(out time100ns);
-                    if (!result)
-                        throw Marshal.GetExceptionForHR(Marshal.GetLastWin32Error());
-
-                    // convert to 100ns to milliseconds, and truncate to 32 bits.
-                    return (int)(uint)(time100ns / 10000);
-                }
-                else
-#endif
-                {
-                    return Environment.TickCount;
-                }
-            }
-        }
-
-        // We use a SafeHandle to ensure that the native timer is destroyed when the AppDomain is unloaded.
-        private sealed class AppDomainTimerSafeHandle : SafeHandleZeroOrMinusOneIsInvalid
-        {
-            public AppDomainTimerSafeHandle()
-                : base(true)
-            {
-            }
-
-            protected override bool ReleaseHandle()
-            {
-                return DeleteAppDomainTimer(handle);
-            }
-        }
-
         private readonly int m_id; // TimerQueues[m_id] == this
-        private AppDomainTimerSafeHandle m_appDomainTimer;
 
         private bool m_isAppDomainTimerScheduled;
         private int m_currentAppDomainTimerStartTicks;
@@ -143,59 +99,11 @@ namespace System.Threading
             if (m_pauseTicks != 0)
             {
                 Debug.Assert(!m_isAppDomainTimerScheduled);
-                Debug.Assert(m_appDomainTimer == null);
                 return true;
             }
 
-            if (m_appDomainTimer == null || m_appDomainTimer.IsInvalid)
-            {
-                Debug.Assert(!m_isAppDomainTimerScheduled);
-                Debug.Assert(m_id >= 0 && m_id < Instances.Length && this == Instances[m_id]);
-
-                m_appDomainTimer = CreateAppDomainTimer(actualDuration, m_id);
-                if (!m_appDomainTimer.IsInvalid)
-                {
-                    m_isAppDomainTimerScheduled = true;
-                    m_currentAppDomainTimerStartTicks = TickCount;
-                    m_currentAppDomainTimerDuration = actualDuration;
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if (ChangeAppDomainTimer(m_appDomainTimer, actualDuration))
-                {
-                    m_isAppDomainTimerScheduled = true;
-                    m_currentAppDomainTimerStartTicks = TickCount;
-                    m_currentAppDomainTimerDuration = actualDuration;
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
+            return SetTimer(actualDuration);
         }
-
-        // The VM calls this when a native timer fires.
-        internal static void AppDomainTimerCallback(int id)
-        {
-            Debug.Assert(id >= 0 && id < Instances.Length && Instances[id].m_id == id);
-            Instances[id].FireNextTimers();
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern AppDomainTimerSafeHandle CreateAppDomainTimer(uint dueTime, int id);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern bool ChangeAppDomainTimer(AppDomainTimerSafeHandle handle, uint dueTime);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern bool DeleteAppDomainTimer(IntPtr handle);
 
         #endregion
 
@@ -491,7 +399,7 @@ namespace System.Threading
     }
 
     // A timer in our TimerQueue.
-    internal sealed class TimerQueueTimer : IThreadPoolWorkItem
+    internal sealed partial class TimerQueueTimer : IThreadPoolWorkItem
     {
         // The associated timer queue.
         private readonly TimerQueue m_associatedTimerQueue;
@@ -703,21 +611,6 @@ namespace System.Threading
 
             if (shouldSignal)
                 SignalNoCallbacksRunning();
-        }
-
-        internal void SignalNoCallbacksRunning()
-        {
-            object toSignal = m_notifyWhenNoCallbacksRunning;
-            Debug.Assert(toSignal is WaitHandle || toSignal is Task<bool>);
-
-            if (toSignal is WaitHandle wh)
-            {
-                Interop.Kernel32.SetEvent(wh.SafeWaitHandle);
-            }
-            else
-            {
-                ((Task<bool>)toSignal).TrySetResult(true);
-            }
         }
 
         internal void CallCallback(bool isThreadPool)
