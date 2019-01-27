@@ -613,6 +613,21 @@ namespace System.Threading
                 SignalNoCallbacksRunning();
         }
 
+        internal void SignalNoCallbacksRunning()
+        {
+            object toSignal = m_notifyWhenNoCallbacksRunning;
+            Debug.Assert(toSignal is WaitHandle || toSignal is Task<bool>);
+
+            if (toSignal is WaitHandle wh)
+            {
+                EventWaitHandle.Set(wh.SafeWaitHandle);
+            }
+            else
+            {
+                ((Task<bool>)toSignal).TrySetResult(true);
+            }
+        }
+
         internal void CallCallback(bool isThreadPool)
         {
             if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.ThreadTransfer))

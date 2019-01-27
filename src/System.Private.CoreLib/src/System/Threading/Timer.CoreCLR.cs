@@ -7,7 +7,6 @@ using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 namespace System.Threading
 {
@@ -116,24 +115,5 @@ namespace System.Threading
         private static extern bool DeleteAppDomainTimer(IntPtr handle);
 
         #endregion
-    }
-
-    // A timer in our TimerQueue.
-    internal sealed partial class TimerQueueTimer
-    {
-        internal void SignalNoCallbacksRunning()
-        {
-            object toSignal = m_notifyWhenNoCallbacksRunning;
-            Debug.Assert(toSignal is WaitHandle || toSignal is Task<bool>);
-
-            if (toSignal is WaitHandle wh)
-            {
-                Interop.Kernel32.SetEvent(wh.SafeWaitHandle);
-            }
-            else
-            {
-                ((Task<bool>)toSignal).TrySetResult(true);
-            }
-        }
     }
 }
