@@ -98,7 +98,7 @@ namespace System.Threading
                 return true;
             }
 
-            if (SetTimer(actualDuration))
+            if (SetTimer(m_id, actualDuration))
             {
                 m_isTimerScheduled = true;
                 m_currentTimerStartTicks = TickCount;

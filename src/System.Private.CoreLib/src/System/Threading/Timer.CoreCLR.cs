@@ -62,14 +62,14 @@ namespace System.Threading
         private AppDomainTimerSafeHandle m_appDomainTimer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool SetTimer(uint actualDuration)
+        private bool SetTimer(int id, uint actualDuration)
         {
             if (m_appDomainTimer == null || m_appDomainTimer.IsInvalid)
             {
                 Debug.Assert(!m_isTimerScheduled);
-                Debug.Assert(m_id >= 0 && m_id < Instances.Length && this == Instances[m_id]);
+                Debug.Assert(id >= 0 && id < Instances.Length && this == Instances[id]);
 
-                m_appDomainTimer = CreateAppDomainTimer(actualDuration, m_id);
+                m_appDomainTimer = CreateAppDomainTimer(actualDuration, id);
                 return !m_appDomainTimer.IsInvalid;
             }
             else
