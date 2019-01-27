@@ -43,11 +43,6 @@ namespace System.Threading
 
         public static TimerQueue[] Instances { get; } = CreateTimerQueues();
 
-        private TimerQueue(int id)
-        {
-            _id = id;
-        }
-
         private static TimerQueue[] CreateTimerQueues()
         {
             var queues = new TimerQueue[Environment.ProcessorCount];
@@ -61,8 +56,6 @@ namespace System.Threading
         #endregion
 
         #region interface to native timer
-
-        private readonly int _id; // TimerQueues[_id] == this
 
         private bool _isTimerScheduled;
         private int _currentTimerStartTicks;
@@ -98,7 +91,7 @@ namespace System.Threading
                 return true;
             }
 
-            if (SetTimer(_id, actualDuration))
+            if (SetTimer(actualDuration))
             {
                 _isTimerScheduled = true;
                 _currentTimerStartTicks = TickCount;

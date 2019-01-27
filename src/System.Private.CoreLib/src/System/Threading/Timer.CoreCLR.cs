@@ -59,17 +59,24 @@ namespace System.Threading
             }
         }
 
+        private readonly int _id; // TimerQueues[_id] == this
+
         private AppDomainTimerSafeHandle m_appDomainTimer;
 
+        private TimerQueue(int id)
+        {
+            _id = id;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool SetTimer(int id, uint actualDuration)
+        private bool SetTimer(uint actualDuration)
         {
             if (m_appDomainTimer == null || m_appDomainTimer.IsInvalid)
             {
                 Debug.Assert(!_isTimerScheduled);
-                Debug.Assert(id >= 0 && id < Instances.Length && this == Instances[id]);
+                Debug.Assert(_id >= 0 && _id < Instances.Length && this == Instances[_id]);
 
-                m_appDomainTimer = CreateAppDomainTimer(actualDuration, id);
+                m_appDomainTimer = CreateAppDomainTimer(actualDuration, _id);
                 return !m_appDomainTimer.IsInvalid;
             }
             else
