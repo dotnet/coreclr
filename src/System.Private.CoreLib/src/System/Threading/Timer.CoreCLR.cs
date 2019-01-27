@@ -66,7 +66,7 @@ namespace System.Threading
         {
             if (m_appDomainTimer == null || m_appDomainTimer.IsInvalid)
             {
-                Debug.Assert(!m_isTimerScheduled);
+                Debug.Assert(!_isTimerScheduled);
                 Debug.Assert(id >= 0 && id < Instances.Length && this == Instances[id]);
 
                 m_appDomainTimer = CreateAppDomainTimer(actualDuration, id);
@@ -81,7 +81,7 @@ namespace System.Threading
         // The VM calls this when a native timer fires.
         internal static void AppDomainTimerCallback(int id)
         {
-            Debug.Assert(id >= 0 && id < Instances.Length && Instances[id].m_id == id);
+            Debug.Assert(id >= 0 && id < Instances.Length && Instances[id]._id == id);
             Instances[id].FireNextTimers();
         }
 
