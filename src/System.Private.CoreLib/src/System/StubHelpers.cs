@@ -27,20 +27,9 @@ namespace System.StubHelpers
             byte[] buffer = new byte[checked((str.Length + 1) * Marshal.SystemMaxDBCSCharSize)];
             fixed (byte* bufferPtr = &buffer[0])
             {
-                cbLength = str.ConvertToAnsi(bufferPtr, buffer.Length, fBestFit, fThrowOnUnmappableChar);
+                cbLength = Marshal.ConvertStringToAnsi(str, bufferPtr, buffer.Length, fBestFit, fThrowOnUnmappableChar);
             }
             return buffer;
-        }
-
-        unsafe internal static byte ConvertToNative(char managedChar, bool fBestFit, bool fThrowOnUnmappableChar)
-        {
-            int cbAllocLength = (1 + 1) * Marshal.SystemMaxDBCSCharSize;
-            byte* bufferPtr = stackalloc byte[cbAllocLength];
-
-            int cbLength = managedChar.ToString().ConvertToAnsi(bufferPtr, cbAllocLength, fBestFit, fThrowOnUnmappableChar);
-
-            Debug.Assert(cbLength > 0, "Zero bytes returned from DoAnsiConversion in AnsiCharMarshaler.ConvertToNative");
-            return bufferPtr[0];
         }
 
         internal static char ConvertToManaged(byte nativeChar)
@@ -78,8 +67,8 @@ namespace System.StubHelpers
                     pbNativeBuffer = (byte*)Marshal.AllocCoTaskMem(nb);
                 }
 
-                nb = strManaged.ConvertToAnsi(pbNativeBuffer, nb,
-                    fBestFit: 0 != (flags & 0xFF), fThrowOnUnmappableChar: 0 != (flags >> 8));
+                nb = Marshal.ConvertStringToAnsi(strManaged, pbNativeBuffer, nb,
+                    bestFit: 0 != (flags & 0xFF), throwOnUnmappableChar: 0 != (flags >> 8));
             }
             else
             {
@@ -624,45 +613,6 @@ namespace System.StubHelpers
         }
     }  // class InterfaceMarshaler
 
-#endif // FEATURE_COMINTEROP
-
-    internal static class MngdNativeArrayMarshaler
-    {
-        // Needs to match exactly with MngdNativeArrayMarshaler in ilmarshalers.h
-        internal struct MarshalerState
-        {
-            IntPtr m_pElementMT;
-            IntPtr m_Array;
-            int m_NativeDataValid;
-            int m_BestFitMap;
-            int m_ThrowOnUnmappableChar;
-            short m_vt;
-        }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void CreateMarshaler(IntPtr pMarshalState, IntPtr pMT, int dwFlags);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ConvertSpaceToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ConvertContentsToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ConvertSpaceToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome,
-                                                          int cElements);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ConvertContentsToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ClearNative(IntPtr pMarshalState, IntPtr pNativeHome, int cElements);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ClearNativeContents(IntPtr pMarshalState, IntPtr pNativeHome, int cElements);
-    }  // class MngdNativeArrayMarshaler
-
-#if FEATURE_COMINTEROP
     internal static class MngdSafeArrayMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -1048,7 +998,7 @@ namespace System.StubHelpers
 
                 if (IsIn(dwFlags))
                 {
-                    int length = pManagedHome.ToString().ConvertToAnsi(
+                    int length = Marshal.ConvertStringToAnsi(pManagedHome.ToString(),
                         ptr, allocSize,
                         IsBestFit(dwFlags),
                         IsThrowOn(dwFlags));

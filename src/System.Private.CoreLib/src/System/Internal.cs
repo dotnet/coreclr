@@ -16,10 +16,10 @@ using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Security;
-using System.StubHelpers;
 using System.Threading.Tasks;
 
 #if FEATURE_COMINTEROP
+using System.StubHelpers;
 using System.Runtime.InteropServices.WindowsRuntime;
 #endif // FEATURE_COMINTEROP
 
