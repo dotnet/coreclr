@@ -3,12 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 using Internal.Runtime.Augments;
-using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 using Thread = Internal.Runtime.Augments.RuntimeThread;
@@ -17,8 +13,8 @@ namespace System.Threading
 {
     public delegate void TimerCallback(object state);
 
-    // TimerQueue maintains a list of active timers in this AppDomain.  We use a single native timer, supplied by the VM,
-    // to schedule all managed timers in the AppDomain.
+    // TimerQueue maintains a list of active timers.  We use a single native timer to schedule all managed timers
+    // in the process.
     //
     // Perf assumptions:  We assume that timers are created and destroyed frequently, but rarely actually fire.
     // There are roughly two types of timer:
@@ -64,15 +60,15 @@ namespace System.Threading
 
         #endregion
 
-        #region interface to native per-AppDomain timer
+        #region interface to native timer
 
         private readonly int m_id; // TimerQueues[m_id] == this
 
-        private bool m_isAppDomainTimerScheduled;
-        private int m_currentAppDomainTimerStartTicks;
-        private uint m_currentAppDomainTimerDuration;
+        private bool m_isTimerScheduled;
+        private int m_currentTimerStartTicks;
+        private uint m_currentTimerDuration;
 
-        private bool EnsureAppDomainTimerFiresBy(uint requestedDuration)
+        private bool EnsureTimerFiresBy(uint requestedDuration)
         {
             // The VM's timer implementation does not work well for very long-duration timers.
             // See kb 950807.
@@ -83,13 +79,13 @@ namespace System.Threading
             const uint maxPossibleDuration = 0x0fffffff;
             uint actualDuration = Math.Min(requestedDuration, maxPossibleDuration);
 
-            if (m_isAppDomainTimerScheduled)
+            if (m_isTimerScheduled)
             {
-                uint elapsed = (uint)(TickCount - m_currentAppDomainTimerStartTicks);
-                if (elapsed >= m_currentAppDomainTimerDuration)
+                uint elapsed = (uint)(TickCount - m_currentTimerStartTicks);
+                if (elapsed >= m_currentTimerDuration)
                     return true; //the timer's about to fire
 
-                uint remainingDuration = m_currentAppDomainTimerDuration - elapsed;
+                uint remainingDuration = m_currentTimerDuration - elapsed;
                 if (actualDuration >= remainingDuration)
                     return true; //the timer will fire earlier than this request
             }
@@ -98,11 +94,19 @@ namespace System.Threading
             // A later update during resume will re-schedule
             if (m_pauseTicks != 0)
             {
-                Debug.Assert(!m_isAppDomainTimerScheduled);
+                Debug.Assert(!m_isTimerScheduled);
                 return true;
             }
 
-            return SetTimer(actualDuration);
+            if (SetTimer(actualDuration))
+            {
+                m_isTimerScheduled = true;
+                m_currentTimerStartTicks = TickCount;
+                m_currentTimerDuration = actualDuration;
+                return true;
+            }
+
+            return false;
         }
 
         #endregion
@@ -126,7 +130,7 @@ namespace System.Threading
         // is chosen to balance the number of timers in the small list against the frequency with which
         // we need to scan the long list.  It's thus somewhat arbitrary and could be changed based on
         // observed workload demand. The larger the number, the more timers we'll likely need to enumerate
-        // every time the appdomain timer fires, but also the more likely it is that when it does we won't
+        // every time the timer fires, but also the more likely it is that when it does we won't
         // need to look at the long list because the current time will be <= m_currentAbsoluteThreshold.
         private const int ShortTimersThresholdMilliseconds = 333;
 
@@ -145,10 +149,10 @@ namespace System.Threading
 
             lock (this)
             {
-                // Since we got here, that means our previous appdomain timer has fired.
-                m_isAppDomainTimerScheduled = false;
+                // Since we got here, that means our previous timer has fired.
+                m_isTimerScheduled = false;
                 bool haveTimerToSchedule = false;
-                uint nextAppDomainTimerDuration = uint.MaxValue;
+                uint nextTimerDuration = uint.MaxValue;
 
                 int nowTicks = TickCount;
 
@@ -188,11 +192,11 @@ namespace System.Threading
                                     timer.m_period - elapsedForNextDueTime :
                                     1;
 
-                                // Update the appdomain timer if this becomes the next timer to fire.
-                                if (timer.m_dueTime < nextAppDomainTimerDuration)
+                                // Update the timer if this becomes the next timer to fire.
+                                if (timer.m_dueTime < nextTimerDuration)
                                 {
                                     haveTimerToSchedule = true;
-                                    nextAppDomainTimerDuration = timer.m_dueTime;
+                                    nextTimerDuration = timer.m_dueTime;
                                 }
 
                                 // Validate that the repeating timer is still on the right list.  It's likely that
@@ -231,10 +235,10 @@ namespace System.Threading
                             // This timer isn't ready to fire.  Update the next time the native timer fires if necessary,
                             // and move this timer to the short list if its remaining time is now at or under the threshold.
 
-                            if (remaining < nextAppDomainTimerDuration)
+                            if (remaining < nextTimerDuration)
                             {
                                 haveTimerToSchedule = true;
-                                nextAppDomainTimerDuration = (uint)remaining;
+                                nextTimerDuration = (uint)remaining;
                             }
 
                             if (!timer.m_short && remaining <= ShortTimersThresholdMilliseconds)
@@ -253,7 +257,7 @@ namespace System.Threading
                         // we can skip processing the long list.  We use > rather than >= because, although we
                         // know that if remaining == 0 no timers in the long list will need to be fired, we
                         // don't know without looking at them when we'll need to call FireNextTimers again.  We
-                        // could in that case just set the next appdomain firing to 1, but we may as well just iterate the
+                        // could in that case just set the next firing to 1, but we may as well just iterate the
                         // long list now; otherwise, most timers created in the interim would end up in the long
                         // list and we'd likely end up paying for another invocation of FireNextTimers that could
                         // have been delayed longer (to whatever is the current minimum in the long list).
@@ -263,10 +267,10 @@ namespace System.Threading
                             if (m_shortTimers == null && m_longTimers != null)
                             {
                                 // We don't have any short timers left and we haven't examined the long list,
-                                // which means we likely don't have an accurate nextAppDomainTimerDuration.
+                                // which means we likely don't have an accurate nextTimerDuration.
                                 // But we do know that nothing in the long list will be firing before or at m_currentAbsoluteThreshold,
-                                // so we can just set nextAppDomainTimerDuration to the difference between then and now.
-                                nextAppDomainTimerDuration = (uint)remaining + 1;
+                                // so we can just set nextTimerDuration to the difference between then and now.
+                                nextTimerDuration = (uint)remaining + 1;
                                 haveTimerToSchedule = true;
                             }
                             break;
@@ -280,11 +284,11 @@ namespace System.Threading
                     }
                 }
 
-                // If we still have scheduled timers, update the appdomain timer to ensure it fires
+                // If we still have scheduled timers, update the timer to ensure it fires
                 // in time for the next one in line.
                 if (haveTimerToSchedule)
                 {
-                    EnsureAppDomainTimerFiresBy(nextAppDomainTimerDuration);
+                    EnsureTimerFiresBy(nextTimerDuration);
                 }
             }
 
@@ -323,7 +327,7 @@ namespace System.Threading
             timer.m_dueTime = dueTime;
             timer.m_period = (period == 0) ? Timeout.UnsignedInfinite : period;
             timer.m_startTicks = nowTicks;
-            return EnsureAppDomainTimerFiresBy(dueTime);
+            return EnsureTimerFiresBy(dueTime);
         }
 
         public void MoveTimerToCorrectList(TimerQueueTimer timer, bool shortList)
@@ -685,7 +689,7 @@ namespace System.Threading
             // A rude abort may have prevented us from releasing the lock.
             //
             // Note that in either case, the Timer still won't fire, because ThreadPool threads won't be
-            // allowed to run in this AppDomain.
+            // allowed to run anymore.
             if (Environment.HasShutdownStarted)
                 return;
 

@@ -66,35 +66,15 @@ namespace System.Threading
         {
             if (m_appDomainTimer == null || m_appDomainTimer.IsInvalid)
             {
-                Debug.Assert(!m_isAppDomainTimerScheduled);
+                Debug.Assert(!m_isTimerScheduled);
                 Debug.Assert(m_id >= 0 && m_id < Instances.Length && this == Instances[m_id]);
 
                 m_appDomainTimer = CreateAppDomainTimer(actualDuration, m_id);
-                if (!m_appDomainTimer.IsInvalid)
-                {
-                    m_isAppDomainTimerScheduled = true;
-                    m_currentAppDomainTimerStartTicks = TickCount;
-                    m_currentAppDomainTimerDuration = actualDuration;
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return !m_appDomainTimer.IsInvalid;
             }
             else
             {
-                if (ChangeAppDomainTimer(m_appDomainTimer, actualDuration))
-                {
-                    m_isAppDomainTimerScheduled = true;
-                    m_currentAppDomainTimerStartTicks = TickCount;
-                    m_currentAppDomainTimerDuration = actualDuration;
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return ChangeAppDomainTimer(m_appDomainTimer, actualDuration);
             }
         }
 
