@@ -364,6 +364,8 @@
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
+    <Compile Include="shared\System\Runtime\InteropServices\Marshal.StringToAnsiString.cs" />
+    <Compile Include="shared\Interop\Windows\Kernel32\Interop.WideCharToMultiByte.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\DateTime.Windows.cs" />
