@@ -180,7 +180,7 @@ namespace System.Threading.Tasks
                     {
                         if (exc is OperationCanceledException oce)
                         {
-                            var task = new Task<VoidTaskResult>();
+                            var task = new Task();
                             task.TrySetCanceled(oce.CancellationToken, oce);
                             return task;
                         }
@@ -198,7 +198,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Type used to create a <see cref="Task"/> to represent a <see cref="IValueTaskSource"/>.</summary>
-        private sealed class ValueTaskSourceAsTask : Task<VoidTaskResult>
+        private sealed class ValueTaskSourceAsTask : Task
         {
             private static readonly Action<object> s_completionAction = state =>
             {
@@ -217,7 +217,7 @@ namespace System.Threading.Tasks
                 try
                 {
                     source.GetResult(vtst._token);
-                    vtst.TrySetResult(default);
+                    vtst.TrySetResult();
                 }
                 catch (Exception exc)
                 {
