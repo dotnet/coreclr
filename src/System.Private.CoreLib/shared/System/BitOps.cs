@@ -19,6 +19,45 @@ namespace System
     // If this PR progresses, the duplicates will be consolidated and optimized, and the call sites (corert, coreclr, corefx) updated.
     internal static class BitOps
     {
+        private const uint DeBruijn32 = 0x07C4_ACDDu;
+
+        private static ReadOnlySpan<byte> TrailingCountMultiplyDeBruijn => new byte[32]
+        {
+            00, 01, 28, 02, 29, 14, 24, 03, 30, 22, 20, 15, 25, 17, 04, 08,
+            31, 27, 13, 23, 21, 19, 16, 07, 26, 12, 18, 06, 11, 05, 10, 09
+        };
+
+        private static readonly uint[] s_MultiplyDeBruijnBitPosition = new uint[]
+        {
+            0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
+            8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
+        };
+
+        // Magic C# optimization that directly wraps the data section of the dll (a bit like string constants)
+        // https://github.com/dotnet/coreclr/pull/22118#discussion_r249957516
+        // https://github.com/dotnet/roslyn/pull/24621
+        // https://github.com/benaadams/coreclr/blob/9ba65b563918c778c256f18e234be69174173f12/src/System.Private.CoreLib/shared/System/BitOps.cs
+        private static ReadOnlySpan<byte> LeadingZeroCountDeBruijn32 => new byte[32]
+        {
+            00, 09, 01, 10, 13, 21, 02, 29,
+            11, 14, 16, 18, 22, 25, 03, 30,
+            08, 12, 20, 28, 15, 17, 24, 07,
+            19, 27, 23, 06, 26, 05, 04, 31
+        };
+
+        // Magic C# optimization that directly wraps the data section of the dll (a bit like string constants)
+        // https://github.com/dotnet/coreclr/pull/22118#discussion_r249957516
+        // https://github.com/dotnet/roslyn/pull/24621
+        // https://github.com/benaadams/coreclr/blob/9ba65b563918c778c256f18e234be69174173f12/src/System.Private.CoreLib/shared/System/BitOps.cs
+        private static ReadOnlySpan<byte> TrailingZeroCountUInt32 => new byte[37]
+        {
+            32, 00, 01, 26, 02, 23, 27, 32,
+            03, 16, 24, 30, 28, 11, 33, 13,
+            04, 07, 17, 35, 25, 22, 31, 15,
+            29, 10, 12, 06, 34, 21, 14, 09,
+            05, 20, 08, 19, 18
+        };
+
         /// <summary>
         /// Count the number of trailing zero bits in a mask.
         /// Similar in behavior to the x86 instruction TZCNT.
@@ -53,12 +92,6 @@ namespace System
             return Unsafe.AddByteOffset(ref tz, offset);
         }
 
-        private static ReadOnlySpan<byte> TrailingCountMultiplyDeBruijn => new byte[32]
-        {
-            00, 01, 28, 02, 29, 14, 24, 03, 30, 22, 20, 15, 25, 17, 04, 08,
-            31, 27, 13, 23, 21, 19, 16, 07, 26, 12, 18, 06, 11, 05, 10, 09
-        };
-
         // Legacy code copied from callsites.
 
         #region LZCNT (Legacy)
@@ -77,12 +110,6 @@ namespace System
         {
             return 64 - CountSignificantBits(value);
         }
-
-        private static readonly uint[] s_MultiplyDeBruijnBitPosition = new uint[]
-        {
-            0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
-            8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
-        };
 
         // This is a similar method from a different location.
         // It is shown here in its entirety, to show pervasivness of such code.
@@ -895,20 +922,6 @@ namespace System
 
         #region LeadingZeroCount
 
-        // Magic C# optimization that directly wraps the data section of the dll (a bit like string constants)
-        // https://github.com/dotnet/coreclr/pull/22118#discussion_r249957516
-        // https://github.com/dotnet/roslyn/pull/24621
-        // https://github.com/benaadams/coreclr/blob/9ba65b563918c778c256f18e234be69174173f12/src/System.Private.CoreLib/shared/System/BitOps.cs
-        private static ReadOnlySpan<byte> LeadingZeroCountDeBruijn32 => new byte[32]
-        {
-            00, 09, 01, 10, 13, 21, 02, 29,
-            11, 14, 16, 18, 22, 25, 03, 30,
-            08, 12, 20, 28, 15, 17, 24, 07,
-            19, 27, 23, 06, 26, 05, 04, 31
-        };
-
-        private const uint DeBruijn32 = 0x07C4_ACDDu;
-
         /// <summary>
         /// Count the number of leading zero bits in a mask.
         /// Similar in behavior to the x86 instruction LZCNT.
@@ -1046,19 +1059,6 @@ namespace System
         #endregion
 
         #region TrailingZeroCount
-
-        // Magic C# optimization that directly wraps the data section of the dll (a bit like string constants)
-        // https://github.com/dotnet/coreclr/pull/22118#discussion_r249957516
-        // https://github.com/dotnet/roslyn/pull/24621
-        // https://github.com/benaadams/coreclr/blob/9ba65b563918c778c256f18e234be69174173f12/src/System.Private.CoreLib/shared/System/BitOps.cs
-        private static ReadOnlySpan<byte> TrailingZeroCountUInt32 => new byte[37]
-        {
-            32, 00, 01, 26, 02, 23, 27, 32,
-            03, 16, 24, 30, 28, 11, 33, 13,
-            04, 07, 17, 35, 25, 22, 31, 15,
-            29, 10, 12, 06, 34, 21, 14, 09,
-            05, 20, 08, 19, 18
-        };
 
         /// <summary>
         /// Count the number of trailing zero bits in a mask.
