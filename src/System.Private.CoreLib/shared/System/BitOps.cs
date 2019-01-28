@@ -80,7 +80,7 @@ namespace System
         {
             return 64 - CountSignificantBits(value);
         }
-        
+
         private static readonly uint[] s_MultiplyDeBruijnBitPosition = new uint[]
         {
             0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
@@ -324,7 +324,7 @@ namespace System
         }
 
         // https://raw.githubusercontent.com/dotnet/coreclr/030a3ea9b8dbeae89c90d34441d4d9a1cf4a7de6/tests/src/JIT/Performance/CodeQuality/V8/Crypto/Crypto.cs
-        
+
         // return number of 1 bits in x
         private static int cbit_BigInt(int x)
         {
@@ -420,7 +420,7 @@ namespace System
         // https://raw.githubusercontent.com/dotnet/corefx/bd414c68872c4e4c6e8b1a585675a8383b3a9555/src/System.DirectoryServices.AccountManagement/src/System/DirectoryServices/AccountManagement/Utils.cs
         internal static void SetBit_AD(ref int value, uint bitmask)
         {
-            value = (int)(((uint)value) | ((uint)bitmask));
+            value = (int)(((uint)value) | bitmask);
         }
 
         // https://raw.githubusercontent.com/dotnet/iot/93f2bd3f2a4d64528ca97a8da09fe0bfe42d648f/src/devices/Mcp23xxx/Mcp23xxx.cs
@@ -469,7 +469,7 @@ namespace System
         // https://raw.githubusercontent.com/dotnet/corefx/bd414c68872c4e4c6e8b1a585675a8383b3a9555/src/System.DirectoryServices.AccountManagement/src/System/DirectoryServices/AccountManagement/Utils.cs
         internal static void ClearBit_AD(ref int value, uint bitmask)
         {
-            value = (int)(((uint)value) & ((uint)(~bitmask)));
+            value = (int)(((uint)value) & ~bitmask);
         }
 
         // https://raw.githubusercontent.com/dotnet/iot/93f2bd3f2a4d64528ca97a8da09fe0bfe42d648f/src/devices/Mcp23xxx/Mcp23xxx.cs
@@ -519,7 +519,7 @@ namespace System
         #endregion
 
         // Proposed new code.
-        // Does not use hardware intrinsics yet.
+        // Does not all use hardware intrinsics yet.
 
         #region PopCount
 
@@ -567,6 +567,11 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte PopCount(uint value)
         {
+            if (Popcnt.IsSupported)
+            {
+                return (byte)Popcnt.PopCount(value);
+            }
+
             const uint c0 = 0x_5555_5555;
             const uint c1 = 0x_3333_3333;
             const uint c2 = 0x_0F0F_0F0F;
@@ -600,6 +605,23 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte PopCount(ulong value)
         {
+            if (Popcnt.X64.IsSupported)
+            {
+                return (byte)Popcnt.X64.PopCount(value);
+            }
+
+            // TODO: Is it ever the case that X86/X64 is supported but not the other?
+            if (Popcnt.IsSupported)
+            {
+                uint hv = (uint)(value >> 32); // High-32
+                uint bv = (uint)value; // Low-32
+
+                uint h = Popcnt.PopCount(hv);
+                uint b = Popcnt.PopCount(bv);
+
+                return (byte)(h + b);
+            }
+
             const ulong c0 = 0x_5555_5555_5555_5555;
             const ulong c1 = 0x_3333_3333_3333_3333;
             const ulong c2 = 0x_0F0F_0F0F_0F0F_0F0F;
@@ -694,6 +716,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short RotateRight(short value, int offset)
             => unchecked((short)RotateRight((ushort)value, offset));
+
         /// <summary>
         /// Rotates the specified value right by the specified number of bits.
         /// Similar in behavior to the x86 instruction ROR.
@@ -934,14 +957,19 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte LeadingZeroCount(uint value)
         {
+            if (Lzcnt.IsSupported)
+            {
+                return (byte)Lzcnt.LeadingZeroCount(value);
+            }
+
             uint val = value;
             FoldTrailing(ref val);
 
             uint ix = (val * DeBruijn32) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte s_LZ = ref MemoryMarshal.GetReference(LeadingZeroCountDeBruijn32);
-            int zeros = 31 - Unsafe.AddByteOffset(ref s_LZ, (IntPtr)ix);
+            ref byte lz = ref MemoryMarshal.GetReference(LeadingZeroCountDeBruijn32);
+            int zeros = 31 - Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
 
             // Log(0) is undefined: Return 32.
             zeros += IsZero(value);
@@ -966,10 +994,23 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte LeadingZeroCount(ulong value)
         {
+            if (Lzcnt.X64.IsSupported)
+            {
+                return (byte)Lzcnt.X64.LeadingZeroCount(value);
+            }
+
             // Instead of writing a 64-bit function,
             // we use the 32-bit function twice.
 
+            // TODO: Is it ever the case that X86/X64 is supported but not the other?
             uint h, b;
+            if (Lzcnt.IsSupported)
+            {
+                // TODO: Check the math of this path
+                h = Lzcnt.LeadingZeroCount((uint)(value >> 32)); // High-32
+                b = Lzcnt.LeadingZeroCount((uint)value); // Low-32
+            }
+            else
             {
                 ulong val = value;
                 FoldTrailing(ref val);
@@ -981,14 +1022,14 @@ namespace System
                 uint bi = (bv * DeBruijn32) >> 27;
 
                 // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-                ref byte s_LZ = ref MemoryMarshal.GetReference(LeadingZeroCountDeBruijn32);
-                h = (uint)(31 - Unsafe.AddByteOffset(ref s_LZ, (IntPtr)(int)hi));
-                b = (uint)(31 - Unsafe.AddByteOffset(ref s_LZ, (IntPtr)(int)bi)); // Use warm cache
-
-                // Log(0) is undefined: Return 32 + 32.
-                h += IsZero((uint)(value >> 32)); // value == 0 ? 1 : 0
-                b += IsZero((uint)value);
+                ref byte lz = ref MemoryMarshal.GetReference(LeadingZeroCountDeBruijn32);
+                h = (uint)(31 - Unsafe.AddByteOffset(ref lz, (IntPtr)(int)hi));
+                b = (uint)(31 - Unsafe.AddByteOffset(ref lz, (IntPtr)(int)bi)); // Use warm cache
             }
+
+            // Log(0) is undefined: Return 32 + 32.
+            h += IsZero((uint)(value >> 32)); // value == 0 ? 1 : 0
+            b += IsZero((uint)value);
 
             // Keep b iff h==32
             uint mask = h & ~32u; // Zero 5th bit (32)
@@ -1083,8 +1124,8 @@ namespace System
             // Switch | 6.548 ns | 0.1301 ns | 0.2855 ns |   2.26 |
 
             // long.MaxValue % 37 is always in range [0 - 36] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte s_TZ = ref MemoryMarshal.GetReference(TrailingZeroCountUInt32);
-            byte cnt = Unsafe.AddByteOffset(ref s_TZ, (IntPtr)(int)lsb); // eg 44 -> 2 (44==0010 1100 has 2 trailing zeros)
+            ref byte tz = ref MemoryMarshal.GetReference(TrailingZeroCountUInt32);
+            byte cnt = Unsafe.AddByteOffset(ref tz, (IntPtr)(int)lsb); // eg 44 -> 2 (44==0010 1100 has 2 trailing zeros)
 
             // NoOp: Hashing scheme has unused outputs (inputs 4,294,967,296 and higher do not fit a uint)
             Debug.Assert(lsb != 7 && lsb != 14 && lsb != 19 && lsb != 28, $"{value} resulted in unexpected {typeof(uint)} hash {lsb}, with count {cnt}");
@@ -1101,22 +1142,37 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte TrailingZeroCount(ulong value)
         {
-            // Instead of writing a 64-bit lookup table,
-            // we use the existing 32-bit table twice.
+            if (Bmi1.X64.IsSupported)
+            {
+                return (byte)Bmi1.X64.TrailingZeroCount(value);
+            }
+
+            // Instead of writing a 64-bit function,
+            // we use the 32-bit function twice.
 
             uint hv = (uint)(value >> 32); // High-32
             uint bv = (uint)value; // Low-32
 
-            long hi = hv & -hv;
-            long bi = bv & -bv;
+            // TODO: Is it ever the case that X86/X64 is supported but not the other?
+            uint h, b;
+            if (Bmi1.IsSupported)
+            {
+                h = Bmi1.TrailingZeroCount(hv);
+                b = Bmi1.TrailingZeroCount(bv);
+            }
+            else
+            {
+                long hi = hv & -hv;
+                long bi = bv & -bv;
 
-            hi %= 37; // mod 37
-            bi %= 37;
+                hi %= 37; // mod 37
+                bi %= 37;
 
-            // long.MaxValue % 37 is always in range [0 - 36] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte s_TZ = ref MemoryMarshal.GetReference(TrailingZeroCountUInt32);
-            uint h = Unsafe.AddByteOffset(ref s_TZ, (IntPtr)(int)hi);
-            uint b = Unsafe.AddByteOffset(ref s_TZ, (IntPtr)(int)bi); // Use warm cache
+                // long.MaxValue % 37 is always in range [0 - 36] so we use Unsafe.AddByteOffset to avoid bounds check
+                ref byte tz = ref MemoryMarshal.GetReference(TrailingZeroCountUInt32);
+                h = Unsafe.AddByteOffset(ref tz, (IntPtr)(int)hi);
+                b = Unsafe.AddByteOffset(ref tz, (IntPtr)(int)bi); // Use warm cache
+            }
 
             // Keep h iff b==32
             uint mask = b & ~32u; // Zero 5th bit (32)
@@ -1603,7 +1659,7 @@ namespace System
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static byte Iff(ref bool condition)
-            => NonZero((ushort)AsByte(ref condition));
+            => NonZero(AsByte(ref condition));
 
         // Normalize bool's underlying value to 0|1
         // https://github.com/dotnet/roslyn/issues/24652
@@ -1653,7 +1709,7 @@ namespace System
 
         // XOR is theoretically slightly cheaper than subtraction,
         // due to no carry logic. But both 1 clock cycle regardless.
-   
+
         /// <summary>
         /// Returns 1 if <paramref name="value"/> is zero, else returns 0.
         /// Does not incur branching.
