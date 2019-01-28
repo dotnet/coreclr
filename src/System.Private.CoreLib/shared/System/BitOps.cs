@@ -9,26 +9,37 @@ using System.Runtime.Intrinsics.X86;
 using System.Threading;
 using Internal.Runtime.CompilerServices;
 
+// Some routines inspired by the Stanford Bit Widdling Hacks by Sean Eron Anderson:
+// http://graphics.stanford.edu/~seander/bithacks.html
+
 namespace System
 {
     // This class is not meant to be merged in its current form.
-    // The duplicate methods are intentional - they show the ubiquity of similar known code across the stack
-    // If this PR progresses, the duplicates will be consolidated and optimized, and the call sites updated.
+    // The duplicate methods are intentional - they show the pervasiveness of similar (known) code across the stack
+    // If this PR progresses, the duplicates will be consolidated and optimized, and the call sites (corert, coreclr, corefx) updated.
     internal static class BitOps
     {
-        // This comment is for tracking purposes and will be deleted
-        // PR already merged: https://github.com/dotnet/coreclr/pull/22118
-
+        /// <summary>
+        /// Count the number of trailing zero bits in a mask.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte TrailingZeroCount(int value)
-            // Changed parameter name to something more useful
-            // Changed return type from int to byte so that caller can assign it to any size/sign of int
-            => TrailingZeroCount((uint)value);
+            => TrailingZeroCount(unchecked((uint)value));
 
-        // TODO: Consolidate with similar methods below
+        /// <summary>
+        /// Count the number of trailing zero bits in a mask.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte TrailingZeroCount(uint value)
         {
+            // PR already merged: https://github.com/dotnet/coreclr/pull/22118
+            // Changed parameter name to something more useful
+            // Changed return type from int to byte so that caller can assign it to any size/sign of int
+            // TODO: Benchmark & consolidate with similar methods proposed
             if (Bmi1.IsSupported)
             {
                 return (byte)Bmi1.TrailingZeroCount(value);
@@ -36,17 +47,19 @@ namespace System
             else // Software fallback
             {
                 // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
+                ref byte tz = ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn);
+                long val = (value & -value) * 0x077CB531U;
+                uint offset = ((uint)val) >> 27;
+
                 // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-                return Unsafe.AddByteOffset(
-                    ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn),
-                    ((uint)((value & -value) * 0x077CB531U)) >> 27);
+                return Unsafe.AddByteOffset(ref tz, offset);
             }
         }
 
         private static ReadOnlySpan<byte> TrailingCountMultiplyDeBruijn => new byte[32]
         {
-            0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
-            31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
+            00, 01, 28, 02, 29, 14, 24, 03, 30, 22, 20, 15, 25, 17, 04, 08,
+            31, 27, 13, 23, 21, 19, 16, 07, 26, 12, 18, 06, 11, 05, 10, 09
         };
 
         // Legacy code copied from callsites.
@@ -75,7 +88,7 @@ namespace System
         };
 
         // This is a similar method from a different location.
-        // It is shown here in its entirety, to show ubiquity of such code.
+        // It is shown here in its entirety, to show pervasivness of such code.
         // It has been renamed so that the class compiles.
         // Duplicates will be consolidated and optimized later.
         // https://raw.githubusercontent.com/dotnet/corefx/151a6065fa8184feb1ac4a55c89752342ab7c3bb/src/Common/src/CoreLib/System/Decimal.DecCalc.cs
@@ -1078,15 +1091,6 @@ namespace System
 
             return cnt;
         }
-
-        /// <summary>
-        /// Count the number of trailing zero bits in a mask.
-        /// Similar in behavior to the x86 instruction TZCNT.
-        /// </summary>
-        /// <param name="value">The mask.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(int value)
-            => TrailingZeroCount(unchecked((uint)value));
         */
 
         /// <summary>
