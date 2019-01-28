@@ -13,6 +13,7 @@ parameters:
   helixType: ''
   scenarios: ''
   timeoutInMinutes: ''
+  readyToRun: ''
 
 steps:
 - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
@@ -33,6 +34,7 @@ steps:
       _HelixType: ${{ parameters.helixType }}
       _Scenarios: ${{ parameters.scenarios }}
       _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+      _ReadyToRun: ${{ parameters.readyToRun }}
       ${{ if eq(parameters.publishTestResults, 'true') }}:
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
@@ -54,5 +56,6 @@ steps:
       _HelixType: ${{ parameters.helixType }}
       _Scenarios: ${{ parameters.scenarios }}
       _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+      _ReadyToRun: ${{ parameters.readyToRun }}
       ${{ if eq(parameters.publishTestResults, 'true') }}:
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)

@@ -25,6 +25,9 @@
     <TimeoutInMinutes>$(_TimeoutInMinutes)</TimeoutInMinutes>
     <TimeoutInMinutes Condition=" '$(TimeoutInMinutes)' == '' ">5</TimeoutInMinutes>
 
+    <ReadyToRun>$(_ReadyToRun)</ReadyToRun>
+    <ReadyToRun Condition=" '$(ReadyToRun)' == '' ">false</ReadyToRun>
+
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
     <CoreRootDirectory>$(TestWorkingDir)\Tests\Core_Root</CoreRootDirectory>
     <TestEnvFileExtension Condition=" '$(TargetsWindows)' == 'true' ">.cmd</TestEnvFileExtension>
@@ -79,19 +82,31 @@
     <PropertyGroup Condition=" '$(TargetsWindows)' == 'true' ">
       <_CoreRun>%CORE_ROOT%\CoreRun.exe</_CoreRun>
       <_XUnitRunnerDll>%CORE_ROOT%\xunit.console.dll</_XUnitRunnerDll>
-      <_HelixPreCommands>set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%;set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\SetStressModes_$(Scenario)$(TestEnvFileExtension);type %__TestEnv%</_HelixPreCommands>
     </PropertyGroup>
+
+    <ItemGroup Condition=" '$(TargetsWindows)' == 'true' ">
+      <_HelixPreCommands Include="set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%" />
+      <_HelixPreCommands Include="set RunCrossGen=true" Condition=" '$(ReadyToRun)' == 'true' " />
+      <_HelixPreCommands Include="set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\SetStressModes_$(Scenario)$(TestEnvFileExtension)" />
+      <_HelixPreCommands Include="type %__TestEnv%" />
+    </ItemGroup>
 
     <PropertyGroup Condition=" '$(TargetsWindows)' != 'true' ">
       <_CoreRun>$CORE_ROOT/corerun</_CoreRun>
       <_XUnitRunnerDll>$CORE_ROOT/xunit.console.dll</_XUnitRunnerDll>
-      <_HelixPreCommands>export CORE_ROOT=$HELIX_CORRELATION_PAYLOAD;export __TestEnv=$HELIX_WORKITEM_PAYLOAD/SetStressModes_$(Scenario)$(TestEnvFileExtension);cat $__TestEnv</_HelixPreCommands>
     </PropertyGroup>
+
+    <ItemGroup Condition=" '$(TargetsWindows)' != 'true' ">
+      <_HelixPreCommands Include="export CORE_ROOT=$HELIX_CORRELATION_PAYLOAD" />
+      <_HelixPreCommands Include="export RunCrossGen=true" Condition=" '$(ReadyToRun)' == 'true' " />
+      <_HelixPreCommands Include="export __TestEnv=$HELIX_WORKITEM_PAYLOAD/SetStressModes_$(Scenario)$(TestEnvFileExtension)" />
+      <_HelixPreCommands Include="cat $__TestEnv" />
+    </ItemGroup>
 
     <ItemGroup>
       <HelixWorkItem Include="@(XUnitWrapperDlls->'%(FileName)'->Replace('.XUnitWrapper', ''))">
         <PayloadDirectory>%(RootDir)%(Directory)</PayloadDirectory>
-        <PreCommands>$(_HelixPreCommands)</PreCommands>
+        <PreCommands>@(_HelixPreCommands)</PreCommands>
         <Command>$(_CoreRun) $(_XUnitRunnerDll) %(FileName)%(Extension) $(_XUnitRunnerArgs)</Command>
         <Timeout>$([System.TimeSpan]::FromMinutes($(TimeoutInMinutes)))</Timeout>
       </HelixWorkItem>

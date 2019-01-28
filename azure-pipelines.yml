@@ -154,7 +154,7 @@ jobs:
           - no_tiered_compilation
         timeoutInMinutes: 360
 
-# Pri1 crossgen (CI)
+# Pri1 ReadyToRun (CI)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
   - template: eng/platform-matrix.yml
     parameters:
@@ -162,7 +162,7 @@ jobs:
       buildConfig: checked
       jobParameters:
         priority: 1
-        crossgen: true
+        readyToRun: true
         scenarios:
           asString: 'normal,no_tiered_compilation'
           asArray:
@@ -208,7 +208,7 @@ jobs:
           - no_tiered_compilation
         timeoutInMinutes: 360
 
-# Pri1 crossgen (Official Build)
+# Pri1 ReadyToRun (Official Build)
 - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
   - template: eng/platform-matrix.yml
     parameters:
@@ -216,7 +216,7 @@ jobs:
       buildConfig: release
       jobParameters:
         priority: 1
-        crossgen: true
+        readyToRun: true
         scenarios:
           asString: 'normal,no_tiered_compilation'
           asArray:
