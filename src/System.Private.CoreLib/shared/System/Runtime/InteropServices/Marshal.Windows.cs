@@ -22,9 +22,9 @@ namespace System.Runtime.InteropServices
             return 0 == (lPtr & HIWORDMASK);
         }
 
-        internal static unsafe int StringToAnsiString(string s, byte* buffer, int wideCharLen, bool bestFit = false, bool throwOnUnmappableChar = false)
+        internal static unsafe int StringToAnsiString(string s, byte* buffer, int bufferLength, bool bestFit = false, bool throwOnUnmappableChar = false)
         {
-            Debug.Assert(wideCharLen >= (s.Length + 1) * SystemMaxDBCSCharSize, "Insufficient buffer length passed to StringToAnsiString");
+            Debug.Assert(bufferLength >= (s.Length + 1) * SystemMaxDBCSCharSize, "Insufficient buffer length passed to StringToAnsiString");
 
             int nb;
 
@@ -39,7 +39,7 @@ namespace System.Runtime.InteropServices
                     pwzChar,
                     s.Length,
                     buffer,
-                    wideCharLen,
+                    bufferLength,
                     IntPtr.Zero,
                     throwOnUnmappableChar ? new IntPtr(&defaultCharUsed) : IntPtr.Zero);
             }

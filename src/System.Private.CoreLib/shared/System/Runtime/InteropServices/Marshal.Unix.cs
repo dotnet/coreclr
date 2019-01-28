@@ -11,15 +11,15 @@ namespace System.Runtime.InteropServices
     {
         private static bool IsWin32Atom(IntPtr ptr) => false;
 
-        internal static unsafe int StringToAnsiString(string s, byte* buffer, int wideCharLen, bool bestFit = false, bool throwOnUnmappableChar = false)
+        internal static unsafe int StringToAnsiString(string s, byte* buffer, int bufferLength, bool bestFit = false, bool throwOnUnmappableChar = false)
         {
-            Debug.Assert(wideCharLen >= (s.Length + 1) * SystemMaxDBCSCharSize, "Insufficient buffer length passed to StringToAnsiString");
+            Debug.Assert(bufferLength >= (s.Length + 1) * SystemMaxDBCSCharSize, "Insufficient buffer length passed to StringToAnsiString");
 
             int convertedBytes;
 
             fixed (char* pChar = s)
             {
-                convertedBytes = Encoding.UTF8.GetBytes(pChar, s.Length, buffer, wideCharLen);
+                convertedBytes = Encoding.UTF8.GetBytes(pChar, s.Length, buffer, bufferLength);
             }
 
             buffer[convertedBytes] = 0;
