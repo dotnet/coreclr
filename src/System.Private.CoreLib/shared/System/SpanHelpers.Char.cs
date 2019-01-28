@@ -1024,13 +1024,20 @@ namespace System
                         Vector128<ushort> values1 = Vector128.Create(value1);
                         Vector128<ushort> values2 = Vector128.Create(value2);
                         Vector128<ushort> values3 = Vector128.Create(value3);
+
                         Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
 
+                        // We can do the ORs in vectors here as we don't need to keep the values as we are not looping
+                        Vector128<ushort> matches0 = Sse2.CompareEqual(values0, search);
+                        Vector128<ushort> matches1 = Sse2.CompareEqual(values1, search);
+                        Vector128<ushort> matches2 = Sse2.CompareEqual(values2, search);
+                        Vector128<ushort> matches3 = Sse2.CompareEqual(values3, search);
+
+                        Vector128<ushort> matches01 = Sse2.Or(matches0, matches1);
+                        Vector128<ushort> matches23 = Sse2.Or(matches2, matches3);
+
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values3, search).AsByte());
+                        int matches = Sse2.MoveMask(Sse2.Or(matches01, matches23).AsByte());
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -1241,14 +1248,21 @@ namespace System
                         Vector128<ushort> values2 = Vector128.Create(value2);
                         Vector128<ushort> values3 = Vector128.Create(value3);
                         Vector128<ushort> values4 = Vector128.Create(value4);
+
                         Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
 
+                        // We can do the ORs in vectors here as we don't need to keep the values as we are not looping
+                        Vector128<ushort> matches0 = Sse2.CompareEqual(values0, search);
+                        Vector128<ushort> matches1 = Sse2.CompareEqual(values1, search);
+                        Vector128<ushort> matches2 = Sse2.CompareEqual(values2, search);
+                        Vector128<ushort> matches3 = Sse2.CompareEqual(values3, search);
+                        Vector128<ushort> matches4 = Sse2.CompareEqual(values4, search);
+
+                        Vector128<ushort> matches01 = Sse2.Or(matches0, matches1);
+                        Vector128<ushort> matches23 = Sse2.Or(matches2, matches3);
+
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values3, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values4, search).AsByte());
+                        int matches = Sse2.MoveMask(Sse2.Or(Sse2.Or(matches01, matches4), matches23).AsByte());
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
