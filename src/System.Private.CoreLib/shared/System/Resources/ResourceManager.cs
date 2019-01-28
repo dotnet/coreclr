@@ -2,37 +2,28 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-** 
-** 
-**
-**
-** Purpose: Default way to access String and Object resources
-** from an assembly.
-**
-** 
-===========================================================*/
+
+using System;
+using System.IO;
+using System.Globalization;
+using System.Collections;
+using System.Text;
+using System.Reflection;
+using System.Security;
+using System.Threading;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using Microsoft.Win32;
+using System.Collections.Generic;
+using System.Runtime.Versioning;
+using System.Diagnostics;
+
+#if FEATURE_APPX || ENABLE_WINRT
+using Internal.Resources;
+#endif
 
 namespace System.Resources
 {
-    using System;
-    using System.IO;
-    using System.Globalization;
-    using System.Collections;
-    using System.Text;
-    using System.Reflection;
-    using System.Security;
-    using System.Threading;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using Microsoft.Win32;
-    using System.Collections.Generic;
-    using System.Runtime.Versioning;
-    using System.Diagnostics;
-#if FEATURE_APPX
-    using Internal.Resources;
-#endif
     // Resource Manager exposes an assembly's resources to an application for
     // the correct CultureInfo.  An example would be localizing text for a 
     // user-visible message.  Create a set of resource files listing a name 
@@ -122,11 +113,6 @@ namespace System.Resources
         }
 
         protected string BaseNameField;
-        // Sets is a many-to-one table of CultureInfos mapped to ResourceSets.
-        // Don't synchronize ResourceSets - too fine-grained a lock to be effective
-        [Obsolete("call InternalGetResourceSet instead")]
-        internal Hashtable ResourceSets;
-
 
         private Dictionary<string, ResourceSet> _resourceSets;
         private string moduleDir;      // For assembly-ignorant directory location
@@ -206,9 +192,6 @@ namespace System.Resources
 
             moduleDir = resourceDir;
             _userResourceSet = usingResourceSet;
-#pragma warning disable 618
-            ResourceSets = new Hashtable(); // for backward compatibility
-#pragma warning restore 618
             _resourceSets = new Dictionary<string, ResourceSet>();
             _lastUsedResourceCache = new CultureNameResourceSetPair();
             UseManifest = false;
@@ -249,6 +232,8 @@ namespace System.Resources
             if (usingResourceSet != null && (usingResourceSet != s_minResourceSet) && !(usingResourceSet.IsSubclassOf(s_minResourceSet)))
                 throw new ArgumentException(SR.Arg_ResMgrNotResSet, nameof(usingResourceSet));
             _userResourceSet = usingResourceSet;
+
+            SetAppXConfiguration();
 
             CommonAssemblyInit();
         }
@@ -566,9 +551,25 @@ namespace System.Resources
                 throw new ArgumentNullException(nameof(a), SR.ArgumentNull_Assembly);
             }
 
-            // Return null. The calling code will use the assembly version instead to avoid potential type
-            // and library loads caused by CA lookup. NetCF uses the assembly version always.
-            return null;
+            string v = a.GetCustomAttribute<SatelliteContractVersionAttribute>()?.Version;
+            if (v == null)
+            {
+                // Return null. The calling code will use the assembly version instead to avoid potential type
+                // and library loads caused by CA lookup. NetCF uses the assembly version always.
+                return null;
+            }
+
+            if (!Version.TryParse(v, out Version version))
+            {
+                // Note we are prone to hitting infinite loops if mscorlib's
+                // SatelliteContractVersionAttribute contains bogus values.
+                // If this assert fires, please fix the build process for the
+                // BCL directory.
+                Debug.Assert(a == typeof(object).GetTypeInfo().Assembly, System.CoreLib.Name + "'s SatelliteContractVersionAttribute is a malformed version string!");
+                throw new ArgumentException(SR.Format(SR.Arg_InvalidSatelliteContract_Asm_Ver, a.ToString(), v));
+            }
+
+            return version;
         }
 
         protected static CultureInfo GetNeutralResourcesLanguage(Assembly a)
@@ -608,13 +609,12 @@ namespace System.Resources
             return string.Equals(an.Name, "mscorlib", StringComparison.OrdinalIgnoreCase);
         }
 
-#if FEATURE_APPX
+#if FEATURE_APPX || ENABLE_WINRT
         private string GetStringFromPRI(string stringName, string startingCulture, string neutralResourcesCulture)
         {
             Debug.Assert(_bUsingModernResourceManagement);
             Debug.Assert(_WinRTResourceManager != null);
             Debug.Assert(_PRIonAppXInitialized);
-            Debug.Assert(ApplicationModel.IsUap);
 
             if (stringName.Length == 0)
                 return null;
@@ -630,27 +630,37 @@ namespace System.Resources
 
             return resourceString;
         }
+#endif
 
-        // Since we can't directly reference System.Runtime.WindowsRuntime from mscorlib, we have to get the type via reflection.
-        // It would be better if we could just implement WindowsRuntimeResourceManager in mscorlib, but we can't, because
-        // we can do very little with WinRT in mscorlib.
+        // Since we can't directly reference System.Runtime.WindowsRuntime from System.Private.CoreLib, we have to get the type via reflection.
+        // It would be better if we could just implement WindowsRuntimeResourceManager in System.Private.CoreLib, but we can't, because
+        // we can do very little with WinRT in System.Private.CoreLib.
+#if FEATURE_APPX
         internal static WindowsRuntimeResourceManagerBase GetWinRTResourceManager()
         {
             Type WinRTResourceManagerType = Type.GetType("System.Resources.WindowsRuntimeResourceManager, System.Runtime.WindowsRuntime", throwOnError: true);
             return (WindowsRuntimeResourceManagerBase)Activator.CreateInstance(WinRTResourceManagerType, true);
         }
 #endif
+#if ENABLE_WINRT
+        internal static WindowsRuntimeResourceManagerBase GetWinRTResourceManager()
+        {
+            Assembly hiddenScopeAssembly = Assembly.Load(RuntimeAugments.HiddenScopeAssemblyName);
+            Type WinRTResourceManagerType = hiddenScopeAssembly.GetType("System.Resources.WindowsRuntimeResourceManager", true);
+            return (WindowsRuntimeResourceManagerBase)Activator.CreateInstance(WinRTResourceManagerType, true);
+        }
+#endif
 
         private bool _bUsingModernResourceManagement; // Written only by SetAppXConfiguration
 
-#if FEATURE_APPX
+#if FEATURE_APPX || ENABLE_WINRT
         private WindowsRuntimeResourceManagerBase _WinRTResourceManager; // Written only by SetAppXConfiguration
 
         private bool _PRIonAppXInitialized; // Written only by SetAppXConfiguration
 
         private PRIExceptionInfo _PRIExceptionInfo; // Written only by SetAppXConfiguration
 
-        // When running under AppX, the following rules apply for resource lookup:
+        // CoreCLR: When running under AppX, the following rules apply for resource lookup:
         //
         // 1) For Framework assemblies, we always use satellite assembly based lookup.
         // 2) For non-FX assemblies:
@@ -660,34 +670,46 @@ namespace System.Resources
         //   
         //    b) For any other non-FX assembly, we will use the modern resource manager with the premise that app package
         //       contains the PRI resources.
+        //
+        // .NET Native: If it is framework assembly we'll return true. The reason is in .NetNative we don't merge the
+        // resources to the app PRI file.
+        // The framework assemblies are tagged with attribute [assembly: AssemblyMetadata(".NETFrameworkAssembly", "")]
         private bool ShouldUseSatelliteAssemblyResourceLookupUnderAppX(Assembly resourcesAssembly)
         {
-            bool fUseSatelliteAssemblyResourceLookupUnderAppX = typeof(object).Assembly == resourcesAssembly;
+            if (typeof(object).Assembly == resourcesAssembly)
+                return true;
 
-            if (!fUseSatelliteAssemblyResourceLookupUnderAppX)
+#if FEATURE_APPX
+            // Check to see if the assembly is under PLATFORM_RESOURCE_ROOTS. If it is, then we should use satellite assembly lookup for it.
+            string platformResourceRoots = (string)(AppContext.GetData("PLATFORM_RESOURCE_ROOTS"));
+            if ((platformResourceRoots != null) && (platformResourceRoots != string.Empty))
             {
-                // Check to see if the assembly is under PLATFORM_RESOURCE_ROOTS. If it is, then we should use satellite assembly lookup for it.
-                string platformResourceRoots = (string)(AppContext.GetData("PLATFORM_RESOURCE_ROOTS"));
-                if ((platformResourceRoots != null) && (platformResourceRoots != string.Empty))
-                {
-                    string resourceAssemblyPath = resourcesAssembly.Location;
+                string resourceAssemblyPath = resourcesAssembly.Location;
 
-                    // Loop through the PLATFORM_RESOURCE_ROOTS and see if the assembly is contained in it.
-                    foreach (string pathPlatformResourceRoot in platformResourceRoots.Split(Path.PathSeparator))
+                // Loop through the PLATFORM_RESOURCE_ROOTS and see if the assembly is contained in it.
+                foreach (string pathPlatformResourceRoot in platformResourceRoots.Split(Path.PathSeparator))
+                {
+                    if (resourceAssemblyPath.StartsWith(pathPlatformResourceRoot, StringComparison.CurrentCultureIgnoreCase))
                     {
-                        if (resourceAssemblyPath.StartsWith(pathPlatformResourceRoot, StringComparison.CurrentCultureIgnoreCase))
-                        {
-                            // Found the resource assembly to be present in one of the PLATFORM_RESOURCE_ROOT, so stop the enumeration loop.
-                            fUseSatelliteAssemblyResourceLookupUnderAppX = true;
-                            break;
-                        }
+                        // Found the resource assembly to be present in one of the PLATFORM_RESOURCE_ROOT, so stop the enumeration loop.
+                        return true;
                     }
                 }
             }
+#else // ENABLE_WINRT
+            foreach (var attrib in resourcesAssembly.GetCustomAttributes())
+            {
+                AssemblyMetadataAttribute meta = attrib as AssemblyMetadataAttribute;
+                if (meta != null && meta.Key.Equals(".NETFrameworkAssembly"))
+                {
+                    return true;
+                }
+            }
+#endif
 
-            return fUseSatelliteAssemblyResourceLookupUnderAppX;
+            return false;
         }
-#endif // FEATURE_APPX
+#endif // FEATURE_APPX || ENABLE_WINRT
 
         // Only call SetAppXConfiguration from ResourceManager constructors, and nowhere else.
         // Throws MissingManifestResourceException and WinRT HResults
@@ -695,7 +717,7 @@ namespace System.Resources
         private void SetAppXConfiguration()
         {
             Debug.Assert(_bUsingModernResourceManagement == false); // Only this function writes to this member
-#if FEATURE_APPX
+#if FEATURE_APPX || ENABLE_WINRT
             Debug.Assert(_WinRTResourceManager == null); // Only this function writes to this member
             Debug.Assert(_PRIonAppXInitialized == false); // Only this function writes to this member
             Debug.Assert(_PRIExceptionInfo == null); // Only this function writes to this member
@@ -704,9 +726,14 @@ namespace System.Resources
 
             if (MainAssembly != null)
             {
-                if (MainAssembly != typeof(object).Assembly) // We are not loading resources for mscorlib
+                if (MainAssembly != typeof(object).Assembly) // We are not loading resources for System.Private.CoreLib
                 {
+#if ENABLE_WINRT
+                    WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
+                    if (callbacks != null && callbacks.IsAppxModel())
+#else
                     if (ApplicationModel.IsUap)
+#endif
                     {
                         // If we have the type information from the ResourceManager(Type) constructor, we use it. Otherwise, we use BaseNameField.
                         string reswFilename = _locationInfo == null ? BaseNameField : _locationInfo.FullName;
@@ -798,7 +825,7 @@ namespace System.Resources
             // MainAssembly == null should not happen but it can. See the comment on Assembly.GetCallingAssembly.
             // However for the sake of 100% backwards compatibility on Win7 and below, we must leave
             // _bUsingModernResourceManagement as false.
-#endif // FEATURE_APPX            
+#endif // FEATURE_APPX || ENABLE_WINRT
         }
 
         // Looks up a resource value for a particular name.  Looks in the 
@@ -819,7 +846,7 @@ namespace System.Resources
             if (null == name)
                 throw new ArgumentNullException(nameof(name));
 
-#if FEATURE_APPX
+#if FEATURE_APPX || ENABLE_WINRT
             if (_bUsingModernResourceManagement)
             {
                 // If the caller explicitly passed in a culture that was obtained by calling CultureInfo.CurrentUICulture,
@@ -846,7 +873,7 @@ namespace System.Resources
                                         _neutralResourcesCulture.Name);
             }
             else
-#endif // FEATURE_APPX
+#endif // FEATURE_APPX || ENABLE_WINRT
             {
                 if (culture == null)
                 {

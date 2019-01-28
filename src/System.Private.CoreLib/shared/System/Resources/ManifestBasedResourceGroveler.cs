@@ -39,7 +39,7 @@ namespace System.Resources
     // belonging to that type may not be initialized. FrameworkEventSource.Log
     // is one such example.
     //
-    internal class ManifestBasedResourceGroveler : IResourceGroveler
+    internal partial class ManifestBasedResourceGroveler : IResourceGroveler
     {
         private ResourceManager.ResourceManagerMediator _mediator;
 
@@ -478,25 +478,6 @@ namespace System.Resources
                 resName = _mediator.LocationInfo.Namespace + Type.Delimiter;
             resName += fileName;
             throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_NoNeutralAsm, resName, _mediator.MainAssembly.GetName().Name));
-        }
-
-        // Internal version of GetSatelliteAssembly that avoids throwing FileNotFoundException
-        private static Assembly InternalGetSatelliteAssembly(Assembly mainAssembly,
-                                                             CultureInfo culture,
-                                                             Version version)
-        {
-            return ((RuntimeAssembly)mainAssembly).InternalGetSatelliteAssembly(culture, version, throwOnFileNotFound: false);
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool GetNeutralResourcesLanguageAttribute(RuntimeAssembly assemblyHandle, StringHandleOnStack cultureName, out short fallbackLocation);
-
-        private static bool GetNeutralResourcesLanguageAttribute(Assembly assemblyHandle, ref string cultureName, out short fallbackLocation)
-        {
-            return GetNeutralResourcesLanguageAttribute(((RuntimeAssembly)assemblyHandle).GetNativeHandle(),
-                                                        JitHelpers.GetStringHandleOnStack(ref cultureName),
-                                                        out fallbackLocation);
         }
     }
 }
