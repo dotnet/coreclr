@@ -6616,7 +6616,7 @@ void Compiler::optHoistThisLoop(unsigned lnum, LoopHoistContext* hoistCtxt)
     // Find the set of definitely-executed blocks.
     // Ideally, the definitely-executed blocks are the ones that post-dominate the entry block.
     // Until we have post-dominators, we'll special-case for single-exit blocks.
-    JitExpandArrayStack<BasicBlock*> defExec(getAllocatorLoopHoist());
+    ArrayStack<BasicBlock*> defExec(getAllocatorLoopHoist());
     if (pLoopDsc->lpFlags & LPFLG_ONE_EXIT)
     {
         assert(pLoopDsc->lpExit != nullptr);
@@ -6641,12 +6641,7 @@ void Compiler::optHoistThisLoop(unsigned lnum, LoopHoistContext* hoistCtxt)
         defExec.Push(pLoopDsc->lpEntry);
     }
 
-    while (defExec.Size() > 0)
-    {
-        // Consider in reverse order: dominator before dominatee.
-        BasicBlock* blk = defExec.Pop();
-        optHoistLoopExprsForBlock(blk, lnum, hoistCtxt);
-    }
+    optHoistLoopBlocks(lnum, &defExec, hoistCtxt);
 }
 
 bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
@@ -6745,14 +6740,19 @@ bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
 }
 
 //------------------------------------------------------------------------
-// optHoistLoopExprsForBlock: Hoist invariant expression out of the block.
+// optHoistLoopBlocks: Hoist invariant expression out of the loop.
 //
 // Arguments:
-//    block - The block to hoist expressions from
-//    loopNum - The number of the loop `block` belongs to
+//    loopNum - The number of the loop
+//    blocks - A stack of blocks belonging to the loop
 //    hoistContext - The loop hoist context
 //
-void Compiler::optHoistLoopExprsForBlock(BasicBlock* block, unsigned loopNum, LoopHoistContext* hoistContext)
+// Assumptions:
+//    The `blocks` stack contains the definitely-executed blocks in
+//    the loop, in the execution order, starting with the loop entry
+//    block on top of the stack.
+//
+void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blocks, LoopHoistContext* hoistContext)
 {
     class HoistVisitor : public GenTreeVisitor<HoistVisitor>
     {
@@ -6790,24 +6790,33 @@ void Compiler::optHoistLoopExprsForBlock(BasicBlock* block, unsigned loopNum, Lo
             UseExecutionOrder = true,
         };
 
-        HoistVisitor(Compiler* compiler, bool firstBlock, unsigned loopNum, LoopHoistContext* hoistContext)
+        HoistVisitor(Compiler* compiler, unsigned loopNum, LoopHoistContext* hoistContext)
             : GenTreeVisitor(compiler)
             , m_valueStack(compiler->getAllocator(CMK_LoopHoist))
-            , m_beforeSideEffect(firstBlock)
+            , m_beforeSideEffect(true)
             , m_loopNum(loopNum)
             , m_hoistContext(hoistContext)
         {
         }
 
-        void Hoist(GenTree* tree)
+        void HoistBlock(BasicBlock* block)
         {
-            WalkTree(&tree, nullptr);
-
-            if (m_valueStack.TopRef().m_hoistable)
+            for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNextStmt)
             {
-                assert(m_valueStack.TopRef().Node() == tree);
-                m_compiler->optHoistCandidate(tree, m_loopNum, m_hoistContext);
+                WalkTree(&stmt->gtStmtExpr, nullptr);
+                assert(m_valueStack.TopRef().Node() == stmt->gtStmtExpr);
+
+                if (m_valueStack.TopRef().m_hoistable)
+                {
+                    m_compiler->optHoistCandidate(stmt->gtStmtExpr, m_loopNum, m_hoistContext);
+                }
+
+                m_valueStack.Reset();
             }
+
+            // We don't visit every block in the loop so once we visited the first block
+            // we need to assume the worst, that not visited blocks have side effects.
+            m_beforeSideEffect = false;
         }
 
         fgWalkResult PreOrderVisit(GenTree** use, GenTree* user)
@@ -7031,27 +7040,28 @@ void Compiler::optHoistLoopExprsForBlock(BasicBlock* block, unsigned loopNum, Lo
         }
     };
 
-    LoopDsc* loopDsc     = &optLoopTable[loopNum];
-    bool     firstBlock  = (block == loopDsc->lpEntry);
-    unsigned blockWeight = block->getBBWeight(this);
+    LoopDsc* loopDsc = &optLoopTable[loopNum];
+    assert(blocks->Top() == loopDsc->lpEntry);
 
-    JITDUMP("    optHoistLoopExprsForBlock " FMT_BB " (weight=%6s) of loop L%02u <" FMT_BB ".." FMT_BB
-            ">, firstBlock is %s\n",
-            block->bbNum, refCntWtd2str(blockWeight), loopNum, loopDsc->lpFirst->bbNum, loopDsc->lpBottom->bbNum,
-            firstBlock ? "true" : "false");
+    HoistVisitor visitor(this, loopNum, hoistContext);
 
-    if (blockWeight < (BB_UNITY_WEIGHT / 10))
+    while (!blocks->Empty())
     {
-        // Block weight is too small to perform hoisting.
-        JITDUMP("      block weight is too small to perform hoisting.\n");
-        return;
-    }
+        BasicBlock* block       = blocks->Pop();
+        unsigned    blockWeight = block->getBBWeight(this);
 
-    HoistVisitor visitor(this, firstBlock, loopNum, hoistContext);
+        JITDUMP("    optHoistLoopBlocks " FMT_BB " (weight=%6s) of loop L%02u <" FMT_BB ".." FMT_BB
+                ">, firstBlock is %s\n",
+                block->bbNum, refCntWtd2str(blockWeight), loopNum, loopDsc->lpFirst->bbNum, loopDsc->lpBottom->bbNum,
+                (block == loopDsc->lpEntry) ? "true" : "false");
 
-    for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNextStmt)
-    {
-        visitor.Hoist(stmt->gtStmtExpr);
+        if (blockWeight < (BB_UNITY_WEIGHT / 10))
+        {
+            JITDUMP("      block weight is too small to perform hoisting.\n");
+            continue;
+        }
+
+        visitor.HoistBlock(block);
     }
 }
 
