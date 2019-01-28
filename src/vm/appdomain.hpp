@@ -1286,7 +1286,7 @@ protected:
     // Critical sections & locks
     PEFileListLock   m_FileLoadLock;            // Protects the list of assemblies in the domain
     CrstExplicitInit m_DomainCrst;              // General Protection for the Domain
-    CrstExplicitInit m_DomainCacheCrst;         // Protects the Assembly and Unmanaged caches
+    CrstExplicitInit m_DomainCacheCrst;         // Protects the Assembly cache
     CrstExplicitInit m_DomainLocalBlockCrst;
     CrstExplicitInit m_InteropDataCrst;         // Used for COM Interop compatiblilty
     // Used to protect the reference lists in the collectible loader allocators attached to this appdomain
@@ -2206,8 +2206,6 @@ public:
     BOOL RemoveAssemblyFromCache(DomainAssembly* pAssembly);
 
     BOOL AddExceptionToCache(AssemblySpec* pSpec, Exception *ex);
-    void AddUnmanagedImageToCache(LPCWSTR libraryName, HMODULE hMod);
-    HMODULE FindUnmanagedImageInCache(LPCWSTR libraryName);
     //****************************************************************************************
     //
     // Adds or removes an assembly to the domain.
@@ -3094,7 +3092,6 @@ public:
     };
 
     AssemblySpecBindingCache  m_AssemblyCache;
-    DomainAssemblyCache       m_UnmanagedCache;
     size_t                    m_MemoryPressure;
 
     ArrayList m_NativeDllSearchDirectories;

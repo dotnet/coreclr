@@ -125,6 +125,43 @@ public:
     inline bool IsEmpty();
 };
 
+#define INITIAL_UNMANAGED_IMAGE_CACHE_SIZE 17
+class UnmanagedImageCache
+{
+    struct ImageEntry
+    {
+        LPCWSTR      libraryName;
+        HMODULE      hMod;
+
+        DWORD Hash()
+        {
+            WRAPPER_NO_CONTRACT;
+            return HashString(libraryName);
+        }
+    };
+
+    PtrHashMap       m_Table;
+    LoaderAllocator* m_pLoaderAllocator;
+
+public:
+
+    static BOOL CompareBindingSpec(UPTR spec1, UPTR spec2);
+
+    void InitializeTable(LoaderAllocator* pLoaderAllocator, CrstBase *pCrst)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        m_pLoaderAllocator = pLoaderAllocator;
+
+        LockOwner lock = {pCrst, IsOwnerOfCrst};
+        m_Table.Init(INITIAL_UNMANAGED_IMAGE_CACHE_SIZE, &CompareBindingSpec, true, &lock);
+    }
+
+    HMODULE LookupEntry(LPCWSTR libraryName);
+    void InsertEntry(LPCWSTR libraryName, HMODULE hMod);
+    void FreeImages();
+};
+
 class StringLiteralMap;
 class VirtualCallStubManager;
 template <typename ELEMENT>
@@ -185,6 +222,9 @@ protected:
 
     // IL stub cache with fabricated MethodTable parented by a random module in this LoaderAllocator.
     ILStubCache         m_ILStubCache;
+
+    UnmanagedImageCache m_UnmanagedCache;
+    CrstExplicitInit    m_LoaderAllocatorUnmanagedCacheCrst;
 
 public:
     BYTE *GetVSDHeapInitialBlock(DWORD *pSize);
@@ -590,6 +630,9 @@ public:
     // Returns TRUE if successfully inserted, FALSE if this would be a duplicate entry
     BOOL InsertComInteropData(MethodTable* pMT, InteropMethodTableData *pData);
 
+    void AddUnmanagedImageToCache(LPCWSTR libraryName, HMODULE hMod);
+    HMODULE FindUnmanagedImageInCache(LPCWSTR libraryName);
+
 #endif // DACCESS_COMPILE
 
 #endif // FEATURE_COMINTEROP
@@ -610,6 +653,16 @@ public:
         return &m_methodDescBackpatchInfoTracker;
     }
 #endif
+
+    class CacheLockHolder : public CrstHolder
+    {
+    public:
+        CacheLockHolder(LoaderAllocator *pLoaderAllocator)
+            : CrstHolder(&pLoaderAllocator->m_LoaderAllocatorUnmanagedCacheCrst)
+        {
+            WRAPPER_NO_CONTRACT;
+        }
+    };
 };  // class LoaderAllocator
 
 typedef VPTR(LoaderAllocator) PTR_LoaderAllocator;

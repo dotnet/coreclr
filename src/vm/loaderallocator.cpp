@@ -1079,6 +1079,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 #ifdef FEATURE_COMINTEROP
     m_ComCallWrapperCrst.Init(CrstCOMCallWrapper);
 #endif
+    m_LoaderAllocatorUnmanagedCacheCrst.Init(CrstLoaderAllocatorUnmanagedCache);
 
     //
     // Initialize the heaps
@@ -1236,6 +1237,8 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
         m_interopDataHash.Init(0, NULL, false, &lock);
     }
 #endif // FEATURE_COMINTEROP
+
+    m_UnmanagedCache.InitializeTable(this, &m_LoaderAllocatorUnmanagedCacheCrst);
 }
 
 
@@ -1339,14 +1342,18 @@ void LoaderAllocator::Terminate()
         m_fGCPressure = false;
     }
 
+    m_UnmanagedCache.FreeImages();
+
     delete m_pUMEntryThunkCache;
     m_pUMEntryThunkCache = NULL;
 
     m_crstLoaderAllocator.Destroy();
+    m_LoaderAllocatorUnmanagedCacheCrst.Destroy();
 #ifdef FEATURE_COMINTEROP
     m_ComCallWrapperCrst.Destroy();
     m_InteropDataCrst.Destroy();
 #endif
+
     m_LoaderAllocatorReferences.RemoveAll();
 
     // In collectible types we merge the low frequency and high frequency heaps
@@ -2045,5 +2052,127 @@ BOOL LoaderAllocator::InsertComInteropData(MethodTable* pMT, InteropMethodTableD
 }
 
 #endif // FEATURE_COMINTEROP
+
+
+void LoaderAllocator::AddUnmanagedImageToCache(LPCWSTR libraryName, HMODULE hMod)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(CheckPointer(libraryName));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+    if (libraryName)
+    {
+        m_UnmanagedCache.InsertEntry(libraryName, hMod);
+    }
+    return ;
+}
+
+HMODULE LoaderAllocator::FindUnmanagedImageInCache(LPCWSTR libraryName)
+{
+    CONTRACT(HMODULE)
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(CheckPointer(libraryName,NULL_OK));
+        POSTCONDITION(CheckPointer(RETVAL,NULL_OK));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACT_END;
+    if(libraryName == NULL) RETURN NULL;
+
+    RETURN m_UnmanagedCache.LookupEntry(libraryName);
+}
+
+/* static */
+BOOL UnmanagedImageCache::CompareBindingSpec(UPTR spec1, UPTR spec2)
+{
+    WRAPPER_NO_CONTRACT;
+
+    LPCWSTR libraryName = (LPCWSTR) (spec1 << 1);
+    ImageEntry* pEntry2 = (ImageEntry*) spec2;
+
+    return wcscmp(libraryName, pEntry2->libraryName) == 0;
+}
+
+HMODULE UnmanagedImageCache::LookupEntry(LPCWSTR libraryName)
+{
+    CONTRACT (HMODULE)
+    {
+        INSTANCE_CHECK;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACT_END
+
+    DWORD hashValue = HashString(libraryName);
+
+    LPVOID pResult = m_Table.LookupValue(hashValue, (LPVOID)libraryName);
+    if(pResult == (LPVOID) INVALIDENTRY)
+        RETURN NULL;
+    else
+        RETURN ((ImageEntry*)pResult)->hMod;
+}
+
+void UnmanagedImageCache::InsertEntry(LPCWSTR libraryName, HMODULE hMod)
+{
+    CONTRACTL
+    {
+        INSTANCE_CHECK;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END
+
+    HMODULE hCachedMod = LookupEntry(libraryName);
+    if(hCachedMod == NULL)
+    {
+        LoaderAllocator::CacheLockHolder lh(m_pLoaderAllocator);
+
+        hCachedMod = LookupEntry(libraryName);
+        if (hCachedMod == NULL) 
+        {
+            AllocMemTracker amTracker;
+            AllocMemTracker *pamTracker = &amTracker;
+
+            ImageEntry* pEntry = (ImageEntry*) pamTracker->Track( m_pLoaderAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(ImageEntry))) );
+
+            size_t len = wcslen(libraryName) + 1;
+            LPWSTR temp = (LPWSTR)pamTracker->Track( m_pLoaderAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T (len * 2)) );
+            wcscpy_s(temp, len, libraryName);
+            pEntry->libraryName = temp;
+            pEntry->hMod = hMod;
+            DWORD hashValue = HashString(libraryName);
+            m_Table.InsertValue(hashValue, pEntry);
+
+            pamTracker->SuppressRelease();
+        }
+        // lh goes out of scope here
+    }
+#ifdef _DEBUG
+    else 
+    {
+        _ASSERTE(hMod == hCachedMod);
+    }
+#endif
+}
+
+void UnmanagedImageCache::FreeImages()
+{
+    for (PtrHashMap::PtrIterator it = m_Table.begin(); !it.end(); ++it)
+    {
+        FreeLibrary(((ImageEntry*)it.GetValue())->hMod);
+    }
+}
 
 #endif // !DACCESS_COMPILE

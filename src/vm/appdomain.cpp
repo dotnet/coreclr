@@ -3702,7 +3702,6 @@ void AppDomain::Init()
 
 // Set up the binding caches
     m_AssemblyCache.Init(&m_DomainCacheCrst, GetHighFrequencyHeap());
-    m_UnmanagedCache.InitializeTable(this, &m_DomainCacheCrst);
 
     m_MemoryPressure = 0;
 
@@ -5610,46 +5609,6 @@ BOOL AppDomain::AddExceptionToCache(AssemblySpec* pSpec, Exception *ex)
     CrstHolder holder(&m_DomainCacheCrst);
     // !!! suppress exceptions
     return m_AssemblyCache.StoreException(pSpec, ex);
-}
-
-void AppDomain::AddUnmanagedImageToCache(LPCWSTR libraryName, HMODULE hMod)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(CheckPointer(libraryName));
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-    if (libraryName)
-    {
-        AssemblySpec spec;
-        spec.SetCodeBase(libraryName);
-        m_UnmanagedCache.InsertEntry(&spec, hMod);
-    }
-    return ;
-}
-
-
-HMODULE AppDomain::FindUnmanagedImageInCache(LPCWSTR libraryName)
-{
-    CONTRACT(HMODULE)
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(CheckPointer(libraryName,NULL_OK));
-        POSTCONDITION(CheckPointer(RETVAL,NULL_OK));
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACT_END;
-    if(libraryName == NULL) RETURN NULL;
-
-    AssemblySpec spec;
-    spec.SetCodeBase(libraryName);
-    RETURN (HMODULE) m_UnmanagedCache.LookupEntry(&spec, 0);
 }
 
 BOOL AppDomain::RemoveFileFromCache(PEAssembly *pFile)

@@ -388,6 +388,10 @@ Crst AssemblyList
     AcquiredAfter LoaderAllocatorReferences ThreadStore AssemblyLoader
 End
 
+Crst LoaderAllocatorUnmanagedCache
+    AcquiredBefore UniqueStack UnresolvedClassLock
+End
+
 Crst LoaderHeap
 End
 

@@ -6817,7 +6817,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         }
     }
     
-    hmod = pDomain->FindUnmanagedImageInCache(wszLibName);
+    hmod = pMD->GetLoaderAllocator()->FindUnmanagedImageInCache(wszLibName);
     if (hmod != NULL)
     {
        return hmod.Extract();
@@ -6831,7 +6831,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
 #endif // FEATURE_PAL
 
         // If we have a handle add it to the cache.
-        pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
+        pMD->GetLoaderAllocator()->AddUnmanagedImageToCache(wszLibName, hmod);
         return hmod.Extract();
     }
 
