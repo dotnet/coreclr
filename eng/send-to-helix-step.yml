@@ -13,6 +13,7 @@ parameters:
   helixType: ''
   scenarios: ''
   timeoutInMinutes: ''
+  timeoutPerTestInMinutes: ''
   readyToRun: ''
 
 steps:
@@ -34,6 +35,7 @@ steps:
       _HelixType: ${{ parameters.helixType }}
       _Scenarios: ${{ parameters.scenarios }}
       _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+      _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
       _ReadyToRun: ${{ parameters.readyToRun }}
       ${{ if eq(parameters.publishTestResults, 'true') }}:
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)
@@ -56,6 +58,7 @@ steps:
       _HelixType: ${{ parameters.helixType }}
       _Scenarios: ${{ parameters.scenarios }}
       _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+      _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
       _ReadyToRun: ${{ parameters.readyToRun }}
       ${{ if eq(parameters.publishTestResults, 'true') }}:
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)

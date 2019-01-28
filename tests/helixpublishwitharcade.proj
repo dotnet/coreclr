@@ -23,7 +23,7 @@
     <HelixType>$(_HelixType)</HelixType>
 
     <TimeoutInMinutes>$(_TimeoutInMinutes)</TimeoutInMinutes>
-    <TimeoutInMinutes Condition=" '$(TimeoutInMinutes)' == '' ">5</TimeoutInMinutes>
+    <TimeoutPerTestInMilliseconds Condition=" '$(_TimeoutPerTestInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(_TimeoutPerTestInMinutes)).TotalMilliseconds)</TimeoutPerTestInMilliseconds>
 
     <ReadyToRun>$(_ReadyToRun)</ReadyToRun>
     <ReadyToRun Condition=" '$(ReadyToRun)' == '' ">false</ReadyToRun>
@@ -88,6 +88,7 @@
       <_HelixPreCommands Include="set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%" />
       <_HelixPreCommands Include="set RunCrossGen=true" Condition=" '$(ReadyToRun)' == 'true' " />
       <_HelixPreCommands Include="set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\SetStressModes_$(Scenario)$(TestEnvFileExtension)" />
+      <_HelixPreCommands Include="set __TestTimeout=$(TimeoutPerTestInMilliseconds)" Condition=" '$(TimeoutPerTestInMilliseconds)' != '' " />
       <_HelixPreCommands Include="type %__TestEnv%" />
     </ItemGroup>
 
@@ -100,6 +101,7 @@
       <_HelixPreCommands Include="export CORE_ROOT=$HELIX_CORRELATION_PAYLOAD" />
       <_HelixPreCommands Include="export RunCrossGen=true" Condition=" '$(ReadyToRun)' == 'true' " />
       <_HelixPreCommands Include="export __TestEnv=$HELIX_WORKITEM_PAYLOAD/SetStressModes_$(Scenario)$(TestEnvFileExtension)" />
+      <_HelixPreCommands Include="export __TestTimeout=$(TimeoutPerTestInMilliseconds)" Condition=" '$(TimeoutPerTestInMilliseconds)' != '' " />
       <_HelixPreCommands Include="cat $__TestEnv" />
     </ItemGroup>
 
@@ -108,7 +110,7 @@
         <PayloadDirectory>%(RootDir)%(Directory)</PayloadDirectory>
         <PreCommands>@(_HelixPreCommands)</PreCommands>
         <Command>$(_CoreRun) $(_XUnitRunnerDll) %(FileName)%(Extension) $(_XUnitRunnerArgs)</Command>
-        <Timeout>$([System.TimeSpan]::FromMinutes($(TimeoutInMinutes)))</Timeout>
+        <Timeout Condition=" '$(TimeoutInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(TimeoutInMinutes)))</Timeout>
       </HelixWorkItem>
     </ItemGroup>
   </Target>

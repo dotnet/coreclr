@@ -138,6 +138,7 @@ jobs:
           - normal
           - no_tiered_compilation
         timeoutInMinutes: 240
+        timeoutPerTestInMinutes: 10
 
 # Pri1 (CI)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
@@ -153,6 +154,7 @@ jobs:
           - normal
           - no_tiered_compilation
         timeoutInMinutes: 360
+        timeoutPerTestInMinutes: 10
 
 # Pri1 ReadyToRun (CI)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
@@ -169,6 +171,7 @@ jobs:
           - normal
           - no_tiered_compilation
         timeoutInMinutes: 360
+        timeoutPerTestInMinutes: 30
 
 # Pri1 (Schedule, Manual)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'Schedule', 'Manual')) }}:
@@ -188,6 +191,8 @@ jobs:
           - jitstress1_tiered
           - jitstress2_tiered
         timeoutInMinutes: 480
+        timeoutPerTestInMinutes: 30
+
 
 #
 # Release test builds
@@ -207,6 +212,7 @@ jobs:
           - normal
           - no_tiered_compilation
         timeoutInMinutes: 360
+        timeoutPerTestInMinutes: 10
 
 # Pri1 ReadyToRun (Official Build)
 - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
@@ -223,6 +229,7 @@ jobs:
           - normal
           - no_tiered_compilation
         timeoutInMinutes: 360
+        timeoutPerTestInMinutes: 30
 
 
 # Publish build information to Build Assets Registry

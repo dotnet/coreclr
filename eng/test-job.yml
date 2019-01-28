@@ -8,6 +8,7 @@ parameters:
   scenarios: ''
   helixQueues: ''
   timeoutInMinutes: ''
+  timeoutPerTestInMinutes: ''
   crossrootfsDir: ''
 
 ### Test job
@@ -128,9 +129,8 @@ jobs:
           condition: false
 
         publishTestResults: true
-        # TODO: see if this amount is enough for all individual jobs to finish
-        # TODO: consider passing this value as a parameter to a test job
-        timeoutInMinutes: 30
+        timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+        timeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
 
         readyToRun: ${{ parameters.readyToRun }}
 
