@@ -367,7 +367,7 @@ namespace System
             public abstract bool IsDefined(object value);
             public abstract object ParseNonGeneric(ReadOnlySpan<char> value, bool ignoreCase);
             public abstract object ToObjectNonGeneric(ulong value);
-            public abstract string ToString(ref byte value, bool explicitFlags);
+            public abstract string ToString(Enum value, bool explicitFlags);
             public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out object result);
         }
 
@@ -420,7 +420,7 @@ namespace System
 
             public override object ToObjectNonGeneric(ulong value) => ToObject<TEnum, TUnderlying, TUnderlyingOperations>(value);
 
-            public override string ToString(ref byte value, bool explicitFlags) => EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance.ToString(Unsafe.As<byte, TUnderlying>(ref value), explicitFlags);
+            public override string ToString(Enum value, bool explicitFlags) => EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance.ToString(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()), explicitFlags);
 
             public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, out TEnum result) => TryParse<TEnum, TUnderlying, TUnderlyingOperations>(value, ignoreCase, out result);
 
@@ -1495,7 +1495,7 @@ namespace System
             // pure powers of 2 OR-ed together, you return a hex value
 
             // Try to see if its one of the enum values, then we return a String back else the value
-            return EnumBridge.Get((RuntimeType)GetType()).ToString(ref this.GetRawData(), explicitFlags: false);
+            return EnumBridge.Get((RuntimeType)GetType()).ToString(this, explicitFlags: false);
         }
         #endregion
 
@@ -1563,7 +1563,7 @@ namespace System
                         return ValueToHexString();
                     case 'F':
                     case 'f':
-                        return EnumBridge.Get((RuntimeType)GetType()).ToString(ref this.GetRawData(), explicitFlags: true);
+                        return EnumBridge.Get((RuntimeType)GetType()).ToString(this, explicitFlags: true);
                 }
             }
 
