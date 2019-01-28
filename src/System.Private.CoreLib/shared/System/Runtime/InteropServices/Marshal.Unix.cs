@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Text;
 
 namespace System.Runtime.InteropServices
@@ -12,6 +13,8 @@ namespace System.Runtime.InteropServices
 
         internal static unsafe int StringToAnsiString(string s, byte* buffer, int wideCharLen, bool bestFit = false, bool throwOnUnmappableChar = false)
         {
+            Debug.Assert(wideCharLen >= (s.Length + 1) * SystemMaxDBCSCharSize, "Insufficient buffer length passed to StringToAnsiString");
+
             int convertedBytes;
 
             fixed (char* pChar = s)
