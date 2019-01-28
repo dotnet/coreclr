@@ -570,11 +570,14 @@ namespace System
                         do
                         {
                             Vector256<ushort> search = LoadVector256(ref searchSpace, offset);
+                            // Bitwise Or to combine the flagged matches for the second value to our match flags
+                            int matches = Avx2.MoveMask(
+                                            Avx2.Or(
+                                                Avx2.CompareEqual(values0, search),
+                                                Avx2.CompareEqual(values1, search))
+                                            .AsByte());
                             // Note that MoveMask has converted the equal vector elements into a set of bit flags,
                             // So the bit position in 'matches' corresponds to the element offset.
-                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search).AsByte());
-                            // Bitwise Or to combine the flagged matches for the second value to our match flags
-                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search).AsByte());
                             if (matches == 0)
                             {
                                 // Zero flags set so no matches
@@ -596,8 +599,11 @@ namespace System
                         Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
 
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search).AsByte());
+                        int matches = Sse2.MoveMask(
+                                        Sse2.Or(
+                                            Sse2.CompareEqual(values0, search),
+                                            Sse2.CompareEqual(values1, search))
+                                        .AsByte());
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -631,8 +637,11 @@ namespace System
                         Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
 
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search).AsByte());
+                        int matches = Sse2.MoveMask(
+                                        Sse2.Or(
+                                            Sse2.CompareEqual(values0, search),
+                                            Sse2.CompareEqual(values1, search))
+                                        .AsByte());
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -767,12 +776,16 @@ namespace System
                         do
                         {
                             Vector256<ushort> search = LoadVector256(ref searchSpace, offset);
+
+                            Vector256<ushort> matches0 = Avx2.CompareEqual(values0, search);
+                            Vector256<ushort> matches1 = Avx2.CompareEqual(values1, search);
+                            Vector256<ushort> matches2 = Avx2.CompareEqual(values2, search);
+                            // Bitwise Or to combine the flagged matches for the second and third values to our match flags
+                            int matches = Avx2.MoveMask(
+                                            Avx2.Or(Avx2.Or(matches0, matches1), matches2)
+                                            .AsByte());
                             // Note that MoveMask has converted the equal vector elements into a set of bit flags,
                             // So the bit position in 'matches' corresponds to the element offset.
-                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search).AsByte());
-                            // Bitwise Or to combine the flagged matches for the second and third values to our match flags
-                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search).AsByte());
-                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values2, search).AsByte());
                             if (matches == 0)
                             {
                                 // Zero flags set so no matches
@@ -792,12 +805,17 @@ namespace System
                         Vector128<ushort> values0 = Vector128.Create(value0);
                         Vector128<ushort> values1 = Vector128.Create(value1);
                         Vector128<ushort> values2 = Vector128.Create(value2);
+
                         Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
 
+                        Vector128<ushort> matches0 = Sse2.CompareEqual(values0, search);
+                        Vector128<ushort> matches1 = Sse2.CompareEqual(values1, search);
+                        Vector128<ushort> matches2 = Sse2.CompareEqual(values2, search);
+
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search).AsByte());
+                        int matches = Sse2.MoveMask(
+                                        Sse2.Or(Sse2.Or(matches0, matches1), matches2)
+                                        .AsByte());
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -831,10 +849,14 @@ namespace System
                     {
                         Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
 
+                        Vector128<ushort> matches0 = Sse2.CompareEqual(values0, search);
+                        Vector128<ushort> matches1 = Sse2.CompareEqual(values1, search);
+                        Vector128<ushort> matches2 = Sse2.CompareEqual(values2, search);
+
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search).AsByte());
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search).AsByte());
+                        int matches = Sse2.MoveMask(
+                                        Sse2.Or(Sse2.Or(matches0, matches1), matches2)
+                                        .AsByte());
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -973,13 +995,15 @@ namespace System
                         do
                         {
                             Vector256<ushort> search = LoadVector256(ref searchSpace, offset);
-                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                            // So the bit position in 'matches' corresponds to the element offset.
+                            // We preform the Or at non-Vector level as we are using the maximum number of non-preserved registers,
+                            // and more causes them first to be pushed to stack and then popped on exit to preseve their values.
                             int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search).AsByte());
                             // Bitwise Or to combine the flagged matches for the second, third and fourth values to our match flags
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search).AsByte());
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values2, search).AsByte());
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values3, search).AsByte());
+                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                            // So the bit position in 'matches' corresponds to the element offset.
                             if (matches == 0)
                             {
                                 // Zero flags set so no matches
@@ -1186,14 +1210,16 @@ namespace System
                         do
                         {
                             Vector256<ushort> search = LoadVector256(ref searchSpace, offset);
-                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
-                            // So the bit position in 'matches' corresponds to the element offset.
+                            // We preform the Or at non-Vector level as we are using the maximum number of non-preserved registers (+ 1),
+                            // and more causes them first to be pushed to stack and then popped on exit to preseve their values.
                             int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search).AsByte());
                             // Bitwise Or to combine the flagged matches for the second, third, fourth and fifth values to our match flags
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search).AsByte());
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values2, search).AsByte());
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values3, search).AsByte());
                             matches |= Avx2.MoveMask(Avx2.CompareEqual(values4, search).AsByte());
+                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                            // So the bit position in 'matches' corresponds to the element offset.
                             if (matches == 0)
                             {
                                 // Zero flags set so no matches

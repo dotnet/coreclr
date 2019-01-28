@@ -667,11 +667,13 @@ namespace System
                         do
                         {
                             Vector256<byte> search = LoadVector256(ref searchSpace, offset);
+                            // Bitwise Or to combine the matches and MoveMask to convert them to bitflags
+                            int matches = Avx2.MoveMask(
+                                Avx2.Or(
+                                    Avx2.CompareEqual(values0, search), 
+                                    Avx2.CompareEqual(values1, search)));
                             // Note that MoveMask has converted the equal vector elements into a set of bit flags,
                             // So the bit position in 'matches' corresponds to the element offset.
-                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search));
-                            // Bitwise Or to combine the flagged matches for the second value to our match flags
-                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search));
                             if (matches == 0)
                             {
                                 // Zero flags set so no matches
@@ -692,8 +694,10 @@ namespace System
 
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
+                        int matches = Sse2.MoveMask(
+                            Sse2.Or(
+                                Sse2.CompareEqual(values0, search),
+                                Sse2.CompareEqual(values1, search)));
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -726,8 +730,10 @@ namespace System
                     {
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
+                        int matches = Sse2.MoveMask(
+                            Sse2.Or(
+                                Sse2.CompareEqual(values0, search),
+                                Sse2.CompareEqual(values1, search)));
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -901,13 +907,14 @@ namespace System
                         do
                         {
                             Vector256<byte> search = LoadVector256(ref searchSpace, offset);
+
+                            Vector256<byte> matches0 = Avx2.CompareEqual(values0, search);
+                            Vector256<byte> matches1 = Avx2.CompareEqual(values1, search);
+                            Vector256<byte> matches2 = Avx2.CompareEqual(values2, search);
+                            // Bitwise Or to combine the matches and MoveMask to convert them to bitflags
+                            int matches = Avx2.MoveMask(Avx2.Or(Avx2.Or(matches0, matches1), matches2));
                             // Note that MoveMask has converted the equal vector elements into a set of bit flags,
                             // So the bit position in 'matches' corresponds to the element offset.
-                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values0, search));
-                            // Bitwise Or to combine the flagged matches for the second value to our match flags
-                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values1, search));
-                            // Bitwise Or to combine the flagged matches for the third value to our match flags
-                            matches |= Avx2.MoveMask(Avx2.CompareEqual(values2, search));
                             if (matches == 0)
                             {
                                 // Zero flags set so no matches
@@ -928,10 +935,12 @@ namespace System
                         Vector128<byte> values2 = Vector128.Create(value2);
 
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
+
+                        Vector128<byte> matches0 = Sse2.CompareEqual(values0, search);
+                        Vector128<byte> matches1 = Sse2.CompareEqual(values1, search);
+                        Vector128<byte> matches2 = Sse2.CompareEqual(values2, search);
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search));
+                        int matches = Sse2.MoveMask(Sse2.Or(Sse2.Or(matches0, matches1), matches2));
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
@@ -964,10 +973,12 @@ namespace System
                     while ((byte*)lengthToExamine > (byte*)offset)
                     {
                         Vector128<byte> search = LoadVector128(ref searchSpace, offset);
+
+                        Vector128<byte> matches0 = Sse2.CompareEqual(values0, search);
+                        Vector128<byte> matches1 = Sse2.CompareEqual(values1, search);
+                        Vector128<byte> matches2 = Sse2.CompareEqual(values2, search);
                         // Same method as above
-                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values0, search));
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values1, search));
-                        matches |= Sse2.MoveMask(Sse2.CompareEqual(values2, search));
+                        int matches = Sse2.MoveMask(Sse2.Or(Sse2.Or(matches0, matches1), matches2));
                         if (matches == 0)
                         {
                             // Zero flags set so no matches
