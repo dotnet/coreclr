@@ -25,7 +25,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(int value)
+        public static uint TrailingZeroCount(int value)
             => TrailingZeroCount(unchecked((uint)value));
 
         /// <summary>
@@ -34,26 +34,23 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(uint value)
+        public static uint TrailingZeroCount(uint value)
         {
             // PR already merged: https://github.com/dotnet/coreclr/pull/22118
-            // Changed parameter name to something more useful
-            // Changed return type from int to byte so that caller can assign it to any size/sign of int
             // TODO: Benchmark & consolidate with similar methods proposed
             if (Bmi1.IsSupported)
             {
-                return (byte)Bmi1.TrailingZeroCount(value);
+                return Bmi1.TrailingZeroCount(value);
             }
-            else // Software fallback
-            {
-                // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
-                ref byte tz = ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn);
-                long val = (value & -value) * 0x077CB531U;
-                uint offset = ((uint)val) >> 27;
 
-                // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-                return Unsafe.AddByteOffset(ref tz, offset);
-            }
+            // Software fallback
+            // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
+            ref byte tz = ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn);
+            long val = (value & -value) * 0x077CB531U;
+            uint offset = ((uint)val) >> 27;
+
+            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+            return Unsafe.AddByteOffset(ref tz, offset);
         }
 
         private static ReadOnlySpan<byte> TrailingCountMultiplyDeBruijn => new byte[32]
@@ -529,7 +526,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte PopCount(byte value)
+        public static uint PopCount(byte value)
             => PopCount((uint)value);
 
         /// <summary>
@@ -538,7 +535,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte PopCount(sbyte value)
+        public static uint PopCount(sbyte value)
             => PopCount(unchecked((byte)value));
 
         /// <summary>
@@ -547,7 +544,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte PopCount(ushort value)
+        public static uint PopCount(ushort value)
             => PopCount((uint)value);
 
         /// <summary>
@@ -556,7 +553,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte PopCount(short value)
+        public static uint PopCount(short value)
             => PopCount(unchecked((ushort)value));
 
         /// <summary>
@@ -565,11 +562,11 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte PopCount(uint value)
+        public static uint PopCount(uint value)
         {
             if (Popcnt.IsSupported)
             {
-                return (byte)Popcnt.PopCount(value);
+                return Popcnt.PopCount(value);
             }
 
             const uint c0 = 0x_5555_5555;
@@ -585,7 +582,7 @@ namespace System
             val *= c3;
             val >>= 24;
 
-            return (byte)val;
+            return val;
         }
 
         /// <summary>
@@ -594,7 +591,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte PopCount(int value)
+        public static uint PopCount(int value)
             => PopCount(unchecked((uint)value));
 
         /// <summary>
@@ -603,23 +600,22 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte PopCount(ulong value)
+        public static uint PopCount(ulong value)
         {
-            if (Popcnt.X64.IsSupported)
-            {
-                return (byte)Popcnt.X64.PopCount(value);
-            }
-
-            // TODO: Is it ever the case that X86/X64 is supported but not the other?
             if (Popcnt.IsSupported)
             {
+                if (Popcnt.X64.IsSupported)
+                {
+                    return (uint)Popcnt.X64.PopCount(value);
+                }
+
                 uint hv = (uint)(value >> 32); // High-32
                 uint bv = (uint)value; // Low-32
 
                 uint h = Popcnt.PopCount(hv);
                 uint b = Popcnt.PopCount(bv);
 
-                return (byte)(h + b);
+                return h + b;
             }
 
             const ulong c0 = 0x_5555_5555_5555_5555;
@@ -635,7 +631,7 @@ namespace System
             val *= c3;
             val >>= 56;
 
-            return (byte)val;
+            return (uint)val;
         }
 
         /// <summary>
@@ -644,7 +640,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte PopCount(long value)
+        public static uint PopCount(long value)
             => PopCount(unchecked((ulong)value));
 
         #endregion
@@ -919,8 +915,8 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte LeadingZeroCount(byte value)
-            => (byte)(LeadingZeroCount((uint)value) - 24);
+        public static uint LeadingZeroCount(byte value)
+            => LeadingZeroCount((uint)value) - 24;
 
         /// <summary>
         /// Count the number of leading zero bits in a mask.
@@ -928,7 +924,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte LeadingZeroCount(sbyte value)
+        public static uint LeadingZeroCount(sbyte value)
             => LeadingZeroCount(unchecked((byte)value));
 
         /// <summary>
@@ -937,8 +933,8 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte LeadingZeroCount(ushort value)
-            => (byte)(LeadingZeroCount((uint)value) - 16);
+        public static uint LeadingZeroCount(ushort value)
+            => LeadingZeroCount((uint)value) - 16;
 
         /// <summary>
         /// Count the number of leading zero bits in a mask.
@@ -946,7 +942,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte LeadingZeroCount(short value)
+        public static uint LeadingZeroCount(short value)
             => LeadingZeroCount(unchecked((ushort)value));
 
         /// <summary>
@@ -955,11 +951,11 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte LeadingZeroCount(uint value)
+        public static uint LeadingZeroCount(uint value)
         {
             if (Lzcnt.IsSupported)
             {
-                return (byte)Lzcnt.LeadingZeroCount(value);
+                return Lzcnt.LeadingZeroCount(value);
             }
 
             uint val = value;
@@ -974,7 +970,7 @@ namespace System
             // Log(0) is undefined: Return 32.
             zeros += IsZero(value);
 
-            return (byte)zeros;
+            return (uint)zeros;
         }
 
         /// <summary>
@@ -983,7 +979,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte LeadingZeroCount(int value)
+        public static uint LeadingZeroCount(int value)
             => LeadingZeroCount(unchecked((uint)value));
 
         /// <summary>
@@ -992,17 +988,16 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte LeadingZeroCount(ulong value)
+        public static uint LeadingZeroCount(ulong value)
         {
             if (Lzcnt.X64.IsSupported)
             {
-                return (byte)Lzcnt.X64.LeadingZeroCount(value);
+                return (uint)Lzcnt.X64.LeadingZeroCount(value);
             }
 
             // Instead of writing a 64-bit function,
             // we use the 32-bit function twice.
 
-            // TODO: Is it ever the case that X86/X64 is supported but not the other?
             uint h, b;
             if (Lzcnt.IsSupported)
             {
@@ -1036,7 +1031,7 @@ namespace System
             mask = IsZero(mask);  // mask == 0 ? 1 : 0
             b = mask * b;
 
-            return (byte)(h + b);
+            return h + b;
         }
 
         /// <summary>
@@ -1045,7 +1040,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte LeadingZeroCount(long value)
+        public static uint LeadingZeroCount(long value)
             => LeadingZeroCount(unchecked((ulong)value));
 
         #endregion
@@ -1071,8 +1066,8 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(byte value)
-            => Math.Min((byte)8, TrailingZeroCount((uint)value));
+        public static uint TrailingZeroCount(byte value)
+            => Math.Min(8, TrailingZeroCount((uint)value));
 
         /// <summary>
         /// Count the number of trailing zero bits in a mask.
@@ -1080,7 +1075,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(sbyte value)
+        public static uint TrailingZeroCount(sbyte value)
             => TrailingZeroCount(unchecked((byte)value));
 
         /// <summary>
@@ -1089,8 +1084,8 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(ushort value)
-            => Math.Min((byte)16, TrailingZeroCount((uint)value));
+        public static uint TrailingZeroCount(ushort value)
+            => Math.Min(16, TrailingZeroCount((uint)value));
 
         /// <summary>
         /// Count the number of trailing zero bits in a mask.
@@ -1098,7 +1093,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(short value)
+        public static uint TrailingZeroCount(short value)
             => TrailingZeroCount(unchecked((ushort)value));
 
         // TODO: Previously implemented in the original class (see top of file)
@@ -1110,7 +1105,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(uint value)
+        public static uint TrailingZeroCount(uint value)
         {
             // The expression (n & -n) returns lsb(n).
             // Only possible values are therefore [0,1,2,4,...]
@@ -1140,11 +1135,11 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(ulong value)
+        public static uint TrailingZeroCount(ulong value)
         {
             if (Bmi1.X64.IsSupported)
             {
-                return (byte)Bmi1.X64.TrailingZeroCount(value);
+                return (uint)Bmi1.X64.TrailingZeroCount(value);
             }
 
             // Instead of writing a 64-bit function,
@@ -1153,7 +1148,6 @@ namespace System
             uint hv = (uint)(value >> 32); // High-32
             uint bv = (uint)value; // Low-32
 
-            // TODO: Is it ever the case that X86/X64 is supported but not the other?
             uint h, b;
             if (Bmi1.IsSupported)
             {
@@ -1179,7 +1173,7 @@ namespace System
             mask = IsZero(mask);  // mask == 0 ? 1 : 0
             h = mask * h;
 
-            return (byte)(b + h);
+            return b + h;
         }
 
         /// <summary>
@@ -1188,7 +1182,7 @@ namespace System
         /// </summary>
         /// <param name="value">The mask.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte TrailingZeroCount(long value)
+        public static uint TrailingZeroCount(long value)
             => TrailingZeroCount(unchecked((ulong)value));
 
         #endregion
