@@ -669,7 +669,6 @@ namespace System
             return true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool TryParseHexD(ReadOnlySpan<char> value, out uint result)
         {
             Debug.Assert(value.Length == 4, "Expects exact 4 (guaranteed, because called only from TryParseExactD)");
@@ -750,7 +749,6 @@ namespace System
             return false;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool TryParseHexN(ReadOnlySpan<char> value, ref uint result)
         {
             Debug.Assert(value.Length == 4,
