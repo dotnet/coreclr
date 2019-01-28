@@ -2336,7 +2336,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
     // null, it must be the initial load of ByReference<T>.
     bool isThisByReferenceOfT = IsByRefLike() && (g_pByReferenceClass == nullptr || HasSameTypeDefAs(g_pByReferenceClass));
 
-    for (int fieldIndex = 0; fieldIndex < numIntroducedFields; fieldIndex++)
+    for (unsigned int fieldIndex = 0; fieldIndex < numIntroducedFields; fieldIndex++)
     {
         FieldDesc* pField;
         DWORD fieldOffset;
