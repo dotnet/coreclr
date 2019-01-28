@@ -721,6 +721,9 @@
   <data name="Arg_SurrogatesNotAllowedAsSingleChar" xml:space="preserve">
     <value>Unicode surrogate characters must be written out as pairs together in the same call, not individually. Consider passing in a character array instead.</value>
   </data>
+  <data name="Arg_SwitchExpressionException" xml:space="preserve">
+    <value>Non-exhaustive switch expression failed to match its input.</value>
+  </data>
   <data name="Arg_SynchronizationLockException" xml:space="preserve">
     <value>Object synchronization method was called from an unsynchronized block of code.</value>
   </data>
