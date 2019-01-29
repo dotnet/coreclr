@@ -5207,14 +5207,6 @@ Module::GetAssemblyIfLoaded(
     // When walking the stack or computing GC information this function should never fail.
     _ASSERTE((pAssembly != NULL) || !(IsStackWalkerThread() || IsGCThread()));
 
-#ifdef DACCESS_COMPILE
-    
-    // Note: In rare cases when debugger walks the stack, we could actually have pAssembly=NULL here.
-    // To fix that we should DACize the AppDomain-iteration code above (especially AssemblySpec).
-    _ASSERTE(pAssembly != NULL);
-    
-#endif //DACCESS_COMPILE
-    
     RETURN pAssembly;
 } // Module::GetAssemblyIfLoaded
 
