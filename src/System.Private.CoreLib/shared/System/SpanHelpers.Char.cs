@@ -5,7 +5,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Numerics;
-using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
 
@@ -829,21 +828,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundChar(ulong match)
         {
-            // TODO: Arm variants
-            if (Bmi1.X64.IsSupported)
-            {
-                return (int)(Bmi1.X64.TrailingZeroCount(match) >> 4);
-            }
-            else
-            {
-                unchecked
-                {
-                    // Flag least significant power of two bit
-                    var powerOfTwoFlag = match ^ (match - 1);
-                    // Shift all powers of two into the high byte and extract
-                    return (int)((powerOfTwoFlag * XorPowerOfTwoToHighChar) >> 49);
-                }
-            }
+            return (int)(BitOps.TrailingZeroCount(match) >> 4);
         }
 
         private const ulong XorPowerOfTwoToHighChar = (0x03ul |
@@ -874,22 +859,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundChar(ulong match)
         {
-            // TODO: Arm variants
-            if (Lzcnt.X64.IsSupported)
-            {
-                return 3 - (int)(Lzcnt.X64.LeadingZeroCount(match) >> 4);
-            }
-            else
-            {
-                // Find the most significant char that has its highest bit set
-                int index = 3;
-                while ((long)match > 0)
-                {
-                    match = match << 16;
-                    index--;
-                }
-                return index;
-            }
+            return 3 - (int)(BitOps.LeadingZeroCount(match) >> 4);
         }
     }
 }

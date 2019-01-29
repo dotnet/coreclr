@@ -288,7 +288,7 @@ namespace System
                             }
 
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                         } while ((byte*)nLength > (byte*)offset);
                     }
 
@@ -308,7 +308,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                         }
                     }
 
@@ -340,7 +340,7 @@ namespace System
                         }
 
                         // Find bitflag offset of first match and add to current offset
-                        return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                        return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                     }
 
                     if ((int)(byte*)offset < length)
@@ -652,7 +652,7 @@ namespace System
                             }
 
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                         } while ((byte*)nLength > (byte*)offset);
                     }
 
@@ -674,7 +674,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                         }
                     }
 
@@ -708,7 +708,7 @@ namespace System
                         }
 
                         // Find bitflag offset of first match and add to current offset
-                        return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                        return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                     }
 
                     if ((int)(byte*)offset < length)
@@ -888,7 +888,7 @@ namespace System
                             }
 
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                         } while ((byte*)nLength > (byte*)offset);
                     }
 
@@ -912,7 +912,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                         }
                     }
 
@@ -948,7 +948,7 @@ namespace System
                         }
 
                         // Find bitflag offset of first match and add to current offset
-                        return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                        return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                     }
 
                     if ((int)(byte*)offset < length)
@@ -1550,48 +1550,14 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundByte(ulong match)
         {
-            // TODO: Arm variants
-            if (Bmi1.X64.IsSupported)
-            {
-                return (int)(Bmi1.X64.TrailingZeroCount(match) >> 3);
-            }
-            else
-            {
-                // Flag least significant power of two bit
-                var powerOfTwoFlag = match ^ (match - 1);
-                // Shift all powers of two into the high byte and extract
-                return (int)((powerOfTwoFlag * XorPowerOfTwoToHighByte) >> 57);
-            }
+            return (int)(BitOps.TrailingZeroCount(match) >> 3);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundByte(ulong match)
         {
-            // TODO: Arm variants
-            if (Lzcnt.X64.IsSupported)
-            {
-                return 7 - (int)(Lzcnt.X64.LeadingZeroCount(match) >> 3);
-            }
-            else
-            {
-                // Find the most significant byte that has its highest bit set
-                int index = 7;
-                while ((long)match > 0)
-                {
-                    match = match << 8;
-                    index--;
-                }
-                return index;
-            }
+            return 7 - (int)(BitOps.LeadingZeroCount(match) >> 3);
         }
-
-        private const ulong XorPowerOfTwoToHighByte = (0x07ul |
-                                                       0x06ul << 8 |
-                                                       0x05ul << 16 |
-                                                       0x04ul << 24 |
-                                                       0x03ul << 32 |
-                                                       0x02ul << 40 |
-                                                       0x01ul << 48) + 1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe UIntPtr LoadUIntPtr(ref byte start, IntPtr offset)
