@@ -21,6 +21,11 @@ namespace System
             }
             else // Software fallback
             {
+                return Fallback(matches);
+            }
+
+            static int Fallback(int matches)
+            {
                 // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
                 // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
                 return Unsafe.AddByteOffset(
