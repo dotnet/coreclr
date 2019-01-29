@@ -182,7 +182,7 @@ jobs:
       jobParameters:
         priority: 1
         scenarios:
-          asString: 'normal,no_tiered_compilation,jitstress1,jitstress2,jitstress1_tiered,jitstress2_tiered'
+          asString: 'normal,no_tiered_compilation,jitstress1,jitstress2,jitstress1_tiered,jitstress2_tiered,jitstressregs1,jitstressregs2,jitstressregs3,jitstressregs4,jitstressregs8,jitstressregs0x10,jitstressregs0x80,jitstressregs0x1000,jitminopts'
           asArray:
           - normal
           - no_tiered_compilation
@@ -190,6 +190,15 @@ jobs:
           - jitstress2
           - jitstress1_tiered
           - jitstress2_tiered
+          - jitstressregs1
+          - jitstressregs2
+          - jitstressregs3
+          - jitstressregs4
+          - jitstressregs8
+          - jitstressregs0x10
+          - jitstressregs0x80
+          - jitstressregs0x1000
+          - jitminopts
         timeoutInMinutes: 480
         timeoutPerTestInMinutes: 30
 
