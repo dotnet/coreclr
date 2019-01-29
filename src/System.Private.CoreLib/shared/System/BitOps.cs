@@ -216,14 +216,16 @@ namespace System
 
         #endregion
 
-        #region LogBase2
+        #region Log2
+
+        // TODO: Probably belongs in System.Math
 
         /// <summary>
         /// Returns the log of the specified value, base 2.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LogBase2(uint value)
+        public static uint Log2(uint value)
         {
             Debug.Assert(value != 0);
 
@@ -243,15 +245,15 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LogBase2(int value)
-            => LogBase2(unchecked((uint)value));
+        public static uint Log2(int value)
+            => Log2(unchecked((uint)value));
 
         /// <summary>
         /// Returns the log of the specified value, base 2.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LogBase2(ulong value)
+        public static uint Log2(ulong value)
         {
             Debug.Assert(value != 0);
 
@@ -261,11 +263,11 @@ namespace System
             if (upper != 0)
             {
                 // TODO: Log(0) is undefined: Return 32.
-                return 32 + LogBase2(upper);
+                return 32 + Log2(upper);
             }
 
             // TODO: Log(0) is undefined: Return 32.
-            return LogBase2((uint)value);
+            return Log2((uint)value);
         }
 
         /// <summary>
@@ -273,8 +275,8 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LogBase2(long value)
-            => LogBase2(unchecked((ulong)value));
+        public static uint Log2(long value)
+            => Log2(unchecked((ulong)value));
 
         /* Legacy implementations
         DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
@@ -399,7 +401,7 @@ namespace System
                 return Bmi1.TrailingZeroCount(value);
             }
 
-            // TODO: See if we can leverage LogBase2
+            // TODO: See if we can leverage Log2
 
             // Software fallback
             // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup

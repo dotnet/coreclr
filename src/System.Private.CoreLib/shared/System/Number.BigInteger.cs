@@ -710,13 +710,13 @@ namespace System
             public static uint LogBase2(uint value)
             {
                 Debug.Assert(value != 0);
-                return BitOps.LogBase2(value);
+                return BitOps.Log2(value);
             }
 
             public static uint LogBase2(ulong value)
             {
                 Debug.Assert(value != 0);
-                return BitOps.LogBase2(value);
+                return BitOps.Log2(value);
             }
 
             public static void Multiply(ref BigInteger lhs, uint value, ref BigInteger result)
