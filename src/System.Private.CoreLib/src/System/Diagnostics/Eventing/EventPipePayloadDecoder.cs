@@ -110,16 +110,34 @@ namespace System.Diagnostics.Tracing
                 }
                 else if (parameterType == typeof(string))
                 {
-                    ReadOnlySpan<char> charPayload = MemoryMarshal.Cast<byte, char>(payload);
-                    int charCount = charPayload.IndexOf('\0');
-                    if (charCount < 0)
+                    // Try to find null terminator (0x00) from the byte span
+                    int byteCount = -1;
+                    bool sawZero = false;
+                    foreach(byte b in payload)
                     {
+                        if (b == (byte)(0))
+                        {
+                            if (sawZero)
+                                break;
+                            sawZero = true;
+                        }
+                        else
+                        {
+                            sawZero = false;
+                        }
+                        byteCount++;
+                    }
+
+                    ReadOnlySpan<char> charPayload;
+                    if (byteCount < 0)
+                    {
+                        charPayload = MemoryMarshal.Cast<byte, char>(payload);
                         payload = default;
                     }
                     else
                     {
-                        charPayload = charPayload.Slice(0, charCount);
-                        payload = payload.Slice((charCount + 1) * sizeof(char));
+                        charPayload = MemoryMarshal.Cast<byte, char>(payload.Slice(0, byteCount+1));
+                        payload = payload.Slice((byteCount / 2 + 1) * sizeof(char));
                     }
                     decodedFields[i] = BitConverter.IsLittleEndian ? new string(charPayload) : Encoding.Unicode.GetString(MemoryMarshal.Cast<char, byte>(charPayload));
                 }
