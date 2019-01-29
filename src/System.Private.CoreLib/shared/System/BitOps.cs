@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
@@ -27,7 +28,7 @@ namespace System
             31, 27, 13, 23, 21, 19, 16, 07, 26, 12, 18, 06, 11, 05, 10, 09
         };
 
-        private static ReadOnlySpan<byte> LeadingZeroCountDeBruijn32 => new byte[32]
+        private static ReadOnlySpan<byte> MultiplyDeBruijnBitPosition => new byte[32]
         {
             00, 09, 01, 10, 13, 21, 02, 29,
             11, 14, 16, 18, 22, 25, 03, 30,
@@ -203,6 +204,50 @@ namespace System
 
         #endregion
 
+        #region LogBase2
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint LogBase2(uint value)
+        {
+            Debug.Assert(value != 0);
+
+            // First round down to one less than a power of 2 
+            FoldTrailing(ref value);
+            uint ix = (value * DeBruijn32) >> 27;
+
+            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+            ref byte lz = ref MemoryMarshal.GetReference(MultiplyDeBruijnBitPosition);
+            byte log = Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
+
+            return log;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint LogBase2(int value)
+            => LogBase2(unchecked((uint)value));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint LogBase2(ulong value)
+        {
+            Debug.Assert(value != 0);
+
+            uint upper = (uint)(value >> 32);
+
+            // TODO: Get rid of branch
+            if (upper != 0)
+            {
+                return 32 + LogBase2(upper);
+            }
+
+            return LogBase2((uint)(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint LogBase2(long value)
+            => LogBase2(unchecked((ulong)value));
+
+        #endregion
+
         #region LeadingZeroCount
 
         /// <summary>
@@ -218,14 +263,14 @@ namespace System
                 return Lzcnt.LeadingZeroCount(value);
             }
 
-            uint val = value;
-            FoldTrailing(ref val);
-
-            uint ix = (val * DeBruijn32) >> 27;
+            FoldTrailing(ref value);
+            uint ix = (value * DeBruijn32) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte lz = ref MemoryMarshal.GetReference(LeadingZeroCountDeBruijn32);
-            int zeros = 31 - Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
+            ref byte lz = ref MemoryMarshal.GetReference(MultiplyDeBruijnBitPosition);
+            int zeros = Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
+
+            zeros = 31 - zeros;
 
             // Log(0) is undefined: Return 32.
             zeros += IsZero(value);
@@ -268,7 +313,7 @@ namespace System
                 uint bi = (bv * DeBruijn32) >> 27;
 
                 // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-                ref byte lz = ref MemoryMarshal.GetReference(LeadingZeroCountDeBruijn32);
+                ref byte lz = ref MemoryMarshal.GetReference(MultiplyDeBruijnBitPosition);
                 h = (uint)(31 - Unsafe.AddByteOffset(ref lz, (IntPtr)(int)hi));
                 b = (uint)(31 - Unsafe.AddByteOffset(ref lz, (IntPtr)(int)bi)); // Use warm cache
             }
