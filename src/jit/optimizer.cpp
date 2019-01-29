@@ -6838,11 +6838,18 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
             // optIsCSEcandidate returns false for constants.
             bool treeIsCctorDependent = ((tree->OperIs(GT_CLS_VAR) && ((tree->gtFlags & GTF_CLS_VAR_INITCLASS) != 0)) ||
                                          (tree->OperIs(GT_CNS_INT) && ((tree->gtFlags & GTF_ICON_INITCLASS) != 0)));
-            bool treeIsInvariant = true;
+            bool treeIsInvariant          = true;
+            bool treeHasHoistableChildren = false;
             int  childCount;
+
             for (childCount = 0; m_valueStack.TopRef(childCount).Node() != tree; childCount++)
             {
                 Value& child = m_valueStack.TopRef(childCount);
+
+                if (child.m_hoistable)
+                {
+                    treeHasHoistableChildren = true;
+                }
 
                 if (!child.m_invariant)
                 {
@@ -7006,24 +7013,48 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
             // If this 'tree' is hoistable then we return and the caller will
             // decide to hoist it as part of larger hoistable expression.
             //
-            if (!treeIsHoistable)
+            if (!treeIsHoistable && treeHasHoistableChildren)
             {
-                // We are not hoistable so we will now hoist any hoistable children.
+                // The current tree is not hoistable but it has hoistable children that we need
+                // to hoist now.
                 //
-                for (int childNum = 0; childNum < childCount; childNum++)
+                // In order to preserve the original execution order, we also need to hoist any
+                // other hoistable trees that we encountered so far.
+                // At this point the stack contains (in top to bottom order):
+                //   - the current node's children
+                //   - the current node
+                //   - previously traversed nodes (descendants of some current node's ancestor)
+                //
+                // The execution order is actually bottom to top so we'll start hoisting from
+                // the bottom of the stack, skipping the current node (which is expected to not
+                // be hoistable).
+                //
+                // Note that the treeHasHoistableChildren check avoids unnecessary stack traversing
+                // and also prevents hoisting trees too early. If the current tree is not hoistable
+                // and it doesn't have any hoistable children then there's no point in hoisting any
+                // other trees. Doing so would interfere with the cctor dependent case, where the
+                // cctor dependent node is initially not hoistable and may become hoistable later,
+                // when its parent comma node is visited.
+                //
+                for (int i = 0; i < m_valueStack.Height(); i++)
                 {
-                    Value& child = m_valueStack.IndexRef(childNum);
+                    Value& value = m_valueStack.BottomRef(i);
 
-                    if (child.m_hoistable)
+                    if (value.m_hoistable)
                     {
+                        assert(value.Node() != tree);
+
+                        // Don't hoist this tree again.
+                        value.m_hoistable = false;
+                        value.m_invariant = false;
+
                         // We can't hoist the LHS of an assignment, it isn't a real use.
-                        if (tree->OperIs(GT_ASG) && (tree->AsOp()->gtGetOp1() == child.Node()))
+                        if (tree->OperIs(GT_ASG) && (tree->AsOp()->gtGetOp1() == value.Node()))
                         {
                             continue;
                         }
 
-                        // We try to hoist this 'child' tree
-                        m_compiler->optHoistCandidate(child.Node(), m_loopNum, m_hoistContext);
+                        m_compiler->optHoistCandidate(value.Node(), m_loopNum, m_hoistContext);
                     }
                 }
             }
