@@ -51,7 +51,7 @@ namespace System
         /// Returns the population count (number of bits set) of a mask.
         /// Similar in behavior to the x86 instruction POPCNT.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint PopCount(uint value)
         {
@@ -65,22 +65,22 @@ namespace System
             const uint c2 = 0x_0F0F_0F0F;
             const uint c3 = 0x_0101_0101;
 
-            uint val = value;
+            uint count = value;
 
-            val -= (val >> 1) & c0;
-            val = (val & c1) + ((val >> 2) & c1);
-            val = (val + (val >> 4)) & c2;
-            val *= c3;
-            val >>= 24;
+            count -= (count >> 1) & c0;
+            count = (count & c1) + ((count >> 2) & c1);
+            count = (count + (count >> 4)) & c2;
+            count *= c3;
+            count >>= 24;
 
-            return val;
+            return count;
         }
 
         /// <summary>
         /// Returns the population count (number of bits set) of a mask.
         /// Similar in behavior to the x86 instruction POPCNT.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint PopCount(int value)
             => PopCount(unchecked((uint)value));
@@ -89,7 +89,7 @@ namespace System
         /// Returns the population count (number of bits set) of a mask.
         /// Similar in behavior to the x86 instruction POPCNT.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint PopCount(ulong value)
         {
@@ -101,13 +101,10 @@ namespace System
                 }
 
                 // Use the 32-bit function twice
-                uint hv = (uint)(value >> 32); // High-32
-                uint bv = (uint)value; // Low-32
+                uint hi = Popcnt.PopCount((uint)(value >> 32));
+                uint lo = Popcnt.PopCount((uint)value);
 
-                uint h = Popcnt.PopCount(hv);
-                uint b = Popcnt.PopCount(bv);
-
-                return h + b;
+                return hi + lo;
             }
 
             const ulong c0 = 0x_5555_5555_5555_5555;
@@ -115,16 +112,25 @@ namespace System
             const ulong c2 = 0x_0F0F_0F0F_0F0F_0F0F;
             const ulong c3 = 0x_0101_0101_0101_0101;
 
-            ulong val = value;
+            ulong count = value;
 
-            val -= (value >> 1) & c0;
-            val = (val & c1) + ((val >> 2) & c1);
-            val = (val + (val >> 4)) & c2;
-            val *= c3;
-            val >>= 56;
+            count -= (value >> 1) & c0;
+            count = (count & c1) + ((count >> 2) & c1);
+            count = (count + (count >> 4)) & c2;
+            count *= c3;
+            count >>= 56;
 
-            return (uint)val;
+            return (uint)count;
         }
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint PopCount(long value)
+            => PopCount(unchecked((ulong)value));
 
         /* Legacy implementations
         DONE https://raw.githubusercontent.com/dotnet/corefx/master/src/System.Reflection.Metadata/src/System/Reflection/Internal/Utilities/BitArithmetic.cs
@@ -149,10 +155,19 @@ namespace System
         /// <returns>The rotated value.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint RotateRight(uint value, int offset)
-        {
-            uint val = (value >> offset) | (value << (32 - offset));
-            return val;
-        }
+            => (value >> offset) | (value << (32 - offset));
+
+        /// <summary>
+        /// Rotates the specified value right by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROR.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int RotateRight(int value, int offset)
+            => unchecked((int)RotateRight((uint)value, offset));
 
         /* Legacy implementations
         DONE https://github.com/dotnet/corert/blob/87e58839d6629b5f90777f886a2f52d7a99c076f/src/System.Private.CoreLib/src/System/Marvin.cs#L120-L124
@@ -175,10 +190,7 @@ namespace System
         /// <returns>The rotated value.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint RotateLeft(uint value, int offset)
-        {
-            uint val = (value << offset) | (value >> (32 - offset));
-            return val;
-        }
+            => (value << offset) | (value >> (32 - offset));
 
         /// <summary>
         /// Rotates the specified value left by the specified number of bits.
@@ -206,26 +218,38 @@ namespace System
 
         #region LogBase2
 
+        /// <summary>
+        /// Returns the log of the specified value, base 2.
+        /// </summary>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint LogBase2(uint value)
         {
             Debug.Assert(value != 0);
 
-            // First round down to one less than a power of 2 
-            FoldTrailing(ref value);
+            FoldTrailingOnes(ref value);
             uint ix = (value * DeBruijn32) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             ref byte lz = ref MemoryMarshal.GetReference(MultiplyDeBruijnBitPosition);
             byte log = Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
 
+            // TODO: Log(0) is undefined: Return 32.
             return log;
         }
 
+        /// <summary>
+        /// Returns the log of the specified value, base 2.
+        /// </summary>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint LogBase2(int value)
             => LogBase2(unchecked((uint)value));
 
+        /// <summary>
+        /// Returns the log of the specified value, base 2.
+        /// </summary>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint LogBase2(ulong value)
         {
@@ -233,18 +257,29 @@ namespace System
 
             uint upper = (uint)(value >> 32);
 
-            // TODO: Get rid of branch
+            // TODO: Get rid of branching
             if (upper != 0)
             {
+                // TODO: Log(0) is undefined: Return 32.
                 return 32 + LogBase2(upper);
             }
 
-            return LogBase2((uint)(value));
+            // TODO: Log(0) is undefined: Return 32.
+            return LogBase2((uint)value);
         }
 
+        /// <summary>
+        /// Returns the log of the specified value, base 2.
+        /// </summary>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint LogBase2(long value)
             => LogBase2(unchecked((ulong)value));
+
+        /* Legacy implementations
+        DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
+        DONE https://github.com/dotnet/roslyn/blob/33a3a61d36ec3657dc4af5e630ca6593397e6bbf/src/Workspaces/Core/Portable/Shared/Utilities/IntegerUtilities.cs#L45
+        */
 
         #endregion
 
@@ -254,7 +289,7 @@ namespace System
         /// Count the number of leading zero bits in a mask.
         /// Similar in behavior to the x86 instruction LZCNT.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint LeadingZeroCount(uint value)
         {
@@ -263,7 +298,7 @@ namespace System
                 return Lzcnt.LeadingZeroCount(value);
             }
 
-            FoldTrailing(ref value);
+            FoldTrailingOnes(ref value);
             uint ix = (value * DeBruijn32) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
@@ -282,7 +317,7 @@ namespace System
         /// Count the number of leading zero bits in a mask.
         /// Similar in behavior to the x86 instruction LZCNT.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint LeadingZeroCount(ulong value)
         {
@@ -290,6 +325,8 @@ namespace System
             {
                 return (uint)Lzcnt.X64.LeadingZeroCount(value);
             }
+
+            // TODO: Optimize, this looks complex
 
             // Instead of writing a 64-bit function,
             // we use the 32-bit function twice.
@@ -303,11 +340,10 @@ namespace System
             }
             else
             {
-                ulong val = value;
-                FoldTrailing(ref val);
+                FoldTrailingOnes(ref value);
 
-                uint hv = (uint)(val >> 32); // High-32
-                uint bv = (uint)val; // Low-32
+                uint hv = (uint)(value >> 32); // High-32
+                uint bv = (uint)value; // Low-32
 
                 uint hi = (hv * DeBruijn32) >> 27;
                 uint bi = (bv * DeBruijn32) >> 27;
@@ -363,21 +399,23 @@ namespace System
                 return Bmi1.TrailingZeroCount(value);
             }
 
+            // TODO: See if we can leverage LogBase2
+
             // Software fallback
             // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
             ref byte tz = ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn);
-            long val = (value & -value) * 0x077CB531U;
+            long val = (value & -value) * 0x077C_B531u;
             uint offset = ((uint)val) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(ref tz, offset);
         }
-        
+
         /// <summary>
         /// Count the number of trailing zero bits in a mask.
         /// Similar in behavior to the x86 instruction TZCNT.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint TrailingZeroCount(ulong value)
         {
@@ -385,6 +423,8 @@ namespace System
             {
                 return (uint)Bmi1.X64.TrailingZeroCount(value);
             }
+
+            // TODO: Optimize, this looks complex
 
             // Instead of writing a 64-bit function,
             // we use the 32-bit function twice.
@@ -421,6 +461,15 @@ namespace System
             return b + h;
         }
 
+        /// <summary>
+        /// Count the number of trailing zero bits in a mask.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint TrailingZeroCount(long value)
+            => TrailingZeroCount(unchecked((ulong)value));
+
         #endregion
 
         #region ExtractBit
@@ -436,7 +485,7 @@ namespace System
         /// Reads whether the specified bit in a mask is set.
         /// Similar in behavior to the x86 instruction BT.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to read.
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -452,7 +501,7 @@ namespace System
         /// Reads whether the specified bit in a mask is set.
         /// Similar in behavior to the x86 instruction BT.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to read.
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -468,7 +517,7 @@ namespace System
         /// Reads whether the specified bit in a mask is set.
         /// Similar in behavior to the x86 instruction BT.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to read.
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -488,7 +537,7 @@ namespace System
         /// Clears the specified bit in a mask and returns whether it was originally set.
         /// Similar in behavior to the x86 instruction BTR.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to clear.
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -507,7 +556,7 @@ namespace System
         /// Clears the specified bit in a mask and returns whether it was originally set.
         /// Similar in behavior to the x86 instruction BTR.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to clear.
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -524,7 +573,7 @@ namespace System
         /// <summary>
         /// Clears the specified bit in a mask and returns the new value.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to clear.
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -539,7 +588,7 @@ namespace System
         /// <summary>
         /// Clears the specified bit in a mask and returns the new value.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to clear.
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -560,7 +609,7 @@ namespace System
         /// Sets the specified bit in a mask and returns whether it was originally set.
         /// Similar in behavior to the x86 instruction BTS.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to write.
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -579,7 +628,7 @@ namespace System
         /// Sets the specified bit in a mask and returns whether it was originally set.
         /// Similar in behavior to the x86 instruction BTS.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to write.
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -596,7 +645,7 @@ namespace System
         /// <summary>
         /// Sets the specified bit in a mask and returns the new value.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to write.
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -611,7 +660,7 @@ namespace System
         /// <summary>
         /// Sets the specified bit in a mask and returns the new value.
         /// </summary>
-        /// <param name="value">The mask.</param>
+        /// <param name="value">The value.</param>
         /// <param name="bitOffset">The ordinal position of the bit to write.
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -660,12 +709,14 @@ namespace System
         private static byte IsZero(uint value)
             => (byte)(1u ^ NonZero(value));
 
+        // TODO: Consider exposing as public - this code is duplicated surprisingly often
+
         /// <summary>
         /// Fills the trailing zeros in a mask with ones.
         /// </summary>
         /// <param name="value">The value to mutate.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void FoldTrailing(ref uint value)
+        private static void FoldTrailingOnes(ref uint value)
         {
             // byte#                         4          3   2  1
             //                       1000 0000  0000 0000  00 00
@@ -681,7 +732,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value to mutate.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void FoldTrailing(ref ulong value)
+        private static void FoldTrailingOnes(ref ulong value)
         {
             // byte#                         8          7   6  5   4  3   2  1
             //                       1000 0000  0000 0000  00 00  00 00  00 00
