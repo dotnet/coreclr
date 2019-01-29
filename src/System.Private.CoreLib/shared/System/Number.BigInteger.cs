@@ -408,19 +408,25 @@ namespace System
 
             public static uint CountSignificantBits(uint value)
             {
-                return (value != 0) ? (1 + LogBase2(value)) : 0;
+                // TODO: Check that this is the correct substitution
+                return 32 - BitOps.LeadingZeroCount(value);
+                
+                //return (value != 0) ? (1 + LogBase2(value)) : 0;
             }
 
             public static uint CountSignificantBits(ulong value)
             {
-                uint upper = (uint)(value >> 32);
+                // TODO: Check that this is the correct substitution
+                return 64 - BitOps.LeadingZeroCount(value);
 
-                if (upper != 0)
-                {
-                    return 32 + CountSignificantBits(upper);
-                }
+                //uint upper = (uint)(value >> 32);
 
-                return CountSignificantBits((uint)(value));
+                //if (upper != 0)
+                //{
+                //    return 32 + CountSignificantBits(upper);
+                //}
+
+                //return CountSignificantBits((uint)(value));
             }
 
             public static uint CountSignificantBits(ref BigInteger value)
@@ -699,12 +705,12 @@ namespace System
 
             public static uint LeadingZeroCount(uint value)
             {
-                return 32 - CountSignificantBits(value);
+                return BitOps.LeadingZeroCount(value);
             }
 
             public static uint LeadingZeroCount(ulong value)
             {
-                return 64 - CountSignificantBits(value);
+                return BitOps.LeadingZeroCount(value);
             }
 
             public static uint LogBase2(uint value)

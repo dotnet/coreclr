@@ -35,6 +35,15 @@ namespace System
             19, 27, 23, 06, 26, 05, 04, 31
         };
 
+        private static ReadOnlySpan<byte> TrailingZeroCountUInt32 => new byte[37]
+        {
+            32, 00, 01, 26, 02, 23, 27, 32,
+            03, 16, 24, 30, 28, 11, 33, 13,
+            04, 07, 17, 35, 25, 22, 31, 15,
+            29, 10, 12, 06, 34, 21, 14, 09,
+            05, 20, 08, 19, 18
+        };
+
         #region PopCount
 
         /// <summary>
@@ -146,7 +155,7 @@ namespace System
         }
 
         /* Legacy implementations
-        https://github.com/dotnet/corert/blob/87e58839d6629b5f90777f886a2f52d7a99c076f/src/System.Private.CoreLib/src/System/Marvin.cs#L120-L124
+        DONE https://github.com/dotnet/corert/blob/87e58839d6629b5f90777f886a2f52d7a99c076f/src/System.Private.CoreLib/src/System/Marvin.cs#L120-L124
         */
 
         #endregion
@@ -278,8 +287,8 @@ namespace System
         }
 
         /* Legacy implementations
-        https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
-        https://raw.githubusercontent.com/dotnet/corefx/151a6065fa8184feb1ac4a55c89752342ab7c3bb/src/Common/src/CoreLib/System/Decimal.DecCalc.cs
+        DONE https://raw.githubusercontent.com/dotnet/corefx/151a6065fa8184feb1ac4a55c89752342ab7c3bb/src/Common/src/CoreLib/System/Decimal.DecCalc.cs
+        DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
         */
 
         #endregion
@@ -319,40 +328,55 @@ namespace System
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(ref tz, offset);
         }
-
-        #endregion
-
-        #region LeadingOneCount
-
-        /// <summary>
-        /// Count the number of leading one bits in a mask.
-        /// </summary>
-        /// <param name="value">The mask.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LeadingOneCount(uint value)
-            => LeadingZeroCount(~value);
-
-        /// <summary>
-        /// Count the number of leading one bits in a mask.
-        /// </summary>
-        /// <param name="value">The mask.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LeadingOneCount(int value)
-            => LeadingOneCount(unchecked((uint)value));
-
-        /// <summary>
-        /// Count the number of leading one bits in a mask.
-        /// </summary>
-        /// <param name="value">The mask.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LeadingOneCount(ulong value)
-            => LeadingZeroCount(~value);
-
-        /* Legacy impementations
-        https://raw.githubusercontent.com/dotnet/coreclr/030a3ea9b8dbeae89c90d34441d4d9a1cf4a7de6/tests/src/JIT/Performance/CodeQuality/V8/Crypto/Crypto.cs
-        https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
-        */
         
+        /// <summary>
+        /// Count the number of trailing zero bits in a mask.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The mask.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint TrailingZeroCount(ulong value)
+        {
+            if (Bmi1.X64.IsSupported)
+            {
+                return (uint)Bmi1.X64.TrailingZeroCount(value);
+            }
+
+            // Instead of writing a 64-bit function,
+            // we use the 32-bit function twice.
+
+            uint hv = (uint)(value >> 32); // High-32
+            uint bv = (uint)value; // Low-32
+
+            uint h, b;
+            if (Bmi1.IsSupported)
+            {
+                h = Bmi1.TrailingZeroCount(hv);
+                b = Bmi1.TrailingZeroCount(bv);
+            }
+            else
+            {
+                long hi = hv & -hv;
+                long bi = bv & -bv;
+
+                hi %= 37;
+                bi %= 37;
+
+                // long.MaxValue % 37 is always in range [0 - 36] so we use Unsafe.AddByteOffset to avoid bounds check
+                ref byte tz = ref MemoryMarshal.GetReference(TrailingZeroCountUInt32);
+
+                h = Unsafe.AddByteOffset(ref tz, (IntPtr)(int)hi);
+                b = Unsafe.AddByteOffset(ref tz, (IntPtr)(int)bi); // Use warm cache
+            }
+
+            // Keep h iff b==32
+            uint mask = b & ~32u; // Zero 5th bit (32)
+            mask = IsZero(mask);  // mask == 0 ? 1 : 0
+            h = mask * h;
+
+            return b + h;
+        }
+
         #endregion
 
         #region ExtractBit
@@ -563,15 +587,7 @@ namespace System
 
         // Some of these helpers may be unnecessary depending on how JIT optimizes certain bool operations.
 
-        // Normalize bool's underlying value to 0|1
-        // https://github.com/dotnet/roslyn/issues/24652
-
-        // byte b;                 // Non-negative
-        // int val = b;            // Widen byte to int so that negation is reliable
-        // val = -val;             // Negation will set sign-bit iff non-zero
-        // val = (uint)val >> 31;  // Send sign-bit to lsb (all other bits will be thus zero'd)
-
-        // Would be great to use intrinsics here instead:
+        // Would be great to use x86 intrinsics here instead:
         //     OR al, al
         //     CMOVNZ al, 1
         // CMOV isn't a branch and won't stall the pipeline.
