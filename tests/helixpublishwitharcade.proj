@@ -106,10 +106,14 @@
       <_HelixPreCommands Include="cat $__TestEnv" />
     </ItemGroup>
 
+    <PropertyGroup>
+      <_HelixPreCommands>@(_HelixPreCommands)</_HelixPreCommands>
+    </PropertyGroup>
+
     <ItemGroup>
       <HelixWorkItem Include="@(XUnitWrapperDlls->'%(FileName)'->Replace('.XUnitWrapper', ''))">
         <PayloadDirectory>%(RootDir)%(Directory)</PayloadDirectory>
-        <PreCommands>@(_HelixPreCommands)</PreCommands>
+        <PreCommands>$(_HelixPreCommands)</PreCommands>
         <Command>$(_CoreRun) $(_XUnitRunnerDll) %(FileName)%(Extension) $(_XUnitRunnerArgs)</Command>
         <Timeout Condition=" '$(TimeoutInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(TimeoutInMinutes)))</Timeout>
       </HelixWorkItem>
