@@ -268,7 +268,7 @@ if %__BuildTypeDebug%==1    set __BuildType=Debug
 if %__BuildTypeChecked%==1  set __BuildType=Checked
 if %__BuildTypeRelease%==1  set __BuildType=Release
 
-set __CommonMSBuildArgs=/p:__BuildOs=%__BuildOS% /p:__BuildType=%__BuildType% /p:__BuildArch=%__BuildArch% !__SkipRestoreArg! !__OfficialBuildIdArg!
+set __CommonMSBuildArgs=/p:__BuildOS=%__BuildOS% /p:__BuildType=%__BuildType% /p:__BuildArch=%__BuildArch% !__SkipRestoreArg! !__OfficialBuildIdArg!
 
 if %__EnforcePgo%==1 (
     if %__BuildArchArm%==1 (

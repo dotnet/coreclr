@@ -877,7 +877,7 @@ else
   __NumProc=$(nproc --all)
 fi
 
-__CommonMSBuildArgs=("/p:BuildArch=$__BuildArch" "/p:BuildType=$__BuildType" "/p:BuildOS=$__BuildOS")
+__CommonMSBuildArgs=("/p:__BuildArch=$__BuildArch" "/p:__BuildType=$__BuildType" "/p:__BuildOS=$__BuildOS")
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
