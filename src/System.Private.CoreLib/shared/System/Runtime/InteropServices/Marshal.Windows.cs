@@ -8,11 +8,11 @@ namespace System.Runtime.InteropServices
 {
     public static partial class Marshal
     {
-        private static int GetSystemMaxDBCSCharSize()
+        private static unsafe int GetSystemMaxDBCSCharSize()
         {
             Interop.Kernel32.CPINFO cpInfo = default;
 
-            if (Interop.Kernel32.GetCPInfo(Interop.Kernel32.CP_ACP, out cpInfo) == 0)
+            if (Interop.Kernel32.GetCPInfo(Interop.Kernel32.CP_ACP, &cpInfo) == Interop.BOOL.FALSE)
                 return 2;
 
             return cpInfo.MaxCharSize;

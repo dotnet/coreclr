@@ -18,6 +18,6 @@ internal partial class Interop
         }
 
         [DllImport(Libraries.Kernel32)]
-        internal static extern int GetCPInfo(uint codePage, out CPINFO lpCpInfo);
+        internal static extern unsafe Interop.BOOL GetCPInfo(uint codePage, CPINFO* lpCpInfo);
     }
 }
