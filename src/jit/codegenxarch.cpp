@@ -2668,13 +2668,6 @@ BAILOUT:
     }
 #endif // JIT32_GCENCODER
 
-#if STACK_PROBES
-    if (compiler->opts.compNeedStackProbes)
-    {
-        genGenerateStackProbe();
-    }
-#endif
-
 #ifdef DEBUG
     // Update local variable to reflect the new stack pointer.
     if (compiler->opts.compStackCheckOnRet)
@@ -7028,7 +7021,7 @@ void CodeGen::genSSE2BitwiseOp(GenTree* treeNode)
     if (*bitMask == nullptr)
     {
         assert(cnsAddr != nullptr);
-        *bitMask = getEmitter()->emitAnyConst(cnsAddr, genTypeSize(targetType), dblAlign);
+        *bitMask = getEmitter()->emitAnyConst(cnsAddr, genTypeSize(targetType), emitDataAlignment::Preferred);
     }
 
     // We need an additional register for bitmask.

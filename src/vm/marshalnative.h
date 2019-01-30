@@ -44,25 +44,21 @@ public:
     //====================================================================
     // These methods convert between an HR and and a managed exception.
     //====================================================================
-    static FCDECL2(void, ThrowExceptionForHR, INT32 errorCode, LPVOID errorInfo);
     static FCDECL2(Object *, GetExceptionForHR, INT32 errorCode, LPVOID errorInfo);
     static FCDECL1(int, GetHRForException, Object* eUNSAFE);
     static FCDECL1(int, GetHRForException_WinRT, Object* eUNSAFE);
 
-    static FCDECL4(void, CopyToNative, Object* psrcUNSAFE, INT32 startindex, LPVOID pdst, INT32 length);
-    static FCDECL4(void, CopyToManaged, LPVOID psrc, Object* pdstUNSAFE, INT32 startindex, INT32 length);
     static FCDECL2(UINT32, SizeOfClass, ReflectClassBaseObject* refClass, CLR_BOOL throwIfNotMarshalable);
-
-    static FCDECL2(LPVOID, FCUnsafeAddrOfPinnedArrayElement, ArrayBase *arr, INT32 index);
 
     static FCDECL1(UINT32, OffsetOfHelper, ReflectFieldObject* pFieldUNSAFE);
     static FCDECL0(int, GetLastWin32Error);
     static FCDECL1(void, SetLastWin32Error, int error);
-    static FCDECL1(INT32, CalculateCount, ArrayWithOffsetData* pRef);
     
     static FCDECL3(VOID, StructureToPtr, Object* pObjUNSAFE, LPVOID ptr, CLR_BOOL fDeleteOld);
     static FCDECL3(VOID, PtrToStructureHelper, LPVOID ptr, Object* pObjIn, CLR_BOOL allowValueClasses);
     static FCDECL2(VOID, DestroyStructure, LPVOID ptr, ReflectClassBaseObject* refClassUNSAFE);
+
+    static FCDECL1(FC_BOOL_RET, IsPinnable, Object* obj);
 
     //====================================================================
     // map a fiber cookie from the hosting APIs into a managed Thread object

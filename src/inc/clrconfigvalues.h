@@ -289,6 +289,7 @@ CONFIG_STRING_INFO(INTERNAL_GcCoverage, W("GcCoverage"), "Specify a method or re
 CONFIG_STRING_INFO(INTERNAL_SkipGCCoverage, W("SkipGcCoverage"), "Specify a list of assembly names to skip with GC Coverage")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_gcForceCompact, W("gcForceCompact"), "When set to true, always do compacting GC")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCgen0size, W("GCgen0size"), "Specifies the smallest gen0 size")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCGen0MaxBudget, W("GCGen0MaxBudget"), "Specifies the largest gen0 allocation budget")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressMix, W("GCStressMix"), 0, "Specifies whether the GC mix mode is enabled or not")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressStep, W("GCStressStep"), 1, "Specifies how often StressHeap will actually do a GC in GCStressMix mode")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressMaxFGCsPerBGC, W("GCStressMaxFGCsPerBGC"), ~0U, "Specifies how many FGCs will occur during one BGC in GCStressMix mode")
@@ -327,6 +328,8 @@ RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapAffinitizeMask, W("GCHeapA
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCProvModeStress, W("GCProvModeStress"), 0, "Stress the provisional modes")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCHighMemPercent, W("GCHighMemPercent"), 0, "Specifies the percent for GC to consider as high memory")
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_GCName, W("GCName"), "")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapHardLimit, W("GCHeapHardLimit"), "Specifies the maximum commit size for the GC heap")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapHardLimitPercent, W("GCHeapHardLimitPercent"), "Specifies the GC heap usage as a percentage of the total memory")
 
 ///
 /// IBC
@@ -793,7 +796,6 @@ CONFIG_DWORD_INFO(INTERNAL_MessageDebugOut, W("MessageDebugOut"), 0, "")
 CONFIG_DWORD_INFO_EX(INTERNAL_MscorsnLogging, W("MscorsnLogging"), 0, "Enables strong name logging", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_NativeImageRequire, W("NativeImageRequire"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NestedEhOom, W("NestedEhOom"), 0, "", CLRConfig::REGUTIL_default)
-RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_NO_SO_NOT_MAINLINE, W("NO_SO_NOT_MAINLINE"), 0, "", CLRConfig::REGUTIL_default)
 #define INTERNAL_NoGuiOnAssert_Default 1
 RETAIL_CONFIG_DWORD_INFO_EX(INTERNAL_NoGuiOnAssert, W("NoGuiOnAssert"), INTERNAL_NoGuiOnAssert_Default, "", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_NoProcedureSplitting, W("NoProcedureSplitting"), 0, "", CLRConfig::REGUTIL_default)

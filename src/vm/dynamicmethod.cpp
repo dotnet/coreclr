@@ -848,7 +848,7 @@ void DynamicMethodDesc::Destroy()
     CONTRACTL_END;
 
     _ASSERTE(IsDynamicMethod());
-    LoaderAllocator *pLoaderAllocator = GetLoaderAllocatorForCode();
+    LoaderAllocator *pLoaderAllocator = GetLoaderAllocator();
 
     LOG((LF_BCL, LL_INFO1000, "Level3 - Destroying DynamicMethod {0x%p}\n", this));
     if (!m_pSig.IsNull())
@@ -924,8 +924,8 @@ void LCGMethodResolver::RecycleIndCells()
         }
 
         // Insert the linked list to the free list of the VirtualCallStubManager of the current domain.
-        // We should use GetLoaderAllocatorForCode because that is where the ind cell was allocated.
-        LoaderAllocator *pLoaderAllocator = GetDynamicMethod()->GetLoaderAllocatorForCode();
+        // We should use GetLoaderAllocator because that is where the ind cell was allocated.
+        LoaderAllocator *pLoaderAllocator = GetDynamicMethod()->GetLoaderAllocator();
         VirtualCallStubManager *pMgr = pLoaderAllocator->GetVirtualCallStubManager();
         pMgr->InsertIntoRecycledIndCellList_Locked(cellhead, cellcurr);
         m_UsedIndCellList = NULL;
@@ -1054,7 +1054,6 @@ void LCGMethodResolver::GetJitContextCoop(SecurityControlFlags * securityControl
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_INTOLERANT;
         INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(CheckPointer(securityControlFlags));
         PRECONDITION(CheckPointer(typeOwner));
@@ -1479,7 +1478,6 @@ void* ChunkAllocator::New(size_t size)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;

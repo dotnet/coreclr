@@ -4,7 +4,6 @@ parameters:
   archType: ''
   osGroup: ''
   buildConfig: ''
-  isExternal: ''
   creator: ''
   publishTestResults: ''
   helixAccessToken: ''
@@ -14,6 +13,8 @@ parameters:
   helixType: ''
   scenarios: ''
   timeoutInMinutes: ''
+  timeoutPerTestInMinutes: ''
+  readyToRun: ''
 
 steps:
 - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
@@ -25,7 +26,6 @@ steps:
       __BuildArch: ${{ parameters.archType }}
       __BuildOS: ${{ parameters.osGroup }}
       __BuildType: ${{ parameters.buildConfig }}
-      _IsExternal: ${{ parameters.isExternal }}
       _Creator: ${{ parameters.creator }}
       _PublishTestResults: ${{ parameters.publishTestResults }}
       _HelixAccessToken: ${{ parameters.helixAccessToken }}
@@ -35,6 +35,8 @@ steps:
       _HelixType: ${{ parameters.helixType }}
       _Scenarios: ${{ parameters.scenarios }}
       _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+      _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
+      _ReadyToRun: ${{ parameters.readyToRun }}
       ${{ if eq(parameters.publishTestResults, 'true') }}:
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
@@ -47,7 +49,6 @@ steps:
       __BuildArch: ${{ parameters.archType }}
       __BuildOS: ${{ parameters.osGroup }}
       __BuildType: ${{ parameters.buildConfig }}
-      _IsExternal: ${{ parameters.isExternal }}
       _Creator: ${{ parameters.creator }}
       _PublishTestResults: ${{ parameters.publishTestResults }}
       _HelixAccessToken: ${{ parameters.helixAccessToken }}
@@ -57,5 +58,7 @@ steps:
       _HelixType: ${{ parameters.helixType }}
       _Scenarios: ${{ parameters.scenarios }}
       _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+      _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
+      _ReadyToRun: ${{ parameters.readyToRun }}
       ${{ if eq(parameters.publishTestResults, 'true') }}:
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)

@@ -24,9 +24,8 @@
     <ErrorReport>prompt</ErrorReport>
     <CLSCompliant>true</CLSCompliant>
     <WarningLevel>4</WarningLevel>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);618</WarningsNotAsErrors>
-    <NoWarn>649,3019,414,169,3015,591,1573,1591,0419</NoWarn>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>649,1573,1591,0419</NoWarn>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
@@ -121,7 +120,6 @@
     <Compile Include="$(BclSourcesRoot)\Internal\Resources\WindowsRuntimeResourceManagerBase.cs" Condition="'$(FeatureAppX)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\EnvironmentAugments.cs" />
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\RuntimeThread.cs" />
-    <Compile Include="$(BclSourcesRoot)\Internal\Threading\Tasks\AsyncCausalitySupport.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\Win32Native.cs" />
     <Compile Include="$(BclSourcesRoot)\System\__Canon.cs" />
@@ -142,7 +140,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DefaultBinder.CanConvert.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Delegate.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\ContractsBCL.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debugger.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\EditAndContinueHelper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\DotNETRuntimeEventSource.cs" />
@@ -256,13 +253,11 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Expando\IExpando.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\GcHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\GCHandleCookieTable.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Marshal.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Marshal.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeLibrary.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NonPortable.cs" Condition="'$(FeatureCominterop)' != 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyDependencyResolver.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\MemoryFailPoint.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterServices.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeArgumentHandle.cs" />
@@ -279,15 +274,9 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\Monitor.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Overlapped.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\AsyncCausalityTracer.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\FutureFactory.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\Task.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskContinuation.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskFactory.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TPLETWProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Thread.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Timer.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.CoreCLR.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\Timer.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Volatile.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\WaitHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Type.CoreCLR.cs" />
@@ -367,6 +356,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\WindowsRuntimeMarshal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\WindowsRuntimeMetadata.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\IAsyncCausalityTracerStatics.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\AsyncCausalityTracer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Variant.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
@@ -427,6 +417,9 @@
     <EnableDotnetAnalyzers Condition="'$(EnableDotnetAnalyzers)'==''">true</EnableDotnetAnalyzers>
     <UseWin32Apis>true</UseWin32Apis>
     <OSGroup>Windows_NT</OSGroup>
+  </PropertyGroup>
+  <PropertyGroup>
+    <FeatureAsyncCausalityTracer Condition="'$(FeatureCominterop)' == 'true'">true</FeatureAsyncCausalityTracer>
   </PropertyGroup>
   <PropertyGroup>
     <StrongNameSig>Silverlight</StrongNameSig>

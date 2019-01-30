@@ -38,6 +38,12 @@ jobs:
     variables:
     - name: osIdentifier
       value: ${{ parameters.osIdentifier }}
+    - name: stripSymbolsArg
+      value: ''
+    # Strip symbols only on the release build
+    - ${{ if eq(parameters.buildConfig, 'Release') }}:
+      - name: stripSymbolsArg
+        value: '-stripsymbols'
     - name: portableBuildArg
       value: ''
     # Ensure that we produce os-specific packages for the following distros:
@@ -78,7 +84,7 @@ jobs:
 
     # Build
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget $(clangArg)
+      - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget $(clangArg) $(stripSymbolsArg)
         displayName: Build product
         ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
           env:
@@ -92,7 +98,7 @@ jobs:
 
     # Sign on Windows
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest'), eq(parameters.osGroup, 'Windows_NT')) }}:
-      - script: powershell eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfig) /p:DotNetSignType=%_SignType% -projects $(Build.SourcesDirectory)\eng\empty.proj
+      - script: powershell eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfigUpper) /p:DotNetSignType=%_SignType% -projects $(Build.SourcesDirectory)\eng\empty.proj
         displayName: Sign Binaries
 
       - task: PublishBuildArtifacts@1

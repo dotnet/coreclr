@@ -2135,13 +2135,6 @@ BAILOUT:
     if (endLabel != nullptr)
         genDefineTempLabel(endLabel);
 
-#if STACK_PROBES
-    if (compiler->opts.compNeedStackProbes)
-    {
-        genGenerateStackProbe();
-    }
-#endif
-
     genProduceReg(tree);
 }
 
@@ -4855,7 +4848,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
     unsigned varNum = treeNode->gtLclVarCommon.gtLclNum;
     assert(varNum < compiler->lvaCount);
 
-    if (treeNode->OperGet() == GT_LCL_FLD)
+    if (treeNode->OperGet() == GT_STORE_LCL_FLD)
     {
         offs = treeNode->gtLclFld.gtLclOffs;
     }
