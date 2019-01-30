@@ -134,7 +134,6 @@ Copyright (c) .NET Foundation. All rights reserved.
                  FormatArguments="$(Crossgen)" />
   </Target>
 
-  <UsingTask TaskName="FilterManagedAssemblies" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
   <Target Name="_ComputeReadyToRunInputsAndOutputs"
           Condition="'$(ReadyToRun)' == 'true'">
     <PropertyGroup>
@@ -149,14 +148,11 @@ Copyright (c) .NET Foundation. All rights reserved.
       <_CrossgenUnfilteredInputAssemblies Include="@(ResolvedAssembliesToPublish)" Condition="'$(ReadyToRunAllPublishRuntimeAssets)' == 'true' and '%(ResolvedAssembliesToPublish.AssetType)' == 'runtime'" />
       <_CrossgenUnfilteredInputAssemblies Remove="@(_CrossgenUnfilteredInputAssemblies)" Condition="'%(_CrossgenUnfilteredInputAssemblies.PackageName)' == '$(_RuntimePackageName)'" />
 
+      <!-- TODO: Use a MSBuild task to make sure that the assemblies passed to the the _CrossgenInputAssemblies ItemGroup are actually managed.
+           Using managed code we can inspect the CorFlags on each assembly and only return those that meet the criteria. -->
+      <_CrossgenInputAssemblies Include="@(_CrossgenUnfilteredInputAssemblies)" />
       <_CrossgenReferenceAssemblies Include="@(ResolvedAssembliesToPublish)" /> 
     </ItemGroup>
-
-    <!-- Filter the input assemblies to only those that are managed and IL ONLY -->
-    <FilterManagedAssemblies Assemblies="@(_CrossgenUnfilteredInputAssemblies)"
-                             RestrictToILOnlyAssemblies="true">
-      <Output TaskParameter="ManagedAssemblies" ItemName="_CrossgenInputAssemblies"/>
-    </FilterManagedAssemblies>
 
     <!-- Set the final list of expected output assemblies -->
     <ItemGroup>
@@ -190,10 +186,7 @@ Copyright (c) .NET Foundation. All rights reserved.
 
     <MakeDir Directories="$(_ReadyToRunOutputDir)"/>
 
-    <Message Text="$(CrossgenCommand) -in &quot;%(_CrossgenInputAssemblies.Identity)&quot; -out &quot;$(_ReadyToRunOutputDir)/%(FileName)%(Extension)&quot;" />
     <Exec Command="$(CrossgenCommand) -in &quot;%(_CrossgenInputAssemblies.Identity)&quot; -out &quot;$(_ReadyToRunOutputDir)/%(FileName)%(Extension)&quot;" />
-
-    <Message Text="$(CrossgenCreatePdbCommand) &quot;$(_ReadyToRunOutputDir)$(_DirectorySeparatorChar)%(_CrossgenInputAssemblies.FileName)%(_CrossgenInputAssemblies.Extension)&quot;" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
     <Exec Command="$(CrossgenCreatePdbCommand) &quot;$(_ReadyToRunOutputDir)$(_DirectorySeparatorChar)%(_CrossgenInputAssemblies.FileName)%(_CrossgenInputAssemblies.Extension)&quot;" Condition="'$(DiaSymReaderExistsForTargetArchitecture)'=='true'" />
 
     <ItemGroup>
