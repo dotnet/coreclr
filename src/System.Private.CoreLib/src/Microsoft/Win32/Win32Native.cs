@@ -141,9 +141,6 @@ namespace Microsoft.Win32
         [DllImport(Interop.Libraries.OleAut32)]
         internal static extern IntPtr SysAllocStringByteLen(byte[] str, uint len);  // BSTR
 
-        [DllImport(Interop.Libraries.OleAut32)]
-        internal static extern uint SysStringByteLen(IntPtr bstr); // BSTR
-
         [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern unsafe int WriteFile(SafeFileHandle handle, byte* bytes, int numBytesToWrite, out int numBytesWritten, IntPtr mustBeZero);
 
@@ -156,29 +153,6 @@ namespace Microsoft.Win32
 
         [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern IntPtr GetStdHandle(int nStdHandle);  // param is NOT a handle, but it returns one!
-
-        [DllImport(Interop.Libraries.Kernel32)]
-        internal static extern unsafe int WideCharToMultiByte(uint cp, uint flags, char* pwzSource, int cchSource, byte* pbDestBuffer, int cbDestBuffer, IntPtr null1, IntPtr null2);
-
-        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
-        internal static extern bool SetEnvironmentVariable(string lpName, string lpValue);
-
-        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
-        private static extern unsafe int GetEnvironmentVariable(string lpName, char* lpValue, int size);
-
-        internal static unsafe int GetEnvironmentVariable(string lpName, Span<char> lpValue)
-        {
-            fixed (char* lpValuePtr = &MemoryMarshal.GetReference(lpValue))
-            {
-                return GetEnvironmentVariable(lpName, lpValuePtr, lpValue.Length);
-            }
-        }
-
-        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Unicode)]
-        internal static extern unsafe char* GetEnvironmentStrings();
-
-        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Unicode)]
-        internal static extern unsafe bool FreeEnvironmentStrings(char* pStrings);
 
         [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto)]
         internal static extern int GetCurrentThreadId();
@@ -194,9 +168,6 @@ namespace Microsoft.Win32
 
         [DllImport(Interop.Libraries.Ole32)]
         internal static extern IntPtr CoTaskMemRealloc(IntPtr pv, UIntPtr cb);
-
-        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Unicode, SetLastError = true, BestFitMapping = false)]
-        internal static extern uint ExpandEnvironmentStringsW(string lpSrc, ref char lpDst, uint nSize);
 
         [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]

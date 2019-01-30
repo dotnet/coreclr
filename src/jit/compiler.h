@@ -2340,7 +2340,7 @@ public:
 
     GenTree* gtNewLconNode(__int64 value);
 
-    GenTree* gtNewDconNode(double value);
+    GenTree* gtNewDconNode(double value, var_types type = TYP_DOUBLE);
 
     GenTree* gtNewSconNode(int CPX, CORINFO_MODULE_HANDLE scpHandle);
 
@@ -5262,6 +5262,7 @@ private:
     void fgAssignSetVarDef(GenTree* tree);
     GenTree* fgMorphOneAsgBlockOp(GenTree* tree);
     GenTree* fgMorphInitBlock(GenTree* tree);
+    GenTree* fgMorphPromoteLocalInitBlock(GenTreeLclVar* destLclNode, GenTree* initVal, unsigned blockSize);
     GenTree* fgMorphBlkToInd(GenTreeBlk* tree, var_types type);
     GenTree* fgMorphGetStructAddr(GenTree** pTree, CORINFO_CLASS_HANDLE clsHnd, bool isRValue = false);
     GenTree* fgMorphBlkNode(GenTree* tree, bool isDest);
@@ -8200,9 +8201,6 @@ public:
 
     bool fgLocalVarLivenessDone; // Note that this one is used outside of debug.
     bool fgLocalVarLivenessChanged;
-#if STACK_PROBES
-    bool compStackProbePrologDone;
-#endif
     bool compLSRADone;
     bool compRationalIRForm;
 
@@ -8468,15 +8466,6 @@ public:
 #pragma message("NOTE: this non-debug build has GC ptr table dumping always enabled!")
         static const bool dspGCtbls = true;
 #endif
-
-        // We need stack probes to guarantee that we won't trigger a stack overflow
-        // when calling unmanaged code until they get a chance to set up a frame, because
-        // the EE will have no idea where it is.
-        //
-        // We will only be doing this currently for hosted environments. Unfortunately
-        // we need to take care of stubs, so potentially, we will have to do the probes
-        // for any call. We have a plan for not needing for stubs though
-        bool compNeedStackProbes;
 
 #ifdef PROFILING_SUPPORTED
         // Whether to emit Enter/Leave/TailCall hooks using a dummy stub (DummyProfilerELTStub()).
