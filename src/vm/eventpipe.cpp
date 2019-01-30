@@ -776,7 +776,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         // We're not interested in these events and they can cause corrupted trace files because rundown
         // events are written synchronously and not under lock.
         // If we encounter an event that did not originate on the thread that is doing rundown, ignore it.
-        if(!s_pConfig->IsRundownThread(pThread) || pThread == NULL)
+        if(pThread == NULL || !s_pConfig->IsRundownThread(pThread))
         {
             return;
         }

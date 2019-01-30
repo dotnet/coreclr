@@ -213,7 +213,7 @@ namespace System
 
         public static unsafe int IndexOf(ref char searchSpace, char value, int length)
         {
-            Debug.Assert(length >= 0, $"length is {length}");
+            Debug.Assert(length >= 0);
 
             fixed (char* pChars = &searchSpace)
             {
