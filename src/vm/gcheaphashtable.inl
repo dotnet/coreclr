@@ -99,7 +99,7 @@ template <bool remove_supported>
 
     static_assert(remove_supported, "This hash doesn't support remove");
 
-    PTRARRAYREF arr((*pgcHeap)->GetData());
+    PTRARRAYREF arr((PTRARRAYREF)(*pgcHeap)->GetData());
 
     if (arr == NULL)
         COMPlusThrow(kNullReferenceException);

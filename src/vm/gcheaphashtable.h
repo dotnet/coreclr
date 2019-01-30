@@ -138,7 +138,7 @@ class GCHeapHash
 
     GCHeapHash(GCHEAPHASHOBJECTREF gcHeap) : _gcHeap(gcHeap) {}
     GCHeapHash(OBJECTREF gcHeap) : _gcHeap((GCHEAPHASHOBJECTREF)gcHeap) {}
-    GCHeapHash() : _gcHeap(TADDR(NULL)) {}
+    GCHeapHash() : _gcHeap((GCHEAPHASHOBJECTREF)TADDR(NULL)) {}
 };
 
 #endif // GCHEAPHASHTABLE_H
