@@ -404,21 +404,18 @@ namespace System
                 return Bmi1.TrailingZeroCount(value);
             }
 
+            // TODO: Remove branching
+
+            if (value == 0)
+                return 32;
+
             ref byte tz = ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn);
             long val = (value & -value) * 0x077C_B531u;
             uint offset = ((uint)val) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             uint count = Unsafe.AddByteOffset(ref tz, (IntPtr)offset);
-
-            // Return 32 for input 0, without branching
-            //                              0   1   2   N
-            byte not0 = NonZero(value); //  0   1   1   1
-            uint is0 = 1u ^ not0; //        1   0   0   0
-            uint c32 = is0 * 32u; //        32  0   0   0
-            count *= not0; //               0   0   1   C
-
-            return c32 + count; //          32  0   1   C
+            return count;
         }
 
         /// <summary>
