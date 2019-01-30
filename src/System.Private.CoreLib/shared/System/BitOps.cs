@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
@@ -15,8 +14,6 @@ namespace System
 {
     internal static class BitOps
     {
-        private const uint DeBruijn32 = 0x07C4_ACDDu;
-
         // Magic C# optimization that directly wraps the data section of the dll (a bit like string constants)
         // https://github.com/dotnet/coreclr/pull/22118#discussion_r249957516
         // https://github.com/dotnet/roslyn/pull/24621
@@ -24,11 +21,13 @@ namespace System
 
         private static ReadOnlySpan<byte> TrailingCountMultiplyDeBruijn => new byte[32]
         {
-            00, 01, 28, 02, 29, 14, 24, 03, 30, 22, 20, 15, 25, 17, 04, 08,
-            31, 27, 13, 23, 21, 19, 16, 07, 26, 12, 18, 06, 11, 05, 10, 09
+            00, 01, 28, 02, 29, 14, 24, 03,
+            30, 22, 20, 15, 25, 17, 04, 08,
+            31, 27, 13, 23, 21, 19, 16, 07,
+            26, 12, 18, 06, 11, 05, 10, 09
         };
 
-        private static ReadOnlySpan<byte> MultiplyDeBruijnBitPosition => new byte[32]
+        private static ReadOnlySpan<byte> DeBruijnLog2 => new byte[32]
         {
             00, 09, 01, 10, 13, 21, 02, 29,
             11, 14, 16, 18, 22, 25, 03, 30,
@@ -218,65 +217,85 @@ namespace System
 
         #region Log2
 
-        // TODO: Probably belongs in System.Math
+        // TODO: May belong in System.Math
 
         /// <summary>
-        /// Returns the log of the specified value, base 2.
+        /// Returns the log of the specified value, base 2, without branching.
+        /// Note that by convention, input value 0 returns 32 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint Log2(uint value)
         {
-            Debug.Assert(value != 0);
+            uint log = Log2Impl(value);
 
-            FoldTrailingOnes(ref value);
-            uint ix = (value * DeBruijn32) >> 27;
+            // Log(0) is undefined. Return 32 for input 0, without branching:
+            //                                  0   1   n
+            uint c32 = IsZero(value) * 32u; //  32  0   0
+            log *= NonZero(value); //           0   log log
+            return c32 + log; //                32  log log
+        }
 
-            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte lz = ref MemoryMarshal.GetReference(MultiplyDeBruijnBitPosition);
-            byte log = Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
-
-            // TODO: Log(0) is undefined: Return 32.
+        /// <summary>
+        /// Returns the log of the specified value, base 2, without branching.
+        /// Note that by convention, input value 0 returns 32 since Log(0) is undefined.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Log2(int value)
+        {
+            // TODO: Remove looping/branching
+            int log = 0;
+            while ((value >>= 1) != 0)
+            {
+                log++;
+            }
             return log;
         }
 
         /// <summary>
-        /// Returns the log of the specified value, base 2.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint Log2(int value)
-            => Log2(unchecked((uint)value));
-
-        /// <summary>
-        /// Returns the log of the specified value, base 2.
+        /// Returns the log of the specified value, base 2, without branching.
+        /// Note that by convention, input value 0 returns 64 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint Log2(ulong value)
         {
-            Debug.Assert(value != 0);
+            // TODO: Simplify
 
-            uint upper = (uint)(value >> 32);
+            // Log(0) is undefined. Return 64 for input 0, without branching:
+            //                                  0   1   ^32 ^64
+            uint hi = (uint)(value >> 32); //   0   0   0   hi
+            uint lo = (uint)value; //           0   1   lo  lo
+            uint x = Log2Impl(hi); //           0   0   0   x
+            uint y = Log2Impl(lo); //           0   y   y   y
+            uint izh = IsZero(hi); //           1   1   1   0
+            uint izl = IsZero(lo); //           1   0   0   0
+            uint nzh = NonZero(hi); //          0   0   0   1
+            uint nzl = NonZero(lo); //          0   1   1   1
 
-            // TODO: Get rid of branching
-            if (upper != 0)
-            {
-                // TODO: Log(0) is undefined: Return 32.
-                return 32 + Log2(upper);
-            }
-
-            // TODO: Log(0) is undefined: Return 32.
-            return Log2((uint)value);
+            return izl * 64 //                  64  0   0   0
+                + izh * nzl * y //              0   y   y   0
+                + nzh * (x + 32); //            0   0   0   x+32
+            //                                  64  y   y   x+32
         }
 
         /// <summary>
-        /// Returns the log of the specified value, base 2.
+        /// Returns the log of the specified value, base 2, without branching.
+        /// Note that by convention, input value 0 returns 32 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint Log2(long value)
-            => Log2(unchecked((ulong)value));
+        public static int Log2(long value)
+        {
+            // TODO: Remove looping/branching
+            int log = 0;
+            while ((value >>= 1) != 0)
+            {
+                log++;
+            }
+            return log;
+        }
 
         /* Legacy implementations
         DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
@@ -300,19 +319,12 @@ namespace System
                 return Lzcnt.LeadingZeroCount(value);
             }
 
-            FoldTrailingOnes(ref value);
-            uint ix = (value * DeBruijn32) >> 27;
+            //                                  00  01  02  2B
+            int count = (int)Log2(value); //    32  00  01  31
+            count = 31 - count; //              -1  31  30  00
+            count += IsZero(value); //          +1  +0  +0  +0
 
-            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte lz = ref MemoryMarshal.GetReference(MultiplyDeBruijnBitPosition);
-            int zeros = Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
-
-            zeros = 31 - zeros;
-
-            // Log(0) is undefined: Return 32.
-            zeros += IsZero(value);
-
-            return (uint)zeros;
+            return (uint)count; //              32  31  30  00
         }
 
         /// <summary>
@@ -328,44 +340,27 @@ namespace System
                 return (uint)Lzcnt.X64.LeadingZeroCount(value);
             }
 
-            // TODO: Optimize, this looks complex
+            // Use the 32-bit function twice.
 
-            // Instead of writing a 64-bit function,
-            // we use the 32-bit function twice.
+            uint hi = (uint)(value >> 32);
+            uint lo = (uint)value;
 
-            uint h, b;
             if (Lzcnt.IsSupported)
             {
-                // TODO: Check the math of this path
-                h = Lzcnt.LeadingZeroCount((uint)(value >> 32)); // High-32
-                b = Lzcnt.LeadingZeroCount((uint)value); // Low-32
+                hi = Lzcnt.LeadingZeroCount(hi);
+                lo = Lzcnt.LeadingZeroCount(lo);
             }
             else
             {
-                FoldTrailingOnes(ref value);
-
-                uint hv = (uint)(value >> 32); // High-32
-                uint bv = (uint)value; // Low-32
-
-                uint hi = (hv * DeBruijn32) >> 27;
-                uint bi = (bv * DeBruijn32) >> 27;
-
-                // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-                ref byte lz = ref MemoryMarshal.GetReference(MultiplyDeBruijnBitPosition);
-                h = (uint)(31 - Unsafe.AddByteOffset(ref lz, (IntPtr)(int)hi));
-                b = (uint)(31 - Unsafe.AddByteOffset(ref lz, (IntPtr)(int)bi)); // Use warm cache
+                hi = LeadingZeroCount(hi);
+                lo = LeadingZeroCount(lo);
             }
 
-            // Log(0) is undefined: Return 32 + 32.
-            h += IsZero((uint)(value >> 32)); // value == 0 ? 1 : 0
-            b += IsZero((uint)value);
+            // Keep lo iff hi==32
+            uint m = hi & ~32u; // Zero 5th bit of hi
+            lo *= IsZero(m); // lo *= (m == 0 ? 1 : 0)
 
-            // Keep b iff h==32
-            uint mask = h & ~32u; // Zero 5th bit (32)
-            mask = IsZero(mask);  // mask == 0 ? 1 : 0
-            b = mask * b;
-
-            return h + b;
+            return hi + lo;
         }
 
         /* Legacy implementations
@@ -426,41 +421,27 @@ namespace System
                 return (uint)Bmi1.X64.TrailingZeroCount(value);
             }
 
-            // TODO: Optimize, this looks complex
+            // Use the 32-bit function twice.
 
-            // Instead of writing a 64-bit function,
-            // we use the 32-bit function twice.
+            uint hi = (uint)(value >> 32);
+            uint lo = (uint)value;
 
-            uint hv = (uint)(value >> 32); // High-32
-            uint bv = (uint)value; // Low-32
-
-            uint h, b;
             if (Bmi1.IsSupported)
             {
-                h = Bmi1.TrailingZeroCount(hv);
-                b = Bmi1.TrailingZeroCount(bv);
+                hi = Bmi1.TrailingZeroCount(hi);
+                lo = Bmi1.TrailingZeroCount(lo);
             }
             else
             {
-                long hi = hv & -hv;
-                long bi = bv & -bv;
-
-                hi %= 37;
-                bi %= 37;
-
-                // long.MaxValue % 37 is always in range [0 - 36] so we use Unsafe.AddByteOffset to avoid bounds check
-                ref byte tz = ref MemoryMarshal.GetReference(TrailingZeroCountUInt32);
-
-                h = Unsafe.AddByteOffset(ref tz, (IntPtr)(int)hi);
-                b = Unsafe.AddByteOffset(ref tz, (IntPtr)(int)bi); // Use warm cache
+                hi = TrailingZeroCount(hi);
+                lo = TrailingZeroCount(lo);
             }
 
-            // Keep h iff b==32
-            uint mask = b & ~32u; // Zero 5th bit (32)
-            mask = IsZero(mask);  // mask == 0 ? 1 : 0
-            h = mask * h;
+            // Keep hi iff lo==32
+            uint m = lo & ~32u; // Zero 5th bit of lo
+            hi *= IsZero(m); // hi *= (m == 0 ? 1 : 0)
 
-            return b + h;
+            return lo + hi;
         }
 
         /// <summary>
@@ -710,6 +691,24 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static byte IsZero(uint value)
             => (byte)(1u ^ NonZero(value));
+
+        /// <summary>
+        /// Returns the log of the specified value, base 2.
+        /// Returns 0 for input value 0.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static uint Log2Impl(uint value)
+        {
+            FoldTrailingOnes(ref value);
+            uint ix = (value * 0x07C4_ACDDu) >> 27;
+
+            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+            ref byte lz = ref MemoryMarshal.GetReference(DeBruijnLog2);
+            uint log = Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
+
+            return log;
+        }
 
         // TODO: Consider exposing as public - this code is duplicated surprisingly often
 
