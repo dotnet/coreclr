@@ -6,6 +6,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Threading;
+
+#if CORERT
+using Thread = Internal.Runtime.Augments.RuntimeThread;
+#endif
 
 namespace System
 {
@@ -88,13 +94,6 @@ namespace System
             return ExpandEnvironmentVariablesCore(name);
         }
 
-        private static string[] s_commandLineArgs;
-
-        internal static void SetCommandLineArgs(string[] cmdLineArgs) // invoked from VM
-        {
-            s_commandLineArgs = cmdLineArgs;
-        }
-
         public static string GetFolderPath(SpecialFolder folder) => GetFolderPath(folder, SpecialFolderOption.None);
 
         public static string GetFolderPath(SpecialFolder folder, SpecialFolderOption option)
@@ -108,11 +107,21 @@ namespace System
             return GetFolderPathCore(folder, option);
         }
 
+        public static int CurrentManagedThreadId => Thread.CurrentThread.ManagedThreadId;
+
         public static bool Is64BitProcess => IntPtr.Size == 8;
 
         public static bool Is64BitOperatingSystem => Is64BitProcess || Is64BitOperatingSystemWhen32BitProcess;
 
         public static OperatingSystem OSVersion => s_osVersion.Value;
+
+#if !CORERT
+        public static string StackTrace
+        {
+            [MethodImpl(MethodImplOptions.NoInlining)] // Prevent inlining from affecting where the stacktrace starts
+            get => new StackTrace(true).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
+        }
+#endif
 
         public static bool UserInteractive => true;
 

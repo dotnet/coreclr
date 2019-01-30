@@ -6,15 +6,12 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
 using Microsoft.Win32;
 
 namespace System
 {
     public static partial class Environment
     {
-        public static int CurrentManagedThreadId => Thread.CurrentThread.ManagedThreadId;
-
         // Terminates this process with the given exit code.
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _Exit(int exitCode);
@@ -77,6 +74,13 @@ namespace System
                 GetCommandLineArgsNative();
         }
 
+        private static string[] s_commandLineArgs;
+
+        internal static void SetCommandLineArgs(string[] cmdLineArgs) // invoked from VM
+        {
+            s_commandLineArgs = cmdLineArgs;
+        }
+
         public static extern bool HasShutdownStarted
         {
             [MethodImpl(MethodImplOptions.InternalCall)]
@@ -92,12 +96,6 @@ namespace System
         // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
         // as well as metasig.h to create the new signature type
         internal static string GetResourceStringLocal(string key) => SR.GetResourceString(key);
-
-        public static string StackTrace
-        {
-            [MethodImpl(MethodImplOptions.NoInlining)] // Prevent inlining from affecting where the stacktrace starts
-            get => new StackTrace(true).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
-        }
 
         public static extern int TickCount
         {
