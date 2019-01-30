@@ -1840,8 +1840,7 @@ public:
     // A RefPosition refers to either an Interval or a RegRecord. 'referent' points to one
     // of these types. If it refers to a RegRecord, then 'isPhysRegRef' is true. If it
     // refers to an Interval, then 'isPhysRegRef' is false.
-    //
-    // Q: can 'referent' be NULL?
+    // referent can never be null.
 
     Referenceable* referent;
 
