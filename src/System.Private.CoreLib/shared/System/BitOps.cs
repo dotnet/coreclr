@@ -217,27 +217,30 @@ namespace System
 
         #region Log2
 
-        // TODO: May belong in System.Math
+        // TODO: May belong in System.Math, in which case may need to name it Log2Int or Log2Floor
+        // to distinguish it from overloads accepting float/double
 
         /// <summary>
-        /// Returns the log of the specified value, base 2, without branching.
+        /// Returns the integer (floor) log of the specified value, base 2, without branching.
         /// Note that by convention, input value 0 returns 32 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint Log2(uint value)
         {
-            uint log = Log2Impl(value);
-
             // Log(0) is undefined. Return 32 for input 0, without branching:
-            //                                  0   1   n
-            uint c32 = IsZero(value) * 32u; //  32  0   0
-            log *= NonZero(value); //           0   log log
-            return c32 + log; //                32  log log
+            //                              0   1   2   n
+            uint log = Log2Impl(value); //  0   0   1   log
+            byte not0 = NonZero(value); //  0   1   1   1
+            uint is0 = 1u ^ not0; //        1   0   0   0
+            uint c32 = is0 * 32u; //        32  0   0   0
+            log *= not0; //                 0   0   1   log
+
+            return c32 + log; //            32  0   1   log
         }
 
         /// <summary>
-        /// Returns the log of the specified value, base 2, without branching.
+        /// Returns the integer (floor) log of the specified value, base 2, without branching.
         /// Note that by convention, input value 0 returns 32 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
@@ -254,35 +257,36 @@ namespace System
         }
 
         /// <summary>
-        /// Returns the log of the specified value, base 2, without branching.
+        /// Returns the integer (floor) log of the specified value, base 2, without branching.
         /// Note that by convention, input value 0 returns 64 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint Log2(ulong value)
         {
-            // TODO: Simplify
+            // We only have to count the low-32 or the high-32, depending on limits
 
-            // Log(0) is undefined. Return 64 for input 0, without branching:
-            //                                  0   1   ^32 ^64
-            uint hi = (uint)(value >> 32); //   0   0   0   hi
-            uint lo = (uint)value; //           0   1   lo  lo
-            uint x = Log2Impl(hi); //           0   0   0   x
-            uint y = Log2Impl(lo); //           0   y   y   y
-            uint izh = IsZero(hi); //           1   1   1   0
-            uint izl = IsZero(lo); //           1   0   0   0
-            uint nzh = NonZero(hi); //          0   0   0   1
-            uint nzl = NonZero(lo); //          0   1   1   1
+            // Assume we need only examine low-32
+            var val = (uint)value;
+            byte inc = 0;
 
-            return izl * 64 //                  64  0   0   0
-                + izh * nzl * y //              0   y   y   0
-                + nzh * (x + 32); //            0   0   0   x+32
-            //                                  64  y   y   x+32
+            // TODO: Remove branching
+
+            // If high-32 is non-zero
+            if (value > uint.MaxValue)
+            {
+                // Then we need only examine high-32 (and add 32 to the result)
+                val = (uint)(value >> 32); // Use high-32 instead
+                inc = 32;
+            }
+
+            // Use low-32
+            return inc + Log2(val);
         }
 
         /// <summary>
-        /// Returns the log of the specified value, base 2, without branching.
-        /// Note that by convention, input value 0 returns 32 since Log(0) is undefined.
+        /// Returns the integer (floor) log of the specified value, base 2, without branching.
+        /// Note that by convention, input value 0 returns 64 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -320,9 +324,11 @@ namespace System
             }
 
             //                                  00  01  02  2B
-            int count = (int)Log2(value); //    32  00  01  31
+            int count = (int)Log2Impl(value); //32  00  01  31
             count = 31 - count; //              -1  31  30  00
-            count += IsZero(value); //          +1  +0  +0  +0
+            byte not0 = NonZero(value); //      0   1   1   1
+            int is0 = 1 ^ not0; //              1   0   0   0
+            count += is0; //                    +1  +0  +0  +0
 
             return (uint)count; //              32  31  30  00
         }
@@ -358,7 +364,9 @@ namespace System
 
             // Keep lo iff hi==32
             uint m = hi & ~32u; // Zero 5th bit of hi
-            lo *= IsZero(m); // lo *= (m == 0 ? 1 : 0)
+            byte not0 = NonZero(m); // not0 = m == 0 ? 0 : 1
+            uint is0 = 1u ^ not0; // is0 = m == 0 ? 1 : 0
+            lo *= is0; // lo *= (m == 0 ? 1 : 0)
 
             return hi + lo;
         }
@@ -371,8 +379,6 @@ namespace System
         #endregion
 
         #region TrailingZeroCount
-
-        // PR already merged: https://github.com/dotnet/coreclr/pull/22118
 
         /// <summary>
         /// Count the number of trailing zero bits in a mask.
@@ -391,21 +397,28 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint TrailingZeroCount(uint value)
         {
+            // PR already merged: https://github.com/dotnet/coreclr/pull/22118
+
             if (Bmi1.IsSupported)
             {
                 return Bmi1.TrailingZeroCount(value);
             }
 
-            // TODO: See if we can leverage Log2
-
-            // Software fallback
-            // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup
             ref byte tz = ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn);
             long val = (value & -value) * 0x077C_B531u;
             uint offset = ((uint)val) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            return Unsafe.AddByteOffset(ref tz, offset);
+            uint count = Unsafe.AddByteOffset(ref tz, (IntPtr)offset);
+
+            // Return 32 for input 0, without branching
+            //                              0   1   2   N
+            byte not0 = NonZero(value); //  0   1   1   1
+            uint is0 = 1u ^ not0; //        1   0   0   0
+            uint c32 = is0 * 32u; //        32  0   0   0
+            count *= not0; //               0   0   1   C
+
+            return c32 + count; //          32  0   1   C
         }
 
         /// <summary>
@@ -439,7 +452,9 @@ namespace System
 
             // Keep hi iff lo==32
             uint m = lo & ~32u; // Zero 5th bit of lo
-            hi *= IsZero(m); // hi *= (m == 0 ? 1 : 0)
+            byte not0 = NonZero(m); // not0 = m == 0 ? 0 : 1
+            uint is0 = 1u ^ not0; // is0 = m == 0 ? 1 : 0
+            hi *= is0; // hi *= (m == 0 ? 1 : 0)
 
             return lo + hi;
         }
@@ -679,19 +694,6 @@ namespace System
             // Negation will set sign-bit iff non-zero
             => unchecked((byte)(((ulong)-value) >> 63));
 
-        // XOR is theoretically slightly cheaper than subtraction,
-        // due to no carry logic. But both 1 clock cycle regardless.
-
-        /// <summary>
-        /// Returns 1 if <paramref name="value"/> is zero, else returns 0.
-        /// Does not incur branching.
-        /// Similar in behavior to the x86 instruction CMOVZ.
-        /// </summary>
-        /// <param name="value">The value to inspect.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static byte IsZero(uint value)
-            => (byte)(1u ^ NonZero(value));
-
         /// <summary>
         /// Returns the log of the specified value, base 2.
         /// Returns 0 for input value 0.
@@ -726,24 +728,6 @@ namespace System
             value |= value >> 04; // 1111 1111  0000 0000  00 00
             value |= value >> 08; // 1111 1111  1111 1111  00 00
             value |= value >> 16; // 1111 1111  1111 1111  FF FF
-        }
-
-        /// <summary>
-        /// Fills the trailing zeros in a mask with ones.
-        /// </summary>
-        /// <param name="value">The value to mutate.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void FoldTrailingOnes(ref ulong value)
-        {
-            // byte#                         8          7   6  5   4  3   2  1
-            //                       1000 0000  0000 0000  00 00  00 00  00 00
-            value |= value >> 01; // 1100 0000  0000 0000  00 00  00 00  00 00
-            value |= value >> 02; // 1111 0000  0000 0000  00 00  00 00  00 00
-            value |= value >> 04; // 1111 1111  0000 0000  00 00  00 00  00 00
-            value |= value >> 08; // 1111 1111  1111 1111  00 00  00 00  00 00
-            value |= value >> 16; // 1111 1111  1111 1111  FF FF  00 00  00 00
-
-            value |= value >> 32; // 1111 1111  1111 1111  FF FF  FF FF  FF FF
         }
 
         #endregion
