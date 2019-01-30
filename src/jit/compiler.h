@@ -319,6 +319,65 @@ public:
     {
     }
 
+    VariableHomeList *variableHomeHistory;
+    LiveRangeHistoryBarrier *variableLifeBarrier;
+
+    void initializeRegisterHistory(CompAllocator allocator) 
+    {
+        variableHomeHistory = new VariableHomeList(allocator);
+
+        variableLifeBarrier = new LiveRangeHistoryBarrier(variableHomeHistory);
+    }
+
+    void EndBlock()
+    {
+        variableLifeBarrier->reset(variableHomeHistory);
+    }
+
+    void dumpRegisterHistoryForBlock() const
+    {
+        if (variableLifeBarrier->haveReadAtLeastOneOfBlock)
+        {
+            printf("[");
+            for (VariableHomeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableHomeHistory->end(); it++)
+            {
+                it->dump();
+            }
+            printf("]");
+        }
+        else
+        {
+            printf("None history");
+        }
+    }
+
+    void EndRegisterHistoryForBlock(emitter *_emitter) const
+    {
+        // There should some history for this var in this block
+        noway_assert(variableHomeHistory != nullptr);
+        variableHomeHistory->back().endNativeOffset = _emitter->emitCurOffset();
+    }
+
+    void AddRegisterHome(regNumber registerNumber, emitter *_emitter ) const
+    {
+        noway_assert(variableHomeHistory != nullptr);
+        
+        // Close previous live range if any. We use [close, open) ranges so as to not compute the size of the last instruction
+        if (!variableHomeHistory->empty()) 
+                {
+            EndRegisterHistoryForBlock(_emitter);
+        }
+        
+        NATIVE_OFFSET nativeInitialOffset = _emitter->emitCurOffset();
+        variableHomeHistory->emplace_back(registerNumber, nativeInitialOffset, -1);
+
+        if (!(variableLifeBarrier->haveReadAtLeastOneOfBlock))
+        {
+            variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
+            variableLifeBarrier->beginLastBlock = variableHomeHistory->backPosition();
+        }
+    }
+
     // note this only packs because var_types is a typedef of unsigned char
     var_types lvType : 5; // TYP_INT/LONG/FLOAT/DOUBLE/REF
 
