@@ -971,6 +971,14 @@ def static setJobTimeout(newJob, isPR, architecture, configuration, scenario, is
         timeout += 60
     }
 
+    if (architecture == 'arm64') {
+        if (configuration == 'Checked' || configuration == 'Debug')
+        {
+            // ARM64 checked/debug is slow, see #17414.
+            timeout *= 3;
+        }
+    }
+
     // If we've changed the timeout from the default, set it in the job.
 
     if (timeout != 120) {
