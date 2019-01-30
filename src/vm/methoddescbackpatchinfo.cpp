@@ -77,7 +77,7 @@ void MethodDescBackpatchInfoTracker::Backpatch_Locked(MethodDesc *pMethodDesc, P
 
     GCX_COOP();
 
-    m_backpatchInfoHash.VisitValuesOfKey(pMethodDesc, [&entryPoint](OBJECTREF obj, MethodDesc *pMethodDesc, UINT_PTR slotData)
+    auto lambda = [&entryPoint](OBJECTREF obj, MethodDesc *pMethodDesc, UINT_PTR slotData)
     {
 
         TADDR slot;
@@ -87,7 +87,9 @@ void MethodDescBackpatchInfoTracker::Backpatch_Locked(MethodDesc *pMethodDesc, P
         EntryPointSlots::Backpatch_Locked(slot, slotType, entryPoint);
 
         return true; // Keep walking
-    });
+    };
+
+    m_backpatchInfoHash.VisitValuesOfKey(pMethodDesc, lambda);
 }
 
 void MethodDescBackpatchInfoTracker::AddSlotAndPatch_Locked(MethodDesc *pMethodDesc, LoaderAllocator *pLoaderAllocatorOfSlot, TADDR slot, EntryPointSlots::SlotType slotType, PCODE currentEntryPoint)
