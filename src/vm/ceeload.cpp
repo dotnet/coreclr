@@ -192,6 +192,35 @@ BOOL Module::SetTransientFlagInterlocked(DWORD dwFlag)
 }
 
 #if PROFILING_SUPPORTED 
+void Module::UpdateNewlyAddedTypes()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END
+
+    DWORD countTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
+    DWORD countExportedTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
+
+    // typeDefs rids 0 and 1 aren't included in the count, thus X typeDefs before means rid X+1 was valid and our incremental addition should start at X+2
+    for (DWORD typeDefRid = m_dwTypeCount + 2; typeDefRid < countTypesAfterProfilerUpdate + 2; typeDefRid++)
+    {
+        GetAssembly()->AddType(this, TokenFromRid(typeDefRid, mdtTypeDef));
+    }
+
+    // exportedType rid 0 isn't included in the count, thus X exportedTypes before means rid X was valid and our incremental addition should start at X+1
+    for (DWORD exportedTypeDef = m_dwExportedTypeCount + 1; exportedTypeDef < countExportedTypesAfterProfilerUpdate + 1; exportedTypeDef++)
+    {
+        GetAssembly()->AddExportedType(TokenFromRid(exportedTypeDef, mdtExportedType));
+    }
+
+    m_dwTypeCount = countTypesAfterProfilerUpdate;
+    m_dwExportedTypeCount = countExportedTypesAfterProfilerUpdate;
+}
+
 void Module::NotifyProfilerLoadFinished(HRESULT hr)
 {
     CONTRACTL
@@ -209,12 +238,10 @@ void Module::NotifyProfilerLoadFinished(HRESULT hr)
     if (SetTransientFlagInterlocked(IS_PROFILER_NOTIFIED))
     {
         // Record how many types are already present
-        DWORD countTypesOrig = 0;
-        DWORD countExportedTypesOrig = 0;
         if (!IsResource())
         {
-            countTypesOrig = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
-            countExportedTypesOrig = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
+            m_dwTypeCount = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
+            m_dwExportedTypeCount = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
         }
 
         // Notify the profiler, this may cause metadata to be updated
@@ -237,18 +264,7 @@ void Module::NotifyProfilerLoadFinished(HRESULT hr)
         // assembly
         if (!IsResource())
         {
-            DWORD countTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
-            DWORD countExportedTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
-            // typeDefs rids 0 and 1 aren't included in the count, thus X typeDefs before means rid X+1 was valid and our incremental addition should start at X+2
-            for (DWORD typeDefRid = countTypesOrig + 2; typeDefRid < countTypesAfterProfilerUpdate + 2; typeDefRid++)
-            {
-                GetAssembly()->AddType(this, TokenFromRid(typeDefRid, mdtTypeDef));
-            }
-            // exportedType rid 0 isn't included in the count, thus X exportedTypes before means rid X was valid and our incremental addition should start at X+1
-            for (DWORD exportedTypeDef = countExportedTypesOrig + 1; exportedTypeDef < countExportedTypesAfterProfilerUpdate + 1; exportedTypeDef++)
-            {
-                GetAssembly()->AddExportedType(TokenFromRid(exportedTypeDef, mdtExportedType));
-            }
+            UpdateNewlyAddedTypes();
         }
 
         {
@@ -1188,7 +1204,7 @@ void Module::ApplyMetaData()
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1198,6 +1214,10 @@ void Module::ApplyMetaData()
     HRESULT hr = S_OK;
     ULONG ulCount;
 
+#if PROFILING_SUPPORTED 
+    UpdateNewlyAddedTypes();
+#endif // PROFILING_SUPPORTED
+
     // Ensure for TypeRef
     ulCount = GetMDImport()->GetCountWithTokenKind(mdtTypeRef) + 1;
     EnsureTypeRefCanBeStored(TokenFromRid(ulCount, mdtTypeRef));
@@ -1205,6 +1225,10 @@ void Module::ApplyMetaData()
     // Ensure for AssemblyRef
     ulCount = GetMDImport()->GetCountWithTokenKind(mdtAssemblyRef) + 1;
     EnsureAssemblyRefCanBeStored(TokenFromRid(ulCount, mdtAssemblyRef));
+
+    // Ensure for MethodDef
+    ulCount = GetMDImport()->GetCountWithTokenKind(mdtMethodDef) + 1;
+    EnsureMethodDefCanBeStored(TokenFromRid(ulCount, mdtMethodDef));
 }
 
 //
