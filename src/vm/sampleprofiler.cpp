@@ -48,7 +48,7 @@ void SampleProfiler::Enable()
         PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
-    
+
     LoadDependencies();
 
     if(s_pEventPipeProvider == NULL)
@@ -197,6 +197,7 @@ DWORD WINAPI SampleProfiler::ThreadProc(void *args)
 
     // Signal Disable() that the thread has been destroyed.
     s_threadShutdownEvent.Set();
+    s_threadShutdownEvent.CloseEvent(); // Issue 22247
 
     return S_OK;
 }
