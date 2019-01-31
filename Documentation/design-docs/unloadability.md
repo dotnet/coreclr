@@ -84,7 +84,9 @@ We can reuse the `ComCallableWrapperCache` with only a very minor modifications 
 
 The After the `AssemblyLoadContext` unload is initiated and the managed `LoaderAllocator` is collected, the `ComCallableWrapperCache` is destroyed in the `LoaderAllocator::Destroy` method.
 #### FixedAddressValueTypeAttribute for fields in collectible types
-The fields with `FixedAddressValueTypeAttribute` are always pinned, so their address in memory never changes. For non-collectible types, these fields are held pinned by a pinned `GCHandle`. But we cannot use that for collectible types, since the `MethodTable` whose pointer is stored in the respective boxed instance of the value type would prevent the managed `LoaderAllocator` from being collected.
+After investigating all the details, it was decided that we won't add support for the FixedAddressValueTypeAttribute unless we get strong feedback on a need to support it.
+
+If we decided to add support for it, we could do it as follows. The fields with `FixedAddressValueTypeAttribute` are always pinned, so their address in memory never changes. For non-collectible types, these fields are held pinned by a pinned `GCHandle`. But we cannot use that for collectible types, since the `MethodTable` whose pointer is stored in the respective boxed instance of the value type would prevent the managed `LoaderAllocator` from being collected.
 
 For collectible types, a new handle table can be added to `LoaderAllocator`. This handle table would be scanned during GC in a special way and all the objects the handles point to will be reported as pinned. The special scanning would be done in `Module::EnumRegularStaticGCRefs`. To pin the objects, the `promote_func` needs to be passed `GC_CALL_PINNED` in the third argument.
 ## AssemblyLoadContext unloading process
