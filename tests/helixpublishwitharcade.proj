@@ -85,6 +85,8 @@
       <_XUnitRunnerDll>%CORE_ROOT%\xunit.console.dll</_XUnitRunnerDll>
     </PropertyGroup>
 
+    <!-- WARNING: _HelixPreCommands collection is intentionally minimal and should be kept that way. -->
+
     <ItemGroup Condition=" '$(TargetsWindows)' == 'true' ">
       <_HelixPreCommands Include="set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%" />
       <_HelixPreCommands Include="set RunCrossGen=true" Condition=" '$(ReadyToRun)' == 'true' " />
