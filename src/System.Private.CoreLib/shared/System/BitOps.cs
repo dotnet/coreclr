@@ -49,7 +49,8 @@ namespace System
                 return Bmi1.TrailingZeroCount(value);
             }
 
-            const uint deBruijn = 0x077C_B531u;
+            // Using deBruijn sequence, k = 2, n = 5 (2^5=32)
+            const uint deBruijn = 0b_0000_0111_0111_1100_1011_0101_0011_0001u; // 0x077CB531u
             uint ix = (uint)((value & -value) * deBruijn) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
