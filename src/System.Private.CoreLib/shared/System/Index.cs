@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace System
 {
@@ -24,6 +25,7 @@ namespace System
         /// <remarks>
         /// If the Index constructed from the end, index value 1 means pointing at the last element and index value 0 means pointing at beyond last element.
         /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Index(int value, bool fromEnd = false)
         {
             if (value < 0)
@@ -34,19 +36,43 @@ namespace System
             _value = fromEnd ? ~value : value;
         }
 
+        // The following private constructors mainly created for perf reason to avoid the checks
+        private Index(int value)
+        {
+            _value = value;
+        }
+
         /// <summary>Create an Index pointing at first element.</summary>
         public static Index Start => new Index(0);
 
         /// <summary>Create an Index pointing at beyond last element.</summary>
-        public static Index End => new Index(0, true);
+        public static Index End => new Index(~0);
 
         /// <summary>Create an Index from the start at the position indicated by the value.</summary>
         /// <param name="value">The index value from the start.</param>
-        public static Index FromStart(int value) => new Index(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Index FromStart(int value)
+        {
+            if (value < 0)
+            {
+                ThrowHelper.ThrowValueArgumentOutOfRange_NeedNonNegNumException();
+            }
+
+            return new Index(value);
+        }
 
         /// <summary>Create an Index from the end at the position indicated by the value.</summary>
         /// <param name="value">The index value from the end.</param>
-        public static Index FromEnd(int value) => new Index(value, true);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Index FromEnd(int value)
+        {
+            if (value < 0)
+            {
+                ThrowHelper.ThrowValueArgumentOutOfRange_NeedNonNegNumException();
+            }
+
+            return new Index(~value);
+        }
 
         /// <summary>Returns the index value.</summary>
         public int Value => _value < 0 ? ~_value : _value;
@@ -87,8 +113,7 @@ namespace System
         }
 
         /// <summary>Converts integer number to an Index.</summary>
-        public static implicit operator Index(int value)
-            => new Index(value, fromEnd: false);
+        public static implicit operator Index(int value) => FromStart(value);
 
         /// <summary>Converts the value of the current Index object to its equivalent string representation.</summary>
         public override string ToString() => IsFromEnd ? ToStringFromEnd() : ((uint)Value).ToString();
