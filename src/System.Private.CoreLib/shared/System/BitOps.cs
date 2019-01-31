@@ -8,14 +8,14 @@ using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
 
-// Some routines inspired by the Stanford Bit Widdling Hacks by Sean Eron Anderson:
+// Some routines inspired by the Stanford Bit Twiddling Hacks by Sean Eron Anderson:
 // http://graphics.stanford.edu/~seander/bithacks.html
 
 namespace System
 {
     internal static class BitOps
     {
-        // C# optimization that directly wraps the data section of the dll (a bit like string constants)
+        // C# no-alloc optimization that directly wraps the data section of the dll (similar to string constants)
         // https://github.com/dotnet/roslyn/pull/24621
 
         private static ReadOnlySpan<byte> TrailingCountMultiplyDeBruijn => new byte[32]
