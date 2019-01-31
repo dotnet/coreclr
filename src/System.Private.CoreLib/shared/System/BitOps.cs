@@ -18,7 +18,7 @@ namespace System
         // C# no-alloc optimization that directly wraps the data section of the dll (similar to string constants)
         // https://github.com/dotnet/roslyn/pull/24621
 
-        private static ReadOnlySpan<byte> s_TrailingCountDeBruijn => new byte[32]
+        private static ReadOnlySpan<byte> s_TrailingZeroCountDeBruijn => new byte[32]
         {
             00, 01, 28, 02, 29, 14, 24, 03,
             30, 22, 20, 15, 25, 17, 04, 08,
@@ -53,7 +53,7 @@ namespace System
             uint ix = (uint)((value & -value) * deBruijn) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte tz = ref MemoryMarshal.GetReference(s_TrailingCountDeBruijn);
+            ref byte tz = ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn);
             uint count = Unsafe.AddByteOffset(ref tz, (IntPtr)ix);
 
             // Above code has contract 0->0, so we need to special-case
