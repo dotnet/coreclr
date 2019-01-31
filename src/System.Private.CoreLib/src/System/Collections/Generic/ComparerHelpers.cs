@@ -52,7 +52,7 @@ namespace System.Collections.Generic
             {
                 result = TryCreateEnumComparer(runtimeType);
             }
-            
+
             return result ?? CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ObjectComparer<object>), runtimeType);
         }
 
@@ -64,7 +64,7 @@ namespace System.Collections.Generic
         {
             Debug.Assert(nullableType != null);
             Debug.Assert(nullableType.IsGenericType && nullableType.GetGenericTypeDefinition() == typeof(Nullable<>));
-            
+
             var embeddedType = (RuntimeType)nullableType.GetGenericArguments()[0];
 
             if (typeof(IComparable<>).MakeGenericType(embeddedType).IsAssignableFrom(embeddedType))
@@ -75,22 +75,22 @@ namespace System.Collections.Generic
             return null;
         }
 
-        /// <summary>	
-        /// Creates the default <see cref="Comparer{T}"/> for an enum type.	
-        /// </summary>	
-        /// <param name="enumType">The enum type to create the default comparer for.</param>	
+        /// <summary>
+        /// Creates the default <see cref="Comparer{T}"/> for an enum type.
+        /// </summary>
+        /// <param name="enumType">The enum type to create the default comparer for.</param>
         private static object TryCreateEnumComparer(RuntimeType enumType)
         {
             Debug.Assert(enumType != null);
             Debug.Assert(enumType.IsEnum);
 
-            // Explicitly call Enum.GetUnderlyingType here. Although GetTypeCode	
-            // ends up doing this anyway, we end up avoiding an unnecessary P/Invoke	
-            // and virtual method call.	
+            // Explicitly call Enum.GetUnderlyingType here. Although GetTypeCode
+            // ends up doing this anyway, we end up avoiding an unnecessary P/Invoke
+            // and virtual method call.
             TypeCode underlyingTypeCode = Type.GetTypeCode(Enum.GetUnderlyingType(enumType));
 
-            // Depending on the enum type, we need to special case the comparers so that we avoid boxing.	
-            // Specialize differently for signed/unsigned types so we avoid problems with large numbers.	
+            // Depending on the enum type, we need to special case the comparers so that we avoid boxing.
+            // Specialize differently for signed/unsigned types so we avoid problems with large numbers.
             switch (underlyingTypeCode)
             {
                 case TypeCode.SByte:
@@ -145,7 +145,7 @@ namespace System.Collections.Generic
             {
                 result = TryCreateEnumEqualityComparer(runtimeType);
             }
-            
+
             return result ?? CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ObjectEqualityComparer<object>), runtimeType);
         }
 
@@ -164,25 +164,25 @@ namespace System.Collections.Generic
             {
                 return RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(NullableEqualityComparer<int>), embeddedType);
             }
-            
+
             return null;
         }
 
-        /// <summary>	
-        /// Creates the default <see cref="EqualityComparer{T}"/> for an enum type.	
-        /// </summary>	
-        /// <param name="enumType">The enum type to create the default equality comparer for.</param>	
+        /// <summary>
+        /// Creates the default <see cref="EqualityComparer{T}"/> for an enum type.
+        /// </summary>
+        /// <param name="enumType">The enum type to create the default equality comparer for.</param>
         private static object TryCreateEnumEqualityComparer(RuntimeType enumType)
         {
             Debug.Assert(enumType != null);
             Debug.Assert(enumType.IsEnum);
 
-            // See the METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST and METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST_LONG cases in getILIntrinsicImplementation	
-            // for how we cast the enum types to integral values in the comparer without boxing.	
+            // See the METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST and METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST_LONG cases in getILIntrinsicImplementation
+            // for how we cast the enum types to integral values in the comparer without boxing.
 
             TypeCode underlyingTypeCode = Type.GetTypeCode(Enum.GetUnderlyingType(enumType));
 
-            // Depending on the enum type, we need to special case the comparers so that we avoid boxing.	
+            // Depending on the enum type, we need to special case the comparers so that we avoid boxing.
             switch (underlyingTypeCode)
             {
                 case TypeCode.Int32:
