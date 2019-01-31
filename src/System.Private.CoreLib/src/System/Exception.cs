@@ -337,7 +337,7 @@ namespace System
             {
                 if (_source == null)
                 {
-                    StackTrace st = new StackTrace(this, false);
+                    StackTrace st = new StackTrace(this, fNeedFileInfo: false);
                     if (st.FrameCount > 0)
                     {
                         StackFrame sf = st.GetFrame(0);
