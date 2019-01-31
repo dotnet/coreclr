@@ -24,7 +24,7 @@ namespace System
         // Create instance will create an array
         public static unsafe Array CreateInstance(Type elementType, int length)
         {
-            if ((object)elementType == null)
+            if (elementType is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length < 0)
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
@@ -37,7 +37,7 @@ namespace System
 
         public static unsafe Array CreateInstance(Type elementType, int length1, int length2)
         {
-            if ((object)elementType == null)
+            if (elementType is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length1 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length1, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -55,7 +55,7 @@ namespace System
 
         public static unsafe Array CreateInstance(Type elementType, int length1, int length2, int length3)
         {
-            if ((object)elementType == null)
+            if (elementType is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length1 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length1, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -76,7 +76,7 @@ namespace System
 
         public static unsafe Array CreateInstance(Type elementType, params int[] lengths)
         {
-            if ((object)elementType == null)
+            if (elementType is null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (lengths == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);
@@ -87,7 +87,7 @@ namespace System
             if (t == null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
 
-            // Check to make sure the lenghts are all positive. Note that we check this here to give
+            // Check to make sure the lengths are all positive. Note that we check this here to give
             // a good exception message if they are not; however we check this again inside the execution 
             // engine's low level allocation function after having made a copy of the array to prevent a 
             // malicious caller from mutating the array after this check.           
@@ -403,12 +403,6 @@ namespace System
         public extern void Initialize();
     }
 
-
-
-
-
-
-
     //----------------------------------------------------------------------------------------
     // ! READ THIS BEFORE YOU WORK ON THIS CLASS.
     // 
@@ -440,9 +434,6 @@ namespace System
             Debug.Fail("Hey! How'd I get here?");
         }
 
-        // -----------------------------------------------------------
-        // ------- Implement IEnumerable<T> interface methods --------
-        // -----------------------------------------------------------
         internal IEnumerator<T> GetEnumerator<T>()
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
@@ -451,9 +442,6 @@ namespace System
             return _this.Length == 0 ? SZGenericArrayEnumerator<T>.Empty : new SZGenericArrayEnumerator<T>(_this);
         }
 
-        // -----------------------------------------------------------
-        // ------- Implement ICollection<T> interface methods --------
-        // -----------------------------------------------------------
         private void CopyTo<T>(T[] array, int index)
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
@@ -471,9 +459,6 @@ namespace System
             return _this.Length;
         }
 
-        // -----------------------------------------------------------
-        // ---------- Implement IList<T> interface methods -----------
-        // -----------------------------------------------------------
         internal T get_Item<T>(int index)
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
@@ -612,4 +597,3 @@ namespace System
         }
     }
 }
-
