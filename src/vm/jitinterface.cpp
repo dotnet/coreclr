@@ -9174,12 +9174,6 @@ CORINFO_CLASS_HANDLE CEEInfo::getDefaultEqualityComparerClassHelper(CORINFO_CLAS
             case ELEMENT_TYPE_U4:
             case ELEMENT_TYPE_I8:
             case ELEMENT_TYPE_U8:
-            case ELEMENT_TYPE_BOOLEAN:
-            case ELEMENT_TYPE_CHAR:
-            case ELEMENT_TYPE_R4:
-            case ELEMENT_TYPE_R8:
-            case ELEMENT_TYPE_I:
-            case ELEMENT_TYPE_U:
             {
                 targetClass = MscorlibBinder::GetClass(CLASS__ENUM_EQUALITYCOMPARER);
                 break;
