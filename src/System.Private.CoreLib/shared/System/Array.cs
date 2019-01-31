@@ -15,6 +15,14 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public abstract partial class Array : ICloneable, IList, IStructuralComparable, IStructuralEquatable
     {
+        // We impose limits on maximum array lenght in each dimension to allow efficient
+        // implementation of advanced range check elimination in future.
+        // Keep in sync with vm\gcscan.cpp and HashHelpers.MaxPrimeArrayLength.
+        // The constants are defined in this method: inline SIZE_T MaxArrayLength(SIZE_T componentSize) from gcscan
+        // We have different max sizes for arrays with elements of size 1 for backwards compatibility
+        internal const int MaxArrayLength = 0X7FEFFFFF;
+        internal const int MaxByteArrayLength = 0x7FFFFFC7;
+
         // This ctor exists solely to prevent C# from generating a protected .ctor that violates the surface area. I really want this to be a
         // "protected-and-internal" rather than "internal" but C# has no keyword for the former.
         internal Array() { }
