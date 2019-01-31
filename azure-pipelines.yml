@@ -180,7 +180,7 @@ jobs:
           - no_tiered_compilation
         timeoutTotalInMinutes: 360
         timeoutPerTestCollectionInMinutes: 60
-        timeoutPerTestInMinutes: 30
+        timeoutPerTestInMinutes: 10
 
 # Pri1 (Schedule, Manual)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'Schedule', 'Manual')) }}:
@@ -251,7 +251,7 @@ jobs:
           - no_tiered_compilation
         timeoutTotalInMinutes: 360
         timeoutPerTestCollectionInMinutes: 60
-        timeoutPerTestInMinutes: 30
+        timeoutPerTestInMinutes: 10
 
 
 # Publish build information to Build Assets Registry
