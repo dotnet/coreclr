@@ -197,7 +197,7 @@ DWORD WINAPI SampleProfiler::ThreadProc(void *args)
 
     // Signal Disable() that the thread has been destroyed.
     s_threadShutdownEvent.Set();
-    s_threadShutdownEvent.CloseEvent(); // Issue 22247
+    s_threadShutdownEvent.CloseEvent();
 
     return S_OK;
 }
