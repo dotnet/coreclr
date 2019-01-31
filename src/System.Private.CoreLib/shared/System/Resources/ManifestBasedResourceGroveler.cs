@@ -371,36 +371,16 @@ namespace System.Resources
             // Look up the satellite assembly, but don't let problems
             // like a partially signed satellite assembly stop us from
             // doing fallback and displaying something to the user.
-            // Yet also somehow log this error for a developer.
             try
             {
                 satellite = InternalGetSatelliteAssembly(_mediator.MainAssembly, lookForCulture, _mediator.SatelliteContractVersion);
             }
-
-            // Jun 08: for cases other than ACCESS_DENIED, we'll assert instead of throw to give release builds more opportunity to fallback.
-
-#if CORECLR
-            catch (FileLoadException fle)
-            {
-                // Ignore cases where the loader gets an access
-                // denied back from the OS.  This showed up for
-                // href-run exe's at one point.  
-                int hr = fle.HResult;
-                if (hr != Win32Marshal.MakeHRFromErrorCode(Interop.Errors.ERROR_ACCESS_DENIED))
-                {
-                    Debug.Fail("[This assert catches satellite assembly build/deployment problems - report this message to your build lab & loc engineer]" + Environment.NewLine + "GetSatelliteAssembly failed for culture " + lookForCulture.Name + " and version " + (_mediator.SatelliteContractVersion == null ? _mediator.MainAssembly.GetName().Version.ToString() : _mediator.SatelliteContractVersion.ToString()) + " of assembly " + _mediator.MainAssembly.GetName().Name + " with error code 0x" + hr.ToString("X", CultureInfo.InvariantCulture) + Environment.NewLine + "Exception: " + fle);
-                }
-            }
-#else
             catch (FileLoadException)
             {
             }
-#endif
-
-            // Don't throw for zero-length satellite assemblies, for compat with v1
-            catch (BadImageFormatException bife)
+            catch (BadImageFormatException)
             {
-                Debug.Fail("[This assert catches satellite assembly build/deployment problems - report this message to your build lab & loc engineer]" + Environment.NewLine + "GetSatelliteAssembly failed for culture " + lookForCulture.Name + " and version " + (_mediator.SatelliteContractVersion == null ? _mediator.MainAssembly.GetName().Version.ToString() : _mediator.SatelliteContractVersion.ToString()) + " of assembly " + _mediator.MainAssembly.GetName().Name + Environment.NewLine + "Exception: " + bife);
+                // Don't throw for zero-length satellite assemblies, for compat with v1
             }
 
             return satellite;
