@@ -384,7 +384,7 @@ namespace System.Resources
                 // Ignore cases where the loader gets an access
                 // denied back from the OS.  This showed up for
                 // href-run exe's at one point.  
-                int hr = fle._HResult;
+                int hr = fle.HResult;
                 if (hr != Win32Marshal.MakeHRFromErrorCode(Interop.Errors.ERROR_ACCESS_DENIED))
                 {
                     Debug.Fail("[This assert catches satellite assembly build/deployment problems - report this message to your build lab & loc engineer]" + Environment.NewLine + "GetSatelliteAssembly failed for culture " + lookForCulture.Name + " and version " + (_mediator.SatelliteContractVersion == null ? _mediator.MainAssembly.GetName().Version.ToString() : _mediator.SatelliteContractVersion.ToString()) + " of assembly " + _mediator.MainAssembly.GetName().Name + " with error code 0x" + hr.ToString("X", CultureInfo.InvariantCulture) + Environment.NewLine + "Exception: " + fle);
