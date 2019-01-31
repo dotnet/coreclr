@@ -718,20 +718,33 @@ void CodeGen::genCodeForBBlist()
                 break;
         }
 
-#ifdef DEBUG
-        printf("Varaible History Dump for Block %d \n", blockNum);
-        for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
-        {
-            printf("Var %d:\n", varNum);
-            varDsc->dumpRegisterHistoryForBlock();
-        }
-#endif
-        compiler->compCurBB = nullptr;
 
+#ifdef DEBUG
+        bool hasDumpedHistory = false;
+        printf("Var History Dump for Block %d \n", blockNum);
+#endif
         for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
         {
-            varDsc->EndBlock();
+
+            if (varDsc->hasChangeHome())
+            {
+                varDsc->EndRegisterHistoryForBlock(getEmitter());
+#ifdef DEBUG
+                hasDumpedHistory = true;
+                printf("Var %d:\n", varNum);
+                varDsc->dumpRegisterHistoryForBlock();
+#endif
+                varDsc->EndBlock();
+            }
         }
+
+#ifdef DEBUG
+        if (!hasDumpedHistory)
+        {
+            printf("..None..\n");
+        }
+        compiler->compCurBB = nullptr;
+#endif
 
         printf("End Generating code for Block %d \n", blockNum);
     } //------------------ END-FOR each block of the method -------------------

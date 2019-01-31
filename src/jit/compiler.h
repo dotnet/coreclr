@@ -360,17 +360,30 @@ public:
 
     VariableHomeList *variableHomeHistory;
     LiveRangeHistoryBarrier *variableLifeBarrier;
+    UNATIVE_OFFSET lastBlockInitOffset = -1;
+    UNATIVE_OFFSET BAD_NATIVE_OFFSET = -1;
 
-    void initializeRegisterHistory(CompAllocator allocator) 
+    // Initialize an empty list and a barrier pointing to its end
+    void initializeRegisterHistory(CompAllocator allocator, emitter *_emitter) 
     {
         variableHomeHistory = new VariableHomeList(allocator);
 
         variableLifeBarrier = new LiveRangeHistoryBarrier(variableHomeHistory);
+
+        lastBlockInitOffset = _emitter->emitCurOffset();
     }
 
+    // Modified the barrier to print on next block only just that changes
     void EndBlock()
     {
+        // barrier now points to nullptr
         variableLifeBarrier->reset(variableHomeHistory);
+    }
+
+    // Returns true if a live range for this variable has been recorded from last call to EndBlock
+    bool hasChangeHome() const
+    {
+        return variableLifeBarrier->haveReadAtLeastOneOfBlock;
     }
 
     void dumpRegisterHistoryForBlock() const
@@ -397,23 +410,45 @@ public:
         variableHomeHistory->back().endNativeOffset = _emitter->emitCurOffset();
     }
 
-    void AddRegisterHome(regNumber registerNumber, emitter *_emitter ) const
+    // Move the barrier to the last position of variableHomeHistory
+    // This is used to print only the changes in the last block
+    void setBarrierAtLastPositionInRegisterHistory() const
     {
-        noway_assert(variableHomeHistory != nullptr);
+        variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
+        variableLifeBarrier->beginLastBlock = variableHomeHistory->backPosition();
+    }
+    
+    void initRegisterIn(regNumber registerNumber) const
+    {
+        // Nothing has been pushed before
+        noway_assert(variableHomeHistory == nullptr || variableHomeHistory->empty());
         
-        // Close previous live range if any. We use [close, open) ranges so as to not compute the size of the last instruction
-        if (!variableHomeHistory->empty()) 
-        {
-            EndRegisterHistoryForBlock(_emitter);
-        }
-        
-        NATIVE_OFFSET nativeInitialOffset = _emitter->emitCurOffset();
-        variableHomeHistory->emplace_back(registerNumber, nativeInitialOffset, -1);
+        variableHomeHistory->emplace_back(registerNumber, lastBlockInitOffset, BAD_NATIVE_OFFSET);
 
         if (!(variableLifeBarrier->haveReadAtLeastOneOfBlock))
         {
-            variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
-            variableLifeBarrier->beginLastBlock = variableHomeHistory->backPosition();
+            setBarrierAtLastPositionInRegisterHistory();
+        }
+    }
+
+    void SwapRegisterHome(regNumber registerNumber, emitter *_emitter ) const
+    {
+        // A variable comes live in register so if there was no history during this black it was on stack
+        if (hasChangeHome())
+        {
+            initRegisterIn(REG_STK);
+        }
+
+        noway_assert(variableHomeHistory != nullptr && !variableHomeHistory->empty());
+        
+        // Not sure if we can be noticed of moving into a the same previous register
+        if (variableHomeHistory->back().registerNumber != registerNumber)
+        {
+            // Close previous live range. I am using [close, open) ranges so as to not compute the size of the last instruction
+            EndRegisterHistoryForBlock(_emitter);
+
+            NATIVE_OFFSET nativeInitialOffset = _emitter->emitCurOffset();
+            variableHomeHistory->emplace_back(registerNumber, nativeInitialOffset, BAD_NATIVE_OFFSET);
         }
     }
 
