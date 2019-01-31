@@ -243,8 +243,15 @@ namespace System
     internal static partial class Number
     {
         internal const int DecimalPrecision = 29; // Decimal.DecCalc also uses this value
+
+        // SinglePrecision and DoublePrecision represent the maximum number of digits required
+        // to guarantee that any given Single or Double can roundtrip. Some numbers may require
+        // less, but none will require more.
         private const int SinglePrecision = 9;
         private const int DoublePrecision = 17;
+
+        private const int DefaultPrecisionExponentialFormat = 6;
+
         private const int ScaleNAN = unchecked((int)0x80000000);
         private const int ScaleINF = 0x7FFFFFFF;
         private const int MaxUInt32DecDigits = 10;
@@ -415,7 +422,7 @@ namespace System
 
                     if (precision == -1)
                     {
-                        precision = 6;
+                        precision = DefaultPrecisionExponentialFormat;
                     }
 
                     precision++;
@@ -525,7 +532,7 @@ namespace System
             // accept values like 0 and others may require additional fixups.
             int nMaxDigits = GetFloatingPointMaxDigitsAndPrecision(fmt, ref precision, info, out bool isSignificantDigits);
 
-            if ((value != 0.0) && (!isSignificantDigits || !Grisu3.RunDouble(value, precision, ref number)))
+            if ((value != 0.0) && (!isSignificantDigits || !Grisu3.TryRunDouble(value, precision, ref number)))
             {
                 Dragon4Double(value, precision, isSignificantDigits, ref number);
             }
@@ -605,7 +612,7 @@ namespace System
             // accept values like 0 and others may require additional fixups.
             int nMaxDigits = GetFloatingPointMaxDigitsAndPrecision(fmt, ref precision, info, out bool isSignificantDigits);
 
-            if ((value != 0.0f) && (!isSignificantDigits || !Grisu3.RunSingle(value, precision, ref number)))
+            if ((value != 0.0f) && (!isSignificantDigits || !Grisu3.TryRunSingle(value, precision, ref number)))
             {
                 Dragon4Single(value, precision, isSignificantDigits, ref number);
             }
@@ -1624,7 +1631,7 @@ namespace System
                 case 'e':
                 {
                     if (nMaxDigits < 0)
-                        nMaxDigits = 6;
+                        nMaxDigits = DefaultPrecisionExponentialFormat;
                     nMaxDigits++;
 
                     RoundNumber(ref number, nMaxDigits);

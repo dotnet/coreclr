@@ -17,7 +17,7 @@ namespace System
         // The general idea behind Grisu3 is to leverage additional bits and cached powers of ten to generate the correct digits.
         // The algorithm is imprecise for some numbers. Fortunately, the algorithm itself can determine this scenario and gives us
         // a result indicating success or failure. We must fallback to a different algorithm for the failing scenario.
-        internal static unsafe class Grisu3
+        internal static class Grisu3
         {
             private const int CachedPowersDecimalExponentDistance = 8;
             private const int CachedPowersMinDecimalExponent = -348;
@@ -322,7 +322,7 @@ namespace System
                 1000000000, // 10^9
             };
 
-            public static bool RunDouble(double value, int requestedDigits, ref NumberBuffer number)
+            public static bool TryRunDouble(double value, int requestedDigits, ref NumberBuffer number)
             {
                 double v = double.IsNegative(value) ? -value : value;
 
@@ -335,13 +335,13 @@ namespace System
 
                 if (requestedDigits == -1)
                 {
-                    var w = new DiyFp(v, out DiyFp boundaryMinus, out DiyFp boundaryPlus).Normalize();
-                    result = RunShortest(in boundaryMinus, in w, in boundaryPlus, number.Digits, out length, out decimalExponent);
+                    DiyFp w = DiyFp.CreateAndGetBoundaries(v, out DiyFp boundaryMinus, out DiyFp boundaryPlus).Normalize();
+                    result = TryRunShortest(in boundaryMinus, in w, in boundaryPlus, number.Digits, out length, out decimalExponent);
                 }
                 else
                 {
-                    var w = new DiyFp(v).Normalize();
-                    result = RunCounted(in w, requestedDigits, number.Digits, out length, out decimalExponent);
+                    DiyFp w = new DiyFp(v).Normalize();
+                    result = TryRunCounted(in w, requestedDigits, number.Digits, out length, out decimalExponent);
                 }
 
                 if (result)
@@ -356,7 +356,7 @@ namespace System
                 return result;
             }
 
-            public static bool RunSingle(float value, int requestedDigits, ref NumberBuffer number)
+            public static bool TryRunSingle(float value, int requestedDigits, ref NumberBuffer number)
             {
                 float v = float.IsNegative(value) ? -value : value;
 
@@ -369,13 +369,13 @@ namespace System
 
                 if (requestedDigits == -1)
                 {
-                    var w = new DiyFp(v, out DiyFp boundaryMinus, out DiyFp boundaryPlus).Normalize();
-                    result = RunShortest(in boundaryMinus, in w, in boundaryPlus, number.Digits, out length, out decimalExponent);
+                    DiyFp w = DiyFp.CreateAndGetBoundaries(v, out DiyFp boundaryMinus, out DiyFp boundaryPlus).Normalize();
+                    result = TryRunShortest(in boundaryMinus, in w, in boundaryPlus, number.Digits, out length, out decimalExponent);
                 }
                 else
                 {
-                    var w = new DiyFp(v).Normalize();
-                    result = RunCounted(in w, requestedDigits, number.Digits, out length, out decimalExponent);
+                    DiyFp w = new DiyFp(v).Normalize();
+                    result = TryRunCounted(in w, requestedDigits, number.Digits, out length, out decimalExponent);
                 }
 
                 if (result)
@@ -393,7 +393,7 @@ namespace System
             // The counted version of Grisu3 only generates requestedDigits number of digits.
             // This version does not generate the shortest representation, and with enough requested digits 0.1 will at some point print as 0.9999999...
             // Grisu3 is too imprecise for real halfway cases (1.5 will not work) and therefore the rounding strategy for halfway cases is irrelevant.
-            private static bool RunCounted(in DiyFp w, int requestedDigits, Span<byte> buffer, out int length, out int decimalExponent)
+            private static bool TryRunCounted(in DiyFp w, int requestedDigits, Span<byte> buffer, out int length, out int decimalExponent)
             {
                 Debug.Assert(requestedDigits > 0);
 
@@ -406,7 +406,7 @@ namespace System
                 Debug.Assert(MaximalTargetExponent >= (w.e + tenMk.e + DiyFp.SignificandSize));
 
                 // Note that tenMk is only an approximation of 10^-k.
-                // A DiyFp only contains a 64-bit significan and tenMk is thus only precise up to 64-bits.
+                // A DiyFp only contains a 64-bit significand and tenMk is thus only precise up to 64-bits.
 
                 // The DiyFp.Multiply procedure rounds its result and tenMk is approximated too.
                 // The variable scaledW (as well as scaledBoundaryMinus/Plus) are now off by a small amount.
@@ -424,7 +424,7 @@ namespace System
                 //
                 // It will not always be exactly the same since DigitGenCounted only produces a limited number of digits.
 
-                bool result = DigitGenCounted(in scaledW, requestedDigits, buffer, out length, out int kappa);
+                bool result = TryDigitGenCounted(in scaledW, requestedDigits, buffer, out length, out int kappa);
                 decimalExponent = -mk + kappa;
                 return result;
             }
@@ -441,7 +441,7 @@ namespace System
             //
             // The last digit will be closest to the actual v.
             // That is, even if several digits might correctly yield 'v' when read again, the closest will be computed.
-            private static bool RunShortest(in DiyFp boundaryMinus, in DiyFp w, in DiyFp boundaryPlus, Span<byte> buffer, out int length, out int decimalExponent)
+            private static bool TryRunShortest(in DiyFp boundaryMinus, in DiyFp w, in DiyFp boundaryPlus, Span<byte> buffer, out int length, out int decimalExponent)
             {
                 // boundaryMinus and boundaryPlus are the boundaries between v and its closest floating-point neighbors.
                 // Any number strictly between boundaryMinus and boundaryPlus will round to v when converted to a double.
@@ -483,7 +483,7 @@ namespace System
                 // Set decimalExponent == -mk and pass it to DigitGen and if scaledW is not an integer than it will be updated.
                 // For instance, if scaledW == 1.23 then the buffer will be filled with "123" and the decimalExponent will be decreased by 2.
 
-                bool result = DigitGenShortest(in scaledBoundaryMinus, in scaledW, in scaledBoundaryPlus, buffer, out length, out int kappa);
+                bool result = TryDigitGenShortest(in scaledBoundaryMinus, in scaledW, in scaledBoundaryPlus, buffer, out length, out int kappa);
                 decimalExponent = -mk + kappa;
                 return result;
             }
@@ -544,7 +544,7 @@ namespace System
             // This procedure takes into account the imprecision of its input numbers.
             // If the precision is not enough to guarantee all the postconditions, then false is returned.
             // This usually happens rarely, but the failure-rate increases with higher requestedDigits
-            private static bool DigitGenCounted(in DiyFp w, int requestedDigits, Span<byte> buffer, out int length, out int kappa)
+            private static bool TryDigitGenCounted(in DiyFp w, int requestedDigits, Span<byte> buffer, out int length, out int kappa)
             {
                 Debug.Assert(MinimalTargetExponent <= w.e);
                 Debug.Assert(w.e <= MaximalTargetExponent);
@@ -612,7 +612,7 @@ namespace System
                 if (requestedDigits == 0)
                 {
                     ulong rest = ((ulong)(integrals) << -one.e) + fractionals;
-                    return RoundWeedCounted(
+                    return TryRoundWeedCounted(
                         buffer,
                         length,
                         rest,
@@ -658,7 +658,7 @@ namespace System
                     return false;
                 }
 
-                return RoundWeedCounted(
+                return TryRoundWeedCounted(
                     buffer,
                     length,
                     rest: fractionals,
@@ -712,7 +712,7 @@ namespace System
             //
             // Everything inside the interval low - high represents w.
             // However we have to pay attention to low, high and w's imprecision.
-            private static bool DigitGenShortest(in DiyFp low, in DiyFp w, in DiyFp high, Span<byte> buffer, out int length, out int kappa)
+            private static bool TryDigitGenShortest(in DiyFp low, in DiyFp w, in DiyFp high, Span<byte> buffer, out int length, out int kappa)
             {
                 Debug.Assert(low.e == w.e);
                 Debug.Assert(w.e == high.e);
@@ -789,7 +789,7 @@ namespace System
                         // Rounding down (by not emitting the remaining digits)
                         // yields a number that lies within the unsafe interval
 
-                        return RoundWeedShortest(
+                        return TryRoundWeedShortest(
                             buffer,
                             length,
                             tooHigh.Subtract(w).f,
@@ -833,7 +833,7 @@ namespace System
 
                     if (fractionals < unsafeInterval.f)
                     {
-                        return RoundWeedShortest(
+                        return TryRoundWeedShortest(
                             buffer,
                             length,
                             tooHigh.Subtract(w).f * unit,
@@ -876,7 +876,7 @@ namespace System
             //
             // Preconditions:
             //      rest < tenKappa
-            private static bool RoundWeedCounted(Span<byte> buffer, int length, ulong rest, ulong tenKappa, ulong unit, ref int kappa)
+            private static bool TryRoundWeedCounted(Span<byte> buffer, int length, ulong rest, ulong tenKappa, ulong unit, ref int kappa)
             {
                 Debug.Assert(rest < tenKappa);
 
@@ -949,7 +949,7 @@ namespace System
             //      Returns true if the buffer is guaranteed to contain the closest representable number to the input.
             //
             // Modifies the generated digits in the buffer to approach (round towards) w.
-            private static bool RoundWeedShortest(Span<byte> buffer, int length, ulong distanceTooHighW, ulong unsafeInterval, ulong rest, ulong tenKappa, ulong unit)
+            private static bool TryRoundWeedShortest(Span<byte> buffer, int length, ulong distanceTooHighW, ulong unsafeInterval, ulong rest, ulong tenKappa, ulong unit)
             {
                 ulong smallDistance = distanceTooHighW - unit;
                 ulong bigDistance = distanceTooHighW + unit;

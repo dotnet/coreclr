@@ -11,7 +11,7 @@ namespace System
     // The backing algorithm and the proofs behind it are described in more detail here:  https://www.cs.indiana.edu/~dyb/pubs/FP-Printing-PLDI96.pdf
     internal static partial class Number
     {
-        public static unsafe void Dragon4Double(double value, int cutoffNumber, bool isSignificantDigits, ref NumberBuffer number)
+        public static void Dragon4Double(double value, int cutoffNumber, bool isSignificantDigits, ref NumberBuffer number)
         {
             double v = double.IsNegative(value) ? -value : value;
 
@@ -23,10 +23,10 @@ namespace System
             uint mantissaHighBitIdx = 0;
             bool hasUnequalMargins = false;
 
-            if ((mantissa >> 52) != 0)
+            if ((mantissa >> DiyFp.DoubleImplicitBitIndex) != 0)
             {
-                mantissaHighBitIdx = 52;
-                hasUnequalMargins = (mantissa == (1UL << 52));
+                mantissaHighBitIdx = DiyFp.DoubleImplicitBitIndex;
+                hasUnequalMargins = (mantissa == (1UL << DiyFp.DoubleImplicitBitIndex));
             }
             else
             {
@@ -52,10 +52,10 @@ namespace System
             uint mantissaHighBitIdx = 0;
             bool hasUnequalMargins = false;
 
-            if ((mantissa >> 23) != 0)
+            if ((mantissa >> DiyFp.SingleImplicitBitIndex) != 0)
             {
-                mantissaHighBitIdx = 23;
-                hasUnequalMargins = (mantissa == (1U << 23));
+                mantissaHighBitIdx = DiyFp.SingleImplicitBitIndex;
+                hasUnequalMargins = (mantissa == (1U << DiyFp.SingleImplicitBitIndex));
             }
             else
             {

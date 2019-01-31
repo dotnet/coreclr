@@ -17,10 +17,41 @@ namespace System
         // DiyFp are not designed to contain special doubles (NaN and Infinity).
         internal readonly ref struct DiyFp
         {
+            public const int DoubleImplicitBitIndex = 52;
+            public const int SingleImplicitBitIndex = 23;
+
             public const int SignificandSize = 64;
 
             public readonly ulong f;
             public readonly int e;
+
+            // Computes the two boundaries of value.
+            //
+            // The bigger boundary (mPlus) is normalized.
+            // The lower boundary has the same exponent as mPlus.
+            //
+            // Precondition:
+            //  The value encoded by value must be greater than 0.
+            public static DiyFp CreateAndGetBoundaries(double value, out DiyFp mMinus, out DiyFp mPlus)
+            {
+                var result = new DiyFp(value);
+                result.GetBoundaries(DoubleImplicitBitIndex, out mMinus, out mPlus);
+                return result;
+            }
+
+            // Computes the two boundaries of value.
+            //
+            // The bigger boundary (mPlus) is normalized.
+            // The lower boundary has the same exponent as mPlus.
+            //
+            // Precondition:
+            //  The value encoded by value must be greater than 0.
+            public static DiyFp CreateAndGetBoundaries(float value, out DiyFp mMinus, out DiyFp mPlus)
+            {
+                var result = new DiyFp(value);
+                result.GetBoundaries(SingleImplicitBitIndex, out mMinus, out mPlus);
+                return result;
+            }
 
             public DiyFp(double value)
             {
@@ -36,39 +67,15 @@ namespace System
                 f = ExtractFractionAndBiasedExponent(value, out e);
             }
 
-            // Computes the two boundaries of value.
-            //
-            // The bigger boundary (mPlus) is normalized.
-            // The lower boundary has the same exponent as mPlus.
-            //
-            // Precondition:
-            //  The value encoded by value must be greater than 0.
-            public DiyFp(double value, out DiyFp mMinus, out DiyFp mPlus) : this(value)
+            public DiyFp(ulong f, int e)
             {
-                GetBoundaries(52, out mMinus, out mPlus);
-            }
-
-            // Computes the two boundaries of value.
-            //
-            // The bigger boundary (mPlus) is normalized.
-            // The lower boundary has the same exponent as mPlus.
-            //
-            // Precondition:
-            //  The value encoded by value must be greater than 0.
-            public DiyFp(float value, out DiyFp mMinus, out DiyFp mPlus) : this(value)
-            {
-                GetBoundaries(23, out mMinus, out mPlus);
-            }
-
-            public DiyFp(ulong significand, int exponent)
-            {
-                f = significand;
-                e = exponent;
+                this.f = f;
+                this.e = e;
             }
 
             public DiyFp Multiply(in DiyFp other)
             {
-                // Simply "emulates" a 128-bit multiplcation
+                // Simply "emulates" a 128-bit multiplication
                 //
                 // However: the resulting number only contains 64-bits. The least
                 // signficant 64-bits are only used for rounding the most significant
@@ -109,7 +116,7 @@ namespace System
             }
 
             // The exponents of both numbers must be the same.
-            // The significand of this must be bigger than the significand of other.
+            // The significand of 'this' must be bigger than the significand of 'other'.
             // The result will not be normalized.
             public DiyFp Subtract(in DiyFp other)
             {
