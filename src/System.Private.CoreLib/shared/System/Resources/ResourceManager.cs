@@ -538,17 +538,12 @@ namespace System.Resources
             if (v == null)
             {
                 // Return null. The calling code will use the assembly version instead to avoid potential type
-                // and library loads caused by CA lookup. NetCF uses the assembly version always.
+                // and library loads caused by CA lookup.
                 return null;
             }
 
             if (!Version.TryParse(v, out Version version))
             {
-                // Note we are prone to hitting infinite loops if mscorlib's
-                // SatelliteContractVersionAttribute contains bogus values.
-                // If this assert fires, please fix the build process for the
-                // BCL directory.
-                Debug.Assert(a == typeof(object).GetTypeInfo().Assembly, System.CoreLib.Name + "'s SatelliteContractVersionAttribute is a malformed version string!");
                 throw new ArgumentException(SR.Format(SR.Arg_InvalidSatelliteContract_Asm_Ver, a.ToString(), v));
             }
 
