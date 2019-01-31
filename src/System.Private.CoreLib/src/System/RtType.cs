@@ -3422,7 +3422,10 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumBridge.Get(this).GetNamesNonGeneric();
+            string[] ret = Enum.EnumBridge.Get(this).Cache._names;
+
+            // Make a copy since we can't hand out the same array since users can modify them
+            return new ReadOnlySpan<string>(ret).ToArray();
         }
 
         public override Array GetEnumValues()
