@@ -92,12 +92,11 @@ namespace
 
 namespace Utility
 {
-    HRESULT TryGetEnvVar(_In_z_ const WCHAR *env, _Inout_ std::string &envVar)
+    HRESULT TryGetEnvVar(_In_z_ const WCHAR *env, _Inout_ std::wstring &envVar)
     {
         try
         {
-            std::wstring envVarLocal = GetEnvVar(env);
-            envVar = ConvertWideToUtf8(envVarLocal);
+            envVar = GetEnvVar(env);
         }
         catch (HRESULT hr)
         {
@@ -106,7 +105,81 @@ namespace Utility
 
         return S_OK;
     }
+
+    HRESULT GetCoreShimDirectory(_Inout_ std::wstring &dir)
+    {
+        HMODULE hModule;
+        BOOL res = ::GetModuleHandleExW(
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<LPCWSTR>(&TryGetEnvVar),
+            &hModule);
+        if (res == FALSE)
+            return HRESULT_FROM_WIN32(::GetLastError());
+
+        std::wstring path;
+        size_t dwModuleFileName = MAX_PATH / 2;
+
+        do
+        {
+            path.resize(dwModuleFileName * 2);
+            dwModuleFileName = GetModuleFileNameW(hModule, (LPWSTR)path.data(), static_cast<DWORD>(path.size()));
+        } while (dwModuleFileName == path.size());
+
+        if (dwModuleFileName == 0)
+            return HRESULT_FROM_WIN32(::GetLastError());
+
+        size_t idx = path.find_last_of(W('\\'));
+        if (idx == std::wstring::npos)
+            return E_UNEXPECTED;
+
+        path.resize(idx + 1);
+        dir = std::move(path);
+        return S_OK;
+    }
+
+    HRESULT GetCoreShimDirectory(_Inout_ std::string &dir)
+    {
+        HRESULT hr;
+
+        std::wstring dir_wide;
+        RETURN_IF_FAILED(GetCoreShimDirectory(dir_wide));
+
+        dir = ConvertWideToUtf8(dir_wide);
+
+        return S_OK;
+    }
 }
+
+//
+// BEGIN hostpolicy mock
+//
+
+#define SHARED_API extern "C" __declspec(dllexport)
+
+using corehost_resolve_component_dependencies_result_fn = void(*)(
+    const WCHAR *assembly_paths,
+    const WCHAR *native_search_paths,
+    const WCHAR *resource_search_paths);
+
+SHARED_API int corehost_resolve_component_dependencies(
+    const WCHAR *component_main_assembly_path,
+    corehost_resolve_component_dependencies_result_fn result)
+{
+    return 0;
+}
+
+using corehost_error_writer_fn = void(*)(const WCHAR* message);
+
+SHARED_API corehost_error_writer_fn corehost_set_error_writer(corehost_error_writer_fn error_writer)
+{
+    return nullptr;
+}
+
+#undef SHARED_API
+
+//
+// END hostpolicy mock
+//
 
 HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ const WCHAR *path)
 {
@@ -114,6 +187,28 @@ HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ cons
     {
         *instance = s_CoreClrInstance;
         return S_FALSE;
+    }
+
+    // Since the CoreShim is being loaded, there is a chance the scenario depends on
+    // other aspects of the offical host platform (e.g. hostpolicy). Verify a hostpolicy
+    // is _not_ already loaded and if not, make a copy of CoreShim, rename it to
+    // hostpolicy and load it.
+    const WCHAR *hostpolicyName = W("hostpolicy.dll");
+    HMODULE hMod = ::GetModuleHandleW(hostpolicyName);
+    if (hMod == nullptr)
+    {
+        HRESULT hr;
+        std::wstring coreShimPath;
+        RETURN_IF_FAILED(Utility::GetCoreShimDirectory(coreShimPath));
+
+        std::wstring hostpolicyPath{ coreShimPath };
+        hostpolicyPath.append(hostpolicyName);
+        coreShimPath.append(W("CoreShim.dll"));
+
+        ::CopyFileW(coreShimPath.c_str(), hostpolicyPath.c_str(), FALSE);
+        hMod = ::LoadLibraryExW(hostpolicyPath.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        if (hMod == nullptr)
+            return E_UNEXPECTED;
     }
 
     try

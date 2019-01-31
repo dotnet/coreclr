@@ -28,6 +28,22 @@ namespace Activator
                 "Non-IClassFactory request should fail");
         }
 
+        static void NonrootedAssemblyPath()
+        {
+            ArgumentException e = Assert.Throws<ArgumentException>(
+                () =>
+                {
+                    var IID_IClassFactory = new Guid("00000001-0000-0000-C000-000000000046");
+                    var cxt = new ComActivationContext()
+                    {
+                        InterfaceId = IID_IClassFactory,
+                        AssemblyPath = "foo.dll"
+                    };
+                    ComActivator.GetClassFactoryForType(cxt);
+                },
+                "Non-root assembly path should not be valid");
+        }
+
         static void ClassNotRegistered()
         {
             COMException e = Assert.Throws<COMException>(
@@ -38,7 +54,8 @@ namespace Activator
                     var cxt = new ComActivationContext()
                     {
                         ClassId = CLSID_NotRegistered,
-                        InterfaceId = IID_IClassFactory
+                        InterfaceId = IID_IClassFactory,
+                        AssemblyPath = @"C:\foo.dll"
                     };
                     ComActivator.GetClassFactoryForType(cxt);
                 },
@@ -54,6 +71,7 @@ namespace Activator
             {
                 InvalidInterfaceRequest();
                 ClassNotRegistered();
+                NonrootedAssemblyPath();
             }
             catch (Exception e)
             {
