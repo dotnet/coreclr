@@ -18,7 +18,7 @@ namespace System
         // C# no-alloc optimization that directly wraps the data section of the dll (similar to string constants)
         // https://github.com/dotnet/roslyn/pull/24621
 
-        private static ReadOnlySpan<byte> TrailingCountMultiplyDeBruijn => new byte[32]
+        private static ReadOnlySpan<byte> s_TrailingCountDeBruijn => new byte[32]
         {
             00, 01, 28, 02, 29, 14, 24, 03,
             30, 22, 20, 15, 25, 17, 04, 08,
@@ -33,7 +33,7 @@ namespace System
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint TrailingZeroCount(int value)
-            => TrailingZeroCount(unchecked((uint)value));
+            => TrailingZeroCount((uint)value);
 
         /// <summary>
         /// Count the number of trailing zero bits in an integer value.
@@ -53,10 +53,10 @@ namespace System
             uint ix = (uint)((value & -value) * deBruijn) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte tz = ref MemoryMarshal.GetReference(TrailingCountMultiplyDeBruijn);
+            ref byte tz = ref MemoryMarshal.GetReference(s_TrailingCountDeBruijn);
             uint count = Unsafe.AddByteOffset(ref tz, (IntPtr)ix);
 
-            // Above code has contract 0->0, so we need to special-case 0
+            // Above code has contract 0->0, so we need to special-case
             // Branchless equivalent of: c32 = value == 0 ? 32 : 0
             bool is0 = value == 0;
             uint c32 = Unsafe.As<bool, byte>(ref is0) * 32u;
