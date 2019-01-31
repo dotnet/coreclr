@@ -177,9 +177,10 @@ void CodeGen::genCodeForBBlist()
      */
 
     BasicBlock* block;
-
-    for (block = compiler->fgFirstBB; block != nullptr; block = block->bbNext)
+    int blockNum;
+    for (blockNum = 1, block = compiler->fgFirstBB; block != nullptr; block = block->bbNext, blockNum++)
     {
+        printf("Generating code for Block %d \n", blockNum);
 #ifdef DEBUG
         if (compiler->verbose)
         {
@@ -718,9 +719,21 @@ void CodeGen::genCodeForBBlist()
         }
 
 #ifdef DEBUG
-        compiler->compCurBB = nullptr;
+        printf("Varaible History Dump for Block %d \n", blockNum);
+        for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+        {
+            printf("Var %d:\n", varNum);
+            varDsc->dumpRegisterHistoryForBlock();
+        }
 #endif
+        compiler->compCurBB = nullptr;
 
+        for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+        {
+            varDsc->EndBlock();
+        }
+
+        printf("End Generating code for Block %d \n", blockNum);
     } //------------------ END-FOR each block of the method -------------------
 
     /* Nothing is live at this point */

@@ -297,6 +297,45 @@ enum RefCountState
     RCS_NORMAL,  // normal ref counts (from lvaMarkRefs onward)
 };
 
+class VariableHome
+{
+public:
+    UNATIVE_OFFSET startNativeOffset;
+    UNATIVE_OFFSET endNativeOffset;
+    regNumber      registerNumber;
+
+    VariableHome(regNumber registerNumber, UNATIVE_OFFSET startNativeOffset, UNATIVE_OFFSET endNativeOffset)
+    {
+        this->registerNumber = registerNumber;
+        this->startNativeOffset = startNativeOffset;
+        this->endNativeOffset = endNativeOffset;
+    }
+
+    void dump()
+    {
+        printf("%s [%d %d)  ", getRegName(registerNumber), startNativeOffset, endNativeOffset);
+    }
+};
+
+typedef jitstd::list<VariableHome> VariableHomeList;
+
+struct LiveRangeHistoryBarrier 
+{
+    VariableHomeList::iterator beginLastBlock;
+    bool haveReadAtLeastOneOfBlock;
+
+    LiveRangeHistoryBarrier(VariableHomeList *list) :
+        haveReadAtLeastOneOfBlock(false), beginLastBlock(list->end()) {}
+
+    void reset(VariableHomeList *list)
+    {
+        beginLastBlock = list->end();
+        haveReadAtLeastOneOfBlock = false;
+    }
+};
+
+//typedef JitHashTable<BasicBlock*, JitPtrKeyFuncs<BasicBlock>, VariableHomeList*> BasicBlockVariableHistory;
+
 class LclVarDsc
 {
 public:
@@ -343,11 +382,11 @@ public:
             {
                 it->dump();
             }
-            printf("]");
+            printf("]\n");
         }
         else
         {
-            printf("None history");
+            printf("None history\n");
         }
     }
 
@@ -364,7 +403,7 @@ public:
         
         // Close previous live range if any. We use [close, open) ranges so as to not compute the size of the last instruction
         if (!variableHomeHistory->empty()) 
-                {
+        {
             EndRegisterHistoryForBlock(_emitter);
         }
         
