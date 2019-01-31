@@ -184,7 +184,7 @@ Done
 ; The call in ndirect import precode points to this function.
         NESTED_ENTRY NDirectImportThunk
 
-        PROLOG_SAVE_REG_PAIR           fp, lr, #-240!
+        PROLOG_SAVE_REG_PAIR           fp, lr, #-224!
         SAVE_ARGUMENT_REGISTERS        sp, 16
         SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 96 
 
@@ -195,7 +195,7 @@ Done
         ; pop the stack and restore original register state
         RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 96
         RESTORE_ARGUMENT_REGISTERS        sp, 16
-        EPILOG_RESTORE_REG_PAIR           fp, lr, #240!
+        EPILOG_RESTORE_REG_PAIR           fp, lr, #224!
 
         ; If we got back from NDirectImportWorker, the MD has been successfully
         ; linked. Proceed to execute the original DLL call.
@@ -437,7 +437,7 @@ Exit
     NESTED_ENTRY VirtualMethodFixupStub
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-240!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-224!
     SAVE_ARGUMENT_REGISTERS        sp, 16
     SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 96 
 
@@ -457,7 +457,7 @@ Exit
     ; pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS        sp, 16
     RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 96
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #240!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #224!
 
     PATCH_LABEL VirtualMethodFixupPatchLabel
 
@@ -794,7 +794,7 @@ COMToCLRDispatchHelper_RegSetup
     NESTED_ENTRY TheUMEntryPrestub,,UMEntryPrestubUnwindFrameChainHandler
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-240!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-224!
     SAVE_ARGUMENT_REGISTERS        sp, 16
     SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 96
 
@@ -807,7 +807,7 @@ COMToCLRDispatchHelper_RegSetup
     ; pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS        sp, 16
     RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 96
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #240!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #224!
 
     ; and tailcall to the actual method
     EPILOG_BRANCH_REG x12
