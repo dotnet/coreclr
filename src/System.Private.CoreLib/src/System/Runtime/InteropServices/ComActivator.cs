@@ -3,9 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Runtime.Loader;
+using System.Threading;
 
 namespace System.Runtime.InteropServices
 {
@@ -67,6 +70,7 @@ namespace System.Runtime.InteropServices
     {
         public Guid ClassId;
         public Guid InterfaceId;
+        public string AssemblyPath;
         public string AssemblyName;
         public string TypeName;
     }
@@ -76,6 +80,7 @@ namespace System.Runtime.InteropServices
     {
         public Guid ClassId;
         public Guid InterfaceId;
+        public IntPtr AssemblyPathBuffer;
         public IntPtr AssemblyNameBuffer;
         public IntPtr TypeNameBuffer;
         public IntPtr ClassFactoryDest;
@@ -83,6 +88,13 @@ namespace System.Runtime.InteropServices
 
     public static class ComActivator
     {
+        // Collection of all ALCs used for COM activation. In the event we want to support
+        // unloadable COM server ALCs, this will need to be changed.
+        // This collection is read-only and if new ALCs are added, the collection should
+        // be copied into a new collection and the static member updated.
+        private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.CurrentCultureIgnoreCase);
+        private static readonly object s_AssemblyLoadContextsLock = new object();
+
         /// <summary>
         /// Entry point for unmanaged COM activation API from managed code
         /// </summary>
@@ -95,7 +107,12 @@ namespace System.Runtime.InteropServices
                 throw new NotSupportedException();
             }
 
-            Type classType = FindClassType(cxt.ClassId, cxt.AssemblyName, cxt.TypeName);
+            if (!Path.IsPathRooted(cxt.AssemblyPath))
+            {
+                throw new ArgumentException();
+            }
+
+            Type classType = FindClassType(cxt.ClassId, cxt.AssemblyPath, cxt.AssemblyName, cxt.TypeName);
             return new BasicClassFactory(cxt.ClassId, classType);
         }
 
@@ -111,6 +128,7 @@ namespace System.Runtime.InteropServices
 $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
     {cxtInt.ClassId}
     {cxtInt.InterfaceId}
+    0x{cxtInt.AssemblyPathBuffer.ToInt64():x}
     0x{cxtInt.AssemblyNameBuffer.ToInt64():x}
     0x{cxtInt.TypeNameBuffer.ToInt64():x}
     0x{cxtInt.ClassFactoryDest.ToInt64():x}");
@@ -122,8 +140,9 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 {
                     ClassId = cxtInt.ClassId,
                     InterfaceId = cxtInt.InterfaceId,
-                    AssemblyName = Marshal.PtrToStringUTF8(cxtInt.AssemblyNameBuffer),
-                    TypeName = Marshal.PtrToStringUTF8(cxtInt.TypeNameBuffer)
+                    AssemblyPath = Marshal.PtrToStringUni(cxtInt.AssemblyPathBuffer),
+                    AssemblyName = Marshal.PtrToStringUni(cxtInt.AssemblyNameBuffer),
+                    TypeName = Marshal.PtrToStringUni(cxtInt.TypeNameBuffer)
                 };
 
                 object cf = GetClassFactoryForType(cxt);
@@ -154,11 +173,13 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             Debug.WriteLine(fmt, args);
          }
 
-        private static Type FindClassType(Guid clsid, string assemblyName, string typeName)
+        private static Type FindClassType(Guid clsid, string assemblyPath, string assemblyName, string typeName)
         {
             try
             {
-                Assembly assem = Assembly.LoadFrom(assemblyName);
+                AssemblyLoadContext alc = GetALC(assemblyPath);
+                var assemblyNameLocal = new AssemblyName(assemblyName);
+                Assembly assem = alc.LoadFromAssemblyName(assemblyNameLocal);
                 Type t = assem.GetType(typeName);
                 if (t != null)
                 {
@@ -175,6 +196,72 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
             const int CLASS_E_CLASSNOTAVAILABLE = unchecked((int)0x80040111);
             throw new COMException(string.Empty, CLASS_E_CLASSNOTAVAILABLE);
+        }
+
+        private static AssemblyLoadContext GetALC(string assemblyPath)
+        {
+            AssemblyLoadContext alc;
+            if (!s_AssemblyLoadContexts.TryGetValue(assemblyPath, out alc))
+            {
+                alc = AddNewALC(assemblyPath);
+            }
+
+            return alc;
+
+            AssemblyLoadContext AddNewALC(string path)
+            {
+                // The static collection of ALCs is readonly. If a new ALC entry needs to be added,
+                // then we must make a copy, add the new ALC, and update the static member.
+                lock (s_AssemblyLoadContextsLock)
+                {
+                    // Check the new collection prior to adding the new ALC if
+                    // the needed ALC was added in the interim.
+                    AssemblyLoadContext alcMaybe;
+                    if (!s_AssemblyLoadContexts.TryGetValue(path, out alcMaybe))
+                    {
+                        var newCollection = new Dictionary<string, AssemblyLoadContext>(s_AssemblyLoadContexts);
+
+                        alcMaybe = new ComServerLoadContext(path);
+                        newCollection.Add(path, alcMaybe);
+
+                        s_AssemblyLoadContexts = newCollection;
+                    }
+
+                    return alcMaybe;
+                }
+            }
+        }
+
+        private class ComServerLoadContext : AssemblyLoadContext
+        {
+            private readonly AssemblyDependencyResolver _resolver;
+
+            public ComServerLoadContext(string comServerAssemblyPath)
+            {
+                _resolver = new AssemblyDependencyResolver(comServerAssemblyPath);
+            }
+
+            protected override Assembly Load(AssemblyName assemblyName)
+            {
+                string assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
+                if (assemblyPath != null)
+                {
+                    return LoadFromAssemblyPath(assemblyPath);
+                }
+
+                return null;
+            }
+
+            protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
+            {
+                string libraryPath = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+                if (libraryPath != null)
+                {
+                    return LoadUnmanagedDllFromPath(libraryPath);
+                }
+
+                return IntPtr.Zero;
+            }
         }
 
         [ComVisible(true)]
