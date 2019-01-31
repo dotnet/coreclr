@@ -30,7 +30,7 @@ namespace System
         private readonly object _object;
         private readonly int _index;
         private readonly int _length;
-        
+
         /// <summary>
         /// Creates a new memory over the entirety of the target array.
         /// </summary>
@@ -259,6 +259,48 @@ namespace System
         }
 
         /// <summary>
+        /// Forms a slice out of the given memory, beginning at 'startIndex'
+        /// </summary>
+        /// <param name="startIndex">The index at which to begin this slice.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Memory<T> Slice(Index startIndex)
+        {
+            int actualIndex = startIndex.IsFromEnd ? _length - startIndex.Value : startIndex.Value;
+            return Slice(actualIndex);
+        }
+
+        /// <summary>
+        /// Forms a slice out of the given memory using the range start and end indexes.
+        /// </summary>
+        /// <param name="range">The range used to slice the memory using its start and end indexes.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Memory<T> Slice(Range range)
+        {
+            int start = range.Start.IsFromEnd ? _length - range.Start.Value : range.Start.Value;
+            int end = range.End.IsFromEnd ? _length - range.End.Value : range.End.Value;
+
+            if ((uint)end > (uint)_length || (uint)start > (uint)end)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
+            }
+
+            // It is expected for _index + start to be negative if the memory is already pre-pinned.
+            return new Memory<T>(_object, _index + start, end - start);
+        }
+
+        /// <summary>
+        /// Forms a slice out of the given memory using the range start and end indexes.
+        /// </summary>
+        /// <param name="range">The range used to slice the memory using its start and end indexes.</param>
+        public Memory<T> this[Range range]
+        {
+            get
+            {
+                return Slice(range);
+            }
+        }
+
+        /// <summary>
         /// Returns a span from the memory.
         /// </summary>
         public unsafe Span<T> Span
@@ -336,7 +378,7 @@ namespace System
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }
 #endif
-                    
+
                     refToReturn = ref Unsafe.Add(ref refToReturn, desiredStartIndex);
                     lengthOfUnderlyingSpan = desiredLength;
                 }

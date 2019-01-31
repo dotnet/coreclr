@@ -163,7 +163,7 @@ namespace System
             get
             {
                 // Evaluate the actual index first because it helps performance
-                int actualIndex = index.FromEnd ? _length - index.Value : index.Value;
+                int actualIndex = index.IsFromEnd ? _length - index.Value : index.Value;
                 return ref this [actualIndex];
             }
         }
@@ -172,9 +172,7 @@ namespace System
         {
             get
             {
-                int start = range.Start.FromEnd ? _length - range.Start.Value : range.Start.Value;
-                int end = range.End.FromEnd ? _length - range.End.Value : range.End.Value;
-                return Slice(start, end - start);
+                return Slice(range);
             }
         }
 
@@ -378,6 +376,35 @@ namespace System
 #endif
 
             return new Span<T>(ref Unsafe.Add(ref _pointer.Value, start), length);
+        }
+
+        /// <summary>
+        /// Forms a slice out of the given span, beginning at 'startIndex'
+        /// </summary>
+        /// <param name="startIndex">The index at which to begin this slice.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<T> Slice(Index startIndex)
+        {
+            int actualIndex = startIndex.IsFromEnd ? _length - startIndex.Value : startIndex.Value;
+            return Slice(actualIndex);
+        }
+
+        /// <summary>
+        /// Forms a slice out of the given span, beginning at range start index to the range end
+        /// </summary>
+        /// <param name="range">The range which has the start and end indexes used to slice the span.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<T> Slice(Range range)
+        {
+            int start = range.Start.IsFromEnd ? _length - range.Start.Value : range.Start.Value;
+            int end = range.End.IsFromEnd ? _length - range.End.Value : range.End.Value;
+
+            if ((uint)end > (uint)_length || (uint)start > (uint)end)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
+            }
+
+            return new Span<T>(ref Unsafe.Add(ref _pointer.Value, start), end - start);
         }
 
         /// <summary>

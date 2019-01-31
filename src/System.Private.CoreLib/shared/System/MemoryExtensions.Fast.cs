@@ -401,6 +401,53 @@ namespace System
         }
 
         /// <summary>
+        /// Creates a new span over the portion of the target array.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Span<T> AsSpan<T>(this T[] array, Index startIndex)
+        {
+            if (array == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            }
+
+            if (default(T) == null && array.GetType() != typeof(T[]))
+                ThrowHelper.ThrowArrayTypeMismatchException();
+
+            int actualIndex = startIndex.IsFromEnd ? array.Length - startIndex.Value : startIndex.Value;
+
+            if ((uint)actualIndex > (uint)array.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+
+            return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), actualIndex), array.Length - actualIndex);
+        }
+
+        /// <summary>
+        /// Creates a new span over the portion of the target array.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Span<T> AsSpan<T>(this T[] array, Range range)
+        {
+            if (array == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            }
+
+            if (default(T) == null && array.GetType() != typeof(T[]))
+                ThrowHelper.ThrowArrayTypeMismatchException();
+
+            int start = range.Start.IsFromEnd ? array.Length - range.Start.Value : range.Start.Value;
+            int end = range.End.IsFromEnd ? array.Length - range.End.Value : range.End.Value;
+
+            if ((uint)end > (uint)array.Length || (uint)start > (uint)end)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
+            }
+
+            return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), end - start);
+        }
+
+        /// <summary>
         /// Creates a new readonly span over the portion of the target string.
         /// </summary>
         /// <param name="text">The target string.</param>
@@ -506,6 +553,24 @@ namespace System
 
         /// <summary>Creates a new <see cref="ReadOnlyMemory{T}"/> over the portion of the target string.</summary>
         /// <param name="text">The target string.</param>
+        /// <param name="startIndex">The index at which to begin this slice.</param>
+        public static ReadOnlyMemory<char> AsMemory(this string text, Index startIndex)
+        {
+            if (text == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+            }
+
+            int actualIndex = startIndex.IsFromEnd ? text.Length - startIndex.Value : startIndex.Value;
+
+            if ((uint)actualIndex > (uint)text.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+
+            return new ReadOnlyMemory<char>(text, actualIndex, text.Length - actualIndex);
+        }
+
+        /// <summary>Creates a new <see cref="ReadOnlyMemory{T}"/> over the portion of the target string.</summary>
+        /// <param name="text">The target string.</param>
         /// <param name="start">The index at which to begin this slice.</param>
         /// <param name="length">The desired length for the slice (exclusive).</param>
         /// <remarks>Returns default when <paramref name="text"/> is null.</remarks>
@@ -531,6 +596,27 @@ namespace System
 #endif
 
             return new ReadOnlyMemory<char>(text, start, length);
+        }
+
+        /// <summary>Creates a new <see cref="ReadOnlyMemory{T}"/> over the portion of the target string.</summary>
+        /// <param name="text">The target string.</param>
+        /// <param name="range">The range used to indicate the start and length of the sliced string.</param>
+        public static ReadOnlyMemory<char> AsMemory(this string text, Range range)
+        {
+            if (text == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+            }
+
+            int start = range.Start.IsFromEnd ? text.Length - range.Start.Value : range.Start.Value;
+            int end = range.End.IsFromEnd ? text.Length - range.End.Value : range.End.Value;
+
+            if ((uint)end > (uint)text.Length || (uint)start > (uint)end)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
+            }
+
+            return new ReadOnlyMemory<char>(text, start, end - start);
         }
     }
 }

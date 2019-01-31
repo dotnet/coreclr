@@ -1686,6 +1686,27 @@ namespace System
             return InternalSubString(startIndex, length);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public string Substring(Index startIndex)
+        {
+            int actualIndex = startIndex.IsFromEnd ? _stringLength - startIndex.Value : startIndex.Value;
+            return Substring(actualIndex);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public string Substring(Range range)
+        {
+            int start = range.Start.IsFromEnd ? _stringLength - range.Start.Value : range.Start.Value;
+            int end = range.End.IsFromEnd ? _stringLength - range.End.Value : range.End.Value;
+
+            if ((uint)end > (uint)_stringLength || (uint)start > (uint)end)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
+            }
+
+            return Substring(start, end - start);
+        }
+
         private unsafe string InternalSubString(int startIndex, int length)
         {
             Debug.Assert(startIndex >= 0 && startIndex <= this.Length, "StartIndex is out of range!");
