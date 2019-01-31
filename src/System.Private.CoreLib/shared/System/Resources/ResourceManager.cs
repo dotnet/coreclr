@@ -239,7 +239,9 @@ namespace System.Resources
         // security check in each constructor prevents it.
         private void CommonAssemblyInit()
         {
+#if FEATURE_APPX || ENABLE_WINRT
             SetAppXConfiguration();
+#endif
 
             // Now we can use the managed resources even when using PRI's to support the APIs GetObject, GetStream...etc.
             UseManifest = true;
@@ -605,11 +607,13 @@ namespace System.Resources
             if (null == name)
                 throw new ArgumentNullException(nameof(name));
 
+#if FEATURE_APPX || ENABLE_WINRT
             if (UseUapResourceManagement)
             {
                 // Throws WinRT hresults.
                 return GetStringFromPRI(name, culture, _neutralResourcesCulture.Name);
             }
+#endif
 
             if (culture == null)
             {

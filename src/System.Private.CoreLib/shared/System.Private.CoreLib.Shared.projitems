@@ -1060,9 +1060,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Internal\Resources\WindowsRuntimeResourceManagerBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Resources\ResourceManager.Uap.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(FeatureAppX)' != 'true' and '$(EnableWinRT)' != 'true'">
-    <Compile Include="$(MSBuildThisFileDirectory)System\Resources\ResourceManager.NonUap.cs" />
-  </ItemGroup>
   <ItemGroup Condition="$(TargetsUnix)">
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\Interop.Errors.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\Interop.IOErrors.cs" />
