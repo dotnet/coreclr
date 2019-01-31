@@ -206,7 +206,7 @@ namespace System
 
         #endregion
 
-        #region ILog2
+        #region Log2
 
         // TODO: May belong in System.Math, in which case may need to name it Log2Int or Log2Floor
         // to distinguish it from overloads accepting float/double
@@ -217,7 +217,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint ILog2(uint value)
+        public static uint Log2(uint value)
         {
             // Log(0) is undefined. Return 32 for input 0, without branching.
             //                                  0   1   2   N
@@ -235,7 +235,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint ILog2(ulong value)
+        public static uint Log2(ulong value)
         {
             // We only have to count the low-32 or the high-32, depending on limits
 
@@ -254,7 +254,7 @@ namespace System
             }
 
             // Use low-32
-            return inc + ILog2(val);
+            return inc + Log2(val);
         }
 
         /* Legacy implementations
