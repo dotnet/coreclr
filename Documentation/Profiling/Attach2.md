@@ -1,7 +1,7 @@
 *Adapted from an entry that appeared on David Broman's blog*
 
 
-In a previous [post](http://blogs.msdn.com/davbr/archive/2009/11/04/clr-v4-profiler-attach-basics-with-sample-code.aspx), I outlined to all you profiler writers how to modify your profiler so it can attach to running processes, and what sorts of limitations your profiler will have when it attaches.  In this post, I answer the question, “My profiler is attached.  What should it do next?”
+In a previous [post](Attach.md), I outlined to all you profiler writers how to modify your profiler so it can attach to running processes, and what sorts of limitations your profiler will have when it attaches.  In this post, I answer the question, “My profiler is attached.  What should it do next?”
 
 # Catch Up
 
@@ -9,7 +9,7 @@ A profiler that loads on startup of an application has the option to know the en
 
 | 
 
-[![NoBirthAnnouncement](media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Components.PostAttachments/00/09/94/98/92/NoBirthAnnouncement.JPG "NoBirthAnnouncement")](media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Components.PostAttachments/00/09/94/98/92/NoBirthAnnouncement.JPG)
+[![NoBirthAnnouncement](media/NoBirthAnnouncement.JPG)
 
  |
 | 
