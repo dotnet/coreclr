@@ -297,37 +297,37 @@ enum RefCountState
     RCS_NORMAL,  // normal ref counts (from lvaMarkRefs onward)
 };
 
-class VariableHome
+class VariableLiveRange
 {
 public:
-    UNATIVE_OFFSET startNativeOffset;
-    UNATIVE_OFFSET endNativeOffset;
-    regNumber      registerNumber;
+    emitLocation startEmitLocation;
+    emitLocation endEmitLocation;
+    regNumber    registerNumber;
 
-    VariableHome(regNumber registerNumber, UNATIVE_OFFSET startNativeOffset, UNATIVE_OFFSET endNativeOffset)
+    VariableLiveRange(regNumber registerNumber, emitLocation startEmitLocation, emitLocation endEmitLocation)
     {
         this->registerNumber = registerNumber;
-        this->startNativeOffset = startNativeOffset;
-        this->endNativeOffset = endNativeOffset;
+        this->startEmitLocation = startEmitLocation;
+        this->endEmitLocation = endEmitLocation;
     }
 
-    void dump()
+    void dump(emitter *_emitter)
     {
-        printf("%s [%d %d)  ", getRegName(registerNumber), startNativeOffset, endNativeOffset);
+        printf("%s [%d %d)  ", getRegName(registerNumber), startEmitLocation.CodeOffset(_emitter), endEmitLocation.CodeOffset(_emitter));
     }
 };
 
-typedef jitstd::list<VariableHome> VariableHomeList;
+typedef jitstd::list<VariableLiveRange> LiveRangeList;
 
-struct LiveRangeHistoryBarrier 
+struct LiveRangeBarrier 
 {
-    VariableHomeList::iterator beginLastBlock;
+    LiveRangeList::iterator beginLastBlock;
     bool haveReadAtLeastOneOfBlock;
 
-    LiveRangeHistoryBarrier(VariableHomeList *list) :
+    LiveRangeBarrier(LiveRangeList *list) :
         haveReadAtLeastOneOfBlock(false), beginLastBlock(list->end()) {}
 
-    void reset(VariableHomeList *list)
+    void reset(LiveRangeList *list)
     {
         beginLastBlock = list->end();
         haveReadAtLeastOneOfBlock = false;
@@ -358,42 +358,42 @@ public:
     {
     }
 
-    VariableHomeList *variableHomeHistory;
-    LiveRangeHistoryBarrier *variableLifeBarrier;
-    UNATIVE_OFFSET lastBlockInitOffset = -1;
-    UNATIVE_OFFSET BAD_NATIVE_OFFSET = -1;
+    LiveRangeList *variableLiveRanges;
+    LiveRangeBarrier *variableLifeBarrier;
+    emitLocation lastBlockInitOffset;
+    emitLocation BAD_NATIVE_OFFSET;
 
     // Initialize an empty list and a barrier pointing to its end
     void initializeRegisterHistory(CompAllocator allocator, emitter *_emitter) 
     {
-        variableHomeHistory = new VariableHomeList(allocator);
+        variableLiveRanges = new LiveRangeList(allocator);
 
-        variableLifeBarrier = new LiveRangeHistoryBarrier(variableHomeHistory);
+        variableLifeBarrier = new LiveRangeBarrier(variableLiveRanges);
 
-        lastBlockInitOffset = _emitter->emitCurOffset();
+        lastBlockInitOffset.CaptureLocation(_emitter);
     }
 
     // Modified the barrier to print on next block only just that changes
-    void EndBlock()
+    void endBlockLiveRanges()
     {
         // barrier now points to nullptr
-        variableLifeBarrier->reset(variableHomeHistory);
+        variableLifeBarrier->reset(variableLiveRanges);
     }
 
     // Returns true if a live range for this variable has been recorded from last call to EndBlock
-    bool hasChangeHome() const
+    bool hasBeenAlive() const
     {
         return variableLifeBarrier->haveReadAtLeastOneOfBlock;
     }
 
-    void dumpRegisterHistoryForBlock() const
+    void dumpRegisterLiveRangesForBlock(emitter *_emitter) const
     {
         if (variableLifeBarrier->haveReadAtLeastOneOfBlock)
         {
             printf("[");
-            for (VariableHomeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableHomeHistory->end(); it++)
+            for (LiveRangeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end(); it++)
             {
-                it->dump();
+                it->dump(_emitter);
             }
             printf("]\n");
         }
@@ -403,53 +403,53 @@ public:
         }
     }
 
-    void EndRegisterHistoryForBlock(emitter *_emitter) const
+    void endLiveRangeAtEmitter(emitter *_emitter) const
     {
         // There should some history for this var in this block
-        noway_assert(variableHomeHistory != nullptr);
-        variableHomeHistory->back().endNativeOffset = _emitter->emitCurOffset();
+        noway_assert(hasBeenAlive());
+
+        // Using [close, open) ranges so as to not compute the size of the last instruction
+        variableLiveRanges->back().endEmitLocation.CaptureLocation(_emitter);
     }
 
-    // Move the barrier to the last position of variableHomeHistory
+    // Move the barrier to the last position of variableLiveRanges
     // This is used to print only the changes in the last block
     void setBarrierAtLastPositionInRegisterHistory() const
     {
         variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
-        variableLifeBarrier->beginLastBlock = variableHomeHistory->backPosition();
+        variableLifeBarrier->beginLastBlock = variableLiveRanges->backPosition();
     }
     
-    void initRegisterIn(regNumber registerNumber) const
+    /*
+    *   Creates a new live range from in the given regsiterNumber from the assembly native offset of the emitter
+    */
+    void startLiveRangeFromEmitter(regNumber registerNumber, emitter *_emitter) const
     {
-        // Nothing has been pushed before
-        noway_assert(variableHomeHistory == nullptr || variableHomeHistory->empty());
-        
-        variableHomeHistory->emplace_back(registerNumber, lastBlockInitOffset, BAD_NATIVE_OFFSET);
+        // Nothing should has been pushed before
+        noway_assert(!hasBeenAlive());
 
-        if (!(variableLifeBarrier->haveReadAtLeastOneOfBlock))
-        {
-            setBarrierAtLastPositionInRegisterHistory();
-        }
+        // Creates new live range with invalid end
+        variableLiveRanges->emplace_back(registerNumber, BAD_NATIVE_OFFSET, BAD_NATIVE_OFFSET);
+        variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
+
+        // Restart barrier so we can print from here
+        setBarrierAtLastPositionInRegisterHistory();
     }
 
     void SwapRegisterHome(regNumber registerNumber, emitter *_emitter ) const
     {
-        // A variable comes live in register so if there was no history during this black it was on stack
-        if (hasChangeHome())
-        {
-            initRegisterIn(REG_STK);
-        }
-
-        noway_assert(variableHomeHistory != nullptr && !variableHomeHistory->empty());
+        // This variable is changing home so it has been started before during this block
+        noway_assert(hasBeenAlive());
         
-        // Not sure if we can be noticed of moving into a the same previous register
-        if (variableHomeHistory->back().registerNumber != registerNumber)
-        {
-            // Close previous live range. I am using [close, open) ranges so as to not compute the size of the last instruction
-            EndRegisterHistoryForBlock(_emitter);
+        // If we are reporting again the same house, that means we are doing something twice?
+        noway_assert(variableLiveRanges->back().registerNumber != registerNumber);
 
-            NATIVE_OFFSET nativeInitialOffset = _emitter->emitCurOffset();
-            variableHomeHistory->emplace_back(registerNumber, nativeInitialOffset, BAD_NATIVE_OFFSET);
-        }
+        // Close previous live range
+        endLiveRangeAtEmitter(_emitter);
+
+        // Open new live range with invalid end
+        variableLiveRanges->emplace_back(registerNumber, BAD_NATIVE_OFFSET, BAD_NATIVE_OFFSET);
+        variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
     }
 
     // note this only packs because var_types is a typedef of unsigned char

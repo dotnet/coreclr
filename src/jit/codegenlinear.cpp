@@ -725,16 +725,14 @@ void CodeGen::genCodeForBBlist()
 #endif
         for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
         {
-
-            if (varDsc->hasChangeHome())
+            if (varDsc->hasBeenAlive())
             {
-                varDsc->EndRegisterHistoryForBlock(getEmitter());
 #ifdef DEBUG
                 hasDumpedHistory = true;
                 printf("Var %d:\n", varNum);
-                varDsc->dumpRegisterHistoryForBlock();
+                varDsc->dumpRegisterLiveRangesForBlock(getEmitter());
 #endif
-                varDsc->EndBlock();
+                varDsc->endBlockLiveRanges();
             }
         }
 
@@ -840,6 +838,8 @@ void CodeGen::genSpillVar(GenTree* tree)
     {
         varDsc->lvOtherReg = REG_STK;
     }
+
+    varDsc->SwapRegisterHome(REG_STK, getEmitter());
 }
 
 //------------------------------------------------------------------------
@@ -999,6 +999,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             if ((unspillTree->gtFlags & GTF_SPILL) == 0)
             {
                 genUpdateVarReg(varDsc, tree);
+                varDsc->SwapRegisterHome(varDsc->lvRegNum, getEmitter());
 #ifdef DEBUG
                 if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))
                 {

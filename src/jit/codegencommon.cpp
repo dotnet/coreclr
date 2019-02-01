@@ -501,13 +501,11 @@ void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bo
         // through a qmark/colon tree, we may encounter multiple last-use nodes.
         // assert((regSet.rsMaskVars & regMask) == regMask);
         regSet.RemoveMaskVars(regMask);
-        varDsc->SwapRegisterHome(REG_STK, getEmitter()); // add live range end for debugging info
     }
     else
     {
         assert((regSet.rsMaskVars & regMask) == 0);
         regSet.AddMaskVars(regMask);
-        varDsc->SwapRegisterHome(varDsc->lvRegNum, getEmitter()); // add live range begin for debugging info
     }
 }
 
@@ -688,20 +686,20 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             {
                 codeGen->gcInfo.gcRegByrefSetCur &= ~regMask;
             }
+            
             codeGen->genUpdateRegLife(varDsc, false /*isBorn*/, true /*isDying*/ DEBUGARG(nullptr));
         }
         // This isn't in a register, so update the gcVarPtrSetCur.
         else if (isGCRef || isByRef)
         {
-            // add live range end for debugging info despite not being in a register
-            varDsc->SwapRegisterHome(REG_STK, getEmitter());
-
             if (isGCRef || isByRef)
             {
                 VarSetOps::RemoveElemD(this, codeGen->gcInfo.gcVarPtrSetCur, deadVarIndex);
                 JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
             }
         }
+
+        varDsc->endLiveRangeAtEmitter(getEmitter()); // Track for debugging that is dead
     }
 
     VarSetOps::Iter bornIter(this, bornSet);
@@ -736,16 +734,15 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
         // This isn't in a register, so update the gcVarPtrSetCur
         else if (lvaIsGCTracked(varDsc))
         {
-            // TODO BRIAN: the varible is in the stack and we should report it in the variable's home history
-            // Im not sure of how to know its position
-
-            varDsc->initRegisterIn(REG_STK);
             if (lvaIsGCTracked(varDsc))
             {
                 VarSetOps::AddElemD(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex);
                 JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
             }
         }
+
+        // Track for debugging that is dead
+        varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, getEmitter());
     }
 
     codeGen->siUpdate();
