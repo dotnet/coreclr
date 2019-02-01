@@ -366,7 +366,7 @@ namespace System
 
             // Branchless equivalent of: c32 = value == 0 ? 32 : 0
             bool is0 = value == 0;
-            uint c32 = Unsafe.As<bool, byte>(ref is0) * 32u;
+            uint c32 = (uint)Unsafe.As<bool, byte>(ref is0) << 5; // 0|1 x 32
 
             return c32 + count;
         }
