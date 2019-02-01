@@ -202,7 +202,19 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         public static T[] GetArrayRange<T>(T[] array, Range range)
         {
-            return array.AsSpan(range).ToArray();
+            Type elementType = array.GetType().GetElementType();
+            Span<T> source = array.AsSpan(range);
+
+            if (elementType.IsValueType)
+            {
+                return source.ToArray();
+            }
+            else
+            {
+                T[] newArray = (T[])Array.CreateInstance(elementType, source.Length);
+                source.CopyTo(newArray);
+                return newArray;
+            }
         }
 
         // Returns true iff the object has a component size;

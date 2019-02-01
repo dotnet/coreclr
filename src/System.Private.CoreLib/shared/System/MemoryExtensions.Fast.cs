@@ -414,8 +414,7 @@ namespace System
             if (default(T) == null && array.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
-            int actualIndex = startIndex.IsFromEnd ? array.Length - startIndex.Value : startIndex.Value;
-
+            int actualIndex = startIndex.GetOffset(array.Length);
             if ((uint)actualIndex > (uint)array.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
@@ -436,15 +435,8 @@ namespace System
             if (default(T) == null && array.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
-            int start = range.Start.IsFromEnd ? array.Length - range.Start.Value : range.Start.Value;
-            int end = range.End.IsFromEnd ? array.Length - range.End.Value : range.End.Value;
-
-            if ((uint)end > (uint)array.Length || (uint)start > (uint)end)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
-            }
-
-            return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), end - start);
+            (int start, int length) = range.GetOffsetLength(array.Length);
+            return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), length);
         }
 
         /// <summary>
@@ -561,8 +553,7 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
             }
 
-            int actualIndex = startIndex.IsFromEnd ? text.Length - startIndex.Value : startIndex.Value;
-
+            int actualIndex = startIndex.GetOffset(text.Length);
             if ((uint)actualIndex > (uint)text.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
@@ -608,15 +599,8 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
             }
 
-            int start = range.Start.IsFromEnd ? text.Length - range.Start.Value : range.Start.Value;
-            int end = range.End.IsFromEnd ? text.Length - range.End.Value : range.End.Value;
-
-            if ((uint)end > (uint)text.Length || (uint)start > (uint)end)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
-            }
-
-            return new ReadOnlyMemory<char>(text, start, end - start);
+            (int start, int length) = range.GetOffsetLength(text.Length);
+            return new ReadOnlyMemory<char>(text, start, length);
         }
     }
 }

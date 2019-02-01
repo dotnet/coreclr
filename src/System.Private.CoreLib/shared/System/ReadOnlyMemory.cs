@@ -194,7 +194,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlyMemory<T> Slice(Index startIndex)
         {
-            int actualIndex = startIndex.IsFromEnd ? _length - startIndex.Value : startIndex.Value;
+            int actualIndex = startIndex.GetOffset(_length);
             return Slice(actualIndex);
         }
 
@@ -205,29 +205,16 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlyMemory<T> Slice(Range range)
         {
-            int start = range.Start.IsFromEnd ? _length - range.Start.Value : range.Start.Value;
-            int end = range.End.IsFromEnd ? _length - range.End.Value : range.End.Value;
-
-            if ((uint)end > (uint)_length || (uint)start > (uint)end)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
-            }
-
+            (int start, int length) = range.GetOffsetLength(_length);
             // It is expected for _index + start to be negative if the memory is already pre-pinned.
-            return new ReadOnlyMemory<T>(_object, _index + start, end - start);
+            return new ReadOnlyMemory<T>(_object, _index + start, length);
         }
 
         /// <summary>
         /// Forms a slice out of the given memory using the range start and end indexes.
         /// </summary>
         /// <param name="range">The range used to slice the memory using its start and end indexes.</param>
-        public ReadOnlyMemory<T> this[Range range]
-        {
-            get
-            {
-                return Slice(range);
-            }
-        }
+        public ReadOnlyMemory<T> this[Range range] => Slice(range);
 
         /// <summary>
         /// Returns a span from the memory.

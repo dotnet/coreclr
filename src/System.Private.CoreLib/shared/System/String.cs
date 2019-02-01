@@ -449,19 +449,13 @@ namespace System
         {
             get
             {
-                int actualIndex = index.IsFromEnd ? _stringLength - index.Value : index.Value;
+                int actualIndex = index.GetOffset(_stringLength);
                 return this[actualIndex];
             }
         }
 
         [System.Runtime.CompilerServices.IndexerName("Chars")]
-        public string this[Range range]
-        {
-            get
-            {
-                return Substring(range);
-            }
-        }
+        public string this[Range range] => Substring(range);
 
         public static bool IsNullOrWhiteSpace(string value)
         {

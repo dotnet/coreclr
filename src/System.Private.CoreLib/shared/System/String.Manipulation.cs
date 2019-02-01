@@ -1689,22 +1689,15 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string Substring(Index startIndex)
         {
-            int actualIndex = startIndex.IsFromEnd ? _stringLength - startIndex.Value : startIndex.Value;
+            int actualIndex = startIndex.GetOffset(Length);
             return Substring(actualIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string Substring(Range range)
         {
-            int start = range.Start.IsFromEnd ? _stringLength - range.Start.Value : range.Start.Value;
-            int end = range.End.IsFromEnd ? _stringLength - range.End.Value : range.End.Value;
-
-            if ((uint)end > (uint)_stringLength || (uint)start > (uint)end)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
-            }
-
-            return Substring(start, end - start);
+            (int start, int length) = range.GetOffsetLength(Length);
+            return Substring(start, length);
         }
 
         private unsafe string InternalSubString(int startIndex, int length)

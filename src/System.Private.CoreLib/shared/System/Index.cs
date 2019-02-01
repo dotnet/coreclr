@@ -33,7 +33,10 @@ namespace System
                 ThrowHelper.ThrowValueArgumentOutOfRange_NeedNonNegNumException();
             }
 
-            _value = fromEnd ? ~value : value;
+            if (fromEnd)
+                _value = ~value;
+            else
+                _value = value;
         }
 
         // The following private constructors mainly created for perf reason to avoid the checks
@@ -75,25 +78,37 @@ namespace System
         }
 
         /// <summary>Returns the index value.</summary>
-        public int Value => _value < 0 ? ~_value : _value;
+        public int Value
+        {
+            get
+            {
+                if (_value < 0)
+                    return ~_value;
+                else
+                    return _value;
+            }
+        }
 
         /// <summary>Indicates whether the index is from the start or the end.</summary>
         public bool IsFromEnd => _value < 0;
 
         /// <summary>Calculate the offset from the start using the giving collection length.</summary>
         /// <param name="length">The length of the collection that the Index will be used with. length has to be a positive value</param>
+        /// <remarks>
+        /// For performance reason, we don't validate the input length parameter and the returned offset value against negative values.
+        /// we don't validate either the returned offset is greater than the input length.
+        /// It is expected Index will be used with collections which always have non negative length/count. If the returned offset is negative and
+        /// then used to index a collection will get out of range exception which will be same affect as the validation.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetOffset(int length)
         {
-            if (length < 0)
-            {
-                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            }
+            int offset;
 
-            int offset = IsFromEnd ? length - (~_value) : _value;
-            if ((uint)offset > (uint)length)
-            {
-                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-            }
+            if (IsFromEnd)
+                offset = length - (~_value);
+            else
+                offset = _value;
 
             return offset;
         }
@@ -107,16 +122,19 @@ namespace System
         public bool Equals (Index other) => _value == other._value;
 
         /// <summary>Returns the hash code for this instance.</summary>
-        public override int GetHashCode()
-        {
-            return _value;
-        }
+        public override int GetHashCode() => _value;
 
         /// <summary>Converts integer number to an Index.</summary>
         public static implicit operator Index(int value) => FromStart(value);
 
         /// <summary>Converts the value of the current Index object to its equivalent string representation.</summary>
-        public override string ToString() => IsFromEnd ? ToStringFromEnd() : ((uint)Value).ToString();
+        public override string ToString()
+        {
+            if (IsFromEnd)
+                return ToStringFromEnd();
+
+            return ((uint)Value).ToString();
+        }
 
         private string ToStringFromEnd()
         {

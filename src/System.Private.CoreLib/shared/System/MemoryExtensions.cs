@@ -1141,7 +1141,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<T> AsSpan<T>(this ArraySegment<T> segment, Index startIndex)
         {
-            int actualIndex = startIndex.IsFromEnd ? segment.Count - startIndex.Value : startIndex.Value;
+            int actualIndex = startIndex.GetOffset(segment.Count);
             return AsSpan(segment, actualIndex);
         }
 
@@ -1176,15 +1176,8 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<T> AsSpan<T>(this ArraySegment<T> segment, Range range)
         {
-            int start = range.Start.IsFromEnd ? segment.Count - range.Start.Value : range.Start.Value;
-            int end = range.End.IsFromEnd ? segment.Count - range.End.Value : range.End.Value;
-
-            if ((uint)end > (uint)segment.Count || (uint)start > (uint)end)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
-            }
-
-            return new Span<T>(segment.Array, segment.Offset + start, end - start);
+            (int start, int length) = range.GetOffsetLength(segment.Count);
+            return new Span<T>(segment.Array, segment.Offset + start, length);
         }
 
         /// <summary>
@@ -1216,7 +1209,7 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            int actualIndex = startIndex.IsFromEnd ? array.Length - startIndex.Value : startIndex.Value;
+            int actualIndex = startIndex.GetOffset(array.Length);
             return new Memory<T>(array, actualIndex);
         }
 
@@ -1245,15 +1238,8 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            int start = range.Start.IsFromEnd ? array.Length - range.Start.Value : range.Start.Value;
-            int end = range.End.IsFromEnd ? array.Length - range.End.Value : range.End.Value;
-
-            if ((uint)end > (uint)array.Length || (uint)start > (uint)end)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
-            }
-
-            return new Memory<T>(array, start, end - start);
+            (int start, int length) = range.GetOffsetLength(array.Length);
+            return new Memory<T>(array, start, length);
         }
 
         /// <summary>

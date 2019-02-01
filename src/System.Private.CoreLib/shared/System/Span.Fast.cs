@@ -163,18 +163,12 @@ namespace System
             get
             {
                 // Evaluate the actual index first because it helps performance
-                int actualIndex = index.IsFromEnd ? _length - index.Value : index.Value;
+                int actualIndex = index.GetOffset(_length);
                 return ref this [actualIndex];
             }
         }
 
-        public Span<T> this[Range range]
-        {
-            get
-            {
-                return Slice(range);
-            }
-        }
+        public Span<T> this[Range range] => Slice(range);
 
         /// <summary>
         /// Returns a reference to the 0th element of the Span. If the Span is empty, returns null reference.
@@ -385,7 +379,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Slice(Index startIndex)
         {
-            int actualIndex = startIndex.IsFromEnd ? _length - startIndex.Value : startIndex.Value;
+            int actualIndex = startIndex.GetOffset(_length);
             return Slice(actualIndex);
         }
 
@@ -396,15 +390,8 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Slice(Range range)
         {
-            int start = range.Start.IsFromEnd ? _length - range.Start.Value : range.Start.Value;
-            int end = range.End.IsFromEnd ? _length - range.End.Value : range.End.Value;
-
-            if ((uint)end > (uint)_length || (uint)start > (uint)end)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.range);
-            }
-
-            return new Span<T>(ref Unsafe.Add(ref _pointer.Value, start), end - start);
+            (int start, int length) = range.GetOffsetLength(_length);
+            return new Span<T>(ref Unsafe.Add(ref _pointer.Value, start), length);
         }
 
         /// <summary>

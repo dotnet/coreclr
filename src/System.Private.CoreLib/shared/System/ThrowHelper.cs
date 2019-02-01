@@ -817,7 +817,6 @@ namespace System
         endIndex,
         elementType,
         arrayIndex,
-        range,
     }
 
     //

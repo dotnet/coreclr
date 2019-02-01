@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace System
 {
@@ -34,19 +35,29 @@ namespace System
 
         /// <summary>Destruct the range object according to a collection length and return the start offset from the beginning and the length of this range.</summary>
         /// <param name="length">The length of the collection that the range will be used with. length has to be a positive value</param>
+        /// <remarks>
+        /// For performance reason, we don't validate the input length parameter against negative values.
+        /// It is expected Range will be used with collections which always have non negative length/count.
+        /// We validate the range is inside the length scope though.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public (int, int) GetOffsetLength(int length)
         {
-            if (length < 0)
-            {
-                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            }
+            int start;
+            if (Start.IsFromEnd)
+                start = length - Start.Value;
+            else
+                start = Start.Value;
 
-            int start = Start.IsFromEnd ? length - Start.Value : Start.Value;
-            int end   = End.IsFromEnd   ? length - End.Value   : End.Value;
+            int end;
+            if (End.IsFromEnd)
+                end = length - End.Value;
+            else
+                end = End.Value;
 
             if ((uint)end > (uint)length || (uint)start > (uint)end)
             {
-                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
             }
 
             return (start, end - start);
@@ -106,12 +117,12 @@ namespace System
         }
 
         /// <summary>Create a Range object starting from start index to the end of the collection.</summary>
-        public static Range StartAt(Index start) => new Range(start, new Index(0, fromEnd: true));
+        public static Range StartAt(Index start) => new Range(start, Index.End);
 
         /// <summary>Create a Range object starting from first element in the collection to the end Index.</summary>
-        public static Range EndAt(Index end) => new Range(new Index(0), end);
+        public static Range EndAt(Index end) => new Range(Index.Start, end);
 
         /// <summary>Create a Range object starting from first element to the end.</summary>
-        public static Range All { get { return new Range(new Index(0), new Index(0, fromEnd: true)); }}
+        public static Range All => new Range(Index.Start, Index.End);
     }
 }
