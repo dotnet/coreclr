@@ -2077,11 +2077,11 @@ public:
         {
             return this;
         }
-        // if (nextRefPosition->lastUse)
-        {
-            return nextRefPosition;
-        }
-        return referent->lastRefPosition;
+        // It would seem to make sense to only return 'nextRefPosition' if it is a lastUse,
+        // and otherwise return `lastRefPosition', but that tends to  excessively lengthen 
+        // the range for heuristic purposes.
+        // TODO-CQ: Look into how this might be improved .
+        return nextRefPosition;
     }
 
     LsraLocation getRangeEndLocation()
