@@ -365,6 +365,40 @@ void QCALLTYPE AssemblyNative::LoadFromStream(INT_PTR ptrNativeAssemblyLoadConte
     END_QCALL;
 }
 
+/*static */
+void QCALLTYPE AssemblyNative::LoadFromInMemoryModule(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR hModule, QCall::ObjectHandleOnStack retLoadedAssembly)
+{
+    QCALL_CONTRACT;
+    
+    BEGIN_QCALL;
+    
+    // Ensure that the invariants are in place
+    _ASSERTE(ptrNativeAssemblyLoadContext != NULL);
+    _ASSERTE(hModule != NULL);
+
+    PEImageHolder pILImage(PEImage::LoadImage((HMODULE)hModule));
+    
+    // Need to verify that this is a valid CLR assembly. 
+    if (!pILImage->CheckILFormat())
+        ThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+    
+    // Get the binder context in which the assembly will be loaded
+    ICLRPrivBinder *pBinderContext = reinterpret_cast<ICLRPrivBinder*>(ptrNativeAssemblyLoadContext);
+    
+    // Pass the stream based assembly as IL and NI in an attempt to bind and load it
+    Assembly* pLoadedAssembly = AssemblyNative::LoadFromPEImage(pBinderContext, pILImage, NULL); 
+    {
+        GCX_COOP();
+        retLoadedAssembly.Set(pLoadedAssembly->GetExposedObject());
+    }
+
+    LOG((LF_CLASSLOADER, 
+            LL_INFO100, 
+            "\tLoaded assembly from pre-loaded native module\n"));
+
+    END_QCALL;
+}
+
 void QCALLTYPE AssemblyNative::GetLocation(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack retString)
 {
     QCALL_CONTRACT;
