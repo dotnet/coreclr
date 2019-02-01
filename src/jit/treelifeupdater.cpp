@@ -94,7 +94,9 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             {
                 if (isBorn && varDsc->lvIsRegCandidate() && tree->gtHasReg())
                 {
+                    // should we include this var in newLife ?
                     compiler->codeGen->genUpdateVarReg(varDsc, tree);
+                    varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, compiler->getEmitter());
                 }
                 if (varDsc->lvIsInReg() && tree->gtRegNum != REG_NA)
                 {
@@ -102,6 +104,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 }
                 else
                 {
+                    // Could this variable be dying?
                     VarSetOps::AddElemD(compiler, stackVarDeltaSet, varDsc->lvVarIndex);
                 }
             }
@@ -143,7 +146,9 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                             {
                                 if (isBorn)
                                 {
+                                    // should we include this var in newLife ?
                                     compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
+                                    fldVarDsc->startLiveRangeFromEmitter(fldVarDsc->lvRegNum, compiler->getEmitter());
                                 }
                                 compiler->codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
                             }
@@ -157,9 +162,13 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                     {
                         if (compiler->lvaTable[i].lvIsInReg())
                         {
-                            if (isBorn)
+                            // BRIAN: why is born if it hash dead tracked field?
+                            // should be dying?
+                            if (isBorn) 
                             {
+                                // should we include this var in newLife ?
                                 compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
+                                fldVarDsc->startLiveRangeFromEmitter(fldVarDsc->lvRegNum, compiler->getEmitter());
                             }
                             compiler->codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
                         }
