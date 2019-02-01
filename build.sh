@@ -25,7 +25,7 @@ export PYTHON
 
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipmanaged] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
+    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipcrossarchnative] [-skipmanaged] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
     echo "BuildArch can be: -x64, -x86, -arm, -armel, -arm64"
     echo "BuildType can be: -debug, -checked, -release"
     echo "-coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
@@ -39,6 +39,7 @@ usage()
     echo "-configureonly - do not perform any builds; just configure the build."
     echo "-skipconfigure - skip build configuration."
     echo "-skipnative - do not build native components."
+    echo "-skipcrossarchnative - do not build cross-architecture native components."
     echo "-skipmanaged - do not build managed components."
     echo "-skipmscorlib - do not build mscorlib.dll."
     echo "-skiptests - skip the tests in the 'tests' subdirectory."
@@ -179,7 +180,11 @@ restore_optdata()
 
     if [[ ( $__SkipRestoreOptData == 0 ) && ( $__isMSBuildOnNETCoreSupported == 1 ) ]]; then
         echo "Restoring the OptimizationData package"
-        "$__ProjectRoot/run.sh" build -optdata $__RunArgs $__UnprocessedBuildArgs
+        "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
+                                   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                                   /p:UsePartialNGENOptimization=false /maxcpucount \
+                                   /t:RestoreOptData ./build.proj \
+                                   $__CommonMSBuildArgs $__UnprocessedBuildArgs
         if [ $? != 0 ]; then
             echo "Failed to restore the optimization data package."
             exit 1
@@ -292,7 +297,12 @@ build_native()
         __versionSourceFile="$intermediatesForBuild/version.cpp"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            "$__ProjectRoot/run.sh" build -Project=$__ProjectDir/build.proj -generateHeaderUnix -NativeVersionSourceFile=$__versionSourceFile -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"  $__RunArgs $__UnprocessedBuildArgs
+            "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
+                                       /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
+                                       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                                       /p:UsePartialNGENOptimization=false /maxcpucount \
+                                       "$__ProjectDir/build.proj" /p:GenerateVersionSourceFile=true /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile \
+                                       $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else
             # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
@@ -448,15 +458,22 @@ build_CoreLib()
     # Invoke MSBuild
     __ExtraBuildArgs=""
     if [[ "$__IbcTuning" == "" ]]; then
-        __ExtraBuildArgs="$__ExtraBuildArgs -OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data/\""
-        __ExtraBuildArgs="$__ExtraBuildArgs -EnableProfileGuidedOptimization=true"
+        __ExtraBuildArgs="$__ExtraBuildArgs /p:OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data\""
+        __ExtraBuildArgs="$__ExtraBuildArgs /p:EnableProfileGuidedOptimization=true"
     fi
 
     if [[ "$__BuildManagedTools" -eq "1" ]]; then
-        __ExtraBuildArgs="$__ExtraBuildArgs -BuildManagedTools=true"
+        __ExtraBuildArgs="$__ExtraBuildArgs /p:BuildManagedTools=true"
     fi
 
-    $__ProjectRoot/run.sh build -Project=$__ProjectDir/build.proj -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
+    $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
+                             /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
+                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                             /p:UsePartialNGENOptimization=false /maxcpucount \
+                             $__ProjectDir/build.proj \
+                             /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false \
+                             $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to build managed components."
@@ -513,7 +530,14 @@ generate_NugetPackages()
     echo "DistroRid is "$__DistroRid
     echo "ROOTFS_DIR is "$ROOTFS_DIR
     # Build the packages
-    $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false -__DoCrossArchBuild=$__CrossBuild $__RunArgs $__UnprocessedBuildArgs
+    $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
+                             /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
+                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                             /p:UsePartialNGENOptimization=false /maxcpucount \
+                             $__SourceDir/.nuget/packages.builds \
+                             /flp:Verbosity=normal\;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackages=false /p:UseSharedCompilation=false /p:__DoCrossArchBuild=$__CrossBuild \
+                             $__CommonMSBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to generate Nuget packages."
@@ -624,7 +648,7 @@ __SourceDir="$__ProjectDir/src"
 __PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/packages}"
 __RootBinDir="$__ProjectDir/bin"
 __UnprocessedBuildArgs=
-__RunArgs=
+__CommonMSBuildArgs=
 __MSBCleanBuildArgs=
 __UseNinja=0
 __VerboseBuild=0
@@ -637,6 +661,7 @@ __SkipManaged=0
 __SkipRestore=""
 __SkipNuget=0
 __SkipCoreCLR=0
+__SkipCrossArchNative=0
 __SkipMSCorLib=0
 __SkipRestoreOptData=0
 __SkipCrossgen=0
@@ -656,6 +681,9 @@ __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
 __IbcOptDataVersion=""
 __BuildManagedTools=1
+__SkipRestoreArg=""
+__SignTypeArg=""
+__OfficialBuildIdArg=""
 
 # Get the number of processors available to the scheduler
 # Other techniques such as `nproc` only get the number of
@@ -816,6 +844,10 @@ while :; do
             __SkipCoreCLR=1
             ;;
 
+        skipcrossarchnative|-skipcrossarchnative)
+            __SkipCrossArchNative=1
+            ;;
+
         skipmanaged|-skipmanaged)
             __SkipManaged=1
             ;;
@@ -909,6 +941,23 @@ while :; do
             exit 1
             ;;
 
+        -skiprestore)
+            __SkipRestoreArg="/p:RestoreDuringBuild=false"
+            ;;
+
+        -disableoss)
+            __SignTypeArg="/p:SignType=real"
+            ;;
+
+        -officialbuildid=*)
+            __Id=$(echo $1| cut -d'=' -f 2)
+            __OfficialBuildIdArg="/p:OfficialBuildId=$__Id"
+            ;;
+
+        --)
+            # Skip -Option=Value style argument passing
+            ;;
+
         *)
             __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
             ;;
@@ -917,23 +966,23 @@ while :; do
     shift
 done
 
-__RunArgs="-BuildArch=$__BuildArch -BuildType=$__BuildType -BuildOS=$__BuildOS"
+__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS $__OfficialBuildIdArg $__SignTypeArg $__SkipRestoreArg"
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
     export VERBOSE=1
-	__RunArgs="$__RunArgs -verbose"
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /v:detailed"
 fi
 
 # Set default clang version
 if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
-	if [[ "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ]]; then
-		__ClangMajorVersion=5
-		__ClangMinorVersion=0
-	else
-		__ClangMajorVersion=3
-		__ClangMinorVersion=9
-	fi
+    if [[ "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ]]; then
+        __ClangMajorVersion=5
+        __ClangMinorVersion=0
+    else
+        __ClangMajorVersion=3
+        __ClangMinorVersion=9
+    fi
 fi
 
 if [[ "$__BuildArch" == "armel" ]]; then
@@ -942,7 +991,7 @@ if [[ "$__BuildArch" == "armel" ]]; then
 fi
 
 if [ $__PortableBuild == 0 ]; then
-	__RunArgs="$__RunArgs -PortableBuild=false"
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
 fi
 
 # Set dependent variables
@@ -1019,8 +1068,10 @@ fi
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 
 # Build cross-architecture components
-if [[ $__CrossBuild == 1 ]]; then
-    build_cross_architecture_components
+if [ $__SkipCrossArchNative != 1 ]; then
+    if [[ $__CrossBuild == 1 ]]; then
+        build_cross_architecture_components
+    fi
 fi
 
 # Build System.Private.CoreLib.
