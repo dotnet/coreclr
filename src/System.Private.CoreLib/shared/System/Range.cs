@@ -33,38 +33,6 @@ namespace System
             End = end;
         }
 
-        /// <summary>Destruct the range object according to a collection length and return the start offset from the beginning and the length of this range.</summary>
-        /// <param name="length">The length of the collection that the range will be used with. length has to be a positive value</param>
-        /// <remarks>
-        /// For performance reason, we don't validate the input length parameter against negative values.
-        /// It is expected Range will be used with collections which always have non negative length/count.
-        /// We validate the range is inside the length scope though.
-        /// </remarks>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public (int, int) GetOffsetLength(int length)
-        {
-            int start;
-            Index startIndex = Start;
-            if (startIndex.IsFromEnd)
-                start = length - startIndex.Value;
-            else
-                start = startIndex.Value;
-
-            int end;
-            Index endIndex = End;
-            if (endIndex.IsFromEnd)
-                end = length - endIndex.Value;
-            else
-                end = endIndex.Value;
-
-            if ((uint)end > (uint)length || (uint)start > (uint)end)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
-            }
-
-            return (start, end - start);
-        }
-
         /// <summary>Indicates whether the current Range object is equal to another object of the same type.</summary>
         /// <param name="value">An object to compare with this object</param>
         public override bool Equals(object value)
@@ -126,5 +94,55 @@ namespace System
 
         /// <summary>Create a Range object starting from first element to the end.</summary>
         public static Range All => new Range(Index.Start, Index.End);
+
+        /// <summary>Destruct the range object according to a collection length and return the start offset from the beginning and the length of this range.</summary>
+        /// <param name="length">The length of the collection that the range will be used with. length has to be a positive value</param>
+        /// <remarks>
+        /// For performance reason, we don't validate the input length parameter against negative values.
+        /// It is expected Range will be used with collections which always have non negative length/count.
+        /// We validate the range is inside the length scope though.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public OffsetAndLength GetOffsetAndLength(int length)
+        {
+            int start;
+            Index startIndex = Start;
+            if (startIndex.IsFromEnd)
+                start = length - startIndex.Value;
+            else
+                start = startIndex.Value;
+
+            int end;
+            Index endIndex = End;
+            if (endIndex.IsFromEnd)
+                end = length - endIndex.Value;
+            else
+                end = endIndex.Value;
+
+            if ((uint)end > (uint)length || (uint)start > (uint)end)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
+            }
+
+            return new OffsetAndLength(start, end - start);
+        }
+
+        public readonly struct OffsetAndLength
+        {
+            public int Offset { get; }
+            public int Length { get; }
+
+            public OffsetAndLength(int offset, int length)
+            {
+                Offset = offset;
+                Length = length;
+            }
+
+            public void Deconstruct(out int offset, out int length)
+            {
+                offset = Offset;
+                length = Length;
+            }
+        }
     }
 }

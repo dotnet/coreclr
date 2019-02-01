@@ -311,7 +311,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan<T> Slice(Range range)
         {
-            (int start, int length) = range.GetOffsetLength(_length);
+            var (start, length) = range.GetOffsetAndLength(_length);
             return new ReadOnlySpan<T>(ref Unsafe.Add(ref _pointer.Value, start), length);
         }
 

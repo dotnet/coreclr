@@ -435,7 +435,7 @@ namespace System
             if (default(T) == null && array.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
-            (int start, int length) = range.GetOffsetLength(array.Length);
+            var (start, length) = range.GetOffsetAndLength(array.Length);
             return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), length);
         }
 
@@ -599,7 +599,7 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
             }
 
-            (int start, int length) = range.GetOffsetLength(text.Length);
+            var (start, length) = range.GetOffsetAndLength(text.Length);
             return new ReadOnlyMemory<char>(text, start, length);
         }
     }

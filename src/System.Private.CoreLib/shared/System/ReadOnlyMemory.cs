@@ -205,7 +205,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlyMemory<T> Slice(Range range)
         {
-            (int start, int length) = range.GetOffsetLength(_length);
+            var (start, length) = range.GetOffsetAndLength(_length);
             // It is expected for _index + start to be negative if the memory is already pre-pinned.
             return new ReadOnlyMemory<T>(_object, _index + start, length);
         }
