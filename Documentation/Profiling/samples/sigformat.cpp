@@ -1,5 +1,4 @@
 // Adapted from an entry that appeared on David Broman's blog
-// All sample code for this topic is now also available on the MSDN Code Gallery [SigParse](http://code.msdn.microsoft.com/sigparse "SigParse") page.
 
 #include "SigParse.cpp"
 
