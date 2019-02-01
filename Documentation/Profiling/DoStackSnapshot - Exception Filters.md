@@ -7,7 +7,7 @@ For those of you diehard C# fans, you might be unaware of the existence of excep
 
 First, a little background. For the full deal, check out the MSDN Library topic on VB.NET's [try/catch/finally statements](http://msdn.microsoft.com/library/default.asp?url=/library/en-us/vblr7/html/vastmTryCatchFinally.asp). But here's an appetizer. In VB.NET you can do this:
 
-  
+```  
 Function Negative() As Boolean  
     Return False  
 End Function  
@@ -29,7 +29,8 @@ Sub Main()
         MsgBox("Positive")  
     End Try  
 End Sub  
-  
+```
+
 The filters are the things that come after "When". We all know that, when an exception is thrown, its type must match the type specified in a Catch clause in order for that Catch clause to be executed. "When" is a way to further restrict whether a Catch clause will be executed. Now, not only must the exception's type match, but also the When clause must evaluate to True for that Catch clause to be chosen. In the example above, when we run, we'll skip the first Catch clause (because its filter returned False), and execute the second, thus showing a message box with "Positive" in it.  
   
 The thing you need to realize about DoStackSnapshot's behavior (indeed, CLR in general) is that the execution of a When clause is really a separate function call. In the above example, imagine we take a stack snapshot while inside Positive(). Our managed-only stack trace, as reported by DoStackSnapshot, would then look like this (stack grows up):   

@@ -1,7 +1,7 @@
 *Adapted from an entry that appeared on David Broman's blog*
 
 
-I described how profilers may attach to already-running processes in some previous posts ([#1](http://blogs.msdn.com/davbr/archive/2009/11/04/clr-v4-profiler-attach-basics-with-sample-code.aspx) and [#2](http://blogs.msdn.com/davbr/archive/2010/01/18/clr-v4-profiler-attach-part-2-ok-now-what.aspx)).  In this post I’m writing about how profilers that are already loaded may detach from a running process before that process exits.  Like Profiler Attach, this is a new feature available starting with CLR V4.
+I described how profilers may attach to already-running processes in other posts ([#1](Attach.md) and [#2](Attach2.md)).  In this post I’m writing about how profilers that are already loaded may detach from a running process before that process exits.  Like Profiler Attach, this is a new feature available starting with CLR V4.
 
 The Detach feature allows a profiler that the user is finished with to be unloaded.  That means the application may return to its usual behavior and performance characteristics, without a profiler loaded and doing stuff.  Also, since only one profiler may be loaded at a time, detaching a profiler makes room for a different (or the same) profiler to be loaded later on when the user wishes to do more diagnostics.
 
@@ -44,7 +44,7 @@ So, the sequence works like this:
 
 Let’s dive a little deeper into the method you call to detach your profiler:
 
-HRESULT RequestProfilerDetach([in] DWORD dwExpectedCompletionMilliseconds);
+`HRESULT RequestProfilerDetach([in] DWORD dwExpectedCompletionMilliseconds);`
 
  
 

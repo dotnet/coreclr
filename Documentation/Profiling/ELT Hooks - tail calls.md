@@ -3,20 +3,37 @@
 
 For most people the idea of entering or returning from a function seems straightforward. Your profiler's Enter hook is called at the beginning of a function, and its Leave hook is called just before the function returns. But the idea of a tail call and exactly what that means for the Profiling API is less straightforward.
 
-In [Part 1](http://blogs.msdn.com/davbr/archive/2007/03/22/enter-leave-tailcall-hooks-part-1-basics.aspx) I talked about the basics of the Enter / Leave / Tailcall hooks and generally how they work. You may want to review that post first if you haven't seen it yet. This post builds on that one by talking exclusively about the Tailcall hook, how it works, and what profilers should do inside their Tailcall hooks.
+In [Part 1](ELT Hooks - The Basics.md) I talked about the basics of the Enter / Leave / Tailcall hooks and generally how they work. You may want to review that post first if you haven't seen it yet. This post builds on that one by talking exclusively about the Tailcall hook, how it works, and what profilers should do inside their Tailcall hooks.
 
 ## Tail calling in general
 
 Tail calling is a compiler optimization that saves execution of instructions and saves reads and writes of stack memory. When the last thing a function does is call another function (and other conditions are favorable), the compiler may consider implementing that call as a tail call, instead of a regular call.
 
 ```
-static public void Main() { Helper(); }  static public void Helper() { One(); Two(); Three(); }  static public void Three() { ... }
+static public void Main()
+{
+	Helper();
+}
+
+static public void Helper()
+{
+	One();
+	Two();
+	Three();
+}
+
+static public void Three()
+{
+	...
+}
 ```
 
 In the code above, the compiler may consider implementing the call from Helper() to Three() as a tail call. What does that mean, and why would that optimize anything? Well, imagine this is compiled without a tail call optimization. By the time Three() is called, the stack looks like this (my stacks grow UP):
 
 ```
-Three Helper Main
+Three
+Helper
+Main
 ```
 
 Each of those functions causes a separate frame to be allocated on the stack. All the usual contents of a frame, including locals, parameters, the return address, saved registers, etc., get stored in each of those frames. And when each of those functions returns, the return address is read from the frame, and the stack pointer is adjusted to collapse the frame of the returning function. That's just the usual overhead associated with making a function call.
@@ -24,7 +41,8 @@ Each of those functions causes a separate frame to be allocated on the stack. Al
 Now, if the call from Helper() to Three() were implemented as a tail call, we'd avoid that overhead, and Three() would just "reuse" the stack frame that had been set up for Helper(). While Three() is executing, the call stack would look like this:
 
 ```
-Three Main
+Three
+Main
 ```
 
 And when Three() returns, it returns directly to Main() without popping back through Helper() first.
@@ -46,21 +64,20 @@ I asked Fei Chen and [Grant Richins](http://blogs.msdn.com/grantri), neighbors d
 - Security gets in the way
 - The debugger / profiler turned off JIT optimizations
 
-[Here](http://blogs.msdn.com/davbr/pages/tail-call-jit-conditions.aspx) are their full, detailed answers.
+[Here](Tail call JIT conditions.md) are their full, detailed answers.
 
 _Note that how the JIT decides whether to use the tail calling optimization is an implementation detail that is prone to change at whim.  **You must not take dependencies on this behavior**. Use this information for your own personal entertainment only._
 
 ## Your Profiler's Tailcall hook
 
-I'm assuming you've already read through [Part 1](http://blogs.msdn.com/davbr/archive/2007/03/22/enter-leave-tailcall-hooks-part-1-basics.aspx) and are familiar with how your profiler sets up its Enter/Leave/Tailcall hooks, so I'm not repeating any of those details here. I will focus on what kind of code you will typically want to place inside your Tailcall hook:
+I'm assuming you've already read through [Part 1](ELT Hooks - The Basics.md) and are familiar with how your profiler sets up its Enter/Leave/Tailcall hooks, so I'm not repeating any of those details here. I will focus on what kind of code you will typically want to place inside your Tailcall hook:
 
+```
 typedef void FunctionTailcall2(
-
                 FunctionID funcId,
-
-                UINT\_PTR clientData,
-
-                COR\_PRF\_FRAME\_INFO func);
+                UINT_PTR clientData,
+                COR_PRF_FRAME_INFO func);
+```
 
 **Tip** : More than once I've seen profiler writers make the following mistake. They will take their naked assembly-language wrapper for their Enter2 and Leave2 hooks, and paste it again to use as the Tailcall2 assembly-language wrapper. The problem is they forget that the Tailcall2 hook takes a different number of parameters than the Enter2 / Leave2 hooks (or, more to the point, a different number of _bytes_ is passed on the stack to invoke the Tailcall2 hook). So, they'll take the "ret 16" at the end of their Enter2/Leave2 hook wrappers and stick that into their Tailcall2 hook wrapper, forgetting to change it to a "ret 12". Don't make the same mistake! 
 
@@ -83,7 +100,8 @@ The [CLRProfiler](http://www.microsoft.com/downloads/details.aspx?FamilyID=a3627
 OK, so when your profiler maintains a shadow stack, it's clear what your profiler should do on Enter or Leave, but what should it do on Tailcall? There are a couple ways one could imagine answering that question, but only one of them will work! Taking the example from the top of this post, imagine the stack looks like this:
 
 ```
-Helper Main
+Helper
+Main
 ```
 
 and Helper is about to make a tail call into Three().  What should your profiler do?
@@ -93,7 +111,8 @@ Method 1: On tailcall, pop the last FunctionID.  (In other words, treat Tailcall
 So, in this example, when Helper() calls Three(), we'd pop Helper().  As soon as Three() is called, our profiler would receive an Enter for Three(), and our shadow stack would look like this:
 
 ```
-Three Main
+Three
+Main
 ```
 
 This approach mirrors reality, because this is what the actual physical stack will look like.  Indeed, if one attaches a debugger to a live process, and breaks in while the process is inside a tail call, the debugger will show a call stack just like this, where you see the tail callee, but not the tail caller.  However, it might be a little confusing to a user of your profiler who looks at his source code and sees that Helper() (not Main()) calls Three().  He may have no idea that when Helper() called Three(), the JIT chose to turn that into a tail call. In fact, your user may not even know what a tail call is. You might therefore be tempted to try this instead:
@@ -116,13 +135,22 @@ So which should your profiler use: Method 1 or Method 2? Before I answer, take s
 
 The answer: Method 1. In principle, either method should be fine. However, the behavior of the CLR under certain circumstances will break Method 2. Those "certain circumstances" are what I alluded to when I mentioned "this is true most of the time, but not all" above.  These mysterious "certain circumstances" involve a managed function tail calling into a native helper function inside the runtime. Here's an example:
 ```
-static public void Main() { Thread.Sleep(44); Helper(); }
+static public void Main()
+{
+	Thread.Sleep(44);
+	Helper();
+}
 ```
 
 It just so happens that the implementation of Thread.Sleep makes a call into a native helper function in the bowels of the runtime. And that call happens to be the last thing Thread.Sleep does. So the JIT may helpfully optimize that call into a tail call. Here are the hook calls your profiler will see in this case:
 
 ```
-(1) Enter (into Main) (2) Enter (into Thread.Sleep) (3) Tailcall (from Thread.Sleep) (4) Enter (into Helper) (5) Leave (from Helper) (6) Leave (from Main)
+(1) Enter (into Main)
+(2) Enter (into Thread.Sleep)
+(3) Tailcall (from Thread.Sleep)
+(4) Enter (into Helper)
+(5) Leave (from Helper)
+(6) Leave (from Main)
 ```
 
 Note that after you get a Tailcall telling you that Thread.Sleep is done, (in (3)), the very next Enter you get (in (4)) is NOT the Enter for the function being tail called. This is because the CLR only provides Enter/Leave/Tailcall hooks for _managed_ functions, and the very next managed function being entered is Helper().  So, how will Method 1 and Method 2 fare in this example?
@@ -144,32 +172,52 @@ If you think it might be complicated to explain tail calls to your users so they
 And of course, this can get arbitrarily nasty:
 
 ```
-static public void Main() { Thread.Sleep(44); Thread.Sleep(44); Thread.Sleep(44); Thread.Sleep(44); Helper(); }
+static public void Main()
+{
+	Thread.Sleep(44);
+	Thread.Sleep(44);
+	Thread.Sleep(44);
+	Thread.Sleep(44);
+	Helper();
+}
 ```
 
 would yield:
-
+```
 Helper  
 Thread.Sleep (marked for "deferred pop")  
 Thread.Sleep (marked for "deferred pop")  
 Thread.Sleep (marked for "deferred pop")  
 Thread.Sleep (marked for "deferred pop")  
 Main
+```
 
 And things get more complicated if you start to think about when you actually pop a frame marked for "deferred pop". In all the above examples, you would do so as soon as the frame above it gets popped. So once Helper() is popped (due to Leave()), you'd cascade-pop all the Thread.Sleeps. But what if there is no frame above the frames marked for "deferred pop"?  To wit:
 
 ```
-static public void Main() { Helper() }  static public void Helper() { Thread.Sleep(44); Thread.Sleep(44); Thread.Sleep(44); Thread.Sleep(44); }
+static public void Main()
+{
+	Helper()
+}
+
+static public void Helper()
+{
+	Thread.Sleep(44);
+	Thread.Sleep(44);
+	Thread.Sleep(44);
+	Thread.Sleep(44);
+}
 ```
 
 would yield:
-
+```
 Thread.Sleep (marked for "deferred pop")  
 Thread.Sleep (marked for "deferred pop")  
 Thread.Sleep (marked for "deferred pop")  
 Thread.Sleep (marked for "deferred pop")  
 Helper  
 Main
+```
 
 until you get a Leave hook for Helper(). At this point, you need to pop Helper() from your shadow stack, but he's not at the top-- he's buried under all your "deferred pop" frames. So your profiler would need to perform the deferred pops if a frame above OR below them gets popped. Hopefully, the yuckiness of this implementation will scare you straight.  But the confusion of presenting crazy stacks to the user is the real reason to abandon Method 2 and go with Method 1.
 
@@ -182,19 +230,36 @@ As an illustration, consider two simple tail call examples:
 **Matching Example**
 
 ```
-static public void Main() { One(); ...(other code here)... }  static public void One() { Two(); }
+static public void Main()
+{
+	One();
+	...(other code here)...
+}
+
+static public void One()
+{
+	Two();
+}
 ```
 
 **Non-matching Example**
 
 ```
-static public void Main() { Thread.Sleep(44); Two(); }
+static public void Main()
+{
+	Thread.Sleep(44);
+	Two();
+}
 ```
 
 In either case, your profiler will see the following hook calls
 
 ```
-(1) Enter (into Main) (2) Enter (into One / Thread.Sleep) (3) Tailcall (from One / Thread.Sleep) (4) Enter (into Two) ...
+(1) Enter (into Main)
+(2) Enter (into One / Thread.Sleep)
+(3) Tailcall (from One / Thread.Sleep)
+(4) Enter (into Two)
+...
 ```
 
 In the first example, (3) and (4) match (i.e., the tail call really does call into Two()). But in the second example, they do not (the tail call does NOT call into Two()).
@@ -204,7 +269,10 @@ Since you don't know when Tailcall will match the next Enter, your implementatio
 As with shadow stacks, this will sometimes lead to call graphs that could be confusing. "Matching Example" had One tail call Two, but your graph will look like this:
 
 ```
-Main | |-- One |-- Two
+Main
+|
+|-- One
+|-- Two
 ```
 
 But at least this effect is explainable to your users, and is self-correcting after the tail call is complete, while yielding graphs that are consistent with your timing measurements. If instead you try to outsmart this situation and assume Tailcalls match the following Enter, the errors can snowball into incomprehensible graphs (see the nasty examples from the shadow stack section above).
@@ -226,17 +294,36 @@ The surest way is to have a simple managed app that includes an obvious tail cal
 Start with some simple code that makes a call that should easily be optimized into a tail call:
 
 ```
-using System; class Class1 { static int Main(string[] args) { return Helper(4); }  static int Helper(int i) { Random r = new Random(); i = (i / 1000) + r.Next(); i = (i / 1000) + r.Next(); return MakeThisATailcall(i); }  static int MakeThisATailcall(int i) { Random r = new Random(); i = (i / 1000) + r.Next(); i = (i / 1000) + r.Next(); return i; } }
+using System;
+class Class1
+{
+	static int Main(string[] args)
+	{
+		return Helper(4);
+	}
+
+	static int Helper(int i)
+	{
+		Random r = new Random();
+		i = (i / 1000) + r.Next();
+		i = (i / 1000) + r.Next();
+		return MakeThisATailcall(i);
+	}
+
+	static int MakeThisATailcall(int i)
+	{
+		Random r = new Random();
+		i = (i / 1000) + r.Next();
+		i = (i / 1000) + r.Next();
+		return i;
+	}
+}
 ```
 
 You'll notice there's some extra gunk, like calls to Random.Next(), to make the functions big enough that the JIT won't inline them. There are other ways to avoid inlining (including from the profiling API itself), but padding your test functions is one of the easier ways to get started without impacting the code generation of the entire process. Now, compile that C# code into an IL assembly:
 
 ```
 csc /o+ Class1.cs
-```
-
-```
-
 ```
 
 (If you're wondering why I specified /o+, I've found that if I _don't_, then suboptimal IL gets generated, and some extraneous instructions appear inside Helper between the call to MakeThisATailcall and the return from Helper. Those extra instructions would prevent the JIT from making a tail call.)
@@ -250,7 +337,36 @@ ildasm Class1.exe
 Inside ildasm, use File.Dump to generate a text file that contains a textual representation of the IL from Class1.exe.  Call it Class1WithTail.il.  Open up that file and add the tail. prefix just before the call you want optimized into a tail call (see highlighted yellow for changes):
 
 ```
-.method private hidebysig static int32  Helper(int32 i) cil managed {~~// Code size 45 (0x2d)~~ // Code size 46 (0x2e) .maxstack 2 .locals init (class [mscorlib]System.Random V\_0) IL\_0000: newobj instance void [mscorlib]System.Random::.ctor() IL\_0005: stloc.0 IL\_0006: ldarg.0 IL\_0007: ldc.i4 0x3e8 IL\_000c: div IL\_000d: ldloc.0 IL\_000e: callvirt instance int32 [mscorlib]System.Random::Next() IL\_0013: add IL\_0014: starg.s i IL\_0016: ldarg.0 IL\_0017: ldc.i4 0x3e8 IL\_001c: div IL\_001d: ldloc.0 IL\_001e: callvirt instance int32 [mscorlib]System.Random::Next() IL\_0023: add IL\_0024: starg.s i IL\_0026: ldarg.0~~IL\_0027: call int32 Class1::MakeThisATailcall(int32) IL\_002c: ret~~ IL\_0027: tail. IL\_0028: call int32 Class1::MakeThisATailcall(int32) IL\_002d: ret } // end of method Class1::Helper
+.method private hidebysig static int32 
+ Helper(int32 i) cil managed
+ {
+~~// Code size 45 (0x2d)
+~~ // Code size 46 (0x2e)
+ .maxstack 2
+ .locals init (class [mscorlib]System.Random V_0)
+ IL_0000: newobj instance void [mscorlib]System.Random::.ctor()
+ IL_0005: stloc.0
+ IL_0006: ldarg.0
+ IL_0007: ldc.i4 0x3e8
+ IL_000c: div
+ IL_000d: ldloc.0
+ IL_000e: callvirt instance int32 [mscorlib]System.Random::Next()
+ IL_0013: add
+ IL_0014: starg.s i
+ IL_0016: ldarg.0
+ IL_0017: ldc.i4 0x3e8
+ IL_001c: div
+ IL_001d: ldloc.0
+ IL_001e: callvirt instance int32 [mscorlib]System.Random::Next()
+ IL_0023: add
+ IL_0024: starg.s i
+ IL_0026: ldarg.0
+~~IL_0027: call int32 Class1::MakeThisATailcall(int32)
+ IL_002c: ret
+~~ IL_0027: tail.
+ IL_0028: call int32 Class1::MakeThisATailcall(int32)
+ IL_002d: ret
+ } // end of method Class1::Helper
 ```
 
 Now you can use ilasm to recompile your modified textual IL back into an executable assembly.

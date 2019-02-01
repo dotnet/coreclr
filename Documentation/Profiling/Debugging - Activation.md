@@ -3,7 +3,7 @@
 
 This is the first of some tips to help you debug your profiler.  Note that these tips assume you're using CLR 2.x (see [this entry](http://blogs.msdn.com/davbr/archive/2007/12/06/versions-of-microsoft-net-framework-clr-and-your-profiler.aspx) for info on how CLR version numbers map to .NET Framework version numbers).  In today's post, I address a frequent question from profiler developers and users: "Why didn't my profiler load?".
 
-## Event log
+## Event log (Windows only)
 
 In the Application event log, you'll see entries if the CLR attempts, but fails, to load and initialize your profiler.  So this is a nice and easy place to look first, as the message may well make it obvious what went wrong.
 
@@ -17,11 +17,13 @@ The first link in this chain is to check the environment variables inside the pr
 
 | 
 ```
-**C:\\>** _set co_ (blah blah, other vars beginning with "co")
+**C:\>** set co
+ (blah blah, other vars beginning with "co")
 ```
 
 ```
-Cor\_Enable\_Profiling=0x1 COR\_PROFILER={C5F90153-B93E-4138-9DB7-EB7156B07C4C}
+Cor_Enable_Profiling=0x1
+ COR_PROFILER={C5F90153-B93E-4138-9DB7-EB7156B07C4C}
 ```
  |
 
@@ -30,8 +32,6 @@ If your scenario doesn't allow you to just run the process from a command prompt
 Once you verify Cor\_Enable\_Profiling and COR\_PROFILER are ok, it's time to search the registry for the very same GUID set in your COR\_PROFILER environment variable.  You should find it at a path like this:
 
 HKEY\_LOCAL\_MACHINE\SOFTWARE\Classes\CLSID\{C5F90153-B93E-4138-9DB7-EB7156B07C4C}
-
-Note!  If you're on a 64 bit box, be aware of the [WOW64 redirectors](http://blogs.msdn.com/davbr/archive/2006/11/13/wow64-and-your-profiler.aspx), and ensure you're looking at the proper view of the environment and registry!
 
 If the registry has the GUID value, it's finally time to check out your file system.  Go under the InprocServer32 subkey under the GUID:
 

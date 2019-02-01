@@ -9,13 +9,19 @@ Let's say a C# developer writes code like this:
 
  
 ```
-class MyClass\<S\> { static string Foo\<T\>(S instanceOfS, T instanceOfT) { return instanceOfS.ToString() + instanceOfT.ToString(); } }
+class MyClass<S>
+{
+	static string Foo<T>(S instanceOfS, T instanceOfT)
+	{
+		return instanceOfS.ToString() + instanceOfT.ToString();
+	}
+}
 ```
 
 Here we have a generic function, MyClass\<S\>.Foo\<T\>.  Let's say the developer instantiated MyClass & Foo by making the following function call:
 
 ```
-MyClass\<int\>.Foo\<float\>(4, 8.8);
+MyClass<int>.Foo<float>(4, 8.8);
 ```
 
 It's important to distinguish between **function** arguments and **type** arguments.  The function arguments are the dudes inside the parentheses—4 and 8.8 in the example above.  Type arguments are the things you find inside the angle brackets \<\>.  Foo is given one type argument, float.  Foo belongs to class MyClass, which itself is given the type argument, int.
@@ -23,7 +29,7 @@ It's important to distinguish between **function** arguments and **type** argume
 It’s worth spending a bit of time thinking about this.  When one sees the term “type arguments”, one might mistake that for “argument types”, or “types of the function arguments”, which in the above case would be int _and_ float, since the function takes two function arguments.  But this is not what I mean by “type argument”.  A “type argument” is what the developer provides in place of a generic type parameter that sits inside the angle brackets.  This is irrespective of what function arguments are passed to the function.  For example the generic function Alloc\<U\>:
 
 ```
-U Alloc\<U\>() { return new U(); }
+U Alloc<U>() { return new U(); }
 ```
 
 takes no function arguments at all, but it still requires a type argument (for the “U”) in order to be instantiated.
@@ -33,7 +39,14 @@ takes no function arguments at all, but it still requires a type argument (for t
 So if you were to get the FunctionID for MyClass\<int\>.Foo\<float\>, and you passed that FunctionID to GetFunctionInfo2, what should you get back in the [out] parameters?
 
 ```
-HRESULT GetFunctionInfo2( [in] FunctionID funcId, [in] COR\_PRF\_FRAME\_INFO frameInfo, [out] ClassID \*pClassId, [out] ModuleID \*pModuleId, [out] mdToken \*pToken, [in] ULONG32 cTypeArgs, [out] ULONG32 \*pcTypeArgs, [out] ClassID typeArgs[]);
+HRESULT GetFunctionInfo2([in] FunctionID funcId,
+						 [in] COR_PRF_FRAME_INFO frameInfo,
+						 [out] ClassID *pClassId,
+						 [out] ModuleID *pModuleId,
+						 [out] mdToken *pToken,
+						 [in] ULONG32 cTypeArgs,
+						 [out] ULONG32 *pcTypeArgs,
+						 [out] ClassID typeArgs[]);
 ```
 
 \*pClassId: This will be the ClassID for the instantiated MyClass\<int\>.  More on this later.
@@ -51,7 +64,13 @@ typeArgs[]: This is the array of **type arguments** to MyClass\<int\>.Foo\<float
 OK, someone in parentheses said something about calling GetClassIDInfo2, so let’s do that.  Since we got the ClassID for MyClass\<int\> above, let’s pass it to GetClassIDInfo2 to see what we get:
 
 ```
-HRESULT GetClassIDInfo2( [in] ClassID classId, [out] ModuleID \*pModuleId, [out] mdTypeDef \*pTypeDefToken, [out] ClassID \*pParentClassId, [in] ULONG32 cNumTypeArgs, [out] ULONG32 \*pcNumTypeArgs, [out] ClassID typeArgs[]);
+HRESULT GetClassIDInfo2([in] ClassID classId,
+						[out] ModuleID *pModuleId,
+						[out] mdTypeDef *pTypeDefToken,
+						[out] ClassID *pParentClassId,
+						[in] ULONG32 cNumTypeArgs,
+						[out] ULONG32 *pcNumTypeArgs,
+						[out] ClassID typeArgs[]);
 ```
 
 \*pModuleId: module defining the mdTypeDef token returned (see next parameter).  If classId is a generic class defined in one module, its instantiating type arguments are defined in other modules, and the class is instantiated in yet another module, this parameter will always tell you that first module—the one containing the definition of the generic class (i.e., classId’s mdTypeDef).

@@ -11,7 +11,10 @@ The example I’ll use where the .NET Framework uses type forwarding is the Time
 
 | 
 ```
-.class extern /\*27000004\*/ forwarder System.TimeZoneInfo { .assembly extern mscorlib /\*23000001\*/  }
+.class extern /*27000004*/ forwarder System.TimeZoneInfo
+ {
+ .assembly extern mscorlib /*23000001*/ 
+ }
 ```
  |
 
@@ -21,36 +24,44 @@ At run-time, if the CLR type loader encounters this exported type, it knows it m
 
 ## Walkthrough 1: Observe the forwarding of System.TimeZoneInfo
 
-This walkthrough assumes you have .NET 4.0 Beta 1 installed (see [here](http://blogs.msdn.com/davbr/archive/2009/05/26/clr-v4-beta-1-released.aspx)) **and** an older release of .NET, such as .NET 3.5, installed.
+This walkthrough assumes you have .NET 4.0 or later installed **and** an older release of .NET, such as .NET 3.5, installed.
 
 Code up a simple C# app that uses System.TimeZoneInfo:
-
-namespace test     
-{     
-    class Class1    
-    {     
-        static void Main(string[] args)     
-        {     
-            System.TimeZoneInfo ti = null;     
-        }     
-    }     
+```
+namespace test 
+{ 
+    class Class1 
+    { 
+        static void Main(string[] args) 
+        { 
+            System.TimeZoneInfo ti = null; 
+        } 
+    } 
 }
+```
 
 Next, compile this into an exe using a CLR V2-based toolset (e.g., .NET 3.5).  You can use Visual Studio, or just run from the command-line (but be sure your path points to the pre-.NET 4.0 C# compiler!).  Example:
 
-| 
 ```
 csc /debug+ /o- /r:"C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\v3.5\System.Core.dll" Class1.cs
 ```
- |
 
 Again, be sure you’re using an old csc.exe from, say, a NET 3.5 installation.  To verify, open up Class1.exe in ildasm, and take a look at Main().  It should look something like this:
 
-| 
 ```
-.method /\*06000001\*/ private hidebysig static  void Main(string[] args) cil managed { .entrypoint // Code size 4 (0x4) .maxstack 1 **.locals /\*11000001\*/ init ([0] class [System.Core/\*23000002\*/]System.TimeZoneInfo/\*01000006\*/ ti)** IL\_0000: nop IL\_0001: ldnull IL\_0002: stloc.0 IL\_0003: ret } // end of method Class1::Main
+.method /*06000001*/ private hidebysig static 
+ void Main(string[] args) cil managed
+ {
+ .entrypoint
+ // Code size 4 (0x4)
+ .maxstack 1
+ **.locals /*11000001*/ init ([0] class [System.Core/*23000002*/]System.TimeZoneInfo/*01000006*/ ti)**
+ IL\_0000: nop
+ IL\_0001: ldnull
+ IL\_0002: stloc.0
+ IL\_0003: ret
+ } // end of method Class1::Main
 ```
- |
 
 The key here is to note that the IL uses a TypeRef for System.TimeZoneInfo (01000006) that points to **System.Core.dll**.  When you run Class1.exe against a .NET 3.5 runtime, it will find System.TimeZoneInfo in System.Core.dll as usual, and just use that, since System.TimeZoneInfo actually is defined in System.Core.dll in pre-.NET 4.0 frameworks.  However, what happens when you run Class1.exe against .NET 4.0 without recompiling?  Type forwarding would get invoked!
 
@@ -58,11 +69,13 @@ Note that, if you were to build the above C# code using the .NET 4.0 C# compiler
 
 Ok, so how do we run this pre-.NET 4.0 executable against .NET 4.0?  A config file, of course.  Paste the following into a file named Class1.exe.config that sits next to Class1.exe:
 
-| 
 ```
-\<configuration\> \<startup\> \<supportedRuntime version="v4.0.20506"/\> \</startup\> \</configuration\>
+<configuration\>
+ <startup\>
+ <supportedRuntime version="v4.0.20506"/>
+ </startup\>
+ </configuration\>
 ```
- |
 
 The above will force Class1.exe to bind against .NET 4.0 Beta 1.  And when it comes time to look for TimeZoneInfo, the CLR will first look in System.Core.dll, find the exported types table entry, and then hop over to mscorlib.dll to load the type.  What does that look like to your profiler?  Make your guess and hold that thought.  First, another walkthrough…
 
@@ -70,10 +83,12 @@ The above will force Class1.exe to bind against .NET 4.0 Beta 1.  And when it co
 
 To experiment with forwarding your own types, the process is:
 
-- Create Version 1 of your library  
+- Create Version 1 of your library 
+ 
   - Create version 1 of your library assembly that defines your type (MyLibAssemblyA.dll) 
   - Create an app that references your type in MyLibAssemblyA.dll (MyClient.exe) 
-- Create version 2 of your library  
+- Create version 2 of your library 
+ 
   - Recompile MyLibAssemblyA.dll to forward your type elsewhere (MyLibAssemblyB.dll) 
   - Don’t recompile MyClient.exe.  Let it still think the type is defined in MyLibAssemblyA.dll. 
 
@@ -82,87 +97,96 @@ To experiment with forwarding your own types, the process is:
 Just make a simple C# DLL that includes your type Foo.  Something like this (MyLibAssemblyA.cs):
 
 ```
-using System;public class Foo{ }
+using System;
+public class Foo
+{
+}
 ```
 
 and compile it into MyLibAssemblyA.dll:
 
-| 
 ```
 csc /target:library /debug+ /o- MyLibAssemblyA.cs
 ```
- |
 
 Then make yourself a client app that references Foo.
 
 ```
-using System;public class Test{ public static void Main() { Foo foo = new Foo(); Console.WriteLine(typeof(Foo).AssemblyQualifiedName); } }
+using System;
+public class Test
+{
+  public static void Main()
+  {
+    Foo foo = new Foo();
+    Console.WriteLine(typeof(Foo).AssemblyQualifiedName);
+  }
+}
 ```
 
 and compile this into MyClient.exe:
 
-| 
 ```
 csc /debug+ /o- /r:MyLibAssemblyA.dll MyClient.cs
 ```
- |
 
 When you run MyClient.exe, you get this boring output:
 
-| 
 ```
 Foo, MyLibAssemblyA, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
 ```
- |
 
 Ok, time to upgrade!
 
 ### Version 2
-
 Time goes by, your library is growing, and its time to split it into two DLLs.  Gotta move Foo into the new DLL.  Save this into MyLibAssemblyB.cs
-
-using System;     
-public class Foo    
-{     
+```
+using System; 
+public class Foo 
+{ 
 }
+```
 
 compile that into your new DLL, MyLibAssemblyB.dll:
-
-| 
 ```
 csc /target:library /debug+ /o- MyLibAssemblyB.cs
 ```
- |
 
 And for the type forward.  MyLibAssemblyA.cs now becomes:
-
 ```
-using System;using System.Runtime.CompilerServices; [assembly: TypeForwardedTo(typeof(Foo))]
+using System;
+using System.Runtime.CompilerServices;
+ [assembly: TypeForwardedTo(typeof(Foo))]
 ```
 
 compile that into MyLibAssemblyA.dll (overwriting your Version 1 copy of that DLL):
-
-| 
 ```
 csc /target:library /debug+ /o- /r:MyLibAssemblyB.dll MyLibAssemblyA.cs
 ```
- |
 
 Now, when you rerun MyClient.exe (without recompiling!), it will look for Foo first in MyLibAssemblyA.dll, and then hop over to MyLibAssemblyB.dll:
-
-| 
 ```
 Foo, MyLibAssemblyB, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
 ```
- |
-
- 
 
 And this all despite the fact that MyClient.exe still believes that Foo lives in MyLibAssemblyA:
-
-| 
 ```
-.method /\*06000001\*/ public hidebysig static  void Main() cil managed { .entrypoint // Code size 29 (0x1d) .maxstack 1 .locals /\*11000001\*/ init ([0] class [MyLibAssemblyA/\*23000002\*/]Foo/\*01000006\*/ foo) IL\_0000: nop IL\_0001: newobj instance void [MyLibAssemblyA/\*23000002\*/]Foo/\*01000006\*/::.ctor() /\* 0A000004 \*/ IL\_0006: stloc.0 **IL\_0007: ldtoken [MyLibAssemblyA/\*23000002\*/]Foo/\*01000006\*/** IL\_000c: call class [mscorlib/\*23000001\*/]System.Type/\*01000007\*/ [mscorlib/\*23000001\*/]System.Type/\*01000007\*/::GetTypeFromHandle(valuetype [mscorlib/\*23000001\*/]System.RuntimeTypeHandle/\*01000008\*/) /\* 0A000005 \*/ IL\_0011: callvirt instance string [mscorlib/\*23000001\*/]System.Type/\*01000007\*/::get\_AssemblyQualifiedName() /\* 0A000006 \*/ IL\_0016: call void [mscorlib/\*23000001\*/]System.Console/\*01000009\*/::WriteLine(string) /\* 0A000007 \*/ IL\_001b: nop IL\_001c: ret } // end of method Test::Main
+.method /*06000001*/ public hidebysig static 
+ void Main() cil managed
+ {
+ .entrypoint
+ // Code size 29 (0x1d)
+ .maxstack 1
+ .locals /*11000001*/ init ([0] class [MyLibAssemblyA/*23000002*/]Foo/*01000006*/ foo)
+ IL\_0000: nop
+ IL\_0001: newobj instance void [MyLibAssemblyA/*23000002*/]Foo/*01000006*/::.ctor() /* 0A000004 */
+ IL\_0006: stloc.0
+ **IL\_0007: ldtoken [MyLibAssemblyA/*23000002*/]Foo/*01000006*/**
+ IL\_000c: call class [mscorlib/*23000001*/]System.Type/*01000007*/ [mscorlib/*23000001*/]System.Type/*01000007*/::GetTypeFromHandle(valuetype [mscorlib/*23000001*/]System.RuntimeTypeHandle/*01000008*/) /* 0A000005 */
+ IL\_0011: callvirt instance string [mscorlib/*23000001*/]System.Type/*01000007*/::get\_AssemblyQualifiedName() /* 0A000006 */
+ IL\_0016: call void [mscorlib/*23000001*/]System.Console/*01000009*/::WriteLine(string) /* 0A000007 */
+ IL\_001b: nop
+ IL\_001c: ret
+ } // end of method Test::Main
 ```
  |
 
@@ -176,3 +200,4 @@ However, type forwarding is important to understand if your profiler needs to fo
 
 In any case, whether you think your profiler will be affected by type forwarding, be sure to test, test, test!
 
+  

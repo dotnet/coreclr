@@ -19,12 +19,12 @@ Keep in mind there are many ways to do this. I'll outline one of the more straig
 
 - In your **ICorProfilerCallback2::ModuleLoadFinished** callback, you call **ICorProfilerInfo2::GetModuleMetadata** to get a pointer to a metadata interface on that module. 
 - QI for the metadata interface you want. Search MSDN for "IMetaDataImport", and grope through the table of contents to find topics on the metadata interfaces. 
-- Once you're in metadata-land, you have access to all the types in the module, including their fields and function prototypes. You may need to parse metadata signatures and [this signature parser](http://blogs.msdn.com/davbr/archive/2005/10/13/480864.aspx) may be of use to you. 
+- Once you're in metadata-land, you have access to all the types in the module, including their fields and function prototypes. You may need to parse metadata signatures and [this signature parser](samples/sigparser.cpp) may be of use to you. 
 - In your **ICorProfilerCallback2::JITCompilationStarted** callback, you may use **ICorProfilerInfo2::GetILFunctionBody** to inspect the original IL, and **ICorProfilerInfo2::GetILFunctionBodyAllocator** and then **ICorProfilerInfo2::SetILFunctionBody** to replace that IL with your own. 
 
 **Q: What about NGEN?**
 
-If you want to rewrite IL of NGENd modules, well, it's kind of too late because the original IL has already been compiled into native code. However, you do have some options.  If your profiler sets the **COR\_PRF\_USE\_PROFILE\_IMAGES** monitor event flag, that will force the "NGEN /Profile" version of the modules to load if they're available.  (I've already blogged a little about "NGEN /Profile", including how to generate those modules, [here](http://blogs.msdn.com/davbr/archive/2007/03/22/enter-leave-tailcall-hooks-part-1-basics.aspx).)  So, at run-time, one of two things will happen for any given module.
+If you want to rewrite IL of NGENd modules, well, it's kind of too late because the original IL has already been compiled into native code. However, you do have some options.  If your profiler sets the **COR\_PRF\_USE\_PROFILE\_IMAGES** monitor event flag, that will force the "NGEN /Profile" version of the modules to load if they're available.  (I've already blogged a little about "NGEN /Profile", including how to generate those modules, [here](enter-leave-tailcall-hooks-part-1-basics.md).)  So, at run-time, one of two things will happen for any given module.
 
 1) If you set **COR\_PRF\_USE\_PROFILE\_IMAGES** and the NGEN /Profile version is available, it will load.  You will then have the opportunity to respond to the **JITCachedFunctionSearchStarted** callback.  When a function from an NGEN /Profile module is about to be executed for the first time, your profiler receives the **JITCachedFunctionSearchStarted** callback.  You may then set the \*pbUseCachedFunction [out] parameter to FALSE, and that will force the CLR to JIT the function instead of using the version that was already compiled into the NGEN /Profile module.  Then, when the CLR goes to JIT the function, your profiler receives the **JITCompilationStarted** callback and can perform IL rewriting just as it does above for functions that exist in non-NGENd mdoules.  What's nice about this approach is that, if you only need to instrument a few functions here and there, it can be faster not to have to JIT everything, just so you get the **JITCompilationStarted** callback for the few functions you're interested in.  This approach can therefore improve startup performance of the application while it's being profiled.  The disadvantage, though, is that your profiler must ensure the NGEN /Profile versions of all the modules get generated beforehand and get installed onto the user's machine.  Depending on your scenarios and customers, this may be too cumbersome to ensure.
 
@@ -34,10 +34,6 @@ If you want to rewrite IL of NGENd modules, well, it's kind of too late because 
 
 Here is an MSDN article that talks about making an IL rewriting profiler:   
 [http://msdn.microsoft.com/en-us/magazine/cc188743.aspx](http://msdn.microsoft.com/en-us/magazine/cc188743.aspx)
-
-Some blog entries I wrote about using IL rewriting to work around a bug:   
-[http://blogs.msdn.com/davbr/archive/2006/02/27/540280.aspx](http://blogs.msdn.com/davbr/archive/2006/02/27/540280.aspx)   
-[http://blogs.msdn.com/davbr/archive/2006/06/07/620925.aspx](http://blogs.msdn.com/davbr/archive/2006/06/07/620925.aspx)
 
 **Q: Any caveats?**
 

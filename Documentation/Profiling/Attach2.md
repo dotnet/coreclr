@@ -7,17 +7,9 @@ In a previous [post](Attach.md), I outlined to all you profiler writers how to m
 
 A profiler that loads on startup of an application has the option to know the entire history of that application.  By requesting the appropriate callback events, the profiler can know all the classes and modules that have loaded, functions that have JITted, objects that have been allocated, etc.  However, a profiler that loads by attaching to an already-running application is a bit like Dorothy who lands in the middle of Oz and has no idea what’s going on.  She doesn’t have the luxury of arriving at the beginning of time, and watching everyone from the moment of their birth.  She runs into people after they’re fully grown, and is expected to deal gracefully—often by making friends with them.  It would not be socially acceptable for Dorothy to encounter an access violation upon meeting someone new.
 
-| 
-
-[![NoBirthAnnouncement](media/NoBirthAnnouncement.JPG)
-
- |
-| 
+[NoBirthAnnouncement](media/NoBirthAnnouncement.JPG)
 
 Drawing by Magdalena Hermawan
-
- |
-
  
 
 There are two fundamental ways your profiler can catch up on the current state of an application:

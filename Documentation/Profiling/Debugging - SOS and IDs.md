@@ -11,7 +11,15 @@ In windbg, you'll need mscorwks.dll to load first, and then you can load SOS.  O
 
 | 
 ```
-0:000\> **sxe ld mscorwks** 0:000\> g ModLoad: 79e70000 7a3ff000 C:\Windows\Microsoft.NET\Framework\v2.0.50727\mscorwks.dll eax=00000000 ebx=00000000 ecx=00000000 edx=00000000 esi=7efdd000 edi=20000000 eip=77a1a9fa esp=002fea38 ebp=002fea78 iopl=0 nv up ei pl nz na po nc cs=0023 ss=002b ds=002b es=002b fs=0053 gs=002b efl=00000202 ntdll!NtMapViewOfSection+0x12: 77a1a9fa c22800 ret 28h 0:000\> **.loadby sos mscorwks**
+0:000\> **sxe ld mscorwks**
+ 0:000\> g
+ ModLoad: 79e70000 7a3ff000 C:\Windows\Microsoft.NET\Framework\v2.0.50727\mscorwks.dll
+ eax=00000000 ebx=00000000 ecx=00000000 edx=00000000 esi=7efdd000 edi=20000000
+ eip=77a1a9fa esp=002fea38 ebp=002fea78 iopl=0 nv up ei pl nz na po nc
+ cs=0023 ss=002b ds=002b es=002b fs=0053 gs=002b efl=00000202
+ ntdll!NtMapViewOfSection+0x12:
+ 77a1a9fa c22800 ret 28h
+ 0:000\> **.loadby sos mscorwks**
 ```
  |
 
@@ -29,11 +37,18 @@ Ok, so FunctionID = (MethodDesc \*).  How does that help you?  SOS just so happe
 
 | 
 ```
-0:000\> bu UnitTestSampleProfiler!SampleCallbackImpl::JITCompilationStarted 0:000\> g ...
+0:000\> bu UnitTestSampleProfiler!SampleCallbackImpl::JITCompilationStarted
+ 0:000\> g
+ ...
 ```
 
 ```
-Breakpoint 0 hit eax=00c133f8 ebx=00000000 ecx=10001218 edx=00000001 esi=002fec74 edi=00000000 eip=10003fc0 esp=002fec64 ebp=002feca4 iopl=0 nv up ei pl nz na po nc cs=0023 ss=002b ds=002b es=002b fs=0053 gs=002b efl=00000202 UnitTestSampleProfiler!SampleCallbackImpl::JITCompilationStarted: 10003fc0 55 push ebp
+Breakpoint 0 hit
+ eax=00c133f8 ebx=00000000 ecx=10001218 edx=00000001 esi=002fec74 edi=00000000
+ eip=10003fc0 esp=002fec64 ebp=002feca4 iopl=0 nv up ei pl nz na po nc
+ cs=0023 ss=002b ds=002b es=002b fs=0053 gs=002b efl=00000202
+ UnitTestSampleProfiler!SampleCallbackImpl::JITCompilationStarted:
+ 10003fc0 55 push ebp
 ```
  |
 
@@ -41,7 +56,10 @@ The debugger is now sitting at the beginning of my profiler's JITCompilationStar
 
 | 
 ```
-0:000\> dv this = 0x00c133f8 **functionID = 0x1e3170** fIsSafeToBlock = 1
+0:000\> dv
+ this = 0x00c133f8
+ **functionID = 0x1e3170**
+ fIsSafeToBlock = 1
 ```
  |
 
@@ -49,7 +67,13 @@ Aha, that's the FunctionID about to get JITted.  Now use SOS to see what that fu
 
 | 
 ```
-0:000\> !dumpmd 0x1e3170 Method Name: test.Class1.Main(System.String[]) Class: 001e1288**MethodTable: 001e3180** mdToken: 06000001 Module: 001e2d8c IsJitted: no m\_CodeOrIL: ffffffff
+0:000\> !dumpmd 0x1e3170
+ Method Name: test.Class1.Main(System.String[])
+ Class: 001e1288
+**MethodTable: 001e3180** mdToken: 06000001
+ Module: 001e2d8c
+ IsJitted: no
+ m\_CodeOrIL: ffffffff
 ```
  |
 
@@ -57,7 +81,15 @@ Lots of juicy info here, though the Method Name typically is what helps me the m
 
 | 
 ```
-0:000\> !dumpmt 0x001e3180 EEClass: 001e1288 Module: 001e2d8c Name: test.Class1 mdToken: 02000002 (C:\proj\HelloWorld\Class1.exe) BaseSize: 0xc ComponentSize: 0x0 Number of IFaces in IFaceMap: 0 Slots in VTable: 6
+0:000\> !dumpmt 0x001e3180
+ EEClass: 001e1288
+ Module: 001e2d8c
+ Name: test.Class1
+ mdToken: 02000002 (C:\proj\HelloWorld\Class1.exe)
+ BaseSize: 0xc
+ ComponentSize: 0x0
+ Number of IFaces in IFaceMap: 0
+ Slots in VTable: 6
 ```
  |
 
