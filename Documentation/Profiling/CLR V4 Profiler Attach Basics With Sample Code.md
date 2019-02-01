@@ -1,7 +1,7 @@
 *Adapted from an entry that appeared on David Broman's blog*
 
 
-A new feature in CLR V4 is the ability to attach a profiler to a process after that process has already started.  The usefulness of this is fairly obvious to anyone who's ever attached a debugger to a running-process: It's helpful when diagnosing hard-to-reproduce problems, and particularly useful when encountering issues in production.
+Profiler attach is a feature that allows you to attach a profiler to an already running process. The usefulness of this is fairly obvious to anyone who's ever attached a debugger to a running-process: It's helpful when diagnosing hard-to-reproduce problems, and particularly useful when encountering issues in production.
 
 Please note!  You can't just take any profiler you bought and suddenly be able to attach it to a running application.  The profiler must be built with "attachability" in mind.  So if you're a profiler developer looking to pump some attachability into your product, read on--this article is for you.  Everyone else, this article will probably be less useful--but just as riveting.
 
@@ -11,7 +11,7 @@ Please note!  You can't just take any profiler you bought and suddenly be able t
 
 So how do you get your profiler attached to a running process?  The process has already started, and the CLR code which interrogates the environment to determine whether to load a profiler has already run.  So how do you kick the process into loading your profiler?  The answer: Another process!
 
-![](media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Components.PostAttachments/00/09/77/80/66/Attach.jpg)
+![](media/Attach.jpg)
 
 In order to force your profiler DLL to load into the target profilee process, you'll need to create a "trigger" process to send the attach message to the target profilee.  Many profilers already ship with a GUI shell to control launching processes to profile.  That shell will typically act as your trigger process as well.
 
