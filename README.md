@@ -6,7 +6,7 @@ If you are new to .NET Core start with the [About .NET](https://docs.microsoft.c
 that quickly points you to [.NET Core Tutorials](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started).
 
 
-.NET Core is best thought of as 'agile .NET'.   Generally speaking it is the same as 
+.NET Core is best thought of as 'agile .NET'.  Generally speaking it is the same as 
 the [Desktop .NET Framework](https://en.wikipedia.org/wiki/.NET_Framework)
 distributed as part of the Windows operating system, but it is a cross platform 
 (Windows, Linux, macOS) and cross architecture (x86, x64, ARM) subset that can be deployed
