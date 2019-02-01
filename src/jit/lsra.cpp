@@ -6689,9 +6689,9 @@ void LinearScan::resolveRegisters()
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
             if (currentRefPosition->refType == RefTypeUpperVectorSaveDef)
             {
-                // The treeNode must be a call.
+                // The treeNode must be non-null. It is a call or an instruction that becomes a call.
                 noway_assert(treeNode != nullptr);
-                assert(treeNode->OperIs(GT_CALL));
+
                 // If the associated interval is internal, this must be a RefPosition for a LargeVectorType LocalVar.
                 // Otherwise, this  is a non-lclVar interval that has been spilled, and we don't need to do anything.
                 if (currentRefPosition->getInterval()->isInternal)
