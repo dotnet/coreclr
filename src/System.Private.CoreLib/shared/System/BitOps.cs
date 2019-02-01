@@ -15,9 +15,7 @@ namespace System
     internal static class BitOps
     {
         // Magic C# optimization that directly wraps the data section of the dll (a bit like string constants)
-        // https://github.com/dotnet/coreclr/pull/22118#discussion_r249957516
         // https://github.com/dotnet/roslyn/pull/24621
-        // https://github.com/benaadams/coreclr/blob/9ba65b563918c778c256f18e234be69174173f12/src/System.Private.CoreLib/shared/System/BitOps.cs
 
         private static ReadOnlySpan<byte> s_TrailingZeroCountDeBruijn => new byte[32]
         {
@@ -208,7 +206,8 @@ namespace System
 
         #region Log2
 
-        // TODO: May belong in System.Math, in which case need to distinguish it from overloads accepting double
+        // TODO: May belong in System.Math, in which case may need to name it Log2Int or Log2Floor
+        // to distinguish it from overloads accepting float/double
 
         /// <summary>
         /// Returns the integer (floor) log of the specified value, base 2, without branching.
@@ -219,13 +218,16 @@ namespace System
         public static uint Log2(uint value)
         {
             // Log(0) is undefined. Return 32 for input 0, without branching.
-            //                                  0   1   2   N
-            uint nz = Log2NonZero(ref value); //0   0   1   31
-            uint is0 = 1u ^ nz; //              1   0   0   0
-            uint lim = is0 * 32u; //            32  0   0   0
-            value *= nz; //                     0   0   1   31
+            //                                          0   1   2   31
+            bool is0 = value == 0; //                   T   F   F   F
+            uint iz = Unsafe.As<bool, byte>(ref is0); //1   0   0   0
 
-            return lim + value; //              32  0   1   31
+            uint log = Log2Impl(value); //              0   0   1   31
+            uint nz = iz ^ 1u; //                       0   1   1   1
+            log *= nz; //                               0   0   1   31
+
+            uint lim = iz * 32u; //                     32  0   0   0
+            return lim + log; //                        32  0   1   31
         }
 
         /// <summary>
@@ -279,10 +281,12 @@ namespace System
             }
 
             // Return 32 for input 0, without branching.
-            //                                  0   1   2   N
-            uint nz = Log2NonZero(ref value); //0   0   1   31
-            uint is0 = 1u ^ nz; //              1   0   0   0
-            return 31u + is0 - value; //        32  31  30  0
+            //                                              0   1   2   N
+            bool is0 = value == 0; //                       T   F   F   F
+            uint inc = Unsafe.As<bool, byte>(ref is0); //   1   0   0   0
+
+            uint log = Log2Impl(value); //                  0   0   1   31
+            return 31u + inc - log; //                      32  31  30  0
         }
 
         /// <summary>
@@ -314,11 +318,10 @@ namespace System
                 lo = LeadingZeroCount(lo);
             }
 
-            // Keep lo iff hi==32
-            uint m = hi & ~32u; // Zero 5th bit of hi
-            byte not0 = NonZero(m); // not0 = m == 0 ? 0 : 1
-            uint is0 = 1u ^ not0; // is0 = m == 0 ? 1 : 0
-            lo *= is0; // lo *= (m == 0 ? 1 : 0)
+            // Keep lo iff hi is 32 zeros
+            // Branchless equivalent of: lo *= (hi == 32 ? 1 : 0)
+            bool keepLo = hi == 32;
+            lo *= Unsafe.As<bool, byte>(ref keepLo); // lo x 0|1
 
             return hi + lo;
         }
@@ -351,6 +354,7 @@ namespace System
         {
             if (Bmi1.IsSupported)
             {
+                // Note that TZCNT contract specifies 0->32
                 return Bmi1.TrailingZeroCount(value);
             }
 
@@ -366,7 +370,7 @@ namespace System
 
             // Branchless equivalent of: c32 = value == 0 ? 32 : 0
             bool is0 = value == 0;
-            uint c32 = (uint)Unsafe.As<bool, byte>(ref is0) << 5; // 0|1 x 32
+            uint c32 = (uint)Unsafe.As<bool, byte>(ref is0) * 32; // 0|1 x 32
 
             return c32 + count;
         }
@@ -400,11 +404,10 @@ namespace System
                 lo = TrailingZeroCount(lo);
             }
 
-            // Keep hi iff lo==32
-            uint m = lo & ~32u; // Zero 5th bit of lo
-            byte not0 = NonZero(m); // not0 = m == 0 ? 0 : 1
-            uint is0 = 1u ^ not0; // is0 = m == 0 ? 1 : 0
-            hi *= is0; // hi *= (m == 0 ? 1 : 0)
+            // Keep hi iff lo is 32 zeros
+            // Branchless equivalent of: hi *= (lo == 32 ? 1 : 0)
+            bool keepHi = lo == 32;
+            hi *= Unsafe.As<bool, byte>(ref keepHi); // hi x 0|1
 
             return lo + hi;
         }
@@ -628,43 +631,24 @@ namespace System
 
         // Some of these helpers may be unnecessary depending on how JIT optimizes certain bool operations.
 
-        // Would be great to use x86 intrinsics here instead:
-        //     OR al, al
-        //     CMOVNZ al, 1
-        // CMOV isn't a branch and won't stall the pipeline.
-
-        /// <summary>
-        /// Returns 1 if <paramref name="value"/> is non-zero, else returns 0.
-        /// Does not incur branching.
-        /// Similar in behavior to the x86 instruction CMOVNZ.
-        /// </summary>
-        /// <param name="value">The value to inspect.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static byte NonZero(uint value)
-            // Negation will set sign-bit iff non-zero
-            => unchecked((byte)(((ulong)-value) >> 63));
-
         /// <summary>
         /// Calculates the integer (floor) log of the specified value, base 2, without branching.
         /// Returns 1 if <paramref name="value"/> is non-zero, else returns 0.
         /// Does not incur branching.
         /// </summary>
-        /// <param name="value">The value. On return, will contain the result.</param>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint Log2NonZero(ref uint value)
+        private static uint Log2Impl(uint value)
         {
-            uint nz = NonZero(value);
-
             FoldTrailingOnes(ref value);
 
-            const uint deBruijn = 0x07C4_ACDDu;
+            // Using deBruijn sequence, k=2, n=5 (2^5=32)
+            const uint deBruijn = 0b_0000_0111_1100_0100_1010_1100_1101_1101;
             uint ix = (value * deBruijn) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             ref byte lz = ref MemoryMarshal.GetReference(s_Log2DeBruijn);
-            value = Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
-
-            return nz;
+            return Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
         }
 
         // TODO: Consider exposing as public - this code is duplicated surprisingly often
