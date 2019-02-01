@@ -10,7 +10,7 @@ class GCHeapHashObject;
 template <bool remove_supported>
 struct DefaultGCHeapHashTraits
 {
-    typedef typename PTRARRAYREF THashArrayType;
+    typedef PTRARRAYREF THashArrayType;
     static const INT32 s_growth_factor_numerator = 3;
     static const INT32 s_growth_factor_denominator = 2;
 
@@ -26,19 +26,25 @@ struct DefaultGCHeapHashTraits
 
     static bool IsNull(PTRARRAYREF arr, INT32 index);
     static bool IsDeleted(PTRARRAYREF arr, INT32 index, GCHEAPHASHOBJECTREF gcHeap);
+#ifndef DACCESS_COMPILE
     static THashArrayType AllocateArray(INT32 size);
+#endif
 
     // Not a part of the traits api, but used to allow derived traits to save on code
     static OBJECTREF GetValueAtIndex(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index);
 
+#ifndef DACCESS_COMPILE
     static void CopyValue(THashArrayType srcArray, INT32 indexSrc, THashArrayType destinationArray, INT32 indexDest);
     static void DeleteEntry(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index);
+#endif // !DACCESS_COMPILE
 
     template<class TElement>
     static void GetElement(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index, TElement& foundElement);
 
+#ifndef DACCESS_COMPILE
     template<class TElement>
     static void SetElement(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index, TElement& foundElement);
+#endif // !DACCESS_COMPILE
 };
 
 template <class PtrTypeKey, bool supports_remove>
@@ -132,7 +138,7 @@ class GCHeapHash
 
     GCHeapHash(GCHEAPHASHOBJECTREF gcHeap) : _gcHeap(gcHeap) {}
     GCHeapHash(OBJECTREF gcHeap) : _gcHeap((GCHEAPHASHOBJECTREF)gcHeap) {}
-    GCHeapHash() : _gcHeap(TADDR(NULL)) {}
+    GCHeapHash() : _gcHeap((GCHEAPHASHOBJECTREF)TADDR(NULL)) {}
 };
 
 #endif // GCHEAPHASHTABLE_H

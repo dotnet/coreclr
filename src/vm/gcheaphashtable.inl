@@ -29,6 +29,7 @@ template <bool remove_supported>
     }
 }
 
+#ifndef DACCESS_COMPILE
 template <bool remove_supported>
 /*static*/ typename DefaultGCHeapHashTraits<remove_supported>::THashArrayType DefaultGCHeapHashTraits<remove_supported>::AllocateArray(INT32 size)
 {
@@ -42,6 +43,7 @@ template <bool remove_supported>
 
     return (THashArrayType)AllocateObjectArray(size, g_pObjectClass);
 }
+#endif // !DACCESS_COMPILE
 
     // Not a part of the traits api, but used to allow derived traits to save on code
 template <bool remove_supported>
@@ -56,6 +58,7 @@ template <bool remove_supported>
     return value;
 }
 
+#ifndef DACCESS_COMPILE
 template <bool remove_supported>
 /*static*/ void DefaultGCHeapHashTraits<remove_supported>::CopyValue(THashArrayType srcArray, INT32 indexSrc, THashArrayType destinationArray, INT32 indexDest)
 {
@@ -80,7 +83,9 @@ template <bool remove_supported>
 
     destinationArray->SetAt(indexDest, value);
 }
+#endif // !DACCESS_COMPILE
 
+#ifndef DACCESS_COMPILE
 template <bool remove_supported>
 /*static*/ void DefaultGCHeapHashTraits<remove_supported>::DeleteEntry(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index)
 {
@@ -92,9 +97,9 @@ template <bool remove_supported>
     }
     CONTRACTL_END;
 
-    static_assert(supports_remove, "This hash doesn't support remove");
+    static_assert(remove_supported, "This hash doesn't support remove");
 
-    PTRARRAYREF arr((*pgcHeap)->GetData());
+    PTRARRAYREF arr((PTRARRAYREF)(*pgcHeap)->GetData());
 
     if (arr == NULL)
         COMPlusThrow(kNullReferenceException);
@@ -105,6 +110,7 @@ template <bool remove_supported>
     // The deleted sentinel is a self-pointer
     arr->SetAt(index, *pgcHeap);
 }
+#endif // !DACCESS_COMPILE
 
 template <bool remove_supported>
 template<class TElement>
@@ -115,6 +121,7 @@ template<class TElement>
     foundElement = (TElement)GetValueAtIndex(pgcHeap, index);
 }
 
+#ifndef DACCESS_COMPILE
 template <bool remove_supported>
 template<class TElement>
 /*static*/ void DefaultGCHeapHashTraits<remove_supported>::SetElement(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index, TElement& foundElement)
@@ -137,6 +144,7 @@ template<class TElement>
 
     arr->SetAt(index, foundElement);
 }
+#endif // !DACCESS_COMPILE
 
 template <class PtrTypeKey, bool supports_remove>
 /*static */INT32 GCHeapHashTraitsPointerToPointerList<PtrTypeKey, supports_remove>::Hash(PtrTypeKey *pValue)

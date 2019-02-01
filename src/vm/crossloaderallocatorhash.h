@@ -14,8 +14,8 @@ template <class TKey_, class TValue_>
 class NoRemoveDefaultCrossLoaderAllocatorHashTraits
 {
 public:
-    typedef typename TKey_ TKey;
-    typedef typename TValue_ TValue;
+    typedef TKey_ TKey;
+    typedef TValue_ TValue;
 
 #ifndef DACCESS_COMPILE
     static void SetUsedEntries(TValue* pStartOfValuesData, DWORD entriesInArrayTotal, DWORD usedEntries);
@@ -31,6 +31,9 @@ template <class TKey_, class TValue_>
 class DefaultCrossLoaderAllocatorHashTraits : public NoRemoveDefaultCrossLoaderAllocatorHashTraits<TKey_, TValue_>
 {
 public:
+    typedef TKey_ TKey;
+    typedef TValue_ TValue;
+
 #ifndef DACCESS_COMPILE
     static void DeleteValueInHeapMemory(OBJECTREF keyValueStore, const TValue& value);
 #endif //!DACCESS_COMPILE
@@ -39,7 +42,7 @@ public:
 struct GCHeapHashDependentHashTrackerHashTraits : public DefaultGCHeapHashTraits<true>
 {
     typedef LoaderAllocator* PtrTypeKey;
-    
+
     static INT32 Hash(PtrTypeKey *pValue);
     static INT32 Hash(PTRARRAYREF arr, INT32 index);
     static bool DoesEntryMatchKey(PTRARRAYREF arr, INT32 index, PtrTypeKey *pKey);
@@ -159,10 +162,12 @@ public:
     void Init(LoaderAllocator *pAssociatedLoaderAllocator);
 
 private:
+#ifndef DACCESS_COMPILE
     void EnsureManagedObjectsInitted();
     LAHASHDEPENDENTHASHTRACKERREF GetDependentTrackerForLoaderAllocator(LoaderAllocator* pLoaderAllocator);
     GCHEAPHASHOBJECTREF GetKeyToValueCrossLAHashForHashkeyToTrackers(LAHASHKEYTOTRACKERSREF hashKeyToTrackersUnsafe, LoaderAllocator* pValueLoaderAllocator);
-
+#endif // !DACCESS_COMPILE
+    
     template <class Visitor>
     static bool VisitKeyValueStore(OBJECTREF *pLoaderAllocatorRef, OBJECTREF *pKeyValueStore, Visitor &visitor);
     template <class Visitor>
