@@ -211,28 +211,26 @@ namespace System
 
         /// <summary>
         /// Returns the integer (floor) log of the specified value, base 2, without branching.
-        /// Note that by convention, input value 0 returns 32 since Log(0) is undefined.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint Log2(uint value)
         {
-            // Log(0) is undefined. Return 32 for input 0, without branching.
-            //                                          0   1   2   31
-            bool is0 = value == 0; //                   T   F   F   F
-            uint iz = Unsafe.As<bool, byte>(ref is0); //1   0   0   0
+            FoldTrailingOnes(ref value);
 
-            uint log = Log2Impl(value); //              0   0   1   31
-            uint nz = iz ^ 1u; //                       0   1   1   1
-            log *= nz; //                               0   0   1   31
+            // Using deBruijn sequence, k=2, n=5 (2^5=32)
+            const uint deBruijn = 0b_0000_0111_1100_0100_1010_1100_1101_1101;
+            uint ix = (value * deBruijn) >> 27;
 
-            uint lim = iz * 32u; //                     32  0   0   0
-            return lim + log; //                        32  0   1   31
+            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+            ref byte lz = ref MemoryMarshal.GetReference(s_Log2DeBruijn);
+            return Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
         }
 
         /// <summary>
         /// Returns the integer (floor) log of the specified value, base 2, without branching.
-        /// Note that by convention, input value 0 returns 64 since Log(0) is undefined.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -285,7 +283,7 @@ namespace System
             bool is0 = value == 0; //                       T   F   F   F
             uint inc = Unsafe.As<bool, byte>(ref is0); //   1   0   0   0
 
-            uint log = Log2Impl(value); //                  0   0   1   31
+            uint log = Log2(value); //                      0   0   1   31
             return 31u + inc - log; //                      32  31  30  0
         }
 
@@ -630,26 +628,6 @@ namespace System
         #region Helpers
 
         // Some of these helpers may be unnecessary depending on how JIT optimizes certain bool operations.
-
-        /// <summary>
-        /// Calculates the integer (floor) log of the specified value, base 2, without branching.
-        /// Returns 1 if <paramref name="value"/> is non-zero, else returns 0.
-        /// Does not incur branching.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint Log2Impl(uint value)
-        {
-            FoldTrailingOnes(ref value);
-
-            // Using deBruijn sequence, k=2, n=5 (2^5=32)
-            const uint deBruijn = 0b_0000_0111_1100_0100_1010_1100_1101_1101;
-            uint ix = (value * deBruijn) >> 27;
-
-            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte lz = ref MemoryMarshal.GetReference(s_Log2DeBruijn);
-            return Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
-        }
 
         // TODO: Consider exposing as public - this code is duplicated surprisingly often
 
