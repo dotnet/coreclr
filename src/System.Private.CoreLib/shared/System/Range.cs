@@ -44,16 +44,18 @@ namespace System
         public (int, int) GetOffsetLength(int length)
         {
             int start;
-            if (Start.IsFromEnd)
-                start = length - Start.Value;
+            Index startIndex = Start;
+            if (startIndex.IsFromEnd)
+                start = length - startIndex.Value;
             else
-                start = Start.Value;
+                start = startIndex.Value;
 
             int end;
-            if (End.IsFromEnd)
-                end = length - End.Value;
+            Index endIndex = End;
+            if (endIndex.IsFromEnd)
+                end = length - endIndex.Value;
             else
-                end = End.Value;
+                end = endIndex.Value;
 
             if ((uint)end > (uint)length || (uint)start > (uint)end)
             {
