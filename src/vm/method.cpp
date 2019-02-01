@@ -4874,10 +4874,10 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryP
     _ASSERTE(entryPoint != NULL);
     _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
     _ASSERTE(isPrestubEntryPoint == (entryPoint == GetPrestubEntryPointToBackpatch()));
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
 
     LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
     MethodDescBackpatchInfoTracker *backpatchInfoTracker = mdLoaderAllocator->GetMethodDescBackpatchInfoTracker();
-    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
 
     // Get the entry point to backpatch inside the lock to synchronize with backpatching in MethodDesc::DoBackpatch()
     if (GetEntryPointToBackpatch_Locked() == entryPoint)

@@ -2147,6 +2147,8 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         }
     }
 
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
+
     BOOL fEESuspend = FALSE;
     while (true)
     {
