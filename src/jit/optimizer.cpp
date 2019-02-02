@@ -7180,23 +7180,11 @@ bool Compiler::optVNIsLoopInvariant(ValueNum vn, unsigned lnum, VNToBoolMap* loo
     {
         if (funcApp.m_func == VNF_PhiDef)
         {
-            // First, make sure it's a "proper" phi -- the definition is a Phi application.
-            VNFuncApp phiDefValFuncApp;
-            if (!vnStore->GetVNFunc(funcApp.m_args[2], &phiDefValFuncApp) || phiDefValFuncApp.m_func != VNF_Phi)
-            {
-                // It's not *really* a definition, rather a pass-through of some other VN.
-                // (This could occur, say if both sides of an if-then-else diamond made the
-                // same assignment to a variable.)
-                res = optVNIsLoopInvariant(funcApp.m_args[2], lnum, loopVnInvariantCache);
-            }
-            else
-            {
-                // Is the definition within the loop?  If so, is not loop-invariant.
-                unsigned      lclNum = funcApp.m_args[0];
-                unsigned      ssaNum = funcApp.m_args[1];
-                LclSsaVarDsc* ssaDef = lvaTable[lclNum].GetPerSsaData(ssaNum);
-                res                  = !optLoopContains(lnum, ssaDef->m_defLoc.m_blk->bbNatLoopNum);
-            }
+            // Is the definition within the loop?  If so, is not loop-invariant.
+            unsigned      lclNum = funcApp.m_args[0];
+            unsigned      ssaNum = funcApp.m_args[1];
+            LclSsaVarDsc* ssaDef = lvaTable[lclNum].GetPerSsaData(ssaNum);
+            res                  = !optLoopContains(lnum, ssaDef->m_defLoc.m_blk->bbNatLoopNum);
         }
         else if (funcApp.m_func == VNF_PhiMemoryDef)
         {
