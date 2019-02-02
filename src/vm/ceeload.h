@@ -3180,7 +3180,7 @@ public:
     //-----------------------------------------------------------------------------------------
     // Parse/Return NeutralResourcesLanguageAttribute if it exists (updates Module member variables at ngen time)
     //-----------------------------------------------------------------------------------------
-    BOOL                    GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureNameLength, INT16 * fallbackLocation, BOOL cacheAttribute);
+    BOOL                    GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureNameLength, INT16 * fallbackLocation);
 
 protected:
 

@@ -140,22 +140,19 @@ namespace System.Resources
             return returnCulture;
         }
 
-        internal static CultureInfo GetNeutralResourcesLanguage(Assembly a, ref UltimateResourceFallbackLocation fallbackLocation)
+        internal static CultureInfo GetNeutralResourcesLanguage(Assembly a, out UltimateResourceFallbackLocation fallbackLocation)
         {
             Debug.Assert(a != null, "assembly != null");
-            string cultureName = null;
-            short fallback = 0;
-            if (GetNeutralResourcesLanguageAttribute(a, ref cultureName, out fallback))
+            string cultureName;
+            if (GetNeutralResourcesLanguageAttribute(a, out cultureName, out fallbackLocation))
             {
-                if ((UltimateResourceFallbackLocation)fallback < UltimateResourceFallbackLocation.MainAssembly || (UltimateResourceFallbackLocation)fallback > UltimateResourceFallbackLocation.Satellite)
+                if (fallbackLocation < UltimateResourceFallbackLocation.MainAssembly || fallbackLocation > UltimateResourceFallbackLocation.Satellite)
                 {
-                    throw new ArgumentException(SR.Format(SR.Arg_InvalidNeutralResourcesLanguage_FallbackLoc, fallback));
+                    throw new ArgumentException(SR.Format(SR.Arg_InvalidNeutralResourcesLanguage_FallbackLoc, fallbackLocation));
                 }
-                fallbackLocation = (UltimateResourceFallbackLocation)fallback;
             }
             else
             {
-                fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
                 return CultureInfo.InvariantCulture;
             }
 
@@ -464,6 +461,41 @@ namespace System.Resources
                 resName = _mediator.LocationInfo.Namespace + Type.Delimiter;
             resName += fileName;
             throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_NoNeutralAsm, resName, _mediator.MainAssembly.GetName().Name));
+        }
+
+        private static bool GetNeutralResourcesLanguageAttribute(Assembly assembly, out string cultureName, out UltimateResourceFallbackLocation fallbackLocation)
+        {
+            foreach (CustomAttributeData cad in assembly.GetCustomAttributesData())
+            {
+                if (cad.AttributeType == typeof(NeutralResourcesLanguageAttribute))
+                {
+                    IList<CustomAttributeTypedArgument> caConstructorArgs = cad.ConstructorArguments;
+                    Debug.Assert(caConstructorArgs.Count == 1 || caConstructorArgs.Count == 2, "caConstructorArgs.Count == 1 || caConstructorArgs.Count == 2");
+
+                    CustomAttributeTypedArgument attr;
+                    attr = caConstructorArgs[0];
+                    Debug.Assert(attr.ArgumentType == typeof(string), "ArgumentType == typeof(string)");
+
+                    cultureName = (string)attr.Value;
+
+                    if (caConstructorArgs.Count > 1)
+                    {
+                        attr = caConstructorArgs[1];
+                        Debug.Assert(attr.ArgumentType == typeof(int), "ArgumentType == typeof(int)");
+                        fallbackLocation = (UltimateResourceFallbackLocation)attr.Value;
+                    }
+                    else
+                    {
+                        fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
+                    }
+
+                    return true;
+                }
+            }
+
+            cultureName = null;
+            fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
+            return false;
         }
     }
 }

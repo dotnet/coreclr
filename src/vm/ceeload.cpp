@@ -2577,7 +2577,7 @@ BOOL Module::IsNoStringInterning()
     return !!(m_dwPersistedFlags & NO_STRING_INTERNING);
 }
 
-BOOL Module::GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureNameLength, INT16 * fallbackLocation, BOOL cacheAttribute)
+BOOL Module::GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureNameLength, INT16 * fallbackLocation)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2606,9 +2606,8 @@ BOOL Module::GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureN
             IfFailThrow(cap.SkipProlog());
             IfFailThrow(cap.GetString(cultureName, cultureNameLength));
             IfFailThrow(cap.GetI2(fallbackLocation));
-            // Should only be true on Module.Save(). Update flag to show we have the attribute cached
-            if (cacheAttribute)
-                FastInterlockOr(&m_dwPersistedFlags, NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED);
+            // Update flag to show we have the attribute cached
+            FastInterlockOr(&m_dwPersistedFlags, NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED);
 
             retVal = TRUE;
         }
@@ -8541,7 +8540,7 @@ void Module::Save(DataImage *image)
     CorProfileData * profileData = GetProfileData();
 
     // ngen the neutral resources culture
-    if(GetNeutralResourcesLanguage(&m_pszCultureName, &m_CultureNameLength, &m_FallbackLocation, TRUE)) {
+    if(GetNeutralResourcesLanguage(&m_pszCultureName, &m_CultureNameLength, &m_FallbackLocation)) {
         image->StoreStructure((void *) m_pszCultureName,
                                         (ULONG)(m_CultureNameLength + 1),
                                         DataImage::ITEM_BINDER_ITEMS,
