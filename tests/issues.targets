@@ -55,7 +55,7 @@
     <!-- All Unix targets -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' != 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/paramthreadstart/ThreadStartString_1/*">
-            <Issue>18381</Issue>
+            <Issue>3627</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Interop/StructMarshalling/PInvoke/MarshalStructAsLayoutExp/*">
             <Issue>Issue building native components for the test.</Issue>
