@@ -7116,17 +7116,8 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
 
 void Compiler::optHoistCandidate(GenTree* tree, unsigned lnum, LoopHoistContext* hoistCtxt)
 {
-    if (lnum == BasicBlock::NOT_IN_LOOP)
-    {
-        // The hoisted expression isn't valid at any loop head so don't hoist this expression.
-        return;
-    }
-
-    // The outer loop also must be suitable for hoisting...
-    if ((optLoopTable[lnum].lpFlags & LPFLG_HOISTABLE) == 0)
-    {
-        return;
-    }
+    assert(lnum != BasicBlock::NOT_IN_LOOP);
+    assert((optLoopTable[lnum].lpFlags & LPFLG_HOISTABLE) != 0);
 
     // It must pass the hoistable profitablity tests for this loop level
     if (!optIsProfitableToHoistableTree(tree, lnum))
