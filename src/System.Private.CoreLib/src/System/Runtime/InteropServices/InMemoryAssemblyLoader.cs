@@ -12,23 +12,21 @@ namespace System.Runtime.InteropServices
 {
     public static class InMemoryAssemblyLoader
     {
-        private delegate int EntryPoint(string[] args);
-
         public static unsafe int LoadAndExecuteInMemoryAssembly(IntPtr handle, string[] args)
         {
 #if FEATURE_PAL
             throw new PlatformNotSupportedException();
 #else
             Assembly entryAssembly = AssemblyLoadContext.Default.LoadFromInMemoryModule(handle);
-            MethodInfo entryPointMethod = entryAssembly.EntryPoint;
-            
-            if (entryPointMethod == null)
-            {
-                throw new EntryPointNotFoundException();
-            }
+            // Emulate traditional app start behavior that adds back on the path of the entry assembly
+            // to the array set for Environment.SetCommandLineArgs.
+            string[] environmentArgs = new string[args.Length + 1];
+            environmentArgs[0] = entryAssembly.Location;
+            Array.Copy(args, 0, environmentArgs, 1, args.Length);
 
-            EntryPoint entryPoint = (EntryPoint)entryPointMethod.CreateDelegate(typeof(EntryPoint));
-            return entryPoint(args);
+            Environment.SetCommandLineArgs(environmentArgs);
+
+            return ((RuntimeAssembly)entryAssembly).ExecuteMainMethod(args);
 #endif
         }
 
@@ -37,8 +35,7 @@ namespace System.Runtime.InteropServices
 #if FEATURE_PAL
             throw new PlatformNotSupportedException();
 #else
-            AssemblyLoadContext context = new IndividualAssemblyLoadContext();
-            context.LoadFromInMemoryModule(handle);
+            AssemblyLoadContext.Default.LoadFromInMemoryModule(handle);
 #endif
         }
     }

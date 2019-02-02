@@ -365,6 +365,7 @@ void QCALLTYPE AssemblyNative::LoadFromStream(INT_PTR ptrNativeAssemblyLoadConte
     END_QCALL;
 }
 
+#ifndef FEATURE_PAL
 /*static */
 void QCALLTYPE AssemblyNative::LoadFromInMemoryModule(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR hModule, QCall::ObjectHandleOnStack retLoadedAssembly)
 {
@@ -398,6 +399,7 @@ void QCALLTYPE AssemblyNative::LoadFromInMemoryModule(INT_PTR ptrNativeAssemblyL
 
     END_QCALL;
 }
+#endif
 
 void QCALLTYPE AssemblyNative::GetLocation(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack retString)
 {
@@ -1357,4 +1359,27 @@ BOOL QCALLTYPE AssemblyNative::InternalTryGetRawMetadata(
     END_QCALL;
 
     return metadata != nullptr;
+}
+
+INT32 QCALLTYPE AssemblyNative::ExecuteMainMethod(
+    QCall::AssemblyHandle pAssembly,
+    QCall::ObjectHandleOnStack args)
+{
+    QCALL_CONTRACT;
+
+    INT32 exitCode;
+
+    BEGIN_QCALL;
+
+    _ASSERTE(pAssembly != nullptr);
+
+    Assembly* assembly = pAssembly->GetAssembly();
+
+    PTRARRAYREF* argsArray = (PTRARRAYREF*)args.m_ppObject;
+
+    exitCode = assembly->ExecuteMainMethod(argsArray, TRUE);
+    
+    END_QCALL;
+
+    return exitCode;
 }
