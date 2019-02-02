@@ -94,18 +94,22 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             {
                 if (isBorn && varDsc->lvIsRegCandidate() && tree->gtHasReg())
                 {
-                    // should we include this var in newLife ?
                     compiler->codeGen->genUpdateVarReg(varDsc, tree);
                     varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, compiler->getEmitter());
                 }
                 if (varDsc->lvIsInReg() && tree->gtRegNum != REG_NA)
                 {
+                    // Dying or living there is a change in register so we need to change the reg mask
                     compiler->codeGen->genUpdateRegLife(varDsc, isBorn, isDying DEBUGARG(tree));
                 }
                 else
                 {
-                    // Could this variable be dying?
+                    // Its putting in stackVarDeltaSet the variable no matter if its living or dying
                     VarSetOps::AddElemD(compiler, stackVarDeltaSet, varDsc->lvVarIndex);
+                }
+                if (isDying)
+                {
+                    varDsc->endLiveRangeAtEmitter(compiler->getEmitter());
                 }
             }
         }
@@ -113,6 +117,8 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
         {
             // If hasDeadTrackedFieldVars is true, then, for a LDOBJ(ADDR(<promoted struct local>)),
             // *deadTrackedFieldVars indicates which tracked field vars are dying.
+            // UPDATE: If hasDeadTrackedFieldVars is true, some fields are dying, 
+            // while other fields remain (or become) live.
             bool hasDeadTrackedFieldVars = false;
 
             if (indirAddrLocal != nullptr && isDying)
@@ -146,7 +152,6 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                             {
                                 if (isBorn)
                                 {
-                                    // should we include this var in newLife ?
                                     compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
                                     fldVarDsc->startLiveRangeFromEmitter(fldVarDsc->lvRegNum, compiler->getEmitter());
                                 }
@@ -155,6 +160,11 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                             else
                             {
                                 VarSetOps::AddElemD(compiler, stackVarDeltaSet, fldVarIndex);
+                            }
+
+                            if (isDying)
+                            {
+                                fldVarDsc->endLiveRangeAtEmitter(compiler->getEmitter());
                             }
                         }
                     }
