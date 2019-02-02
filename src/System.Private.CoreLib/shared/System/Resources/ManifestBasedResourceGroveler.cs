@@ -143,23 +143,23 @@ namespace System.Resources
         internal static CultureInfo GetNeutralResourcesLanguage(Assembly a, out UltimateResourceFallbackLocation fallbackLocation)
         {
             Debug.Assert(a != null, "assembly != null");
-            string cultureName;
-            if (GetNeutralResourcesLanguageAttribute(a, out cultureName, out fallbackLocation))
+
+            var attr = a.GetCustomAttribute<NeutralResourcesLanguageAttribute>();
+            if (attr == null)
             {
-                if (fallbackLocation < UltimateResourceFallbackLocation.MainAssembly || fallbackLocation > UltimateResourceFallbackLocation.Satellite)
-                {
-                    throw new ArgumentException(SR.Format(SR.Arg_InvalidNeutralResourcesLanguage_FallbackLoc, fallbackLocation));
-                }
-            }
-            else
-            {
+                fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
                 return CultureInfo.InvariantCulture;
+            }
+
+            fallbackLocation = attr.Location;
+            if (fallbackLocation < UltimateResourceFallbackLocation.MainAssembly || fallbackLocation > UltimateResourceFallbackLocation.Satellite)
+            {
+                throw new ArgumentException(SR.Format(SR.Arg_InvalidNeutralResourcesLanguage_FallbackLoc, fallbackLocation));
             }
 
             try
             {
-                CultureInfo c = CultureInfo.GetCultureInfo(cultureName);
-                return c;
+                return CultureInfo.GetCultureInfo(attr.CultureName);
             }
             catch (ArgumentException e)
             { // we should catch ArgumentException only.
@@ -168,11 +168,11 @@ namespace System.Resources
                 // fires, please fix the build process for the BCL directory.
                 if (a == typeof(object).Assembly)
                 {
-                    Debug.Fail(System.CoreLib.Name + "'s NeutralResourcesLanguageAttribute is a malformed culture name! name: \"" + cultureName + "\"  Exception: " + e);
+                    Debug.Fail(System.CoreLib.Name + "'s NeutralResourcesLanguageAttribute is a malformed culture name! name: \"" + attr.CultureName + "\"  Exception: " + e);
                     return CultureInfo.InvariantCulture;
                 }
 
-                throw new ArgumentException(SR.Format(SR.Arg_InvalidNeutralResourcesLanguage_Asm_Culture, a.ToString(), cultureName), e);
+                throw new ArgumentException(SR.Format(SR.Arg_InvalidNeutralResourcesLanguage_Asm_Culture, a.ToString(), attr.CultureName), e);
             }
         }
 
@@ -461,41 +461,6 @@ namespace System.Resources
                 resName = _mediator.LocationInfo.Namespace + Type.Delimiter;
             resName += fileName;
             throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_NoNeutralAsm, resName, _mediator.MainAssembly.GetName().Name));
-        }
-
-        private static bool GetNeutralResourcesLanguageAttribute(Assembly assembly, out string cultureName, out UltimateResourceFallbackLocation fallbackLocation)
-        {
-            foreach (CustomAttributeData cad in assembly.GetCustomAttributesData())
-            {
-                if (cad.AttributeType == typeof(NeutralResourcesLanguageAttribute))
-                {
-                    IList<CustomAttributeTypedArgument> caConstructorArgs = cad.ConstructorArguments;
-                    Debug.Assert(caConstructorArgs.Count == 1 || caConstructorArgs.Count == 2, "caConstructorArgs.Count == 1 || caConstructorArgs.Count == 2");
-
-                    CustomAttributeTypedArgument attr;
-                    attr = caConstructorArgs[0];
-                    Debug.Assert(attr.ArgumentType == typeof(string), "ArgumentType == typeof(string)");
-
-                    cultureName = (string)attr.Value;
-
-                    if (caConstructorArgs.Count > 1)
-                    {
-                        attr = caConstructorArgs[1];
-                        Debug.Assert(attr.ArgumentType == typeof(int), "ArgumentType == typeof(int)");
-                        fallbackLocation = (UltimateResourceFallbackLocation)attr.Value;
-                    }
-                    else
-                    {
-                        fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
-                    }
-
-                    return true;
-                }
-            }
-
-            cultureName = null;
-            fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
-            return false;
         }
     }
 }
