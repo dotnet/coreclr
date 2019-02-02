@@ -7023,15 +7023,6 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                         m_beforeSideEffect = false;
                     }
                 }
-                else if (tree->OperIsCopyBlkOp())
-                {
-                    GenTree* args = tree->gtOp.gtOp1;
-                    assert(args->OperGet() == GT_LIST);
-                    if (args->gtOp.gtOp1->gtFlags & GTF_GLOB_REF)
-                    {
-                        m_beforeSideEffect = false;
-                    }
-                }
             }
 
             // If this 'tree' is hoistable then we return and the caller will
