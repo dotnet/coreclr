@@ -10390,6 +10390,8 @@ void CodeGen::genSetScopeInfo()
 
         // TODO-Review: This only works for always-enregistered variables. With LSRA, a variable might be in a register
         // for part of its lifetime, or in different registers for different parts of its lifetime.
+        // This method is called after the codegen is done and only reports the last home of the variables
+        // in the scope.
         // This should only matter for non-debug code, where we do variable enregistration.
         // We should store the ranges of variable enregistration in the scope table.
         if (compiler->lvaTable[scopeL->scVarNum].lvIsInReg())
@@ -10438,6 +10440,9 @@ void CodeGen::genSetScopeInfo()
 
                 case TYP_FLOAT:
                 case TYP_DOUBLE:
+                    // TODO-AMD64-Bug: src\inc\cordebuginfo.h has a definition of ICorDebugInfo::RegNum that only goes
+                    // up to R15,
+                    // so no XMM registers can get debug information.
                     varLoc.vlType       = Compiler::VLT_REG_FP;
                     varLoc.vlReg.vlrReg = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
                     break;
@@ -10464,7 +10469,8 @@ void CodeGen::genSetScopeInfo()
                 case TYP_SIMD32:
                     varLoc.vlType = Compiler::VLT_REG_FP;
 
-                    // TODO-AMD64-Bug: ndp\clr\src\inc\corinfo.h has a definition of RegNum that only goes up to R15,
+                    // TODO-AMD64-Bug: src\inc\cordebuginfo.h has a definition of ICorDebugInfo::RegNum that only goes
+                    // up to R15,
                     // so no XMM registers can get debug information.
                     //
                     // Note: Need to initialize vlrReg field, otherwise during jit dump hitting an assert
