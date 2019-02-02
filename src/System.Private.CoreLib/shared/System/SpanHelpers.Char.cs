@@ -5,10 +5,16 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Numerics;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
-using System.Runtime.Intrinsics;
+
+#if BIT64
+using nint = System.Int64;
+#else
+using nint = System.Int32;
+#endif
 
 namespace System
 {
@@ -250,8 +256,8 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            int offset = 0;
-            int lengthToExamine = length;
+            nint offset = 0;
+            nint lengthToExamine = length;
 
             if (Vector.IsHardwareAccelerated)
             {
@@ -264,12 +270,13 @@ namespace System
         SequentialScan:
             while (lengthToExamine >= 4)
             {
+                ref char current = ref Add(ref searchSpace, offset);
                 lengthToExamine -= 4;
 
-                if (value == Unsafe.Add(ref searchSpace, offset) ||
-                    value == Unsafe.Add(ref searchSpace, offset + 1) || 
-                    value == Unsafe.Add(ref searchSpace, offset + 2) || 
-                    value == Unsafe.Add(ref searchSpace, offset + 3))
+                if (value == current ||
+                    value == Add(ref current, 1) || 
+                    value == Add(ref current, 2) || 
+                    value == Add(ref current, 3))
                     goto Found;
 
                 offset += 4;
@@ -279,7 +286,7 @@ namespace System
             {
                 lengthToExamine -= 1;
 
-                if (value == Unsafe.Add(ref searchSpace, offset))
+                if (value == Add(ref searchSpace, offset))
                     goto Found;
 
                 offset += 1;
@@ -325,8 +332,8 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            int offset = 0; 
-            int lengthToExamine = length;
+            nint offset = (nint)0;
+            nint lengthToExamine = length;
 
             if (Avx2.IsSupported || Sse2.IsSupported)
             {
@@ -347,15 +354,16 @@ namespace System
         SequentialScan:
             while (lengthToExamine >= 4)
             {
+                ref char current = ref Add(ref searchSpace, offset);
                 lengthToExamine -= 4;
 
-                if (value == Unsafe.Add(ref searchSpace, offset))
+                if (value == current)
                     goto Found;
-                if (value == Unsafe.Add(ref searchSpace, offset + 1))
+                if (value == Add(ref current, 1))
                     goto Found1;
-                if (value == Unsafe.Add(ref searchSpace, offset + 2))
+                if (value == Add(ref current, 2))
                     goto Found2;
-                if (value == Unsafe.Add(ref searchSpace, offset + 3))
+                if (value == Add(ref current, 3))
                     goto Found3;
 
                 offset += 4;
@@ -365,7 +373,7 @@ namespace System
             {
                 lengthToExamine -= 1;
 
-                if (value == Unsafe.Add(ref searchSpace, offset))
+                if (value == Add(ref searchSpace, offset))
                     goto Found;
 
                 offset += 1;
@@ -396,7 +404,7 @@ namespace System
 
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         } while (lengthToExamine > offset);
                     }
 
@@ -417,7 +425,7 @@ namespace System
                         {
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         }
                     }
 
@@ -450,7 +458,7 @@ namespace System
 
                         // Find bitflag offset of first match and add to current offset, 
                         // flags are in bytes so divide for chars
-                        return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                        return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                     }
 
                     if (offset < length)
@@ -478,7 +486,7 @@ namespace System
                         }
 
                         // Find offset of first match
-                        return offset + LocateFirstFoundChar(matches);
+                        return (int)(offset + LocateFirstFoundChar(matches));
                     }
 
                     if (offset < length)
@@ -490,13 +498,13 @@ namespace System
             }
             return -1;
         Found3:
-            return offset + 3;
+            return (int)(offset + 3);
         Found2:
-            return offset + 2;
+            return (int)(offset + 2);
         Found1:
-            return offset + 1;
+            return (int)(offset + 1);
         Found:
-            return offset;
+            return (int)(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -504,8 +512,8 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            int offset = 0;
-            int lengthToExamine = length;
+            nint offset = 0;
+            nint lengthToExamine = length;
 
             if (Avx2.IsSupported || Sse2.IsSupported)
             {
@@ -527,18 +535,19 @@ namespace System
             int lookUp;
             while (lengthToExamine >= 4)
             {
+                ref char current = ref Add(ref searchSpace, offset);
                 lengthToExamine -= 4;
 
-                lookUp = Unsafe.Add(ref searchSpace, offset);
+                lookUp = current;
                 if (value0 == lookUp || value1 == lookUp)
                     goto Found;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 1);
+                lookUp = Add(ref current, 1);
                 if (value0 == lookUp || value1 == lookUp)
                     goto Found1;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 2);
+                lookUp = Add(ref current, 2);
                 if (value0 == lookUp || value1 == lookUp)
                     goto Found2;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 3);
+                lookUp = Add(ref current, 3);
                 if (value0 == lookUp || value1 == lookUp)
                     goto Found3;
 
@@ -549,7 +558,7 @@ namespace System
             {
                 lengthToExamine -= 1;
 
-                lookUp = Unsafe.Add(ref searchSpace, offset);
+                lookUp = Add(ref searchSpace, offset);
                 if (value0 == lookUp || value1 == lookUp)
                     goto Found;
 
@@ -587,7 +596,7 @@ namespace System
 
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         } while (lengthToExamine > offset);
                     }
 
@@ -613,7 +622,7 @@ namespace System
                         {
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         }
                     }
 
@@ -651,7 +660,7 @@ namespace System
 
                         // Find bitflag offset of first match and add to current offset, 
                         // flags are in bytes so divide for chars
-                        return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                        return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                     }
 
                     if (offset < length)
@@ -683,7 +692,7 @@ namespace System
                         }
 
                         // Find offset of first match
-                        return offset + LocateFirstFoundChar(matches);
+                        return (int)(offset + LocateFirstFoundChar(matches));
                     }
 
                     if (offset < length)
@@ -695,13 +704,13 @@ namespace System
             }
             return -1;
         Found3:
-            return offset + 3;
+            return (int)(offset + 3);
         Found2:
-            return offset + 2;
+            return (int)(offset + 2);
         Found1:
-            return offset + 1;
+            return (int)(offset + 1);
         Found:
-            return offset;
+            return (int)offset;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -709,8 +718,8 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            int offset = 0;
-            int lengthToExamine = length;
+            nint offset = 0;
+            nint lengthToExamine = length;
 
             if (Avx2.IsSupported || Sse2.IsSupported)
             {
@@ -732,18 +741,19 @@ namespace System
             int lookUp;
             while (lengthToExamine >= 4)
             {
+                ref char current = ref Add(ref searchSpace, offset);
                 lengthToExamine -= 4;
 
-                lookUp = Unsafe.Add(ref searchSpace, offset);
+                lookUp = current;
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp)
                     goto Found;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 1);
+                lookUp = Add(ref current, 1);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp)
                     goto Found1;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 2);
+                lookUp = Add(ref current, 2);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp)
                     goto Found2;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 3);
+                lookUp = Add(ref current, 3);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp)
                     goto Found3;
 
@@ -754,7 +764,7 @@ namespace System
             {
                 lengthToExamine -= 1;
                 
-                lookUp = Unsafe.Add(ref searchSpace, offset);
+                lookUp = Add(ref searchSpace, offset);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp)
                     goto Found;
 
@@ -795,7 +805,7 @@ namespace System
 
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         } while (lengthToExamine > offset);
                     }
 
@@ -825,7 +835,7 @@ namespace System
                         {
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         }
                     }
 
@@ -866,7 +876,7 @@ namespace System
 
                         // Find bitflag offset of first match and add to current offset, 
                         // flags are in bytes so divide for chars
-                        return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                        return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                     }
 
                     if (offset < length)
@@ -901,7 +911,7 @@ namespace System
                         }
 
                         // Find offset of first match
-                        return offset + LocateFirstFoundChar(matches);
+                        return (int)(offset + LocateFirstFoundChar(matches));
                     }
 
                     if (offset < length)
@@ -913,13 +923,13 @@ namespace System
             }
             return -1;
         Found3:
-            return offset + 3;
+            return (int)(offset + 3);
         Found2:
-            return offset + 2;
+            return (int)(offset + 2);
         Found1:
-            return offset + 1;
+            return (int)(offset + 1);
         Found:
-            return offset;
+            return (int)offset;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -927,8 +937,8 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            int offset = 0; // Use nint for arithmetic to avoid unnecessary 64->32->64 truncations
-            int lengthToExamine = length;
+            nint offset = 0; // Use nint for arithmetic to avoid unnecessary 64->32->64 truncations
+            nint lengthToExamine = length;
 
             if (Avx2.IsSupported || Sse2.IsSupported)
             {
@@ -950,18 +960,19 @@ namespace System
             int lookUp;
             while (lengthToExamine >= 4)
             {
+                ref char current = ref Add(ref searchSpace, offset);
                 lengthToExamine -= 4;
 
-                lookUp = Unsafe.Add(ref searchSpace, offset);
+                lookUp = current;
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp)
                     goto Found;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 1);
+                lookUp = Add(ref current, 1);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp)
                     goto Found1;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 2);
+                lookUp = Add(ref current, 2);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp)
                     goto Found2;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 3);
+                lookUp = Add(ref current, 3);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp)
                     goto Found3;
 
@@ -972,7 +983,7 @@ namespace System
             {
                 lengthToExamine -= 1;
 
-                lookUp = Unsafe.Add(ref searchSpace, offset);
+                lookUp = Add(ref searchSpace, offset);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp)
                     goto Found;
 
@@ -1013,7 +1024,7 @@ namespace System
 
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         } while (lengthToExamine > offset);
                     }
 
@@ -1047,7 +1058,7 @@ namespace System
                         {
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         }
                     }
 
@@ -1086,7 +1097,7 @@ namespace System
 
                         // Find bitflag offset of first match and add to current offset, 
                         // flags are in bytes so divide for chars
-                        return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                        return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                     }
 
                     if (offset < length)
@@ -1122,7 +1133,7 @@ namespace System
                         }
 
                         // Find offset of first match
-                        return offset + LocateFirstFoundChar(matches);
+                        return (int)(offset + LocateFirstFoundChar(matches));
                     }
 
                     if (offset < length)
@@ -1134,13 +1145,13 @@ namespace System
             }
             return -1;
         Found3:
-            return offset + 3;
+            return (int)(offset + 3);
         Found2:
-            return offset + 2;
+            return (int)(offset + 2);
         Found1:
-            return offset + 1;
+            return (int)(offset + 1);
         Found:
-            return offset;
+            return (int)offset;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -1148,8 +1159,8 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            int offset = 0; // Use nint for arithmetic to avoid unnecessary 64->32->64 truncations
-            int lengthToExamine = length;
+            nint offset = 0; // Use nint for arithmetic to avoid unnecessary 64->32->64 truncations
+            nint lengthToExamine = length;
 
             if (Avx2.IsSupported || Sse2.IsSupported)
             {
@@ -1171,18 +1182,19 @@ namespace System
             int lookUp;
             while (lengthToExamine >= 4)
             {
+                ref char current = ref Add(ref searchSpace, offset);
                 lengthToExamine -= 4;
 
-                lookUp = Unsafe.Add(ref searchSpace, offset);
+                lookUp = current;
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp || value4 == lookUp)
                     goto Found;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 1);
+                lookUp = Add(ref current, 1);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp || value4 == lookUp)
                     goto Found1;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 2);
+                lookUp = Add(ref current, 2);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp || value4 == lookUp)
                     goto Found2;
-                lookUp = Unsafe.Add(ref searchSpace, offset + 3);
+                lookUp = Add(ref current, 3);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp || value4 == lookUp)
                     goto Found3;
 
@@ -1193,7 +1205,7 @@ namespace System
             {
                 lengthToExamine -= 1;
 
-                lookUp = Unsafe.Add(ref searchSpace, offset);
+                lookUp = Add(ref searchSpace, offset);
                 if (value0 == lookUp || value1 == lookUp || value2 == lookUp || value3 == lookUp || value4 == lookUp)
                     goto Found;
 
@@ -1236,7 +1248,7 @@ namespace System
 
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         } while (lengthToExamine > offset);
                     }
 
@@ -1272,7 +1284,7 @@ namespace System
                         {
                             // Find bitflag offset of first match and add to current offset, 
                             // flags are in bytes so divide for chars
-                            return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                         }
                     }
 
@@ -1313,7 +1325,7 @@ namespace System
 
                         // Find bitflag offset of first match and add to current offset, 
                         // flags are in bytes so divide for chars
-                        return offset + (BitOps.TrailingZeroCount(matches) / sizeof(char));
+                        return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
                     }
 
                     if (offset < length)
@@ -1352,7 +1364,7 @@ namespace System
                         }
 
                         // Find offset of first match
-                        return offset + LocateFirstFoundChar(matches);
+                        return (int)(offset + LocateFirstFoundChar(matches));
                     }
 
                     if (offset < length)
@@ -1364,13 +1376,13 @@ namespace System
             }
             return -1;
         Found3:
-            return offset + 3;
+            return (int)(offset + 3);
         Found2:
-            return offset + 2;
+            return (int)(offset + 2);
         Found1:
-            return offset + 1;
+            return (int)(offset + 1);
         Found:
-            return offset;
+            return (int)offset;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -1550,35 +1562,39 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe Vector<ushort> LoadVector(ref char start, int offset)
-            => Unsafe.ReadUnaligned<Vector<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, offset)));
+        public static ref char Add(ref char source, nint elementOffset)
+            => ref Unsafe.Add(ref source, (IntPtr)elementOffset);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe Vector128<ushort> LoadVector128(ref char start, int offset)
-            => Unsafe.ReadUnaligned<Vector128<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, offset)));
+        private static unsafe Vector<ushort> LoadVector(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<Vector<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe Vector256<ushort> LoadVector256(ref char start, int offset)
-            => Unsafe.ReadUnaligned<Vector256<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, offset)));
+        private static unsafe Vector128<ushort> LoadVector128(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<Vector128<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe UIntPtr LoadUIntPtr(ref char start, int offset)
-            => Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, offset)));
+        private static unsafe Vector256<ushort> LoadVector256(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<Vector256<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int GetCharVectorSpanLength(int offset, int length)
+        private static unsafe UIntPtr LoadUIntPtr(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe nint GetCharVectorSpanLength(nint offset, nint length)
             => ((length - offset) & ~(Vector<ushort>.Count - 1));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int GetCharVector128SpanLength(int offset, int length)
+        private static unsafe nint GetCharVector128SpanLength(nint offset, nint length)
             => ((length - offset) & ~(Vector128<ushort>.Count - 1));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int GetCharVector256SpanLength(int offset, int length)
+        private static nint GetCharVector256SpanLength(nint offset, nint length)
             => ((length - offset) & ~(Vector256<ushort>.Count - 1));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int UnalignedCountVector(ref char searchSpace)
+        private static unsafe nint UnalignedCountVector(ref char searchSpace)
         {
             const int elementsPerByte = sizeof(ushort) / sizeof(byte);
             // Figure out how many characters to read sequentially until we are vector aligned
@@ -1590,7 +1606,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int UnalignedCountVector128(ref char searchSpace)
+        private static unsafe nint UnalignedCountVector128(ref char searchSpace)
         {
             const int elementsPerByte = sizeof(ushort) / sizeof(byte);
 
