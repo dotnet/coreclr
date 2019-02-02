@@ -1,8 +1,5 @@
 *Adapted from an entry that appeared on David Broman's blog*
 
-
-Anyone who’s read a newspaper in the past few weeks knows that the Profiling API in .NET 4.5 will supported a limited form of ReJIT.  Well, the news might not be that hot, but that’s what I tell myself.  I will be discussing the feature in depth in upcoming posts, but I thought my first post should be about what ReJIT will _not_ be in 4.5.  Many folks who have asked for this feature have a pre-set list of sub-features in mind that _of course_ will be supported by ReJIT, they think.  But many of those obvious sub-features will not be available in .NET 4.5.  That’s what this post is about.
-
 ## Is ReJIT For You?
 
 If you’re writing a monitoring tool, typically run in production, and…
@@ -12,8 +9,6 @@ If your tool is always on, always monitoring, but needs a way to fine-tune the a
 If your tool instruments potentially everything, including framework assemblies like mscorlib, and you therefore disable the use of NGENd images and are willing to put up with longer startup times as a result, then…
 
 ReJIT may be for you.
-
-The ReJIT we plan to release in .NET 4.5 was designed with this scenario in mind.  As such, there are many potential sub-features of ReJIT that will not be available, because they are not essential for this scenario.
 
 ## List those Limitations!
 

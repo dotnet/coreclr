@@ -16,32 +16,34 @@ I’m going to focus on getting stack traces via the DoStackSnapshot API. But it
 It’s nice to be able to get call stacks whenever you want them.  But with power comes responsibility.  A user of a profiler will not want stack walking to be used for evil purposes like causing an AV or deadlock in the runtime.  As a profiler writer, you will have to choose how to wield your power.  If you choose the side of good, that will be but your first step.  I will talk about how to use DoStackSnapshot, and how to do so carefully.  It turns out that the more you want to do with this method, the harder it is to get it right.  Unless you actually want to be evil.  In which case I’m not talking to you.
 
 So let’s take a look at the beast.  Here’s what your profiler calls (you can find this in ICorProfilerInfo2, in corprof.idl):
-
+```
 HRESULT DoStackSnapshot(   
   [in] ThreadID thread,   
-  [in] StackSnapshotCallback \*callback,   
+  [in] StackSnapshotCallback *callback,   
   [in] ULONG32 infoFlags,   
-  [in] void \*clientData,   
-  [in, size\_is(contextSize), length\_is(contextSize)] BYTE context[],   
+  [in] void *clientData,   
+  [in, size_is(contextSize), length_is(contextSize)] BYTE context[],   
   [in] ULONG32 contextSize);
-
+```
 And here’s what the CLR calls on your profiler (you can also find this in corprof.idl).  You’ll pass a pointer to your implementation of this function in the callback parameter above.
-
+```
 typedef HRESULT \_\_stdcall StackSnapshotCallback(   
   FunctionID funcId,   
-  UINT\_PTR ip,   
-  COR\_PRF\_FRAME\_INFO frameInfo,   
+  UINT_PTR ip,   
+  COR_PRF_FRAME_INFO frameInfo,   
   ULONG32 contextSize,   
   BYTE context[],   
-  void \*clientData);
+  void *clientData);
+```
 
 It’s like a sandwich.  When your profiler wants to walk the stack, you call DoStackSnapshot.  Before the CLR returns from that call, it calls your StackSnapshotCallback several times, once for each managed frame (or run of unmanaged frames) on the stack:
-
-Profiler calls DoStackSnapshot.                 ßWhole wheat bread  
-            CLR calls StackSnapshotCallback.              ßLettuce frame (“leaf”-most frame, ha)  
-            CLR calls StackSnapshotCallback.              ßTomato frame  
-            CLR calls StackSnapshotCallback.              ßBacon frame (root or “main” frame)  
-CLR returns back to profiler from DoStackSnapshot  ßWhole wheat bread
+```
+Profiler calls DoStackSnapshot.                           Whole wheat bread  
+            CLR calls StackSnapshotCallback.              Lettuce frame (“leaf”-most frame, ha)  
+            CLR calls StackSnapshotCallback.              Tomato frame  
+            CLR calls StackSnapshotCallback.              Bacon frame (root or “main” frame)  
+CLR returns back to profiler from DoStackSnapshot         Whole wheat bread
+```
 
 As you can see from my hilarious notations, we notify you of the frames in the reverse order from how they were pushed onto the stack—leaf (last-pushed) frame first, main (first-pushed) frame last.  So what do all these parameters mean?  I'm not ready to discuss them all yet, but I guess I’m in the mood to talk about a few of them.  Let's start with DoStackSnapshot. infoFlags comes from the COR\_PRF\_SNAPSHOT\_INFO enum in corprof.idl, and it allows you to control whether we’ll give you register contexts for the frames we report.  You can specify any value you like for clientData and we’ll faithfully give it back to you in your StackSnapshotCallback.
 
@@ -300,7 +302,7 @@ Example #1:
 - Thread A blocks, waiting for GC currently in progress (Thread B) to complete 
 - But B is waiting for A, because of your profiler lock.
 
-![](media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Components.PostAttachments/00/09/80/24/66/gccycle.jpg)
+![](media/gccycle.jpg)
 
 Example #2:
 
@@ -312,7 +314,7 @@ Example #2:
 - Thread A (now doing the GC) waits for B to be ready to be collected 
 - But B is waiting for A, because of your profiler lock.
 
-![](media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Components.PostAttachments/00/09/80/24/69/deadlock.jpg)
+![](media/deadlock.jpg)
 
 Have you digested the madness?  The crux of the problem is that garbage collection has its own synchronization mechanisms.  Example 1 involved the fact that only one GC can occur at a time. This is admittedly a fringe case, as GCs don’t spontaneously occur quite so often that one has to wait for another, unless you’re operating under stressful conditions.  Even so, if you profile long enough, this will happen, and you need to be prepared.  Example 2 involved the fact that the thread doing the GC must wait for the other application threads to be ready to be collected.  The problem arises when you introduce one of your own locks into the mix, thus forming a cycle.  In both cases we broke the rule by allowing A to own one of your locks and then call GetClassFromTokenAndTypeArgs (though calling any method that might trigger a GC is sufficient to doom us).
 
@@ -337,8 +339,3 @@ I’m just about tuckered out, so I’m gonna close this out with a quick summar
 5. Do not hold a lock while your profiler calls into a CLR function that can trigger a GC
 
 Finally, a note of thanks to the rest of the CLR Profiling API team, as the writing of these rules is truly a team effort.  And special thanks to Sean Selitrennikoff who provided an earlier incarnation of much of this content.
-
-_David has been a developer at Microsoft for longer than you'd think, given his limited knowledge and maturity.  Although no longer allowed to check in code, he still offers ideas for new variable names.  David is an avid fan of Count Chocula and owns his own car._
-
- 
-

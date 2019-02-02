@@ -1,10 +1,5 @@
 *Adapted from an entry that appeared on David Broman's blog*
 
-
-By now, you’ve surely downloaded your copy of the .NET 4.5 Developer Preview, and you’ve opened up the brand-spanking new corprof.idl, and searched that file for all the new APIs available in 4.5.  There’s a bunch with “ReJIT” in the name, and all you need to know is how and when to call what.
-
-If none of the above makes any sense to you, you’ve probably stumbled onto the wrong blog.  Indeed, both “rejit” and “ejit” have other definitions (some rather unfriendly) that are completely unrelated to the CLR.  I’m talking about that ReJIT thing you do when you want to instrument and then JIT-compile code that has already been JIT-compiled before.
-
 This post is organized in chronological order, telling what your profiler should be doing at the following times in the process:
 
 - Startup Time 
@@ -17,7 +12,7 @@ This post is organized in chronological order, telling what your profiler should
 
 ## Startup Time
 
-The first thing your profiler will do is get itself loaded on startup of a managed application—the old environment variable way, not the new attach way.  I’m sure you’ve already read up on the [limitations](http://blogs.msdn.com/b/davbr/archive/2011/10/10/rejit-limitations-in-net-4-5.aspx)!
+The first thing your profiler will do is get itself loaded on startup of a managed application—the old environment variable way, not the new attach way.  I’m sure you’ve already read up on the [limitations](ReJIT - Limitations.md)!
 
 Inside your profiler’s Initialize() method, it will of course call SetEventMask().  In that call, your profiler must include ( **COR\_PRF\_ENABLE\_REJIT | COR\_PRF\_DISABLE\_ALL\_NGEN\_IMAGES** ) in the bitmask.  COR\_PRF\_ENABLE\_REJIT is required to use any of the ReJIT APIs later on (they’ll fail immediately otherwise).  COR\_PRF\_DISABLE\_ALL\_NGEN\_IMAGES causes the CLR’s assembly loader to ignore all NGENd images (even NGEN /Profile images), and thus all code will be JITted from scratch, and all classes loaded from scratch.  If you try to be tricky and specify only COR\_PRF\_ENABLE\_REJIT (without COR\_PRF\_DISABLE\_ALL\_NGEN\_IMAGES), then SetEventMask will fail.  Conversely, though, you’re perfectly welcome to specify COR\_PRF\_DISABLE\_ALL\_NGEN\_IMAGES without COR\_PRF\_ENABLE\_REJIT if you want.
 

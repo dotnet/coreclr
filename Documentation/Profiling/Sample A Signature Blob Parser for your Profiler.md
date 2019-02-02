@@ -1,8 +1,6 @@
 *Adapted from an entry that appeared on David Broman's blog*
 
 
-8/25/10 Update: The sample code linked below is now also available on the MSDN Code Gallery [SigParse](http://code.msdn.microsoft.com/sigparse "SigParse") page.
-
 If your profiler plays with metadata, you've undoubtedly come across signature blobs. They’re used to encode type information for method definitions & references, local variables, and a whole lot more. They’re wonderfully compact, recursively versatile, and sometimes, well, challenging to parse. Fortunately, [Rico Mariani](http://blogs.msdn.com/ricom/) was feeling generous one day, and churned out a simple parser that can read these types of signatures:
 
 MethodDefSig  
@@ -13,9 +11,9 @@ PropertySig
 LocalVarSig
 
 Here are the files:  
-[sigparse.cpp](http://blogs.msdn.com/davbr/articles/480857.aspx) (Rico's signature parser)  
-[sigformat.cpp](http://blogs.msdn.com/davbr/articles/480856.aspx) (An example extension to the parser)  
-[PlugInToYourProfiler.cpp](http://blogs.msdn.com/davbr/articles/480855.aspx) (Example code to plug the extension into your profiler)
+[sigparse.cpp](samples/sigparse.cpp) (Rico's signature parser)  
+[sigformat.cpp](samples/sigformat.cpp) (An example extension to the parser)  
+[PlugInToYourProfiler.cpp](samples/PlugInToYourProfiler.cpp) (Example code to plug the extension into your profiler)
 
 Open up **sigparse.cpp** in your favorite editor and take a look at the grammar at the top. The grammar comes from the ECMA CLI spec. Jonathan Keljo has a [link](http://blogs.msdn.com/jkeljo/archive/2005/08/04/447726.aspx) to it from his blog. This tells you the types of signature blobs the parser can handle.
 

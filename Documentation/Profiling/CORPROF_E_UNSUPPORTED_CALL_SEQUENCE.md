@@ -26,7 +26,7 @@ In 2.0 we've added some simple checks to help you avoid this problem. If you cal
 
 There are also a few things to keep in mind:
 
-1. ICorProfilerInfo calls made from within the fast-path Enter/Leave callbacks are considered asynchronous.  (Though ICorProfilerInfo calls made from within the _slow_-path Enter/Leave callbacks are considered synchronous.)  See the blog entries [here](http://blogs.msdn.com/davbr/archive/2007/03/22/enter-leave-tailcall-hooks-part-1-basics.aspx) and [here](http://blogs.msdn.com/jkeljo/archive/2005/08/11/450506.aspx) for more info on fast / slow path. 
+1. ICorProfilerInfo calls made from within the fast-path Enter/Leave callbacks are considered asynchronous.  (Though ICorProfilerInfo calls made from within the _slow_-path Enter/Leave callbacks are considered synchronous.)  See the blog entries [here](ELT - The Basics.md) and [here](http://blogs.msdn.com/jkeljo/archive/2005/08/11/450506.aspx) for more info on fast / slow path. 
 2. ICorProfilerInfo calls made from within instrumented code (i.e., IL you've rewritten to call into your profiler and then into ICorProfilerInfo) are considered asynchronous. 
 3. Calls made inside your FunctionIDMapper hook are considered to be synchronous. 
 4. Calls made on threads created by your profiler, are always considered to be synchronous.  (This is because there's no danger of conflicts resulting from interrupting and then re-entering the CLR on that thread, since a profiler-created thread was not in the CLR to begin with.) 

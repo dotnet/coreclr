@@ -1,7 +1,7 @@
 *Adapted from an entry that appeared on David Broman's blog*
 
 
-As mentioned in [this post](http://blogs.msdn.com/b/davbr/archive/2007/12/18/debugging-your-profiler-ii-sos-and-ids.aspx), ObjectIDs are really pointers to managed objects on the GC heap.  And as you know, objects get collected or move around on the heap during GCs.  So how do you safely work with ObjectIDs?
+As mentioned in [this post](Debugging - SOS and IDs.md), ObjectIDs are really pointers to managed objects on the GC heap.  And as you know, objects get collected or move around on the heap during GCs.  So how do you safely work with ObjectIDs?
 
 The overall guidance is that if you plan to dereference an ObjectID or pass it to an ICorProfilerInfo(2,3,4) method, then you must do so either:
 
