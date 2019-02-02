@@ -180,7 +180,7 @@ void CodeGen::genCodeForBBlist()
     int blockNum;
     for (blockNum = 1, block = compiler->fgFirstBB; block != nullptr; block = block->bbNext, blockNum++)
     {
-        printf("Generating code for Block %d \n", blockNum);
+
 #ifdef DEBUG
         if (compiler->verbose)
         {
@@ -721,7 +721,7 @@ void CodeGen::genCodeForBBlist()
 
 #ifdef DEBUG
         bool hasDumpedHistory = false;
-        printf("Var History Dump for Block %d \n", blockNum);
+        JITDUMP("Var History Dump for Block %d \n", blockNum);
 #endif
         for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
         {
@@ -729,8 +729,8 @@ void CodeGen::genCodeForBBlist()
             {
 #ifdef DEBUG
                 hasDumpedHistory = true;
-                printf("Var %d:\n", varNum);
-                varDsc->dumpRegisterLiveRangesForBlock(getEmitter());
+                JITDUMP("Var %d:\n", varNum);
+                varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated();
 #endif
                 varDsc->endBlockLiveRanges();
             }
@@ -739,16 +739,17 @@ void CodeGen::genCodeForBBlist()
 #ifdef DEBUG
         if (!hasDumpedHistory)
         {
-            printf("..None..\n");
+            JITDUMP("..None..\n");
         }
+        JITDUMP("End Generating code for Block %d \n", blockNum);
         compiler->compCurBB = nullptr;
 #endif
 
-        printf("End Generating code for Block %d \n", blockNum);
     } //------------------ END-FOR each block of the method -------------------
 
     /* Nothing is live at this point */
     genUpdateLife(VarSetOps::MakeEmpty(compiler));
+
 
     /* Finalize the spill  tracking logic */
 
@@ -839,7 +840,7 @@ void CodeGen::genSpillVar(GenTree* tree)
         varDsc->lvOtherReg = REG_STK;
     }
 
-    varDsc->SwapRegisterHome(REG_STK, getEmitter());
+    varDsc->UpdateRegisterHome(REG_STK, getEmitter());
 }
 
 //------------------------------------------------------------------------
@@ -999,7 +1000,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             if ((unspillTree->gtFlags & GTF_SPILL) == 0)
             {
                 genUpdateVarReg(varDsc, tree);
-                varDsc->SwapRegisterHome(varDsc->lvRegNum, getEmitter());
+                varDsc->UpdateRegisterHome(varDsc->lvRegNum, getEmitter());
 #ifdef DEBUG
                 if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))
                 {

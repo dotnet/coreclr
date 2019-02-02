@@ -311,26 +311,63 @@ public:
         this->endEmitLocation = endEmitLocation;
     }
 
+    // Dump just the emitLocation as they are, we dont have generated the whole method yet
+    void dump()
+    {
+        printf("%s [", getRegName(registerNumber));
+        startEmitLocation.Print();
+        printf(", ");
+        if (endEmitLocation.Valid())
+        {
+            endEmitLocation.Print();
+        }
+        else
+        {
+            printf("NON_CLOSED_RANGE");
+        }
+        printf(" );");
+    }
+
     void dump(emitter *_emitter)
     {
-        printf("%s [%d %d)  ", getRegName(registerNumber), startEmitLocation.CodeOffset(_emitter), endEmitLocation.CodeOffset(_emitter));
+        UNATIVE_OFFSET startAssemblyOffset = startEmitLocation.CodeOffset(_emitter);
+        // this could be a non closed range so endEmitLocation could be a non valid emit Location
+        // live -1 in case of not being defined
+        UNATIVE_OFFSET endAssemblyOffset = endEmitLocation.Valid() ? endEmitLocation.CodeOffset(_emitter) : -1;
+        printf("%s [%d, %d) ", getRegName(registerNumber), startEmitLocation.CodeOffset(_emitter), endEmitLocation.CodeOffset(_emitter));;
     }
 };
 
 typedef jitstd::list<VariableLiveRange> LiveRangeList;
+typedef LiveRangeList::iterator  LiveRangeListIterator;
 
 struct LiveRangeBarrier 
 {
-    LiveRangeList::iterator beginLastBlock;
+    LiveRangeListIterator beginLastBlock;
     bool haveReadAtLeastOneOfBlock;
 
-    LiveRangeBarrier(LiveRangeList *list) :
-        haveReadAtLeastOneOfBlock(false), beginLastBlock(list->end()) {}
+    LiveRangeBarrier(LiveRangeList *list)
+    {
+        haveReadAtLeastOneOfBlock = false;
+        beginLastBlock = list->end();
+    }
+        
 
     void reset(LiveRangeList *list)
     {
-        beginLastBlock = list->end();
-        haveReadAtLeastOneOfBlock = false;
+        if (list->back().endEmitLocation.Valid())
+        {
+            // This live range has ended
+            haveReadAtLeastOneOfBlock = false;
+        }
+        else
+        {
+            // This live range will remain open until next block.
+            // If it is in "bbliveIn" in the next "BasicBlock", there is no problem.
+            // If it is not, then "compiler->compCurLife" will have a difference with "block->bbliveIn"
+            // and it will be indicated as dead.
+            beginLastBlock = list->backPosition();
+        }
     }
 };
 
@@ -361,10 +398,9 @@ public:
     LiveRangeList *variableLiveRanges;
     LiveRangeBarrier *variableLifeBarrier;
     emitLocation lastBlockInitOffset;
-    emitLocation BAD_NATIVE_OFFSET;
 
     // Initialize an empty list and a barrier pointing to its end
-    void initializeRegisterHistory(CompAllocator allocator, emitter *_emitter) 
+    void initializeRegisterLiveRanges(CompAllocator allocator, emitter *_emitter) 
     {
         variableLiveRanges = new LiveRangeList(allocator);
 
@@ -386,20 +422,37 @@ public:
         return variableLifeBarrier->haveReadAtLeastOneOfBlock;
     }
 
-    void dumpRegisterLiveRangesForBlock(emitter *_emitter) const
+    void dumpRegisterLiveRangesForBlockBeforeCodeGenerated() const
     {
         if (variableLifeBarrier->haveReadAtLeastOneOfBlock)
         {
             printf("[");
             for (LiveRangeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end(); it++)
             {
-                it->dump(_emitter);
+                it->dump();
             }
             printf("]\n");
         }
         else
         {
             printf("None history\n");
+        }
+    }
+
+    void dumpAllRegisterLiveRangesForBlock(emitter *_emitter) const
+    {
+        if (variableLiveRanges->empty())
+        {
+            printf("None history\n");
+        }
+        else
+        {
+            printf("[");
+            for (LiveRangeList::iterator it = variableLiveRanges->begin(); it != variableLiveRanges->end(); it++)
+            {
+                it->dump(_emitter);
+            }
+            printf("]\n");
         }
     }
 
@@ -429,26 +482,26 @@ public:
         noway_assert(!hasBeenAlive());
 
         // Creates new live range with invalid end
-        variableLiveRanges->emplace_back(registerNumber, BAD_NATIVE_OFFSET, BAD_NATIVE_OFFSET);
+        variableLiveRanges->emplace_back(registerNumber, lastBlockInitOffset, emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
 
         // Restart barrier so we can print from here
         setBarrierAtLastPositionInRegisterHistory();
     }
 
-    void SwapRegisterHome(regNumber registerNumber, emitter *_emitter ) const
+    void UpdateRegisterHome(regNumber registerNumber, emitter *_emitter ) const
     {
         // This variable is changing home so it has been started before during this block
         noway_assert(hasBeenAlive());
         
-        // If we are reporting again the same house, that means we are doing something twice?
+        // If we are reporting again the same home, that means we are doing something twice?
         noway_assert(variableLiveRanges->back().registerNumber != registerNumber);
 
         // Close previous live range
         endLiveRangeAtEmitter(_emitter);
 
         // Open new live range with invalid end
-        variableLiveRanges->emplace_back(registerNumber, BAD_NATIVE_OFFSET, BAD_NATIVE_OFFSET);
+        variableLiveRanges->emplace_back(registerNumber, lastBlockInitOffset, emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
     }
 

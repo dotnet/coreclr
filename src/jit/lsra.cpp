@@ -1259,7 +1259,7 @@ void LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
 
             // Variables in bblivein had been defined in a the predecesor block, so the have an open 
             // LiveRange which should change the register number if this is for some reason changing
-            varDsc->SwapRegisterHome(varDsc->lvRegNum, compiler->getEmitter());
+            varDsc->UpdateRegisterHome(varDsc->lvRegNum, compiler->getEmitter());
         }
         else if (newRegNum != REG_STK)
         {

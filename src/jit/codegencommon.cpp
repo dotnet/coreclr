@@ -692,11 +692,8 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
         // This isn't in a register, so update the gcVarPtrSetCur.
         else if (isGCRef || isByRef)
         {
-            if (isGCRef || isByRef)
-            {
-                VarSetOps::RemoveElemD(this, codeGen->gcInfo.gcVarPtrSetCur, deadVarIndex);
-                JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
-            }
+            VarSetOps::RemoveElemD(this, codeGen->gcInfo.gcVarPtrSetCur, deadVarIndex);
+            JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
         }
 
         varDsc->endLiveRangeAtEmitter(getEmitter()); // Track for debugging that is dead
@@ -734,14 +731,11 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
         // This isn't in a register, so update the gcVarPtrSetCur
         else if (lvaIsGCTracked(varDsc))
         {
-            if (lvaIsGCTracked(varDsc))
-            {
-                VarSetOps::AddElemD(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex);
-                JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
-            }
+            VarSetOps::AddElemD(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex);
+            JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
         }
 
-        // Track for debugging that is dead
+        // Track for debugging that is live
         varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, getEmitter());
     }
 
@@ -2295,6 +2289,24 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     genSetScopeInfo();
 
+    if (compiler->verbose)
+    {
+        // Printing information of variable change lifetime
+        JITDUMP("PRINTING REGISTER LIVE RANGES");
+        unsigned   varNum;
+        LclVarDsc* varDsc;
+        bool hasDumpedHistory = false;
+        for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+        {
+            if (varDsc->hasBeenAlive())
+            {
+                JITDUMP("Var %d:\n", varNum);
+                varDsc->dumpAllRegisterLiveRangesForBlock(getEmitter());
+                varDsc->endBlockLiveRanges();
+            }
+        }
+    }
+    
 #ifdef LATE_DISASM
     unsigned finalHotCodeSize;
     unsigned finalColdCodeSize;
