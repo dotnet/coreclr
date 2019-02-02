@@ -6830,6 +6830,30 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
         {
             GenTree* tree = *use;
 
+            if (tree->OperIsLocal())
+            {
+                GenTreeLclVarCommon* lclVar = tree->AsLclVarCommon();
+                unsigned             lclNum = lclVar->GetLclNum();
+
+                // To be invariant a LclVar node must not be the LHS of an assignment ...
+                bool isInvariant = !user->OperIs(GT_ASG) || (user->AsOp()->gtGetOp1() != tree);
+                // and the variable must be in SSA ...
+                isInvariant = isInvariant && m_compiler->lvaInSsa(lclNum);
+                // and the SSA definition must be outside the loop we're hoisting from.
+                isInvariant = isInvariant &&
+                              !m_compiler->optLoopTable[m_loopNum].lpContains(
+                                  m_compiler->lvaGetDesc(lclNum)->GetPerSsaData(lclVar->GetSsaNum())->m_defLoc.m_blk);
+
+                if (isInvariant)
+                {
+                    Value& top = m_valueStack.TopRef();
+                    assert(top.Node() == tree);
+                    top.m_invariant = true;
+                }
+
+                return fgWalkResult::WALK_CONTINUE;
+            }
+
             // Initclass CLS_VARs and IconHandles are the base cases of cctor dependent trees.
             // In the IconHandle case, it's of course the dereference, rather than the constant itself, that is
             // truly dependent on the cctor.  So a more precise approach would be to separately propagate
@@ -7048,12 +7072,6 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                         value.m_hoistable = false;
                         value.m_invariant = false;
 
-                        // We can't hoist the LHS of an assignment, it isn't a real use.
-                        if (tree->OperIs(GT_ASG) && (tree->AsOp()->gtGetOp1() == value.Node()))
-                        {
-                            continue;
-                        }
-
                         m_compiler->optHoistCandidate(value.Node(), m_loopNum, m_hoistContext);
                     }
                 }
@@ -7106,12 +7124,6 @@ void Compiler::optHoistCandidate(GenTree* tree, unsigned lnum, LoopHoistContext*
 
     // The outer loop also must be suitable for hoisting...
     if ((optLoopTable[lnum].lpFlags & LPFLG_HOISTABLE) == 0)
-    {
-        return;
-    }
-
-    // If the hoisted expression isn't valid at this loop head then break
-    if (!optTreeIsValidAtLoopHead(tree, lnum))
     {
         return;
     }
@@ -7242,44 +7254,6 @@ bool Compiler::optVNIsLoopInvariant(ValueNum vn, unsigned lnum, VNToBoolMap* loo
 
     loopVnInvariantCache->Set(vn, res);
     return res;
-}
-
-bool Compiler::optTreeIsValidAtLoopHead(GenTree* tree, unsigned lnum)
-{
-    if (tree->OperIsLocal())
-    {
-        GenTreeLclVarCommon* lclVar = tree->AsLclVarCommon();
-        unsigned             lclNum = lclVar->gtLclNum;
-
-        // The lvlVar must be have an Ssa tracked lifetime
-        if (!lvaInSsa(lclNum))
-        {
-            return false;
-        }
-
-        // If the loop does not contains the SSA def we can hoist it.
-        if (!optLoopTable[lnum].lpContains(lvaTable[lclNum].GetPerSsaData(lclVar->GetSsaNum())->m_defLoc.m_blk))
-        {
-            return true;
-        }
-    }
-    else if (tree->OperIsConst())
-    {
-        return true;
-    }
-    else // If every one of the children nodes are valid at this Loop's Head.
-    {
-        unsigned nChildren = tree->NumChildren();
-        for (unsigned childNum = 0; childNum < nChildren; childNum++)
-        {
-            if (!optTreeIsValidAtLoopHead(tree->GetChild(childNum), lnum))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-    return false;
 }
 
 /*****************************************************************************
