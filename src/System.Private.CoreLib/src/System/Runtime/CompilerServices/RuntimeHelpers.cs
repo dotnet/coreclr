@@ -198,9 +198,9 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// GetArrayRange helper method for the compiler to slice an array using a range.
+        /// GetSubArray helper method for the compiler to slice an array using a range.
         /// </summary>
-        public static T[] GetArrayRange<T>(T[] array, Range range)
+        public static T[] GetSubArray<T>(T[] array, Range range)
         {
             Type elementType = array.GetType().GetElementType();
             Span<T> source = array.AsSpan(range);
