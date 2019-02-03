@@ -317,9 +317,8 @@ Thread::SuspendThreadResult Thread::SuspendThread(BOOL fOneTryOnly, DWORD *pdwSu
                         {
                             if (g_SystemInfo.dwNumberOfProcessors > 1)
                             {
-                                if ((tries++) % 20 != 0) 
-                                {
-                                    YieldProcessor();           // play nice on hyperthreaded CPUs
+                                if ((tries++) % 20 != 0) {
+                                    YieldProcessorNormalized(); // play nice on hyperthreaded CPUs
                                 } else {
                                     __SwitchToThread(0, ++dwSwitchCount);
                                 }
@@ -415,7 +414,7 @@ retry:
             if (g_SystemInfo.dwNumberOfProcessors > 1)
             {
                 if ((tries++) % 20 != 0) {
-                    YieldProcessor();           // play nice on hyperthreaded CPUs
+                    YieldProcessorNormalized(); // play nice on hyperthreaded CPUs
                 } else {
                     __SwitchToThread(0, ++dwSwitchCount);
                 }
@@ -457,7 +456,6 @@ DWORD Thread::ResumeThread()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -584,64 +582,6 @@ BOOL EESetThreadContext(Thread *pThread, const CONTEXT *pContext)
 
     return ret;
 }
-
-// The AbortReason must be cleared at the following times:
-//
-//  1.  When the application performs a ResetAbort.
-//
-//  2.  When the physical thread stops running.  That's because we must eliminate any
-//      cycles that would otherwise be uncollectible, between the Reason and the Thread.
-//      Nobody can retrieve the Reason after the thread stops running anyway.
-//
-//  We don't have to do any work when the AppDomain containing the Reason object is unloaded.
-//  That's because the HANDLE is released as part of the tear-down.  The 'adid' prevents us
-//  from ever using the trash handle value thereafter.
-
-void Thread::ClearAbortReason(BOOL pNoLock)
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    OBJECTHANDLE oh;
-    ADID adid;
-
-    if (pNoLock){
-        // Stash the fields so we can destroy the OBJECTHANDLE if appropriate.
-        oh = m_AbortReason;
-        adid = m_AbortReasonDomainID;
-
-        // Clear the fields.
-        m_AbortReason = 0;
-        m_AbortReasonDomainID = ADID(INVALID_APPDOMAIN_ID);
-    }
-    else
-    // Scope the lock to stashing and clearing the two fields on the Thread object.
-    {
-        // Atomically get the OBJECTHANDLE and ADID of the object, and then
-        //  clear them.
-
-        // NOTE: get the lock on this thread object, not on the executing thread.
-        Thread::AbortRequestLockHolder lock(this);
-
-        // Stash the fields so we can destroy the OBJECTHANDLE if appropriate.
-        oh = m_AbortReason;
-        adid = m_AbortReasonDomainID;
-
-        // Clear the fields.
-        m_AbortReason = 0;
-        m_AbortReasonDomainID = ADID(INVALID_APPDOMAIN_ID);
-    }
-
-    // If there is an OBJECTHANDLE, try to clear it.
-    if (oh != 0 && adid.m_dwId != 0)
-        DestroyHandle(oh);
-}
-
 
 // Context passed down through a stack crawl (see code below).
 struct StackCrawlContext
@@ -1071,7 +1011,6 @@ BOOL Thread::ReadyForAsyncException()
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1084,9 +1023,6 @@ BOOL Thread::ReadyForAsyncException()
     {
         return TRUE;
     }
-
-    // This needs the probe with GenerateHardSO
-    CONTRACT_VIOLATION(SOToleranceViolation);
 
     if (GetThread() == this && HasThreadStateNC (TSNC_PreparingAbort) && !IsRudeAbort() )
     {
@@ -1240,10 +1176,6 @@ BOOL Thread::ReadyForAsyncException()
         STRESS_LOG0(LF_APPDOMAIN, LL_INFO10, "in Thread::ReadyForAbort  RunningEHClause\n");
     }
 
-    //if (m_AbortType == EEPolicy::TA_V1Compatible) {
-    //    return TRUE;
-    //}
-
     // If we are running finally, we can not abort for Safe Abort.
     return !TAContext.fWithinEHClause;
 }
@@ -1253,7 +1185,6 @@ BOOL Thread::IsRudeAbort()
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2139,10 +2070,6 @@ void Thread::ThreadAbortWatchDogAbort(Thread *pThread)
         {
             abortType = EEPolicy::TA_Rude;
         }
-        else if (pThread->m_AbortInfo & TAI_ThreadV1Abort)
-        {
-            abortType = EEPolicy::TA_V1Compatible;
-        }
         else if (pThread->m_AbortInfo & TAI_ThreadAbort)
         {
             abortType = EEPolicy::TA_Safe;
@@ -2289,7 +2216,7 @@ void Thread::LockAbortRequest(Thread* pThread)
             if (VolatileLoad(&(pThread->m_AbortRequestLock)) == 0) {
                 break;
             }
-            YieldProcessor();               // indicate to the processor that we are spinning
+            YieldProcessorNormalized(); // indicate to the processor that we are spinning
         }
         if (FastInterlockCompareExchange(&(pThread->m_AbortRequestLock),1,0) == 0) {
             return;
@@ -2315,7 +2242,7 @@ void Thread::MarkThreadForAbort(ThreadAbortRequester requester, EEPolicy::Thread
     }
     CONTRACTL_END;
 
-    _ASSERTE ((requester & TAR_StackOverflow) == 0 || (requester & TAR_Thread) == TAR_Thread);
+    _ASSERTE ((requester & TAR_Thread) == TAR_Thread);
 
     AbortRequestLockHolder lh(this);
 
@@ -2347,10 +2274,6 @@ void Thread::MarkThreadForAbort(ThreadAbortRequester requester, EEPolicy::Thread
         {
             abortInfo |= TAI_ThreadRudeAbort;
         }
-        else if (abortType == EEPolicy::TA_V1Compatible)
-        {
-            abortInfo |= TAI_ThreadV1Abort;
-        }
     }
 
     if (requester & TAR_FuncEval)
@@ -2362,10 +2285,6 @@ void Thread::MarkThreadForAbort(ThreadAbortRequester requester, EEPolicy::Thread
         else if (abortType == EEPolicy::TA_Rude)
         {
             abortInfo |= TAI_FuncEvalRudeAbort;
-        }
-        else if (abortType == EEPolicy::TA_V1Compatible)
-        {
-            abortInfo |= TAI_FuncEvalV1Abort;
         }
     }
 
@@ -2508,20 +2427,13 @@ void Thread::UnmarkThreadForAbort(ThreadAbortRequester requester, BOOL fForce)
         if ((m_AbortInfo != TAI_ThreadRudeAbort) || fForce)
         {
             m_AbortInfo &= ~(TAI_ThreadAbort   |
-                             TAI_ThreadV1Abort |
                              TAI_ThreadRudeAbort );
-        }
-
-        if (m_AbortReason)
-        {
-            ClearAbortReason(TRUE);
         }
     }
 
     if (requester & TAR_FuncEval)
     {
         m_AbortInfo &= ~(TAI_FuncEvalAbort   |
-                         TAI_FuncEvalV1Abort |
                          TAI_FuncEvalRudeAbort);
     }
 
@@ -2532,10 +2444,6 @@ void Thread::UnmarkThreadForAbort(ThreadAbortRequester requester, BOOL fForce)
     {
         m_AbortType = EEPolicy::TA_Rude;
     }
-    else if (m_AbortInfo & TAI_AnyV1Abort)
-    {
-        m_AbortType = EEPolicy::TA_V1Compatible;
-        }
     else if (m_AbortInfo & TAI_AnySafeAbort)
     {
         m_AbortType = EEPolicy::TA_Safe;
@@ -2815,12 +2723,9 @@ void Thread::RareDisablePreemptiveGC()
 
     CONTRACTL {
         NOTHROW;
-        SO_TOLERANT;
         DISABLED(GC_TRIGGERS);  // I think this is actually wrong: prevents a p->c->p mode switch inside a NOTRIGGER region.
     }
     CONTRACTL_END;
-
-    CONTRACT_VIOLATION(SOToleranceViolation);
 
     if (IsAtProcessExit())
     {
@@ -3064,9 +2969,7 @@ void Thread::HandleThreadAbort (BOOL fForce)
 
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_TOLERANT;
 
-    BEGIN_SO_INTOLERANT_CODE(this);
     TESTHOOKCALL(AppDomainCanBeUnloaded(GetDomain()->GetId().m_dwId,FALSE));
 
     // It's possible we could go through here if we hit a hard SO and MC++ has called back
@@ -3122,7 +3025,6 @@ void Thread::HandleThreadAbort (BOOL fForce)
 
         RaiseTheExceptionInternalOnly(exceptObj, FALSE);
     }
-    END_SO_INTOLERANT_CODE;
 
     END_PRESERVE_LAST_ERROR;
 }
@@ -3137,10 +3039,7 @@ void Thread::PreWorkForThreadAbort()
     FastInterlockAnd((ULONG *) &m_State, ~(TS_Interruptible | TS_Interrupted));
     ResetUserInterrupted();
 
-    if (IsRudeAbort() && !(m_AbortInfo & (TAI_ADUnloadAbort |
-                                          TAI_ADUnloadRudeAbort |
-                                          TAI_ADUnloadV1Abort)
-                          )) {
+    if (IsRudeAbort()) {
         if (HasLockInCurrentDomain()) {
             AppDomain *pDomain = GetAppDomain();
             // Cannot enable the following assertion.
@@ -3154,9 +3053,6 @@ void Thread::PreWorkForThreadAbort()
             case eRudeExitProcess:
             case eDisableRuntime:
                     {
-                        // We're about to exit the process, if we take an SO here we'll just exit faster right???
-                        CONTRACT_VIOLATION(SOToleranceViolation);
-
                 GetEEPolicy()->NotifyHostOnDefaultAction(OPR_ThreadRudeAbortInCriticalRegion,action);
                 GetEEPolicy()->HandleExitProcessFromEscalation(action,HOST_E_EXITPROCESS_ADUNLOAD);
                     }
@@ -3242,12 +3138,11 @@ void Thread::RareEnablePreemptiveGC()
     CONTRACTL {
         NOTHROW;
         DISABLED(GC_TRIGGERS); // I think this is actually wrong: prevents a p->c->p mode switch inside a NOTRIGGER region.
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     // @todo -  Needs a hard SO probe
-    CONTRACT_VIOLATION(GCViolation|FaultViolation|SOToleranceViolation);
+    CONTRACT_VIOLATION(GCViolation|FaultViolation);
 
     // If we have already received our PROCESS_DETACH during shutdown, there is only one thread in the
     // process and no coordination is necessary.
@@ -3406,7 +3301,6 @@ void RedirectedThreadFrame::ExceptionUnwind()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3549,7 +3443,6 @@ void NotifyHostOnGCSuspension()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -3580,15 +3473,6 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
 
     Thread *pThread = GetThread();
     _ASSERTE(pThread);
-
-#ifdef FEATURE_STACK_PROBE
-    if (GetEEPolicy()->GetActionOnFailure(FAIL_StackOverflow) == eRudeUnloadAppDomain)
-    {
-        RetailStackProbe(ADJUST_PROBE(DEFAULT_ENTRY_PROBE_AMOUNT), pThread);
-    }
-#endif
-
-    BEGIN_CONTRACT_VIOLATION(SOToleranceViolation);
 
     // Get the saved context
     CONTEXT *pCtx = pThread->GetSavedRedirectContext();
@@ -3747,9 +3631,6 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
     }
 
 #endif // _TARGET_X86_
-
-    END_CONTRACT_VIOLATION;
-
 }
 
 //****************************************************************************************
@@ -5052,13 +4933,6 @@ ThrowControlForThread(
 
     _ASSERTE(pThread->PreemptiveGCDisabled());
 
-#ifdef FEATURE_STACK_PROBE
-    if (GetEEPolicy()->GetActionOnFailure(FAIL_StackOverflow) == eRudeUnloadAppDomain)
-    {
-        RetailStackProbe(ADJUST_PROBE(DEFAULT_ENTRY_PROBE_AMOUNT), pThread);
-    }
-#endif
-
     // Check if we can start abort
     // We use InducedThreadRedirect as a marker to tell stackwalker that a thread is redirected from JIT code.
     // This is to distinguish a thread is in Preemptive mode and in JIT code.
@@ -5894,7 +5768,6 @@ void Thread::UnhijackThread()
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -6125,23 +5998,11 @@ void STDCALL OnHijackWorker(HijackArgs * pArgs)
     CONTRACTL{
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
 #ifdef HIJACK_NONINTERRUPTIBLE_THREADS
     Thread         *thread = GetThread();
-
-#ifdef FEATURE_STACK_PROBE
-    if (GetEEPolicy()->GetActionOnFailure(FAIL_StackOverflow) == eRudeUnloadAppDomain)
-    {
-        // Make sure default domain does not see SO.
-        // probe for our entry point amount and throw if not enough stack
-        RetailStackProbe(ADJUST_PROBE(DEFAULT_ENTRY_PROBE_AMOUNT), thread);
-    }
-#endif // FEATURE_STACK_PROBE
-
-    CONTRACT_VIOLATION(SOToleranceViolation);
 
     thread->ResetThreadState(Thread::TS_Hijacked);
 

@@ -381,9 +381,6 @@ Assembly * Assembly::Create(
 
     NewHolder<Assembly> pAssembly (new Assembly(pDomain, pFile, debuggerFlags, fIsCollectible));
 
-    // If there are problems that arise from this call stack, we'll chew up a lot of stack
-    // with the various EX_TRY/EX_HOOKs that we will encounter.
-    INTERIOR_STACK_PROBE_FOR(GetThread(), DEFAULT_ENTRY_PROBE_SIZE); 
 #ifdef PROFILING_SUPPORTED
     {
         BEGIN_PIN_PROFILER(CORProfilerTrackAssemblyLoads());
@@ -412,7 +409,6 @@ Assembly * Assembly::Create(
     EX_END_HOOK;
 #endif
     pAssembly.SuppressRelease();
-    END_INTERIOR_STACK_PROBE;
     
     return pAssembly;
 } // Assembly::Create
@@ -758,7 +754,6 @@ DomainAssembly *Assembly::FindDomainAssembly(AppDomain *pDomain)
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACT_END;
@@ -1855,7 +1850,6 @@ BOOL Assembly::FileNotFound(HRESULT hr)
 BOOL Assembly::GetResource(LPCSTR szName, DWORD *cbResource,
                               PBYTE *pbInMemoryResource, Assembly** pAssemblyRef,
                               LPCSTR *szFileName, DWORD *dwLocation,
-                              StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                               BOOL fSkipRaiseResolveEvent)
 {
     CONTRACTL
@@ -1869,9 +1863,9 @@ BOOL Assembly::GetResource(LPCSTR szName, DWORD *cbResource,
     DomainAssembly *pAssembly = NULL;
     BOOL result = GetDomainAssembly()->GetResource(szName, cbResource,
                                                    pbInMemoryResource, &pAssembly,
-                                                   szFileName, dwLocation, pStackMark, fSkipSecurityCheck,
+                                                   szFileName, dwLocation,
                                                    fSkipRaiseResolveEvent);
-    if (result && pAssemblyRef != NULL && pAssembly!=NULL)
+    if (result && pAssemblyRef != NULL && pAssembly != NULL)
         *pAssemblyRef = pAssembly->GetAssembly();
 
     return result;

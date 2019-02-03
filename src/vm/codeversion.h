@@ -53,7 +53,7 @@ public:
 #ifdef FEATURE_CODE_VERSIONING
     NativeCodeVersion(PTR_NativeCodeVersionNode pVersionNode);
 #endif
-    NativeCodeVersion(PTR_MethodDesc pMethod);
+    explicit NativeCodeVersion(PTR_MethodDesc pMethod);
     BOOL IsNull() const;
     PTR_MethodDesc GetMethodDesc() const;
     NativeCodeVersionId GetVersionId() const;
@@ -555,7 +555,6 @@ public:
 
 typedef SHash<ILCodeVersioningStateHashTraits> ILCodeVersioningStateHash;
 
-
 class CodeVersionManager
 {
     friend class ILCodeVersion;
@@ -614,6 +613,8 @@ public:
     static HRESULT AddCodePublishError(NativeCodeVersion nativeCodeVersion, HRESULT hrStatus, CDynArray<CodePublishError> * pErrors);
     static void OnAppDomainExit(AppDomain* pAppDomain);
 #endif
+
+    static bool IsMethodSupported(PTR_MethodDesc pMethodDesc);
 
 private:
 

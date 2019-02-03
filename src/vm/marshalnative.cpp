@@ -255,6 +255,38 @@ FCIMPL2(VOID, MarshalNative::DestroyStructure, LPVOID ptr, ReflectClassBaseObjec
 }
 FCIMPLEND
 
+FCIMPL1(FC_BOOL_RET, MarshalNative::IsPinnable, Object* obj)
+{
+    FCALL_CONTRACT;
+
+    VALIDATEOBJECT(obj);
+
+    if (obj == NULL)
+        FC_RETURN_BOOL(TRUE);
+
+    if (obj->GetMethodTable() == g_pStringClass)
+        FC_RETURN_BOOL(TRUE);
+
+    if (obj->GetMethodTable()->IsArray())
+    {
+        BASEARRAYREF asArray = (BASEARRAYREF)ObjectToOBJECTREF(obj);
+        if (CorTypeInfo::IsPrimitiveType(asArray->GetArrayElementType()))
+            FC_RETURN_BOOL(TRUE);
+
+        TypeHandle th = asArray->GetArrayElementTypeHandle();
+        if (!th.IsTypeDesc())
+        {
+            MethodTable *pMT = th.AsMethodTable();
+            if (pMT->IsValueType() && pMT->IsBlittable())
+                FC_RETURN_BOOL(TRUE);
+        }
+
+        FC_RETURN_BOOL(FALSE);
+    }
+
+    FC_RETURN_BOOL(obj->GetMethodTable()->IsBlittable());
+}
+FCIMPLEND
 
 /************************************************************************
  * PInvoke.SizeOf(Class)
@@ -292,22 +324,6 @@ FCIMPL2(UINT32, MarshalNative::SizeOfClass, ReflectClassBaseObject* refClassUNSA
     rv = th.GetMethodTable()->GetNativeSize();
     HELPER_METHOD_FRAME_END();
     return rv;   
-}
-FCIMPLEND
-
-
-/************************************************************************
- * PInvoke.UnsafeAddrOfPinnedArrayElement(Array arr, int index)
- */
-
-FCIMPL2(LPVOID, MarshalNative::FCUnsafeAddrOfPinnedArrayElement, ArrayBase *arr, INT32 index) 
-{   
-    FCALL_CONTRACT;
-    
-    if (!arr)
-        FCThrowArgumentNull(W("arr"));
-
-    return (arr->GetDataPtr() + (index*arr->GetComponentSize())); 
 }
 FCIMPLEND
 
@@ -465,101 +481,6 @@ FCIMPL3(LPVOID, MarshalNative::GetManagedThunkForUnmanagedMethodPtr, LPVOID pfnM
 }
 FCIMPLEND
 
-
-FCIMPL0(UINT32, MarshalNative::GetSystemMaxDBCSCharSize)
-{
-    FCALL_CONTRACT;
-    
-    return GetMaxDBCSCharByteSize();
-}
-FCIMPLEND
-
-
-/************************************************************************
- * Handles all PInvoke.Copy(array source, ....) methods.
- */
-FCIMPL4(void, MarshalNative::CopyToNative, Object* psrcUNSAFE, INT32 startindex, LPVOID pdst, INT32 length)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(pdst, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    // The BCL code guarantees that Array will be passed in
-    _ASSERTE(!psrcUNSAFE || psrcUNSAFE->GetMethodTable()->IsArray());
-
-    BASEARRAYREF psrc = (BASEARRAYREF)(OBJECTREF)psrcUNSAFE;
-
-    HELPER_METHOD_FRAME_BEGIN_1(psrc);
-
-    if (pdst == NULL)
-        COMPlusThrowArgumentNull(W("destination"));
-    if (psrc == NULL)
-        COMPlusThrowArgumentNull(W("source"));
-
-    SIZE_T numelem = psrc->GetNumComponents();
-
-    if (startindex < 0 || length < 0 || (SIZE_T)startindex + (SIZE_T)length > numelem)
-    {
-        COMPlusThrow(kArgumentOutOfRangeException, IDS_EE_COPY_OUTOFRANGE);
-    }
-
-    SIZE_T componentsize = psrc->GetComponentSize();
-
-    memcpyNoGCRefs(pdst,
-               componentsize*startindex + (BYTE*)(psrc->GetDataPtr()),
-               componentsize*length);
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-FCIMPL4(void, MarshalNative::CopyToManaged, LPVOID psrc, Object* pdstUNSAFE, INT32 startindex, INT32 length)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(psrc, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    // The BCL code guarantees that Array will be passed in
-    _ASSERTE(!pdstUNSAFE || pdstUNSAFE->GetMethodTable()->IsArray());
-
-    BASEARRAYREF pdst = (BASEARRAYREF)(OBJECTREF)pdstUNSAFE;
-
-    HELPER_METHOD_FRAME_BEGIN_1(pdst);
-
-    if (pdst == NULL)
-        COMPlusThrowArgumentNull(W("destination"));
-    if (psrc == NULL)
-        COMPlusThrowArgumentNull(W("source"));
-    if (startindex < 0)
-        COMPlusThrowArgumentOutOfRange(W("startIndex"), W("ArgumentOutOfRange_Count"));
-    if (length < 0)
-        COMPlusThrowArgumentOutOfRange(W("length"), W("ArgumentOutOfRange_NeedNonNegNum"));
-
-    SIZE_T numelem = pdst->GetNumComponents();
-
-    if ((SIZE_T)startindex + (SIZE_T)length > numelem)
-    {
-        COMPlusThrow(kArgumentOutOfRangeException, IDS_EE_COPY_OUTOFRANGE);
-    }
-
-    SIZE_T componentsize = pdst->GetComponentSize();
-
-    _ASSERTE(CorTypeInfo::IsPrimitiveType(pdst->GetArrayElementTypeHandle().GetInternalCorElementType()));
-    memcpyNoGCRefs(componentsize*startindex + (BYTE*)(pdst->GetDataPtr()),
-               psrc,
-               componentsize*length);
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-
 /************************************************************************
  * PInvoke.GetLastWin32Error
  */
@@ -696,7 +617,6 @@ FCIMPL3(VOID, MarshalNative::GCHandleInternalSet, OBJECTHANDLE handle, Object *o
     OBJECTREF objRef(obj);
     HELPER_METHOD_FRAME_BEGIN_1(objRef);
     
-    //<TODO>@todo: If the handle is pinned check the object type.</TODO>
     if (isPinned)
     {
         ValidatePinnedObject(objRef);
@@ -718,7 +638,6 @@ FCIMPL4(Object*, MarshalNative::GCHandleInternalCompareExchange, OBJECTHANDLE ha
     LPVOID ret = NULL;
     HELPER_METHOD_FRAME_BEGIN_RET_NOPOLL();
 
-    //<TODO>@todo: If the handle is pinned check the object type.</TODO>
     if (isPinned)
         ValidatePinnedObject(newObjref);
 
@@ -766,52 +685,6 @@ FCIMPL1(INT32, MarshalNative::GCHandleInternalGetHandleType, OBJECTHANDLE handle
 }
 FCIMPLEND
 
-FCIMPL1(INT32, MarshalNative::CalculateCount, ArrayWithOffsetData* pArrayWithOffset)
-{
-    FCALL_CONTRACT;
-
-    INT32 uRetVal = 0;
-    BASEARRAYREF arrayObj = pArrayWithOffset->m_Array;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(arrayObj);
-
-    SIZE_T cbTotalSize = 0;
-
-    if (arrayObj != NULL)
-    {
-        if (!(arrayObj->GetMethodTable()->IsArray()))
-            COMPlusThrow(kArgumentException, IDS_EE_NOTISOMORPHIC);
-        if (arrayObj->GetMethodTable()->IsMultiDimArray())
-            COMPlusThrow(kArgumentException, IDS_EE_NOTISOMORPHIC);
-
-        ValidatePinnedObject(arrayObj);
-    }
-
-    if (arrayObj == NULL)
-    {
-        if (pArrayWithOffset->m_cbOffset != 0)
-            COMPlusThrow(kIndexOutOfRangeException, IDS_EE_ARRAYWITHOFFSETOVERFLOW);
-
-        goto lExit;
-    }
-
-    cbTotalSize = arrayObj->GetNumComponents() * arrayObj->GetComponentSize();
-
-    if (cbTotalSize > MAX_SIZE_FOR_INTEROP)
-        COMPlusThrow(kArgumentException, IDS_EE_STRUCTARRAYTOOLARGE);
-
-    if (pArrayWithOffset->m_cbOffset > (INT32)cbTotalSize)
-        COMPlusThrow(kIndexOutOfRangeException, IDS_EE_ARRAYWITHOFFSETOVERFLOW);
-
-    uRetVal = (INT32)cbTotalSize - pArrayWithOffset->m_cbOffset;
-    _ASSERTE(uRetVal >= 0);
-
-lExit: ;
-    HELPER_METHOD_FRAME_END();
-    return uRetVal;
-}
-FCIMPLEND
-
-
 //====================================================================
 // *** Interop Helpers ***
 //====================================================================
@@ -849,39 +722,6 @@ FCIMPL2(Object *, MarshalNative::GetExceptionForHR, INT32 errorCode, LPVOID erro
     return OBJECTREFToObject(RetExceptionObj);
 }
 FCIMPLEND
-    
-FCIMPL2(void, MarshalNative::ThrowExceptionForHR, INT32 errorCode, LPVOID errorInfo)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(FAILED(errorCode));
-        PRECONDITION(CheckPointer(errorInfo, NULL_OK));
-    }
-    CONTRACTL_END;
-
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-
-    // Retrieve the IErrorInfo to use.
-    IErrorInfo *pErrorInfo = (IErrorInfo*)errorInfo;
-    if (pErrorInfo == (IErrorInfo*)(-1))
-    {
-        pErrorInfo = NULL;
-    }
-    else if (!pErrorInfo)
-    {
-        if (SafeGetErrorInfo(&pErrorInfo) != S_OK)
-            pErrorInfo = NULL;
-    }
-
-    // Throw the exception based on the HR and the IErrorInfo.
-    COMPlusThrowHR(errorCode, pErrorInfo);
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
 
 FCIMPL1(int, MarshalNative::GetHRForException, Object* eUNSAFE)
 {
@@ -889,7 +729,6 @@ FCIMPL1(int, MarshalNative::GetHRForException, Object* eUNSAFE)
        NOTHROW;    // Used by reverse COM IL stubs, so we must not throw exceptions back to COM
        DISABLED(GC_TRIGGERS); // FCALLS with HELPER frames have issues with GC_TRIGGERS
        MODE_COOPERATIVE;
-       SO_TOLERANT;
     } CONTRACTL_END;
 
     int retVal = 0;
@@ -909,7 +748,6 @@ FCIMPL1(int, MarshalNative::GetHRForException_WinRT, Object* eUNSAFE)
        NOTHROW;    // Used by reverse COM IL stubs, so we must not throw exceptions back to COM
        DISABLED(GC_TRIGGERS); // FCALLS with HELPER frames have issues with GC_TRIGGERS
        MODE_COOPERATIVE;
-       SO_TOLERANT;
     } CONTRACTL_END;
 
     int retVal = 0;
@@ -922,69 +760,6 @@ FCIMPL1(int, MarshalNative::GetHRForException_WinRT, Object* eUNSAFE)
     return retVal;
 }
 FCIMPLEND
-
-// static
-INT_PTR QCALLTYPE MarshalNative::LoadLibraryFromPath(LPCWSTR path, BOOL throwOnError)
-{
-    QCALL_CONTRACT;
-
-    NATIVE_LIBRARY_HANDLE handle = nullptr;
-
-    BEGIN_QCALL;
-
-    handle = NDirect::LoadLibraryFromPath(path, throwOnError);
-
-    END_QCALL;
-
-    return reinterpret_cast<INT_PTR>(handle);
-}
-
-// static
-INT_PTR QCALLTYPE MarshalNative::LoadLibraryByName(LPCWSTR name, QCall::AssemblyHandle callingAssembly, 
-                                                   BOOL hasDllImportSearchPathFlag, DWORD dllImportSearchPathFlag, 
-                                                   BOOL throwOnError)
-{
-    QCALL_CONTRACT;
-
-    NATIVE_LIBRARY_HANDLE handle = nullptr;
-    Assembly *pAssembly = callingAssembly->GetAssembly();
-
-    BEGIN_QCALL;
-
-    handle = NDirect::LoadLibraryByName(name, pAssembly, hasDllImportSearchPathFlag, dllImportSearchPathFlag, throwOnError);
-
-    END_QCALL;
-
-    return reinterpret_cast<INT_PTR>(handle);
-}
-
-// static
-void QCALLTYPE MarshalNative::FreeNativeLibrary(INT_PTR handle)
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-
-    NDirect::FreeNativeLibrary((NATIVE_LIBRARY_HANDLE) handle);
-    
-    END_QCALL;
-}
-
-//static 
-INT_PTR QCALLTYPE MarshalNative::GetNativeLibraryExport(INT_PTR handle, LPCWSTR symbolName, BOOL throwOnError)
-{
-    QCALL_CONTRACT;
-
-    INT_PTR address = NULL;
-    
-    BEGIN_QCALL;
-
-    address = NDirect::GetNativeLibraryExport((NATIVE_LIBRARY_HANDLE)handle, symbolName, throwOnError);
-
-    END_QCALL;
-
-    return address;
-}
 
 #ifdef FEATURE_COMINTEROP
 

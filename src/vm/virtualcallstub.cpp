@@ -489,7 +489,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
 
     // Record the parent domain
     parentDomain        = pDomain;
-    isCollectible       = !!pLoaderAllocator->IsCollectible();
+    m_loaderAllocator   = pLoaderAllocator;
 
     //
     // Init critical sections
@@ -628,7 +628,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
 
     BYTE * initReservedMem = NULL;
 
-    if (!isCollectible)
+    if (!m_loaderAllocator->IsCollectible())
     {
         DWORD dwTotalReserveMemSizeCalc  = indcell_heap_reserve_size     +
                                            cache_entry_heap_reserve_size +
@@ -833,7 +833,7 @@ void VirtualCallStubManager::Uninit()
 {
     WRAPPER_NO_CONTRACT;
 
-    if (isCollectible)
+    if (m_loaderAllocator->IsCollectible())
     {
         parentDomain->GetCollectibleVSDRanges()->RemoveRanges(this);
     }
@@ -891,7 +891,7 @@ VirtualCallStubManager::~VirtualCallStubManager()
 
     // This was the block reserved by Init for the heaps.
     // For the collectible case, the VSD logic does not allocate the memory.
-    if (m_initialReservedMemForHeaps && !isCollectible)
+    if (m_initialReservedMemForHeaps && !m_loaderAllocator->IsCollectible())
         ClrVirtualFree (m_initialReservedMemForHeaps, 0, MEM_RELEASE);
 
     // Free critical section
@@ -1022,7 +1022,6 @@ VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddres
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
     } CONTRACTL_END
 
 #ifndef DACCESS_COMPILE 
@@ -1040,7 +1039,6 @@ VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddres
     // LockedRangeList::IsInRangeWorker
     // VirtualCallStubManager::isDispatchingStub
     //
-    CONTRACT_VIOLATION(SOToleranceViolation);
     kind = pCur->getStubKind(stubAddress, usePredictStubKind);
     if (kind != SK_UNKNOWN)
     {
@@ -1578,12 +1576,9 @@ ResolveCacheElem* __fastcall VirtualCallStubManager::PromoteChainEntry(ResolveCa
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pElem));
     } CONTRACTL_END;
 
-    // @todo - Remove this when have a probe that generates a hard SO.
-    CONTRACT_VIOLATION(SOToleranceViolation);
     g_resolveCache->PromoteChainEntry(pElem);
     return pElem;
 }
@@ -1615,7 +1610,6 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
         INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(CheckPointer(pTransitionBlock));
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     MAKE_CURRENT_THREAD_AVAILABLE();
@@ -1651,8 +1645,6 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
 #ifndef _TARGET_X86_
     if (flags & SDF_ResolvePromoteChain)
     {
-        BEGIN_SO_INTOLERANT_CODE(CURRENT_THREAD);
-
         ResolveCacheElem * pElem =  (ResolveCacheElem *)token;
         g_resolveCache->PromoteChainEntry(pElem);
         target = (PCODE) pElem->target;
@@ -1664,8 +1656,6 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
             VirtualCallStubManager * pMgr = VirtualCallStubManager::FindStubManager(stubAddr);
             pMgr->BackPatchWorker(&callSite);
         }
-
-        END_SO_INTOLERANT_CODE;
 
         return target;
     }
@@ -2445,7 +2435,6 @@ VirtualCallStubManager::GetRepresentativeMethodDescFromToken(
         MODE_COOPERATIVE;
         PRECONDITION(CheckPointer(pMT));
         POSTCONDITION(CheckPointer(RETVAL));
-        SO_TOLERANT;
     } CONTRACT_END;
 
     // This is called when trying to create a HelperMethodFrame, which means there are
@@ -2511,7 +2500,6 @@ PCODE VirtualCallStubManager::CacheLookup(size_t token, UINT16 tokenHash, Method
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMT));
     } CONTRACTL_END
 
@@ -2621,16 +2609,24 @@ VirtualCallStubManager::TraceResolver(
     CONSISTENCY_CHECK(CheckPointer(pMT));
 
 
-    DispatchSlot slot(pMT->FindDispatchSlot(token, TRUE /* throwOnConflict */));
+    DispatchSlot slot(pMT->FindDispatchSlot(token, FALSE /* throwOnConflict */));
 
     if (slot.IsNull() && IsInterfaceToken(token) && pMT->IsComObjectType())
     {
         MethodDesc * pItfMD = GetInterfaceMethodDescFromToken(token);
         CONSISTENCY_CHECK(pItfMD->GetMethodTable()->GetSlot(pItfMD->GetSlot()) == pItfMD->GetMethodEntryPoint());
-        slot = pItfMD->GetMethodTable()->FindDispatchSlot(pItfMD->GetSlot(), TRUE /* throwOnConflict */);
+        slot = pItfMD->GetMethodTable()->FindDispatchSlot(pItfMD->GetSlot(), FALSE /* throwOnConflict */);
     }
 
-    return (StubManager::TraceStub(slot.GetTarget(), trace));
+    // The dispatch slot's target may change due to code versioning shortly after it was retrieved above for the trace. This
+    // will result in the debugger getting some version of the code or the prestub, but not necessarily the exact code pointer
+    // that winds up getting executed. The debugger has code that handles this ambiguity by placing a breakpoint at the start of
+    // all native code versions, even if they aren't the one that was reported by this trace, see
+    // DebuggerController::PatchTrace() under case TRACE_MANAGED. This alleviates the StubManager from having to prevent the
+    // race that occurs here.
+    //
+    // If the dispatch slot is null, we assume it's because of a diamond case in default interface method dispatch.
+    return slot.IsNull() ? FALSE : (StubManager::TraceStub(slot.GetTarget(), trace));
 }
 
 #ifndef DACCESS_COMPILE 
@@ -2791,6 +2787,16 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            ad
 #endif
                        );
 
+#ifdef FEATURE_CODE_VERSIONING
+    MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(addrOfCode);
+    if (pMD->IsVersionableWithVtableSlotBackpatch())
+    {
+        EntryPointSlots::SlotType slotType;
+        TADDR slot = holder->stub()->implTargetSlot(&slotType);
+        pMD->RecordAndBackpatchEntryPointSlot(m_loaderAllocator, slot, slotType);
+    }
+#endif
+
     ClrFlushInstructionCache(holder->stub(), holder->stub()->size());
 
     AddToCollectibleVSDRangeList(holder);
@@ -2836,6 +2842,16 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStubLong(PCODE          
                        addrOfFail,
                        (size_t)pMTExpected,
                        DispatchStub::e_TYPE_LONG);
+
+#ifdef FEATURE_CODE_VERSIONING
+    MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(addrOfCode);
+    if (pMD->IsVersionableWithVtableSlotBackpatch())
+    {
+        EntryPointSlots::SlotType slotType;
+        TADDR slot = holder->stub()->implTargetSlot(&slotType);
+        pMD->RecordAndBackpatchEntryPointSlot(m_loaderAllocator, slot, slotType);
+    }
+#endif
 
     ClrFlushInstructionCache(holder->stub(), holder->stub()->size());
 
@@ -3004,6 +3020,17 @@ ResolveCacheElem *VirtualCallStubManager::GenerateResolveCacheElem(void *addrOfC
     e->target = addrOfCode;
 
     e->pNext  = NULL;
+
+#ifdef FEATURE_CODE_VERSIONING
+    MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress((PCODE)addrOfCode);
+    if (pMD->IsVersionableWithVtableSlotBackpatch())
+    {
+        pMD->RecordAndBackpatchEntryPointSlot(
+            m_loaderAllocator,
+            (TADDR)&e->target,
+            EntryPointSlots::SlotType_Normal);
+    }
+#endif
 
     //incr our counters
     stats.cache_entry_counter++;

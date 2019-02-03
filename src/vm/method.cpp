@@ -214,7 +214,6 @@ BaseDomain *MethodDesc::GetDomain()
         GC_NOTRIGGER;
         FORBID_FAULT;
         SUPPORTS_DAC;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -222,20 +221,6 @@ BaseDomain *MethodDesc::GetDomain()
 }
 
 #ifndef DACCESS_COMPILE
-
-//*******************************************************************************
-LoaderAllocator * MethodDesc::GetLoaderAllocatorForCode()
-{
-    if (IsLCGMethod())
-    {
-        return ::GetAppDomain()->GetLoaderAllocator();
-    }
-    else
-    {
-        return GetLoaderAllocator();
-    }
-}
-
 
 //*******************************************************************************
 LoaderAllocator * MethodDesc::GetDomainSpecificLoaderAllocator()
@@ -271,7 +256,6 @@ LPCUTF8 MethodDesc::GetName()
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS; // MethodImpl::FindMethodDesc can throw.
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }CONTRACTL_END;
 
@@ -291,17 +275,12 @@ LPCUTF8 MethodDesc::GetName()
     {
         // Get the metadata string name for this method
         LPCUTF8 result = NULL;
-        
-        // This probes only if we have a thread, in which case it is OK to throw the SO.
-        BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
-        
+
         if (FAILED(GetMDImport()->GetNameOfMethodDef(GetMemberDef(), &result)))
         {
             result = NULL;
         }
-        
-        END_SO_INTOLERANT_CODE;
-        
+
         return(result);
     }
 }
@@ -449,7 +428,6 @@ void MethodDesc::GetSig(PCCOR_SIGNATURE *ppSig, DWORD *pcSig)
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -493,7 +471,6 @@ void MethodDesc::GetSigFromMetadata(IMDInternalImport * importer,
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -544,10 +521,12 @@ PCODE MethodDesc::GetMethodEntryPoint()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
+
+    // Similarly to SetMethodEntryPoint(), it is up to the caller to ensure that calls to this function are appropriately
+    // synchronized
 
     // Keep implementations of MethodDesc::GetMethodEntryPoint and MethodDesc::GetAddrOfSlot in sync!
 
@@ -573,7 +552,6 @@ TADDR MethodDesc::GetAddrOfSlot()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -735,7 +713,6 @@ DWORD MethodDesc::GetNumGenericMethodArgs()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
     }
@@ -758,7 +735,6 @@ MethodTable * MethodDesc::GetExactDeclaringType(MethodTable * ownerOrSubType)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1140,7 +1116,6 @@ ULONG MethodDesc::GetRVA()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -1250,7 +1225,6 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -1400,7 +1374,6 @@ DWORD MethodDesc::GetAttrs() const
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END
     
@@ -1448,7 +1421,6 @@ Module* MethodDesc::GetZapModule()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -1507,7 +1479,6 @@ Module *MethodDesc::GetModule() const
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
     SUPPORTS_DAC;
 
     g_IBCLogger.LogMethodDescAccess(this);
@@ -1522,7 +1493,6 @@ Module *MethodDesc::GetModule_NoLogging() const
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
     SUPPORTS_DAC;
 
     MethodTable* pMT = GetMethodDescChunk()->GetMethodTable();
@@ -1803,7 +1773,6 @@ MethodDesc* MethodDesc::StripMethodInstantiation()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END
@@ -2188,6 +2157,12 @@ PCODE MethodDesc::TryGetMultiCallableAddrOfCode(CORINFO_ACCESS_FLAGS accessFlags
     if (HasStableEntryPoint())
         return GetStableEntryPoint();
 
+    if (IsVersionableWithVtableSlotBackpatch())
+    {
+        // Caller has to call via slot or allocate funcptr stub
+        return NULL;
+    }
+
     // Force the creation of the precode if we would eventually got one anyway
     if (MayHavePrecode())
         return GetOrCreatePrecode()->GetEntryPoint();
@@ -2300,13 +2275,18 @@ BOOL MethodDesc::IsPointingToPrestub()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
 
     if (!HasStableEntryPoint())
+    {
+        if (IsVersionableWithVtableSlotBackpatch())
+        {
+            return !IsRestored() || GetMethodEntryPoint() == GetTemporaryEntryPoint();
+        }
         return TRUE;
+    }
 
     if (!HasPrecode())
         return FALSE;
@@ -4027,7 +4007,6 @@ MethodDesc* MethodDesc::GetMethodDescFromStubAddr(PCODE addr, BOOL fSpeculative 
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
     }
     CONTRACT_END;
 
@@ -4073,7 +4052,6 @@ TADDR MethodDesc::GetFixupList()
 //*******************************************************************************
 BOOL MethodDesc::IsRestored_NoLogging()
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
@@ -4104,7 +4082,6 @@ BOOL MethodDesc::IsRestored_NoLogging()
 
 BOOL MethodDesc::IsRestored()
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
@@ -4620,7 +4597,6 @@ PCODE MethodDesc::GetTemporaryEntryPoint()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -4736,6 +4712,7 @@ void MethodDesc::InterlockedUpdateFlags2(BYTE bMask, BOOL fSet)
 Precode* MethodDesc::GetOrCreatePrecode()
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(!IsVersionableWithVtableSlotBackpatch());
 
     if (HasPrecode())
     {
@@ -4798,6 +4775,229 @@ Precode* MethodDesc::GetOrCreatePrecode()
     return Precode::GetPrecodeFromEntryPoint(addr);
 }
 
+bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
+{
+    WRAPPER_NO_CONTRACT;
+
+#ifdef FEATURE_TIERED_COMPILATION
+#ifndef FEATURE_CODE_VERSIONING
+    #error Tiered compilation requires code versioning
+#endif
+
+    // Keep in-sync with MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
+    // to ensure native slots are available where needed.
+    if (
+        // Policy
+        g_pConfig->TieredCompilation() &&
+
+        // Functional requirement - NGEN images embed direct calls that we would be unable to detect and redirect
+        !IsZapped() &&
+
+        // Functional requirement - The NativeCodeSlot is required to hold the code pointer for the default code version because
+        // the method's entry point slot will point to a precode or to the current code entry point
+        HasNativeCodeSlot() &&
+
+        // Functional requirement - These methods have no IL that could be optimized
+        !IsWrapperStub() &&
+
+        // Functional requirement
+        CodeVersionManager::IsMethodSupported(this) &&
+
+        // Policy - Debugging works much better with unoptimized code
+        !CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) &&
+
+        // Policy - Tiered compilation is not disabled by the profiler
+        !CORProfilerDisableTieredCompilation())
+    {
+        m_bFlags2 |= enum_flag2_IsEligibleForTieredCompilation;
+        _ASSERTE(IsVersionableWithoutJumpStamp());
+        return true;
+    }
+#endif
+
+    return false;
+}
+
+#ifndef CROSSGEN_COMPILE
+
+void MethodDesc::RecordAndBackpatchEntryPointSlot(
+    LoaderAllocator *slotLoaderAllocator, // the loader allocator from which the slot's memory is allocated
+    TADDR slot,
+    EntryPointSlots::SlotType slotType)
+{
+    WRAPPER_NO_CONTRACT;
+
+    LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
+
+    RecordAndBackpatchEntryPointSlot_Locked(
+        mdLoaderAllocator,
+        slotLoaderAllocator,
+        slot,
+        slotType,
+        GetEntryPointToBackpatch_Locked());
+}
+
+// This function tries to record a slot that would contain an entry point for the method, and backpatches the slot to contain
+// method's current entry point. Once recorded, changes to the entry point due to tiering will cause the slot to be backpatched
+// as necessary.
+void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
+    LoaderAllocator *mdLoaderAllocator,
+    LoaderAllocator *slotLoaderAllocator, // the loader allocator from which the slot's memory is allocated
+    TADDR slot,
+    EntryPointSlots::SlotType slotType,
+    PCODE currentEntryPoint)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(mdLoaderAllocator != nullptr);
+    _ASSERTE(mdLoaderAllocator == GetLoaderAllocator());
+    _ASSERTE(slotLoaderAllocator != nullptr);
+    _ASSERTE(slot != NULL);
+    _ASSERTE(slotType < EntryPointSlots::SlotType_Count);
+    _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
+
+    // The specified current entry point must actually be *current* in the sense that it must have been retrieved inside the
+    // lock, such that a recorded slot is guaranteed to point to the entry point at the time at which it was recorded, in order
+    // to synchronize with backpatching in MethodDesc::BackpatchEntryPointSlots(). If a slot pointing to an older entry point
+    // were to be recorded due to concurrency issues, it would not get backpatched to point to the more recent, actually
+    // current, entry point until another entry point change, which may never happen.
+    _ASSERTE(currentEntryPoint == GetEntryPointToBackpatch_Locked());
+
+    MethodDescBackpatchInfo *backpatchInfo =
+        mdLoaderAllocator->GetMethodDescBackpatchInfoTracker()->GetOrAddBackpatchInfo_Locked(this);
+    if (slotLoaderAllocator == mdLoaderAllocator)
+    {
+        // Entry point slots to backpatch are recorded in the backpatch info
+        backpatchInfo->GetSlots()->AddSlot_Locked(slot, slotType);
+    }
+    else
+    {
+        // Register the slot's loader allocator with the MethodDesc's backpatch info. Entry point slots to backpatch are
+        // recorded in the slot's LoaderAllocator.
+        backpatchInfo->AddDependentLoaderAllocator_Locked(slotLoaderAllocator);
+        slotLoaderAllocator
+            ->GetMethodDescBackpatchInfoTracker()
+            ->GetOrAddDependencyMethodDescEntryPointSlots_Locked(this)
+            ->AddSlot_Locked(slot, slotType);
+    }
+
+    EntryPointSlots::Backpatch_Locked(slot, slotType, currentEntryPoint);
+}
+
+void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(entryPoint != NULL);
+    _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
+    _ASSERTE(isPrestubEntryPoint == (entryPoint == GetPrestubEntryPointToBackpatch()));
+
+    LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
+    MethodDescBackpatchInfoTracker *backpatchInfoTracker = mdLoaderAllocator->GetMethodDescBackpatchInfoTracker();
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
+
+    // Get the entry point to backpatch inside the lock to synchronize with backpatching in MethodDesc::DoBackpatch()
+    if (GetEntryPointToBackpatch_Locked() == entryPoint)
+    {
+        return;
+    }
+
+    if (IsVersionableWithVtableSlotBackpatch())
+    {
+        // Backpatch the func ptr stub if it was created
+        FuncPtrStubs *funcPtrStubs = mdLoaderAllocator->GetFuncPtrStubsNoCreate();
+        if (funcPtrStubs != nullptr)
+        {
+            Precode *funcPtrPrecode = funcPtrStubs->Lookup(this);
+            if (funcPtrPrecode != nullptr)
+            {
+                if (isPrestubEntryPoint)
+                {
+                    funcPtrPrecode->ResetTargetInterlocked();
+                }
+                else
+                {
+                    funcPtrPrecode->SetTargetInterlocked(entryPoint, FALSE /* fOnlyRedirectFromPrestub */);
+                }
+            }
+        }
+    }
+
+    MethodDescBackpatchInfo *backpatchInfo = backpatchInfoTracker->GetBackpatchInfo_Locked(this);
+    if (backpatchInfo != nullptr)
+    {
+        // Backpatch slots from the same loader allocator
+        backpatchInfo->GetSlots()->Backpatch_Locked(entryPoint);
+
+        // Backpatch slots from dependent loader allocators
+        backpatchInfo->ForEachDependentLoaderAllocator_Locked(
+            [&](LoaderAllocator *slotLoaderAllocator) // the loader allocator from which the slot's memory is allocated
+        {
+            _ASSERTE(slotLoaderAllocator != nullptr);
+            _ASSERTE(slotLoaderAllocator != mdLoaderAllocator);
+
+            EntryPointSlots *slotsToBackpatch =
+                slotLoaderAllocator
+                ->GetMethodDescBackpatchInfoTracker()
+                ->GetDependencyMethodDescEntryPointSlots_Locked(this);
+            if (slotsToBackpatch != nullptr)
+            {
+                slotsToBackpatch->Backpatch_Locked(entryPoint);
+            }
+        });
+    }
+
+    // Set the entry point to backpatch inside the lock to synchronize with backpatching in MethodDesc::DoBackpatch(), and set
+    // it last in case there are exceptions above, as setting the entry point indicates that all recorded slots have been
+    // backpatched
+    SetEntryPointToBackpatch_Locked(entryPoint);
+}
+
+void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(entryPoint != NULL);
+
+    if (MayHaveEntryPointSlotsToBackpatch())
+    {
+        BackpatchEntryPointSlots(entryPoint);
+    }
+    else if (IsVersionableWithoutJumpStamp())
+    {
+        _ASSERTE(IsVersionableWithPrecode());
+        GetOrCreatePrecode()->SetTargetInterlocked(entryPoint, FALSE /* fOnlyRedirectFromPrestub */);
+
+        // SetTargetInterlocked() would return false if it lost the race with another thread. That is fine, this thread
+        // can continue assuming it was successful, similarly to it successfully updating the target and another thread
+        // updating the target again shortly afterwards.
+    }
+    else if (HasPrecode())
+    {
+        GetPrecode()->SetTargetInterlocked(entryPoint);
+    }
+    else if (!HasStableEntryPoint())
+    {
+        SetStableEntryPointInterlocked(entryPoint);
+    }
+}
+
+void MethodDesc::ResetCodeEntryPoint()
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(IsVersionableWithoutJumpStamp());
+
+    if (MayHaveEntryPointSlotsToBackpatch())
+    {
+        BackpatchToResetEntryPointSlots();
+        return;
+    }
+
+    _ASSERTE(IsVersionableWithPrecode());
+    GetPrecode()->ResetTargetInterlocked();
+}
+
+#endif // !CROSSGEN_COMPILE
+
 //*******************************************************************************
 BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/)
 {
@@ -4838,6 +5038,39 @@ BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/)
     return SetStableEntryPointInterlocked(addr);
 }
 
+#ifndef CROSSGEN_COMPILE
+
+//*******************************************************************************
+void MethodDesc::SetMethodEntryPoint(PCODE addr)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(addr != NULL);
+
+    // Similarly to GetMethodEntryPoint(), it is up to the caller to ensure that calls to this function are appropriately
+    // synchronized. Currently, the only caller synchronizes with the following lock.
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
+
+    TADDR pSlot = GetAddrOfSlot();
+
+    TADDR *slotAddr;
+    PCODE newVal;
+
+    if (IsVtableSlot())
+    {
+        newVal = MethodTable::VTableIndir2_t::GetRelative(pSlot, addr);
+        slotAddr = (TADDR *) EnsureWritablePages((MethodTable::VTableIndir2_t *) pSlot);
+    }
+    else
+    {
+        newVal = addr;
+        slotAddr = (TADDR *) EnsureWritablePages((PCODE *) pSlot);
+    }
+
+    *(TADDR *)slotAddr = newVal;
+}
+
+#endif // CROSSGEN_COMPILE
+
 //*******************************************************************************
 BOOL MethodDesc::SetStableEntryPointInterlocked(PCODE addr)
 {
@@ -4847,6 +5080,7 @@ BOOL MethodDesc::SetStableEntryPointInterlocked(PCODE addr)
     } CONTRACTL_END;
 
     _ASSERTE(!HasPrecode());
+    _ASSERTE(!IsVersionableWithoutJumpStamp());
 
     PCODE pExpected = GetTemporaryEntryPoint();
     TADDR pSlot = GetAddrOfSlot();
@@ -5347,7 +5581,6 @@ void MethodDesc::WalkValueTypeParameters(MethodTable *pMT, WalkValueTypeParamete
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -5413,7 +5646,6 @@ static void CheckForEquivalenceAndLoadType(Module *pModule, mdToken token, Modul
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 

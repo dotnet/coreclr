@@ -38,7 +38,6 @@
 #include "listlock.h"
 #include "methodimpl.h"
 #include "guidfromname.h"
-#include "stackprobe.h"
 #include "encee.h"
 #include "encee.h"
 #include "comsynchronizable.h"
@@ -1335,7 +1334,6 @@ BOOL MethodTable::IsEquivalentTo_Worker(MethodTable *pOtherMT COMMA_INDEBUG(Type
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT; // we are called from MethodTable::CanCastToClass
     }
     CONTRACTL_END;
 
@@ -1364,13 +1362,7 @@ BOOL MethodTable::IsEquivalentTo_Worker(MethodTable *pOtherMT COMMA_INDEBUG(Type
         return (GetApproxArrayElementTypeHandle().IsEquivalentTo(pOtherMT->GetApproxArrayElementTypeHandle() COMMA_INDEBUG(&newVisited)));
     }
 
-    BOOL bResult = FALSE;
-    
-    BEGIN_SO_INTOLERANT_CODE(GetThread());
-    bResult = IsEquivalentTo_WorkerInner(pOtherMT COMMA_INDEBUG(&newVisited));
-    END_SO_INTOLERANT_CODE;
-
-    return bResult;
+    return IsEquivalentTo_WorkerInner(pOtherMT COMMA_INDEBUG(&newVisited));
 }
 
 //==========================================================================================
@@ -1382,7 +1374,6 @@ BOOL MethodTable::IsEquivalentTo_WorkerInner(MethodTable *pOtherMT COMMA_INDEBUG
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
         LOADS_TYPE(CLASS_DEPENDENCIES_LOADED);
     }
     CONTRACTL_END;
@@ -1666,7 +1657,6 @@ BOOL MethodTable::CanCastToNonVariantInterface(MethodTable *pTargetMT)
         GC_NOTRIGGER;
         MODE_ANY;
         INSTANCE_CHECK;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pTargetMT));
         PRECONDITION(pTargetMT->IsInterface());
         PRECONDITION(!pTargetMT->HasVariance());
@@ -1691,7 +1681,6 @@ TypeHandle::CastResult MethodTable::CanCastToInterfaceNoGC(MethodTable *pTargetM
         GC_NOTRIGGER;
         MODE_ANY;
         INSTANCE_CHECK;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pTargetMT));
         PRECONDITION(pTargetMT->IsInterface());
         PRECONDITION(IsRestored_NoLogging());
@@ -1718,7 +1707,6 @@ TypeHandle::CastResult MethodTable::CanCastToClassNoGC(MethodTable *pTargetMT)
         GC_NOTRIGGER;
         MODE_ANY;
         INSTANCE_CHECK;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pTargetMT));
         PRECONDITION(!pTargetMT->IsArray());
         PRECONDITION(!pTargetMT->IsInterface());
@@ -1762,7 +1750,6 @@ MethodTable::IsExternallyVisible()
         THROWS;
         MODE_ANY;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -2023,7 +2010,6 @@ BOOL MethodTable::ImplementsEquivalentInterface(MethodTable *pInterface)
     {
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
         PRECONDITION(pInterface->IsInterface()); // class we are looking up should be an interface
     }
     CONTRACTL_END;
@@ -2285,7 +2271,6 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
     {
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -2568,7 +2553,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
     {
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -2649,11 +2633,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         unsigned normalizedFieldOffset = fieldOffset + startOffsetOfStruct;
 
         unsigned int fieldNativeSize = pFieldMarshaler->NativeSize();
-        if (fieldNativeSize > SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
-        {
-            // Pass on stack in this case.
-            return false;
-        }
 
         _ASSERTE(fieldNativeSize != (unsigned int)-1);
 
@@ -2704,6 +2683,23 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case VT_R8:
                 fieldClassificationType = SystemVClassificationTypeSSE;
                 break;
+            case VT_RECORD:
+            {
+                MethodTable* pFieldMT = ((FieldMarshaler_FixedArray*)pFieldMarshaler)->GetElementMethodTable();
+
+                bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
+                helperPtr->inEmbeddedStruct = true;
+                bool structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
+                helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
+
+                if (!structRet)
+                {
+                    // If the nested struct says not to enregister, there's no need to continue analyzing at this level. Just return do not enregister.
+                    return false;
+                }
+
+                continue;
+            }
             case VT_DECIMAL:
             case VT_DATE:
             case VT_BSTR:
@@ -2714,7 +2710,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case VT_HRESULT:
             case VT_CARRAY:
             case VT_USERDEFINED:
-            case VT_RECORD:
             case VT_FILETIME:
             case VT_BLOB:
             case VT_STREAM:
@@ -3044,7 +3039,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
             else
             {
                 fieldSize = helperPtr->fieldSizes[ordinal];
-                _ASSERTE(fieldSize > 0 && fieldSize <= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
+                _ASSERTE(fieldSize > 0);
 
                 fieldClassificationType = helperPtr->fieldClassifications[ordinal];
                 _ASSERTE(fieldClassificationType != SystemVClassificationTypeMemory && fieldClassificationType != SystemVClassificationTypeUnknown);
@@ -3082,7 +3077,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
             }
 
             accumulatedSizeForEightByte += fieldSize;
-            if (accumulatedSizeForEightByte == SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
+            while (accumulatedSizeForEightByte >= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES)
             {
                 // Save data for this eightbyte.
                 helperPtr->eightByteSizes[currentEightByte] = SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
@@ -3092,8 +3087,14 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
                 currentEightByte++;
                 _ASSERTE(currentEightByte <= CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS);
 
-                currentEightByteOffset = offset + fieldSize;
-                accumulatedSizeForEightByte = 0;
+                currentEightByteOffset += SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
+                accumulatedSizeForEightByte -= SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES;
+
+                // If a field is large enough to span multiple eightbytes, then set the eightbyte classification to the field's classification.
+                if (accumulatedSizeForEightByte > 0)
+                {
+                    helperPtr->eightByteClassifications[currentEightByte] = fieldClassificationType;
+                }
             }
 
             _ASSERTE(accumulatedSizeForEightByte < SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES);
@@ -3360,7 +3361,6 @@ void MethodTable::DoRunClassInitThrowing()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -3374,7 +3374,6 @@ void MethodTable::DoRunClassInitThrowing()
     Thread *pThread;
     pThread = GetThread();
     _ASSERTE(pThread);
-    INTERIOR_STACK_PROBE_FOR(pThread, 8);
 
     AppDomain *pDomain = GetAppDomain();
 
@@ -3650,7 +3649,6 @@ void MethodTable::DoRunClassInitThrowing()
     g_IBCLogger.LogMethodTableAccess(this);
 Exit:
     ;
-    END_INTERIOR_STACK_PROBE;
 }
 
 //==========================================================================================
@@ -3660,14 +3658,12 @@ void MethodTable::CheckRunClassInitThrowing()
     {
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
         INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(IsFullyLoaded());
     }
     CONTRACTL_END;
 
     {   // Debug-only code causes SO volation, so add exception.
-        CONTRACT_VIOLATION(SOToleranceViolation);
         CONSISTENCY_CHECK(CheckActivated());
     }
 
@@ -3701,7 +3697,6 @@ void MethodTable::CheckRunClassInitAsIfConstructingThrowing()
     {
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3799,7 +3794,6 @@ static void FastCallFinalize(Object *obj, PCODE funcPtr, BOOL fCriticalCall)
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
     BEGIN_CALL_TO_MANAGEDEX(fCriticalCall ? EEToManagedCriticalCall : EEToManagedDefault);
 
@@ -5391,7 +5385,6 @@ static void CheckForEquivalenceAndFullyLoadType(Module *pModule, mdToken token, 
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -5577,7 +5570,6 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
 
     }
 
-    BEGIN_SO_INTOLERANT_CODE(GetThread());
     // First ensure that we're loaded to just below CLASS_DEPENDENCIES_LOADED
     ClassLoader::EnsureLoaded(this, (ClassLoadLevel) (level-1));
 
@@ -5991,9 +5983,6 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
         _ASSERTE(th.IsTypeDesc() && th.IsArray());
         _ASSERTE(!(level == CLASS_LOADED && !th.IsFullyLoaded()));
     }
-
-    END_SO_INTOLERANT_CODE;
-    
 #endif //!DACCESS_COMPILE
 } //MethodTable::DoFullyLoad
 
@@ -7063,7 +7052,7 @@ void ThrowExceptionForConflictingOverride(
     TypeString::AppendType(strTargetClassName, pTargetClass);
 
     COMPlusThrow(
-        kNotSupportedException,
+        kAmbiguousImplementationException,
         IDS_CLASSLOAD_AMBIGUOUS_OVERRIDE,
         strMethodName,
         strInterfaceName,
@@ -7349,7 +7338,6 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
 DispatchSlot MethodTable::FindDispatchSlot(UINT32 typeID, UINT32 slotNumber, BOOL throwOnConflict)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     DispatchSlot implSlot(NULL);
     FindDispatchImpl(typeID, slotNumber, &implSlot, throwOnConflict);
     return implSlot;
@@ -7362,7 +7350,6 @@ DispatchSlot MethodTable::FindDispatchSlot(DispatchToken tok, BOOL throwOnConfli
     {
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -7446,7 +7433,6 @@ UINT32 MethodTable::LookupTypeID()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -7575,7 +7561,6 @@ MethodDesc * MethodTable::GetIntroducingMethodDesc(DWORD slotNumber)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -7941,7 +7926,6 @@ MethodDesc* MethodTable::GetMethodDescForSlotAddress(PCODE addr, BOOL fSpeculati
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
         POSTCONDITION(CheckPointer(RETVAL, NULL_NOT_OK));
         POSTCONDITION(RETVAL->m_pDebugMethodTable.IsNull() || // We must be in BuildMethdTableThrowing()
                       RETVAL->SanityCheck());
@@ -8001,7 +7985,6 @@ BOOL MethodTable::ComputeContainsGenericVariables(Instantiation inst)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -8106,7 +8089,6 @@ MethodDesc * MethodTable::GetClassConstructor()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -8237,7 +8219,6 @@ MethodTable * MethodTable::GetMethodTableMatchingParentClass(MethodTable * pWhic
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pWhichParent));
         PRECONDITION(IsRestored_NoLogging());
         PRECONDITION(pWhichParent->IsRestored_NoLogging());
@@ -8294,7 +8275,6 @@ Instantiation MethodTable::GetInstantiationOfParentClass(MethodTable *pWhichPare
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pWhichParent));
         PRECONDITION(IsRestored_NoLogging());
         PRECONDITION(pWhichParent->IsRestored_NoLogging());
@@ -8874,7 +8854,6 @@ void MethodTable::CheckInitMethodDataCache()
     CONTRACTL {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     } CONTRACTL_END;
     if (s_pMethodDataCache == NULL)
     {
@@ -9408,9 +9387,6 @@ VOID MethodTable::EnsureInstanceActive()
 
     if (HasInstantiation())
     {
-        // This is going to go recursive, so we need to use an interior stack probe
-        
-        INTERIOR_STACK_PROBE(GetThread());
         {
             Instantiation inst = GetInstantiation();
             for (DWORD i = 0; i < inst.GetNumArgs(); i++)
@@ -9422,7 +9398,6 @@ VOID MethodTable::EnsureInstanceActive()
                 }
             }
         }
-        END_INTERIOR_STACK_PROBE;
     }
 
 }
@@ -9631,7 +9606,6 @@ PCODE MethodTable::GetRestoredSlot(DWORD slotNumber)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
@@ -9672,7 +9646,6 @@ MethodTable * MethodTable::GetRestoredSlotMT(DWORD slotNumber)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
@@ -9713,7 +9686,6 @@ MethodDesc * MethodTable::GetParallelMethodDesc(MethodDesc * pDefMD)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -9756,8 +9728,7 @@ void MethodTable::SetSlot(UINT32 slotNumber, PCODE slotCode)
         if (fSharedVtableChunk)
         {
             MethodDesc* pMD = GetMethodDescForSlotAddress(slotCode);
-            _ASSERTE(pMD->HasStableEntryPoint());
-            _ASSERTE(pMD->GetStableEntryPoint() == slotCode);
+            _ASSERTE(pMD->IsVersionableWithVtableSlotBackpatch() || pMD->GetStableEntryPoint() == slotCode);
         }
     }
 #endif

@@ -1708,157 +1708,6 @@ FOUND_AM:
     return true;
 }
 
-/*****************************************************************************
-*  The condition to use for (the jmp/set for) the given type of operation
-*
-*  In case of amd64, this routine should be used when there is no gentree available
-*  and one needs to generate jumps based on integer comparisons.  When gentree is
-*  available always use its overloaded version.
-*
-*/
-
-// static
-emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind)
-{
-    const static BYTE genJCCinsSigned[] = {
-#if defined(_TARGET_XARCH_)
-        EJ_je,  // GT_EQ
-        EJ_jne, // GT_NE
-        EJ_jl,  // GT_LT
-        EJ_jle, // GT_LE
-        EJ_jge, // GT_GE
-        EJ_jg,  // GT_GT
-        EJ_je,  // GT_TEST_EQ
-        EJ_jne, // GT_TEST_NE
-#elif defined(_TARGET_ARMARCH_)
-        EJ_eq,   // GT_EQ
-        EJ_ne,   // GT_NE
-        EJ_lt,   // GT_LT
-        EJ_le,   // GT_LE
-        EJ_ge,   // GT_GE
-        EJ_gt,   // GT_GT
-#if defined(_TARGET_ARM64_)
-        EJ_eq,   // GT_TEST_EQ
-        EJ_ne,   // GT_TEST_NE
-#endif
-#endif
-    };
-
-    const static BYTE genJCCinsUnsigned[] = /* unsigned comparison */
-    {
-#if defined(_TARGET_XARCH_)
-        EJ_je,  // GT_EQ
-        EJ_jne, // GT_NE
-        EJ_jb,  // GT_LT
-        EJ_jbe, // GT_LE
-        EJ_jae, // GT_GE
-        EJ_ja,  // GT_GT
-        EJ_je,  // GT_TEST_EQ
-        EJ_jne, // GT_TEST_NE
-#elif defined(_TARGET_ARMARCH_)
-        EJ_eq,   // GT_EQ
-        EJ_ne,   // GT_NE
-        EJ_lo,   // GT_LT
-        EJ_ls,   // GT_LE
-        EJ_hs,   // GT_GE
-        EJ_hi,   // GT_GT
-#if defined(_TARGET_ARM64_)
-        EJ_eq,   // GT_TEST_EQ
-        EJ_ne,   // GT_TEST_NE
-#endif
-#endif
-    };
-
-    const static BYTE genJCCinsLogical[] = /* logical operation */
-    {
-#if defined(_TARGET_XARCH_)
-        EJ_je,   // GT_EQ   (Z == 1)
-        EJ_jne,  // GT_NE   (Z == 0)
-        EJ_js,   // GT_LT   (S == 1)
-        EJ_NONE, // GT_LE
-        EJ_jns,  // GT_GE   (S == 0)
-        EJ_NONE, // GT_GT
-        EJ_NONE, // GT_TEST_EQ
-        EJ_NONE, // GT_TEST_NE
-#elif defined(_TARGET_ARMARCH_)
-        EJ_eq,   // GT_EQ   (Z == 1)
-        EJ_ne,   // GT_NE   (Z == 0)
-        EJ_mi,   // GT_LT   (N == 1)
-        EJ_NONE, // GT_LE
-        EJ_pl,   // GT_GE   (N == 0)
-        EJ_NONE, // GT_GT
-#if defined(_TARGET_ARM64_)
-        EJ_eq,   // GT_TEST_EQ
-        EJ_ne,   // GT_TEST_NE
-#endif
-#endif
-    };
-
-#if defined(_TARGET_XARCH_)
-    assert(genJCCinsSigned[GT_EQ - GT_EQ] == EJ_je);
-    assert(genJCCinsSigned[GT_NE - GT_EQ] == EJ_jne);
-    assert(genJCCinsSigned[GT_LT - GT_EQ] == EJ_jl);
-    assert(genJCCinsSigned[GT_LE - GT_EQ] == EJ_jle);
-    assert(genJCCinsSigned[GT_GE - GT_EQ] == EJ_jge);
-    assert(genJCCinsSigned[GT_GT - GT_EQ] == EJ_jg);
-    assert(genJCCinsSigned[GT_TEST_EQ - GT_EQ] == EJ_je);
-    assert(genJCCinsSigned[GT_TEST_NE - GT_EQ] == EJ_jne);
-
-    assert(genJCCinsUnsigned[GT_EQ - GT_EQ] == EJ_je);
-    assert(genJCCinsUnsigned[GT_NE - GT_EQ] == EJ_jne);
-    assert(genJCCinsUnsigned[GT_LT - GT_EQ] == EJ_jb);
-    assert(genJCCinsUnsigned[GT_LE - GT_EQ] == EJ_jbe);
-    assert(genJCCinsUnsigned[GT_GE - GT_EQ] == EJ_jae);
-    assert(genJCCinsUnsigned[GT_GT - GT_EQ] == EJ_ja);
-    assert(genJCCinsUnsigned[GT_TEST_EQ - GT_EQ] == EJ_je);
-    assert(genJCCinsUnsigned[GT_TEST_NE - GT_EQ] == EJ_jne);
-
-    assert(genJCCinsLogical[GT_EQ - GT_EQ] == EJ_je);
-    assert(genJCCinsLogical[GT_NE - GT_EQ] == EJ_jne);
-    assert(genJCCinsLogical[GT_LT - GT_EQ] == EJ_js);
-    assert(genJCCinsLogical[GT_GE - GT_EQ] == EJ_jns);
-#elif defined(_TARGET_ARMARCH_)
-    assert(genJCCinsSigned[GT_EQ - GT_EQ] == EJ_eq);
-    assert(genJCCinsSigned[GT_NE - GT_EQ] == EJ_ne);
-    assert(genJCCinsSigned[GT_LT - GT_EQ] == EJ_lt);
-    assert(genJCCinsSigned[GT_LE - GT_EQ] == EJ_le);
-    assert(genJCCinsSigned[GT_GE - GT_EQ] == EJ_ge);
-    assert(genJCCinsSigned[GT_GT - GT_EQ] == EJ_gt);
-
-    assert(genJCCinsUnsigned[GT_EQ - GT_EQ] == EJ_eq);
-    assert(genJCCinsUnsigned[GT_NE - GT_EQ] == EJ_ne);
-    assert(genJCCinsUnsigned[GT_LT - GT_EQ] == EJ_lo);
-    assert(genJCCinsUnsigned[GT_LE - GT_EQ] == EJ_ls);
-    assert(genJCCinsUnsigned[GT_GE - GT_EQ] == EJ_hs);
-    assert(genJCCinsUnsigned[GT_GT - GT_EQ] == EJ_hi);
-
-    assert(genJCCinsLogical[GT_EQ - GT_EQ] == EJ_eq);
-    assert(genJCCinsLogical[GT_NE - GT_EQ] == EJ_ne);
-    assert(genJCCinsLogical[GT_LT - GT_EQ] == EJ_mi);
-    assert(genJCCinsLogical[GT_GE - GT_EQ] == EJ_pl);
-#else
-    assert(!"unknown arch");
-#endif
-    assert(GenTree::OperIsCompare(cmp));
-
-    emitJumpKind result = EJ_COUNT;
-
-    if (compareKind == CK_UNSIGNED)
-    {
-        result = (emitJumpKind)genJCCinsUnsigned[cmp - GT_EQ];
-    }
-    else if (compareKind == CK_SIGNED)
-    {
-        result = (emitJumpKind)genJCCinsSigned[cmp - GT_EQ];
-    }
-    else if (compareKind == CK_LOGICAL)
-    {
-        result = (emitJumpKind)genJCCinsLogical[cmp - GT_EQ];
-    }
-    assert(result != EJ_COUNT);
-    return result;
-}
-
 #ifdef _TARGET_ARMARCH_
 //------------------------------------------------------------------------
 // genEmitGSCookieCheck: Generate code to check that the GS cookie
@@ -1899,9 +1748,8 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
     // Compare with the GC cookie constant
     getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, regGSConst, regGSValue);
 
-    BasicBlock*  gsCheckBlk = genCreateTempLabel();
-    emitJumpKind jmpEqual   = genJumpKindForOper(GT_EQ, CK_SIGNED);
-    inst_JMP(jmpEqual, gsCheckBlk);
+    BasicBlock* gsCheckBlk = genCreateTempLabel();
+    inst_JMP(EJ_eq, gsCheckBlk);
     // regGSConst and regGSValue aren't needed anymore, we can use them for helper call
     genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, EA_UNKNOWN, regGSConst);
     genDefineTempLabel(gsCheckBlk);
@@ -1967,7 +1815,7 @@ void CodeGen::genExitCode(BasicBlock* block)
 //   codeKind - the special throw-helper kind;
 //   failBlk  - optional fail target block, if it is already known;
 //
-void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTree* failBlk)
+void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, BasicBlock* failBlk)
 {
     bool useThrowHlpBlk = compiler->fgUseThrowHelperBlocks();
 #if defined(UNIX_X86_ABI) && FEATURE_EH_FUNCLETS
@@ -1985,8 +1833,7 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
         if (failBlk != nullptr)
         {
             // We already know which block to jump to. Use that.
-            assert(failBlk->gtOper == GT_LABEL);
-            excpRaisingBlock = failBlk->gtLabel.gtLabBB;
+            excpRaisingBlock = failBlk;
 
 #ifdef DEBUG
             Compiler::AddCodeDsc* add =
@@ -2191,10 +2038,6 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
 #ifdef DEBUG
     genInterruptibleUsed = true;
-
-#if STACK_PROBES
-    genNeedPrologStackProbe = false;
-#endif
 
     compiler->fgDebugCheckBBlist();
 #endif // DEBUG
@@ -5746,7 +5589,7 @@ void CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
                 // Generate:
                 //      ldp fp,lr,[sp]
                 //      add sp,sp,#remainingFrameSz
-                genEpilogRestoreRegPair(REG_FP, REG_LR, alignmentAdjustment2, spAdjustment2, REG_IP1, nullptr);
+                genEpilogRestoreRegPair(REG_FP, REG_LR, alignmentAdjustment2, spAdjustment2, false, REG_IP1, nullptr);
             }
             else
             {
@@ -5764,8 +5607,8 @@ void CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
                 //      add sp,sp,#remainingFrameSz     ; might need to load this constant in a scratch register if
                 //                                      ; it's large
 
-                genEpilogRestoreRegPair(REG_FP, REG_LR, compiler->lvaOutgoingArgSpaceSize, remainingFrameSz, REG_IP1,
-                                        nullptr);
+                genEpilogRestoreRegPair(REG_FP, REG_LR, compiler->lvaOutgoingArgSpaceSize, remainingFrameSz, false,
+                                        REG_IP1, nullptr);
             }
 
             // Unlike frameType=1 or frameType=2 that restore SP at the end,
@@ -6053,8 +5896,9 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
             availMask &= ~regMask;
         }
 
-        assert((genRegMask(rAddr) & intRegState.rsCalleeRegArgMaskLiveIn) ==
-               0); // rAddr is not a live incoming argument reg
+        // rAddr is not a live incoming argument reg
+        assert((genRegMask(rAddr) & intRegState.rsCalleeRegArgMaskLiveIn) == 0);
+
 #if defined(_TARGET_ARM_)
         if (arm_Valid_Imm_For_Add(untrLclLo, INS_FLAGS_DONT_CARE))
 #else  // !_TARGET_ARM_
@@ -6374,14 +6218,18 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed
         regSet.verifyRegUsed(reg);
     }
 
-#if CPU_LOAD_STORE_ARCH
+#if defined(_TARGET_ARM64_)
+    genInstrWithConstant(ins_Store(TYP_I_IMPL), EA_PTRSIZE, reg, genFramePointerReg(),
+                         compiler->lvaCachedGenericContextArgOffset(), rsGetRsvdReg());
+#elif defined(_TARGET_ARM_)
+    // ARM's emitIns_R_R_I automatically uses the reserved register if necessary.
     getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, reg, genFramePointerReg(),
                                 compiler->lvaCachedGenericContextArgOffset());
-#else  // CPU_LOAD_STORE_ARCH
+#else  // !ARM64 !ARM
     // mov [ebp-lvaCachedGenericContextArgOffset()], reg
     getEmitter()->emitIns_AR_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, reg, genFramePointerReg(),
                                compiler->lvaCachedGenericContextArgOffset());
-#endif // !CPU_LOAD_STORE_ARCH
+#endif // !ARM64 !ARM
 }
 
 /*-----------------------------------------------------------------------------
@@ -7912,8 +7760,16 @@ void CodeGen::genFnProlog()
 #endif // _TARGET_XARCH_
 
 #ifdef _TARGET_ARM64_
-    // Probe large frames now, if necessary, since genPushCalleeSavedRegisters() will allocate the frame.
-    genAllocLclFrame(compiler->compLclFrameSize, initReg, &initRegZeroed, intRegState.rsCalleeRegArgMaskLiveIn);
+    // Probe large frames now, if necessary, since genPushCalleeSavedRegisters() will allocate the frame. Note that
+    // for arm64, genAllocLclFrame only probes the frame; it does not actually allocate it (it does not change SP).
+    // For arm64, we are probing the frame before the callee-saved registers are saved. The 'initReg' might have
+    // been calculated to be one of the callee-saved registers (say, if all the integer argument registers are
+    // in use, and perhaps with other conditions being satisfied). This is ok in other cases, after the callee-saved
+    // registers have been saved. So instead of letting genAllocLclFrame use initReg as a temporary register,
+    // always use REG_SCRATCH. We don't care if it trashes it, so ignore the initRegZeroed output argument.
+    bool ignoreInitRegZeroed = false;
+    genAllocLclFrame(compiler->compLclFrameSize, REG_SCRATCH, &ignoreInitRegZeroed,
+                     intRegState.rsCalleeRegArgMaskLiveIn);
     genPushCalleeSavedRegisters(initReg, &initRegZeroed);
 #else  // !_TARGET_ARM64_
     genPushCalleeSavedRegisters();
@@ -8004,8 +7860,8 @@ void CodeGen::genFnProlog()
     if (compiler->info.compPublishStubParam)
     {
 #if CPU_LOAD_STORE_ARCH
-        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SECRET_STUB_PARAM, genFramePointerReg(),
-                                    compiler->lvaTable[compiler->lvaStubArgumentVar].lvStkOffs);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SECRET_STUB_PARAM,
+                                  compiler->lvaStubArgumentVar, 0);
 #else
         // mov [lvaStubArgumentVar], EAX
         getEmitter()->emitIns_AR_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SECRET_STUB_PARAM, genFramePointerReg(),
@@ -8016,21 +7872,6 @@ void CodeGen::genFnProlog()
         // It's no longer live; clear it out so it can be used after this in the prolog
         intRegState.rsCalleeRegArgMaskLiveIn &= ~RBM_SECRET_STUB_PARAM;
     }
-
-#if STACK_PROBES
-    // We could probably fold this into the loop for the FrameSize >= 0x3000 probing
-    // when creating the stack frame. Don't think it's worth it, though.
-    if (genNeedPrologStackProbe)
-    {
-        //
-        // Can't have a call until we have enough padding for rejit
-        //
-        genPrologPadForReJit();
-        noway_assert(compiler->opts.compNeedStackProbes);
-        genGenerateStackProbe();
-        compiler->compStackProbePrologDone = true;
-    }
-#endif // STACK_PROBES
 
     //
     // Zero out the frame as needed
@@ -9088,6 +8929,12 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
+    // If there is no PSPSym (CoreRT ABI), we are done.
+    if (compiler->lvaPSPSym == BAD_VAR_NUM)
+    {
+        return;
+    }
+
     if (isFilter)
     {
         // This is the first block of a filter
@@ -9874,24 +9721,6 @@ XX                                                                           XX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
-
-#if STACK_PROBES
-void CodeGen::genGenerateStackProbe()
-{
-    noway_assert(compiler->opts.compNeedStackProbes);
-
-    // If this assert fires, it means somebody has changed the value
-    // CORINFO_STACKPROBE_DEPTH.
-    // Why does the EE need such a deep probe? It should just need a couple
-    // of bytes, to set up a frame in the unmanaged code..
-
-    static_assert_no_msg(CORINFO_STACKPROBE_DEPTH + JIT_RESERVED_STACK < compiler->eeGetPageSize());
-
-    JITDUMP("Emitting stack probe:\n");
-    getEmitter()->emitIns_AR_R(INS_TEST, EA_PTRSIZE, REG_EAX, REG_SPBASE,
-                               -(CORINFO_STACKPROBE_DEPTH + JIT_RESERVED_STACK));
-}
-#endif // STACK_PROBES
 
 #if defined(_TARGET_XARCH_)
 // Save compCalleeFPRegsPushed with the smallest register number saved at [RSP+offset], working

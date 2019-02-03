@@ -95,10 +95,8 @@ private:
             CONTRACTL
             {
                 NOTHROW;
-                SO_TOLERANT;
             }
             CONTRACTL_END;
-            VALIDATE_BACKOUT_STACK_CONSUMPTION;               
 
             if (m_next) 
                 delete m_next; 
@@ -375,7 +373,7 @@ public:
         BOOL bThrowIfNotFound,
         BOOL bIgnoreCase,
         BOOL bProhibitAssemblyQualifiedName,
-        StackCrawlMark* pStackMark,
+        Assembly* pRequestingAssembly,
         BOOL bLoadTypeFromPartialNameHack,
         OBJECTREF *pKeepAlive,
         ICLRPrivBinder * pPrivHostBinder = nullptr);
@@ -440,7 +438,6 @@ private:
                                     
         BOOL bProhibitAssemblyQualifiedName,
                                     
-        StackCrawlMark* pStackMark, 
         Assembly* pRequestingAssembly, 
         ICLRPrivBinder * pPrivHostBinder,
         BOOL bLoadTypeFromPartialNameHack,

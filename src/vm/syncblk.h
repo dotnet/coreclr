@@ -17,7 +17,6 @@
 #include "slist.h"
 #include "crst.h"
 #include "vars.hpp"
-#include "yieldprocessornormalized.h"
 
 // #SyncBlockOverview
 // 
@@ -969,7 +968,6 @@ class SyncBlock
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             SUPPORTS_DAC;
             POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
         }

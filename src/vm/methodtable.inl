@@ -598,7 +598,6 @@ inline MethodDesc* MethodTable::GetMethodDescForSlot(DWORD slot)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -616,6 +615,17 @@ inline MethodDesc* MethodTable::GetMethodDescForSlot(DWORD slot)
 }
 
 #ifndef DACCESS_COMPILE 
+
+//==========================================================================================
+inline void MethodTable::CopySlotFrom(UINT32 slotNumber, MethodDataWrapper &hSourceMTData, MethodTable *pSourceMT)
+{
+    WRAPPER_NO_CONTRACT;
+
+    MethodDesc *pMD = hSourceMTData->GetImplMethodDesc(slotNumber);
+    _ASSERTE(CheckPointer(pMD));
+    _ASSERTE(pMD == pSourceMT->GetMethodDescForSlot(slotNumber));
+    SetSlot(slotNumber, pMD->GetInitialEntryPointForCopiedSlot());
+}
 
 //==========================================================================================
 inline INT32 MethodTable::MethodIterator::GetNumMethods() const
@@ -1534,7 +1544,6 @@ inline BOOL MethodTable::UnBoxInto(void *dest, OBJECTREF src)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -1560,7 +1569,6 @@ inline BOOL MethodTable::UnBoxIntoArg(ArgDestination *argDest, OBJECTREF src)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -1586,7 +1594,6 @@ inline void MethodTable::UnBoxIntoUnchecked(void *dest, OBJECTREF src)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -1613,7 +1620,6 @@ __forceinline TypeHandle::CastResult MethodTable::CanCastToClassOrInterfaceNoGC(
         GC_NOTRIGGER;
         MODE_ANY;
         INSTANCE_CHECK;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pTargetMT));
         PRECONDITION(!pTargetMT->IsArray());
     }
@@ -1654,7 +1660,6 @@ FORCEINLINE PTR_Module MethodTable::GetGenericsStaticsModuleAndID(DWORD * pID)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -1730,7 +1735,6 @@ FORCEINLINE BOOL MethodTable::ImplementsInterfaceInline(MethodTable *pInterface)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(pInterface->IsInterface()); // class we are looking up should be an interface
     }
     CONTRACTL_END;

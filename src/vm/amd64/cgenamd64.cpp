@@ -364,7 +364,6 @@ BOOL isJumpRel32(PCODE pCode)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
@@ -383,7 +382,6 @@ PCODE decodeJump32(PCODE pBuffer)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -399,7 +397,6 @@ BOOL isJumpRel64(PCODE pCode)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
@@ -417,7 +414,6 @@ PCODE decodeJump64(PCODE pBuffer)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -634,7 +630,7 @@ INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMe
         // If a domain is provided, the MethodDesc mustn't yet be set up to have one, or it must match the MethodDesc's domain,
         // unless we're in a compilation domain (NGen loads assemblies as domain-bound but compiles them as domain neutral).
         PRECONDITION(!pLoaderAllocator || !pMethod || pMethod->GetMethodDescChunk()->GetMethodTablePtr()->IsNull() || 
-            pLoaderAllocator == pMethod->GetMethodDescChunk()->GetFirstMethodDesc()->GetLoaderAllocatorForCode() || IsCompilationProcess());
+            pLoaderAllocator == pMethod->GetMethodDescChunk()->GetFirstMethodDesc()->GetLoaderAllocator() || IsCompilationProcess());
     }
     CONTRACTL_END;
 
@@ -730,7 +726,6 @@ BOOL DoesSlotCallPrestub(PCODE pCode)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(pCode != GetPreStubEntryPoint());
     } CONTRACTL_END;
 
@@ -811,7 +806,6 @@ DWORD GetOffsetAtEndOfFunction(ULONGLONG           uImageBase,
         MODE_ANY;
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION((offsetNum > 0) && (offsetNum < 20));  /* we only allow reasonable offsetNums 1..19 */
     }
     CONTRACTL_END;
@@ -852,8 +846,6 @@ EXTERN_C PCODE VirtualMethodFixupWorker(TransitionBlock * pTransitionBlock, CORC
     Thread::ObjectRefFlush(CURRENT_THREAD);
 #endif
 
-    BEGIN_SO_INTOLERANT_CODE(CURRENT_THREAD);
-
     _ASSERTE(IS_ALIGNED((size_t)pThunk, sizeof(INT64)));
 
     FrameWithCookie<ExternalMethodFrame> frame(pTransitionBlock);
@@ -880,10 +872,20 @@ EXTERN_C PCODE VirtualMethodFixupWorker(TransitionBlock * pTransitionBlock, CORC
         INSTALL_MANAGED_EXCEPTION_DISPATCHER;
         INSTALL_UNWIND_AND_CONTINUE_HANDLER_NO_PROBE;
 
-        // Skip fixup precode jump for better perf
-        PCODE pDirectTarget = Precode::TryToSkipFixupPrecode(pCode);
-        if (pDirectTarget != NULL)
-            pCode = pDirectTarget;
+        if (pMD->IsVersionableWithVtableSlotBackpatch())
+        {
+            // The entry point for this method needs to be versionable, so use a FuncPtrStub similarly to what is done in
+            // MethodDesc::GetMultiCallableAddrOfCode()
+            GCX_COOP();
+            pCode = pMD->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pMD);
+        }
+        else
+        {
+            // Skip fixup precode jump for better perf
+            PCODE pDirectTarget = Precode::TryToSkipFixupPrecode(pCode);
+            if (pDirectTarget != NULL)
+                pCode = pDirectTarget;
+        }
 
         INT64 oldValue = *(INT64*)pThunk;
         BYTE* pOldValue = (BYTE*)&oldValue;
@@ -909,9 +911,6 @@ EXTERN_C PCODE VirtualMethodFixupWorker(TransitionBlock * pTransitionBlock, CORC
     }
 
     // Ready to return
-
-    END_SO_INTOLERANT_CODE;
-   
     return pCode;
 }
 

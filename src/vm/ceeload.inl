@@ -400,7 +400,6 @@ inline MethodDesc *Module::LookupMethodDef(mdMethodDef token)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
         SUPPORTS_DAC;
     }
@@ -652,13 +651,5 @@ inline CodeVersionManager * Module::GetCodeVersionManager()
     return GetDomain()->GetCodeVersionManager();
 }
 #endif // FEATURE_CODE_VERSIONING
-
-#ifdef FEATURE_TIERED_COMPILATION
-inline CallCounter * Module::GetCallCounter()
-{
-    LIMITED_METHOD_CONTRACT;
-    return GetDomain()->GetCallCounter();
-}
-#endif // FEATURE_TIERED_COMPILATION
 
 #endif  // CEELOAD_INL_

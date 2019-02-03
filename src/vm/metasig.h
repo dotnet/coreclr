@@ -515,7 +515,7 @@ DEFINE_METASIG_T(SM(RuntimeTypeHandle_RetIntPtr, g(RT_TYPE_HANDLE), I))
 DEFINE_METASIG_T(SM(RuntimeMethodHandle_RetIntPtr, g(METHOD_HANDLE), I))
 DEFINE_METASIG_T(SM(IntPtr_Type_RetDelegate, I C(TYPE), C(DELEGATE)))
 
-
+DEFINE_METASIG(IM(RetRefByte, _, r(b)))
 DEFINE_METASIG_T(IM(Type_RetArrObj, C(TYPE) F, a(j)))
 DEFINE_METASIG(IM(Bool_RetVoid, F, v))
 DEFINE_METASIG_T(IM(BindingFlags_RetArrFieldInfo, g(BINDING_FLAGS), a(C(FIELD_INFO))))
@@ -551,9 +551,11 @@ DEFINE_METASIG_T(IM(RefGuid_OutIntPtr_RetCustomQueryInterfaceResult, r(g(GUID)) 
 #endif //FEATURE_COMINTEROP
 
 DEFINE_METASIG_T(SM(IntPtr_AssemblyName_RetAssemblyBase, I C(ASSEMBLY_NAME), C(ASSEMBLYBASE)))
+DEFINE_METASIG_T(SM(Str_AssemblyBase_IntPtr_RetIntPtr, s C(ASSEMBLYBASE) I, I))
+DEFINE_METASIG_T(SM(Str_AssemblyBase_Bool_UInt_RetIntPtr, s C(ASSEMBLYBASE) F K, I))
 
 // ThreadPool
-DEFINE_METASIG(SM(Obj_Bool_RetVoid, j F, v))
+DEFINE_METASIG_T(SM(_ThreadPoolWaitOrTimerCallback_Bool_RetVoid, C(TPWAITORTIMER_HELPER) F, v))
 
 // For FailFast
 DEFINE_METASIG(SM(Str_RetVoid, s, v))

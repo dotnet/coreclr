@@ -19,7 +19,6 @@
 #include "codeman.h"
 #include "corhlpr.h"
 #include "jitinterface.h"
-#include "stackprobe.h"
 #include "eeconfig.h"
 #include "eehash.h"
 #include "interoputil.h"
@@ -517,11 +516,7 @@ FCIMPL1(ReflectModuleBaseObject*, RuntimeTypeHandle::GetModule, ReflectClassBase
     if (refType == NULL)
         FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
 
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-
     result = refType->GetType().GetModule();
-
-    END_SO_INTOLERANT_CODE;
 
     FC_RETURN_MODULE_OBJECT(result, refType);
 }
@@ -1239,7 +1234,6 @@ FCIMPL1(ReflectClassBaseObject*, RuntimeTypeHandle::GetDeclaringType, ReflectCla
     MethodTable* pMT = NULL;
     mdTypeDef tkTypeDef = mdTokenNil;
 
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
     if (typeHandle.IsTypeDesc()) {
 
         if (typeHandle.IsGenericVariable()) {
@@ -1322,8 +1316,6 @@ FCIMPL1(ReflectClassBaseObject*, RuntimeTypeHandle::GetDeclaringType, ReflectCla
         HELPER_METHOD_FRAME_END();
     }
 Exit:
-
-    END_SO_INTOLERANT_CODE;
 
     if (fThrowException)
     {
@@ -1416,7 +1408,8 @@ void QCALLTYPE RuntimeTypeHandle::GetTypeByName(LPCWSTR pwzClassName, BOOL bThro
             COMPlusThrowArgumentNull(W("className"),W("ArgumentNull_String"));
 
     {
-        typeHandle = TypeName::GetTypeManaged(pwzClassName, NULL, bThrowOnError, bIgnoreCase, /*bProhibitAsmQualifiedName =*/ FALSE, pStackMark,
+        typeHandle = TypeName::GetTypeManaged(pwzClassName, NULL, bThrowOnError, bIgnoreCase, /*bProhibitAsmQualifiedName =*/ FALSE,
+                                              SystemDomain::GetCallersAssembly(pStackMark),
                                               bLoadTypeFromPartialNameHack, (OBJECTREF*)keepAlive.m_ppObject,
                                               pPrivHostBinder);
     }
@@ -1784,11 +1777,7 @@ FCIMPL1(INT32, RuntimeMethodHandle::GetAttributes, MethodDesc *pMethod) {
     if (!pMethod)
         FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
 
-    INT32 retVal = 0;        
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    retVal = (INT32)pMethod->GetAttrs();
-    END_SO_INTOLERANT_CODE;
-    return retVal;
+    return (INT32)pMethod->GetAttrs();
 }
 FCIMPLEND
 
@@ -1807,13 +1796,7 @@ FCIMPL1(INT32, RuntimeMethodHandle::GetImplAttributes, ReflectMethodObject *pMet
     if (IsNilToken(pMethod->GetMemberDef()))
         return attributes;
     
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    {
-        attributes = (INT32)pMethod->GetImplAttrs();
-    }
-    END_SO_INTOLERANT_CODE;
-
-    return attributes;
+    return (INT32)pMethod->GetImplAttrs();
 }
 FCIMPLEND
     
@@ -2575,10 +2558,7 @@ FCIMPL1(FC_BOOL_RET, RuntimeMethodHandle::IsConstructor, MethodDesc *pMethod)
     }
     CONTRACTL_END;
 
-    BOOL ret = FALSE;
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    ret = (BOOL)pMethod->IsClassConstructorOrCtor();
-    END_SO_INTOLERANT_CODE;
+    BOOL ret = (BOOL)pMethod->IsClassConstructorOrCtor();
     FC_RETURN_BOOL(ret);
 }
 FCIMPLEND
@@ -2666,11 +2646,7 @@ FCIMPL1(INT32, RuntimeFieldHandle::GetAttributes, FieldDesc *pField) {
     if (!pField)
         FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
 
-    INT32 ret = 0;
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    ret = (INT32)pField->GetAttributes();
-    END_SO_INTOLERANT_CODE;
-    return ret;
+    return (INT32)pField->GetAttributes();
 }
 FCIMPLEND
     

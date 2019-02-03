@@ -429,7 +429,7 @@ CustomMarshalerHelper *SetupCustomMarshalerHelper(LPCUTF8 strMarshalerTypeName, 
     EEMarshalingData *pMarshalingData = NULL;
 
     // The assembly is not shared so we use the current app domain's marshaling data.
-    pMarshalingData = GetThread()->GetDomain()->GetMarshalingData();
+    pMarshalingData = pAssembly->GetLoaderAllocator()->GetMarshalingData();
 
     // Retrieve the custom marshaler helper from the EE marshaling data.
     RETURN pMarshalingData->GetCustomMarshalerHelper(pAssembly, hndManagedType, strMarshalerTypeName, cMarshalerTypeNameBytes, strCookie, cCookieStrBytes);
@@ -1072,9 +1072,10 @@ void OleColorMarshalingInfo::operator delete(void *pMem)
 
 #endif // FEATURE_COMINTEROP
 
-EEMarshalingData::EEMarshalingData(BaseDomain *pDomain, LoaderHeap *pHeap, CrstBase *pCrst) :
-    m_pHeap(pHeap),
-    m_pDomain(pDomain)
+EEMarshalingData::EEMarshalingData(LoaderAllocator* pAllocator, CrstBase *pCrst) :
+    m_pAllocator(pAllocator),
+    m_pHeap(pAllocator->GetLowFrequencyHeap()),
+    m_lock(pCrst)
 {
     CONTRACTL
     {
@@ -1177,7 +1178,7 @@ CustomMarshalerHelper *EEMarshalingData::GetCustomMarshalerHelper(Assembly *pAss
     TypeHandle hndCustomMarshalerType;
 
     // Create the key that will be used to lookup in the hashtable.
-    EECMHelperHashtableKey Key(cMarshalerTypeNameBytes, strMarshalerTypeName, cCookieStrBytes, strCookie, hndManagedType.GetInstantiation());
+    EECMHelperHashtableKey Key(cMarshalerTypeNameBytes, strMarshalerTypeName, cCookieStrBytes, strCookie, hndManagedType.GetInstantiation(), pAssembly);
 
     // Lookup the custom marshaler helper in the hashtable.
     if (m_CMHelperHashtable.GetValue(&Key, (HashDatum*)&pCMHelper))
@@ -1209,15 +1210,14 @@ CustomMarshalerHelper *EEMarshalingData::GetCustomMarshalerHelper(Assembly *pAss
 
 
         // Create the custom marshaler info in the specified heap.
-        pNewCMInfo = new (m_pHeap) CustomMarshalerInfo(m_pDomain, hndCustomMarshalerType, hndManagedType, strCookie, cCookieStrBytes);
+        pNewCMInfo = new (m_pHeap) CustomMarshalerInfo(m_pAllocator, hndCustomMarshalerType, hndManagedType, strCookie, cCookieStrBytes);
 
         // Create the custom marshaler helper in the specified heap.
         pNewCMHelper = new (m_pHeap) NonSharedCustomMarshalerHelper(pNewCMInfo);
     }
 
-    // Take the app domain lock before we insert the custom marshaler info into the hashtable.
     {
-        BaseDomain::LockHolder lh(m_pDomain);
+        CrstHolder lock(m_lock);
 
         // Verify that the custom marshaler helper has not already been added by another thread.
         if (m_CMHelperHashtable.GetValue(&Key, (HashDatum*)&pCMHelper))
@@ -1277,15 +1277,14 @@ CustomMarshalerInfo *EEMarshalingData::GetCustomMarshalerInfo(SharedCustomMarsha
     }
 
     // Create the custom marshaler info in the specified heap.
-    pNewCMInfo = new (m_pHeap) CustomMarshalerInfo(m_pDomain, 
+    pNewCMInfo = new (m_pHeap) CustomMarshalerInfo(m_pAllocator, 
                                                    hndCustomMarshalerType, 
                                                    pSharedCMHelper->GetManagedType(), 
                                                    pSharedCMHelper->GetCookieString(), 
                                                    pSharedCMHelper->GetCookieStringByteCount());
 
     {
-        // Take the app domain lock before we insert the custom marshaler info into the hashtable.
-        BaseDomain::LockHolder lh(m_pDomain);
+        CrstHolder lock(m_lock);
 
         // Verify that the custom marshaler info has not already been added by another thread.
         if (m_SharedCMHelperToCMInfoMap.GetValue(pSharedCMHelper, (HashDatum*)&pCMInfo))
@@ -2434,7 +2433,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                                 ParamInfo.m_SafeArrayElementVT = VT_VARIANT;
                             }
                             
-                            IfFailGoto(HandleArrayElemType(&ParamInfo, 0, thElement, -1, FALSE, isParam, pAssembly), lFail);
+                            IfFailGoto(HandleArrayElemType(&ParamInfo, thElement, -1, FALSE, isParam, pAssembly), lFail);
                             break;
                         }
 
@@ -2745,18 +2744,8 @@ MarshalInfo::MarshalInfo(Module* pModule,
                 }
             }
 
-            unsigned ofs = 0;
-            if (arrayTypeHnd.GetMethodTable())
-            {
-                ofs = ArrayBase::GetDataPtrOffset(arrayTypeHnd.GetMethodTable());
-                if (ofs > 0xffff)
-                {
-                    ofs = 0;   // can't represent it, so pass on magic value (which causes fallback to regular ML code)
-                }
-            }
-
             // Handle retrieving the information for the array type.
-            IfFailGoto(HandleArrayElemType(&ParamInfo, (UINT16)ofs, thElement, asArray->GetRank(), mtype == ELEMENT_TYPE_SZARRAY, isParam, pAssembly), lFail);
+            IfFailGoto(HandleArrayElemType(&ParamInfo, thElement, asArray->GetRank(), mtype == ELEMENT_TYPE_SZARRAY, isParam, pAssembly), lFail);
             break;
         }
         
@@ -2958,7 +2947,7 @@ VOID MarshalInfo::EmitOrThrowInteropParamException(NDirectStubLinker* psl, BOOL 
 }
 
 
-HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, UINT16 optbaseoffset,  TypeHandle thElement, int iRank, BOOL fNoLowerBounds, BOOL isParam, Assembly *pAssembly)
+HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, TypeHandle thElement, int iRank, BOOL fNoLowerBounds, BOOL isParam, Assembly *pAssembly)
 {
     CONTRACTL
     {
@@ -3047,8 +3036,6 @@ HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, UINT16
     {
         // Retrieve the extra information associated with the native array marshaling.
         m_args.na.m_vt  = m_arrayElementType;
-        m_args.na.m_pMT = !m_hndArrayElemType.IsTypeDesc() ? m_hndArrayElemType.AsMethodTable() : NULL;   
-        m_args.na.m_optionalbaseoffset = optbaseoffset;
         m_countParamIdx = pParamInfo->m_CountParamIdx;
         m_multiplier    = pParamInfo->m_Multiplier;
         m_additive      = pParamInfo->m_Additive;
@@ -3056,10 +3043,7 @@ HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, UINT16
 #ifdef FEATURE_COMINTEROP
     else if (m_type == MARSHAL_TYPE_HIDDENLENGTHARRAY)
     {
-        m_args.na.m_optionalbaseoffset = optbaseoffset;
-
         m_args.na.m_vt  = m_arrayElementType;
-        m_args.na.m_pMT = m_hndArrayElemType.AsMethodTable();
         m_args.na.m_cbElementSize = arrayMarshalInfo.GetElementSize();
         m_args.na.m_redirectedTypeIndex = arrayMarshalInfo.GetRedirectedTypeIndex();
     }
@@ -3074,7 +3058,6 @@ ILMarshaler* CreateILMarshaler(MarshalInfo::MarshalType mtype, NDirectStubLinker
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -5144,33 +5127,11 @@ LExit:;
     RETURN;
 }
 
-bool IsUnsupportedValueTypeReturn(MetaSig& msig)
+bool IsUnsupportedTypedrefReturn(MetaSig& msig)
 {
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-    
-    CorElementType type = msig.GetReturnTypeNormalized();
-    
-    if (type == ELEMENT_TYPE_VALUETYPE || type == ELEMENT_TYPE_TYPEDBYREF)
-    {
-#ifdef _TARGET_X86_
-        // On x86, the internal CorElementType for value types is normalized by the type loader
-        // (see calls to ComputeInternalCorElementTypeForValueType in MethodTableBuilder).
-        // We don't need to redo the normalization here.
-        return true;
-#else
-        TypeHandle th = msig.GetRetTypeHandleThrowing();
-        
-        return EEClass::ComputeInternalCorElementTypeForValueType(th.GetMethodTable()) == ELEMENT_TYPE_VALUETYPE;
-#endif // _TARGET_X86_
-    }
+    WRAPPER_NO_CONTRACT;
 
-    return false;
+    return msig.GetReturnTypeNormalized() == ELEMENT_TYPE_TYPEDBYREF;
 }
 
 #ifndef CROSSGEN_COMPILE

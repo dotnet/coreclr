@@ -43,10 +43,7 @@
 
 #include "appxutil.h"
 
-#ifdef FEATURE_TIERED_COMPILATION
 #include "tieredcompilation.h"
-#include "callcounter.h"
-#endif
 
 #include "codeversion.h"
 
@@ -309,7 +306,6 @@ struct DomainLocalModule
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_COOPERATIVE;
             SUPPORTS_DAC;
         }
@@ -340,7 +336,6 @@ struct DomainLocalModule
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_COOPERATIVE;
             SUPPORTS_DAC;
         }
@@ -1076,7 +1071,6 @@ public:
     ADID GetId (void)
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         return m_dwId;
     }
     
@@ -1089,7 +1083,6 @@ public:
     virtual PTR_AppDomain AsAppDomain()
     {
         LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         _ASSERTE(!"Not an AppDomain");
         return NULL;
     }
@@ -1124,14 +1117,6 @@ public:
         return m_pWinRtBinder;
     }
 #endif // FEATURE_COMINTEROP
-
-    //****************************************************************************************
-    // This method returns marshaling data that the EE uses that is stored on a per app domain
-    // basis.
-    EEMarshalingData *GetMarshalingData();
-
-    // Deletes marshaling data at shutdown (which contains cached factories that needs to be released)
-    void DeleteMarshalingData();
     
 #ifdef _DEBUG
     BOOL OwnDomainLocalBlockLock()
@@ -1332,8 +1317,6 @@ protected:
     // The large heap handle table critical section.
     CrstExplicitInit             m_LargeHeapHandleTableCrst;
 
-    EEMarshalingData            *m_pMarshalingData;
-
 #ifdef FEATURE_COMINTEROP
     // Information regarding the managed standard interfaces.
     MngStdInterfacesInfo        *m_pMngStdInterfacesInfo;
@@ -1427,6 +1410,9 @@ public:
     UINT32 GetTypeID(PTR_MethodTable pMT);
     UINT32 LookupTypeID(PTR_MethodTable pMT);
     PTR_MethodTable LookupType(UINT32 id);
+#ifndef DACCESS_COMPILE
+    void RemoveTypesFromTypeIDMap(LoaderAllocator* pLoaderAllocator);
+#endif // DACCESS_COMPILE
 
 private:
     // I have yet to figure out an efficent way to get the number of handles 
@@ -1461,14 +1447,6 @@ private:
 public:
     CodeVersionManager* GetCodeVersionManager() { return &m_codeVersionManager; }
 #endif //FEATURE_CODE_VERSIONING
-
-#ifdef FEATURE_TIERED_COMPILATION
-private:
-    CallCounter m_callCounter;
-
-public:
-    CallCounter* GetCallCounter() { return &m_callCounter; }
-#endif
 
 #ifdef DACCESS_COMPILE
 public:
@@ -2920,7 +2898,6 @@ private:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_ANY;
         }
         CONTRACTL_END;

@@ -182,7 +182,7 @@ const char* GenTree::OpName(genTreeOps op)
 
 #endif
 
-#if MEASURE_NODE_SIZE && SMALL_TREE_NODES
+#if MEASURE_NODE_SIZE
 
 static const char* opStructNames[] = {
 #define GTNODE(en, st, cm, ok) #st,
@@ -198,14 +198,12 @@ const char* GenTree::OpStructName(genTreeOps op)
 
 #endif
 
-/*****************************************************************************
- *
- *  When 'SMALL_TREE_NODES' is enabled, we allocate tree nodes in 2 different
- *  sizes: 'TREE_NODE_SZ_SMALL' for most nodes and 'TREE_NODE_SZ_LARGE' for the
- *  few nodes (such as calls) that have more fields and take up a lot more space.
- */
-
-#if SMALL_TREE_NODES
+//
+//  We allocate tree nodes in 2 different sizes:
+//  - TREE_NODE_SZ_SMALL for most nodes
+//  - TREE_NODE_SZ_LARGE for the few nodes (such as calls) that have
+//    more fields and take up a lot more space.
+//
 
 /* GT_COUNT'th oper is overloaded as 'undefined oper', so allocate storage for GT_COUNT'th oper also */
 /* static */
@@ -303,7 +301,6 @@ void GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeVal)          <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeIntConCommon) <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreePhysReg)      <= TREE_NODE_SZ_SMALL);
-    static_assert_no_msg(sizeof(GenTreeJumpTable)    <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeIntCon)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeLngCon)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeDblCon)       <= TREE_NODE_SZ_SMALL);
@@ -338,7 +335,6 @@ void GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeStmt)         <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeClsVar)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeArgPlace)     <= TREE_NODE_SZ_SMALL);
-    static_assert_no_msg(sizeof(GenTreeLabel)        <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreePhiArg)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeAllocObj)     <= TREE_NODE_SZ_LARGE); // *** large node
 #ifndef FEATURE_PUT_STRUCT_ARG_STK
@@ -386,7 +382,6 @@ bool GenTree::IsNodeProperlySized() const
 }
 #endif
 
-#if SMALL_TREE_NODES
 //------------------------------------------------------------------------
 // ReplaceWith: replace this with the src node. The source must be an isolated node
 //              and cannot be used after the replacement.
@@ -425,8 +420,6 @@ void GenTree::ReplaceWith(GenTree* src, Compiler* comp)
     }
     DEBUG_DESTROY_NODE(src);
 }
-
-#endif
 
 /*****************************************************************************
  *
@@ -510,32 +503,17 @@ void GenTree::ReportOperBashing(FILE* f)
 
 #endif // NODEBASH_STATS
 
-#else // SMALL_TREE_NODES
-
-#ifdef DEBUG
-bool GenTree::IsNodeProperlySized() const
-{
-    return true;
-}
-#endif
-
-#endif // SMALL_TREE_NODES
-
 /*****************************************************************************/
 
 #if MEASURE_NODE_SIZE
 
 void GenTree::DumpNodeSizes(FILE* fp)
 {
-// Dump the sizes of the various GenTree flavors
+    // Dump the sizes of the various GenTree flavors
 
-#if SMALL_TREE_NODES
     fprintf(fp, "Small tree node size = %3u bytes\n", TREE_NODE_SZ_SMALL);
-#endif
     fprintf(fp, "Large tree node size = %3u bytes\n", TREE_NODE_SZ_LARGE);
     fprintf(fp, "\n");
-
-#if SMALL_TREE_NODES
 
     // Verify that node sizes are set kosherly and dump sizes
     for (unsigned op = GT_NONE + 1; op < GT_COUNT; op++)
@@ -581,8 +559,6 @@ void GenTree::DumpNodeSizes(FILE* fp)
             fprintf(fp, "\n");
         }
     }
-
-#endif
 }
 
 #endif // MEASURE_NODE_SIZE
@@ -2299,7 +2275,7 @@ GenTree* Compiler::gtReverseCond(GenTree* tree)
     else if (tree->OperIs(GT_JCC, GT_SETCC))
     {
         GenTreeCC* cc   = tree->AsCC();
-        cc->gtCondition = GenTree::ReverseRelop(cc->gtCondition);
+        cc->gtCondition = GenCondition::Reverse(cc->gtCondition);
     }
     else if (tree->OperIs(GT_JCMP))
     {
@@ -4574,10 +4550,6 @@ GenTree** GenTree::gtGetChildPointer(GenTree* parent) const
             {
                 return &(parent->gtBoundsChk.gtArrLen);
             }
-            if (this == parent->gtBoundsChk.gtIndRngFailBB)
-            {
-                return &(parent->gtBoundsChk.gtIndRngFailBB);
-            }
             break;
 
         case GT_ARR_ELEM:
@@ -5482,9 +5454,7 @@ GenTree* Compiler::gtNewPhysRegNode(regNumber reg, var_types type)
 
 GenTree* Compiler::gtNewJmpTableNode()
 {
-    GenTree* node                     = new (this, GT_JMPTABLE) GenTreeJumpTable(TYP_INT);
-    node->gtJumpTable.gtJumpTableAddr = 0;
-    return node;
+    return new (this, GT_JMPTABLE) GenTree(GT_JMPTABLE, TYP_I_IMPL);
 }
 
 /*****************************************************************************
@@ -5668,27 +5638,18 @@ GenTree* Compiler::gtNewLconNode(__int64 value)
     return node;
 }
 
-GenTree* Compiler::gtNewDconNode(double value)
+GenTree* Compiler::gtNewDconNode(double value, var_types type)
 {
-    GenTree* node = new (this, GT_CNS_DBL) GenTreeDblCon(value);
+    GenTree* node = new (this, GT_CNS_DBL) GenTreeDblCon(value, type);
 
     return node;
 }
 
 GenTree* Compiler::gtNewSconNode(int CPX, CORINFO_MODULE_HANDLE scpHandle)
 {
-
-#if SMALL_TREE_NODES
-
-    /* 'GT_CNS_STR' nodes later get transformed into 'GT_CALL' */
-
+    // 'GT_CNS_STR' nodes later get transformed into 'GT_CALL'
     assert(GenTree::s_gtNodeSizes[GT_CALL] > GenTree::s_gtNodeSizes[GT_CNS_STR]);
-
     GenTree* node = new (this, GT_CALL) GenTreeStrCon(CPX, scpHandle DEBUGARG(/*largeNode*/ true));
-#else
-    GenTree* node = new (this, GT_CNS_STR) GenTreeStrCon(CPX, scpHandle DEBUGARG(/*largeNode*/ true));
-#endif
-
     return node;
 }
 
@@ -5909,7 +5870,7 @@ GenTreeCall* Compiler::gtNewCallNode(
     return node;
 }
 
-GenTree* Compiler::gtNewLclvNode(unsigned lnum, var_types type, IL_OFFSETX ILoffs)
+GenTree* Compiler::gtNewLclvNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs))
 {
     // We need to ensure that all struct values are normalized.
     // It might be nice to assert this in general, but we have assignments of int to long.
@@ -5921,7 +5882,7 @@ GenTree* Compiler::gtNewLclvNode(unsigned lnum, var_types type, IL_OFFSETX ILoff
         assert(type == lvaTable[lnum].lvType ||
                (lvaIsImplicitByRefLocal(lnum) && fgGlobalMorph && (lvaTable[lnum].lvType == TYP_BYREF)));
     }
-    GenTree* node = new (this, GT_LCL_VAR) GenTreeLclVar(type, lnum, ILoffs);
+    GenTree* node = new (this, GT_LCL_VAR) GenTreeLclVar(type, lnum DEBUGARG(ILoffs));
 
     /* Cannot have this assert because the inliner uses this function
      * to add temporaries */
@@ -5931,7 +5892,7 @@ GenTree* Compiler::gtNewLclvNode(unsigned lnum, var_types type, IL_OFFSETX ILoff
     return node;
 }
 
-GenTree* Compiler::gtNewLclLNode(unsigned lnum, var_types type, IL_OFFSETX ILoffs)
+GenTree* Compiler::gtNewLclLNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs))
 {
     // We need to ensure that all struct values are normalized.
     // It might be nice to assert this in general, but we have assignments of int to long.
@@ -5943,16 +5904,9 @@ GenTree* Compiler::gtNewLclLNode(unsigned lnum, var_types type, IL_OFFSETX ILoff
         assert(type == lvaTable[lnum].lvType ||
                (lvaIsImplicitByRefLocal(lnum) && fgGlobalMorph && (lvaTable[lnum].lvType == TYP_BYREF)));
     }
-#if SMALL_TREE_NODES
-    /* This local variable node may later get transformed into a large node */
-
-    // assert(GenTree::s_gtNodeSizes[GT_CALL] > GenTree::s_gtNodeSizes[GT_LCL_VAR]);
-
-    GenTree* node = new (this, GT_CALL) GenTreeLclVar(type, lnum, ILoffs DEBUGARG(/*largeNode*/ true));
-#else
-    GenTree* node = new (this, GT_LCL_VAR) GenTreeLclVar(type, lnum, ILoffs DEBUGARG(/*largeNode*/ true));
-#endif
-
+    // This local variable node may later get transformed into a large node
+    assert(GenTree::s_gtNodeSizes[GT_CALL] > GenTree::s_gtNodeSizes[GT_LCL_VAR]);
+    GenTree* node = new (this, GT_CALL) GenTreeLclVar(type, lnum DEBUGARG(ILoffs) DEBUGARG(/*largeNode*/ true));
     return node;
 }
 
@@ -6799,7 +6753,7 @@ GenTree* Compiler::gtClone(GenTree* tree, bool complexOK)
             // Remember that the LclVar node has been cloned. The flag will be set
             // on 'copy' as well.
             tree->gtFlags |= GTF_VAR_CLONED;
-            copy = gtNewLclvNode(tree->gtLclVarCommon.gtLclNum, tree->gtType, tree->gtLclVar.gtLclILoffs);
+            copy = gtNewLclvNode(tree->gtLclVarCommon.gtLclNum, tree->gtType DEBUGARG(tree->gtLclVar.gtLclILoffs));
             break;
 
         case GT_LCL_FLD:
@@ -6983,7 +6937,7 @@ GenTree* Compiler::gtCloneExpr(
                     // Remember that the LclVar node has been cloned. The flag will
                     // be set on 'copy' as well.
                     tree->gtFlags |= GTF_VAR_CLONED;
-                    copy = gtNewLclvNode(tree->gtLclVar.gtLclNum, tree->gtType, tree->gtLclVar.gtLclILoffs);
+                    copy = gtNewLclvNode(tree->gtLclVar.gtLclNum, tree->gtType DEBUGARG(tree->gtLclVar.gtLclILoffs));
                     copy->AsLclVarCommon()->SetSsaNum(tree->AsLclVarCommon()->GetSsaNum());
                 }
                 copy->gtFlags = tree->gtFlags;
@@ -7036,6 +6990,7 @@ GenTree* Compiler::gtCloneExpr(
 
             case GT_CATCH_ARG:
             case GT_NO_OP:
+            case GT_LABEL:
                 copy = new (this, oper) GenTree(oper, tree->gtType);
                 goto DONE;
 
@@ -7044,10 +6999,6 @@ GenTree* Compiler::gtCloneExpr(
 #endif // !FEATURE_EH_FUNCLETS
             case GT_JMP:
                 copy = new (this, oper) GenTreeVal(oper, tree->gtType, tree->gtVal.gtVal1);
-                goto DONE;
-
-            case GT_LABEL:
-                copy = new (this, oper) GenTreeLabel(tree->gtLabel.gtLabBB);
                 goto DONE;
 
             default:
@@ -7063,7 +7014,6 @@ GenTree* Compiler::gtCloneExpr(
         /* If necessary, make sure we allocate a "fat" tree node */
         CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if SMALL_TREE_NODES
         switch (oper)
         {
             /* These nodes sometimes get bashed to "fat" ones */
@@ -7259,10 +7209,6 @@ GenTree* Compiler::gtCloneExpr(
                 }
                 break;
         }
-#else
-        // We're in the SimpleOp case, so it's always unary or binary.
-        copy = gtNewOperNode(oper, tree->TypeGet(), tree->gtOp.gtOp1, tree->gtOp.gtOp2);
-#endif
 
         // Some flags are conceptually part of the gtOper, and should be copied immediately.
         if (tree->gtOverflowEx())
@@ -9391,6 +9337,12 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                         --msgLength;
                         break;
                     }
+                    if (tree->gtFlags & GTF_IND_TGT_NOT_HEAP)
+                    {
+                        printf("s");
+                        --msgLength;
+                        break;
+                    }
                     if (tree->gtFlags & GTF_IND_INVARIANT)
                     {
                         printf("#");
@@ -9502,15 +9454,6 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                     --msgLength;
                     break;
                 }
-                goto DASH;
-
-            case GT_ADDR:
-                if (tree->gtFlags & GTF_ADDR_ONSTACK)
-                {
-                    printf("L");
-                    --msgLength;
-                    break;
-                } // L means LclVar
                 goto DASH;
 
             case GT_LCL_FLD:
@@ -10400,15 +10343,6 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
             break;
 
         case GT_LABEL:
-            if (tree->gtLabel.gtLabBB)
-            {
-                printf(" dst=" FMT_BB, tree->gtLabel.gtLabBB->bbNum);
-            }
-            else
-            {
-                printf(" dst=<null>");
-            }
-
             break;
 
         case GT_FTN_ADDR:
@@ -10463,7 +10397,7 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
 
         case GT_JCC:
         case GT_SETCC:
-            printf(" cond=%s", GenTree::OpName(tree->AsCC()->gtCondition));
+            printf(" cond=%s", tree->AsCC()->gtCondition.Name());
             break;
         case GT_JCMP:
             printf(" cond=%s%s", (tree->gtFlags & GTF_JCMP_TST) ? "TEST_" : "",
@@ -11673,7 +11607,7 @@ GenTree* Compiler::gtFoldExpr(GenTree* tree)
     }
     else if ((kind & GTK_BINOP) && op1 && tree->gtOp.gtOp2 &&
              // Don't take out conditionals for debugging
-             !((opts.compDbgCode || opts.MinOpts()) && tree->OperIsCompare()))
+             (opts.OptimizationEnabled() || !tree->OperIsCompare()))
     {
         GenTree* op2 = tree->gtOp.gtOp2;
 
@@ -11772,7 +11706,7 @@ GenTree* Compiler::gtFoldExprCall(GenTreeCall* call)
     }
 
     // Defer folding if not optimizing.
-    if (opts.compDbgCode || opts.MinOpts())
+    if (opts.OptimizationDisabled())
     {
         return call;
     }
@@ -14499,6 +14433,11 @@ GenTree* Compiler::gtNewTempAssign(
         }
         // 2) TYP_DOUBLE = TYP_FLOAT or TYP_FLOAT = TYP_DOUBLE
         else if (varTypeIsFloating(dstTyp) && varTypeIsFloating(valTyp))
+        {
+            ok = true;
+        }
+        // 3) TYP_BYREF = TYP_REF when object stack allocation is enabled
+        else if (JitConfig.JitObjectStackAllocation() && (dstTyp == TYP_BYREF) && (valTyp == TYP_REF))
         {
             ok = true;
         }

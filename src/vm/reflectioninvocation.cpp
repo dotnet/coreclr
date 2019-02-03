@@ -37,7 +37,6 @@ static TypeHandle NullableTypeOfByref(TypeHandle th) {
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -527,6 +526,7 @@ FCIMPL6(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
         }
     }
 DoneCreateInstance:
+    ;
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(rv);
 }
@@ -1040,10 +1040,6 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
 
     Thread * pThread = GET_THREAD();
 
-    // Make sure we have enough room on the stack for this. Note that we will need the stack amount twice - once to build the stack
-    // and second time to actually make the call.
-    INTERIOR_STACK_PROBE_FOR(pThread, 1 + static_cast<UINT>((2 * nAllocaSize) / GetOsPageSize()) + static_cast<UINT>(HOLDER_CODE_NORMAL_STACK_LIMIT));
-
     LPBYTE pAlloc = (LPBYTE)_alloca(nAllocaSize);
 
     LPBYTE pTransitionBlock = pAlloc + TransitionBlock::GetNegSpaceSize();
@@ -1394,10 +1390,10 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     if (pProtectValueClassFrame != NULL)
         pProtectValueClassFrame->Pop(pThread);
 
-    END_INTERIOR_STACK_PROBE;
     }
 
 Done:
+    ;
     HELPER_METHOD_FRAME_END();
 
     return OBJECTREFToObject(gc.retVal);
@@ -1948,6 +1944,8 @@ static void PrepareMethodHelper(MethodDesc * pMD)
 
     GCX_PREEMP();
 
+    pMD->EnsureActive();
+
     if (pMD->IsPointingToPrestub())
         pMD->DoPrestub(NULL);
 
@@ -2082,49 +2080,6 @@ FCIMPL0(FC_BOOL_RET, ReflectionInvocation::TryEnsureSufficientExecutionStack)
 }
 FCIMPLEND
 
-struct ECWGCFContext
-{
-    BOOL fHandled;
-    Frame *pStartFrame;
-};
-
-// Crawl the stack looking for Thread Abort related information (whether we're executing inside a CER or an error handling clauses
-// of some sort).
-StackWalkAction ECWGCFCrawlCallBack(CrawlFrame* pCf, void* data)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    ECWGCFContext *pData = (ECWGCFContext *)data;
-
-    Frame *pFrame = pCf->GetFrame();
-    if (pFrame && pFrame->GetFunction() != NULL && pFrame != pData->pStartFrame)
-    {
-        // We walk through a transition frame, but it is not our start frame.
-        // This means ExecuteCodeWithGuarantee is not at the bottom of stack.
-        pData->fHandled = TRUE;
-        return SWA_ABORT;
-    }
-
-    MethodDesc *pMD = pCf->GetFunction();
-
-    // Non-method frames don't interest us.
-    if (pMD == NULL)
-        return SWA_CONTINUE;
-
-    if (!pMD->GetModule()->IsSystem())
-    {
-        // We walk through some user code.  This means that ExecuteCodeWithGuarantee is not at the bottom of stack.
-        pData->fHandled = TRUE;
-        return SWA_ABORT;
-    }
-
-    return SWA_CONTINUE;
-}
-
 struct ECWGC_Param
 {
     BOOL fExceptionThrownInTryCode;
@@ -2232,14 +2187,9 @@ void ExecuteCodeWithGuaranteedCleanupHelper (ECWGC_GC *gc)
     }
     PAL_ENDTRY;
 
-#ifdef FEATURE_STACK_PROBE
-    if (param.fStackOverflow)   
-        COMPlusThrowSO();
-#else
     //This will not be set as clr to managed transition code will terminate the
     //process if there is an SO before SODetectionFilter() is called.
     _ASSERTE(!param.fStackOverflow);
-#endif
 }
 
 //

@@ -166,6 +166,9 @@
   <data name="AppDomain_AppBaseNotSet" xml:space="preserve">
     <value>The ApplicationBase must be set before retrieving this property.</value>
   </data>
+  <data name="AmbiguousImplementationException_NullMessage" xml:space="preserve">
+    <value>Ambiguous implementation found.</value>
+  </data>
   <data name="Arg_AccessException" xml:space="preserve">
     <value>Cannot access member.</value>
   </data>
@@ -403,6 +406,9 @@
   <data name="Arg_InvalidNeutralResourcesLanguage_FallbackLoc" xml:space="preserve">
     <value>The NeutralResourcesLanguageAttribute specifies an invalid or unrecognized ultimate resource fallback location: "{0}".</value>
   </data>
+  <data name="Arg_InvalidSatelliteContract_Asm_Ver" xml:space="preserve">
+    <value>Satellite contract version attribute on the assembly '{0}' specifies an invalid version: {1}.</value>
+  </data>
   <data name="Arg_InvalidOleVariantTypeException" xml:space="preserve">
     <value>Specified OLE variant was invalid.</value>
   </data>
@@ -492,6 +498,9 @@
   </data>
   <data name="Arg_MustBeDouble" xml:space="preserve">
     <value>Object must be of type Double.</value>
+  </data>
+  <data name="Arg_MustBeDriveLetterOrRootDir" xml:space="preserve">
+    <value>Drive name must be a root directory (i.e. 'C:\') or a drive letter ('C').</value>
   </data>
   <data name="Arg_MustBeEnum" xml:space="preserve">
     <value>Type provided must be an Enum.</value>
@@ -2428,7 +2437,10 @@
   <data name="InvalidOperation_CannotImportGlobalFromDifferentModule" xml:space="preserve">
     <value>Unable to import a global method or field from a different module.</value>
   </data>
-  <data name="InvalidOperation_CannotRemoveLastFromEmptyCollection" xml:space="preserve">
+  <data name="InvalidOperation_CannotRegisterSecondResolver" xml:space="preserve">
+    <value>A resolver is already set for the assembly.</value>
+  </data>
+    <data name="InvalidOperation_CannotRemoveLastFromEmptyCollection" xml:space="preserve">
     <value>Cannot remove the last element from an empty collection.</value>
   </data>
   <data name="InvalidOperation_CannotRestoreUnsupressedFlow" xml:space="preserve">
@@ -2457,6 +2469,9 @@
   </data>
   <data name="InvalidOperation_CollectionCorrupted" xml:space="preserve">
     <value>A prior operation on this collection was interrupted by an exception. Collection's state is no longer trusted.</value>
+  </data>
+  <data name="InvalidOperation_ComputerName" xml:space="preserve">
+    <value>Computer name could not be obtained.</value>
   </data>
   <data name="InvalidOperation_ConcurrentOperationsNotSupported" xml:space="preserve">
     <value>Operations that change non-concurrent collections must have exclusive access. A concurrent update was performed on this collection and corrupted its state. The collection's state is no longer correct.</value>
@@ -3184,6 +3199,9 @@
   <data name="PreconditionFailed_Cnd" xml:space="preserve">
     <value>Precondition failed: {0}</value>
   </data>
+  <data name="PersistedFiles_NoHomeDirectory" xml:space="preserve">
+    <value>The home directory of the current user could not be determined.</value>
+  </data>
   <data name="Rank_MultiDimNotSupported" xml:space="preserve">
     <value>Only single dimension arrays are supported here.</value>
   </data>
@@ -3571,15 +3589,6 @@
   <data name="SynchronizationLockException_MisMatchedWrite" xml:space="preserve">
     <value>The write lock is being released without being held.</value>
   </data>
-  <data name="ConcurrentStack_PushPopRange_CountOutOfRange" xml:space="preserve">
-    <value>The count argument must be greater than or equal to zero.</value>
-  </data>
-  <data name="ConcurrentStack_PushPopRange_InvalidCount" xml:space="preserve">
-    <value>The sum of the startIndex and count arguments must be less than or equal to the collection's Count.</value>
-  </data>
-  <data name="ConcurrentStack_PushPopRange_StartOutOfRange" xml:space="preserve">
-    <value>The startIndex argument must be greater than or equal to zero.</value>
-  </data>
   <data name="NotSupported_SignatureType" xml:space="preserve">
     <value>This method is not supported on signature types.</value>
   </data>
@@ -3649,10 +3658,25 @@
   <data name="Argument_PrecisionTooLarge" xml:space="preserve">
     <value>Precision cannot be larger than {0}.</value>
   </data>
+  <data name="AssemblyDependencyResolver_FailedToLoadHostpolicy" xml:space="preserve">
+    <value>Cannot load hostpolicy library. AssemblyDependencyResolver is currently only supported if the runtime is hosted through hostpolicy library.</value>
+  </data>
+  <data name="AssemblyDependencyResolver_FailedToResolveDependencies" xml:space="preserve">
+    <value>Dependency resolution failed for component {0} with error code {1}. Detailed error: {2}</value>
+  </data>
   <data name="Arg_EnumNotCloneable" xml:space="preserve">
     <value>The supplied object does not implement ICloneable.</value>
   </data>
   <data name="InvalidOp_InvalidNewEnumVariant" xml:space="preserve">
     <value>The returned enumerator does not implement IEnumVARIANT.</value>
+  </data>
+  <data name="Argument_NotIsomorphic" xml:space="preserve">
+    <value>Object contains non-primitive or non-blittable data.</value>
+  </data>
+  <data name="Argument_StructArrayTooLarge" xml:space="preserve">
+    <value>Array size exceeds addressing limitations.</value>
+  </data>
+  <data name="IndexOutOfRange_ArrayWithOffset" xml:space="preserve">
+    <value>ArrayWithOffset: offset exceeds array size.</value>
   </data>
 </root>

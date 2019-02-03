@@ -18,25 +18,22 @@
 
     <ItemGroup>
       <PackagesToPublish Include="$(PackagesBinDir)pkg\*.nupkg" IsShipping="true" />
+      <PackagesToPublish Update="$(PackagesBinDir)pkg\transport*.nupkg" IsShipping="false" />
+      <SymbolPackagesToPublish Include="$(PackagesBinDir)symbolpkg\*.nupkg" IsShipping="true" />
     </ItemGroup>
 
     <!-- Managed-only packages are built on each windows leg, but we
          only want to upload them once. Let's arbitrarily upload these
          only from the x64 leg. -->
     <ItemGroup Condition=" '$(BuildArch)' != 'x64' ">
-      <PackagesToPublish Remove="$(PackagesBinDir)pkg\Microsoft.NET.Sdk.IL*.nupkg" />
-      <PackagesToPublish Remove="$(PackagesBinDir)pkg\Microsoft.TargetingPack.Private.CoreCLR*.nupkg" />
-    </ItemGroup>
-
-    <!-- TODO: Investigate whether we can get rid of the transport
-         packages entirely. For now, just exclude them from
-         publishing. -->
-    <ItemGroup>
-      <PackagesToPublish Remove="$(PackagesBinDir)pkg\transport*.nupkg" />
+      <PackagesToPublish Remove="$(PackagesBinDir)pkg\*Microsoft.NET.Sdk.IL*.nupkg" />
+      <PackagesToPublish Remove="$(PackagesBinDir)pkg\*Microsoft.TargetingPack.Private.CoreCLR*.nupkg" />
+      <SymbolPackagesToPublish Remove="$(PackagesBinDir)symbolpkg\Microsoft.NET.Sdk.IL*.nupkg" />
+      <SymbolPackagesToPublish Remove="$(PackagesBinDir)symbolpkg\Microsoft.TargetingPack.Private.CoreCLR*.nupkg" />
     </ItemGroup>
 
     <ItemGroup>
-      <ItemsToPushToBlobFeed Include="@(PackagesToPublish)">
+      <ItemsToPushToBlobFeed Include="@(PackagesToPublish);@(SymbolPackagesToPublish)">
         <ManifestArtifactData Condition="!%(IsShipping)">NonShipping=true</ManifestArtifactData> <!-- TODO: how is this metadata used? -->
       </ItemsToPushToBlobFeed>
     </ItemGroup>

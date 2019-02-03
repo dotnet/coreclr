@@ -1862,7 +1862,6 @@ BOOL ObjHeader::TryEnterObjMonitor(INT32 timeOut)
 AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelperSpin(Thread* pCurThread)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -2004,7 +2003,7 @@ BOOL ObjHeader::LeaveObjMonitor()
             }
             return TRUE;
         case AwareLock::LeaveHelperAction_Yield:
-            YieldProcessor();
+            YieldProcessorNormalized();
             continue;
         case AwareLock::LeaveHelperAction_Contention:
             // Some thread is updating the syncblock value.
@@ -2056,7 +2055,7 @@ BOOL ObjHeader::LeaveObjMonitorAtException()
             }
             return TRUE;
         case AwareLock::LeaveHelperAction_Yield:
-            YieldProcessor();
+            YieldProcessorNormalized();
             continue;
         case AwareLock::LeaveHelperAction_Contention:
             // Some thread is updating the syncblock value.
@@ -2089,7 +2088,6 @@ BOOL ObjHeader::GetThreadOwningMonitorLock(DWORD *pThreadId, DWORD *pAcquisition
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
 #ifndef DACCESS_COMPILE
         if (!IsGCSpecialThread ()) {MODE_COOPERATIVE;} else {MODE_ANY;}
 #endif
@@ -2211,7 +2209,7 @@ DEBUG_NOINLINE void ObjHeader::EnterSpinLock()
             {
                 if  (! (m_SyncBlockValue & BIT_SBLK_SPIN_LOCK))
                     break;
-                YieldProcessor();               // indicate to the processor that we are spining
+                YieldProcessorNormalized(); // indicate to the processor that we are spinning
             }
             if  (m_SyncBlockValue & BIT_SBLK_SPIN_LOCK)
                 __SwitchToThread(0, ++dwSwitchCount);
@@ -2290,7 +2288,6 @@ ADIndex ObjHeader::GetAppDomainIndex()
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_SUPPORTS_DAC;
 
     ADIndex indx = GetRawAppDomainIndex();
@@ -2513,9 +2510,8 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
-    
+
     DWORD bits = GetBits ();
     Object * obj = GetBaseObject ();
     BOOL bVerifyMore = g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_SYNCBLK;

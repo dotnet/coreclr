@@ -18,6 +18,12 @@
 #undef Sleep
 #endif // Sleep
 
+#ifdef HAS_SYSTEM_YIELDPROCESSOR
+// YieldProcessor is defined to Dont_Use_YieldProcessor. Restore it to the system-default implementation for the GC.
+#undef YieldProcessor
+#define YieldProcessor System_YieldProcessor
+#endif
+
 #define NUMA_NODE_UNDEFINED UINT32_MAX
 
 // Critical section used by the GC
@@ -341,10 +347,14 @@ public:
     // Get the physical memory that this process can use.
     // Return:
     //  non zero if it has succeeded, 0 if it has failed
+    //  *is_restricted is set to true if asked and running in restricted.
     // Remarks:
     //  If a process runs with a restricted memory limit, it returns the limit. If there's no limit 
     //  specified, it returns amount of actual physical memory.
-    static uint64_t GetPhysicalMemoryLimit();
+    //
+    // PERF TODO: Requires more work to not treat the restricted case to be special. 
+    // To be removed before 3.0 ships.
+    static uint64_t GetPhysicalMemoryLimit(bool* is_restricted=NULL);
 
     // Get memory status
     // Parameters:

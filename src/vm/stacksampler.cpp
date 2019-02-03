@@ -227,7 +227,6 @@ StackWalkAction StackSampler::CrawlFrameVisitor(CrawlFrame* pCf, Thread* pMdThre
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -267,7 +266,6 @@ void StackSampler::ThreadProc()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -277,8 +275,6 @@ void StackSampler::ThreadProc()
         return;
     }
 
-    BEGIN_SO_INTOLERANT_CODE(m_pThread);
- 
     // User asked us to sample after certain time.
     m_pThread->UserSleep(m_nSampleAfter);
 
@@ -322,8 +318,6 @@ void StackSampler::ThreadProc()
         // TODO: Measure time to JIT using CycleTimer and subtract from the time we sleep every time.
         m_pThread->UserSleep(m_nSampleEvery);
     }
-    
-    END_SO_INTOLERANT_CODE;
 }
 
 // Find the most frequent method in the samples and JIT them.
@@ -443,7 +437,7 @@ void StackSampler::JitAndCollectTrace(MethodDesc* pMD, const ADID& adId)
             LOG((LF_JIT, LL_INFO100000, "%s:%s\n", pMD->GetMethodTable()->GetClass()->GetDebugClassName(), pMD->GetName())); 
 #endif
 
-            PCODE pCode = UnsafeJitFunction(pMD, pDecoder, flags);
+            PCODE pCode = UnsafeJitFunction(NativeCodeVersion(pMD), pDecoder, flags);
         }
         END_DOMAIN_TRANSITION;
 

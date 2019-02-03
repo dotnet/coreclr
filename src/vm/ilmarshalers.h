@@ -142,7 +142,6 @@ public:
         }
         CONTRACTL_END;
         
-        CONSISTENCY_CHECK(pManagedType->cbType == 1);
         if (pManagedType->IsValueClass())
         {
             EmitLoadHomeAddr(pslILEmit);    // dest
@@ -3235,8 +3234,8 @@ public:
         c_CLRSize               = sizeof(OBJECTREF),
     };
 
-    static void EmitConvertCLRUriToWinRTUri(ILCodeStream* pslILEmit, BaseDomain* pDomain);
-    static void EmitConvertWinRTUriToCLRUri(ILCodeStream* pslILEmit, BaseDomain* pDomain);
+    static void EmitConvertCLRUriToWinRTUri(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
+    static void EmitConvertWinRTUriToCLRUri(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
 
 protected:
     virtual LocalDesc GetNativeType();
@@ -3259,8 +3258,8 @@ public:
         c_CLRSize               = sizeof(OBJECTREF),
     };
 
-    static void EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStream* pslILEmit, BaseDomain* pDomain);
-    static void EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStream* pslILEmit, BaseDomain* pDomain);
+    static void EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
+    static void EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
 
 protected:
     virtual LocalDesc GetNativeType();
@@ -3283,8 +3282,8 @@ public:
         c_CLRSize               = sizeof(OBJECTREF),
     };
 
-    static void EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStream* pslILEmit, BaseDomain* pDomain);
-    static void EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStream* pslILEmit, BaseDomain* pDomain);
+    static void EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
+    static void EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
 
 protected:
     virtual LocalDesc GetNativeType();
