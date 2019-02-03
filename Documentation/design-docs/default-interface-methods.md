@@ -47,6 +47,6 @@ The algorithm is amended as follows:
 
 **Section** "III.2.1 constrained. prefix" the paragraph starting with "This last case can only occur when method was defined on `System.Object`, `System.ValueType`, or `System.Enum`" is extended to also cover default interface method implementation. In the case the interface method implementation is provided by an interface, the implicit boxing becomes _observable_ to the program.
 
-**Section** "III.4.2 callvirt" is extended to allow throwing `NotSupportedException` if the implementation of the interface method resolves at runtime to more than one default interface method.
+**Section** "III.4.2 callvirt" is extended to allow throwing `AmbiguousImplementationException` if the implementation of the interface method resolves at runtime to more than one default interface method.
 
-**Section** "III.4.18 ldvirtftn" is extended to allow throwing `NotSupportedException` if the implementation of the interface method resolves at runtime to more than one default interface method.
+**Section** "III.4.18 ldvirtftn" is extended to allow throwing `AmbiguousImplementationException` if the implementation of the interface method resolves at runtime to more than one default interface method.
