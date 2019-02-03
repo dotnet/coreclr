@@ -22400,7 +22400,7 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
                 CORINFO_METHOD_HANDLE  method      = call->gtCallMethHnd;
                 unsigned               methodFlags = 0;
                 CORINFO_CONTEXT_HANDLE context     = nullptr;
-                bool explicitTailCall = (call->gtCall.gtCallMoreFlags & GTF_CALL_M_EXPLICIT_TAILCALL) != 0;
+                bool explicitTailCall              = (call->gtCall.gtCallMoreFlags & GTF_CALL_M_EXPLICIT_TAILCALL) != 0;
                 comp->impDevirtualizeCall(call, &method, &methodFlags, &context, nullptr, explicitTailCall);
             }
         }
