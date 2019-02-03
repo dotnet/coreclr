@@ -142,8 +142,8 @@ FCFuncStart(gDateTimeFuncs)
     FCFuncElement("ValidateSystemTime", SystemNative::ValidateSystemTime)
     FCFuncElement("FileTimeToSystemTime", SystemNative::FileTimeToSystemTime)
     FCFuncElement("SystemTimeToFileTime", SystemNative::SystemTimeToFileTime)
-#endif // FEATURE_PAL
     FCFuncElement("GetSystemTimeAsFileTime", SystemNative::__GetSystemTimeAsFileTime)
+#endif // FEATURE_PAL
 FCFuncEnd()
 
 FCFuncStart(gEnvironmentFuncs)
