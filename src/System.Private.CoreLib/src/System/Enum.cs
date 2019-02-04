@@ -535,6 +535,7 @@ namespace System
                 TUnderlying max = default;
                 TUnderlying min = default;
                 int nonNegativeStart = 0;
+                int uniqueValues = 0;
                 for (int i = 0; i < fields.Length; ++i)
                 {
                     TUnderlying value = (TUnderlying)fields[i].GetRawConstantValue();
@@ -546,6 +547,7 @@ namespace System
                     int index = HybridSearch(values, i, value);
                     if (index < 0)
                     {
+                        ++uniqueValues;
                         index = ~index;
                         if (operations.LessThan(max, value))
                         {
@@ -580,7 +582,7 @@ namespace System
                 _max = max;
                 _min = min;
                 _nonNegativeStart = nonNegativeStart;
-                _isContiguous = values.Length > 0 && operations.Subtract(max, operations.ToObject((ulong)values.Length - 1)).Equals(min);
+                _isContiguous = uniqueValues > 0 && operations.Subtract(max, operations.ToObject((ulong)uniqueValues - 1)).Equals(min);
             }
 
             public string GetName(TUnderlying value)
