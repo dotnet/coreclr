@@ -156,9 +156,11 @@ class UTF8StructMarshalling
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
          CompareWithUTF8Encoding();
 
-        SetStringInStruct(ref utf8Struct, "StructTestString");
+        string testString = "StructTestString\uD83D\uDE00";
 
-        if (utf8Struct.FirstName != "StructTestString")
+        SetStringInStruct(ref utf8Struct, testString);
+
+        if (utf8Struct.FirstName != testString)
         {
             throw new Exception("Incorrect UTF8 string marshalled back from native to managed.");
         }
