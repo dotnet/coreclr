@@ -40,6 +40,7 @@ HINSTANCE g_thisModule;
 
 extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
 
+DLLEXPORT
 EXTERN_C BOOL WINAPI
 DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
 {
@@ -7507,6 +7508,7 @@ STDAPI CLRDataAccessCreateInstance(ICLRDataTarget * pLegacyTarget,
 #ifdef __llvm__
 __attribute__((used))
 #endif // __llvm__
+DLLEXPORT
 STDAPI
 CLRDataCreateInstance(REFIID iid,
                       ICLRDataTarget * pLegacyTarget,
