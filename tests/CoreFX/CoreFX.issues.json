@@ -751,10 +751,6 @@
                     "name": "System.Buffers.Text.Tests.ParserTests.TestParserDouble",
                     "reason": "https://github.com/dotnet/coreclr/pull/20707"
                 },
-                {
-                    "name": "System.SpanTests.IndexerTests.IndexerWithRangeTest",
-                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/35003"
-                }
             ]
         }
     },
@@ -1057,22 +1053,6 @@
                 {
                     "name": "System.Tests.TimeSpanTests.Parse",
                     "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/34561"
-                },
-                {
-                    "name": "System.Tests.RangeTests.CreationTest",
-                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/35003"
-                },
-                {
-                    "name": "System.Tests.RangeTests.EqualityTest",
-                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/35003"
-                },
-                {
-                    "name": "System.Tests.RangeTests.HashCodeTest",
-                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/35003"
-                },
-                {
-                    "name": "System.Tests.RangeTests.ToStringTest",
-                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/35003"
                 },
                 {
                     "name": "System.Tests.SingleTests.Test_ToString",
