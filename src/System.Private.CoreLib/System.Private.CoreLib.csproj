@@ -367,7 +367,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(FeatureAppX)' == 'true' or '$(EnableWinRT)' == 'true'">
+  <ItemGroup Condition="'$(FeatureAppX)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.Uap.cs" />
   </ItemGroup>
   <ItemGroup>
