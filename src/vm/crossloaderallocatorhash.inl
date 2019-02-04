@@ -372,7 +372,7 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
 
             if (pLoaderAllocatorOfValue != _loaderAllocator)
             {
-                gc.hashKeyToTrackers = (LAHASHKEYTOTRACKERSREF)AllocateObject(MscorlibBinder::GetClass(CLASS__LAHASHKEYTOTRACKERS));
+                gc.hashKeyToTrackers = (LAHASHKEYTOTRACKERSREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__LAHASHKEYTOTRACKERS));
                 SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.newKeyValueStore, GetAppDomain());
                 gc.hashKeyEntry = gc.hashKeyToTrackers;
             }
@@ -426,7 +426,7 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
             if (gc.hashKeyToTrackers == NULL)
             {
                 // Nothing has yet caused the trackers proxy object to be setup. Create it now, and update the keyToTrackersHash
-                gc.hashKeyToTrackers = (LAHASHKEYTOTRACKERSREF)AllocateObject(MscorlibBinder::GetClass(CLASS__LAHASHKEYTOTRACKERS));
+                gc.hashKeyToTrackers = (LAHASHKEYTOTRACKERSREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__LAHASHKEYTOTRACKERS));
                 SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.keyValueStore, GetAppDomain());
                 gc.hashKeyEntry = gc.hashKeyToTrackers;
                 gc.keyToTrackersHash.SetElement(index, gc.hashKeyEntry);
@@ -1016,6 +1016,21 @@ template <class TRAITS>
 }
 
 #ifndef DACCESS_COMPILE
+/*static */inline void CrossLoaderAllocatorHashSetup::EnsureTypesLoaded()
+{
+    STANDARD_VM_CONTRACT;
+
+    // Force these types to be loaded, so that the hashtable logic can use MscorlibBinder::GetExistingClass
+    // throughout and avoid lock ordering issues
+    MscorlibBinder::GetClass(CLASS__LAHASHKEYTOTRACKERS);
+    MscorlibBinder::GetClass(CLASS__LAHASHDEPENDENTHASHTRACKER);
+    MscorlibBinder::GetClass(CLASS__GCHEAPHASH);
+    TypeHandle elemType = TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I1));
+    TypeHandle typHnd = ClassLoader::LoadArrayTypeThrowing(elemType, ELEMENT_TYPE_SZARRAY, 0);
+    elemType = TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_OBJECT));
+    typHnd = ClassLoader::LoadArrayTypeThrowing(elemType, ELEMENT_TYPE_SZARRAY, 0);
+}
+
 template <class TRAITS>
 void CrossLoaderAllocatorHash<TRAITS>::EnsureManagedObjectsInitted()
 {
@@ -1027,20 +1042,16 @@ void CrossLoaderAllocatorHash<TRAITS>::EnsureManagedObjectsInitted()
     }
     CONTRACTL_END;
 
-    // Force these types to be loaded, so that the nothrow logic can use MscorlibBinder::GetExistingClass
-    MscorlibBinder::GetClass(CLASS__LAHASHKEYTOTRACKERS);
-    MscorlibBinder::GetClass(CLASS__LAHASHDEPENDENTHASHTRACKER);
-
     if (LAToDependentTrackerHash == NULL)
     {
-        OBJECTREF laToDependentHandleHash = AllocateObject(MscorlibBinder::GetClass(CLASS__GCHEAPHASH));
+        OBJECTREF laToDependentHandleHash = AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH));
         LAToDependentTrackerHash = _loaderAllocator->GetDomain()->CreateHandle(laToDependentHandleHash);
         _loaderAllocator->RegisterHandleForCleanup(LAToDependentTrackerHash);
     }
 
     if (KeyToDependentTrackersHash == NULL)
     {
-        OBJECTREF keyToDependentTrackersHash = AllocateObject(MscorlibBinder::GetClass(CLASS__GCHEAPHASH));
+        OBJECTREF keyToDependentTrackersHash = AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH));
         KeyToDependentTrackersHash = _loaderAllocator->GetDomain()->CreateHandle(keyToDependentTrackersHash);
         _loaderAllocator->RegisterHandleForCleanup(KeyToDependentTrackersHash);
     }
@@ -1077,8 +1088,8 @@ LAHASHDEPENDENTHASHTRACKERREF CrossLoaderAllocatorHash<TRAITS>::GetDependentTrac
         }
         else
         {
-            gc.dependentTracker = (LAHASHDEPENDENTHASHTRACKERREF)AllocateObject(MscorlibBinder::GetClass(CLASS__LAHASHDEPENDENTHASHTRACKER));
-            gc.GCHeapHashForKeyToValueStore = (GCHEAPHASHOBJECTREF)AllocateObject(MscorlibBinder::GetClass(CLASS__GCHEAPHASH));
+            gc.dependentTracker = (LAHASHDEPENDENTHASHTRACKERREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__LAHASHDEPENDENTHASHTRACKER));
+            gc.GCHeapHashForKeyToValueStore = (GCHEAPHASHOBJECTREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH));
             OBJECTHANDLE dependentHandle = GetAppDomain()->CreateDependentHandle(pLoaderAllocator->GetExposedObject(), gc.GCHeapHashForKeyToValueStore);
             gc.dependentTracker->Init(dependentHandle, pLoaderAllocator);
             gc.dependentTrackerHash.Add(&pLoaderAllocator, [&gc](PTRARRAYREF arr, INT32 index)
@@ -1145,7 +1156,7 @@ GCHEAPHASHOBJECTREF CrossLoaderAllocatorHash<TRAITS>::GetKeyToValueCrossLAHashFo
                 {
                     // Allocate the dependent tracker hash
                     // Fill with the existing dependentTrackerMaybe, and gc.DependentTracker
-                    gc.dependentTrackerHash = GCHeapHashDependentHashTrackerHash(AllocateObject(MscorlibBinder::GetClass(CLASS__GCHEAPHASH)));
+                    gc.dependentTrackerHash = GCHeapHashDependentHashTrackerHash(AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH)));
                     LoaderAllocator *pLoaderAllocatorKey = gc.dependentTracker->GetLoaderAllocatorUnsafe();
                     gc.dependentTrackerHash.Add(&pLoaderAllocatorKey, [&gc](PTRARRAYREF arr, INT32 index)
                         {

@@ -259,7 +259,7 @@ int g_rgCrstLevelMap[] =
     0,          // CrstLoaderHeap
     0,          // CrstMda
     -1,         // CrstMetadataTracker
-    18,         // CrstMethodDescBackpatchInfoTracker
+    13,         // CrstMethodDescBackpatchInfoTracker
     0,          // CrstModIntPairList
     4,          // CrstModule
     14,         // CrstModuleFixup

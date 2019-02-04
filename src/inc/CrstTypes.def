@@ -701,5 +701,5 @@ Crst COMCallWrapper
 End
 
 Crst MethodDescBackpatchInfoTracker
-    AcquiredBefore FuncPtrStubs ThreadStore SystemDomain PendingTypeLoadEntry
+    AcquiredBefore FuncPtrStubs ThreadStore SystemDomain
 End

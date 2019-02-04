@@ -184,5 +184,11 @@ private:
     OBJECTHANDLE KeyToDependentTrackersHash = 0;
 };
 
+class CrossLoaderAllocatorHashSetup
+{
+public:
+    inline static void EnsureTypesLoaded();
+};
+
 #endif // !CROSSGEN_COMPILE
 #endif // CROSSLOADERALLOCATORHASH_H

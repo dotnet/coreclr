@@ -2147,8 +2147,6 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         }
     }
 
-    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
-
     BOOL fEESuspend = FALSE;
     while (true)
     {
@@ -2158,6 +2156,8 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         {
             pCode = pMethodDesc->PrepareCode(activeVersion);
         }
+
+        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
 
         // suspend in preparation for publishing if needed
         if (fEESuspend)
