@@ -31,6 +31,10 @@ else()
   message(FATAL_ERROR "Arch is ${TARGET_ARCH_NAME}. Only armel, arm, arm64 and x86 are supported!")
 endif()
 
+if(DEFINED ENV{TOOLCHAIN})
+  set(TOOLCHAIN $ENV{TOOLCHAIN})
+endif()
+
 # Specify include paths
 if(TARGET_ARCH_NAME STREQUAL "armel")
   if(DEFINED TIZEN_TOOLCHAIN)
@@ -60,6 +64,7 @@ endmacro()
 add_compile_param(CROSS_LINK_FLAGS "--sysroot=${CROSS_ROOTFS}")
 add_compile_param(CROSS_LINK_FLAGS "--gcc-toolchain=${CROSS_ROOTFS}/usr")
 add_compile_param(CROSS_LINK_FLAGS "--target=${TOOLCHAIN}")
+
 add_compile_param(CROSS_LINK_FLAGS "-fuse-ld=gold")
 
 if(TARGET_ARCH_NAME STREQUAL "armel")
