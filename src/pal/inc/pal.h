@@ -369,7 +369,7 @@ int
 PALAPI
 PAL_Initialize(
     int argc,
-    const char * const argv[]);
+    char * const argv[]);
 
 PALIMPORT
 void
