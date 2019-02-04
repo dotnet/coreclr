@@ -2726,7 +2726,7 @@ bool Compiler::gtCanSwapOrder(GenTree* firstNode, GenTree* secondNode)
 //    TODO-Throughput - Consider actually instantiating these early, to avoid
 //    having to re-run the algorithm that looks for them (might also improve CQ).
 //
-bool Compiler::gtMarkAddrMode(GenTree* addr, int& costEx, int& costSz, var_types type)
+bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_types type)
 {
     // These are "out" parameters on the call to genCreateAddrMode():
     bool rev; // This will be true if the operands will need to be reversed. At this point we
@@ -2756,15 +2756,15 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int& costEx, int& costSz, var_types
         unsigned addrmodeCount = 0;
         if (base)
         {
-            costEx += base->gtCostEx;
-            costSz += base->gtCostSz;
+            *pCostEx += base->gtCostEx;
+            *pCostSz += base->gtCostSz;
             addrmodeCount++;
         }
 
         if (idx)
         {
-            costEx += idx->gtCostEx;
-            costSz += idx->gtCostSz;
+            *pCostEx += idx->gtCostEx;
+            *pCostSz += idx->gtCostSz;
             addrmodeCount++;
         }
 
@@ -2772,11 +2772,11 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int& costEx, int& costSz, var_types
         {
             if (((signed char)cns) == ((int)cns))
             {
-                costSz += 1;
+                *pCostSz += 1;
             }
             else
             {
-                costSz += 4;
+                *pCostSz += 4;
             }
             addrmodeCount++;
         }
@@ -2843,21 +2843,21 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int& costEx, int& costSz, var_types
 #elif defined _TARGET_ARM_
         if (base)
         {
-            costEx += base->gtCostEx;
-            costSz += base->gtCostSz;
+            *pCostEx += base->gtCostEx;
+            *pCostSz += base->gtCostSz;
             if ((base->gtOper == GT_LCL_VAR) && ((idx == NULL) || (cns == 0)))
             {
-                costSz -= 1;
+                *pCostSz -= 1;
             }
         }
 
         if (idx)
         {
-            costEx += idx->gtCostEx;
-            costSz += idx->gtCostSz;
+            *pCostEx += idx->gtCostEx;
+            *pCostSz += idx->gtCostSz;
             if (mul > 0)
             {
-                costSz += 2;
+                *pCostSz += 2;
             }
         }
 
@@ -2868,34 +2868,36 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int& costEx, int& costSz, var_types
                 if (cns < 4096) // medium offsets require a 32-bit instruction
                 {
                     if (!varTypeIsFloating(type))
-                        costSz += 2;
+                    {
+                        *pCostSz += 2;
+                    }
                 }
                 else
                 {
-                    costEx += 2; // Very large offsets require movw/movt instructions
-                    costSz += 8;
+                    *pCostEx += 2; // Very large offsets require movw/movt instructions
+                    *pCostSz += 8;
                 }
             }
         }
 #elif defined _TARGET_ARM64_
         if (base)
         {
-            costEx += base->gtCostEx;
-            costSz += base->gtCostSz;
+            *pCostEx += base->gtCostEx;
+            *pCostSz += base->gtCostSz;
         }
 
         if (idx)
         {
-            costEx += idx->gtCostEx;
-            costSz += idx->gtCostSz;
+            *pCostEx += idx->gtCostEx;
+            *pCostSz += idx->gtCostSz;
         }
 
         if (cns != 0)
         {
             if (cns >= (4096 * genTypeSize(type)))
             {
-                costEx += 1;
-                costSz += 4;
+                *pCostEx += 1;
+                *pCostSz += 4;
             }
         }
 #else
@@ -3578,7 +3580,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                                 }
                             }
                         }
-                        if (doAddrMode && gtMarkAddrMode(addr, costEx, costSz, tree->TypeGet()))
+                        if (doAddrMode && gtMarkAddrMode(addr, &costEx, &costSz, tree->TypeGet()))
                         {
                             goto DONE;
                         }
