@@ -11037,7 +11037,7 @@ void CEEJitInfo::setVars(CORINFO_METHOD_HANDLE ftn, ULONG32 cVars, ICorDebugInfo
     EE_TO_JIT_TRANSITION();
 }
 
-void CEEJitInfo::CompressDebugInfo()
+void CEEJitInfo::CompressDebugInfo(ULONG codeSize)
 {
     CONTRACTL {
         THROWS;
@@ -11060,7 +11060,8 @@ void CEEJitInfo::CompressDebugInfo()
             m_pOffsetMapping, m_iOffsetMapping,
             m_pNativeVarInfo, m_iNativeVarInfo,
             NULL, 
-            m_pMethodBeingCompiled->GetLoaderAllocator()->GetLowFrequencyHeap());
+            m_pMethodBeingCompiled->GetLoaderAllocator()->GetLowFrequencyHeap(),
+            codeSize);
 
         GetCodeHeader()->SetDebugInfo(pDebugInfo);
     }
@@ -12280,7 +12281,7 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
     //
     if (SUCCEEDED(ret) && !jitFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IMPORT_ONLY) && !((CEEJitInfo*)comp)->JitAgain())
     {
-        ((CEEJitInfo*)comp)->CompressDebugInfo();
+        ((CEEJitInfo*)comp)->CompressDebugInfo(*nativeSizeOfCode);
 
 #ifdef FEATURE_INTERPRETER
         // We do this cleanup in the prestub, where we know whether the method

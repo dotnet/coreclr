@@ -211,7 +211,7 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
     return jitFlags;
 }
 
-ZapDebugInfo * ZapInfo::EmitDebugInfo()
+ZapDebugInfo * ZapInfo::EmitDebugInfo(ULONG codeSize)
 {
     if (m_iNativeVarInfo == 0 && m_iOffsetMapping == 0)
     {
@@ -225,7 +225,8 @@ ZapDebugInfo * ZapInfo::EmitDebugInfo()
     m_pEECompileInfo->CompressDebugInfo( 
             m_pOffsetMapping, m_iOffsetMapping,
             m_pNativeVarInfo, m_iNativeVarInfo,
-            &debugInfoBuffer);
+            &debugInfoBuffer,
+            codeSize);
 
     if (IsReadyToRunCompilation())
         return ZapBlob::NewBlob(m_pImage, &debugInfoBuffer[0], debugInfoBuffer.GetSize());
@@ -516,7 +517,7 @@ void ZapInfo::CompileMethod()
     }
 #endif
 
-    PublishCompiledMethod();
+    PublishCompiledMethod(cCode);
 }
 
 #ifndef FEATURE_FULL_NGEN
@@ -748,7 +749,7 @@ COUNT_T ZapImage::MethodCodeTraits::Hash(key_t k)
 }
 #endif
 
-void ZapInfo::PublishCompiledMethod()
+void ZapInfo::PublishCompiledMethod(ULONG codeSize)
 {
     EmitCodeRelocations();
 
@@ -777,7 +778,7 @@ void ZapInfo::PublishCompiledMethod()
 
     pMethod->m_pFixupList = EmitFixupList();
 
-    pMethod->m_pDebugInfo = EmitDebugInfo();
+    pMethod->m_pDebugInfo = EmitDebugInfo(codeSize);
     pMethod->m_pGCInfo = EmitGCInfo();
 
 #ifdef WIN64EXCEPTIONS

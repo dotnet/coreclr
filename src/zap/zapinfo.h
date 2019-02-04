@@ -233,11 +233,11 @@ class ZapInfo
 
     CORJIT_FLAGS ComputeJitFlags(CORINFO_METHOD_HANDLE handle);
 
-    ZapDebugInfo * EmitDebugInfo();
+    ZapDebugInfo * EmitDebugInfo(ULONG codeSize);
     ZapGCInfo * EmitGCInfo();
     ZapImport ** EmitFixupList();
 
-    void PublishCompiledMethod();
+    void PublishCompiledMethod(ULONG codeSize);
 
     void EmitCodeRelocations();
 

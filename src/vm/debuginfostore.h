@@ -84,7 +84,8 @@ public:
         IN ICorDebugInfo::NativeVarInfo * pNativeVarInfo,
         IN ULONG            iNativeVarInfo,
         IN OUT SBuffer    * pDebugInfoBuffer,
-        IN LoaderHeap     * pLoaderHeap
+        IN LoaderHeap     * pLoaderHeap,
+        IN ULONG            codeSize
     );
 
 public:

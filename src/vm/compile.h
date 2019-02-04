@@ -346,7 +346,8 @@ class CEECompileInfo : public ICorCompileInfo
                                     IN ULONG            iOffsetMapping,
                                     IN ICorDebugInfo::NativeVarInfo * pNativeVarInfo,
                                     IN ULONG            iNativeVarInfo,
-                                    IN OUT SBuffer    * pDebugInfoBuffer);
+                                    IN OUT SBuffer    * pDebugInfoBuffer,
+                                    IN ULONG            codeSize);
 
     HRESULT SetVerboseLevel(
                                     IN  VerboseLevel        level);

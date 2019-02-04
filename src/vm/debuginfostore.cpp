@@ -441,7 +441,8 @@ PTR_BYTE CompressDebugInfo::CompressBoundariesAndVars(
     IN ICorDebugInfo::NativeVarInfo * pNativeVarInfo,
     IN ULONG            iNativeVarInfo,
     IN OUT SBuffer    * pDebugInfoBuffer,
-    IN LoaderHeap     * pLoaderHeap
+    IN LoaderHeap     * pLoaderHeap,
+    IN ULONG            codeSize
     )
 {
     CONTRACTL {
@@ -494,6 +495,8 @@ PTR_BYTE CompressDebugInfo::CompressBoundariesAndVars(
         ptrStart = pDebugInfoBuffer->OpenRawBuffer(cbFinalSize.Value());
     }
     _ASSERTE(ptrStart != NULL); // throws on oom.
+
+    LOG((LF_CORDB, LL_EVERYTHING, "Code/Debug %d/%d.\n", codeSize, cbFinalSize.Value()));
 
     BYTE *ptr = ptrStart;
 
