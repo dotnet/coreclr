@@ -92,7 +92,7 @@ namespace System.Runtime.InteropServices
         // unloadable COM server ALCs, this will need to be changed.
         // This collection is read-only and if new ALCs are added, the collection should
         // be copied into a new collection and the static member updated.
-        private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.CurrentCultureIgnoreCase);
+        private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIngoreCase);
         private static readonly object s_AssemblyLoadContextsLock = new object();
 
         /// <summary>
@@ -219,7 +219,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                     AssemblyLoadContext alcMaybe;
                     if (!s_AssemblyLoadContexts.TryGetValue(path, out alcMaybe))
                     {
-                        var newCollection = new Dictionary<string, AssemblyLoadContext>(s_AssemblyLoadContexts);
+                        var newCollection = new Dictionary<string, AssemblyLoadContext>(s_AssemblyLoadContexts, s_AssemblyLoadContexts.Comparer);
 
                         alcMaybe = new ComServerLoadContext(path);
                         newCollection.Add(path, alcMaybe);
