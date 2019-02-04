@@ -9,6 +9,7 @@ include(configure.cmake)
 
 if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   add_compile_options(-Wformat=0)
+  add_compile_options(-Wno-unused-value)
 endif()
 
 # The HAVE___THREAD set to 1 causes creation of thread local variable with tls_model("initial-exec")
