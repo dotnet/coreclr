@@ -3300,7 +3300,7 @@ VOID FieldMarshaler_StringUtf8::UpdateCLRImpl(const VOID *pNativeValue, OBJECTRE
         MethodDescCallSite convertToManaged(METHOD__CUTF8MARSHALER__CONVERT_TO_MANAGED);
         ARG_SLOT args[] =
         {
-            PtrToArgSlot(pNativeValue),
+            PtrToArgSlot(sz),
         };
         pString = convertToManaged.Call_RetSTRINGREF(args);
     }
