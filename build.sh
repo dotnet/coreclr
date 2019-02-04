@@ -25,7 +25,7 @@ export PYTHON
 
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipmanaged] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
+    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipcrossarchnative] [-skipmanaged] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
     echo "BuildArch can be: -x64, -x86, -arm, -armel, -arm64"
     echo "BuildType can be: -debug, -checked, -release"
     echo "-coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
@@ -39,6 +39,7 @@ usage()
     echo "-configureonly - do not perform any builds; just configure the build."
     echo "-skipconfigure - skip build configuration."
     echo "-skipnative - do not build native components."
+    echo "-skipcrossarchnative - do not build cross-architecture native components."
     echo "-skipmanaged - do not build managed components."
     echo "-skipmscorlib - do not build mscorlib.dll."
     echo "-skiptests - skip the tests in the 'tests' subdirectory."
@@ -292,8 +293,8 @@ build_native()
     if [ $__SkipConfigure == 0 ]; then
         # if msbuild is not supported, then set __SkipGenerateVersion to 1
         if [ $__isMSBuildOnNETCoreSupported == 0 ]; then __SkipGenerateVersion=1; fi
-        # Drop version.cpp file
-        __versionSourceFile="$intermediatesForBuild/version.cpp"
+        # Drop version.c file
+        __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
             "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
@@ -303,7 +304,7 @@ build_native()
                                        "$__ProjectDir/build.proj" /p:GenerateVersionSourceFile=true /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile \
                                        $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else
-            # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
+            # Generate the dummy version.c, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
             if [ -e $__versionSourceFile ]; then
                 read existingVersionSourceLine < $__versionSourceFile
@@ -660,6 +661,7 @@ __SkipManaged=0
 __SkipRestore=""
 __SkipNuget=0
 __SkipCoreCLR=0
+__SkipCrossArchNative=0
 __SkipMSCorLib=0
 __SkipRestoreOptData=0
 __SkipCrossgen=0
@@ -840,6 +842,10 @@ while :; do
         skipcoreclr|-skipcoreclr)
             # Accept "skipcoreclr" for backwards-compatibility.
             __SkipCoreCLR=1
+            ;;
+
+        skipcrossarchnative|-skipcrossarchnative)
+            __SkipCrossArchNative=1
             ;;
 
         skipmanaged|-skipmanaged)
@@ -1062,8 +1068,10 @@ fi
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 
 # Build cross-architecture components
-if [[ $__CrossBuild == 1 ]]; then
-    build_cross_architecture_components
+if [ $__SkipCrossArchNative != 1 ]; then
+    if [[ $__CrossBuild == 1 ]]; then
+        build_cross_architecture_components
+    fi
 fi
 
 # Build System.Private.CoreLib.
