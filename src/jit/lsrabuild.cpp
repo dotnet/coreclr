@@ -381,7 +381,7 @@ void LinearScan::applyCalleeSaveHeuristics(RefPosition* rp)
 #endif // DEBUG
     {
         // Set preferences so that this register set will be preferred for earlier refs
-        theInterval->updateRegisterPreferences(rp->registerAssignment);
+        theInterval->mergeRegisterPreferences(rp->registerAssignment);
     }
 }
 
@@ -1311,11 +1311,18 @@ void LinearScan::buildInternalRegisterUses()
 // Arguments:
 //    tree       - The current node being handled
 //    currentLoc - The location of the current node
+//    fpCalleeKillSet - The set of registers killed by this node.
 //
 // Return Value: Returns the set of lclVars that are killed by this node, and therefore
 //               required RefTypeUpperVectorSaveDef RefPositions.
 //
-// Notes: The returned set is used by buildUpperVectorRestoreRefPositions.
+// Notes: The returned set contains any lclVars that were partially spilled, and is
+//        used by buildUpperVectorRestoreRefPositions.
+//        This is called by BuildDefsWithKills for any node that kills registers in the
+//        RBM_FLT_CALLEE_TRASH set. We actually need to find any calls that kill the upper-half
+//        of the callee-save vector registers.
+//        But we will use as a proxy any node that kills floating point registers.
+//        (Note that some calls are masquerading as other nodes at this point so we can't just check for calls.)
 //
 VARSET_VALRET_TP
 LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation currentLoc, regMaskTP fpCalleeKillSet)
@@ -1324,29 +1331,37 @@ LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation current
     VARSET_TP liveLargeVectors(VarSetOps::MakeEmpty(compiler));
     if (!VarSetOps::IsEmpty(compiler, largeVectorVars))
     {
-        // We actually need to find any calls that kill the upper-half of the callee-save vector registers.
-        // But we will use as a proxy any node that kills floating point registers.
-        // (Note that some calls are masquerading as other nodes at this point so we can't just check for calls.)
-        // This check should have been done by the caller.
-        if ((fpCalleeKillSet & RBM_FLT_CALLEE_TRASH) != RBM_NONE)
+        assert((fpCalleeKillSet & RBM_FLT_CALLEE_TRASH) != RBM_NONE);
+        VarSetOps::AssignNoCopy(compiler, liveLargeVectors,
+                                VarSetOps::Intersection(compiler, currentLiveVars, largeVectorVars));
+        VarSetOps::Iter iter(compiler, liveLargeVectors);
+        unsigned        varIndex = 0;
+        while (iter.NextElem(&varIndex))
         {
-            VarSetOps::AssignNoCopy(compiler, liveLargeVectors,
-                                    VarSetOps::Intersection(compiler, currentLiveVars, largeVectorVars));
-            VarSetOps::Iter iter(compiler, liveLargeVectors);
-            unsigned        varIndex = 0;
-            while (iter.NextElem(&varIndex))
+            Interval* varInterval    = getIntervalForLocalVar(varIndex);
+            Interval* tempInterval   = newInterval(varInterval->registerType);
+            tempInterval->isInternal = true;
+            RefPosition* pos =
+                newRefPosition(tempInterval, currentLoc, RefTypeUpperVectorSaveDef, tree, RBM_FLT_CALLEE_SAVED);
+            // We are going to save the existing relatedInterval of varInterval on tempInterval, so that we can set
+            // the tempInterval as the relatedInterval of varInterval, so that we can build the corresponding
+            // RefTypeUpperVectorSaveUse RefPosition.  We will then restore the relatedInterval onto varInterval,
+            // and set varInterval as the relatedInterval of tempInterval.
+            tempInterval->relatedInterval = varInterval->relatedInterval;
+            varInterval->relatedInterval  = tempInterval;
+        }
+        // For any non-lclVar intervals that are live at this point (i.e. in the DefList), we will also create
+        // a RefTypeUpperVectorSaveDef. For now these will all be spilled at this point, as we don't currently
+        // have a mechanism to communicate any non-lclVar intervals that need to be restored.
+        // TODO-CQ: Consider reworking this as part of addressing GitHub Issues #18144 and #17481.
+        for (RefInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
+             listNode = listNode->Next())
+        {
+            var_types treeType = listNode->treeNode->TypeGet();
+            if (varTypeIsSIMD(treeType) && varTypeNeedsPartialCalleeSave(treeType))
             {
-                Interval* varInterval    = getIntervalForLocalVar(varIndex);
-                Interval* tempInterval   = newInterval(varInterval->registerType);
-                tempInterval->isInternal = true;
-                RefPosition* pos =
-                    newRefPosition(tempInterval, currentLoc, RefTypeUpperVectorSaveDef, tree, RBM_FLT_CALLEE_SAVED);
-                // We are going to save the existing relatedInterval of varInterval on tempInterval, so that we can set
-                // the tempInterval as the relatedInterval of varInterval, so that we can build the corresponding
-                // RefTypeUpperVectorSaveUse RefPosition.  We will then restore the relatedInterval onto varInterval,
-                // and set varInterval as the relatedInterval of tempInterval.
-                tempInterval->relatedInterval = varInterval->relatedInterval;
-                varInterval->relatedInterval  = tempInterval;
+                RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSaveDef,
+                                                  tree, RBM_FLT_CALLEE_SAVED);
             }
         }
     }
@@ -2359,6 +2374,38 @@ void LinearScan::validateIntervals()
 }
 #endif // DEBUG
 
+#ifdef _TARGET_XARCH_
+//------------------------------------------------------------------------
+// setTgtPref: Set a  preference relationship between the given Interval
+//             and a Use RefPosition.
+//
+// Arguments:
+//    interval   - An interval whose defining instruction has tgtPrefUse as a use
+//    tgtPrefUse - The use RefPosition
+//
+// Notes:
+//    This is called when we would like tgtPrefUse and this def to get the same register.
+//    This is only desirable if the use is a last use, which it is if it is a non-local,
+//    *or* if it is a lastUse.
+//     Note that we don't yet have valid lastUse information in the RefPositions that we're building
+//    (every RefPosition is set as a lastUse until we encounter a new use), so we have to rely on the treeNode.
+//    This may be called for multiple uses, in which case 'interval' will only get preferenced at most
+//    to the first one (if it didn't already have a 'relatedInterval'.
+//
+void setTgtPref(Interval* interval, RefPosition* tgtPrefUse)
+{
+    if (tgtPrefUse != nullptr)
+    {
+        Interval* useInterval = tgtPrefUse->getInterval();
+        if (!useInterval->isLocalVar || (tgtPrefUse->treeNode == nullptr) ||
+            ((tgtPrefUse->treeNode->gtFlags & GTF_VAR_DEATH) != 0))
+        {
+            // Set the use interval as related to the interval we're defining.
+            useInterval->assignRelatedIntervalIfUnassigned(interval);
+        }
+    }
+}
+#endif // _TARGET_XARCH_
 //------------------------------------------------------------------------
 // BuildDef: Build a RefTypeDef RefPosition for the given node
 //
@@ -2430,10 +2477,10 @@ RefPosition* LinearScan::BuildDef(GenTree* tree, regMaskTP dstCandidates, int mu
         RefInfoListNode* refInfo = listNodePool.GetNode(defRefPosition, tree);
         defList.Append(refInfo);
     }
-    if (tgtPrefUse != nullptr)
-    {
-        interval->assignRelatedIntervalIfUnassigned(tgtPrefUse->getInterval());
-    }
+#ifdef _TARGET_XARCH_
+    setTgtPref(interval, tgtPrefUse);
+    setTgtPref(interval, tgtPrefUse2);
+#endif // _TARGET_XARCH_
     return defRefPosition;
 }
 
@@ -2513,7 +2560,7 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
     {
         buildKillPositionsForNode(tree, currentLoc + 1, killMask);
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        if (enregisterLocalVars && (RBM_FLT_CALLEE_SAVED != RBM_NONE))
+        if (enregisterLocalVars && ((killMask & RBM_FLT_CALLEE_TRASH) != RBM_NONE))
         {
             // Build RefPositions for saving any live large vectors.
             // This must be done after the kills, so that we know which large vectors are still live.
@@ -2757,7 +2804,6 @@ int LinearScan::BuildDelayFreeUses(GenTree* node, regMaskTP candidates)
 int LinearScan::BuildBinaryUses(GenTreeOp* node, regMaskTP candidates)
 {
 #ifdef _TARGET_XARCH_
-    RefPosition* tgtPrefUse = nullptr;
     if (node->OperIsBinary() && isRMWRegOper(node))
     {
         return BuildRMWUses(node, candidates);
@@ -3156,7 +3202,6 @@ int LinearScan::BuildPutArgReg(GenTreeUnOp* node)
         // Preference the destination to the interval of the first register defined by the first operand.
         assert(use->getInterval()->isLocalVar);
         isSpecialPutArg = true;
-        tgtPrefUse      = use;
     }
 
 #ifdef _TARGET_ARM_
@@ -3178,6 +3223,7 @@ int LinearScan::BuildPutArgReg(GenTreeUnOp* node)
         if (isSpecialPutArg)
         {
             def->getInterval()->isSpecialPutArg = true;
+            def->getInterval()->assignRelatedInterval(use->getInterval());
         }
     }
     return srcCount;

@@ -640,7 +640,14 @@ def call_msbuild(coreclr_repo_location,
     logs_dir = os.path.join(coreclr_repo_location, "bin", "Logs")
     if not os.path.isdir(logs_dir):
         os.makedirs(logs_dir)
-    
+
+    msbuild_debug_logs_dir = os.path.join(logs_dir, "MsbuildDebugLogs")
+    if not os.path.isdir(msbuild_debug_logs_dir):
+        os.makedirs(msbuild_debug_logs_dir)
+
+    # Set up the directory for MSBuild debug logs.
+    os.environ["MSBUILDDEBUGPATH"] = msbuild_debug_logs_dir
+
     command =   [dotnetcli_location,
                  "msbuild",
                  os.path.join(coreclr_repo_location, "tests", "runtest.proj"),
@@ -1020,22 +1027,19 @@ def run_tests(host_os,
     # Setup the dotnetcli location
     dotnetcli_location = os.path.join(coreclr_repo_location, "Tools", "dotnetcli", "dotnet%s" % (".exe" if host_os == "Windows_NT" else ""))
 
-    # Default timeout for unix is 15 minutes
-    print("Setting __TestTimeout=%s" % str(15*60*1000))
-    os.environ["__TestTimeout"] = str(15*60*1000) # 900,000 ms
+    # Set default per-test timeout to 15 minutes (in milliseconds).
+    per_test_timeout = 15*60*1000
 
     # Setup the environment
     if is_long_gc:
         print("Running Long GC Tests, extending timeout to 20 minutes.")
-        print("Setting __TestTimeout=%s" % str(20*60*1000))
-        os.environ["__TestTimeout"] = str(20*60*1000) # 1,200,000 ms
+        per_test_timeout = 20*60*1000
         print("Setting RunningLongGCTests=1")
         os.environ["RunningLongGCTests"] = "1"
     
     if is_gcsimulator:
         print("Running GCSimulator tests, extending timeout to one hour.")
-        print("Setting __TestTimeout=%s" % str(60*60*1000))
-        os.environ["__TestTimeout"] = str(60*60*1000) # 3,600,000 ms
+        per_test_timeout = 60*60*1000
         print("Setting RunningGCSimulatorTests=1")
         os.environ["RunningGCSimulatorTests"] = "1"
 
@@ -1060,13 +1064,17 @@ def run_tests(host_os,
 
     if gc_stress:
         print("Running GCStress, extending timeout to 120 minutes.")
-        print("Setting __TestTimeout=%s" % str(120*60*1000))
-        os.environ["__TestTimeout"] = str(120*60*1000) # 1,800,000 ms
+        per_test_timeout = 120*60*1000
 
     if limited_core_dumps:
         setup_coredump_generation(host_os)
 
-    # Set Core_Root
+    # Set __TestTimeout environment variable, which is the per-test timeout in milliseconds.
+    # This is read by the test wrapper invoker, in tests\src\Common\Coreclr.TestWrapper\CoreclrTestWrapperLib.cs.
+    print("Setting __TestTimeout=%s" % str(per_test_timeout))
+    os.environ["__TestTimeout"] = str(per_test_timeout)
+
+    # Set CORE_ROOT
     print("Setting CORE_ROOT=%s" % core_root)
     os.environ["CORE_ROOT"] = core_root
 
@@ -2224,18 +2232,25 @@ def print_summary(tests):
             # XUnit results are captured as escaped characters.
             test_output = test_output.replace("\\r", "\r")
             test_output = test_output.replace("\\n", "\n")
-
-            print(test_output)
             test_output = test_output.replace("/r", "\r")
             test_output = test_output.replace("/n", "\n")
+
+            # Replace CR/LF by just LF; Python "print", below, will map as necessary on the platform.
+            # If we don't do this, then Python on Windows will convert \r\n to \r\r\n on output.
+            test_output = test_output.replace("\r\n", "\n")
+
             unicode_output = None
             if sys.version_info < (3,0):
                 # Handle unicode characters in output in python2.*
-                unicode_output = unicode(test_output, "utf-8")
+                try:
+                    unicode_output = unicode(test_output, "utf-8")
+                except:
+                    print("Error: failed to convert Unicode output")
             else:
                 unicode_output = test_output
 
-            print(unicode_output)
+            if unicode_output is not None:
+                print(unicode_output)
             print("")
 
         print("")

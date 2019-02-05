@@ -58,6 +58,7 @@ set "__PackagesDir=%DotNetRestorePackagesPath%"
 if [%__PackagesDir%]==[] set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
+set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
 
 set __BuildAll=
 
@@ -91,6 +92,7 @@ set __BuildCoreLib=1
 set __BuildSOS=1
 set __BuildNative=1
 set __BuildCrossArchNative=0
+set __SkipCrossArchNative=0
 set __BuildTests=1
 set __BuildPackages=1
 set __BuildNativeCoreLib=1
@@ -176,6 +178,7 @@ if /i "%1" == "-configureonly"       (set __ConfigureOnly=1&set __BuildNative=1&
 if /i "%1" == "-skipconfigure"       (set __SkipConfigure=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-skipmscorlib"        (set __BuildCoreLib=0&set __BuildNativeCoreLib=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-skipnative"          (set __BuildNative=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-skipcrossarchnative" (set __SkipCrossArchNative=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-skiptests"           (set __BuildTests=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-skipbuildpackages"   (set __BuildPackages=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-skiprestoreoptdata"  (set __RestoreOptData=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -204,6 +207,7 @@ if /i "%1" == "configureonly"       (set __ConfigureOnly=1&set __BuildNative=1&s
 if /i "%1" == "skipconfigure"       (set __SkipConfigure=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skipmscorlib"        (set __BuildCoreLib=0&set __BuildNativeCoreLib=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skipnative"          (set __BuildNative=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "skipcrossarchnative" (set __SkipCrossArchNative=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skiptests"           (set __BuildTests=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skipbuildpackages"   (set __BuildPackages=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skiprestoreoptdata"  (set __RestoreOptData=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -281,12 +285,14 @@ if %__EnforcePgo%==1 (
 
 REM Determine if this is a cross-arch build. Only do cross-arch build if we're also building native.
 
-if %__BuildNative% EQU 1 (
-    if /i "%__BuildArch%"=="arm64" (
-        set __BuildCrossArchNative=1
-    )
-    if /i "%__BuildArch%"=="arm" (
-        set __BuildCrossArchNative=1
+if %__SkipCrossArchNative% EQU 0 (
+    if %__BuildNative% EQU 1 (
+        if /i "%__BuildArch%"=="arm64" (
+            set __BuildCrossArchNative=1
+        )
+        if /i "%__BuildArch%"=="arm" (
+            set __BuildCrossArchNative=1
+        )
     )
 )
 
@@ -314,9 +320,13 @@ REM Generate path to be set for CMAKE_INSTALL_PREFIX to contain forward slash
 set "__CMakeBinDir=%__BinDir%"
 set "__CMakeBinDir=%__CMakeBinDir:\=/%"
 
-if not exist "%__BinDir%"           md "%__BinDir%"
-if not exist "%__IntermediatesDir%" md "%__IntermediatesDir%"
-if not exist "%__LogsDir%"          md "%__LogsDir%"
+if not exist "%__BinDir%"              md "%__BinDir%"
+if not exist "%__IntermediatesDir%"    md "%__IntermediatesDir%"
+if not exist "%__LogsDir%"             md "%__LogsDir%"
+if not exist "%__MsbuildDebugLogsDir%" md "%__MsbuildDebugLogsDir%"
+
+REM Set up the directory for MSBuild debug logs.
+set MSBUILDDEBUGPATH=%__MsbuildDebugLogsDir%
 
 REM It is convenient to have your Nuget search path include the location where the build
 REM will place packages.  However nuget used during the build will fail if that directory
@@ -1015,6 +1025,7 @@ echo -configureonly: skip all builds; only run CMake ^(default: CMake and builds
 echo -skipconfigure: skip CMake ^(default: CMake is run^)
 echo -skipmscorlib: skip building System.Private.CoreLib ^(default: System.Private.CoreLib is built^).
 echo -skipnative: skip building native components ^(default: native components are built^).
+echo -skipcrossarchnative: skip building cross-architecture native components ^(default: components are built^).
 echo -skiptests: skip building tests ^(default: tests are built^).
 echo -skipbuildpackages: skip building nuget packages ^(default: packages are built^).
 echo -skiprestoreoptdata: skip restoring optimization data used by profile-based optimizations.
