@@ -104,6 +104,11 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 }
                 else
                 {
+                    if (isBorn)
+                    {
+                        // Its borning in stack
+                        varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, compiler->getEmitter());
+                    }
                     // Its putting in stackVarDeltaSet the variable no matter if its living or dying
                     VarSetOps::AddElemD(compiler, stackVarDeltaSet, varDsc->lvVarIndex);
                 }
