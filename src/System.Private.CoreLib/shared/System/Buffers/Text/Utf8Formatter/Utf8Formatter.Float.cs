@@ -61,29 +61,6 @@ namespace System.Buffers.Text
 
         private static bool TryFormatFloatingPoint<T>(T value, Span<byte> destination, out int bytesWritten, StandardFormat format) where T : IFormattable, ISpanFormattable
         {
-            if (format.IsDefault)
-            {
-                format = 'G';
-            }
-
-            switch (format.Symbol)
-            {
-                case 'g':
-                case 'G':
-                    if (format.Precision != StandardFormat.NoPrecision)
-                        throw new NotSupportedException(SR.Argument_GWithPrecisionNotSupported);
-                    break;
-
-                case 'f':
-                case 'F':
-                case 'e':
-                case 'E':
-                    break;
-
-                default:
-                    return FormattingHelpers.TryFormatThrowFormatException(out bytesWritten);
-            }
-            
             Span<char> formatText = stackalloc char[StandardFormat.FormatStringLength];
             int formattedLength = format.Format(formatText);
             formatText = formatText.Slice(0, formattedLength);
