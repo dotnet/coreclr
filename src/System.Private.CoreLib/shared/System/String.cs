@@ -449,7 +449,7 @@ namespace System
         {
             get
             {
-                int actualIndex = index.GetOffset(_stringLength);
+                int actualIndex = index.GetOffset(Length);
                 return this[actualIndex];
             }
         }

@@ -408,7 +408,10 @@ namespace System
         {
             if (array == null)
             {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+                if (!startIndex.Equals(Index.Start))
+                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+
+                return default;
             }
 
             if (default(T) == null && array.GetType() != typeof(T[]))
@@ -429,13 +432,19 @@ namespace System
         {
             if (array == null)
             {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+                Index startIndex = range.Start;
+                Index endIndex = range.End;
+
+                if (!startIndex.Equals(Index.Start) || !endIndex.Equals(Index.Start))
+                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+
+                return default;
             }
 
             if (default(T) == null && array.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
-            var (start, length) = range.GetOffsetAndLength(array.Length);
+            (int start, int length) = range.GetOffsetAndLength(array.Length);
             return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), length);
         }
 
@@ -550,7 +559,10 @@ namespace System
         {
             if (text == null)
             {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+                if (!startIndex.Equals(Index.Start))
+                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+
+                return default;
             }
 
             int actualIndex = startIndex.GetOffset(text.Length);
@@ -596,10 +608,16 @@ namespace System
         {
             if (text == null)
             {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+                Index startIndex = range.Start;
+                Index endIndex = range.End;
+
+                if (!startIndex.Equals(Index.Start) || !endIndex.Equals(Index.Start))
+                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+
+                return default;
             }
 
-            var (start, length) = range.GetOffsetAndLength(text.Length);
+            (int start, int length) = range.GetOffsetAndLength(text.Length);
             return new ReadOnlyMemory<char>(text, start, length);
         }
     }

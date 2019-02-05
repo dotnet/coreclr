@@ -1696,7 +1696,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string Substring(Range range)
         {
-            var (start, length) = range.GetOffsetAndLength(Length);
+            (int start, int length) = range.GetOffsetAndLength(Length);
             return Substring(start, length);
         }
 

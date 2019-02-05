@@ -390,7 +390,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Slice(Range range)
         {
-            var (start, length) = range.GetOffsetAndLength(_length);
+            (int start, int length) = range.GetOffsetAndLength(_length);
             return new Span<T>(ref Unsafe.Add(ref _pointer.Value, start), length);
         }
 
