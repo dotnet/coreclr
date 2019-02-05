@@ -605,7 +605,7 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
     }
     else
     {
-        assert(varTypeIsSIMD(putArgStk));
+        assert(varTypeIsSIMD(putArgStk) || src->OperGet() == GT_LCL_VAR);
     }
 
     // In case of a CpBlk we could use a helper call. In case of putarg_stk we

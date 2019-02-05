@@ -3276,11 +3276,13 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode)
 
     assert(src->isContained());
 
-    assert(src->gtOper == GT_OBJ);
+    assert(src->gtOper == GT_OBJ || src->gtOper == GT_LCL_VAR);
+    
+    GenTree* op1 = src->gtOper == GT_OBJ ? src->gtOp.gtOp1 : src;
 
-    if (src->gtOp.gtOp1->isUsedFromReg())
+    if (op1->isUsedFromReg())
     {
-        genConsumeReg(src->gtOp.gtOp1);
+        genConsumeReg(op1);
     }
 
     unsigned offset = 0;
@@ -3332,7 +3334,7 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode)
         while (slots-- > 0)
         {
             // Load
-            genCodeForLoadOffset(INS_movdqu, EA_8BYTE, xmmTmpReg, src->gtGetOp1(), offset);
+            genCodeForLoadOffset(INS_movdqu, EA_8BYTE, xmmTmpReg, op1, offset);
 
             // Store
             genStoreRegToStackArg(TYP_STRUCT, xmmTmpReg, offset);
@@ -3354,18 +3356,18 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode)
             assert(((size & 0xc) == size) && (offset == 0));
             // If we have a 4 byte chunk, load it from either offset 0 or 8, depending on
             // whether we've got an 8 byte chunk, and then push it on the stack.
-            unsigned pushedBytes = genMove4IfNeeded(size, intTmpReg, src->gtOp.gtOp1, size & 0x8);
+            unsigned pushedBytes = genMove4IfNeeded(size, intTmpReg, op1, size & 0x8);
             // Now if we have an 8 byte chunk, load it from offset 0 (it's the first chunk)
             // and push it on the stack.
-            pushedBytes += genMove8IfNeeded(size, longTmpReg, src->gtOp.gtOp1, 0);
+            pushedBytes += genMove8IfNeeded(size, longTmpReg, op1, 0);
         }
         else
 #endif // _TARGET_X86_
         {
-            offset += genMove8IfNeeded(size, longTmpReg, src->gtOp.gtOp1, offset);
-            offset += genMove4IfNeeded(size, intTmpReg, src->gtOp.gtOp1, offset);
-            offset += genMove2IfNeeded(size, intTmpReg, src->gtOp.gtOp1, offset);
-            offset += genMove1IfNeeded(size, intTmpReg, src->gtOp.gtOp1, offset);
+            offset += genMove8IfNeeded(size, longTmpReg, op1, offset);
+            offset += genMove4IfNeeded(size, intTmpReg, op1, offset);
+            offset += genMove2IfNeeded(size, intTmpReg, op1, offset);
+            offset += genMove1IfNeeded(size, intTmpReg, op1, offset);
             assert(offset == size);
         }
     }

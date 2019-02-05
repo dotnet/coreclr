@@ -1184,18 +1184,28 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
             // pair copying using XMM registers or rep mov instructions.
             if (info->isStruct)
             {
-                // We use GT_OBJ only for non-lclVar, non-SIMD, non-FIELD_LIST struct arguments.
-                if (arg->OperIsLocal())
-                {
-                    // This must have a type with a known size (SIMD or has been morphed to a primitive type).
-                    assert(arg->TypeGet() != TYP_STRUCT);
-                }
-                else if (arg->OperIs(GT_OBJ))
+                if (arg->TypeGet() == TYP_STRUCT)
                 {
                     unsigned numRefs  = 0;
                     BYTE*    gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots];
                     assert(!varTypeIsSIMD(arg));
-                    numRefs = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
+
+                    CORINFO_CLASS_HANDLE classHandle = nullptr;
+
+                    if (arg->OperIs(GT_OBJ))
+                    {
+                        classHandle = arg->gtObj.gtClass;
+                    }
+                    else
+                    {
+                        assert(arg->TypeGet() == TYP_STRUCT && !arg->OperIs(GT_OBJ));
+                        GenTreeLclVarCommon* lcl = arg->AsLclVarCommon();
+
+                        LclVarDsc* varDsc = comp->lvaGetDesc(lcl->gtLclNum);
+                        classHandle = varDsc->lvVerTypeInfo.GetClassHandle();
+                    }
+                    
+                    numRefs = comp->info.compCompHnd->getClassGClayout(classHandle, gcLayout);
                     putArg->AsPutArgStk()->setGcPointers(numRefs, gcLayout);
 
 #ifdef _TARGET_X86_
