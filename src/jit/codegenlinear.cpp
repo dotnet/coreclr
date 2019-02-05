@@ -831,16 +831,17 @@ void CodeGen::genSpillVar(GenTree* tree)
 #endif
             VarSetOps::AddElemD(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
         }
+
+        varDsc->UpdateRegisterHome(REG_STK, getEmitter());
     }
 
+    // Why is changing reg if spill was not needed?
     tree->gtFlags &= ~GTF_SPILL;
     varDsc->lvRegNum = REG_STK;
     if (varTypeIsMultiReg(tree))
     {
         varDsc->lvOtherReg = REG_STK;
     }
-
-    varDsc->UpdateRegisterHome(REG_STK, getEmitter());
 }
 
 //------------------------------------------------------------------------
