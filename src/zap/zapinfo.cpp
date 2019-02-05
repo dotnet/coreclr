@@ -1209,12 +1209,12 @@ void ZapInfo::setEHinfo(unsigned EHnumber,
 #endif // _DEBUG
                 ilClause->ClassToken = mdTypeRefNil;
             }
-            else if (getClassModule(resolvedToken.hClass) != m_currentMethodModule)
+            else
             {
-                // For clauses with types from external modules, add fixup to ensure the types are loaded
-                // before the code of the method containing the catch blocks is executed. This ensures
-                // that a failure to load the types would not happen when the exception handling is
-                // in progress and it is looking for a catch handler. At that point, we could only fail fast.
+                // For all clause types add fixup to ensure the types are loaded before the code of the method
+                // containing the catch blocks is executed. This ensures that a failure to load the types would
+                // not happen when the exception handling is in progress and it is looking for a catch handler.
+                // At that point, we could only fail fast.
                 classMustBeLoadedBeforeCodeIsRun(resolvedToken.hClass);
             }
         }
