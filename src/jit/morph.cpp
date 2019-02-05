@@ -2291,7 +2291,7 @@ void fgArgInfo::EvalArgsToTemps()
                     if (setupArg->OperIsCopyBlkOp())
                     {
                         setupArg = compiler->fgMorphCopyBlock(setupArg);
-#if defined(_TARGET_ARMARCH_) || defined (UNIX_AMD64_ABI)
+#if defined(_TARGET_ARMARCH_) || defined(UNIX_AMD64_ABI)
                         // This scalar LclVar widening step is only performed for ARM and AMD64 unix.
                         //
                         CORINFO_CLASS_HANDLE clsHnd     = compiler->lvaGetStruct(tmpVarNum);
@@ -2301,7 +2301,8 @@ void fgArgInfo::EvalArgsToTemps()
 #endif // _TARGET_ARMARCH_ || defined (UNIX_AMD64_ABI)
                     }
 
-                    // scalarType can be set to a wider type for ARM or unix amd64 architectures: (3 => 4)  or (5,6,7 => 8)
+                    // scalarType can be set to a wider type for ARM or unix amd64 architectures: (3 => 4)  or (5,6,7 =>
+                    // 8)
                     if ((scalarType != TYP_UNKNOWN) && (scalarType != lclVarType))
                     {
                         // Create a GT_LCL_FLD using the wider type to go to the late argument list
