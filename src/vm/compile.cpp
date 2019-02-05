@@ -1088,13 +1088,19 @@ void CEECompileInfo::CompressDebugInfo(
     IN ULONG            iOffsetMapping,
     IN ICorDebugInfo::NativeVarInfo * pNativeVarInfo,
     IN ULONG            iNativeVarInfo,
-    IN OUT SBuffer    * pDebugInfoBuffer,
-    ULONG               codeSize
+    IN OUT SBuffer    * pDebugInfoBuffer
+#ifdef DEBUG
+    ,ULONG               codeSize
+#endif
     )
 {
     STANDARD_VM_CONTRACT;
 
-    CompressDebugInfo::CompressBoundariesAndVars(pOffsetMapping, iOffsetMapping, pNativeVarInfo, iNativeVarInfo, pDebugInfoBuffer, NULL, codeSize);
+    CompressDebugInfo::CompressBoundariesAndVars(pOffsetMapping, iOffsetMapping, pNativeVarInfo, iNativeVarInfo, pDebugInfoBuffer, NULL
+#ifdef DEBUG
+        , codeSize
+#endif
+    );
 }
 
 ICorJitHost* CEECompileInfo::GetJitHost()

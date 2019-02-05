@@ -1479,7 +1479,11 @@ public:
                        ULONG32 cMap, ICorDebugInfo::OffsetMapping *pMap);
     void setVars(CORINFO_METHOD_HANDLE ftn, ULONG32 cVars,
                  ICorDebugInfo::NativeVarInfo *vars);
-    void CompressDebugInfo(ULONG codeSize);
+    void CompressDebugInfo(
+#ifdef DEBUG
+        ULONG codeSize
+#endif
+        );
 
     void* getHelperFtn(CorInfoHelpFunc    ftnNum,                 /* IN  */
                        void **            ppIndirection);         /* OUT */

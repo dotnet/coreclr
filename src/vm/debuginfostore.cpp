@@ -441,8 +441,10 @@ PTR_BYTE CompressDebugInfo::CompressBoundariesAndVars(
     IN ICorDebugInfo::NativeVarInfo * pNativeVarInfo,
     IN ULONG            iNativeVarInfo,
     IN OUT SBuffer    * pDebugInfoBuffer,
-    IN LoaderHeap     * pLoaderHeap,
-    IN ULONG            codeSize
+    IN LoaderHeap     * pLoaderHeap
+#ifdef DEBUG
+    ,IN ULONG            codeSize
+#endif
     )
 {
     CONTRACTL {

@@ -1724,8 +1724,10 @@ class ICorCompileInfo
             IN ULONG            iOffsetMapping,
             IN ICorDebugInfo::NativeVarInfo  * pNativeVarInfo,
             IN ULONG            iNativeVarInfo,
-            IN OUT SBuffer    * pDebugInfoBuffer,
-            IN ULONG            codeSize
+            IN OUT SBuffer    * pDebugInfoBuffer
+#ifdef DEBUG
+            ,IN ULONG            codeSize
+#endif
             ) = 0;
 
 
