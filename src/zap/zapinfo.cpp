@@ -1209,7 +1209,7 @@ void ZapInfo::setEHinfo(unsigned EHnumber,
 #endif // _DEBUG
                 ilClause->ClassToken = mdTypeRefNil;
             }
-            else if (m_currentMethodModule != m_pImage->m_hModule)
+            else if (getClassModule(resolvedToken.hClass) != m_currentMethodModule)
             {
                 // For clauses with types from external modules, add fixup to ensure the types are loaded
                 // before the code of the method containing the catch blocks is executed. This ensures
