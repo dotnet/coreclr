@@ -328,7 +328,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public static int IndexOf(ref char searchSpace, char value, int length)
+        public unsafe static int IndexOf(ref char searchSpace, char value, int length)
         {
             Debug.Assert(length >= 0);
 
@@ -385,6 +385,29 @@ namespace System
             {
                 if (offset < length)
                 {
+                    if ((((nint)Unsafe.AsPointer(ref searchSpace) + (nint)offset) & (nint)(Vector256<ushort>.Count - 1)) != 0)
+                    {
+                        // Not currently aligned to Vector256 (is aligned to Vector128); this can cause a problem for searches
+                        // with no upper bound e.g. String.wcslen.
+                        // Start with a check on Vector128 to align to Vector256, before moving to processing Vector256.
+                        // This ensures we do not fault across memory pages while searching for an end of string.
+                        Vector128<ushort> values = Vector128.Create(value);
+                        Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as below
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search).AsByte());
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<ushort>.Count;
+                        }
+                        else
+                        {
+                            // Find bitflag offset of first match and add to current offset
+                            return (int)(offset + (BitOps.TrailingZeroCount(matches) / sizeof(char)));
+                        }
+                    }
+
                     lengthToExamine = GetCharVector256SpanLength(offset, length);
                     if (lengthToExamine > offset)
                     {
