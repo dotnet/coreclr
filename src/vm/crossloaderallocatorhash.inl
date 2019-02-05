@@ -643,6 +643,7 @@ bool CrossLoaderAllocatorHash<TRAITS>::VisitAllKeyValuePairs(Visitor &visitor)
     CONTRACTL
     {
         MODE_COOPERATIVE;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -840,6 +841,7 @@ template <class Visitor>
     CONTRACTL
     {
         MODE_COOPERATIVE;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -884,6 +886,7 @@ template <class Visitor>
     CONTRACTL
     {
         MODE_COOPERATIVE;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -946,6 +949,7 @@ template <class Visitor>
     CONTRACTL
     {
         MODE_COOPERATIVE;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
