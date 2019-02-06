@@ -122,6 +122,7 @@ void SampleProfiler::Disable()
 
     // Wait for the sampling thread to clean itself up.
     s_threadShutdownEvent.Wait(0, FALSE /* bAlertable */);
+    s_threadShutdownEvent.CloseEvent();
 
     if(s_timePeriodIsSet)
     {
@@ -197,7 +198,6 @@ DWORD WINAPI SampleProfiler::ThreadProc(void *args)
 
     // Signal Disable() that the thread has been destroyed.
     s_threadShutdownEvent.Set();
-    s_threadShutdownEvent.CloseEvent();
 
     return S_OK;
 }
