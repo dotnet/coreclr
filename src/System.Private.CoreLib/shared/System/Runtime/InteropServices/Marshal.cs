@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -9,6 +11,12 @@ using System.Text;
 using Microsoft.Win32;
 
 using Internal.Runtime.CompilerServices;
+
+#if BIT64
+using nuint = System.UInt64;
+#else
+using nuint = System.UInt32;
+#endif
 
 namespace System.Runtime.InteropServices
 {
@@ -28,6 +36,8 @@ namespace System.Runtime.InteropServices
         /// The max DBCS character size for the system.
         /// </summary>
         public static readonly int SystemMaxDBCSCharSize = GetSystemMaxDBCSCharSize();
+
+        public static IntPtr AllocHGlobal(int cb) => AllocHGlobal((IntPtr)cb);
 
         public static unsafe string PtrToStringAnsi(IntPtr ptr)
         {
@@ -153,7 +163,30 @@ namespace System.Runtime.InteropServices
             return SizeOfHelper(t, throwIfNotMarshalable: true);
         }
 
-        public static int SizeOf<T>() => SizeOf(typeof(T));        
+        public static int SizeOf<T>() => SizeOf(typeof(T));
+
+        /// <summary>
+        /// IMPORTANT NOTICE: This method does not do any verification on the array.
+        /// It must be used with EXTREME CAUTION since passing in invalid index or
+        /// an array that is not pinned can cause unexpected results.
+        /// </summary>
+        public static unsafe IntPtr UnsafeAddrOfPinnedArrayElement(Array arr, int index)
+        {
+            if (arr == null)
+                throw new ArgumentNullException(nameof(arr));
+
+            void* pRawData = Unsafe.AsPointer(ref arr.GetRawArrayData());
+            return (IntPtr)((byte*)pRawData + (uint)index * (nuint)arr.GetElementSize());
+        }
+
+        public static unsafe IntPtr UnsafeAddrOfPinnedArrayElement<T>(T[] arr, int index)
+        {
+            if (arr == null)
+                throw new ArgumentNullException(nameof(arr));
+
+            void* pRawData = Unsafe.AsPointer(ref arr.GetRawSzArrayData());
+            return (IntPtr)((byte*)pRawData + (uint)index * (nuint)Unsafe.SizeOf<T>());
+        }
 
         public static IntPtr OffsetOf<T>(string fieldName) => OffsetOf(typeof(T), fieldName);
 
@@ -578,6 +611,25 @@ namespace System.Runtime.InteropServices
             return GetExceptionForHRInternal(errorCode, errorInfo);
         }
 
+        /// <summary>
+        /// Throws a CLR exception based on the HRESULT.
+        /// </summary>
+        public static void ThrowExceptionForHR(int errorCode)
+        {
+            if (errorCode < 0)
+            {
+                throw GetExceptionForHR(errorCode, IntPtr.Zero);
+            }
+        }
+
+        public static void ThrowExceptionForHR(int errorCode, IntPtr errorInfo)
+        {
+            if (errorCode < 0)
+            {
+                throw GetExceptionForHR(errorCode, errorInfo);
+            }
+        }
+
         public static IntPtr SecureStringToBSTR(SecureString s)
         {
             if (s == null)
@@ -628,6 +680,134 @@ namespace System.Runtime.InteropServices
             return s.MarshalToString(globalAlloc: true, unicode: true); ;
         }
 
+        public static unsafe IntPtr StringToHGlobalAnsi(string s)
+        {
+            if (s == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            long lnb = (s.Length + 1) * (long)SystemMaxDBCSCharSize;
+            int nb = (int)lnb;
+
+            // Overflow checking
+            if (nb != lnb)
+            {
+                throw new ArgumentOutOfRangeException(nameof(s));
+            }
+
+            IntPtr hglobal = AllocHGlobal((IntPtr)nb);
+
+            StringToAnsiString(s, (byte*)hglobal, nb);
+            return hglobal;
+        }
+
+        public static unsafe IntPtr StringToHGlobalUni(string s)
+        {
+            if (s == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            int nb = (s.Length + 1) * 2;
+
+            // Overflow checking
+            if (nb < s.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(s));
+            }
+
+            IntPtr hglobal = AllocHGlobal((IntPtr)nb);
+            
+            fixed (char* firstChar = s)
+            {
+                string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
+            }
+            return hglobal;
+        }
+
+        public static IntPtr StringToHGlobalAuto(string s)
+        {
+            // Ansi platforms are no longer supported
+            return StringToHGlobalUni(s);
+        }
+
+        public static unsafe IntPtr StringToCoTaskMemUni(string s)
+        {
+            if (s == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            int nb = (s.Length + 1) * 2;
+
+            // Overflow checking
+            if (nb < s.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(s));
+            }
+
+            IntPtr hglobal = AllocCoTaskMem(nb);
+
+            fixed (char* firstChar = s)
+            {
+                string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
+            }
+            return hglobal;
+        }
+
+        public static unsafe IntPtr StringToCoTaskMemUTF8(string s)
+        {
+            if (s == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            int nb = Encoding.UTF8.GetMaxByteCount(s.Length);
+
+            IntPtr pMem = AllocCoTaskMem(nb + 1);
+
+            int nbWritten;
+            byte* pbMem = (byte*)pMem;
+
+            fixed (char* firstChar = s)
+            {
+                nbWritten = Encoding.UTF8.GetBytes(firstChar, s.Length, pbMem, nb);
+            }
+
+            pbMem[nbWritten] = 0;
+
+            return pMem;
+        }
+
+        public static IntPtr StringToCoTaskMemAuto(string s)
+        {
+            // Ansi platforms are no longer supported
+            return StringToCoTaskMemUni(s);
+        }
+
+        public static unsafe IntPtr StringToCoTaskMemAnsi(string s)
+        {
+            if (s == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            long lnb = (s.Length + 1) * (long)SystemMaxDBCSCharSize;
+            int nb = (int)lnb;
+
+            // Overflow checking
+            if (nb != lnb)
+            {
+                throw new ArgumentOutOfRangeException(nameof(s));
+            }
+
+            IntPtr hglobal = AllocCoTaskMem(nb);
+
+            StringToAnsiString(s, (byte*)hglobal, nb);
+            return hglobal;
+        }
+
         /// <summary>
         /// Generates a GUID for the specified type. If the type has a GUID in the
         /// metadata then it is returned otherwise a stable guid is generated based
@@ -645,6 +825,36 @@ namespace System.Runtime.InteropServices
             }
 
             return type.GUID;
+        }
+
+        /// <summary>
+        /// This method generates a PROGID for the specified type. If the type has
+        /// a PROGID in the metadata then it is returned otherwise a stable PROGID
+        /// is generated based on the fully qualified name of the type.
+        /// </summary>
+        public static string GenerateProgIdForType(Type type)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
+            if (type.IsImport)
+            {
+                throw new ArgumentException(SR.Argument_TypeMustNotBeComImport, nameof(type));
+            }
+            if (type.IsGenericType)
+            {
+                throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(type));
+            }
+
+            ProgIdAttribute progIdAttribute = type.GetCustomAttribute<ProgIdAttribute>();
+            if (progIdAttribute != null)
+            {
+                return progIdAttribute.Value ?? string.Empty;
+            }
+
+            // If there is no prog ID attribute then use the full name of the type as the prog id.
+            return type.FullName;
         }
 
         public static Delegate GetDelegateForFunctionPointer(IntPtr ptr, Type t)
@@ -693,6 +903,79 @@ namespace System.Runtime.InteropServices
         public static IntPtr GetFunctionPointerForDelegate<TDelegate>(TDelegate d)
         {
             return GetFunctionPointerForDelegate((Delegate)(object)d);
+        }
+
+        public static int GetHRForLastWin32Error()
+        {
+            int dwLastError = GetLastWin32Error();
+            if ((dwLastError & 0x80000000) == 0x80000000)
+            {
+                return dwLastError;
+            }
+
+            return (dwLastError & 0x0000FFFF) | unchecked((int)0x80070000);
+        }
+
+        public static IntPtr /* IDispatch */ GetIDispatchForObject(object o) => throw new PlatformNotSupportedException();
+
+        public static void ZeroFreeBSTR(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)SysStringByteLen(s));
+            FreeBSTR(s);
+        }
+
+        public unsafe static void ZeroFreeCoTaskMemAnsi(IntPtr s)
+        {
+            ZeroFreeCoTaskMemUTF8(s);
+        }
+
+        public static unsafe void ZeroFreeCoTaskMemUnicode(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
+            FreeCoTaskMem(s);
+        }
+
+        public static unsafe void ZeroFreeCoTaskMemUTF8(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
+            FreeCoTaskMem(s);
+        }
+
+        public unsafe static void ZeroFreeGlobalAllocAnsi(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
+            FreeHGlobal(s);
+        }
+
+        public static unsafe void ZeroFreeGlobalAllocUnicode(IntPtr s)
+        {
+            if (s == IntPtr.Zero)
+            {
+                return;
+            }
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
+            FreeHGlobal(s);
+        }
+
+        internal static unsafe uint SysStringByteLen(IntPtr s)
+        {
+            return *(((uint*)s) - 1);
         }
     }
 }

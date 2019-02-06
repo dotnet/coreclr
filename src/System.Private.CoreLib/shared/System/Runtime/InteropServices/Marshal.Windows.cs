@@ -2,10 +2,22 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
+
 namespace System.Runtime.InteropServices
 {
     public static partial class Marshal
     {
+        private static unsafe int GetSystemMaxDBCSCharSize()
+        {
+            Interop.Kernel32.CPINFO cpInfo = default;
+
+            if (Interop.Kernel32.GetCPInfo(Interop.Kernel32.CP_ACP, &cpInfo) == Interop.BOOL.FALSE)
+                return 2;
+
+            return cpInfo.MaxCharSize;
+        }
+
         // Win32 has the concept of Atoms, where a pointer can either be a pointer
         // or an int.  If it's less than 64K, this is guaranteed to NOT be a
         // pointer since the bottom 64K bytes are reserved in a process' page table.
@@ -18,6 +30,37 @@ namespace System.Runtime.InteropServices
 
             long lPtr = (long)ptr;
             return 0 == (lPtr & HIWORDMASK);
+        }
+
+        internal static unsafe int StringToAnsiString(string s, byte* buffer, int bufferLength, bool bestFit = false, bool throwOnUnmappableChar = false)
+        {
+            Debug.Assert(bufferLength >= (s.Length + 1) * SystemMaxDBCSCharSize, "Insufficient buffer length passed to StringToAnsiString");
+
+            int nb;
+
+            uint flags = bestFit ? 0 : Interop.Kernel32.WC_NO_BEST_FIT_CHARS;
+            uint defaultCharUsed = 0;
+
+            fixed (char* pwzChar = s)
+            {
+                nb = Interop.Kernel32.WideCharToMultiByte(
+                    Interop.Kernel32.CP_ACP,
+                    flags,
+                    pwzChar,
+                    s.Length,
+                    buffer,
+                    bufferLength,
+                    IntPtr.Zero,
+                    throwOnUnmappableChar ? new IntPtr(&defaultCharUsed) : IntPtr.Zero);
+            }
+
+            if (defaultCharUsed != 0)
+            {
+                throw new ArgumentException(SR.Interop_Marshal_Unmappable_Char);
+            }
+
+            buffer[nb] = 0;
+            return nb;
         }
     }
 }

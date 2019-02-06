@@ -23,9 +23,6 @@ using Internal.Runtime.CompilerServices;
 using Thread = Internal.Runtime.Augments.RuntimeThread;
 #endif
 
-// Disable the "reference to volatile field not treated as volatile" error.
-#pragma warning disable 0420
-
 namespace System.Threading.Tasks
 {
     /// <summary>
@@ -2621,6 +2618,13 @@ namespace System.Threading.Tasks
         {
             Debug.Assert(stateMachineBox != null);
 
+            // This code path doesn't emit all expected TPL-related events, such as for continuations.
+            // It's expected that all callers check whether events are enabled before calling this function,
+            // and only call it if they're not, so we assert. However, as events can be dynamically turned
+            // on and off, it's possible this assert could fire even when used correctly.  If it becomes
+            // noisy, it can be deleted.
+            Debug.Assert(!TplEventSource.Log.IsEnabled());
+
             // If the caller wants to continue on the current context/scheduler and there is one,
             // fall back to using the state machine's delegate.
             if (continueOnCapturedContext)
@@ -2650,11 +2654,12 @@ namespace System.Threading.Tasks
                 }
             }
 
-            // Otherwise, add the state machine box directly as the ITaskCompletionAction continuation.
-            // If we're unable to because the task has already completed, queue the delegate.
+            // Otherwise, add the state machine box directly as the continuation.
+            // If we're unable to because the task has already completed, queue it.
             if (!AddTaskContinuation(stateMachineBox, addBeforeOthers: false))
             {
-                AwaitTaskContinuation.UnsafeScheduleAction(stateMachineBox.MoveNextAction, this);
+                Debug.Assert(stateMachineBox is Task, "Every state machine box should derive from Task");
+                ThreadPool.UnsafeQueueUserWorkItemInternal(stateMachineBox, preferLocal: true);
             }
         }
 
@@ -3190,6 +3195,113 @@ namespace System.Threading.Tasks
             Debug.Assert(IsCancellationRequested, "SetCancellationAcknowledged() should not be called if the task's CT wasn't signaled");
 
             m_stateFlags |= TASK_STATE_CANCELLATIONACKNOWLEDGED;
+        }
+
+        /// <summary>Completes a promise task as RanToCompletion.</summary>
+        /// <remarks>If this is a Task{T}, default(T) is the implied result.</remarks>
+        /// <returns>true if the task was transitioned to ran to completion; false if it was already completed.</returns>
+        internal bool TrySetResult()
+        {
+            Debug.Assert(m_action == null, "Task<T>.TrySetResult(): non-null m_action");
+
+            if (AtomicStateUpdate(
+                TASK_STATE_COMPLETION_RESERVED | TASK_STATE_RAN_TO_COMPLETION,
+                TASK_STATE_COMPLETION_RESERVED | TASK_STATE_RAN_TO_COMPLETION | TASK_STATE_FAULTED | TASK_STATE_CANCELED))
+            {
+                ContingentProperties props = m_contingentProperties;
+                if (props != null)
+                {
+                    NotifyParentIfPotentiallyAttachedTask();
+                    props.SetCompleted();
+                }
+                FinishContinuations();
+                return true;
+            }
+
+            return false;
+        }
+
+        // Allow multiple exceptions to be assigned to a promise-style task.
+        // This is useful when a TaskCompletionSource<T> stands in as a proxy
+        // for a "real" task (as we do in Unwrap(), ContinueWhenAny() and ContinueWhenAll())
+        // and the "real" task ends up with multiple exceptions, which is possible when
+        // a task has children.
+        //
+        // Called from TaskCompletionSource<T>.SetException(IEnumerable<Exception>).
+        internal bool TrySetException(object exceptionObject)
+        {
+            Debug.Assert(m_action == null, "Task<T>.TrySetException(): non-null m_action");
+
+            // TCS.{Try}SetException() should have checked for this
+            Debug.Assert(exceptionObject != null, "Expected non-null exceptionObject argument");
+
+            // Only accept these types.
+            Debug.Assert(
+                (exceptionObject is Exception) || (exceptionObject is IEnumerable<Exception>) ||
+                (exceptionObject is ExceptionDispatchInfo) || (exceptionObject is IEnumerable<ExceptionDispatchInfo>),
+                "Expected exceptionObject to be either Exception, ExceptionDispatchInfo, or IEnumerable<> of one of those");
+
+            bool returnValue = false;
+
+            // "Reserve" the completion for this task, while making sure that: (1) No prior reservation
+            // has been made, (2) The result has not already been set, (3) An exception has not previously 
+            // been recorded, and (4) Cancellation has not been requested.
+            //
+            // If the reservation is successful, then add the exception(s) and finish completion processing.
+            //
+            // The lazy initialization may not be strictly necessary, but I'd like to keep it here
+            // anyway.  Some downstream logic may depend upon an inflated m_contingentProperties.
+            EnsureContingentPropertiesInitialized();
+            if (AtomicStateUpdate(
+                TASK_STATE_COMPLETION_RESERVED,
+                TASK_STATE_COMPLETION_RESERVED | TASK_STATE_RAN_TO_COMPLETION | TASK_STATE_FAULTED | TASK_STATE_CANCELED))
+            {
+                AddException(exceptionObject); // handles singleton exception or exception collection
+                Finish(false);
+                returnValue = true;
+            }
+
+            return returnValue;
+        }
+
+        // internal helper function breaks out logic used by TaskCompletionSource and AsyncMethodBuilder
+        // If the tokenToRecord is not None, it will be stored onto the task.
+        // This method is only valid for promise tasks.
+        internal bool TrySetCanceled(CancellationToken tokenToRecord)
+        {
+            return TrySetCanceled(tokenToRecord, null);
+        }
+
+        // internal helper function breaks out logic used by TaskCompletionSource and AsyncMethodBuilder
+        // If the tokenToRecord is not None, it will be stored onto the task.
+        // If the OperationCanceledException is not null, it will be stored into the task's exception holder.
+        // This method is only valid for promise tasks.
+        internal bool TrySetCanceled(CancellationToken tokenToRecord, object cancellationException)
+        {
+            Debug.Assert(m_action == null, "Task<T>.TrySetCanceled(): non-null m_action");
+            Debug.Assert(
+                cancellationException == null ||
+                cancellationException is OperationCanceledException ||
+                (cancellationException as ExceptionDispatchInfo)?.SourceException is OperationCanceledException,
+                "Expected null or an OperationCanceledException");
+
+            bool returnValue = false;
+
+            // "Reserve" the completion for this task, while making sure that: (1) No prior reservation
+            // has been made, (2) The result has not already been set, (3) An exception has not previously 
+            // been recorded, and (4) Cancellation has not been requested.
+            //
+            // If the reservation is successful, then record the cancellation and finish completion processing.
+            if (AtomicStateUpdate(
+                TASK_STATE_COMPLETION_RESERVED,
+                TASK_STATE_COMPLETION_RESERVED | TASK_STATE_CANCELED | TASK_STATE_FAULTED | TASK_STATE_RAN_TO_COMPLETION))
+            {
+                RecordInternalCancellationRequest(tokenToRecord, cancellationException);
+                CancellationCleanupLogic(); // perform cancellation cleanup actions
+                returnValue = true;
+            }
+
+            return returnValue;
         }
 
 
@@ -5054,7 +5166,12 @@ namespace System.Threading.Tasks
         /// <returns>The faulted task.</returns>
         public static Task FromException(Exception exception)
         {
-            return FromException<VoidTaskResult>(exception);
+            if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
+
+            var task = new Task();
+            bool succeeded = task.TrySetException(exception);
+            Debug.Assert(succeeded, "This should always succeed on a new task.");
+            return task;
         }
 
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed exceptionally with the specified exception.</summary>
@@ -5092,13 +5209,26 @@ namespace System.Threading.Tasks
             return new Task<TResult>(true, default, TaskCreationOptions.None, cancellationToken);
         }
 
+        /// <summary>Creates a <see cref="Task"/> that's completed due to cancellation with the specified exception.</summary>
+        /// <param name="exception">The exception with which to complete the task.</param>
+        /// <returns>The canceled task.</returns>
+        internal static Task FromCanceled(OperationCanceledException exception)
+        {
+            Debug.Assert(exception != null);
+
+            var task = new Task();
+            bool succeeded = task.TrySetCanceled(exception.CancellationToken, exception);
+            Debug.Assert(succeeded, "This should always succeed on a new task.");
+            return task;
+        }
+
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified exception.</summary>
         /// <typeparam name="TResult">The type of the result returned by the task.</typeparam>
         /// <param name="exception">The exception with which to complete the task.</param>
         /// <returns>The canceled task.</returns>
-        internal static Task<TResult> FromCancellation<TResult>(OperationCanceledException exception)
+        internal static Task<TResult> FromCanceled<TResult>(OperationCanceledException exception)
         {
-            if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
+            Debug.Assert(exception != null);
 
             var task = new Task<TResult>();
             bool succeeded = task.TrySetCanceled(exception.CancellationToken, exception);
@@ -5357,81 +5487,86 @@ namespace System.Threading.Tasks
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.millisecondsDelay, ExceptionResource.Task_Delay_InvalidMillisecondsDelay);
             }
 
-            // some short-cuts in case quick completion is in order
-            if (cancellationToken.IsCancellationRequested)
-            {
-                // return a Task created as already-Canceled
-                return Task.FromCanceled(cancellationToken);
-            }
-            else if (millisecondsDelay == 0)
-            {
-                // return a Task created as already-RanToCompletion
-                return Task.CompletedTask;
-            }
-
-            // Construct a promise-style Task to encapsulate our return value
-            var promise = new DelayPromise(cancellationToken);
-
-            // Register our cancellation token, if necessary.
-            if (cancellationToken.CanBeCanceled)
-            {
-                promise.Registration = cancellationToken.UnsafeRegister(state => ((DelayPromise)state).Complete(), promise);
-            }
-
-            // ... and create our timer and make sure that it stays rooted.
-            if (millisecondsDelay != Timeout.Infinite) // no need to create the timer if it's an infinite timeout
-            {
-                promise.Timer = new TimerQueueTimer(state => ((DelayPromise)state).Complete(), promise, (uint)millisecondsDelay, Timeout.UnsignedInfinite, flowExecutionContext: false);
-            }
-
-            // Return the timer proxy task
-            return promise;
+            return
+                cancellationToken.IsCancellationRequested ? FromCanceled(cancellationToken) :
+                millisecondsDelay == 0 ? CompletedTask :
+                cancellationToken.CanBeCanceled ? new DelayPromiseWithCancellation(millisecondsDelay, cancellationToken) :
+                new DelayPromise(millisecondsDelay);
         }
 
         /// <summary>Task that also stores the completion closure and logic for Task.Delay implementation.</summary>
-        private sealed class DelayPromise : Task<VoidTaskResult>
+        private class DelayPromise : Task
         {
-            internal DelayPromise(CancellationToken token)
-                : base()
+            private readonly TimerQueueTimer _timer;
+
+            internal DelayPromise(int millisecondsDelay)
             {
-                this.Token = token;
+                Debug.Assert(millisecondsDelay != 0);
+
                 if (AsyncCausalityTracer.LoggingOn)
                     AsyncCausalityTracer.TraceOperationCreation(this, "Task.Delay");
 
                 if (s_asyncDebuggingEnabled)
                     AddToActiveTasks(this);
+
+                if (millisecondsDelay != Timeout.Infinite) // no need to create the timer if it's an infinite timeout
+                {
+                    _timer = new TimerQueueTimer(state => ((DelayPromise)state).CompleteTimedOut(), this, (uint)millisecondsDelay, Timeout.UnsignedInfinite, flowExecutionContext: false);
+                    if (IsCanceled)
+                    {
+                        // Handle rare race condition where cancellation occurs prior to our having created and stored the timer, in which case
+                        // the timer won't have been cleaned up appropriately.  This call to close might race with the Cleanup call to Close,
+                        // but Close is thread-safe and will be a nop if it's already been closed.
+                        _timer.Close();
+                    }
+                }
             }
 
-            internal readonly CancellationToken Token;
-            internal CancellationTokenRegistration Registration;
-            internal TimerQueueTimer Timer;
-
-            internal void Complete()
+            private void CompleteTimedOut()
             {
-                // Transition the task to completed.
-                bool setSucceeded;
-
-                if (Token.IsCancellationRequested)
+                if (TrySetResult())
                 {
-                    setSucceeded = TrySetCanceled(Token);
-                }
-                else
-                {
-                    if (AsyncCausalityTracer.LoggingOn)
-                        AsyncCausalityTracer.TraceOperationCompletion(this, AsyncCausalityStatus.Completed);
+                    Cleanup();
 
                     if (s_asyncDebuggingEnabled)
                         RemoveFromActiveTasks(this);
 
-                    setSucceeded = TrySetResult(default);
+                    if (AsyncCausalityTracer.LoggingOn)
+                        AsyncCausalityTracer.TraceOperationCompletion(this, AsyncCausalityStatus.Completed);
                 }
+            }
 
-                // If we set the value, also clean up.
-                if (setSucceeded)
+            protected virtual void Cleanup() => _timer?.Close();
+        }
+
+        /// <summary>DelayPromise that also supports cancellation.</summary>
+        private sealed class DelayPromiseWithCancellation : DelayPromise
+        {
+            private readonly CancellationToken _token;
+            private readonly CancellationTokenRegistration _registration;
+
+            internal DelayPromiseWithCancellation(int millisecondsDelay, CancellationToken token) : base(millisecondsDelay)
+            {
+                Debug.Assert(token.CanBeCanceled);
+
+                _token = token;
+                _registration = token.UnsafeRegister(state => ((DelayPromiseWithCancellation)state).CompleteCanceled(), this);
+            }
+
+            private void CompleteCanceled()
+            {
+                if (TrySetCanceled(_token))
                 {
-                    Timer?.Close();
-                    Registration.Dispose();
+                    Cleanup();
+                    // This path doesn't invoke RemoveFromActiveTasks or TraceOperationCompletion
+                    // because that's strangely already handled inside of TrySetCanceled.
                 }
+            }
+
+            protected override void Cleanup()
+            {
+                _registration.Dispose();
+                base.Cleanup();
             }
         }
         #endregion
@@ -5555,10 +5690,10 @@ namespace System.Threading.Tasks
                 new WhenAllPromise(tasks);
         }
 
-        // A Task<VoidTaskResult> that gets completed when all of its constituent tasks complete.
+        // A Task that gets completed when all of its constituent tasks complete.
         // Completion logic will analyze the antecedents in order to choose completion status.
         // This type allows us to replace this logic:
-        //      Task<VoidTaskResult> promise = new Task<VoidTaskResult>(...);
+        //      Task promise = new Task(...);
         //      Action<Task> completionAction = delegate { <completion logic>};
         //      TaskFactory.CommonCWAllLogic(tasksCopy).AddCompletionAction(completionAction);
         //      return promise;
@@ -5567,7 +5702,7 @@ namespace System.Threading.Tasks
         // which saves a couple of allocations and enables debugger notification specialization.
         //
         // Used in InternalWhenAll(Task[])
-        private sealed class WhenAllPromise : Task<VoidTaskResult>, ITaskCompletionAction
+        private sealed class WhenAllPromise : Task, ITaskCompletionAction
         {
             /// <summary>
             /// Stores all of the constituent tasks.  Tasks clear themselves out of this
@@ -5577,8 +5712,7 @@ namespace System.Threading.Tasks
             /// <summary>The number of tasks remaining to complete.</summary>
             private int m_count;
 
-            internal WhenAllPromise(Task[] tasks) :
-                base()
+            internal WhenAllPromise(Task[] tasks)
             {
                 Debug.Assert(tasks != null, "Expected a non-null task array");
                 Debug.Assert(tasks.Length > 0, "Expected a non-zero length task array");
@@ -5656,7 +5790,7 @@ namespace System.Threading.Tasks
                         if (s_asyncDebuggingEnabled)
                             RemoveFromActiveTasks(this);
 
-                        TrySetResult(default);
+                        TrySetResult();
                     }
                 }
                 Debug.Assert(m_count >= 0, "Count should never go below 0");
@@ -6027,7 +6161,7 @@ namespace System.Threading.Tasks
             Task<Task> intermediate = WhenAny((Task[])tasks);
 
             // Return a continuation task with the correct result type
-            return intermediate.ContinueWith(Task<TResult>.TaskWhenAnyCast, default,
+            return intermediate.ContinueWith(Task<TResult>.TaskWhenAnyCast.Value, default,
                 TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
         }
 
@@ -6056,7 +6190,7 @@ namespace System.Threading.Tasks
             Task<Task> intermediate = WhenAny((IEnumerable<Task>)tasks);
 
             // Return a continuation task with the correct result type
-            return intermediate.ContinueWith(Task<TResult>.TaskWhenAnyCast, default,
+            return intermediate.ContinueWith(Task<TResult>.TaskWhenAnyCast.Value, default,
                 TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
         }
         #endregion

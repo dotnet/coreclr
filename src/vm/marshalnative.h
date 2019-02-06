@@ -44,7 +44,6 @@ public:
     //====================================================================
     // These methods convert between an HR and and a managed exception.
     //====================================================================
-    static FCDECL2(void, ThrowExceptionForHR, INT32 errorCode, LPVOID errorInfo);
     static FCDECL2(Object *, GetExceptionForHR, INT32 errorCode, LPVOID errorInfo);
     static FCDECL1(int, GetHRForException, Object* eUNSAFE);
     static FCDECL1(int, GetHRForException_WinRT, Object* eUNSAFE);
@@ -68,8 +67,6 @@ public:
 
     static FCDECL3(LPVOID, GetUnmanagedThunkForManagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature);
     static FCDECL3(LPVOID, GetManagedThunkForUnmanagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature);
-
-    static FCDECL0(UINT32, GetSystemMaxDBCSCharSize);
 
     static FCDECL2(LPVOID, GCHandleInternalAlloc, Object *obj, int type);
     static FCDECL1(VOID, GCHandleInternalFree, OBJECTHANDLE handle);

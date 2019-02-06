@@ -716,6 +716,7 @@ FCFuncStart(gWaitHandleFuncs)
     FCFuncElement("WaitOneNative", WaitHandleNative::CorWaitOneNative)
     FCFuncElement("WaitMultiple", WaitHandleNative::CorWaitMultipleNative)
     FCFuncElement("SignalAndWaitOne", WaitHandleNative::CorSignalAndWaitOneNative)
+    FCFuncElement("WaitMultipleIgnoringSyncContext", WaitHandleNative::WaitHelper)
 FCFuncEnd()
 
 #ifdef FEATURE_COMINTEROP
@@ -805,7 +806,6 @@ FCFuncStart(gInteropMarshalFuncs)
     FCFuncElement("GetLastWin32Error", MarshalNative::GetLastWin32Error)
     FCFuncElement("SetLastWin32Error", MarshalNative::SetLastWin32Error)
     FCFuncElement("SizeOfHelper", MarshalNative::SizeOfClass)
-    FCFuncElement("GetSystemMaxDBCSCharSize", MarshalNative::GetSystemMaxDBCSCharSize)
     FCFuncElement("StructureToPtr", MarshalNative::StructureToPtr)
     FCFuncElement("PtrToStructureHelper", MarshalNative::PtrToStructureHelper)
     FCFuncElement("DestroyStructure", MarshalNative::DestroyStructure)
@@ -817,7 +817,6 @@ FCFuncStart(gInteropMarshalFuncs)
     FCFuncElement("OffsetOfHelper", MarshalNative::OffsetOfHelper)
 
     QCFuncElement("InternalPrelink", MarshalNative::Prelink)
-    FCFuncElement("ThrowExceptionForHRInternal", MarshalNative::ThrowExceptionForHR)
     FCFuncElement("GetExceptionForHRInternal", MarshalNative::GetExceptionForHR)
     FCFuncElement("GetDelegateForFunctionPointerInternal", MarshalNative::GetDelegateForFunctionPointerInternal)
     FCFuncElement("GetFunctionPointerForDelegateInternal", MarshalNative::GetFunctionPointerForDelegateInternal)
@@ -951,7 +950,6 @@ FCFuncStart(gRuntimeHelpers)
 FCFuncEnd()
 
 FCFuncStart(gContextSynchronizationFuncs)
-    FCFuncElement("WaitHelperNative", SynchronizationContextNative::WaitHelper)
 #ifdef FEATURE_APPX
     QCFuncElement("GetWinRTDispatcherForCurrentThread", SynchronizationContextNative::GetWinRTDispatcherForCurrentThread)
 #endif

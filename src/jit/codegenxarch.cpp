@@ -2668,13 +2668,6 @@ BAILOUT:
     }
 #endif // JIT32_GCENCODER
 
-#if STACK_PROBES
-    if (compiler->opts.compNeedStackProbes)
-    {
-        genGenerateStackProbe();
-    }
-#endif
-
 #ifdef DEBUG
     // Update local variable to reflect the new stack pointer.
     if (compiler->opts.compStackCheckOnRet)
@@ -4386,9 +4379,11 @@ void CodeGen::genCodeForLclAddr(GenTree* tree)
     regNumber targetReg  = tree->gtRegNum;
 
     // Address of a local var.
-    noway_assert(targetType == TYP_BYREF);
+    noway_assert((targetType == TYP_BYREF) || (targetType == TYP_I_IMPL));
 
-    inst_RV_TT(INS_lea, targetReg, tree, 0, EA_BYREF);
+    emitAttr size = emitTypeSize(targetType);
+
+    inst_RV_TT(INS_lea, targetReg, tree, 0, size);
     genProduceReg(tree);
 }
 
