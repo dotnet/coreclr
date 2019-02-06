@@ -10,7 +10,7 @@
 #include "gcheaphashtable.inl"
 
 template <class TKey_, class TValue_>
-/*static*/ DWORD NoRemoveDefaultCrossLoaderAllocatorHashTraits<TKey_, TValue_>::ComputeUsedEntries(OBJECTREF &keyValueStore, DWORD *pEntriesInArrayTotal)
+/*static*/ DWORD NoRemoveDefaultCrossLoaderAllocatorHashTraits<TKey_, TValue_>::ComputeUsedEntries(OBJECTREF *pKeyValueStore, DWORD *pEntriesInArrayTotal)
 {
     CONTRACTL
     {
@@ -20,9 +20,9 @@ template <class TKey_, class TValue_>
     }
     CONTRACTL_END;
 
-    DWORD entriesInArrayTotal = (((I1ARRAYREF)keyValueStore)->GetNumComponents() - sizeof(TKey))/sizeof(TValue);
+    DWORD entriesInArrayTotal = (((I1ARRAYREF)*pKeyValueStore)->GetNumComponents() - sizeof(TKey))/sizeof(TValue);
     DWORD usedEntries;
-    TValue* pStartOfValuesData = (TValue*)(((I1ARRAYREF)keyValueStore)->GetDirectPointerToNonObjectElements() + sizeof(TKey));
+    TValue* pStartOfValuesData = (TValue*)(((I1ARRAYREF)*pKeyValueStore)->GetDirectPointerToNonObjectElements() + sizeof(TKey));
 
     if (entriesInArrayTotal == 0)
     {
@@ -64,7 +64,7 @@ template <class TKey_, class TValue_>
 }
 
 template <class TKey_, class TValue_>
-/*static*/ void NoRemoveDefaultCrossLoaderAllocatorHashTraits<TKey_, TValue_>::AddToValuesInHeapMemory(OBJECTREF &keyValueStore, OBJECTREF &newKeyValueStore, const TKey& key, const TValue& value)
+/*static*/ bool NoRemoveDefaultCrossLoaderAllocatorHashTraits<TKey_, TValue_>::AddToValuesInHeapMemory(OBJECTREF *pKeyValueStore, const TKey& key, const TValue& value)
 {
     CONTRACTL
     {
@@ -76,23 +76,24 @@ template <class TKey_, class TValue_>
 
     static_assert(sizeof(TKey)==sizeof(TValue), "Assume keys and values are the same size");
 
-    if (keyValueStore == NULL)
+    bool updatedKeyValueStore = false;
+
+    if (*pKeyValueStore == NULL)
     {
-        newKeyValueStore = AllocatePrimitiveArray(ELEMENT_TYPE_I1, (value == NULL) ? sizeof(TKey) : sizeof(TKey) + sizeof(TValue), FALSE);
-        TKey* pKeyLoc = (TKey*)((I1ARRAYREF)newKeyValueStore)->GetDirectPointerToNonObjectElements();
+        *pKeyValueStore = AllocatePrimitiveArray(ELEMENT_TYPE_I1, (value == NULL) ? sizeof(TKey) : sizeof(TKey) + sizeof(TValue), FALSE);
+        updatedKeyValueStore = true;
+        TKey* pKeyLoc = (TKey*)((I1ARRAYREF)*pKeyValueStore)->GetDirectPointerToNonObjectElements();
         *pKeyLoc = key;
         if (value != NULL)
         {
-            BYTE* pInitialValueLocLoc = (BYTE*)((I1ARRAYREF)newKeyValueStore)->GetDirectPointerToNonObjectElements();
-            TValue* pValueLoc = (TValue*)(((I1ARRAYREF)newKeyValueStore)->GetDirectPointerToNonObjectElements() + sizeof(TKey));
+            TValue* pValueLoc = (TValue*)(((I1ARRAYREF)*pKeyValueStore)->GetDirectPointerToNonObjectElements() + sizeof(TKey));
             *pValueLoc = value;
         }
     }
     else if (value != NULL)
     {
         DWORD entriesInArrayTotal;
-        DWORD usedEntries = ComputeUsedEntries(keyValueStore, &entriesInArrayTotal);
-        TValue* pStartOfValuesData = (TValue*)(((I1ARRAYREF)keyValueStore)->GetDirectPointerToNonObjectElements() + sizeof(TKey));
+        DWORD usedEntries = ComputeUsedEntries(pKeyValueStore, &entriesInArrayTotal);
 
         if (usedEntries == entriesInArrayTotal)
         {
@@ -106,21 +107,28 @@ template <class TKey_, class TValue_>
             if (newSize < usedEntries)
                 COMPlusThrow(kOverflowException);
 
-            newKeyValueStore = AllocatePrimitiveArray(ELEMENT_TYPE_I1, newSize*sizeof(TValue) + sizeof(TKey), FALSE);
-            void* pStartOfNewArray = ((I1ARRAYREF)newKeyValueStore)->GetDirectPointerToNonObjectElements();
-            void* pStartOfOldArray = ((I1ARRAYREF)keyValueStore)->GetDirectPointerToNonObjectElements();
+            // Allocate the new array.
+            I1ARRAYREF newKeyValueStore = (I1ARRAYREF)AllocatePrimitiveArray(ELEMENT_TYPE_I1, newSize*sizeof(TValue) + sizeof(TKey), FALSE);
 
-            memcpyNoGCRefs(pStartOfNewArray, pStartOfOldArray, ((I1ARRAYREF)keyValueStore)->GetNumComponents());
+            // Since, AllocatePrimitiveArray may have triggered a GC, recapture all data pointers from GC objects
+            void* pStartOfNewArray = newKeyValueStore->GetDirectPointerToNonObjectElements();
+            void* pStartOfOldArray = ((I1ARRAYREF)*pKeyValueStore)->GetDirectPointerToNonObjectElements();
 
-            keyValueStore = newKeyValueStore;
-            pStartOfValuesData = (TValue*)(((BYTE*)pStartOfNewArray) + sizeof(TKey));
+            memcpyNoGCRefs(pStartOfNewArray, pStartOfOldArray, ((I1ARRAYREF)*pKeyValueStore)->GetNumComponents());
+
+            *pKeyValueStore = (OBJECTREF)newKeyValueStore;
+            updatedKeyValueStore = true;
+
             entriesInArrayTotal = newSize;
         }
 
         // There is free space. Append on the end
+        TValue* pStartOfValuesData = (TValue*)(((I1ARRAYREF)*pKeyValueStore)->GetDirectPointerToNonObjectElements() + sizeof(TKey));
         SetUsedEntries(pStartOfValuesData, entriesInArrayTotal, usedEntries + 1);
         pStartOfValuesData[usedEntries] = value;
     }
+
+    return updatedKeyValueStore;
 }
 #endif //!DACCESS_COMPILE
 
@@ -140,7 +148,7 @@ template <class Visitor>
     WRAPPER_NO_CONTRACT;
 
     DWORD entriesInArrayTotal;
-    DWORD usedEntries = ComputeUsedEntries(*pKeyValueStore, &entriesInArrayTotal);
+    DWORD usedEntries = ComputeUsedEntries(pKeyValueStore, &entriesInArrayTotal);
 
     for (DWORD index = 0; index < usedEntries; ++index)
     {
@@ -175,7 +183,7 @@ template <class TKey_, class TValue_>
     // of the linear search
 
     DWORD entriesInArrayTotal;
-    DWORD usedEntries = NoRemoveDefaultCrossLoaderAllocatorHashTraits<TKey,TValue>::ComputeUsedEntries(keyValueStore, &entriesInArrayTotal);
+    DWORD usedEntries = NoRemoveDefaultCrossLoaderAllocatorHashTraits<TKey,TValue>::ComputeUsedEntries(&keyValueStore, &entriesInArrayTotal);
     TValue* pStartOfValuesData = (TValue*)(((I1ARRAYREF)keyValueStore)->GetDirectPointerToNonObjectElements() + sizeof(TKey));
 
     for (DWORD iEntry = 0; iEntry < usedEntries; iEntry++)
@@ -346,8 +354,6 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
         KeyToValuesGCHeapHash keyToTrackersHash;
         KeyToValuesGCHeapHash keyToValuePerLAHash;
         OBJECTREF keyValueStore;
-        OBJECTREF newKeyValueStore;
-        OBJECTREF objRefNull;
         OBJECTREF hashKeyEntry;
         LAHASHKEYTOTRACKERSREF hashKeyToTrackers;
     } gc;
@@ -359,26 +365,25 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
         bool addToKeyValuesHash = false;
         // This data structure actually doesn't have this invariant, but it is expected that uses of this
         // data structure will require that the key's loader allocator is the same as that of this data structure.
-        _ASSERTE(key->GetLoaderAllocator() == _loaderAllocator);
+        _ASSERTE(key->GetLoaderAllocator() == _pLoaderAllocator);
 
-        gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(KeyToDependentTrackersHash));
+        gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(_keyToDependentTrackersHash));
         INT32 index = gc.keyToTrackersHash.GetValueIndex(&key);
 
         if (index == -1)
         {
             addToKeyValuesHash = true;
-            TRAITS::AddToValuesInHeapMemory(gc.keyValueStore, gc.newKeyValueStore, key, pLoaderAllocatorOfValue == _loaderAllocator ? value : NULL);
-            gc.keyValueStore = gc.newKeyValueStore;
+            TRAITS::AddToValuesInHeapMemory(&gc.keyValueStore, key, pLoaderAllocatorOfValue == _pLoaderAllocator ? value : NULL);
 
-            if (pLoaderAllocatorOfValue != _loaderAllocator)
+            if (pLoaderAllocatorOfValue != _pLoaderAllocator)
             {
                 gc.hashKeyToTrackers = (LAHASHKEYTOTRACKERSREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__LAHASHKEYTOTRACKERS));
-                SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.newKeyValueStore, GetAppDomain());
+                SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.keyValueStore, GetAppDomain());
                 gc.hashKeyEntry = gc.hashKeyToTrackers;
             }
             else
             {
-                gc.hashKeyEntry = gc.newKeyValueStore;
+                gc.hashKeyEntry = gc.keyValueStore;
             }
 
             gc.keyToTrackersHash.Add(&key, [&gc](PTRARRAYREF arr, INT32 index)
@@ -400,28 +405,29 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
                 gc.keyValueStore = gc.hashKeyEntry;
             }
 
-            if (pLoaderAllocatorOfValue == _loaderAllocator)
+            bool updatedKeyValueStore = false;
+
+            if (pLoaderAllocatorOfValue == _pLoaderAllocator)
             {
-                TRAITS::AddToValuesInHeapMemory(gc.keyValueStore, gc.newKeyValueStore, key, value);
+                updatedKeyValueStore = TRAITS::AddToValuesInHeapMemory(&gc.keyValueStore, key, value);
             }
 
-            if (gc.newKeyValueStore != NULL)
+            if (updatedKeyValueStore)
             {
                 if (gc.hashKeyToTrackers != NULL)
                 {
-                    SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.newKeyValueStore, GetAppDomain());
+                    SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.keyValueStore, GetAppDomain());
                 }
                 else
                 {
-                    gc.hashKeyEntry = gc.newKeyValueStore;
+                    gc.hashKeyEntry = gc.keyValueStore;
                     gc.keyToTrackersHash.SetElement(index, gc.hashKeyEntry);
                 }
-                gc.keyValueStore = gc.newKeyValueStore;
             }
         }
 
         // If the LoaderAllocator matches, we've finished adding by now, otherwise, we need to get the remove hash and work with that
-        if (pLoaderAllocatorOfValue != _loaderAllocator)
+        if (pLoaderAllocatorOfValue != _pLoaderAllocator)
         {
             if (gc.hashKeyToTrackers == NULL)
             {
@@ -442,20 +448,19 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
             {
                 gc.keyToValuePerLAHash.GetElement(indexInKeyValueHash, gc.keyValueStore);
 
-                TRAITS::AddToValuesInHeapMemory(gc.keyValueStore, gc.newKeyValueStore, key, value);
-
-                if (gc.newKeyValueStore != NULL)
+                if (TRAITS::AddToValuesInHeapMemory(&gc.keyValueStore, key, value))
                 {
-                    gc.keyToValuePerLAHash.SetElement(indexInKeyValueHash, gc.newKeyValueStore);
+                    gc.keyToValuePerLAHash.SetElement(indexInKeyValueHash, gc.keyValueStore);
                 }
             }
             else
             {
-                TRAITS::AddToValuesInHeapMemory(gc.objRefNull, gc.newKeyValueStore, key, value);
+                gc.keyValueStore = NULL;
+                TRAITS::AddToValuesInHeapMemory(&gc.keyValueStore, key, value);
 
                 gc.keyToValuePerLAHash.Add(&key, [&gc](PTRARRAYREF arr, INT32 index)
                 {
-                    arr->SetAt(index, gc.newKeyValueStore);
+                    arr->SetAt(index, gc.keyValueStore);
                 });
             }
         }
@@ -478,9 +483,9 @@ void CrossLoaderAllocatorHash<TRAITS>::Remove(TKey key, TValue value, LoaderAllo
 
     // This data structure actually doesn't have this invariant, but it is expected that uses of this
     // data structure will require that the key's loader allocator is the same as that of this data structure.
-    _ASSERTE(key->GetLoaderAllocator() == _loaderAllocator);
+    _ASSERTE(key->GetLoaderAllocator() == _pLoaderAllocator);
 
-    if (KeyToDependentTrackersHash == NULL)
+    if (_keyToDependentTrackersHash == NULL)
     {
         // If the heap objects haven't been initted, then there is nothing to delete
         return;
@@ -497,7 +502,7 @@ void CrossLoaderAllocatorHash<TRAITS>::Remove(TKey key, TValue value, LoaderAllo
     ZeroMemory(&gc, sizeof(gc));
     GCPROTECT_BEGIN(gc)
     {
-        gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(KeyToDependentTrackersHash));
+        gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(_keyToDependentTrackersHash));
         INT32 index = gc.keyToTrackersHash.GetValueIndex(&key);
 
         if (index != -1)
@@ -515,7 +520,7 @@ void CrossLoaderAllocatorHash<TRAITS>::Remove(TKey key, TValue value, LoaderAllo
             }
 
             // Check to see if value can be added to this data structure directly.
-            if (_loaderAllocator == pLoaderAllocatorOfValue)
+            if (_pLoaderAllocator == pLoaderAllocatorOfValue)
             {
                 TRAITS::DeleteValueInHeapMemory(gc.keyValueStore, value);
             }
@@ -570,10 +575,10 @@ bool CrossLoaderAllocatorHash<TRAITS>::VisitValuesOfKey(TKey key, Visitor &visit
 
     // This data structure actually doesn't have this invariant, but it is expected that uses of this
     // data structure will require that the key's loader allocator is the same as that of this data structure.
-    _ASSERTE(key->GetLoaderAllocator() == _loaderAllocator);
+    _ASSERTE(key->GetLoaderAllocator() == _pLoaderAllocator);
 
     // Check to see that something has been added
-    if (KeyToDependentTrackersHash == NULL)
+    if (_keyToDependentTrackersHash == NULL)
         return true;
 
     bool result = true;
@@ -591,7 +596,7 @@ bool CrossLoaderAllocatorHash<TRAITS>::VisitValuesOfKey(TKey key, Visitor &visit
     ZeroMemory(&gc, sizeof(gc));
     GCPROTECT_BEGIN(gc)
     {
-        gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(KeyToDependentTrackersHash));
+        gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(_keyToDependentTrackersHash));
         INT32 index = gc.keyToTrackersHash.GetValueIndex(&key);
         if (index != -1)
         {
@@ -698,18 +703,18 @@ bool CrossLoaderAllocatorHash<TRAITS>::VisitAllKeyValuePairs(Visitor &visitor)
     bool result = true;
     GCPROTECT_BEGIN(gc)
     {
-        if (KeyToDependentTrackersHash != NULL)
+        if (_keyToDependentTrackersHash != NULL)
         {
             // Visit all local entries
-            gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(KeyToDependentTrackersHash));
+            gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(_keyToDependentTrackersHash));
             VisitAllEntryKeyToDependentTrackerHash visitAllEntryKeys(&visitor, &gc.keyToTrackersHash);
             result = gc.keyToTrackersHash.VisitAllEntryIndices(visitAllEntryKeys);
         }
 
-        if (LAToDependentTrackerHash != NULL)
+        if (_loaderAllocatorToDependentTrackerHash != NULL)
         {
             // Visit the non-local data
-            gc.dependentTrackerHash = GCHeapHashDependentHashTrackerHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(LAToDependentTrackerHash));
+            gc.dependentTrackerHash = GCHeapHashDependentHashTrackerHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(_loaderAllocatorToDependentTrackerHash));
             VisitAllEntryDependentTrackerHash visitDependentTrackers(&visitor, &gc.dependentTrackerHash);
             result = gc.dependentTrackerHash.VisitAllEntryIndices(visitDependentTrackers);
         }
@@ -755,9 +760,9 @@ void CrossLoaderAllocatorHash<TRAITS>::RemoveAll(TKey key)
 
     // This data structure actually doesn't have this invariant, but it is expected that uses of this
     // data structure will require that the key's loader allocator is the same as that of this data structure.
-    _ASSERTE(key->GetLoaderAllocator() == _loaderAllocator);
+    _ASSERTE(key->GetLoaderAllocator() == _pLoaderAllocator);
 
-    if (KeyToDependentTrackersHash == NULL)
+    if (_keyToDependentTrackersHash == NULL)
     {
         return; // Nothing was ever added, so removing all is easy
     }
@@ -774,7 +779,7 @@ void CrossLoaderAllocatorHash<TRAITS>::RemoveAll(TKey key)
     ZeroMemory(&gc, sizeof(gc));
     GCPROTECT_BEGIN(gc)
     {
-        gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(KeyToDependentTrackersHash));
+        gc.keyToTrackersHash = KeyToValuesGCHeapHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(_keyToDependentTrackersHash));
         INT32 index = gc.keyToTrackersHash.GetValueIndex(&key);
         if (index != -1)
         {
@@ -822,7 +827,7 @@ template <class TRAITS>
 void CrossLoaderAllocatorHash<TRAITS>::Init(LoaderAllocator *pAssociatedLoaderAllocator)
 {
     LIMITED_METHOD_CONTRACT;
-    _loaderAllocator = pAssociatedLoaderAllocator;
+    _pLoaderAllocator = pAssociatedLoaderAllocator;
 }
 
 template <class TRAITS>
@@ -890,7 +895,7 @@ template <class Visitor>
     }
     CONTRACTL_END;
 
-    struct _gcStruct
+    struct
     {
         LAHASHDEPENDENTHASHTRACKERREF tracker;
         OBJECTREF loaderAllocatorRef;
@@ -953,7 +958,7 @@ template <class Visitor>
     }
     CONTRACTL_END;
 
-    struct _gcStruct
+    struct
     {
         OBJECTREF hashKeyEntry;
         LAHASHKEYTOTRACKERSREF hashKeyToTrackers;
@@ -1046,18 +1051,18 @@ void CrossLoaderAllocatorHash<TRAITS>::EnsureManagedObjectsInitted()
     }
     CONTRACTL_END;
 
-    if (LAToDependentTrackerHash == NULL)
+    if (_loaderAllocatorToDependentTrackerHash == NULL)
     {
-        OBJECTREF laToDependentHandleHash = AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH));
-        LAToDependentTrackerHash = _loaderAllocator->GetDomain()->CreateHandle(laToDependentHandleHash);
-        _loaderAllocator->RegisterHandleForCleanup(LAToDependentTrackerHash);
+        OBJECTREF laToDependentHandleHashObject = AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH));
+        _loaderAllocatorToDependentTrackerHash = _pLoaderAllocator->GetDomain()->CreateHandle(laToDependentHandleHashObject);
+        _pLoaderAllocator->RegisterHandleForCleanup(_loaderAllocatorToDependentTrackerHash);
     }
 
-    if (KeyToDependentTrackersHash == NULL)
+    if (_keyToDependentTrackersHash == NULL)
     {
-        OBJECTREF keyToDependentTrackersHash = AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH));
-        KeyToDependentTrackersHash = _loaderAllocator->GetDomain()->CreateHandle(keyToDependentTrackersHash);
-        _loaderAllocator->RegisterHandleForCleanup(KeyToDependentTrackersHash);
+        OBJECTREF _keyToDependentTrackersHashObject = AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH));
+        _keyToDependentTrackersHash = _pLoaderAllocator->GetDomain()->CreateHandle(_keyToDependentTrackersHashObject);
+        _pLoaderAllocator->RegisterHandleForCleanup(_keyToDependentTrackersHash);
     }
 }
 #endif // !DACCESS_COMPILE
@@ -1083,7 +1088,7 @@ LAHASHDEPENDENTHASHTRACKERREF CrossLoaderAllocatorHash<TRAITS>::GetDependentTrac
     ZeroMemory(&gc, sizeof(gc));
     GCPROTECT_BEGIN(gc)
     {
-        gc.dependentTrackerHash = GCHeapHashDependentHashTrackerHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(LAToDependentTrackerHash));
+        gc.dependentTrackerHash = GCHeapHashDependentHashTrackerHash((GCHEAPHASHOBJECTREF)ObjectFromHandle(_loaderAllocatorToDependentTrackerHash));
         INT32 index = gc.dependentTrackerHash.GetValueIndex(&pLoaderAllocator);
         if (index != -1)
         {
@@ -1198,7 +1203,7 @@ GCHEAPHASHOBJECTREF CrossLoaderAllocatorHash<TRAITS>::GetKeyToValueCrossLAHashFo
         }
 
         // At this stage gc.dependentTracker is setup to have a good value
-        gc.returnValue = gc.dependentTracker->GetDependentTarget();
+        gc.dependentTracker->GetDependentAndLoaderAllocator(NULL, &gc.returnValue);
     }
     GCPROTECT_END();
 

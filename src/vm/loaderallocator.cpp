@@ -102,23 +102,6 @@ LoaderAllocator::~LoaderAllocator()
 #endif
 }
 
-#ifndef CROSSGEN_COMPILE
-OBJECTREF LoaderAllocator::GetHandleValue(LOADERHANDLE handle)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    OBJECTREF objRet = NULL;
-    GET_LOADERHANDLE_VALUE_FAST(this, handle, &objRet);
-    return objRet;
-}
-#endif
-
 #ifndef DACCESS_COMPILE
 //---------------------------------------------------------------------------------------
 // 
@@ -872,6 +855,21 @@ LOADERHANDLE LoaderAllocator::AllocateHandle(OBJECTREF value)
     GCPROTECT_END();
 
     return retVal;
+}
+
+OBJECTREF LoaderAllocator::GetHandleValue(LOADERHANDLE handle)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
+    OBJECTREF objRet = NULL;
+    GET_LOADERHANDLE_VALUE_FAST(this, handle, &objRet);
+    return objRet;
 }
 
 void LoaderAllocator::FreeHandle(LOADERHANDLE handle)

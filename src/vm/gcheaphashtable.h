@@ -7,7 +7,7 @@
 
 class GCHeapHashObject;
 
-template <bool remove_supported>
+template <bool removeSupported>
 struct DefaultGCHeapHashTraits
 {
     typedef PTRARRAYREF THashArrayType;
@@ -21,8 +21,6 @@ struct DefaultGCHeapHashTraits
     static const INT32 s_densitywithdeletes_factor_denominator = 8;
 
     static const INT32 s_minimum_allocation = 7;
-
-    static const bool s_remove_supported = remove_supported;
 
     static bool IsNull(PTRARRAYREF arr, INT32 index);
     static bool IsDeleted(PTRARRAYREF arr, INT32 index, GCHEAPHASHOBJECTREF gcHeap);

@@ -6,20 +6,20 @@
 #ifndef GCHEAPHASHTABLE_INL
 #define GCHEAPHASHTABLE_INL
 
-template <bool remove_supported>
-/*static */bool DefaultGCHeapHashTraits<remove_supported>::IsNull(PTRARRAYREF arr, INT32 index)
+template <bool removeSupported>
+/*static */bool DefaultGCHeapHashTraits<removeSupported>::IsNull(PTRARRAYREF arr, INT32 index)
 {
     LIMITED_METHOD_CONTRACT;
 
     return arr->GetAt(index) == 0;
 }
 
-template <bool remove_supported>
-/*static */bool DefaultGCHeapHashTraits<remove_supported>::IsDeleted(PTRARRAYREF arr, INT32 index, GCHEAPHASHOBJECTREF gcHeap)
+template <bool removeSupported>
+/*static */bool DefaultGCHeapHashTraits<removeSupported>::IsDeleted(PTRARRAYREF arr, INT32 index, GCHEAPHASHOBJECTREF gcHeap)
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (s_remove_supported)
+    if (removeSupported)
     {
         return gcHeap == arr->GetAt(index);
     }
@@ -30,8 +30,8 @@ template <bool remove_supported>
 }
 
 #ifndef DACCESS_COMPILE
-template <bool remove_supported>
-/*static*/ typename DefaultGCHeapHashTraits<remove_supported>::THashArrayType DefaultGCHeapHashTraits<remove_supported>::AllocateArray(INT32 size)
+template <bool removeSupported>
+/*static*/ typename DefaultGCHeapHashTraits<removeSupported>::THashArrayType DefaultGCHeapHashTraits<removeSupported>::AllocateArray(INT32 size)
 {
     CONTRACTL
     {
@@ -46,8 +46,8 @@ template <bool remove_supported>
 #endif // !DACCESS_COMPILE
 
     // Not a part of the traits api, but used to allow derived traits to save on code
-template <bool remove_supported>
-/*static*/ OBJECTREF DefaultGCHeapHashTraits<remove_supported>::GetValueAtIndex(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index)
+template <bool removeSupported>
+/*static*/ OBJECTREF DefaultGCHeapHashTraits<removeSupported>::GetValueAtIndex(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -59,8 +59,8 @@ template <bool remove_supported>
 }
 
 #ifndef DACCESS_COMPILE
-template <bool remove_supported>
-/*static*/ void DefaultGCHeapHashTraits<remove_supported>::CopyValue(THashArrayType srcArray, INT32 indexSrc, THashArrayType destinationArray, INT32 indexDest)
+template <bool removeSupported>
+/*static*/ void DefaultGCHeapHashTraits<removeSupported>::CopyValue(THashArrayType srcArray, INT32 indexSrc, THashArrayType destinationArray, INT32 indexDest)
 {
     CONTRACTL
     {
@@ -86,8 +86,8 @@ template <bool remove_supported>
 #endif // !DACCESS_COMPILE
 
 #ifndef DACCESS_COMPILE
-template <bool remove_supported>
-/*static*/ void DefaultGCHeapHashTraits<remove_supported>::DeleteEntry(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index)
+template <bool removeSupported>
+/*static*/ void DefaultGCHeapHashTraits<removeSupported>::DeleteEntry(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index)
 {
     CONTRACTL
     {
@@ -97,7 +97,7 @@ template <bool remove_supported>
     }
     CONTRACTL_END;
 
-    static_assert(remove_supported, "This hash doesn't support remove");
+    static_assert(removeSupported, "This hash doesn't support remove");
 
     PTRARRAYREF arr((PTRARRAYREF)(*pgcHeap)->GetData());
 
@@ -112,9 +112,9 @@ template <bool remove_supported>
 }
 #endif // !DACCESS_COMPILE
 
-template <bool remove_supported>
+template <bool removeSupported>
 template<class TElement>
-/*static*/ void DefaultGCHeapHashTraits<remove_supported>::GetElement(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index, TElement& foundElement)
+/*static*/ void DefaultGCHeapHashTraits<removeSupported>::GetElement(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index, TElement& foundElement)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -122,9 +122,9 @@ template<class TElement>
 }
 
 #ifndef DACCESS_COMPILE
-template <bool remove_supported>
+template <bool removeSupported>
 template<class TElement>
-/*static*/ void DefaultGCHeapHashTraits<remove_supported>::SetElement(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index, TElement& foundElement)
+/*static*/ void DefaultGCHeapHashTraits<removeSupported>::SetElement(GCHEAPHASHOBJECTREF *pgcHeap, INT32 index, TElement& foundElement)
 {
     CONTRACTL
     {

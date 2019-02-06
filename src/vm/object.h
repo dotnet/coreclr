@@ -2901,7 +2901,6 @@ class LAHashDependentHashTrackerObject : public Object
         return IsLoaderAllocatorLive();
     }
 
-    GCHEAPHASHOBJECTREF GetDependentTarget();
     void GetDependentAndLoaderAllocator(OBJECTREF *pLoaderAllocatorRef, GCHEAPHASHOBJECTREF *pGCHeapHash);
 
     // Be careful with this. This isn't safe to use unless something is keeping the LoaderAllocator live, or there is no intention to dereference this pointer
