@@ -23,7 +23,7 @@ enum NativeFieldFlags : short
     NATIVE_FIELD_CATEGORY_R4 = NATIVE_FIELD_SUBCATEGORY_FLOAT | NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE,
     // The field is an 8-byte floating point
     NATIVE_FIELD_CATEGORY_R8 = NATIVE_FIELD_SUBCATEGORY_FLOAT | NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE | 0x1,
-    // The field is a layout class type (reference type with LayoutKind != LayoutKind.Auto)
+    // The field is a type with a nested method table but is never blittable (ex. a class with non-auto layout or an array).
     NATIVE_FIELD_CATEGORY_NESTED = NATIVE_FIELD_SUBCATEGORY_NESTED,
     // The field is a value class type
     NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS = NATIVE_FIELD_SUBCATEGORY_NESTED | NATIVE_FIELD_SUBCATEGORY_MAYBE_BLITTABLE,
