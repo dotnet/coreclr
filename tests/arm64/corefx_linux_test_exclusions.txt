@@ -3,7 +3,8 @@ System.Collections.Immutable.Tests            # https://github.com/dotnet/corecl
 System.Diagnostics.Process.Tests              # https://github.com/dotnet/coreclr/issues/22413
 System.Net.Http.Functional.Tests              # https://github.com/dotnet/coreclr/issues/22449 -- JitStress=2, unstable
 System.Net.NameResolution.Functional.Tests    # https://github.com/dotnet/coreclr/issues/20924 https://github.com/dotnet/corefx/issues/24355
-System.Net.NameResolution.Pal.Tests           # https://github.com/dotnet/corefx/issues/29293
+System.Net.NameResolution.Pal.Tests           # https://github.com/dotnet/corefx/issues/32797
+System.Net.Sockets.Tests                      # https://github.com/dotnet/coreclr/issues/21576 -- continuing flakiness
 System.Runtime.Serialization.Formatters.Tests # https://github.com/dotnet/coreclr/issues/20246 -- timeout
 System.Text.RegularExpressions.Tests          # https://github.com/dotnet/coreclr/issues/17754 -- timeout -- JitMinOpts + Tiered only
 System.Threading.Tests                        # https://github.com/dotnet/coreclr/issues/20215
