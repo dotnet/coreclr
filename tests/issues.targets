@@ -2,6 +2,9 @@
 <Project DefaultTargets = "GetListOfTestCmds" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <!-- All OS/Arch common excludes -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != ''">
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/generics/threadstart/GThread23/*">
+            <Issue>19339</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Coverage/271010/**">
             <Issue>3392</Issue>
         </ExcludeList>
@@ -47,6 +50,9 @@
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/exceptions/StackTracePreserve/StackTracePreserveTests/*">
             <Issue>20322</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/mutex/misc/waitone2/*">
+            <Issue>6397</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/readytorun/r2rdump/R2RDumpTest/*">
             <Issue>19441;22020</Issue>
         </ExcludeList>
@@ -68,6 +74,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/v2.1/b152292/b152292/*">
             <Issue>20358</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/DefaultInterfaceMethods/constrainedcall/constrainedcall/*">
+            <Issue>22423</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -252,6 +261,18 @@
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
             <Issue>Varargs supported on this platform</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/Char/AFT_PFT/AFT_PFT/*">
+            <Issue>22436</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/Char/Assembly_False_False/Assembly_False_False/*">
+            <Issue>22436</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/LPStr/AFT_PFT/AFT_PFT/*">
+            <Issue>22436</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/LPStr/Assembly_False_False/Assembly_False_False/*">
+            <Issue>22436</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- Windows x86 specific excludes -->
@@ -279,6 +300,12 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
             <Issue>Varargs supported on this platform</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/Char/AFT_PFT/AFT_PFT/*">
+            <Issue>22436</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/LPStr/AFT_PFT/AFT_PFT/*">
+            <Issue>22436</Issue>
         </ExcludeList>
     </ItemGroup>
 
