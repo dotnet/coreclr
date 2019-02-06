@@ -302,10 +302,6 @@ namespace System
             InternalSetValue(&elemref, value);
         }
 
-        private static int IndexOfImpl<T>(T[] array, T value, int startIndex, int count) => EqualityComparer<T>.Default.IndexOf(array, value, startIndex, count);
-
-        private static int LastIndexOfImpl<T>(T[] array, T value, int startIndex, int count) => EqualityComparer<T>.Default.LastIndexOf(array, value, startIndex, count);
-
         private static void SortImpl(Array keys, Array items, int index, int length, IComparer comparer)
         {
             if (comparer == Comparer.Default)

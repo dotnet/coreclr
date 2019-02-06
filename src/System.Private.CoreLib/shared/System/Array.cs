@@ -72,9 +72,10 @@ namespace System
             for (int i = 0; i < lengths.Length; ++i)
             {
                 long len = lengths[i];
-                if (len > int.MaxValue || len < int.MinValue)
+                int ilen = (int)len;
+                if (len != ilen)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.len, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-                intLengths[i] = (int)len;
+                intLengths[i] = ilen;
             }
 
             return Array.CreateInstance(elementType, intLengths);
@@ -82,52 +83,65 @@ namespace System
 
         public static void Copy(Array sourceArray, Array destinationArray, long length)
         {
-            if (length > int.MaxValue || length < int.MinValue)
+            int ilength = (int)length;
+            if (length != ilength)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
-            Copy(sourceArray, destinationArray, (int)length);
+            Copy(sourceArray, destinationArray, ilength);
         }
 
         public static void Copy(Array sourceArray, long sourceIndex, Array destinationArray, long destinationIndex, long length)
         {
-            if (sourceIndex > int.MaxValue || sourceIndex < int.MinValue)
+            int isourceIndex = (int)sourceIndex;
+            int idestinationIndex = (int)destinationIndex;
+            int ilength = (int)length;
+
+            if (sourceIndex != isourceIndex)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceIndex, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            if (destinationIndex > int.MaxValue || destinationIndex < int.MinValue)
+            if (destinationIndex != idestinationIndex)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.destinationIndex, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            if (length > int.MaxValue || length < int.MinValue)
+            if (length != ilength)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
-            Copy(sourceArray, (int)sourceIndex, destinationArray, (int)destinationIndex, (int)length);
+            Copy(sourceArray, isourceIndex, destinationArray, idestinationIndex, ilength);
         }
 
         public object GetValue(long index)
         {
-            if (index > int.MaxValue || index < int.MinValue)
+            int iindex = (int)index;
+            if (index != iindex)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
-            return this.GetValue((int)index);
+            return this.GetValue(iindex);
         }
 
         public object GetValue(long index1, long index2)
         {
-            if (index1 > int.MaxValue || index1 < int.MinValue)
+            int iindex1 = (int)index1;
+            int iindex2 = (int)index2;
+
+            if (index1 != iindex1)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            if (index2 > int.MaxValue || index2 < int.MinValue)
+            if (index2 != iindex2)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
-            return this.GetValue((int)index1, (int)index2);
+            return this.GetValue(iindex1, iindex2);
         }
 
         public object GetValue(long index1, long index2, long index3)
         {
-            if (index1 > int.MaxValue || index1 < int.MinValue)
+            int iindex1 = (int)index1;
+            int iindex2 = (int)index2;
+            int iindex3 = (int)index3;
+
+            if (index1 != iindex1)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            if (index2 > int.MaxValue || index2 < int.MinValue)
+            if (index2 != iindex2)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            if (index3 > int.MaxValue || index3 < int.MinValue)
+            if (index3 != iindex3)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index3, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
-            return this.GetValue((int)index1, (int)index2, (int)index3);
+            return this.GetValue(iindex1, iindex2, iindex3);
         }
 
         public object GetValue(params long[] indices)
@@ -142,9 +156,10 @@ namespace System
             for (int i = 0; i < indices.Length; ++i)
             {
                 long index = indices[i];
-                if (index > int.MaxValue || index < int.MinValue)
+                int iindex = (int)index;
+                if (index != iindex)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-                intIndices[i] = (int)index;
+                intIndices[i] = iindex;
             }
 
             return this.GetValue(intIndices);
@@ -152,32 +167,41 @@ namespace System
 
         public void SetValue(object value, long index)
         {
-            if (index > int.MaxValue || index < int.MinValue)
+            int iindex = (int)index;
+
+            if (index != iindex)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
-            this.SetValue(value, (int)index);
+            this.SetValue(value, iindex);
         }
 
         public void SetValue(object value, long index1, long index2)
         {
-            if (index1 > int.MaxValue || index1 < int.MinValue)
+            int iindex1 = (int)index1;
+            int iindex2 = (int)index2;
+
+            if (index1 != iindex1)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            if (index2 > int.MaxValue || index2 < int.MinValue)
+            if (index2 != iindex2)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
-            this.SetValue(value, (int)index1, (int)index2);
+            this.SetValue(value, iindex1, iindex2);
         }
 
         public void SetValue(object value, long index1, long index2, long index3)
         {
-            if (index1 > int.MaxValue || index1 < int.MinValue)
+            int iindex1 = (int)index1;
+            int iindex2 = (int)index2;
+            int iindex3 = (int)index3;
+
+            if (index1 != iindex1)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            if (index2 > int.MaxValue || index2 < int.MinValue)
+            if (index2 != iindex2)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            if (index3 > int.MaxValue || index3 < int.MinValue)
+            if (index3 != iindex3)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index3, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
-            this.SetValue(value, (int)index1, (int)index2, (int)index3);
+            this.SetValue(value, iindex1, iindex2, iindex3);
         }
 
         public void SetValue(object value, params long[] indices)
@@ -192,9 +216,10 @@ namespace System
             for (int i = 0; i < indices.Length; ++i)
             {
                 long index = indices[i];
-                if (index > int.MaxValue || index < int.MinValue)
+                int iindex = (int)index;
+                if (index != iindex)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-                intIndices[i] = (int)index;
+                intIndices[i] = iindex;
             }
 
             this.SetValue(value, intIndices);
@@ -603,10 +628,11 @@ namespace System
 
         public void CopyTo(Array array, long index)
         {
-            if (index > int.MaxValue || index < int.MinValue)
+            int iindex = (int)index;
+            if (index != iindex)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
 
-            this.CopyTo(array, (int)index);
+            this.CopyTo(array, iindex);
         }
 
         private static class EmptyArray<T>
@@ -1025,7 +1051,11 @@ namespace System
                 return (result >= 0 ? startIndex : 0) + result;
             }
 
+#if CORECLR
+            return EqualityComparer<T>.Default.IndexOf(array, value, startIndex, count);
+#else
             return IndexOfImpl(array, value, startIndex, count);
+#endif
         }
 
         // Returns the index of the last occurrence of a given value in an array.
@@ -1204,7 +1234,11 @@ namespace System
                 return (result >= 0 ? endIndex : 0) + result;
             }
 
+#if CORECLR
+            return EqualityComparer<T>.Default.LastIndexOf(array, value, startIndex, count);
+#else
             return LastIndexOfImpl(array, value, startIndex, count);
+#endif
         }
 
         // Reverses all elements of the given array. Following a call to this
