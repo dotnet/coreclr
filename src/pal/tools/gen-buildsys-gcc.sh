@@ -182,6 +182,7 @@ cmake \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=1 " \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
+  "-DCLR_CMAKE_COMPILER=GNU" \
   $cmake_extra_defines \
   $__UnprocessedCMakeArgs \
   "$1"
