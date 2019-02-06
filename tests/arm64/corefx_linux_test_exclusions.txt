@@ -1,6 +1,7 @@
 System.Buffers.Tests                          # https://github.com/dotnet/coreclr/issues/20226
 System.Collections.Immutable.Tests            # https://github.com/dotnet/coreclr/issues/20209 -- JitStress=2 TieredCompilation=0
 System.Diagnostics.Process.Tests              # https://github.com/dotnet/coreclr/issues/22413
+System.Net.Http.Functional.Tests              # https://github.com/dotnet/coreclr/issues/22449 -- JitStress=2, unstable
 System.Net.NameResolution.Functional.Tests    # https://github.com/dotnet/coreclr/issues/20924 https://github.com/dotnet/corefx/issues/24355
 System.Net.NameResolution.Pal.Tests           # https://github.com/dotnet/corefx/issues/29293
 System.Runtime.Serialization.Formatters.Tests # https://github.com/dotnet/coreclr/issues/20246 -- timeout
