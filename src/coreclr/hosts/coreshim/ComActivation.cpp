@@ -77,9 +77,9 @@ STDAPI DllGetClassObject(
     {
         GUID ClassId;
         GUID InterfaceId;
-        const void *AssemblyPath;
-        const void *AssemblyName;
-        const void *TypeName;
+        const WCHAR *AssemblyPath;
+        const WCHAR *AssemblyName;
+        const WCHAR *TypeName;
         void **ClassFactoryDest;
     } comCxt{ rclsid, riid, assemblyPath.data(), assemblyName.data(), typeName.data(), (void**)&ccw };
 

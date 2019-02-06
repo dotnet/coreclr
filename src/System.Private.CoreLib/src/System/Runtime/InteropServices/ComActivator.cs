@@ -76,13 +76,14 @@ namespace System.Runtime.InteropServices
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct ComActivationContextInternal
+    [CLSCompliant(false)]
+    public unsafe struct ComActivationContextInternal
     {
         public Guid ClassId;
         public Guid InterfaceId;
-        public IntPtr AssemblyPathBuffer;
-        public IntPtr AssemblyNameBuffer;
-        public IntPtr TypeNameBuffer;
+        public char* AssemblyPathBuffer;
+        public char* AssemblyNameBuffer;
+        public char* TypeNameBuffer;
         public IntPtr ClassFactoryDest;
     }
 
@@ -90,9 +91,7 @@ namespace System.Runtime.InteropServices
     {
         // Collection of all ALCs used for COM activation. In the event we want to support
         // unloadable COM server ALCs, this will need to be changed.
-        // This collection is read-only and if new ALCs are added, the collection should
-        // be copied into a new collection and the static member updated.
-        private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIngoreCase);
+        private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
         private static readonly object s_AssemblyLoadContextsLock = new object();
 
         /// <summary>
@@ -120,7 +119,8 @@ namespace System.Runtime.InteropServices
         /// Internal entry point for unmanaged COM activation API from native code
         /// </summary>
         /// <param name="cxtInt">Reference to a <see cref="ComActivationContextInternal"/> instance</param>
-        public static int GetClassFactoryForTypeInternal(ref ComActivationContextInternal cxtInt)
+        [CLSCompliant(false)]
+        public unsafe static int GetClassFactoryForTypeInternal(ref ComActivationContextInternal cxtInt)
         {
             if (IsLoggingEnabled())
             {
@@ -128,9 +128,9 @@ namespace System.Runtime.InteropServices
 $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
     {cxtInt.ClassId}
     {cxtInt.InterfaceId}
-    0x{cxtInt.AssemblyPathBuffer.ToInt64():x}
-    0x{cxtInt.AssemblyNameBuffer.ToInt64():x}
-    0x{cxtInt.TypeNameBuffer.ToInt64():x}
+    0x{(ulong)cxtInt.AssemblyPathBuffer:x}
+    0x{(ulong)cxtInt.AssemblyNameBuffer:x}
+    0x{(ulong)cxtInt.TypeNameBuffer:x}
     0x{cxtInt.ClassFactoryDest.ToInt64():x}");
             }
 
@@ -140,9 +140,9 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 {
                     ClassId = cxtInt.ClassId,
                     InterfaceId = cxtInt.InterfaceId,
-                    AssemblyPath = Marshal.PtrToStringUni(cxtInt.AssemblyPathBuffer),
-                    AssemblyName = Marshal.PtrToStringUni(cxtInt.AssemblyNameBuffer),
-                    TypeName = Marshal.PtrToStringUni(cxtInt.TypeNameBuffer)
+                    AssemblyPath = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyPathBuffer)),
+                    AssemblyName = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyNameBuffer)),
+                    TypeName = Marshal.PtrToStringUni(new IntPtr(cxtInt.TypeNameBuffer))
                 };
 
                 object cf = GetClassFactoryForType(cxt);
@@ -201,35 +201,17 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         private static AssemblyLoadContext GetALC(string assemblyPath)
         {
             AssemblyLoadContext alc;
-            if (!s_AssemblyLoadContexts.TryGetValue(assemblyPath, out alc))
+
+            lock (s_AssemblyLoadContextsLock)
             {
-                alc = AddNewALC(assemblyPath);
+                if (!s_AssemblyLoadContexts.TryGetValue(assemblyPath, out alc))
+                {
+                    alc = new ComServerLoadContext(assemblyPath);
+                    s_AssemblyLoadContexts.Add(assemblyPath, alc);
+                }
             }
 
             return alc;
-
-            AssemblyLoadContext AddNewALC(string path)
-            {
-                // The static collection of ALCs is readonly. If a new ALC entry needs to be added,
-                // then we must make a copy, add the new ALC, and update the static member.
-                lock (s_AssemblyLoadContextsLock)
-                {
-                    // Check the new collection prior to adding the new ALC if
-                    // the needed ALC was added in the interim.
-                    AssemblyLoadContext alcMaybe;
-                    if (!s_AssemblyLoadContexts.TryGetValue(path, out alcMaybe))
-                    {
-                        var newCollection = new Dictionary<string, AssemblyLoadContext>(s_AssemblyLoadContexts, s_AssemblyLoadContexts.Comparer);
-
-                        alcMaybe = new ComServerLoadContext(path);
-                        newCollection.Add(path, alcMaybe);
-
-                        s_AssemblyLoadContexts = newCollection;
-                    }
-
-                    return alcMaybe;
-                }
-            }
         }
 
         private class ComServerLoadContext : AssemblyLoadContext
