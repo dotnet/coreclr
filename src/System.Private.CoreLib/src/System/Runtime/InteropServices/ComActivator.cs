@@ -16,7 +16,7 @@ namespace System.Runtime.InteropServices
     [ComVisible(false)]
     [Guid("00000001-0000-0000-C000-000000000046")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    internal interface IClassFactory
+    public interface IClassFactory
     {
         void CreateInstance(
             [MarshalAs(UnmanagedType.Interface)] object pUnkOuter,
