@@ -41,11 +41,11 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint PopCount(uint value)
+        public static int PopCount(uint value)
         {
             if (Popcnt.IsSupported)
             {
-                return Popcnt.PopCount(value);
+                return (int)Popcnt.PopCount(value);
             }
 
             const uint c0 = 0x_5555_5555;
@@ -61,7 +61,7 @@ namespace System
             count *= c3;
             count >>= 24;
 
-            return count;
+            return (int)count;
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint PopCount(int value)
+        public static int PopCount(int value)
             => PopCount((uint)value);
 
         /// <summary>
@@ -79,18 +79,18 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint PopCount(ulong value)
+        public static int PopCount(ulong value)
         {
             if (Popcnt.IsSupported)
             {
                 if (Popcnt.X64.IsSupported)
                 {
-                    return (uint)Popcnt.X64.PopCount(value);
+                    return (int)Popcnt.X64.PopCount(value);
                 }
 
                 // Use the 32-bit function twice
-                uint hi = Popcnt.PopCount((uint)(value >> 32));
-                uint lo = Popcnt.PopCount((uint)value);
+                int hi = (int)Popcnt.PopCount((uint)(value >> 32));
+                int lo = (int)Popcnt.PopCount((uint)value);
 
                 return hi + lo;
             }
@@ -108,7 +108,7 @@ namespace System
             count *= c3;
             count >>= 56;
 
-            return (uint)count;
+            return (int)count;
         }
 
         /// <summary>
@@ -117,7 +117,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint PopCount(long value)
+        public static int PopCount(long value)
             => PopCount((ulong)value);
 
         /* Legacy implementations
@@ -269,19 +269,19 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LeadingZeroCount(uint value)
+        public static int LeadingZeroCount(uint value)
         {
             if (Lzcnt.IsSupported)
             {
                 // Note that LZCNT contract specifies 0->32
-                return Lzcnt.LeadingZeroCount(value);
+                return (int)Lzcnt.LeadingZeroCount(value);
             }
 
             // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
             if (value == 0u)
-                return 32u;
+                return 32;
 
-            return 31u - Log2(value);
+            return (int)(31u - Log2(value));
         }
 
         /// <summary>
@@ -290,17 +290,17 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LeadingZeroCount(ulong value)
+        public static int LeadingZeroCount(ulong value)
         {
             if (Lzcnt.X64.IsSupported)
             {
                 // Note that LZCNT contract specifies 0->64
-                return (uint)Lzcnt.X64.LeadingZeroCount(value);
+                return (int)Lzcnt.X64.LeadingZeroCount(value);
             }
 
             // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
             if (value == 0u)
-                return 64u;
+                return 64;
 
             // Use the 32-bit function twice.
             uint lz = (uint)(value >> 32); // hi
@@ -314,14 +314,14 @@ namespace System
             }
             else
             {
-                lz = LeadingZeroCount(lz); // hi
+                lz = (uint)LeadingZeroCount(lz); // hi
 
                 // Use lo iff hi is 32 zeros
                 if (lz == 32u)
-                    lz += LeadingZeroCount((uint)value); // lo
+                    lz += (uint)LeadingZeroCount((uint)value); // lo
             }
 
-            return lz;
+            return (int)lz;
         }
 
         /* Legacy implementations
@@ -339,7 +339,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint TrailingZeroCount(int value)
+        public static int TrailingZeroCount(int value)
             => TrailingZeroCount((uint)value);
 
         /// <summary>
@@ -348,17 +348,17 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint TrailingZeroCount(uint value)
+        public static int TrailingZeroCount(uint value)
         {
             if (Bmi1.IsSupported)
             {
                 // Note that TZCNT contract specifies 0->32
-                return Bmi1.TrailingZeroCount(value);
+                return (int)Bmi1.TrailingZeroCount(value);
             }
 
             // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
             if (value == 0u)
-                return 32u;
+                return 32;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
@@ -373,7 +373,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint TrailingZeroCount(long value)
+        public static int TrailingZeroCount(long value)
             => TrailingZeroCount((ulong)value);
 
         /// <summary>
@@ -382,17 +382,17 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint TrailingZeroCount(ulong value)
+        public static int TrailingZeroCount(ulong value)
         {
             if (Bmi1.X64.IsSupported)
             {
                 // Note that TZCNT contract specifies 0->64
-                return (uint)Bmi1.X64.TrailingZeroCount(value);
+                return (int)Bmi1.X64.TrailingZeroCount(value);
             }
 
             // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
             if (value == 0u)
-                return 64u;
+                return 64;
 
             // Use the 32-bit function twice.
             uint tz = (uint)value; // lo
@@ -406,14 +406,14 @@ namespace System
             }
             else
             {
-                tz = TrailingZeroCount(tz); // lo
+                tz = (uint)TrailingZeroCount(tz); // lo
 
                 // Use hi iff lo is 32 zeros
                 if (tz == 32u)
-                    tz += TrailingZeroCount((uint)(value >> 32)); // hi
+                    tz += (uint)TrailingZeroCount((uint)(value >> 32)); // hi
             }
 
-            return tz;
+            return (int)tz;
         }
 
         #endregion
