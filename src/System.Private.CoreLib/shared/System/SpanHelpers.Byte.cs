@@ -292,7 +292,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         }
                     }
 
@@ -314,7 +314,7 @@ namespace System
                             }
 
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         } while ((byte*)nLength > (byte*)offset);
                     }
 
@@ -334,7 +334,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         }
                     }
 
@@ -366,7 +366,7 @@ namespace System
                         }
 
                         // Find bitflag offset of first match and add to current offset
-                        return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                        return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                     }
 
                     if ((int)(byte*)offset < length)
@@ -678,7 +678,7 @@ namespace System
                             }
 
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         } while ((byte*)nLength > (byte*)offset);
                     }
 
@@ -700,7 +700,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         }
                     }
 
@@ -734,7 +734,7 @@ namespace System
                         }
 
                         // Find bitflag offset of first match and add to current offset
-                        return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                        return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                     }
 
                     if ((int)(byte*)offset < length)
@@ -914,7 +914,7 @@ namespace System
                             }
 
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         } while ((byte*)nLength > (byte*)offset);
                     }
 
@@ -938,7 +938,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                         }
                     }
 
@@ -974,7 +974,7 @@ namespace System
                         }
 
                         // Find bitflag offset of first match and add to current offset
-                        return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
+                        return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
                     }
 
                     if ((int)(byte*)offset < length)

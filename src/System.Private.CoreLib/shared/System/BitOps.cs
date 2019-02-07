@@ -32,7 +32,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint TrailingZeroCount(int value)
+        public static int TrailingZeroCount(int value)
             => TrailingZeroCount((uint)value);
 
         /// <summary>
@@ -41,17 +41,17 @@ namespace System
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint TrailingZeroCount(uint value)
+        public static int TrailingZeroCount(uint value)
         {
             if (Bmi1.IsSupported)
             {
                 // Note that TZCNT contract specifies 0->32
-                return Bmi1.TrailingZeroCount(value);
+                return (int)Bmi1.TrailingZeroCount(value);
             }
 
             // Main code has behavior 0->0, so special-case in order to match intrinsic path 0->32
             if (value == 0u)
-                return 32u;
+                return 32;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
