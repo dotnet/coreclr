@@ -78,7 +78,7 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
 
     InterlockedCompareExchangeT(&g_pfnGetSystemTimeAsFileTime, func, &InitializeGetSystemTimeAsFileTime);
 
-    func(lpSystemTimeAsFileTime);
+    g_pfnGetSystemTimeAsFileTime(lpSystemTimeAsFileTime);
 }
 
 pfnGetSystemTimeAsFileTime g_pfnGetSystemTimeAsFileTime = &InitializeGetSystemTimeAsFileTime;
