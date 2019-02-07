@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+#ifndef PORTABLE_PEDECODER_H
+#define PORTABLE_PEDECODER_H
 
 #include <cstdint>
 
@@ -39,3 +41,5 @@ namespace portable_pedecoder
         ::PEDecoder* m_impl;
     };
 }
+
+#endif
